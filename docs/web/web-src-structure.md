@@ -288,6 +288,44 @@ shared/components/ui/atoms/Button/
 - Include all component variants
 - Provide interactive examples
 
+## 🌐 **Internationalization (i18n)**
+
+The project uses a scalable i18n architecture with domain-specific translations:
+
+```
+shared/i18n/                    # Core i18n configuration
+├── config.ts                   # Main i18n setup
+├── hooks/useI18n.ts           # Custom hooks
+└── locales/                   # Shared translations only
+    ├── en/common.json
+    └── pt/common.json
+
+app/(framework)/examples/
+├── customers/i18n/            # Domain-specific translations
+│   ├── locales/
+│   │   ├── en.json
+│   │   └── pt.json
+│   └── index.ts
+└── products/i18n/             # Domain-specific translations
+    ├── locales/
+    │   ├── en.json
+    │   └── pt.json
+    └── index.ts
+```
+
+**Usage:**
+```typescript
+// Domain-specific translations
+const { t } = useI18n('customers');
+return <Typography>{t('title')}</Typography>;
+
+// Shared translations
+const { t } = useCommonI18n();
+return <Button>{t('routes.home')}</Button>;
+```
+
+For detailed i18n architecture documentation, see [Web i18n Architecture](./web-i18n-architecture.md).
+
 ## 🚀 **Best Practices Summary**
 
 1. **Consistent Structure**: Follow the established directory structure
@@ -297,7 +335,8 @@ shared/components/ui/atoms/Button/
 5. **Proper Exports**: Use index files for clean imports
 6. **Comprehensive Testing**: Include tests alongside components
 7. **Good Documentation**: Document components and patterns
-8. **Separation of Concerns**: Keep different types of code separate
+8. **Scalable i18n**: Use domain-specific translation architecture
+9. **Separation of Concerns**: Keep different types of code separate
 
 ## 🔧 **Migration Guidelines**
 

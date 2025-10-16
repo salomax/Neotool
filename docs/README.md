@@ -17,6 +17,12 @@ Welcome to the NeoTool documentation hub. This directory contains all technical 
 - [`service/graphql-operations.md`](./service/graphql-operations.md) - GraphQL operations structure and best practices
 - [`service/kotlin/`](./service/kotlin/) - Kotlin-specific documentation
 
+### Web Frontend Documentation
+- [`web/`](./web/) - Frontend-specific documentation
+- [`web/web-src-structure.md`](./web/web-src-structure.md) - Frontend directory structure and best practices
+- [`web/web-graphql-operations.md`](./web/web-graphql-operations.md) - GraphQL operations in frontend
+- [`web/web-i18n-architecture.md`](./web/web-i18n-architecture.md) - Internationalization architecture and patterns
+
 ### Design Documentation
 - [`design/`](./design/) - Design system and assets documentation
 - [`design/assets.md`](./design/assets.md) - Design assets organization and workflow
@@ -36,7 +42,9 @@ Welcome to the NeoTool documentation hub. This directory contains all technical 
 1. Start with [Architecture Overview](./adr/0001-monorepo-architecture.md)
 2. Review [Backend Documentation](./service/)
 3. Check [Frontend Documentation](./adr/0004-typescript-nextjs-frontend.md)
-4. Understand [GraphQL Operations](./service/graphql-operations.md)
+4. Understand [Frontend Structure](./web/web-src-structure.md)
+5. Learn [i18n Architecture](./web/web-i18n-architecture.md)
+6. Review [GraphQL Operations](./service/graphql-operations.md)
 
 ### For Designers
 1. Review [Design Assets Guide](./design/assets.md)

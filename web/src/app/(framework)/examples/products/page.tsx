@@ -31,16 +31,12 @@ import InventoryIcon from "@mui/icons-material/Inventory";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useI18n } from '@/shared/i18n/hooks/useI18n';
+import { productsTranslations } from './i18n';
 
 const GRAPHQL_URL = process.env.NEXT_PUBLIC_GRAPHQL_URL || "http://localhost:4000/graphql";
 
-// Product schema validation
-const productSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  sku: z.string().min(3, "SKU must be at least 3 characters"),
-  priceCents: z.number().min(0, "Price must be non-negative"),
-  stock: z.number().int().min(0, "Stock must be a non-negative integer"),
-});
+// Product schema validation will be created dynamically with translations
 
 type Product = {
   id: number;
@@ -55,6 +51,7 @@ type Product = {
 type ProductFormData = z.infer<typeof productSchema>;
 
 export default function ProductsPage() {
+  const { t } = useI18n(productsTranslations);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +60,14 @@ export default function ProductsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Product | null>(null);
+
+  // Dynamic schema validation with translations
+  const productSchema = z.object({
+    name: z.string().min(2, t('nameRequired')),
+    sku: z.string().min(3, t('skuRequired')),
+    priceCents: z.number().min(0, t('priceRequired')),
+    stock: z.number().int().min(0, t('stockRequired')),
+  });
 
   const {
     control,

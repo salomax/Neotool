@@ -30,20 +30,15 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useQuery, useMutation } from '@apollo/client/react';
+import { useI18n } from '@/shared/i18n/hooks/useI18n';
+import { customersTranslations } from './i18n';
 import { 
   GET_CUSTOMERS, 
   CREATE_CUSTOMER, 
   UPDATE_CUSTOMER, 
   DELETE_CUSTOMER 
 } from '@/lib/graphql/operations';
-import { Customer, CustomerInput } from '@/lib/graphql/types';
-
-// Customer schema validation
-const customerSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Invalid email address"),
-  status: z.string().min(1, "Status is required"),
-});
+import { CustomerInput } from '@/lib/graphql/types';
 
 type Customer = {
   id: string;
@@ -54,14 +49,26 @@ type Customer = {
   updatedAt?: string;
 };
 
-type CustomerFormData = z.infer<typeof customerSchema>;
+type CustomerFormData = {
+  name: string;
+  email: string;
+  status: string;
+};
 
 export default function CustomersPage() {
+  const { t } = useI18n(customersTranslations);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Customer | null>(null);
+
+  // Dynamic schema validation with translations
+  const customerSchema = z.object({
+    name: z.string().min(2, t('customers.nameRequired')),
+    email: z.string().email(t('customers.emailInvalid')),
+    status: z.string().min(1, t('customers.statusRequired')),
+  });
 
   const {
     control,
@@ -83,7 +90,7 @@ export default function CustomersPage() {
   const [updateCustomer] = useMutation(UPDATE_CUSTOMER);
   const [deleteCustomer] = useMutation(DELETE_CUSTOMER);
 
-  const customers = customersData?.customers || [];
+  const customers = (customersData as any)?.customers || [];
 
   // Create or update customer
   const onSubmit = async (data: CustomerFormData) => {
@@ -112,7 +119,7 @@ export default function CustomersPage() {
       setEditingCustomer(null);
       refetch();
     } catch (err) {
-      console.error('Error saving customer:', err);
+      console.error(t('customers.errorSaving'), err);
     }
   };
 
@@ -125,7 +132,7 @@ export default function CustomersPage() {
       setDeleteConfirm(null);
       refetch();
     } catch (err) {
-      console.error('Error deleting customer:', err);
+      console.error(t('customers.errorDeleting'), err);
     }
   };
 
@@ -174,14 +181,14 @@ export default function CustomersPage() {
     <Container maxWidth="lg" sx={{ py: 3 }}>
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
         <Typography variant="h4" component="h1">
-          Customer Management
+          {t('customers.title')}
         </Typography>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
           onClick={openCreateDialog}
         >
-          Add Customer
+          {t('customers.addCustomer')}
         </Button>
       </Box>
 
@@ -195,7 +202,7 @@ export default function CustomersPage() {
       <Paper sx={{ p: 2, mb: 3 }}>
         <Box sx={{ display: "flex", gap: 2, alignItems: "center", flexWrap: "wrap" }}>
           <TextField
-            placeholder="Search customers..."
+            placeholder={t('customers.searchPlaceholder')}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             InputProps={{
@@ -209,16 +216,16 @@ export default function CustomersPage() {
           />
           <TextField
             select
-            label="Status"
+            label={t('customers.status')}
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             SelectProps={{ native: true }}
             sx={{ minWidth: 120 }}
           >
-            <option value="ALL">All</option>
-            <option value="ACTIVE">Active</option>
-            <option value="INACTIVE">Inactive</option>
-            <option value="PENDING">Pending</option>
+            <option value="ALL">{t('customers.all')}</option>
+            <option value="ACTIVE">{t('customers.active')}</option>
+            <option value="INACTIVE">{t('customers.inactive')}</option>
+            <option value="PENDING">{t('customers.pending')}</option>
           </TextField>
           <Button
             variant="outlined"
@@ -226,7 +233,7 @@ export default function CustomersPage() {
             onClick={() => refetch()}
             disabled={loading}
           >
-            Refresh
+            {t('customers.refresh')}
           </Button>
         </Box>
       </Paper>
@@ -241,12 +248,12 @@ export default function CustomersPage() {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>ID</TableCell>
-                <TableCell>Name</TableCell>
-                <TableCell>Email</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Created</TableCell>
-                <TableCell align="right">Actions</TableCell>
+                <TableCell>{t('customers.id')}</TableCell>
+                <TableCell>{t('customers.name')}</TableCell>
+                <TableCell>{t('customers.email')}</TableCell>
+                <TableCell>{t('customers.status')}</TableCell>
+                <TableCell>{t('customers.created')}</TableCell>
+                <TableCell align="right">{t('customers.actions')}</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -254,7 +261,7 @@ export default function CustomersPage() {
                 <TableRow>
                   <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
                     <Typography color="text.secondary">
-                      {customers.length === 0 ? "No customers found" : "No customers match your search criteria"}
+                      {customers.length === 0 ? t('customers.noCustomers') : t('customers.noMatches')}
                     </Typography>
                   </TableCell>
                 </TableRow>
@@ -301,7 +308,7 @@ export default function CustomersPage() {
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>
-          {editingCustomer ? "Edit Customer" : "Create New Customer"}
+          {editingCustomer ? t('customers.editCustomer') : t('customers.createCustomer')}
         </DialogTitle>
         <form onSubmit={handleSubmit(onSubmit)}>
           <DialogContent>
@@ -312,7 +319,7 @@ export default function CustomersPage() {
                 render={({ field }) => (
                   <TextField
                     {...field}
-                    label="Name"
+                    label={t('customers.name')}
                     error={!!errors.name}
                     helperText={errors.name?.message}
                     fullWidth
@@ -325,7 +332,7 @@ export default function CustomersPage() {
                 render={({ field }) => (
                   <TextField
                     {...field}
-                    label="Email"
+                    label={t('customers.email')}
                     type="email"
                     error={!!errors.email}
                     helperText={errors.email?.message}
@@ -340,24 +347,24 @@ export default function CustomersPage() {
                   <TextField
                     {...field}
                     select
-                    label="Status"
+                    label={t('customers.status')}
                     error={!!errors.status}
                     helperText={errors.status?.message}
                     SelectProps={{ native: true }}
                     fullWidth
                   >
-                    <option value="ACTIVE">Active</option>
-                    <option value="INACTIVE">Inactive</option>
-                    <option value="PENDING">Pending</option>
+                    <option value="ACTIVE">{t('customers.active')}</option>
+                    <option value="INACTIVE">{t('customers.inactive')}</option>
+                    <option value="PENDING">{t('customers.pending')}</option>
                   </TextField>
                 )}
               />
             </Box>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button onClick={() => setDialogOpen(false)}>{t('customers.cancel')}</Button>
             <Button type="submit" variant="contained" disabled={isSubmitting}>
-              {isSubmitting ? <CircularProgress size={20} /> : (editingCustomer ? "Update" : "Create")}
+              {isSubmitting ? <CircularProgress size={20} /> : (editingCustomer ? t('customers.update') : t('customers.create'))}
             </Button>
           </DialogActions>
         </form>
@@ -365,20 +372,20 @@ export default function CustomersPage() {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={!!deleteConfirm} onClose={() => setDeleteConfirm(null)}>
-        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogTitle>{t('customers.confirmDelete')}</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to delete customer "{deleteConfirm?.name}"? This action cannot be undone.
+            {t('customers.deleteMessage', { name: deleteConfirm?.name })}
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteConfirm(null)}>Cancel</Button>
+          <Button onClick={() => setDeleteConfirm(null)}>{t('customers.cancel')}</Button>
           <Button
             onClick={() => deleteConfirm && handleDeleteCustomer(deleteConfirm)}
             color="error"
             variant="contained"
           >
-            Delete
+            {t('customers.delete')}
           </Button>
         </DialogActions>
       </Dialog>

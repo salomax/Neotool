@@ -15,5 +15,14 @@
     "examples": "Exemplos",
     "forms": "Formulários",
     "customerForm": "Cliente"
+  },
+  "actions": {
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "edit": "Editar",
+    "delete": "Excluir",
+    "add": "Adicionar",
+    "create": "Criar",
+    "update": "Atualizar"
   }
 }

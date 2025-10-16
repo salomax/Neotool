@@ -61,7 +61,7 @@ redis:
 
 kafka:
   bootstrap:
-    servers: ${KAFKA_BROKER:localhost:9092}
+    servers: ${KAFKA_HOST:localhost}:${KAFKA_PORT:9092}
 
 # Micrometer Configuration for Metrics Collection
 micrometer:
