@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { LayoutComponentProps } from '../primitives/types';
+import { LayoutComponentProps } from './types';
 import { Stack } from './Stack';
 import { Paper, useTheme } from '@mui/material';
 import { getTestIdProps } from '@/shared/utils/testid';
@@ -32,7 +32,7 @@ export function PageLayout({
   error,
   fullHeight = true,
   padding = 4,
-  gap = 12,
+  gap,
   className,
   style,
   name,
@@ -52,8 +52,9 @@ export function PageLayout({
   const palette = theme.palette;
   
   // Use theme values with fallbacks to props
+  // When gap is not provided, set it to 0 (no gap) instead of using theme default
   const effectivePadding = padding ?? layoutTokens.pageLayout?.padding ?? 4;
-  const effectiveGap = gap ?? layoutTokens.pageLayout?.gap ?? 12;
+  const effectiveGap = gap !== undefined ? gap : 0;
   const effectiveFullHeight = fullHeight ?? layoutTokens.pageLayout?.fullHeight ?? true;
   
   const pageStyles: React.CSSProperties = {
@@ -71,7 +72,7 @@ export function PageLayout({
     <Stack
       as="div"
       gap={effectiveGap}
-      className={className}
+      {...(className && { className })}
       style={pageStyles}
       {...testIdProps}
       {...restProps}

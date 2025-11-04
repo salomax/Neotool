@@ -43,7 +43,6 @@ export default function DocumentationPage() {
         "Installation",
         "Basic Setup",
         "Project Structure",
-        "First Component",
         "Configuration"
       ]
     },

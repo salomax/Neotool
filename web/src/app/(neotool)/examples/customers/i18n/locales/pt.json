@@ -28,6 +28,8 @@
   "statusRequired": "Status é obrigatório",
   "errorSaving": "Erro ao salvar cliente",
   "errorDeleting": "Erro ao excluir cliente",
+  "errorLoadingCustomers": "Falha ao carregar clientes. Por favor, tente novamente.",
+  "errorNetwork": "Erro de rede. Por favor, verifique sua conexão.",
   "toast": {
     "customerCreated": "Cliente \"{{name}}\" criado com sucesso",
     "customerUpdated": "Cliente \"{{name}}\" atualizado com sucesso",

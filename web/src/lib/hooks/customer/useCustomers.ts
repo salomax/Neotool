@@ -10,6 +10,9 @@ import {
   useDeleteCustomerMutation
 } from '@/lib/graphql/operations/customer/mutations.generated';
 import { CustomerInput } from '@/lib/graphql/types/__generated__/graphql';
+import type { ApolloError } from '@apollo/client';
+import { extractErrorMessage } from './utils';
+import { CUSTOMER_STATUSES } from '@/app/(neotool)/examples/customers/constants';
 
 export type Customer = {
   id: string;
@@ -63,7 +66,7 @@ export type UseCustomersReturn = {
   deleteLoading: boolean;
   
   // Error handling
-  error: any;
+  error: ApolloError | undefined;
   
   // Utilities
   refetch: () => void;
@@ -115,7 +118,7 @@ export function useCustomers(options: UseCustomersOptions = {}): UseCustomersRet
   
   // Local state
   const [searchTerm, setSearchTerm] = useState(options.initialSearchTerm || "");
-  const [statusFilter, setStatusFilter] = useState(options.initialStatusFilter || "ALL");
+  const [statusFilter, setStatusFilter] = useState(options.initialStatusFilter || CUSTOMER_STATUSES.ALL);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Customer | null>(null);
@@ -134,7 +137,7 @@ export function useCustomers(options: UseCustomersOptions = {}): UseCustomersRet
     return customers.filter((customer: Customer) => {
       const matchesSearch = customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            customer.email.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStatus = statusFilter === "ALL" || customer.status === statusFilter;
+      const matchesStatus = statusFilter === CUSTOMER_STATUSES.ALL || customer.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
   }, [customers, searchTerm, statusFilter]);
@@ -148,14 +151,18 @@ export function useCustomers(options: UseCustomersOptions = {}): UseCustomersRet
         status: data.status,
       };
 
-      await createCustomerMutation({
+      const result = await createCustomerMutation({
         variables: { input },
       });
 
-      refetch();
+      // Only refetch if mutation was successful
+      if (result.data) {
+        refetch();
+      }
     } catch (err) {
       console.error('Error creating customer:', err);
-      throw err;
+      const errorMessage = extractErrorMessage(err, 'Failed to create customer');
+      throw new Error(errorMessage);
     }
   }, [createCustomerMutation, refetch]);
 
@@ -167,30 +174,38 @@ export function useCustomers(options: UseCustomersOptions = {}): UseCustomersRet
         status: data.status,
       };
 
-      await updateCustomerMutation({
+      const result = await updateCustomerMutation({
         variables: {
           id,
           input,
         },
       });
 
-      refetch();
+      // Only refetch if mutation was successful
+      if (result.data) {
+        refetch();
+      }
     } catch (err) {
       console.error('Error updating customer:', err);
-      throw err;
+      const errorMessage = extractErrorMessage(err, 'Failed to update customer');
+      throw new Error(errorMessage);
     }
   }, [updateCustomerMutation, refetch]);
 
   const deleteCustomer = useCallback(async (id: string) => {
     try {
-      await deleteCustomerMutation({
+      const result = await deleteCustomerMutation({
         variables: { id },
       });
 
-      refetch();
+      // Only refetch if mutation was successful
+      if (result.data) {
+        refetch();
+      }
     } catch (err) {
       console.error('Error deleting customer:', err);
-      throw err;
+      const errorMessage = extractErrorMessage(err, 'Failed to delete customer');
+      throw new Error(errorMessage);
     }
   }, [deleteCustomerMutation, refetch]);
 
@@ -213,9 +228,9 @@ export function useCustomers(options: UseCustomersOptions = {}): UseCustomersRet
   // Utility functions
   const getStatusColor = useCallback((status: string): "success" | "error" | "warning" | "default" => {
     switch (status) {
-      case "ACTIVE": return "success";
-      case "INACTIVE": return "error";
-      case "PENDING": return "warning";
+      case CUSTOMER_STATUSES.ACTIVE: return "success";
+      case CUSTOMER_STATUSES.INACTIVE: return "error";
+      case CUSTOMER_STATUSES.PENDING: return "warning";
       default: return "default";
     }
   }, []);

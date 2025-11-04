@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTheme } from '@mui/material/styles';
 import { LayoutComponentProps } from './types';
 import { spacingToCSS, alignToCSS, justifyToCSS } from './utils';
 import { getTestIdProps } from '@/shared/utils/testid';
@@ -20,17 +21,28 @@ export function Stack({
   'data-testid': dataTestId,
   ...props
 }: StackProps) {
+  const theme = useTheme();
+  
+  // Get the default gap from theme's custom layout tokens
+  // Note: custom layout properties are added to theme in createAppTheme
+  const layoutTokens = (theme as any).custom?.layout || {};
+  const defaultGap = layoutTokens.stack?.gap ?? 2;
+  
+  // Use provided gap or fall back to theme default
+  // If gap is explicitly 0, it should be used (not undefined)
+  const effectiveGap = gap !== undefined ? gap : defaultGap;
+  
   // Generate data-testid from component name and optional name prop
   const testIdProps = getTestIdProps('Stack', name, dataTestId);
   
-  const gapValue = gap ? spacingToCSS(gap) : undefined;
+  const gapValue = spacingToCSS(effectiveGap);
   const alignValue = align ? alignToCSS(align) : undefined;
   const justifyValue = justify ? justifyToCSS(justify) : undefined;
 
   const stackStyles: React.CSSProperties = {
     display: 'flex',
     flexDirection: 'column',
-    ...(gapValue && { gap: gapValue }),
+    gap: gapValue,
     ...(alignValue && { alignItems: alignValue }),
     ...(justifyValue && { justifyContent: justifyValue }),
     ...style,

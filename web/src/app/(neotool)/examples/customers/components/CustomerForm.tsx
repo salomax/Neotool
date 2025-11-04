@@ -8,6 +8,7 @@ import { z } from "zod";
 import { Button } from '@/shared/components/ui/primitives';
 import { TextField } from '@mui/material';
 import { FormLayout, FormRow } from '@/shared/components/ui/forms/components';
+import { DEFAULT_CUSTOMER_STATUS, CUSTOMER_STATUSES } from '../constants';
 
 export interface CustomerFormData {
   name: string;
@@ -63,7 +64,7 @@ export function CustomerForm({
     defaultValues: {
       name: "",
       email: "",
-      status: "ACTIVE",
+      status: DEFAULT_CUSTOMER_STATUS,
       ...initialData,
     },
   });
@@ -74,7 +75,7 @@ export function CustomerForm({
       reset({
         name: "",
         email: "",
-        status: "ACTIVE",
+        status: DEFAULT_CUSTOMER_STATUS,
         ...(initialData || {}),
       });
     }
@@ -83,10 +84,11 @@ export function CustomerForm({
   const handleFormSubmit = async (data: CustomerFormData) => {
     try {
       await onSubmit(data);
-      reset();
+      // Don't reset here - useEffect will handle it when dialog closes
       onClose();
     } catch (error) {
       // Error handling is done in the parent component
+      // Form stays open so user can fix errors
       console.error('Form submission error:', error);
     }
   };
@@ -154,9 +156,9 @@ export function CustomerForm({
                     SelectProps={{ native: true }}
                     fullWidth
                   >
-                    <option value="ACTIVE">{t('active')}</option>
-                    <option value="INACTIVE">{t('inactive')}</option>
-                    <option value="PENDING">{t('pending')}</option>
+                    <option value={CUSTOMER_STATUSES.ACTIVE}>{t('active')}</option>
+                    <option value={CUSTOMER_STATUSES.INACTIVE}>{t('inactive')}</option>
+                    <option value={CUSTOMER_STATUSES.PENDING}>{t('pending')}</option>
                   </TextField>
                 )}
               />

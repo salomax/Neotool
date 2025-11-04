@@ -26,6 +26,9 @@ export interface DesignTokens {
       gap: number;
       fullHeight: boolean;
     };
+    stack: {
+      gap: number;
+    };
   };
   typography: {
     fontFamily: string;
@@ -70,6 +73,9 @@ export const tokens: Record<Mode, DesignTokens> = {
         gap: 12,
         fullHeight: true,
       },
+      stack: {
+        gap: 2,
+      },
     },
     typography: {
       fontFamily: `'Inter', ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial`,
@@ -111,6 +117,9 @@ export const tokens: Record<Mode, DesignTokens> = {
         padding: 4,
         gap: 12,
         fullHeight: true,
+      },
+      stack: {
+        gap: 2,
       },
     },
     typography: {

@@ -3,16 +3,16 @@
 import React from "react";
 import { useForm, FormProvider, SubmitHandler, FieldValues } from "react-hook-form";
 
-export interface RHFFormProps<T extends FieldValues> {
+export interface FormProps<T extends FieldValues> {
   defaultValues?: T;
   onSubmit: SubmitHandler<T>;
   children: React.ReactNode;
 }
-export function RHFForm<T extends FieldValues>({
+export function Form<T extends FieldValues>({
   defaultValues,
   onSubmit,
   children,
-}: RHFFormProps<T>) {
+}: FormProps<T>) {
   const methods = useForm<T>({ defaultValues: defaultValues as any });
   return (
     <FormProvider {...methods}>

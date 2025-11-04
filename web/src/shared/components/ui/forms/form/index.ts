@@ -3,7 +3,7 @@ export { AsyncAutocomplete } from './AsyncAutocomplete';
 export { AutocompleteField } from './AutocompleteField';
 export { CheckboxField } from './CheckboxField';
 export { CurrencyField } from './CurrencyField';
-export { DatePickers } from './DatePickers';
+export { DatePickerField, DateRangeField } from './DatePickers';
 export { FileUploader } from './FileUploader';
 export { Form } from './Form';
 export { FormTextField } from './FormField';

@@ -1,14 +1,13 @@
 "use client";
 
-import React, { useMemo, useCallback, useEffect } from "react";
+import React, { useMemo, useEffect } from "react";
 import { IconButton, Chip } from "@/shared/components/ui/primitives";
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from "@mui/icons-material";
-import { DataTable } from '@/shared/components/ui/data-display';
-import { PageLayout, PageHeader, Paper } from '@/shared/components/ui/layout';
+import { DataTable, type ColDef } from '@/shared/components/ui/data-display';
+import { PageLayout, PageHeader, Paper, Stack } from '@/shared/components/ui/layout';
 import { SearchFilters } from '@/shared/components/ui/forms';
 import { ConfirmationDialog } from '@/shared/components/ui/feedback';
 import { CustomerForm } from './components';
-import type { ColDef } from 'ag-grid-community';
 import { z } from "zod";
 import { useTranslation } from '@/shared/i18n';
 import { customersTranslations } from './i18n';
@@ -16,6 +15,8 @@ import { useCustomers, CustomerFormData, Customer } from '@/lib/hooks/customer/u
 import { useToast } from '@/shared/providers';
 import { Button, ErrorBoundary, Skeleton } from '@/shared/components/ui/primitives';
 import { formatDateTime, getCurrentLocale } from '@/shared/utils/date';
+import { CUSTOMER_STATUSES, CUSTOMER_STATUS_OPTIONS, DEFAULT_CUSTOMER_STATUS } from './constants';
+import { extractErrorMessage } from '@/lib/hooks/customer/utils';
 
 
 function CustomersPageContent() {
@@ -55,7 +56,7 @@ function CustomersPageContent() {
   }), [t]);
 
   // Create or update customer
-  const handleFormSubmit = useCallback(async (data: CustomerFormData) => {
+  const handleFormSubmit = async (data: CustomerFormData) => {
     try {
       if (editingCustomer) {
         await updateCustomerMutation(editingCustomer.id, data);
@@ -68,17 +69,17 @@ function CustomersPageContent() {
     } catch (err) {
       console.error(t('errorSaving'), err);
       
-      // Show error toast with specific message
-      if (editingCustomer) {
-        toast.error(t('toast.customerUpdateError'));
-      } else {
-        toast.error(t('toast.customerCreateError'));
-      }
+      // Extract and display specific error message
+      const errorMessage = extractErrorMessage(
+        err,
+        editingCustomer ? t('toast.customerUpdateError') : t('toast.customerCreateError')
+      );
+      toast.error(errorMessage);
     }
-  }, [editingCustomer, updateCustomerMutation, createCustomerMutation, closeDialog, t, toast]);
+  };
 
   // Delete customer
-  const handleDeleteCustomer = useCallback(async () => {
+  const handleDeleteCustomer = async () => {
     if (!deleteConfirm) return;
     
     try {
@@ -87,24 +88,16 @@ function CustomersPageContent() {
       setDeleteConfirm(null);
     } catch (err) {
       console.error(t('errorDeleting'), err);
-      toast.error(t('toast.customerDeleteError'));
+      const errorMessage = extractErrorMessage(err, t('toast.customerDeleteError'));
+      toast.error(errorMessage);
     }
-  }, [deleteConfirm, deleteCustomerMutation, setDeleteConfirm, t, toast]);
-
-  // Enhanced dialog handlers
-  const handleOpenEditDialog = useCallback((customer: Customer) => {
-    openEditDialog(customer);
-  }, [openEditDialog]);
-
-  const handleOpenCreateDialog = useCallback(() => {
-    openCreateDialog();
-  }, [openCreateDialog]);
+  };
 
   // Get current locale for date formatting
   const currentLocale = getCurrentLocale();
 
-  // Create column definitions inside component to have access to imported functions
-  const createColumns = useCallback((): ColDef<Customer>[] => [
+  // Define column definitions for DataTable - optimized with useMemo
+  const columns = useMemo<ColDef<Customer>[]>(() => [
     {
       field: 'id',
       headerName: t('id'),
@@ -133,7 +126,7 @@ function CustomersPageContent() {
           <Chip
             name={`status-${status.toLowerCase()}`}
             label={status}
-            color={getStatusColor(status) as "success" | "error" | "warning" | "default"}
+            color={getStatusColor(status)}
             size="small"
           />
         );
@@ -161,7 +154,7 @@ function CustomersPageContent() {
             <IconButton
               name={`edit-customer-${customer.id}`}
               color="primary"
-              onClick={() => handleOpenEditDialog(customer)}
+              onClick={() => openEditDialog(customer)}
               size="small"
               aria-label={`Edit customer ${customer.name}`}
             >
@@ -180,31 +173,25 @@ function CustomersPageContent() {
         );
       },
     },
-  ], [t, getStatusColor, handleOpenEditDialog, setDeleteConfirm, currentLocale]);
+  ], [t, getStatusColor, openEditDialog, setDeleteConfirm, currentLocale]);
 
-  // Define column definitions for DataTable
-  const columns: ColDef<Customer>[] = useMemo(() => createColumns(), [createColumns]);
-
-  // Enhanced refresh handler with toast feedback
-  const handleRefresh = useCallback(() => {
-    refetch();
-  }, [refetch]);
-
-  // Show error toast when there's an initial error
+  // Show error toast when there's a query error (not mutation errors)
   useEffect(() => {
-    if (error) {
-      toast.error(t('errorSaving'));
+    if (error && !createLoading && !updateLoading && !deleteLoading) {
+      const errorMessage = extractErrorMessage(error, t('errorLoadingCustomers'));
+      toast.error(errorMessage);
     }
-  }, [error, toast, t]);
+  }, [error, createLoading, updateLoading, deleteLoading, toast, t]);
 
 
-  // Prepare filter options for SearchFilters component
-  const statusFilterOptions = [
-    { value: 'ALL', label: t('all') },
-    { value: 'ACTIVE', label: t('active') },
-    { value: 'INACTIVE', label: t('inactive') },
-    { value: 'PENDING', label: t('pending') },
-  ];
+  // Prepare filter options for SearchFilters component using constants
+  const statusFilterOptions = useMemo(() => 
+    CUSTOMER_STATUS_OPTIONS.map(option => ({
+      value: option.value,
+      label: t(option.labelKey),
+    })),
+    [t]
+  );
 
   const filters = [
     {
@@ -226,54 +213,52 @@ function CustomersPageContent() {
               name="add-customer"
               variant="contained"
               startIcon={<AddIcon />}
-              onClick={handleOpenCreateDialog}
+              onClick={openCreateDialog}
             >
               {t('addCustomer')}
             </Button>
           }
         />
       }
-      loading={loading}
-      error={error?.message}
-    >
-      {/* Search and Filter Controls */}
-      <Paper name="search-filters">
-        <SearchFilters
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
-          searchPlaceholder={t('searchPlaceholder')}
-          filters={filters}
-          onRefresh={handleRefresh}
-          refreshLoading={loading}
-        />
-      </Paper>
-
-      {/* Main Content */}
-      <Paper 
-        name="customers-table-container"
-        sx={{ 
-          flex: 1, // take up all the remaining free space in the container
-        }}
       >
-        {loading && !filteredCustomers.length ? (
-          <Skeleton 
-            variant="rectangular" 
-            sx={{ borderRadius: 1, height: '100%' }}
+      <Stack style={{ flex: 1 }}>
+        {/* Search and Filter Controls */}
+        <Paper name="search-filters">
+          <SearchFilters
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder={t('searchPlaceholder')}
+            filters={filters}
+            onRefresh={refetch}
+            refreshLoading={loading}
           />
-        ) : (
-          <DataTable
-            columns={columns}
-            rows={filteredCustomers}
-            loading={loading}
-            error={error?.message}
-            showToolbar={true}
-            enableDensity={true}
-            enableExport={true}
-            enableFilterBar={true}
-            tableId="customers-table"
-          />
-        )}
-      </Paper>
+        </Paper>
+
+        {/* Main Content */}
+        <Paper 
+          name="customers-table-container"
+          sx={{ 
+            flex: 1, // take up all the remaining free space in the container
+          }}
+        >
+          {loading && !filteredCustomers.length ? (
+            <Skeleton 
+              variant="rectangular" 
+              sx={{ borderRadius: 1, height: '100%' }}
+            />
+          ) : (
+            <DataTable
+              columns={columns}
+              rows={filteredCustomers}
+              loading={loading}
+              error={error?.message}
+              showToolbar={true}
+              enableDensity={true}
+              enableExport={true}
+            />
+          )}
+        </Paper>
+      </Stack>
 
       {/* Customer Form Dialog */}
       <CustomerForm
@@ -288,17 +273,19 @@ function CustomersPageContent() {
       />
 
       {/* Delete Confirmation Dialog */}
-      <ConfirmationDialog
-        open={!!deleteConfirm}
-        onClose={() => setDeleteConfirm(null)}
-        onConfirm={handleDeleteCustomer}
-        title={t('confirmDelete')}
-        message={t('deleteMessage', { name: deleteConfirm?.name })}
-        confirmText={t('delete')}
-        cancelText={t('cancel')}
-        confirmColor="error"
-        loading={deleteLoading}
-      />
+      {deleteConfirm && (
+        <ConfirmationDialog
+          open={true}
+          onClose={() => setDeleteConfirm(null)}
+          onConfirm={handleDeleteCustomer}
+          title={t('confirmDelete')}
+          message={t('deleteMessage', { name: deleteConfirm.name })}
+          confirmText={t('delete')}
+          cancelText={t('cancel')}
+          confirmColor="error"
+          loading={deleteLoading}
+        />
+      )}
     </PageLayout>
   );
 }

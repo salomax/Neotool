@@ -28,6 +28,8 @@
   "statusRequired": "Status is required",
   "errorSaving": "Error saving customer",
   "errorDeleting": "Error deleting customer",
+  "errorLoadingCustomers": "Failed to load customers. Please try again.",
+  "errorNetwork": "Network error. Please check your connection.",
   "toast": {
     "customerCreated": "Customer \"{{name}}\" created successfully",
     "customerUpdated": "Customer \"{{name}}\" updated successfully",

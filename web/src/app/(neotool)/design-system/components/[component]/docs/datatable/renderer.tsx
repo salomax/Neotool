@@ -85,7 +85,6 @@ export const DatatableRenderer: React.FC<ComponentRendererProps> = ({ example })
             { id: 4, product: 'Desk Lamp', category: 'Furniture', price: 89, stock: 12 },
             { id: 5, product: 'Keyboard', category: 'Electronics', price: 79, stock: 20 }
           ]}
-          enableFilterBar={true}
           height={300}
         />
       );
