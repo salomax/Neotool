@@ -27,9 +27,9 @@ export const APP_CONFIG = {
   /** Application version */
   version: process.env.NEXT_PUBLIC_APP_VERSION || "1.0.0",
   /** Required Node.js version (for display) */
-  nodeVersion: process.env.NEXT_PUBLIC_NODE_VERSION || "18.x",
+  nodeVersion: process.env.NEXT_PUBLIC_NODE_VERSION || "20.x",
   /** Node.js version short (for Docker tags, CI configs) */
-  nodeVersionShort: process.env.NEXT_PUBLIC_NODE_VERSION_SHORT || "18",
+  nodeVersionShort: process.env.NEXT_PUBLIC_NODE_VERSION_SHORT || "20",
   /** Docker image name */
   dockerImageName: process.env.NEXT_PUBLIC_DOCKER_IMAGE_NAME || "neotool-web",
   /** Development server URL */

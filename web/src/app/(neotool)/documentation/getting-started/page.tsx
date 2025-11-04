@@ -59,6 +59,18 @@ export default function GettingStartedPage() {
             </ListItem>
             <ListItem>
               <ListItemText
+                primary="Java Development Kit (JDK)"
+                secondary="Version 21 or higher (required for Kotlin backend)"
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemText
+                primary="Docker"
+                secondary="For running infrastructure services and integration tests"
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemText
                 primary="npm or pnpm"
                 secondary="Package manager for managing dependencies"
               />
@@ -70,6 +82,115 @@ export default function GettingStartedPage() {
               />
             </ListItem>
           </List>
+
+          <Typography variant="h6" sx={{ mt: 3, mb: 2 }}>
+            Installing Node.js with NVM
+          </Typography>
+          <Typography variant="body2" paragraph>
+            We recommend using <strong>NVM (Node Version Manager)</strong> to install and manage
+            Node.js versions. This allows you to easily switch between different Node versions for
+            different projects.
+          </Typography>
+          <Box
+            component="pre"
+            sx={{
+              bgcolor: "background.default",
+              p: 2,
+              borderRadius: 1,
+              overflow: "auto",
+            }}
+          >
+            <code>{`# Install NVM (macOS/Linux)
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
+
+# Or using Homebrew (macOS)
+brew install nvm
+
+# After installation, reload your shell or run:
+source ~/.zshrc  # or ~/.bashrc
+
+# Install Node.js ${APP_CONFIG.nodeVersion}
+nvm install ${APP_CONFIG.nodeVersion}
+
+# Use the installed version
+nvm use ${APP_CONFIG.nodeVersion}
+
+# Set as default (optional)
+nvm alias default ${APP_CONFIG.nodeVersion}`}</code>
+          </Box>
+          <Typography variant="body2" sx={{ mt: 1 }} color="text.secondary">
+            Verify the installation by running <code>node --version</code> (should show v{APP_CONFIG.nodeVersion} or higher)
+          </Typography>
+
+          <Typography variant="h6" sx={{ mt: 3, mb: 2 }}>
+            Installing Java Development Kit (JDK) with SDKMAN
+          </Typography>
+          <Typography variant="body2" paragraph>
+            For the Kotlin backend, you need JDK 21. We recommend using{" "}
+            <strong>SDKMAN</strong> to manage JDK installations. SDKMAN allows you to easily
+            install and switch between different JDK versions.
+          </Typography>
+          <Box
+            component="pre"
+            sx={{
+              bgcolor: "background.default",
+              p: 2,
+              borderRadius: 1,
+              overflow: "auto",
+            }}
+          >
+            <code>{`# Install SDKMAN
+curl -s "https://get.sdkman.io" | bash
+
+# Reload your shell
+source "$HOME/.sdkman/bin/sdkman-init.sh"
+
+# Install JDK 21 (we recommend Temurin)
+sdk install java 21.0.2-tem
+
+# Set as default
+sdk default java 21.0.2-tem
+
+# Verify installation
+java -version`}</code>
+          </Box>
+          <Typography variant="body2" sx={{ mt: 1 }} color="text.secondary">
+            Verify the installation by running <code>java -version</code> (should show version 21 or higher)
+          </Typography>
+
+          <Typography variant="h6" sx={{ mt: 3, mb: 2 }}>
+            Installing Docker with Colima (macOS)
+          </Typography>
+          <Typography variant="body2" paragraph>
+            For macOS users, we recommend using <strong>Colima</strong> (Containers on Linux on Mac)
+            as a lightweight alternative to Docker Desktop. Colima runs containers using Lima, a
+            Linux virtual machine, without the overhead of Docker Desktop.
+          </Typography>
+          <Box
+            component="pre"
+            sx={{
+              bgcolor: "background.default",
+              p: 2,
+              borderRadius: 1,
+              overflow: "auto",
+            }}
+          >
+            <code>{`# Install Colima using Homebrew
+brew install colima docker docker-compose
+
+# Start Colima
+colima start
+
+# Verify Docker is working
+docker ps
+
+# To stop Colima when not needed
+colima stop`}</code>
+          </Box>
+          <Typography variant="body2" sx={{ mt: 1 }} color="text.secondary">
+            For Linux users, install Docker using your distribution's package manager. For Windows
+            users, Docker Desktop is recommended.
+          </Typography>
 
           <Typography variant="h6" sx={{ mt: 3, mb: 2 }}>
             Installing pnpm
@@ -93,7 +214,7 @@ npm install -g pnpm
 # Using Homebrew (macOS)
 brew install pnpm
 
-# Using Corepack
+# Using Corepack (recommended)
 corepack enable
 corepack prepare pnpm@latest --activate
 
