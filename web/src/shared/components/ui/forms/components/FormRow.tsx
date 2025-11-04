@@ -36,9 +36,10 @@ export function FormRow({
 
   return (
     <Grid container spacing={spacing} alignItems={alignItems}>
-      {/* {items.map((child, idx) => (
+      {items.map((child, idx) => (
         <Grid
           key={idx}
+          item
           xs={12}
           sm={span("sm")}
           md={span("md")}
@@ -47,7 +48,7 @@ export function FormRow({
         >
           {child}
         </Grid>
-      ))} */}
+      ))}
     </Grid>
   );
 }

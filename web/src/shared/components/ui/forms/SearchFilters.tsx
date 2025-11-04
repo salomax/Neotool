@@ -118,5 +118,4 @@ export function SearchFilters({
   );
 }
 
-export { SearchFilters };
 export default SearchFilters;

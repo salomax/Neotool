@@ -6,7 +6,7 @@ export { CurrencyField } from './CurrencyField';
 export { DatePickers } from './DatePickers';
 export { FileUploader } from './FileUploader';
 export { Form } from './Form';
-export { FormField } from './FormField';
+export { FormTextField } from './FormField';
 export { FormMessage } from './FormMessage';
 export { MaskedField } from './MaskedField';
 export { NumberField } from './NumberField';

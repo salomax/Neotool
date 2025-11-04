@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useMemo, useCallback, useEffect } from "react";
-import { Paper, IconButton, Chip } from "@/shared/components/ui/primitives";
+import { IconButton, Chip } from "@/shared/components/ui/primitives";
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from "@mui/icons-material";
 import { DataTable } from '@/shared/components/ui/data-display';
-import { PageLayout, PageHeader } from '@/shared/components/ui/layout';
+import { PageLayout, PageHeader, Paper } from '@/shared/components/ui/layout';
 import { SearchFilters } from '@/shared/components/ui/forms';
 import { ConfirmationDialog } from '@/shared/components/ui/feedback';
 import { CustomerForm } from './components';
