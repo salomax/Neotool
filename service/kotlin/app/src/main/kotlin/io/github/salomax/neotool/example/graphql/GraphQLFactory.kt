@@ -8,6 +8,7 @@ import io.github.salomax.neotool.example.domain.Customer
 import io.github.salomax.neotool.example.domain.Product
 import io.github.salomax.neotool.example.service.CustomerService
 import io.github.salomax.neotool.example.service.ProductService
+import io.github.salomax.neotool.exception.GraphQLOptimisticLockExceptionHandler
 import io.micronaut.context.annotation.Factory
 import jakarta.inject.Singleton
 import io.github.salomax.neotool.framework.util.toUUID
@@ -51,6 +52,7 @@ class GraphQLFactory(
     return graphql.GraphQL.newGraphQL(federatedSchema)
       .instrumentation(MaxQueryComplexityInstrumentation(100))
       .instrumentation(MaxQueryDepthInstrumentation(10))
+      .defaultDataFetcherExceptionHandler(GraphQLOptimisticLockExceptionHandler())
       .build()
   }
 }

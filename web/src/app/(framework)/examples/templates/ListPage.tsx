@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Paper, Box, Stack, Typography, Divider } from "@mui/material";
 import type { ColDef } from "ag-grid-community";
-import { DataTable } from "@/shared/components/ui/organisms/DataTable";
+import { DataTable } from "@/shared/components/ui/data-display/DataTable";
 
 export interface ListPageProps<T extends object> {
   title: string;

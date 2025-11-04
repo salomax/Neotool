@@ -5,7 +5,7 @@ import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
 import IconButton from '@mui/material/IconButton';
 import Divider from '@mui/material/Divider';
-import { alpha } from '@mui/material/styles';
+import { alpha, useTheme } from '@mui/material/styles';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LogoMark } from '@/shared/ui/brand/LogoMark';
@@ -25,11 +25,10 @@ const NAV_TOP: NavItem[] = [
   { href: '/documentation', label: 'Documentation', icon: MenuBookRoundedIcon },
 ];
 
-export const RAIL_W = 84;                 // largura do rail
-const BRAND  = '#2F2CE9';                 // roxo do exemplo
-const RADIUS = 16;                        // raio dos cantos direitos
+export const RAIL_W = 84;
 
 export function SidebarRail() {
+  const theme = useTheme();
   const pathname = usePathname();
 
   return (
@@ -41,15 +40,13 @@ export function SidebarRail() {
         top: 0,
         height: '100vh',
         width: RAIL_W,
-        bgcolor: BRAND,
-        color: 'common.white',
+        bgcolor: theme.palette.primary.main,
+        color: theme.palette.primary.contrastText,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         py: 2,
         gap: 1,
-        borderTopRightRadius: RADIUS,
-        borderBottomRightRadius: RADIUS,
         boxShadow: '2px 0 12px rgba(0,0,0,0.20), inset -1px 0 0 rgba(255,255,255,0.10)',
         zIndex: (t) => t.zIndex.drawer + 1,
       }}
@@ -62,14 +59,14 @@ export function SidebarRail() {
           borderRadius: '50%',
           display: 'grid',
           placeItems: 'center',
-          bgcolor: alpha('#ffffff', 0.12),
+          bgcolor: alpha(theme.palette.primary.contrastText, 0.12),
           mt: 0.5,
         }}
       >
         <LogoMark variant="white" width={32} height={30} />
       </Box>
 
-      <Divider sx={{ my: 2, width: '56%', borderColor: alpha('#fff', 0.25) }} />
+      <Divider sx={{ my: 2, width: '56%', borderColor: alpha(theme.palette.primary.contrastText, 0.25) }} />
 
       {/* Navegação principal */}
       <Stack spacing={{ xs: 1.2, sm: 1.6 }} sx={{ mt: 0.5 }}>
@@ -88,10 +85,10 @@ export function SidebarRail() {
                 size="large"
                 sx={{
                   position: 'relative',
-                  color: 'common.white',
+                  color: theme.palette.primary.contrastText,
                   opacity: active ? 1 : 0.85,
-                  '&:hover': { bgcolor: alpha('#000', 0.18), opacity: 1 },
-                  bgcolor: active ? alpha('#000', 0.15) : 'transparent',
+                  '&:hover': { bgcolor: alpha(theme.palette.common.black, 0.18), opacity: 1 },
+                  bgcolor: active ? alpha(theme.palette.common.black, 0.15) : 'transparent',
                   width: 48,
                   height: 48,
                 }}
@@ -104,7 +101,7 @@ export function SidebarRail() {
                       width: 3,
                       height: 22,
                       borderRadius: 8,
-                      bgcolor: '#fff',
+                      bgcolor: theme.palette.primary.contrastText,
                     }}
                   />
                 )}
@@ -126,8 +123,8 @@ export function SidebarRail() {
             aria-label="Settings"
             size="large"
             sx={{
-              color: 'common.white',
-              '&:hover': { bgcolor: alpha('#000', 0.18) },
+              color: theme.palette.primary.contrastText,
+              '&:hover': { bgcolor: alpha(theme.palette.common.black, 0.18) },
               width: 48,
               height: 48,
             }}

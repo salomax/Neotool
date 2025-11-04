@@ -19,8 +19,8 @@ data class CreateCustomerRequest(
     val email: String,
     
     @field:Pattern(
-        regexp = "ACTIVE|INACTIVE|SUSPENDED",
-        message = "Status must be one of: ACTIVE, INACTIVE, SUSPENDED"
+        regexp = "ACTIVE|INACTIVE|PENDING",
+        message = "Status must be one of: ACTIVE, INACTIVE, PENDING"
     )
     val status: String = "ACTIVE"
 ) {
@@ -43,8 +43,8 @@ data class UpdateCustomerRequest(
     val email: String,
     
     @field:Pattern(
-        regexp = "ACTIVE|INACTIVE|SUSPENDED",
-        message = "Status must be one of: ACTIVE, INACTIVE, SUSPENDED"
+        regexp = "ACTIVE|INACTIVE|PENDING",
+        message = "Status must be one of: ACTIVE, INACTIVE, PENDING"
     )
     val status: String,
 
@@ -74,7 +74,7 @@ data class CustomerResponse(
     val status: String,
     val createdAt: Instant,
     val updatedAt: Instant,
-    val version: Long?
+    val version: Long
 )
 
 @Serdeable

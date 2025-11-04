@@ -4,7 +4,7 @@ import { initReactI18next } from "react-i18next";
 import en from "./locales/en/common.json";
 import pt from "./locales/pt/common.json";
 
-// inicializa uma única vez
+// Initialize i18n with common translations only
 if (!i18n.isInitialized) {
   i18n
     .use(initReactI18next)
@@ -18,11 +18,11 @@ if (!i18n.isInitialized) {
       ns: ["common"],
       defaultNS: "common",
       interpolation: { escapeValue: false },
-      // evita async microtask no JSDOM dos testes
       initImmediate: false,
     })
-    .catch(() => {});
+    .catch((error) => {
+      console.error("Failed to initialize i18n:", error);
+    });
 }
 
-// expõe para components
 export default i18n;

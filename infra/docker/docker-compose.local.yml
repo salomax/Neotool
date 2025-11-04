@@ -1,5 +1,10 @@
 
 services:
+
+  # -------------------------------------------------------------
+  # Tooling Stack (database, cache, message broker)
+  # -------------------------------------------------------------
+
   postgres:
     image: postgres:18rc1
     container_name: neotool-postgres
@@ -57,27 +62,6 @@ services:
       retries: 3
       start_period: 30s
 
-  api:
-    build:
-      context: ../../service/kotlin
-      dockerfile: app/Dockerfile
-    container_name: neotool-api
-    env_file: ../../.env
-    environment:
-      MICRONAUT_ENVIRONMENTS: docker
-      KAFKA_BROKER: kafka:9092
-      POSTGRES_HOST: postgres
-      REDIS_HOST: redis
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-    ports:
-      - "8080:8080"
-
   router:
     image: ghcr.io/apollographql/router:v2.7.0
     container_name: neotool-graphql-router
@@ -88,12 +72,41 @@ services:
       - "8088:8088"  # Health check port
       - "9091:9090"  # Metrics port (changed to avoid conflict with Prometheus)
     volumes:
-      - ../../contracts/graphql/supergraph/supergraph.graphql:/dist/supergraph.graphql:ro
-    command: ["--supergraph", "/dist/supergraph.graphql", "--dev"]
+      - ../../contracts/graphql/supergraph/supergraph.dev.graphql:/dist/supergraph.graphql:ro
+      - ../../service/gateway/router/router.dev.yaml:/dist/router.yaml:ro
+    command: ["--supergraph", "/dist/supergraph.graphql", "--config", "/dist/router.yaml"]
     environment:
       - APOLLO_ROUTER_TELEMETRY_METRICS_PROMETHEUS_ENABLED=true
       - APOLLO_ROUTER_TELEMETRY_METRICS_PROMETHEUS_LISTEN=0.0.0.0:9090
       - APOLLO_ROUTER_TELEMETRY_METRICS_PROMETHEUS_PATH=/metrics
+
+  # -------------------------------------------------------------
+  # Application Stack
+  # -------------------------------------------------------------
+
+  api:
+    build:
+      context: ../../service/kotlin
+      dockerfile: app/Dockerfile
+    container_name: neotool-api
+    env_file: ../../.env
+    environment:
+      MICRONAUT_ENVIRONMENTS: docker
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      KAFKA_HOST: kafka
+      KAFKA_PORT: 9092
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
 
   web:
     build:
@@ -103,10 +116,15 @@ services:
     env_file: ../../.env
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
+      NEXT_PUBLIC_GRAPHQL_URL: ${NEXT_PUBLIC_GRAPHQL_URL:-http://router:4000/graphql}
     depends_on:
       - api
     ports:
       - "3000:3000"
+
+  # -------------------------------------------------------------
+  # Observability Stack
+  # -------------------------------------------------------------
 
   # Observability Stack
   prometheus:

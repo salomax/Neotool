@@ -118,13 +118,14 @@ class CustomerApiIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
           .shouldHaveNonEmptyBody()
 
         // Then update it
+        val customer = json.read<CustomerResponse>(createResponse)
         val updateInput = mapOf(
             "name" to "Updated Customer",
             "email" to "updated@example.com",
-            "status" to "INACTIVE"
+            "status" to "INACTIVE",
+            "version" to customer.version
         )
 
-        val customer = json.read<CustomerResponse>(createResponse)
         val updateRequest = HttpRequest.PUT("/api/customers/${customer.id}", updateInput)
         httpClient.exchangeAsString(updateRequest)
           .shouldBeSuccessful()
@@ -167,16 +168,17 @@ class CustomerApiIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
         assert(exceptionGetRequest.status == HttpStatus.NOT_FOUND)
 
         // Try to update non-existent customer
-        val updateInput = TestDataBuilders.customerInput(
-            name = "Non-existent Customer",
-            email = "non.existent@example.com",
-            status = "ACTIVE"
+        val updateInput = mapOf(
+            "name" to "Non-existent Customer",
+            "email" to "non.existent@example.com",
+            "status" to "ACTIVE",
+            "version" to 0L
         )
         val updateRequest = HttpRequest.PUT("/api/customers/${UUID.randomUUID()}", updateInput)
         val exceptionUpdateRequest = assertThrows<HttpClientResponseException> {
           httpClient.exchangeAsString(updateRequest)
         }
-        assert(exceptionUpdateRequest.status == HttpStatus.CONFLICT)
+        assert(exceptionUpdateRequest.status == HttpStatus.NOT_FOUND)
 
         // Try to delete non-existent customer
         val deleteRequest = HttpRequest.DELETE<Any>("/api/customers/${UUID.randomUUID()}")

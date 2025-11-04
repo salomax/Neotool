@@ -1,12 +1,29 @@
 supergraph:
-  listen: 0.0.0.0:4000   # bind inside the container
-  path: /graphql         # HTTP endpoint path
+  listen: 0.0.0.0:4000
+  path: /graphql
+
+  introspection: true # Enable introspection for codegen
 
 homepage:
   enabled: true
 
 cors:
-  allow_any_origin: true # dev only (no cookies)
+  allow_any_origin: true
+
+# Show detailed error information in development
+include_subgraph_errors:
+  all: true  # Shows all subgraph errors instead of redacting them
+
+# Enable detailed logging for debugging
+telemetry:
+  tracing:
+    trace_config:
+      service_name: "neotool-router"
+      sampler:
+        trace_id_ratio_based: 1.0  # Sample all traces in dev
+  metrics:
+    common:
+      service_name: "neotool-router"
 
 headers:
   all:

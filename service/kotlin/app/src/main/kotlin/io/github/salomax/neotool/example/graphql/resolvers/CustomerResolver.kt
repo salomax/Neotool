@@ -4,20 +4,20 @@ import io.github.salomax.neotool.example.domain.Customer
 import io.github.salomax.neotool.example.domain.CustomerStatus
 import io.github.salomax.neotool.example.graphql.dto.CustomerInputDTO
 import io.github.salomax.neotool.example.service.CustomerService
-import io.github.salomax.neotool.graphql.CrudResolver
+import io.github.salomax.neotool.graphql.GenericCrudResolver
 import io.github.salomax.neotool.graphql.CrudService
 import jakarta.inject.Singleton
 import jakarta.validation.Validator
 import java.util.*
 
 /**
- * Customer resolver implementing the standard CRUD pattern
+ * Customer resolver using the generic enhanced CRUD pattern with automatic payload handling
  */
 @Singleton
 class CustomerResolver(
   customerService: CustomerService,
   override val validator: Validator
-) : CrudResolver<Customer, CustomerInputDTO, UUID>() {
+) : GenericCrudResolver<Customer, CustomerInputDTO, UUID>() {
 
   override val service: CrudService<Customer, UUID> = CustomerCrudService(customerService)
     
@@ -30,6 +30,15 @@ class CustomerResolver(
     }
     
     override fun mapToEntity(dto: CustomerInputDTO, id: UUID?): Customer {
+        // For updates, we need to fetch the existing entity to get the current version
+        val existingEntity = if (id != null) {
+            service.getById(id)
+        } else {
+            null
+        }
+        
+        println("DEBUG: mapToEntity - id: $id, existingEntity: $existingEntity, version: ${existingEntity?.version}")
+        
         return Customer(
             id = id,
             name = dto.name,
@@ -38,7 +47,8 @@ class CustomerResolver(
                 CustomerStatus.valueOf(dto.status)
             } catch (e: IllegalArgumentException) {
                 throw IllegalArgumentException("Invalid status: ${dto.status}. Must be one of: ${CustomerStatus.values().joinToString(", ")}")
-            }
+            },
+            version = existingEntity?.version ?: 0
         )
     }
     

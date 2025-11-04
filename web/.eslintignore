@@ -1,0 +1,2 @@
+src/lib/graphql/types/__generated__
+**/*.generated.ts

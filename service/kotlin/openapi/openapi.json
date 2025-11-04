@@ -652,7 +652,7 @@
           },
           "status": {
             "type": "string",
-            "enum": ["ACTIVE", "INACTIVE", "SUSPENDED"],
+            "enum": ["ACTIVE", "INACTIVE", "PENDING"],
             "description": "Customer status",
             "example": "ACTIVE"
           },
@@ -687,7 +687,7 @@
           },
           "status": {
             "type": "string",
-            "enum": ["ACTIVE", "INACTIVE", "SUSPENDED"],
+            "enum": ["ACTIVE", "INACTIVE", "PENDING"],
             "description": "Customer status",
             "example": "ACTIVE"
           }

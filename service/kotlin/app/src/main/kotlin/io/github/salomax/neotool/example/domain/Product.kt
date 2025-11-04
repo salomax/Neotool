@@ -13,7 +13,7 @@ data class Product(
     val stock: Int = 0,
     val createdAt: Instant = Instant.now(),
     val updatedAt: Instant = Instant.now(),
-    val version: Long? = null
+    val version: Long = 0
 ) {
     fun toEntity(): ProductEntity {
         return ProductEntity(

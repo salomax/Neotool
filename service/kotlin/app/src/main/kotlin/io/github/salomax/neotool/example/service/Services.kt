@@ -89,7 +89,8 @@ open class CustomerService(
         val customer = entity?.toDomain()
         if (customer != null) {
             logAuditData("SELECT_BY_ID", "CustomerService", id.toString())
-            logger.debug { "Customer found: ${customer.name} (Email: ${customer.email})" }
+            logger.debug { "Customer found: ${customer.name} (Email: ${customer.email}, Version: ${customer.version})" }
+            println("DEBUG: CustomerService.get - entity version: ${entity?.version}, customer version: ${customer.version}")
         } else {
             logAuditData("SELECT_BY_ID", "CustomerService", id.toString(), "result" to "NOT_FOUND")
             logger.debug { "Customer not found with ID: $id" }
@@ -109,8 +110,32 @@ open class CustomerService(
 
     @Transactional
     open fun update(customer: Customer): Customer {
-        val updatedEntity = customer.toEntity()
-        val saved = repo.update(updatedEntity)
+        println("DEBUG: CustomerService.update - customer: $customer, version: ${customer.version}")
+        
+        // Fetch the existing entity to preserve the version and other fields
+        val existingEntity = repo.findById(customer.id!!).orElseThrow {
+            logger.warn { "Attempted to update non-existent customer with ID: ${customer.id}" }
+            NotFoundException()
+        }
+        
+        println("DEBUG: CustomerService.update - existingEntity version: ${existingEntity.version}")
+        
+        // Check if the version matches (optimistic locking)
+        if (existingEntity.version != customer.version) {
+            throw org.hibernate.StaleObjectStateException(
+                "Customer with id ${customer.id} was modified by another user",
+                customer.id
+            )
+        }
+        
+        // Update only the fields that changed
+        existingEntity.name = customer.name
+        existingEntity.email = customer.email
+        existingEntity.status = customer.status
+        existingEntity.updatedAt = java.time.Instant.now()
+        
+        // Save the updated entity (JPA will automatically increment the version)
+        val saved = repo.save(existingEntity)
         val result = saved.toDomain()
         logAuditData("UPDATE", "CustomerService", result.id.toString(), "name" to result.name, "email" to result.email)
         logger.info { "Customer updated successfully: ${result.name} (ID: ${result.id})" }

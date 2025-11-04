@@ -12,7 +12,7 @@ data class Customer(
   val status: CustomerStatus = CustomerStatus.ACTIVE,
   val createdAt: Instant = Instant.now(),
   val updatedAt: Instant = Instant.now(),
-  val version: Long? = null
+  val version: Long = 0
 ) {
     fun toEntity(): CustomerEntity {
         return CustomerEntity(
@@ -40,5 +40,5 @@ data class Customer(
 }
 
 enum class CustomerStatus {
-    ACTIVE, INACTIVE, SUSPENDED
+    ACTIVE, INACTIVE, PENDING
 }

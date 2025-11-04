@@ -3,6 +3,11 @@
 import * as React from "react";
 import { Snackbar, Alert, AlertColor } from "@mui/material";
 
+type ToastPosition = {
+  vertical: "top" | "bottom";
+  horizontal: "left" | "center" | "right";
+};
+
 type Toast = {
   id: number;
   message: string;
@@ -22,6 +27,11 @@ type ToastContextType = {
   warning: (message: string, autoHideDuration?: number) => void;
 };
 
+type ToastProviderProps = {
+  children: React.ReactNode;
+  position?: ToastPosition;
+};
+
 const ToastContext = React.createContext<ToastContextType | null>(null);
 
 export const useToast = () => {
@@ -30,8 +40,9 @@ export const useToast = () => {
   return ctx;
 };
 
-export const ToastProvider: React.FC<React.PropsWithChildren> = ({
+export const ToastProvider: React.FC<ToastProviderProps> = ({
   children,
+  position = { vertical: "top", horizontal: "right" },
 }) => {
   const [queue, setQueue] = React.useState<Toast[]>([]);
   const [current, setCurrent] = React.useState<Toast | null>(null);
@@ -75,7 +86,7 @@ export const ToastProvider: React.FC<React.PropsWithChildren> = ({
         open={!!current}
         autoHideDuration={current?.autoHideDuration ?? 3000}
         onClose={() => setCurrent(null)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        anchorOrigin={position}
       >
         <Alert
           onClose={() => setCurrent(null)}

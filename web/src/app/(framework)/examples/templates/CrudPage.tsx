@@ -13,7 +13,7 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
 import type { ColDef } from "ag-grid-community";
-import { DataTable } from "@/shared/components/ui/organisms/DataTable";
+import { DataTable } from "@/shared/components/ui/data-display/DataTable";
 
 export interface CrudPageProps<T extends { id: string | number }> {
   title: string;

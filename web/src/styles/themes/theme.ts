@@ -45,10 +45,20 @@ export const createAppTheme = (mode: Mode) => {
         },
       },
       MuiPaper: {
+        defaultProps: {
+          elevation: 1,
+        },
         styleOverrides: {
-          root: { borderRadius: t.radius.lg },
+          root: { 
+            borderRadius: t.radius.lg,
+            flexShrink: t.layout.paper.flexShrink,
+          },
         },
       },
+    },
+    // Custom theme properties for layout
+    custom: {
+      layout: t.layout,
     },
   };
   return createTheme(options);

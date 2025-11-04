@@ -2,6 +2,8 @@
 
 This directory contains the GraphQL schema contracts and federation configuration for NeoTool. It implements enterprise-grade schema management with a single source of truth approach.
 
+📚 **Full Documentation**: See [docs/contracts/graphql-federation.md](../docs/contracts/graphql-federation.md) for complete setup and architecture details.
+
 ## 🏗️ Architecture
 
 ```

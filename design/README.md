@@ -2,6 +2,8 @@
 
 This directory contains all design-related assets, prototypes, and documentation following big tech best practices for monorepo organization.
 
+📚 **Full Documentation**: See [docs/design/assets.md](../docs/design/assets.md) for complete guidelines and workflows.
+
 ## 📁 Directory Structure
 
 ```

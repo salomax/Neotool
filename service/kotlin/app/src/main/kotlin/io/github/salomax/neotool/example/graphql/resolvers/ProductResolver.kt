@@ -3,20 +3,20 @@ package io.github.salomax.neotool.example.graphql.resolvers
 import io.github.salomax.neotool.example.domain.Product
 import io.github.salomax.neotool.example.graphql.dto.ProductInputDTO
 import io.github.salomax.neotool.example.service.ProductService
-import io.github.salomax.neotool.graphql.CrudResolver
+import io.github.salomax.neotool.graphql.GenericCrudResolver
 import io.github.salomax.neotool.graphql.CrudService
 import jakarta.inject.Singleton
 import jakarta.validation.Validator
 import java.util.*
 
 /**
- * Product resolver implementing the standard CRUD pattern
+ * Product resolver using the generic enhanced CRUD pattern with automatic payload handling
  */
 @Singleton
 class ProductResolver(
     private val productService: ProductService,
     validator: Validator
-) : CrudResolver<Product, ProductInputDTO, UUID>() {
+) : GenericCrudResolver<Product, ProductInputDTO, UUID>() {
     
     override val validator: Validator = validator
     override val service: CrudService<Product, UUID> = ProductCrudService(productService)

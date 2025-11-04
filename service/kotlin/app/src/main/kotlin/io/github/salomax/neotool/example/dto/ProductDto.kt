@@ -76,7 +76,7 @@ data class ProductResponse(
   val stock: Int,
   val createdAt: Instant,
   val updatedAt: Instant,
-  val version: Long?
+  val version: Long
 )
 
 @Serdeable

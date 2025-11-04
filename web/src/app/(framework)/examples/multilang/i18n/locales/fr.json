@@ -1,0 +1,9 @@
+{
+  "title": "Démonstration Multi-Langue",
+  "welcome": "Bienvenue dans notre application !",
+  "description": "Cette page démontre le support dynamique des langues",
+  "language": "Langue",
+  "selectLanguage": "Sélectionner la Langue",
+  "currentLanguage": "Langue Actuelle",
+  "supportedLanguages": "Langues Supportées"
+}

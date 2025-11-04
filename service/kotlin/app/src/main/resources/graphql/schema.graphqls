@@ -9,6 +9,7 @@ type Product @key(fields: "id") {
   stock: Int!
   createdAt: String
   updatedAt: String
+  version: Int!
 }
 
 type Customer @key(fields: "id") {
@@ -18,6 +19,7 @@ type Customer @key(fields: "id") {
   status: String!
   createdAt: String
   updatedAt: String
+  version: Int!
 }
 
 # Query type with clean, focused operations
@@ -64,5 +66,5 @@ input CustomerInput {
 enum CustomerStatus {
   ACTIVE
   INACTIVE
-  SUSPENDED
+  PENDING
 }
