@@ -1,69 +1,48 @@
-import React from "react";
-import type { Preview } from "@storybook/react";
-import type { StoryContext } from "@storybook/react";
-import { AppThemeProvider } from "../src/styles/themes/AppThemeProvider";
-import { tokens } from "../src/styles/themes/tokens";
-import { I18nextProvider } from "react-i18next";
-import i18n from "../src/shared/i18n/storybook";
-import { AppQueryProvider } from "../src/lib/api/AppQueryProvider";
+import type { Preview } from '@storybook/react';
+import { ThemeProvider, createTheme } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
+import i18n from '../src/shared/i18n/storybook';
 
-const withProviders = (Story: React.ComponentType, context: StoryContext) => {
-  const themeMode = context.globals.theme as "light" | "dark";
-  const locale = context.globals.locale as "pt-BR" | "en-US";
-  i18n.changeLanguage(locale);
+// Initialize i18n for Storybook
+i18n;
 
-  return (
-    <AppThemeProvider defaultMode={themeMode}>
-      <AppQueryProvider>
-        <I18nextProvider i18n={i18n}>
-          <Story />
-        </I18nextProvider>
-      </AppQueryProvider>
-    </AppThemeProvider>
-  );
-};
+// Create a simple theme for Storybook
+const theme = createTheme({
+  palette: {
+    mode: 'light',
+  },
+  typography: {
+    fontFamily: `'Inter', ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, sans-serif`,
+  },
+});
 
 const preview: Preview = {
-  decorators: [withProviders],
   parameters: {
-    controls: { expanded: true },
+    actions: { argTypesRegex: '^on[A-Z].*' },
+    controls: {
+      matchers: {
+        color: /(background|color)$/i,
+        date: /Date$/i,
+      },
+    },
     backgrounds: {
-      default: "App Background",
+      default: 'light',
       values: [
-        { name: "App Background", value: tokens.light.palette.bg },
-        { name: "Paper", value: tokens.light.palette.bgPaper },
-        { name: "Dark", value: tokens.dark.palette.bg },
+        { name: 'light', value: '#ffffff' },
+        { name: 'dark', value: '#333333' },
       ],
     },
+    // Prevent layout shifts by using padded layout
+    layout: 'padded',
   },
-  globalTypes: {
-    theme: {
-      name: "Theme",
-      description: "Global theme for components",
-      defaultValue: "light",
-      toolbar: {
-        icon: "circlehollow",
-        items: [
-          { value: "light", title: "Light" },
-          { value: "dark", title: "Dark" },
-        ],
-        dynamicTitle: true,
-      },
-    },
-    locale: {
-      name: "Locale",
-      description: "Internationalization locale",
-      defaultValue: "en-US",
-      toolbar: {
-        icon: "globe",
-        items: [
-          { value: "en-US", title: "English (US)" },
-          { value: "pt-BR", title: "Português (Brasil)" },
-        ],
-        dynamicTitle: true,
-      },
-    },
-  },
+  decorators: [
+    (Story) => (
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Story />
+      </ThemeProvider>
+    ),
+  ],
 };
 
 export default preview;

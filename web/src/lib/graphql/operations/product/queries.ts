@@ -1,7 +1,7 @@
 import { gql } from '@apollo/client';
 import { PRODUCT_FIELDS } from '../../fragments/common';
 
-// Product Queries
+// Get all products
 export const GET_PRODUCTS = gql`
   ${PRODUCT_FIELDS}
   query GetProducts {
@@ -11,6 +11,7 @@ export const GET_PRODUCTS = gql`
   }
 `;
 
+// Get single product by ID
 export const GET_PRODUCT = gql`
   ${PRODUCT_FIELDS}
   query GetProduct($id: ID!) {

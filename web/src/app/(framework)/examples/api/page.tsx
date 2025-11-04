@@ -8,8 +8,8 @@ import Paper from "@mui/material/Paper";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import Alert from "@mui/material/Alert";
-import CircularProgress from "@mui/material/CircularProgress";
 import CodeBlock from "@mui/material/Box";
+import { Button } from "@/shared/components/ui/primitives";
 // import { useQuery, useMutation, useLazyQuery } from '@apollo/client';
 // import { 
 //   GET_CUSTOMERS, 
@@ -227,16 +227,14 @@ function RestApiExample() {
           Fetch Customers via REST API:
         </Typography>
         <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-          <button 
+          <Button 
             onClick={fetchData}
-            disabled={loading}
-            style={{ padding: '8px 16px', backgroundColor: '#1976d2', color: 'white', border: 'none', borderRadius: '4px' }}
+            loading={loading}
+            variant="contained"
           >
-            {loading ? 'Loading...' : 'Fetch Customers'}
-          </button>
+            {loading ? "Loading..." : "Fetch Customers"}
+          </Button>
         </Box>
-        
-        {loading && <CircularProgress size={20} />}
         {error && <Alert severity="error">{error}</Alert>}
         {data && (
           <CodeBlock component="pre" sx={{ 

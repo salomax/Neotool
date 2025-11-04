@@ -6,8 +6,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, FormProvider } from "react-hook-form";
 import type { ColDef } from "ag-grid-community";
 import { CrudPage } from "../CrudPage";
-import { Button } from "@/shared/components/ui/atoms/Button";
-import { FormTextField } from "@/shared/components/ui/atoms/form/FormField";
+import { Button } from "@/shared/components/ui/primitives/Button";
+import { FormTextField } from "@/shared/components/ui/forms/form/FormField";
 
 type Row = { id: number; name: string; email: string };
 

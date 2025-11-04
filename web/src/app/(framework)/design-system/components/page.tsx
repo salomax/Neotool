@@ -7,7 +7,6 @@ import {
   Container, 
   Card, 
   CardContent,
-  CardActions,
   Button,
   Chip,
   Accordion,
@@ -24,7 +23,6 @@ import {
   SearchIcon,
   FilterListIcon,
   CodeIcon,
-  VisibilityIcon,
   CategoryIcon,
   WidgetsIcon,
   ExtensionIcon,
@@ -36,380 +34,83 @@ import {
   ContentCopyIcon,
   CloseIcon
 } from "@/shared/ui/mui-imports";
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useResponsive } from "@/shared/hooks/useResponsive";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { getAllComponentNames, getComponentDocs } from "./[component]/docs/registry";
 
-// Component categories following atomic design principles
-const componentCategories = {
-  atoms: {
-    title: "Atoms",
+// Component categories configuration
+const categoryConfig = {
+  primitives: {
+    title: "Primitives",
     description: "Basic building blocks of our design system",
     icon: <CategoryIcon />,
     color: "primary" as const,
-    components: [
-      {
-        name: "Button",
-        description: "Interactive elements for user actions",
-        status: "stable",
-        stories: true,
-        tests: true,
-        tags: ["interaction", "action"]
-      },
-      {
-        name: "Avatar",
-        description: "User profile images and initials",
-        status: "stable",
-        stories: true,
-        tests: true,
-        tags: ["profile", "user"]
-      },
-      {
-        name: "Badge",
-        description: "Small status indicators and notifications",
-        status: "stable",
-        stories: true,
-        tests: true,
-        tags: ["status", "notification"]
-      },
-      {
-        name: "Chip",
-        description: "Compact elements for tags and filters",
-        status: "stable",
-        stories: false,
-        tests: false,
-        tags: ["tag", "filter"]
-      },
-      {
-        name: "Tooltip",
-        description: "Contextual information on hover",
-        status: "stable",
-        stories: true,
-        tests: false,
-        tags: ["help", "context"]
-      },
-      {
-        name: "Link",
-        description: "Navigation and external links",
-        status: "stable",
-        stories: true,
-        tests: false,
-        tags: ["navigation", "link"]
-      },
-      {
-        name: "LoadingSpinner",
-        description: "Loading states and progress indicators",
-        status: "stable",
-        stories: false,
-        tests: false,
-        tags: ["loading", "progress"]
-      },
-      {
-        name: "PageSkeleton",
-        description: "Skeleton loading for page content",
-        status: "stable",
-        stories: false,
-        tests: false,
-        tags: ["loading", "skeleton"]
-      },
-      {
-        name: "Drawer",
-        description: "Sliding panel for navigation and overlays",
-        status: "stable",
-        stories: true,
-        tests: true,
-        tags: ["navigation", "sidebar", "overlay"]
-      },
-      {
-        name: "Rating",
-        description: "Interactive rating component with multiple variants",
-        status: "stable",
-        stories: true,
-        tests: true,
-        tags: ["rating", "stars", "feedback", "interaction"]
-      },
-      {
-        name: "ColorPicker",
-        description: "Color picker with presets and multiple format support",
-        status: "stable",
-        stories: true,
-        tests: true,
-        tags: ["color", "picker", "palette", "input"]
-      },
-      {
-        name: "Slider",
-        description: "Range and value selection with multiple variants",
-        status: "stable",
-        stories: true,
-        tests: true,
-        tags: ["slider", "range", "input", "control"]
-      },
-      {
-        name: "Switch",
-        description: "Toggle switch for binary on/off states",
-        status: "stable",
-        stories: true,
-        tests: true,
-        tags: ["switch", "toggle", "input", "control"]
-      },
-      {
-        name: "DateTimePicker",
-        description: "Date and time picker with various customization options",
-        status: "stable",
-        stories: true,
-        tests: true,
-        tags: ["datetime", "picker", "input", "calendar", "time"]
-      },
-      {
-        name: "ImageUpload",
-        description: "Image upload component with drag & drop and preview",
-        status: "stable",
-        stories: true,
-        tests: true,
-        tags: ["upload", "image", "drag", "drop", "preview"]
-      },
-      {
-        name: "ProgressBar",
-        description: "Progress indicator with linear, circular, and step variants",
-        status: "stable",
-        stories: true,
-        tests: true,
-        tags: ["progress", "indicator", "loading", "status", "bar"]
-      },
-      {
-        name: "Tabs",
-        description: "Dynamic tabs with creation, closing, and reordering capabilities",
-        status: "stable",
-        stories: true,
-        tests: true,
-        tags: ["tabs", "navigation", "dynamic", "closable", "reorderable"]
-      },
-    ]
   },
-  formFields: {
-    title: "Form Fields",
-    description: "Specialized input components for forms",
+  forms: {
+    title: "Forms",
+    description: "Form fields and input components",
     icon: <WidgetsIcon />,
     color: "secondary" as const,
-    components: [
-      {
-        name: "TextField",
-        description: "Input fields for text data",
-        status: "stable",
-        stories: true,
-        tests: false,
-        tags: ["input", "form"]
-      },
-      {
-        name: "AutocompleteField",
-        description: "Searchable dropdown with suggestions",
-        status: "stable",
-        stories: true,
-        tests: false,
-        tags: ["input", "search", "dropdown"]
-      },
-      {
-        name: "CheckboxField",
-        description: "Boolean input with checkbox styling",
-        status: "stable",
-        stories: true,
-        tests: false,
-        tags: ["input", "boolean", "checkbox"]
-      },
-      {
-        name: "CurrencyField",
-        description: "Formatted input for monetary values",
-        status: "stable",
-        stories: true,
-        tests: false,
-        tags: ["input", "currency", "money"]
-      },
-      {
-        name: "DatePickerField",
-        description: "Date and time selection components",
-        status: "stable",
-        stories: true,
-        tests: false,
-        tags: ["input", "date", "time"]
-      },
-      {
-        name: "NumberField",
-        description: "Numeric input with validation",
-        status: "stable",
-        stories: true,
-        tests: true,
-        tags: ["input", "number", "numeric"]
-      },
-      {
-        name: "PasswordField",
-        description: "Secure input for passwords",
-        status: "stable",
-        stories: true,
-        tests: false,
-        tags: ["input", "password", "security"]
-      },
-      {
-        name: "PercentField",
-        description: "Formatted input for percentage values",
-        status: "stable",
-        stories: true,
-        tests: false,
-        tags: ["input", "percent", "percentage"]
-      },
-      {
-        name: "RadioGroupField",
-        description: "Single selection from multiple options",
-        status: "stable",
-        stories: true,
-        tests: false,
-        tags: ["input", "radio", "selection"]
-      },
-      {
-        name: "SelectField",
-        description: "Dropdown selection component",
-        status: "stable",
-        stories: true,
-        tests: false,
-        tags: ["input", "select", "dropdown"]
-      },
-      {
-        name: "ToggleField",
-        description: "Switch input for boolean values",
-        status: "stable",
-        stories: true,
-        tests: false,
-        tags: ["input", "toggle", "switch"]
-      },
-      {
-        name: "AsyncAutocomplete",
-        description: "Autocomplete with asynchronous data loading",
-        status: "beta",
-        stories: true,
-        tests: false,
-        tags: ["input", "async"]
-      },
-      {
-        name: "FileUploader",
-        description: "Component for uploading files",
-        status: "beta",
-        stories: false,
-        tests: false,
-        tags: ["input", "upload"]
-      },
-      {
-        name: "MaskedField",
-        description: "Input field with predefined masks",
-        status: "stable",
-        stories: false,
-        tests: false,
-        tags: ["input", "mask"]
-      },
-      {
-        name: "CEPField",
-        description: "Brazilian postal code input with validation",
-        status: "stable",
-        stories: false,
-        tests: false,
-        tags: ["input", "brazil", "cep", "postal"]
-      },
-      {
-        name: "CNPJField",
-        description: "Brazilian company registration number (CNPJ)",
-        status: "stable",
-        stories: false,
-        tests: false,
-        tags: ["input", "brazil", "cnpj", "company"]
-      },
-      {
-        name: "CPFField",
-        description: "Brazilian individual registration number (CPF)",
-        status: "stable",
-        stories: false,
-        tests: false,
-        tags: ["input", "brazil", "cpf", "individual"]
-      }
-    ]
   },
-  molecules: {
-    title: "Molecules",
-    description: "Combinations of atoms that work together",
+  "data-display": {
+    title: "Data Display",
+    description: "Tables, charts, and data visualization components",
     icon: <ExtensionIcon />,
     color: "success" as const,
-    components: [
-      {
-        name: "ConfirmDialog",
-        description: "Modal dialog for confirmations",
-        status: "stable",
-        stories: true,
-        tests: false,
-        tags: ["dialog", "confirmation", "modal"]
-      },
-      {
-        name: "EmptyErrorState",
-        description: "Empty state and error messaging",
-        status: "stable",
-        stories: true,
-        tests: false,
-        tags: ["empty", "error", "state"]
-      },
-      {
-        name: "SearchField",
-        description: "Search input with advanced features",
-        status: "stable",
-        stories: true,
-        tests: false,
-        tags: ["search", "input", "filter"]
-      },
-      {
-        name: "ToastProvider",
-        description: "Global notification system",
-        status: "stable",
-        stories: false,
-        tests: false,
-        tags: ["notification", "toast", "global"]
-      },
-      {
-        name: "Chart",
-        description: "Data visualization with multiple chart types",
-        status: "stable",
-        stories: true,
-        tests: true,
-        tags: ["data", "visualization", "charts"]
-      },
-      {
-        name: "RichTextEditor",
-        description: "Rich text editor with toolbar and formatting options",
-        status: "stable",
-        stories: true,
-        tests: true,
-        tags: ["editor", "text", "formatting", "wysiwyg"]
-      }
-    ]
   },
-  organisms: {
-    title: "Organisms",
-    description: "Complex UI components made of molecules and atoms",
+  layout: {
+    title: "Layout",
+    description: "Components for structuring and organizing content",
     icon: <ViewModuleIcon />,
-    color: "warning" as const,
-    components: [
-      {
-        name: "DataTable",
-        description: "Advanced data table with sorting, filtering, and pagination",
-        status: "stable",
-        stories: true,
-        tests: false,
-        tags: ["table", "data", "grid", "pagination"]
-      },
-      {
-        name: "Actions",
-        description: "Action buttons and bulk operations",
-        status: "stable",
-        stories: false,
-        tests: false,
-        tags: ["actions", "buttons", "bulk"]
-      }
-    ]
-  }
+    color: "info" as const,
+  },
 };
+
+// Extract category from component's githubUrl path
+function getCategoryFromGithubUrl(githubUrl: string): string {
+  const match = githubUrl.match(/\/ui\/([^\/]+)/);
+  return match?.[1] ?? 'primitives';
+}
+
+// Get component categories dynamically from registry
+function getComponentCategories() {
+  const categoryMap: Record<string, Array<{ name: string; data: any }>> = {};
+  const componentNames = getAllComponentNames();
+  
+  // Group components by category
+  for (const name of componentNames) {
+    const docs = getComponentDocs(name);
+    if (!docs) continue;
+    
+    const category = getCategoryFromGithubUrl(docs.data.githubUrl);
+    if (!categoryMap[category]) {
+      categoryMap[category] = [];
+    }
+    categoryMap[category].push({ name, data: docs.data });
+  }
+  
+  // Map to category config
+  const categories: Record<string, any> = {};
+  for (const [categoryKey, components] of Object.entries(categoryMap)) {
+    const config = categoryConfig[categoryKey as keyof typeof categoryConfig];
+    if (!config) continue; // Skip unknown categories
+    
+    categories[categoryKey] = {
+      ...config,
+      components: components.map(({ name, data }) => ({
+        name: data.name,
+        description: data.description,
+        status: data.status,
+        tests: data.tests || false,
+      })),
+    };
+  }
+  
+  return categories;
+}
+
 
 export default function ComponentsPage() {
   const { isMobile } = useResponsive();
@@ -417,6 +118,9 @@ export default function ComponentsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  
+  // Get component categories dynamically from registry
+  const componentCategories = React.useMemo(() => getComponentCategories(), []);
 
   const filteredCategories = Object.entries(componentCategories)
     .filter(([key, category]) => {
@@ -426,8 +130,7 @@ export default function ComponentsPage() {
       
       const filteredComponents = category.components.filter(component =>
         component.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        component.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        component.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
+        component.description.toLowerCase().includes(searchTerm.toLowerCase())
       );
       
       return filteredComponents.length > 0;
@@ -437,8 +140,7 @@ export default function ComponentsPage() {
       
       const filteredComponents = category.components.filter(component =>
         component.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        component.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        component.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
+        component.description.toLowerCase().includes(searchTerm.toLowerCase())
       );
       
       return [key, { ...category, components: filteredComponents }] as const;
@@ -467,21 +169,23 @@ export default function ComponentsPage() {
     router.push(`/design-system/components/${componentName.toLowerCase()}`);
   };
 
-
-  const handleViewStorybook = (componentName: string) => {
-    // Open Storybook for the component
-    window.open(`http://localhost:6006/?path=/story/components-${componentName.toLowerCase()}`, '_blank');
-  };
-
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
       {/* Header */}
       <Box sx={{ mb: 6 }}>
+        <Button
+          component={Link}
+          href="/design-system"
+          startIcon={<ArrowBackIcon />}
+          sx={{ mb: 3 }}
+        >
+          Back to Design System
+        </Button>
         <Typography variant="h3" component="h1" gutterBottom>
           Components
         </Typography>
         <Typography variant="h6" color="text.secondary" sx={{ maxWidth: 800, mb: 4 }}>
-          Explore our comprehensive collection of reusable UI components, organized by atomic design principles.
+          Explore our comprehensive collection of reusable UI components, organized by functional purpose.
         </Typography>
         
         {/* Search Results Counter */}
@@ -589,10 +293,12 @@ export default function ComponentsPage() {
                 {category.components.map((component: any) => (
                   <Box key={component.name} sx={viewMode === "list" ? { width: "100%" } : {}}>
                     <Card 
+                      onClick={() => handleViewComponent(component.name)}
                       sx={{ 
                         height: "100%", 
                         display: "flex", 
                         flexDirection: "column",
+                        cursor: "pointer",
                         transition: "all 0.2s ease-in-out",
                         "&:hover": {
                           transform: "translateY(-2px)",
@@ -616,30 +322,7 @@ export default function ComponentsPage() {
                           {component.description}
                         </Typography>
 
-                        <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", mb: 2 }}>
-                          {component.tags.map((tag: string) => (
-                            <Chip
-                              key={tag}
-                              label={tag}
-                              size="small"
-                              variant="outlined"
-                              sx={{ fontSize: "0.75rem" }}
-                            />
-                          ))}
-                        </Box>
-
                         <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
-                          {component.stories && (
-                            <Tooltip title="Has Storybook stories">
-                              <Chip
-                                icon={<VisibilityIcon />}
-                                label="Stories"
-                                size="small"
-                                variant="outlined"
-                                color="primary"
-                              />
-                            </Tooltip>
-                          )}
                           {component.tests && (
                             <Tooltip title="Has unit tests">
                               <Chip
@@ -653,25 +336,6 @@ export default function ComponentsPage() {
                           )}
                         </Box>
                       </CardContent>
-                      
-                      <CardActions sx={{ pt: 0 }}>
-                        <Button 
-                          size="small" 
-                          startIcon={<VisibilityIcon />}
-                          onClick={() => handleViewComponent(component.name)}
-                        >
-                          View
-                        </Button>
-                        {component.stories && (
-                          <Button 
-                            size="small" 
-                            startIcon={<OpenInNewIcon />}
-                            onClick={() => handleViewStorybook(component.name)}
-                          >
-                            Storybook
-                          </Button>
-                        )}
-                      </CardActions>
                     </Card>
                   </Box>
                 ))}

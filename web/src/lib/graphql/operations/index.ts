@@ -1,10 +1,3 @@
-// GraphQL Operations - Centralized exports
-// This file provides a clean API for importing GraphQL operations
-
-// Domain-specific operations
+// Centralized exports for all GraphQL operations
 export * from './customer';
 export * from './product';
-export * from './dashboard';
-
-// Fragments
-export * from '../fragments/common';

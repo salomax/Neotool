@@ -1,6 +1,6 @@
 import { gql } from '@apollo/client';
 
-// Common field fragments for reusability
+// Customer fields fragment
 export const CUSTOMER_FIELDS = gql`
   fragment CustomerFields on Customer {
     id
@@ -12,6 +12,7 @@ export const CUSTOMER_FIELDS = gql`
   }
 `;
 
+// Product fields fragment
 export const PRODUCT_FIELDS = gql`
   fragment ProductFields on Product {
     id
@@ -24,21 +25,5 @@ export const PRODUCT_FIELDS = gql`
   }
 `;
 
-export const DASHBOARD_SUMMARY_FIELDS = gql`
-  fragment DashboardSummaryFields on DashboardSummary {
-    totalCustomers
-    totalProducts
-    activeCustomers
-    lowStockProducts
-    totalRevenue
-  }
-`;
-
-export const DASHBOARD_TIMESERIES_FIELDS = gql`
-  fragment DashboardTimeseriesFields on DashboardTimeseries {
-    date
-    customers
-    products
-    revenue
-  }
-`;
+// Note: The actual schema returns objects directly or boolean values
+// No common response wrapper fragments needed for current schema

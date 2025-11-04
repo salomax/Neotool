@@ -20,6 +20,12 @@ directive @join__unionMember(graph: join__Graph!, member: String!) repeatable on
 
 directive @link(url: String, as: String, for: link__Purpose, import: [link__Import]) repeatable on SCHEMA
 
+input BaseEntityInput
+  @join__type(graph: APP)
+{
+  name: String!
+}
+
 type Customer
   @join__type(graph: APP, key: "id")
 {
@@ -29,6 +35,7 @@ type Customer
   status: String!
   createdAt: String
   updatedAt: String
+  version: Int!
 }
 
 input CustomerInput
@@ -39,10 +46,18 @@ input CustomerInput
   status: String!
 }
 
+enum CustomerStatus
+  @join__type(graph: APP)
+{
+  ACTIVE @join__enumValue(graph: APP)
+  INACTIVE @join__enumValue(graph: APP)
+  PENDING @join__enumValue(graph: APP)
+}
+
 scalar join__FieldSet
 
 enum join__Graph {
-  APP @join__graph(name: "app", url: "http://host.docker.internal:8080/graphql")
+  APP @join__graph(name: "app", url: "http://neotool-api:8080/graphql")
 }
 
 scalar link__Import
@@ -80,6 +95,7 @@ type Product
   stock: Int!
   createdAt: String
   updatedAt: String
+  version: Int!
 }
 
 input ProductInput

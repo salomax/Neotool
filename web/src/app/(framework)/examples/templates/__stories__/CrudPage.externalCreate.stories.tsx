@@ -2,13 +2,13 @@ import React from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import type { ColDef } from "ag-grid-community";
 import { CrudPage } from "../CrudPage";
-import { actionsColumn } from "@/shared/components/ui/organisms/actions";
+import { actionsColumn } from "@/shared/components/ui/patterns/actions";
 import { Dialog, DialogTitle, DialogContent, Stack } from "@mui/material";
-import { Button } from "@/shared/components/ui/atoms/Button";
+import { Button } from "@/shared/components/ui/primitives/Button";
 import { useForm, FormProvider } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FormTextField } from "@/shared/components/ui/atoms/form/FormField";
+import { FormTextField } from "@/shared/components/ui/forms/form/FormField";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-quartz.css";
 

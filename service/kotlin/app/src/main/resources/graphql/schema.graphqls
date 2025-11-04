@@ -66,5 +66,5 @@ input CustomerInput {
 enum CustomerStatus {
   ACTIVE
   INACTIVE
-  SUSPENDED
+  PENDING
 }

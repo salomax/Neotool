@@ -16,6 +16,17 @@ export interface DesignTokens {
     lg: number;
     xl: number;
   };
+  layout: {
+    paper: {
+      padding: number;
+      flexShrink: number;
+    };
+    pageLayout: {
+      padding: number;
+      gap: number;
+      fullHeight: boolean;
+    };
+  };
   typography: {
     fontFamily: string;
     h1: number;
@@ -49,6 +60,17 @@ export const tokens: Record<Mode, DesignTokens> = {
   light: {
     spacing: { xs: 4, sm: 8, md: 12, lg: 16, xl: 24 },
     radius: { sm: 4, md: 8, lg: 12, xl: 16 },
+    layout: {
+      paper: {
+        padding: 2,
+        flexShrink: 0,
+      },
+      pageLayout: {
+        padding: 4,
+        gap: 12,
+        fullHeight: true,
+      },
+    },
     typography: {
       fontFamily: `'Inter', ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial`,
       monoFamily: `'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace`,
@@ -80,6 +102,17 @@ export const tokens: Record<Mode, DesignTokens> = {
   dark: {
     spacing: { xs: 4, sm: 8, md: 12, lg: 16, xl: 24 },
     radius: { sm: 4, md: 8, lg: 12, xl: 16 },
+    layout: {
+      paper: {
+        padding: 2,
+        flexShrink: 0,
+      },
+      pageLayout: {
+        padding: 4,
+        gap: 12,
+        fullHeight: true,
+      },
+    },
     typography: {
       fontFamily: `'Inter', ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial`,
       monoFamily: `'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace`,

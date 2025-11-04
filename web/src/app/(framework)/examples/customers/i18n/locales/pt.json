@@ -27,5 +27,14 @@
   "emailInvalid": "Endereço de email inválido",
   "statusRequired": "Status é obrigatório",
   "errorSaving": "Erro ao salvar cliente",
-  "errorDeleting": "Erro ao excluir cliente"
+  "errorDeleting": "Erro ao excluir cliente",
+  "toast": {
+    "customerCreated": "Cliente \"{{name}}\" criado com sucesso",
+    "customerUpdated": "Cliente \"{{name}}\" atualizado com sucesso",
+    "customerDeleted": "Cliente \"{{name}}\" excluído com sucesso",
+    "customerCreateError": "Falha ao criar cliente",
+    "customerUpdateError": "Falha ao atualizar cliente",
+    "customerDeleteError": "Falha ao excluir cliente",
+    "loading": "Processando..."
+  }
 }

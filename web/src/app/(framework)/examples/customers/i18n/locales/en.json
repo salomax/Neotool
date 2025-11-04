@@ -27,5 +27,14 @@
   "emailInvalid": "Invalid email address",
   "statusRequired": "Status is required",
   "errorSaving": "Error saving customer",
-  "errorDeleting": "Error deleting customer"
+  "errorDeleting": "Error deleting customer",
+  "toast": {
+    "customerCreated": "Customer \"{{name}}\" created successfully",
+    "customerUpdated": "Customer \"{{name}}\" updated successfully",
+    "customerDeleted": "Customer \"{{name}}\" deleted successfully",
+    "customerCreateError": "Failed to create customer",
+    "customerUpdateError": "Failed to update customer",
+    "customerDeleteError": "Failed to delete customer",
+    "loading": "Processing..."
+  }
 }

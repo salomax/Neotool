@@ -30,7 +30,7 @@ data class CustomerInputDTO(
     var name: String = "",
     @field:Email(message = "Email must be valid")
     var email: String = "",
-    @field:Pattern(regexp = "ACTIVE|INACTIVE|SUSPENDED", message = "Status must be one of: ACTIVE, INACTIVE, SUSPENDED")
+    @field:Pattern(regexp = "ACTIVE|INACTIVE|PENDING", message = "❌ Invalid status. Must be one of: ACTIVE, INACTIVE, PENDING")
     var status: String = "ACTIVE"
 ) : BaseInputDTO()
 
@@ -40,7 +40,7 @@ data class CustomerInputDTO(
 enum class CustomerStatus {
     ACTIVE,
     INACTIVE,
-    SUSPENDED
+    PENDING
 }
 
 /**

@@ -5,12 +5,12 @@ import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import { useI18n } from '@/shared/i18n/hooks/useI18n';
+import { useTranslation } from '@/shared/i18n';
 import { analyticsTranslations } from './i18n';
 
 export default function AnalyticsPage() {
   // TypeScript will enforce that analyticsTranslations follows DomainTranslations contract
-  const { t } = useI18n(analyticsTranslations);
+  const { t } = useTranslation(analyticsTranslations);
 
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>

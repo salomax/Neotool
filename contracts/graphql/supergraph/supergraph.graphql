@@ -20,6 +20,12 @@ directive @join__unionMember(graph: join__Graph!, member: String!) repeatable on
 
 directive @link(url: String, as: String, for: link__Purpose, import: [link__Import]) repeatable on SCHEMA
 
+input BaseEntityInput
+  @join__type(graph: APP)
+{
+  name: String!
+}
+
 type Customer
   @join__type(graph: APP, key: "id")
 {
@@ -29,6 +35,7 @@ type Customer
   status: String!
   createdAt: String
   updatedAt: String
+  version: Int!
 }
 
 input CustomerInput
@@ -37,6 +44,14 @@ input CustomerInput
   name: String!
   email: String!
   status: String!
+}
+
+enum CustomerStatus
+  @join__type(graph: APP)
+{
+  ACTIVE @join__enumValue(graph: APP)
+  INACTIVE @join__enumValue(graph: APP)
+  PENDING @join__enumValue(graph: APP)
 }
 
 scalar join__FieldSet
@@ -80,6 +95,7 @@ type Product
   stock: Int!
   createdAt: String
   updatedAt: String
+  version: Int!
 }
 
 input ProductInput

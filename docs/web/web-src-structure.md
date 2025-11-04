@@ -1,24 +1,19 @@
 # Web Frontend Structure - Best Practices
 
-This document defines the best practices for organizing the `web/src/` directory in the NeoTool boilerplate project.
+This document defines the best practices for organizing the `web/src/` directory in the boilerplate project.
 
-## 🏗️ **Directory Structure Overview**
+## Directory Structure Overview
 
 ```
 web/src/
 ├── app/                          # Next.js App Router (pages & layouts)
-│   ├── (framework)/             # Framework-specific routes
-│   │   ├── dashboard/           # Dashboard pages
-│   │   ├── design-system/       # Design system showcase
-│   │   └── examples/            # Example implementations
-│   ├── examples/                # Feature examples
-│   │   ├── api/                 # API integration examples
-│   │   ├── customers/           # Customer management examples
-│   │   ├── dashboard/           # Dashboard examples
-│   │   ├── database/            # Database examples
-│   │   ├── events/              # Event handling examples
-│   │   ├── graphql/             # GraphQL examples
-│   │   └── products/            # Product management examples
+│   ├── domain-a/                # Domain management pages
+│   ├── domain-b/                # Domain management pages
+│   ├── dashboard/               # Dashboard pages
+│   ├── api/                     # API integration examples
+│   ├── database/                # Database examples
+│   ├── events/                  # Event handling examples
+│   ├── graphql/                 # GraphQL examples
 │   ├── documentation/           # Documentation pages
 │   ├── layout.tsx               # Root layout
 │   ├── page.tsx                 # Home page
@@ -27,6 +22,10 @@ web/src/
 ├── lib/                         # External integrations & utilities
 │   ├── api/                     # API clients & providers
 │   ├── graphql/                 # GraphQL operations & client
+│   ├── hooks/                   # Domain-specific business logic hooks
+│   │   ├── customer/            # Customer domain hooks
+│   │   ├── product/             # Product domain hooks
+│   │   └── order/               # Order domain hooks
 │   └── [other-integrations]/    # Other external services
 ├── shared/                      # Shared application code
 │   ├── components/              # Reusable UI components
@@ -36,7 +35,7 @@ web/src/
 │   │       ├── organisms/       # Complex component combinations
 │   │       └── data-table/      # Specialized components
 │   ├── config/                  # Application configuration
-│   ├── hooks/                   # Custom React hooks
+│   ├── hooks/                   # Reusable utility hooks
 │   ├── i18n/                    # Internationalization
 │   ├── providers/               # React context providers
 │   ├── store/                   # State management
@@ -52,46 +51,50 @@ web/src/
 └── types/                       # Global TypeScript types
 ```
 
-## 🎯 **Core Principles**
+## Core Principles
 
-### 1. **Separation of Concerns**
+### 1. Separation of Concerns
 - **`app/`**: Next.js routing and page components
 - **`lib/`**: External service integrations
 - **`shared/`**: Reusable application code
 - **`stories/`**: Component documentation and examples
 
-### 2. **Atomic Design System**
+### 2. Atomic Design System
 - **Atoms**: Basic UI elements (Button, Input, Icon)
 - **Molecules**: Simple combinations (SearchField, FormField)
 - **Organisms**: Complex components (DataTable, Navigation)
 - **Templates**: Page layouts and structures
 
-### 3. **Feature-Based Organization**
+### 3. Feature-Based Organization
 - Group related functionality together
 - Keep examples organized by feature domain
 - Maintain clear boundaries between features
 
-### 4. **Consistent Naming Conventions**
+### 4. Consistent Naming Conventions
 - **Files**: kebab-case (`user-profile.tsx`)
 - **Components**: PascalCase (`UserProfile`)
 - **Hooks**: camelCase with `use` prefix (`useUserProfile`)
 - **Types**: PascalCase (`UserProfileType`)
 
-## 📁 **Directory Guidelines**
+## Directory Guidelines
 
-### **`app/` Directory (Next.js App Router)**
+### `app/` Directory (Next.js App Router)
 ```
 app/
-├── (framework)/                 # Route groups for organization
-│   ├── dashboard/              # Dashboard-related pages
-│   ├── design-system/          # Design system showcase
-│   └── examples/               # Example implementations
-├── examples/                   # Feature examples
-│   ├── [feature]/              # Individual feature examples
-│   │   ├── page.tsx           # Main example page
-│   │   ├── loading.tsx        # Loading state
-│   │   └── error.tsx          # Error state
-│   └── page.tsx               # Examples index
+├── domain-a/                   # Domain management pages
+│   ├── page.tsx               # Main domain page
+│   ├── loading.tsx            # Loading state
+│   └── error.tsx              # Error state
+├── domain-b/                   # Domain management pages
+│   ├── page.tsx               # Main domain page
+│   ├── loading.tsx            # Loading state
+│   └── error.tsx              # Error state
+├── dashboard/                  # Dashboard pages
+├── api/                       # API integration examples
+├── database/                  # Database examples
+├── events/                    # Event handling examples
+├── graphql/                   # GraphQL examples
+├── documentation/             # Documentation pages
 ├── layout.tsx                 # Root layout
 ├── page.tsx                   # Home page
 ├── not-found.tsx              # 404 page
@@ -104,7 +107,7 @@ app/
 - Extract complex logic to custom hooks or services
 - Use consistent naming for special files (`loading.tsx`, `error.tsx`)
 
-### **`lib/` Directory (External Integrations)**
+### `lib/` Directory (External Integrations)
 ```
 lib/
 ├── api/                       # API clients
@@ -115,6 +118,16 @@ lib/
 │   ├── operations/            # Domain-organized operations
 │   ├── fragments/             # Reusable fragments
 │   └── types.ts               # GraphQL types
+├── hooks/                     # Domain-specific business logic hooks
+│   ├── customer/              # Customer domain hooks
+│   │   ├── useCustomers.ts    # Customer management
+│   │   └── index.ts           # Hook exports
+│   ├── product/               # Product domain hooks
+│   │   ├── useProducts.ts     # Product management
+│   │   └── index.ts           # Hook exports
+│   └── order/                 # Order domain hooks
+│       ├── useOrders.ts       # Order management
+│       └── index.ts           # Hook exports
 └── [integration]/             # Other external services
     ├── client.ts              # Service client
     ├── types.ts               # Service types
@@ -126,8 +139,11 @@ lib/
 - Keep integration logic separate from business logic
 - Use consistent file naming (`client.ts`, `types.ts`, `utils.ts`)
 - Export everything through index files
+- Domain hooks organized by domain in `lib/hooks/[domain]/`
+- Domain hooks contain business logic and integrate with external services
+- Keep domain hooks focused on single domain responsibility
 
-### **`shared/` Directory (Reusable Code)**
+### `shared/` Directory (Reusable Code)
 ```
 shared/
 ├── components/                # Reusable UI components
@@ -139,9 +155,11 @@ shared/
 ├── config/                    # Application configuration
 │   ├── nav.config.ts          # Navigation configuration
 │   └── [feature].config.ts    # Feature-specific config
-├── hooks/                     # Custom React hooks
-│   ├── use[Feature].ts        # Feature-specific hooks
-│   └── use[Utility].ts        # Utility hooks
+├── hooks/                     # Reusable utility hooks
+│   ├── useAutoSave.ts         # Auto-save functionality
+│   ├── useDataTableQuery.ts   # Data table pagination
+│   ├── useResponsive.ts       # Responsive breakpoints
+│   └── useZodForm.ts          # Form validation
 ├── i18n/                      # Internationalization
 │   ├── client.ts              # i18n client setup
 │   ├── config.ts              # i18n configuration
@@ -166,13 +184,14 @@ shared/
 
 **Guidelines:**
 - Use atomic design principles for components
-- Keep business logic in hooks and services
+- Keep business logic in domain hooks (`lib/hooks/[domain]/`)
+- Keep utility hooks in `shared/hooks/` (framework-agnostic)
 - Organize utilities by feature when they grow large
 - Use consistent naming patterns
 
-## 🧩 **Component Organization**
+## Component Organization
 
-### **Atomic Design System**
+### Atomic Design System
 ```
 shared/components/ui/
 ├── atoms/                     # Basic building blocks
@@ -205,30 +224,30 @@ shared/components/ui/
 - Use index files for clean exports
 - Follow atomic design principles strictly
 
-## 📝 **File Naming Conventions**
+## File Naming Conventions
 
-### **Components**
+### Components
 - **Files**: `ComponentName.tsx`
 - **Directories**: `ComponentName/`
 - **Stories**: `ComponentName.stories.tsx`
 - **Tests**: `ComponentName.test.tsx`
 
-### **Hooks**
+### Hooks
 - **Files**: `useHookName.ts`
 - **Custom hooks**: Always start with `use`
 
-### **Utilities**
+### Utilities
 - **Files**: `utility-name.ts`
 - **Directories**: `utility-name/`
 
-### **Types**
+### Types
 - **Files**: `feature-name.d.ts` or `feature-name.types.ts`
 - **Interfaces**: `FeatureNameInterface`
 - **Types**: `FeatureNameType`
 
-## 🔄 **Import/Export Patterns**
+## Import/Export Patterns
 
-### **Index Files**
+### Index Files
 ```typescript
 // atoms/index.ts
 export { default as Button } from './Button';
@@ -241,7 +260,7 @@ export * from './molecules';
 export * from './organisms';
 ```
 
-### **Component Exports**
+### Component Exports
 ```typescript
 // Button/Button.tsx
 export interface ButtonProps {
@@ -258,9 +277,9 @@ export { default } from './Button';
 export type { ButtonProps } from './Button';
 ```
 
-## 🧪 **Testing Strategy**
+## Testing Strategy
 
-### **Test Organization**
+### Test Organization
 ```
 shared/components/ui/atoms/Button/
 ├── Button.tsx
@@ -269,44 +288,44 @@ shared/components/ui/atoms/Button/
 └── index.ts
 ```
 
-### **Test Naming**
+### Test Naming
 - **Unit tests**: `ComponentName.test.tsx`
 - **Integration tests**: `ComponentName.integration.test.tsx`
 - **E2E tests**: `feature-name.e2e.test.tsx`
 
-## 📚 **Documentation Standards**
+## Documentation Standards
 
-### **Component Documentation**
+### Component Documentation
 - Include JSDoc comments for props
 - Provide usage examples in stories
 - Document accessibility features
 - Include design system guidelines
 
-### **Storybook Stories**
+### Storybook Stories
 - Use `.stories.tsx` extension
 - Follow Storybook naming conventions
 - Include all component variants
 - Provide interactive examples
 
-## 🌐 **Internationalization (i18n)**
+## Internationalization (i18n)
 
 The project uses a scalable i18n architecture with domain-specific translations:
 
 ```
 shared/i18n/                    # Core i18n configuration
 ├── config.ts                   # Main i18n setup
-├── hooks/useI18n.ts           # Custom hooks
+├── hooks/useTranslation.ts     # Custom hooks
 └── locales/                   # Shared translations only
     ├── en/common.json
     └── pt/common.json
 
-app/(framework)/examples/
-├── customers/i18n/            # Domain-specific translations
+app/
+├── domain-a/i18n/             # Domain-specific translations
 │   ├── locales/
 │   │   ├── en.json
 │   │   └── pt.json
 │   └── index.ts
-└── products/i18n/             # Domain-specific translations
+└── domain-b/i18n/             # Domain-specific translations
     ├── locales/
     │   ├── en.json
     │   └── pt.json
@@ -316,17 +335,19 @@ app/(framework)/examples/
 **Usage:**
 ```typescript
 // Domain-specific translations
-const { t } = useI18n('customers');
+const { t } = useTranslation(domainTranslations);
 return <Typography>{t('title')}</Typography>;
 
 // Shared translations
-const { t } = useCommonI18n();
-return <Button>{t('routes.home')}</Button>;
+const { tCommon } = useTranslation(domainTranslations);
+return <Button>{tCommon('routes.home')}</Button>;
 ```
 
-For detailed i18n architecture documentation, see [Web i18n Architecture](./web-i18n-architecture.md).
+For detailed i18n architecture documentation, see [i18n Architecture](./web-i18n-architecture.md).
 
-## 🚀 **Best Practices Summary**
+For custom hooks patterns and best practices, see [Custom Hooks Architecture](./web-custom-hooks.md).
+
+## Best Practices Summary
 
 1. **Consistent Structure**: Follow the established directory structure
 2. **Atomic Design**: Organize components by complexity level
@@ -338,7 +359,7 @@ For detailed i18n architecture documentation, see [Web i18n Architecture](./web-
 8. **Scalable i18n**: Use domain-specific translation architecture
 9. **Separation of Concerns**: Keep different types of code separate
 
-## 🔧 **Migration Guidelines**
+## Migration Guidelines
 
 When refactoring existing code:
 

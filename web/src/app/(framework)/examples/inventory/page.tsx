@@ -5,11 +5,11 @@ import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import { useI18n } from '@/shared/i18n/hooks/useI18n';
+import { useTranslation } from '@/shared/i18n';
 import { inventoryTranslations } from './i18n';
 
 export default function InventoryPage() {
-  const { t } = useI18n(inventoryTranslations); // Auto-registers 'inventory' domain
+  const { t } = useTranslation(inventoryTranslations); // Auto-registers 'inventory' domain
 
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>

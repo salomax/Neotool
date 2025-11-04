@@ -18,6 +18,31 @@ const nextConfig = {
   images: {
     domains: ['localhost'],
   },
+  // Configure source maps
+  productionBrowserSourceMaps: false,
+  // Source map handling is now done in middleware.ts
+  // Add headers to handle source map requests gracefully
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY',
+          },
+          {
+            key: 'X-XSS-Protection',
+            value: '1; mode=block',
+          },
+        ],
+      },
+    ]
+  },
   // Webpack configuration
   webpack: (config, { dev, isServer }) => {
     // Optimize for development
@@ -27,7 +52,16 @@ const nextConfig = {
         aggregateTimeout: 300,
       }
       
-      // Let Next.js handle devtool configuration for optimal performance
+      // Disable source maps in development to prevent 404 errors from browser extensions
+      config.devtool = false
+      
+      // Add fallback for missing source maps
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+        os: false,
+      }
     }
     
     // Suppress webpack cache warnings
@@ -35,35 +69,8 @@ const nextConfig = {
       level: 'error',
     };
     
-    // Optimize bundle splitting
-    config.optimization = {
-      ...config.optimization,
-      splitChunks: {
-        chunks: 'all',
-        cacheGroups: {
-          vendor: {
-            test: /[\\/]node_modules[\\/]/,
-            name: 'vendors',
-            chunks: 'all',
-          },
-          mui: {
-            test: /[\\/]node_modules[\\/]@mui[\\/]/,
-            name: 'mui',
-            chunks: 'all',
-          },
-          agGrid: {
-            test: /[\\/]node_modules[\\/]ag-grid[\\/]/,
-            name: 'ag-grid',
-            chunks: 'all',
-          },
-          syntaxHighlighter: {
-            test: /[\\/]node_modules[\\/]react-syntax-highlighter[\\/]/,
-            name: 'syntax-highlighter',
-            chunks: 'all',
-          },
-        },
-      },
-    };
+    // Let Next.js handle bundle splitting by default
+    // Only customize if needed for specific performance requirements
     
     return config
   },

@@ -5,6 +5,13 @@ export default {
     'architecture',
     {
       type: 'category',
+      label: 'Service Layer',
+      items: [
+        'service/graphql-federation-architecture'
+      ]
+    },
+    {
+      type: 'category',
       label: 'Web Frontend',
       items: [
         'web/web-src-structure',

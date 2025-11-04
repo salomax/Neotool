@@ -14,14 +14,17 @@ Welcome to the NeoTool documentation hub. This directory contains all technical 
 
 ### Service Documentation
 - [`service/`](./service/) - Backend service documentation
-- [`service/graphql-operations.md`](./service/graphql-operations.md) - GraphQL operations structure and best practices
+- [`service/graphql-federation-architecture.md`](./service/graphql-federation-architecture.md) - GraphQL Federation architecture and Apollo GraphOS integration
 - [`service/kotlin/`](./service/kotlin/) - Kotlin-specific documentation
 
 ### Web Frontend Documentation
 - [`web/`](./web/) - Frontend-specific documentation
 - [`web/web-src-structure.md`](./web/web-src-structure.md) - Frontend directory structure and best practices
+- [`web/web-themes.md`](./web/web-themes.md) - Theme system guide (design tokens, customization, usage)
+- [`web/web-themes-quick-reference.md`](./web/web-themes-quick-reference.md) - Quick reference for theme values and patterns
 - [`web/web-graphql-operations.md`](./web/web-graphql-operations.md) - GraphQL operations in frontend
 - [`web/web-i18n-architecture.md`](./web/web-i18n-architecture.md) - Internationalization architecture and patterns
+- [`web/web-components.md`](./web/web-components.md) - Shared components design system and usage guide
 
 ### Design Documentation
 - [`design/`](./design/) - Design system and assets documentation
@@ -41,10 +44,13 @@ Welcome to the NeoTool documentation hub. This directory contains all technical 
 ### For Developers
 1. Start with [Architecture Overview](./adr/0001-monorepo-architecture.md)
 2. Review [Backend Documentation](./service/)
-3. Check [Frontend Documentation](./adr/0004-typescript-nextjs-frontend.md)
-4. Understand [Frontend Structure](./web/web-src-structure.md)
-5. Learn [i18n Architecture](./web/web-i18n-architecture.md)
-6. Review [GraphQL Operations](./service/graphql-operations.md)
+3. Understand [GraphQL Federation Architecture](./service/graphql-federation-architecture.md)
+4. Check [Frontend Documentation](./adr/0004-typescript-nextjs-frontend.md)
+5. Understand [Frontend Structure](./web/web-src-structure.md)
+6. Learn [Theme System](./web/web-themes.md) - Design tokens, theming, and customization
+7. Learn [Shared Components System](./web/web-components.md)
+8. Learn [i18n Architecture](./web/web-i18n-architecture.md)
+9. Review [GraphQL Operations](./web/web-graphql-operations.md)
 
 ### For Designers
 1. Review [Design Assets Guide](./design/assets.md)

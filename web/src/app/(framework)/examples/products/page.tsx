@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
+import MUIButton from "@mui/material/Button";
 import TextField from "@mui/material/TextField";
 import Table from "@mui/material/Table";
 import TableHead from "@mui/material/TableHead";
@@ -31,35 +31,33 @@ import InventoryIcon from "@mui/icons-material/Inventory";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useI18n } from '@/shared/i18n/hooks/useI18n';
+import { useTranslation } from '@/shared/i18n';
 import { productsTranslations } from './i18n';
-
-const GRAPHQL_URL = process.env.NEXT_PUBLIC_GRAPHQL_URL || "http://localhost:4000/graphql";
-
-// Product schema validation will be created dynamically with translations
-
-type Product = {
-  id: number;
-  name: string;
-  sku: string;
-  priceCents: number;
-  stock: number;
-  createdAt?: string;
-  updatedAt?: string;
-};
-
-type ProductFormData = z.infer<typeof productSchema>;
+import { Button } from "@/shared/components/ui/primitives";
+import {
+  useGetProductsQuery,
+  GetProductsDocument
+} from '@/lib/graphql/operations/product/queries.generated';
+import {
+  useCreateProductMutation,
+  useUpdateProductMutation,
+  useDeleteProductMutation
+} from '@/lib/graphql/operations/product/mutations.generated';
+import { ProductInput } from '@/lib/graphql/types/__generated__/graphql';
 
 export default function ProductsPage() {
-  const { t } = useI18n(productsTranslations);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { t } = useTranslation(productsTranslations);
   const [searchTerm, setSearchTerm] = useState("");
   const [stockFilter, setStockFilter] = useState<string>("ALL");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<Product | null>(null);
+  const [editingProduct, setEditingProduct] = useState<any>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<any>(null);
+
+  // Apollo Client hooks
+  const { data: productsData, loading, error, refetch } = useGetProductsQuery();
+  const [createProduct] = useCreateProductMutation();
+  const [updateProduct] = useUpdateProductMutation();
+  const [deleteProduct] = useDeleteProductMutation();
 
   // Dynamic schema validation with translations
   const productSchema = z.object({
@@ -68,6 +66,8 @@ export default function ProductsPage() {
     priceCents: z.number().min(0, t('priceRequired')),
     stock: z.number().int().min(0, t('stockRequired')),
   });
+
+  type ProductFormData = z.infer<typeof productSchema>;
 
   const {
     control,
@@ -84,152 +84,51 @@ export default function ProductsPage() {
     },
   });
 
-  // Load products via GraphQL
-  const loadProducts = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const query = `
-        query GetProducts {
-          products {
-            id
-            name
-            sku
-            priceCents
-            stock
-            createdAt
-            updatedAt
-          }
-        }
-      `;
-
-      const response = await fetch(GRAPHQL_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ query }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-      if (result.errors) {
-        throw new Error(result.errors[0].message);
-      }
-      
-      setProducts(result.data.products);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load products");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Create or update product via GraphQL
+  // Create or update product via Apollo Client
   const onSubmit = async (data: ProductFormData) => {
     try {
-      const mutation = editingProduct 
-        ? `
-          mutation UpdateProduct($id: ID!, $input: ProductInput!) {
-            updateProduct(id: $id, input: $input) {
-              id
-              name
-              sku
-              priceCents
-              stock
-              createdAt
-              updatedAt
-            }
-          }
-        `
-        : `
-          mutation CreateProduct($input: ProductInput!) {
-            createProduct(input: $input) {
-              id
-              name
-              sku
-              priceCents
-              stock
-              createdAt
-              updatedAt
-            }
-          }
-        `;
+      const input: ProductInput = {
+        name: data.name,
+        sku: data.sku,
+        priceCents: data.priceCents,
+        stock: data.stock,
+      };
 
-      const variables = editingProduct 
-        ? { id: editingProduct.id, input: data }
-        : { input: data };
-
-      const response = await fetch(GRAPHQL_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          query: mutation,
-          variables 
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-      if (result.errors) {
-        throw new Error(result.errors[0].message);
+      if (editingProduct) {
+        await updateProduct({
+          variables: { id: editingProduct.id, input },
+          refetchQueries: [GetProductsDocument],
+        });
+      } else {
+        await createProduct({
+          variables: { input },
+          refetchQueries: [GetProductsDocument],
+        });
       }
 
       reset();
       setDialogOpen(false);
       setEditingProduct(null);
-      await loadProducts();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save product");
+      console.error('Failed to save product:', err);
     }
   };
 
-  // Delete product via GraphQL
-  const deleteProduct = async (product: Product) => {
+  // Delete product via Apollo Client
+  const handleDeleteProduct = async (product: any) => {
     try {
-      const mutation = `
-        mutation DeleteProduct($id: ID!) {
-          deleteProduct(id: $id)
-        }
-      `;
-
-      const response = await fetch(GRAPHQL_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          query: mutation,
-          variables: { id: product.id }
-        }),
+      await deleteProduct({
+        variables: { id: product.id },
+        refetchQueries: [GetProductsDocument],
       });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-      if (result.errors) {
-        throw new Error(result.errors[0].message);
-      }
-
       setDeleteConfirm(null);
-      await loadProducts();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete product");
+      console.error('Failed to delete product:', err);
     }
   };
 
   // Open edit dialog
-  const openEditDialog = (product: Product) => {
+  const openEditDialog = (product: any) => {
     setEditingProduct(product);
     reset({
       name: product.name,
@@ -252,8 +151,11 @@ export default function ProductsPage() {
     setDialogOpen(true);
   };
 
+  // Get products from Apollo Client data
+  const products = productsData?.products || [];
+
   // Filter products
-  const filteredProducts = products.filter((product) => {
+  const filteredProducts = products.filter((product: any) => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.sku.toLowerCase().includes(searchTerm.toLowerCase());
     
@@ -281,10 +183,6 @@ export default function ProductsPage() {
     return `$${(priceCents / 100).toFixed(2)}`;
   };
 
-  useEffect(() => {
-    loadProducts();
-  }, []);
-
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
@@ -301,8 +199,8 @@ export default function ProductsPage() {
       </Box>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
-          {error}
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error.message}
         </Alert>
       )}
 
@@ -338,7 +236,7 @@ export default function ProductsPage() {
           <Button
             variant="outlined"
             startIcon={<RefreshIcon />}
-            onClick={loadProducts}
+            onClick={() => refetch()}
             disabled={loading}
           >
             Refresh
@@ -376,7 +274,7 @@ export default function ProductsPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredProducts.map((product) => {
+                filteredProducts.map((product: any) => {
                   const stockStatus = getStockStatus(product.stock);
                   return (
                     <TableRow key={product.id} hover>
@@ -503,9 +401,13 @@ export default function ProductsPage() {
             </Box>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button type="submit" variant="contained" disabled={isSubmitting}>
-              {isSubmitting ? <CircularProgress size={20} /> : (editingProduct ? "Update" : "Create")}
+            <MUIButton onClick={() => setDialogOpen(false)}>Cancel</MUIButton>
+            <Button 
+              type="submit" 
+              variant="contained" 
+              loading={isSubmitting}
+            >
+              {editingProduct ? "Update" : "Create"}
             </Button>
           </DialogActions>
         </form>
@@ -520,9 +422,9 @@ export default function ProductsPage() {
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteConfirm(null)}>Cancel</Button>
+          <MUIButton onClick={() => setDeleteConfirm(null)}>Cancel</MUIButton>
           <Button
-            onClick={() => deleteConfirm && deleteProduct(deleteConfirm)}
+            onClick={() => deleteConfirm && handleDeleteProduct(deleteConfirm)}
             color="error"
             variant="contained"
           >

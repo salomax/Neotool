@@ -1,7 +1,7 @@
 import { gql } from '@apollo/client';
 import { PRODUCT_FIELDS } from '../../fragments/common';
 
-// Product Mutations
+// Create new product
 export const CREATE_PRODUCT = gql`
   ${PRODUCT_FIELDS}
   mutation CreateProduct($input: ProductInput!) {
@@ -11,6 +11,7 @@ export const CREATE_PRODUCT = gql`
   }
 `;
 
+// Update existing product
 export const UPDATE_PRODUCT = gql`
   ${PRODUCT_FIELDS}
   mutation UpdateProduct($id: ID!, $input: ProductInput!) {
@@ -20,6 +21,7 @@ export const UPDATE_PRODUCT = gql`
   }
 `;
 
+// Delete product
 export const DELETE_PRODUCT = gql`
   mutation DeleteProduct($id: ID!) {
     deleteProduct(id: $id)

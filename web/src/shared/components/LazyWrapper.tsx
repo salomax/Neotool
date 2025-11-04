@@ -34,7 +34,7 @@ export function LazyWrapper({
 
 // Pre-configured lazy loaders for common heavy components
 export const LazyDataTable = React.lazy(() => 
-  import('@/shared/components/ui/organisms/DataTable')
+  import('@/shared/components/ui/data-display/DataTable')
 );
 
 export const LazyEnterpriseTable = React.lazy(() => 

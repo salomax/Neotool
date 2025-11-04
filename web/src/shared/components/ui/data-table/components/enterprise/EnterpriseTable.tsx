@@ -1,7 +1,7 @@
 "use client";
 
 import "@/styles/themes/agGrid.overrides.css";
-import "@/organisms/DataTable.ag.css";
+import "@/shared/components/ui/data-display/DataTable.ag.css";
 
 import * as React from "react";
 import { Box, Button, Stack, TextField, Typography } from "@mui/material";

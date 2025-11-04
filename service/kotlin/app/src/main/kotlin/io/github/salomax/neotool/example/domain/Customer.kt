@@ -40,5 +40,5 @@ data class Customer(
 }
 
 enum class CustomerStatus {
-    ACTIVE, INACTIVE, SUSPENDED
+    ACTIVE, INACTIVE, PENDING
 }

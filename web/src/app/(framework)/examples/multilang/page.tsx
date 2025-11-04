@@ -10,17 +10,23 @@ import InputLabel from "@mui/material/InputLabel";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import Chip from "@mui/material/Chip";
-import { useI18n } from '@/shared/i18n/hooks/useI18n';
+import { useTranslation } from '@/shared/i18n';
 import { multilangTranslations } from './i18n';
-import { getSupportedLanguages } from '@/shared/i18n/language-config';
+// import { getSupportedLanguages } from '@/shared/i18n/language-config';
 
 export default function MultiLangPage() {
-  const { t } = useI18n(multilangTranslations);
+  const { t } = useTranslation(multilangTranslations);
   const [selectedLanguage, setSelectedLanguage] = useState('en');
-  const supportedLanguages = getSupportedLanguages();
+  const supportedLanguages = [
+    { code: 'en', name: 'English' },
+    { code: 'pt', name: 'Português' },
+    { code: 'es', name: 'Español' },
+    { code: 'fr', name: 'Français' },
+    { code: 'de', name: 'Deutsch' }
+  ];
 
   const handleLanguageChange = (event: any) => {
-    const newLanguage = event.target.value;
+    const newLanguage = event.target.value as string;
     setSelectedLanguage(newLanguage);
     // In a real app, you would change the i18n language here
     // i18n.changeLanguage(newLanguage);
@@ -40,8 +46,8 @@ export default function MultiLangPage() {
             label={t('selectLanguage')}
           >
             {supportedLanguages.map((lang) => (
-              <MenuItem key={lang} value={lang}>
-                {lang.toUpperCase()}
+              <MenuItem key={lang.code} value={lang.code}>
+                {lang.name}
               </MenuItem>
             ))}
           </Select>
@@ -69,9 +75,9 @@ export default function MultiLangPage() {
           </Typography>
           {supportedLanguages.map((lang) => (
             <Chip 
-              key={lang} 
-              label={lang.toUpperCase()} 
-              variant={lang === selectedLanguage ? "filled" : "outlined"}
+              key={lang.code} 
+              label={lang.name} 
+              variant={lang.code === selectedLanguage ? "filled" : "outlined"}
               size="small"
             />
           ))}
