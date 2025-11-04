@@ -99,7 +99,44 @@ git add .
 git commit -m "Merge NeoTool starter boilerplate"
 ```
 
-For more detailed integration instructions, see the [Integration Guide](./INTEGRATION_GUIDE.md).
+### Customizing Your Project Name
+
+After cloning or integrating the starter, you'll want to customize the project name from "neotool" to your own project name. This includes updating package names, namespaces, database names, and all references throughout the codebase.
+
+**Quick Setup:**
+
+1. Copy the example configuration:
+   ```bash
+   cp project.config.example.json project.config.json
+   ```
+
+2. Edit `project.config.json` with your project details
+
+3. Run the rename script:
+   ```bash
+   node scripts/rename-project.js
+   ```
+
+4. Review and commit the changes:
+   ```bash
+   git diff
+   git add .
+   git commit -m "Rename project from neotool to <your-project-name>"
+   ```
+
+5. (Optional) Clean up example code:
+   ```bash
+   node scripts/clean-examples.js
+   ```
+   
+   This removes customer/product example code, keeping only the boilerplate infrastructure. Review changes and commit:
+   ```bash
+   git diff
+   git add .
+   git commit -m "Remove customer/product examples"
+   ```
+
+For detailed instructions, see the [Project Setup Guide](./docs/PROJECT_SETUP.md).
 
 ### Quick Start
 
