@@ -51,7 +51,7 @@ Here's a complete example of a JPA entity:
 
 ```kotlin
 @Entity
-@Table(name = "customers")
+@Table(name = "customers", schema = "app")
 open class CustomerEntity(
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -217,7 +217,13 @@ Create migration files in `src/main/resources/db/migration/`:
 
 ```sql
 -- V1_1__create_products_customers.sql
-CREATE TABLE IF NOT EXISTS products (
+-- Create app schema
+CREATE SCHEMA IF NOT EXISTS app;
+
+-- Set search path to app schema for this migration
+SET search_path TO app, public;
+
+CREATE TABLE IF NOT EXISTS app.products (
     id              uuid DEFAULT uuidv7() PRIMARY KEY,
     name            TEXT NOT NULL,
     sku             TEXT UNIQUE NOT NULL,
@@ -228,7 +234,7 @@ CREATE TABLE IF NOT EXISTS products (
     version         BIGINT NOT NULL DEFAULT 0
 );
 
-CREATE TABLE IF NOT EXISTS customers (
+CREATE TABLE IF NOT EXISTS app.customers (
     id              uuid DEFAULT uuidv7() PRIMARY KEY,
     name            TEXT NOT NULL,
     email           TEXT UNIQUE NOT NULL,
@@ -244,6 +250,16 @@ CREATE TABLE IF NOT EXISTS customers (
 - Format: `V{version}__{description}.sql`
 - Version: Sequential number (V1, V2, V3...)
 - Description: Brief description of the change
+
+### Schema Organization
+
+**Important**: All database objects must be organized into PostgreSQL schemas according to their module/service. See [Database Schema Organization](../database-schema-organization.md) for detailed rules and examples.
+
+**Key points:**
+- Each module should have its own schema (e.g., `security`, `app`)
+- All tables must be created with explicit schema qualification
+- JPA entities must specify the schema in `@Table` annotation
+- Never use the `public` schema for application tables
 
 ## Configuration
 

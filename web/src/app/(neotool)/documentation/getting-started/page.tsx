@@ -103,9 +103,22 @@ curl -fsSL https://get.pnpm.io/install.sh | sh -`}</code>
           <Typography variant="body2" sx={{ mt: 1 }} color="text.secondary">
             Verify the installation by running <code>pnpm --version</code>
           </Typography>
+        </Paper>
+
+        {/* Setup Options */}
+        <Paper sx={{ p: 4 }}>
+          <Typography variant="h4" component="h2" gutterBottom>
+            Setup Options
+          </Typography>
+          <Typography variant="body1" paragraph>
+            Choose the setup method that best fits your situation:
+          </Typography>
 
           <Typography variant="h6" sx={{ mt: 3, mb: 2 }}>
-            Clone the Repository
+            Option 1: Starting a New Project
+          </Typography>
+          <Typography variant="body2" paragraph>
+            If you're starting from scratch, clone the starter repository:
           </Typography>
           <Box
             component="pre"
@@ -116,13 +129,24 @@ curl -fsSL https://get.pnpm.io/install.sh | sh -`}</code>
               overflow: "auto",
             }}
           >
-            <code>git clone {REPO_CONFIG.githubUrl}.git</code>
-            <br />
-            <code>cd {REPO_CONFIG.repoName}/web</code>
+            <code>{`# Clone the repository
+git clone ${REPO_CONFIG.githubUrl}.git
+cd ${REPO_CONFIG.repoName}/web
+
+# Install dependencies
+npm install
+# or
+pnpm install`}</code>
           </Box>
 
-          <Typography variant="h6" sx={{ mt: 3, mb: 2 }}>
-            Install Dependencies
+          <Divider sx={{ my: 3 }} />
+
+          <Typography variant="h6" sx={{ mb: 2 }}>
+            Option 2: Integrating into an Existing Project
+          </Typography>
+          <Typography variant="body2" paragraph>
+            If you already have a project and want to integrate {APP_CONFIG.name} into it, merge
+            from remote to preserve commit history:
           </Typography>
           <Box
             component="pre"
@@ -133,12 +157,30 @@ curl -fsSL https://get.pnpm.io/install.sh | sh -`}</code>
               overflow: "auto",
             }}
           >
-            <code>npm install</code>
-            <br />
-            <code># or</code>
-            <br />
-            <code>pnpm install</code>
+            <code>{`# Navigate to your existing project
+cd /path/to/your/existing/project
+
+# Add the starter as a remote
+git remote add starter ${REPO_CONFIG.githubUrl}.git
+
+# Fetch the starter repository
+git fetch starter
+
+# Merge the starter into your repo
+git merge starter/main --allow-unrelated-histories
+
+# Resolve any conflicts, then commit
+git add .
+git commit -m "Merge ${APP_CONFIG.name} starter boilerplate"`}</code>
           </Box>
+
+          <Typography variant="body2" sx={{ mt: 2 }} color="text.secondary">
+            For more detailed integration instructions, see the{" "}
+            <Link href="/documentation/integration" style={{ color: "inherit" }}>
+              Integration Guide
+            </Link>
+            .
+          </Typography>
         </Paper>
 
         {/* Basic Setup */}
@@ -147,7 +189,8 @@ curl -fsSL https://get.pnpm.io/install.sh | sh -`}</code>
             Basic Setup
           </Typography>
           <Typography variant="body1" paragraph>
-            After installing dependencies, you need to configure environment variables.
+            After installing dependencies, you need to configure environment variables and review
+            project-specific settings.
           </Typography>
 
           <Typography variant="h6" sx={{ mt: 3, mb: 2 }}>
@@ -169,6 +212,39 @@ curl -fsSL https://get.pnpm.io/install.sh | sh -`}</code>
 NEXT_PUBLIC_API_URL=${APP_CONFIG.apiUrl}
 NEXT_PUBLIC_GRAPHQL_URL=${APP_CONFIG.graphqlUrl}`}</code>
           </Box>
+
+          <Typography variant="h6" sx={{ mt: 3, mb: 2 }}>
+            Post-Integration Steps (For Existing Projects)
+          </Typography>
+          <Typography variant="body2" paragraph>
+            If you integrated {APP_CONFIG.name} into an existing project, you may need to:
+          </Typography>
+          <List>
+            <ListItem>
+              <ListItemText
+                primary="Update Configuration Files"
+                secondary="Review and merge .gitignore, package.json, and other config files"
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemText
+                primary="Update Package Names"
+                secondary="Update package.json and build.gradle.kts with your project name"
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemText
+                primary="Review Documentation"
+                secondary="Update README.md and other docs with your project-specific information"
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemText
+                primary="Check Port Conflicts"
+                secondary="Ensure docker-compose ports don't conflict with existing services"
+              />
+            </ListItem>
+          </List>
         </Paper>
 
         {/* Project Structure */}

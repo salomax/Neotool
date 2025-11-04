@@ -15,6 +15,7 @@ Welcome to the NeoTool documentation hub. This directory contains all technical 
 ### Service Documentation
 - [`service/`](./service/) - Backend service documentation
 - [`service/graphql-federation-architecture.md`](./service/graphql-federation-architecture.md) - GraphQL Federation architecture and Apollo GraphOS integration
+- [`service/database-schema-organization.md`](./service/database-schema-organization.md) - Database schema organization rules and best practices
 - [`service/kotlin/`](./service/kotlin/) - Kotlin-specific documentation
 
 ### Web Frontend Documentation
