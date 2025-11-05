@@ -18,31 +18,107 @@ The project renaming system allows you to customize all project identifiers acro
 
 ## Quick Start
 
-1. Edit `project.config.json` with your project details
-
-2. Run the rename script:
+1. **Check system requirements:**
    ```bash
-   ./scripts/rename-project.sh
+   ./neotool --version
+   ```
+   This verifies that Node.js, Docker, and JVM are installed and shows their versions.
+
+2. **Edit `project.config.json`** with your project details
+
+3. **Initialize your project** (recommended):
+   ```bash
+   ./neotool init
+   ```
+   This command will:
+   - Rename all project references from "neotool" to your project name
+   - Optionally clean up example code (with interactive prompts)
+
+   Or run commands individually:
+   ```bash
+   # Rename project
+   ./neotool rename-project
+   
+   # Clean up examples (optional)
+   ./neotool clean-examples --dry-run  # Preview changes first
+   ./neotool clean-examples             # Apply changes
    ```
 
-3. Review and commit the changes:
+4. **Review and commit the changes:**
    ```bash
    git diff
    git add .
    git commit -m "Rename project from neotool to <your-project-name>"
    ```
 
-4. (Optional) Clean up example code:
-   ```bash
-   node scripts/clean-examples.mjs
-   ```
-   
-   This removes customer/product example code, keeping only the boilerplate infrastructure. Review changes and commit:
-   ```bash
-   git diff
-   git add .
-   git commit -m "Remove customer/product examples"
-   ```
+## Neotool CLI
+
+The project includes a command-line interface (CLI) tool that simplifies common project setup and maintenance tasks. The CLI is located at `./neotool` and provides the following commands:
+
+### Available Commands
+
+#### `neotool --version` or `neotool -v`
+Checks system requirements and displays installed versions:
+- Node.js version
+- Docker version and daemon status
+- JVM (Java) version and JAVA_HOME
+
+**Example:**
+```bash
+./neotool --version
+```
+
+#### `neotool rename-project`
+Renames all project references from "neotool" to your project name based on `project.config.json`.
+
+**Example:**
+```bash
+./neotool rename-project
+```
+
+#### `neotool clean-examples [--dry-run]`
+Removes customer/product example code from the codebase, keeping only the boilerplate infrastructure.
+
+**Options:**
+- `--dry-run`: Preview changes without modifying files
+
+**Example:**
+```bash
+# Preview changes first
+./neotool clean-examples --dry-run
+
+# Apply changes
+./neotool clean-examples
+```
+
+#### `neotool init`
+Initializes the project by running `rename-project` followed by `clean-examples` with interactive prompts.
+
+**Example:**
+```bash
+./neotool init
+```
+
+#### `neotool help`
+Shows help text with available commands and options.
+
+**Example:**
+```bash
+./neotool help
+```
+
+### CLI Architecture
+
+The CLI is organized as a modular system:
+- **Main router**: `scripts/cli/cli` - Routes commands to individual scripts
+- **Command scripts**: `scripts/cli/commands/` - Each command is a separate script
+  - `version.sh` - System requirements check
+  - `rename-project.sh` - Project renaming
+  - `clean-examples.sh` - Example code cleanup
+  - `init.sh` - Project initialization
+- **Shared utilities**: `scripts/cli/utils.sh` - Common logging and utility functions
+
+All commands can be run independently or through the CLI router. The underlying scripts (`scripts/rename-project.sh` and `scripts/clean-examples.sh`) can also be executed directly if needed.
 ## Configuration File
 
 The `project.config.json` file contains all the project naming configurations. Here's what each field means:
@@ -160,8 +236,12 @@ Edit `project.config.json` with your project details. Make sure all required fie
 - `bash` (available on macOS, Linux, and Windows via Git Bash or WSL)
 - `jq` (JSON processor) - Install with: `brew install jq` (macOS) or `apt-get install jq` (Linux)
 
-Execute the rename script from the project root:
+**Option A: Using the CLI (Recommended)**
+```bash
+./neotool rename-project
+```
 
+**Option B: Run script directly**
 ```bash
 ./scripts/rename-project.sh
 ```
@@ -249,9 +329,19 @@ After renaming your project, you may want to remove the example customer and pro
 
 **To clean up examples:**
 
-1. **Run the clean examples script:**
+1. **Run the clean examples command:**
    ```bash
-   node scripts/clean-examples.mjs
+   # Preview changes first (recommended)
+   ./neotool clean-examples --dry-run
+   
+   # Apply changes
+   ./neotool clean-examples
+   ```
+   
+   Or run the script directly:
+   ```bash
+   ./scripts/clean-examples.sh --dry-run  # Preview
+   ./scripts/clean-examples.sh             # Apply
    ```
 
 2. **Review the changes:**

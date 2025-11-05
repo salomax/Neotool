@@ -2,11 +2,11 @@
 
 # Neotool CLI Wrapper
 # 
-# Root-level executable that delegates to scripts/cli
+# Root-level executable that delegates to scripts/cli/cli
 
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Execute the CLI script with all passed arguments
-exec "$SCRIPT_DIR/scripts/cli" "$@"
+exec "$SCRIPT_DIR/scripts/cli/cli" "$@"
 

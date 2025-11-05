@@ -105,33 +105,63 @@ After cloning or integrating the starter, you'll want to customize the project n
 
 **Quick Setup:**
 
-1. Edit `project.config.json` with your project details
-
-2. Run the rename script:
+1. **Check system requirements:**
    ```bash
-   ./scripts/rename-project.sh
+   ./neotool --version
+   ```
+   This verifies that Node.js, Docker, and JVM are installed.
+
+2. **Edit `project.config.json`** with your project details
+
+3. **Initialize your project** (recommended):
+   ```bash
+   ./neotool init
+   ```
+   This command will:
+   - Rename all project references from "neotool" to your project name
+   - Optionally clean up example code (with prompts)
+
+   Or run commands individually:
+   ```bash
+   # Rename project
+   ./neotool rename-project
+   
+   # Clean up examples (optional)
+   ./neotool clean-examples --dry-run  # Preview changes
+   ./neotool clean-examples             # Apply changes
    ```
 
-3. Review and commit the changes:
+4. **Review and commit the changes:**
    ```bash
    git diff
    git add .
    git commit -m "Rename project from neotool to <your-project-name>"
    ```
 
-4. (Optional) Clean up example code:
-   ```bash
-   node scripts/clean-examples.mjs
-   ```
-   
-   This removes customer/product example code, keeping only the boilerplate infrastructure. Review changes and commit:
-   ```bash
-   git diff
-   git add .
-   git commit -m "Remove customer/product examples"
-   ```
-
 For detailed instructions, see the [Project Setup Guide](./docs/PROJECT_SETUP.md).
+
+### Neotool CLI
+
+The project includes a CLI tool for common tasks:
+
+```bash
+# Check system requirements (Node.js, Docker, JVM)
+./neotool --version
+
+# Rename project from neotool to your project name
+./neotool rename-project
+
+# Clean up example code
+./neotool clean-examples [--dry-run]
+
+# Initialize project (runs rename-project + clean-examples)
+./neotool init
+
+# Show help
+./neotool help
+```
+
+All commands can also be accessed via `scripts/cli/cli` if you prefer.
 
 ### Quick Start
 

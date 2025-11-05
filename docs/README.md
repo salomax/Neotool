@@ -43,15 +43,45 @@ Welcome to the NeoTool documentation hub. This directory contains all technical 
 ## 🚀 Quick Start
 
 ### For Developers
-1. Start with [Architecture Overview](./adr/0001-monorepo-architecture.md)
-2. Review [Backend Documentation](./service/)
-3. Understand [GraphQL Federation Architecture](./service/graphql-federation-architecture.md)
-4. Check [Frontend Documentation](./adr/0004-typescript-nextjs-frontend.md)
-5. Understand [Frontend Structure](./web/web-src-structure.md)
-6. Learn [Theme System](./web/web-themes.md) - Design tokens, theming, and customization
-7. Learn [Shared Components System](./web/web-components.md)
-8. Learn [i18n Architecture](./web/web-i18n-architecture.md)
-9. Review [GraphQL Operations](./web/web-graphql-operations.md)
+
+**First Steps:**
+1. **Check system requirements:**
+   ```bash
+   ./neotool --version
+   ```
+   Verifies Node.js, Docker, and JVM installations.
+
+2. **Set up your project:**
+   ```bash
+   # Edit project.config.json with your project details
+   ./neotool init
+   ```
+   This will rename the project and optionally clean up example code.
+
+3. **Continue with documentation:**
+   - Start with [Architecture Overview](./adr/0001-monorepo-architecture.md)
+   - Review [Project Setup Guide](./PROJECT_SETUP.md) for detailed setup instructions
+   - Review [Backend Documentation](./service/)
+   - Understand [GraphQL Federation Architecture](./service/graphql-federation-architecture.md)
+   - Check [Frontend Documentation](./adr/0004-typescript-nextjs-frontend.md)
+   - Understand [Frontend Structure](./web/web-src-structure.md)
+   - Learn [Theme System](./web/web-themes.md) - Design tokens, theming, and customization
+   - Learn [Shared Components System](./web/web-components.md)
+   - Learn [i18n Architecture](./web/web-i18n-architecture.md)
+   - Review [GraphQL Operations](./web/web-graphql-operations.md)
+
+### Neotool CLI
+
+The project includes a CLI tool for common tasks. See [Project Setup Guide](./PROJECT_SETUP.md#neotool-cli) for full documentation.
+
+**Quick Reference:**
+```bash
+./neotool --version        # Check system requirements
+./neotool rename-project   # Rename project
+./neotool clean-examples   # Clean up example code
+./neotool init             # Initialize project
+./neotool help             # Show help
+```
 
 ### For Designers
 1. Review [Design Assets Guide](./design/assets.md)

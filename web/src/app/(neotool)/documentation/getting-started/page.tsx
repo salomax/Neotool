@@ -324,32 +324,76 @@ git commit -m "Merge ${APP_CONFIG.name} starter boilerplate"`}</code>
           <List>
             <ListItem>
               <ListItemText
-                primary="1. Edit project.config.json with your project details"
-                secondary="Update display name, package names, namespaces, and other project identifiers"
-              />
-            </ListItem>
-            <ListItem>
-              <ListItemText
-                primary="2. Run the rename script"
+                primary="1. Check system requirements"
                 secondary={
-                  <Box
-                    component="pre"
-                    sx={{
-                      bgcolor: "background.default",
-                      p: 1,
-                      borderRadius: 1,
-                      overflow: "auto",
-                      mt: 1,
-                    }}
-                  >
-                    <code>./scripts/rename-project.sh</code>
+                  <Box sx={{ mt: 1 }}>
+                    <Typography variant="body2" paragraph>
+                      Verify that Node.js, Docker, and JVM are installed:
+                    </Typography>
+                    <Box
+                      component="pre"
+                      sx={{
+                        bgcolor: "background.default",
+                        p: 1,
+                        borderRadius: 1,
+                        overflow: "auto",
+                      }}
+                    >
+                      <code>{`./neotool --version`}</code>
+                    </Box>
                   </Box>
                 }
               />
             </ListItem>
             <ListItem>
               <ListItemText
-                primary="3. Review and commit the changes"
+                primary="2. Edit project.config.json with your project details"
+                secondary="Update display name, package names, namespaces, and other project identifiers"
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemText
+                primary="3. Initialize your project (Recommended)"
+                secondary={
+                  <Box sx={{ mt: 1 }}>
+                    <Typography variant="body2" paragraph>
+                      Use the init command to rename the project and optionally clean up examples:
+                    </Typography>
+                    <Box
+                      component="pre"
+                      sx={{
+                        bgcolor: "background.default",
+                        p: 1,
+                        borderRadius: 1,
+                        overflow: "auto",
+                      }}
+                    >
+                      <code>{`./neotool init`}</code>
+                    </Box>
+                    <Typography variant="body2" sx={{ mt: 1 }} color="text.secondary">
+                      Or run commands individually:
+                    </Typography>
+                    <Box
+                      component="pre"
+                      sx={{
+                        bgcolor: "background.default",
+                        p: 1,
+                        borderRadius: 1,
+                        overflow: "auto",
+                        mt: 1,
+                      }}
+                    >
+                      <code>{`./neotool rename-project
+./neotool clean-examples --dry-run  # Preview
+./neotool clean-examples             # Apply`}</code>
+                    </Box>
+                  </Box>
+                }
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemText
+                primary="4. Review and commit the changes"
                 secondary={
                   <Box
                     component="pre"
@@ -368,36 +412,38 @@ git commit -m "Rename project from neotool to <your-project-name>"`}</code>
                 }
               />
             </ListItem>
-            <ListItem>
-              <ListItemText
-                primary="4. (Optional) Clean up example code"
-                secondary={
-                  <Box sx={{ mt: 1 }}>
-                    <Typography variant="body2" paragraph>
-                      Remove customer/product example code, keeping only the boilerplate
-                      infrastructure:
-                    </Typography>
-                    <Box
-                      component="pre"
-                      sx={{
-                        bgcolor: "background.default",
-                        p: 1,
-                        borderRadius: 1,
-                        overflow: "auto",
-                      }}
-                    >
-                      <code>{`node scripts/clean-examples.mjs
-
-# Review and commit changes
-git diff
-git add .
-git commit -m "Remove customer/product examples"`}</code>
-                    </Box>
-                  </Box>
-                }
-              />
-            </ListItem>
           </List>
+
+          <Typography variant="h6" sx={{ mt: 3, mb: 2 }}>
+            Neotool CLI
+          </Typography>
+          <Typography variant="body2" paragraph>
+            The project includes a CLI tool for common tasks:
+          </Typography>
+          <Box
+            component="pre"
+            sx={{
+              bgcolor: "background.default",
+              p: 2,
+              borderRadius: 1,
+              overflow: "auto",
+            }}
+          >
+            <code>{`# Check system requirements
+./neotool --version
+
+# Rename project
+./neotool rename-project
+
+# Clean up example code
+./neotool clean-examples [--dry-run]
+
+# Initialize project (rename + clean examples)
+./neotool init
+
+# Show help
+./neotool help`}</code>
+          </Box>
 
           <Typography variant="body2" sx={{ mt: 3 }} color="text.secondary">
             For detailed instructions, see the{" "}
