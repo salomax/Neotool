@@ -105,28 +105,23 @@ After cloning or integrating the starter, you'll want to customize the project n
 
 **Quick Setup:**
 
-1. Copy the example configuration:
+1. Edit `project.config.json` with your project details
+
+2. Run the rename script:
    ```bash
-   cp project.config.example.json project.config.json
+   ./scripts/rename-project.sh
    ```
 
-2. Edit `project.config.json` with your project details
-
-3. Run the rename script:
-   ```bash
-   node scripts/rename-project.js
-   ```
-
-4. Review and commit the changes:
+3. Review and commit the changes:
    ```bash
    git diff
    git add .
    git commit -m "Rename project from neotool to <your-project-name>"
    ```
 
-5. (Optional) Clean up example code:
+4. (Optional) Clean up example code:
    ```bash
-   node scripts/clean-examples.js
+   node scripts/clean-examples.mjs
    ```
    
    This removes customer/product example code, keeping only the boilerplate infrastructure. Review changes and commit:

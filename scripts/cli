@@ -1,0 +1,170 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Neotool CLI
+# 
+# Unified command-line interface for neotool project management tasks.
+
+# Get script directory and project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Color codes for terminal output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+BRIGHT='\033[1m'
+RESET='\033[0m'
+
+log() {
+    local message="$1"
+    local color="${2:-$RESET}"
+    echo -e "${color}${message}${RESET}"
+}
+
+log_error() {
+    log "$1" "$RED"
+}
+
+# Show help text
+show_help() {
+    cat << EOF
+$(log "Neotool CLI" "$BRIGHT")
+
+Usage: $0 <command> [options]
+
+Commands:
+  $(log "rename-project" "$GREEN")
+    Rename the project from neotool to your project name.
+    Reads configuration from project.config.json.
+
+  $(log "clean-examples" "$GREEN") [--dry-run]
+    Remove all customer and product example code from the codebase.
+    Options:
+      --dry-run    Show what would be deleted/modified without making changes
+
+  $(log "init" "$GREEN")
+    Initialize the project by running rename-project and clean-examples.
+    This is a convenience command that orchestrates both operations.
+
+Examples:
+  $0 rename-project
+  $0 clean-examples --dry-run
+  $0 init
+
+For more information about a specific command, run it with --help.
+EOF
+}
+
+# Command: rename-project
+cmd_rename_project() {
+    local script_path="$SCRIPT_DIR/rename-project.sh"
+    
+    if [[ ! -f "$script_path" ]]; then
+        log_error "Error: rename-project.sh not found at $script_path"
+        exit 1
+    fi
+    
+    log "\n🚀 Running rename-project...\n" "$BRIGHT"
+    "$script_path" "$@"
+}
+
+# Command: clean-examples
+cmd_clean_examples() {
+    local script_path="$SCRIPT_DIR/clean-examples.sh"
+    
+    if [[ ! -f "$script_path" ]]; then
+        log_error "Error: clean-examples.sh not found at $script_path"
+        exit 1
+    fi
+    
+    log "\n🧹 Running clean-examples...\n" "$BRIGHT"
+    "$script_path" "$@"
+}
+
+# Command: init
+cmd_init() {
+    log "\n🎯 Initializing project...\n" "$BRIGHT"
+    
+    # Step 1: Rename project
+    log "Step 1: Renaming project..." "$BLUE"
+    if cmd_rename_project; then
+        log "✓ Project renamed successfully\n" "$GREEN"
+    else
+        log_error "✗ Project rename failed"
+        exit 1
+    fi
+    
+    # Step 2: Clean examples
+    log "\nStep 2: Cleaning examples..." "$BLUE"
+    log "Would you like to run clean-examples? (y/n) " "$YELLOW"
+    read -r response
+    
+    if [[ "$response" =~ ^[Yy]$ ]]; then
+        log "\nWould you like to run in dry-run mode first? (y/n) " "$YELLOW"
+        read -r dry_run_response
+        
+        if [[ "$dry_run_response" =~ ^[Yy]$ ]]; then
+            log "\nRunning clean-examples in dry-run mode..." "$BLUE"
+            cmd_clean_examples --dry-run
+            
+            log "\nProceed with actual cleanup? (y/n) " "$YELLOW"
+            read -r proceed_response
+            
+            if [[ "$proceed_response" =~ ^[Yy]$ ]]; then
+                cmd_clean_examples
+            else
+                log "Skipped cleanup." "$YELLOW"
+            fi
+        else
+            cmd_clean_examples
+        fi
+        
+        if [[ $? -eq 0 ]]; then
+            log "✓ Examples cleaned successfully\n" "$GREEN"
+        else
+            log_error "✗ Clean examples failed"
+            exit 1
+        fi
+    else
+        log "Skipped clean-examples.\n" "$YELLOW"
+    fi
+    
+    log "\n✅ Project initialization completed!\n" "$BRIGHT"
+}
+
+# Main command router
+main() {
+    local command="${1:-}"
+    
+    # Shift to remove command from arguments
+    shift 2>/dev/null || true
+    
+    case "$command" in
+        rename-project)
+            cmd_rename_project "$@"
+            ;;
+        clean-examples)
+            cmd_clean_examples "$@"
+            ;;
+        init)
+            cmd_init "$@"
+            ;;
+        help|--help|-h|"")
+            show_help
+            ;;
+        *)
+            log_error "Unknown command: $command"
+            echo ""
+            show_help
+            exit 1
+            ;;
+    esac
+}
+
+# Run main function
+main "$@"
+

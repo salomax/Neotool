@@ -18,25 +18,31 @@ The project renaming system allows you to customize all project identifiers acro
 
 ## Quick Start
 
-1. **Copy the example configuration file:**
+1. Edit `project.config.json` with your project details
+
+2. Run the rename script:
    ```bash
-   cp project.config.example.json project.config.json
+   ./scripts/rename-project.sh
    ```
 
-2. **Edit `project.config.json`** with your project details
-
-3. **Run the rename script:**
-   ```bash
-   node scripts/rename-project.js
-   ```
-
-4. **Review and commit changes:**
+3. Review and commit the changes:
    ```bash
    git diff
    git add .
    git commit -m "Rename project from neotool to <your-project-name>"
    ```
 
+4. (Optional) Clean up example code:
+   ```bash
+   node scripts/clean-examples.mjs
+   ```
+   
+   This removes customer/product example code, keeping only the boilerplate infrastructure. Review changes and commit:
+   ```bash
+   git diff
+   git add .
+   git commit -m "Remove customer/product examples"
+   ```
 ## Configuration File
 
 The `project.config.json` file contains all the project naming configurations. Here's what each field means:
@@ -150,10 +156,14 @@ Edit `project.config.json` with your project details. Make sure all required fie
 
 ### Step 3: Run the Rename Script
 
+**Prerequisites:** The rename script requires:
+- `bash` (available on macOS, Linux, and Windows via Git Bash or WSL)
+- `jq` (JSON processor) - Install with: `brew install jq` (macOS) or `apt-get install jq` (Linux)
+
 Execute the rename script from the project root:
 
 ```bash
-node scripts/rename-project.js
+./scripts/rename-project.sh
 ```
 
 The script will:
@@ -217,7 +227,69 @@ Some items may require manual updates:
    grep -r -i "neotool" --exclude-dir=node_modules --exclude-dir=build --exclude-dir=.git .
    ```
 
+### Step 7: Clean Up Example Code (Optional)
+
+After renaming your project, you may want to remove the example customer and product code that comes with the starter template. This script removes all customer/product example code while keeping the boilerplate infrastructure intact.
+
+**What gets removed:**
+- Backend entities (`CustomerEntity`, `ProductEntity`)
+- Backend domain models (`Customer`, `Product`)
+- Backend DTOs (`CustomerDto`, `ProductDto`)
+- GraphQL resolvers (`CustomerResolver`, `ProductResolver`)
+- Database migration for customers/products
+- Frontend customer/product pages
+- Frontend hooks and GraphQL operations related to customers/products
+- Example code from GraphQL schemas and wiring files
+
+**What stays:**
+- All infrastructure code
+- Boilerplate setup
+- GraphQL schema structure (without customer/product types)
+- Example wiring patterns (cleaned of customer/product references)
+
+**To clean up examples:**
+
+1. **Run the clean examples script:**
+   ```bash
+   node scripts/clean-examples.mjs
+   ```
+
+2. **Review the changes:**
+   ```bash
+   # See all changes
+   git diff
+   
+   # Review specific areas
+   git diff web/src/app
+   git diff service/kotlin/app/src/main/kotlin
+   ```
+
+3. **Commit the changes:**
+   ```bash
+   git add .
+   git commit -m "Remove customer/product examples"
+   ```
+
+**Note:** This step is optional. You can keep the example code if you want to use it as a reference for building your own features. If you're unsure, you can always remove it later.
+
 ## Common Issues and Solutions
+
+### Issue: Script fails with "command not found: jq" or similar
+
+**Solution**: Install `jq` (JSON processor) which is required by the rename script:
+```bash
+# macOS
+brew install jq
+
+# Linux (Debian/Ubuntu)
+sudo apt-get install jq
+
+# Linux (RedHat/CentOS)
+sudo yum install jq
+
+# Verify installation
+jq --version
+```
 
 ### Issue: Script fails with "Configuration file not found"
 

@@ -1,5 +1,5 @@
 {
-  "displayName": "NeoTool",
+  "displayName": "Neotool",
   "packageName": "neotool",
   "packageNamespace": "io.github.salomax.neotool",
   "databaseName": "neotool_db",
@@ -13,4 +13,3 @@
   "apiDomain": "api.neotool.com",
   "logoName": "neotool-logo"
 }
-
