@@ -22,7 +22,7 @@ main() {
     # Step 1: Rename project
     log "Step 1: Renaming project..." "$BLUE"
     if "$COMMAND_DIR/rename-project.sh"; then
-        log "✓ Project renamed successfully\n" "$GREEN"
+        log "✓ Project rename completed\n" "$GREEN"
     else
         log_error "✗ Project rename failed"
         exit 1
