@@ -2,13 +2,20 @@
 
 set -euo pipefail
 
-# Rename Project Script
+# Setup Command
 # 
 # Renames all project references from the current project name to your new project name
 # based on project.config.json. Automatically detects the current project name.
 
-# Get script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Get script directory and project root
+COMMAND_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CLI_DIR="$(cd "$COMMAND_DIR/.." && pwd)"
+SCRIPTS_DIR="$(cd "$CLI_DIR/.." && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPTS_DIR/.." && pwd)"
+
+# Source shared utilities
+# shellcheck source=../utils.sh
+source "$CLI_DIR/utils.sh"
 
 # Find project root by searching for project.config.json or package.json
 find_project_root() {
@@ -22,8 +29,8 @@ find_project_root() {
         dir=$(dirname "$dir")
     done
     
-    # If not found, try starting from script's directory
-    dir="$(cd "$SCRIPT_DIR/.." && pwd)"
+    # If not found, try starting from PROJECT_ROOT
+    dir="$PROJECT_ROOT"
     while [[ "$dir" != "/" ]]; do
         if [[ -f "$dir/project.config.json" ]] || [[ -f "$dir/package.json" ]]; then
             echo "$dir"
@@ -37,33 +44,8 @@ find_project_root() {
 
 PROJECT_ROOT=$(find_project_root)
 if [[ -z "$PROJECT_ROOT" ]] || [[ ! -d "$PROJECT_ROOT" ]]; then
-    echo "Error: Could not find project root. Please ensure project.config.json or package.json exists in the project directory." >&2
+    log_error "Error: Could not find project root. Please ensure project.config.json or package.json exists in the project directory."
     exit 1
-fi
-
-# Source shared utilities if available
-if [[ -f "$SCRIPT_DIR/cli/utils.sh" ]]; then
-    # shellcheck source=cli/utils.sh
-    source "$SCRIPT_DIR/cli/utils.sh"
-else
-    # Fallback logging functions
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[0;34m'
-    CYAN='\033[0;36m'
-    BRIGHT='\033[1m'
-    RESET='\033[0m'
-    
-    log() {
-        local message="$1"
-        local color="${2:-$RESET}"
-        echo -e "${color}${message}${RESET}"
-    }
-    
-    log_error() {
-        log "$1" "$RED"
-    }
 fi
 
 # Check if jq is installed
@@ -84,8 +66,8 @@ validate_config() {
         exit 1
     fi
     
-    # Check required fields
-    local required_fields=("displayName" "packageName" "packageNamespace" "databaseName" "databaseUser" "serviceName" "webPackageName" "dockerImagePrefix" "routeGroup" "githubOrg" "githubRepo")
+    # Check required fields (using gitRepo instead of githubOrg/githubRepo)
+    local required_fields=("displayName" "packageName" "packageNamespace" "databaseName" "databaseUser" "serviceName" "webPackageName" "dockerImagePrefix" "routeGroup" "gitRepo")
     
     for field in "${required_fields[@]}"; do
         if ! jq -e ".$field" "$config_file" > /dev/null 2>&1; then
@@ -93,6 +75,13 @@ validate_config() {
             exit 1
         fi
     done
+    
+    # Validate gitRepo format (should be org/repo)
+    local git_repo=$(jq -r '.gitRepo' "$config_file")
+    if [[ "$git_repo" != *"/"* ]]; then
+        log_error "Error: gitRepo must be in format 'org/repo' (e.g., 'salomax/neotool')"
+        exit 1
+    fi
     
     log "✓ Configuration file validated" "$GREEN"
 }
@@ -220,8 +209,12 @@ load_config() {
     NEW_WEB_PACKAGE_NAME=$(jq -r '.webPackageName' "$config_file")
     NEW_DOCKER_IMAGE_PREFIX=$(jq -r '.dockerImagePrefix' "$config_file")
     NEW_ROUTE_GROUP=$(jq -r '.routeGroup' "$config_file")
-    NEW_GITHUB_ORG=$(jq -r '.githubOrg' "$config_file")
-    NEW_GITHUB_REPO=$(jq -r '.githubRepo' "$config_file")
+    
+    # Parse gitRepo (format: org/repo)
+    local git_repo=$(jq -r '.gitRepo' "$config_file")
+    NEW_GITHUB_ORG=$(echo "$git_repo" | cut -d'/' -f1)
+    NEW_GITHUB_REPO=$(echo "$git_repo" | cut -d'/' -f2)
+    
     NEW_API_DOMAIN=$(jq -r '.apiDomain // "api.'"$NEW_PACKAGE_NAME"'.com"' "$config_file")
     NEW_LOGO_NAME=$(jq -r '.logoName // "'"$NEW_PACKAGE_NAME"'-logo"' "$config_file")
     
@@ -286,7 +279,7 @@ replace_in_files() {
         ! -name "*.backup" \
         ! -name "*.swp" \
         ! -name "*.swo" \
-        ! -name "rename-project.sh" \
+        ! -path "*/scripts/*" \
         -exec grep -l "$pattern" {} + 2>/dev/null | while read -r file; do
             # Use sed for in-place replacement
             if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -368,7 +361,7 @@ rename_files() {
 main() {
     cd "$PROJECT_ROOT"
     
-    log "\n🚀 Starting project rename...\n" "$BRIGHT"
+    log "\n🚀 Starting project setup...\n" "$BRIGHT"
     
     # Pre-flight checks
     check_jq
@@ -377,7 +370,7 @@ main() {
     
     # Check if renaming is actually needed
     if ! check_if_renaming_needed; then
-        log "Skipping rename - project is already configured correctly.\n" "$CYAN"
+        log "Skipping setup - project is already configured correctly.\n" "$CYAN"
         exit 0
     fi
     
@@ -441,14 +434,13 @@ main() {
     log "\n📁 Renaming files and directories...\n" "$BRIGHT"
     rename_files
     
-    log "\n✅ Project rename completed successfully!\n" "$BRIGHT"
+    log "\n✅ Project setup completed successfully!\n" "$BRIGHT"
     log "Next steps:" "$CYAN"
     log "  1. Review the changes: git diff" "$CYAN"
     log "  2. Test your application to ensure everything works" "$CYAN"
-    log "  3. Commit the changes: git add . && git commit -m 'Rename project from $OLD_PACKAGE_NAME to $NEW_PACKAGE_NAME'" "$CYAN"
+    log "  3. Commit the changes: git add . && git commit -m 'Setup project: rename from $OLD_PACKAGE_NAME to $NEW_PACKAGE_NAME'" "$CYAN"
     log ""
 }
 
 # Run main function
 main "$@"
-

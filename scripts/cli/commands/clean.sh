@@ -2,12 +2,19 @@
 
 set -euo pipefail
 
-# Clean Examples Script
+# Clean Command
 # 
-# Removes customer/product example code from the codebase, keeping only boilerplate infrastructure
+# Removes customer/product example code, (neotool) route group, and generated lib files
 
-# Get script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Get script directory and project root
+COMMAND_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CLI_DIR="$(cd "$COMMAND_DIR/.." && pwd)"
+SCRIPTS_DIR="$(cd "$CLI_DIR/.." && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPTS_DIR/.." && pwd)"
+
+# Source shared utilities
+# shellcheck source=../utils.sh
+source "$CLI_DIR/utils.sh"
 
 # Find project root by searching for project.config.json or package.json
 find_project_root() {
@@ -21,8 +28,8 @@ find_project_root() {
         dir=$(dirname "$dir")
     done
     
-    # If not found, try starting from script's directory
-    dir="$(cd "$SCRIPT_DIR/.." && pwd)"
+    # If not found, try starting from PROJECT_ROOT
+    dir="$PROJECT_ROOT"
     while [[ "$dir" != "/" ]]; do
         if [[ -f "$dir/project.config.json" ]] || [[ -f "$dir/package.json" ]]; then
             echo "$dir"
@@ -36,33 +43,8 @@ find_project_root() {
 
 PROJECT_ROOT=$(find_project_root)
 if [[ -z "$PROJECT_ROOT" ]] || [[ ! -d "$PROJECT_ROOT" ]]; then
-    echo "Error: Could not find project root. Please ensure project.config.json or package.json exists in the project directory." >&2
+    log_error "Error: Could not find project root. Please ensure project.config.json or package.json exists in the project directory."
     exit 1
-fi
-
-# Source shared utilities if available
-if [[ -f "$SCRIPT_DIR/cli/utils.sh" ]]; then
-    # shellcheck source=cli/utils.sh
-    source "$SCRIPT_DIR/cli/utils.sh"
-else
-    # Fallback logging functions
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[0;34m'
-    CYAN='\033[0;36m'
-    BRIGHT='\033[1m'
-    RESET='\033[0m'
-    
-    log() {
-        local message="$1"
-        local color="${2:-$RESET}"
-        echo -e "${color}${message}${RESET}"
-    }
-    
-    log_error() {
-        log "$1" "$RED"
-    }
 fi
 
 DRY_RUN=false
@@ -104,8 +86,6 @@ declare -a FILES_TO_DELETE=(
     "service/kotlin/app/src/test/kotlin/io/github/salomax/neotool/example/test/integration/api/GraphQLCustomerIntegrationTest.kt"
     "service/kotlin/app/src/test/kotlin/io/github/salomax/neotool/example/test/integration/api/GraphQLProductIntegrationTest.kt"
     "service/kotlin/app/src/test/kotlin/io/github/salomax/neotool/example/test/TestDataBuilders.kt"
-    
-    # Frontend pages (will be detected dynamically)
     
     # Frontend hooks
     "web/src/lib/hooks/customer"
@@ -204,16 +184,87 @@ clean_graphql_schema() {
     fi
 }
 
+# Function to remove (neotool) route group
+remove_neotool_route_group() {
+    log "Removing (neotool) route group..." "$BLUE"
+    
+    # Find any route group directory
+    local route_group_dir=$(find "$PROJECT_ROOT/web/src/app" -maxdepth 1 -type d -name '(*)' 2>/dev/null | head -1)
+    
+    if [[ -n "$route_group_dir" ]]; then
+        local route_group_name=$(basename "$route_group_dir")
+        
+        # Check if it's (neotool)
+        if [[ "$route_group_name" == "(neotool)" ]]; then
+            delete_item "web/src/app/$route_group_name"
+        else
+            log "  ⚠ Found route group: $route_group_name (not (neotool), skipping)" "$YELLOW"
+        fi
+    fi
+    
+    # Also remove references to (neotool) in code files
+    log "Removing (neotool) references in code..." "$BLUE"
+    find "$PROJECT_ROOT/web/src" \
+        -type f \
+        \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" \) \
+        ! -path "*/node_modules/*" \
+        ! -path "*/.next/*" \
+        ! -path "*/coverage/*" \
+        -exec grep -l "(neotool)" {} + 2>/dev/null | while read -r file; do
+            if [[ "$DRY_RUN" == true ]]; then
+                local matches=$(grep -c "(neotool)" "$file" 2>/dev/null || echo "0")
+                if [[ "$matches" -gt 0 ]]; then
+                    log "  [DRY-RUN] Would remove $matches reference(s) from: $(basename "$file")" "$CYAN"
+                fi
+            else
+                if [[ "$OSTYPE" == "darwin"* ]]; then
+                    sed -i '' 's|@/app/(neotool)/|@/app/|g; s|from.*app/(neotool)/|from "@/app/|g; s|(neotool)||g' "$file"
+                else
+                    sed -i 's|@/app/(neotool)/|@/app/|g; s|from.*app/(neotool)/|from "@/app/|g; s|(neotool)||g' "$file"
+                fi
+                log "  ✓ Cleaned references from: $(basename "$file")" "$GREEN"
+            fi
+        done
+}
+
+# Function to remove generated lib files
+remove_generated_lib_files() {
+    log "Removing generated lib files..." "$BLUE"
+    
+    local generated_files_dir="$PROJECT_ROOT/web/src/lib/graphql"
+    
+    if [[ ! -d "$generated_files_dir" ]]; then
+        return 0
+    fi
+    
+    # Remove all .generated.ts files
+    find "$generated_files_dir" \
+        -type f \
+        -name "*.generated.ts" \
+        ! -path "*/node_modules/*" 2>/dev/null | while read -r file; do
+            local rel_path="${file#$PROJECT_ROOT/}"
+            delete_item "$rel_path"
+        done
+    
+    # Also remove the types/__generated__ directory
+    if [[ -d "$generated_files_dir/types/__generated__" ]]; then
+        delete_item "web/src/lib/graphql/types/__generated__"
+    fi
+}
+
 # Main function
 main() {
     cd "$PROJECT_ROOT"
     
-    log "\n🧹 Cleaning example code...\n" "$BRIGHT"
+    log "\n🧹 Cleaning neotool references and examples...\n" "$BRIGHT"
     
     if [[ "$DRY_RUN" == true ]]; then
         log "DRY-RUN mode: No files will be modified\n" "$YELLOW"
     else
-        log "⚠️  This will permanently delete customer/product example code." "$YELLOW"
+        log "⚠️  This will permanently delete:" "$YELLOW"
+        log "  - Customer/product example code" "$YELLOW"
+        log "  - (neotool) route group and references" "$YELLOW"
+        log "  - Generated lib files" "$YELLOW"
         log "Make sure you have committed or backed up your changes.\n" "$YELLOW"
         log "Continue? (y/n) " "$YELLOW"
         read -r response
@@ -242,6 +293,14 @@ main() {
         delete_item "web/src/app/examples/customers"
         delete_item "web/src/app/examples/products"
     fi
+    
+    # Remove (neotool) route group
+    log "\n🗑️  Removing (neotool) route group...\n" "$BRIGHT"
+    remove_neotool_route_group
+    
+    # Remove generated lib files
+    log "\n🗑️  Removing generated lib files...\n" "$BRIGHT"
+    remove_generated_lib_files
     
     log "\n📝 Cleaning references in files...\n" "$BRIGHT"
     
@@ -283,18 +342,17 @@ main() {
             fi
         done
     
-    log "\n✅ Clean examples completed!" "$BRIGHT"
+    log "\n✅ Clean completed!" "$BRIGHT"
     if [[ "$DRY_RUN" == true ]]; then
         log "\nRun without --dry-run to apply these changes." "$CYAN"
     else
         log "\nNext steps:" "$CYAN"
         log "  1. Review the changes: git diff" "$CYAN"
         log "  2. Test your application to ensure everything still works" "$CYAN"
-        log "  3. Commit the changes: git add . && git commit -m 'Remove customer/product examples'" "$CYAN"
+        log "  3. Commit the changes: git add . && git commit -m 'Remove neotool references and examples'" "$CYAN"
     fi
     log ""
 }
 
 # Run main function
 main "$@"
-

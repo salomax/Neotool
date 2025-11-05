@@ -8,8 +8,7 @@
   "webPackageName": "neotool-web",
   "dockerImagePrefix": "neotool",
   "routeGroup": "neotool",
-  "githubOrg": "salomax",
-  "githubRepo": "neotool",
+  "gitRepo": "salomax/neotool",
   "apiDomain": "api.neotool.com",
   "logoName": "neotool-logo"
 }

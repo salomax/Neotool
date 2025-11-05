@@ -19,18 +19,18 @@ source "$CLI_DIR/utils.sh"
 main() {
     log "\n🎯 Initializing project...\n" "$BRIGHT"
     
-    # Step 1: Rename project
-    log "Step 1: Renaming project..." "$BLUE"
-    if "$COMMAND_DIR/rename-project.sh"; then
-        log "✓ Project rename completed\n" "$GREEN"
+    # Step 1: Setup project
+    log "Step 1: Setting up project..." "$BLUE"
+    if "$COMMAND_DIR/setup.sh"; then
+        log "✓ Project setup completed\n" "$GREEN"
     else
-        log_error "✗ Project rename failed"
+        log_error "✗ Project setup failed"
         exit 1
     fi
     
-    # Step 2: Clean examples
-    log "\nStep 2: Cleaning examples..." "$BLUE"
-    log "Would you like to run clean-examples? (y/n) " "$YELLOW"
+    # Step 2: Clean neotool references
+    log "\nStep 2: Cleaning neotool references..." "$BLUE"
+    log "Would you like to run clean? (y/n) " "$YELLOW"
     read -r response
     
     if [[ "$response" =~ ^[Yy]$ ]]; then
@@ -38,29 +38,29 @@ main() {
         read -r dry_run_response
         
         if [[ "$dry_run_response" =~ ^[Yy]$ ]]; then
-            log "\nRunning clean-examples in dry-run mode..." "$BLUE"
-            "$COMMAND_DIR/clean-examples.sh" --dry-run
+            log "\nRunning clean in dry-run mode..." "$BLUE"
+            "$COMMAND_DIR/clean.sh" --dry-run
             
             log "\nProceed with actual cleanup? (y/n) " "$YELLOW"
             read -r proceed_response
             
             if [[ "$proceed_response" =~ ^[Yy]$ ]]; then
-                "$COMMAND_DIR/clean-examples.sh"
+                "$COMMAND_DIR/clean.sh"
             else
                 log "Skipped cleanup." "$YELLOW"
             fi
         else
-            "$COMMAND_DIR/clean-examples.sh"
+            "$COMMAND_DIR/clean.sh"
         fi
         
         if [[ $? -eq 0 ]]; then
-            log "✓ Examples cleaned successfully\n" "$GREEN"
+            log "✓ Clean completed successfully\n" "$GREEN"
         else
-            log_error "✗ Clean examples failed"
+            log_error "✗ Clean failed"
             exit 1
         fi
     else
-        log "Skipped clean-examples.\n" "$YELLOW"
+        log "Skipped clean.\n" "$YELLOW"
     fi
     
     log "\n✅ Project initialization completed!\n" "$BRIGHT"

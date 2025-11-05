@@ -24,25 +24,25 @@ $(log "Neotool CLI" "$BRIGHT")
 Usage: $0 <command> [options]
 
 Commands:
-  $(log "rename-project" "$GREEN")
-    Rename the project from neotool to your project name.
+  $(log "setup" "$GREEN")
+    Setup the project by renaming from neotool to your project name.
     Reads configuration from project.config.json.
 
-  $(log "clean-examples" "$GREEN") [--dry-run]
-    Remove all customer and product example code from the codebase.
+  $(log "clean" "$GREEN") [--dry-run]
+    Remove all neotool references, (neotool) route group, and generated lib files.
     Options:
       --dry-run    Show what would be deleted/modified without making changes
 
   $(log "init" "$GREEN")
-    Initialize the project by running rename-project and clean-examples.
+    Initialize the project by running setup and clean.
     This is a convenience command that orchestrates both operations.
 
 Options:
   -v, --version    Check system requirements (Node.js, Docker, JVM)
 
 Examples:
-  $0 rename-project
-  $0 clean-examples --dry-run
+  $0 setup
+  $0 clean --dry-run
   $0 init
   $0 --version
 
@@ -83,7 +83,7 @@ main() {
     shift 2>/dev/null || true
     
     case "$command" in
-        rename-project|clean-examples|init|version)
+        setup|clean|init|version)
             execute_command "$command" "$@"
             ;;
         help|--help|-h|"")
