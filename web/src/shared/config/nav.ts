@@ -27,7 +27,7 @@ export const NAV: NavItem[] = [
   },
   {
     id: "customer",
-    i18nKey: "routes.customerForm",
+    i18nKey: "routes.forms",
     href: "/examples/forms/customer",
     icon: "Assignment",
   },

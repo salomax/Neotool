@@ -13,8 +13,7 @@
     "dashboard": "Dashboard",
     "profile": "Profile",
     "examples": "Examples",
-    "forms": "Forms",
-    "customerForm": "Customer Form"
+    "forms": "Forms"
   },
   "actions": {
     "save": "Save",

@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.example.graphql
 
 import graphql.schema.DataFetchingEnvironment
+import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.TypeRuntimeWiring
 import io.github.salomax.neotool.example.graphql.resolvers.CustomerResolver
 import io.github.salomax.neotool.example.graphql.resolvers.ProductResolver
@@ -85,19 +86,19 @@ class AppWiringFactory(
             })
     }
 
-    override fun registerCustomerTypeResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder {
-        return type
-            .dataFetcher("version", createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                val customer = env.getSource<io.github.salomax.neotool.example.domain.Customer>()
-                customer?.version?.toInt()
-            })
-    }
-
-    override fun registerProductTypeResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder {
-        return type
-            .dataFetcher("version", createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                val product = env.getSource<io.github.salomax.neotool.example.domain.Product>()
-                product?.version?.toInt()
-            })
+    override fun registerCustomTypeResolvers(builder: RuntimeWiring.Builder): RuntimeWiring.Builder {
+        return builder
+            .type("Customer") { type ->
+                type.dataFetcher("version", createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                    val customer = env.getSource<io.github.salomax.neotool.example.domain.Customer>()
+                    customer?.version?.toInt()
+                })
+            }
+            .type("Product") { type ->
+                type.dataFetcher("version", createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                    val product = env.getSource<io.github.salomax.neotool.example.domain.Product>()
+                    product?.version?.toInt()
+                })
+            }
     }
 }

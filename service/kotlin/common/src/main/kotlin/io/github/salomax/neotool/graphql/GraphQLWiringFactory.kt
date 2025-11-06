@@ -13,13 +13,12 @@ abstract class GraphQLWiringFactory {
    * Build the complete RuntimeWiring with all resolvers
    */
   fun build(): RuntimeWiring {
-    return RuntimeWiring.newRuntimeWiring()
+    val builder = RuntimeWiring.newRuntimeWiring()
       .type("Query") { type -> registerQueryResolvers(type) }
       .type("Mutation") { type -> registerMutationResolvers(type) }
       .type("Subscription") { type -> registerSubscriptionResolvers(type) }
-      .type("Customer") { type -> registerCustomerTypeResolvers(type) }
-      .type("Product") { type -> registerProductTypeResolvers(type) }
-      .build()
+    
+    return registerCustomTypeResolvers(builder).build()
   }
 
   /**
@@ -38,17 +37,14 @@ abstract class GraphQLWiringFactory {
   protected abstract fun registerSubscriptionResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder
 
   /**
-   * Register Customer type resolvers - can be overridden by concrete factories
+   * Register custom type resolvers - can be overridden by concrete factories to register
+   * business-specific types (e.g., Customer, Product, etc.)
+   * 
+   * @param builder The RuntimeWiring builder to add custom type registrations to
+   * @return The builder with custom type registrations added
    */
-  protected open fun registerCustomerTypeResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder {
-    return type
-  }
-
-  /**
-   * Register Product type resolvers - can be overridden by concrete factories
-   */
-  protected open fun registerProductTypeResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder {
-    return type
+  protected open fun registerCustomTypeResolvers(builder: RuntimeWiring.Builder): RuntimeWiring.Builder {
+    return builder
   }
 }
 

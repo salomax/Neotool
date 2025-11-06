@@ -13,8 +13,7 @@
     "dashboard": "Dashboard",
     "profile": "Perfil",
     "examples": "Exemplos",
-    "forms": "Formulários",
-    "customerForm": "Cliente"
+    "forms": "Formulários"
   },
   "actions": {
     "save": "Salvar",

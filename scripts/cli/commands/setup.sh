@@ -423,6 +423,13 @@ main() {
     # Replace route groups in paths (specific pattern with parentheses)
     replace_in_files "($OLD_PACKAGE_NAME)" "($NEW_ROUTE_GROUP)" "route groups"
     
+    # Replace API service names in supergraph.yaml and supergraph.graphql files
+    replace_in_files "${OLD_PACKAGE_NAME}-api" "${NEW_PACKAGE_NAME}-api" "API service names in supergraph"
+    replace_in_files "neotool-api" "${NEW_PACKAGE_NAME}-api" "API service names in supergraph"
+    # Also replace in GraphQL files (the join__Graph enum URL)
+    replace_in_files "http://${OLD_PACKAGE_NAME}-api:8080/graphql" "http://${NEW_PACKAGE_NAME}-api:8080/graphql" "GraphQL API URLs in supergraph"
+    replace_in_files "http://neotool-api:8080/graphql" "http://${NEW_PACKAGE_NAME}-api:8080/graphql" "GraphQL API URLs in supergraph"
+    
     # Replace display names
     replace_in_files "$OLD_DISPLAY_NAME" "$NEW_DISPLAY_NAME" "display names"
     
