@@ -1,3 +1,17 @@
+---
+title: ADR-0003 Kotlin Micronaut Backend
+type: adr
+category: backend
+status: accepted
+version: 1.0.0
+tags: [kotlin, micronaut, backend, jvm, graphql]
+related:
+  - ARCHITECTURE_OVERVIEW.md
+  - service/graphql-federation-architecture.md
+  - service/database-schema-organization.md
+  - service/kotlin/jpa-entity.md
+---
+
 # ADR-0003: Kotlin + Micronaut Backend Technology Stack
 
 ## Status

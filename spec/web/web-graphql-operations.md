@@ -1,3 +1,16 @@
+---
+title: GraphQL Operations Structure
+type: guide
+category: frontend
+status: current
+version: 1.0.0
+tags: [graphql, operations, apollo, frontend, code-generation]
+related:
+  - web/web-src-structure.md
+  - web/web-custom-hooks.md
+  - service/graphql-federation-architecture.md
+---
+
 # GraphQL Operations Structure for Web layer
 
 This document describes the organization and best practices for managing GraphQL operations in a TypeScript web application.  

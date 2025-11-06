@@ -1,3 +1,16 @@
+---
+title: GraphQL Federation Architecture
+type: guide
+category: api
+status: current
+version: 1.0.0
+tags: [graphql, federation, apollo, api, architecture]
+related:
+  - ARCHITECTURE_OVERVIEW.md
+  - adr/0003-kotlin-micronaut-backend.md
+  - contracts/graphql-federation.md
+---
+
 # GraphQL Federation Architecture
 
 This document outlines the GraphQL Federation architecture implemented in the service layer, leveraging Apollo Federation for scalable, distributed GraphQL API management.

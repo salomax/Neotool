@@ -1,6 +1,21 @@
+---
+title: Custom Hooks Architecture
+type: guide
+category: frontend
+status: current
+version: 1.0.0
+tags: [hooks, react, custom-hooks, frontend, architecture]
+related:
+  - web/web-src-structure.md
+  - web/web-graphql-operations.md
+  - ARCHITECTURE_OVERVIEW.md
+---
+
 # Custom Hooks Architecture - Best Practices
 
 This document defines the best practices for creating and organizing custom React hooks in the web frontend.
+
+> **Important Note**: The `customers`, `products`, and `orders` examples found in the codebase are **reference examples only** and should be removed in production. This documentation uses generic domain names (`domain-a`, `domain-b`) to represent your actual business domains.
 
 ## Directory Structure
 
@@ -8,14 +23,11 @@ This document defines the best practices for creating and organizing custom Reac
 web/src/
 ├── lib/
 │   └── hooks/                  # Domain-specific business logic hooks
-│       ├── customer/            # Customer domain hooks
-│       │   ├── useCustomers.ts
+│       ├── domain-a/            # Domain A hooks (example)
+│       │   ├── useDomainA.ts
 │       │   └── index.ts
-│       ├── product/             # Product domain hooks
-│       │   ├── useProducts.ts
-│       │   └── index.ts
-│       └── order/               # Order domain hooks
-│           ├── useOrders.ts
+│       └── domain-b/            # Domain B hooks (example)
+│           ├── useDomainB.ts
 │           └── index.ts
 ├── shared/
 │   └── hooks/                  # Reusable utility hooks
@@ -56,9 +68,11 @@ web/src/
 - CRUD operations and state management
 
 **Examples**:
-- `useCustomers` - Customer management operations
-- `useProducts` - Product catalog operations
-- `useOrders` - Order processing operations
+- `useDomainA` - Domain A management operations
+- `useDomainB` - Domain B operations
+- `useEntity` - Generic entity management operations
+
+**Note**: The `customers`, `products`, and `orders` examples in the codebase are for reference only and should be removed in production.
 
 ### 3. Page Hooks (`app/[domain]/hooks/`)
 **Purpose**: Page-specific hooks that combine multiple domain hooks or add page-specific logic.
@@ -74,25 +88,25 @@ web/src/
 ### 1. Data Management Hooks
 
 ```typescript
-// lib/hooks/customer/useCustomers.ts
-export type UseCustomersOptions = {
+// lib/hooks/domain-a/useDomainA.ts
+export type UseDomainAOptions = {
   initialSearchTerm?: string;
   initialStatusFilter?: string;
 };
 
-export type UseCustomersReturn = {
+export type UseDomainAReturn = {
   // Data
-  customers: Customer[];
-  filteredCustomers: Customer[];
+  items: DomainAItem[];
+  filteredItems: DomainAItem[];
   
   // State management
   searchTerm: string;
   setSearchTerm: (term: string) => void;
   
   // CRUD operations
-  createCustomer: (data: CustomerFormData) => Promise<void>;
-  updateCustomer: (id: string, data: CustomerFormData) => Promise<void>;
-  deleteCustomer: (id: string) => Promise<void>;
+  createItem: (data: DomainAFormData) => Promise<void>;
+  updateItem: (id: string, data: DomainAFormData) => Promise<void>;
+  deleteItem: (id: string) => Promise<void>;
   
   // Loading states
   loading: boolean;
@@ -147,7 +161,7 @@ export function useZodForm<TSchema extends ZodType>(
 ### Hook Names
 - **Pattern**: `use[FeatureName]` or `use[ActionName]`
 - **Examples**: 
-  - `useCustomers` - Domain data management
+  - `useDomainA` - Domain data management
   - `useAutoSave` - Utility functionality
   - `useDataTableQuery` - Specific functionality
 
@@ -158,35 +172,35 @@ export function useZodForm<TSchema extends ZodType>(
 
 ### File Names
 - **Pattern**: `use[FeatureName].ts`
-- **Examples**: `useCustomers.ts`, `useAutoSave.ts`
+- **Examples**: `useDomainA.ts`, `useAutoSave.ts`
 
 ## Hook Documentation Standards
 
 ### JSDoc Comments
 ```typescript
 /**
- * Custom hook for managing customer data and operations
+ * Custom hook for managing domain A data and operations
  * 
- * This hook encapsulates all customer-related business logic including:
+ * This hook encapsulates all domain A-related business logic including:
  * - CRUD operations (Create, Read, Update, Delete)
  * - Search and filtering functionality
  * - Dialog state management
  * - Loading states and error handling
  * 
  * @param options - Configuration options for the hook
- * @returns Object containing all customer management functionality
+ * @returns Object containing all domain A management functionality
  * 
  * @example
  * ```tsx
- * function CustomerPage() {
+ * function DomainAPage() {
  *   const {
- *     filteredCustomers,
+ *     filteredItems,
  *     searchTerm,
  *     setSearchTerm,
- *     createCustomer,
+ *     createItem,
  *     loading,
  *     error
- *   } = useCustomers();
+ *   } = useDomainA();
  * 
  *   return (
  *     <div>
@@ -194,15 +208,15 @@ export function useZodForm<TSchema extends ZodType>(
  *         value={searchTerm} 
  *         onChange={(e) => setSearchTerm(e.target.value)} 
  *       />
- *       {filteredCustomers.map(customer => (
- *         <div key={customer.id}>{customer.name}</div>
+ *       {filteredItems.map(item => (
+ *         <div key={item.id}>{item.name}</div>
  *       ))}
  *     </div>
  *   );
  * }
  * ```
  */
-export function useCustomers(options: UseCustomersOptions = {}): UseCustomersReturn {
+export function useDomainA(options: UseDomainAOptions = {}): UseDomainAReturn {
   // Implementation
 }
 ```
@@ -214,13 +228,13 @@ Each hook should have a single, well-defined responsibility.
 
 ```typescript
 // ✅ Good: Single responsibility
-export function useCustomers() {
-  // Only customer-related logic
+export function useDomainA() {
+  // Only domain A-related logic
 }
 
 // ❌ Bad: Multiple responsibilities
-export function useCustomersAndProducts() {
-  // Customer logic + Product logic
+export function useDomainAAndDomainB() {
+  // Domain A logic + Domain B logic
 }
 ```
 
@@ -261,21 +275,21 @@ export type UseEntityReturn = {
 Always provide error handling and loading states.
 
 ```typescript
-export function useCustomers() {
-  const [createCustomerMutation, { loading: createLoading, error: createError }] = useCreateCustomerMutation();
+export function useDomainA() {
+  const [createItemMutation, { loading: createLoading, error: createError }] = useCreateDomainAItemMutation();
   
-  const createCustomer = useCallback(async (data: CustomerFormData) => {
+  const createItem = useCallback(async (data: DomainAFormData) => {
     try {
-      await createCustomerMutation({ variables: { input: data } });
+      await createItemMutation({ variables: { input: data } });
       refetch();
     } catch (err) {
-      console.error('Error creating customer:', err);
+      console.error('Error creating item:', err);
       throw err; // Re-throw for component handling
     }
-  }, [createCustomerMutation, refetch]);
+  }, [createItemMutation, refetch]);
   
   return {
-    createCustomer,
+    createItem,
     createLoading,
     error: createError,
     // ... other properties
@@ -287,7 +301,7 @@ export function useCustomers() {
 Use TypeScript extensively for type safety.
 
 ```typescript
-export type Customer = {
+export type DomainAItem = {
   id: string;
   name: string;
   email: string;
@@ -296,13 +310,13 @@ export type Customer = {
   updatedAt: string | null;
 };
 
-export type CustomerFormData = {
+export type DomainAFormData = {
   name: string;
   email: string;
   status: string;
 };
 
-export type UseCustomersOptions = {
+export type UseDomainAOptions = {
   initialSearchTerm?: string;
   initialStatusFilter?: string;
 };
@@ -408,15 +422,15 @@ describe('useCustomers', () => {
 
 ### Integration Testing
 ```typescript
-// CustomerPage.integration.test.tsx
+// DomainAPage.integration.test.tsx
 import { render, screen, fireEvent } from '@testing-library/react';
-import { CustomerPage } from './CustomerPage';
+import { DomainAPage } from './DomainAPage';
 
-describe('CustomerPage Integration', () => {
-  it('should create a new customer', async () => {
-    render(<CustomerPage />);
+describe('DomainAPage Integration', () => {
+  it('should create a new item', async () => {
+    render(<DomainAPage />);
     
-    fireEvent.click(screen.getByText('Add Customer'));
+    fireEvent.click(screen.getByText('Add Item'));
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'John Doe' } });
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'john@example.com' } });
     fireEvent.click(screen.getByText('Create'));
@@ -471,9 +485,9 @@ export function useCustomers() {
 ```typescript
 // Bad: Too many responsibilities
 export function useEverything() {
-  // Customer logic
-  // Product logic
-  // Order logic
+  // Domain A logic
+  // Domain B logic
+  // Domain C logic
   // UI logic
   // API logic
 }
@@ -497,9 +511,9 @@ export function useCustomers() {
 ### ❌ Don't: Forget Error Boundaries
 ```typescript
 // Bad: No error handling
-export function useCustomers() {
-  const createCustomer = async (data: CustomerFormData) => {
-    await createCustomerMutation({ variables: { input: data } }); // No try/catch
+export function useDomainA() {
+  const createItem = async (data: DomainAFormData) => {
+    await createItemMutation({ variables: { input: data } }); // No try/catch
   };
 }
 ```

@@ -1,3 +1,15 @@
+---
+title: ADR-0001 Monorepo Architecture
+type: adr
+category: architecture
+status: accepted
+version: 1.0.0
+tags: [monorepo, architecture, repository-structure, organization]
+related:
+  - ARCHITECTURE_OVERVIEW.md
+  - adr/0002-containerized-architecture.md
+---
+
 # ADR-0001: Monorepo Architecture
 
 ## Status

@@ -1,3 +1,15 @@
+---
+title: ADR-0002 Containerized Architecture
+type: adr
+category: infrastructure
+status: accepted
+version: 1.0.0
+tags: [docker, kubernetes, containers, infrastructure, deployment]
+related:
+  - ARCHITECTURE_OVERVIEW.md
+  - adr/0001-monorepo-architecture.md
+---
+
 # ADR-0002: Containerized Architecture (vs Serverless)
 
 ## Status

@@ -1,3 +1,15 @@
+---
+title: Theme System Quick Reference
+type: reference
+category: frontend
+status: current
+version: 1.0.0
+tags: [themes, design-tokens, quick-reference, styling, mui]
+related:
+  - web/web-themes.md
+  - web/web-components.md
+---
+
 # Theme System Quick Reference
 
 A quick reference guide for using the Neotool theme system in your components.

@@ -1,3 +1,16 @@
+---
+title: Web Components Design System
+type: guide
+category: frontend
+status: current
+version: 1.0.0
+tags: [components, design-system, ui, frontend, functional-grouping]
+related:
+  - web/web-src-structure.md
+  - web/web-themes.md
+  - ARCHITECTURE_OVERVIEW.md
+---
+
 # Web Components - Design System
 
 This document provides comprehensive documentation for the shared components library in the web frontend, following functional grouping principles and industry best practices.
@@ -716,9 +729,9 @@ export const ExpensiveComponent = React.memo<Props>(({ data }) => {
 
 **Before** (Atomic Design):
 ```tsx
-import { Button } from '@/shared/components/ui/atoms';
-import { ConfirmDialog } from '@/shared/components/ui/molecules';
-import { DataTable } from '@/shared/components/ui/organisms';
+import { Button } from '@/shared/components/ui/primitives';
+import { ConfirmDialog } from '@/shared/components/ui/feedback';
+import { DataTable } from '@/shared/components/ui/data-display';
 ```
 
 **After** (Functional Grouping):

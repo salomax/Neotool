@@ -1,3 +1,16 @@
+---
+title: Project Setup and Renaming Guide
+type: guide
+category: setup
+status: current
+version: 1.0.0
+tags: [setup, configuration, initialization, cli, project-setup]
+related:
+  - README.md
+  - QUICK_REFERENCE.md
+  - ARCHITECTURE_OVERVIEW.md
+---
+
 # Project Setup and Renaming Guide
 
 This guide explains how to customize the project name from "neotool" to your own project name after cloning or integrating the starter template.

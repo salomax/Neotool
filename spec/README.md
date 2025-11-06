@@ -1,6 +1,34 @@
-# NeoTool Documentation
+---
+title: NeoTool Specification
+type: overview
+category: documentation
+status: current
+version: 1.0.0
+tags: [documentation, specification, neotool, overview]
+related:
+  - ARCHITECTURE_OVERVIEW.md
+  - SPECIFICATION_MANIFEST.md
+  - GLOSSARY.md
+  - PROJECT_SETUP.md
+---
 
-Welcome to the NeoTool documentation hub. This directory contains all technical documentation, architecture decisions, and guides for the NeoTool platform.
+# NeoTool Specification
+
+> **Purpose**: This directory contains the complete NeoTool specification - the source of truth for architecture, design decisions, and implementation guidelines. Optimized for RAG indexing and AI IDE integration.
+
+Welcome to the NeoTool specification hub. This directory contains all technical documentation, architecture decisions, and guides for the NeoTool platform.
+
+## 🎯 Quick Navigation
+
+- **[Architecture Overview](./ARCHITECTURE_OVERVIEW.md)** - Start here for system understanding
+- **[Specification Manifest](./SPECIFICATION_MANIFEST.md)** - Complete index of all documents
+- **[Glossary](./GLOSSARY.md)** - Terminology and definitions
+- **[Quick Reference](./QUICK_REFERENCE.md)** - Common commands and patterns
+- **[Project Setup](./PROJECT_SETUP.md)** - Getting started guide
+
+## 📋 Specification Index
+
+For a complete index of all documents, see the [Specification Manifest](./SPECIFICATION_MANIFEST.md).
 
 ## 📚 Documentation Structure
 
@@ -59,11 +87,12 @@ Welcome to the NeoTool documentation hub. This directory contains all technical 
    This will rename the project and optionally clean up example code.
 
 3. **Continue with documentation:**
-   - Start with [Architecture Overview](./adr/0001-monorepo-architecture.md)
+   - Start with [Architecture Overview](./ARCHITECTURE_OVERVIEW.md) for system understanding
    - Review [Project Setup Guide](./PROJECT_SETUP.md) for detailed setup instructions
-   - Review [Backend Documentation](./service/)
+   - Review [Architecture Decision Records](./adr/) for technical decisions
+   - Review [Backend Documentation](./service/) for service layer details
    - Understand [GraphQL Federation Architecture](./service/graphql-federation-architecture.md)
-   - Check [Frontend Documentation](./adr/0004-typescript-nextjs-frontend.md)
+   - Check [Frontend Documentation](./web/) for frontend patterns
    - Understand [Frontend Structure](./web/web-src-structure.md)
    - Learn [Theme System](./web/web-themes.md) - Design tokens, theming, and customization
    - Learn [Shared Components System](./web/web-components.md)

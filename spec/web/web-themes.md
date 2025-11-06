@@ -1,3 +1,16 @@
+---
+title: Theme System Guide
+type: guide
+category: frontend
+status: current
+version: 1.0.0
+tags: [themes, design-tokens, styling, mui, frontend]
+related:
+  - web/web-themes-quick-reference.md
+  - web/web-components.md
+  - ARCHITECTURE_OVERVIEW.md
+---
+
 # Theme System Guide
 
 A comprehensive guide to understanding and using the Neotool theme system. This document covers how themes work, what design tokens are available, how to customize themes, and how to use them in your components.

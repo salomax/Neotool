@@ -1,3 +1,16 @@
+---
+title: ADR-0005 PostgreSQL Database
+type: adr
+category: database
+status: accepted
+version: 1.0.0
+tags: [postgresql, database, data-storage, sql]
+related:
+  - ARCHITECTURE_OVERVIEW.md
+  - service/database-schema-organization.md
+  - service/kotlin/jpa-entity.md
+---
+
 # ADR-0005: PostgreSQL Database Technology
 
 ## Status

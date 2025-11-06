@@ -1,3 +1,15 @@
+---
+title: i18n Architecture
+type: guide
+category: frontend
+status: current
+version: 1.0.0
+tags: [i18n, internationalization, localization, frontend, translations]
+related:
+  - web/web-src-structure.md
+  - ARCHITECTURE_OVERVIEW.md
+---
+
 # i18n Architecture
 
 This document describes the scalable internationalization (i18n) architecture implemented in the web frontend, following enterprise best practices for maintainability and scalability.

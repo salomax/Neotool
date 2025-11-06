@@ -1,3 +1,18 @@
+---
+title: ADR-0004 TypeScript Next.js Frontend
+type: adr
+category: frontend
+status: accepted
+version: 1.0.0
+tags: [typescript, nextjs, react, frontend, ui]
+related:
+  - ARCHITECTURE_OVERVIEW.md
+  - web/web-src-structure.md
+  - web/web-components.md
+  - web/web-themes.md
+  - web/web-graphql-operations.md
+---
+
 # ADR-0004: TypeScript + Next.js Frontend Technology Stack
 
 ## Status

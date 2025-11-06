@@ -1,20 +1,34 @@
+---
+title: Web Frontend Structure
+type: guide
+category: frontend
+status: current
+version: 1.0.0
+tags: [frontend, structure, organization, nextjs, best-practices]
+related:
+  - ARCHITECTURE_OVERVIEW.md
+  - adr/0004-typescript-nextjs-frontend.md
+  - web/web-components.md
+  - web/web-themes.md
+---
+
 # Web Frontend Structure - Best Practices
 
 This document defines the best practices for organizing the `web/src/` directory in the boilerplate project.
+
+> **Important Note**: The `customers`, `products`, and `orders` examples found in the codebase are **reference examples only** and should be removed in production. This documentation uses generic domain names (`domain-a`, `domain-b`) to represent your actual business domains.
 
 ## Directory Structure Overview
 
 ```
 web/src/
 ├── app/                          # Next.js App Router (pages & layouts)
-│   ├── domain-a/                # Domain management pages
-│   ├── domain-b/                # Domain management pages
-│   ├── dashboard/               # Dashboard pages
-│   ├── api/                     # API integration examples
-│   ├── database/                # Database examples
-│   ├── events/                  # Event handling examples
-│   ├── graphql/                 # GraphQL examples
-│   ├── documentation/           # Documentation pages
+│   ├── (neotool)/               # Route group (doesn't affect URL)
+│   │   ├── dashboard/           # Dashboard pages
+│   │   ├── examples/            # Example pages
+│   │   ├── documentation/       # Documentation pages
+│   │   └── design-system/       # Design system showcase
+│   ├── api/                     # API routes
 │   ├── layout.tsx               # Root layout
 │   ├── page.tsx                 # Home page
 │   ├── not-found.tsx            # 404 page
@@ -22,18 +36,29 @@ web/src/
 ├── lib/                         # External integrations & utilities
 │   ├── api/                     # API clients & providers
 │   ├── graphql/                 # GraphQL operations & client
+│   │   ├── client.ts            # Apollo Client setup
+│   │   ├── GraphQLProvider.tsx  # GraphQL provider
+│   │   ├── operations/          # Domain-organized operations
+│   │   │   ├── domain-a/        # Domain A operations (example)
+│   │   │   └── domain-b/        # Domain B operations (example)
+│   │   ├── fragments/           # Reusable fragments
+│   │   └── types/               # Generated types
 │   ├── hooks/                   # Domain-specific business logic hooks
-│   │   ├── customer/            # Customer domain hooks
-│   │   ├── product/             # Product domain hooks
-│   │   └── order/               # Order domain hooks
+│   │   └── domain-a/            # Domain A hooks (example)
+│   ├── domain/                  # Domain-specific code
+│   │   └── hooks/               # Future: domain hooks location
 │   └── [other-integrations]/    # Other external services
 ├── shared/                      # Shared application code
 │   ├── components/              # Reusable UI components
-│   │   └── ui/                  # Atomic design system
-│   │       ├── atoms/           # Basic building blocks
-│   │       ├── molecules/       # Simple component combinations
-│   │       ├── organisms/       # Complex component combinations
-│   │       └── data-table/      # Specialized components
+│   │   └── ui/                  # Functional component system
+│   │       ├── primitives/      # Basic UI building blocks
+│   │       ├── layout/          # Layout and structure components
+│   │       ├── navigation/      # Navigation components
+│   │       ├── data-display/    # Data visualization components
+│   │       ├── forms/           # Form input components
+│   │       ├── feedback/        # User feedback components
+│   │       ├── patterns/        # Complex compositions
+│   │       └── data-table/      # Data table components (legacy)
 │   ├── config/                  # Application configuration
 │   ├── hooks/                   # Reusable utility hooks
 │   ├── i18n/                    # Internationalization
@@ -59,11 +84,14 @@ web/src/
 - **`shared/`**: Reusable application code
 - **`stories/`**: Component documentation and examples
 
-### 2. Atomic Design System
-- **Atoms**: Basic UI elements (Button, Input, Icon)
-- **Molecules**: Simple combinations (SearchField, FormField)
-- **Organisms**: Complex components (DataTable, Navigation)
-- **Templates**: Page layouts and structures
+### 2. Functional Component Grouping
+- **Primitives**: Basic UI building blocks (Button, Input, Icon, Badge)
+- **Layout**: Structure components (Stack, Paper, Frame, Grid)
+- **Navigation**: Navigation components (Tabs, Link)
+- **Data Display**: Data visualization (DataTable, Chart)
+- **Forms**: Form input components (TextField, SelectField, DatePicker)
+- **Feedback**: User feedback (Toast, Dialog, Tooltip)
+- **Patterns**: Complex compositions and reusable patterns
 
 ### 3. Feature-Based Organization
 - Group related functionality together
@@ -81,20 +109,19 @@ web/src/
 ### `app/` Directory (Next.js App Router)
 ```
 app/
-├── domain-a/                   # Domain management pages
-│   ├── page.tsx               # Main domain page
-│   ├── loading.tsx            # Loading state
-│   └── error.tsx              # Error state
-├── domain-b/                   # Domain management pages
-│   ├── page.tsx               # Main domain page
-│   ├── loading.tsx            # Loading state
-│   └── error.tsx              # Error state
-├── dashboard/                  # Dashboard pages
-├── api/                       # API integration examples
-├── database/                  # Database examples
-├── events/                    # Event handling examples
-├── graphql/                   # GraphQL examples
-├── documentation/             # Documentation pages
+├── (neotool)/                 # Route group (doesn't affect URL)
+│   ├── dashboard/             # Dashboard pages
+│   ├── examples/              # Example pages
+│   │   ├── customers/         # Customer examples
+│   │   │   ├── i18n/         # Domain-specific translations
+│   │   │   ├── components/   # Page-specific components
+│   │   │   └── page.tsx
+│   │   ├── products/         # Product examples
+│   │   └── ...
+│   ├── documentation/         # Documentation pages
+│   └── design-system/         # Design system showcase
+├── api/                       # API routes
+│   └── sourcemaps/           # Source map API
 ├── layout.tsx                 # Root layout
 ├── page.tsx                   # Home page
 ├── not-found.tsx              # 404 page
@@ -102,10 +129,11 @@ app/
 ```
 
 **Guidelines:**
-- Use route groups `()` for organization without affecting URLs
+- Use route groups `(name)` for organization without affecting URLs
 - Keep page components focused on layout and data fetching
 - Extract complex logic to custom hooks or services
 - Use consistent naming for special files (`loading.tsx`, `error.tsx`)
+- Domain-specific i18n should be co-located with pages in `[domain]/i18n/`
 
 ### `lib/` Directory (External Integrations)
 ```
@@ -116,17 +144,19 @@ lib/
 ├── graphql/                   # GraphQL operations
 │   ├── client.ts              # Apollo Client setup
 │   ├── operations/            # Domain-organized operations
+│   │   ├── domain-a/          # Domain A operations (example)
+│   │   │   ├── queries.ts     # Domain A queries
+│   │   │   ├── mutations.ts   # Domain A mutations
+│   │   │   └── index.ts       # Operations exports
+│   │   └── domain-b/          # Domain B operations (example)
 │   ├── fragments/             # Reusable fragments
 │   └── types.ts               # GraphQL types
 ├── hooks/                     # Domain-specific business logic hooks
-│   ├── customer/              # Customer domain hooks
-│   │   ├── useCustomers.ts    # Customer management
+│   ├── domain-a/              # Domain A hooks (example)
+│   │   ├── useDomainA.ts      # Domain A management
 │   │   └── index.ts           # Hook exports
-│   ├── product/               # Product domain hooks
-│   │   ├── useProducts.ts     # Product management
-│   │   └── index.ts           # Hook exports
-│   └── order/                 # Order domain hooks
-│       ├── useOrders.ts       # Order management
+│   └── domain-b/              # Domain B hooks (example)
+│       ├── useDomainB.ts      # Domain B management
 │       └── index.ts           # Hook exports
 └── [integration]/             # Other external services
     ├── client.ts              # Service client
@@ -147,11 +177,15 @@ lib/
 ```
 shared/
 ├── components/                # Reusable UI components
-│   └── ui/                    # Atomic design system
-│       ├── atoms/             # Basic building blocks
-│       ├── molecules/         # Simple combinations
-│       ├── organisms/         # Complex components
-│       └── data-table/        # Specialized components
+│   └── ui/                    # Functional component system
+│       ├── primitives/        # Basic building blocks
+│       ├── layout/            # Layout and structure
+│       ├── navigation/        # Navigation components
+│       ├── data-display/      # Data visualization
+│       ├── forms/             # Form components
+│       ├── feedback/          # User feedback
+│       ├── patterns/          # Complex compositions
+│       └── data-table/        # Data table (legacy)
 ├── config/                    # Application configuration
 │   ├── nav.config.ts          # Navigation configuration
 │   └── [feature].config.ts    # Feature-specific config
@@ -191,38 +225,48 @@ shared/
 
 ## Component Organization
 
-### Atomic Design System
+### Functional Component System
 ```
 shared/components/ui/
-├── atoms/                     # Basic building blocks
+├── primitives/                # Basic building blocks
 │   ├── Button/                # Component directory
 │   │   ├── Button.tsx         # Component implementation
 │   │   ├── Button.stories.tsx # Storybook stories
 │   │   ├── Button.test.tsx    # Unit tests
 │   │   └── index.ts           # Component export
-│   └── index.ts               # All atoms export
-├── molecules/                 # Simple combinations
-│   ├── SearchField/           # Component directory
-│   │   ├── SearchField.tsx    # Component implementation
-│   │   ├── SearchField.stories.tsx
-│   │   ├── SearchField.test.tsx
-│   │   └── index.ts
+│   ├── Avatar/
+│   ├── Badge/
+│   └── index.ts               # All primitives export
+├── layout/                    # Layout components
+│   ├── Stack/
+│   ├── Paper/
+│   ├── Frame/
 │   └── index.ts
-├── organisms/                 # Complex components
-│   ├── DataTable/             # Component directory
-│   │   ├── DataTable.tsx      # Component implementation
-│   │   ├── DataTable.stories.tsx
-│   │   ├── DataTable.test.tsx
-│   │   └── index.ts
+├── navigation/                # Navigation components
+│   ├── Tabs/
+│   ├── Link/
+│   └── index.ts
+├── data-display/              # Data visualization
+│   ├── DataTable/
+│   ├── Chart/
+│   └── index.ts
+├── forms/                     # Form components
+│   ├── TextField/
+│   ├── SelectField/
+│   └── index.ts
+├── feedback/                  # User feedback
+│   ├── ToastProvider/
+│   ├── ConfirmDialog/
 │   └── index.ts
 └── index.ts                   # All UI components export
 ```
 
 **Guidelines:**
-- One directory per component
+- Components organized by functional purpose, not complexity
+- One directory per component (when needed)
 - Include stories and tests alongside components
 - Use index files for clean exports
-- Follow atomic design principles strictly
+- Follow functional grouping principles
 
 ## File Naming Conventions
 
@@ -350,7 +394,7 @@ For custom hooks patterns and best practices, see [Custom Hooks Architecture](./
 ## Best Practices Summary
 
 1. **Consistent Structure**: Follow the established directory structure
-2. **Atomic Design**: Organize components by complexity level
+2. **Functional Grouping**: Organize components by purpose, not complexity
 3. **Feature-Based**: Group related functionality together
 4. **Clear Naming**: Use consistent naming conventions
 5. **Proper Exports**: Use index files for clean imports
@@ -358,6 +402,7 @@ For custom hooks patterns and best practices, see [Custom Hooks Architecture](./
 7. **Good Documentation**: Document components and patterns
 8. **Scalable i18n**: Use domain-specific translation architecture
 9. **Separation of Concerns**: Keep different types of code separate
+10. **Route Groups**: Use Next.js route groups `(name)` for organization
 
 ## Migration Guidelines
 
