@@ -20,6 +20,7 @@
 | Glossary | `GLOSSARY.md` | Reference | Terminology | glossary, terms, definitions |
 | Quick Reference | `QUICK_REFERENCE.md` | Reference | Quick Reference | quick reference, cheat sheet, patterns |
 | RAG Optimization | `RAG_OPTIMIZATION.md` | Meta | Documentation | rag, indexing, ai, optimization |
+| Cursor Integration | `CURSOR_INTEGRATION.md` | Guide | Documentation | cursor, ai, integration, ide, rag |
 | Specification Manifest | `SPECIFICATION_MANIFEST.md` | Index | Documentation | manifest, index, specification |
 | Quick Start | `README.md` | Guide | Getting Started | quick start, setup, introduction |
 | Project Setup | `PROJECT_SETUP.md` | Guide | Setup | setup, configuration, initialization |

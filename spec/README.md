@@ -22,6 +22,7 @@ Welcome to the NeoTool specification hub. This directory contains all technical 
 
 - **[Architecture Overview](./ARCHITECTURE_OVERVIEW.md)** - Start here for system understanding
 - **[Specification Manifest](./SPECIFICATION_MANIFEST.md)** - Complete index of all documents
+- **[Cursor Integration](./CURSOR_INTEGRATION.md)** - How to use this spec with Cursor AI
 - **[Glossary](./GLOSSARY.md)** - Terminology and definitions
 - **[Quick Reference](./QUICK_REFERENCE.md)** - Common commands and patterns
 - **[Project Setup](./PROJECT_SETUP.md)** - Getting started guide
@@ -88,6 +89,7 @@ For a complete index of all documents, see the [Specification Manifest](./SPECIF
 
 3. **Continue with documentation:**
    - Start with [Architecture Overview](./ARCHITECTURE_OVERVIEW.md) for system understanding
+   - **Using Cursor AI?** Check [Cursor Integration Guide](./CURSOR_INTEGRATION.md) to leverage the spec for AI-assisted development
    - Review [Project Setup Guide](./PROJECT_SETUP.md) for detailed setup instructions
    - Review [Architecture Decision Records](./adr/) for technical decisions
    - Review [Backend Documentation](./service/) for service layer details
