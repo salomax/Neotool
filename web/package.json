@@ -31,7 +31,10 @@
     "postbuild": "next-sitemap",
     "codegen": "graphql-codegen --config codegen.ts",
     "codegen:watch": "graphql-codegen --config codegen.ts --watch",
-    "postinstall": "graphql-codegen --config codegen.ts"
+    "postinstall": "graphql-codegen --config codegen.ts",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug"
   },
   "dependencies": {
     "@apollo/client": "^4.0.7",
@@ -82,6 +85,7 @@
     "@lhci/cli": "^0.15.1",
     "@next/bundle-analyzer": "^15.5.3",
     "@parcel/watcher": "^2.5.1",
+    "@playwright/test": "^1.56.1",
     "@storybook/addon-a11y": "^8.6.14",
     "@storybook/addon-essentials": "^8.6.14",
     "@storybook/addon-interactions": "^8.6.14",

@@ -42,6 +42,7 @@
 | GraphQL Federation | `service/graphql-federation-architecture.md` | API | graphql, federation, apollo |
 | Database Schema | `service/database-schema-organization.md` | Database | database, schema, organization |
 | JPA Entities | `service/kotlin/jpa-entity.md` | Backend | jpa, entity, kotlin |
+| Testing Guidelines | `service/testing-guidelines.md` | Testing | testing, unit-tests, integration-tests, best-practices |
 
 ### Web Frontend Documentation
 

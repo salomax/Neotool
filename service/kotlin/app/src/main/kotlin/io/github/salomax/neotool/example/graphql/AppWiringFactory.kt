@@ -5,6 +5,7 @@ import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.TypeRuntimeWiring
 import io.github.salomax.neotool.example.graphql.resolvers.CustomerResolver
 import io.github.salomax.neotool.example.graphql.resolvers.ProductResolver
+import io.github.salomax.neotool.example.graphql.auth.AuthResolver
 import io.github.salomax.neotool.graphql.GraphQLArgumentUtils.createValidatedDataFetcher
 import io.github.salomax.neotool.graphql.GraphQLArgumentUtils.createCrudDataFetcher
 import io.github.salomax.neotool.graphql.GraphQLPayloadDataFetcher.createMutationDataFetcher
@@ -21,6 +22,7 @@ import jakarta.inject.Singleton
 class AppWiringFactory(
     private val customerResolver: CustomerResolver,
     private val productResolver: ProductResolver,
+    private val authResolver: AuthResolver,
     resolverRegistry: GraphQLResolverRegistry
 ) : GraphQLWiringFactory() {
     
@@ -28,6 +30,7 @@ class AppWiringFactory(
         // Register resolvers in the registry for cross-module access
         resolverRegistry.register("customer", customerResolver)
         resolverRegistry.register("product", productResolver)
+        resolverRegistry.register("auth", authResolver)
     }
     
     override fun registerQueryResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder {
@@ -49,6 +52,15 @@ class AppWiringFactory(
             })
             .dataFetcher("customer", createCrudDataFetcher("getCustomerById") { id ->
                 customerResolver.getById(id)
+            })
+            .dataFetcher("currentUser", createValidatedDataFetcher { env ->
+                // Extract token from GraphQL context
+                val token = try {
+                    env.graphQlContext.get<String?>("token")
+                } catch (e: Exception) {
+                    null
+                }
+                authResolver.getCurrentUser(token)
             })
     }
     
@@ -72,6 +84,9 @@ class AppWiringFactory(
             .dataFetcher("deleteCustomer", createCrudDataFetcher("deleteCustomer") { id ->
                 customerResolver.delete(id)
             })
+            .dataFetcher("signIn", createMutationDataFetcher<io.github.salomax.neotool.example.graphql.dto.SignInPayloadDTO>("signIn") { input ->
+                authResolver.signIn(input)
+            })
     }
     
     override fun registerSubscriptionResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder {
@@ -89,15 +104,51 @@ class AppWiringFactory(
     override fun registerCustomTypeResolvers(builder: RuntimeWiring.Builder): RuntimeWiring.Builder {
         return builder
             .type("Customer") { type ->
+                type.dataFetcher("id", createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                    val customer = env.getSource<io.github.salomax.neotool.example.domain.Customer>()
+                    customer?.id?.toString() ?: throw IllegalStateException("Customer ID is null")
+                })
                 type.dataFetcher("version", createValidatedDataFetcher { env: DataFetchingEnvironment ->
                     val customer = env.getSource<io.github.salomax.neotool.example.domain.Customer>()
-                    customer?.version?.toInt()
+                    customer?.version?.toInt() ?: 0
                 })
             }
             .type("Product") { type ->
+                type.dataFetcher("id", createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                    val product = env.getSource<io.github.salomax.neotool.example.domain.Product>()
+                    product?.id?.toString() ?: throw IllegalStateException("Product ID is null")
+                })
                 type.dataFetcher("version", createValidatedDataFetcher { env: DataFetchingEnvironment ->
                     val product = env.getSource<io.github.salomax.neotool.example.domain.Product>()
-                    product?.version?.toInt()
+                    product?.version?.toInt() ?: 0
+                })
+            }
+            .type("User") { type ->
+                type.dataFetcher("id", createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                    val user = env.getSource<io.github.salomax.neotool.example.graphql.dto.UserDTO>()
+                    user?.id
+                })
+                type.dataFetcher("email", createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                    val user = env.getSource<io.github.salomax.neotool.example.graphql.dto.UserDTO>()
+                    user?.email
+                })
+                type.dataFetcher("displayName", createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                    val user = env.getSource<io.github.salomax.neotool.example.graphql.dto.UserDTO>()
+                    user?.displayName
+                })
+            }
+            .type("SignInPayload") { type ->
+                type.dataFetcher("token", createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                    val payload = env.getSource<io.github.salomax.neotool.example.graphql.dto.SignInPayloadDTO>()
+                    payload?.token
+                })
+                type.dataFetcher("refreshToken", createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                    val payload = env.getSource<io.github.salomax.neotool.example.graphql.dto.SignInPayloadDTO>()
+                    payload?.refreshToken
+                })
+                type.dataFetcher("user", createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                    val payload = env.getSource<io.github.salomax.neotool.example.graphql.dto.SignInPayloadDTO>()
+                    payload?.user
                 })
             }
     }

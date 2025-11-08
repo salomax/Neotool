@@ -253,13 +253,15 @@ CREATE TABLE IF NOT EXISTS app.customers (
 
 ### Schema Organization
 
-**Important**: All database objects must be organized into PostgreSQL schemas according to their module/service. See [Database Schema Organization](../database-schema-organization.md) for detailed rules and examples.
+**⚠️ CRITICAL RULE**: **ANY TABLE MUST BE INCLUDED TO A SCHEMA. NEVER IN PUBLIC.**
+
+All database objects must be organized into PostgreSQL schemas according to their module/service. See [Database Schema Organization](../database-schema-organization.md) for detailed rules and examples.
 
 **Key points:**
-- Each module should have its own schema (e.g., `security`, `app`)
-- All tables must be created with explicit schema qualification
-- JPA entities must specify the schema in `@Table` annotation
-- Never use the `public` schema for application tables
+- ✅ Each module must have its own schema (e.g., `security`, `app`)
+- ✅ All tables must be created with explicit schema qualification (e.g., `security.users`)
+- ✅ **REQUIRED**: JPA entities must specify the schema in `@Table` annotation: `@Table(name = "users", schema = "security")`
+- ❌ **FORBIDDEN**: Never use the `public` schema for application tables
 
 ## Configuration
 

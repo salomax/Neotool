@@ -2,7 +2,7 @@ micronaut:
   application:
     name: neotool-service
   server:
-    port: 8080
+    port: 8081
     cors:
       enabled: true
       configurations:
@@ -22,27 +22,60 @@ micronaut:
           max-age: 3600
   security:
     enabled: false
-    # token:
-    #   jwt:
-    #     signatures:
-    #       secret:
-    #         generator:
-    #           secret: ${JWT_SECRET:`change-me`}
-    # oauth2:
-    #   clients:
-    #     google:
-    #       client-id: ${OAUTH_GOOGLE_CLIENT_ID:}
-    #       client-secret: ${OAUTH_GOOGLE_CLIENT_SECRET:}
-    #       openid:
-    #         issuer: https://accounts.google.com
+    # JWT configuration is handled by JwtService and JwtConfig
+    # See jwt.* configuration below
+
+# JWT Configuration
+jwt:
+  # Secret key for signing JWT tokens (use strong random secret in production)
+  # Can be set via JWT_SECRET environment variable
+  secret: ${JWT_SECRET:change-me-in-production-use-strong-random-secret-min-32-chars}
+  # Access token expiration in seconds (default: 900 = 15 minutes)
+  access-token-expiration-seconds: ${JWT_ACCESS_TOKEN_EXPIRATION_SECONDS:900}
+  # Refresh token expiration in seconds (default: 604800 = 7 days)
+  refresh-token-expiration-seconds: ${JWT_REFRESH_TOKEN_EXPIRATION_SECONDS:604800}
 
 datasources:
   default:
-    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:neotool_db}
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:6432}/${POSTGRES_DB:neotool_db}
     driverClassName: org.postgresql.Driver
     username: ${POSTGRES_USER:neotool}
     password: ${POSTGRES_PASSWORD:neotool}
     dialect: POSTGRES
+    # HikariCP Connection Pool Configuration
+    # See: https://github.com/brettwooldridge/HikariCP#configuration-knobs-baby
+    hikari:
+      # Pool sizing
+      maximum-pool-size: ${HIKARI_MAX_POOL_SIZE:20}
+      minimum-idle: ${HIKARI_MIN_IDLE:5}
+      
+      # Connection lifecycle
+      connection-timeout: ${HIKARI_CONNECTION_TIMEOUT:30000} # 30 seconds
+      idle-timeout: ${HIKARI_IDLE_TIMEOUT:600000} # 10 minutes
+      max-lifetime: ${HIKARI_MAX_LIFETIME:1800000} # 30 minutes
+      leak-detection-threshold: ${HIKARI_LEAK_DETECTION:60000} # 60 seconds (0 to disable)
+      
+      # Connection validation
+      connection-test-query: "SELECT 1"
+      validation-timeout: ${HIKARI_VALIDATION_TIMEOUT:5000} # 5 seconds
+      
+      # Performance tuning
+      auto-commit: false # Let transactions control commit
+      read-only: false
+      
+      # PostgreSQL-specific optimizations
+      data-source-properties:
+        # Connection pool name for monitoring
+        applicationName: ${micronaut.application.name:neotool-service}
+        # Connection parameters
+        socketTimeout: 30
+        loginTimeout: 10
+        # Performance hints
+        prepareThreshold: 0 # Disable prepared statement caching (let Hibernate handle it)
+        tcpKeepAlive: true
+        # SSL (configure for production)
+        # ssl: true
+        # sslmode: require
 
 jpa:
   default:
@@ -55,6 +88,8 @@ flyway:
   datasources:
     default:
       enabled: true
+      baseline-on-migrate: true
+      baseline-version: 0
 
 redis:
   uri: redis://${REDIS_HOST:localhost}:${REDIS_PORT:6379}

@@ -13,6 +13,9 @@ tags: [glossary, terminology, definitions, reference]
 
 ## A
 
+### Access Token
+A short-lived JWT token (default: 15 minutes) used for API authentication. Stateless and contains user information in the token payload. See JWT.
+
 ### ADR (Architecture Decision Record)
 A document that captures an important architectural decision made along with its context and consequences. See [ADR Directory](./adr/).
 
@@ -91,6 +94,13 @@ A Java specification for accessing, persisting, and managing data between Java o
 ### JSONB
 PostgreSQL's binary JSON data type that stores JSON data in a decomposed binary format, allowing efficient querying and indexing.
 
+### JWT (JSON Web Token)
+A compact, URL-safe token format used for securely transmitting information between parties. NeoTool uses JWT for authentication:
+- **Access Token**: Short-lived JWT (default: 15 minutes) used for API authentication. Stateless and contains user information.
+- **Refresh Token**: Long-lived JWT (default: 7 days) stored in database for token refresh and revocation support.
+- Uses HMAC-SHA256 (HS256) algorithm for signing.
+- Configurable expiration times via `JwtConfig`. See [Authentication Testing](../docs/features/authentication/signin-testing.md).
+
 ## K
 
 ### Kubernetes (K8s)
@@ -132,6 +142,9 @@ Open-source monitoring and alerting toolkit used in NeoTool for metrics collecti
 
 ### React Server Components
 React components that render on the server, reducing JavaScript bundle size and improving performance. Used in Next.js App Router.
+
+### Refresh Token
+A long-lived JWT token (default: 7 days) used to obtain new access tokens. Stored in the database for revocation support. See JWT.
 
 ### Repository Pattern
 A design pattern that abstracts data access logic and provides a more object-oriented view of the persistence layer.

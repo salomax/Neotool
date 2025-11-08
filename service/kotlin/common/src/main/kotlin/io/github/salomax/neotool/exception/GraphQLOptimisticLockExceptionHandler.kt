@@ -40,7 +40,10 @@ class GraphQLOptimisticLockExceptionHandler : DataFetcherExceptionHandler {
                 )
             }
             else -> {
+                // Log unexpected exceptions at debug level (default handler will handle them)
+                logger.debug("GraphQL data fetcher exception (handled by default handler): ${exception.javaClass.simpleName} - ${exception.message}")
                 // Let other exceptions be handled by the default handler
+                // The default handler will convert them to GraphQL errors
                 defaultHandler.handleException(handlerParameters)
             }
         }

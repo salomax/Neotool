@@ -107,11 +107,21 @@ The project includes a CLI tool for common tasks. See [Project Setup Guide](./PR
 
 **Quick Reference:**
 ```bash
+# Project Setup
 ./neotool --version        # Check system requirements
-./neotool rename-project   # Rename project
-./neotool clean-examples   # Clean up example code
+./neotool setup            # Setup project (rename from neotool)
+./neotool clean [--dry-run] # Clean up example code
 ./neotool init             # Initialize project
+
+# GraphQL Schema Management
+./neotool graphql sync      # Interactive schema sync
+./neotool graphql validate  # Validate schema consistency
+./neotool graphql generate  # Generate supergraph schema
+./neotool graphql all       # Run complete workflow
+
+# Help
 ./neotool help             # Show help
+./neotool graphql --help   # Show GraphQL command help
 ```
 
 ### For Designers

@@ -181,9 +181,13 @@ GraphQL Schema → Code Generation → TypeScript Types → React Components
 ## Security
 
 ### Authentication & Authorization
-- JWT-based authentication
-- Role-based access control (RBAC)
-- GraphQL field-level authorization
+- **JWT-based authentication**: 
+  - Access tokens: Short-lived (default: 15 minutes), stateless JWT tokens for API requests
+  - Refresh tokens: Long-lived (default: 7 days), stored in database for token refresh and revocation
+  - HMAC-SHA256 (HS256) algorithm for token signing
+  - Configurable expiration times via `JwtConfig`
+- Role-based access control (RBAC) - *planned*
+- GraphQL field-level authorization - *planned*
 
 ### Data Protection
 - Encrypted connections (TLS)

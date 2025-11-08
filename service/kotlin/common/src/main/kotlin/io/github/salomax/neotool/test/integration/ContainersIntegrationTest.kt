@@ -44,9 +44,12 @@ object PostgresTestContainer : MicronautPropsTestContainer {
     "datasources.default.password" to password,
     "datasources.default.driverClassName" to "org.postgresql.Driver",
     "jpa.default.properties.dialect" to "org.hibernate.dialect.PostgreSQLDialect",
-    "jpa.default.properties.hibernate.hbm2ddl.auto" to "validate",
+    "jpa.default.properties.hibernate.hbm2ddl.auto" to "none", // Use Flyway instead of Hibernate validation
     "jpa.default.properties.hibernate.show_sql" to "false",
     "jpa.default.properties.hibernate.format_sql" to "false",
-    "flyway.enabled" to flywayEnabled.toString()
+    "flyway.enabled" to flywayEnabled.toString(),
+    "flyway.datasources.default.enabled" to flywayEnabled.toString(),
+    "flyway.datasources.default.baseline-on-migrate" to "true",
+    "flyway.datasources.default.baseline-version" to "0"
   )
 }

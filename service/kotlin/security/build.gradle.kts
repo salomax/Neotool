@@ -1,9 +1,11 @@
 
 plugins {
-    id("org.jetbrains.kotlin.jvm")
-    id("io.micronaut.library")
-    id("org.jetbrains.kotlin.plugin.jpa")
-    id("com.google.devtools.ksp")
+  id("org.jetbrains.kotlin.jvm")
+  id("io.micronaut.application")
+  id("io.micronaut.aot")
+  id("org.jetbrains.kotlin.plugin.jpa")
+  id("com.google.devtools.ksp")
+  id("com.gradleup.shadow")
 }
 
 micronaut {
@@ -24,9 +26,58 @@ dependencies {
 
     // KSP processors
     ksp("io.micronaut:micronaut-inject-kotlin")
+    ksp("io.micronaut.data:micronaut-data-processor")
     kspTest("io.micronaut:micronaut-inject-kotlin")
+    kspTest("io.micronaut.data:micronaut-data-processor")
 
-    // Security dependencies (commented out for now)
-    // api("io.micronaut.security:micronaut-security-jwt")
-    // api("io.micronaut.security:micronaut-security-oauth2")
+    // JWT dependencies
+    implementation("io.jsonwebtoken:jjwt-api:0.12.5")
+    implementation("io.jsonwebtoken:jjwt-impl:0.12.5")
+    implementation("io.jsonwebtoken:jjwt-jackson:0.12.5")
+    
+    // Password hashing - Argon2id
+    implementation("com.password4j:password4j:1.8.0")
+}
+
+application {
+  mainClass.set("io.github.salomax.neotool.security.Application")
+}
+
+// Configure test task to disable Ryuk
+tasks.test {
+    systemProperty("ryuk.disabled", "true")
+    environment("TESTCONTAINERS_RYUK_DISABLED", "true")
+}
+
+// Task to run integration tests
+tasks.register<Test>("testIntegration") {
+    group = "verification"
+    description = "Runs integration tests using Testcontainers"
+    
+    useJUnitPlatform {
+        includeEngines("junit-jupiter")
+        includeTags("integration")
+    }
+    
+    testLogging {
+        events("passed", "skipped", "failed")
+        showStandardStreams = true
+    }
+    
+    // Disable Ryuk to avoid container startup issues
+    systemProperty("ryuk.disabled", "true")
+    environment("TESTCONTAINERS_RYUK_DISABLED", "true")
+    
+    // Ensure Docker is available
+    doFirst {
+        try {
+            val process = ProcessBuilder("docker", "version").start()
+            val exitCode = process.waitFor()
+            if (exitCode != 0) {
+                throw GradleException("Docker is required for integration tests but not available")
+            }
+        } catch (e: Exception) {
+            throw GradleException("Docker is required for integration tests but not available: ${e.message}")
+        }
+    }
 }

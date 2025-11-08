@@ -1,0 +1,32 @@
+
+<configuration>
+  <!-- Development/Test: Human-readable text format -->
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <filter class="io.github.salomax.neotool.logging.MDCFilter" />
+    <encoder>
+      <pattern>%d{HH:mm:ss.SSS} [%X{correlationId:-}] %-5level %logger{36} - %msg%n</pattern>
+    </encoder>
+  </appender>
+  
+  <root level="INFO">
+    <appender-ref ref="STDOUT" />
+  </root>
+  
+  <!-- Application-specific loggers -->
+  <logger name="io.github.salomax.neotool" level="DEBUG" additivity="false">
+    <appender-ref ref="STDOUT" />
+  </logger>
+  
+  <!-- Micronaut framework logging -->
+  <logger name="io.micronaut" level="INFO" additivity="false">
+    <appender-ref ref="STDOUT" />
+  </logger>
+  
+  <!-- Database logging for development -->
+  <logger name="org.hibernate.SQL" level="DEBUG" additivity="false">
+    <appender-ref ref="STDOUT" />
+  </logger>
+  <logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="TRACE" additivity="false">
+    <appender-ref ref="STDOUT" />
+  </logger>
+</configuration>

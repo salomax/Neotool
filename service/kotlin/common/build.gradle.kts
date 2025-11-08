@@ -50,7 +50,6 @@ dependencies {
     api("com.graphql-java:java-dataloader:3.3.0")
     
     // Database - api for other modules
-    api("io.micronaut.data:micronaut-data-processor")
     api("io.micronaut.data:micronaut-data-jdbc")
     api("io.micronaut.data:micronaut-data-hibernate-jpa")
     api("io.micronaut.data:micronaut-data-tx-hibernate")

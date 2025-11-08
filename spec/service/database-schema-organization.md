@@ -4,9 +4,19 @@
 
 All database objects (tables, indexes, sequences, etc.) **must** be organized into PostgreSQL schemas according to their module/service. This practice ensures proper namespace isolation, improves security, and enhances maintainability.
 
-## Rule
+## ⚠️ Rule
 
-**From now on, all database objects must be defined in a schema according to its module/service. The `public` schema should not be used for application tables.**
+**ANY TABLE MUST BE INCLUDED TO A SCHEMA. NEVER IN PUBLIC.**
+
+This is a **MANDATORY** rule that applies to all database migrations and entity definitions:
+
+- ✅ **REQUIRED**: All tables must be created in a named schema (e.g., `security`, `app`)
+- ❌ **FORBIDDEN**: Creating tables in the `public` schema
+- ✅ **REQUIRED**: All migrations must create the schema if it doesn't exist
+- ✅ **REQUIRED**: All table references must use schema-qualified names (e.g., `security.users`)
+- ✅ **REQUIRED**: All JPA entities must specify the schema in `@Table` annotations
+
+**The `public` schema must NEVER be used for application tables.**
 
 ## Schema Naming Convention
 
@@ -244,10 +254,12 @@ open class ProductEntity(
 ### Code Reviews
 
 All database migrations and entity definitions must be reviewed to ensure:
-1. Schema is explicitly created in the first migration
-2. All tables use schema-qualified names
-3. All JPA entities specify the schema in `@Table` annotation
-4. No tables are created in the `public` schema (except system tables)
+1. ✅ Schema is explicitly created in the first migration
+2. ✅ All tables use schema-qualified names (e.g., `security.users`, not `users`)
+3. ✅ All JPA entities specify the schema in `@Table` annotation (e.g., `@Table(name = "users", schema = "security")`)
+4. ❌ **NO tables are created in the `public` schema** - This is a hard requirement, no exceptions for application tables
+5. ✅ All foreign key references use schema-qualified names
+6. ✅ All indexes are created on schema-qualified tables
 
 ### Migration Validation
 

@@ -26,7 +26,7 @@ class GraphQLControllerUnitTest {
   fun `empty query returns error spec`() {
     val req = GraphQLRequest(query = "", variables = null, operationName = null)
 
-    val result = controller.post(req)
+    val result = controller.post(req, null)
 
     assertThat(result["errors"]).isNotNull
     assertThat(result["data"]).isNull()
@@ -40,7 +40,7 @@ class GraphQLControllerUnitTest {
     """.trimIndent()
     val req = GraphQLRequest(query = query, variables = null, operationName = "Nope")
 
-    val result = controller.post(req)
+    val result = controller.post(req, null)
 
     assertThat(result["errors"]).isNotNull
     verify(mockGraphQL, Mockito.never()).execute(any<ExecutionInput>())
@@ -64,7 +64,7 @@ class GraphQLControllerUnitTest {
         .build()
     }
 
-    val result = controller.post(req)
+    val result = controller.post(req, null)
     assertThat(result["errors"]).isNull()
     assertThat(result["data"]).isNotNull
 
@@ -80,7 +80,7 @@ class GraphQLControllerUnitTest {
   fun `GraphQL exceptions are mapped to error spec`() {
     val req = GraphQLRequest(query = "query { test }", variables = null, operationName = null)
     whenever(mockGraphQL.execute(any<ExecutionInput>())).thenThrow(RuntimeException("test"))
-    val result = controller.post(req)
+    val result = controller.post(req, null)
     assertThat(result["errors"]).isNotNull
   }
 }

@@ -28,20 +28,39 @@ class GraphQLFactory(
     val federatedSchema = Federation.transform(registry, runtimeWiring)
       .fetchEntities { env ->
         val reps = env.getArgument<List<Map<String, Any>>>("representations")
-        reps?.map { rep ->
-          when (rep["__typename"]) {
-                "Product" -> productService.get(toUUID(rep["id"]))
-                "Customer" -> customerService.get(toUUID(rep["id"]))
+        reps?.mapNotNull { rep ->
+          val id = rep["id"]
+          if (id == null) {
+            null
+          } else {
+            try {
+              when (rep["__typename"]) {
+                "Product" -> productService.get(toUUID(id))
+                "Customer" -> customerService.get(toUUID(id))
                 else -> null
+              }
+            } catch (e: Exception) {
+              // Log and return null if ID conversion fails
+              val logger = org.slf4j.LoggerFactory.getLogger(GraphQLFactory::class.java)
+              logger.debug("Failed to fetch entity for federation: ${rep["__typename"]} with id: $id", e)
+              null
+            }
           }
         }
       }
       .resolveEntityType { env ->
         val entity = env.getObject<Any?>()
+        val schema = env.schema
+        
+        if (schema == null) {
+          throw IllegalStateException("GraphQL schema is null in resolveEntityType")
+        }
 
         when (entity) {
-          is Product -> env.schema.getObjectType("Product")
-          is Customer -> env.schema.getObjectType("Customer")
+          is Product -> schema.getObjectType("Product")
+            ?: throw IllegalStateException("Product type not found in schema")
+          is Customer -> schema.getObjectType("Customer")
+            ?: throw IllegalStateException("Customer type not found in schema")
           else -> throw IllegalStateException(
             "Unknown federated type for entity: ${entity?.javaClass?.name}"
           )

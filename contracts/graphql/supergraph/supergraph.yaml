@@ -4,6 +4,10 @@ subgraphs:
     routing_url: http://neotool-api:8080/graphql
     schema:
       file: ../subgraphs/app/schema.graphqls
+  security:
+    routing_url: http://neotool-api:8080/graphql
+    schema:
+      file: ../subgraphs/security/schema.graphqls
 # new modules...
 #  module:
 #    routing_url: http://module:8080/graphql

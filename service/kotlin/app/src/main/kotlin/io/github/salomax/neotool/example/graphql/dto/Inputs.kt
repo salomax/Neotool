@@ -108,3 +108,33 @@ data class PageInfo(
     val startCursor: String? = null,
     val endCursor: String? = null
 )
+
+/**
+ * Authentication DTOs
+ */
+@Introspected
+@Serdeable
+data class SignInInputDTO(
+    @field:Email(message = "Email must be valid")
+    @field:NotBlank(message = "Email is required")
+    var email: String = "",
+    @field:NotBlank(message = "Password is required")
+    var password: String = "",
+    var rememberMe: Boolean? = false
+) : BaseInputDTO()
+
+@Introspected
+@Serdeable
+data class SignInPayloadDTO(
+    val token: String,
+    val refreshToken: String? = null,
+    val user: UserDTO
+)
+
+@Introspected
+@Serdeable
+data class UserDTO(
+    val id: String,
+    val email: String,
+    val displayName: String? = null
+)

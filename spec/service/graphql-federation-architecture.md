@@ -97,11 +97,8 @@ neotool-starter/
         ├── supergraph/             # Federation configuration
         │   ├── supergraph.yaml     # Federation config
         │   ├── supergraph.graphql  # Generated supergraph schema
-        │   ├── supergraph.dev.graphql # Development supergraph
-        │   └── scripts/            # Schema management scripts
-        │       └── generate-schema.sh
-        ├── shared/                 # Shared types and directives
-        └── sync-schemas.sh         # Schema synchronization script
+        │   └── supergraph.dev.graphql # Development supergraph
+        └── shared/                 # Shared types and directives
 ```
 
 ### Federation Directives
@@ -155,12 +152,17 @@ The project implements a **service-first development approach** where:
 # 1. Edit schemas in service modules
 # File: service/kotlin/app/src/main/resources/graphql/schema.graphqls
 
-# 2. Sync schemas to contracts
-cd contracts/graphql
-./sync-schemas.sh sync
+# 2. Sync schemas to contracts (using CLI)
+./neotool graphql sync
 
-# 3. Generate supergraph schema
-./sync-schemas.sh generate
+# Or run script directly
+./scripts/cli/commands/graphql/sync-schemas.sh sync
+
+# 3. Generate supergraph schema (using CLI)
+./neotool graphql generate
+
+# Or run script directly
+./scripts/cli/commands/graphql/generate-schema.sh
 
 # 4. Start services with updated schemas
 ```
@@ -175,10 +177,17 @@ The `sync-schemas.sh` script automatically discovers schemas:
 #### Available Commands
 
 ```bash
-./sync-schemas.sh sync      # Synchronize schemas from services to contracts
-./sync-schemas.sh validate  # Validate schema consistency
-./sync-schemas.sh generate  # Generate supergraph schema
-./sync-schemas.sh all       # Run all operations
+# Using Neotool CLI (recommended)
+./neotool graphql sync      # Interactive sync from services to contracts
+./neotool graphql validate  # Validate schema consistency
+./neotool graphql generate  # Generate supergraph schema
+./neotool graphql all       # Run all operations
+
+# Or run scripts directly
+./scripts/cli/commands/graphql/sync-schemas.sh sync      # Synchronize schemas from services to contracts
+./scripts/cli/commands/graphql/sync-schemas.sh validate  # Validate schema consistency
+./scripts/cli/commands/graphql/generate-schema.sh        # Generate supergraph schema
+./scripts/cli/commands/graphql/sync-schemas.sh all       # Run all operations
 ```
 
 ---
@@ -242,6 +251,144 @@ The `sync-schemas.sh` script automatically discovers schemas:
 
 ## Implementation Guidelines
 
+### GraphQL Factory Setup
+
+#### Required Federation Resolvers
+
+**RULE**: When using Apollo Federation in Kotlin/Micronaut, **ALL** GraphQL factories **MUST** provide both `fetchEntities` and `resolveEntityType` callbacks, even if the module doesn't actively use entity fetching. These are **mandatory** for Federation to work correctly.
+
+**Why this is required:**
+- Apollo Federation requires these resolvers to be present in the schema transformation
+- Even if your module doesn't expose federated entities, Federation still needs these callbacks to be defined
+- Without them, the GraphQL schema will fail to build and tests will fail
+
+**Error if missing:**
+```
+FederationError: Missing a type resolver for _Entity
+FederationError: Missing a data fetcher for _entities
+```
+
+**Solution:**
+Always provide both callbacks in your `GraphQLFactory`, even if they only handle your module's specific entities or return `null` for unknown types.
+
+#### GraphQL Factory Pattern
+
+Each module that provides GraphQL functionality must create a `GraphQLFactory` that:
+
+1. **Extends BaseSchemaRegistryFactory** (or implements schema loading)
+2. **Creates a WiringFactory** for resolver registration
+3. **Provides Federation resolvers** (mandatory)
+4. **Creates the GraphQL bean**
+
+```kotlin
+@Factory
+class [Module]GraphQLFactory(
+    private val registry: TypeDefinitionRegistry,
+    private val wiringFactory: [Module]WiringFactory,
+    private val entityRepository: EntityRepository // Inject repositories needed for federation
+) {
+    @Singleton
+    fun graphQL(): graphql.GraphQL {
+        val runtimeWiring = wiringFactory.build()
+
+        // ⚠️ MANDATORY: Federation requires both callbacks
+        // Even if your module doesn't expose federated entities, you MUST provide these
+        val federatedSchema = Federation.transform(registry, runtimeWiring)
+            .fetchEntities { env ->
+                // This callback is called when Federation needs to fetch entities
+                // by their key fields (e.g., when another service references your entities)
+                val reps = env.getArgument<List<Map<String, Any>>>("representations")
+                reps?.mapNotNull { rep ->
+                    val id = rep["id"]
+                    if (id == null) {
+                        null
+                    } else {
+                        try {
+                            when (rep["__typename"]) {
+                                "YourEntity" -> {
+                                    // Fetch entity from repository
+                                    val entity = entityRepository.findById(UUID.fromString(id.toString())).orElse(null)
+                                    entity?.let { 
+                                        // Convert entity to DTO for GraphQL
+                                        YourDTO(
+                                            id = it.id.toString(),
+                                            // ... other fields
+                                        )
+                                    }
+                                }
+                                else -> null // Return null for unknown types
+                            }
+                        } catch (e: Exception) {
+                            // Log and return null if ID conversion fails
+                            val logger = org.slf4j.LoggerFactory.getLogger([Module]GraphQLFactory::class.java)
+                            logger.debug("Failed to fetch entity for federation: ${rep["__typename"]} with id: $id", e)
+                            null
+                        }
+                    }
+                }
+            }
+            .resolveEntityType { env ->
+                // This callback resolves a DTO object to its GraphQL type
+                // Required for Federation to understand entity types
+                val entity = env.getObject<Any?>()
+                val schema = env.schema
+                
+                if (schema == null) {
+                    throw IllegalStateException("GraphQL schema is null in resolveEntityType")
+                }
+
+                when (entity) {
+                    is YourDTO -> schema.getObjectType("YourEntity")
+                        ?: throw IllegalStateException("YourEntity type not found in schema")
+                    else -> throw IllegalStateException(
+                        "Unknown federated type for entity: ${entity?.javaClass?.name}"
+                    )
+                }
+            }
+            .build()
+
+        return graphql.GraphQL.newGraphQL(federatedSchema)
+            .instrumentation(MaxQueryComplexityInstrumentation(100))
+            .instrumentation(MaxQueryDepthInstrumentation(10))
+            .defaultDataFetcherExceptionHandler(GraphQLOptimisticLockExceptionHandler())
+            .build()
+    }
+}
+```
+
+**Key Points:**
+1. **Both callbacks are mandatory** - Never skip `fetchEntities` or `resolveEntityType`
+2. **Handle unknown types gracefully** - Return `null` in `fetchEntities` for unknown `__typename` values
+3. **Convert entities to DTOs** - Federation works with DTOs, not JPA entities directly
+4. **Error handling** - Always wrap ID parsing in try-catch to handle invalid formats
+5. **Logging** - Use debug-level logging for federation failures (they're expected for unknown types)
+
+#### Module Independence
+
+**Each module MUST have its own GraphQL setup** to respect module boundaries:
+
+- ✅ **Security module**: `SecurityGraphQLFactory`, `SecurityWiringFactory`, `SecuritySchemaRegistryFactory`
+- ✅ **App module**: `GraphQLFactory`, `AppWiringFactory`, `AppSchemaRegistryFactory`
+- ✅ **Future modules**: Each module provides its own complete GraphQL infrastructure
+
+**Benefits:**
+- Modules can test GraphQL functionality independently
+- No cross-module dependencies for GraphQL testing
+- Clear separation of concerns
+- Easier to maintain and evolve
+
+**Common Module Provides:**
+- `GraphQLControllerBase` - HTTP endpoint (reusable across modules)
+- `GraphQLWiringFactory` - Base wiring factory (abstract class)
+- `BaseSchemaRegistryFactory` - Base schema loading (abstract class)
+- GraphQL dependencies (via `api` dependencies)
+
+**Module-Specific:**
+- GraphQL bean creation (`@Factory` class)
+- Schema loading (extends `BaseSchemaRegistryFactory`)
+- Resolver wiring (extends `GraphQLWiringFactory`)
+- Federation entity resolvers
+
 ### Service Development
 
 #### 1. Create Service Schema
@@ -288,15 +435,15 @@ class ProductResolver {
 
 #### 3. Sync Schema to Contracts
 ```bash
-# Navigate to contracts directory
-cd contracts/graphql
-
-# Sync schema from service to contracts
-./sync-schemas.sh sync
+# Using Neotool CLI (recommended)
+./neotool graphql sync
 
 # Select source: kotlin/app
 # Select target: app (or create new)
 # Confirm sync
+
+# Or run script directly
+./scripts/cli/commands/graphql/sync-schemas.sh sync
 ```
 
 #### 4. Update Federation Configuration
@@ -332,25 +479,29 @@ type Query {
 
 #### 2. Schema Synchronization
 ```bash
-# Sync schemas from services to contracts
-cd contracts/graphql
-./sync-schemas.sh sync
+# Using Neotool CLI (recommended)
+./neotool graphql sync
 
 # Interactive selection:
 # 1. Select source: kotlin/app
-# 2. Select target: app
+# 2. Select target: app (auto-detected, press Enter to accept)
 # 3. Confirm sync
+
+# Or run script directly
+./scripts/cli/commands/graphql/sync-schemas.sh sync
 ```
 
 #### 3. Supergraph Generation
 ```bash
-# Generate composed supergraph schema
-cd contracts/graphql
-./sync-schemas.sh generate
+# Using Neotool CLI (recommended)
+./neotool graphql generate
 
 # This creates:
 # - contracts/graphql/supergraph/supergraph.graphql
 # - contracts/graphql/supergraph/supergraph.dev.graphql
+
+# Or run script directly
+./scripts/cli/commands/graphql/generate-schema.sh
 ```
 
 #### 4. Router Configuration
@@ -393,12 +544,16 @@ jobs:
       - uses: actions/checkout@v3
       - name: Validate Schema Consistency
         run: |
-          cd contracts/graphql
-          CI=true ./sync-schemas.sh validate
+          # Using CLI (automatically uses Docker in CI)
+          CI=true ./neotool graphql validate
+          # Or run script directly
+          # CI=true ./scripts/cli/commands/graphql/sync-schemas.sh validate
       - name: Generate Supergraph Schema
         run: |
-          cd contracts/graphql
-          CI=true ./sync-schemas.sh generate
+          # Using CLI (automatically uses Docker in CI)
+          CI=true ./neotool graphql generate
+          # Or run script directly
+          # CI=true ./scripts/cli/commands/graphql/generate-schema.sh
       - name: Check for Changes
         run: |
           git diff --exit-code contracts/graphql/supergraph/
@@ -413,19 +568,26 @@ The solution supports both local and Docker-based execution:
 # Install rover locally
 curl -sSL https://rover.apollo.dev/nix/latest | sh
 
-# Generate schema
-cd contracts/graphql
-./sync-schemas.sh generate
+# Generate schema using CLI
+./neotool graphql generate
+
+# Or run script directly
+./scripts/cli/commands/graphql/generate-schema.sh
 ```
 
 #### CI/CD Environment
 ```bash
-# Use Docker (no local installation needed)
-cd contracts/graphql
-CI=true ./sync-schemas.sh generate
+# Use Docker (no local installation needed) - using CLI
+./neotool graphql generate --docker
+
+# Or with environment variable
+CI=true ./neotool graphql generate
+
+# Or run script directly
+CI=true ./scripts/cli/commands/graphql/generate-schema.sh
 
 # Or explicitly
-USE_DOCKER_ROVER=true ./sync-schemas.sh generate
+USE_DOCKER_ROVER=true ./scripts/cli/commands/graphql/generate-schema.sh
 ```
 
 ### Schema Validation Pipeline
@@ -474,8 +636,10 @@ USE_DOCKER_ROVER=true ./sync-schemas.sh generate
 - **Gradle**: Build system and dependency management
 
 ### Schema Management Tools
+- **Neotool CLI**: Unified command-line interface for schema management (`./neotool graphql`)
 - **Apollo Rover**: Schema composition and validation
-- **sync-schemas.sh**: Interactive schema synchronization script
+- **sync-schemas.sh**: Interactive schema synchronization script (`scripts/cli/commands/graphql/sync-schemas.sh`)
+- **generate-schema.sh**: Supergraph generation script (`scripts/cli/commands/graphql/generate-schema.sh`)
 - **Docker**: Containerized rover execution for CI/CD
 - **GitHub Actions**: Automated schema validation and generation
 

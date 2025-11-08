@@ -120,18 +120,79 @@ Shows help text with available commands and options.
 ./neotool help
 ```
 
+#### `neotool graphql <subcommand>`
+Manages GraphQL schema synchronization and supergraph generation. This command provides a unified interface for working with GraphQL schemas across the monorepo.
+
+**Subcommands:**
+
+- **`sync`**: Interactive sync from service modules to contracts
+  - Prompts to select schema source and target subgraph
+  - Creates backups before overwriting
+  - Example: `./neotool graphql sync`
+
+- **`validate`**: Validate schema consistency between services and contracts
+  - Checks if service schemas match contract schemas
+  - Reports mismatches and missing contracts
+  - Example: `./neotool graphql validate`
+
+- **`generate`**: Generate supergraph schema from subgraph schemas
+  - Uses Apollo Rover to compose federated schemas
+  - Supports local rover or Docker-based execution
+  - Options:
+    - `--docker`: Use Docker for rover (useful for CI/CD)
+  - Example: `./neotool graphql generate`
+  - Example: `./neotool graphql generate --docker`
+
+- **`all`**: Run sync, validate, and generate in sequence
+  - Executes all three operations in order
+  - Useful for complete schema workflow
+  - Options:
+    - `--docker`: Use Docker for rover
+  - Example: `./neotool graphql all`
+
+**Environment Variables:**
+- `CI=true`: Automatically use Docker for rover (CI environment)
+- `USE_DOCKER_ROVER=true`: Force Docker usage for rover
+
+**Examples:**
+```bash
+# Sync a schema interactively
+./neotool graphql sync
+
+# Validate all schemas
+./neotool graphql validate
+
+# Generate supergraph (local rover)
+./neotool graphql generate
+
+# Generate supergraph (Docker rover)
+./neotool graphql generate --docker
+
+# Complete workflow
+./neotool graphql all
+
+# Show GraphQL command help
+./neotool graphql --help
+```
+
+**Underlying Scripts:**
+- `sync` → `scripts/cli/commands/graphql/sync-schemas.sh sync`
+- `validate` → `scripts/cli/commands/graphql/sync-schemas.sh validate`
+- `generate` → `scripts/cli/commands/graphql/generate-schema.sh`
+
 ### CLI Architecture
 
 The CLI is organized as a modular system:
 - **Main router**: `scripts/cli/cli` - Routes commands to individual scripts
 - **Command scripts**: `scripts/cli/commands/` - Each command is a separate script
   - `version.sh` - System requirements check
-  - `rename-project.sh` - Project renaming
-  - `clean-examples.sh` - Example code cleanup
+  - `setup.sh` - Project setup (rename from neotool)
+  - `clean.sh` - Example code cleanup
   - `init.sh` - Project initialization
+  - `graphql.sh` - GraphQL schema management (with subcommands)
 - **Shared utilities**: `scripts/cli/utils.sh` - Common logging and utility functions
 
-All commands can be run independently or through the CLI router. The underlying scripts (`scripts/rename-project.sh` and `scripts/clean-examples.sh`) can also be executed directly if needed.
+All commands can be run independently or through the CLI router. The underlying scripts can also be executed directly if needed.
 ## Configuration File
 
 The `project.config.json` file contains all the project naming configurations. Here's what each field means:

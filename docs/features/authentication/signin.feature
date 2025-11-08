@@ -36,11 +36,6 @@ Feature: User sign in
       Then the Google OAuth flow should start
       And upon success I should be redirected to the Home screen
 
-    Scenario: Sign in with Apple
-      When I press "Continue with Apple"
-      Then the Apple OAuth flow should start
-      And upon success I should be redirected to the Home screen
-
   Rule: Session persistence
     Scenario: Keep me signed in
       Given the "Keep me signed in" option is enabled

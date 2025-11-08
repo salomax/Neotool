@@ -4,7 +4,6 @@ services:
   # -------------------------------------------------------------
   # Tooling Stack (database, cache, message broker)
   # -------------------------------------------------------------
-
   postgres:
     image: postgres:18rc1
     container_name: neotool-postgres
@@ -15,13 +14,34 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-neotool_db}
     volumes:
       - pgdata:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    networks:
+      - postgres-internal
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
       interval: 10s
       timeout: 5s
       retries: 5
+
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    container_name: neotool-pgbouncer
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    ports: ["6432:6432"]
+    volumes:
+      - ../pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
+      - ../pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
+    command: ["pgbouncer", "/etc/pgbouncer/pgbouncer.ini"]
+    networks:
+      - default
+      - postgres-internal
+    healthcheck:
+      test: ["CMD-SHELL", "psql 'host=localhost port=6432 dbname=pgbouncer user=postgres' -c 'SHOW DATABASES;' >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
 
   redis:
     image: redis:7
@@ -41,7 +61,6 @@ services:
     container_name: neotool-kafka
     restart: unless-stopped
     environment:
-      # Essential KRaft configuration
       - CLUSTER_ID=5L6g3nShT-eMCtK--X86sw
       - NODE_ID=1
       - PROCESS_ROLES=broker,controller
@@ -51,8 +70,7 @@ services:
       - LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
       - CONTROLLER_LISTENER_NAMES=CONTROLLER
       - INTER_BROKER_LISTENER_NAME=PLAINTEXT
-      # Useful for development
-      - AUTO_CREATE_TOPICS_ENABLE=true
+      # - AUTO_CREATE_TOPICS_ENABLE=true
     ports:
       - "9092:9092"
     healthcheck:
@@ -62,44 +80,46 @@ services:
       retries: 3
       start_period: 30s
 
-  router:
-    image: ghcr.io/apollographql/router:v2.7.0
-    container_name: neotool-graphql-router
-    depends_on:
-      - api
-    ports:
-      - "4000:4000"
-      - "8088:8088"  # Health check port
-      - "9091:9090"  # Metrics port (changed to avoid conflict with Prometheus)
-    volumes:
-      - ../../contracts/graphql/supergraph/supergraph.dev.graphql:/dist/supergraph.graphql:ro
-      - ../../service/gateway/router/router.dev.yaml:/dist/router.yaml:ro
-    command: ["--supergraph", "/dist/supergraph.graphql", "--config", "/dist/router.yaml"]
-    environment:
-      - APOLLO_ROUTER_TELEMETRY_METRICS_PROMETHEUS_ENABLED=true
-      - APOLLO_ROUTER_TELEMETRY_METRICS_PROMETHEUS_LISTEN=0.0.0.0:9090
-      - APOLLO_ROUTER_TELEMETRY_METRICS_PROMETHEUS_PATH=/metrics
-
   # -------------------------------------------------------------
   # Application Stack
   # -------------------------------------------------------------
 
-  api:
+  app:
     build:
       context: ../../service/kotlin
       dockerfile: app/Dockerfile
-    container_name: neotool-api
+    container_name: neotool-app
     env_file: ../../.env
     environment:
       MICRONAUT_ENVIRONMENTS: docker
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
+      POSTGRES_HOST: pgbouncer
+      POSTGRES_PORT: 6432
       KAFKA_HOST: kafka
       KAFKA_PORT: 9092
       REDIS_HOST: redis
       REDIS_PORT: 6379
     depends_on:
-      postgres:
+      pgbouncer:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8081:8080"
+
+  security:
+    build:
+      context: ../../service/kotlin
+      dockerfile: security/Dockerfile
+    container_name: neotool-security
+    env_file: ../../.env
+    environment:
+      MICRONAUT_ENVIRONMENTS: docker
+      POSTGRES_HOST: pgbouncer
+      POSTGRES_PORT: 6432
+    depends_on:
+      pgbouncer:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -118,9 +138,32 @@ services:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
       NEXT_PUBLIC_GRAPHQL_URL: ${NEXT_PUBLIC_GRAPHQL_URL:-http://router:4000/graphql}
     depends_on:
-      - api
+      - app
     ports:
       - "3000:3000"
+
+  # -------------------------------------------------------------
+  # API Gateway Stack
+  # -------------------------------------------------------------
+
+  router:
+    image: ghcr.io/apollographql/router:v2.7.0
+    container_name: neotool-graphql-router
+    depends_on:
+      - app
+      - security
+    ports:
+      - "4000:4000"
+      - "8088:8088"  # Health check port
+      - "9091:9090"  # Metrics port (changed to avoid conflict with Prometheus)
+    volumes:
+      - ../../contracts/graphql/supergraph/supergraph.dev.graphql:/dist/supergraph.graphql:ro
+      - ../../service/gateway/router/router.dev.yaml:/dist/router.yaml:ro
+    command: ["--supergraph", "/dist/supergraph.graphql", "--config", "/dist/router.yaml"]
+    environment:
+      - APOLLO_ROUTER_TELEMETRY_METRICS_PROMETHEUS_ENABLED=true
+      - APOLLO_ROUTER_TELEMETRY_METRICS_PROMETHEUS_LISTEN=0.0.0.0:9090
+      - APOLLO_ROUTER_TELEMETRY_METRICS_PROMETHEUS_PATH=/metrics
 
   # -------------------------------------------------------------
   # Observability Stack
@@ -138,16 +181,16 @@ services:
     ports:
       - "9090:9090"
 
-  # PostgreSQL Exporter - monitors database metrics
+  # PostgreSQL Exporter - monitors database metrics via pgbouncer
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter:latest
     container_name: neotool-postgres-exporter
     environment:
-      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-neotool}:${POSTGRES_PASSWORD:-neotool}@postgres:5432/${POSTGRES_DB:-neotool_db}?sslmode=disable"
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-neotool}:${POSTGRES_PASSWORD:-neotool}@pgbouncer:6432/${POSTGRES_DB:-neotool_db}?sslmode=disable"
     ports:
       - "9187:9187"
     depends_on:
-      postgres:
+      pgbouncer:
         condition: service_healthy
 
   # Redis Exporter - monitors cache metrics
@@ -218,3 +261,8 @@ services:
 volumes:
   pgdata:
   loki-data:
+
+networks:
+  postgres-internal:
+    driver: bridge
+    internal: false  # Set to true if you want complete isolation (no internet access)

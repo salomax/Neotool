@@ -2,7 +2,18 @@
   "signIn": {
     "title": "Welcome",
     "subtitle": "Sign in to continue",
-    "continue": "Continue"
+    "continue": "Continue",
+    "email": "Email",
+    "password": "Password",
+    "rememberMe": "Keep me signed in",
+    "signInButton": "Sign in",
+    "continueWithGoogle": "Continue with Google",
+    "errors": {
+      "invalidCredentials": "Invalid email or password",
+      "required": "This field is required",
+      "invalidEmail": "Please enter a valid email address",
+      "networkError": "Network error. Please try again."
+    }
   },
   "language": {
     "english": "English",
@@ -22,6 +33,7 @@
     "delete": "Delete",
     "add": "Add",
     "create": "Create",
-    "update": "Update"
+    "update": "Update",
+    "loading": "Loading..."
   }
 }

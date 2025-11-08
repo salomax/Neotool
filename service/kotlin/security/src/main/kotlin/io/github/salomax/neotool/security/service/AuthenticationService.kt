@@ -1,0 +1,226 @@
+package io.github.salomax.neotool.security.service
+
+import com.password4j.Password
+import io.github.salomax.neotool.security.model.UserEntity
+import io.github.salomax.neotool.security.repo.UserRepository
+import jakarta.inject.Singleton
+import jakarta.transaction.Transactional
+import mu.KotlinLogging
+import java.util.UUID
+
+/**
+ * Service for handling authentication operations including password hashing,
+ * signin validation, and JWT token generation.
+ * 
+ * Uses Argon2id for password hashing (OWASP recommended standard).
+ * Uses JWT for access and refresh tokens.
+ */
+@Singleton
+open class AuthenticationService(
+    private val userRepository: UserRepository,
+    private val jwtService: JwtService
+) {
+    private val logger = KotlinLogging.logger {}
+    
+    /**
+     * Hash a password using Argon2id (OWASP recommended).
+     * 
+     * Argon2id is the winner of the Password Hashing Competition and provides
+     * superior resistance to GPU/ASIC attacks with memory-hard properties.
+     *
+     * @see https://owasp.org/
+     * @param password The plain text password to hash
+     * @return The hashed password string (includes salt and parameters)
+     */
+    fun hashPassword(password: String): String {
+        return Password.hash(password)
+            .addRandomSalt()
+            .withArgon2()
+            .result
+    }
+    
+    /**
+     * Verify a password against a stored hash.
+     * 
+     * Uses Argon2id for password verification. The hash format is automatically
+     * detected by the Password4j library.
+     * 
+     * @param password The plain text password to verify
+     * @param hash The stored Argon2id hash
+     * @return true if password matches, false otherwise
+     */
+    fun verifyPassword(password: String, hash: String): Boolean {
+        return try {
+            Password.check(password, hash).withArgon2()
+        } catch (e: Exception) {
+            logger.warn { "Error verifying password: ${e.message}" }
+            false
+        }
+    }
+    
+    /**
+     * Authenticate a user with email and password.
+     * 
+     * @return UserEntity if authentication succeeds, null otherwise
+     */
+    fun authenticate(email: String, password: String): UserEntity? {
+        if (password.isBlank()) {
+            logger.debug { "Password cannot be empty" }
+            return null
+        }
+
+        val user = userRepository.findByEmail(email) ?: run {
+            logger.debug { "User not found with email: $email" }
+            return null
+        }
+        
+        if (user.passwordHash == null) {
+            logger.debug { "User has no password hash: $email" }
+            return null
+        }
+        
+        if (!verifyPassword(password, user.passwordHash!!)) {
+            logger.debug { "Invalid password for user: $email" }
+            return null
+        }
+        
+        logger.info { "User authenticated successfully: $email" }
+        return user
+    }
+    
+    /**
+     * Generate JWT access token for a user.
+     * 
+     * Access tokens are short-lived and stateless.
+     * 
+     * @param user The authenticated user
+     * @return JWT access token string
+     */
+    fun generateAccessToken(user: UserEntity): String {
+        return jwtService.generateAccessToken(user.id, user.email)
+    }
+    
+    /**
+     * Generate JWT refresh token for a user.
+     * 
+     * Refresh tokens are long-lived and stored in the database for revocation.
+     * 
+     * @param user The authenticated user
+     * @return JWT refresh token string
+     */
+    fun generateRefreshToken(user: UserEntity): String {
+        return jwtService.generateRefreshToken(user.id)
+    }
+    
+    /**
+     * Validate a JWT access token and return the user.
+     * 
+     * @param token The JWT access token
+     * @return UserEntity if token is valid, null otherwise
+     */
+    fun validateAccessToken(token: String): UserEntity? {
+        val userId = jwtService.getUserIdFromToken(token) ?: return null
+        
+        // Verify it's an access token
+        if (!jwtService.isAccessToken(token)) {
+            logger.debug { "Token is not an access token" }
+            return null
+        }
+        
+        // Fetch user from database
+        return userRepository.findById(userId).orElse(null)
+    }
+    
+    /**
+     * Validate a JWT refresh token and return the user.
+     * 
+     * @param token The JWT refresh token
+     * @return UserEntity if token is valid, null otherwise
+     */
+    fun validateRefreshToken(token: String): UserEntity? {
+        val userId = jwtService.getUserIdFromToken(token) ?: return null
+        
+        // Verify it's a refresh token
+        if (!jwtService.isRefreshToken(token)) {
+            logger.debug { "Token is not a refresh token" }
+            return null
+        }
+        
+        // Fetch user from database
+        val user = userRepository.findById(userId).orElse(null) ?: return null
+        
+        // Verify the refresh token matches the stored one (for revocation support)
+        // If rememberMeToken is null, the refresh token was revoked
+        if (user.rememberMeToken == null) {
+            logger.debug { "Refresh token was revoked for user: ${user.email}" }
+            return null
+        }
+        
+        // For backward compatibility, we check if the stored token matches
+        // In a production system, you might want to store token hashes instead
+        if (user.rememberMeToken != token) {
+            logger.debug { "Refresh token does not match stored token for user: ${user.email}" }
+            return null
+        }
+        
+        return user
+    }
+    
+    /**
+     * Generate a remember me token (legacy method, now uses JWT refresh token)
+     * @deprecated Use generateRefreshToken instead
+     */
+    @Deprecated("Use generateRefreshToken instead", ReplaceWith("generateRefreshToken(user)"))
+    fun generateRememberMeToken(): String {
+        return UUID.randomUUID().toString() + "-" + System.currentTimeMillis()
+    }
+    
+    /**
+     * Save remember me token for a user
+     */
+    @Transactional
+    open fun saveRememberMeToken(userId: UUID, token: String): UserEntity {
+        // Fetch the entity and update it in place
+        val user = userRepository.findById(userId).orElseThrow {
+            IllegalStateException("User not found with id: $userId")
+        }
+        user.rememberMeToken = token
+        return userRepository.save(user)
+    }
+    
+    /**
+     * Authenticate using remember me token (legacy method).
+     * Also supports JWT refresh tokens for backward compatibility.
+     * 
+     * @deprecated Use validateRefreshToken for JWT tokens
+     */
+    fun authenticateByToken(token: String): UserEntity? {
+        // Try JWT refresh token first
+        val jwtUser = validateRefreshToken(token)
+        if (jwtUser != null) {
+            return jwtUser
+        }
+        
+        // Fall back to legacy remember me token
+        return userRepository.findByRememberMeToken(token)
+    }
+    
+    /**
+     * Clear remember me token for a user
+     */
+    @Transactional
+    open fun clearRememberMeToken(userId: UUID): UserEntity {
+        // Fetch the entity and update it in place
+        val user = userRepository.findById(userId).orElseThrow {
+            IllegalStateException("User not found with id: $userId")
+        }
+        user.rememberMeToken = null
+        return userRepository.save(user)
+    }
+
+    @Transactional
+    open fun saveUser(user: UserEntity): UserEntity {
+        return userRepository.save(user)
+    }
+}
+

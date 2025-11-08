@@ -20,44 +20,11 @@ directive @join__unionMember(graph: join__Graph!, member: String!) repeatable on
 
 directive @link(url: String, as: String, for: link__Purpose, import: [link__Import]) repeatable on SCHEMA
 
-input BaseEntityInput
-  @join__type(graph: APP)
-{
-  name: String!
-}
-
-type Customer
-  @join__type(graph: APP, key: "id")
-{
-  id: ID!
-  name: String!
-  email: String!
-  status: String!
-  createdAt: String
-  updatedAt: String
-  version: Int!
-}
-
-input CustomerInput
-  @join__type(graph: APP)
-{
-  name: String!
-  email: String!
-  status: String!
-}
-
-enum CustomerStatus
-  @join__type(graph: APP)
-{
-  ACTIVE @join__enumValue(graph: APP)
-  INACTIVE @join__enumValue(graph: APP)
-  PENDING @join__enumValue(graph: APP)
-}
-
 scalar join__FieldSet
 
 enum join__Graph {
   APP @join__graph(name: "app", url: "http://neotool-api:8080/graphql")
+  SECURITY @join__graph(name: "security", url: "http://neotool-api:8080/graphql")
 }
 
 scalar link__Import
@@ -76,42 +43,41 @@ enum link__Purpose {
 
 type Mutation
   @join__type(graph: APP)
+  @join__type(graph: SECURITY)
 {
-  createProduct(input: ProductInput!): Product!
-  updateProduct(id: ID!, input: ProductInput!): Product!
-  deleteProduct(id: ID!): Boolean!
-  createCustomer(input: CustomerInput!): Customer!
-  updateCustomer(id: ID!, input: CustomerInput!): Customer!
-  deleteCustomer(id: ID!): Boolean!
-}
-
-type Product
-  @join__type(graph: APP, key: "id")
-{
-  id: ID!
-  name: String!
-  sku: String!
-  priceCents: Int!
-  stock: Int!
-  createdAt: String
-  updatedAt: String
-  version: Int!
-}
-
-input ProductInput
-  @join__type(graph: APP)
-{
-  name: String!
-  sku: String!
-  priceCents: Int!
-  stock: Int!
+  signIn(input: SignInInput!): SignInPayload!
 }
 
 type Query
   @join__type(graph: APP)
+  @join__type(graph: SECURITY)
 {
-  products: [Product!]!
-  product(id: ID!): Product
-  customers: [Customer!]!
-  customer(id: ID!): Customer
+  currentUser: User
+}
+
+input SignInInput
+  @join__type(graph: APP)
+  @join__type(graph: SECURITY)
+{
+  email: String!
+  password: String!
+  rememberMe: Boolean
+}
+
+type SignInPayload
+  @join__type(graph: APP)
+  @join__type(graph: SECURITY)
+{
+  token: String!
+  refreshToken: String
+  user: User!
+}
+
+type User
+  @join__type(graph: APP, key: "id")
+  @join__type(graph: SECURITY, key: "id")
+{
+  id: ID!
+  email: String!
+  displayName: String
 }

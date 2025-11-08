@@ -41,12 +41,25 @@ neotool/
 
 ## Common Commands
 
-### Project Setup
+### Neotool CLI
+
+#### Project Setup
 ```bash
 ./neotool --version        # Check system requirements
 ./neotool init             # Initialize project
-./neotool rename-project   # Rename project
-./neotool clean-examples   # Remove example code
+./neotool setup            # Setup project (rename from neotool)
+./neotool clean [--dry-run] # Remove example code
+./neotool help             # Show help
+```
+
+#### GraphQL Schema Management
+```bash
+./neotool graphql sync      # Interactive schema sync from services to contracts
+./neotool graphql validate  # Validate schema consistency
+./neotool graphql generate  # Generate supergraph schema
+./neotool graphql generate --docker  # Use Docker for rover (CI/CD)
+./neotool graphql all       # Run sync, validate, and generate
+./neotool graphql --help    # Show GraphQL command help
 ```
 
 ### Development

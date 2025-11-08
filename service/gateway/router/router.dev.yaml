@@ -1,8 +1,8 @@
+# Apollo Router v2.7.0 configuration
+# Configure server to serve GraphQL on /graphql path
 supergraph:
   listen: 0.0.0.0:4000
   path: /graphql
-
-  introspection: true # Enable introspection for codegen
 
 homepage:
   enabled: true
@@ -10,24 +10,17 @@ homepage:
 cors:
   allow_any_origin: true
 
-# Show detailed error information in development
+# Show detailed subgraph errors for debugging
 include_subgraph_errors:
-  all: true  # Shows all subgraph errors instead of redacting them
+  all: true
 
-# Enable detailed logging for debugging
-telemetry:
-  tracing:
-    trace_config:
-      service_name: "neotool-router"
-      sampler:
-        trace_id_ratio_based: 1.0  # Sample all traces in dev
-  metrics:
-    common:
-      service_name: "neotool-router"
-
+# Header propagation
 headers:
   all:
     request:
-      - propagate: { named: authorization }
-      - propagate: { named: x-request-id }
-      - propagate: { named: traceparent }
+      - propagate:
+          named: authorization
+      - propagate:
+          named: x-request-id
+      - propagate:
+          named: traceparent

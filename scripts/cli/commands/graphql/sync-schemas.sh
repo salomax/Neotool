@@ -7,9 +7,11 @@ set -e
 echo "🔄 GraphQL Schema Synchronization"
 echo "================================="
 
-# Define paths
-CONTRACTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SERVICE_DIR="$CONTRACTS_DIR/../../service"
+# Define paths (calculate from script location)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../../" && pwd)"
+CONTRACTS_DIR="$PROJECT_ROOT/contracts/graphql"
+SERVICE_DIR="$PROJECT_ROOT/service"
 
 # Function to find schema sources in service modules (skip build directories)
 find_schema_sources() {
@@ -41,10 +43,9 @@ list_available_subgraphs() {
     echo "${subgraphs[@]}"
 }
 
-# Function to display interactive menu
-show_interactive_menu() {
+# Function to display schema sources menu
+show_schema_sources_menu() {
     local schema_sources=($(find_schema_sources))
-    local available_subgraphs=($(list_available_subgraphs))
     
     if [[ ${#schema_sources[@]} -eq 0 ]]; then
         echo "❌ No schema sources found in $SERVICE_DIR"
@@ -63,20 +64,6 @@ show_interactive_menu() {
         echo "  [$((i+1))] $rel_path"
     done
     
-    echo ""
-    echo "📁 Available subgraphs:"
-    if [[ ${#available_subgraphs[@]} -eq 0 ]]; then
-        echo "  (none - you can create a new one)"
-    else
-        for i in "${!available_subgraphs[@]}"; do
-            echo "  [$((i+1))] ${available_subgraphs[$i]}"
-        done
-    fi
-    
-    echo ""
-    echo "Please select:"
-    echo "  1. Schema source number (1-${#schema_sources[@]})"
-    echo "  2. Subgraph name (existing number or new name)"
     echo ""
 }
 
@@ -104,12 +91,90 @@ sync_to_contract() {
     echo "✅ Schema synchronized to contract: $subgraph_name"
 }
 
+# Function to auto-detect subgraph name from schema source path
+auto_detect_subgraph_name() {
+    local source_path="$1"
+    local rel_path="${source_path#$SERVICE_DIR/}"
+    
+    # Try to extract module name from path pattern: {language}/{module}/src/main/resources/graphql/schema.graphqls
+    if [[ "$rel_path" =~ ^([^/]+)/([^/]+)/.*/schema\.graphqls$ ]]; then
+        local language="${BASH_REMATCH[1]}"
+        local module="${BASH_REMATCH[2]}"
+        
+        # First try: {language}_{module} (e.g., kotlin_app)
+        if [[ -d "$CONTRACTS_DIR/subgraphs/${language}_${module}" ]]; then
+            echo "${language}_${module}"
+            return 0
+        fi
+        
+        # Second try: just {module} (e.g., app) - this is the common pattern
+        if [[ -d "$CONTRACTS_DIR/subgraphs/${module}" ]]; then
+            echo "${module}"
+            return 0
+        fi
+        
+        # If no existing subgraph found, suggest the module name
+        echo "${module}"
+        return 0
+    fi
+    
+    return 1
+}
+
+# Function to get suggested subgraphs for a schema source
+get_suggested_subgraphs() {
+    local source_path="$1"
+    local suggested_subgraphs=()
+    local available_subgraphs=($(list_available_subgraphs))
+    
+    # Auto-detect the primary suggestion
+    local primary_suggestion=""
+    if primary_suggestion=$(auto_detect_subgraph_name "$source_path"); then
+        # Add the primary suggestion first if it exists
+        for subgraph in "${available_subgraphs[@]}"; do
+            if [[ "$subgraph" == "$primary_suggestion" ]]; then
+                suggested_subgraphs+=("$subgraph")
+                break
+            fi
+        done
+        
+        # If primary suggestion doesn't exist yet, add it as a new option
+        local exists=false
+        for subgraph in "${available_subgraphs[@]}"; do
+            if [[ "$subgraph" == "$primary_suggestion" ]]; then
+                exists=true
+                break
+            fi
+        done
+        
+        if [[ "$exists" == false ]]; then
+            suggested_subgraphs+=("$primary_suggestion (new)")
+        fi
+    fi
+    
+    # Add other available subgraphs that don't match
+    for subgraph in "${available_subgraphs[@]}"; do
+        local already_added=false
+        for suggested in "${suggested_subgraphs[@]}"; do
+            if [[ "$suggested" == "$subgraph" ]] || [[ "$suggested" == "$subgraph (new)" ]]; then
+                already_added=true
+                break
+            fi
+        done
+        if [[ "$already_added" == false ]]; then
+            suggested_subgraphs+=("$subgraph")
+        fi
+    done
+    
+    # Return the array
+    echo "${suggested_subgraphs[@]}"
+}
+
 # Function to run interactive sync
 interactive_sync() {
     local schema_sources=($(find_schema_sources))
-    local available_subgraphs=($(list_available_subgraphs))
     
-    show_interactive_menu
+    show_schema_sources_menu
     
     # Get schema source selection
     echo -n "Select schema source (1-${#schema_sources[@]}): "
@@ -122,25 +187,42 @@ interactive_sync() {
     
     local selected_source="${schema_sources[$((source_choice-1))]}"
     
+    # Get suggested subgraphs
+    local suggested_subgraphs=($(get_suggested_subgraphs "$selected_source"))
+    
+    if [[ ${#suggested_subgraphs[@]} -eq 0 ]]; then
+        echo "❌ No subgraph suggestions available"
+        return 1
+    fi
+    
+    # Display suggested subgraphs
+    echo ""
+    echo "📁 Suggested subgraphs:"
+    echo ""
+    for i in "${!suggested_subgraphs[@]}"; do
+        echo "  [$((i+1))] ${suggested_subgraphs[$i]}"
+    done
+    echo ""
+    
     # Get subgraph selection
-    echo -n "Select subgraph (number or new name): "
+    echo -n "Select subgraph (1-${#suggested_subgraphs[@]}): "
     read -r subgraph_choice
     
-    local selected_subgraph=""
+    if ! [[ "$subgraph_choice" =~ ^[0-9]+$ ]] || [[ "$subgraph_choice" -lt 1 ]] || [[ "$subgraph_choice" -gt ${#suggested_subgraphs[@]} ]]; then
+        echo "❌ Invalid selection: $subgraph_choice"
+        return 1
+    fi
     
-    # Check if it's a number (existing subgraph)
-    if [[ "$subgraph_choice" =~ ^[0-9]+$ ]] && [[ "$subgraph_choice" -ge 1 ]] && [[ "$subgraph_choice" -le ${#available_subgraphs[@]} ]]; then
-        selected_subgraph="${available_subgraphs[$((subgraph_choice-1))]}"
-    else
-        # Treat as new subgraph name
-        selected_subgraph="$subgraph_choice"
-        
-        # Validate subgraph name
-        if [[ ! "$selected_subgraph" =~ ^[a-zA-Z][a-zA-Z0-9_-]*$ ]]; then
-            echo "❌ Invalid subgraph name: $selected_subgraph"
-            echo "   Must start with letter and contain only letters, numbers, hyphens, and underscores"
-            return 1
-        fi
+    local selected_subgraph="${suggested_subgraphs[$((subgraph_choice-1))]}"
+    
+    # Remove "(new)" suffix if present
+    selected_subgraph="${selected_subgraph% (new)}"
+    
+    # Validate subgraph name
+    if [[ ! "$selected_subgraph" =~ ^[a-zA-Z][a-zA-Z0-9_-]*$ ]]; then
+        echo "❌ Invalid subgraph name: $selected_subgraph"
+        echo "   Must start with letter and contain only letters, numbers, hyphens, and underscores"
+        return 1
     fi
     
     # Confirm and sync
@@ -215,11 +297,13 @@ generate_supergraph() {
     
     cd "$CONTRACTS_DIR/supergraph"
     
-    # Use the enhanced generate-schema.sh script
+    # Use the generate-schema.sh script from CLI commands
+    local generate_script="$SCRIPT_DIR/generate-schema.sh"
+    
     if [[ "${CI:-false}" == "true" ]] || [[ "${USE_DOCKER_ROVER:-false}" == "true" ]]; then
-        USE_DOCKER_ROVER=true ./scripts/generate-schema.sh
+        USE_DOCKER_ROVER=true "$generate_script"
     else
-        ./scripts/generate-schema.sh
+        "$generate_script"
     fi
 }
 
@@ -255,7 +339,7 @@ case "${1:-sync}" in
         echo ""
         echo "Workflow:"
         echo "  1. Edit GraphQL schema in your service module"
-        echo "  2. Run './sync-schemas.sh sync'"
+        echo "  2. Run './neotool graphql sync' or '$0 sync'"
         echo "  3. Select the schema source and target subgraph"
         echo "  4. Schema is copied from service → contract"
         echo ""
@@ -266,3 +350,4 @@ case "${1:-sync}" in
         exit 1
         ;;
 esac
+

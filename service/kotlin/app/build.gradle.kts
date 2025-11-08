@@ -43,9 +43,10 @@ dependencies {
     implementation("io.micronaut:micronaut-management")
     implementation("io.micronaut:micronaut-http-server-netty")
 
-    // Security (commented out for now)
-    // implementation("io.micronaut.security:micronaut-security-jwt")
-    // implementation("io.micronaut.security:micronaut-security-oauth2")
+    // JWT dependencies (for token validation in app module)
+    implementation("io.jsonwebtoken:jjwt-api:0.12.5")
+    implementation("io.jsonwebtoken:jjwt-impl:0.12.5")
+    implementation("io.jsonwebtoken:jjwt-jackson:0.12.5")
 }
 
 application {

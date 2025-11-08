@@ -1,0 +1,549 @@
+package io.github.salomax.neotool.security.test.service
+
+import io.github.salomax.neotool.security.config.JwtConfig
+import io.github.salomax.neotool.security.model.UserEntity
+import io.github.salomax.neotool.security.repo.UserRepository
+import io.github.salomax.neotool.security.service.AuthenticationService
+import io.github.salomax.neotool.security.service.JwtService
+import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import org.mockito.ArgumentCaptor
+import org.mockito.kotlin.*
+import java.util.*
+
+@DisplayName("AuthenticationService Unit Tests")
+class AuthenticationServiceTest {
+
+    private lateinit var userRepository: UserRepository
+    private lateinit var jwtService: JwtService
+    private lateinit var authenticationService: AuthenticationService
+
+    @BeforeEach
+    fun setUp() {
+        userRepository = mock()
+        val jwtConfig = JwtConfig(
+            secret = "test-secret-key-minimum-32-characters-long-for-hmac-sha256",
+            accessTokenExpirationSeconds = 900L,
+            refreshTokenExpirationSeconds = 604800L
+        )
+        jwtService = JwtService(jwtConfig)
+        authenticationService = AuthenticationService(userRepository, jwtService)
+    }
+
+    @Nested
+    @DisplayName("Password Hashing")
+    inner class PasswordHashingTests {
+
+        @Test
+        fun `should hash password successfully`() {
+            val password = "TestPassword123!"
+            val hash = authenticationService.hashPassword(password)
+
+            assertThat(hash).isNotBlank()
+            assertThat(hash).isNotEqualTo(password)
+            assertThat(hash).startsWith("\$argon2id\$") // BCrypt hash prefix
+        }
+
+        @Test
+        fun `should generate different hashes for same password`() {
+            val password = "TestPassword123!"
+            val hash1 = authenticationService.hashPassword(password)
+            val hash2 = authenticationService.hashPassword(password)
+
+            assertThat(hash1).isNotEqualTo(hash2)
+        }
+
+        @Test
+        fun `should hash empty password`() {
+            val password = ""
+            val hash = authenticationService.hashPassword(password)
+
+            assertThat(hash).isNotBlank()
+            assertThat(hash).startsWith("\$argon2id\$")
+        }
+    }
+
+    @Nested
+    @DisplayName("Password Verification")
+    inner class PasswordVerificationTests {
+
+        @Test
+        fun `should verify correct password`() {
+            val password = "TestPassword123!"
+            val hash = authenticationService.hashPassword(password)
+
+            val result = authenticationService.verifyPassword(password, hash)
+
+            assertThat(result).isTrue()
+        }
+
+        @Test
+        fun `should reject incorrect password`() {
+            val password = "TestPassword123!"
+            val wrongPassword = "WrongPassword123!"
+            val hash = authenticationService.hashPassword(password)
+
+            val result = authenticationService.verifyPassword(wrongPassword, hash)
+
+            assertThat(result).isFalse()
+        }
+
+        @Test
+        fun `should handle invalid hash format gracefully`() {
+            val password = "TestPassword123!"
+            val invalidHash = "invalid-hash-format"
+
+            val result = authenticationService.verifyPassword(password, invalidHash)
+
+            assertThat(result).isFalse()
+        }
+
+        @Test
+        fun `should handle empty hash gracefully`() {
+            val password = "TestPassword123!"
+
+            val result = authenticationService.verifyPassword(password, "")
+
+            assertThat(result).isFalse()
+        }
+    }
+
+    @Nested
+    @DisplayName("User Authentication")
+    inner class UserAuthenticationTests {
+
+        @Test
+        fun `should authenticate user with correct credentials`() {
+            val email = "test@example.com"
+            val password = "TestPassword123!"
+            val user = SecurityTestDataBuilders.userWithPassword(
+                authenticationService = authenticationService,
+                email = email,
+                password = password
+            )
+
+            whenever(userRepository.findByEmail(email)).thenReturn(user)
+
+            val result = authenticationService.authenticate(email, password)
+
+            assertThat(result).isNotNull()
+            assertThat(result?.email).isEqualTo(email)
+            verify(userRepository).findByEmail(email)
+        }
+
+        @Test
+        fun `should return null for non-existent user`() {
+            val email = "nonexistent@example.com"
+            val password = "TestPassword123!"
+
+            whenever(userRepository.findByEmail(email)).thenReturn(null)
+
+            val result = authenticationService.authenticate(email, password)
+
+            assertThat(result).isNull()
+            verify(userRepository).findByEmail(email)
+        }
+
+        @Test
+        fun `should return null for user without password hash`() {
+            val email = "test@example.com"
+            val password = "TestPassword123!"
+            val user = SecurityTestDataBuilders.user(
+                email = email,
+                passwordHash = null
+            )
+
+            whenever(userRepository.findByEmail(email)).thenReturn(user)
+
+            val result = authenticationService.authenticate(email, password)
+
+            assertThat(result).isNull()
+            verify(userRepository).findByEmail(email)
+        }
+
+        @Test
+        fun `should return null for incorrect password`() {
+            val email = "test@example.com"
+            val correctPassword = "CorrectPassword123!"
+            val wrongPassword = "WrongPassword123!"
+            val user = SecurityTestDataBuilders.userWithPassword(
+                authenticationService = authenticationService,
+                email = email,
+                password = correctPassword
+            )
+
+            whenever(userRepository.findByEmail(email)).thenReturn(user)
+
+            val result = authenticationService.authenticate(email, wrongPassword)
+
+            assertThat(result).isNull()
+            verify(userRepository).findByEmail(email)
+        }
+
+        @Test
+        fun `should reject empty password`() {
+            val email = "test@example.com"
+            val password = ""
+            val user = SecurityTestDataBuilders.userWithPassword(
+                authenticationService = authenticationService,
+                email = email,
+                password = password
+            )
+
+            whenever(userRepository.findByEmail(email)).thenReturn(user)
+
+            val result = authenticationService.authenticate(email, password)
+
+            assertThat(result).isNull()
+            verify(userRepository, never()).findByEmail(email)
+        }
+    }
+
+    @Nested
+    @DisplayName("Remember Me Token")
+    inner class RememberMeTokenTests {
+
+        @Test
+        fun `should generate remember me token`() {
+            val token = authenticationService.generateRememberMeToken()
+
+            assertThat(token).isNotBlank()
+            assertThat(token).contains("-")
+        }
+
+        @Test
+        fun `should generate unique tokens`() {
+            val token1 = authenticationService.generateRememberMeToken()
+            Thread.sleep(1) // Ensure timestamp difference
+            val token2 = authenticationService.generateRememberMeToken()
+
+            assertThat(token1).isNotEqualTo(token2)
+        }
+
+        @Test
+        fun `should save remember me token for user`() {
+            val userId = UUID.randomUUID()
+            val user = SecurityTestDataBuilders.userWithPassword(
+                authenticationService = authenticationService,
+                id = userId,
+                email = "test@example.com",
+                password = "password"
+            )
+            val token = "test-token-123"
+
+            whenever(userRepository.findById(userId)).thenReturn(Optional.of(user))
+            whenever(userRepository.save(any())).thenAnswer { it.arguments[0] as UserEntity }
+
+            val result = authenticationService.saveRememberMeToken(userId, token)
+
+            assertThat(result.rememberMeToken).isEqualTo(token)
+            verify(userRepository).findById(userId)
+            val captor = ArgumentCaptor.forClass(UserEntity::class.java)
+            verify(userRepository).save(captor.capture())
+            assertThat(captor.value.rememberMeToken).isEqualTo(token)
+        }
+
+        @Test
+        fun `should throw exception when saving token for non-existent user`() {
+            val userId = UUID.randomUUID()
+            val token = "test-token-123"
+
+            whenever(userRepository.findById(userId)).thenReturn(Optional.empty())
+
+            assertThrows<IllegalStateException> {
+                authenticationService.saveRememberMeToken(userId, token)
+            }
+
+            verify(userRepository).findById(userId)
+            verify(userRepository, never()).save(any())
+        }
+
+        @Test
+        fun `should authenticate user by remember me token`() {
+            val token = "test-token-123"
+            val user = SecurityTestDataBuilders.user(
+                email = "test@example.com",
+                rememberMeToken = token
+            )
+
+            whenever(userRepository.findByRememberMeToken(token)).thenReturn(user)
+
+            val result = authenticationService.authenticateByToken(token)
+
+            assertThat(result).isNotNull()
+            assertThat(result?.email).isEqualTo(user.email)
+            assertThat(result?.rememberMeToken).isEqualTo(token)
+            verify(userRepository).findByRememberMeToken(token)
+        }
+
+        @Test
+        fun `should return null for invalid remember me token`() {
+            val token = "invalid-token"
+
+            whenever(userRepository.findByRememberMeToken(token)).thenReturn(null)
+
+            val result = authenticationService.authenticateByToken(token)
+
+            assertThat(result).isNull()
+            verify(userRepository).findByRememberMeToken(token)
+        }
+
+        @Test
+        fun `should clear remember me token for user`() {
+            val userId = UUID.randomUUID()
+            val user = SecurityTestDataBuilders.user(
+                id = userId,
+                email = "test@example.com",
+                rememberMeToken = "existing-token"
+            )
+
+            whenever(userRepository.findById(userId)).thenReturn(Optional.of(user))
+            whenever(userRepository.save(any())).thenAnswer { it.arguments[0] as UserEntity }
+
+            val result = authenticationService.clearRememberMeToken(userId)
+
+            assertThat(result.rememberMeToken).isNull()
+            verify(userRepository).findById(userId)
+            val captor = ArgumentCaptor.forClass(UserEntity::class.java)
+            verify(userRepository).save(captor.capture())
+            assertThat(captor.value.rememberMeToken).isNull()
+        }
+
+        @Test
+        fun `should throw exception when clearing token for non-existent user`() {
+            val userId = UUID.randomUUID()
+
+            whenever(userRepository.findById(userId)).thenReturn(Optional.empty())
+
+            assertThrows<IllegalStateException> {
+                authenticationService.clearRememberMeToken(userId)
+            }
+
+            verify(userRepository).findById(userId)
+            verify(userRepository, never()).save(any())
+        }
+    }
+
+    @Nested
+    @DisplayName("JWT Token Generation")
+    inner class JwtTokenGenerationTests {
+
+        @Test
+        fun `should generate access token for user`() {
+            val user = SecurityTestDataBuilders.user(
+                id = UUID.randomUUID(),
+                email = "test@example.com"
+            )
+
+            val token = authenticationService.generateAccessToken(user)
+
+            assertThat(token).isNotBlank()
+            assertThat(token.split(".")).hasSize(3) // JWT has 3 parts
+        }
+
+        @Test
+        fun `should generate refresh token for user`() {
+            val user = SecurityTestDataBuilders.user(
+                id = UUID.randomUUID(),
+                email = "test@example.com"
+            )
+
+            val token = authenticationService.generateRefreshToken(user)
+
+            assertThat(token).isNotBlank()
+            assertThat(token.split(".")).hasSize(3) // JWT has 3 parts
+        }
+
+        @Test
+        fun `should generate different tokens for same user`() {
+            val user = SecurityTestDataBuilders.user(
+                id = UUID.randomUUID(),
+                email = "test@example.com"
+            )
+
+            val accessToken = authenticationService.generateAccessToken(user)
+            val refreshToken = authenticationService.generateRefreshToken(user)
+
+            assertThat(accessToken).isNotEqualTo(refreshToken)
+        }
+    }
+
+    @Nested
+    @DisplayName("JWT Access Token Validation")
+    inner class JwtAccessTokenValidationTests {
+
+        @Test
+        fun `should validate valid access token and return user`() {
+            val userId = UUID.randomUUID()
+            val email = "test@example.com"
+            val user = SecurityTestDataBuilders.user(
+                id = userId,
+                email = email
+            )
+
+            val token = authenticationService.generateAccessToken(user)
+            whenever(userRepository.findById(userId)).thenReturn(Optional.of(user))
+
+            val result = authenticationService.validateAccessToken(token)
+
+            assertThat(result).isNotNull()
+            assertThat(result?.id).isEqualTo(userId)
+            assertThat(result?.email).isEqualTo(email)
+            verify(userRepository).findById(userId)
+        }
+
+        @Test
+        fun `should return null for invalid access token`() {
+            val invalidToken = "invalid.token.format"
+
+            val result = authenticationService.validateAccessToken(invalidToken)
+
+            assertThat(result).isNull()
+            verify(userRepository, never()).findById(any())
+        }
+
+        @Test
+        fun `should return null for refresh token used as access token`() {
+            val userId = UUID.randomUUID()
+            val user = SecurityTestDataBuilders.user(
+                id = userId,
+                email = "test@example.com"
+            )
+
+            val refreshToken = authenticationService.generateRefreshToken(user)
+
+            val result = authenticationService.validateAccessToken(refreshToken)
+
+            assertThat(result).isNull()
+            verify(userRepository, never()).findById(any())
+        }
+
+        @Test
+        fun `should return null when user not found for valid token`() {
+            val userId = UUID.randomUUID()
+            val user = SecurityTestDataBuilders.user(
+                id = userId,
+                email = "test@example.com"
+            )
+
+            val token = authenticationService.generateAccessToken(user)
+            whenever(userRepository.findById(userId)).thenReturn(Optional.empty())
+
+            val result = authenticationService.validateAccessToken(token)
+
+            assertThat(result).isNull()
+            verify(userRepository).findById(userId)
+        }
+    }
+
+    @Nested
+    @DisplayName("JWT Refresh Token Validation")
+    inner class JwtRefreshTokenValidationTests {
+
+        @Test
+        fun `should validate valid refresh token and return user`() {
+            val userId = UUID.randomUUID()
+            val email = "test@example.com"
+            val user = SecurityTestDataBuilders.user(
+                id = userId,
+                email = email
+            )
+
+            val refreshToken = authenticationService.generateRefreshToken(user)
+            user.rememberMeToken = refreshToken
+            whenever(userRepository.findById(userId)).thenReturn(Optional.of(user))
+
+            val result = authenticationService.validateRefreshToken(refreshToken)
+
+            assertThat(result).isNotNull()
+            assertThat(result?.id).isEqualTo(userId)
+            assertThat(result?.email).isEqualTo(email)
+            verify(userRepository).findById(userId)
+        }
+
+        @Test
+        fun `should return null for invalid refresh token`() {
+            val invalidToken = "invalid.token.format"
+
+            val result = authenticationService.validateRefreshToken(invalidToken)
+
+            assertThat(result).isNull()
+            verify(userRepository, never()).findById(any())
+        }
+
+        @Test
+        fun `should return null for access token used as refresh token`() {
+            val userId = UUID.randomUUID()
+            val user = SecurityTestDataBuilders.user(
+                id = userId,
+                email = "test@example.com"
+            )
+
+            val accessToken = authenticationService.generateAccessToken(user)
+
+            val result = authenticationService.validateRefreshToken(accessToken)
+
+            assertThat(result).isNull()
+            verify(userRepository, never()).findById(any())
+        }
+
+        @Test
+        fun `should return null when refresh token was revoked`() {
+            val userId = UUID.randomUUID()
+            val user = SecurityTestDataBuilders.user(
+                id = userId,
+                email = "test@example.com",
+                rememberMeToken = null // Token was revoked
+            )
+
+            val refreshToken = authenticationService.generateRefreshToken(user)
+            whenever(userRepository.findById(userId)).thenReturn(Optional.of(user))
+
+            val result = authenticationService.validateRefreshToken(refreshToken)
+
+            assertThat(result).isNull()
+            verify(userRepository).findById(userId)
+        }
+
+        @Test
+        fun `should return null when refresh token does not match stored token`() {
+            val userId = UUID.randomUUID()
+            val user = SecurityTestDataBuilders.user(
+                id = userId,
+                email = "test@example.com",
+                rememberMeToken = "different-token"
+            )
+
+            val refreshToken = authenticationService.generateRefreshToken(user)
+            whenever(userRepository.findById(userId)).thenReturn(Optional.of(user))
+
+            val result = authenticationService.validateRefreshToken(refreshToken)
+
+            assertThat(result).isNull()
+            verify(userRepository).findById(userId)
+        }
+
+        @Test
+        fun `should return null when user not found for valid refresh token`() {
+            val userId = UUID.randomUUID()
+            val user = SecurityTestDataBuilders.user(
+                id = userId,
+                email = "test@example.com"
+            )
+
+            val refreshToken = authenticationService.generateRefreshToken(user)
+            whenever(userRepository.findById(userId)).thenReturn(Optional.empty())
+
+            val result = authenticationService.validateRefreshToken(refreshToken)
+
+            assertThat(result).isNull()
+            verify(userRepository).findById(userId)
+        }
+    }
+}
+
