@@ -106,13 +106,18 @@ main() {
     log "Removing files and directories...\n" "$BLUE"
     
     # Backend examples
+    # Note: After cleaning, you'll need to update build.gradle.kts:
+    # - Change annotations("io.github.salomax.neotool.example.*") to your package
+    # - Change mainClass.set("io.github.salomax.neotool.example.Application") to your main class
     delete_item "service/kotlin/app/src/main/kotlin/io/github/salomax/neotool/example"
     delete_item "service/kotlin/app/src/main/resources/db/migration/V1_1__create_products_customers.sql"
     delete_item "service/kotlin/app/src/main/resources/graphql/schema.graphqls"
     delete_item "service/kotlin/app/src/test/kotlin/io/github/salomax/neotool/example"
     
     # Frontend examples
-    delete_item "web/src/app/(neotool)"
+    # Note: Only delete examples subdirectory, not the entire (neotool) route group
+    # which contains framework documentation, design-system, and dashboard pages
+    delete_item "web/src/app/(neotool)/examples"
     delete_item "web/src/lib/graphql/operations/customer"
     delete_item "web/src/lib/graphql/operations/product"
     delete_item "web/src/lib/hooks/customer"
@@ -125,7 +130,7 @@ main() {
     delete_item "contracts/graphql/supergraph/supergraph.graphql"
     delete_item "contracts/graphql/supergraph/supergraph.dev.graphql"
     
-    # OpenAPI (delete the whole file)
+    # OpenAPI (delete if they exist - may not be present in all projects)
     delete_item "service/kotlin/openapi/openapi.yaml"
     delete_item "service/kotlin/openapi/openapi.json"
     
@@ -161,10 +166,16 @@ main() {
     if [[ "$DRY_RUN" == true ]]; then
         log "Run without --dry-run to apply these changes." "$CYAN"
     else
+        log "⚠️  IMPORTANT: Manual steps required:" "$YELLOW"
+        log "  1. Update service/kotlin/app/build.gradle.kts:" "$YELLOW"
+        log "     - Change annotations(\"io.github.salomax.neotool.example.*\") to your package" "$YELLOW"
+        log "     - Change mainClass.set(\"...example.Application\") to your main class" "$YELLOW"
+        log ""
         log "Next steps:" "$CYAN"
         log "  1. Review the changes: git diff" "$CYAN"
-        log "  2. Test your application" "$CYAN"
-        log "  3. Commit the changes" "$CYAN"
+        log "  2. Update build.gradle.kts (see above)" "$CYAN"
+        log "  3. Test your application" "$CYAN"
+        log "  4. Commit the changes" "$CYAN"
     fi
     log ""
 }
