@@ -15,7 +15,7 @@ micronaut {
     testRuntime("junit5")
     processing {
         incremental(true)
-        annotations("io.github.salomax.neotool.*")
+        annotations("io.github.salomax.neotool.example.*")
     }
 }
 
@@ -24,7 +24,6 @@ repositories { mavenCentral() }
 dependencies {
     // Project dependencies
     implementation(project(":common"))
-    implementation(project(":security"))
 
    // Add Micronaut Data KSP processor
     ksp("io.micronaut.data:micronaut-data-processor")

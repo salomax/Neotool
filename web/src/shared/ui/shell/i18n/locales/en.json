@@ -1,0 +1,19 @@
+{
+  "signIn": "Sign in",
+  "profile": "Profile",
+  "profileMenu": "Profile menu",
+  "myAccount": "My Account",
+  "settings": "Settings",
+  "signOut": "Sign out",
+  "theme": {
+    "switchToLight": "Switch to light mode",
+    "switchToDark": "Switch to dark mode"
+  },
+  "logout": {
+    "title": "Sign out",
+    "message": "Are you sure you want to sign out?",
+    "confirm": "Sign out",
+    "cancel": "Cancel"
+  }
+}
+

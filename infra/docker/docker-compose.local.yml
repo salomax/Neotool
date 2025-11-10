@@ -149,17 +149,14 @@ services:
   router:
     image: ghcr.io/apollographql/router:v2.7.0
     container_name: neotool-graphql-router
-    depends_on:
-      - app
-      - security
     ports:
       - "4000:4000"
       - "8088:8088"  # Health check port
       - "9091:9090"  # Metrics port (changed to avoid conflict with Prometheus)
     volumes:
       - ../../contracts/graphql/supergraph/supergraph.dev.graphql:/dist/supergraph.graphql:ro
-      - ../../service/gateway/router/router.dev.yaml:/dist/router.yaml:ro
-    command: ["--supergraph", "/dist/supergraph.graphql", "--config", "/dist/router.yaml"]
+      - ../../infra/gateway/router/router.dev.yaml:/dist/router.yaml:ro
+    command: ["--supergraph", "/dist/supergraph.graphql", "--config", "/dist/router.yaml", "--listen", "0.0.0.0:4000"]
     environment:
       - APOLLO_ROUTER_TELEMETRY_METRICS_PROMETHEUS_ENABLED=true
       - APOLLO_ROUTER_TELEMETRY_METRICS_PROMETHEUS_LISTEN=0.0.0.0:9090

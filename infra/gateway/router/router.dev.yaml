@@ -1,0 +1,43 @@
+# Apollo Router Configuration for GraphQL Federation (Development)
+# Apollo Router v2.x configuration format
+# The supergraph path is specified via --supergraph command line flag in docker-compose
+
+# GraphQL endpoint path
+supergraph:
+  path: /graphql
+
+# CORS configuration
+cors:
+  allow_credentials: true
+  # In development, allow all origins (no origins restriction)
+  # Note: When allow_credentials is true, browsers don't allow wildcard origins
+
+# Headers propagation
+headers:
+  all:
+    request:
+      - propagate:
+          named: x-request-id
+      - propagate:
+          named: traceparent
+      - propagate:
+          named: authorization
+
+# Disable homepage
+homepage:
+  enabled: false
+
+# Error handling configuration
+# In development, expose all subgraph errors for debugging
+# This allows you to see actual error messages from subgraphs instead of "Subgraph errors redacted"
+include_subgraph_errors:
+  all: true
+
+# Telemetry configuration
+telemetry:
+  exporters:
+    metrics:
+      prometheus:
+        enabled: true
+        listen: 0.0.0.0:9090
+        path: /metrics

@@ -10,14 +10,53 @@ import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Size
 
 /**
- * Base interface for all GraphQL input DTOs
+ * Base interface for all GraphQL input DTOs.
+ * 
+ * All GraphQL input types should implement this interface to ensure
+ * consistent validation across the application. The `validate()` method
+ * can be overridden to add custom validation logic beyond Bean Validation.
+ * 
+ * **Usage:**
+ * ```kotlin
+ * @Serdeable
+ * @Introspected
+ * data class ProductInputDTO(
+ *     @NotBlank val name: String,
+ *     @Min(0) val price: Int
+ * ) : BaseInputDTO()
+ * ```
  */
 interface GraphQLInputDTO {
+    /**
+     * Perform custom validation beyond Bean Validation annotations.
+     * Default implementation does nothing - override for custom logic.
+     */
     fun validate(): Unit
 }
 
 /**
- * Abstract base class for input DTOs with common validation patterns
+ * Abstract base class for GraphQL input DTOs with common validation patterns.
+ * 
+ * This class provides a foundation for all GraphQL input types. It includes
+ * Micronaut annotations for serialization and introspection, and implements
+ * the [GraphQLInputDTO] interface.
+ * 
+ * **Usage:**
+ * ```kotlin
+ * @Serdeable
+ * @Introspected
+ * data class ProductInputDTO(
+ *     @NotBlank(message = "Name is required")
+ *     val name: String,
+ *     
+ *     @Min(value = 0, message = "Price must be positive")
+ *     val price: Int
+ * ) : BaseInputDTO()
+ * ```
+ * 
+ * **Validation:**
+ * Use Jakarta Bean Validation annotations for field-level validation.
+ * Override `validate()` for cross-field or complex validation logic.
  */
 @Introspected
 @Serdeable

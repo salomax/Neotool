@@ -9,8 +9,64 @@ import io.micronaut.http.server.exceptions.NotFoundException
 import java.util.*
 
 /**
- * Generic CRUD resolver with built-in payload handling
- * This resolver automatically handles success/error payloads for all operations
+ * Abstract base class for GraphQL CRUD resolvers with automatic payload handling.
+ * 
+ * This resolver provides a complete CRUD implementation following GraphQL best practices
+ * and the Relay mutation pattern. It automatically handles success/error payloads,
+ * input validation, and entity mapping.
+ * 
+ * **Usage:**
+ * ```kotlin
+ * @Singleton
+ * class ProductResolver(
+ *     private val productService: ProductService,
+ *     validator: Validator
+ * ) : GenericCrudResolver<Product, ProductInputDTO, UUID>() {
+ *     
+ *     override val validator: Validator = validator
+ *     override val service: CrudService<Product, UUID> = ProductCrudService(productService)
+ *     
+ *     override fun mapToInputDTO(input: Map<String, Any?>): ProductInputDTO {
+ *         return ProductInputDTO(...)
+ *     }
+ *     
+ *     override fun mapToEntity(dto: ProductInputDTO, id: UUID?): Product {
+ *         return Product(...)
+ *     }
+ * }
+ * ```
+ * 
+ * **Features:**
+ * - Automatic input validation using Bean Validation
+ * - Success/error payload handling via [GraphQLPayload]
+ * - Graceful error handling (invalid IDs return null, not errors)
+ * - UUID parsing with proper error handling
+ * - Standard CRUD operations: create, update, delete, getById, list
+ * 
+ * **GraphQL Schema Example:**
+ * ```graphql
+ * type Mutation {
+ *   createProduct(input: ProductInput!): ProductPayload!
+ *   updateProduct(id: ID!, input: ProductInput!): ProductPayload!
+ *   deleteProduct(id: ID!): Boolean!
+ * }
+ * 
+ * type Query {
+ *   product(id: ID!): Product
+ *   products: [Product!]!
+ * }
+ * ```
+ * 
+ * **Payload Pattern:**
+ * Mutations return `GraphQLPayload<T>` which includes both data and errors:
+ * ```kotlin
+ * GraphQLPayloadFactory.success(entity)  // Success case
+ * GraphQLPayloadFactory.error(exception)  // Error case
+ * ```
+ * 
+ * @param Entity The domain entity type (e.g., Product, Customer)
+ * @param InputDTO The input DTO type for mutations (e.g., ProductInputDTO)
+ * @param ID The ID type (typically UUID)
  */
 abstract class GenericCrudResolver<Entity, InputDTO, ID> : GraphQLResolver<Entity> {
 

@@ -33,6 +33,10 @@ Subcommands:
     Interactive sync from service modules to contracts.
     Prompts to select schema source and target subgraph.
 
+  $(log "sync --all" "$GREEN")
+    Sync all schemas automatically (no prompts).
+    Uses auto-detection to map service schemas to subgraphs.
+
   $(log "validate" "$GREEN")
     Validate schema consistency between services and contracts.
 
@@ -42,7 +46,12 @@ Subcommands:
   $(log "all" "$GREEN")
     Run sync, validate, and generate in sequence.
 
+  $(log "all --all" "$GREEN")
+    Run all operations with automatic sync (no prompts).
+
 Options:
+  --all       Sync all schemas automatically using auto-detection
+              (only applies to 'sync' and 'all' commands)
   --docker    Use Docker for rover (useful for CI/CD)
   --help      Show this help message
 
@@ -52,10 +61,12 @@ Environment variables:
 
 Examples:
   $0 sync
+  $0 sync --all
   $0 validate
   $0 generate
   $0 generate --docker
   $0 all
+  $0 all --all
 
 For more information, see: scripts/cli/commands/graphql/sync-schemas.sh
 EOF
@@ -73,7 +84,8 @@ execute_sync() {
         exit 1
     fi
     
-    "$SYNC_SCRIPT" sync
+    # Pass through all arguments (including --all flag)
+    "$SYNC_SCRIPT" sync "$@"
 }
 
 # Execute validate command
@@ -123,12 +135,16 @@ execute_generate() {
 # Execute all command
 execute_all() {
     local use_docker=false
+    local sync_all=false
+    local sync_args=()
     
-    # Check for --docker flag
+    # Check for flags
     for arg in "$@"; do
         if [[ "$arg" == "--docker" ]]; then
             use_docker=true
-            break
+        elif [[ "$arg" == "--all" ]]; then
+            sync_all=true
+            sync_args+=("--all")
         fi
     done
     
@@ -136,7 +152,7 @@ execute_all() {
     
     # Sync
     log "Step 1/3: Syncing schemas..." "$BLUE"
-    execute_sync
+    execute_sync "${sync_args[@]}"
     echo ""
     
     # Validate
@@ -173,7 +189,7 @@ main() {
     
     case "$subcommand" in
         sync)
-            execute_sync
+            execute_sync "$@"
             ;;
         validate)
             execute_validate

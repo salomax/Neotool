@@ -6,7 +6,33 @@ import io.github.salomax.neotool.graphql.payload.GraphQLPayload
 import io.github.salomax.neotool.graphql.payload.SuccessPayload
 
 /**
- * Utility functions for creating data fetchers that work with GraphQL payloads
+ * Utility object for creating GraphQL data fetchers that work with payloads.
+ * 
+ * This utility provides factory methods for creating data fetchers that
+ * automatically handle [GraphQLPayload] responses, extracting data on success
+ * or converting errors to GraphQL exceptions.
+ * 
+ * **Usage:**
+ * ```kotlin
+ * val createProductFetcher = GraphQLPayloadDataFetcher.createMutationDataFetcher(
+ *     "createProduct"
+ * ) { input ->
+ *     productResolver.create(input)
+ * }
+ * 
+ * // Register in wiring factory
+ * type.dataFetcher("createProduct", createProductFetcher)
+ * ```
+ * 
+ * **Features:**
+ * - Automatic payload extraction (returns data from SuccessPayload)
+ * - Error conversion (converts ErrorPayload to GraphQL exceptions)
+ * - Input validation (validates required arguments)
+ * - Type-safe data fetcher creation
+ * 
+ * **Payload Pattern:**
+ * Mutations return `GraphQLPayload<T>` which includes both data and errors.
+ * These fetchers automatically extract the data or throw exceptions for errors.
  */
 object GraphQLPayloadDataFetcher {
     
@@ -102,7 +128,14 @@ object GraphQLPayloadDataFetcher {
 }
 
 /**
- * Exception thrown when a GraphQL payload contains errors
+ * Exception thrown when a GraphQL payload contains errors.
+ * 
+ * This exception is used internally by [GraphQLPayloadDataFetcher] to convert
+ * [GraphQLPayload] error payloads into GraphQL exceptions that can be properly
+ * handled by the GraphQL error handling system.
+ * 
+ * **Note:** You typically don't need to catch or throw this exception directly.
+ * It's automatically used by the payload data fetcher utilities.
  */
 class GraphQLPayloadException(
     val errors: List<io.github.salomax.neotool.graphql.payload.GraphQLError>

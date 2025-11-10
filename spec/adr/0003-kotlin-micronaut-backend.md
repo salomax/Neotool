@@ -113,3 +113,45 @@ We will use **Kotlin + Micronaut** as the primary backend technology stack.
 - Implement health checks and readiness probes for Kubernetes
 - Use Testcontainers for integration testing
 - Follow domain-driven design patterns (API → Service → Repository → Entity)
+
+## Build Configuration
+
+### Module Isolation - Annotation Processing Pattern
+
+**Rule**: Each module's annotation processing pattern **must** match its runtime package scanning to prevent cross-module conflicts.
+
+**The Problem:**
+
+When multiple modules exist in the same Gradle build (e.g., `app` and `security` modules), Micronaut's annotation processor scans classes during compilation. If the annotation processing pattern is too broad, it will process annotations from other modules, causing:
+
+- Bean conflicts
+- Unintended class loading
+- Runtime errors when beans from other modules are registered
+
+**The Solution:**
+
+The annotation processing pattern in `build.gradle.kts` **must** exactly match the package scanning pattern in the `Application.kt` main class.
+
+**Example - App Module:**
+
+**Application.kt** (runtime package scanning):
+```kotlin
+object Application {
+    @JvmStatic
+    fun main(args: Array<String>) {
+        build(*args)
+            .packages("io.github.salomax.neotool.example")  // ✅ Scans only app packages
+            .start()
+    }
+}
+```
+
+**build.gradle.kts** (annotation processing):
+```kotlin
+micronaut {
+    processing {
+        incremental(true)
+        annotations("io.github.salomax.neotool.example.*")  // ✅ Must match package scanning
+    }
+}
+```

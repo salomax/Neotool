@@ -1,0 +1,19 @@
+{
+  "signIn": "Entrar",
+  "profile": "Perfil",
+  "profileMenu": "Menu do perfil",
+  "myAccount": "Minha Conta",
+  "settings": "Configurações",
+  "signOut": "Sair",
+  "theme": {
+    "switchToLight": "Alternar para modo claro",
+    "switchToDark": "Alternar para modo escuro"
+  },
+  "logout": {
+    "title": "Sair",
+    "message": "Tem certeza de que deseja sair?",
+    "confirm": "Sair",
+    "cancel": "Cancelar"
+  }
+}
+

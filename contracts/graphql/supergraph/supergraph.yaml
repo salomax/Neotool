@@ -1,15 +1,14 @@
-federation_version: 2
+# Apollo Rover Supergraph Configuration (Production)
+# This file tells Rover how to compose the supergraph from subgraph schemas
+
 subgraphs:
   app:
-    routing_url: http://neotool-api:8080/graphql
     schema:
       file: ../subgraphs/app/schema.graphqls
+    routing_url: http://localhost:8081/graphql
+
   security:
-    routing_url: http://neotool-api:8080/graphql
     schema:
       file: ../subgraphs/security/schema.graphqls
-# new modules...
-#  module:
-#    routing_url: http://module:8080/graphql
-#    schema:
-#      file: ../subgraphs/module/schema.graphqls
+    routing_url: http://localhost:8080/graphql
+

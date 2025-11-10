@@ -22,7 +22,8 @@ export default function RootLayout({
       <body>
         <ErrorBoundary>
           <Providers>
-            <AppShell>{children}</AppShell>
+            {/* AppShell is conditionally applied in route groups that need it */}
+            {children}
           </Providers>
         </ErrorBoundary>
       </body>

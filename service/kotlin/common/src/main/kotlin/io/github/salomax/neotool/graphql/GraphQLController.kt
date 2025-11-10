@@ -11,14 +11,52 @@ import graphql.parser.Parser
 import graphql.execution.UnknownOperationException
 
 /**
- * Base GraphQL HTTP endpoint, designed to be reusable across apps.
- * Key design choices:
- *  - Always return GraphQL spec-like responses: a Map with "data" and optional "errors".
- *    (This mirrors common servers like Apollo/Yoga and keeps HTTP transport at 200 for execution/validation errors.)
- *  - Validate operationName against the provided document to prevent graphql-java
- *    from throwing exceptions that would bubble up as server errors.
- *  - Avoid returning graphql-java runtime classes (GraphQLError, SourceLocation) directly;
- *    we rely on result.toSpecification() which yields a plain Map<String, Any?>.
+ * Base GraphQL HTTP endpoint controller for federated services.
+ * 
+ * This controller provides a standard GraphQL HTTP endpoint (`/graphql`) that
+ * follows GraphQL specification best practices. It's designed to be reusable
+ * across all service modules in a federated architecture.
+ * 
+ * **Key Design Decisions:**
+ * - Always returns GraphQL spec-compliant responses: `{"data": ..., "errors": ...}`
+ * - HTTP status is always 200 (even for errors) - errors are in the response body
+ * - Validates operationName before execution to prevent exceptions
+ * - Extracts and passes JWT tokens from Authorization header to GraphQL context
+ * - Converts all exceptions to GraphQL error format
+ * 
+ * **Usage:**
+ * Each service automatically gets a `/graphql` endpoint by injecting the GraphQL bean:
+ * ```kotlin
+ * @Controller("/graphql")
+ * class GraphQLController(graphQL: GraphQL) : GraphQLControllerBase(graphQL)
+ * ```
+ * 
+ * **Request Format:**
+ * ```json
+ * POST /graphql
+ * {
+ *   "query": "query { products { id name } }",
+ *   "variables": {},
+ *   "operationName": "GetProducts"
+ * }
+ * ```
+ * 
+ * **Response Format:**
+ * ```json
+ * {
+ *   "data": { "products": [...] },
+ *   "errors": []
+ * }
+ * ```
+ * 
+ * **Authentication:**
+ * The controller extracts JWT tokens from the `Authorization: Bearer <token>` header
+ * and makes them available in the GraphQL context as `context.token`.
+ * 
+ * **Error Handling:**
+ * All errors (syntax, validation, execution) are returned as GraphQL errors
+ * in the response body, not as HTTP error status codes. This follows GraphQL
+ * specification and allows clients to handle errors uniformly.
  */
 @Controller("/graphql")
 open class GraphQLControllerBase(private val graphQL: GraphQL) {
@@ -40,10 +78,12 @@ open class GraphQLControllerBase(private val graphQL: GraphQL) {
     @Header("Authorization") authorization: String?
   ): Map<String, Any?> {
 
-    // Guard: empty/blank queries are invalid per GraphQL usage.
+    // Guard: null, empty, or blank queries are invalid per GraphQL usage.
     // We normalize this into a GraphQL error response (200 + errors) instead of HTTP 400,
     // so clients can always parse "data"/"errors" consistently.
-    if (request.query.isBlank()) return errorSpec("Query must not be empty")
+    if (request.query == null || request.query.isBlank()) {
+      return errorSpec("Query must not be empty")
+    }
 
     // Extract token from Authorization header (Bearer <token>)
     val token = authorization?.removePrefix("Bearer ")?.takeIf { it.isNotBlank() }
@@ -79,6 +119,9 @@ open class GraphQLControllerBase(private val graphQL: GraphQL) {
     return try {
       val result = graphQL.execute(execution.build())
       result.toSpecification()
+    } catch (e: graphql.parser.InvalidSyntaxException) {
+      // Handle GraphQL syntax errors - these should be returned as GraphQL errors, not HTTP errors
+      errorSpec("Invalid GraphQL syntax: ${e.message ?: "Syntax error"}")
     } catch (e: UnknownOperationException) {
       // Defensive catch: if graphql-java still throws (e.g., due to unusual edge cases),
       // convert it to a GraphQL "errors" payload rather than surfacing an HTTP error.
@@ -86,6 +129,9 @@ open class GraphQLControllerBase(private val graphQL: GraphQL) {
     } catch (e: graphql.AssertException) {
       // Handle cases where required GraphQL types are missing
       errorSpec("The type is not defined: ${e.message ?: "Unknown error"}")
+    } catch (e: graphql.GraphQLException) {
+      // Handle other GraphQL-specific exceptions
+      errorSpec("GraphQL error: ${e.message ?: "Unknown error"}")
     } catch (e: Exception) {
       // Log unexpected exceptions (should be rare since GraphQL.execute() typically returns errors in result)
       val logger = org.slf4j.LoggerFactory.getLogger(GraphQLControllerBase::class.java)
@@ -101,10 +147,15 @@ open class GraphQLControllerBase(private val graphQL: GraphQL) {
    * This avoids throwing exceptions at execution time and lets us return a clean "errors" array instead.
    */
   private fun operationExists(query: String, op: String): Boolean {
-    val doc = Parser().parseDocument(query)
-    return doc.definitions
-      .filterIsInstance<OperationDefinition>()
-      .any { it.name == op }
+    return try {
+      val doc = Parser().parseDocument(query)
+      doc.definitions
+        .filterIsInstance<OperationDefinition>()
+        .any { it.name == op }
+    } catch (e: Exception) {
+      // If parsing fails, the operation doesn't exist
+      false
+    }
   }
 
   /**

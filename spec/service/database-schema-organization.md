@@ -143,6 +143,66 @@ datasources:
 
 However, since we use explicit schema qualification in migrations and entities, this is optional.
 
+### Flyway Configuration
+
+When multiple modules share the same database, each module **must** use a separate Flyway schema history table to avoid migration conflicts. This prevents validation errors when one module's migrations are applied but another module doesn't have those migration files.
+
+**⚠️ Required Configuration:**
+
+Each module must configure Flyway with:
+1. A unique schema history table name (e.g., `flyway_app_schema_history`, `flyway_security_schema_history`)
+2. Explicit migration locations
+
+**Example Configuration:**
+
+**App Module** (`service/kotlin/app/src/main/resources/application.yml`):
+```yaml
+flyway:
+  datasources:
+    default:
+      enabled: true
+      baseline-on-migrate: true
+      baseline-version: 0
+      table: flyway_app_schema_history  # Unique table name for app module
+      locations: classpath:db/migration  # Explicit migration location
+```
+
+**Security Module** (`service/kotlin/security/src/main/resources/application.yml`):
+```yaml
+flyway:
+  datasources:
+    default:
+      enabled: true
+      baseline-on-migrate: true
+      baseline-version: 0
+      table: flyway_security_schema_history  # Unique table name for security module
+      locations: classpath:db/migration  # Explicit migration location
+```
+
+**Naming Convention:**
+
+Schema history table names should follow the pattern:
+- `flyway_{module_name}_schema_history`
+- Examples:
+  - App module: `flyway_app_schema_history`
+  - Security module: `flyway_security_schema_history`
+  - Future modules: `flyway_billing_schema_history`, `flyway_analytics_schema_history`, etc.
+
+**Why This Is Required:**
+
+Without separate history tables, when multiple modules share a database:
+- Module A applies migrations `0.1`, `0.2`
+- Module B starts and sees those migrations in the shared history table
+- Module B doesn't have those migration files locally
+- Flyway validation fails with: "Detected applied migration not resolved locally"
+
+**Benefits:**
+
+- ✅ Each module tracks only its own migrations
+- ✅ No conflicts between modules sharing the same database
+- ✅ Modules can be developed and deployed independently
+- ✅ Clear separation of migration history per module
+
 ## Migration Best Practices
 
 ### 1. Schema Creation Pattern
@@ -268,6 +328,7 @@ Before merging:
 - Check all table names are schema-qualified
 - Ensure foreign key references use schema-qualified names
 - Confirm entity annotations include schema specification
+- Verify Flyway configuration uses a unique schema history table name (if multiple modules share the database)
 
 ## Migration from Existing Code
 
@@ -315,6 +376,11 @@ ALTER TABLE customers SET SCHEMA app;
 
 **Issue**: JPA cannot find tables
 - **Solution**: Ensure `@Table` annotation includes `schema = "schema_name"` parameter
+
+**Issue**: Flyway validation fails with "Detected applied migration not resolved locally"
+- **Solution**: Configure each module to use a separate Flyway schema history table (see [Flyway Configuration](#flyway-configuration) section above)
+- **Root Cause**: Multiple modules sharing the same database are using the same Flyway history table, causing conflicts
+- **Fix**: Add `table: flyway_{module_name}_schema_history` to each module's Flyway configuration
 
 ## References
 

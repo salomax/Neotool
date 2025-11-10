@@ -73,22 +73,39 @@ sync_to_contract() {
     local subgraph_name="$2"
     local target_schema="$CONTRACTS_DIR/subgraphs/$subgraph_name/schema.graphqls"
     
+    # Temporarily disable exit on error to handle errors gracefully
+    set +e
+    
     echo "📋 Syncing schema to contract..."
     echo "   Source: ${source_schema#$SERVICE_DIR/}"
     echo "   Target: subgraphs/$subgraph_name/schema.graphqls"
     
     # Create subgraph directory if it doesn't exist
-    mkdir -p "$(dirname "$target_schema")"
+    if ! mkdir -p "$(dirname "$target_schema")"; then
+        echo "❌ Failed to create subgraph directory"
+        set -e
+        return 1
+    fi
     
     # Create backup if target exists
     if [[ -f "$target_schema" ]]; then
-        cp "$target_schema" "$target_schema.backup"
-        echo "💾 Created backup: $target_schema.backup"
+        if ! cp "$target_schema" "$target_schema.backup"; then
+            echo "⚠️  Warning: Failed to create backup"
+        else
+            echo "💾 Created backup: $target_schema.backup"
+        fi
     fi
     
     # Copy schema
-    cp "$source_schema" "$target_schema"
+    if ! cp "$source_schema" "$target_schema"; then
+        echo "❌ Failed to copy schema"
+        set -e
+        return 1
+    fi
+    
     echo "✅ Schema synchronized to contract: $subgraph_name"
+    set -e
+    return 0
 }
 
 # Function to auto-detect subgraph name from schema source path
@@ -168,6 +185,83 @@ get_suggested_subgraphs() {
     
     # Return the array
     echo "${suggested_subgraphs[@]}"
+}
+
+# Function to sync all schemas automatically
+sync_all_schemas() {
+    # Temporarily disable exit on error to handle errors gracefully
+    set +e
+    
+    local schema_sources=($(find_schema_sources))
+    
+    if [[ ${#schema_sources[@]} -eq 0 ]]; then
+        echo "❌ No schema sources found in $SERVICE_DIR"
+        echo "   Expected pattern: */src/main/resources/graphql/schema.graphqls"
+        echo "   (excluding bin/ and build/ directories)"
+        set -e
+        return 1
+    fi
+    
+    echo ""
+    echo "🔄 Syncing all schemas automatically..."
+    echo "   Found ${#schema_sources[@]} schema source(s)"
+    echo ""
+    
+    local synced_count=0
+    local skipped_count=0
+    local error_count=0
+    
+    for source in "${schema_sources[@]}"; do
+        local rel_path="${source#$SERVICE_DIR/}"
+        
+        # Auto-detect subgraph name
+        local subgraph_name=""
+        if subgraph_name=$(auto_detect_subgraph_name "$source"); then
+            # Validate subgraph name
+            if [[ ! "$subgraph_name" =~ ^[a-zA-Z][a-zA-Z0-9_-]*$ ]]; then
+                echo "⚠️  Skipping $rel_path: Invalid subgraph name '$subgraph_name'"
+                ((skipped_count++))
+                continue
+            fi
+            
+            # Sync the schema
+            echo "📋 Syncing: $rel_path → subgraphs/$subgraph_name/schema.graphqls"
+            if sync_to_contract "$source" "$subgraph_name"; then
+                ((synced_count++))
+            else
+                echo "❌ Failed to sync $rel_path"
+                ((error_count++))
+            fi
+            echo ""
+        else
+            echo "⚠️  Skipping $rel_path: Could not auto-detect subgraph name"
+            ((skipped_count++))
+        fi
+    done
+    
+    echo "================================="
+    echo "📊 Sync Summary:"
+    echo "   ✅ Synced: $synced_count"
+    if [[ $skipped_count -gt 0 ]]; then
+        echo "   ⚠️  Skipped: $skipped_count"
+    fi
+    if [[ $error_count -gt 0 ]]; then
+        echo "   ❌ Errors: $error_count"
+    fi
+    echo ""
+    
+    # Re-enable exit on error
+    set -e
+    
+    if [[ $synced_count -gt 0 ]]; then
+        echo "🎉 Schema synchronization completed!"
+        return 0
+    elif [[ $error_count -gt 0 ]]; then
+        return 1
+    else
+        echo "ℹ️  No schemas were synced"
+        return 0
+    fi
 }
 
 # Function to run interactive sync
@@ -308,9 +402,24 @@ generate_supergraph() {
 }
 
 # Main execution
-case "${1:-sync}" in
+# Check for --all flag in arguments
+SYNC_ALL=false
+ARGS=()
+for arg in "$@"; do
+    if [[ "$arg" == "--all" ]]; then
+        SYNC_ALL=true
+    else
+        ARGS+=("$arg")
+    fi
+done
+
+case "${ARGS[0]:-sync}" in
     "sync")
-        interactive_sync
+        if [[ "$SYNC_ALL" == true ]]; then
+            sync_all_schemas
+        else
+            interactive_sync
+        fi
         ;;
     "validate")
         validate_schemas
@@ -319,19 +428,29 @@ case "${1:-sync}" in
         generate_supergraph
         ;;
     "all")
-        interactive_sync
+        if [[ "$SYNC_ALL" == true ]]; then
+            sync_all_schemas
+        else
+            interactive_sync
+        fi
         validate_schemas
         generate_supergraph
         echo "🎉 Full schema management completed!"
         ;;
     *)
-        echo "Usage: $0 {sync|validate|generate|all}"
+        echo "Usage: $0 {sync|validate|generate|all} [--all]"
         echo ""
         echo "Commands:"
-        echo "  sync     - Interactive sync from service modules to contracts"
-        echo "  validate - Validate schema consistency between services and contracts"
-        echo "  generate - Generate supergraph schema"
-        echo "  all      - Run all operations"
+        echo "  sync          - Interactive sync from service modules to contracts"
+        echo "  sync --all    - Sync all schemas automatically (no prompts)"
+        echo "  validate      - Validate schema consistency between services and contracts"
+        echo "  generate      - Generate supergraph schema"
+        echo "  all           - Run all operations (sync, validate, generate)"
+        echo "  all --all     - Run all operations with automatic sync (no prompts)"
+        echo ""
+        echo "Options:"
+        echo "  --all         - Sync all schemas automatically using auto-detection"
+        echo "                  (only applies to 'sync' and 'all' commands)"
         echo ""
         echo "Environment variables:"
         echo "  CI=true              - Use Docker for rover (CI environment)"
@@ -339,14 +458,14 @@ case "${1:-sync}" in
         echo ""
         echo "Workflow:"
         echo "  1. Edit GraphQL schema in your service module"
-        echo "  2. Run './neotool graphql sync' or '$0 sync'"
-        echo "  3. Select the schema source and target subgraph"
-        echo "  4. Schema is copied from service → contract"
+        echo "  2. Run './neotool graphql sync' (interactive) or './neotool graphql sync --all' (automatic)"
+        echo "  3. Schema is copied from service → contract"
         echo ""
         echo "Schema Discovery:"
         echo "  Automatically discovers schema sources in service directory"
         echo "  Skips bin/ and build/ directories"
         echo "  Supports patterns: kotlin/app, kotlin/security, python/module_x, etc."
+        echo "  Auto-detects subgraph names from service module paths"
         exit 1
         ;;
 esac

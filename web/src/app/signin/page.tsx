@@ -25,11 +25,18 @@ export default function SignInPage() {
 
   if (isLoading) {
     return (
-      <Container maxWidth="sm" sx={{ py: 8 }}>
-        <Box sx={{ textAlign: "center" }}>
-          <Typography>Loading...</Typography>
-        </Box>
-      </Container>
+      <Box
+        sx={{
+          width: "100vw",
+          height: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          bgcolor: "background.default",
+        }}
+      >
+        <Typography>Loading...</Typography>
+      </Box>
     );
   }
 
@@ -40,17 +47,23 @@ export default function SignInPage() {
   return (
     <Box
       sx={{
-        minHeight: "100vh",
+        width: "100vw",
+        height: "100vh",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         bgcolor: "background.default",
-        py: { xs: 4, sm: 8 },
-        px: { xs: 2, sm: 3 },
+        overflow: "hidden",
       }}
       data-testid="signin-screen"
     >
-      <Container maxWidth="sm" sx={{ width: "100%" }}>
+      <Container 
+        maxWidth="sm" 
+        sx={{ 
+          width: "100%",
+          px: { xs: 2, sm: 3 },
+        }}
+      >
         <Stack gap={4} align="center" name="signin-page-stack">
           <Box sx={{ mb: 2 }}>
             <Logo variant="blue" size="large" />
@@ -99,4 +112,5 @@ export default function SignInPage() {
     </Box>
   );
 }
+
 

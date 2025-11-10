@@ -5,7 +5,41 @@ import graphql.schema.idl.TypeRuntimeWiring
 import jakarta.inject.Singleton
 
 /**
- * Enhanced wiring factory that ensures consistent resolver registration
+ * Abstract base class for building GraphQL runtime wiring with resolvers.
+ * 
+ * Each service module should extend this class to register its GraphQL resolvers
+ * for Query, Mutation, and Subscription operations. This provides a consistent
+ * pattern for resolver registration across all services.
+ * 
+ * **Usage:**
+ * ```kotlin
+ * @Singleton
+ * class AppWiringFactory : GraphQLWiringFactory() {
+ *     override fun registerQueryResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder {
+ *         return type.dataFetcher("products", productsDataFetcher)
+ *                    .dataFetcher("product", productDataFetcher)
+ *     }
+ *     
+ *     override fun registerMutationResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder {
+ *         return type.dataFetcher("createProduct", createProductDataFetcher)
+ *     }
+ *     
+ *     override fun registerSubscriptionResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder {
+ *         return type // No subscriptions
+ *     }
+ * }
+ * ```
+ * 
+ * **Key Features:**
+ * - Separates Query, Mutation, and Subscription resolver registration
+ * - Supports custom type resolvers via `registerCustomTypeResolvers()`
+ * - Can contribute to a shared builder for merging (though not needed in true federation)
+ * 
+ * **Resolver Registration:**
+ * - Query resolvers: Field resolvers for read operations
+ * - Mutation resolvers: Field resolvers for write operations
+ * - Subscription resolvers: Field resolvers for real-time subscriptions
+ * - Custom type resolvers: Resolvers for specific GraphQL types (e.g., Customer, Product)
  */
 abstract class GraphQLWiringFactory {
 
@@ -14,11 +48,20 @@ abstract class GraphQLWiringFactory {
    */
   fun build(): RuntimeWiring {
     val builder = RuntimeWiring.newRuntimeWiring()
+    return contributeToBuilder(builder).build()
+  }
+  
+  /**
+   * Contribute this factory's wiring to an existing RuntimeWiring builder.
+   * This allows multiple factories to contribute to a single builder for merging.
+   */
+  fun contributeToBuilder(builder: RuntimeWiring.Builder): RuntimeWiring.Builder {
+    builder
       .type("Query") { type -> registerQueryResolvers(type) }
       .type("Mutation") { type -> registerMutationResolvers(type) }
       .type("Subscription") { type -> registerSubscriptionResolvers(type) }
     
-    return registerCustomTypeResolvers(builder).build()
+    return registerCustomTypeResolvers(builder)
   }
 
   /**
@@ -49,7 +92,24 @@ abstract class GraphQLWiringFactory {
 }
 
 /**
- * Registry for managing resolvers across modules
+ * Registry for managing GraphQL resolvers across modules.
+ * 
+ * This registry allows modules to register and retrieve resolvers by name.
+ * Useful for dynamic resolver lookup and cross-module resolver sharing.
+ * 
+ * **Note:** In true GraphQL Federation, each service manages its own resolvers
+ * independently. This registry is primarily useful for legacy monolithic setups
+ * or development scenarios where multiple modules run in the same service.
+ * 
+ * **Usage:**
+ * ```kotlin
+ * @Singleton
+ * class MyResolverRegistry {
+ *     fun registerResolvers(registry: GraphQLResolverRegistry) {
+ *         registry.register("productResolver", productResolver)
+ *     }
+ * }
+ * ```
  */
 @Singleton
 class GraphQLResolverRegistry {

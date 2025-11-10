@@ -4,8 +4,39 @@ import graphql.schema.DataFetcher
 import graphql.schema.DataFetchingEnvironment
 
 /**
- * Utility functions for handling GraphQL arguments safely with elegant patterns.
- * Provides high-level abstractions to reduce repetitive argument validation code.
+ * Utility object for handling GraphQL arguments safely and elegantly.
+ * 
+ * This utility provides high-level abstractions for extracting and validating
+ * GraphQL arguments from [DataFetchingEnvironment], reducing boilerplate code
+ * in resolvers and data fetchers.
+ * 
+ * **Usage:**
+ * ```kotlin
+ * fun getProduct(env: DataFetchingEnvironment): Product? {
+ *     val id = GraphQLArgumentUtils.getRequiredId(env)
+ *     return productService.get(id)
+ * }
+ * 
+ * fun createProduct(env: DataFetchingEnvironment): Product {
+ *     val input = GraphQLArgumentUtils.getRequiredInput(env)
+ *     return productService.create(input)
+ * }
+ * ```
+ * 
+ * **Features:**
+ * - Type-safe argument extraction with reified generics
+ * - Required vs optional argument handling
+ * - Default value support
+ * - Automatic validation of required arguments
+ * - Specialized helpers for common patterns (ID, input, etc.)
+ * - Data fetcher factory methods for common CRUD patterns
+ * 
+ * **Common Patterns:**
+ * - `getRequiredId(env)` - Extract required ID argument
+ * - `getRequiredInput(env)` - Extract required input object
+ * - `getOptionalArgument<T>(env, "field")` - Extract optional argument
+ * - `createCrudDataFetcher(...)` - Create data fetcher for CRUD operations
+ * - `createMutationDataFetcher(...)` - Create data fetcher for mutations
  */
 object GraphQLArgumentUtils {
     

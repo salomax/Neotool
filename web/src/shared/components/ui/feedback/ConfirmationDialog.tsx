@@ -25,6 +25,8 @@ export interface ConfirmationDialogProps {
   loading?: boolean;
   /** Whether to disable the confirm button */
   disabled?: boolean;
+  /** Data test ID for the dialog */
+  'data-testid'?: string;
 }
 
 export function ConfirmationDialog({
@@ -37,7 +39,8 @@ export function ConfirmationDialog({
   cancelText = 'Cancel',
   confirmColor = 'error',
   loading = false,
-  disabled = false
+  disabled = false,
+  'data-testid': dataTestId,
 }: ConfirmationDialogProps) {
   return (
     <Dialog 
@@ -45,6 +48,7 @@ export function ConfirmationDialog({
       onClose={onClose}
       aria-labelledby="confirmation-dialog-title"
       aria-describedby="confirmation-dialog-description"
+      data-testid={dataTestId}
     >
       <DialogTitle id="confirmation-dialog-title">
         {title}

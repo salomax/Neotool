@@ -1,6 +1,6 @@
 micronaut:
   application:
-    name: neotool-service
+    name: neotool-security-service
   server:
     port: 8080
     cors:
@@ -90,6 +90,8 @@ flyway:
       enabled: true
       baseline-on-migrate: true
       baseline-version: 0
+      table: flyway_security_schema_history
+      locations: classpath:db/migration
 
 redis:
   uri: redis://${REDIS_HOST:localhost}:${REDIS_PORT:6379}
