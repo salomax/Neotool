@@ -2,6 +2,7 @@
 
 ## Infrastructure & Configuration
 
+- [ ] rename .local.env to .env.local and create .env
 - [ ] Rename supergraph from dev to local
 - [ ] Move gateway/router to infra/gateway/router
 - [ ] Add .local.env (local one)

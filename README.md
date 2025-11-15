@@ -44,10 +44,115 @@ NeoTool brings together several layers under one monorepo:
 
 Before you begin, ensure you have the following installed:
 
-- **Node.js** - Version 18.x or higher (LTS recommended)
-- **npm or pnpm** - Package manager for managing dependencies
+- **Node.js** - Version 20.x or higher (LTS recommended)
+- **JDK** - Version 21 or higher
+- **nvm** (Node Version Manager) - For managing Node.js versions
+- **sdkman** (SDK Manager) - For managing JDK and other SDKs
 - **Git** - Version control system
-- **Docker** (optional) - For running infrastructure services
+- **Docker Engine** - For running infrastructure services (via Colima on Mac/Linux)
+- **Colima** - For running Docker Engine on Mac/Linux without Docker Desktop
+
+**What is Colima?** Colima (Containers on Linux on Mac) is a lightweight, open-source alternative to Docker Desktop. It runs Docker containers using a Linux virtual machine, providing a native Docker experience without the overhead of Docker Desktop.
+
+#### Installation Instructions
+
+##### macOS
+
+```bash
+# Install Homebrew (if not already installed)
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Install Git
+brew install git
+
+# Install nvm (Node Version Manager)
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
+
+# Reload your shell configuration
+source ~/.zshrc  # or ~/.bash_profile if using bash
+
+# Install Node.js 20.x LTS using nvm
+nvm install 20
+nvm use 20
+nvm alias default 20
+
+# Install sdkman (SDK Manager)
+curl -s "https://get.sdkman.io" | bash
+source "$HOME/.sdkman/bin/sdkman-init.sh"
+
+# Install JDK 21 using sdkman
+sdk install java 21-tem
+# Or list available versions: sdk list java
+# Then install a specific version: sdk install java <version>
+
+# Install Colima (Docker Engine alternative)
+brew install colima docker docker-compose
+
+# Start Colima
+colima start
+
+# Verify installations
+node --version    # Should show v20.x.x
+java --version    # Should show openjdk 21.x.x
+git --version     # Should show git version
+docker --version  # Should show Docker version
+```
+
+##### Linux
+
+```bash
+# Install Git
+sudo apt update  # For Debian/Ubuntu
+sudo apt install -y git
+# OR for Fedora/RHEL
+sudo dnf install -y git
+
+# Install nvm (Node Version Manager)
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
+
+# Reload your shell configuration
+source ~/.bashrc  # or ~/.zshrc if using zsh
+
+# Install Node.js 20.x LTS using nvm
+nvm install 20
+nvm use 20
+nvm alias default 20
+
+# Install sdkman (SDK Manager)
+curl -s "https://get.sdkman.io" | bash
+source "$HOME/.sdkman/bin/sdkman-init.sh"
+
+# Install JDK 21 using sdkman
+sdk install java 21-tem
+# Or list available versions: sdk list java
+# Then install a specific version: sdk install java <version>
+
+# Install Colima (Docker Engine alternative)
+# For Debian/Ubuntu
+sudo apt install -y colima docker.io docker-compose
+# OR for Fedora/RHEL
+sudo dnf install -y colima docker docker-compose
+
+# Start Colima (provides Docker Engine)
+colima start
+
+# Note: With Colima, you typically don't need to add your user to the docker group.
+# If you prefer Docker Engine directly (without Colima), uncomment the following:
+# sudo apt install -y docker.io docker-compose
+# sudo systemctl start docker
+# sudo systemctl enable docker
+# sudo usermod -aG docker $USER
+# # Log out and log back in for group changes to take effect
+
+# Verify installations
+node --version    # Should show v20.x.x
+java --version    # Should show openjdk 21.x.x
+git --version     # Should show git version
+docker --version  # Should show Docker version
+```
+
+**Note:** After installing nvm or sdkman, you may need to restart your terminal or run `source ~/.zshrc` (or `~/.bashrc`) for the changes to take effect.
+
 
 ### Setup Options
 
