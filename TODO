@@ -152,4 +152,3 @@ endpoints:
   metrics:
     enabled: true
     sensitive: false
-
