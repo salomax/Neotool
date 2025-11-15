@@ -1,133 +1,118 @@
-TODO
+# TODO
 
-    <filter class="io.github.salomax.procureflow.common.logging.MDCFilter" />
+## Infrastructure & Configuration
 
-
-rename supergraph from dev to local
-
-move gateway/router to infra/gateway/router
-
-add .local.env (local one)
-
-o11y instrumentation must be added to the project
-
-on docker-compose.local.yml, we need to add the following:
-
-neotool name must be rename in all situations, for example:
-
-A) container names
-
-B) Other attributes like user names, passwords, etc.:
-  postgres:
-    image: postgres:18rc1
-    container_name: procureflow-postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-procureflow}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-procureflow}
-      POSTGRES_DB: ${POSTGRES_DB:-procureflow_db}
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    networks:
-      - postgres-internal
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-Other files to be updated:
-
-pgbouncer.ini file with database name, user name, password, etc.
-
-change pgbouncer datasource connection on services, for example:
+- [ ] Rename supergraph from dev to local
+- [ ] Move gateway/router to infra/gateway/router
+- [ ] Add .local.env (local one)
+- [ ] Add o11y instrumentation to the project
+- [ ] Update docker-compose.local.yml with required configurations
+- [ ] Rename neotool name in all situations:
+  - [ ] Container names
+  - [ ] Other attributes like user names, passwords, etc.:
+    ```yaml
+    postgres:
+      image: postgres:18rc1
+      container_name: procureflow-postgres
+      restart: unless-stopped
+      environment:
+        POSTGRES_USER: ${POSTGRES_USER:-procureflow}
+        POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-procureflow}
+        POSTGRES_DB: ${POSTGRES_DB:-procureflow_db}
+      volumes:
+        - pgdata:/var/lib/postgresql/data
+      networks:
+        - postgres-internal
+      healthcheck:
+        test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
+        interval: 10s
+        timeout: 5s
+        retries: 5
+    ```
+  - [ ] Update pgbouncer.ini file with database name, user name, password, etc.
+  - [ ] Change pgbouncer datasource connection on services:
+    ```yaml
     username: ${POSTGRES_USER:procureflow}
     password: ${POSTGRES_PASSWORD:procureflow}
+    ```
 
-on service the packages are wrong and the folder is wrong as well
-packageio.github.salomax.procureflow.security 
+## Backend/Service
 
-see this:
-object Application {
-    @JvmStatic
-    fun main(args: Array<String>) {
-        build(*args)
-            .packages("io.github.salomax.procureflow.security")
-            .start()
+- [ ] Fix package names and folder structure on service
+  - Package: `io.github.salomax.procureflow.security`
+  - See Application.kt:
+    ```kotlin
+    object Application {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            build(*args)
+                .packages("io.github.salomax.procureflow.security")
+                .start()
+        }
     }
-}
+    ```
+- [ ] Fix logback references (remove neotool refs)
+- [ ] Remove openapi.json (not needed)
+- [ ] Fix GraphQLError package name
+  - Class: `GraphQLPayloadException`
+    ```kotlin
+    class GraphQLPayloadException(
+        val errors: List<GraphQLError>
+    ) : RuntimeException("GraphQL operation failed: ${errors.joinToString { it.message }}")
+    ```
+- [ ] Fix SecurityGraphQLFactory
+- [ ] Create multiple schemas for flyway
+- [ ] Comment redis and kafka for while
+- [ ] Update application-test.yml:
+  ```yaml
+  logging:
+    level:
+      io.github.salomax.procureflow: DEBUG
+      io.micronaut.transaction: DEBUG
+  ```
+- [ ] Remove package `io.github.salomax.procureflow.common.example.test` (during the init)
+- [ ] Fix/Improve GraphQL structure (wasn't created properly)
+- [ ] Fix test suffix (CatalogItemServiceTest > CatalogItemServiceIntegrationTest)
+- [ ] Add unit tests
+- [ ] Improve neotool graphql commands (sync, validate, generate)
+- [ ] Remove router dependencies:
+  ```yaml
+  depends_on:
+    - app
+    - security
+  ```
+- [ ] Fix supergraph wrong port to app 8080
+- [ ] Fix MDCFilter reference:
+  ```xml
+  <filter class="io.github.salomax.procureflow.common.logging.MDCFilter" />
+  ```
 
-the packages look a big problematic
+## Frontend
 
-logback looks very wrong with neotool refs
+- [ ] Double check if `(neotool)` is removed
+- [ ] Rethink the landing page:
+  - [ ] Move `@catalog` to new folder `(procureflow)`
+  - [ ] Remove `@(neotool)`
+  - [ ] Refactor landing page removing references to `@(neotool)` (design-system, examples, etc)
+  - [ ] Menu must have just one item that redirects to catalog feature
+  - [ ] On header, just keep: profile, toggle theme, and search input
+- [ ] Rename public/images/logos (wrong names)
+- [ ] Rename Grafana dashboards (like database name)
+- [ ] Fix codegen creating `mutations.generated.generated.generated.generated.ts`
+- [ ] Replace the name of the web app from neotool to xxx on metadata
+- [ ] Set `<PageLayout gap={2}>` as default for gap
+- [ ] Create CatalogItemHook (wasn't created)
+- [ ] Fix missing imports (sometimes like in the integration tests)
 
-remove openapi.json (I don't think we need it)
+## Observability
 
-- GraphQLError - package name
-class GraphQLPayloadException(
-    val errors: List<GraphQLError>
-) : RuntimeException("GraphQL operation failed: ${errors.joinToString { it.message }}") {
-    
-
-- SecurityGraphQLFactory
-
-- Create multiple schemas for flyway
-
-- comment redis and kafka for while
-
-- application-test.yml:
-    logging:
-      level:
-        io.github.salomax.procureflow: DEBUG
-        io.micronaut.transaction: DEBUG
-
-- remove package io.github.salomax.procureflow.common.example.test (during the init)
-
-- The Graphql structure wasn't created properly / Improve Graphql structure
-
-- Suffix wrong (CatalogItemServiceTest > CatalogItemServiceIntegrationTest) 
-
-- No unit tests (?!)
-
-- Improve neotool graphql commands (sync, validate, generate)
-
-- Remove router dependencies
-    depends_on:
-      - app
-      - security
-
-- Supergraphq wrong port to app 8080
-
-FRONT END
-
-- Double check if (neotool) is removed 
-
-- we need to rethink the land page 
-      1. @catalog should be placed in the new   folder `(procureflow)` 
-      2. we can get rid of @(neotool) 
-      4. Refactor land page removing the references to @(neotool)  (design-system, examples, etc)
-      5. Menu must have just one that redirects to catalog feature
-      7. On header, just keep the itens profile, toggle theme and search input 
-
-- public/images/logos are wrong, we need to rename it
-
-- grafanas dashboards must rename too, like database name
-
-- codegen is create this `mutations.generated.generated.generated.generated.ts`
-
- replace the name of the web app from neotool to xxx on meta data
-
- - set <PageLayout gap={2}> as default for gap
-
- - It didn't create the CatalogItemHook 
-
- - Import missing sometimes like in the integration tests
-
- grafana
+- [ ] Configure Grafana security:
+  ```yaml
   security:
     enabled: true
-
-# Micrometer Configuration for Metrics Collection
+  ```
+- [ ] Configure Micrometer for metrics collection:
+  ```yaml
   metrics:
     enabled: true
     export:
@@ -136,17 +121,19 @@ FRONT END
         step: PT15S
   observation:
     enabled: true
-
-# Management Endpoints Configuration
-endpoints:
-  all:
-    enabled: true
-  health:
-    enabled: true
-    sensitive: false
-  prometheus:
-    enabled: true
-    sensitive: false
-  metrics:
-    enabled: true
-    sensitive: false
+  ```
+- [ ] Configure management endpoints:
+  ```yaml
+  endpoints:
+    all:
+      enabled: true
+    health:
+      enabled: true
+      sensitive: false
+    prometheus:
+      enabled: true
+      sensitive: false
+    metrics:
+      enabled: true
+      sensitive: false
+  ```
