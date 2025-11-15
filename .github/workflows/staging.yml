@@ -71,7 +71,7 @@ jobs:
     outputs:
       image-digest: ${{ steps.push-images.outputs.app-digest }}
       image-tag: ${{ steps.meta.outputs.tags }}
-      image-reference: ghcr.io/${{ steps.push-images.outputs.owner }}/procureflow-app:${{ steps.meta.outputs.tags }}
+      image-reference: ghcr.io/${{ steps.push-images.outputs.owner }}/neotool-app:${{ steps.meta.outputs.tags }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -83,15 +83,15 @@ jobs:
         run: |
           cat > .env << EOF
           # Database
-          POSTGRES_USER=procureflow
-          POSTGRES_PASSWORD=procureflow
-          POSTGRES_DB=procureflow_db
+          POSTGRES_USER=neotool
+          POSTGRES_PASSWORD=neotool
+          POSTGRES_DB=neotool_db
           POSTGRES_HOST=postgres
           POSTGRES_PORT=5432
-          DATABASE_URL=jdbc:postgresql://postgres:5432/procureflow_db
+          DATABASE_URL=jdbc:postgresql://postgres:5432/neotool_db
           
           # Application
-          APP_NAME=procureflow
+          APP_NAME=neotool
           APP_LOCALE=en-US
           
           # Frontend
@@ -147,7 +147,7 @@ jobs:
           # Docker Compose names images as: {project}_{service}:latest
           # Project name defaults to directory name (docker)
           for service in security app assistant web; do
-            IMAGE_NAME="${REGISTRY}/${OWNER}/procureflow-${service}"
+            IMAGE_NAME="${REGISTRY}/${OWNER}/neotool-${service}"
             
             # Get the actual image name from docker compose images command
             # Format: {project}_{service}:latest
@@ -185,7 +185,7 @@ jobs:
           # Get the digest of the app image (primary service) for metadata
           # Use docker manifest inspect to get the digest after push
           sleep 2
-          APP_DIGEST=$(docker manifest inspect "${REGISTRY}/${OWNER}/procureflow-app:${IMAGE_TAG}" 2>/dev/null | grep -o '"digest":"[^"]*' | head -1 | cut -d'"' -f4 || echo "")
+          APP_DIGEST=$(docker manifest inspect "${REGISTRY}/${OWNER}/neotool-app:${IMAGE_TAG}" 2>/dev/null | grep -o '"digest":"[^"]*' | head -1 | cut -d'"' -f4 || echo "")
           echo "app-digest=${APP_DIGEST}" >> $GITHUB_OUTPUT
           echo "registry=${REGISTRY}" >> $GITHUB_OUTPUT
           echo "owner=${OWNER}" >> $GITHUB_OUTPUT
@@ -198,11 +198,11 @@ jobs:
           echo "Image Digest: ${{ steps.push-images.outputs.app-digest }}" >> build-info.txt
           echo "Image Tag: ${{ steps.meta.outputs.tags }}" >> build-info.txt
           echo "Registry: ${{ steps.push-images.outputs.registry }}/${{ steps.push-images.outputs.owner }}" >> build-info.txt
-          echo "Image Reference: ghcr.io/${{ steps.push-images.outputs.owner }}/procureflow-app:${{ steps.meta.outputs.tags }}" >> build-info.txt
+          echo "Image Reference: ghcr.io/${{ steps.push-images.outputs.owner }}/neotool-app:${{ steps.meta.outputs.tags }}" >> build-info.txt
 
       - name: Save image list
         run: |
-          docker images --format "{{.Repository}}:{{.Tag}}" | grep -E "(procureflow|app|assistant|security|web)" > image-list.txt || true
+          docker images --format "{{.Repository}}:{{.Tag}}" | grep -E "(neotool|app|assistant|security|web)" > image-list.txt || true
           echo "Images built:" && cat image-list.txt || echo "No custom images found"
 
       - name: Upload build artifacts
