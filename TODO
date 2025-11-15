@@ -124,8 +124,6 @@ FRONT END
  - Import missing sometimes like in the integration tests
 
  grafana
-
-
   security:
     enabled: true
 
