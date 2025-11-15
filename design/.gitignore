@@ -1,0 +1,56 @@
+# Design Assets - Git Ignore Rules
+
+# Adobe Creative Suite Files
+# not using while there are no large files
+# otherwise we will need to use Git LFS
+# *.ai
+# *.psd
+# *.indd
+# *.sketch
+# *.fig
+# *.figma
+
+# Temporary Adobe Files
+*.tmp
+*.lock
+*.autosave
+*~
+
+# Large Design Files (consider using Git LFS instead)
+*.eps
+*.pdf
+*.tiff
+*.tif
+*.raw
+*.cr2
+*.nef
+*.dng
+
+# Design Software Cache/Preferences
+.DS_Store
+Thumbs.db
+*.cache
+*.prefs
+
+# Prototype Files
+*.proto
+*.mockup
+*.wireframe
+
+# Backup Files
+*.bak
+*.backup
+*_backup.*
+*_old.*
+
+# Compressed Archives (unless specifically needed)
+*.zip
+*.rar
+*.7z
+*.tar.gz
+
+# Version Control for Design Files
+*.version
+*.v1
+*.v2
+*.v3

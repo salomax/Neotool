@@ -1,0 +1,31 @@
+
+name: Test
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Web unit tests
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      - run: npm i -g pnpm
+      - working-directory: ./web
+        run: pnpm install --frozen-lockfile
+      - working-directory: ./web
+        run: pnpm test:unit -- --run
+
+      # Backend tests
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Backend unit tests
+        working-directory: ./service
+        run: docker run --rm -v ${{ github.workspace }}/service:/home/gradle/project -w /home/gradle/project gradle:8.10.2-jdk21 gradle :app:test

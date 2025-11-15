@@ -1,0 +1,39 @@
+
+name: Build
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Web
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      - name: Install pnpm
+        run: npm i -g pnpm
+      - name: Install deps (web)
+        working-directory: ./web
+        run: pnpm install --frozen-lockfile
+      - name: Build web
+        working-directory: ./web
+        run: pnpm build
+
+      # Backend
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Build backend
+        working-directory: ./service
+        run: |
+          echo "Using containerized gradle for reproducibility"
+          docker run --rm -v ${{ github.workspace }}/service:/home/gradle/project -w /home/gradle/project gradle:8.10.2-jdk21 gradle :app:clean :app:build

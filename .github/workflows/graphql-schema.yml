@@ -1,0 +1,87 @@
+name: GraphQL Schema Management
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'contracts/graphql/**'
+      - 'service/kotlin/app/src/main/resources/graphql/**'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'contracts/graphql/**'
+      - 'service/kotlin/app/src/main/resources/graphql/**'
+
+jobs:
+  graphql-validation:
+    name: Validate GraphQL Schemas
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'contracts/graphql/package-lock.json'
+          
+      - name: Install dependencies
+        run: |
+          cd contracts/graphql
+          npm ci
+          
+      - name: Validate schema consistency
+        run: |
+          cd contracts/graphql
+          CI=true ./sync-schemas.sh validate
+          
+      - name: Generate supergraph schema
+        run: |
+          cd contracts/graphql
+          CI=true ./sync-schemas.sh generate
+          
+      - name: Check for schema changes
+        run: |
+          if [ -n "$(git status --porcelain contracts/graphql/supergraph/supergraph.graphql)" ]; then
+            echo "❌ Supergraph schema has uncommitted changes"
+            echo "Please run 'make graphql-generate' and commit the changes"
+            git status
+            exit 1
+          else
+            echo "✅ Supergraph schema is up to date"
+          fi
+          
+      - name: Upload supergraph schema
+        uses: actions/upload-artifact@v4
+        with:
+          name: supergraph-schema
+          path: contracts/graphql/supergraph/supergraph.graphql
+          retention-days: 30
+
+  schema-sync-check:
+    name: Check Schema Synchronization
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Check schema synchronization
+        run: |
+          cd contracts/graphql
+          CI=true ./sync-schemas.sh validate
+          
+          # Check if schemas are identical
+          if ! diff -q subgraphs/app/schema.graphqls ../../service/kotlin/app/src/main/resources/graphql/schema.graphqls > /dev/null; then
+            echo "❌ Schema files are not synchronized"
+            echo "Source: contracts/graphql/subgraphs/app/schema.graphqls"
+            echo "Target: service/kotlin/app/src/main/resources/graphql/schema.graphqls"
+            echo ""
+            echo "Please run: make graphql-sync"
+            exit 1
+          else
+            echo "✅ Schema synchronization verified"
+          fi

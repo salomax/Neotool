@@ -1,0 +1,14 @@
+{
+  "displayName": "Neotool",
+  "packageName": "neotool",
+  "packageNamespace": "io.github.salomax.neotool",
+  "databaseName": "neotool_db",
+  "databaseUser": "neotool",
+  "serviceName": "neotool-service",
+  "webPackageName": "neotool-web",
+  "dockerImagePrefix": "neotool",
+  "routeGroup": "neotool",
+  "gitRepo": "salomax/neotool",
+  "apiDomain": "api.neotool.com",
+  "logoName": "neotool-logo"
+}

@@ -1,0 +1,39 @@
+{
+  "signIn": {
+    "title": "Bem-vindo",
+    "subtitle": "Entre para continuar",
+    "continue": "Continuar",
+    "email": "E-mail",
+    "password": "Senha",
+    "rememberMe": "Manter-me conectado",
+    "signInButton": "Entrar",
+    "continueWithGoogle": "Continuar com Google",
+    "errors": {
+      "invalidCredentials": "E-mail ou senha inválidos",
+      "required": "Este campo é obrigatório",
+      "invalidEmail": "Por favor, insira um e-mail válido",
+      "networkError": "Erro de rede. Por favor, tente novamente."
+    }
+  },
+  "language": {
+    "english": "English",
+    "portuguese": "Português"
+  },
+  "routes": {
+    "home": "Início",
+    "dashboard": "Dashboard",
+    "profile": "Perfil",
+    "examples": "Exemplos",
+    "forms": "Formulários"
+  },
+  "actions": {
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "edit": "Editar",
+    "delete": "Excluir",
+    "add": "Adicionar",
+    "create": "Criar",
+    "update": "Atualizar",
+    "loading": "Carregando..."
+  }
+}

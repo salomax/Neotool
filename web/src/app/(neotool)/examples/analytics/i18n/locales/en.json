@@ -1,0 +1,12 @@
+{
+  "title": "Analytics Dashboard",
+  "overview": "Overview",
+  "reports": "Reports",
+  "metrics": "Metrics",
+  "refresh": "Refresh",
+  "dateRange": "Date Range",
+  "export": "Export",
+  "noData": "No data available",
+  "loading": "Loading...",
+  "error": "Error loading data"
+}

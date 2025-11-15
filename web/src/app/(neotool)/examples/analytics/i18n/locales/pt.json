@@ -1,0 +1,12 @@
+{
+  "title": "Painel de Análises",
+  "overview": "Visão Geral",
+  "reports": "Relatórios",
+  "metrics": "Métricas",
+  "refresh": "Atualizar",
+  "dateRange": "Período",
+  "export": "Exportar",
+  "noData": "Nenhum dado disponível",
+  "loading": "Carregando...",
+  "error": "Erro ao carregar dados"
+}
