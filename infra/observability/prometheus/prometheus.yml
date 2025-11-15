@@ -1,0 +1,49 @@
+# Observability Stack
+# Prometheus Configuration
+# This configuration defines how Prometheus scrapes metrics from various services
+global:
+  # How often to scrape targets (every 15 seconds)
+  scrape_interval: 30s
+
+scrape_configs:
+  # Monitor Prometheus itself - collects internal Prometheus server metrics
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['prometheus:9090']
+
+  # Monitor the API service (Kotlin/Micronaut application)
+  # HTTP request metrics, JVM metrics, database connections, business logic metrics
+  - job_name: 'api'
+    static_configs:
+      - targets: ['neotool-api:8080']
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 60s
+
+  # Monitor PostgreSQL database
+  # Metrics: connections, queries, locks, replication, database size
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+    scrape_interval: 60s
+
+  # Monitor Redis cache
+  # Metrics: memory usage, commands, keys, clients, hit ratio
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+    scrape_interval: 60s
+
+  # Monitor Kafka message broker
+  # Metrics: topics, partitions, consumer lag, throughput, broker status
+  - job_name: 'kafka'
+    static_configs:
+      - targets: ['kafka-exporter:9308']
+    scrape_interval: 60s
+
+  # Monitor GraphQL Router (Apollo Router)
+  # Metrics: GraphQL operations, response times, error rates, subgraph health
+  - job_name: 'router'
+    static_configs:
+      - targets: ['neotool-graphql-router:9090']
+    metrics_path: '/metrics'
+    scrape_interval: 60s

@@ -1,0 +1,18 @@
+/* web/src/components/organisms/DataTable.ag.css */
+.ag-theme-quartz .ag-filter-apply-panel button,
+.ag-theme-quartz-dark .ag-filter-apply-panel button {
+  border: 1px solid var(--ag-border-color, rgba(128, 128, 128, 0.3));
+  border-radius: 8px;
+  padding: 4px 10px;
+  background: var(--ag-background-color, transparent);
+  color: inherit;
+  cursor: pointer;
+}
+.ag-theme-quartz .ag-filter-apply-panel button:hover,
+.ag-theme-quartz-dark .ag-filter-apply-panel button:hover {
+  filter: brightness(0.95);
+}
+.ag-theme-quartz .ag-filter-apply-panel,
+.ag-theme-quartz-dark .ag-filter-apply-panel {
+  gap: 6px;
+}

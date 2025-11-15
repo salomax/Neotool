@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: backend }
+  template:
+    metadata:
+      labels: { app: backend }
+    spec:
+      containers:
+        - name: backend
+          image: ghcr.io/you/neotool-backend:latest
+          ports: [{ containerPort: 8080 }]
+          env:
+            - {
+                name: DATABASE_URL,
+                valueFrom: { secretKeyRef: { name: db, key: url } },
+              }

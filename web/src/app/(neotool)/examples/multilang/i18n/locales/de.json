@@ -1,0 +1,9 @@
+{
+  "title": "Mehrsprachige Demo",
+  "welcome": "Willkommen in unserer Anwendung!",
+  "description": "Diese Seite demonstriert dynamische Sprachunterstützung",
+  "language": "Sprache",
+  "selectLanguage": "Sprache Auswählen",
+  "currentLanguage": "Aktuelle Sprache",
+  "supportedLanguages": "Unterstützte Sprachen"
+}

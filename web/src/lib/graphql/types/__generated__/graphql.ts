@@ -1,0 +1,121 @@
+export type Maybe<T> = T | null;
+export type InputMaybe<T> = T | null;
+export type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
+export type MakeOptional<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]?: Maybe<T[SubKey]> };
+export type MakeMaybe<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]: Maybe<T[SubKey]> };
+export type MakeEmpty<T extends { [key: string]: unknown }, K extends keyof T> = { [_ in K]?: never };
+export type Incremental<T> = T | { [P in keyof T]?: P extends ' $fragmentName' | '__typename' ? T[P] : never };
+/** All built-in and custom scalars, mapped to their actual values */
+export type Scalars = {
+  ID: { input: string; output: string; }
+  String: { input: string; output: string; }
+  Boolean: { input: boolean; output: boolean; }
+  Int: { input: number; output: number; }
+  Float: { input: number; output: number; }
+};
+
+export type BaseEntityInput = {
+  name: Scalars['String']['input'];
+};
+
+export type Customer = {
+  __typename: 'Customer';
+  createdAt: Maybe<Scalars['String']['output']>;
+  email: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  name: Scalars['String']['output'];
+  status: Scalars['String']['output'];
+  updatedAt: Maybe<Scalars['String']['output']>;
+  version: Scalars['Int']['output'];
+};
+
+export type CustomerInput = {
+  email: Scalars['String']['input'];
+  name: Scalars['String']['input'];
+  status: Scalars['String']['input'];
+};
+
+export enum CustomerStatus {
+  Active = 'ACTIVE',
+  Inactive = 'INACTIVE',
+  Pending = 'PENDING'
+}
+
+export type Mutation = {
+  __typename: 'Mutation';
+  createCustomer: Customer;
+  createProduct: Product;
+  deleteCustomer: Scalars['Boolean']['output'];
+  deleteProduct: Scalars['Boolean']['output'];
+  updateCustomer: Customer;
+  updateProduct: Product;
+};
+
+
+export type MutationCreateCustomerArgs = {
+  input: CustomerInput;
+};
+
+
+export type MutationCreateProductArgs = {
+  input: ProductInput;
+};
+
+
+export type MutationDeleteCustomerArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type MutationDeleteProductArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type MutationUpdateCustomerArgs = {
+  id: Scalars['ID']['input'];
+  input: CustomerInput;
+};
+
+
+export type MutationUpdateProductArgs = {
+  id: Scalars['ID']['input'];
+  input: ProductInput;
+};
+
+export type Product = {
+  __typename: 'Product';
+  createdAt: Maybe<Scalars['String']['output']>;
+  id: Scalars['ID']['output'];
+  name: Scalars['String']['output'];
+  priceCents: Scalars['Int']['output'];
+  sku: Scalars['String']['output'];
+  stock: Scalars['Int']['output'];
+  updatedAt: Maybe<Scalars['String']['output']>;
+  version: Scalars['Int']['output'];
+};
+
+export type ProductInput = {
+  name: Scalars['String']['input'];
+  priceCents: Scalars['Int']['input'];
+  sku: Scalars['String']['input'];
+  stock: Scalars['Int']['input'];
+};
+
+export type Query = {
+  __typename: 'Query';
+  customer: Maybe<Customer>;
+  customers: Array<Customer>;
+  product: Maybe<Product>;
+  products: Array<Product>;
+};
+
+
+export type QueryCustomerArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type QueryProductArgs = {
+  id: Scalars['ID']['input'];
+};

@@ -1,0 +1,52 @@
+name: Lighthouse CI
+
+on:
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch: {}
+
+jobs:
+  lhci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+      - name: Enable corepack & pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@latest --activate
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+      - name: Build
+        run: pnpm build
+      - name: Start app
+        run: pnpm start -p 3000 &
+      - name: Wait for app
+        run: npx wait-on http://localhost:3000
+      - name: Run Lighthouse CI
+        run: npx lhci autorun
+
+  psi:
+    if: ${{ vars.PSI_URL != '' && secrets.PSI_API_KEY != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+      - name: Enable corepack & pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@latest --activate
+      - name: Install PSI
+        run: pnpm add -D psi
+      - name: Run PSI (mobile)
+        run: npx psi ${{ vars.PSI_URL }} --strategy=mobile --key=${{ secrets.PSI_API_KEY }}
+      - name: Run PSI (desktop)
+        run: npx psi ${{ vars.PSI_URL }} --strategy=desktop --key=${{ secrets.PSI_API_KEY }}

@@ -1,0 +1,34 @@
+directive @key(fields: String!) repeatable on OBJECT | INTERFACE
+
+# User type for authentication and authorization
+type User @key(fields: "id") {
+  id: ID!
+  email: String!
+  displayName: String
+}
+
+# Query type for security operations
+type Query {
+  # Authentication queries
+  currentUser: User
+}
+
+# Mutation type for security operations
+type Mutation {
+  # Authentication mutations
+  signIn(input: SignInInput!): SignInPayload!
+}
+
+# Authentication input types
+input SignInInput {
+  email: String!
+  password: String!
+  rememberMe: Boolean
+}
+
+type SignInPayload {
+  token: String!
+  refreshToken: String
+  user: User!
+}
+

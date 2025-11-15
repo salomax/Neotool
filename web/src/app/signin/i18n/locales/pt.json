@@ -1,0 +1,21 @@
+{
+  "title": "Bem-vindo de volta",
+  "subtitle": "Entre na sua conta para continuar",
+  "email": "E-mail",
+  "password": "Senha",
+  "rememberMe": "Manter-me conectado",
+  "signInButton": "Entrar",
+  "continueWithGoogle": "Continuar com Google",
+  "forgotPassword": "Esqueceu sua senha?",
+  "dontHaveAccount": "Não tem uma conta?",
+  "signUp": "Criar conta",
+  "or": "OU",
+  "errors": {
+    "invalidCredentials": "E-mail ou senha inválidos",
+    "required": "Este campo é obrigatório",
+    "invalidEmail": "Por favor, insira um e-mail válido",
+    "networkError": "Erro de rede. Por favor, tente novamente.",
+    "unknownError": "Ocorreu um erro inesperado. Por favor, tente novamente."
+  }
+}
+
