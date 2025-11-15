@@ -212,15 +212,15 @@ jobs:
         run: |
           cat > .env << EOF
           # Database
-          POSTGRES_USER=procureflow
-          POSTGRES_PASSWORD=procureflow
-          POSTGRES_DB=procureflow_db
+          POSTGRES_USER=neotool
+          POSTGRES_PASSWORD=neotool
+          POSTGRES_DB=neotool_db
           POSTGRES_HOST=postgres
           POSTGRES_PORT=5432
-          DATABASE_URL=jdbc:postgresql://postgres:5432/procureflow_db
+          DATABASE_URL=jdbc:postgresql://postgres:5432/neotool_db
           
           # Application
-          APP_NAME=procureflow
+          APP_NAME=neotool
           APP_LOCALE=en-US
           
           # Frontend
@@ -268,7 +268,7 @@ jobs:
 
       - name: Save image list
         run: |
-          docker images --format "{{.Repository}}:{{.Tag}}" | grep -E "(procureflow|app|assistant|security|web)" > image-list.txt || true
+          docker images --format "{{.Repository}}:{{.Tag}}" | grep -E "(neotool|app|assistant|security|web)" > image-list.txt || true
           echo "Images built:" && cat image-list.txt || echo "No custom images found"
 
       - name: Upload build artifacts
