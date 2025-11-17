@@ -1,6 +1,6 @@
 import * as Types from '../../types/__generated__/graphql';
 
-import { gql, MutationOptions } from '@apollo/client';
+import { gql } from '@apollo/client';
 import { CustomerFieldsFragmentDoc } from '../../fragments/common.generated';
 import * as ApolloReactCommon from '@apollo/client/react';
 import * as ApolloReactHooks from '@apollo/client/react';
@@ -59,7 +59,6 @@ export function useCreateCustomerMutation(baseOptions?: ApolloReactHooks.Mutatio
       }
 export type CreateCustomerMutationHookResult = ReturnType<typeof useCreateCustomerMutation>;
 export type CreateCustomerMutationResult = ApolloReactCommon.MutationResult<CreateCustomerMutation>;
-export type CreateCustomerMutationOptions = MutationOptions<CreateCustomerMutation, CreateCustomerMutationVariables>;
 export const UpdateCustomerDocument = gql`
     mutation UpdateCustomer($id: ID!, $input: CustomerInput!) {
   updateCustomer(id: $id, input: $input) {
@@ -92,7 +91,6 @@ export function useUpdateCustomerMutation(baseOptions?: ApolloReactHooks.Mutatio
       }
 export type UpdateCustomerMutationHookResult = ReturnType<typeof useUpdateCustomerMutation>;
 export type UpdateCustomerMutationResult = ApolloReactCommon.MutationResult<UpdateCustomerMutation>;
-export type UpdateCustomerMutationOptions = MutationOptions<UpdateCustomerMutation, UpdateCustomerMutationVariables>;
 export const DeleteCustomerDocument = gql`
     mutation DeleteCustomer($id: ID!) {
   deleteCustomer(id: $id)
@@ -122,4 +120,3 @@ export function useDeleteCustomerMutation(baseOptions?: ApolloReactHooks.Mutatio
       }
 export type DeleteCustomerMutationHookResult = ReturnType<typeof useDeleteCustomerMutation>;
 export type DeleteCustomerMutationResult = ApolloReactCommon.MutationResult<DeleteCustomerMutation>;
-export type DeleteCustomerMutationOptions = MutationOptions<DeleteCustomerMutation, DeleteCustomerMutationVariables>;
