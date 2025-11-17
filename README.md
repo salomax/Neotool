@@ -507,6 +507,7 @@ pnpm run ci:unit
 
 ### Architecture/Infra
 - [ ] CI/CD
+- [ ] FE and BE coverage tests (metrics and validation)
 - [ ] Logging (promtail, loki)
 - [ ] E2E tests with cypress (running on CI/CD and test the AuthN and AuthZ)
 - [ ] Visual regression testing (cypress-image-diff)

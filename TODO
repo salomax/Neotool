@@ -2,6 +2,7 @@
 
 ## Infrastructure & Configuration
 
+- [ ] update Micronaut and Node
 - [ ] Spec optimization
 - [ ] Rename neotool name in all situations:
   - [ ] Container names
