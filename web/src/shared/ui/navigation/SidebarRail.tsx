@@ -10,19 +10,12 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LogoMark } from '@/shared/ui/brand/LogoMark';
 
-import HomeRoundedIcon from '@mui/icons-material/HomeRounded';
-import DesignServicesRoundedIcon from '@mui/icons-material/DesignServicesRounded';
-import CodeRoundedIcon from '@mui/icons-material/CodeRounded';
-import MenuBookRoundedIcon from '@mui/icons-material/MenuBookRounded';
-import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
+import ShoppingCartRoundedIcon from '@mui/icons-material/ShoppingCartRounded';
 
 type NavItem = { href: string; label: string; icon: React.ElementType };
 
 const NAV_TOP: NavItem[] = [
-  { href: '/', label: 'Home', icon: HomeRoundedIcon },
-  { href: '/design-system', label: 'Design System', icon: DesignServicesRoundedIcon },
-  { href: '/examples', label: 'Examples', icon: CodeRoundedIcon },
-  { href: '/documentation', label: 'Documentation', icon: MenuBookRoundedIcon },
+  { href: '/catalog', label: 'Catalog', icon: ShoppingCartRoundedIcon },
 ];
 
 export const RAIL_W = 84;
@@ -113,26 +106,6 @@ export function SidebarRail() {
       </Stack>
 
       <Box sx={{ flexGrow: 1 }} />
-
-      {/* Rodapé */}
-      <Stack spacing={1.6} sx={{ mb: 1 }}>
-        <Tooltip title="Settings" placement="right">
-          <IconButton
-            LinkComponent={Link}
-            href="/settings"
-            aria-label="Settings"
-            size="large"
-            sx={{
-              color: theme.palette.primary.contrastText,
-              '&:hover': { bgcolor: alpha(theme.palette.common.black, 0.18) },
-              width: 48,
-              height: 48,
-            }}
-          >
-            <SettingsRoundedIcon fontSize="medium" />
-          </IconButton>
-        </Tooltip>
-      </Stack>
     </Box>
   );
 }

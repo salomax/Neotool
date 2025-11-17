@@ -35,7 +35,6 @@ neotool/
 ├── mobile/           # Mobile app
 ├── infra/            # Infrastructure
 ├── contracts/        # API contracts
-├── design/           # Design system
 └── spec/             # Specification (this folder)
 ```
 

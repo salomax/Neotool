@@ -6,7 +6,6 @@ export const chartData: ComponentData = {
   status: "stable" as const,
 
   githubUrl: "/web/src/shared/components/ui/data-display/Chart.tsx",
-  type: "'line' | 'bar' | 'pie' | 'area'" as const,
   
   props: [
     { name: "type", type: "'line' | 'bar' | 'pie' | 'area'", required: true, description: "Chart type" },

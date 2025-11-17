@@ -138,7 +138,7 @@ The connection string should include the default schema in the search path:
 ```yaml
 datasources:
   default:
-    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:neotool_db}?currentSchema=public
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:procureflow_db}?currentSchema=public
 ```
 
 However, since we use explicit schema qualification in migrations and entities, this is optional.

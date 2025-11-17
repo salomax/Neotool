@@ -33,7 +33,7 @@ export default function PerformancePage() {
           Performance Optimization
         </Typography>
         <Typography variant="h6" color="text.secondary" sx={{ maxWidth: 800 }}>
-          Best practices and strategies for optimizing your Next.js application's performance.
+          Best practices and strategies for optimizing your Next.js application&apos;s performance.
         </Typography>
       </Box>
 
@@ -370,7 +370,7 @@ function MyComponent({ items }) {
             Performance Monitoring
           </Typography>
           <Typography variant="body1" paragraph>
-            Monitor your application's performance to identify bottlenecks and track improvements.
+            Monitor your application&apos;s performance to identify bottlenecks and track improvements.
           </Typography>
 
           <Typography variant="h6" sx={{ mt: 3, mb: 2 }}>

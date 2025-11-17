@@ -25,10 +25,4 @@ export const NAV: NavItem[] = [
     href: "/examples",
     icon: "Science",
   },
-  {
-    id: "customer",
-    i18nKey: "routes.forms",
-    href: "/examples/forms/customer",
-    icon: "Assignment",
-  },
 ];

@@ -56,13 +56,9 @@ For a complete index of all documents, see the [Specification Manifest](./SPECIF
 - [`web/web-i18n-architecture.md`](./web/web-i18n-architecture.md) - Internationalization architecture and patterns
 - [`web/web-components.md`](./web/web-components.md) - Shared components design system and usage guide
 
-### Design Documentation
-- [`design/`](./design/) - Design system and assets documentation
-- [`design/assets.md`](./design/assets.md) - Design assets organization and workflow
-
 ### Contracts Documentation
 - [`contracts/`](./contracts/) - API contracts and schemas
-- [`contracts/graphql-federation.md`](./contracts/graphql-federation.md) - GraphQL Federation setup and architecture
+- _Note: GraphQL Federation documentation is in [`service/graphql-federation-architecture.md`](./service/graphql-federation-architecture.md)_
 
 ### Documentation Site
 - [`site/`](./site/) - Docusaurus documentation site
@@ -123,11 +119,6 @@ The project includes a CLI tool for common tasks. See [Project Setup Guide](./PR
 ./neotool help             # Show help
 ./neotool graphql --help   # Show GraphQL command help
 ```
-
-### For Designers
-1. Review [Design Assets Guide](./design/assets.md)
-2. Check [Design System Documentation](./design/)
-3. Understand [Asset Workflow](./design/assets.md#workflow-guidelines)
 
 ### For DevOps
 1. Review [Containerization Strategy](./adr/0002-containerized-architecture.md)

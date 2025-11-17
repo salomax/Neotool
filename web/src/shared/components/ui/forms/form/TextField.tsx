@@ -111,7 +111,7 @@ export const TextField: React.FC<TextFieldProps> = ({
 
   const mergedInputPropsAttrs = {
     ...inputProps,
-    ...(type === 'number' ? { inputMode: 'decimal', pattern: '[0-9]*' } : {}),
+    ...(type === 'number' ? { inputMode: 'decimal' as const, pattern: '[0-9]*' } : {}),
   };
 
   return (

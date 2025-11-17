@@ -34,8 +34,8 @@ export function Logo({
   const logoHeight = height || dimensions.height;
 
   const logoSrc = variant === 'white' 
-    ? '/images/logos/neotool-logo-white.svg'
-    : '/images/logos/neotool-logo-blue.svg';
+    ? '/images/logos/procureflow-logo-white.svg'
+    : '/images/logos/procureflow-logo-blue.svg';
 
   return (
     <Box
@@ -49,7 +49,7 @@ export function Logo({
     >
       <Image
         src={logoSrc}
-        alt="Neotool"
+        alt="ProcureFlow"
         width={logoWidth}
         height={logoHeight}
         priority
@@ -63,7 +63,7 @@ export function Logo({
             color: variant === 'white' ? 'white' : 'text.primary',
           }}
         >
-          Neotool
+          ProcureFlow
         </Box>
       )}
     </Box>

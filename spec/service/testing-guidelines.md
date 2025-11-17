@@ -322,7 +322,7 @@ Create test data builders for consistent test data across all tests in a module.
 
 #### Location
 
-`service/kotlin/[module]/src/test/kotlin/io/github/salomax/neotool/[module]/test/[Module]TestDataBuilders.kt`
+`service/kotlin/[module]/src/test/kotlin/io/github/salomax/procureflow/[module]/test/[Module]TestDataBuilders.kt`
 
 #### Structure
 
@@ -425,7 +425,33 @@ fun `should return null when entity not found`() { }
 fun `should throw exception for invalid input`() { }
 ```
 
-### 3. Arrange-Act-Assert Pattern
+### 3. Test Method Signatures
+
+**CRITICAL**: JUnit `@Test` methods must return `Unit` (void). Never use `= runBlocking { }` as the function body.
+
+**❌ Incorrect** - This returns the result of `runBlocking`, violating JUnit requirements:
+
+```kotlin
+@Test
+fun `should process async operation`() = runBlocking {
+    // test code
+}
+```
+
+**✅ Correct** - Wrap `runBlocking` inside the function body:
+
+```kotlin
+@Test
+fun `should process async operation`() {
+    runBlocking {
+        // test code
+    }
+}
+```
+
+**Why**: JUnit requires test methods to return `void` (or `Unit` in Kotlin). Using `= runBlocking { }` makes the function return the result of the `runBlocking` block, which violates this requirement and causes compilation errors.
+
+### 4. Arrange-Act-Assert Pattern
 
 Structure tests using the AAA pattern:
 
@@ -445,7 +471,7 @@ fun `should perform operation`() {
 }
 ```
 
-### 4. Mock External Dependencies
+### 5. Mock External Dependencies
 
 - Mock repositories in unit tests
 - Use real database in integration tests
@@ -461,7 +487,7 @@ repository.save(entity)
 val result = repository.findById(entity.id)
 ```
 
-### 5. Test Error Cases
+### 6. Test Error Cases
 
 Always test both success and failure scenarios:
 
@@ -471,7 +497,7 @@ Always test both success and failure scenarios:
 - ✅ Edge cases (empty strings, null values)
 - ✅ Exception handling
 
-### 6. Use Nested Test Classes
+### 7. Use Nested Test Classes
 
 Organize related tests using `@Nested` classes:
 
@@ -489,7 +515,7 @@ inner class EntityUpdateTests {
 }
 ```
 
-### 7. Test Data Cleanup
+### 8. Test Data Cleanup
 
 - Clean up test data after each test to avoid side effects
 - Use transactions when possible for automatic rollback
@@ -506,7 +532,7 @@ fun tearDown() {
 }
 ```
 
-### 8. Use Descriptive Assertions
+### 9. Use Descriptive Assertions
 
 - Use AssertJ for readable assertions
 - Provide descriptive messages for assertions
@@ -522,7 +548,7 @@ assertThat(result.name)
     .isEqualTo(input.name)
 ```
 
-### 9. Test One Thing at a Time
+### 10. Test One Thing at a Time
 
 - Each test should verify one specific behavior
 - Avoid testing multiple behaviors in a single test
@@ -546,7 +572,7 @@ fun `should return entity with correct name and status`() {
 }
 ```
 
-### 10. Use Test Tags
+### 11. Use Test Tags
 
 Tag tests appropriately for selective execution:
 

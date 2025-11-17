@@ -106,7 +106,6 @@ neotool/
 │   ├── docker/      # Docker Compose configs
 │   └── k8s/         # Kubernetes manifests
 ├── contracts/        # API contracts (GraphQL schemas)
-├── design/           # Design system and assets
 ├── spec/             # Specification and documentation
 └── scripts/          # Build and utility scripts
 ```

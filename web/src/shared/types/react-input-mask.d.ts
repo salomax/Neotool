@@ -1,5 +1,5 @@
 declare module 'react-input-mask' {
-  import { ComponentType, InputHTMLAttributes } from 'react';
+  import { ComponentType, InputHTMLAttributes, ReactNode } from 'react';
 
   export interface InputMaskProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'children'> {
     mask: string;
@@ -7,7 +7,7 @@ declare module 'react-input-mask' {
     formatChars?: Record<string, string>;
     alwaysShowMask?: boolean;
     beforeMaskedValueChange?: (newState: any, oldState: any, userInput: string, maskOptions: any) => any;
-    children: (inputProps: any) => React.ReactNode;
+    children: (inputProps: any) => ReactNode;
   }
 
   const InputMask: ComponentType<InputMaskProps>;

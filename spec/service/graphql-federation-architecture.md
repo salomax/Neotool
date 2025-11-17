@@ -8,7 +8,6 @@ tags: [graphql, federation, apollo, api, architecture]
 related:
   - ARCHITECTURE_OVERVIEW.md
   - adr/0003-kotlin-micronaut-backend.md
-  - contracts/graphql-federation.md
 ---
 
 # GraphQL Federation Architecture
@@ -97,7 +96,7 @@ neotool-starter/
         ├── supergraph/             # Federation configuration
         │   ├── supergraph.yaml     # Federation config
         │   ├── supergraph.graphql  # Generated supergraph schema
-        │   └── supergraph.dev.graphql # Development supergraph
+        │   └── supergraph.local.graphql # Development supergraph
         └── shared/                 # Shared types and directives
 ```
 
@@ -498,7 +497,7 @@ type Query {
 
 # This creates:
 # - contracts/graphql/supergraph/supergraph.graphql
-# - contracts/graphql/supergraph/supergraph.dev.graphql
+# - contracts/graphql/supergraph/supergraph.local.graphql
 
 # Or run script directly
 ./scripts/cli/commands/graphql/generate-schema.sh
@@ -506,7 +505,7 @@ type Query {
 
 #### 4. Router Configuration
 ```yaml
-# File: service/gateway/router/router.yaml
+# File: infra/gateway/router/router.yaml
 router:
   cors:
     origins: ["http://localhost:3000"]
@@ -599,6 +598,133 @@ USE_DOCKER_ROVER=true ./scripts/cli/commands/graphql/generate-schema.sh
 
 ---
 
+## Testing
+
+### Local Testing
+- Use Apollo Studio for schema testing
+- Test individual subgraphs in isolation
+- Validate supergraph composition
+- Test federation queries end-to-end
+
+### Integration Testing
+- Test cross-service queries
+- Validate entity resolution
+- Test error handling and fallbacks
+- Performance testing with federation overhead
+
+### Schema Testing
+- Automated schema validation and integration testing
+- Test backward compatibility for public APIs
+- Validate federation directives and entity keys
+- Test schema composition and supergraph generation
+
+## Monitoring and Observability
+
+### Query Tracing
+- Track queries across subgraphs
+- Monitor query execution paths
+- Identify performance bottlenecks
+- Debug federation query planning
+
+### Performance Metrics
+- Monitor federation overhead
+- Track query response times per subgraph
+- Measure query complexity and depth
+- Monitor entity resolution performance
+
+### Error Tracking
+- Track subgraph failures and fallbacks
+- Monitor entity resolution errors
+- Alert on schema composition failures
+- Log federation-specific errors
+
+### Schema Changes
+- Monitor schema evolution and breaking changes
+- Track schema version history
+- Alert on incompatible schema changes
+- Monitor supergraph composition success rates
+
+### Observability Tools
+- **OpenTelemetry**: Distributed tracing and metrics
+- **Prometheus**: Metrics collection and storage
+- **Grafana**: Monitoring dashboards and visualization
+- **Apollo Studio**: GraphQL-specific observability
+
+## Deployment
+
+### Development
+- Local Docker Compose setup
+- Individual service development
+- Schema composition testing
+- Local supergraph generation
+
+### Production
+- Kubernetes deployment
+- GitOps with ArgoCD
+- Schema registry integration
+- Automated schema validation
+- Blue-green deployments for schema changes
+
+## Troubleshooting
+
+### Common Issues
+
+#### 1. Schema Composition Failures
+- **Symptom**: Supergraph generation fails
+- **Causes**: 
+  - Missing or incorrect federation directives
+  - Conflicting type definitions across subgraphs
+  - Invalid `@key` field definitions
+- **Solution**: 
+  - Verify all entities have `@key` directives
+  - Check for type name conflicts
+  - Validate federation directive syntax
+  - Review composition error messages
+
+#### 2. Entity Resolution Errors
+- **Symptom**: Queries fail with entity resolution errors
+- **Causes**:
+  - Missing `fetchEntities` callback in GraphQLFactory
+  - Incorrect `@key` field definitions
+  - Entity not found in repository
+- **Solution**:
+  - Ensure `fetchEntities` callback is implemented
+  - Verify `@key` fields match entity keys
+  - Check entity repository implementation
+  - Validate entity ID format and parsing
+
+#### 3. Performance Issues
+- **Symptom**: Slow query execution
+- **Causes**:
+  - Excessive use of `@requires` directives
+  - Missing query complexity limits
+  - Inefficient entity fetching
+  - Network latency between services
+- **Solution**:
+  - Optimize `@requires` usage
+  - Implement query complexity limits
+  - Add caching for frequently accessed entities
+  - Monitor and optimize network calls
+
+#### 4. Breaking Changes
+- **Symptom**: Schema changes break existing clients
+- **Causes**:
+  - Removing required fields
+  - Changing field types
+  - Removing types or queries
+- **Solution**:
+  - Use schema versioning
+  - Deprecate fields before removal
+  - Test schema changes in staging
+  - Use GraphOS schema registry for change tracking
+
+### Debug Tools
+- **Apollo Studio Explorer**: Interactive query testing and debugging
+- **Federation composition logs**: Detailed composition error messages
+- **Query execution traces**: Step-by-step query execution tracking
+- **Schema validation tools**: Automated schema validation and linting
+- **Rover CLI**: Command-line tools for schema management and debugging
+
 ## Best Practices
 
 ### Service Design
@@ -607,17 +733,35 @@ USE_DOCKER_ROVER=true ./scripts/cli/commands/graphql/generate-schema.sh
 3. **Minimal Dependencies**: Reduce inter-service dependencies
 4. **Consistent Naming**: Use consistent naming conventions across services
 
+### Schema Design
+- Use clear entity boundaries
+- Minimize cross-service dependencies
+- Design for independent service evolution
+- Use consistent naming conventions
+- Always define `@key` for entities
+- Use `@external` for fields defined elsewhere
+- Minimize use of `@requires` for performance
+- Use `@provides` to share data efficiently
+
 ### Schema Management
 1. **Backward Compatibility**: Maintain backward compatibility for public APIs
 2. **Deprecation Strategy**: Use `@deprecated` directive for planned removals
 3. **Documentation**: Comprehensive schema documentation with examples
 4. **Testing**: Automated schema validation and integration testing
+5. **Versioning**: Use schema versioning for breaking changes
+
+### Service Independence
+- Each service owns its domain data
+- Services can evolve independently
+- Use federation for data composition, not tight coupling
+- Design for eventual consistency
 
 ### Performance Optimization
 1. **Query Complexity**: Implement query complexity limits
 2. **Caching Strategy**: Use appropriate caching at service and router levels
 3. **Connection Pooling**: Optimize database connections
 4. **Monitoring**: Continuous performance monitoring and alerting
+5. **Query Planning**: Leverage Apollo Router's intelligent query planning
 
 ### Security
 1. **Authentication**: Implement consistent authentication across services
@@ -667,3 +811,24 @@ Apollo Federation provides the ideal path for scaling GraphQL in our service lay
 - **Observability**: Full visibility into API performance and usage
 
 This architecture enables our teams to build and maintain complex, distributed GraphQL APIs while providing the tooling and security features necessary for enterprise-scale applications.
+
+---
+
+## Resources
+
+### Official Documentation
+- [Apollo Federation Documentation](https://www.apollographql.com/docs/federation/)
+- [Federation Best Practices](https://www.apollographql.com/docs/federation/best-practices/)
+- [Schema Composition Guide](https://www.apollographql.com/docs/federation/quickstart/)
+- [Apollo Router Documentation](https://www.apollographql.com/docs/router/)
+- [GraphOS Platform](https://www.apollographql.com/docs/graphos/)
+
+### Tools and Utilities
+- [Apollo Rover CLI](https://www.apollographql.com/docs/rover/)
+- [GraphQL Code Generator](https://the-guild.dev/graphql/codegen)
+- [GraphQL Playground](https://github.com/graphql/graphql-playground)
+
+### Community Resources
+- [Apollo Federation Community](https://community.apollographql.com/)
+- [GraphQL Specification](https://spec.graphql.org/)
+- [Federation Examples](https://github.com/apollographql/federation-demo)

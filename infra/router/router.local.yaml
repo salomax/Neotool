@@ -1,0 +1,21 @@
+# Apollo Router v2.7.0 configuration
+supergraph:
+  path: /graphql
+
+cors:
+  allow_any_origin: true
+
+# Show detailed subgraph errors for debugging
+include_subgraph_errors:
+  all: true
+
+# Header propagation
+headers:
+  all:
+    request:
+      - propagate:
+          named: authorization
+      - propagate:
+          named: x-request-id
+      - propagate:
+          named: traceparent

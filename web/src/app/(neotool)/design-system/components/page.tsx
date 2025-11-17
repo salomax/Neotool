@@ -39,6 +39,7 @@ import { useResponsive } from "@/shared/hooks/useResponsive";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getAllComponentNames, getComponentDocs } from "./[component]/docs/registry";
+import type { ComponentData } from "./[component]/docs/types";
 
 // Component categories configuration
 const categoryConfig = {
@@ -70,7 +71,7 @@ const categoryConfig = {
 
 // Extract category from component's githubUrl path
 function getCategoryFromGithubUrl(githubUrl: string): string {
-  const match = githubUrl.match(/\/ui\/([^\/]+)/);
+  const match = githubUrl.match(/\/ui\/([^/]+)/);
   return match?.[1] ?? 'primitives';
 }
 
@@ -128,7 +129,7 @@ export default function ComponentsPage() {
       
       if (!searchTerm.trim()) return true;
       
-      const filteredComponents = category.components.filter(component =>
+      const filteredComponents = category.components.filter((component: { name: string; description: string; status: string; tests?: boolean }) =>
         component.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         component.description.toLowerCase().includes(searchTerm.toLowerCase())
       );
@@ -138,7 +139,7 @@ export default function ComponentsPage() {
     .map(([key, category]) => {
       if (!searchTerm.trim()) return [key, category] as const;
       
-      const filteredComponents = category.components.filter(component =>
+      const filteredComponents = category.components.filter((component: { name: string; description: string; status: string; tests?: boolean }) =>
         component.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         component.description.toLowerCase().includes(searchTerm.toLowerCase())
       );
@@ -192,7 +193,7 @@ export default function ComponentsPage() {
         {searchTerm && (
           <Box sx={{ mb: 2 }}>
             <Typography variant="body2" color="text.secondary">
-              Found {filteredCategories.reduce((total, [, category]) => total + (category?.components?.length || 0), 0)} components matching "{searchTerm}"
+              Found {filteredCategories.reduce((total, [, category]) => total + (category?.components?.length || 0), 0)} components matching &quot;{searchTerm}&quot;
             </Typography>
           </Box>
         )}

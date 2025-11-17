@@ -2,35 +2,38 @@
 import * as React from "react";
 import Box from "@mui/material/Box";
 import Container from "@mui/material/Container";
-import Paper from "@mui/material/Paper";
-import InputBase from "@mui/material/InputBase";
 import IconButton from "@mui/material/IconButton";
-import Badge from "@mui/material/Badge";
 import Avatar from "@mui/material/Avatar";
 import Tooltip from "@mui/material/Tooltip";
-import { alpha } from '@mui/material/styles';
-import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
-import NotificationsNoneRoundedIcon from "@mui/icons-material/NotificationsNoneRounded";
+import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
+import { useThemeMode } from "@/styles/themes/AppThemeProvider";
+import { CartIcon } from "@/shared/components/ui/navigation";
+import { CartDrawer } from "@/app/(neotool)/cart/components/CartDrawer";
+import { ChatDrawer } from "@/shared/components/ui/feedback/Chat";
 
 export function AppHeader() {
-  const onThemeToggle = React.useCallback(() => {
-    // #TODO ThemeProvider, pode trocar por um setter de contexto.
-    try {
-      const KEY = "ui.color-scheme";
-      const cur =
-        (typeof localStorage !== "undefined" &&
-          (localStorage.getItem(KEY) as "light" | "dark" | null)) ||
-        "light";
-      const nextMode = cur === "light" ? "dark" : "light";
-      if (typeof localStorage !== "undefined")
-        localStorage.setItem(KEY, nextMode);
-      if (typeof document !== "undefined")
-        (document.documentElement as any).dataset.colorScheme = nextMode;
-    } catch {
-      /* empty */
-    }
-  }, []);
+  const { mode, toggle } = useThemeMode();
+  const isDark = mode === "dark";
+  const [cartDrawerOpen, setCartDrawerOpen] = React.useState(false);
+  const [chatDrawerOpen, setChatDrawerOpen] = React.useState(false);
+
+  const handleCartIconClick = () => {
+    setCartDrawerOpen(true);
+  };
+
+  const handleCartDrawerClose = () => {
+    setCartDrawerOpen(false);
+  };
+
+  const handleChatIconClick = () => {
+    setChatDrawerOpen(true);
+  };
+
+  const handleChatDrawerClose = () => {
+    setChatDrawerOpen(false);
+  };
 
   return (
     <Box
@@ -48,76 +51,36 @@ export function AppHeader() {
       }}
     >
       <Container maxWidth="xl" sx={{ py: 1.5 }}>
-        {/* grid: [esquerda vazia] [busca central] [ações à direita] */}
         <Box
           sx={{
-            display: "grid",
+            display: "flex",
             alignItems: "center",
-            gridTemplateColumns: "1fr minmax(360px, 680px) 1fr",
-            gap: 2,
+            justifyContent: "flex-end",
+            gap: 1,
           }}
         >
-          <Box aria-hidden />
-
-          {/* Busca central */}
-          <Paper
-            component="form"
-            onSubmit={(e) => e.preventDefault()}
-            sx={{
-              px: 1,
-              py: 0.25,
-              display: "flex",
-              alignItems: "center",
-              borderRadius: 2,
-              boxShadow: "none",
-              border: "1px solid",
-              borderColor: "divider",
-              bgcolor: (t) =>
-                alpha(
-                  t.palette.common.white,
-                  t.palette.mode === "light" ? 1 : 0.06,
-                ),
-            }}
-          >
-            <InputBase
-              sx={{ ml: 1, flex: 1 }}
-              placeholder="Search here"
-              inputProps={{ "aria-label": "search" }}
-            />
-            <IconButton type="submit" aria-label="search">
-              <SearchRoundedIcon />
-            </IconButton>
-          </Paper>
-
-          {/* Ações à direita */}
-          <Box
-            sx={{
-              justifySelf: "end",
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-            }}
-          >
-            <Tooltip title="Toggle theme">
-              <IconButton aria-label="toggle theme" onClick={onThemeToggle}>
-                <DarkModeRoundedIcon />
+            <Tooltip title={isDark ? "Switch to light mode" : "Switch to dark mode"}>
+              <IconButton aria-label="toggle theme" onClick={toggle}>
+                {isDark ? <LightModeRoundedIcon /> : <DarkModeRoundedIcon />}
               </IconButton>
             </Tooltip>
-            <Tooltip title="Notifications">
-              <IconButton aria-label="notifications">
-                <Badge variant="dot" color="primary">
-                  <NotificationsNoneRoundedIcon />
-                </Badge>
+            <Tooltip title="AI Assistant">
+              <IconButton aria-label="Open AI assistant" onClick={handleChatIconClick}>
+                <AutoAwesomeIcon />
               </IconButton>
+            </Tooltip>
+            <Tooltip title="Shopping cart">
+              <CartIcon onClick={handleCartIconClick} aria-label="Shopping cart" />
             </Tooltip>
             <Tooltip title="Profile">
               <IconButton aria-label="profile">
                 <Avatar sx={{ width: 32, height: 32 }}>N</Avatar>
               </IconButton>
             </Tooltip>
-          </Box>
         </Box>
       </Container>
+      <CartDrawer open={cartDrawerOpen} onClose={handleCartDrawerClose} />
+      <ChatDrawer open={chatDrawerOpen} onClose={handleChatDrawerClose} />
     </Box>
   );
 }

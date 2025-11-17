@@ -39,7 +39,7 @@ export function normalizeDecimalInput(
 
   // Replace ALL '.' and ',' with a placeholder, then restore only the last as '.'
   const placeholder = "#";
-  s = s.replace(/[\.,]/g, placeholder);
+  s = s.replace(/[.,]/g, placeholder);
   const last = s.lastIndexOf(placeholder);
   if (last !== -1) {
     s =

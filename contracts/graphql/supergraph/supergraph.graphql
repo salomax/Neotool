@@ -20,6 +20,40 @@ directive @join__unionMember(graph: join__Graph!, member: String!) repeatable on
 
 directive @link(url: String, as: String, for: link__Purpose, import: [link__Import]) repeatable on SCHEMA
 
+input BaseEntityInput
+  @join__type(graph: APP)
+{
+  name: String!
+}
+
+type Customer
+  @join__type(graph: APP, key: "id")
+{
+  id: ID!
+  name: String!
+  email: String!
+  status: String!
+  createdAt: String
+  updatedAt: String
+  version: Int!
+}
+
+input CustomerInput
+  @join__type(graph: APP)
+{
+  name: String!
+  email: String!
+  status: String!
+}
+
+enum CustomerStatus
+  @join__type(graph: APP)
+{
+  ACTIVE @join__enumValue(graph: APP)
+  INACTIVE @join__enumValue(graph: APP)
+  PENDING @join__enumValue(graph: APP)
+}
+
 scalar join__FieldSet
 
 enum join__Graph {
@@ -45,18 +79,49 @@ type Mutation
   @join__type(graph: APP)
   @join__type(graph: SECURITY)
 {
-  signIn(input: SignInInput!): SignInPayload!
+  createProduct(input: ProductInput!): Product! @join__field(graph: APP)
+  updateProduct(id: ID!, input: ProductInput!): Product! @join__field(graph: APP)
+  deleteProduct(id: ID!): Boolean! @join__field(graph: APP)
+  createCustomer(input: CustomerInput!): Customer! @join__field(graph: APP)
+  updateCustomer(id: ID!, input: CustomerInput!): Customer! @join__field(graph: APP)
+  deleteCustomer(id: ID!): Boolean! @join__field(graph: APP)
+  signIn(input: SignInInput!): SignInPayload! @join__field(graph: SECURITY)
+}
+
+type Product
+  @join__type(graph: APP, key: "id")
+{
+  id: ID!
+  name: String!
+  sku: String!
+  priceCents: Int!
+  stock: Int!
+  createdAt: String
+  updatedAt: String
+  version: Int!
+}
+
+input ProductInput
+  @join__type(graph: APP)
+{
+  name: String!
+  sku: String!
+  priceCents: Int!
+  stock: Int!
 }
 
 type Query
   @join__type(graph: APP)
   @join__type(graph: SECURITY)
 {
-  currentUser: User
+  products: [Product!]! @join__field(graph: APP)
+  product(id: ID!): Product @join__field(graph: APP)
+  customers: [Customer!]! @join__field(graph: APP)
+  customer(id: ID!): Customer @join__field(graph: APP)
+  currentUser: User @join__field(graph: SECURITY)
 }
 
 input SignInInput
-  @join__type(graph: APP)
   @join__type(graph: SECURITY)
 {
   email: String!
@@ -65,7 +130,6 @@ input SignInInput
 }
 
 type SignInPayload
-  @join__type(graph: APP)
   @join__type(graph: SECURITY)
 {
   token: String!
@@ -74,7 +138,6 @@ type SignInPayload
 }
 
 type User
-  @join__type(graph: APP, key: "id")
   @join__type(graph: SECURITY, key: "id")
 {
   id: ID!

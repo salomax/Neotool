@@ -235,12 +235,11 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
           format={getDisplayFormat()}
           disabled={disabled}
           readOnly={readOnly}
-          renderInput={renderInput}
           openTo={showDate ? 'day' : 'hours'}
           views={showDate && showTime ? ['year', 'month', 'day', 'hours', 'minutes'] : 
                  showDate ? ['year', 'month', 'day'] : 
                  ['hours', 'minutes']}
-          componentsProps={{
+          slotProps={{
             textField: {
               size,
               variant,

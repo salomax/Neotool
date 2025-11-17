@@ -1,0 +1,65 @@
+micronaut:
+  application:
+    name: neotool-assistant
+  executors:
+    blocking:
+      virtual: true
+  server:
+    port: 8082
+    thread-selection: blocking
+    cors:
+      enabled: true
+      configurations:
+        web:
+          allowed-origins:
+            - http://localhost:3000
+            - http://127.0.0.1:3000
+          allowed-methods:
+            - GET
+            - POST
+            - OPTIONS
+          allowed-headers:
+            - "*"
+          allow-credentials: true
+          max-age: 3600
+
+# LLM Configuration
+llm:
+  provider: ${LLM_PROVIDER:gemini}
+  gemini:
+    api-key: ${GEMINI_API_KEY:}
+    model: ${GEMINI_MODEL:gemini-2.5-flash}
+    temperature: ${GEMINI_TEMPERATURE:0.7}
+    max-tokens: ${GEMINI_MAX_TOKENS:2048}
+
+# GraphQL Client Configuration
+graphql:
+  endpoint: ${GRAPHQL_ENDPOINT:}
+  timeout-seconds: ${GRAPHQL_TIMEOUT:30}
+
+# Micrometer Configuration for Metrics Collection
+  metrics:
+    enabled: true
+    export:
+      prometheus:
+        enabled: true
+        step: PT15S
+  # Enable automatic HTTP request metrics
+  observation:
+    enabled: true
+
+# Management Endpoints Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+    prometheus:
+      enabled: true
+      path: /prometheus
+      sensitive: false  # No authentication required
+
+
