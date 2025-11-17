@@ -7,7 +7,7 @@ plugins {
 }
 
 micronaut {
-    version("4.9.3")
+    version("4.10.2")
     runtime("netty")
     testRuntime("junit5")
     processing {

@@ -7,7 +7,7 @@ plugins {
 repositories { mavenCentral() }
 
 micronaut {
-    version("4.9.3")
+    version("4.10.2")
     processing {
         incremental(true)
         annotations("io.github.salomax.neotool.common.*")
@@ -16,7 +16,7 @@ micronaut {
 
 dependencies {
     // Platform BOMs - should be api so all modules use same versions
-    api(platform("io.micronaut.platform:micronaut-platform:4.9.3"))
+    api(platform("io.micronaut.platform:micronaut-platform:4.10.2"))
     api(platform("io.micronaut.micrometer:micronaut-micrometer-bom:5.12.0"))
     api(platform("io.micronaut.tracing:micronaut-tracing-bom:7.1.4"))
     

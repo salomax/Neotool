@@ -9,7 +9,7 @@ plugins {
 }
 
 micronaut {
-    version("4.9.3")
+    version("4.10.2")
     processing {
         incremental(true)
         annotations("io.github.salomax.neotool.security.*")
