@@ -1,7 +1,7 @@
 package io.github.salomax.neotool.example.test.unit.api
 
-import io.github.salomax.neotool.framework.graphql.GraphQLControllerBase
-import io.github.salomax.neotool.framework.graphql.GraphQLRequest
+import io.github.salomax.neotool.common.graphql.GraphQLControllerBase
+import io.github.salomax.neotool.common.graphql.GraphQLRequest
 import graphql.ExecutionInput
 import graphql.ExecutionResultImpl
 import graphql.GraphQL

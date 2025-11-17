@@ -5,14 +5,13 @@ import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.TypeRuntimeWiring
 import io.github.salomax.neotool.example.graphql.resolvers.CustomerResolver
 import io.github.salomax.neotool.example.graphql.resolvers.ProductResolver
-import io.github.salomax.neotool.example.graphql.auth.AuthResolver
-import io.github.salomax.neotool.graphql.GraphQLArgumentUtils.createValidatedDataFetcher
-import io.github.salomax.neotool.graphql.GraphQLArgumentUtils.createCrudDataFetcher
-import io.github.salomax.neotool.graphql.GraphQLPayloadDataFetcher.createMutationDataFetcher
-import io.github.salomax.neotool.graphql.GraphQLPayloadDataFetcher.createUpdateMutationDataFetcher
-import io.github.salomax.neotool.graphql.GraphQLPayloadDataFetcher.createCrudDataFetcher as createPayloadCrudDataFetcher
-import io.github.salomax.neotool.graphql.GraphQLWiringFactory
-import io.github.salomax.neotool.graphql.GraphQLResolverRegistry
+import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.createValidatedDataFetcher
+import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.createCrudDataFetcher
+import io.github.salomax.neotool.common.graphql.GraphQLPayloadDataFetcher.createMutationDataFetcher
+import io.github.salomax.neotool.common.graphql.GraphQLPayloadDataFetcher.createUpdateMutationDataFetcher
+import io.github.salomax.neotool.common.graphql.GraphQLPayloadDataFetcher.createCrudDataFetcher as createPayloadCrudDataFetcher
+import io.github.salomax.neotool.common.graphql.GraphQLWiringFactory
+import io.github.salomax.neotool.common.graphql.GraphQLResolverRegistry
 import jakarta.inject.Singleton
 
 /**
@@ -22,7 +21,6 @@ import jakarta.inject.Singleton
 class AppWiringFactory(
     private val customerResolver: CustomerResolver,
     private val productResolver: ProductResolver,
-    private val authResolver: AuthResolver,
     resolverRegistry: GraphQLResolverRegistry
 ) : GraphQLWiringFactory() {
     
@@ -30,7 +28,6 @@ class AppWiringFactory(
         // Register resolvers in the registry for cross-module access
         resolverRegistry.register("customer", customerResolver)
         resolverRegistry.register("product", productResolver)
-        resolverRegistry.register("auth", authResolver)
     }
     
     override fun registerQueryResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder {
@@ -53,14 +50,9 @@ class AppWiringFactory(
             .dataFetcher("customer", createCrudDataFetcher("getCustomerById") { id ->
                 customerResolver.getById(id)
             })
-            .dataFetcher("currentUser", createValidatedDataFetcher { env ->
-                // Extract token from GraphQL context
-                val token = try {
-                    env.graphQlContext.get<String?>("token")
-                } catch (e: Exception) {
-                    null
-                }
-                authResolver.getCurrentUser(token)
+            .dataFetcher("currentUser", createValidatedDataFetcher { _ ->
+                // Auth functionality not available in app module (security module dependency removed)
+                null
             })
     }
     
@@ -84,9 +76,7 @@ class AppWiringFactory(
             .dataFetcher("deleteCustomer", createCrudDataFetcher("deleteCustomer") { id ->
                 customerResolver.delete(id)
             })
-            .dataFetcher("signIn", createMutationDataFetcher<io.github.salomax.neotool.example.graphql.dto.SignInPayloadDTO>("signIn") { input ->
-                authResolver.signIn(input)
-            })
+            // SignIn mutation removed - auth functionality not available in app module (security module dependency removed)
     }
     
     override fun registerSubscriptionResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder {

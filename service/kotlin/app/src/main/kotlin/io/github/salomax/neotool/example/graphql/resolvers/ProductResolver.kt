@@ -3,8 +3,8 @@ package io.github.salomax.neotool.example.graphql.resolvers
 import io.github.salomax.neotool.example.domain.Product
 import io.github.salomax.neotool.example.graphql.dto.ProductInputDTO
 import io.github.salomax.neotool.example.service.ProductService
-import io.github.salomax.neotool.graphql.GenericCrudResolver
-import io.github.salomax.neotool.graphql.CrudService
+import io.github.salomax.neotool.common.graphql.GenericCrudResolver
+import io.github.salomax.neotool.common.graphql.CrudService
 import jakarta.inject.Singleton
 import jakarta.validation.Validator
 import java.util.*

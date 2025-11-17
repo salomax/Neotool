@@ -5,10 +5,10 @@ import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.TypeRuntimeWiring
 import io.github.salomax.neotool.security.graphql.dto.SignInPayloadDTO
 import io.github.salomax.neotool.security.graphql.dto.UserDTO
-import io.github.salomax.neotool.graphql.GraphQLArgumentUtils.createValidatedDataFetcher
-import io.github.salomax.neotool.graphql.GraphQLPayloadDataFetcher.createMutationDataFetcher
-import io.github.salomax.neotool.graphql.GraphQLWiringFactory
-import io.github.salomax.neotool.graphql.GraphQLResolverRegistry
+import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.createValidatedDataFetcher
+import io.github.salomax.neotool.common.graphql.GraphQLPayloadDataFetcher.createMutationDataFetcher
+import io.github.salomax.neotool.common.graphql.GraphQLWiringFactory
+import io.github.salomax.neotool.common.graphql.GraphQLResolverRegistry
 import jakarta.inject.Singleton
 
 /**

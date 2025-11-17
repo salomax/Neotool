@@ -1,6 +1,6 @@
 package io.github.salomax.neotool.security.model
 
-import io.github.salomax.neotool.entity.BaseEntity
+import io.github.salomax.neotool.common.entity.BaseEntity
 import jakarta.persistence.*
 import java.time.Instant
 import java.util.UUID

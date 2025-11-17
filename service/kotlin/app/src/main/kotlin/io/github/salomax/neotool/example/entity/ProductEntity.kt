@@ -1,6 +1,6 @@
 package io.github.salomax.neotool.example.entity
 
-import io.github.salomax.neotool.entity.BaseEntity
+import io.github.salomax.neotool.common.entity.BaseEntity
 import io.github.salomax.neotool.example.domain.Product
 import jakarta.persistence.*
 import java.time.Instant
