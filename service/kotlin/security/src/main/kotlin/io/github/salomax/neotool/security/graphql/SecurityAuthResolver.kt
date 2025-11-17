@@ -3,10 +3,10 @@ package io.github.salomax.neotool.security.graphql
 import io.github.salomax.neotool.security.graphql.dto.SignInInputDTO
 import io.github.salomax.neotool.security.graphql.dto.SignInPayloadDTO
 import io.github.salomax.neotool.security.graphql.dto.UserDTO
-import io.github.salomax.neotool.graphql.GraphQLArgumentUtils.createMutationDataFetcher
-import io.github.salomax.neotool.graphql.GraphQLArgumentUtils.createValidatedDataFetcher
-import io.github.salomax.neotool.graphql.payload.GraphQLPayload
-import io.github.salomax.neotool.graphql.payload.GraphQLPayloadFactory
+import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.createMutationDataFetcher
+import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.createValidatedDataFetcher
+import io.github.salomax.neotool.common.graphql.payload.GraphQLPayload
+import io.github.salomax.neotool.common.graphql.payload.GraphQLPayloadFactory
 import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.service.AuthenticationService
 import io.github.salomax.neotool.security.repo.UserRepository

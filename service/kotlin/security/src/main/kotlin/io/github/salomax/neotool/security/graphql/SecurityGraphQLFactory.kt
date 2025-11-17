@@ -4,7 +4,7 @@ import com.apollographql.federation.graphqljava.Federation
 import graphql.analysis.MaxQueryComplexityInstrumentation
 import graphql.analysis.MaxQueryDepthInstrumentation
 import graphql.schema.idl.TypeDefinitionRegistry
-import io.github.salomax.neotool.exception.GraphQLOptimisticLockExceptionHandler
+import io.github.salomax.neotool.common.exception.GraphQLOptimisticLockExceptionHandler
 import io.github.salomax.neotool.security.graphql.dto.UserDTO
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.micronaut.context.annotation.Factory

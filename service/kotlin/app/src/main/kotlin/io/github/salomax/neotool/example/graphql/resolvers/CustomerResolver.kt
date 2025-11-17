@@ -4,8 +4,8 @@ import io.github.salomax.neotool.example.domain.Customer
 import io.github.salomax.neotool.example.domain.CustomerStatus
 import io.github.salomax.neotool.example.graphql.dto.CustomerInputDTO
 import io.github.salomax.neotool.example.service.CustomerService
-import io.github.salomax.neotool.graphql.GenericCrudResolver
-import io.github.salomax.neotool.graphql.CrudService
+import io.github.salomax.neotool.common.graphql.GenericCrudResolver
+import io.github.salomax.neotool.common.graphql.CrudService
 import jakarta.inject.Singleton
 import jakarta.validation.Validator
 import java.util.*

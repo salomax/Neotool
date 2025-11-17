@@ -1,7 +1,7 @@
 package io.github.salomax.neotool.example.test.unit
 
-import io.github.salomax.neotool.test.assertions.shouldBeSuccessful
-import io.github.salomax.neotool.test.http.exchangeAsString
+import io.github.salomax.neotool.common.test.assertions.shouldBeSuccessful
+import io.github.salomax.neotool.common.test.http.exchangeAsString
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import io.micronaut.http.client.HttpClient
 import io.micronaut.http.client.annotation.Client

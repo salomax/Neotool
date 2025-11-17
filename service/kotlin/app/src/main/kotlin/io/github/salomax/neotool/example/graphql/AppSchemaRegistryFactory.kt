@@ -1,7 +1,7 @@
 package io.github.salomax.neotool.example.graphql
 
 import graphql.schema.idl.TypeDefinitionRegistry
-import io.github.salomax.neotool.graphql.BaseSchemaRegistryFactory
+import io.github.salomax.neotool.common.graphql.BaseSchemaRegistryFactory
 import io.micronaut.context.annotation.Factory
 import jakarta.inject.Singleton
 

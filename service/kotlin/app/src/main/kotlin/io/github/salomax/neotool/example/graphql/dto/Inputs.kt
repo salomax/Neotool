@@ -4,7 +4,7 @@ import io.github.salomax.neotool.example.domain.Product
 import io.github.salomax.neotool.example.domain.Customer
 import io.micronaut.core.annotation.Introspected
 import io.micronaut.serde.annotation.Serdeable
-import io.github.salomax.neotool.graphql.BaseInputDTO
+import io.github.salomax.neotool.common.graphql.BaseInputDTO
 import jakarta.validation.constraints.*
 
 /**

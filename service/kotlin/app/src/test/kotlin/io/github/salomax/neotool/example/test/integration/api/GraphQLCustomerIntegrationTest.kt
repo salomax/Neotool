@@ -1,13 +1,13 @@
 package io.github.salomax.neotool.example.test.integration.api
 
 import io.github.salomax.neotool.example.test.TestDataBuilders
-import io.github.salomax.neotool.test.assertions.shouldHaveNonEmptyBody
-import io.github.salomax.neotool.test.assertions.shouldBeJson
-import io.github.salomax.neotool.test.assertions.shouldBeSuccessful
-import io.github.salomax.neotool.test.http.exchangeAsString
-import io.github.salomax.neotool.test.integration.BaseIntegrationTest
-import io.github.salomax.neotool.test.integration.PostgresIntegrationTest
-import io.github.salomax.neotool.test.json.read
+import io.github.salomax.neotool.common.test.assertions.shouldHaveNonEmptyBody
+import io.github.salomax.neotool.common.test.assertions.shouldBeJson
+import io.github.salomax.neotool.common.test.assertions.shouldBeSuccessful
+import io.github.salomax.neotool.common.test.http.exchangeAsString
+import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
+import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
+import io.github.salomax.neotool.common.test.json.read
 import io.micronaut.http.HttpRequest
 import io.micronaut.http.HttpResponse
 import io.micronaut.http.MediaType

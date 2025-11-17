@@ -8,6 +8,8 @@ abstract class BaseEntity<T>(
     open val id: T
 ) {
     // No-arg constructor for JPA
+    // Suppress unchecked cast warning - safe because JPA will set the id after construction
+    @Suppress("UNCHECKED_CAST")
     constructor() : this(null as T)
     
     override fun equals(other: Any?): Boolean {

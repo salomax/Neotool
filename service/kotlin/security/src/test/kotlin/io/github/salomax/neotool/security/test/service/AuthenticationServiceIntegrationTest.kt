@@ -3,8 +3,8 @@ package io.github.salomax.neotool.security.test.service
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.AuthenticationService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
-import io.github.salomax.neotool.test.integration.BaseIntegrationTest
-import io.github.salomax.neotool.test.integration.PostgresIntegrationTest
+import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
+import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject
 import org.assertj.core.api.Assertions.assertThat

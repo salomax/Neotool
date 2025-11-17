@@ -4,9 +4,9 @@ import io.github.salomax.neotool.example.domain.Customer
 import io.github.salomax.neotool.example.domain.Product
 import io.github.salomax.neotool.example.repo.CustomerRepository
 import io.github.salomax.neotool.example.repo.ProductRepository
-import io.github.salomax.neotool.logging.LoggingUtils.logAuditData
-import io.github.salomax.neotool.logging.LoggingUtils.logMethodEntry
-import io.github.salomax.neotool.logging.LoggingUtils.logMethodExit
+import io.github.salomax.neotool.common.logging.LoggingUtils.logAuditData
+import io.github.salomax.neotool.common.logging.LoggingUtils.logMethodEntry
+import io.github.salomax.neotool.common.logging.LoggingUtils.logMethodExit
 import io.micronaut.http.server.exceptions.NotFoundException
 import jakarta.inject.Singleton
 import jakarta.transaction.Transactional
