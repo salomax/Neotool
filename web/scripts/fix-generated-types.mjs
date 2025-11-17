@@ -34,9 +34,32 @@ function fixGeneratedFile(filePath) {
   let modified = false;
   
   // Remove BaseMutationOptions type exports (doesn't exist in Apollo Client v4)
-  const baseMutationOptionsRegex = /^export type \w+MutationOptions = ApolloReactCommon\.BaseMutationOptions<[^>]+>;$/gm;
+  // Match both single-line and multi-line patterns, with flexible whitespace
+  const baseMutationOptionsRegex = /export type \w+MutationOptions\s*=\s*ApolloReactCommon\.BaseMutationOptions<[^>]+>;\s*\n?/gm;
   if (baseMutationOptionsRegex.test(content)) {
     content = content.replace(baseMutationOptionsRegex, '');
+    modified = true;
+  }
+  
+  // Also handle cases where MutationOptions might be incorrectly imported from ApolloReactCommon
+  // Replace ApolloReactCommon.BaseMutationOptions with MutationOptions from @apollo/client
+  const baseMutationOptionsUsageRegex = /ApolloReactCommon\.BaseMutationOptions/g;
+  if (baseMutationOptionsUsageRegex.test(content)) {
+    // Check if MutationOptions is already imported from @apollo/client
+    if (!content.includes("import { gql, MutationOptions } from '@apollo/client'")) {
+      // Add MutationOptions to existing import if gql is already imported
+      content = content.replace(
+        /import { gql(?:, [^}]+)? } from '@apollo\/client';/,
+        (match) => {
+          if (match.includes('MutationOptions')) {
+            return match;
+          }
+          return match.replace('{ gql', '{ gql, MutationOptions');
+        }
+      );
+    }
+    // Replace BaseMutationOptions usage with MutationOptions
+    content = content.replace(baseMutationOptionsUsageRegex, 'MutationOptions');
     modified = true;
   }
   

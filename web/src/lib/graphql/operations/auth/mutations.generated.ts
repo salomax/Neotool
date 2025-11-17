@@ -1,6 +1,6 @@
 import * as Types from '../../types/__generated__/graphql';
 
-import { gql, MutationOptions } from '@apollo/client';
+import { gql } from '@apollo/client';
 import * as ApolloReactCommon from '@apollo/client/react';
 import * as ApolloReactHooks from '@apollo/client/react';
 const defaultOptions = {} as const;
@@ -49,4 +49,3 @@ export function useSignInMutation(baseOptions?: ApolloReactHooks.MutationHookOpt
       }
 export type SignInMutationHookResult = ReturnType<typeof useSignInMutation>;
 export type SignInMutationResult = ApolloReactCommon.MutationResult<SignInMutation>;
-export type SignInMutationOptions = MutationOptions<SignInMutation, SignInMutationVariables>;

@@ -50,6 +50,20 @@ try {
     env: { ...process.env, PATH: process.env.PATH },
   });
   console.log('✅ GraphQL code generation completed successfully');
+  
+  // Run fix script to remove BaseMutationOptions and fix other Apollo Client v4 compatibility issues
+  console.log('🔧 Fixing generated types for Apollo Client v4...');
+  const fixScriptPath = resolve(webDir, 'scripts/fix-generated-types.mjs');
+  if (existsSync(fixScriptPath)) {
+    execSync('node scripts/fix-generated-types.mjs', {
+      cwd: webDir,
+      stdio: 'inherit',
+      env: { ...process.env, PATH: process.env.PATH },
+    });
+    console.log('✅ Generated types fixed successfully');
+  } else {
+    console.warn('⚠️  Fix script not found, skipping type fixes');
+  }
 } catch (error) {
   console.error('❌ GraphQL code generation failed');
   console.error('💡 You can run "pnpm codegen" manually to retry');
