@@ -6,7 +6,6 @@ export const pageskeletonData: ComponentData = {
   status: "stable" as const,
 
   githubUrl: "/web/src/shared/components/ui/primitives/PageSkeleton.tsx",
-  type: "'text' | 'rectangular' | 'circular'" as const,
   
   props: [
     { name: "variant", type: "'text' | 'rectangular' | 'circular'", required: false, description: "Skeleton shape", default: "'text'" },

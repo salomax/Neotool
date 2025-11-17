@@ -20,7 +20,7 @@ import { getComponentDocs } from './docs/registry';
 
 // Extract category from component's githubUrl path
 const getCategoryFromGithubUrl = (githubUrl: string): string => {
-  const match = githubUrl.match(/\/ui\/([^\/]+)/);
+  const match = githubUrl.match(/\/ui\/([^/]+)/);
   return match?.[1] ?? 'primitives';
 };
 
@@ -29,7 +29,7 @@ const CodeHighlighter = dynamic(() =>
   import('react-syntax-highlighter').then(mod => {
     const { Prism } = mod;
     return {
-      default: ({ children, ...props }: any) => {
+      default: function SyntaxHighlighter({ children, ...props }: any) {
         const [style, setStyle] = React.useState<any>(null);
         
         React.useEffect(() => {
@@ -86,7 +86,7 @@ export default function ComponentPage({ params }: ComponentPageProps) {
             Component Not Found
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            The component "{componentName}" could not be found in the documentation.
+            The component &quot;{componentName}&quot; could not be found in the documentation.
           </Typography>
         </Box>
       </Container>
@@ -143,13 +143,6 @@ export default function ComponentPage({ params }: ComponentPageProps) {
   };
   
   const storybookUrl = getStorybookPath(componentName, componentData);
-
-  // Get code example
-  const getCodeExample = React.useMemo(() => {
-    return (exampleTitle: string): string => {
-      return componentDocs.examples[exampleTitle] || '';
-    };
-  }, [componentDocs]);
 
   // Get component renderer
   const ComponentRenderer = componentDocs?.renderer;
@@ -250,7 +243,7 @@ export default function ComponentPage({ params }: ComponentPageProps) {
             </Typography>
             
             {componentData.examples.map((example: any, index: number) => {
-              const codeExample = getCodeExample ? getCodeExample(example.title) : '';
+              const codeExample = componentDocs.examples[example.title] || '';
               
               return (
                 <Box key={index} sx={{ mb: 4 }}>

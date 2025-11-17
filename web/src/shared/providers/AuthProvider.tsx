@@ -82,8 +82,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         },
       });
 
-      if (result.data?.signIn) {
-        const { token: newToken, refreshToken, user: newUser } = result.data.signIn;
+      if (result.data && typeof result.data === 'object' && result.data !== null && 'signIn' in result.data && result.data.signIn) {
+        const { token: newToken, refreshToken, user: newUser } = result.data.signIn as { token: string; refreshToken: string | null; user: any };
         
         setToken(newToken);
         setUser(newUser);

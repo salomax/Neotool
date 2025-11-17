@@ -1,3 +1,4 @@
 // Navigation - Components for navigation and routing
-export { Tabs } from './Tabs';
+export { default as Tabs, type TabItem, type TabsProps } from './Tabs';
 export { Link } from './Link';
+export { CartIcon } from './CartIcon';

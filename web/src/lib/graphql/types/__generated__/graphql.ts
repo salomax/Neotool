@@ -12,6 +12,8 @@ export type Scalars = {
   Boolean: { input: boolean; output: boolean; }
   Int: { input: number; output: number; }
   Float: { input: number; output: number; }
+  join__FieldSet: { input: unknown; output: unknown; }
+  link__Import: { input: unknown; output: unknown; }
 };
 
 export type BaseEntityInput = {
@@ -47,6 +49,7 @@ export type Mutation = {
   createProduct: Product;
   deleteCustomer: Scalars['Boolean']['output'];
   deleteProduct: Scalars['Boolean']['output'];
+  signIn: SignInPayload;
   updateCustomer: Customer;
   updateProduct: Product;
 };
@@ -69,6 +72,11 @@ export type MutationDeleteCustomerArgs = {
 
 export type MutationDeleteProductArgs = {
   id: Scalars['ID']['input'];
+};
+
+
+export type MutationSignInArgs = {
+  input: SignInInput;
 };
 
 
@@ -104,6 +112,7 @@ export type ProductInput = {
 
 export type Query = {
   __typename: 'Query';
+  currentUser: Maybe<User>;
   customer: Maybe<Customer>;
   customers: Array<Customer>;
   product: Maybe<Product>;
@@ -119,3 +128,35 @@ export type QueryCustomerArgs = {
 export type QueryProductArgs = {
   id: Scalars['ID']['input'];
 };
+
+export type SignInInput = {
+  email: Scalars['String']['input'];
+  password: Scalars['String']['input'];
+  rememberMe?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
+export type SignInPayload = {
+  __typename: 'SignInPayload';
+  refreshToken: Maybe<Scalars['String']['output']>;
+  token: Scalars['String']['output'];
+  user: User;
+};
+
+export type User = {
+  __typename: 'User';
+  displayName: Maybe<Scalars['String']['output']>;
+  email: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+};
+
+export enum Join__Graph {
+  App = 'APP',
+  Security = 'SECURITY'
+}
+
+export enum Link__Purpose {
+  /** `EXECUTION` features provide metadata necessary for operation execution. */
+  Execution = 'EXECUTION',
+  /** `SECURITY` features provide metadata necessary to securely resolve fields. */
+  Security = 'SECURITY'
+}

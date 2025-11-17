@@ -418,7 +418,7 @@ export default function ProductsPage() {
         <DialogTitle>Confirm Delete</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to delete product "{deleteConfirm?.name}"? This action cannot be undone.
+            Are you sure you want to delete product &quot;{deleteConfirm?.name}&quot;? This action cannot be undone.
           </Typography>
         </DialogContent>
         <DialogActions>

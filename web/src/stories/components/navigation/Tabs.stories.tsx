@@ -18,10 +18,6 @@ const meta: Meta<typeof Tabs> = {
     tabs: {
       description: 'Array of tab items'
     },
-    defaultTab: {
-      control: { type: 'text' },
-      description: 'Default active tab ID'
-    },
     variant: {
       control: { type: 'select' },
       options: ['standard', 'fullWidth', 'scrollable'],
@@ -95,7 +91,6 @@ export const Vertical: Story = {
       <Tabs 
         tabs={basicTabs} 
         orientation="vertical"
-        sx={{ height: '100%' }}
       />
     </Box>
   ),

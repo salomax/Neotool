@@ -7,11 +7,11 @@
  */
 export const REPO_CONFIG = {
   /** GitHub repository URL */
-  githubUrl: process.env.NEXT_PUBLIC_GITHUB_URL || "https://github.com/salomax/neotool",
+  githubUrl: process.env.NEXT_PUBLIC_GITHUB_URL || "https://github.com/salomax/procureflow",
   /** Repository name (used in clone commands) */
   repoName: process.env.NEXT_PUBLIC_REPO_NAME || "neotool",
   /** Full repository name for display purposes */
-  fullRepoName: process.env.NEXT_PUBLIC_FULL_REPO_NAME || "salomax/neotool",
+  fullRepoName: process.env.NEXT_PUBLIC_FULL_REPO_NAME || "salomax/procureflow",
 } as const;
 
 /**
@@ -23,7 +23,7 @@ export const REPO_CONFIG = {
  */
 export const APP_CONFIG = {
   /** Application name */
-  name: process.env.NEXT_PUBLIC_APP_NAME || "Neotool",
+  name: process.env.NEXT_PUBLIC_APP_NAME || "ProcureFlow",
   /** Application version */
   version: process.env.NEXT_PUBLIC_APP_VERSION || "1.0.0",
   /** Required Node.js version (for display) */
@@ -31,7 +31,7 @@ export const APP_CONFIG = {
   /** Node.js version short (for Docker tags, CI configs) */
   nodeVersionShort: process.env.NEXT_PUBLIC_NODE_VERSION_SHORT || "20",
   /** Docker image name */
-  dockerImageName: process.env.NEXT_PUBLIC_DOCKER_IMAGE_NAME || "neotool-web",
+  dockerImageName: process.env.NEXT_PUBLIC_DOCKER_IMAGE_NAME || "procureflow-web",
   /** Development server URL */
   devUrl: process.env.NEXT_PUBLIC_DEV_URL || "http://localhost:3000",
   /** API server URL - reads from NEXT_PUBLIC_API_URL env var or defaults to localhost:8080 */

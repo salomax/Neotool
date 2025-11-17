@@ -2,16 +2,14 @@
 services:
 
   # -------------------------------------------------------------
-  # Tooling Stack (database, cache, message broker)
+  # Tooling Stack (database)
   # -------------------------------------------------------------
   postgres:
     image: postgres:18rc1
     container_name: neotool-postgres
     restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-neotool}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-neotool}
-      POSTGRES_DB: ${POSTGRES_DB:-neotool_db}
+    env_file: ../.env.local
+    ports: ["5432:5432"]      
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:
@@ -25,6 +23,7 @@ services:
   pgbouncer:
     image: edoburu/pgbouncer:latest
     container_name: neotool-pgbouncer
+    env_file: ../.env.local
     depends_on:
       postgres:
         condition: service_healthy
@@ -38,109 +37,10 @@ services:
       - default
       - postgres-internal
     healthcheck:
-      test: ["CMD-SHELL", "psql 'host=localhost port=6432 dbname=pgbouncer user=postgres' -c 'SHOW DATABASES;' >/dev/null 2>&1"]
+      test: ["CMD-SHELL", "pg_isready -h localhost -p 6432 -U $$POSTGRES_USER"]
       interval: 5s
       timeout: 5s
       retries: 30
-
-  redis:
-    image: redis:7
-    container_name: neotool-redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-
-  kafka:
-    image: apache/kafka:4.1.0
-    container_name: neotool-kafka
-    restart: unless-stopped
-    environment:
-      - CLUSTER_ID=5L6g3nShT-eMCtK--X86sw
-      - NODE_ID=1
-      - PROCESS_ROLES=broker,controller
-      - CONTROLLER_QUORUM_VOTERS=1@kafka:9093
-      - LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
-      - ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
-      - LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
-      - CONTROLLER_LISTENER_NAMES=CONTROLLER
-      - INTER_BROKER_LISTENER_NAME=PLAINTEXT
-      # - AUTO_CREATE_TOPICS_ENABLE=true
-    ports:
-      - "9092:9092"
-    healthcheck:
-      test: ["CMD-SHELL", "netstat -an | grep :9092 | grep LISTEN || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-
-  # -------------------------------------------------------------
-  # Application Stack
-  # -------------------------------------------------------------
-
-  app:
-    build:
-      context: ../../service/kotlin
-      dockerfile: app/Dockerfile
-    container_name: neotool-app
-    env_file: ../../.env
-    environment:
-      MICRONAUT_ENVIRONMENTS: docker
-      POSTGRES_HOST: pgbouncer
-      POSTGRES_PORT: 6432
-      KAFKA_HOST: kafka
-      KAFKA_PORT: 9092
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-    depends_on:
-      pgbouncer:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-    ports:
-      - "8081:8080"
-
-  security:
-    build:
-      context: ../../service/kotlin
-      dockerfile: security/Dockerfile
-    container_name: neotool-security
-    env_file: ../../.env
-    environment:
-      MICRONAUT_ENVIRONMENTS: docker
-      POSTGRES_HOST: pgbouncer
-      POSTGRES_PORT: 6432
-    depends_on:
-      pgbouncer:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-    ports:
-      - "8080:8080"
-
-  web:
-    build:
-      context: ../../web
-      dockerfile: Dockerfile
-    container_name: neotool-web
-    env_file: ../../.env
-    environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
-      NEXT_PUBLIC_GRAPHQL_URL: ${NEXT_PUBLIC_GRAPHQL_URL:-http://router:4000/graphql}
-    depends_on:
-      - app
-    ports:
-      - "3000:3000"
 
   # -------------------------------------------------------------
   # API Gateway Stack
@@ -149,18 +49,16 @@ services:
   router:
     image: ghcr.io/apollographql/router:v2.7.0
     container_name: neotool-graphql-router
-    depends_on:
-      - app
-      - security
     ports:
       - "4000:4000"
       - "8088:8088"  # Health check port
       - "9091:9090"  # Metrics port (changed to avoid conflict with Prometheus)
     volumes:
-      - ../../contracts/graphql/supergraph/supergraph.dev.graphql:/dist/supergraph.graphql:ro
-      - ../../service/gateway/router/router.dev.yaml:/dist/router.yaml:ro
+      - ../../contracts/graphql/supergraph/supergraph.local.graphql:/dist/supergraph.graphql:ro
+      - ../../infra/router/router.local.yaml:/dist/router.yaml:ro
     command: ["--supergraph", "/dist/supergraph.graphql", "--config", "/dist/router.yaml"]
     environment:
+      - APOLLO_ROUTER_LISTEN_ADDRESS=0.0.0.0:4000
       - APOLLO_ROUTER_TELEMETRY_METRICS_PROMETHEUS_ENABLED=true
       - APOLLO_ROUTER_TELEMETRY_METRICS_PROMETHEUS_LISTEN=0.0.0.0:9090
       - APOLLO_ROUTER_TELEMETRY_METRICS_PROMETHEUS_PATH=/metrics
@@ -169,7 +67,6 @@ services:
   # Observability Stack
   # -------------------------------------------------------------
 
-  # Observability Stack
   prometheus:
     image: prom/prometheus:v2.55.1
     container_name: neotool-prometheus
@@ -177,14 +74,32 @@ services:
       - --config.file=/etc/prometheus/prometheus.yml
       - --web.enable-lifecycle
     volumes:
-      - ../observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../observability/prometheus/prometheus.local.yml:/etc/prometheus/prometheus.yml:ro
     ports:
       - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:11.1.4
+    container_name: neotool-grafana
+    env_file: ../.env.local
+    ports:
+      - "3001:3000"
+    volumes:
+      - ../observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+    depends_on:
+      - loki
 
   # PostgreSQL Exporter - monitors database metrics via pgbouncer
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter:latest
     container_name: neotool-postgres-exporter
+    env_file: ../.env.local
     environment:
       DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-neotool}:${POSTGRES_PASSWORD:-neotool}@pgbouncer:6432/${POSTGRES_DB:-neotool_db}?sslmode=disable"
     ports:
@@ -192,45 +107,6 @@ services:
     depends_on:
       pgbouncer:
         condition: service_healthy
-
-  # Redis Exporter - monitors cache metrics
-  redis-exporter:
-    image: oliver006/redis_exporter:latest
-    container_name: neotool-redis-exporter
-    environment:
-      REDIS_ADDR: "redis://redis:6379"
-    ports:
-      - "9121:9121"
-    depends_on:
-      redis:
-        condition: service_healthy
-
-  # Kafka Exporter - monitors message broker metrics
-  kafka-exporter:
-    image: danielqsj/kafka-exporter:latest
-    container_name: neotool-kafka-exporter
-    command:
-      - --kafka.server=kafka:9092
-      - --web.listen-address=:9308
-    ports:
-      - "9308:9308"
-    depends_on:
-      kafka:
-        condition: service_healthy
-
-  grafana:
-    image: grafana/grafana:11.1.4
-    container_name: neotool-grafana
-    environment:
-      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
-    ports:
-      - "3001:3000"
-    volumes:
-      - ../observability/grafana/provisioning:/etc/grafana/provisioning
-      - ../observability/grafana/dashboards:/etc/grafana/provisioning/dashboards
-    depends_on:
-      - loki
 
   # Loki - Log aggregation system
   loki:

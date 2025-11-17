@@ -10,7 +10,7 @@ micronaut {
     version("4.9.3")
     processing {
         incremental(true)
-        annotations("io.github.salomax.neotool.framework.*")
+        annotations("io.github.salomax.procureflow.common.*")
     }
 }
 
@@ -48,6 +48,9 @@ dependencies {
     api("com.graphql-java:graphql-java:21.5")
     api("com.apollographql.federation:federation-graphql-java-support:5.4.0")
     api("com.graphql-java:java-dataloader:3.3.0")
+    
+    // Micrometer - api for other modules (needed for metrics instrumentation)
+    api("io.micronaut.micrometer:micronaut-micrometer-core")
     
     // Database - api for other modules
     api("io.micronaut.data:micronaut-data-jdbc")
@@ -96,4 +99,6 @@ dependencies {
     api("org.testcontainers:testcontainers:1.20.6")
     api("org.junit.jupiter:junit-jupiter:5.12.2")
     api("org.mockito.kotlin:mockito-kotlin:3.2.0")
+
+    api("org.mockito:mockito-inline:5.2.0")
 }

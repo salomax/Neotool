@@ -2,12 +2,8 @@
 
 ## Infrastructure & Configuration
 
-- [ ] rename .local.env to .env.local and create .env
-- [ ] Rename supergraph from dev to local
-- [ ] Move gateway/router to infra/gateway/router
-- [ ] Add .local.env (local one)
-- [ ] Add o11y instrumentation to the project
-- [ ] Update docker-compose.local.yml with required configurations
+
+- [ ] Spec optimization
 - [ ] Rename neotool name in all situations:
   - [ ] Container names
   - [ ] Other attributes like user names, passwords, etc.:
@@ -92,7 +88,6 @@
 
 - [ ] Double check if `(neotool)` is removed
 - [ ] Rethink the landing page:
-  - [ ] Move `@catalog` to new folder `(procureflow)`
   - [ ] Remove `@(neotool)`
   - [ ] Refactor landing page removing references to `@(neotool)` (design-system, examples, etc)
   - [ ] Menu must have just one item that redirects to catalog feature
@@ -102,7 +97,6 @@
 - [ ] Fix codegen creating `mutations.generated.generated.generated.generated.ts`
 - [ ] Replace the name of the web app from neotool to xxx on metadata
 - [ ] Set `<PageLayout gap={2}>` as default for gap
-- [ ] Create CatalogItemHook (wasn't created)
 - [ ] Fix missing imports (sometimes like in the integration tests)
 
 ## Observability

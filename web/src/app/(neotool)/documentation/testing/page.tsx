@@ -285,7 +285,7 @@ describe('LoginForm Integration', () => {
             End-to-End Testing
           </Typography>
           <Typography variant="body1" paragraph>
-            E2E tests verify that the entire application works correctly from the user's perspective.
+            E2E tests verify that the entire application works correctly from the user&apos;s perspective.
           </Typography>
 
           <Typography variant="h6" sx={{ mt: 3, mb: 2 }}>

@@ -1,0 +1,213 @@
+
+services:
+
+  # -------------------------------------------------------------
+  # Tooling Stack (database)
+  # -------------------------------------------------------------
+  postgres:
+    image: postgres:18rc1
+    container_name: neotool-postgres
+    restart: unless-stopped
+    env_file: ../.env
+    ports: ["5432:5432"]      
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - postgres-internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    container_name: neotool-pgbouncer
+    env_file: ../.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    ports: ["6432:6432"]
+    volumes:
+      - ../pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
+      - ../pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
+    command: ["pgbouncer", "/etc/pgbouncer/pgbouncer.ini"]
+    networks:
+      - default
+      - postgres-internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h localhost -p 6432 -U $$POSTGRES_USER"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  # -------------------------------------------------------------
+  # Service Stack
+  # -------------------------------------------------------------
+
+  security:
+    build:
+      context: ../../service/kotlin
+      dockerfile: security/Dockerfile
+    container_name: neotool-security
+    env_file: ../.env
+    environment:
+      MICRONAUT_ENVIRONMENTS: docker
+      MICRONAUT_SERVER_PORT: 8080
+      POSTGRES_HOST: pgbouncer
+      POSTGRES_PORT: 6432
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+    expose: ["8080"]
+
+  app:
+    build:
+      context: ../../service/kotlin
+      dockerfile: app/Dockerfile
+    container_name: neotool-app
+    env_file: ../.env
+    environment:
+      MICRONAUT_ENVIRONMENTS: docker
+      MICRONAUT_SERVER_PORT: 8080
+      POSTGRES_HOST: pgbouncer
+      POSTGRES_PORT: 6432
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+    expose: ["8080"]
+
+  assistant:
+    build:
+      context: ../../service/kotlin
+      dockerfile: assistant/Dockerfile
+    container_name: neotool-assistant
+    env_file: ../.env
+    environment:
+      MICRONAUT_ENVIRONMENTS: docker
+      MICRONAUT_SERVER_PORT: 8080
+      POSTGRES_HOST: pgbouncer
+      POSTGRES_PORT: 6432
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+    expose: ["8080"]
+
+  # -------------------------------------------------------------
+  # Frontend Stack
+  # -------------------------------------------------------------
+
+  web:
+    build:
+      context: ../../web
+      dockerfile: Dockerfile
+    container_name: neotool-web
+    env_file: ../.env
+    environment:
+      NEXT_PUBLIC_GRAPHQL_URL: ${NEXT_PUBLIC_GRAPHQL_URL:-http://router:4000/graphql}
+      GRAPHQL_SCHEMA_PATH: ../contracts/graphql/supergraph/supergraph.graphql
+    ports:
+      - "3000:3000"
+
+  # -------------------------------------------------------------
+  # API Gateway Stack
+  # -------------------------------------------------------------
+
+  router:
+    image: ghcr.io/apollographql/router:v2.7.0
+    container_name: neotool-graphql-router
+    ports:
+      - "4000:4000"
+      - "8088:8088"  # Health check port
+      - "9091:9090"  # Metrics port (changed to avoid conflict with Prometheus)
+    volumes:
+      - ../../contracts/graphql/supergraph/supergraph.graphql:/dist/supergraph.graphql:ro
+      - ../../infra/router/router.yaml:/dist/router.yaml:ro
+    command: ["--supergraph", "/dist/supergraph.graphql", "--config", "/dist/router.yaml"]
+    environment:
+      - APOLLO_ROUTER_LISTEN_ADDRESS=0.0.0.0:4000
+      - APOLLO_ROUTER_TELEMETRY_METRICS_PROMETHEUS_ENABLED=true
+      - APOLLO_ROUTER_TELEMETRY_METRICS_PROMETHEUS_LISTEN=0.0.0.0:9090
+      - APOLLO_ROUTER_TELEMETRY_METRICS_PROMETHEUS_PATH=/metrics
+
+  # -------------------------------------------------------------
+  # Observability Stack
+  # -------------------------------------------------------------
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: neotool-prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --web.enable-lifecycle
+    volumes:
+      - ../observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:11.1.4
+    container_name: neotool-grafana
+    env_file: ../.env
+    ports:
+      - "3001:3000"
+    volumes:
+      - ../observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+    depends_on:
+      - loki
+
+  # PostgreSQL Exporter - monitors database metrics via pgbouncer
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: neotool-postgres-exporter
+    env_file: ../.env
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-neotool}:${POSTGRES_PASSWORD:-neotool}@pgbouncer:6432/${POSTGRES_DB:-neotool_db}?sslmode=disable"
+    ports:
+      - "9187:9187"
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+
+  # Loki - Log aggregation system
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: neotool-loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ../observability/loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+    depends_on:
+      - prometheus
+
+  # Promtail - Log collection agent
+  promtail:
+    image: grafana/promtail:2.9.0
+    container_name: neotool-promtail
+    volumes:
+      - ../observability/promtail/promtail-config.yaml:/etc/promtail/config.yml:ro
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+      
+volumes:
+  pgdata:
+  loki-data:
+  grafana-data:
+
+networks:
+  postgres-internal:
+    driver: bridge
+    internal: false  # Set to true if you want complete isolation (no internet access)

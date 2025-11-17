@@ -27,10 +27,6 @@ const meta: Meta<typeof RichTextEditor> = {
       control: { type: 'boolean' },
       description: 'Whether the editor is read-only'
     },
-    disabled: {
-      control: { type: 'boolean' },
-      description: 'Whether the editor is disabled'
-    },
     minHeight: {
       control: { type: 'number' },
       description: 'Minimum height of the editor in pixels'
@@ -58,29 +54,31 @@ export const Default: Story = {
   },
 };
 
+const WithContentWrapper = () => {
+  const [value, setValue] = useState(`
+    <h2>Welcome to Rich Text Editor</h2>
+    <p>This is a <strong>powerful</strong> rich text editor with <em>formatting</em> options.</p>
+    <ul>
+      <li>Bold and italic text</li>
+      <li>Lists and headings</li>
+      <li>Links and more</li>
+    </ul>
+  `);
+  
+  return (
+    <Box sx={{ height: 400 }}>
+      <RichTextEditor 
+        value={value}
+        onChange={setValue}
+        minHeight={300}
+        maxHeight={400}
+      />
+    </Box>
+  );
+};
+
 export const WithContent: Story = {
-  render: () => {
-    const [value, setValue] = useState(`
-      <h2>Welcome to Rich Text Editor</h2>
-      <p>This is a <strong>powerful</strong> rich text editor with <em>formatting</em> options.</p>
-      <ul>
-        <li>Bold and italic text</li>
-        <li>Lists and headings</li>
-        <li>Links and more</li>
-      </ul>
-    `);
-    
-    return (
-      <Box sx={{ height: 400 }}>
-        <RichTextEditor 
-          value={value}
-          onChange={setValue}
-          minHeight={300}
-          maxHeight={400}
-        />
-      </Box>
-    );
-  },
+  render: () => <WithContentWrapper />,
 };
 
 export const States: Story = {
@@ -104,10 +102,10 @@ export const States: Story = {
         />
       </Box>
       <Box>
-        <Typography variant="h6" gutterBottom>Disabled</Typography>
+        <Typography variant="h6" gutterBottom>Read Only</Typography>
         <RichTextEditor 
-          value="<p>This editor is disabled</p>"
-          disabled
+          value="<p>This editor is read-only</p>"
+          readOnly
           minHeight={200}
           maxHeight={300}
         />
@@ -116,38 +114,42 @@ export const States: Story = {
   ),
 };
 
+const WithoutToolbarWrapper = () => {
+  const [value, setValue] = useState('<p>Editor without toolbar</p>');
+  
+  return (
+    <Box sx={{ height: 300 }}>
+      <RichTextEditor 
+        value={value}
+        onChange={setValue}
+        showToolbar={false}
+        minHeight={200}
+        maxHeight={300}
+      />
+    </Box>
+  );
+};
+
+const WithPlaceholderWrapper = () => {
+  const [value, setValue] = useState('');
+  
+  return (
+    <Box sx={{ height: 300 }}>
+      <RichTextEditor 
+        value={value}
+        onChange={setValue}
+        placeholder="Enter your content here..."
+        minHeight={200}
+        maxHeight={300}
+      />
+    </Box>
+  );
+};
+
 export const WithoutToolbar: Story = {
-  render: () => {
-    const [value, setValue] = useState('<p>Editor without toolbar</p>');
-    
-    return (
-      <Box sx={{ height: 300 }}>
-        <RichTextEditor 
-          value={value}
-          onChange={setValue}
-          showToolbar={false}
-          minHeight={200}
-          maxHeight={300}
-        />
-      </Box>
-    );
-  },
+  render: () => <WithoutToolbarWrapper />,
 };
 
 export const WithPlaceholder: Story = {
-  render: () => {
-    const [value, setValue] = useState('');
-    
-    return (
-      <Box sx={{ height: 300 }}>
-        <RichTextEditor 
-          value={value}
-          onChange={setValue}
-          placeholder="Enter your content here..."
-          minHeight={200}
-          maxHeight={300}
-        />
-      </Box>
-    );
-  },
+  render: () => <WithPlaceholderWrapper />,
 };

@@ -250,7 +250,7 @@ The rename script performs comprehensive replacements across the entire codebase
 - `settings.gradle.kts`
 
 ### Source Code
-- Kotlin package declarations (`package io.github.salomax.neotool.*`)
+- Kotlin package declarations (`packageio.github.salomax.procureflow.*`)
 - Kotlin imports
 - TypeScript/JavaScript imports and references
 - Type definitions
@@ -268,8 +268,8 @@ The rename script performs comprehensive replacements across the entire codebase
 - Code comments and descriptions
 
 ### Files and Folders
-- Next.js route group folder: `(neotool)` → `(<routeGroup>)`
-- Logo files: `neotool-logo-*.svg` → `<logoName>-*.svg`
+- Next.js route group folder: `(procureflow)` → `(<routeGroup>)`
+- Logo files: `procureflow-logo-*.svg` → `<logoName>-*.svg`
 - Any files or folders containing "neotool" in their names
 
 ### URLs and References
@@ -344,9 +344,8 @@ git diff service/kotlin/build.gradle.kts
 
 Some items may require manual updates:
 
-1. **Logo Files**: If you have custom logos, replace the files in `design/assets/logos/`
-2. **Workspace File**: Rename `neotool.code-workspace` if desired
-3. **Git Remote**: Update your git remote URL if needed:
+1. **Workspace File**: Rename `neotool.code-workspace` if desired
+2. **Git Remote**: Update your git remote URL if needed:
    ```bash
    git remote set-url origin https://github.com/<your-org>/<your-repo>.git
    ```
@@ -524,13 +523,6 @@ git checkout <commit-before-rename> -- .
 ```
 
 ## Advanced Customization
-
-### Custom Logo Files
-
-After renaming, update logo files in `design/assets/logos/`:
-- Replace `neotool-logo-blue.svg` with your logo
-- Replace `neotool-logo-white.svg` with your white logo variant
-- Update references in README and other documentation
 
 ### Environment Variables
 

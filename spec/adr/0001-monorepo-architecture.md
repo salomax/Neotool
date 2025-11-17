@@ -36,7 +36,6 @@ neotool/
 ├── mobile/         # Mobile app (React Native / Expo)
 ├── infra/          # Docker, K8s, GitOps, observability
 ├── contracts/      # GraphQL + OpenAPI contracts
-├── design/         # Brand assets & design system
 ├── docs/           # ADRs and docs site
 └── README.md
 ```

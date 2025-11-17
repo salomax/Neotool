@@ -18,15 +18,26 @@ export default function EventsPage() {
   const [eventType, setEventType] = useState("");
   const [rows, setRows] = useState<any[]>([]);
 
-  async function load() {
-    const url = new URL(`${API}/api/events/`);
-    if (entity) url.searchParams.set("entity", entity);
-    if (eventType) url.searchParams.set("eventType", eventType);
-    const res = await fetch(url.toString());
-    setRows(await res.json());
-  }
-
-  useEffect(() => { load(); }, [entity, eventType]);
+  useEffect(() => {
+    let cancelled = false;
+    
+    async function load() {
+      const url = new URL(`${API}/api/events/`);
+      if (entity) url.searchParams.set("entity", entity);
+      if (eventType) url.searchParams.set("eventType", eventType);
+      const res = await fetch(url.toString());
+      const data = await res.json();
+      if (!cancelled) {
+        setRows(data);
+      }
+    }
+    
+    load();
+    
+    return () => {
+      cancelled = true;
+    };
+  }, [entity, eventType]);
 
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>

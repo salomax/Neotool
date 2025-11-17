@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import {
   FormControl,
   FormLabel,
@@ -105,14 +105,17 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
   const [leftCalendarMonth, setLeftCalendarMonth] = useState<Dayjs>(dayjs());
   const [rightCalendarMonth, setRightCalendarMonth] = useState<Dayjs>(dayjs().add(1, 'month'));
   const isSelectingDateRef = useRef(false);
+  const initializedRef = useRef(false);
   
   const isControlled = value !== undefined;
   const currentValue = isControlled ? value : internalValue;
-  const rangeValue = currentValue || { start: null, end: null };
+  const rangeValue = useMemo(() => currentValue || { start: null, end: null }, [currentValue]);
 
   // Initialize temp values and calendar months when dialog opens
   useEffect(() => {
-    if (open) {
+    if (open && !initializedRef.current) {
+      initializedRef.current = true;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Initializing dialog state on open
       setTempStart(rangeValue.start);
       setTempEnd(rangeValue.end);
       
@@ -142,6 +145,9 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
         setLeftCalendarMonth(now);
         setRightCalendarMonth(now.add(1, 'month'));
       }
+    } else if (!open) {
+      // Reset initialization flag when dialog closes
+      initializedRef.current = false;
     }
   }, [open, rangeValue.start, rangeValue.end]);
 
@@ -266,8 +272,8 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
   };
 
   const shouldDisableDate = useCallback((date: Dayjs) => {
-    const min = getMinDate();
-    const max = getMaxDate();
+    const min = minDate || (disablePast ? dayjs() : undefined);
+    const max = maxDate || (disableFuture ? dayjs() : undefined);
     
     if (min && date.isBefore(min, 'day')) return true;
     if (max && date.isAfter(max, 'day')) return true;
@@ -378,12 +384,11 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
           onClick={handleOpen}
           onFocus={handleOpen}
           disabled={disabled}
-          readOnly={readOnly}
           required={required}
           error={error || !!errorMessage}
           fullWidth
           InputProps={{
-            readOnly: true,
+            readOnly: readOnly ?? true,
             endAdornment: showCalendarIcon ? (
               <InputAdornment position="end">
                 <IconButton
@@ -438,7 +443,6 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
                   shouldDisableDate={shouldDisableDate}
                   disablePast={disablePast}
                   disableFuture={disableFuture}
-                  defaultCalendarMonth={leftCalendarMonth}
                   onMonthChange={(newMonth) => {
                     // Only update month when user manually navigates, not when selecting dates
                     // DateRangeCalendar behavior: keep calendars adjacent
@@ -483,7 +487,6 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
                   shouldDisableDate={shouldDisableDate}
                   disablePast={disablePast}
                   disableFuture={disableFuture}
-                  defaultCalendarMonth={rightCalendarMonth}
                   onMonthChange={(newMonth) => {
                     // Only update month when user manually navigates, not when selecting dates
                     // DateRangeCalendar behavior: keep calendars adjacent

@@ -1,5 +1,5 @@
 {
-  "name": "neotool-web",
+  "name": "procureflow-web",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -29,9 +29,9 @@
     "psi:desktop": "psi http://localhost:3000 --strategy=desktop",
     "sitemap": "next-sitemap",
     "postbuild": "next-sitemap",
-    "codegen": "graphql-codegen --config codegen.ts",
+    "codegen": "graphql-codegen --config codegen.ts && node scripts/fix-generated-types.mjs",
     "codegen:watch": "graphql-codegen --config codegen.ts --watch",
-    "postinstall": "graphql-codegen --config codegen.ts",
+    "postinstall": "node scripts/postinstall.mjs",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug"
@@ -104,6 +104,7 @@
     "@vitest/coverage-v8": "^1.6.0",
     "autoprefixer": "^10.4.21",
     "eslint": "^9.35.0",
+    "eslint-config-next": "^16.0.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-jest-dom": "^5.5.0",
