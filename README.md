@@ -524,11 +524,12 @@ pnpm run ci:unit
 - [ ] Security part 3 (Permission management: RBAC and ABAC)
 - [ ] Audit trail
 
-### Examples
+### Examples / Built-in features
 - [ ] Batch job example (Scheduled tasks (cron-like))
 - [ ] Messaging example with Kafka
 - [ ] Redis cache
 - [ ] Webhook example
+- [ ] AI Chat
 
 ### Spec
 - [ ] Service monitoring Dashboards 
