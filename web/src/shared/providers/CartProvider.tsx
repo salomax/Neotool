@@ -31,7 +31,7 @@ type CartProviderProps = {
   children: React.ReactNode;
 };
 
-const CART_STORAGE_KEY = "procureflow_cart";
+const CART_STORAGE_KEY = "neotool_cart";
 const MAX_QUANTITY = 9999;
 const MIN_QUANTITY = 1;
 

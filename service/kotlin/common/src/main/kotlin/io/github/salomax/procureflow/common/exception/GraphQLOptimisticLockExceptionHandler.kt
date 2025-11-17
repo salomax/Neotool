@@ -1,4 +1,4 @@
-package io.github.salomax.procureflow.common.exception
+package io.github.salomax.neotool.common.exception
 
 import graphql.GraphQLError
 import graphql.execution.DataFetcherExceptionHandler

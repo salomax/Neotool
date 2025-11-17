@@ -1,4 +1,4 @@
-package io.github.salomax.procureflow.common.test.integration
+package io.github.salomax.neotool.common.test.integration
 
 import io.micronaut.context.env.yaml.YamlPropertySourceLoader
 import io.micronaut.core.io.scan.ClassPathResourceLoader

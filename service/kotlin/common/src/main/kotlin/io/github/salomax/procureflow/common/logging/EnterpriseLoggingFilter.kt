@@ -1,4 +1,4 @@
-package io.github.salomax.procureflow.common.logging
+package io.github.salomax.neotool.common.logging
 
 import io.micronaut.http.HttpRequest
 import io.micronaut.http.HttpResponse

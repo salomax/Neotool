@@ -1,4 +1,4 @@
-package io.github.salomax.procureflow.common.metrics
+package io.github.salomax.neotool.common.metrics
 
 import graphql.ExecutionResult
 import graphql.execution.instrumentation.InstrumentationContext

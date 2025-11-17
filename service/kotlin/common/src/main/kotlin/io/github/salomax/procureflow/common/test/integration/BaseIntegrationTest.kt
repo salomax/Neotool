@@ -1,4 +1,4 @@
-package io.github.salomax.procureflow.common.test.integration
+package io.github.salomax.neotool.common.test.integration
 
 import io.micronaut.context.ApplicationContext
 import io.micronaut.http.client.HttpClient

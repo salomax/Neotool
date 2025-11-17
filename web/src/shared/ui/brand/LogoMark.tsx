@@ -19,13 +19,13 @@ export function LogoMark({
   ...props 
 }: LogoMarkProps) {
   const logoSrc = variant === 'white' 
-    ? '/images/logos/procureflow-logo-white.svg'
-    : '/images/logos/procureflow-logo-blue.svg';
+    ? '/images/logos/neotool-logo-white.svg'
+    : '/images/logos/neotool-logo-blue.svg';
 
   return (
     <Image
       src={logoSrc}
-      alt="ProcureFlow"
+      alt="neotool"
       width={width}
       height={height}
       className={className}

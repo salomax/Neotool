@@ -322,7 +322,7 @@ Create test data builders for consistent test data across all tests in a module.
 
 #### Location
 
-`service/kotlin/[module]/src/test/kotlin/io/github/salomax/procureflow/[module]/test/[Module]TestDataBuilders.kt`
+`service/kotlin/[module]/src/test/kotlin/io/github/salomax/neotool/[module]/test/[Module]TestDataBuilders.kt`
 
 #### Structure
 

@@ -1,4 +1,4 @@
-package io.github.salomax.procureflow.common.logging
+package io.github.salomax.neotool.common.logging
 
 import io.micronaut.aop.MethodInterceptor
 import io.micronaut.aop.MethodInvocationContext

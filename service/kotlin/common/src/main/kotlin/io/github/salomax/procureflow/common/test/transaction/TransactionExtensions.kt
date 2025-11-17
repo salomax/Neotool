@@ -1,4 +1,4 @@
-package io.github.salomax.procureflow.common.test.transaction
+package io.github.salomax.neotool.common.test.transaction
 
 import jakarta.persistence.EntityManager
 import org.hibernate.Session

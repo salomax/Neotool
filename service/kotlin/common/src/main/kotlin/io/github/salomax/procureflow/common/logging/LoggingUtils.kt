@@ -1,4 +1,4 @@
-package io.github.salomax.procureflow.common.logging
+package io.github.salomax.neotool.common.logging
 
 import mu.KotlinLogging
 import org.slf4j.MDC

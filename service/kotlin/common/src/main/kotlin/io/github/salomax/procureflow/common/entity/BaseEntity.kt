@@ -1,4 +1,4 @@
-package io.github.salomax.procureflow.common.entity
+package io.github.salomax.neotool.common.entity
 
 /**
  * Base entity class that provides common functionality for all entities.

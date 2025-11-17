@@ -1,10 +1,10 @@
-package io.github.salomax.procureflow.common.graphql
+package io.github.salomax.neotool.common.graphql
 
 import graphql.schema.DataFetcher
 import graphql.schema.DataFetchingEnvironment
-import io.github.salomax.procureflow.common.graphql.payload.GraphQLPayload
-import io.github.salomax.procureflow.common.graphql.payload.SuccessPayload
-import io.github.salomax.procureflow.common.graphql.payload.GraphQLError
+import io.github.salomax.neotool.common.graphql.payload.GraphQLPayload
+import io.github.salomax.neotool.common.graphql.payload.SuccessPayload
+import io.github.salomax.neotool.common.graphql.payload.GraphQLError
 
 /**
  * Utility functions for creating data fetchers that work with GraphQL payloads
