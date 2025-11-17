@@ -1,4 +1,4 @@
-package io.github.salomax.procureflow.common.graphql
+package io.github.salomax.neotool.common.graphql
 
 import io.micronaut.serde.annotation.Serdeable
 import io.micronaut.core.annotation.Introspected

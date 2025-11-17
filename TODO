@@ -10,12 +10,12 @@
     ```yaml
     postgres:
       image: postgres:18rc1
-      container_name: procureflow-postgres
+      container_name: neotool-postgres
       restart: unless-stopped
       environment:
-        POSTGRES_USER: ${POSTGRES_USER:-procureflow}
-        POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-procureflow}
-        POSTGRES_DB: ${POSTGRES_DB:-procureflow_db}
+        POSTGRES_USER: ${POSTGRES_USER:-neotool}
+        POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-neotool}
+        POSTGRES_DB: ${POSTGRES_DB:-neotool_db}
       volumes:
         - pgdata:/var/lib/postgresql/data
       networks:
@@ -29,21 +29,21 @@
   - [ ] Update pgbouncer.ini file with database name, user name, password, etc.
   - [ ] Change pgbouncer datasource connection on services:
     ```yaml
-    username: ${POSTGRES_USER:procureflow}
-    password: ${POSTGRES_PASSWORD:procureflow}
+    username: ${POSTGRES_USER:neotool}
+    password: ${POSTGRES_PASSWORD:neotool}
     ```
 
 ## Backend/Service
 
 - [ ] Fix package names and folder structure on service
-  - Package: `io.github.salomax.procureflow.security`
+  - Package: `io.github.salomax.neotool.security`
   - See Application.kt:
     ```kotlin
     object Application {
         @JvmStatic
         fun main(args: Array<String>) {
             build(*args)
-                .packages("io.github.salomax.procureflow.security")
+                .packages("io.github.salomax.neotool.security")
                 .start()
         }
     }
@@ -64,10 +64,10 @@
   ```yaml
   logging:
     level:
-      io.github.salomax.procureflow: DEBUG
+      io.github.salomax.neotool: DEBUG
       io.micronaut.transaction: DEBUG
   ```
-- [ ] Remove package `io.github.salomax.procureflow.common.example.test` (during the init)
+- [ ] Remove package `io.github.salomax.neotool.common.example.test` (during the init)
 - [ ] Fix/Improve GraphQL structure (wasn't created properly)
 - [ ] Fix test suffix (CatalogItemServiceTest > CatalogItemServiceIntegrationTest)
 - [ ] Add unit tests
@@ -81,7 +81,7 @@
 - [ ] Fix supergraph wrong port to app 8080
 - [ ] Fix MDCFilter reference:
   ```xml
-  <filter class="io.github.salomax.procureflow.common.logging.MDCFilter" />
+  <filter class="io.github.salomax.neotool.common.logging.MDCFilter" />
   ```
 
 ## Frontend

@@ -1,10 +1,10 @@
-package io.github.salomax.procureflow.common.graphql
+package io.github.salomax.neotool.common.graphql
 
 import graphql.schema.DataFetchingEnvironment
 import jakarta.validation.ConstraintViolationException
 import jakarta.validation.Validator
-import io.github.salomax.procureflow.common.graphql.payload.GraphQLPayload
-import io.github.salomax.procureflow.common.graphql.payload.GraphQLPayloadFactory
+import io.github.salomax.neotool.common.graphql.payload.GraphQLPayload
+import io.github.salomax.neotool.common.graphql.payload.GraphQLPayloadFactory
 import io.micronaut.http.server.exceptions.NotFoundException
 import java.util.*
 

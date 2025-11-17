@@ -1,4 +1,4 @@
-package io.github.salomax.procureflow.common.logging
+package io.github.salomax.neotool.common.logging
 
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.filter.Filter

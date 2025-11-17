@@ -1,4 +1,4 @@
-package io.github.salomax.procureflow.common.test.json
+package io.github.salomax.neotool.common.test.json
 
 import io.micronaut.core.type.Argument
 import io.micronaut.http.HttpResponse

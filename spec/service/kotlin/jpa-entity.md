@@ -270,7 +270,7 @@ All database objects must be organized into PostgreSQL schemas according to thei
 ```yaml
 datasources:
   default:
-    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:procureflow_db}
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:neotool_db}
     driverClassName: org.postgresql.Driver
     username: ${POSTGRES_USER:neotool}
     password: ${POSTGRES_PASSWORD:neotool}

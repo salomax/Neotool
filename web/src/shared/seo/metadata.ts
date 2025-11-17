@@ -1,18 +1,18 @@
 import type { Metadata } from 'next';
 
 const baseMetadata: Metadata = {
-  title: { default: 'ProcureFlow', template: '%s • ProcureFlow' },
-  description: 'ProcureFlow Web App',
-  applicationName: 'ProcureFlow',
+  title: { default: 'neotool', template: '%s • neotool' },
+  description: 'neotool Web App',
+  applicationName: 'neotool',
   openGraph: {
-    title: 'ProcureFlow',
-    description: 'ProcureFlow Web App',
+    title: 'neotool',
+    description: 'neotool Web App',
     url: '/',
-    siteName: 'ProcureFlow',
+    siteName: 'neotool',
     locale: 'pt_BR',
     type: 'website',
   },
-  twitter: { card: 'summary_large_image', title: 'ProcureFlow', description: 'ProcureFlow Web App' },
+  twitter: { card: 'summary_large_image', title: 'neotool', description: 'neotool Web App' },
   icons: {
     icon: [
       { url: '/favicon.ico' },

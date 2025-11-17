@@ -23,7 +23,7 @@ This document defines the best practices for organizing the `web/src/` directory
 ```
 web/src/
 ├── app/                          # Next.js App Router (pages & layouts)
-│   ├── (procureflow)/               # Route group (doesn't affect URL)
+│   ├── (neotool)/               # Route group (doesn't affect URL)
 │   │   ├── dashboard/           # Dashboard pages
 │   │   ├── examples/            # Example pages
 │   │   ├── documentation/       # Documentation pages
@@ -109,7 +109,7 @@ web/src/
 ### `app/` Directory (Next.js App Router)
 ```
 app/
-├── (procureflow)/                 # Route group (doesn't affect URL)
+├── (neotool)/                 # Route group (doesn't affect URL)
 │   ├── dashboard/             # Dashboard pages
 │   ├── examples/              # Example pages
 │   │   ├── customers/         # Customer examples

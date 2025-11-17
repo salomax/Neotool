@@ -1,4 +1,4 @@
-package io.github.salomax.procureflow.common.util
+package io.github.salomax.neotool.common.util
 
 import java.util.UUID
 

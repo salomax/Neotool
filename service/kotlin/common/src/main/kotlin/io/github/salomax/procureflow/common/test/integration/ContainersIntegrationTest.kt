@@ -1,4 +1,4 @@
-package io.github.salomax.procureflow.common.test.integration
+package io.github.salomax.neotool.common.test.integration
 
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.containers.wait.strategy.Wait
@@ -17,9 +17,9 @@ interface MicronautPropsTestContainer {
 object PostgresTestContainer : MicronautPropsTestContainer {
 
   private val image = TestConfig.str("test.postgres.image", "postgres:18rc1-alpine")
-  private val databaseName = TestConfig.str("test.postgres.db", "procureflow_db")
-  private val username = TestConfig.str("test.postgres.user", "procureflow")
-  private val password = TestConfig.str("test.postgres.pass", "procureflow")
+  private val databaseName = TestConfig.str("test.postgres.db", "neotool_db")
+  private val username = TestConfig.str("test.postgres.user", "neotool")
+  private val password = TestConfig.str("test.postgres.pass", "neotool")
   private val reusable = TestConfig.bool("test.postgres.reuse", true)
   private val flywayEnabled = TestConfig.bool("test.postgres.flyway", true)
 

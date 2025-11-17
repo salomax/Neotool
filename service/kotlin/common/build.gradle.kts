@@ -10,7 +10,7 @@ micronaut {
     version("4.9.3")
     processing {
         incremental(true)
-        annotations("io.github.salomax.procureflow.common.*")
+        annotations("io.github.salomax.neotool.common.*")
     }
 }
 

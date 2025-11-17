@@ -1,4 +1,4 @@
-package io.github.salomax.procureflow.common.exception
+package io.github.salomax.neotool.common.exception
 
 import io.micronaut.context.annotation.Requires
 import io.micronaut.http.HttpRequest

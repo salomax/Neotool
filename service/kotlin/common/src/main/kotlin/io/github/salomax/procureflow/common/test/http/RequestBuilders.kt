@@ -1,4 +1,4 @@
-package io.github.salomax.procureflow.common.test.http
+package io.github.salomax.neotool.common.test.http
 
 import io.micronaut.http.HttpRequest
 import io.micronaut.http.MediaType

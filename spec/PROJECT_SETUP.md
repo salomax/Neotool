@@ -250,7 +250,7 @@ The rename script performs comprehensive replacements across the entire codebase
 - `settings.gradle.kts`
 
 ### Source Code
-- Kotlin package declarations (`packageio.github.salomax.procureflow.*`)
+- Kotlin package declarations (`packageio.github.salomax.neotool.*`)
 - Kotlin imports
 - TypeScript/JavaScript imports and references
 - Type definitions
@@ -268,8 +268,8 @@ The rename script performs comprehensive replacements across the entire codebase
 - Code comments and descriptions
 
 ### Files and Folders
-- Next.js route group folder: `(procureflow)` → `(<routeGroup>)`
-- Logo files: `procureflow-logo-*.svg` → `<logoName>-*.svg`
+- Next.js route group folder: `(neotool)` → `(<routeGroup>)`
+- Logo files: `neotool-logo-*.svg` → `<logoName>-*.svg`
 - Any files or folders containing "neotool" in their names
 
 ### URLs and References

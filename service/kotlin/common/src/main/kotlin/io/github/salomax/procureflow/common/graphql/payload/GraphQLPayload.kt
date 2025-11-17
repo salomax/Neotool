@@ -1,4 +1,4 @@
-package io.github.salomax.procureflow.common.graphql.payload
+package io.github.salomax.neotool.common.graphql.payload
 
 import jakarta.validation.ConstraintViolationException
 import java.util.*

@@ -1,4 +1,4 @@
-package io.github.salomax.procureflow.common.test.assertions
+package io.github.salomax.neotool.common.test.assertions
 
 import io.micronaut.http.HttpResponse
 import io.micronaut.http.HttpStatus

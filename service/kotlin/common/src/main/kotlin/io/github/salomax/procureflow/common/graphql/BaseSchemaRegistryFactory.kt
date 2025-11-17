@@ -1,4 +1,4 @@
-package io.github.salomax.procureflow.common.graphql
+package io.github.salomax.neotool.common.graphql
 
 import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.TypeDefinitionRegistry
