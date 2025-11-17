@@ -199,12 +199,17 @@ load_config() {
     # Detect current values first
     detect_current_config
     
+    # Detect old database password
+    OLD_DATABASE_USER="$OLD_PACKAGE_NAME"
+    detect_database_password
+    
     # Load new values
     NEW_DISPLAY_NAME=$(jq -r '.displayName' "$config_file")
     NEW_PACKAGE_NAME=$(jq -r '.packageName' "$config_file")
     NEW_PACKAGE_NAMESPACE=$(jq -r '.packageNamespace' "$config_file")
     NEW_DATABASE_NAME=$(jq -r '.databaseName' "$config_file")
     NEW_DATABASE_USER=$(jq -r '.databaseUser' "$config_file")
+    NEW_DATABASE_PASSWORD=$(jq -r '.databasePassword // "'"$NEW_DATABASE_USER"'"' "$config_file")
     NEW_SERVICE_NAME=$(jq -r '.serviceName' "$config_file")
     NEW_WEB_PACKAGE_NAME=$(jq -r '.webPackageName' "$config_file")
     NEW_DOCKER_IMAGE_PREFIX=$(jq -r '.dockerImagePrefix' "$config_file")
@@ -222,8 +227,77 @@ load_config() {
     log "  Display Name: $OLD_DISPLAY_NAME → $NEW_DISPLAY_NAME" "$CYAN"
     log "  Package Name: $OLD_PACKAGE_NAME → $NEW_PACKAGE_NAME" "$CYAN"
     log "  Namespace: $OLD_NAMESPACE → $NEW_PACKAGE_NAMESPACE" "$CYAN"
+    log "  Database: ${OLD_PACKAGE_NAME}_db → $NEW_DATABASE_NAME" "$CYAN"
+    log "  Database User: $OLD_DATABASE_USER → $NEW_DATABASE_USER" "$CYAN"
     log "  GitHub: $OLD_GITHUB_ORG/$OLD_GITHUB_REPO → $NEW_GITHUB_ORG/$NEW_GITHUB_REPO" "$CYAN"
     log ""
+}
+
+# Global dry-run flag
+DRY_RUN=false
+
+# Parse command line arguments
+parse_args() {
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --dry-run)
+                DRY_RUN=true
+                shift
+                ;;
+            *)
+                log_error "Unknown option: $1"
+                exit 1
+                ;;
+        esac
+    done
+}
+
+# Comprehensive search utility to find all references
+search_references() {
+    local search_term="$1"
+    local category="$2"
+    
+    log "Searching for $category references..." "$BLUE"
+    
+    local count=0
+    local files_found=()
+    
+    # Use find to locate files, excluding certain directories
+    while IFS= read -r file; do
+        if [[ -f "$file" ]]; then
+            local matches=$(grep -c "$search_term" "$file" 2>/dev/null || echo "0")
+            if [[ "$matches" -gt 0 ]]; then
+                files_found+=("$file ($matches matches)")
+                count=$((count + matches))
+            fi
+        fi
+    done < <(find "$PROJECT_ROOT" \
+        -type f \
+        ! -path "*/node_modules/*" \
+        ! -path "*/build/*" \
+        ! -path "*/.git/*" \
+        ! -path "*/coverage/*" \
+        ! -path "*/storybook-static/*" \
+        ! -path "*/gradle/*" \
+        ! -path "*/bin/*" \
+        ! -name "*.backup" \
+        ! -name "*.swp" \
+        ! -name "*.swo" \
+        ! -path "*/scripts/*" \
+        2>/dev/null)
+    
+    if [[ $count -gt 0 ]]; then
+        log "  Found $count references in ${#files_found[@]} files" "$CYAN"
+        if [[ "$DRY_RUN" == true ]] && [[ ${#files_found[@]} -le 10 ]]; then
+            for file_info in "${files_found[@]}"; do
+                log "    - $file_info" "$CYAN"
+            done
+        fi
+    else
+        log "  No references found" "$YELLOW"
+    fi
+    
+    return $count
 }
 
 # Check if renaming is needed
@@ -263,11 +337,41 @@ replace_in_files() {
     local pattern="$1"
     local replacement="$2"
     local description="$3"
+    local file_filter="${4:-}"  # Optional file filter pattern
     
-    log "Replacing $description..." "$BLUE"
+    if [[ "$DRY_RUN" == true ]]; then
+        log "[DRY-RUN] Would replace $description..." "$BLUE"
+    else
+        log "Replacing $description..." "$BLUE"
+    fi
+    
+    local files_modified=0
+    local search_path="$PROJECT_ROOT"
+    
+    # If file_filter is provided, use it to limit search
+    if [[ -n "$file_filter" ]]; then
+        search_path="$PROJECT_ROOT/$file_filter"
+    fi
     
     # Use find to locate files, excluding certain directories
-    find "$PROJECT_ROOT" \
+    while IFS= read -r file; do
+        if [[ -f "$file" ]] && grep -q "$pattern" "$file" 2>/dev/null; then
+            if [[ "$DRY_RUN" == true ]]; then
+                local match_count=$(grep -c "$pattern" "$file" 2>/dev/null || echo "0")
+                log "  [DRY-RUN] Would modify: $file ($match_count matches)" "$CYAN"
+            else
+                # Use sed for in-place replacement
+                if [[ "$OSTYPE" == "darwin"* ]]; then
+                    # macOS requires empty string after -i
+                    sed -i '' "s|$pattern|$replacement|g" "$file"
+                else
+                    # Linux
+                    sed -i "s|$pattern|$replacement|g" "$file"
+                fi
+            fi
+            files_modified=$((files_modified + 1))
+        fi
+    done < <(find "$search_path" \
         -type f \
         ! -path "*/node_modules/*" \
         ! -path "*/build/*" \
@@ -280,18 +384,312 @@ replace_in_files() {
         ! -name "*.swp" \
         ! -name "*.swo" \
         ! -path "*/scripts/*" \
-        -exec grep -l "$pattern" {} + 2>/dev/null | while read -r file; do
-            # Use sed for in-place replacement
-            if [[ "$OSTYPE" == "darwin"* ]]; then
-                # macOS requires empty string after -i
-                sed -i '' "s|$pattern|$replacement|g" "$file"
-            else
-                # Linux
-                sed -i "s|$pattern|$replacement|g" "$file"
-            fi
-        done
+        2>/dev/null)
     
-    log "  ✓ $description replaced" "$GREEN"
+    if [[ "$DRY_RUN" == true ]]; then
+        log "  [DRY-RUN] Would modify $files_modified files" "$CYAN"
+    else
+        log "  ✓ $description replaced in $files_modified files" "$GREEN"
+    fi
+}
+
+# Replace in specific file
+replace_in_file() {
+    local file_path="$1"
+    local pattern="$2"
+    local replacement="$3"
+    local description="$4"
+    
+    if [[ ! -f "$file_path" ]]; then
+        return 0
+    fi
+    
+    if [[ "$DRY_RUN" == true ]]; then
+        if grep -q "$pattern" "$file_path" 2>/dev/null; then
+            log "  [DRY-RUN] Would modify: $file_path" "$CYAN"
+        fi
+    else
+        if grep -q "$pattern" "$file_path" 2>/dev/null; then
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                sed -i '' "s|$pattern|$replacement|g" "$file_path"
+            else
+                sed -i "s|$pattern|$replacement|g" "$file_path"
+            fi
+            log "  ✓ $description replaced in $file_path" "$GREEN"
+        fi
+    fi
+}
+
+# Detect old database password from pgbouncer userlist.txt
+detect_database_password() {
+    OLD_DATABASE_PASSWORD=""
+    local userlist_file="$PROJECT_ROOT/infra/pgbouncer/userlist.txt"
+    
+    if [[ -f "$userlist_file" ]]; then
+        # Extract password hash from userlist.txt format: "username" "md5hash"
+        local line=$(grep "\"$OLD_DATABASE_USER\"" "$userlist_file" 2>/dev/null | head -1)
+        if [[ -n "$line" ]]; then
+            # Extract the second quoted string (the password hash)
+            # Format: "username" "md5hash" -> extract md5hash
+            OLD_DATABASE_PASSWORD=$(echo "$line" | sed -E 's/.*"[^"]*"[[:space:]]+"([^"]*)".*/\1/')
+            # Remove md5 prefix if present (we'll add it back when generating)
+            OLD_DATABASE_PASSWORD="${OLD_DATABASE_PASSWORD#md5}"
+        fi
+    fi
+    
+    # If not found, try to detect from environment or use default
+    if [[ -z "$OLD_DATABASE_PASSWORD" ]]; then
+        OLD_DATABASE_PASSWORD="$OLD_DATABASE_USER"  # Default fallback
+    fi
+}
+
+# Generate new database password hash for pgbouncer
+generate_password_hash() {
+    local username="$1"
+    local password="$2"
+    # pgbouncer uses md5(username + password + username)
+    if command -v md5sum &> /dev/null; then
+        echo -n "${username}${password}${username}" | md5sum | cut -d' ' -f1
+    elif command -v md5 &> /dev/null; then
+        echo -n "${username}${password}${username}" | md5 | cut -d' ' -f1
+    else
+        log_error "Error: Neither md5sum nor md5 command found. Cannot generate password hash."
+        exit 1
+    fi
+}
+
+# Replace Docker container names and environment variables
+replace_docker_configs() {
+    log "\n📦 Replacing Docker configurations..." "$BRIGHT"
+    
+    # Replace container names (neotool-* -> NEW_PACKAGE_NAME-*)
+    replace_in_files "container_name: ${OLD_PACKAGE_NAME}-" "container_name: ${NEW_PACKAGE_NAME}-" "Docker container names" "infra/docker"
+    
+    # Replace environment variable defaults in docker-compose files
+    replace_in_files "POSTGRES_USER:-${OLD_DATABASE_USER}" "POSTGRES_USER:-${NEW_DATABASE_USER}" "PostgreSQL user defaults" "infra/docker"
+    replace_in_files "POSTGRES_PASSWORD:-${OLD_DATABASE_PASSWORD}" "POSTGRES_PASSWORD:-${NEW_DATABASE_PASSWORD}" "PostgreSQL password defaults" "infra/docker"
+    replace_in_files "POSTGRES_DB:-${OLD_PACKAGE_NAME}_db" "POSTGRES_DB:-${NEW_DATABASE_NAME}" "PostgreSQL database defaults" "infra/docker"
+    
+    # Replace DATA_SOURCE_NAME in postgres-exporter
+    replace_in_files "postgresql://\${POSTGRES_USER:-${OLD_DATABASE_USER}}:\${POSTGRES_PASSWORD:-${OLD_DATABASE_PASSWORD}}@pgbouncer:6432/\${POSTGRES_DB:-${OLD_PACKAGE_NAME}_db}" \
+        "postgresql://\${POSTGRES_USER:-${NEW_DATABASE_USER}}:\${POSTGRES_PASSWORD:-${NEW_DATABASE_PASSWORD}}@pgbouncer:6432/\${POSTGRES_DB:-${NEW_DATABASE_NAME}}" \
+        "PostgreSQL exporter data source" "infra/docker"
+}
+
+# Replace pgbouncer configurations
+replace_pgbouncer_configs() {
+    log "\n🗄️  Replacing pgbouncer configurations..." "$BRIGHT"
+    
+    local pgbouncer_ini="$PROJECT_ROOT/infra/pgbouncer/pgbouncer.ini"
+    local userlist_txt="$PROJECT_ROOT/infra/pgbouncer/userlist.txt"
+    
+    # Replace in pgbouncer.ini
+    if [[ -f "$pgbouncer_ini" ]]; then
+        # Replace database connection string
+        replace_in_file "$pgbouncer_ini" \
+            "${OLD_PACKAGE_NAME}_db = host=postgres port=5432 user=${OLD_DATABASE_USER} password=${OLD_DATABASE_PASSWORD} dbname=${OLD_PACKAGE_NAME}_db" \
+            "${NEW_DATABASE_NAME} = host=postgres port=5432 user=${NEW_DATABASE_USER} password=${NEW_DATABASE_PASSWORD} dbname=${NEW_DATABASE_NAME}" \
+            "pgbouncer database configuration"
+        
+        # Also handle if database name appears elsewhere in the file
+        replace_in_file "$pgbouncer_ini" "$OLD_PACKAGE_NAME"_db "$NEW_DATABASE_NAME" "database name in pgbouncer.ini"
+        replace_in_file "$pgbouncer_ini" "user=$OLD_DATABASE_USER" "user=$NEW_DATABASE_USER" "database user in pgbouncer.ini"
+        replace_in_file "$pgbouncer_ini" "password=$OLD_DATABASE_PASSWORD" "password=$NEW_DATABASE_PASSWORD" "database password in pgbouncer.ini"
+    fi
+    
+    # Replace in userlist.txt
+    if [[ -f "$userlist_txt" ]]; then
+        local new_password_hash=$(generate_password_hash "$NEW_DATABASE_USER" "$NEW_DATABASE_PASSWORD")
+        # Replace the username first, then the password hash
+        # Format: "username" "md5hash"
+        # We need to replace the entire line, so we'll use a more flexible approach
+        if [[ "$DRY_RUN" == true ]]; then
+            if grep -q "\"${OLD_DATABASE_USER}\"" "$userlist_txt" 2>/dev/null; then
+                log "  [DRY-RUN] Would replace user credentials in userlist.txt" "$CYAN"
+                log "    Old: \"${OLD_DATABASE_USER}\" \"md5...\"" "$CYAN"
+                log "    New: \"${NEW_DATABASE_USER}\" \"md5${new_password_hash}\"" "$CYAN"
+            fi
+        else
+            # Use sed to replace the entire line matching the old username
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                sed -i '' "s|\"${OLD_DATABASE_USER}\" \".*\"|\"${NEW_DATABASE_USER}\" \"md5${new_password_hash}\"|g" "$userlist_txt"
+            else
+                sed -i "s|\"${OLD_DATABASE_USER}\" \".*\"|\"${NEW_DATABASE_USER}\" \"md5${new_password_hash}\"|g" "$userlist_txt"
+            fi
+            log "  ✓ Replaced pgbouncer user credentials in userlist.txt" "$GREEN"
+        fi
+    fi
+}
+
+# Replace logback XML configurations
+replace_logback_configs() {
+    log "\n📋 Replacing logback configurations..." "$BRIGHT"
+    
+    # Find all logback XML files
+    find "$PROJECT_ROOT/service/kotlin" -name "logback*.xml" -type f 2>/dev/null | while read -r logback_file; do
+        # Replace MDCFilter class reference
+        replace_in_file "$logback_file" \
+            "io.github.salomax.${OLD_PACKAGE_NAME}.logging.MDCFilter" \
+            "${NEW_PACKAGE_NAMESPACE}.logging.MDCFilter" \
+            "MDCFilter class in logback"
+        
+        # Replace logger names
+        replace_in_file "$logback_file" \
+            "io.github.salomax.${OLD_PACKAGE_NAME}" \
+            "$NEW_PACKAGE_NAMESPACE" \
+            "logger names in logback"
+    done
+}
+
+# Replace application test configurations
+replace_application_test_configs() {
+    log "\n🧪 Replacing application test configurations..." "$BRIGHT"
+    
+    # Find all application-test.yml files
+    find "$PROJECT_ROOT/service/kotlin" -name "application-test.yml" -type f 2>/dev/null | while read -r test_config; do
+        # Replace service name
+        replace_in_file "$test_config" \
+            "name: ${OLD_PACKAGE_NAME}-service-test" \
+            "name: ${NEW_PACKAGE_NAME}-service-test" \
+            "service name in test config"
+        
+        # Replace logging level namespace
+        replace_in_file "$test_config" \
+            "io.github.salomax.${OLD_PACKAGE_NAME}:" \
+            "${NEW_PACKAGE_NAMESPACE}:" \
+            "logging namespace in test config"
+    done
+}
+
+# Replace GraphQL supergraph configurations
+replace_graphql_configs() {
+    log "\n🔗 Replacing GraphQL configurations..." "$BRIGHT"
+    
+    local supergraph_graphql="$PROJECT_ROOT/contracts/graphql/supergraph/supergraph.graphql"
+    local supergraph_yaml="$PROJECT_ROOT/contracts/graphql/supergraph/supergraph.yaml"
+    
+    # Replace in supergraph.graphql
+    if [[ -f "$supergraph_graphql" ]]; then
+        replace_in_file "$supergraph_graphql" \
+            "http://${OLD_PACKAGE_NAME}-app:8080/graphql" \
+            "http://${NEW_PACKAGE_NAME}-app:8080/graphql" \
+            "app service URL in supergraph.graphql"
+        
+        replace_in_file "$supergraph_graphql" \
+            "http://${OLD_PACKAGE_NAME}-security:8080/graphql" \
+            "http://${NEW_PACKAGE_NAME}-security:8080/graphql" \
+            "security service URL in supergraph.graphql"
+        
+        replace_in_file "$supergraph_graphql" \
+            "http://${OLD_PACKAGE_NAME}-assistant:8080/graphql" \
+            "http://${NEW_PACKAGE_NAME}-assistant:8080/graphql" \
+            "assistant service URL in supergraph.graphql"
+    fi
+    
+    # Replace in supergraph.yaml
+    if [[ -f "$supergraph_yaml" ]]; then
+        replace_in_file "$supergraph_yaml" \
+            "http://${OLD_PACKAGE_NAME}-api:8080/graphql" \
+            "http://${NEW_PACKAGE_NAME}-api:8080/graphql" \
+            "API routing URL in supergraph.yaml"
+    fi
+}
+
+# Replace frontend configurations
+replace_frontend_configs() {
+    log "\n🌐 Replacing frontend configurations..." "$BRIGHT"
+    
+    # Replace metadata in web/src/shared/seo/metadata.ts
+    local metadata_file="$PROJECT_ROOT/web/src/shared/seo/metadata.ts"
+    if [[ -f "$metadata_file" ]]; then
+        # Replace all lowercase neotool references
+        replace_in_file "$metadata_file" "'${OLD_PACKAGE_NAME}'" "'${NEW_PACKAGE_NAME}'" "app name in metadata"
+        replace_in_file "$metadata_file" "\"${OLD_PACKAGE_NAME}\"" "\"${NEW_PACKAGE_NAME}\"" "app name in metadata (double quotes)"
+    fi
+    
+    # Replace constants in web/src/shared/config/repo.constants.ts
+    local constants_file="$PROJECT_ROOT/web/src/shared/config/repo.constants.ts"
+    if [[ -f "$constants_file" ]]; then
+        replace_in_file "$constants_file" \
+            "github.com/${OLD_GITHUB_ORG}/${OLD_GITHUB_REPO}" \
+            "github.com/${NEW_GITHUB_ORG}/${NEW_GITHUB_REPO}" \
+            "GitHub URL in constants"
+        
+        replace_in_file "$constants_file" \
+            "\"${OLD_GITHUB_ORG}/${OLD_GITHUB_REPO}\"" \
+            "\"${NEW_GITHUB_ORG}/${NEW_GITHUB_REPO}\"" \
+            "GitHub repo in constants"
+        
+        replace_in_file "$constants_file" \
+            "\"${OLD_PACKAGE_NAME}\"" \
+            "\"${NEW_PACKAGE_NAME}\"" \
+            "repo name in constants"
+    fi
+    
+    # Replace storage keys (e.g., neotool_cart)
+    replace_in_files "${OLD_PACKAGE_NAME}_cart" "${NEW_PACKAGE_NAME}_cart" "storage keys" "web"
+    
+    # Replace logo references in Logo.tsx and LogoMark.tsx
+    local logo_file="$PROJECT_ROOT/web/src/shared/ui/brand/Logo.tsx"
+    local logomark_file="$PROJECT_ROOT/web/src/shared/ui/brand/LogoMark.tsx"
+    
+    if [[ -f "$logo_file" ]]; then
+        replace_in_file "$logo_file" \
+            "/images/logos/${OLD_PACKAGE_NAME}-logo" \
+            "/images/logos/${NEW_LOGO_NAME}" \
+            "logo paths in Logo.tsx"
+        
+        replace_in_file "$logo_file" \
+            "alt=\"${OLD_PACKAGE_NAME}\"" \
+            "alt=\"${NEW_PACKAGE_NAME}\"" \
+            "logo alt text in Logo.tsx"
+    fi
+    
+    if [[ -f "$logomark_file" ]]; then
+        replace_in_file "$logomark_file" \
+            "/images/logos/${OLD_PACKAGE_NAME}-logo" \
+            "/images/logos/${NEW_LOGO_NAME}" \
+            "logo paths in LogoMark.tsx"
+        
+        replace_in_file "$logomark_file" \
+            "alt=\"${OLD_PACKAGE_NAME}\"" \
+            "alt=\"${NEW_PACKAGE_NAME}\"" \
+            "logo alt text in LogoMark.tsx"
+    fi
+}
+
+# Replace Grafana dashboard configurations
+replace_grafana_configs() {
+    log "\n📊 Replacing Grafana configurations..." "$BRIGHT"
+    
+    # Replace database name in Grafana dashboard JSON files
+    find "$PROJECT_ROOT/infra/observability/grafana/dashboards" -name "*.json" -type f 2>/dev/null | while read -r dashboard_file; do
+        # Replace various database name patterns in Prometheus queries
+        replace_in_file "$dashboard_file" \
+            "datname=\"${OLD_PACKAGE_NAME}_db\"" \
+            "datname=\"${NEW_DATABASE_NAME}\"" \
+            "database name in Grafana dashboard"
+        
+        # Also replace without quotes (for JSON string values)
+        replace_in_file "$dashboard_file" \
+            "${OLD_PACKAGE_NAME}_db" \
+            "$NEW_DATABASE_NAME" \
+            "database name references in Grafana dashboard"
+    done
+    
+    # Replace dashboard folder names in provisioning config
+    local dashboard_yml="$PROJECT_ROOT/infra/observability/grafana/provisioning/dashboards/dashboard.yml"
+    if [[ -f "$dashboard_yml" ]]; then
+        replace_in_file "$dashboard_yml" \
+            "${OLD_PACKAGE_NAME}-dashboards" \
+            "${NEW_PACKAGE_NAME}-dashboards" \
+            "dashboard folder name"
+        
+        replace_in_file "$dashboard_yml" \
+            "folder: '${OLD_PACKAGE_NAME}'" \
+            "folder: '${NEW_PACKAGE_NAME}'" \
+            "dashboard folder"
+    fi
 }
 
 # Rename files and directories
@@ -303,11 +701,15 @@ rename_files() {
     local new_route_group="$PROJECT_ROOT/web/src/app/($NEW_ROUTE_GROUP)"
     
     if [[ -d "$old_route_group" ]] && [[ "$old_route_group" != "$new_route_group" ]]; then
-        mv "$old_route_group" "$new_route_group"
-        log "  ✓ Renamed route group: ($OLD_PACKAGE_NAME) → ($NEW_ROUTE_GROUP)" "$GREEN"
+        if [[ "$DRY_RUN" == true ]]; then
+            log "  [DRY-RUN] Would rename route group: ($OLD_PACKAGE_NAME) → ($NEW_ROUTE_GROUP)" "$CYAN"
+        else
+            mv "$old_route_group" "$new_route_group"
+            log "  ✓ Renamed route group: ($OLD_PACKAGE_NAME) → ($NEW_ROUTE_GROUP)" "$GREEN"
+        fi
     fi
     
-    # Rename logo files
+    # Rename logo files in design/assets/logos
     if [[ -d "$PROJECT_ROOT/design/assets/logos" ]]; then
         find "$PROJECT_ROOT/design/assets/logos" -type f \( -name "*${OLD_PACKAGE_NAME}-logo*" -o -name "*${OLD_PACKAGE_NAME}logo*" \) | while read -r file; do
             local dir=$(dirname "$file")
@@ -315,8 +717,30 @@ rename_files() {
             local new_basename="${basename//${OLD_PACKAGE_NAME}-logo/$NEW_LOGO_NAME}"
             new_basename="${new_basename//${OLD_PACKAGE_NAME}logo/${NEW_LOGO_NAME}}"
             if [[ "$basename" != "$new_basename" ]]; then
-                mv "$file" "$dir/$new_basename"
-                log "  ✓ Renamed: $basename → $new_basename" "$GREEN"
+                if [[ "$DRY_RUN" == true ]]; then
+                    log "  [DRY-RUN] Would rename: $basename → $new_basename" "$CYAN"
+                else
+                    mv "$file" "$dir/$new_basename"
+                    log "  ✓ Renamed: $basename → $new_basename" "$GREEN"
+                fi
+            fi
+        done
+    fi
+    
+    # Rename logo files in web/public/images/logos
+    if [[ -d "$PROJECT_ROOT/web/public/images/logos" ]]; then
+        find "$PROJECT_ROOT/web/public/images/logos" -type f \( -name "*${OLD_PACKAGE_NAME}-logo*" -o -name "*${OLD_PACKAGE_NAME}logo*" \) | while read -r file; do
+            local dir=$(dirname "$file")
+            local basename=$(basename "$file")
+            local new_basename="${basename//${OLD_PACKAGE_NAME}-logo/$NEW_LOGO_NAME}"
+            new_basename="${new_basename//${OLD_PACKAGE_NAME}logo/${NEW_LOGO_NAME}}"
+            if [[ "$basename" != "$new_basename" ]]; then
+                if [[ "$DRY_RUN" == true ]]; then
+                    log "  [DRY-RUN] Would rename: $basename → $new_basename" "$CYAN"
+                else
+                    mv "$file" "$dir/$new_basename"
+                    log "  ✓ Renamed: $basename → $new_basename" "$GREEN"
+                fi
             fi
         done
     fi
@@ -325,8 +749,12 @@ rename_files() {
     local old_workspace="$PROJECT_ROOT/${OLD_PACKAGE_NAME}.code-workspace"
     local new_workspace="$PROJECT_ROOT/$NEW_PACKAGE_NAME.code-workspace"
     if [[ -f "$old_workspace" ]] && [[ "$old_workspace" != "$new_workspace" ]]; then
-        mv "$old_workspace" "$new_workspace"
-        log "  ✓ Renamed workspace file" "$GREEN"
+        if [[ "$DRY_RUN" == true ]]; then
+            log "  [DRY-RUN] Would rename workspace file: $(basename "$old_workspace") → $(basename "$new_workspace")" "$CYAN"
+        else
+            mv "$old_workspace" "$new_workspace"
+            log "  ✓ Renamed workspace file" "$GREEN"
+        fi
     fi
     
     # Rename any other files/directories with the old package name in the name
@@ -351,8 +779,12 @@ rename_files() {
             local basename=$(basename "$item")
             local new_basename="${basename//${OLD_PACKAGE_NAME}/$NEW_PACKAGE_NAME}"
             if [[ "$basename" != "$new_basename" ]]; then
-                mv "$item" "$dir/$new_basename"
-                log "  ✓ Renamed: $basename → $new_basename" "$GREEN"
+                if [[ "$DRY_RUN" == true ]]; then
+                    log "  [DRY-RUN] Would rename: $basename → $new_basename" "$CYAN"
+                else
+                    mv "$item" "$dir/$new_basename"
+                    log "  ✓ Renamed: $basename → $new_basename" "$GREEN"
+                fi
             fi
         done
 }
@@ -360,6 +792,13 @@ rename_files() {
 # Main function
 main() {
     cd "$PROJECT_ROOT"
+    
+    # Parse command line arguments
+    parse_args "$@"
+    
+    if [[ "$DRY_RUN" == true ]]; then
+        log "\n🔍 Running in DRY-RUN mode (no files will be modified)\n" "$YELLOW"
+    fi
     
     log "\n🚀 Starting project setup...\n" "$BRIGHT"
     
@@ -374,14 +813,16 @@ main() {
         exit 0
     fi
     
-    # Confirm before proceeding
-    log "\n⚠️  This will rename all project references from '$OLD_PACKAGE_NAME' to '$NEW_PACKAGE_NAME'." "$YELLOW"
-    log "Make sure you have committed or backed up your changes before proceeding.\n" "$YELLOW"
-    log "Continue? (y/n) " "$YELLOW"
-    read -r response
-    if [[ ! "$response" =~ ^[Yy]$ ]]; then
-        log "Aborted by user." "$YELLOW"
-        exit 0
+    # Confirm before proceeding (skip in dry-run mode)
+    if [[ "$DRY_RUN" != true ]]; then
+        log "\n⚠️  This will rename all project references from '$OLD_PACKAGE_NAME' to '$NEW_PACKAGE_NAME'." "$YELLOW"
+        log "Make sure you have committed or backed up your changes before proceeding.\n" "$YELLOW"
+        log "Continue? (y/n) " "$YELLOW"
+        read -r response
+        if [[ ! "$response" =~ ^[Yy]$ ]]; then
+            log "Aborted by user." "$YELLOW"
+            exit 0
+        fi
     fi
     
     log "\n📝 Performing replacements...\n" "$BRIGHT"
@@ -390,6 +831,27 @@ main() {
     
     # Replace package namespaces (most specific - contains dots)
     replace_in_files "$OLD_NAMESPACE" "$NEW_PACKAGE_NAMESPACE" "package namespaces"
+    
+    # Replace Docker configurations
+    replace_docker_configs
+    
+    # Replace pgbouncer configurations
+    replace_pgbouncer_configs
+    
+    # Replace logback configurations
+    replace_logback_configs
+    
+    # Replace application test configurations
+    replace_application_test_configs
+    
+    # Replace GraphQL configurations
+    replace_graphql_configs
+    
+    # Replace frontend configurations
+    replace_frontend_configs
+    
+    # Replace Grafana configurations
+    replace_grafana_configs
     
     # Replace compound names (specific patterns)
     replace_in_files "${OLD_PACKAGE_NAME}-web" "$NEW_WEB_PACKAGE_NAME" "web package names"
@@ -441,12 +903,17 @@ main() {
     log "\n📁 Renaming files and directories...\n" "$BRIGHT"
     rename_files
     
-    log "\n✅ Project setup completed successfully!\n" "$BRIGHT"
-    log "Next steps:" "$CYAN"
-    log "  1. Review the changes: git diff" "$CYAN"
-    log "  2. Test your application to ensure everything works" "$CYAN"
-    log "  3. Commit the changes: git add . && git commit -m 'Setup project: rename from $OLD_PACKAGE_NAME to $NEW_PACKAGE_NAME'" "$CYAN"
-    log ""
+    if [[ "$DRY_RUN" == true ]]; then
+        log "\n✅ Dry-run completed! Review the changes above." "$BRIGHT"
+        log "Run without --dry-run to apply these changes.\n" "$CYAN"
+    else
+        log "\n✅ Project setup completed successfully!\n" "$BRIGHT"
+        log "Next steps:" "$CYAN"
+        log "  1. Review the changes: git diff" "$CYAN"
+        log "  2. Test your application to ensure everything works" "$CYAN"
+        log "  3. Commit the changes: git add . && git commit -m 'Setup project: rename from $OLD_PACKAGE_NAME to $NEW_PACKAGE_NAME'" "$CYAN"
+        log ""
+    fi
 }
 
 # Run main function

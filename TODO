@@ -2,7 +2,8 @@
 
 ## Infrastructure & Configuration
 
-- [ ] update Micronaut and Node
+- [ ] Create multiple schemas for flyway
+- [X] update Micronaut and Node
 - [ ] Spec optimization
 - [ ] Rename neotool name in all situations:
   - [ ] Container names
@@ -58,7 +59,6 @@
     ) : RuntimeException("GraphQL operation failed: ${errors.joinToString { it.message }}")
     ```
 - [ ] Fix SecurityGraphQLFactory
-- [ ] Create multiple schemas for flyway
 - [ ] Comment redis and kafka for while
 - [ ] Update application-test.yml:
   ```yaml
@@ -71,8 +71,8 @@
 - [ ] Fix/Improve GraphQL structure (wasn't created properly)
 - [ ] Fix test suffix (CatalogItemServiceTest > CatalogItemServiceIntegrationTest)
 - [ ] Add unit tests
-- [ ] Improve neotool graphql commands (sync, validate, generate)
-- [ ] Remove router dependencies:
+- [X] Improve neotool graphql commands (sync, validate, generate)
+- [X] Remove router dependencies:
   ```yaml
   depends_on:
     - app
@@ -94,7 +94,7 @@
   - [ ] On header, just keep: profile, toggle theme, and search input
 - [ ] Rename public/images/logos (wrong names)
 - [ ] Rename Grafana dashboards (like database name)
-- [ ] Fix codegen creating `mutations.generated.generated.generated.generated.ts`
+- [X] Fix codegen creating `mutations.generated.generated.generated.generated.ts`
 - [ ] Replace the name of the web app from neotool to xxx on metadata
 - [ ] Set `<PageLayout gap={2}>` as default for gap
 - [ ] Fix missing imports (sometimes like in the integration tests)
