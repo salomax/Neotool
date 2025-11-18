@@ -210,10 +210,14 @@ class AuthenticationServiceTest {
 
         @Test
         fun `should generate remember me token`() {
-            val token = authenticationService.generateRememberMeToken()
+            val user = SecurityTestDataBuilders.user(
+                id = UUID.randomUUID(),
+                email = "test@example.com"
+            )
+            val token = authenticationService.generateRefreshToken(user)
 
             assertThat(token).isNotBlank()
-            assertThat(token).contains("-")
+            assertThat(token.split(".")).hasSize(3) // JWT has 3 parts
         }
 
         @Test

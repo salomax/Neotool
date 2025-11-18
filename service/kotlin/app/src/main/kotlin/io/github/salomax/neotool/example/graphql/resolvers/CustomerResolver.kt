@@ -8,6 +8,7 @@ import io.github.salomax.neotool.common.graphql.GenericCrudResolver
 import io.github.salomax.neotool.common.graphql.CrudService
 import jakarta.inject.Singleton
 import jakarta.validation.Validator
+import mu.KotlinLogging
 import java.util.*
 
 /**
@@ -19,6 +20,7 @@ class CustomerResolver(
   override val validator: Validator
 ) : GenericCrudResolver<Customer, CustomerInputDTO, UUID>() {
 
+  private val logger = KotlinLogging.logger {}
   override val service: CrudService<Customer, UUID> = CustomerCrudService(customerService)
     
     override fun mapToInputDTO(input: Map<String, Any?>): CustomerInputDTO {
@@ -37,7 +39,7 @@ class CustomerResolver(
             null
         }
         
-        println("DEBUG: mapToEntity - id: $id, existingEntity: $existingEntity, version: ${existingEntity?.version}")
+        logger.debug { "mapToEntity - id: $id, existingEntity: $existingEntity, version: ${existingEntity?.version}" }
         
         return Customer(
             id = id,

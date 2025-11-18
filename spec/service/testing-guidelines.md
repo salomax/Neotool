@@ -572,7 +572,58 @@ fun `should return entity with correct name and status`() {
 }
 ```
 
-### 11. Use Test Tags
+### 11. Test All Conditional Branches
+
+For every conditional statement (if/when/switch/guard), ensure both branches are tested:
+
+```kotlin
+// Service method with conditional
+fun process(data: String?): Result {
+    if (data == null) {
+        return Result.error("Data is required")
+    }
+    return Result.success(processData(data))
+}
+
+// ✅ Good: Tests both branches
+@Test
+fun `should return error when data is null`() {
+    val result = service.process(null)
+    assertThat(result.isError).isTrue()
+    assertThat(result.message).isEqualTo("Data is required")
+}
+
+@Test
+fun `should process data when data is not null`() {
+    val result = service.process("valid data")
+    assertThat(result.isSuccess).isTrue()
+}
+```
+
+### 12. Assert on Behavior, Not Implementation
+
+Focus on what the code does (behavior), not how it does it (implementation):
+
+```kotlin
+// ✅ Good: Asserts on behavior/outcome
+@Test
+fun `should return 409 Conflict for optimistic locking violation`() {
+    val exception = assertThrows<HttpClientResponseException> {
+        service.updateWithStaleVersion(customer)
+    }
+    assertThat(exception.status).isEqualTo(HttpStatus.CONFLICT)
+}
+
+// ❌ Bad: Asserts on implementation details
+@Test
+fun `should throw StaleObjectStateException`() {
+    assertThrows<StaleObjectStateException> {
+        service.updateWithStaleVersion(customer)
+    }
+}
+```
+
+### 13. Use Test Tags
 
 Tag tests appropriately for selective execution:
 
@@ -587,9 +638,21 @@ class EntityIntegrationTest { }
 
 ### Minimum Coverage Targets
 
-- **Unit Tests**: 90%+ coverage for service classes
-- **Integration Tests**: All public service methods with database
-- **Critical Paths**: 100% coverage for business-critical operations
+- **Unit Tests**: 90%+ line coverage, 85%+ branch coverage for service classes
+- **Integration Tests**: 80%+ line coverage, 75%+ branch coverage
+- **Critical Paths**: 100% coverage (including branches) for business-critical operations
+
+### Branch Coverage Requirements
+
+**Critical**: All important conditional branches must be tested:
+
+- ✅ **Every if/when/switch/guard clause** must have tests for each branch
+- ✅ **Error paths** must be tested (happy path + all failure paths)
+- ✅ **Null/empty/invalid inputs** tested where applicable
+- ✅ **Time-related edge cases** (token expiration, clock skew, concurrent operations)
+- ✅ **Boundary conditions** (max/min values, limits, thresholds)
+- ✅ **Downstream service failures** (timeouts, errors, unexpected responses)
+- ✅ **Graceful failure behavior** (correct status codes, error types, logging)
 
 ### Coverage Areas
 
@@ -597,13 +660,15 @@ class EntityIntegrationTest { }
 - ✅ All public methods
 - ✅ All error paths
 - ✅ Edge cases (null, empty, invalid inputs)
-- ✅ Business logic branches
+- ✅ Business logic branches (if/when/switch/guard clauses)
+- ✅ Exception handling branches
 
 **Repository Integration:**
 - ✅ All CRUD operations
 - ✅ All query methods
 - ✅ Database constraint handling
 - ✅ Transaction boundaries
+- ✅ Optimistic locking conflicts
 
 ## Running Tests
 
@@ -617,8 +682,11 @@ cd service/kotlin
 # Run specific test class
 ./gradlew :[module]:test --tests [ServiceName]Test
 
-# Run with coverage
-./gradlew :[module]:test --tests [ServiceName]Test jacocoTestReport
+# Run with coverage (generates report)
+./gradlew :[module]:test :[module]:jacocoTestReport
+
+# Run with coverage and verify thresholds
+./gradlew :[module]:test :[module]:jacocoTestReport :[module]:jacocoTestCoverageVerification
 ```
 
 ### Integration Tests
@@ -633,6 +701,12 @@ cd service/kotlin
 
 # Run with specific tags
 ./gradlew :[module]:testIntegration --tests "*Integration*"
+
+# Run integration tests with coverage (generates report)
+./gradlew :[module]:testIntegration :[module]:jacocoIntegrationTestReport
+
+# Run integration tests with coverage and verify thresholds
+./gradlew :[module]:testIntegration :[module]:jacocoIntegrationTestReport :[module]:jacocoIntegrationTestCoverageVerification
 ```
 
 ### All Tests
@@ -644,7 +718,110 @@ cd service/kotlin
 
 # Run all tests across all modules
 ./gradlew test testIntegration
+
+# Run all tests with coverage and generate aggregated report
+./gradlew test testIntegration jacocoRootReport
 ```
+
+## Code Coverage
+
+### Coverage Configuration
+
+The project uses **JaCoCo** (Java Code Coverage) for measuring test coverage in Kotlin backend services.
+
+### Coverage Thresholds
+
+**Unit Tests**:
+- **Global minimum**: 90% line coverage, 85% branch coverage
+- **Security services**: 100% coverage (lines and branches) required for `io.github.salomax.neotool.security.service.*` packages
+- Coverage verification fails the build if thresholds are not met
+
+**Integration Tests**:
+- **Global minimum**: 80% line coverage, 75% branch coverage
+- Coverage verification fails the build if thresholds are not met
+
+### Coverage Reports
+
+Coverage reports are generated in multiple formats:
+- **HTML**: `build/reports/jacoco/test/html/index.html` (human-readable)
+- **XML**: `build/reports/jacoco/test/jacocoTestReport.xml` (for CI/CD tools)
+- **CSV**: `build/reports/jacoco/test/jacocoTestReport.csv` (for analysis)
+
+### Running Coverage
+
+**Unit Test Coverage**:
+```bash
+# Generate coverage report
+./gradlew :[module]:test :[module]:jacocoTestReport
+
+# Verify coverage thresholds (fails if below threshold)
+./gradlew :[module]:jacocoTestCoverageVerification
+```
+
+**Integration Test Coverage**:
+```bash
+# Generate coverage report
+./gradlew :[module]:testIntegration :[module]:jacocoIntegrationTestReport
+
+# Verify coverage thresholds (fails if below threshold)
+./gradlew :[module]:jacocoIntegrationTestCoverageVerification
+```
+
+**Aggregated Coverage Report** (all modules):
+```bash
+./gradlew jacocoRootReport
+# Report available at: build/reports/jacoco/root/html/index.html
+```
+
+### Coverage Exclusions
+
+The following are excluded from coverage calculations:
+- DTOs (`**/dto/**`)
+- Entities (`**/entity/**`, `**/model/**`)
+- Application main classes (`**/Application.class`, `**/ApplicationKt.class`)
+- Generated code (`**/*Mapper*.class`, `**/*Factory*.class`, `**/*Config*.class`)
+- Test utilities (`**/test/**`, `**/common/test/**`)
+
+### Branch Coverage Best Practices
+
+1. **Test All Conditional Branches**: For every `if`, `when`, `switch`, or guard clause, ensure tests cover both the true and false branches.
+
+2. **Test Exception Branches**: All catch blocks and exception handling paths should be tested.
+
+3. **Test Null/Empty Branches**: Test both null and non-null paths, empty and non-empty collections.
+
+4. **Test Boundary Conditions**: Test at boundaries (e.g., max/min values, empty strings, zero, negative numbers).
+
+5. **Test Error Paths**: Every error path should have a dedicated test that verifies:
+   - Correct exception type is thrown
+   - Correct error message is returned
+   - Correct HTTP status code is returned
+   - Appropriate logging occurs
+
+6. **Behavior-Focused Assertions**: Assert on behavior and outcomes, not implementation details:
+   ```kotlin
+   // ✅ Good: Asserts on behavior
+   assertThat(result).isNotNull()
+   assertThat(result.status).isEqualTo(HttpStatus.CONFLICT)
+   
+   // ❌ Bad: Asserts on implementation details
+   assertThat(result.exceptionType).isEqualTo("StaleObjectStateException")
+   ```
+
+### CI/CD Integration
+
+Coverage validation runs automatically in CI/CD pipelines:
+- **PR Preview**: Coverage is validated and reports are uploaded as artifacts
+- **Build Failure**: If coverage thresholds are not met, the build fails
+- **Reports**: Coverage reports are available as downloadable artifacts (30-day retention)
+
+### Per-Package Coverage Rules
+
+JaCoCo supports per-package coverage rules. Currently configured:
+- **Security services** (`io.github.salomax.neotool.security.service.*`): 100% coverage (lines and branches) required
+- **All other packages**: 90% line / 85% branch for unit tests, 80% line / 75% branch for integration tests
+
+To add more packages with 100% coverage requirement, update the `jacocoTestCoverageVerification` task in `service/kotlin/build.gradle.kts`.
 
 ## Module-Specific Considerations
 

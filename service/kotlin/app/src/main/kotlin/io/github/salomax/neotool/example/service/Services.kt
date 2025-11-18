@@ -90,7 +90,7 @@ open class CustomerService(
         if (customer != null) {
             logAuditData("SELECT_BY_ID", "CustomerService", id.toString())
             logger.debug { "Customer found: ${customer.name} (Email: ${customer.email}, Version: ${customer.version})" }
-            println("DEBUG: CustomerService.get - entity version: ${entity?.version}, customer version: ${customer.version}")
+            logger.debug { "CustomerService.get - entity version: ${entity?.version}, customer version: ${customer.version}" }
         } else {
             logAuditData("SELECT_BY_ID", "CustomerService", id.toString(), "result" to "NOT_FOUND")
             logger.debug { "Customer not found with ID: $id" }
@@ -110,7 +110,7 @@ open class CustomerService(
 
     @Transactional
     open fun update(customer: Customer): Customer {
-        println("DEBUG: CustomerService.update - customer: $customer, version: ${customer.version}")
+        logger.debug { "CustomerService.update - customer: $customer, version: ${customer.version}" }
         
         // Fetch the existing entity to preserve the version and other fields
         val existingEntity = repo.findById(customer.id!!).orElseThrow {
@@ -118,7 +118,7 @@ open class CustomerService(
             NotFoundException()
         }
         
-        println("DEBUG: CustomerService.update - existingEntity version: ${existingEntity.version}")
+        logger.debug { "CustomerService.update - existingEntity version: ${existingEntity.version}" }
         
         // Check if the version matches (optimistic locking)
         if (existingEntity.version != customer.version) {

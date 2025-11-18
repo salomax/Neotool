@@ -571,7 +571,7 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
             // Pass user ID directly - service method fetches fresh from DB, avoiding session conflicts
             val tokens = mutableListOf<String>()
             for (i in 1..5) {
-                val token = authenticationService.generateRememberMeToken()
+                val token = authenticationService.generateRefreshToken(savedUser)
                 authenticationService.saveRememberMeToken(userId, token)
                 tokens.add(token)
             }

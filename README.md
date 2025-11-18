@@ -460,16 +460,44 @@ cd service/kotlin
 ./gradlew :[module]:test --no-daemon
 ```
 
+**Unit Tests with Coverage** (generates JaCoCo reports and validates thresholds):
+```bash
+cd service/kotlin
+./gradlew :[module]:test :[module]:jacocoTestReport :[module]:jacocoTestCoverageVerification --no-daemon
+```
+
 **Integration Tests** (runs for each service except common):
 ```bash
 cd service/kotlin
 ./gradlew :[module]:testIntegration --no-daemon
 ```
 
-**Run all backend tests**:
+**Integration Tests with Coverage** (generates JaCoCo reports and validates thresholds):
 ```bash
 cd service/kotlin
-./gradlew test testIntegration --no-daemon
+./gradlew :[module]:testIntegration :[module]:jacocoIntegrationTestReport :[module]:jacocoIntegrationTestCoverageVerification --no-daemon
+```
+
+**Run all backend tests with coverage**:
+```bash
+cd service/kotlin
+./gradlew test testIntegration jacocoRootReport --no-daemon
+```
+
+**Coverage Thresholds**:
+- Unit Tests: 90% minimum coverage (full codebase)
+- Integration Tests: 80% minimum coverage (full codebase)
+- Security Services (`io.github.salomax.neotool.security.service.*`): 100% coverage required
+- **Incremental Coverage (PRs)**: 80% minimum for changed lines only (prevents paying past debt)
+- Coverage reports are generated in `build/reports/jacoco/` directory
+
+**Incremental Coverage for PRs**:
+For Pull Requests, coverage is checked only for lines changed in the PR, not the entire codebase. This prevents failing PRs due to existing low coverage:
+```bash
+# Check incremental coverage for a module
+./gradlew :[module]:jacocoIncrementalCoverageCheck \
+  -Pcoverage.baseBranch=main \
+  -Pcoverage.incrementalThreshold=80
 ```
 
 #### Frontend Validations
@@ -489,8 +517,15 @@ pnpm run test:watch
 
 # Tests with coverage
 pnpm run test:coverage
+```
 
-# All CI validations
+**Coverage Thresholds**:
+- Minimum 80% coverage required for branches, functions, lines, and statements
+- Coverage reports are generated in `web/coverage/` directory
+- CI/CD validates coverage thresholds and fails if not met
+
+**All CI validations**:
+```bash
 pnpm run ci:unit
 ```
 
@@ -506,7 +541,7 @@ pnpm run ci:unit
 ## 🧭 Roadmap
 
 ### Architecture/Infra
-- [ ] CI/CD
+- [ ] CI/CD (mock deployment)
 - [ ] FE and BE coverage tests (metrics and validation)
 - [ ] Logging (promtail, loki)
 - [ ] Log purge after a period of time
@@ -514,12 +549,14 @@ pnpm run ci:unit
 - [ ] Visual regression testing (cypress-image-diff)
 - [ ] MCP for AI agents
 - [ ] BI service
+- [ ] File storage abstraction
 - [ ] Monitoring alerts and SLO definitions
-- [ ] CDN integration
-- [ ] Enable K8s deploy via GitOps  
 - [ ] Feature flag service (unleash)
 - [ ] Vault service (HashiCorp)
-- [ ] File storage abstraction
+- [ ] Enable K8s deploy via GitOps  
+- [ ] Autoscaling test 
+- [ ] CDN integration
+
 
 ### Security
 - [ ] Security part 2 (User Managment and Oauth2/JWT/API])
