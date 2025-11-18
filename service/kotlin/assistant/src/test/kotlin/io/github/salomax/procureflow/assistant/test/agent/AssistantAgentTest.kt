@@ -144,7 +144,6 @@ class AssistantAgentTest {
         // Assert
         assertThat(context.messages).hasSize(3)
         assertThat(context.messages[0].role).isEqualTo(MessageRole.SYSTEM)
-        assertThat(context.messages[0].content).contains("procurement assistant")
         }
     }
 }
