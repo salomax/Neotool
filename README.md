@@ -544,7 +544,7 @@ pnpm run ci:unit
 - [ ] CI/CD (mock deployment)
 - [ ] FE and BE coverage tests (metrics and validation)
 - [ ] Logging (promtail, loki)
-- [ ] Log purge after a period of time
+- [ ] Purge after a period of time (logs and workflow ru on GH)
 - [ ] E2E tests with cypress (running on CI/CD and test the AuthN and AuthZ)
 - [ ] Visual regression testing (cypress-image-diff)
 - [ ] MCP for AI agents
