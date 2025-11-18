@@ -156,7 +156,7 @@ subprojects {
             dependsOn(testReport)
             
             val moduleName = project.name
-            val scriptPath = rootProject.file("service/kotlin/scripts/check-incremental-coverage.sh")
+            val scriptPath = rootProject.file("scripts/check-incremental-coverage.sh")
             val baseBranch = project.findProperty("coverage.baseBranch") as String? ?: "main"
             val threshold = project.findProperty("coverage.incrementalThreshold") as String? ?: "80"
             
