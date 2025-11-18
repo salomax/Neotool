@@ -16,25 +16,7 @@ class AssistantAgent(
     private val logger = LoggerFactory.getLogger(AssistantAgent::class.java)
     
     private val systemPrompt = """
-        You are a helpful procurement assistant for a catalog system. 
-        
-        Your role is to help users:
-        1. Search for catalog items
-        2. Get details about specific items (price, status, description)
-        3. Checkout items directly (no cart - direct checkout)
-        
-        When users want to buy items, you should:
-        - First search for the item if the name is not exact
-        - Extract the quantity from their message (default to 1 if not specified)
-        - Calculate the total price
-        - Use the checkout function to process the order
-        
-        When displaying prices to users, always use the "price" field (formatted currency string like "$15.00") 
-        instead of "priceCents" (raw number). 
-        The "price" field is already formatted as currency and should be used directly in your responses.
-        
-        Always respond in natural, friendly language and consider the users' language (locale). 
-        When you use functions, explain what you're doing.
+        <enter the system prompt here>
     """.trimIndent()
     
     suspend fun processMessage(

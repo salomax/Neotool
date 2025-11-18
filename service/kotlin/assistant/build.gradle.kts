@@ -53,6 +53,11 @@ tasks.test {
     environment("TESTCONTAINERS_RYUK_DISABLED", "true")
 }
 
+// Enable ZIP64 support for all JAR tasks to handle more than 65535 entries
+tasks.withType<Jar> {
+    isZip64 = true
+}
+
 // Task to run integration tests
 tasks.register<Test>("testIntegration") {
     group = "verification"

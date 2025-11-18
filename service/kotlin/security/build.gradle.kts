@@ -43,6 +43,11 @@ application {
   mainClass.set("io.github.salomax.neotool.security.Application")
 }
 
+// Enable ZIP64 support for all JAR tasks to handle more than 65535 entries
+tasks.withType<Jar> {
+    isZip64 = true
+}
+
 // Configure test task to disable Ryuk
 tasks.test {
     systemProperty("ryuk.disabled", "true")
