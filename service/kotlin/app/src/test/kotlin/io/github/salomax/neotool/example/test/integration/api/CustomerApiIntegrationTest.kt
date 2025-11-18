@@ -135,6 +135,53 @@ class CustomerApiIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
 
     @Test
     @Order(6)
+    fun `should handle optimistic locking version conflict`() {
+        // First create a customer
+        val customerInput = TestDataBuilders.customerInput(
+            name = "Optimistic Lock Test Customer",
+            email = "optimistic.lock@example.com",
+            status = "ACTIVE"
+        )
+
+        val createRequest = HttpRequest.POST("/api/customers", customerInput)
+        val createResponse = httpClient.exchangeAsString(createRequest)
+        createResponse
+          .shouldBeSuccessful()
+          .shouldBeJson()
+          .shouldHaveNonEmptyBody()
+
+        val customer = json.read<CustomerResponse>(createResponse)
+        val originalVersion = customer.version
+
+        // Update the customer to increment version
+        val updateInput1 = mapOf(
+            "name" to "First Update",
+            "email" to customer.email,
+            "status" to customer.status,
+            "version" to originalVersion
+        )
+        val updateRequest1 = HttpRequest.PUT("/api/customers/${customer.id}", updateInput1)
+        val updateResponse1 = httpClient.exchangeAsString(updateRequest1)
+        updateResponse1.shouldBeSuccessful()
+
+        // Try to update with stale version (should fail with 409 Conflict)
+        val staleUpdateInput = mapOf(
+            "name" to "Stale Update",
+            "email" to customer.email,
+            "status" to customer.status,
+            "version" to originalVersion // Using old version
+        )
+        val staleUpdateRequest = HttpRequest.PUT("/api/customers/${customer.id}", staleUpdateInput)
+        val exception = assertThrows<HttpClientResponseException> {
+          httpClient.exchangeAsString(staleUpdateRequest)
+        }
+
+        // Should return 409 Conflict for optimistic locking violation
+        assertThat(exception.status).isEqualTo(HttpStatus.CONFLICT)
+    }
+
+    @Test
+    @Order(7)
     fun `should delete customer`() {
         // First create a customer
         val customerInput = TestDataBuilders.customerInput(
@@ -158,7 +205,7 @@ class CustomerApiIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
     }
 
     @Test
-    @Order(7)
+    @Order(8)
     fun `should handle non-existent customer operations`() {
         // Try to get non-existent customer
         val getRequest = HttpRequest.GET<Any>("/api/customers/${UUID.randomUUID()}")
@@ -189,7 +236,7 @@ class CustomerApiIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
     }
 
     @Test
-    @Order(8)
+    @Order(9)
     fun `should handle duplicate email validation`() {
         val customerInput1 = TestDataBuilders.customerInput(
             name = "First Customer",

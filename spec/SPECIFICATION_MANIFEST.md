@@ -43,6 +43,7 @@
 | Database Schema | `service/database-schema-organization.md` | Database | database, schema, organization |
 | JPA Entities | `service/kotlin/jpa-entity.md` | Backend | jpa, entity, kotlin |
 | Virtual Threads | `service/kotlin/virtual-threads.md` | Backend | virtual-threads, java21, performance, concurrency |
+| Logging Best Practices | `service/kotlin/logging.md` | Backend | logging, slf4j, logback, best-practices, debugging |
 | Testing Guidelines | `service/testing-guidelines.md` | Testing | testing, unit-tests, integration-tests, best-practices |
 
 ### Web Frontend Documentation

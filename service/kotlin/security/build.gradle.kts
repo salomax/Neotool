@@ -86,3 +86,6 @@ tasks.register<Test>("testIntegration") {
         }
     }
 }
+
+// Integration test coverage is configured in the parent build.gradle.kts
+// This ensures consistent configuration across all modules with testIntegration task

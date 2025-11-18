@@ -14,13 +14,6 @@ class GraphQLSubscriptionNullTest {
         val jsonMapper = JsonMapper.createDefault()
         val jsonNode = jsonMapper.readValue(jsonString, JsonNode::class.java)
         
-        println("JSON String: $jsonString")
-        println("JsonNode: $jsonNode")
-        println("Data value: ${jsonNode["data"]}")
-        println("Data type: ${jsonNode["data"]?.javaClass}")
-        println("Is data null? ${jsonNode["data"] == null}")
-        println("Is data JsonNull? ${jsonNode["data"]?.isNull}")
-        
         val data = jsonNode["data"]
         
         // This is what the original test was checking (and failing)
