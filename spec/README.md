@@ -3,156 +3,179 @@ title: NeoTool Specification
 type: overview
 category: documentation
 status: current
-version: 1.0.0
-tags: [documentation, specification, neotool, overview]
+version: 2.0.0
+tags: [documentation, specification, neotool, overview, quick-start]
+ai_optimized: true
+search_keywords: [specification, overview, quick-start, introduction]
 related:
-  - ARCHITECTURE_OVERVIEW.md
-  - SPECIFICATION_MANIFEST.md
-  - GLOSSARY.md
-  - PROJECT_SETUP.md
+  - MANIFEST.md
+  - 00-core/architecture.md
 ---
 
 # NeoTool Specification
 
-> **Purpose**: This directory contains the complete NeoTool specification - the source of truth for architecture, design decisions, and implementation guidelines. Optimized for RAG indexing and AI IDE integration.
+> **Purpose**: Complete specification for the NeoTool platform - the source of truth for architecture, design decisions, and implementation guidelines. Optimized for Spec-Driven Development with AI tools.
 
-Welcome to the NeoTool specification hub. This directory contains all technical documentation, architecture decisions, and guides for the NeoTool platform.
+Welcome to the NeoTool specification hub. This directory contains all technical documentation, architecture decisions, patterns, templates, and guides for the NeoTool platform.
 
-## 🎯 Quick Navigation
+## Quick Navigation
 
-- **[Architecture Overview](./ARCHITECTURE_OVERVIEW.md)** - Start here for system understanding
-- **[Specification Manifest](./SPECIFICATION_MANIFEST.md)** - Complete index of all documents
-- **[Cursor Integration](./CURSOR_INTEGRATION.md)** - How to use this spec with Cursor AI
-- **[Glossary](./GLOSSARY.md)** - Terminology and definitions
-- **[Quick Reference](./QUICK_REFERENCE.md)** - Common commands and patterns
-- **[Project Setup](./PROJECT_SETUP.md)** - Getting started guide
+- **[Specification Manifest](./MANIFEST.md)** - Complete index of all documents
+- **[Architecture Overview](./00-core/architecture.md)** - Start here for system understanding
+- **[Technology Stack](./00-core/technology-stack.md)** - Technology choices and versions
+- **[Project Structure](./00-core/project-structure.md)** - Monorepo organization
+- **[Core Principles](./00-core/principles.md)** - Design philosophy
 
-## 📋 Specification Index
+## Specification Structure
 
-For a complete index of all documents, see the [Specification Manifest](./SPECIFICATION_MANIFEST.md).
+The specification is organized into numbered directories for clear hierarchy:
 
-## 📚 Documentation Structure
+```
+spec/
+├── 00-core/          # Core specification (architecture, tech stack, principles)
+├── 01-rules/         # Explicit rules (coding, architecture, API, database, testing, security)
+├── 02-definitions/   # Definitions & terminology (glossary, domain model, concepts)
+├── 03-patterns/      # Implementation patterns (backend, frontend, shared)
+├── 04-templates/     # Reusable templates (feature creation, AI prompts, code, documents)
+├── 05-examples/      # Concrete examples (backend, frontend, full-stack)
+├── 06-workflows/     # Development workflows (feature dev, code review, testing, deployment)
+├── 07-validation/    # Validation & checklists (feature, code review, PR)
+├── 08-adr/           # Architecture Decision Records
+└── 09-reference/     # Quick reference guides (commands, file structure, GraphQL, API)
+```
 
-### Architecture Decision Records (ADRs)
-- [`adr/`](./adr/) - Architecture Decision Records documenting key technical decisions
-- [`0001-monorepo-architecture.md`](./adr/0001-monorepo-architecture.md) - Monorepo structure and organization
-- [`0002-containerized-architecture.md`](./adr/0002-containerized-architecture.md) - Containerization strategy
-- [`0003-kotlin-micronaut-backend.md`](./adr/0003-kotlin-micronaut-backend.md) - Backend technology choices
-- [`0004-typescript-nextjs-frontend.md`](./adr/0004-typescript-nextjs-frontend.md) - Frontend technology choices
-- [`0005-postgresql-database.md`](./adr/0005-postgresql-database.md) - Database technology choices
-
-### Service Documentation
-- [`service/`](./service/) - Backend service documentation
-- [`service/graphql-federation-architecture.md`](./service/graphql-federation-architecture.md) - GraphQL Federation architecture and Apollo GraphOS integration
-- [`service/database-schema-organization.md`](./service/database-schema-organization.md) - Database schema organization rules and best practices
-- [`service/kotlin/`](./service/kotlin/) - Kotlin-specific documentation
-
-### Web Frontend Documentation
-- [`web/`](./web/) - Frontend-specific documentation
-- [`web/web-src-structure.md`](./web/web-src-structure.md) - Frontend directory structure and best practices
-- [`web/web-themes.md`](./web/web-themes.md) - Theme system guide (design tokens, customization, usage)
-- [`web/web-themes-quick-reference.md`](./web/web-themes-quick-reference.md) - Quick reference for theme values and patterns
-- [`web/web-graphql-operations.md`](./web/web-graphql-operations.md) - GraphQL operations in frontend
-- [`web/web-i18n-architecture.md`](./web/web-i18n-architecture.md) - Internationalization architecture and patterns
-- [`web/web-components.md`](./web/web-components.md) - Shared components design system and usage guide
-
-### Contracts Documentation
-- [`contracts/`](./contracts/) - API contracts and schemas
-- _Note: GraphQL Federation documentation is in [`service/graphql-federation-architecture.md`](./service/graphql-federation-architecture.md)_
-
-### Documentation Site
-- [`site/`](./site/) - Docusaurus documentation site
-- [`site/docs/`](./site/docs/) - Public-facing documentation
-- [`site/docusaurus.config.ts`](./site/docusaurus.config.ts) - Docusaurus configuration
-
-## 🚀 Quick Start
+## Quick Start
 
 ### For Developers
 
 **First Steps:**
-1. **Check system requirements:**
-   ```bash
-   ./neotool --version
-   ```
-   Verifies Node.js, Docker, and JVM installations.
+1. **Read the architecture**: Start with [Architecture Overview](./00-core/architecture.md)
+2. **Understand the tech stack**: Review [Technology Stack](./00-core/technology-stack.md)
+3. **Learn the patterns**: Explore [Patterns](./03-patterns/README.md)
+4. **See examples**: Check [Examples](./05-examples/README.md)
 
-2. **Set up your project:**
-   ```bash
-   # Edit project.config.json with your project details
-   ./neotool init
-   ```
-   This will rename the project and optionally clean up example code.
+**Creating a Feature:**
+1. **Fill the feature form**: Use [Feature Form](./04-templates/feature-creation/feature-form.md)
+2. **Follow the workflow**: See [Feature Development Workflow](./06-workflows/feature-development.md)
+3. **Use templates**: Reference [Templates](./04-templates/README.md)
+4. **Validate**: Complete [Feature Checklist](./07-validation/feature-checklist.md)
 
-3. **Continue with documentation:**
-   - Start with [Architecture Overview](./ARCHITECTURE_OVERVIEW.md) for system understanding
-   - **Using Cursor AI?** Check [Cursor Integration Guide](./CURSOR_INTEGRATION.md) to leverage the spec for AI-assisted development
-   - Review [Project Setup Guide](./PROJECT_SETUP.md) for detailed setup instructions
-   - Review [Architecture Decision Records](./adr/) for technical decisions
-   - Review [Backend Documentation](./service/) for service layer details
-   - Understand [GraphQL Federation Architecture](./service/graphql-federation-architecture.md)
-   - Check [Frontend Documentation](./web/) for frontend patterns
-   - Understand [Frontend Structure](./web/web-src-structure.md)
-   - Learn [Theme System](./web/web-themes.md) - Design tokens, theming, and customization
-   - Learn [Shared Components System](./web/web-components.md)
-   - Learn [i18n Architecture](./web/web-i18n-architecture.md)
-   - Review [GraphQL Operations](./web/web-graphql-operations.md)
+### For AI Assistants
 
-### Neotool CLI
+**When Creating Features:**
+1. **Read the feature form**: Process [Feature Form](./04-templates/feature-creation/feature-form.md)
+2. **Reference rules**: Check [Rules](./01-rules/README.md) for constraints
+3. **Follow patterns**: Use [Patterns](./03-patterns/README.md) for implementation
+4. **Use templates**: Apply [Templates](./04-templates/README.md) for structure
+5. **Reference examples**: See [Examples](./05-examples/README.md) for guidance
 
-The project includes a CLI tool for common tasks. See [Project Setup Guide](./PROJECT_SETUP.md#neotool-cli) for full documentation.
+**When Answering Questions:**
+1. **Check definitions**: Reference [Glossary](./02-definitions/glossary.md)
+2. **Find patterns**: Search [Patterns](./03-patterns/README.md)
+3. **Review rules**: Check [Rules](./01-rules/README.md)
+4. **See examples**: Look in [Examples](./05-examples/README.md)
 
-**Quick Reference:**
-```bash
-# Project Setup
-./neotool --version        # Check system requirements
-./neotool setup            # Setup project (rename from neotool)
-./neotool clean [--dry-run] # Clean up example code
-./neotool init             # Initialize project
+## Key Sections
 
-# GraphQL Schema Management
-./neotool graphql sync      # Interactive schema sync
-./neotool graphql validate  # Validate schema consistency
-./neotool graphql generate  # Generate supergraph schema
-./neotool graphql all       # Run complete workflow
+### Core Specification (00-core)
+- **Architecture**: System architecture overview
+- **Technology Stack**: Technology choices and versions
+- **Project Structure**: Monorepo organization
+- **Principles**: Core design principles
 
-# Help
-./neotool help             # Show help
-./neotool graphql --help   # Show GraphQL command help
+### Rules (01-rules)
+- **Coding Standards**: Code style, naming, conventions
+- **Architecture Rules**: Architecture constraints & patterns
+- **API Rules**: GraphQL, REST, API patterns
+- **Database Rules**: Database, schema, migration rules
+- **Testing Rules**: Testing requirements & patterns
+- **Security Rules**: Security & auth patterns
+
+### Definitions (02-definitions)
+- **Glossary**: Complete terminology reference
+- **Domain Model**: Domain entities & relationships
+- **Concepts**: Key concepts explained
+
+### Patterns (03-patterns)
+- **Backend Patterns**: Entity, repository, service, resolver, testing
+- **Frontend Patterns**: Component, page, hook, GraphQL, styling
+- **Shared Patterns**: GraphQL Federation, error handling
+
+### Templates (04-templates)
+- **Feature Creation**: Feature form, questionnaire, workflow
+- **AI Prompts**: Templates for AI-assisted development
+- **Code Templates**: Entity, resolver, component, test templates
+- **Document Templates**: Feature request, ADR, technical design
+
+### Examples (05-examples)
+- **Backend Examples**: CRUD, federation examples
+- **Frontend Examples**: Page, component examples
+- **Full-Stack Examples**: Complete feature examples
+
+### Workflows (06-workflows)
+- **Feature Development**: Step-by-step feature creation process
+- **Code Review**: Code review process
+- **Testing**: Testing workflow
+- **Deployment**: Deployment workflow
+
+### Validation (07-validation)
+- **Feature Checklist**: Feature completion checklist
+- **Code Review Checklist**: Code review checklist
+- **PR Checklist**: Pull request checklist
+- **Validation Scripts**: Validation script documentation
+
+### Architecture Decision Records (08-adr)
+- **ADR-0001**: Monorepo architecture
+- **ADR-0002**: Containerized architecture
+- **ADR-0003**: Kotlin/Micronaut backend
+- **ADR-0004**: TypeScript/Next.js frontend
+- **ADR-0005**: PostgreSQL database
+
+### Reference (09-reference)
+- **Commands**: CLI commands reference
+- **File Structure**: File structure reference
+- **GraphQL Schema**: GraphQL schema reference
+- **API Reference**: API reference
+
+## Feature Creation Flow
+
+The specification enables a streamlined feature creation process:
+
+1. **Fill Feature Form** → Simple human-readable form
+2. **AI Processes Form** → Generates questionnaire, documentation, plan
+3. **AI Uses Templates** → Generates code following patterns
+4. **Developer Validates** → Uses checklists
+5. **Review** → Uses code review checklist
+
+See [Feature Development Workflow](./06-workflows/feature-development.md) for details.
+
+## Document Format
+
+All documents follow a standard format with YAML frontmatter:
+
+```yaml
+---
+title: Document Title
+type: [core|rule|pattern|template|example|workflow|validation|adr|reference]
+category: [category-name]
+status: [current|deprecated|draft]
+version: 1.0.0
+tags: [tag1, tag2, tag3]
+related:
+  - path/to/related-doc.md
+ai_optimized: true
+search_keywords: [keyword1, keyword2]
+---
 ```
 
-### For DevOps
-1. Review [Containerization Strategy](./adr/0002-containerized-architecture.md)
-2. Check [Infrastructure Documentation](./infra/)
-3. Understand [Deployment Process](./adr/0002-containerized-architecture.md)
-
-## 📖 Documentation Standards
-
-### Writing Guidelines
-- Use clear, concise language
-- Include code examples where helpful
-- Follow markdown best practices
-- Include diagrams for complex concepts
-- Keep documentation up-to-date with code changes
-
-### File Organization
-- Group related documentation in appropriate directories
-- Use descriptive filenames
-- Include README files in each major directory
-- Cross-reference related documentation
-
-### Review Process
-- All documentation changes require review
-- Keep documentation in sync with code changes
-- Update documentation when making architectural changes
-- Include documentation updates in pull requests
-
-## 🔄 Contributing to Documentation
+## Contributing
 
 ### Adding New Documentation
 1. Create files in the appropriate directory
 2. Follow the established naming conventions
-3. Include proper cross-references
-4. Update this README if adding new sections
+3. Include proper YAML frontmatter
+4. Add cross-references to related documents
+5. Update [MANIFEST.md](./MANIFEST.md)
 
 ### Updating Existing Documentation
 1. Keep content current with code changes
@@ -160,13 +183,14 @@ The project includes a CLI tool for common tasks. See [Project Setup Guide](./PR
 3. Fix broken links and references
 4. Update version information as needed
 
-## 📞 Getting Help
+## Related Resources
 
-- **Technical Questions**: Check relevant ADRs and service documentation
-- **Design Questions**: Review design documentation and guidelines
-- **Process Questions**: Contact the development team
-- **Documentation Issues**: Create an issue or pull request
+- **Project Repository**: See root `README.md`
+- **CLI Tool**: `./neotool` for common tasks
+- **Contracts**: `contracts/` directory for GraphQL schemas
+- **Infrastructure**: `infra/` directory for deployment configs
 
 ---
 
-*This documentation follows enterprise best practices for technical documentation and is designed to scale with the NeoTool platform.*
+*This specification follows enterprise best practices for technical documentation and is designed to scale with the NeoTool platform. It is optimized for Spec-Driven Development with AI tools.*
+
