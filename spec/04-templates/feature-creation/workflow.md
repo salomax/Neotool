@@ -8,8 +8,11 @@ tags: [workflow, feature-development, process]
 ai_optimized: true
 search_keywords: [workflow, feature-development, process, steps]
 related:
-  - 04-templates/feature-creation/feature-form.md
-  - 04-templates/feature-creation/questionnaire.md
+  - 04-templates/ai-prompts/step-a-initial-feature-request.md
+  - 04-templates/ai-prompts/step-b-generate-form-and-feature-file.md
+  - 04-templates/ai-prompts/step-c-generate-implementation-plan.md
+  - 04-templates/ai-prompts/step-d-build-implementation.md
+  - 04-templates/ai-prompts/step-e-validate-implementation.md
   - 06-workflows/feature-development.md
 ---
 
@@ -19,153 +22,182 @@ related:
 
 ## Overview
 
-This workflow guides you through creating features from initial idea to implementation, using structured templates and AI assistance to ensure spec compliance and minimize review cycles.
+This workflow guides you through creating features from initial idea to implementation, using structured prompts and AI assistance to ensure spec compliance and minimize review cycles.
 
 ## Workflow Steps
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    STEP 1: DISCOVERY                        │
-│         Complete Feature Questionnaire                      │
-└──────────────────────┬──────────────────────────────────────┘
-                       │
-                       ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    STEP 2: FORM FILLING                     │
-│         Fill Feature Creation Form                          │
-└──────────────────────┬──────────────────────────────────────┘
-                       │
-                       ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    STEP 3: AI GENERATION                    │
-│         AI Generates Implementation Plan                    │
-└──────────────────────┬──────────────────────────────────────┘
-                       │
-                       ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    STEP 4: IMPLEMENTATION                   │
-│         Cursor AI Builds Feature                            │
-└──────────────────────┬──────────────────────────────────────┘
-                       │
-                       ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    STEP 5: VALIDATION                       │
-│         Complete Feature Checklist                          │
-│         Code Review                                         │
-│         Merge                                               │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    A[STEP A: INITIAL REQUEST<br/>Developer enters feature prompt<br/>with scenarios and rules] --> B[STEP B: GENERATE FORM & FEATURE FILE<br/>AI generates Feature Form<br/>+ feature file in docs/]
+    B --> B1[Manual Review]
+    B1 --> C[STEP C: GENERATE PLAN<br/>AI generates implementation plan<br/>from form + feature file + spec]
+    C --> C1[Manual Review]
+    C1 --> D[STEP D: BUILD IMPLEMENTATION<br/>AI builds complete feature<br/>following the plan]
+    D --> E[STEP E: VALIDATE<br/>AI runs checklist to ensure<br/>implementation follows rules]
+    
+    style A fill:#e1f5ff
+    style B fill:#fff4e1
+    style B1 fill:#ffe1e1
+    style C fill:#fff4e1
+    style C1 fill:#ffe1e1
+    style D fill:#e1f5ff
+    style E fill:#e1ffe1
 ```
 
-## Step 1: Discovery - Complete Feature Questionnaire
+## Step A: Initial Feature Request
 
 ### Purpose
-Discover and document all requirements for the feature through structured questions.
+Developer provides a simple feature request with scenarios and rules.
 
 ### Actions
-1. Copy the questionnaire template: `04-templates/feature-creation/questionnaire.md`
-2. Fill out the questionnaire
-3. Review for completeness
+1. Developer enters a prompt using the format from `04-templates/ai-prompts/step-a-initial-feature-request.md`
+2. Include:
+   - Feature name
+   - Scenarios (A, B, C, etc.)
+   - Rules (X, Y, Z, etc.)
+   - Any additional context
+
+### Example Prompt
+```
+Create feature signup. 
+
+The scenarios are:
+- User signs up with email and password
+- User signs up with Google OAuth
+- User signs up with invalid email format
+
+The rules are:
+- Email must be unique
+- Password must be at least 8 characters with uppercase, lowercase, number and special character
+- User must verify email before accessing the app
+```
 
 ### Output
-- ✅ Completed questionnaire
+- ✅ Feature request prompt ready for AI
 
 ### Next Step
-Proceed to Step 2: Fill feature form
+Proceed to Step B: AI generates Feature Form and feature file
 
-## Step 2: Form Filling - Fill Feature Creation Form
+## Step B: Generate Feature Form and Feature File
 
 ### Purpose
-Create detailed feature specification in structured format.
+AI generates both the Feature Form and the feature file in Gherkin format based on the initial request.
 
 ### Actions
-1. Copy the feature form: `04-templates/feature-creation/feature-form.md`
-2. Fill out the form with detailed requirements
-3. Reference the completed questionnaire
-4. Review for completeness
+1. AI uses prompt: `04-templates/ai-prompts/step-b-generate-form-and-feature-file.md`
+2. AI generates:
+   - Complete Feature Form following `04-templates/feature-creation/feature-form.md`
+   - Feature file in Gherkin format following pattern from `docs/features/authentication/signin.feature`
+3. AI saves feature file to: `docs/features/[category]/[feature-name].feature`
 
 ### Output
-- ✅ Completed feature form
+- ✅ Complete Feature Form
+- ✅ Feature file saved to `docs/features/[category]/[feature-name].feature`
 
 ### Next Step
-Proceed to Step 3: AI generation
+**Manual Review Required** → Proceed to Step C after approval
 
-## Step 3: AI Generation - Generate Implementation Plan
+## Step C: Generate Implementation Plan
 
 ### Purpose
-AI generates comprehensive implementation plan from the feature form.
+AI generates comprehensive implementation plan from Feature Form + feature file + spec after manual review.
 
 ### Actions
-1. Provide completed feature form to AI
-2. Use AI prompt: `04-templates/ai-prompts/generate-plan.md`
-3. AI generates implementation plan with:
-   - Complete artifact checklist
-   - Implementation phases
-   - Exact file paths
-   - Spec references
+1. After manual review of Step B output, AI uses prompt: `04-templates/ai-prompts/step-c-generate-implementation-plan.md`
+2. AI generates implementation plan with:
+   - Complete artifact checklist (all files, tests, schemas, migrations)
+   - Implementation phases in correct order (Backend → Schema/Types → Frontend → Integration)
+   - Exact file paths for all artifacts
+   - Spec references for each artifact
+   - Dependencies between artifacts
+   - Validation steps
 
 ### Output
-- ✅ Implementation plan
-- ✅ Artifact checklist
+- ✅ Complete implementation plan
+- ✅ Artifact checklist with checkboxes
+- ✅ Phase-by-phase breakdown
 
 ### Next Step
-Proceed to Step 4: Implementation
+**Manual Review Required** → Proceed to Step D after approval
 
-## Step 4: Implementation - Build Feature
+## Step D: Build Implementation
 
 ### Purpose
-Implement the feature following the approved plan using AI assistance.
+AI builds the complete feature implementation following the approved plan.
 
 ### Actions
-1. Use implementation plan as guide
-2. For each artifact, use appropriate AI prompts:
-   - Backend: `04-templates/ai-prompts/create-backend.md`
-   - Frontend: `04-templates/ai-prompts/create-frontend.md`
-3. Follow implementation phases:
-   - Phase 1: Backend (if applicable)
-   - Phase 2: Schema & Types
-   - Phase 3: Frontend (if applicable)
-   - Phase 4: Integration
-4. Check off artifacts as completed
+1. After manual review of Step C output, AI uses prompt: `04-templates/ai-prompts/step-d-build-implementation.md`
+2. AI implements all artifacts following the plan:
+   - Phase 1: Backend (migrations, entities, repositories, services, resolvers, schemas)
+   - Phase 2: Schema & Types (sync schema, generate TypeScript types)
+   - Phase 3: Frontend (GraphQL operations, components, pages, hooks, i18n)
+   - Phase 4: Testing (unit tests, integration tests, E2E tests)
+   - Phase 5: Observability (Grafana dashboard for business metrics)
+3. AI follows all spec patterns and rules
+4. AI runs schema sync and type generation after each phase
+
+### Testing Requirements (REQUIRED)
+- **Unit Tests**: 90%+ line coverage, 85%+ branch coverage, all conditional branches tested
+- **Integration Tests**: 80%+ line coverage, 75%+ branch coverage, all API endpoints tested
+- **E2E Tests**: All scenarios from feature file covered
+- See `spec/01-rules/testing-rules.md` for detailed requirements
+
+### Observability Requirements (REQUIRED)
+- **Grafana Dashboard**: Create dashboard for business metrics (if applicable)
+  - Location: `infra/observability/grafana/dashboards/{feature-name}-metrics.json`
+  - Track success/failure rates, latency percentiles, operation counts
+  - Use PromQL queries filtering by operation name and module
+- See `spec/01-rules/observability-rules.md` for detailed requirements
 
 ### Output
-- ✅ All artifacts implemented
+- ✅ All backend artifacts implemented
+- ✅ All frontend artifacts implemented
+- ✅ **Unit tests** created (90%+ coverage, all branches tested)
+- ✅ **Integration tests** created (80%+ coverage)
+- ✅ **E2E tests** created (all scenarios covered)
+- ✅ **Grafana dashboard** created (if applicable)
+- ✅ Schema synced to contracts
+- ✅ TypeScript types generated
 - ✅ All tests passing
-- ✅ Code follows spec patterns
 
 ### Next Step
-Proceed to Step 5: Validation
+Proceed to Step E: Validation
 
-## Step 5: Validation - Review & Merge
+## Step E: Validate Implementation
 
 ### Purpose
-Validate feature completeness and quality before merging.
+AI validates the implementation against all rules and checklists.
 
 ### Actions
-1. Complete feature checklist: `07-validation/feature-checklist.md`
-2. Run validation:
-   - Pre-commit hooks
-   - Linting
-   - Type checking
-   - Tests
-   - Schema validation
-3. Code review using: `07-validation/code-review-checklist.md`
-4. Address review feedback
-5. Merge
+1. AI uses prompt: `04-templates/ai-prompts/step-e-validate-implementation.md`
+2. AI runs validation:
+   - Feature Checklist (`07-validation/feature-checklist.md`)
+   - All rules from `spec/01-rules/`
+   - All patterns from `spec/03-patterns/`
+   - Verify implementation matches feature file
+   - Run automated validations (linting, type checking, tests, schema validation)
+   - Check for common issues
+3. AI generates validation report with:
+   - ✅ Passed checks
+   - ❌ Failed checks (with details and fixes)
+   - ⚠️ Warnings (with recommendations)
+   - 📝 Missing items
 
 ### Output
-- ✅ Feature checklist completed
-- ✅ All validations passing
-- ✅ Code review approved
-- ✅ Feature merged
+- ✅ Validation report
+- ✅ All checks passing (or list of issues to fix)
+
+### Next Step
+If validation passes → Feature complete. If issues found → Fix and re-validate.
 
 ## Quick Reference
 
-### Templates Used
-- Step 1: Feature Questionnaire
-- Step 2: Feature Form
-- Step 3: Generate Plan Prompt
-- Step 4: Backend/Frontend Feature Prompts
-- Step 5: Feature Checklist, Code Review Checklist
+### Prompts Used
+- Step A: `04-templates/ai-prompts/step-a-initial-feature-request.md` (Developer enters)
+- Step B: `04-templates/ai-prompts/step-b-generate-form-and-feature-file.md`
+- Step C: `04-templates/ai-prompts/step-c-generate-implementation-plan.md`
+- Step D: `04-templates/ai-prompts/step-d-build-implementation.md`
+- Step E: `04-templates/ai-prompts/step-e-validate-implementation.md`
 
 ### Key Commands
 ```bash
@@ -187,5 +219,9 @@ npm test
 
 - [Feature Development Workflow](../06-workflows/feature-development.md) - Detailed workflow
 - [Feature Form](./feature-form.md) - Feature form template
-- [Feature Questionnaire](./questionnaire.md) - Questionnaire template
+- [Step A Prompt](../ai-prompts/step-a-initial-feature-request.md) - Initial feature request prompt
+- [Step B Prompt](../ai-prompts/step-b-generate-form-and-feature-file.md) - Generate form and feature file
+- [Step C Prompt](../ai-prompts/step-c-generate-implementation-plan.md) - Generate implementation plan
+- [Step D Prompt](../ai-prompts/step-d-build-implementation.md) - Build implementation
+- [Step E Prompt](../ai-prompts/step-e-validate-implementation.md) - Validate implementation
 

@@ -49,7 +49,7 @@ open class AuthenticationService(
      * @param hash The stored Argon2id hash
      * @return true if password matches, false otherwise
      */
-    fun verifyPassword(password: String, hash: String): Boolean {
+    fun verifyPassword(password: String, hash: String?): Boolean {
         return try {
             Password.check(password, hash).withArgon2()
         } catch (e: Exception) {
@@ -216,6 +216,77 @@ open class AuthenticationService(
         }
         user.rememberMeToken = null
         return userRepository.save(user)
+    }
+
+    /**
+     * Validate password strength.
+     * 
+     * Password must be at least 8 characters with:
+     * - At least one uppercase letter
+     * - At least one lowercase letter
+     * - At least one number
+     * - At least one special character
+     * 
+     * @param password The password to validate
+     * @return true if password meets requirements, false otherwise
+     */
+    fun validatePasswordStrength(password: String): Boolean {
+        if (password.length < 8) {
+            return false
+        }
+        
+        val hasUppercase = password.any { it.isUpperCase() }
+        val hasLowercase = password.any { it.isLowerCase() }
+        val hasNumber = password.any { it.isDigit() }
+        val hasSpecialChar = password.any { !it.isLetterOrDigit() }
+        
+        return hasUppercase && hasLowercase && hasNumber && hasSpecialChar
+    }
+    
+    /**
+     * Register a new user with email and password.
+     * 
+     * Validates:
+     * - Email uniqueness
+     * - Email format (handled by DTO validation)
+     * - Password strength
+     * 
+     * @param name The user's display name
+     * @param email The user's email (must be unique)
+     * @param password The plain text password (will be hashed)
+     * @return UserEntity if registration succeeds
+     * @throws IllegalArgumentException if email already exists or password is invalid
+     */
+    @Transactional
+    open fun registerUser(name: String, email: String, password: String): UserEntity {
+        // Check if email already exists
+        val existingUser = userRepository.findByEmail(email)
+        if (existingUser != null) {
+            logger.warn { "Registration attempt with existing email: $email" }
+            throw IllegalArgumentException("Email already exists")
+        }
+        
+        // Validate password strength
+        if (!validatePasswordStrength(password)) {
+            logger.warn { "Registration attempt with weak password for email: $email" }
+            throw IllegalArgumentException("Password must be at least 8 characters with uppercase, lowercase, number and special character")
+        }
+        
+        // Hash password
+        val passwordHash = hashPassword(password)
+        
+        // Create user entity
+        val user = UserEntity(
+            email = email,
+            displayName = name,
+            passwordHash = passwordHash
+        )
+        
+        // Save user
+        val savedUser = userRepository.save(user)
+        
+        logger.info { "User registered successfully: $email" }
+        return savedUser
     }
 
     @Transactional

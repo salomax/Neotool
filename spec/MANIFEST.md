@@ -48,6 +48,7 @@ This specification is organized into numbered directories (00-09) for clear hier
 | Database Rules | `01-rules/database-rules.md` | rule | database | database, schema, migration |
 | Testing Rules | `01-rules/testing-rules.md` | rule | testing | testing, test-patterns, requirements |
 | Security Rules | `01-rules/security-rules.md` | rule | security | security, auth, authorization |
+| Observability Rules | `01-rules/observability-rules.md` | rule | observability | observability, metrics, logging, monitoring, prometheus, loki, grafana |
 
 ## Definitions (02-definitions)
 
@@ -102,10 +103,11 @@ This specification is organized into numbered directories (00-09) for clear hier
 
 | Document | Path | Type | Category | Keywords |
 |----------|------|------|----------|----------|
-| Create Feature | `04-templates/ai-prompts/create-feature.md` | template | ai-prompt | ai-prompt, feature-creation |
-| Create Backend | `04-templates/ai-prompts/create-backend.md` | template | ai-prompt | ai-prompt, backend |
-| Create Frontend | `04-templates/ai-prompts/create-frontend.md` | template | ai-prompt | ai-prompt, frontend |
-| Generate Plan | `04-templates/ai-prompts/generate-plan.md` | template | ai-prompt | ai-prompt, planning |
+| Step A: Initial Feature Request | `04-templates/ai-prompts/step-a-initial-feature-request.md` | template | ai-prompt | ai-prompt, feature-creation, initial-request |
+| Step B: Generate Form and Feature File | `04-templates/ai-prompts/step-b-generate-form-and-feature-file.md` | template | ai-prompt | ai-prompt, feature-creation, form-generation |
+| Step C: Generate Implementation Plan | `04-templates/ai-prompts/step-c-generate-implementation-plan.md` | template | ai-prompt | ai-prompt, planning, implementation-plan |
+| Step D: Build Implementation | `04-templates/ai-prompts/step-d-build-implementation.md` | template | ai-prompt | ai-prompt, implementation, feature-creation |
+| Step E: Validate Implementation | `04-templates/ai-prompts/step-e-validate-implementation.md` | template | ai-prompt | ai-prompt, validation, checklist |
 
 ### Code Templates
 

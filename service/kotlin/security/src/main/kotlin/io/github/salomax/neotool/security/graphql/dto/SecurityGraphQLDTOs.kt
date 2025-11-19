@@ -29,6 +29,26 @@ data class SignInPayloadDTO(
 
 @Introspected
 @Serdeable
+data class SignUpInputDTO(
+    @field:NotBlank(message = "Name is required")
+    var name: String = "",
+    @field:Email(message = "Email must be valid")
+    @field:NotBlank(message = "Email is required")
+    var email: String = "",
+    @field:NotBlank(message = "Password is required")
+    var password: String = ""
+) : BaseInputDTO()
+
+@Introspected
+@Serdeable
+data class SignUpPayloadDTO(
+    val token: String,
+    val refreshToken: String? = null,
+    val user: UserDTO
+)
+
+@Introspected
+@Serdeable
 data class UserDTO(
     val id: String,
     val email: String,

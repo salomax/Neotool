@@ -41,6 +41,20 @@ related:
 - [ ] TypeScript types generated and used
 - [ ] Tests written
 
+## Observability
+
+- [ ] Prometheus metrics endpoint enabled at `/prometheus` (spec/01-rules/observability-rules.md)
+- [ ] Micrometer Prometheus exporter configured in `application.yml`
+- [ ] Service registered in Prometheus scrape config (`infra/observability/prometheus/prometheus.yml`)
+- [ ] Loki appender configured in `logback-production.xml`
+- [ ] Structured JSON logging enabled with required fields
+- [ ] Service name and environment labels configured in logs
+- [ ] Grafana dashboard created or updated (`infra/observability/grafana/dashboards/{service-name}-metrics.json`)
+- [ ] Dashboard includes all required metric categories (JVM, HTTP, Database, Environment)
+- [ ] Metrics visible in Prometheus UI
+- [ ] Logs visible in Loki and queryable by service name
+- [ ] Dashboard panels display data correctly in Grafana
+
 ## Documentation
 
 - [ ] GraphQL schema documented

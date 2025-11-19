@@ -4,6 +4,7 @@ import io.github.salomax.neotool.example.test.TestDataBuilders
 import io.github.salomax.neotool.common.test.assertions.shouldHaveNonEmptyBody
 import io.github.salomax.neotool.common.test.assertions.shouldBeJson
 import io.github.salomax.neotool.common.test.assertions.shouldBeSuccessful
+import io.github.salomax.neotool.common.test.assertions.assertNoErrors
 import io.github.salomax.neotool.common.test.http.exchangeAsString
 import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
@@ -409,5 +410,81 @@ class GraphQLProductIntegrationTest : BaseIntegrationTest(), PostgresIntegration
         assertThat(errors)
           .describedAs("GraphQL errors must be present for non-existent product")
           .isNotNull()
+    }
+    
+    @Test
+    fun `should handle delete non-existent product`() {
+        // Arrange
+        val nonExistentId = UUID.randomUUID()
+        val mutation = TestDataBuilders.deleteProductMutation(nonExistentId.toString())
+        
+        val request = HttpRequest.POST("/graphql", mutation)
+            .contentType(MediaType.APPLICATION_JSON)
+        
+        // Act
+        val response = httpClient.exchangeAsString(request)
+        response.shouldBeSuccessful()
+        
+        // Assert - delete returns false for non-existent product (no errors, just false in data)
+        val payload: JsonNode = json.read<JsonNode>(response)
+        payload["errors"].assertNoErrors()
+        
+        val data = payload["data"]
+        assertThat(data).isNotNull()
+        val deleteResult = data["deleteProduct"]
+        assertThat(deleteResult.booleanValue)
+            .describedAs("Delete should return false for non-existent product")
+            .isFalse()
+    }
+    
+    @Test
+    fun `should handle update non-existent product`() {
+        // Arrange
+        val nonExistentId = UUID.randomUUID()
+        val mutation = TestDataBuilders.updateProductMutation(
+            id = nonExistentId.toString(),
+            name = uniqueName(),
+            sku = uniqueSku(),
+            priceCents = 1000L,
+            stock = 10
+        )
+        
+        val request = HttpRequest.POST("/graphql", mutation)
+            .contentType(MediaType.APPLICATION_JSON)
+        
+        // Act
+        val response = httpClient.exchangeAsString(request)
+        response.shouldBeSuccessful()
+        
+        // Assert - should have errors for non-existent product
+        val payload: JsonNode = json.read(response)
+        val errors = payload["errors"]
+        assertThat(errors)
+            .describedAs("GraphQL errors must be present for updating non-existent product")
+            .isNotNull()
+    }
+    
+    @Test
+    fun `should handle product query with null result`() {
+        // Arrange
+        val nonExistentId = UUID.randomUUID()
+        val query = TestDataBuilders.productQuery(nonExistentId)
+        
+        val request = HttpRequest.POST("/graphql", query)
+            .contentType(MediaType.APPLICATION_JSON)
+        
+        // Act
+        val response = httpClient.exchangeAsString(request)
+        response.shouldBeSuccessful()
+        
+        // Assert
+        val payload: JsonNode = json.read<JsonNode>(response)
+        payload["errors"].assertNoErrors()
+        
+        val data = payload["data"]
+        assertThat(data).isNotNull()
+        
+        val product = data["product"]
+        assertThat(product.isNull).isTrue()
     }
 }

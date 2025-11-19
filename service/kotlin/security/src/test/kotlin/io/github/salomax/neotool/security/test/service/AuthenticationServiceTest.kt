@@ -549,5 +549,218 @@ class AuthenticationServiceTest {
             verify(userRepository).findById(userId)
         }
     }
+
+    @Nested
+    @DisplayName("Password Strength Validation")
+    inner class PasswordStrengthValidationTests {
+
+        @Test
+        fun `should validate password with all requirements`() {
+            val password = "TestPassword123!"
+
+            val result = authenticationService.validatePasswordStrength(password)
+
+            assertThat(result).isTrue()
+        }
+
+        @Test
+        fun `should reject password shorter than 8 characters`() {
+            val password = "Short1!"
+
+            val result = authenticationService.validatePasswordStrength(password)
+
+            assertThat(result).isFalse()
+        }
+
+        @Test
+        fun `should reject password without uppercase letter`() {
+            val password = "testpassword123!"
+
+            val result = authenticationService.validatePasswordStrength(password)
+
+            assertThat(result).isFalse()
+        }
+
+        @Test
+        fun `should reject password without lowercase letter`() {
+            val password = "TESTPASSWORD123!"
+
+            val result = authenticationService.validatePasswordStrength(password)
+
+            assertThat(result).isFalse()
+        }
+
+        @Test
+        fun `should reject password without number`() {
+            val password = "TestPassword!"
+
+            val result = authenticationService.validatePasswordStrength(password)
+
+            assertThat(result).isFalse()
+        }
+
+        @Test
+        fun `should reject password without special character`() {
+            val password = "TestPassword123"
+
+            val result = authenticationService.validatePasswordStrength(password)
+
+            assertThat(result).isFalse()
+        }
+    }
+
+    @Nested
+    @DisplayName("User Registration")
+    inner class UserRegistrationTests {
+
+        @Test
+        fun `should register user successfully with valid data`() {
+            val name = "Test User"
+            val email = "test@example.com"
+            val password = "TestPassword123!"
+
+            whenever(userRepository.findByEmail(email)).thenReturn(null)
+            whenever(userRepository.save(any())).thenAnswer { it.arguments[0] as UserEntity }
+
+            val result = authenticationService.registerUser(name, email, password)
+
+            assertThat(result).isNotNull()
+            assertThat(result.email).isEqualTo(email)
+            assertThat(result.displayName).isEqualTo(name)
+            assertThat(result.passwordHash).isNotBlank()
+            assertThat(result.passwordHash).startsWith("\$argon2id\$")
+            verify(userRepository).findByEmail(email)
+            verify(userRepository).save(any())
+        }
+
+        @Test
+        fun `should throw exception when email already exists`() {
+            val name = "Test User"
+            val email = "existing@example.com"
+            val password = "TestPassword123!"
+            val existingUser = SecurityTestDataBuilders.user(email = email)
+
+            whenever(userRepository.findByEmail(email)).thenReturn(existingUser)
+
+            assertThrows<IllegalArgumentException> {
+                authenticationService.registerUser(name, email, password)
+            }.also { exception ->
+                assertThat(exception.message).contains("Email already exists")
+            }
+
+            verify(userRepository).findByEmail(email)
+            verify(userRepository, never()).save(any())
+        }
+
+        @Test
+        fun `should throw exception when password is too short`() {
+            val name = "Test User"
+            val email = "test@example.com"
+            val password = "Short1!"
+
+            whenever(userRepository.findByEmail(email)).thenReturn(null)
+
+            assertThrows<IllegalArgumentException> {
+                authenticationService.registerUser(name, email, password)
+            }.also { exception ->
+                assertThat(exception.message).contains("Password must be at least 8 characters")
+            }
+
+            verify(userRepository).findByEmail(email)
+            verify(userRepository, never()).save(any())
+        }
+
+        @Test
+        fun `should throw exception when password lacks uppercase`() {
+            val name = "Test User"
+            val email = "test@example.com"
+            val password = "testpassword123!"
+
+            whenever(userRepository.findByEmail(email)).thenReturn(null)
+
+            assertThrows<IllegalArgumentException> {
+                authenticationService.registerUser(name, email, password)
+            }.also { exception ->
+                assertThat(exception.message).contains("Password must be at least 8 characters")
+            }
+
+            verify(userRepository).findByEmail(email)
+            verify(userRepository, never()).save(any())
+        }
+
+        @Test
+        fun `should throw exception when password lacks lowercase`() {
+            val name = "Test User"
+            val email = "test@example.com"
+            val password = "TESTPASSWORD123!"
+
+            whenever(userRepository.findByEmail(email)).thenReturn(null)
+
+            assertThrows<IllegalArgumentException> {
+                authenticationService.registerUser(name, email, password)
+            }.also { exception ->
+                assertThat(exception.message).contains("Password must be at least 8 characters")
+            }
+
+            verify(userRepository).findByEmail(email)
+            verify(userRepository, never()).save(any())
+        }
+
+        @Test
+        fun `should throw exception when password lacks number`() {
+            val name = "Test User"
+            val email = "test@example.com"
+            val password = "TestPassword!"
+
+            whenever(userRepository.findByEmail(email)).thenReturn(null)
+
+            assertThrows<IllegalArgumentException> {
+                authenticationService.registerUser(name, email, password)
+            }.also { exception ->
+                assertThat(exception.message).contains("Password must be at least 8 characters")
+            }
+
+            verify(userRepository).findByEmail(email)
+            verify(userRepository, never()).save(any())
+        }
+
+        @Test
+        fun `should throw exception when password lacks special character`() {
+            val name = "Test User"
+            val email = "test@example.com"
+            val password = "TestPassword123"
+
+            whenever(userRepository.findByEmail(email)).thenReturn(null)
+
+            assertThrows<IllegalArgumentException> {
+                authenticationService.registerUser(name, email, password)
+            }.also { exception ->
+                assertThat(exception.message).contains("Password must be at least 8 characters")
+            }
+
+            verify(userRepository).findByEmail(email)
+            verify(userRepository, never()).save(any())
+        }
+
+        @Test
+        fun `should hash password during registration`() {
+            val name = "Test User"
+            val email = "test@example.com"
+            val password = "TestPassword123!"
+
+            whenever(userRepository.findByEmail(email)).thenReturn(null)
+            whenever(userRepository.save(any())).thenAnswer { it.arguments[0] as UserEntity }
+
+            val result = authenticationService.registerUser(name, email, password)
+
+            assertThat(result.passwordHash).isNotBlank()
+            assertThat(result.passwordHash).isNotEqualTo(password)
+            assertThat(result.passwordHash).startsWith("\$argon2id\$")
+            
+            // Verify password can be verified
+            val canVerify = authenticationService.verifyPassword(password, result.passwordHash)
+            assertThat(canVerify).isTrue()
+        }
+    }
 }
 

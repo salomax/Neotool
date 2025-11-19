@@ -1,0 +1,27 @@
+{
+  "title": "Create your account",
+  "subtitle": "Sign up to get started",
+  "name": "Name",
+  "email": "Email",
+  "password": "Password",
+  "passwordRequirements": "Password requirements:",
+  "passwordRules": {
+    "0": "At least 8 characters",
+    "1": "At least one uppercase letter",
+    "2": "At least one lowercase letter",
+    "3": "At least one number",
+    "4": "At least one special character"
+  },
+  "signUpButton": "Sign up",
+  "alreadyHaveAccount": "Already have an account?",
+  "signIn": "Sign in",
+  "errors": {
+    "required": "This field is required",
+    "invalidEmail": "Please enter a valid email address",
+    "invalidPassword": "Password does not meet requirements",
+    "emailExists": "Email already exists",
+    "networkError": "Network error. Please try again.",
+    "unknownError": "An unexpected error occurred. Please try again."
+  }
+}
+

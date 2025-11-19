@@ -57,6 +57,12 @@ Rules are explicit constraints and guidelines that must be followed when develop
 - Data protection
 - Security best practices
 
+### [Observability Rules](./observability-rules.md)
+- Metrics collection (Prometheus)
+- Log aggregation (Loki)
+- Dashboard requirements (Grafana)
+- Service monitoring standards
+
 ## Rule Format
 
 Each rule follows this format:

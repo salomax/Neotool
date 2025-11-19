@@ -4,6 +4,7 @@ import graphql.schema.DataFetchingEnvironment
 import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.TypeRuntimeWiring
 import io.github.salomax.neotool.security.graphql.dto.SignInPayloadDTO
+import io.github.salomax.neotool.security.graphql.dto.SignUpPayloadDTO
 import io.github.salomax.neotool.security.graphql.dto.UserDTO
 import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.createValidatedDataFetcher
 import io.github.salomax.neotool.common.graphql.GraphQLPayloadDataFetcher.createMutationDataFetcher
@@ -43,6 +44,9 @@ class SecurityWiringFactory(
             .dataFetcher("signIn", createMutationDataFetcher<SignInPayloadDTO>("signIn") { input ->
                 authResolver.signIn(input)
             })
+            .dataFetcher("signUp", createMutationDataFetcher<SignUpPayloadDTO>("signUp") { input ->
+                authResolver.signUp(input)
+            })
     }
     
     override fun registerSubscriptionResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder {
@@ -76,6 +80,20 @@ class SecurityWiringFactory(
                 })
                 type.dataFetcher("user", createValidatedDataFetcher { env: DataFetchingEnvironment ->
                     val payload = env.getSource<SignInPayloadDTO>()
+                    payload?.user
+                })
+            }
+            .type("SignUpPayload") { type ->
+                type.dataFetcher("token", createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                    val payload = env.getSource<SignUpPayloadDTO>()
+                    payload?.token
+                })
+                type.dataFetcher("refreshToken", createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                    val payload = env.getSource<SignUpPayloadDTO>()
+                    payload?.refreshToken
+                })
+                type.dataFetcher("user", createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                    val payload = env.getSource<SignUpPayloadDTO>()
                     payload?.user
                 })
             }

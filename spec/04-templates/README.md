@@ -21,10 +21,11 @@ search_keywords: [templates, index]
 
 ## AI Prompts
 
-- [Create Feature](./ai-prompts/create-feature.md)
-- [Create Backend](./ai-prompts/create-backend.md)
-- [Create Frontend](./ai-prompts/create-frontend.md)
-- [Generate Plan](./ai-prompts/generate-plan.md)
+- [Step A: Initial Feature Request](./ai-prompts/step-a-initial-feature-request.md)
+- [Step B: Generate Form and Feature File](./ai-prompts/step-b-generate-form-and-feature-file.md)
+- [Step C: Generate Implementation Plan](./ai-prompts/step-c-generate-implementation-plan.md)
+- [Step D: Build Implementation](./ai-prompts/step-d-build-implementation.md)
+- [Step E: Validate Implementation](./ai-prompts/step-e-validate-implementation.md)
 
 ## Code Templates
 

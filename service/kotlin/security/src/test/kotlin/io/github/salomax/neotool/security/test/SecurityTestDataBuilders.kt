@@ -122,6 +122,63 @@ object SecurityTestDataBuilders {
     )
 
     /**
+     * Create a GraphQL signUp mutation
+     */
+    fun signUpMutation(
+        name: String = "Test User",
+        email: String = "test@example.com",
+        password: String = "TestPassword123!"
+    ): Map<String, Any> = mapOf(
+        "query" to """
+            mutation SignUp(${'$'}input: SignUpInput!) {
+                signUp(input: ${'$'}input) {
+                    token
+                    refreshToken
+                    user {
+                        id
+                        email
+                        displayName
+                    }
+                }
+            }
+        """.trimIndent(),
+        "variables" to mapOf(
+            "input" to mapOf(
+                "name" to name,
+                "email" to email,
+                "password" to password
+            )
+        )
+    )
+
+    /**
+     * Create a GraphQL signUp mutation with inline variables (for simple tests)
+     */
+    fun signUpMutationInline(
+        name: String = "Test User",
+        email: String = "test@example.com",
+        password: String = "TestPassword123!"
+    ): Map<String, Any> = mapOf(
+        "query" to """
+            mutation {
+                signUp(input: {
+                    name: "$name"
+                    email: "$email"
+                    password: "$password"
+                }) {
+                    token
+                    refreshToken
+                    user {
+                        id
+                        email
+                        displayName
+                    }
+                }
+            }
+        """.trimIndent()
+    )
+
+    /**
      * Generate a unique email for testing
      */
     fun uniqueEmail(prefix: String = "test"): String {
