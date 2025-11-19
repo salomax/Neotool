@@ -349,6 +349,82 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
                 .describedAs("GraphQL should return errors for missing required field")
                 .isNotNull()
         }
+
+        @Test
+        fun `should return error for blank password via GraphQL mutation`() {
+            // Tests exception handling branch in signIn resolver for blank password
+            val email = uniqueEmail()
+            val password = "TestPassword123!"
+            val user = SecurityTestDataBuilders.userWithPassword(
+                authenticationService = authenticationService,
+                email = email,
+                password = password
+            )
+            saveUser(user)
+
+            val mutation = SecurityTestDataBuilders.signInMutation(
+                email = email,
+                password = "   ", // Blank password
+                rememberMe = false
+            )
+
+            val request = HttpRequest.POST("/graphql", mutation)
+                .contentType(MediaType.APPLICATION_JSON)
+
+            // Act
+            val response = httpClient.exchangeAsString(request)
+            response
+                .shouldBeSuccessful()
+                .shouldBeJson()
+                .shouldHaveNonEmptyBody()
+
+            // Assert
+            val payload: JsonNode = json.read(response)
+            val errors = payload["errors"]
+            Assertions.assertThat(errors)
+                .describedAs("GraphQL should return errors for blank password")
+                .isNotNull()
+            Assertions.assertThat(errors.isArray).isTrue
+            Assertions.assertThat(errors.size()).isGreaterThan(0)
+        }
+
+        @Test
+        fun `should return error for empty password via GraphQL mutation`() {
+            // Tests exception handling branch in signIn resolver for empty password
+            val email = uniqueEmail()
+            val password = "TestPassword123!"
+            val user = SecurityTestDataBuilders.userWithPassword(
+                authenticationService = authenticationService,
+                email = email,
+                password = password
+            )
+            saveUser(user)
+
+            val mutation = SecurityTestDataBuilders.signInMutation(
+                email = email,
+                password = "", // Empty password
+                rememberMe = false
+            )
+
+            val request = HttpRequest.POST("/graphql", mutation)
+                .contentType(MediaType.APPLICATION_JSON)
+
+            // Act
+            val response = httpClient.exchangeAsString(request)
+            response
+                .shouldBeSuccessful()
+                .shouldBeJson()
+                .shouldHaveNonEmptyBody()
+
+            // Assert
+            val payload: JsonNode = json.read(response)
+            val errors = payload["errors"]
+            Assertions.assertThat(errors)
+                .describedAs("GraphQL should return errors for empty password")
+                .isNotNull()
+            Assertions.assertThat(errors.isArray).isTrue
+            Assertions.assertThat(errors.size()).isGreaterThan(0)
+        }
     }
 
     @Nested
@@ -480,6 +556,57 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             // Note: json.read converts null to JsonNull, so we check for isNull property
             Assertions.assertThat(data["currentUser"].isNull)
                 .describedAs("currentUser should be null when invalid token provided")
+                .isTrue()
+        }
+
+        @Test
+        fun `should return null when token is not an access token`() {
+            // Tests branch where token is valid but not an access token (e.g., refresh token)
+            val email = uniqueEmail()
+            val password = "TestPassword123!"
+            val user = SecurityTestDataBuilders.userWithPassword(
+                authenticationService = authenticationService,
+                email = email,
+                password = password
+            )
+            saveUser(user)
+
+            // Sign in to get tokens
+            val signInMutation = SecurityTestDataBuilders.signInMutation(
+                email = email,
+                password = password,
+                rememberMe = true
+            )
+
+            val signInRequest = HttpRequest.POST("/graphql", signInMutation)
+                .contentType(MediaType.APPLICATION_JSON)
+
+            val signInResponse = httpClient.exchangeAsString(signInRequest)
+            val signInPayload: JsonNode = json.read(signInResponse)
+            signInPayload["errors"].assertNoErrors()
+            val signInData = signInPayload["data"]["signIn"]
+            val refreshToken = signInData["refreshToken"].stringValue
+
+            // Try to use refresh token as access token
+            val query = SecurityTestDataBuilders.currentUserQuery()
+            val request = HttpRequest.POST("/graphql", query)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("Authorization", "Bearer $refreshToken")
+
+            // Act
+            val response = httpClient.exchangeAsString(request)
+            response
+                .shouldBeSuccessful()
+                .shouldBeJson()
+                .shouldHaveNonEmptyBody()
+
+            // Assert - Should return null because refresh token is not an access token
+            val payload: JsonNode = json.read(response)
+            payload["errors"].assertNoErrors()
+
+            val data = payload["data"]
+            Assertions.assertThat(data["currentUser"].isNull)
+                .describedAs("currentUser should be null when refresh token is used as access token")
                 .isTrue()
         }
     }

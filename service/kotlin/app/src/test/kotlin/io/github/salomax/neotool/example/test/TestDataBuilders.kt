@@ -112,6 +112,7 @@ object TestDataBuilders {
                 name
                 email
                 status
+                version
                 createdAt
                 updatedAt
             }
@@ -146,6 +147,75 @@ object TestDataBuilders {
                 createdAt
                 updatedAt
             }
+        }
+        """.trimIndent()
+    )
+
+    fun updateCustomerMutation(
+        id: String,
+        name: String,
+        email: String,
+        status: String = "ACTIVE",
+        version: Int = 0
+    ): Map<String, Any> = graphQLQuery(
+        """
+        mutation {
+            updateCustomer(id: "$id", input: {
+                name: "$name"
+                email: "$email"
+                status: "$status"
+            }) {
+                id
+                name
+                email
+                status
+                version
+                createdAt
+                updatedAt
+            }
+        }
+        """.trimIndent()
+    )
+
+    fun deleteCustomerMutation(id: String): Map<String, Any> = graphQLQuery(
+        """
+        mutation {
+            deleteCustomer(id: "$id")
+        }
+        """.trimIndent()
+    )
+
+    fun updateProductMutation(
+        id: String,
+        name: String,
+        sku: String,
+        priceCents: Long = 9999L,
+        stock: Int = 10
+    ): Map<String, Any> = graphQLQuery(
+        """
+        mutation {
+            updateProduct(id: "$id", input: {
+                name: "$name"
+                sku: "$sku"
+                priceCents: $priceCents
+                stock: $stock
+            }) {
+                id
+                name
+                sku
+                priceCents
+                stock
+                createdAt
+                updatedAt
+            }
+        }
+        """.trimIndent()
+    )
+
+    fun deleteProductMutation(id: String): Map<String, Any> = graphQLQuery(
+        """
+        mutation {
+            deleteProduct(id: "$id")
         }
         """.trimIndent()
     )
