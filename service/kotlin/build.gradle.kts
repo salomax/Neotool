@@ -124,7 +124,7 @@ subprojects {
                     // Branch coverage is critical for testing all if/when/switch paths
                     limit {
                         counter = "BRANCH"
-                        minimum = "0.85".toBigDecimal() // 85% branch coverage (slightly lower than line coverage)
+                        minimum = "1.0".toBigDecimal()
                     }
                 }
                 // 100% coverage required for all service packages (including branches)
@@ -188,7 +188,7 @@ subprojects {
             // JaCoCo report for integration tests
             tasks.register<org.gradle.testing.jacoco.tasks.JacocoReport>("jacocoIntegrationTestReport") {
                 dependsOn(tasks.named("testIntegration"))
-                executionData(tasks.named("testIntegration"))
+                executionData(fileTree(layout.buildDirectory.dir("jacoco")).include("**/testIntegration.exec"))
                 val sourceSets = project.extensions.getByType<org.gradle.api.tasks.SourceSetContainer>()
                 sourceSets(sourceSets.getByName("main"))
                 
@@ -284,6 +284,139 @@ subprojects {
             if (name == "testIntegration" && !integrationCoverageConfigured) {
                 configureIntegrationTestCoverage()
             }
+        }
+        
+        // Combined coverage report (unit tests + integration tests)
+        // This combines execution data from both test types for overall coverage visibility
+        tasks.register<org.gradle.testing.jacoco.tasks.JacocoReport>("jacocoCombinedCoverageReport") {
+            dependsOn(tasks.named("test"))
+            if (tasks.names.contains("testIntegration")) {
+                dependsOn(tasks.named("testIntegration"))
+            }
+            
+            // Combine execution data from both unit and integration tests
+            executionData(
+                fileTree(layout.buildDirectory.dir("jacoco")).include("**/test.exec"),
+                fileTree(layout.buildDirectory.dir("jacoco")).include("**/testIntegration.exec")
+            )
+            
+            val sourceSets = project.extensions.getByType<org.gradle.api.tasks.SourceSetContainer>()
+            sourceSets(sourceSets.getByName("main"))
+            
+            reports {
+                xml.required.set(true)
+                html.required.set(true)
+                csv.required.set(true)
+                html.outputLocation.set(layout.buildDirectory.dir("reports/jacoco/combined/html"))
+            }
+            
+            // Exclude generated code, DTOs, entities, factories, config from report
+            classDirectories.setFrom(
+                files(classDirectories.files.map {
+                    fileTree(it) {
+                        exclude(
+                            "**/dto/**",
+                            "**/entity/**",
+                            "**/model/**",
+                            "**/Application.class",
+                            "**/ApplicationKt.class",
+                            "**/*Mapper*.class",
+                            "**/*Factory*.class",
+                            "**/*Config*.class",
+                            "**/test/**",
+                            "**/common/test/**"
+                        )
+                    }
+                })
+            )
+            
+            // Print report path after generation
+            doLast {
+                val htmlReport = reports.html.outputLocation.asFile.get()
+                println("\n" + "=".repeat(80))
+                println("📊 JaCoCo Combined Coverage Report Generated (Unit + Integration Tests)")
+                println("=".repeat(80))
+                println("📁 HTML Report: file://${htmlReport.absolutePath}/index.html")
+                println("📄 XML Report:  ${reports.xml.outputLocation.asFile.get().absolutePath}")
+                println("📊 CSV Report:  ${reports.csv.outputLocation.asFile.get().absolutePath}")
+                println("=".repeat(80))
+                println("💡 Open the HTML report in your browser to view detailed coverage")
+                println("=".repeat(80) + "\n")
+            }
+        }
+        
+        // Combined coverage verification - 100% required for critical packages only
+        // This ensures business logic (services, repos, resolvers, controllers) is fully tested
+        // Coverage can come from either unit tests, integration tests, or both
+        tasks.register<org.gradle.testing.jacoco.tasks.JacocoCoverageVerification>("jacocoCombinedCoverageVerification") {
+            val combinedReport = tasks.named<org.gradle.testing.jacoco.tasks.JacocoReport>("jacocoCombinedCoverageReport")
+            dependsOn(combinedReport)
+            
+            violationRules {
+                // 100% coverage required for all service packages (lines and branches)
+                rule {
+                    element = "PACKAGE"
+                    includes = listOf(
+                        "io.github.salomax.neotool.*.service.*"
+                    )
+                    limit {
+                        minimum = "1.0".toBigDecimal()
+                    }
+                    limit {
+                        counter = "BRANCH"
+                        minimum = "1.0".toBigDecimal()
+                    }
+                }
+                
+                // 100% coverage required for all repository packages (lines and branches)
+                rule {
+                    element = "PACKAGE"
+                    includes = listOf(
+                        "io.github.salomax.neotool.*.repo.*"
+                    )
+                    limit {
+                        minimum = "1.0".toBigDecimal()
+                    }
+                    limit {
+                        counter = "BRANCH"
+                        minimum = "1.0".toBigDecimal()
+                    }
+                }
+                
+                // 100% coverage required for all resolver packages (lines and branches)
+                rule {
+                    element = "PACKAGE"
+                    includes = listOf(
+                        "io.github.salomax.neotool.*.graphql.resolvers.*"
+                    )
+                    limit {
+                        minimum = "1.0".toBigDecimal()
+                    }
+                    limit {
+                        counter = "BRANCH"
+                        minimum = "1.0".toBigDecimal()
+                    }
+                }
+                
+                // 100% coverage required for all controller packages (lines and branches)
+                rule {
+                    element = "PACKAGE"
+                    includes = listOf(
+                        "io.github.salomax.neotool.*.api.*"
+                    )
+                    limit {
+                        minimum = "1.0".toBigDecimal()
+                    }
+                    limit {
+                        counter = "BRANCH"
+                        minimum = "1.0".toBigDecimal()
+                    }
+                }
+            }
+            
+            // Use the same class directories and execution data as the combined report
+            classDirectories.setFrom(combinedReport.get().classDirectories)
+            executionData.setFrom(combinedReport.get().executionData)
         }
     }
 }
