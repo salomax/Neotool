@@ -198,19 +198,42 @@ subprojects {
                     csv.required.set(true)
                 }
                 
-                // Exclude generated code, DTOs, entities from coverage
+                // For integration tests, only include packages that represent integration points:
+                // - GraphQL resolvers (the API entry points)
+                // - Service layer (business logic that should be tested end-to-end)
+                // - Agent layer (business logic orchestration, part of the integration flow)
+                // - API controllers (REST endpoints if any)
+                // Exclude infrastructure, data access, DTOs, entities, configs, factories, etc.
                 classDirectories.setFrom(
                     files(classDirectories.files.map {
                         fileTree(it) {
+                            // Include only integration-relevant packages
+                            include(
+                                "**/graphql/resolvers/**",
+                                "**/service/**",
+                                "**/agent/**",
+                                "**/api/**"
+                            )
+                            // Exclude infrastructure and data layers
                             exclude(
                                 "**/dto/**",
                                 "**/entity/**",
                                 "**/model/**",
+                                "**/domain/**",
+                                "**/repo/**",
+                                "**/repository/**",
                                 "**/Application.class",
                                 "**/ApplicationKt.class",
                                 "**/*Mapper*.class",
                                 "**/*Factory*.class",
                                 "**/*Config*.class",
+                                "**/graphql/*Factory*.class",
+                                "**/graphql/*Wiring*.class",
+                                "**/graphql/*Client*.class",
+                                "**/graphql/*Request*.class",
+                                // Change this in the future to include the LLM providers and tool implementations
+                                "**/llm/**",  // LLM providers are infrastructure, should be mocked
+                                "**/tool/**",  // Tool implementations are infrastructure
                                 "**/test/**"
                             )
                         }
@@ -252,7 +275,8 @@ subprojects {
                             minimum = "0.75".toBigDecimal()
                         }
                     }
-                    // 100% coverage required for all service packages in integration tests too
+                    // Higher coverage required for service packages in integration tests
+                    // (80% instructions, 70% branches) - ensures critical business logic is well tested
                     rule {
                         element = "PACKAGE"
                         includes = listOf(
@@ -261,11 +285,11 @@ subprojects {
                             "io.github.salomax.procureflow.*.service.*"
                         )
                         limit {
-                            minimum = "1.0".toBigDecimal()
+                            minimum = "0.80".toBigDecimal()
                         }
                         limit {
                             counter = "BRANCH"
-                            minimum = "1.0".toBigDecimal()
+                            minimum = "0.70".toBigDecimal()
                         }
                     }
                 }

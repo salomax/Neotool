@@ -4,6 +4,7 @@ import io.github.salomax.neotool.example.test.TestDataBuilders
 import io.github.salomax.neotool.common.test.assertions.shouldHaveNonEmptyBody
 import io.github.salomax.neotool.common.test.assertions.shouldBeJson
 import io.github.salomax.neotool.common.test.assertions.shouldBeSuccessful
+import io.github.salomax.neotool.common.test.assertions.assertNoErrors
 import io.github.salomax.neotool.common.test.http.exchangeAsString
 import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
@@ -529,5 +530,112 @@ class GraphQLCustomerIntegrationTest : BaseIntegrationTest(), PostgresIntegratio
           .isNotNull()
         assertThat(errors.isArray).isTrue()
         assertThat(errors.size()).isGreaterThan(0)
+    }
+    
+    @Test
+    fun `should handle delete non-existent customer`() {
+        // Arrange
+        val nonExistentId = UUID.randomUUID()
+        val mutation = TestDataBuilders.deleteCustomerMutation(nonExistentId.toString())
+        
+        val request = HttpRequest.POST("/graphql", mutation)
+            .contentType(MediaType.APPLICATION_JSON)
+        
+        // Act
+        val response = httpClient.exchangeAsString(request)
+        response.shouldBeSuccessful()
+        
+        // Assert - delete returns false for non-existent customer (no errors, just false in data)
+        val payload: JsonNode = json.read<JsonNode>(response)
+        payload["errors"].assertNoErrors()
+        
+        val data = payload["data"]
+        assertThat(data).isNotNull()
+        val deleteResult = data["deleteCustomer"]
+        assertThat(deleteResult.booleanValue)
+            .describedAs("Delete should return false for non-existent customer")
+            .isFalse()
+    }
+    
+    @Test
+    fun `should handle customer query with null result`() {
+        // Arrange
+        val nonExistentId = UUID.randomUUID()
+        val query = TestDataBuilders.customerQuery(nonExistentId)
+        
+        val request = HttpRequest.POST("/graphql", query)
+            .contentType(MediaType.APPLICATION_JSON)
+        
+        // Act
+        val response = httpClient.exchangeAsString(request)
+        response.shouldBeSuccessful()
+        
+        // Assert
+        val payload: JsonNode = json.read<JsonNode>(response)
+        payload["errors"].assertNoErrors()
+        
+        val data = payload["data"]
+        assertThat(data).isNotNull()
+        
+        val customer = data["customer"]
+        assertThat(customer.isNull).isTrue()
+    }
+    
+    @Test
+    fun `should handle customer update with version mismatch`() {
+        // Arrange - create a customer first
+        val createMutation = TestDataBuilders.createCustomerMutation(
+            name = uniqueName(),
+            email = uniqueEmail(),
+            status = "ACTIVE"
+        )
+        
+        val createRequest = HttpRequest.POST("/graphql", createMutation)
+            .contentType(MediaType.APPLICATION_JSON)
+        
+        val createResponse = httpClient.exchangeAsString(createRequest)
+        val createPayload: JsonNode = json.read<JsonNode>(createResponse)
+        val customerId = UUID.fromString(createPayload["data"]["createCustomer"]["id"].stringValue)
+        
+        // Get the current version
+        val query = TestDataBuilders.customerQuery(customerId)
+        val queryRequest = HttpRequest.POST("/graphql", query)
+            .contentType(MediaType.APPLICATION_JSON)
+        
+        val queryResponse = httpClient.exchangeAsString(queryRequest)
+        val queryPayload: JsonNode = json.read<JsonNode>(queryResponse)
+        val originalVersion = queryPayload["data"]["customer"]["version"].intValue
+        
+        // Note: The GraphQL resolver always fetches the current version from the database,
+        // so it's not possible to test version mismatch through GraphQL mutations.
+        // The version parameter in updateCustomerMutation is ignored.
+        // This test verifies that updates work correctly.
+        val updateMutation = TestDataBuilders.updateCustomerMutation(
+            id = customerId.toString(),
+            name = "Updated Name",
+            email = uniqueEmail(),
+            status = "ACTIVE",
+            version = originalVersion - 1 // This is ignored by the resolver
+        )
+        
+        val updateRequest = HttpRequest.POST("/graphql", updateMutation)
+            .contentType(MediaType.APPLICATION_JSON)
+        
+        // Act
+        val updateResponse = httpClient.exchangeAsString(updateRequest)
+        updateResponse.shouldBeSuccessful()
+        
+        // Assert - update should succeed because resolver uses current version from DB
+        val updatePayload: JsonNode = json.read<JsonNode>(updateResponse)
+        updatePayload["errors"].assertNoErrors()
+        
+        val data = updatePayload["data"]
+        assertThat(data).isNotNull()
+        val updatedCustomer = data["updateCustomer"]
+        assertThat(updatedCustomer).isNotNull()
+        assertThat(updatedCustomer["name"].stringValue).isEqualTo("Updated Name")
+        // Verify the customer was updated successfully
+        assertThat(updatedCustomer["id"].stringValue).isEqualTo(customerId.toString())
+        assertThat(updatedCustomer["email"].stringValue).isNotEqualTo(createPayload["data"]["createCustomer"]["email"].stringValue)
     }
 }

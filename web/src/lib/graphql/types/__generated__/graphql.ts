@@ -50,6 +50,7 @@ export type Mutation = {
   deleteCustomer: Scalars['Boolean']['output'];
   deleteProduct: Scalars['Boolean']['output'];
   signIn: SignInPayload;
+  signUp: SignUpPayload;
   updateCustomer: Customer;
   updateProduct: Product;
 };
@@ -77,6 +78,11 @@ export type MutationDeleteProductArgs = {
 
 export type MutationSignInArgs = {
   input: SignInInput;
+};
+
+
+export type MutationSignUpArgs = {
+  input: SignUpInput;
 };
 
 
@@ -137,6 +143,19 @@ export type SignInInput = {
 
 export type SignInPayload = {
   __typename: 'SignInPayload';
+  refreshToken: Maybe<Scalars['String']['output']>;
+  token: Scalars['String']['output'];
+  user: User;
+};
+
+export type SignUpInput = {
+  email: Scalars['String']['input'];
+  name: Scalars['String']['input'];
+  password: Scalars['String']['input'];
+};
+
+export type SignUpPayload = {
+  __typename: 'SignUpPayload';
   refreshToken: Maybe<Scalars['String']['output']>;
   token: Scalars['String']['output'];
   user: User;

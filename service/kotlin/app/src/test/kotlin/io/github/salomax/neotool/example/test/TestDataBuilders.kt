@@ -219,4 +219,36 @@ object TestDataBuilders {
         }
         """.trimIndent()
     )
+
+    fun customerQuery(id: UUID): Map<String, Any> = graphQLQuery(
+        """
+        query {
+            customer(id: "${id}") {
+                id
+                name
+                email
+                status
+                version
+                createdAt
+                updatedAt
+            }
+        }
+        """.trimIndent()
+    )
+
+    fun productQuery(id: UUID): Map<String, Any> = graphQLQuery(
+        """
+        query {
+            product(id: "${id}") {
+                id
+                name
+                sku
+                priceCents
+                stock
+                createdAt
+                updatedAt
+            }
+        }
+        """.trimIndent()
+    )
 }

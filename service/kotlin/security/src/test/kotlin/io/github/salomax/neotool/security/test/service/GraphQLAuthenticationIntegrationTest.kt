@@ -428,6 +428,293 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
     }
 
     @Nested
+    @DisplayName("Sign Up Mutation")
+    inner class SignUpMutationTests {
+
+        @Test
+        fun `should sign up user successfully via GraphQL mutation`() {
+            // Validates that new users can register with valid credentials and receive authentication tokens.
+            val name = "Test User"
+            val email = uniqueEmail()
+            val password = "TestPassword123!"
+
+            val mutation = SecurityTestDataBuilders.signUpMutation(
+                name = name,
+                email = email,
+                password = password
+            )
+
+            val request = HttpRequest.POST("/graphql", mutation)
+                .contentType(MediaType.APPLICATION_JSON)
+
+            // Act
+            val response = httpClient.exchangeAsString(request)
+            response
+                .shouldBeSuccessful()
+                .shouldBeJson()
+                .shouldHaveNonEmptyBody()
+
+            // Assert
+            val payload: JsonNode = json.read(response)
+            payload["errors"].assertNoErrors()
+
+            val data = payload["data"]
+            Assertions.assertThat(data)
+                .describedAs("GraphQL response must contain 'data'")
+                .isNotNull()
+            val signUpNode = data["signUp"]
+            Assertions.assertThat(signUpNode)
+                .describedAs("signUp payload must be present")
+                .isNotNull()
+
+            val signUpPayload: JsonNode = signUpNode
+            val tokenNode = signUpPayload["token"]
+            Assertions.assertThat(tokenNode)
+                .describedAs("token must be present")
+                .isNotNull()
+            Assertions.assertThat(tokenNode.stringValue).isNotBlank()
+
+            val refreshTokenNode = signUpPayload["refreshToken"]
+            Assertions.assertThat(refreshTokenNode)
+                .describedAs("refreshToken must be present")
+                .isNotNull()
+            Assertions.assertThat(refreshTokenNode.stringValue).isNotBlank()
+
+            val userNode = signUpPayload["user"]
+            Assertions.assertThat(userNode)
+                .describedAs("user must be present")
+                .isNotNull()
+            Assertions.assertThat(userNode["id"].stringValue).isNotBlank()
+            Assertions.assertThat(userNode["email"].stringValue).isEqualTo(email)
+            Assertions.assertThat(userNode["displayName"].stringValue).isEqualTo(name)
+
+            // Verify user was created in database
+            val savedUser = userRepository.findByEmail(email)
+            Assertions.assertThat(savedUser)
+                .describedAs("User should be saved in database")
+                .isNotNull()
+            Assertions.assertThat(savedUser?.email).isEqualTo(email)
+            Assertions.assertThat(savedUser?.displayName).isEqualTo(name)
+            Assertions.assertThat(savedUser?.passwordHash).isNotBlank()
+        }
+
+        @Test
+        fun `should return error for duplicate email via GraphQL mutation`() {
+            // Prevents duplicate account creation by rejecting sign-up attempts with existing emails.
+            val name = "Test User"
+            val email = uniqueEmail()
+            val password = "TestPassword123!"
+
+            // Create existing user
+            val existingUser = SecurityTestDataBuilders.userWithPassword(
+                authenticationService = authenticationService,
+                email = email,
+                password = password
+            )
+            saveUser(existingUser)
+
+            val mutation = SecurityTestDataBuilders.signUpMutation(
+                name = name,
+                email = email,
+                password = password
+            )
+
+            val request = HttpRequest.POST("/graphql", mutation)
+                .contentType(MediaType.APPLICATION_JSON)
+
+            // Act
+            val response = httpClient.exchangeAsString(request)
+            response
+                .shouldBeSuccessful()
+                .shouldBeJson()
+                .shouldHaveNonEmptyBody()
+
+            // Assert
+            val payload: JsonNode = json.read(response)
+            val errors = payload["errors"]
+            Assertions.assertThat(errors)
+                .describedAs("GraphQL should return errors for duplicate email")
+                .isNotNull()
+            Assertions.assertThat(errors.isArray).isTrue
+            Assertions.assertThat(errors.size()).isGreaterThan(0)
+
+            // Check error message
+            val firstError = errors[0]
+            val messageNode = firstError["message"]
+            Assertions.assertThat(messageNode)
+                .describedAs("Error message must be present")
+                .isNotNull()
+            val errorMessage = messageNode.stringValue
+            Assertions.assertThat(errorMessage).containsIgnoringCase("email")
+        }
+
+        @Test
+        fun `should return error for weak password via GraphQL mutation`() {
+            // Ensures password strength requirements are enforced during registration.
+            val name = "Test User"
+            val email = uniqueEmail()
+            val weakPassword = "weak" // Too short, missing requirements
+
+            val mutation = SecurityTestDataBuilders.signUpMutation(
+                name = name,
+                email = email,
+                password = weakPassword
+            )
+
+            val request = HttpRequest.POST("/graphql", mutation)
+                .contentType(MediaType.APPLICATION_JSON)
+
+            // Act
+            val response = httpClient.exchangeAsString(request)
+            response
+                .shouldBeSuccessful()
+                .shouldBeJson()
+                .shouldHaveNonEmptyBody()
+
+            // Assert
+            val payload: JsonNode = json.read(response)
+            val errors = payload["errors"]
+            Assertions.assertThat(errors)
+                .describedAs("GraphQL should return errors for weak password")
+                .isNotNull()
+            Assertions.assertThat(errors.isArray).isTrue
+            Assertions.assertThat(errors.size()).isGreaterThan(0)
+
+            // Check error message
+            val firstError = errors[0]
+            val messageNode = firstError["message"]
+            Assertions.assertThat(messageNode)
+                .describedAs("Error message must be present")
+                .isNotNull()
+            val errorMessage = messageNode.stringValue
+            Assertions.assertThat(errorMessage).containsIgnoringCase("password")
+        }
+
+        @Test
+        fun `should return error for missing name via GraphQL mutation`() {
+            // Ensures GraphQL schema validation rejects mutations with missing required fields (name).
+            val mutation = mapOf(
+                "query" to """
+                    mutation SignUp(${'$'}input: SignUpInput!) {
+                        signUp(input: ${'$'}input) {
+                            token
+                            user {
+                                id
+                                email
+                            }
+                        }
+                    }
+                """.trimIndent(),
+                "variables" to mapOf(
+                    "input" to mapOf(
+                        "email" to "test@example.com",
+                        "password" to "TestPassword123!"
+                    )
+                )
+            )
+
+            val request = HttpRequest.POST("/graphql", mutation)
+                .contentType(MediaType.APPLICATION_JSON)
+
+            // Act
+            val response = httpClient.exchangeAsString(request)
+            response
+                .shouldBeSuccessful()
+                .shouldBeJson()
+                .shouldHaveNonEmptyBody()
+
+            // Assert
+            val payload: JsonNode = json.read(response)
+            val errors = payload["errors"]
+            Assertions.assertThat(errors)
+                .describedAs("GraphQL should return errors for missing required field")
+                .isNotNull()
+        }
+
+        @Test
+        fun `should return error for missing email via GraphQL mutation`() {
+            // Ensures GraphQL schema validation rejects mutations with missing required fields (email).
+            val mutation = mapOf(
+                "query" to """
+                    mutation SignUp(${'$'}input: SignUpInput!) {
+                        signUp(input: ${'$'}input) {
+                            token
+                            user {
+                                id
+                                email
+                            }
+                        }
+                    }
+                """.trimIndent(),
+                "variables" to mapOf(
+                    "input" to mapOf(
+                        "name" to "Test User",
+                        "password" to "TestPassword123!"
+                    )
+                )
+            )
+
+            val request = HttpRequest.POST("/graphql", mutation)
+                .contentType(MediaType.APPLICATION_JSON)
+
+            // Act
+            val response = httpClient.exchangeAsString(request)
+            response
+                .shouldBeSuccessful()
+                .shouldBeJson()
+                .shouldHaveNonEmptyBody()
+
+            // Assert
+            val payload: JsonNode = json.read(response)
+            val errors = payload["errors"]
+            Assertions.assertThat(errors)
+                .describedAs("GraphQL should return errors for missing required field")
+                .isNotNull()
+        }
+
+        @Test
+        fun `should return error for missing password via GraphQL mutation`() {
+            // Ensures GraphQL schema validation rejects mutations with missing required fields (password).
+            val mutation = mapOf(
+                "query" to """
+                    mutation SignUp(${'$'}input: SignUpInput!) {
+                        signUp(input: ${'$'}input) {
+                            token
+                            user {
+                                id
+                                email
+                            }
+                        }
+                    }
+                """.trimIndent(),
+                "variables" to mapOf(
+                    "input" to mapOf(
+                        "name" to "Test User",
+                        "email" to "test@example.com"
+                    )
+                )
+            )
+
+            val request = HttpRequest.POST("/graphql", mutation)
+                .contentType(MediaType.APPLICATION_JSON)
+
+            // Act
+            val response = httpClient.exchangeAsString(request)
+            response
+                .shouldBeSuccessful()
+                .shouldBeJson()
+                .shouldHaveNonEmptyBody()
+
+            // Assert
+            val payload: JsonNode = json.read(response)
+            val errors = payload["errors"]
+            Assertions.assertThat(errors)
+                .describedAs("GraphQL should return errors for missing required field")
+                .isNotNull()
+        }
+    }
+
+    @Nested
     @DisplayName("Current User Query")
     inner class CurrentUserQueryTests {
 

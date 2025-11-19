@@ -14,6 +14,7 @@ type AuthContextType = {
   token: string | null;
   isLoading: boolean;
   signIn: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
+  signUp: (name: string, email: string, password: string) => Promise<void>;
   signOut: () => void;
   isAuthenticated: boolean;
 };
@@ -106,6 +107,46 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, [router]);
 
+  const signUp = React.useCallback(async (name: string, email: string, password: string) => {
+    try {
+      // Dynamic import to avoid SSR issues
+      const { apolloClient } = await import("@/lib/graphql/client");
+      const { SIGN_UP } = await import("@/lib/graphql/operations/auth");
+
+      const result = await apolloClient.mutate({
+        mutation: SIGN_UP,
+        variables: {
+          input: {
+            name,
+            email,
+            password,
+          },
+        },
+      });
+
+      if (result.data && typeof result.data === 'object' && result.data !== null && 'signUp' in result.data && result.data.signUp) {
+        const { token: newToken, refreshToken, user: newUser } = result.data.signUp as { token: string; refreshToken: string | null; user: any };
+        
+        setToken(newToken);
+        setUser(newUser);
+
+        // Store in localStorage (signup users are automatically signed in)
+        localStorage.setItem(TOKEN_KEY, newToken);
+        localStorage.setItem(USER_KEY, JSON.stringify(newUser));
+        
+        if (refreshToken) {
+          localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+        }
+
+        // Redirect to home
+        router.push("/");
+      }
+    } catch (error: any) {
+      console.error("Sign up error:", error);
+      throw error;
+    }
+  }, [router]);
+
   const signOut = React.useCallback(() => {
     setUser(null);
     setToken(null);
@@ -127,6 +168,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     token,
     isLoading,
     signIn,
+    signUp,
     signOut,
     isAuthenticated: !!user && !!token,
   };

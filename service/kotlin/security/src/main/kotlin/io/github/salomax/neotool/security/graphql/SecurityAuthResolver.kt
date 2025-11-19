@@ -2,6 +2,8 @@ package io.github.salomax.neotool.security.graphql
 
 import io.github.salomax.neotool.security.graphql.dto.SignInInputDTO
 import io.github.salomax.neotool.security.graphql.dto.SignInPayloadDTO
+import io.github.salomax.neotool.security.graphql.dto.SignUpInputDTO
+import io.github.salomax.neotool.security.graphql.dto.SignUpPayloadDTO
 import io.github.salomax.neotool.security.graphql.dto.UserDTO
 import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.createMutationDataFetcher
 import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.createValidatedDataFetcher
@@ -93,6 +95,42 @@ class SecurityAuthResolver(
             }
         
         return userToDTO(user)
+    }
+    
+    /**
+     * Sign up mutation resolver
+     */
+    fun signUp(input: Map<String, Any?>): GraphQLPayload<SignUpPayloadDTO> {
+        return try {
+            val name = input["name"] as? String ?: throw IllegalArgumentException("Name is required")
+            val email = input["email"] as? String ?: throw IllegalArgumentException("Email is required")
+            val password = input["password"] as? String ?: throw IllegalArgumentException("Password is required")
+            
+            logger.debug { "Sign up attempt for email: $email" }
+            
+            // Register user (validates email uniqueness and password strength)
+            val user = authenticationService.registerUser(name, email, password)
+            
+            // Generate JWT access token
+            val token = authenticationService.generateAccessToken(user)
+            
+            // Generate refresh token (for automatic sign-in after signup)
+            val refreshToken = authenticationService.generateRefreshToken(user)
+            authenticationService.saveRememberMeToken(user.id, refreshToken)
+            
+            logger.info { "User signed up successfully: ${user.email}" }
+            
+            val payload = SignUpPayloadDTO(
+                token = token,
+                refreshToken = refreshToken,
+                user = userToDTO(user)
+            )
+            
+            GraphQLPayloadFactory.success(payload)
+        } catch (e: Exception) {
+            logger.warn { "Sign up failed: ${e.message}" }
+            GraphQLPayloadFactory.error(e)
+        }
     }
     
     /**
