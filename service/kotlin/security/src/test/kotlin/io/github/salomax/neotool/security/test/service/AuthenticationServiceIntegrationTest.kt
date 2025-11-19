@@ -90,6 +90,25 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
             val isValid = authenticationService.verifyPassword(wrongPassword, retrievedUser!!.passwordHash!!)
             assertThat(isValid).isFalse()
         }
+
+        @Test
+        fun `should handle password verification exception with invalid hash format`() {
+            // Arrange
+            val email = uniqueEmail()
+            val password = "TestPassword123!"
+            val invalidHash = "invalid-hash-format-that-will-cause-exception"
+            val user = SecurityTestDataBuilders.user(
+                email = email,
+                passwordHash = invalidHash
+            )
+            userRepository.save(user)
+
+            // Act - This should trigger the exception handling branch in verifyPassword
+            val isValid = authenticationService.verifyPassword(password, invalidHash)
+
+            // Assert
+            assertThat(isValid).isFalse()
+        }
     }
 
     @Nested
@@ -200,6 +219,75 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
             assertThat(authenticatedUser2).isNotNull()
             assertThat(authenticatedUser2?.email).isEqualTo(email2)
             assertThat(authenticatedUser1?.id).isNotEqualTo(authenticatedUser2?.id)
+        }
+
+        @Test
+        fun `should return null for blank password`() {
+            // Arrange
+            val email = uniqueEmail()
+            val password = "   " // Blank password (whitespace)
+            val user = SecurityTestDataBuilders.userWithPassword(
+                authenticationService = authenticationService,
+                email = email,
+                password = "TestPassword123!"
+            )
+            userRepository.save(user)
+
+            // Act
+            val authenticatedUser = authenticationService.authenticate(email, password)
+
+            // Assert
+            assertThat(authenticatedUser).isNull()
+        }
+
+        @Test
+        fun `should return null for empty password`() {
+            // Arrange
+            val email = uniqueEmail()
+            val password = "" // Empty password
+            val user = SecurityTestDataBuilders.userWithPassword(
+                authenticationService = authenticationService,
+                email = email,
+                password = "TestPassword123!"
+            )
+            userRepository.save(user)
+
+            // Act
+            val authenticatedUser = authenticationService.authenticate(email, password)
+
+            // Assert
+            assertThat(authenticatedUser).isNull()
+        }
+
+        @Test
+        fun `should return null when user not found`() {
+            // Arrange - no user in database
+            val email = uniqueEmail()
+            val password = "TestPassword123!"
+
+            // Act
+            val authenticatedUser = authenticationService.authenticate(email, password)
+
+            // Assert
+            assertThat(authenticatedUser).isNull()
+        }
+
+        @Test
+        fun `should return null when password hash is null`() {
+            // Arrange
+            val email = uniqueEmail()
+            val password = "TestPassword123!"
+            val user = SecurityTestDataBuilders.user(
+                email = email,
+                passwordHash = null
+            )
+            userRepository.save(user)
+
+            // Act
+            val authenticatedUser = authenticationService.authenticate(email, password)
+
+            // Assert
+            assertThat(authenticatedUser).isNull()
         }
     }
 
@@ -449,6 +537,37 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
             val validatedUser = authenticationService.validateRefreshToken(refreshToken)
 
             // Assert
+            assertThat(validatedUser).isNull()
+        }
+
+        @Test
+        fun `should reject refresh token when token does not match stored token`() {
+            // Arrange
+            val email = uniqueEmail()
+            val password = "TestPassword123!"
+            val user = SecurityTestDataBuilders.userWithPassword(
+                authenticationService = authenticationService,
+                email = email,
+                password = password
+            )
+            val savedUser = userRepository.save(user)
+            val refreshToken1 = authenticationService.generateRefreshToken(savedUser)
+            // Store token1
+            authenticationService.saveRememberMeToken(savedUser.id, refreshToken1)
+            
+            // Wait at least 1 second to ensure token2 has a different issued-at time
+            // JWT tokens use seconds precision for iat, so we need at least 1 second difference
+            Thread.sleep(1000)
+            
+            // Generate a different token (token2) for the same user
+            val refreshToken2 = authenticationService.generateRefreshToken(savedUser)
+            // Ensure token2 is different from token1 (they should be different due to different iat)
+            assertThat(refreshToken2).isNotEqualTo(refreshToken1)
+
+            // Act - Try to validate token2 when token1 is stored
+            val validatedUser = authenticationService.validateRefreshToken(refreshToken2)
+
+            // Assert - Should return null because token2 doesn't match stored token1
             assertThat(validatedUser).isNull()
         }
 
