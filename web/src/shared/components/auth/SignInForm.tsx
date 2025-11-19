@@ -23,6 +23,7 @@ import { useAuth } from "@/shared/providers";
 import { useToast } from "@/shared/providers";
 import { useTranslation } from "@/shared/i18n/hooks/useTranslation";
 import { signinTranslations } from "@/app/signin/i18n";
+import { extractErrorMessage } from "@/shared/utils/error";
 
 const signInSchema = z.object({
   email: z.string().email("errors.invalidEmail").min(1, "errors.required"),
@@ -60,10 +61,7 @@ export const SignInForm: React.FC<SignInFormProps> = ({ onSuccess }) => {
       onSuccess?.();
     } catch (err: any) {
       console.error("Sign in error:", err);
-      const errorMessage =
-        err?.graphQLErrors?.[0]?.message ||
-        err?.message ||
-        t("errors.invalidCredentials");
+      const errorMessage = extractErrorMessage(err, t("errors.invalidCredentials"));
       setError(errorMessage);
       showError(errorMessage);
     } finally {

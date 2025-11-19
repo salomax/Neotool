@@ -17,6 +17,7 @@ type Query {
 type Mutation {
   # Authentication mutations
   signIn(input: SignInInput!): SignInPayload!
+  signUp(input: SignUpInput!): SignUpPayload!
 }
 
 # Authentication input types
@@ -27,6 +28,19 @@ input SignInInput {
 }
 
 type SignInPayload {
+  token: String!
+  refreshToken: String
+  user: User!
+}
+
+# Sign up input types
+input SignUpInput {
+  name: String!
+  email: String!
+  password: String!
+}
+
+type SignUpPayload {
   token: String!
   refreshToken: String
   user: User!

@@ -57,8 +57,8 @@ enum CustomerStatus
 scalar join__FieldSet
 
 enum join__Graph {
-  APP @join__graph(name: "app", url: "http://host.docker.internal:8080/graphql")
   SECURITY @join__graph(name: "security", url: "http://host.docker.internal:8080/graphql")
+  APP @join__graph(name: "app", url: "http://host.docker.internal:8081/graphql")
 }
 
 scalar link__Import

@@ -1,31 +1,32 @@
 "use client";
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import Box from "@mui/material/Box";
 import Container from "@mui/material/Container";
 import IconButton from "@mui/material/IconButton";
 import Avatar from "@mui/material/Avatar";
 import Tooltip from "@mui/material/Tooltip";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
+import Divider from "@mui/material/Divider";
+import Typography from "@mui/material/Typography";
 import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
 import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
+import LogoutIcon from "@mui/icons-material/Logout";
+import PersonIcon from "@mui/icons-material/Person";
 import { useThemeMode } from "@/styles/themes/AppThemeProvider";
-import { CartIcon } from "@/shared/components/ui/navigation";
-import { CartDrawer } from "@/app/(neotool)/cart/components/CartDrawer";
 import { ChatDrawer } from "@/shared/components/ui/feedback/Chat";
+import { useAuth } from "@/shared/providers";
+import { Button } from "@/shared/components/ui/primitives/Button";
 
 export function AppHeader() {
   const { mode, toggle } = useThemeMode();
   const isDark = mode === "dark";
-  const [cartDrawerOpen, setCartDrawerOpen] = React.useState(false);
   const [chatDrawerOpen, setChatDrawerOpen] = React.useState(false);
-
-  const handleCartIconClick = () => {
-    setCartDrawerOpen(true);
-  };
-
-  const handleCartDrawerClose = () => {
-    setCartDrawerOpen(false);
-  };
+  const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+  const { isAuthenticated, user, signOut, isLoading } = useAuth();
+  const router = useRouter();
 
   const handleChatIconClick = () => {
     setChatDrawerOpen(true);
@@ -34,6 +35,37 @@ export function AppHeader() {
   const handleChatDrawerClose = () => {
     setChatDrawerOpen(false);
   };
+
+  const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleProfileMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleSignIn = () => {
+    router.push("/signin");
+  };
+
+  const handleSignOut = () => {
+    handleProfileMenuClose();
+    signOut();
+  };
+
+  const getInitials = (user: { displayName?: string | null; email: string } | null) => {
+    if (!user) return "?";
+    if (user.displayName) {
+      const names = user.displayName.trim().split(/\s+/);
+      if (names.length >= 2) {
+        return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
+      }
+      return user.displayName[0].toUpperCase();
+    }
+    return user.email[0].toUpperCase();
+  };
+
+  const open = Boolean(anchorEl);
 
   return (
     <Box
@@ -69,18 +101,71 @@ export function AppHeader() {
                 <AutoAwesomeIcon />
               </IconButton>
             </Tooltip>
-            <Tooltip title="Shopping cart">
-              <CartIcon onClick={handleCartIconClick} aria-label="Shopping cart" />
-            </Tooltip>
-            <Tooltip title="Profile">
-              <IconButton aria-label="profile">
-                <Avatar sx={{ width: 32, height: 32 }}>N</Avatar>
-              </IconButton>
-            </Tooltip>
+            {isAuthenticated ? (
+              <Tooltip title="Account">
+                <IconButton 
+                  aria-label="Account menu"
+                  onClick={handleProfileMenuOpen}
+                  aria-controls={open ? "profile-menu" : undefined}
+                  aria-haspopup="true"
+                  aria-expanded={open ? "true" : undefined}
+                >
+                  <Avatar sx={{ width: 32, height: 32 }}>
+                    {user ? getInitials(user) : <PersonIcon />}
+                  </Avatar>
+                </IconButton>
+              </Tooltip>
+            ) : (
+              <Button
+                variant="contained"
+                size="small"
+                onClick={handleSignIn}
+                aria-label="Sign in"
+                data-testid="header-signin-button"
+                name="header-signin"
+              >
+                Sign In
+              </Button>
+            )}
         </Box>
       </Container>
-      <CartDrawer open={cartDrawerOpen} onClose={handleCartDrawerClose} />
       <ChatDrawer open={chatDrawerOpen} onClose={handleChatDrawerClose} />
+      <Menu
+        id="profile-menu"
+        anchorEl={anchorEl}
+        open={open}
+        onClose={handleProfileMenuClose}
+        onClick={handleProfileMenuClose}
+        transformOrigin={{ horizontal: "right", vertical: "top" }}
+        anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
+        PaperProps={{
+          elevation: 3,
+          sx: {
+            mt: 1.5,
+            minWidth: 200,
+            "& .MuiMenuItem-root": {
+              px: 2,
+              py: 1,
+            },
+          },
+        }}
+      >
+        {user && [
+          <Box key="user-info" sx={{ px: 2, py: 1.5 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+              {user.displayName || "User"}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {user.email}
+            </Typography>
+          </Box>,
+          <Divider key="divider" />,
+          <MenuItem key="sign-out" onClick={handleSignOut}>
+            <LogoutIcon sx={{ mr: 1.5, fontSize: 20 }} />
+            Sign Out
+          </MenuItem>
+        ]}
+      </Menu>
     </Box>
   );
 }
