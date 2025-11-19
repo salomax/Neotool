@@ -10,12 +10,16 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LogoMark } from '@/shared/ui/brand/LogoMark';
 
-import ShoppingCartRoundedIcon from '@mui/icons-material/ShoppingCartRounded';
+import DesignServicesRoundedIcon from '@mui/icons-material/DesignServicesRounded';
+import CodeRoundedIcon from '@mui/icons-material/CodeRounded';
+import MenuBookRoundedIcon from '@mui/icons-material/MenuBookRounded';
 
 type NavItem = { href: string; label: string; icon: React.ElementType };
 
 const NAV_TOP: NavItem[] = [
-  { href: '/catalog', label: 'Catalog', icon: ShoppingCartRoundedIcon },
+  { href: '/design-system', label: 'Design System', icon: DesignServicesRoundedIcon },
+  { href: '/examples', label: 'Examples', icon: CodeRoundedIcon },
+  { href: '/documentation', label: 'Documentation', icon: MenuBookRoundedIcon },
 ];
 
 export const RAIL_W = 84;

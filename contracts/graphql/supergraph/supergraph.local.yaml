@@ -1,16 +1,11 @@
 federation_version: 2
 subgraphs:
-  app:
-    routing_url: http://host.docker.internal:8080/graphql
-    schema:
-      file: ../subgraphs/app/schema.graphqls
   security:
     routing_url: http://host.docker.internal:8080/graphql
     schema:
       file: ../subgraphs/security/schema.graphqls
-# new modules...
-#  module:
-#    routing_url: http://host.docker.internal:8080/graphql
-#    schema:
-#      file: ../subgraphs/module/schema.graphqls
+  app:
+    routing_url: http://host.docker.internal:8081/graphql
+    schema:
+      file: ../subgraphs/app/schema.graphqls
 

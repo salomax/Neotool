@@ -26,6 +26,7 @@ import { useToast } from "@/shared/providers";
 import { useTranslation } from "@/shared/i18n/hooks/useTranslation";
 import { signupTranslations } from "@/app/signup/i18n";
 import { validatePassword, passwordValidationRules } from "@/shared/utils/passwordValidation";
+import { extractErrorMessage } from "@/shared/utils/error";
 
 const signUpSchema = z.object({
   name: z.string().min(1, "errors.required"),
@@ -82,10 +83,7 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onSuccess }) => {
       onSuccess?.();
     } catch (err: any) {
       console.error("Sign up error:", err);
-      const errorMessage =
-        err?.graphQLErrors?.[0]?.message ||
-        err?.message ||
-        t("errors.unknownError");
+      const errorMessage = extractErrorMessage(err, t("errors.unknownError"));
       setError(errorMessage);
       showError(errorMessage);
     } finally {
