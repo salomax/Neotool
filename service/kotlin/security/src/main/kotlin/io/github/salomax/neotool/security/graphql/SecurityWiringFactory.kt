@@ -6,6 +6,8 @@ import graphql.schema.idl.TypeRuntimeWiring
 import io.github.salomax.neotool.security.graphql.dto.SignInPayloadDTO
 import io.github.salomax.neotool.security.graphql.dto.SignUpPayloadDTO
 import io.github.salomax.neotool.security.graphql.dto.UserDTO
+import io.github.salomax.neotool.security.graphql.dto.RequestPasswordResetPayloadDTO
+import io.github.salomax.neotool.security.graphql.dto.ResetPasswordPayloadDTO
 import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.createValidatedDataFetcher
 import io.github.salomax.neotool.common.graphql.GraphQLPayloadDataFetcher.createMutationDataFetcher
 import io.github.salomax.neotool.common.graphql.GraphQLWiringFactory
@@ -46,6 +48,12 @@ class SecurityWiringFactory(
             })
             .dataFetcher("signUp", createMutationDataFetcher<SignUpPayloadDTO>("signUp") { input ->
                 authResolver.signUp(input)
+            })
+            .dataFetcher("requestPasswordReset", createMutationDataFetcher<RequestPasswordResetPayloadDTO>("requestPasswordReset") { input ->
+                authResolver.requestPasswordReset(input)
+            })
+            .dataFetcher("resetPassword", createMutationDataFetcher<ResetPasswordPayloadDTO>("resetPassword") { input ->
+                authResolver.resetPassword(input)
             })
     }
     
@@ -95,6 +103,26 @@ class SecurityWiringFactory(
                 type.dataFetcher("user", createValidatedDataFetcher { env: DataFetchingEnvironment ->
                     val payload = env.getSource<SignUpPayloadDTO>()
                     payload?.user
+                })
+            }
+            .type("RequestPasswordResetPayload") { type ->
+                type.dataFetcher("success", createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                    val payload = env.getSource<RequestPasswordResetPayloadDTO>()
+                    payload?.success
+                })
+                type.dataFetcher("message", createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                    val payload = env.getSource<RequestPasswordResetPayloadDTO>()
+                    payload?.message
+                })
+            }
+            .type("ResetPasswordPayload") { type ->
+                type.dataFetcher("success", createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                    val payload = env.getSource<ResetPasswordPayloadDTO>()
+                    payload?.success
+                })
+                type.dataFetcher("message", createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                    val payload = env.getSource<ResetPasswordPayloadDTO>()
+                    payload?.message
                 })
             }
     }

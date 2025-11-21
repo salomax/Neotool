@@ -30,3 +30,23 @@ export const SIGN_UP = gql`
   }
 `;
 
+// Request password reset mutation
+export const REQUEST_PASSWORD_RESET = gql`
+  mutation RequestPasswordReset($input: RequestPasswordResetInput!) {
+    requestPasswordReset(input: $input) {
+      success
+      message
+    }
+  }
+`;
+
+// Reset password mutation
+export const RESET_PASSWORD = gql`
+  mutation ResetPassword($input: ResetPasswordInput!) {
+    resetPassword(input: $input) {
+      success
+      message
+    }
+  }
+`;
+

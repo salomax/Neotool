@@ -87,6 +87,8 @@ type Mutation
   deleteCustomer(id: ID!): Boolean! @join__field(graph: APP)
   signIn(input: SignInInput!): SignInPayload! @join__field(graph: SECURITY)
   signUp(input: SignUpInput!): SignUpPayload! @join__field(graph: SECURITY)
+  requestPasswordReset(input: RequestPasswordResetInput!): RequestPasswordResetPayload! @join__field(graph: SECURITY)
+  resetPassword(input: ResetPasswordInput!): ResetPasswordPayload! @join__field(graph: SECURITY)
 }
 
 type Product
@@ -120,6 +122,34 @@ type Query
   customers: [Customer!]! @join__field(graph: APP)
   customer(id: ID!): Customer @join__field(graph: APP)
   currentUser: User @join__field(graph: SECURITY)
+}
+
+input RequestPasswordResetInput
+  @join__type(graph: SECURITY)
+{
+  email: String!
+  locale: String
+}
+
+type RequestPasswordResetPayload
+  @join__type(graph: SECURITY)
+{
+  success: Boolean!
+  message: String!
+}
+
+input ResetPasswordInput
+  @join__type(graph: SECURITY)
+{
+  token: String!
+  newPassword: String!
+}
+
+type ResetPasswordPayload
+  @join__type(graph: SECURITY)
+{
+  success: Boolean!
+  message: String!
 }
 
 input SignInInput

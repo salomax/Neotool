@@ -55,3 +55,35 @@ data class UserDTO(
     val displayName: String? = null
 )
 
+@Introspected
+@Serdeable
+data class RequestPasswordResetInputDTO(
+    @field:Email(message = "Email must be valid")
+    @field:NotBlank(message = "Email is required")
+    var email: String = "",
+    var locale: String? = "en"
+) : BaseInputDTO()
+
+@Introspected
+@Serdeable
+data class RequestPasswordResetPayloadDTO(
+    val success: Boolean,
+    val message: String
+)
+
+@Introspected
+@Serdeable
+data class ResetPasswordInputDTO(
+    @field:NotBlank(message = "Token is required")
+    var token: String = "",
+    @field:NotBlank(message = "Password is required")
+    var newPassword: String = ""
+) : BaseInputDTO()
+
+@Introspected
+@Serdeable
+data class ResetPasswordPayloadDTO(
+    val success: Boolean,
+    val message: String
+)
+

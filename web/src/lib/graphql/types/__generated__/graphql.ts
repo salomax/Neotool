@@ -49,6 +49,8 @@ export type Mutation = {
   createProduct: Product;
   deleteCustomer: Scalars['Boolean']['output'];
   deleteProduct: Scalars['Boolean']['output'];
+  requestPasswordReset: RequestPasswordResetPayload;
+  resetPassword: ResetPasswordPayload;
   signIn: SignInPayload;
   signUp: SignUpPayload;
   updateCustomer: Customer;
@@ -73,6 +75,16 @@ export type MutationDeleteCustomerArgs = {
 
 export type MutationDeleteProductArgs = {
   id: Scalars['ID']['input'];
+};
+
+
+export type MutationRequestPasswordResetArgs = {
+  input: RequestPasswordResetInput;
+};
+
+
+export type MutationResetPasswordArgs = {
+  input: ResetPasswordInput;
 };
 
 
@@ -133,6 +145,28 @@ export type QueryCustomerArgs = {
 
 export type QueryProductArgs = {
   id: Scalars['ID']['input'];
+};
+
+export type RequestPasswordResetInput = {
+  email: Scalars['String']['input'];
+  locale?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type RequestPasswordResetPayload = {
+  __typename: 'RequestPasswordResetPayload';
+  message: Scalars['String']['output'];
+  success: Scalars['Boolean']['output'];
+};
+
+export type ResetPasswordInput = {
+  newPassword: Scalars['String']['input'];
+  token: Scalars['String']['input'];
+};
+
+export type ResetPasswordPayload = {
+  __typename: 'ResetPasswordPayload';
+  message: Scalars['String']['output'];
+  success: Scalars['Boolean']['output'];
 };
 
 export type SignInInput = {

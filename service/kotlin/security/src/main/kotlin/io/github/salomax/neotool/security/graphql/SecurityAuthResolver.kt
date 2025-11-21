@@ -5,6 +5,10 @@ import io.github.salomax.neotool.security.graphql.dto.SignInPayloadDTO
 import io.github.salomax.neotool.security.graphql.dto.SignUpInputDTO
 import io.github.salomax.neotool.security.graphql.dto.SignUpPayloadDTO
 import io.github.salomax.neotool.security.graphql.dto.UserDTO
+import io.github.salomax.neotool.security.graphql.dto.RequestPasswordResetInputDTO
+import io.github.salomax.neotool.security.graphql.dto.RequestPasswordResetPayloadDTO
+import io.github.salomax.neotool.security.graphql.dto.ResetPasswordInputDTO
+import io.github.salomax.neotool.security.graphql.dto.ResetPasswordPayloadDTO
 import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.createMutationDataFetcher
 import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.createValidatedDataFetcher
 import io.github.salomax.neotool.common.graphql.payload.GraphQLPayload
@@ -12,7 +16,9 @@ import io.github.salomax.neotool.common.graphql.payload.GraphQLPayloadFactory
 import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.service.AuthenticationService
 import io.github.salomax.neotool.security.repo.UserRepository
+import io.github.salomax.neotool.common.graphql.InputValidator
 import jakarta.inject.Singleton
+import jakarta.validation.ConstraintViolationException
 import mu.KotlinLogging
 
 /**
@@ -29,7 +35,8 @@ import mu.KotlinLogging
 @Singleton
 class SecurityAuthResolver(
     private val authenticationService: AuthenticationService,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val inputValidator: InputValidator
 ) {
     private val logger = KotlinLogging.logger {}
     
@@ -129,6 +136,95 @@ class SecurityAuthResolver(
             GraphQLPayloadFactory.success(payload)
         } catch (e: Exception) {
             logger.warn { "Sign up failed: ${e.message}" }
+            GraphQLPayloadFactory.error(e)
+        }
+    }
+    
+    /**
+     * Request password reset mutation resolver
+     */
+    fun requestPasswordReset(input: Map<String, Any?>): GraphQLPayload<RequestPasswordResetPayloadDTO> {
+        return try {
+            logger.debug { "Password reset request received with input: $input" }
+            
+            // Extract and validate email
+            val email = input["email"] as? String
+            if (email.isNullOrBlank()) {
+                logger.warn { "Password reset request with empty email" }
+                // Return success for security (don't reveal if email exists)
+                return GraphQLPayloadFactory.success(
+                    RequestPasswordResetPayloadDTO(
+                        success = true,
+                        message = "If an account with that email exists, a password reset link has been sent."
+                    )
+                )
+            }
+            
+            // Deserialize input to DTO
+            val dto = RequestPasswordResetInputDTO(
+                email = email.trim(),
+                locale = (input["locale"] as? String)?.takeIf { it.isNotBlank() } ?: "en"
+            )
+            
+            // Validate DTO
+            try {
+                inputValidator.validate(dto)
+            } catch (e: ConstraintViolationException) {
+                logger.warn { "Password reset request validation failed: ${e.message}" }
+                // Return success for security (don't reveal if email exists)
+                return GraphQLPayloadFactory.success(
+                    RequestPasswordResetPayloadDTO(
+                        success = true,
+                        message = "If an account with that email exists, a password reset link has been sent."
+                    )
+                )
+            }
+            
+            logger.debug { "Password reset request for email: ${dto.email}, locale: ${dto.locale}" }
+            
+            // Request password reset (always returns true for security)
+            authenticationService.requestPasswordReset(dto.email, dto.locale ?: "en")
+            
+            val payload = RequestPasswordResetPayloadDTO(
+                success = true,
+                message = "If an account with that email exists, a password reset link has been sent."
+            )
+            
+            GraphQLPayloadFactory.success(payload)
+        } catch (e: Exception) {
+            logger.error(e) { "Password reset request failed: ${e.message}" }
+            // Still return success for security (don't reveal if email exists)
+            val payload = RequestPasswordResetPayloadDTO(
+                success = true,
+                message = "If an account with that email exists, a password reset link has been sent."
+            )
+            GraphQLPayloadFactory.success(payload)
+        }
+    }
+    
+    /**
+     * Reset password mutation resolver
+     */
+    fun resetPassword(input: Map<String, Any?>): GraphQLPayload<ResetPasswordPayloadDTO> {
+        return try {
+            val token = input["token"] as? String ?: throw IllegalArgumentException("Token is required")
+            val newPassword = input["newPassword"] as? String ?: throw IllegalArgumentException("New password is required")
+            
+            logger.debug { "Password reset attempt with token" }
+            
+            // Reset password
+            authenticationService.resetPassword(token, newPassword)
+            
+            logger.info { "Password reset successful" }
+            
+            val payload = ResetPasswordPayloadDTO(
+                success = true,
+                message = "Password has been reset successfully. You can now sign in with your new password."
+            )
+            
+            GraphQLPayloadFactory.success(payload)
+        } catch (e: Exception) {
+            logger.warn { "Password reset failed: ${e.message}" }
             GraphQLPayloadFactory.error(e)
         }
     }

@@ -1,0 +1,18 @@
+{
+  "title": "Reset your password",
+  "subtitle": "Enter your new password below",
+  "newPassword": "New password",
+  "confirmPassword": "Confirm password",
+  "resetPassword": "Reset password",
+  "backToSignIn": "Back to sign in",
+  "successMessage": "Password has been reset successfully. You can now sign in with your new password.",
+  "errors": {
+    "required": "This field is required",
+    "passwordMismatch": "Passwords do not match",
+    "weakPassword": "Password must be at least 8 characters with uppercase, lowercase, number and special character",
+    "invalidToken": "Invalid or expired reset token",
+    "networkError": "Network error. Please try again.",
+    "unknownError": "An unexpected error occurred. Please try again."
+  }
+}
+
