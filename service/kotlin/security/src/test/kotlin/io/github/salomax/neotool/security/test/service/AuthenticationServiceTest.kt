@@ -2,9 +2,12 @@ package io.github.salomax.neotool.security.test.service
 
 import io.github.salomax.neotool.security.config.JwtConfig
 import io.github.salomax.neotool.security.model.UserEntity
+import io.github.salomax.neotool.security.repo.PasswordResetAttemptRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.AuthenticationService
+import io.github.salomax.neotool.security.service.EmailService
 import io.github.salomax.neotool.security.service.JwtService
+import io.github.salomax.neotool.security.service.RateLimitService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -32,7 +35,10 @@ class AuthenticationServiceTest {
             refreshTokenExpirationSeconds = 604800L
         )
         jwtService = JwtService(jwtConfig)
-        authenticationService = AuthenticationService(userRepository, jwtService)
+        val emailService: EmailService = mock()
+        val passwordResetAttemptRepository: PasswordResetAttemptRepository = mock()
+        val rateLimitService = RateLimitService(passwordResetAttemptRepository)
+        authenticationService = AuthenticationService(userRepository, jwtService, emailService, rateLimitService)
     }
 
     @Nested

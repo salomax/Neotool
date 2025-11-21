@@ -184,5 +184,92 @@ object SecurityTestDataBuilders {
     fun uniqueEmail(prefix: String = "test"): String {
         return "$prefix-${System.currentTimeMillis()}-${Thread.currentThread().id}@example.com"
     }
+
+    /**
+     * Create a GraphQL requestPasswordReset mutation
+     */
+    fun requestPasswordResetMutation(
+        email: String = "test@example.com",
+        locale: String? = null
+    ): Map<String, Any> = mapOf(
+        "query" to """
+            mutation RequestPasswordReset(${'$'}input: RequestPasswordResetInput!) {
+                requestPasswordReset(input: ${'$'}input) {
+                    success
+                    message
+                }
+            }
+        """.trimIndent(),
+        "variables" to mapOf(
+            "input" to buildMap {
+                put("email", email)
+                if (locale != null) {
+                    put("locale", locale)
+                }
+            }
+        )
+    )
+
+    /**
+     * Create a GraphQL requestPasswordReset mutation with inline variables
+     */
+    fun requestPasswordResetMutationInline(
+        email: String = "test@example.com",
+        locale: String? = null
+    ): Map<String, Any> = mapOf(
+        "query" to """
+            mutation {
+                requestPasswordReset(input: {
+                    email: "$email"${if (locale != null) "\n                    locale: \"$locale\"" else ""}
+                }) {
+                    success
+                    message
+                }
+            }
+        """.trimIndent()
+    )
+
+    /**
+     * Create a GraphQL resetPassword mutation
+     */
+    fun resetPasswordMutation(
+        token: String = "test-token",
+        newPassword: String = "NewPassword123!"
+    ): Map<String, Any> = mapOf(
+        "query" to """
+            mutation ResetPassword(${'$'}input: ResetPasswordInput!) {
+                resetPassword(input: ${'$'}input) {
+                    success
+                    message
+                }
+            }
+        """.trimIndent(),
+        "variables" to mapOf(
+            "input" to mapOf(
+                "token" to token,
+                "newPassword" to newPassword
+            )
+        )
+    )
+
+    /**
+     * Create a GraphQL resetPassword mutation with inline variables
+     */
+    fun resetPasswordMutationInline(
+        token: String = "test-token",
+        newPassword: String = "NewPassword123!"
+    ): Map<String, Any> = mapOf(
+        "query" to """
+            mutation {
+                resetPassword(input: {
+                    token: "$token"
+                    newPassword: "$newPassword"
+                }) {
+                    success
+                    message
+                }
+            }
+        """.trimIndent()
+    )
 }
 

@@ -18,6 +18,8 @@ type Mutation {
   # Authentication mutations
   signIn(input: SignInInput!): SignInPayload!
   signUp(input: SignUpInput!): SignUpPayload!
+  requestPasswordReset(input: RequestPasswordResetInput!): RequestPasswordResetPayload!
+  resetPassword(input: ResetPasswordInput!): ResetPasswordPayload!
 }
 
 # Authentication input types
@@ -44,5 +46,26 @@ type SignUpPayload {
   token: String!
   refreshToken: String
   user: User!
+}
+
+# Password reset input types
+input RequestPasswordResetInput {
+  email: String!
+  locale: String
+}
+
+type RequestPasswordResetPayload {
+  success: Boolean!
+  message: String!
+}
+
+input ResetPasswordInput {
+  token: String!
+  newPassword: String!
+}
+
+type ResetPasswordPayload {
+  success: Boolean!
+  message: String!
 }
 

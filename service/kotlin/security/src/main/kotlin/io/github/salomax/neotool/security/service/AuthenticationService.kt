@@ -6,6 +6,8 @@ import io.github.salomax.neotool.security.repo.UserRepository
 import jakarta.inject.Singleton
 import jakarta.transaction.Transactional
 import mu.KotlinLogging
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 import java.util.UUID
 
 /**
@@ -18,7 +20,9 @@ import java.util.UUID
 @Singleton
 open class AuthenticationService(
     private val userRepository: UserRepository,
-    private val jwtService: JwtService
+    private val jwtService: JwtService,
+    private val emailService: EmailService,
+    private val rateLimitService: RateLimitService
 ) {
     private val logger = KotlinLogging.logger {}
     
@@ -292,6 +296,138 @@ open class AuthenticationService(
     @Transactional
     open fun saveUser(user: UserEntity): UserEntity {
         return userRepository.save(user)
+    }
+    
+    /**
+     * Request a password reset for a user.
+     * 
+     * Generates a secure reset token, saves it to the database, and sends an email.
+     * Always returns true for security (don't reveal if email exists).
+     * 
+     * @param email User's email address
+     * @param locale Locale for email template (default: "en")
+     * @return true (always, for security)
+     */
+    @Transactional
+    open fun requestPasswordReset(email: String, locale: String = "en"): Boolean {
+        // Check rate limit first
+        if (rateLimitService.isRateLimited(email)) {
+            logger.warn { "Password reset request rate limited for email: $email" }
+            // Still return true for security (don't reveal rate limiting)
+            return true
+        }
+        
+        // Find user by email
+        val user = userRepository.findByEmail(email) ?: run {
+            logger.debug { "Password reset requested for non-existent email: $email" }
+            // Return true even if user doesn't exist (security best practice)
+            return true
+        }
+        
+        // Check if user has a password (OAuth users might not)
+        if (user.passwordHash == null) {
+            logger.debug { "Password reset requested for user without password: $email" }
+            // Return true even if user has no password (security best practice)
+            return true
+        }
+        
+        // Generate secure random token (UUID)
+        val resetToken = UUID.randomUUID().toString()
+        
+        // Set expiration to 1 hour from now
+        val expirationTime = Instant.now().plus(1, java.time.temporal.ChronoUnit.HOURS)
+        
+        // Invalidate any existing reset tokens for this user
+        user.passwordResetToken = resetToken
+        user.passwordResetExpiresAt = expirationTime
+        user.passwordResetUsedAt = null
+        
+        // Save user
+        userRepository.save(user)
+        
+        // Send email (don't throw if it fails - we want to return success)
+        try {
+            emailService.sendPasswordResetEmail(email, resetToken, locale)
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to send password reset email to: $email" }
+            // Continue - we still return true
+        }
+        
+        logger.info { "Password reset token generated for email: $email" }
+        return true
+    }
+    
+    /**
+     * Validate a password reset token.
+     * 
+     * @param token The reset token
+     * @return UserEntity if token is valid, null otherwise
+     */
+    fun validateResetToken(token: String): UserEntity? {
+        if (token.isBlank()) {
+            logger.debug { "Empty reset token provided" }
+            return null
+        }
+        
+        val user = userRepository.findByPasswordResetToken(token) ?: run {
+            logger.debug { "Invalid reset token: token not found" }
+            return null
+        }
+        
+        // Check if token is expired
+        val now = Instant.now()
+        if (user.passwordResetExpiresAt == null || user.passwordResetExpiresAt!!.isBefore(now)) {
+            logger.debug { "Reset token expired for user: ${user.email}" }
+            return null
+        }
+        
+        // Check if token was already used
+        if (user.passwordResetUsedAt != null) {
+            logger.debug { "Reset token already used for user: ${user.email}" }
+            return null
+        }
+        
+        logger.debug { "Reset token validated for user: ${user.email}" }
+        return user
+    }
+    
+    /**
+     * Reset password using a valid reset token.
+     * 
+     * @param token The reset token
+     * @param newPassword The new password
+     * @return UserEntity if successful
+     * @throws IllegalArgumentException if token is invalid or password is weak
+     */
+    @Transactional
+    open fun resetPassword(token: String, newPassword: String): UserEntity {
+        // Validate token
+        val user = validateResetToken(token) ?: throw IllegalArgumentException("Invalid or expired reset token")
+        
+        // Validate password strength
+        if (!validatePasswordStrength(newPassword)) {
+            logger.warn { "Password reset attempt with weak password for user: ${user.email}" }
+            throw IllegalArgumentException("Password must be at least 8 characters with uppercase, lowercase, number and special character")
+        }
+        
+        // Hash new password
+        val passwordHash = hashPassword(newPassword)
+        
+        // Update user password
+        user.passwordHash = passwordHash
+        
+        // Mark token as used
+        user.passwordResetUsedAt = Instant.now()
+        
+        // Clear reset token fields (optional, but good practice)
+        user.passwordResetToken = null
+        user.passwordResetExpiresAt = null
+        
+        // Save user
+        val savedUser = userRepository.save(user)
+        
+        logger.info { "Password reset successfully for user: ${user.email}" }
+        return savedUser
     }
 }
 
