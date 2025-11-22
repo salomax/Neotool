@@ -65,7 +65,7 @@ export default function SecurityPage() {
           </Typography>
 
           <Typography variant="h6" sx={{ mt: 3, mb: 2 }}>
-            React's Built-in Protection
+            React&apos;s Built-in Protection
           </Typography>
           <Typography variant="body2" paragraph>
             React automatically escapes values in JSX, preventing most XSS attacks. However, you should
@@ -127,7 +127,7 @@ import DOMPurify from 'dompurify';
             CSRF (Cross-Site Request Forgery) Protection
           </Typography>
           <Typography variant="body1" paragraph>
-            CSRF attacks trick users into performing actions they didn't intend. Protect your API
+            CSRF attacks trick users into performing actions they didn&apos;t intend. Protect your API
             endpoints with proper CSRF tokens.
           </Typography>
 

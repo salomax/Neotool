@@ -3,14 +3,32 @@ import { ResponsiveValue } from './types';
 /**
  * Get responsive value based on breakpoint
  */
-export function getResponsiveValue<T>(
-  value: ResponsiveValue<T>,
+export function getResponsiveValue<T, R = T>(
+  value: ResponsiveValue<T> | undefined,
+  transformer?: (val: T) => R,
   breakpoint: 'xs' | 'sm' | 'md' | 'lg' | 'xl' = 'md'
-): T {
-  if (typeof value === 'object' && value !== null) {
-    return value[breakpoint] || value.md || value.sm || value.xs || Object.values(value)[0];
+): R | string | undefined {
+  if (value === undefined) {
+    return undefined;
   }
-  return value as T;
+  
+  let resolvedValue: T | undefined;
+  if (typeof value === 'object' && value !== null) {
+    const obj = value as { [key: string]: T | undefined };
+    resolvedValue = obj[breakpoint] || obj.md || obj.sm || obj.xs || Object.values(obj)[0];
+  } else {
+    resolvedValue = value as T;
+  }
+  
+  if (resolvedValue === undefined) {
+    return undefined as R | string | undefined;
+  }
+  
+  if (transformer) {
+    return transformer(resolvedValue) as R | string;
+  }
+  
+  return resolvedValue as R;
 }
 
 /**
@@ -18,7 +36,8 @@ export function getResponsiveValue<T>(
  */
 export function spacingToCSS(spacing: ResponsiveValue<string | number>): string {
   const value = getResponsiveValue(spacing);
-  return typeof value === 'number' ? `${value * 8}px` : value;
+  if (value === undefined) return '0px';
+  return typeof value === 'number' ? `${value * 8}px` : (value as string);
 }
 
 /**

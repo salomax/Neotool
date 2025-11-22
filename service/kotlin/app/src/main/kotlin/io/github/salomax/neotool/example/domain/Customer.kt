@@ -6,13 +6,13 @@ import java.time.Instant
 import java.util.UUID
 
 data class Customer(
-  val id: UUID? = null,
-  val name: String,
-  val email: String,
-  val status: CustomerStatus = CustomerStatus.ACTIVE,
-  val createdAt: Instant = Instant.now(),
-  val updatedAt: Instant = Instant.now(),
-  val version: Long = 0
+    val id: UUID? = null,
+    val name: String,
+    val email: String,
+    val status: CustomerStatus = CustomerStatus.ACTIVE,
+    val createdAt: Instant = Instant.now(),
+    val updatedAt: Instant = Instant.now(),
+    val version: Long = 0,
 ) {
     fun toEntity(): CustomerEntity {
         return CustomerEntity(
@@ -22,10 +22,10 @@ data class Customer(
             status = this.status,
             createdAt = this.createdAt,
             updatedAt = this.updatedAt,
-            version = this.version
+            version = this.version,
         )
     }
-    
+
     fun toResponse(): CustomerResponse {
         return CustomerResponse(
             id = this.id,
@@ -34,11 +34,13 @@ data class Customer(
             status = this.status.name,
             createdAt = this.createdAt,
             updatedAt = this.updatedAt,
-            version = this.version
+            version = this.version,
         )
     }
 }
 
 enum class CustomerStatus {
-    ACTIVE, INACTIVE, PENDING
+    ACTIVE,
+    INACTIVE,
+    PENDING,
 }

@@ -83,10 +83,15 @@ export const Chart: React.FC<ChartProps> = ({
 }) => {
   const theme = useTheme();
 
-  const renderChart = () => {
+  const renderChart = (): React.ReactElement => {
     const commonProps = {
       data,
-      margin,
+      margin: {
+        top: margin?.top ?? 5,
+        right: margin?.right ?? 30,
+        left: margin?.left ?? 20,
+        bottom: margin?.bottom ?? 5,
+      },
       animationDuration,
     };
 
@@ -104,7 +109,7 @@ export const Chart: React.FC<ChartProps> = ({
               dataKey={dataKey}
               stroke={colors[0]}
               strokeWidth={strokeWidth}
-              dot={{ fill: colors[0], strokeWidth: 2, r: 4 }}
+              dot={{ fill: colors[0] || '#8884d8', strokeWidth: 2, r: 4 }}
             />
           </LineChart>
         );
@@ -150,7 +155,11 @@ export const Chart: React.FC<ChartProps> = ({
               cx="50%"
               cy="50%"
               labelLine={false}
-              label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+              label={(props: any) => {
+                const name = props.name || '';
+                const percent = props.percent || 0;
+                return `${name} ${(percent * 100).toFixed(0)}%`;
+              }}
               outerRadius={80}
               fill="#8884d8"
               dataKey={valueKey}
@@ -164,7 +173,7 @@ export const Chart: React.FC<ChartProps> = ({
         );
 
       default:
-        return null;
+        return <div />;
     }
   };
 

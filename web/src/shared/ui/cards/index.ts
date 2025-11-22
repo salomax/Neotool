@@ -1,2 +1,2 @@
 // Card Components
-export { default as StatCard } from './StatCard';
+export { StatCard } from './StatCard';

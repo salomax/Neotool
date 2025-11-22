@@ -10,7 +10,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <Box
       sx={{
         display: "flex",
-        minHeight: "100vh",
+        height: "100vh",
         bgcolor: "background.default",
         overflow: "hidden", // Prevent overflow
       }}

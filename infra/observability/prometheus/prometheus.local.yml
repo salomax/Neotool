@@ -1,0 +1,56 @@
+# Observability Stack
+# Prometheus Configuration for Local Development
+# 
+# This configuration is used when:
+# - Prometheus runs inside Docker Compose
+# - Services run locally via IDE (on host machine)
+# 
+# Prometheus reaches services on the host via host.docker.internal
+# Services use ports from their application.yml files
+global:
+  # How often to scrape targets (every 30 seconds)
+  scrape_interval: 30s
+
+scrape_configs:
+  # Monitor Prometheus itself - collects internal Prometheus server metrics
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['prometheus:9090']
+
+  # Monitor the App service (Kotlin/Micronaut application)
+  # Service runs locally on port 8081 (from application.yml)
+  # Prometheus (in Docker) reaches it via host.docker.internal
+  - job_name: 'app'
+    static_configs:
+      - targets: ['host.docker.internal:8081']  # Host machine port where app runs locally
+    metrics_path: '/prometheus'
+    
+  # Monitor the Assistant service
+  # Service runs locally on port 8082 (from application.yml)
+  - job_name: 'assistant'
+    static_configs:
+      - targets: ['host.docker.internal:8082']  # Host machine port where assistant runs locally
+    metrics_path: '/prometheus'
+    
+  # Monitor the Security service
+  # Service runs locally on port 8080 (from application.yml)
+  - job_name: 'security'
+    static_configs:
+      - targets: ['host.docker.internal:8080']  # Host machine port where security runs locally
+    metrics_path: '/prometheus'
+
+  # Monitor PostgreSQL database
+  # PostgreSQL exporter runs in Docker, so use service name
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']  # Docker service name
+
+  # Monitor GraphQL Router (Apollo Router)
+  # Router runs in Docker, but metrics are exposed on port 9091 (mapped from 9090)
+  # Since Prometheus is in Docker, we can use the service name with internal port
+  - job_name: 'router'
+    static_configs:
+      - targets: ['router:9090']  # Docker service name + internal metrics port
+    metrics_path: '/metrics'
+    
+

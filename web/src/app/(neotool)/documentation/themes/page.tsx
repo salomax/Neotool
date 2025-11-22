@@ -344,7 +344,7 @@ function MyComponent() {
                 ✅ Use Semantic Color Names
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Use "primary.main", "text.primary" instead of specific hex colors
+                Use &quot;primary.main&quot;, &quot;text.primary&quot; instead of specific hex colors
               </Typography>
             </Box>
             <Divider />

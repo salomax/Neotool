@@ -283,6 +283,8 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
     if (disabled) return;
     
     const fileToRemove = currentFiles[index];
+    if (!fileToRemove) return;
+    
     const updatedFiles = currentFiles.filter((_, i) => i !== index);
     
     if (!isControlled) {
@@ -345,6 +347,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
           borderColor: 'divider',
         }}
       >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={url}
           alt={file.name}

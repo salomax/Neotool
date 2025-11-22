@@ -27,18 +27,6 @@ const meta: Meta<typeof DataTable> = {
     pageSize: {
       control: { type: 'number' },
       description: 'Number of rows per page'
-    },
-    showPagination: {
-      control: { type: 'boolean' },
-      description: 'Whether to show pagination'
-    },
-    showSorting: {
-      control: { type: 'boolean' },
-      description: 'Whether to enable column sorting'
-    },
-    showFiltering: {
-      control: { type: 'boolean' },
-      description: 'Whether to show filtering options'
     }
   },
   tags: ['autodocs'],
@@ -55,7 +43,15 @@ const sampleData = [
   { id: 5, name: 'Charlie Wilson', email: 'charlie@example.com', status: 'Active', role: 'Moderator' },
 ];
 
-const columns = [
+type SampleData = {
+  id: number;
+  name: string;
+  email: string;
+  status: string;
+  role: string;
+};
+
+const columns: Array<import('ag-grid-community').ColDef<SampleData>> = [
   { field: 'name', headerName: 'Name', width: 200, sortable: true },
   { field: 'email', headerName: 'Email', width: 250, sortable: true },
   { field: 'status', headerName: 'Status', width: 150, sortable: true },
@@ -65,7 +61,7 @@ const columns = [
 export const Default: Story = {
   render: () => (
     <Box sx={{ height: 400 }}>
-      <DataTable 
+      <DataTable<SampleData>
         rows={sampleData}
         columns={columns}
         height={400}
@@ -77,12 +73,11 @@ export const Default: Story = {
 export const WithPagination: Story = {
   render: () => (
     <Box sx={{ height: 400 }}>
-      <DataTable 
+      <DataTable<SampleData>
         rows={sampleData}
         columns={columns}
         height={400}
-        pagination={true}
-        paginationPageSize={3}
+        pageSize={3}
       />
     </Box>
   ),
@@ -91,7 +86,7 @@ export const WithPagination: Story = {
 export const Loading: Story = {
   render: () => (
     <Box sx={{ height: 400 }}>
-      <DataTable 
+      <DataTable<SampleData>
         rows={[]}
         columns={columns}
         height={400}
@@ -103,23 +98,22 @@ export const Loading: Story = {
 
 export const LargeDataset: Story = {
   render: () => {
-    const largeDataset = Array.from({ length: 100 }, (_, i) => ({
+    const largeDataset: SampleData[] = Array.from({ length: 100 }, (_, i) => ({
       id: i + 1,
       name: `User ${i + 1}`,
       email: `user${i + 1}@example.com`,
-      status: ['Active', 'Inactive', 'Pending'][i % 3],
-      role: ['Admin', 'User', 'Moderator'][i % 3],
+      status: ['Active', 'Inactive', 'Pending'][i % 3] as string,
+      role: ['Admin', 'User', 'Moderator'][i % 3] as string,
     }));
     
     return (
       <Box sx={{ height: 400 }}>
         <Typography variant="h6" gutterBottom>Large Dataset (100 rows)</Typography>
-        <DataTable 
+        <DataTable<SampleData>
           rows={largeDataset}
           columns={columns}
           height={400}
-          pagination={true}
-          paginationPageSize={10}
+          pageSize={10}
         />
       </Box>
     );

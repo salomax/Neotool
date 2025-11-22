@@ -155,7 +155,7 @@ export const DatatableRenderer: React.FC<ComponentRendererProps> = ({ example })
             { id: 5, code: 'E005', name: 'Widget E', price: 6.25, quantity: 300 },
             { id: 6, code: 'F006', name: 'Widget F', price: 18.50, quantity: 120 }
           ]}
-          density="compact"
+          initialDensity="compact"
           height={300}
         />
       );

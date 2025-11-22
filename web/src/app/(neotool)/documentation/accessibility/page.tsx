@@ -317,7 +317,7 @@ export default function AccessibilityPage() {
                 Focus Trapping
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                In modals and dialogs, trap focus within the component until it's closed
+                In modals and dialogs, trap focus within the component until it&apos;s closed
               </Typography>
             </Box>
             <Box>

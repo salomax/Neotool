@@ -64,6 +64,7 @@ show_schema_sources_menu() {
         echo "  [$((i+1))] $rel_path"
     done
     
+    echo "  [ALL] Sync all schemas"
     echo ""
 }
 
@@ -121,53 +122,27 @@ auto_detect_subgraph_name() {
     return 1
 }
 
-# Function to get suggested subgraphs for a schema source
-get_suggested_subgraphs() {
-    local source_path="$1"
-    local suggested_subgraphs=()
-    local available_subgraphs=($(list_available_subgraphs))
+# Function to sync a single schema with auto-detected subgraph
+sync_single_schema() {
+    local source_schema="$1"
+    local subgraph_name=""
     
-    # Auto-detect the primary suggestion
-    local primary_suggestion=""
-    if primary_suggestion=$(auto_detect_subgraph_name "$source_path"); then
-        # Add the primary suggestion first if it exists
-        for subgraph in "${available_subgraphs[@]}"; do
-            if [[ "$subgraph" == "$primary_suggestion" ]]; then
-                suggested_subgraphs+=("$subgraph")
-                break
-            fi
-        done
-        
-        # If primary suggestion doesn't exist yet, add it as a new option
-        local exists=false
-        for subgraph in "${available_subgraphs[@]}"; do
-            if [[ "$subgraph" == "$primary_suggestion" ]]; then
-                exists=true
-                break
-            fi
-        done
-        
-        if [[ "$exists" == false ]]; then
-            suggested_subgraphs+=("$primary_suggestion (new)")
-        fi
+    # Auto-detect subgraph name from service path
+    if ! subgraph_name=$(auto_detect_subgraph_name "$source_schema"); then
+        echo "❌ Could not auto-detect subgraph name for: ${source_schema#$SERVICE_DIR/}"
+        return 1
     fi
     
-    # Add other available subgraphs that don't match
-    for subgraph in "${available_subgraphs[@]}"; do
-        local already_added=false
-        for suggested in "${suggested_subgraphs[@]}"; do
-            if [[ "$suggested" == "$subgraph" ]] || [[ "$suggested" == "$subgraph (new)" ]]; then
-                already_added=true
-                break
-            fi
-        done
-        if [[ "$already_added" == false ]]; then
-            suggested_subgraphs+=("$subgraph")
-        fi
-    done
+    # Validate subgraph name
+    if [[ ! "$subgraph_name" =~ ^[a-zA-Z][a-zA-Z0-9_-]*$ ]]; then
+        echo "❌ Invalid subgraph name detected: $subgraph_name"
+        echo "   Must start with letter and contain only letters, numbers, hyphens, and underscores"
+        return 1
+    fi
     
-    # Return the array
-    echo "${suggested_subgraphs[@]}"
+    # Sync the schema
+    sync_to_contract "$source_schema" "$subgraph_name"
+    return $?
 }
 
 # Function to run interactive sync
@@ -177,66 +152,78 @@ interactive_sync() {
     show_schema_sources_menu
     
     # Get schema source selection
-    echo -n "Select schema source (1-${#schema_sources[@]}): "
+    echo -n "Select schema source (1-${#schema_sources[@]}, or ALL): "
     read -r source_choice
     
+    # Handle ALL option (case-insensitive)
+    local source_choice_upper=$(echo "$source_choice" | tr '[:lower:]' '[:upper:]')
+    if [[ "$source_choice_upper" == "ALL" ]]; then
+        echo ""
+        echo "🔄 Syncing all schemas with auto-detected subgraphs..."
+        echo ""
+        
+        local sync_errors=0
+        local sync_success=0
+        
+        for source in "${schema_sources[@]}"; do
+            local rel_path="${source#$SERVICE_DIR/}"
+            local detected_subgraph=""
+            
+            if detected_subgraph=$(auto_detect_subgraph_name "$source"); then
+                echo "📋 Processing: $rel_path → subgraphs/$detected_subgraph/schema.graphqls"
+                if sync_single_schema "$source"; then
+                    ((sync_success++))
+                else
+                    ((sync_errors++))
+                fi
+                echo ""
+            else
+                echo "❌ Could not auto-detect subgraph for: $rel_path"
+                ((sync_errors++))
+                echo ""
+            fi
+        done
+        
+        echo "================================="
+        if [[ $sync_errors -eq 0 ]]; then
+            echo "🎉 All schemas synchronized successfully! ($sync_success schema(s))"
+            return 0
+        else
+            echo "⚠️  Completed with errors: $sync_success successful, $sync_errors failed"
+            return 1
+        fi
+    fi
+    
+    # Handle numeric selection
     if ! [[ "$source_choice" =~ ^[0-9]+$ ]] || [[ "$source_choice" -lt 1 ]] || [[ "$source_choice" -gt ${#schema_sources[@]} ]]; then
         echo "❌ Invalid selection: $source_choice"
         return 1
     fi
     
     local selected_source="${schema_sources[$((source_choice-1))]}"
+    local detected_subgraph=""
     
-    # Get suggested subgraphs
-    local suggested_subgraphs=($(get_suggested_subgraphs "$selected_source"))
-    
-    if [[ ${#suggested_subgraphs[@]} -eq 0 ]]; then
-        echo "❌ No subgraph suggestions available"
+    # Auto-detect subgraph name
+    if ! detected_subgraph=$(auto_detect_subgraph_name "$selected_source"); then
+        echo "❌ Could not auto-detect subgraph name for: ${selected_source#$SERVICE_DIR/}"
         return 1
     fi
     
-    # Display suggested subgraphs
-    echo ""
-    echo "📁 Suggested subgraphs:"
-    echo ""
-    for i in "${!suggested_subgraphs[@]}"; do
-        echo "  [$((i+1))] ${suggested_subgraphs[$i]}"
-    done
-    echo ""
-    
-    # Get subgraph selection
-    echo -n "Select subgraph (1-${#suggested_subgraphs[@]}): "
-    read -r subgraph_choice
-    
-    if ! [[ "$subgraph_choice" =~ ^[0-9]+$ ]] || [[ "$subgraph_choice" -lt 1 ]] || [[ "$subgraph_choice" -gt ${#suggested_subgraphs[@]} ]]; then
-        echo "❌ Invalid selection: $subgraph_choice"
-        return 1
-    fi
-    
-    local selected_subgraph="${suggested_subgraphs[$((subgraph_choice-1))]}"
-    
-    # Remove "(new)" suffix if present
-    selected_subgraph="${selected_subgraph% (new)}"
-    
-    # Validate subgraph name
-    if [[ ! "$selected_subgraph" =~ ^[a-zA-Z][a-zA-Z0-9_-]*$ ]]; then
-        echo "❌ Invalid subgraph name: $selected_subgraph"
-        echo "   Must start with letter and contain only letters, numbers, hyphens, and underscores"
-        return 1
-    fi
-    
-    # Confirm and sync
+    # Show what will be synced
     echo ""
     echo "🔄 Ready to sync:"
     echo "   From: ${selected_source#$SERVICE_DIR/}"
-    echo "   To:   subgraphs/$selected_subgraph/schema.graphqls"
+    echo "   To:   subgraphs/$detected_subgraph/schema.graphqls"
     echo ""
     echo -n "Continue? (y/N): "
     read -r confirm
     
     if [[ "$confirm" =~ ^[Yy]$ ]]; then
-        sync_to_contract "$selected_source" "$selected_subgraph"
-        echo "🎉 Schema synchronization completed!"
+        if sync_single_schema "$selected_source"; then
+            echo "🎉 Schema synchronization completed!"
+        else
+            return 1
+        fi
     else
         echo "❌ Synchronization cancelled"
     fi
@@ -340,8 +327,9 @@ case "${1:-sync}" in
         echo "Workflow:"
         echo "  1. Edit GraphQL schema in your service module"
         echo "  2. Run './neotool graphql sync' or '$0 sync'"
-        echo "  3. Select the schema source and target subgraph"
-        echo "  4. Schema is copied from service → contract"
+        echo "  3. Select the schema source (or ALL to sync all schemas)"
+        echo "  4. Destination subgraph is automatically inferred from service name"
+        echo "  5. Schema is copied from service → contract"
         echo ""
         echo "Schema Discovery:"
         echo "  Automatically discovers schema sources in service directory"

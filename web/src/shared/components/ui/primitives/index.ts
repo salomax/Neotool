@@ -6,7 +6,7 @@ export { Chip } from './Chip';
 export { ColorPicker } from './ColorPicker';
 export { DateTimePicker } from './DateTimePicker';
 export { ImageUpload } from './ImageUpload';
-export { IconButton } from './IconButton';
+export { IconButton, type IconButtonProps } from './IconButton';
 export { ProgressBar } from './ProgressBar';
 export { Rating } from './Rating';
 export { Slider } from './Slider';

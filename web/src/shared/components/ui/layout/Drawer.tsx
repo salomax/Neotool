@@ -38,7 +38,7 @@ export const Drawer: React.FC<DrawerProps> = ({
   onMenuClick,
   variant = 'temporary',
   anchor = 'left',
-  width = 280,
+  width = 600,
   height = '100%',
   forceMobileTemporary = true,
   children,
@@ -80,6 +80,7 @@ export const Drawer: React.FC<DrawerProps> = ({
                 justifyContent: 'space-between',
                 p: 2,
                 minHeight: 64,
+                width: width
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>

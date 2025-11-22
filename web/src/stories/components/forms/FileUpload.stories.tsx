@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { FileUploader } from '@/shared/components/ui/forms/form/FileUploader';
-import { Stack, Box, FormProvider, useForm } from '@mui/material';
+import { Stack, Box } from '@mui/material';
+import { FormProvider, useForm } from 'react-hook-form';
 
 const meta: Meta<typeof FileUploader> = {
   title: 'Components/Forms/FileUpload',
@@ -26,25 +27,9 @@ const meta: Meta<typeof FileUploader> = {
       control: { type: 'boolean' },
       description: 'Whether multiple files can be selected'
     },
-    maxSize: {
+    maxSizeMb: {
       control: { type: 'number' },
       description: 'Maximum file size in MB'
-    },
-    helperText: {
-      control: { type: 'text' },
-      description: 'Helper text below the field'
-    },
-    error: {
-      control: { type: 'boolean' },
-      description: 'Whether the field is in error state'
-    },
-    disabled: {
-      control: { type: 'boolean' },
-      description: 'Whether the field is disabled'
-    },
-    required: {
-      control: { type: 'boolean' },
-      description: 'Whether the field is required'
     }
   },
   tags: ['autodocs'],
@@ -53,83 +38,91 @@ const meta: Meta<typeof FileUploader> = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+const DefaultWrapper = () => {
+  const methods = useForm();
+  return (
+    <FormProvider {...methods}>
+      <FileUploader name="files" label="Upload File" />
+    </FormProvider>
+  );
+};
+
+const FileTypesWrapper = () => {
+  const methods = useForm();
+  return (
+    <FormProvider {...methods}>
+      <Stack spacing={3} sx={{ width: 400 }}>
+        <FileUploader 
+          name="images"
+          label="Images Only" 
+          accept="image/*"
+        />
+        <FileUploader 
+          name="documents"
+          label="Documents" 
+          accept=".pdf,.doc,.docx"
+        />
+        <FileUploader 
+          name="any"
+          label="Any File" 
+        />
+      </Stack>
+    </FormProvider>
+  );
+};
+
+const MultipleFilesWrapper = () => {
+  const methods = useForm();
+  return (
+    <FormProvider {...methods}>
+      <Stack spacing={3} sx={{ width: 400 }}>
+        <FileUploader 
+          name="single"
+          label="Single File" 
+          multiple={false}
+        />
+        <FileUploader 
+          name="multiple"
+          label="Multiple Files" 
+          multiple={true}
+        />
+      </Stack>
+    </FormProvider>
+  );
+};
+
+const WithSizeLimitWrapper = () => {
+  const methods = useForm();
+  return (
+    <FormProvider {...methods}>
+      <Stack spacing={3} sx={{ width: 400 }}>
+        <FileUploader 
+          name="small"
+          label="Small Files (1MB max)" 
+          maxSizeMb={1}
+        />
+        <FileUploader 
+          name="large"
+          label="Large Files (10MB max)" 
+          maxSizeMb={10}
+        />
+      </Stack>
+    </FormProvider>
+  );
+};
+
 export const Default: Story = {
-  render: () => {
-    const methods = useForm();
-    return (
-      <FormProvider {...methods}>
-        <FileUploader name="files" label="Upload File" />
-      </FormProvider>
-    );
-  },
+  render: () => <DefaultWrapper />,
 };
 
 export const FileTypes: Story = {
-  render: () => {
-    const methods = useForm();
-    return (
-      <FormProvider {...methods}>
-        <Stack spacing={3} sx={{ width: 400 }}>
-          <FileUploader 
-            name="images"
-            label="Images Only" 
-            accept="image/*"
-          />
-          <FileUploader 
-            name="documents"
-            label="Documents" 
-            accept=".pdf,.doc,.docx"
-          />
-          <FileUploader 
-            name="any"
-            label="Any File" 
-          />
-        </Stack>
-      </FormProvider>
-    );
-  },
+  render: () => <FileTypesWrapper />,
 };
 
 export const MultipleFiles: Story = {
-  render: () => {
-    const methods = useForm();
-    return (
-      <FormProvider {...methods}>
-        <Stack spacing={3} sx={{ width: 400 }}>
-          <FileUploader 
-            name="single"
-            label="Single File" 
-            multiple={false}
-          />
-          <FileUploader 
-            name="multiple"
-            label="Multiple Files" 
-            multiple={true}
-          />
-        </Stack>
-      </FormProvider>
-    );
-  },
+  render: () => <MultipleFilesWrapper />,
 };
 
 export const WithSizeLimit: Story = {
-  render: () => {
-    const methods = useForm();
-    return (
-      <FormProvider {...methods}>
-        <Stack spacing={3} sx={{ width: 400 }}>
-          <FileUploader 
-            name="small"
-            label="Small Files (1MB max)" 
-            maxSizeMb={1}
-          />
-          <FileUploader 
-            name="large"
-            label="Large Files (10MB max)" 
-            maxSizeMb={10}
-          />
-        </Stack>
-      </FormProvider>
-    );
-  },
+  render: () => <WithSizeLimitWrapper />,
 };

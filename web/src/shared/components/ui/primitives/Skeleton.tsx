@@ -95,7 +95,7 @@ function FormSkeleton({
   spacing = 2, 
   height = 300,
   ...props 
-}: Omit<SkeletonProps, 'variant'>) {
+}: Omit<SkeletonProps, 'variant'> & { fields?: number }) {
   return (
     <Box sx={{ p: 2, height, ...props.sx }}>
       <Stack spacing={spacing}>
@@ -121,7 +121,7 @@ function CardSkeleton({
   spacing = 2, 
   height = 200,
   ...props 
-}: Omit<SkeletonProps, 'variant'>) {
+}: Omit<SkeletonProps, 'variant'> & { cards?: number }) {
   return (
     <Box sx={{ p: 2, height, ...props.sx }}>
       <Stack direction="row" spacing={spacing}>
@@ -145,7 +145,7 @@ function ListSkeleton({
   spacing = 1, 
   height = 300,
   ...props 
-}: Omit<SkeletonProps, 'variant'>) {
+}: Omit<SkeletonProps, 'variant'> & { items?: number }) {
   return (
     <Box sx={{ p: 2, height, ...props.sx }}>
       <Stack spacing={spacing}>

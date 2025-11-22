@@ -188,7 +188,7 @@ docker ps
 colima stop`}</code>
           </Box>
           <Typography variant="body2" sx={{ mt: 1 }} color="text.secondary">
-            For Linux users, install Docker using your distribution's package manager. For Windows
+            For Linux users, install Docker using your distribution&apos;s package manager. For Windows
             users, Docker Desktop is recommended.
           </Typography>
 
@@ -239,7 +239,7 @@ curl -fsSL https://get.pnpm.io/install.sh | sh -`}</code>
             Option 1: Starting a New Project
           </Typography>
           <Typography variant="body2" paragraph>
-            If you're starting from scratch, clone the starter repository:
+            If you&apos;re starting from scratch, clone the starter repository:
           </Typography>
           <Box
             component="pre"
@@ -310,8 +310,8 @@ git commit -m "Merge ${APP_CONFIG.name} starter boilerplate"`}</code>
             Customizing Your Project Name
           </Typography>
           <Typography variant="body1" paragraph>
-            After cloning or integrating the starter, you'll want to customize the project name from
-            "neotool" to your own project name. This includes updating package names, namespaces,
+            After cloning or integrating the starter, you&apos;ll want to customize the project name from
+            &quot;neotool&quot; to your own project name. This includes updating package names, namespaces,
             database names, and all references throughout the codebase.
           </Typography>
 

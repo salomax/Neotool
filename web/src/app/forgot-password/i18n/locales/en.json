@@ -1,0 +1,15 @@
+{
+  "title": "Forgot your password?",
+  "subtitle": "Enter your email address and we'll send you a link to reset your password",
+  "email": "Email",
+  "sendResetLink": "Send reset link",
+  "backToSignIn": "Back to sign in",
+  "successMessage": "If an account with that email exists, a password reset link has been sent.",
+  "errors": {
+    "required": "This field is required",
+    "invalidEmail": "Please enter a valid email address",
+    "networkError": "Network error. Please try again.",
+    "unknownError": "An unexpected error occurred. Please try again."
+  }
+}
+

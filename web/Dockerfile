@@ -7,7 +7,11 @@ WORKDIR /app
 # Copy package files
 COPY package.json pnpm-lock.yaml* package-lock.json* yarn.lock* ./
 
-# Install dependencies
+# Copy scripts and codegen config needed for postinstall hook
+COPY scripts/ ./scripts/
+COPY codegen.ts ./
+
+# Install dependencies (this will trigger postinstall script)
 RUN if [ -f pnpm-lock.yaml ]; then \
         npm i -g pnpm && pnpm i --frozen-lockfile; \
     elif [ -f yarn.lock ]; then \

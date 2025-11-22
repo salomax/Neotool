@@ -1,0 +1,18 @@
+{
+  "title": "Redefinir sua senha",
+  "subtitle": "Digite sua nova senha abaixo",
+  "newPassword": "Nova senha",
+  "confirmPassword": "Confirmar senha",
+  "resetPassword": "Redefinir senha",
+  "backToSignIn": "Voltar para entrar",
+  "successMessage": "Senha redefinida com sucesso. Agora você pode entrar com sua nova senha.",
+  "errors": {
+    "required": "Este campo é obrigatório",
+    "passwordMismatch": "As senhas não coincidem",
+    "weakPassword": "A senha deve ter pelo menos 8 caracteres com maiúsculas, minúsculas, número e caractere especial",
+    "invalidToken": "Token de redefinição inválido ou expirado",
+    "networkError": "Erro de rede. Por favor, tente novamente.",
+    "unknownError": "Ocorreu um erro inesperado. Por favor, tente novamente."
+  }
+}
+

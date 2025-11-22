@@ -1,6 +1,6 @@
 import React from 'react';
-import { LayoutComponentProps, ResponsiveValue } from './types';
-import { getResponsiveValue, spacingToCSS } from './utils';
+import { LayoutComponentProps, ResponsiveValue } from '../layout/types';
+import { getResponsiveValue, spacingToCSS } from '../layout/utils';
 
 export interface SwitcherProps extends LayoutComponentProps {
   /** Minimum width for each item before switching to fewer columns */

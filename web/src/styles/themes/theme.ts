@@ -60,6 +60,6 @@ export const createAppTheme = (mode: Mode) => {
     custom: {
       layout: t.layout,
     },
-  };
+  } as ThemeOptions & { custom?: { layout: typeof t.layout } };
   return createTheme(options);
 };
