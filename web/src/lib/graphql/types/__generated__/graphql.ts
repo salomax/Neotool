@@ -52,6 +52,7 @@ export type Mutation = {
   requestPasswordReset: RequestPasswordResetPayload;
   resetPassword: ResetPasswordPayload;
   signIn: SignInPayload;
+  signInWithOAuth: SignInPayload;
   signUp: SignUpPayload;
   updateCustomer: Customer;
   updateProduct: Product;
@@ -90,6 +91,11 @@ export type MutationResetPasswordArgs = {
 
 export type MutationSignInArgs = {
   input: SignInInput;
+};
+
+
+export type MutationSignInWithOAuthArgs = {
+  input: SignInWithOAuthInput;
 };
 
 
@@ -180,6 +186,12 @@ export type SignInPayload = {
   refreshToken: Maybe<Scalars['String']['output']>;
   token: Scalars['String']['output'];
   user: User;
+};
+
+export type SignInWithOAuthInput = {
+  idToken: Scalars['String']['input'];
+  provider: Scalars['String']['input'];
+  rememberMe?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
 export type SignUpInput = {

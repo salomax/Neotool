@@ -1,20 +1,23 @@
 package io.github.salomax.neotool.security.test.service
 
+import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
+import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.security.repo.PasswordResetAttemptRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.AuthenticationService
-import io.github.salomax.neotool.security.service.EmailService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
-import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
-import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.*
-import org.mockito.kotlin.*
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.MethodOrderer
+import org.junit.jupiter.api.Tag
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.TestMethodOrder
 import java.time.Instant
 import java.time.temporal.ChronoUnit
-import java.util.*
+import java.util.UUID
 
 @MicronautTest(startApplication = true)
 @DisplayName("Password Reset Integration Tests")
@@ -24,7 +27,6 @@ import java.util.*
 @Tag("security")
 @TestMethodOrder(MethodOrderer.Random::class)
 class PasswordResetIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTest {
-
     @Inject
     lateinit var userRepository: UserRepository
 
@@ -52,22 +54,22 @@ class PasswordResetIntegrationTest : BaseIntegrationTest(), PostgresIntegrationT
     @Nested
     @DisplayName("Request Password Reset")
     inner class RequestPasswordResetIntegrationTests {
-
         @Test
         fun `should request password reset and save token to database`() {
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
             userRepository.save(user)
 
             val result = authenticationService.requestPasswordReset(email, "en")
 
             assertThat(result).isTrue()
-            
+
             val savedUser = userRepository.findByEmail(email)
             assertThat(savedUser).isNotNull()
             assertThat(savedUser?.passwordResetToken).isNotNull()
@@ -89,11 +91,12 @@ class PasswordResetIntegrationTest : BaseIntegrationTest(), PostgresIntegrationT
         fun `should invalidate existing token when requesting new reset`() {
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
             val oldToken = UUID.randomUUID().toString()
             user.passwordResetToken = oldToken
             user.passwordResetExpiresAt = Instant.now().plus(30, ChronoUnit.MINUTES)
@@ -111,11 +114,12 @@ class PasswordResetIntegrationTest : BaseIntegrationTest(), PostgresIntegrationT
         fun `should set token expiration to 1 hour from now`() {
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
             userRepository.save(user)
 
             val beforeRequest = Instant.now()
@@ -125,11 +129,11 @@ class PasswordResetIntegrationTest : BaseIntegrationTest(), PostgresIntegrationT
             val savedUser = userRepository.findByEmail(email)
             assertThat(savedUser?.passwordResetExpiresAt).isNotNull()
             val expiration = savedUser?.passwordResetExpiresAt!!
-            
+
             // Should be approximately 1 hour from request time (allow 5 seconds tolerance)
             val expectedExpiration = beforeRequest.plus(1, ChronoUnit.HOURS)
             val maxExpiration = afterRequest.plus(1, ChronoUnit.HOURS).plusSeconds(5)
-            
+
             assertThat(expiration).isAfter(expectedExpiration.minusSeconds(5))
             assertThat(expiration).isBefore(maxExpiration)
         }
@@ -138,16 +142,16 @@ class PasswordResetIntegrationTest : BaseIntegrationTest(), PostgresIntegrationT
     @Nested
     @DisplayName("Validate Reset Token")
     inner class ValidateResetTokenIntegrationTests {
-
         @Test
         fun `should validate valid reset token from database`() {
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
             userRepository.save(user)
 
             authenticationService.requestPasswordReset(email, "en")
@@ -165,11 +169,12 @@ class PasswordResetIntegrationTest : BaseIntegrationTest(), PostgresIntegrationT
         fun `should return null for expired token`() {
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
             val token = UUID.randomUUID().toString()
             user.passwordResetToken = token
             user.passwordResetExpiresAt = Instant.now().minus(1, ChronoUnit.HOURS) // Expired
@@ -184,11 +189,12 @@ class PasswordResetIntegrationTest : BaseIntegrationTest(), PostgresIntegrationT
         fun `should return null for already used token`() {
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
             val token = UUID.randomUUID().toString()
             user.passwordResetToken = token
             user.passwordResetExpiresAt = Instant.now().plus(1, ChronoUnit.HOURS)
@@ -213,17 +219,17 @@ class PasswordResetIntegrationTest : BaseIntegrationTest(), PostgresIntegrationT
     @Nested
     @DisplayName("Reset Password")
     inner class ResetPasswordIntegrationTests {
-
         @Test
         fun `should reset password successfully with valid token`() {
             val email = uniqueEmail()
             val oldPassword = "OldPassword123!"
             val newPassword = "NewPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = oldPassword
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = oldPassword,
+                )
             userRepository.save(user)
 
             authenticationService.requestPasswordReset(email, "en")
@@ -265,11 +271,12 @@ class PasswordResetIntegrationTest : BaseIntegrationTest(), PostgresIntegrationT
         fun `should throw exception for expired token`() {
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
             val token = UUID.randomUUID().toString()
             user.passwordResetToken = token
             user.passwordResetExpiresAt = Instant.now().minus(1, ChronoUnit.HOURS)
@@ -286,11 +293,12 @@ class PasswordResetIntegrationTest : BaseIntegrationTest(), PostgresIntegrationT
         fun `should throw exception for weak password`() {
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
             userRepository.save(user)
 
             authenticationService.requestPasswordReset(email, "en")
@@ -308,11 +316,12 @@ class PasswordResetIntegrationTest : BaseIntegrationTest(), PostgresIntegrationT
         fun `should mark token as used after successful reset`() {
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
             userRepository.save(user)
 
             authenticationService.requestPasswordReset(email, "en")
@@ -333,16 +342,16 @@ class PasswordResetIntegrationTest : BaseIntegrationTest(), PostgresIntegrationT
     @Nested
     @DisplayName("Rate Limiting")
     inner class RateLimitingIntegrationTests {
-
         @Test
         fun `should enforce rate limit of 3 requests per hour`() {
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
             userRepository.save(user)
 
             // First 3 requests should succeed
@@ -360,19 +369,19 @@ class PasswordResetIntegrationTest : BaseIntegrationTest(), PostgresIntegrationT
     @Nested
     @DisplayName("End-to-End Password Reset Flow")
     inner class EndToEndFlowTests {
-
         @Test
         fun `should complete full password reset flow`() {
             val email = uniqueEmail()
             val oldPassword = "OldPassword123!"
             val newPassword = "NewPassword123!"
-            
+
             // Step 1: Create user
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = oldPassword
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = oldPassword,
+                )
             userRepository.save(user)
 
             // Step 2: Request password reset
@@ -410,4 +419,3 @@ class PasswordResetIntegrationTest : BaseIntegrationTest(), PostgresIntegrationT
         }
     }
 }
-

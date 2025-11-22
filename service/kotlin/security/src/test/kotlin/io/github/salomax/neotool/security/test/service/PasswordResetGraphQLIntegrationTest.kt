@@ -1,14 +1,6 @@
 package io.github.salomax.neotool.security.test.service
 
-import io.github.salomax.neotool.security.repo.PasswordResetAttemptRepository
-import io.github.salomax.neotool.security.repo.UserRepository
-import io.github.salomax.neotool.security.service.AuthenticationService
-import io.github.salomax.neotool.security.service.EmailService
-import io.github.salomax.neotool.security.service.MockEmailService
-import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
-import io.github.salomax.neotool.security.test.service.MockEmailServiceFactory
 import io.github.salomax.neotool.common.test.assertions.assertNoErrors
-import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.common.test.assertions.shouldBeJson
 import io.github.salomax.neotool.common.test.assertions.shouldBeSuccessful
 import io.github.salomax.neotool.common.test.assertions.shouldHaveNonEmptyBody
@@ -17,6 +9,13 @@ import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.common.test.json.read
 import io.github.salomax.neotool.common.test.transaction.runTransaction
+import io.github.salomax.neotool.security.model.UserEntity
+import io.github.salomax.neotool.security.repo.PasswordResetAttemptRepository
+import io.github.salomax.neotool.security.repo.UserRepository
+import io.github.salomax.neotool.security.service.AuthenticationService
+import io.github.salomax.neotool.security.service.EmailService
+import io.github.salomax.neotool.security.service.MockEmailService
+import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import io.micronaut.http.HttpRequest
 import io.micronaut.http.MediaType
 import io.micronaut.json.tree.JsonNode
@@ -26,15 +25,15 @@ import jakarta.persistence.EntityManager
 import org.assertj.core.api.Assertions
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.MethodOrderer
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.TestMethodOrder
-import org.junit.jupiter.api.MethodOrderer
 import java.time.Instant
 import java.time.temporal.ChronoUnit
-import java.util.*
+import java.util.UUID
 
 @MicronautTest(startApplication = true)
 @DisplayName("Password Reset GraphQL Integration Tests")
@@ -45,7 +44,6 @@ import java.util.*
 @Tag("security")
 @TestMethodOrder(MethodOrderer.Random::class)
 open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTest {
-
     @Inject
     lateinit var userRepository: UserRepository
 
@@ -60,7 +58,7 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
 
     @Inject
     lateinit var emailService: EmailService
-    
+
     /**
      * Get the MockEmailService instance for test assertions.
      * The MockEmailServiceFactory automatically provides MockEmailService in tests.
@@ -88,30 +86,31 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
             // Ignore cleanup errors
         }
     }
-    
 
     @Nested
     @DisplayName("Request Password Reset Mutation")
     inner class RequestPasswordResetMutationTests {
-
         @Test
         fun `should request password reset successfully via GraphQL mutation`() {
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
             saveUser(user)
 
-            val mutation = SecurityTestDataBuilders.requestPasswordResetMutation(
-                email = email,
-                locale = "en"
-            )
+            val mutation =
+                SecurityTestDataBuilders.requestPasswordResetMutation(
+                    email = email,
+                    locale = "en",
+                )
 
-            val request = HttpRequest.POST("/graphql", mutation)
-                .contentType(MediaType.APPLICATION_JSON)
+            val request =
+                HttpRequest.POST("/graphql", mutation)
+                    .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
             response
@@ -146,7 +145,7 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
             Assertions.assertThat(savedUser?.passwordResetToken)
                 .describedAs("Password reset token should be saved")
                 .isNotNull()
-            
+
             // Verify email was sent (using MockEmailService)
             val sentEmails = mockEmailService.getSentEmails(email)
             Assertions.assertThat(sentEmails)
@@ -164,8 +163,9 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
 
             val mutation = SecurityTestDataBuilders.requestPasswordResetMutation(email = email)
 
-            val request = HttpRequest.POST("/graphql", mutation)
-                .contentType(MediaType.APPLICATION_JSON)
+            val request =
+                HttpRequest.POST("/graphql", mutation)
+                    .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
             response
@@ -185,22 +185,26 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
 
         @Test
         fun `should return error for missing email`() {
-            val mutation = mapOf(
-                "query" to """
-                    mutation RequestPasswordReset(${'$'}input: RequestPasswordResetInput!) {
-                        requestPasswordReset(input: ${'$'}input) {
-                            success
-                            message
+            val mutation =
+                mapOf(
+                    "query" to
+                        """
+                        mutation RequestPasswordReset(${'$'}input: RequestPasswordResetInput!) {
+                            requestPasswordReset(input: ${'$'}input) {
+                                success
+                                message
+                            }
                         }
-                    }
-                """.trimIndent(),
-                "variables" to mapOf(
-                    "input" to mapOf<String, Any>()
+                        """.trimIndent(),
+                    "variables" to
+                        mapOf(
+                            "input" to mapOf<String, Any>(),
+                        ),
                 )
-            )
 
-            val request = HttpRequest.POST("/graphql", mutation)
-                .contentType(MediaType.APPLICATION_JSON)
+            val request =
+                HttpRequest.POST("/graphql", mutation)
+                    .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
             response
@@ -219,20 +223,23 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
         fun `should handle locale parameter`() {
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
             saveUser(user)
 
-            val mutation = SecurityTestDataBuilders.requestPasswordResetMutation(
-                email = email,
-                locale = "pt"
-            )
+            val mutation =
+                SecurityTestDataBuilders.requestPasswordResetMutation(
+                    email = email,
+                    locale = "pt",
+                )
 
-            val request = HttpRequest.POST("/graphql", mutation)
-                .contentType(MediaType.APPLICATION_JSON)
+            val request =
+                HttpRequest.POST("/graphql", mutation)
+                    .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
             response
@@ -252,17 +259,17 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
     @Nested
     @DisplayName("Reset Password Mutation")
     inner class ResetPasswordMutationTests {
-
         @Test
         fun `should reset password successfully via GraphQL mutation`() {
             val email = uniqueEmail()
             val oldPassword = "OldPassword123!"
             val newPassword = "NewPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = oldPassword
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = oldPassword,
+                )
             saveUser(user)
 
             // Request password reset first
@@ -273,13 +280,15 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
             val savedUser = userRepository.findByEmail(email)
             val token = savedUser!!.passwordResetToken!!
 
-            val mutation = SecurityTestDataBuilders.resetPasswordMutation(
-                token = token,
-                newPassword = newPassword
-            )
+            val mutation =
+                SecurityTestDataBuilders.resetPasswordMutation(
+                    token = token,
+                    newPassword = newPassword,
+                )
 
-            val request = HttpRequest.POST("/graphql", mutation)
-                .contentType(MediaType.APPLICATION_JSON)
+            val request =
+                HttpRequest.POST("/graphql", mutation)
+                    .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
             response
@@ -326,13 +335,15 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
             val invalidToken = UUID.randomUUID().toString()
             val newPassword = "NewPassword123!"
 
-            val mutation = SecurityTestDataBuilders.resetPasswordMutation(
-                token = invalidToken,
-                newPassword = newPassword
-            )
+            val mutation =
+                SecurityTestDataBuilders.resetPasswordMutation(
+                    token = invalidToken,
+                    newPassword = newPassword,
+                )
 
-            val request = HttpRequest.POST("/graphql", mutation)
-                .contentType(MediaType.APPLICATION_JSON)
+            val request =
+                HttpRequest.POST("/graphql", mutation)
+                    .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
             response
@@ -361,23 +372,26 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
         fun `should return error for expired token`() {
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
             val expiredToken = UUID.randomUUID().toString()
             user.passwordResetToken = expiredToken
             user.passwordResetExpiresAt = Instant.now().minus(1, ChronoUnit.HOURS)
             saveUser(user)
 
-            val mutation = SecurityTestDataBuilders.resetPasswordMutation(
-                token = expiredToken,
-                newPassword = "NewPassword123!"
-            )
+            val mutation =
+                SecurityTestDataBuilders.resetPasswordMutation(
+                    token = expiredToken,
+                    newPassword = "NewPassword123!",
+                )
 
-            val request = HttpRequest.POST("/graphql", mutation)
-                .contentType(MediaType.APPLICATION_JSON)
+            val request =
+                HttpRequest.POST("/graphql", mutation)
+                    .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
             response
@@ -396,11 +410,12 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
         fun `should return error for weak password`() {
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
             saveUser(user)
 
             entityManager.runTransaction {
@@ -410,13 +425,15 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
             val savedUser = userRepository.findByEmail(email)
             val token = savedUser!!.passwordResetToken!!
 
-            val mutation = SecurityTestDataBuilders.resetPasswordMutation(
-                token = token,
-                newPassword = "weak"
-            )
+            val mutation =
+                SecurityTestDataBuilders.resetPasswordMutation(
+                    token = token,
+                    newPassword = "weak",
+                )
 
-            val request = HttpRequest.POST("/graphql", mutation)
-                .contentType(MediaType.APPLICATION_JSON)
+            val request =
+                HttpRequest.POST("/graphql", mutation)
+                    .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
             response
@@ -440,24 +457,29 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
 
         @Test
         fun `should return error for missing token`() {
-            val mutation = mapOf(
-                "query" to """
-                    mutation ResetPassword(${'$'}input: ResetPasswordInput!) {
-                        resetPassword(input: ${'$'}input) {
-                            success
-                            message
+            val mutation =
+                mapOf(
+                    "query" to
+                        """
+                        mutation ResetPassword(${'$'}input: ResetPasswordInput!) {
+                            resetPassword(input: ${'$'}input) {
+                                success
+                                message
+                            }
                         }
-                    }
-                """.trimIndent(),
-                "variables" to mapOf(
-                    "input" to mapOf(
-                        "newPassword" to "NewPassword123!"
-                    )
+                        """.trimIndent(),
+                    "variables" to
+                        mapOf(
+                            "input" to
+                                mapOf(
+                                    "newPassword" to "NewPassword123!",
+                                ),
+                        ),
                 )
-            )
 
-            val request = HttpRequest.POST("/graphql", mutation)
-                .contentType(MediaType.APPLICATION_JSON)
+            val request =
+                HttpRequest.POST("/graphql", mutation)
+                    .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
             response
@@ -474,24 +496,29 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
 
         @Test
         fun `should return error for missing newPassword`() {
-            val mutation = mapOf(
-                "query" to """
-                    mutation ResetPassword(${'$'}input: ResetPasswordInput!) {
-                        resetPassword(input: ${'$'}input) {
-                            success
-                            message
+            val mutation =
+                mapOf(
+                    "query" to
+                        """
+                        mutation ResetPassword(${'$'}input: ResetPasswordInput!) {
+                            resetPassword(input: ${'$'}input) {
+                                success
+                                message
+                            }
                         }
-                    }
-                """.trimIndent(),
-                "variables" to mapOf(
-                    "input" to mapOf(
-                        "token" to "test-token"
-                    )
+                        """.trimIndent(),
+                    "variables" to
+                        mapOf(
+                            "input" to
+                                mapOf(
+                                    "token" to "test-token",
+                                ),
+                        ),
                 )
-            )
 
-            val request = HttpRequest.POST("/graphql", mutation)
-                .contentType(MediaType.APPLICATION_JSON)
+            val request =
+                HttpRequest.POST("/graphql", mutation)
+                    .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
             response
@@ -510,23 +537,24 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
     @Nested
     @DisplayName("End-to-End Password Reset Flow")
     inner class EndToEndFlowTests {
-
         @Test
         fun `should complete full password reset flow via GraphQL`() {
             val email = uniqueEmail()
             val oldPassword = "OldPassword123!"
             val newPassword = "NewPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = oldPassword
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = oldPassword,
+                )
             saveUser(user)
 
             // Step 1: Request password reset
             val requestMutation = SecurityTestDataBuilders.requestPasswordResetMutation(email = email)
-            val requestRequest = HttpRequest.POST("/graphql", requestMutation)
-                .contentType(MediaType.APPLICATION_JSON)
+            val requestRequest =
+                HttpRequest.POST("/graphql", requestMutation)
+                    .contentType(MediaType.APPLICATION_JSON)
 
             val requestResponse = httpClient.exchangeAsString(requestRequest)
             val requestPayload: JsonNode = json.read(requestResponse)
@@ -542,12 +570,14 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
             val token = savedUser!!.passwordResetToken!!
 
             // Step 3: Reset password
-            val resetMutation = SecurityTestDataBuilders.resetPasswordMutation(
-                token = token,
-                newPassword = newPassword
-            )
-            val resetRequest = HttpRequest.POST("/graphql", resetMutation)
-                .contentType(MediaType.APPLICATION_JSON)
+            val resetMutation =
+                SecurityTestDataBuilders.resetPasswordMutation(
+                    token = token,
+                    newPassword = newPassword,
+                )
+            val resetRequest =
+                HttpRequest.POST("/graphql", resetMutation)
+                    .contentType(MediaType.APPLICATION_JSON)
 
             val resetResponse = httpClient.exchangeAsString(resetRequest)
             val resetPayload: JsonNode = json.read(resetResponse)

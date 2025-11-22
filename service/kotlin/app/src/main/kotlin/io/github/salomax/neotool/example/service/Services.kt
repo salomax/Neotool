@@ -1,12 +1,10 @@
 package io.github.salomax.neotool.example.service
 
+import io.github.salomax.neotool.common.logging.LoggingUtils.logAuditData
 import io.github.salomax.neotool.example.domain.Customer
 import io.github.salomax.neotool.example.domain.Product
 import io.github.salomax.neotool.example.repo.CustomerRepository
 import io.github.salomax.neotool.example.repo.ProductRepository
-import io.github.salomax.neotool.common.logging.LoggingUtils.logAuditData
-import io.github.salomax.neotool.common.logging.LoggingUtils.logMethodEntry
-import io.github.salomax.neotool.common.logging.LoggingUtils.logMethodExit
 import io.micronaut.http.server.exceptions.NotFoundException
 import jakarta.inject.Singleton
 import jakarta.transaction.Transactional
@@ -15,7 +13,7 @@ import java.util.UUID
 
 @Singleton
 open class ProductService(
-    private val repo: ProductRepository
+    private val repo: ProductRepository,
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -25,7 +23,7 @@ open class ProductService(
         logAuditData("SELECT_ALL", "ProductService", null, "count" to products.size)
         return products
     }
-    
+
     fun get(id: UUID): Product? {
         val entity = repo.findById(id).orElse(null)
         val product = entity?.toDomain()
@@ -61,10 +59,11 @@ open class ProductService(
 
     @Transactional
     open fun delete(id: UUID) {
-        val found = repo.findById(id).orElseThrow {
-            logger.warn { "Attempted to delete non-existent product with ID: $id" }
-            NotFoundException() 
-        }
+        val found =
+            repo.findById(id).orElseThrow {
+                logger.warn { "Attempted to delete non-existent product with ID: $id" }
+                NotFoundException()
+            }
         repo.delete(found)
         logAuditData("DELETE", "ProductService", id.toString(), "name" to found.name, "sku" to found.sku)
         logger.info { "Product deleted successfully: ${found.name} (ID: $id)" }
@@ -73,7 +72,7 @@ open class ProductService(
 
 @Singleton
 open class CustomerService(
-    private val repo: CustomerRepository
+    private val repo: CustomerRepository,
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -83,14 +82,16 @@ open class CustomerService(
         logAuditData("SELECT_ALL", "CustomerService", null, "count" to customers.size)
         return customers
     }
-    
+
     fun get(id: UUID): Customer? {
         val entity = repo.findById(id).orElse(null)
         val customer = entity?.toDomain()
         if (customer != null) {
             logAuditData("SELECT_BY_ID", "CustomerService", id.toString())
             logger.debug { "Customer found: ${customer.name} (Email: ${customer.email}, Version: ${customer.version})" }
-            logger.debug { "CustomerService.get - entity version: ${entity?.version}, customer version: ${customer.version}" }
+            logger.debug {
+                "CustomerService.get - entity version: ${entity?.version}, customer version: ${customer.version}"
+            }
         } else {
             logAuditData("SELECT_BY_ID", "CustomerService", id.toString(), "result" to "NOT_FOUND")
             logger.debug { "Customer not found with ID: $id" }
@@ -111,29 +112,30 @@ open class CustomerService(
     @Transactional
     open fun update(customer: Customer): Customer {
         logger.debug { "CustomerService.update - customer: $customer, version: ${customer.version}" }
-        
+
         // Fetch the existing entity to preserve the version and other fields
-        val existingEntity = repo.findById(customer.id!!).orElseThrow {
-            logger.warn { "Attempted to update non-existent customer with ID: ${customer.id}" }
-            NotFoundException()
-        }
-        
+        val existingEntity =
+            repo.findById(customer.id!!).orElseThrow {
+                logger.warn { "Attempted to update non-existent customer with ID: ${customer.id}" }
+                NotFoundException()
+            }
+
         logger.debug { "CustomerService.update - existingEntity version: ${existingEntity.version}" }
-        
+
         // Check if the version matches (optimistic locking)
         if (existingEntity.version != customer.version) {
             throw org.hibernate.StaleObjectStateException(
                 "Customer with id ${customer.id} was modified by another user",
-                customer.id
+                customer.id,
             )
         }
-        
+
         // Update only the fields that changed
         existingEntity.name = customer.name
         existingEntity.email = customer.email
         existingEntity.status = customer.status
         existingEntity.updatedAt = java.time.Instant.now()
-        
+
         // Save the updated entity (JPA will automatically increment the version)
         val saved = repo.save(existingEntity)
         val result = saved.toDomain()
@@ -144,12 +146,13 @@ open class CustomerService(
 
     @Transactional
     open fun delete(id: UUID) {
-        val found = repo.findById(id).orElseThrow {
-            logger.warn { "Attempted to delete non-existent customer with ID: $id" }
-            NotFoundException() 
-        }
+        val found =
+            repo.findById(id).orElseThrow {
+                logger.warn { "Attempted to delete non-existent customer with ID: $id" }
+                NotFoundException()
+            }
         repo.delete(found)
-        
+
         logAuditData("DELETE", "CustomerService", id.toString(), "name" to found.name, "email" to found.email)
         logger.info { "Customer deleted successfully: ${found.name} (ID: $id)" }
     }

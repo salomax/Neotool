@@ -2,13 +2,10 @@ package io.github.salomax.neotool.example.test.unit.graphql
 
 import io.github.salomax.neotool.example.domain.Customer
 import io.github.salomax.neotool.example.domain.CustomerStatus
-import io.github.salomax.neotool.example.graphql.dto.CustomerInputDTO
 import io.github.salomax.neotool.example.graphql.resolvers.CustomerResolver
 import io.github.salomax.neotool.example.service.CustomerService
-import io.github.salomax.neotool.common.graphql.CrudService
 import jakarta.validation.Validator
 import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -20,7 +17,6 @@ import java.util.UUID
 
 @DisplayName("CustomerResolver Unit Tests")
 class CustomerResolverTest {
-
     private lateinit var customerService: CustomerService
     private lateinit var validator: Validator
     private lateinit var resolver: CustomerResolver
@@ -35,21 +31,22 @@ class CustomerResolverTest {
     @Nested
     @DisplayName("mapToInputDTO() - tested through create()")
     inner class MapToInputDTOTests {
-
         @Test
         fun `should map input to DTO with all fields`() {
             // Arrange
-            val newCustomer = Customer(
-                id = UUID.randomUUID(),
-                name = "Test Customer",
-                email = "test@example.com",
-                status = CustomerStatus.ACTIVE
-            )
-            val input = mapOf(
-                "name" to "Test Customer",
-                "email" to "test@example.com",
-                "status" to "ACTIVE"
-            )
+            val newCustomer =
+                Customer(
+                    id = UUID.randomUUID(),
+                    name = "Test Customer",
+                    email = "test@example.com",
+                    status = CustomerStatus.ACTIVE,
+                )
+            val input =
+                mapOf(
+                    "name" to "Test Customer",
+                    "email" to "test@example.com",
+                    "status" to "ACTIVE",
+                )
 
             // Mock the service
             whenever(customerService.create(any())).thenReturn(newCustomer)
@@ -68,16 +65,18 @@ class CustomerResolverTest {
         @Test
         fun `should use default status when not provided`() {
             // Arrange
-            val newCustomer = Customer(
-                id = UUID.randomUUID(),
-                name = "Test Customer",
-                email = "test@example.com",
-                status = CustomerStatus.ACTIVE
-            )
-            val input = mapOf(
-                "name" to "Test Customer",
-                "email" to "test@example.com"
-            )
+            val newCustomer =
+                Customer(
+                    id = UUID.randomUUID(),
+                    name = "Test Customer",
+                    email = "test@example.com",
+                    status = CustomerStatus.ACTIVE,
+                )
+            val input =
+                mapOf(
+                    "name" to "Test Customer",
+                    "email" to "test@example.com",
+                )
 
             // Mock the service
             whenever(customerService.create(any())).thenReturn(newCustomer)
@@ -97,30 +96,32 @@ class CustomerResolverTest {
     @Nested
     @DisplayName("mapToEntity() - tested through create() and update()")
     inner class MapToEntityTests {
-
         @Test
         fun `should fetch existing entity when id is provided (update case)`() {
             // Arrange
             val customerId = UUID.randomUUID()
-            val existingCustomer = Customer(
-                id = customerId,
-                name = "Existing Customer",
-                email = "existing@example.com",
-                status = CustomerStatus.ACTIVE,
-                version = 1L
-            )
-            val updatedCustomer = Customer(
-                id = customerId,
-                name = "Updated Customer",
-                email = "updated@example.com",
-                status = CustomerStatus.ACTIVE,
-                version = 1L
-            )
-            val input = mapOf(
-                "name" to "Updated Customer",
-                "email" to "updated@example.com",
-                "status" to "ACTIVE"
-            )
+            val existingCustomer =
+                Customer(
+                    id = customerId,
+                    name = "Existing Customer",
+                    email = "existing@example.com",
+                    status = CustomerStatus.ACTIVE,
+                    version = 1L,
+                )
+            val updatedCustomer =
+                Customer(
+                    id = customerId,
+                    name = "Updated Customer",
+                    email = "updated@example.com",
+                    status = CustomerStatus.ACTIVE,
+                    version = 1L,
+                )
+            val input =
+                mapOf(
+                    "name" to "Updated Customer",
+                    "email" to "updated@example.com",
+                    "status" to "ACTIVE",
+                )
 
             // Mock the service
             whenever(customerService.get(customerId)).thenReturn(existingCustomer)
@@ -138,18 +139,20 @@ class CustomerResolverTest {
         @Test
         fun `should not fetch entity when id is null (create case)`() {
             // Arrange
-            val newCustomer = Customer(
-                id = UUID.randomUUID(),
-                name = "New Customer",
-                email = "new@example.com",
-                status = CustomerStatus.ACTIVE,
-                version = 0L
-            )
-            val input = mapOf(
-                "name" to "New Customer",
-                "email" to "new@example.com",
-                "status" to "ACTIVE"
-            )
+            val newCustomer =
+                Customer(
+                    id = UUID.randomUUID(),
+                    name = "New Customer",
+                    email = "new@example.com",
+                    status = CustomerStatus.ACTIVE,
+                    version = 0L,
+                )
+            val input =
+                mapOf(
+                    "name" to "New Customer",
+                    "email" to "new@example.com",
+                    "status" to "ACTIVE",
+                )
 
             // Mock the service
             whenever(customerService.create(any())).thenReturn(newCustomer)
@@ -166,11 +169,12 @@ class CustomerResolverTest {
         @Test
         fun `should throw IllegalArgumentException for invalid status`() {
             // Arrange
-            val input = mapOf(
-                "name" to "Test Customer",
-                "email" to "test@example.com",
-                "status" to "INVALID_STATUS"
-            )
+            val input =
+                mapOf(
+                    "name" to "Test Customer",
+                    "email" to "test@example.com",
+                    "status" to "INVALID_STATUS",
+                )
 
             // Act & Assert - create() will call mapToEntity which should throw
             val result = resolver.create(input)
@@ -185,18 +189,20 @@ class CustomerResolverTest {
             val statuses = listOf("ACTIVE", "INACTIVE", "PENDING")
 
             statuses.forEach { status ->
-                val newCustomer = Customer(
-                    id = UUID.randomUUID(),
-                    name = "Test Customer",
-                    email = "test@example.com",
-                    status = CustomerStatus.valueOf(status),
-                    version = 0L
-                )
-                val input = mapOf(
-                    "name" to "Test Customer",
-                    "email" to "test@example.com",
-                    "status" to status
-                )
+                val newCustomer =
+                    Customer(
+                        id = UUID.randomUUID(),
+                        name = "Test Customer",
+                        email = "test@example.com",
+                        status = CustomerStatus.valueOf(status),
+                        version = 0L,
+                    )
+                val input =
+                    mapOf(
+                        "name" to "Test Customer",
+                        "email" to "test@example.com",
+                        "status" to status,
+                    )
 
                 // Mock the service
                 whenever(customerService.create(any())).thenReturn(newCustomer)
@@ -214,14 +220,14 @@ class CustomerResolverTest {
     @Nested
     @DisplayName("extractField() - via create()")
     inner class ExtractFieldTests {
-
         @Test
         fun `should throw exception when required field is missing`() {
             // Arrange
-            val input = mapOf(
-                "email" to "test@example.com"
-                // name is missing
-            )
+            val input =
+                mapOf(
+                    "email" to "test@example.com",
+                    // name is missing
+                )
 
             // Act & Assert - create() calls mapToInputDTO which calls extractField
             val result = resolver.create(input)
@@ -233,10 +239,11 @@ class CustomerResolverTest {
         @Test
         fun `should throw exception when email field is missing`() {
             // Arrange
-            val input = mapOf(
-                "name" to "Test Customer"
-                // email is missing
-            )
+            val input =
+                mapOf(
+                    "name" to "Test Customer",
+                    // email is missing
+                )
 
             // Act & Assert - create() calls mapToInputDTO which calls extractField
             val result = resolver.create(input)
@@ -248,17 +255,19 @@ class CustomerResolverTest {
         @Test
         fun `should use default value when optional field is missing`() {
             // Arrange
-            val newCustomer = Customer(
-                id = UUID.randomUUID(),
-                name = "Test Customer",
-                email = "test@example.com",
-                status = CustomerStatus.ACTIVE
-            )
-            val input = mapOf(
-                "name" to "Test Customer",
-                "email" to "test@example.com"
-                // status is missing, should use default "ACTIVE"
-            )
+            val newCustomer =
+                Customer(
+                    id = UUID.randomUUID(),
+                    name = "Test Customer",
+                    email = "test@example.com",
+                    status = CustomerStatus.ACTIVE,
+                )
+            val input =
+                mapOf(
+                    "name" to "Test Customer",
+                    "email" to "test@example.com",
+                    // status is missing, should use default "ACTIVE"
+                )
 
             // Mock the service
             whenever(customerService.create(any())).thenReturn(newCustomer)
@@ -272,4 +281,3 @@ class CustomerResolverTest {
         }
     }
 }
-

@@ -7,6 +7,7 @@ import jakarta.inject.Singleton
  */
 interface GraphQLModule {
     fun registerResolvers(registry: GraphQLResolverRegistry)
+
     fun getModuleName(): String
 }
 
@@ -14,11 +15,10 @@ interface GraphQLModule {
  * Abstract base class for GraphQL modules
  */
 abstract class BaseGraphQLModule : GraphQLModule {
-    
     override fun registerResolvers(registry: GraphQLResolverRegistry) {
         // Default implementation - override in concrete modules
     }
-    
+
     override fun getModuleName(): String {
         return this::class.simpleName ?: "UnknownModule"
     }
@@ -29,17 +29,16 @@ abstract class BaseGraphQLModule : GraphQLModule {
  */
 @Singleton
 class GraphQLModuleRegistry {
-    
     private val modules = mutableMapOf<String, GraphQLModule>()
-    
+
     fun registerModule(module: GraphQLModule) {
         modules[module.getModuleName()] = module
     }
-    
+
     fun getModule(name: String): GraphQLModule? = modules[name]
-    
+
     fun getAllModules(): Map<String, GraphQLModule> = modules.toMap()
-    
+
     fun initializeAllModules(resolverRegistry: GraphQLResolverRegistry) {
         modules.values.forEach { it.registerResolvers(resolverRegistry) }
     }

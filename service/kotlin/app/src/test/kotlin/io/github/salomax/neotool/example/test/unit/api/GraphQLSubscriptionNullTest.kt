@@ -6,25 +6,24 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
 class GraphQLSubscriptionNullTest {
-
     @Test
     fun `json read converts null to JsonNull correctly`() {
         // This simulates what happens in the integration test
         val jsonString = """{"data":null}"""
         val jsonMapper = JsonMapper.createDefault()
         val jsonNode = jsonMapper.readValue(jsonString, JsonNode::class.java)
-        
+
         val data = jsonNode["data"]
-        
+
         // This is what the original test was checking (and failing)
         // assertThat(data).isNull() // This would fail because data is JsonNull, not null
-        
+
         // This is our fix - check for JsonNull instead
         assertThat(data)
-          .describedAs("Data should not be null (it's a JsonNull object)")
-          .isNotNull()
+            .describedAs("Data should not be null (it's a JsonNull object)")
+            .isNotNull()
         assertThat(data.isNull)
-          .describedAs("Data should be JsonNull (representing null)")
-          .isTrue()
+            .describedAs("Data should be JsonNull (representing null)")
+            .isTrue()
     }
 }

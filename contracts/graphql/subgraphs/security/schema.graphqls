@@ -17,6 +17,7 @@ type Query {
 type Mutation {
   # Authentication mutations
   signIn(input: SignInInput!): SignInPayload!
+  signInWithOAuth(input: SignInWithOAuthInput!): SignInPayload!
   signUp(input: SignUpInput!): SignUpPayload!
   requestPasswordReset(input: RequestPasswordResetInput!): RequestPasswordResetPayload!
   resetPassword(input: ResetPasswordInput!): ResetPasswordPayload!
@@ -26,6 +27,12 @@ type Mutation {
 input SignInInput {
   email: String!
   password: String!
+  rememberMe: Boolean
+}
+
+input SignInWithOAuthInput {
+  provider: String!  # "google", "microsoft", etc.
+  idToken: String!   # OAuth ID token (JWT) from the provider
   rememberMe: Boolean
 }
 

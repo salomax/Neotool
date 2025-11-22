@@ -17,13 +17,22 @@ type Query {
 type Mutation {
   # Authentication mutations
   signIn(input: SignInInput!): SignInPayload!
+  signInWithOAuth(input: SignInWithOAuthInput!): SignInPayload!
   signUp(input: SignUpInput!): SignUpPayload!
+  requestPasswordReset(input: RequestPasswordResetInput!): RequestPasswordResetPayload!
+  resetPassword(input: ResetPasswordInput!): ResetPasswordPayload!
 }
 
 # Authentication input types
 input SignInInput {
   email: String!
   password: String!
+  rememberMe: Boolean
+}
+
+input SignInWithOAuthInput {
+  provider: String!  # "google", "microsoft", etc.
+  idToken: String!   # OAuth ID token (JWT) from the provider
   rememberMe: Boolean
 }
 
@@ -44,5 +53,26 @@ type SignUpPayload {
   token: String!
   refreshToken: String
   user: User!
+}
+
+# Password reset input types
+input RequestPasswordResetInput {
+  email: String!
+  locale: String
+}
+
+type RequestPasswordResetPayload {
+  success: Boolean!
+  message: String!
+}
+
+input ResetPasswordInput {
+  token: String!
+  newPassword: String!
+}
+
+type ResetPasswordPayload {
+  success: Boolean!
+  message: String!
 }
 

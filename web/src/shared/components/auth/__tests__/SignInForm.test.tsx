@@ -14,6 +14,7 @@ i18n.addResourceBundle('pt', 'signin', signinTranslations.pt, true, true);
 
 // Mock the auth and toast hooks
 const mockSignIn = vi.fn();
+const mockSignInWithOAuth = vi.fn();
 const mockShowError = vi.fn();
 const mockShowSuccess = vi.fn();
 
@@ -23,6 +24,7 @@ vi.mock('@/shared/providers', async () => {
     ...actual,
     useAuth: vi.fn(() => ({
       signIn: mockSignIn,
+      signInWithOAuth: mockSignInWithOAuth,
       isAuthenticated: false,
       isLoading: false,
     })),
@@ -32,6 +34,16 @@ vi.mock('@/shared/providers', async () => {
     })),
   };
 });
+
+// Mock the OAuth hook
+const mockSignInOAuth = vi.fn();
+vi.mock('@/shared/hooks/useOAuth', () => ({
+  useOAuth: vi.fn(() => ({
+    signIn: mockSignInOAuth,
+    isLoading: false,
+    error: null,
+  })),
+}));
 
 // Mock Next.js Link
 vi.mock('next/link', () => ({
@@ -54,6 +66,8 @@ describe('SignInForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSignIn.mockResolvedValue(undefined);
+    mockSignInWithOAuth.mockResolvedValue(undefined);
+    mockSignInOAuth.mockResolvedValue('test-id-token');
   });
 
   it('renders all form fields', () => {
@@ -242,6 +256,113 @@ describe('SignInForm', () => {
     await waitFor(() => {
       expect(onSuccess).toHaveBeenCalled();
     }, { timeout: 2000 });
+  });
+
+  describe('Google OAuth Sign In', () => {
+    it('should render Google sign-in button', () => {
+      renderSignInForm();
+
+      const googleButton = screen.getByTestId('button-google-signin');
+      expect(googleButton).toBeInTheDocument();
+      expect(googleButton).toHaveTextContent(/continue with google/i);
+    });
+
+    it('should call OAuth sign-in when Google button is clicked', async () => {
+      const user = userEvent.setup();
+      renderSignInForm();
+
+      const googleButton = screen.getByTestId('button-google-signin');
+      await user.click(googleButton);
+
+      await waitFor(() => {
+        expect(mockSignInOAuth).toHaveBeenCalledWith('google');
+      });
+    });
+
+    it('should call signInWithOAuth with ID token on successful OAuth', async () => {
+      const user = userEvent.setup();
+      mockSignInOAuth.mockResolvedValue('test-google-id-token');
+      renderSignInForm();
+
+      const googleButton = screen.getByTestId('button-google-signin');
+      await user.click(googleButton);
+
+      await waitFor(() => {
+        expect(mockSignInOAuth).toHaveBeenCalledWith('google');
+      });
+
+      // Wait for the OAuth callback to trigger signInWithOAuth
+      await waitFor(() => {
+        expect(mockSignInWithOAuth).toHaveBeenCalledWith('google', 'test-google-id-token', false);
+      }, { timeout: 2000 });
+    });
+
+    it('should show loading state during OAuth sign-in', async () => {
+      const user = userEvent.setup();
+      let resolveOAuth: (value: string) => void;
+      const oauthPromise = new Promise<string>((resolve) => {
+        resolveOAuth = resolve;
+      });
+      mockSignInOAuth.mockReturnValue(oauthPromise);
+
+      const { useOAuth } = await import('@/shared/hooks/useOAuth');
+      vi.mocked(useOAuth).mockReturnValue({
+        signIn: mockSignInOAuth,
+        isLoading: true,
+        error: null,
+      });
+
+      renderSignInForm();
+
+      const googleButton = screen.getByTestId('button-google-signin');
+      expect(googleButton).toBeDisabled();
+
+      resolveOAuth!('test-id-token');
+      await oauthPromise;
+    });
+
+    it('should display error message on OAuth sign-in failure', async () => {
+      const user = userEvent.setup();
+      const oauthError = new Error('OAuth authentication failed');
+      mockSignInOAuth.mockRejectedValue(oauthError);
+
+      renderSignInForm();
+
+      const googleButton = screen.getByTestId('button-google-signin');
+      await user.click(googleButton);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('signin-error')).toBeInTheDocument();
+      }, { timeout: 2000 });
+
+      expect(mockShowError).toHaveBeenCalled();
+    });
+
+    it('should disable Google button during form submission', async () => {
+      const user = userEvent.setup();
+      let resolveSignIn: () => void;
+      const signInPromise = new Promise<void>((resolve) => {
+        resolveSignIn = resolve;
+      });
+      mockSignIn.mockImplementation(() => signInPromise);
+
+      renderSignInForm();
+
+      const emailInput = screen.getByRole('textbox', { name: /email/i }) as HTMLInputElement;
+      const passwordInput = screen.getByLabelText('Password') as HTMLInputElement;
+      const googleButton = screen.getByTestId('button-google-signin');
+
+      await user.type(emailInput, 'test@example.com');
+      await user.type(passwordInput, 'TestPassword123!');
+      await user.click(screen.getByTestId('button-signin'));
+
+      await waitFor(() => {
+        expect(googleButton).toBeDisabled();
+      });
+
+      resolveSignIn!();
+      await signInPromise;
+    });
   });
 });
 

@@ -1,9 +1,10 @@
 package io.github.salomax.neotool.security.graphql.dto
 
+import io.github.salomax.neotool.common.graphql.BaseInputDTO
 import io.micronaut.core.annotation.Introspected
 import io.micronaut.serde.annotation.Serdeable
-import io.github.salomax.neotool.common.graphql.BaseInputDTO
-import jakarta.validation.constraints.*
+import jakarta.validation.constraints.Email
+import jakarta.validation.constraints.NotBlank
 
 /**
  * Security module GraphQL DTOs
@@ -16,7 +17,7 @@ data class SignInInputDTO(
     var email: String = "",
     @field:NotBlank(message = "Password is required")
     var password: String = "",
-    var rememberMe: Boolean? = false
+    var rememberMe: Boolean? = false,
 ) : BaseInputDTO()
 
 @Introspected
@@ -24,7 +25,7 @@ data class SignInInputDTO(
 data class SignInPayloadDTO(
     val token: String,
     val refreshToken: String? = null,
-    val user: UserDTO
+    val user: UserDTO,
 )
 
 @Introspected
@@ -36,7 +37,7 @@ data class SignUpInputDTO(
     @field:NotBlank(message = "Email is required")
     var email: String = "",
     @field:NotBlank(message = "Password is required")
-    var password: String = ""
+    var password: String = "",
 ) : BaseInputDTO()
 
 @Introspected
@@ -44,7 +45,7 @@ data class SignUpInputDTO(
 data class SignUpPayloadDTO(
     val token: String,
     val refreshToken: String? = null,
-    val user: UserDTO
+    val user: UserDTO,
 )
 
 @Introspected
@@ -52,7 +53,7 @@ data class SignUpPayloadDTO(
 data class UserDTO(
     val id: String,
     val email: String,
-    val displayName: String? = null
+    val displayName: String? = null,
 )
 
 @Introspected
@@ -61,14 +62,14 @@ data class RequestPasswordResetInputDTO(
     @field:Email(message = "Email must be valid")
     @field:NotBlank(message = "Email is required")
     var email: String = "",
-    var locale: String? = "en"
+    var locale: String? = "en",
 ) : BaseInputDTO()
 
 @Introspected
 @Serdeable
 data class RequestPasswordResetPayloadDTO(
     val success: Boolean,
-    val message: String
+    val message: String,
 )
 
 @Introspected
@@ -77,13 +78,12 @@ data class ResetPasswordInputDTO(
     @field:NotBlank(message = "Token is required")
     var token: String = "",
     @field:NotBlank(message = "Password is required")
-    var newPassword: String = ""
+    var newPassword: String = "",
 ) : BaseInputDTO()
 
 @Introspected
 @Serdeable
 data class ResetPasswordPayloadDTO(
     val success: Boolean,
-    val message: String
+    val message: String,
 )
-

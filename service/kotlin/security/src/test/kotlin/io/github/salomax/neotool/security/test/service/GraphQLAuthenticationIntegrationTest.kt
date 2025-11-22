@@ -1,10 +1,6 @@
 package io.github.salomax.neotool.security.test.service
 
-import io.github.salomax.neotool.security.repo.UserRepository
-import io.github.salomax.neotool.security.service.AuthenticationService
-import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import io.github.salomax.neotool.common.test.assertions.assertNoErrors
-import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.common.test.assertions.shouldBeJson
 import io.github.salomax.neotool.common.test.assertions.shouldBeSuccessful
 import io.github.salomax.neotool.common.test.assertions.shouldHaveNonEmptyBody
@@ -13,6 +9,10 @@ import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.common.test.json.read
 import io.github.salomax.neotool.common.test.transaction.runTransaction
+import io.github.salomax.neotool.security.model.UserEntity
+import io.github.salomax.neotool.security.repo.UserRepository
+import io.github.salomax.neotool.security.service.AuthenticationService
+import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import io.micronaut.http.HttpRequest
 import io.micronaut.http.MediaType
 import io.micronaut.json.tree.JsonNode
@@ -35,7 +35,6 @@ import org.junit.jupiter.api.TestInstance
 @Tag("authentication")
 @Tag("security")
 open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTest {
-
     @Inject
     lateinit var userRepository: UserRepository
 
@@ -69,27 +68,29 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
     @Nested
     @DisplayName("Sign In Mutation")
     inner class SignInMutationTests {
-
         @Test
         fun `should sign in user successfully via GraphQL mutation`() {
             // Validates that users with correct credentials receive a valid authentication token and user data.
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
             saveUser(user)
 
-            val mutation = SecurityTestDataBuilders.signInMutation(
-                email = email,
-                password = password,
-                rememberMe = false
-            )
+            val mutation =
+                SecurityTestDataBuilders.signInMutation(
+                    email = email,
+                    password = password,
+                    rememberMe = false,
+                )
 
-            val request = HttpRequest.POST("/graphql", mutation)
-                .contentType(MediaType.APPLICATION_JSON)
+            val request =
+                HttpRequest.POST("/graphql", mutation)
+                    .contentType(MediaType.APPLICATION_JSON)
 
             // Act
             val response = httpClient.exchangeAsString(request)
@@ -140,22 +141,25 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             // refresh token are returned for persistent authentication.
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password
-            )
-            
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
+
             saveUser(user)
 
-            val mutation = SecurityTestDataBuilders.signInMutation(
-                email = email,
-                password = password,
-                rememberMe = true
-            )
+            val mutation =
+                SecurityTestDataBuilders.signInMutation(
+                    email = email,
+                    password = password,
+                    rememberMe = true,
+                )
 
-            val request = HttpRequest.POST("/graphql", mutation)
-                .contentType(MediaType.APPLICATION_JSON)
+            val request =
+                HttpRequest.POST("/graphql", mutation)
+                    .contentType(MediaType.APPLICATION_JSON)
 
             // Act
             val response = httpClient.exchangeAsString(request)
@@ -195,22 +199,25 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             // Prevents unauthorized access by rejecting sign-in attempts with incorrect passwords.
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password
-            )
-            
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
+
             saveUser(user)
 
-            val mutation = SecurityTestDataBuilders.signInMutation(
-                email = email,
-                password = "WrongPassword123!",
-                rememberMe = false
-            )
+            val mutation =
+                SecurityTestDataBuilders.signInMutation(
+                    email = email,
+                    password = "WrongPassword123!",
+                    rememberMe = false,
+                )
 
-            val request = HttpRequest.POST("/graphql", mutation)
-                .contentType(MediaType.APPLICATION_JSON)
+            val request =
+                HttpRequest.POST("/graphql", mutation)
+                    .contentType(MediaType.APPLICATION_JSON)
 
             // Act
             val response = httpClient.exchangeAsString(request)
@@ -244,14 +251,16 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             // Prevents user enumeration attacks by returning errors
             // for non-existent users without revealing their existence.
             val email = uniqueEmail()
-            val mutation = SecurityTestDataBuilders.signInMutation(
-                email = email,
-                password = "TestPassword123!",
-                rememberMe = false
-            )
+            val mutation =
+                SecurityTestDataBuilders.signInMutation(
+                    email = email,
+                    password = "TestPassword123!",
+                    rememberMe = false,
+                )
 
-            val request = HttpRequest.POST("/graphql", mutation)
-                .contentType(MediaType.APPLICATION_JSON)
+            val request =
+                HttpRequest.POST("/graphql", mutation)
+                    .contentType(MediaType.APPLICATION_JSON)
 
             // Act
             val response = httpClient.exchangeAsString(request)
@@ -273,27 +282,32 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
         @Test
         fun `should return error for missing email via GraphQL mutation`() {
             // Ensures GraphQL schema validation rejects mutations with missing required fields (email).
-            val mutation = mapOf(
-                "query" to """
-                    mutation SignIn(${'$'}input: SignInInput!) {
-                        signIn(input: ${'$'}input) {
-                            token
-                            user {
-                                id
-                                email
+            val mutation =
+                mapOf(
+                    "query" to
+                        """
+                        mutation SignIn(${'$'}input: SignInInput!) {
+                            signIn(input: ${'$'}input) {
+                                token
+                                user {
+                                    id
+                                    email
+                                }
                             }
                         }
-                    }
-                """.trimIndent(),
-                "variables" to mapOf(
-                    "input" to mapOf(
-                        "password" to "TestPassword123!"
-                    )
+                        """.trimIndent(),
+                    "variables" to
+                        mapOf(
+                            "input" to
+                                mapOf(
+                                    "password" to "TestPassword123!",
+                                ),
+                        ),
                 )
-            )
 
-            val request = HttpRequest.POST("/graphql", mutation)
-                .contentType(MediaType.APPLICATION_JSON)
+            val request =
+                HttpRequest.POST("/graphql", mutation)
+                    .contentType(MediaType.APPLICATION_JSON)
 
             // Act
             val response = httpClient.exchangeAsString(request)
@@ -313,27 +327,32 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
         @Test
         fun `should return error for missing password via GraphQL mutation`() {
             // Ensures GraphQL schema validation rejects mutations with missing required fields (password).
-            val mutation = mapOf(
-                "query" to """
-                    mutation SignIn(${'$'}input: SignInInput!) {
-                        signIn(input: ${'$'}input) {
-                            token
-                            user {
-                                id
-                                email
+            val mutation =
+                mapOf(
+                    "query" to
+                        """
+                        mutation SignIn(${'$'}input: SignInInput!) {
+                            signIn(input: ${'$'}input) {
+                                token
+                                user {
+                                    id
+                                    email
+                                }
                             }
                         }
-                    }
-                """.trimIndent(),
-                "variables" to mapOf(
-                    "input" to mapOf(
-                        "email" to "test@example.com"
-                    )
+                        """.trimIndent(),
+                    "variables" to
+                        mapOf(
+                            "input" to
+                                mapOf(
+                                    "email" to "test@example.com",
+                                ),
+                        ),
                 )
-            )
 
-            val request = HttpRequest.POST("/graphql", mutation)
-                .contentType(MediaType.APPLICATION_JSON)
+            val request =
+                HttpRequest.POST("/graphql", mutation)
+                    .contentType(MediaType.APPLICATION_JSON)
 
             // Act
             val response = httpClient.exchangeAsString(request)
@@ -355,21 +374,25 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             // Tests exception handling branch in signIn resolver for blank password
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
             saveUser(user)
 
-            val mutation = SecurityTestDataBuilders.signInMutation(
-                email = email,
-                password = "   ", // Blank password
-                rememberMe = false
-            )
+            val mutation =
+                SecurityTestDataBuilders.signInMutation(
+                    email = email,
+                    // Blank password
+                    password = "   ",
+                    rememberMe = false,
+                )
 
-            val request = HttpRequest.POST("/graphql", mutation)
-                .contentType(MediaType.APPLICATION_JSON)
+            val request =
+                HttpRequest.POST("/graphql", mutation)
+                    .contentType(MediaType.APPLICATION_JSON)
 
             // Act
             val response = httpClient.exchangeAsString(request)
@@ -393,21 +416,25 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             // Tests exception handling branch in signIn resolver for empty password
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
             saveUser(user)
 
-            val mutation = SecurityTestDataBuilders.signInMutation(
-                email = email,
-                password = "", // Empty password
-                rememberMe = false
-            )
+            val mutation =
+                SecurityTestDataBuilders.signInMutation(
+                    email = email,
+                    // Empty password
+                    password = "",
+                    rememberMe = false,
+                )
 
-            val request = HttpRequest.POST("/graphql", mutation)
-                .contentType(MediaType.APPLICATION_JSON)
+            val request =
+                HttpRequest.POST("/graphql", mutation)
+                    .contentType(MediaType.APPLICATION_JSON)
 
             // Act
             val response = httpClient.exchangeAsString(request)
@@ -430,7 +457,6 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
     @Nested
     @DisplayName("Sign Up Mutation")
     inner class SignUpMutationTests {
-
         @Test
         fun `should sign up user successfully via GraphQL mutation`() {
             // Validates that new users can register with valid credentials and receive authentication tokens.
@@ -438,14 +464,16 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             val email = uniqueEmail()
             val password = "TestPassword123!"
 
-            val mutation = SecurityTestDataBuilders.signUpMutation(
-                name = name,
-                email = email,
-                password = password
-            )
+            val mutation =
+                SecurityTestDataBuilders.signUpMutation(
+                    name = name,
+                    email = email,
+                    password = password,
+                )
 
-            val request = HttpRequest.POST("/graphql", mutation)
-                .contentType(MediaType.APPLICATION_JSON)
+            val request =
+                HttpRequest.POST("/graphql", mutation)
+                    .contentType(MediaType.APPLICATION_JSON)
 
             // Act
             val response = httpClient.exchangeAsString(request)
@@ -506,21 +534,24 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             val password = "TestPassword123!"
 
             // Create existing user
-            val existingUser = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password
-            )
+            val existingUser =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
             saveUser(existingUser)
 
-            val mutation = SecurityTestDataBuilders.signUpMutation(
-                name = name,
-                email = email,
-                password = password
-            )
+            val mutation =
+                SecurityTestDataBuilders.signUpMutation(
+                    name = name,
+                    email = email,
+                    password = password,
+                )
 
-            val request = HttpRequest.POST("/graphql", mutation)
-                .contentType(MediaType.APPLICATION_JSON)
+            val request =
+                HttpRequest.POST("/graphql", mutation)
+                    .contentType(MediaType.APPLICATION_JSON)
 
             // Act
             val response = httpClient.exchangeAsString(request)
@@ -555,14 +586,16 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             val email = uniqueEmail()
             val weakPassword = "weak" // Too short, missing requirements
 
-            val mutation = SecurityTestDataBuilders.signUpMutation(
-                name = name,
-                email = email,
-                password = weakPassword
-            )
+            val mutation =
+                SecurityTestDataBuilders.signUpMutation(
+                    name = name,
+                    email = email,
+                    password = weakPassword,
+                )
 
-            val request = HttpRequest.POST("/graphql", mutation)
-                .contentType(MediaType.APPLICATION_JSON)
+            val request =
+                HttpRequest.POST("/graphql", mutation)
+                    .contentType(MediaType.APPLICATION_JSON)
 
             // Act
             val response = httpClient.exchangeAsString(request)
@@ -593,28 +626,33 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
         @Test
         fun `should return error for missing name via GraphQL mutation`() {
             // Ensures GraphQL schema validation rejects mutations with missing required fields (name).
-            val mutation = mapOf(
-                "query" to """
-                    mutation SignUp(${'$'}input: SignUpInput!) {
-                        signUp(input: ${'$'}input) {
-                            token
-                            user {
-                                id
-                                email
+            val mutation =
+                mapOf(
+                    "query" to
+                        """
+                        mutation SignUp(${'$'}input: SignUpInput!) {
+                            signUp(input: ${'$'}input) {
+                                token
+                                user {
+                                    id
+                                    email
+                                }
                             }
                         }
-                    }
-                """.trimIndent(),
-                "variables" to mapOf(
-                    "input" to mapOf(
-                        "email" to "test@example.com",
-                        "password" to "TestPassword123!"
-                    )
+                        """.trimIndent(),
+                    "variables" to
+                        mapOf(
+                            "input" to
+                                mapOf(
+                                    "email" to "test@example.com",
+                                    "password" to "TestPassword123!",
+                                ),
+                        ),
                 )
-            )
 
-            val request = HttpRequest.POST("/graphql", mutation)
-                .contentType(MediaType.APPLICATION_JSON)
+            val request =
+                HttpRequest.POST("/graphql", mutation)
+                    .contentType(MediaType.APPLICATION_JSON)
 
             // Act
             val response = httpClient.exchangeAsString(request)
@@ -634,28 +672,33 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
         @Test
         fun `should return error for missing email via GraphQL mutation`() {
             // Ensures GraphQL schema validation rejects mutations with missing required fields (email).
-            val mutation = mapOf(
-                "query" to """
-                    mutation SignUp(${'$'}input: SignUpInput!) {
-                        signUp(input: ${'$'}input) {
-                            token
-                            user {
-                                id
-                                email
+            val mutation =
+                mapOf(
+                    "query" to
+                        """
+                        mutation SignUp(${'$'}input: SignUpInput!) {
+                            signUp(input: ${'$'}input) {
+                                token
+                                user {
+                                    id
+                                    email
+                                }
                             }
                         }
-                    }
-                """.trimIndent(),
-                "variables" to mapOf(
-                    "input" to mapOf(
-                        "name" to "Test User",
-                        "password" to "TestPassword123!"
-                    )
+                        """.trimIndent(),
+                    "variables" to
+                        mapOf(
+                            "input" to
+                                mapOf(
+                                    "name" to "Test User",
+                                    "password" to "TestPassword123!",
+                                ),
+                        ),
                 )
-            )
 
-            val request = HttpRequest.POST("/graphql", mutation)
-                .contentType(MediaType.APPLICATION_JSON)
+            val request =
+                HttpRequest.POST("/graphql", mutation)
+                    .contentType(MediaType.APPLICATION_JSON)
 
             // Act
             val response = httpClient.exchangeAsString(request)
@@ -675,28 +718,33 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
         @Test
         fun `should return error for missing password via GraphQL mutation`() {
             // Ensures GraphQL schema validation rejects mutations with missing required fields (password).
-            val mutation = mapOf(
-                "query" to """
-                    mutation SignUp(${'$'}input: SignUpInput!) {
-                        signUp(input: ${'$'}input) {
-                            token
-                            user {
-                                id
-                                email
+            val mutation =
+                mapOf(
+                    "query" to
+                        """
+                        mutation SignUp(${'$'}input: SignUpInput!) {
+                            signUp(input: ${'$'}input) {
+                                token
+                                user {
+                                    id
+                                    email
+                                }
                             }
                         }
-                    }
-                """.trimIndent(),
-                "variables" to mapOf(
-                    "input" to mapOf(
-                        "name" to "Test User",
-                        "email" to "test@example.com"
-                    )
+                        """.trimIndent(),
+                    "variables" to
+                        mapOf(
+                            "input" to
+                                mapOf(
+                                    "name" to "Test User",
+                                    "email" to "test@example.com",
+                                ),
+                        ),
                 )
-            )
 
-            val request = HttpRequest.POST("/graphql", mutation)
-                .contentType(MediaType.APPLICATION_JSON)
+            val request =
+                HttpRequest.POST("/graphql", mutation)
+                    .contentType(MediaType.APPLICATION_JSON)
 
             // Act
             val response = httpClient.exchangeAsString(request)
@@ -717,29 +765,31 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
     @Nested
     @DisplayName("Current User Query")
     inner class CurrentUserQueryTests {
-
         @Test
         fun `should return current user when valid token provided`() {
             // Validates that authenticated users can successfully retrieve
             // their own user information using a valid JWT token.
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
             saveUser(user)
 
             // Sign in to get token
-            val signInMutation = SecurityTestDataBuilders.signInMutation(
-                email = email,
-                password = password,
-                rememberMe = false
-            )
+            val signInMutation =
+                SecurityTestDataBuilders.signInMutation(
+                    email = email,
+                    password = password,
+                    rememberMe = false,
+                )
 
-            val signInRequest = HttpRequest.POST("/graphql", signInMutation)
-                .contentType(MediaType.APPLICATION_JSON)
+            val signInRequest =
+                HttpRequest.POST("/graphql", signInMutation)
+                    .contentType(MediaType.APPLICATION_JSON)
 
             val signInResponse = httpClient.exchangeAsString(signInRequest)
             val signInPayload: JsonNode = json.read(signInResponse)
@@ -752,9 +802,10 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
 
             // Now query currentUser with the token
             val query = SecurityTestDataBuilders.currentUserQuery()
-            val request = HttpRequest.POST("/graphql", query)
-                .contentType(MediaType.APPLICATION_JSON)
-                .header("Authorization", "Bearer $token")
+            val request =
+                HttpRequest.POST("/graphql", query)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header("Authorization", "Bearer $token")
 
             // Act
             val response = httpClient.exchangeAsString(request)
@@ -791,8 +842,9 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             // Ensures that unauthenticated requests gracefully
             // return null instead of throwing errors, allowing public queries.
             val query = SecurityTestDataBuilders.currentUserQuery()
-            val request = HttpRequest.POST("/graphql", query)
-                .contentType(MediaType.APPLICATION_JSON)
+            val request =
+                HttpRequest.POST("/graphql", query)
+                    .contentType(MediaType.APPLICATION_JSON)
             // No Authorization header
 
             // Act
@@ -821,9 +873,10 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             // Prevents unauthorized access by rejecting malformed or tampered tokens without exposing security details.
             // Arrange
             val query = SecurityTestDataBuilders.currentUserQuery()
-            val request = HttpRequest.POST("/graphql", query)
-                .contentType(MediaType.APPLICATION_JSON)
-                .header("Authorization", "Bearer invalid-token-123")
+            val request =
+                HttpRequest.POST("/graphql", query)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header("Authorization", "Bearer invalid-token-123")
 
             // Act
             val response = httpClient.exchangeAsString(request)
@@ -851,22 +904,25 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             // Tests branch where token is valid but not an access token (e.g., refresh token)
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
             saveUser(user)
 
             // Sign in to get tokens
-            val signInMutation = SecurityTestDataBuilders.signInMutation(
-                email = email,
-                password = password,
-                rememberMe = true
-            )
+            val signInMutation =
+                SecurityTestDataBuilders.signInMutation(
+                    email = email,
+                    password = password,
+                    rememberMe = true,
+                )
 
-            val signInRequest = HttpRequest.POST("/graphql", signInMutation)
-                .contentType(MediaType.APPLICATION_JSON)
+            val signInRequest =
+                HttpRequest.POST("/graphql", signInMutation)
+                    .contentType(MediaType.APPLICATION_JSON)
 
             val signInResponse = httpClient.exchangeAsString(signInRequest)
             val signInPayload: JsonNode = json.read(signInResponse)
@@ -876,9 +932,10 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
 
             // Try to use refresh token as access token
             val query = SecurityTestDataBuilders.currentUserQuery()
-            val request = HttpRequest.POST("/graphql", query)
-                .contentType(MediaType.APPLICATION_JSON)
-                .header("Authorization", "Bearer $refreshToken")
+            val request =
+                HttpRequest.POST("/graphql", query)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header("Authorization", "Bearer $refreshToken")
 
             // Act
             val response = httpClient.exchangeAsString(request)
@@ -901,31 +958,33 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
     @Nested
     @DisplayName("End-to-End Authentication Flow")
     inner class EndToEndFlowTests {
-
         @Test
         fun `should complete full authentication flow via GraphQL`() {
             // Validates the complete end-to-end authentication workflow
             // from sign-in through token-based user queries and refresh token usage.
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password,
-                displayName = "Test User"
-            )
-            
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                    displayName = "Test User",
+                )
+
             saveUser(user)
 
             // Step 1: Sign in
-            val signInMutation = SecurityTestDataBuilders.signInMutation(
-                email = email,
-                password = password,
-                rememberMe = true
-            )
+            val signInMutation =
+                SecurityTestDataBuilders.signInMutation(
+                    email = email,
+                    password = password,
+                    rememberMe = true,
+                )
 
-            val signInRequest = HttpRequest.POST("/graphql", signInMutation)
-                .contentType(MediaType.APPLICATION_JSON)
+            val signInRequest =
+                HttpRequest.POST("/graphql", signInMutation)
+                    .contentType(MediaType.APPLICATION_JSON)
 
             val signInResponse = httpClient.exchangeAsString(signInRequest)
             val signInPayload: JsonNode = json.read(signInResponse)
@@ -943,9 +1002,10 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
 
             // Step 2: Query current user with token
             val query = SecurityTestDataBuilders.currentUserQuery()
-            val queryRequest = HttpRequest.POST("/graphql", query)
-                .contentType(MediaType.APPLICATION_JSON)
-                .header("Authorization", "Bearer $token")
+            val queryRequest =
+                HttpRequest.POST("/graphql", query)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header("Authorization", "Bearer $token")
 
             val queryResponse = httpClient.exchangeAsString(queryRequest)
             val queryPayload: JsonNode = json.read(queryResponse)
@@ -971,22 +1031,25 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             // Validates that JWT tokens are being used instead of simple UUID tokens
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
             saveUser(user)
 
             // Sign in to get token
-            val signInMutation = SecurityTestDataBuilders.signInMutation(
-                email = email,
-                password = password,
-                rememberMe = false
-            )
+            val signInMutation =
+                SecurityTestDataBuilders.signInMutation(
+                    email = email,
+                    password = password,
+                    rememberMe = false,
+                )
 
-            val signInRequest = HttpRequest.POST("/graphql", signInMutation)
-                .contentType(MediaType.APPLICATION_JSON)
+            val signInRequest =
+                HttpRequest.POST("/graphql", signInMutation)
+                    .contentType(MediaType.APPLICATION_JSON)
 
             val signInResponse = httpClient.exchangeAsString(signInRequest)
             val signInPayload: JsonNode = json.read(signInResponse)
@@ -1008,9 +1071,10 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
 
             // Assert - Token can be used to query currentUser
             val query = SecurityTestDataBuilders.currentUserQuery()
-            val queryRequest = HttpRequest.POST("/graphql", query)
-                .contentType(MediaType.APPLICATION_JSON)
-                .header("Authorization", "Bearer $token")
+            val queryRequest =
+                HttpRequest.POST("/graphql", query)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header("Authorization", "Bearer $token")
 
             val queryResponse = httpClient.exchangeAsString(queryRequest)
             val queryPayload: JsonNode = json.read(queryResponse)
@@ -1026,9 +1090,10 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
         fun `should reject invalid JWT token`() {
             // Validates that invalid JWT tokens are properly rejected
             val query = SecurityTestDataBuilders.currentUserQuery()
-            val request = HttpRequest.POST("/graphql", query)
-                .contentType(MediaType.APPLICATION_JSON)
-                .header("Authorization", "Bearer invalid.jwt.token")
+            val request =
+                HttpRequest.POST("/graphql", query)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header("Authorization", "Bearer invalid.jwt.token")
 
             val response = httpClient.exchangeAsString(request)
             val payload: JsonNode = json.read(response)
@@ -1045,9 +1110,15 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             // Note: This test would require generating an expired token
             // For now, we test that invalid tokens are rejected
             val query = SecurityTestDataBuilders.currentUserQuery()
-            val request = HttpRequest.POST("/graphql", query)
-                .contentType(MediaType.APPLICATION_JSON)
-                .header("Authorization", "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.invalid")
+            val request =
+                HttpRequest.POST("/graphql", query)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header(
+                        "Authorization",
+                        "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." +
+                            "eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ." +
+                            "invalid",
+                    )
 
             val response = httpClient.exchangeAsString(request)
             val payload: JsonNode = json.read(response)
@@ -1058,5 +1129,57 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
                 .describedAs("currentUser should be null for expired/invalid JWT token")
                 .isTrue()
         }
+    }
+
+    @Nested
+    @DisplayName("Sign In With OAuth Mutation")
+    inner class SignInWithOAuthMutationTests {
+        @Test
+        fun `should return error for unsupported OAuth provider`() {
+            val mutation =
+                SecurityTestDataBuilders.signInWithOAuthMutation(
+                    provider = "microsoft",
+                    idToken = "test-id-token",
+                )
+
+            val request =
+                HttpRequest.POST("/graphql", mutation)
+                    .contentType(MediaType.APPLICATION_JSON)
+
+            val response = httpClient.exchangeAsString(request)
+            val payload: JsonNode = json.read(response)
+
+            // Should have errors
+            Assertions.assertThat(payload["errors"]).isNotNull()
+            val errors = payload["errors"]
+            Assertions.assertThat(errors.isArray).isTrue()
+            Assertions.assertThat(errors.size()).isGreaterThan(0)
+        }
+
+        @Test
+        fun `should return error for invalid OAuth token`() {
+            val mutation =
+                SecurityTestDataBuilders.signInWithOAuthMutation(
+                    provider = "google",
+                    idToken = "invalid-token",
+                )
+
+            val request =
+                HttpRequest.POST("/graphql", mutation)
+                    .contentType(MediaType.APPLICATION_JSON)
+
+            val response = httpClient.exchangeAsString(request)
+            val payload: JsonNode = json.read(response)
+
+            // Should have errors
+            Assertions.assertThat(payload["errors"]).isNotNull()
+            val errors = payload["errors"]
+            Assertions.assertThat(errors.isArray).isTrue()
+            Assertions.assertThat(errors.size()).isGreaterThan(0)
+        }
+
+        // Note: Testing with real Google ID tokens would require actual Google OAuth setup
+        // In a real scenario, you would use test fixtures with valid Google ID tokens
+        // or mock the OAuth provider validation in integration tests
     }
 }

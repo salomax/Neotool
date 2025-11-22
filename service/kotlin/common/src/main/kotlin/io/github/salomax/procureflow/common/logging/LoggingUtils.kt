@@ -9,7 +9,6 @@ import java.time.Instant
  * Provides structured logging with MDC support and performance monitoring.
  */
 object LoggingUtils {
-    
     private val logger = KotlinLogging.logger {}
 
     /**
@@ -44,7 +43,10 @@ object LoggingUtils {
     /**
      * Set OpenTelemetry trace context in MDC
      */
-    fun setTraceContext(traceId: String?, spanId: String?) {
+    fun setTraceContext(
+        traceId: String?,
+        spanId: String?,
+    ) {
         if (traceId != null) {
             MDC.put("traceId", traceId)
             MDC.put("otel.trace_id", traceId)
@@ -58,7 +60,10 @@ object LoggingUtils {
     /**
      * Execute a block with timing information
      */
-    fun <T> withTiming(operation: String, block: () -> T): T {
+    fun <T> withTiming(
+        operation: String,
+        block: () -> T,
+    ): T {
         val start = Instant.now()
         return try {
             val result = block()
@@ -75,17 +80,24 @@ object LoggingUtils {
     /**
      * Log method entry with parameters (sanitized)
      */
-    fun logMethodEntry(methodName: String, vararg params: Pair<String, Any?>) {
-        val sanitizedParams = params.associate { (key, value) ->
-          key to sanitizeValue(value)
-        }
-      logger.debug { "Entering $methodName with params: $sanitizedParams" }
+    fun logMethodEntry(
+        methodName: String,
+        vararg params: Pair<String, Any?>,
+    ) {
+        val sanitizedParams =
+            params.associate { (key, value) ->
+                key to sanitizeValue(value)
+            }
+        logger.debug { "Entering $methodName with params: $sanitizedParams" }
     }
 
     /**
      * Log method exit with result (sanitized)
      */
-    fun logMethodExit(methodName: String, result: Any? = null) {
+    fun logMethodExit(
+        methodName: String,
+        result: Any? = null,
+    ) {
         val sanitizedResult = sanitizeValue(result)
         logger.debug { "Exiting $methodName with result: $sanitizedResult" }
     }
@@ -93,19 +105,30 @@ object LoggingUtils {
     /**
      * Log business operation with context
      */
-    fun logBusinessOperation(operation: String, entityType: String, entityId: String?, vararg context: Pair<String, Any?>) {
+    fun logBusinessOperation(
+        operation: String,
+        entityType: String,
+        entityId: String?,
+        vararg context: Pair<String, Any?>,
+    ) {
         val contextMap = context.toMap().mapValues { (_, value) -> sanitizeValue(value) }
-        logger.info { 
-            "Business operation: $operation on $entityType${entityId?.let { " (id: $it)" } ?: ""} - Context: $contextMap" 
+        logger.info {
+            "Business operation: $operation on $entityType" +
+                "${entityId?.let { " (id: $it)" } ?: ""} - Context: $contextMap"
         }
     }
 
     /**
      * Log data access operation
      */
-    fun logAuditData(operation: String, serviceName: String, recordId: String? = null, vararg context: Pair<String, Any?>) {
+    fun logAuditData(
+        operation: String,
+        serviceName: String,
+        recordId: String? = null,
+        vararg context: Pair<String, Any?>,
+    ) {
         val contextMap = context.toMap().mapValues { (_, value) -> sanitizeValue(value) }
-        logger.debug { 
+        logger.debug {
             "Data access: $operation on $serviceName${recordId?.let { " (id: $it)" } ?: ""} - Context: $contextMap"
         }
     }
@@ -113,46 +136,71 @@ object LoggingUtils {
     /**
      * Log GraphQL operation
      */
-    fun logGraphQLOperation(operation: String, query: String?, variables: Map<String, Any?>? = null) {
+    fun logGraphQLOperation(
+        operation: String,
+        query: String?,
+        variables: Map<String, Any?>? = null,
+    ) {
         val sanitizedVariables = variables?.mapValues { (_, value) -> sanitizeValue(value) }
-        logger.info { 
-            "GraphQL $operation - Query: ${query?.take(100)}${if (query?.length ?: 0 > 100) "..." else ""} - Variables: $sanitizedVariables" 
+        val queryPreview = query?.take(100) ?: ""
+        val querySuffix = if (query?.length ?: 0 > 100) "..." else ""
+        logger.info {
+            "GraphQL $operation - Query: $queryPreview$querySuffix - Variables: $sanitizedVariables"
         }
     }
 
     /**
      * Log OpenTelemetry span events (for integration with distributed tracing)
      */
-    fun logSpanEvent(eventName: String, vararg attributes: Pair<String, Any?>) {
+    fun logSpanEvent(
+        eventName: String,
+        vararg attributes: Pair<String, Any?>,
+    ) {
         val sanitizedAttributes = attributes.toMap().mapValues { (_, value) -> sanitizeValue(value) }
         val correlationId = MDC.get(MDCFilter.CORRELATION_ID_KEY) ?: "unknown"
         val traceId = MDC.get("traceId") ?: "unknown"
         val spanId = MDC.get("spanId") ?: "unknown"
-        
-        logger.debug { "Span event: $eventName - Attributes: $sanitizedAttributes - CorrelationId: $correlationId - TraceId: $traceId - SpanId: $spanId" }
+
+        logger.debug {
+            "Span event: $eventName - Attributes: $sanitizedAttributes - " +
+                "CorrelationId: $correlationId - TraceId: $traceId - SpanId: $spanId"
+        }
     }
 
     /**
      * Log performance metrics (for Prometheus integration)
      */
-    fun logPerformanceMetric(metricName: String, value: Number, vararg labels: Pair<String, String>) {
+    fun logPerformanceMetric(
+        metricName: String,
+        value: Number,
+        vararg labels: Pair<String, String>,
+    ) {
         val labelsMap = labels.toMap()
         val correlationId = MDC.get(MDCFilter.CORRELATION_ID_KEY) ?: "unknown"
         val traceId = MDC.get("traceId") ?: "unknown"
-        
-        logger.debug { "Performance metric: $metricName = $value - Labels: $labelsMap - CorrelationId: $correlationId - TraceId: $traceId" }
+
+        logger.debug {
+            "Performance metric: $metricName = $value - Labels: $labelsMap - " +
+                "CorrelationId: $correlationId - TraceId: $traceId"
+        }
     }
 
     /**
      * Log business operation with enterprise context
      */
-    fun logBusinessOperationWithContext(operation: String, entityType: String, entityId: String?, vararg context: Pair<String, Any?>) {
+    fun logBusinessOperationWithContext(
+        operation: String,
+        entityType: String,
+        entityId: String?,
+        vararg context: Pair<String, Any?>,
+    ) {
         val contextMap = context.toMap().mapValues { (_, value) -> sanitizeValue(value) }
         val correlationId = MDC.get(MDCFilter.CORRELATION_ID_KEY) ?: "unknown"
         val traceId = MDC.get("traceId") ?: "unknown"
-        
-        logger.info { 
-            "Business operation: $operation on $entityType${entityId?.let { " (id: $it)" } ?: ""} - Context: $contextMap - CorrelationId: $correlationId - TraceId: $traceId" 
+
+        logger.info {
+            "Business operation: $operation on $entityType${entityId?.let { " (id: $it)" } ?: ""} - " +
+                "Context: $contextMap - CorrelationId: $correlationId - TraceId: $traceId"
         }
     }
 

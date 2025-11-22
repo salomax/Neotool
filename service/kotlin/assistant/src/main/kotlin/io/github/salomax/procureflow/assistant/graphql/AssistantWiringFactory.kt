@@ -8,9 +8,8 @@ import jakarta.inject.Singleton
 
 @Singleton
 class AssistantWiringFactory(
-    private val assistantResolver: AssistantResolver
+    private val assistantResolver: AssistantResolver,
 ) : GraphQLWiringFactory() {
-    
     override fun registerQueryResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder {
         return type
             .dataFetcher("conversation") { env ->
@@ -18,7 +17,7 @@ class AssistantWiringFactory(
                 assistantResolver.conversation(sessionId)
             }
     }
-    
+
     override fun registerMutationResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder {
         return type
             .dataFetcher("chat") { env ->
@@ -30,10 +29,9 @@ class AssistantWiringFactory(
                 assistantResolver.clearConversation(sessionId)
             }
     }
-    
+
     override fun registerSubscriptionResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder {
         // No subscriptions for now
         return type
     }
 }
-

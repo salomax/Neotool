@@ -1,45 +1,40 @@
 package io.github.salomax.neotool.security.graphql
 
-import io.github.salomax.neotool.security.graphql.dto.SignInInputDTO
-import io.github.salomax.neotool.security.graphql.dto.SignInPayloadDTO
-import io.github.salomax.neotool.security.graphql.dto.SignUpInputDTO
-import io.github.salomax.neotool.security.graphql.dto.SignUpPayloadDTO
-import io.github.salomax.neotool.security.graphql.dto.UserDTO
-import io.github.salomax.neotool.security.graphql.dto.RequestPasswordResetInputDTO
-import io.github.salomax.neotool.security.graphql.dto.RequestPasswordResetPayloadDTO
-import io.github.salomax.neotool.security.graphql.dto.ResetPasswordInputDTO
-import io.github.salomax.neotool.security.graphql.dto.ResetPasswordPayloadDTO
-import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.createMutationDataFetcher
-import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.createValidatedDataFetcher
+import io.github.salomax.neotool.common.graphql.InputValidator
 import io.github.salomax.neotool.common.graphql.payload.GraphQLPayload
 import io.github.salomax.neotool.common.graphql.payload.GraphQLPayloadFactory
+import io.github.salomax.neotool.security.graphql.dto.RequestPasswordResetInputDTO
+import io.github.salomax.neotool.security.graphql.dto.RequestPasswordResetPayloadDTO
+import io.github.salomax.neotool.security.graphql.dto.ResetPasswordPayloadDTO
+import io.github.salomax.neotool.security.graphql.dto.SignInPayloadDTO
+import io.github.salomax.neotool.security.graphql.dto.SignUpPayloadDTO
+import io.github.salomax.neotool.security.graphql.dto.UserDTO
 import io.github.salomax.neotool.security.model.UserEntity
-import io.github.salomax.neotool.security.service.AuthenticationService
 import io.github.salomax.neotool.security.repo.UserRepository
-import io.github.salomax.neotool.common.graphql.InputValidator
+import io.github.salomax.neotool.security.service.AuthenticationService
 import jakarta.inject.Singleton
 import jakarta.validation.ConstraintViolationException
 import mu.KotlinLogging
 
 /**
  * GraphQL resolver for authentication operations in security module.
- * 
+ *
  * Uses JWT tokens for authentication:
- * - Access tokens: Short-lived (configurable via jwt.access-token-expiration-seconds, default: 15 minutes), 
+ * - Access tokens: Short-lived (configurable via jwt.access-token-expiration-seconds, default: 15 minutes),
  *   stateless, used for API requests
- * - Refresh tokens: Long-lived (configurable via jwt.refresh-token-expiration-seconds, default: 7 days), 
+ * - Refresh tokens: Long-lived (configurable via jwt.refresh-token-expiration-seconds, default: 7 days),
  *   stored in database, used to obtain new access tokens
- * 
+ *
  * @see io.github.salomax.neotool.security.config.JwtConfig
  */
 @Singleton
 class SecurityAuthResolver(
     private val authenticationService: AuthenticationService,
     private val userRepository: UserRepository,
-    private val inputValidator: InputValidator
+    private val inputValidator: InputValidator,
 ) {
     private val logger = KotlinLogging.logger {}
-    
+
     /**
      * Sign in mutation resolver
      */
@@ -48,15 +43,16 @@ class SecurityAuthResolver(
             val email = input["email"] as? String ?: throw IllegalArgumentException("Email is required")
             val password = input["password"] as? String ?: throw IllegalArgumentException("Password is required")
             val rememberMe = input["rememberMe"] as? Boolean ?: false
-            
+
             logger.debug { "Sign in attempt for email: $email" }
-            
-            val user = authenticationService.authenticate(email, password)
-                ?: throw IllegalArgumentException("Invalid email or password")
-            
+
+            val user =
+                authenticationService.authenticate(email, password)
+                    ?: throw IllegalArgumentException("Invalid email or password")
+
             // Generate JWT access token (short-lived, stateless)
             val token = authenticationService.generateAccessToken(user)
-            
+
             // Handle remember me - generate and store refresh token
             var refreshToken: String? = null
             if (rememberMe) {
@@ -64,27 +60,28 @@ class SecurityAuthResolver(
                 // Store refresh token in database for revocation support
                 authenticationService.saveRememberMeToken(user.id, refreshToken)
             }
-            
+
             logger.info { "User signed in successfully: ${user.email}" }
-            
-            val payload = SignInPayloadDTO(
-                token = token,
-                refreshToken = refreshToken,
-                user = userToDTO(user)
-            )
-            
+
+            val payload =
+                SignInPayloadDTO(
+                    token = token,
+                    refreshToken = refreshToken,
+                    user = userToDTO(user),
+                )
+
             GraphQLPayloadFactory.success(payload)
         } catch (e: Exception) {
             logger.warn { "Sign in failed: ${e.message}" }
             GraphQLPayloadFactory.error(e)
         }
     }
-    
+
     /**
      * Get current user from JWT access token.
-     * 
+     *
      * Validates the JWT token and returns the authenticated user.
-     * 
+     *
      * @param token The JWT access token from Authorization header
      * @return UserDTO if token is valid, null otherwise
      */
@@ -93,17 +90,61 @@ class SecurityAuthResolver(
             logger.debug { "No token provided" }
             return null
         }
-        
+
         // Validate JWT access token
-        val user = authenticationService.validateAccessToken(token)
-            ?: run {
-                logger.debug { "Invalid or expired access token" }
-                return null
-            }
-        
+        val user =
+            authenticationService.validateAccessToken(token)
+                ?: run {
+                    logger.debug { "Invalid or expired access token" }
+                    return null
+                }
+
         return userToDTO(user)
     }
-    
+
+    /**
+     * Sign in with OAuth mutation resolver
+     */
+    fun signInWithOAuth(input: Map<String, Any?>): GraphQLPayload<SignInPayloadDTO> {
+        return try {
+            val provider = input["provider"] as? String ?: throw IllegalArgumentException("Provider is required")
+            val idToken = input["idToken"] as? String ?: throw IllegalArgumentException("ID token is required")
+            val rememberMe = input["rememberMe"] as? Boolean ?: false
+
+            logger.debug { "OAuth sign in attempt with provider: $provider" }
+
+            // Authenticate with OAuth (validates token and creates/finds user)
+            val user =
+                authenticationService.authenticateWithOAuth(provider, idToken)
+                    ?: throw IllegalArgumentException("OAuth authentication failed")
+
+            // Generate JWT access token (short-lived, stateless)
+            val token = authenticationService.generateAccessToken(user)
+
+            // Handle remember me - generate and store refresh token
+            var refreshToken: String? = null
+            if (rememberMe) {
+                refreshToken = authenticationService.generateRefreshToken(user)
+                // Store refresh token in database for revocation support
+                authenticationService.saveRememberMeToken(user.id, refreshToken)
+            }
+
+            logger.info { "User signed in with OAuth successfully: ${user.email} (provider: $provider)" }
+
+            val payload =
+                SignInPayloadDTO(
+                    token = token,
+                    refreshToken = refreshToken,
+                    user = userToDTO(user),
+                )
+
+            GraphQLPayloadFactory.success(payload)
+        } catch (e: Exception) {
+            logger.warn { "OAuth sign in failed: ${e.message}" }
+            GraphQLPayloadFactory.error(e)
+        }
+    }
+
     /**
      * Sign up mutation resolver
      */
@@ -112,41 +153,42 @@ class SecurityAuthResolver(
             val name = input["name"] as? String ?: throw IllegalArgumentException("Name is required")
             val email = input["email"] as? String ?: throw IllegalArgumentException("Email is required")
             val password = input["password"] as? String ?: throw IllegalArgumentException("Password is required")
-            
+
             logger.debug { "Sign up attempt for email: $email" }
-            
+
             // Register user (validates email uniqueness and password strength)
             val user = authenticationService.registerUser(name, email, password)
-            
+
             // Generate JWT access token
             val token = authenticationService.generateAccessToken(user)
-            
+
             // Generate refresh token (for automatic sign-in after signup)
             val refreshToken = authenticationService.generateRefreshToken(user)
             authenticationService.saveRememberMeToken(user.id, refreshToken)
-            
+
             logger.info { "User signed up successfully: ${user.email}" }
-            
-            val payload = SignUpPayloadDTO(
-                token = token,
-                refreshToken = refreshToken,
-                user = userToDTO(user)
-            )
-            
+
+            val payload =
+                SignUpPayloadDTO(
+                    token = token,
+                    refreshToken = refreshToken,
+                    user = userToDTO(user),
+                )
+
             GraphQLPayloadFactory.success(payload)
         } catch (e: Exception) {
             logger.warn { "Sign up failed: ${e.message}" }
             GraphQLPayloadFactory.error(e)
         }
     }
-    
+
     /**
      * Request password reset mutation resolver
      */
     fun requestPasswordReset(input: Map<String, Any?>): GraphQLPayload<RequestPasswordResetPayloadDTO> {
         return try {
             logger.debug { "Password reset request received with input: $input" }
-            
+
             // Extract and validate email
             val email = input["email"] as? String
             if (email.isNullOrBlank()) {
@@ -155,17 +197,18 @@ class SecurityAuthResolver(
                 return GraphQLPayloadFactory.success(
                     RequestPasswordResetPayloadDTO(
                         success = true,
-                        message = "If an account with that email exists, a password reset link has been sent."
-                    )
+                        message = "If an account with that email exists, a password reset link has been sent.",
+                    ),
                 )
             }
-            
+
             // Deserialize input to DTO
-            val dto = RequestPasswordResetInputDTO(
-                email = email.trim(),
-                locale = (input["locale"] as? String)?.takeIf { it.isNotBlank() } ?: "en"
-            )
-            
+            val dto =
+                RequestPasswordResetInputDTO(
+                    email = email.trim(),
+                    locale = (input["locale"] as? String)?.takeIf { it.isNotBlank() } ?: "en",
+                )
+
             // Validate DTO
             try {
                 inputValidator.validate(dto)
@@ -175,60 +218,66 @@ class SecurityAuthResolver(
                 return GraphQLPayloadFactory.success(
                     RequestPasswordResetPayloadDTO(
                         success = true,
-                        message = "If an account with that email exists, a password reset link has been sent."
-                    )
+                        message = "If an account with that email exists, a password reset link has been sent.",
+                    ),
                 )
             }
-            
+
             logger.debug { "Password reset request for email: ${dto.email}, locale: ${dto.locale}" }
-            
+
             // Request password reset (always returns true for security)
             authenticationService.requestPasswordReset(dto.email, dto.locale ?: "en")
-            
-            val payload = RequestPasswordResetPayloadDTO(
-                success = true,
-                message = "If an account with that email exists, a password reset link has been sent."
-            )
-            
+
+            val payload =
+                RequestPasswordResetPayloadDTO(
+                    success = true,
+                    message = "If an account with that email exists, a password reset link has been sent.",
+                )
+
             GraphQLPayloadFactory.success(payload)
         } catch (e: Exception) {
             logger.error(e) { "Password reset request failed: ${e.message}" }
             // Still return success for security (don't reveal if email exists)
-            val payload = RequestPasswordResetPayloadDTO(
-                success = true,
-                message = "If an account with that email exists, a password reset link has been sent."
-            )
+            val payload =
+                RequestPasswordResetPayloadDTO(
+                    success = true,
+                    message = "If an account with that email exists, a password reset link has been sent.",
+                )
             GraphQLPayloadFactory.success(payload)
         }
     }
-    
+
     /**
      * Reset password mutation resolver
      */
     fun resetPassword(input: Map<String, Any?>): GraphQLPayload<ResetPasswordPayloadDTO> {
         return try {
             val token = input["token"] as? String ?: throw IllegalArgumentException("Token is required")
-            val newPassword = input["newPassword"] as? String ?: throw IllegalArgumentException("New password is required")
-            
+            val newPassword =
+                input["newPassword"] as? String ?: throw IllegalArgumentException(
+                    "New password is required",
+                )
+
             logger.debug { "Password reset attempt with token" }
-            
+
             // Reset password
             authenticationService.resetPassword(token, newPassword)
-            
+
             logger.info { "Password reset successful" }
-            
-            val payload = ResetPasswordPayloadDTO(
-                success = true,
-                message = "Password has been reset successfully. You can now sign in with your new password."
-            )
-            
+
+            val payload =
+                ResetPasswordPayloadDTO(
+                    success = true,
+                    message = "Password has been reset successfully. You can now sign in with your new password.",
+                )
+
             GraphQLPayloadFactory.success(payload)
         } catch (e: Exception) {
             logger.warn { "Password reset failed: ${e.message}" }
             GraphQLPayloadFactory.error(e)
         }
     }
-    
+
     /**
      * Convert UserEntity to DTO
      */
@@ -236,8 +285,7 @@ class SecurityAuthResolver(
         return UserDTO(
             id = user.id.toString(),
             email = user.email,
-            displayName = user.displayName
+            displayName = user.displayName,
         )
     }
 }
-

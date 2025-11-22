@@ -57,6 +57,13 @@ email:
   frontend-url: ${FRONTEND_URL:http://localhost:3000}
   # Note: Uses MockEmailService which logs emails to console/logs for testing
 
+# OAuth Configuration
+oauth:
+  google:
+    # Google OAuth client ID (required for Google sign-in)
+    client-id: ${GOOGLE_CLIENT_ID:}
+    issuer: ${GOOGLE_ISSUER:}
+
 datasources:
   default:
     url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:6432}/${POSTGRES_DB:neotool_db}

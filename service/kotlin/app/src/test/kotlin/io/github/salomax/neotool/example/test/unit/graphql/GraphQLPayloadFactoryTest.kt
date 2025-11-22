@@ -10,15 +10,12 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
-import java.util.*
 
 @DisplayName("GraphQLPayloadFactory Unit Tests")
 class GraphQLPayloadFactoryTest {
-
     @Nested
     @DisplayName("Success Payload")
     inner class SuccessPayloadTests {
-
         @Test
         fun `should create success payload with data`() {
             val data = mapOf("id" to "123", "name" to "Test")
@@ -34,7 +31,6 @@ class GraphQLPayloadFactoryTest {
     @Nested
     @DisplayName("Error Payload from Exception")
     inner class ErrorPayloadFromExceptionTests {
-
         @Test
         fun `should create error payload from ConstraintViolationException`() {
             val violation1 = createMockViolation("name", "Name is required")
@@ -46,15 +42,15 @@ class GraphQLPayloadFactoryTest {
             assertThat(payload.success).isFalse()
             assertThat(payload.data).isNull()
             assertThat(payload.errors).hasSize(2)
-            
+
             // Check that both errors are present (order may vary)
             val nameError = payload.errors.find { it.field.contains("name") }
             val emailError = payload.errors.find { it.field.contains("email") }
-            
+
             assertThat(nameError).isNotNull
             assertThat(nameError!!.message).isEqualTo("Name is required")
             assertThat(nameError.code).isEqualTo("VALIDATION_ERROR")
-            
+
             assertThat(emailError).isNotNull
             assertThat(emailError!!.message).isEqualTo("Email is invalid")
             assertThat(emailError.code).isEqualTo("VALIDATION_ERROR")
@@ -134,21 +130,21 @@ class GraphQLPayloadFactoryTest {
     @Nested
     @DisplayName("Error Payload with Custom Errors")
     inner class ErrorPayloadWithCustomErrorsTests {
-
         @Test
         fun `should create error payload with custom errors list`() {
-            val errors = listOf(
-                io.github.salomax.neotool.common.graphql.payload.GraphQLError(
-                    field = listOf("field1"),
-                    message = "Error 1",
-                    code = "ERROR_1"
-                ),
-                io.github.salomax.neotool.common.graphql.payload.GraphQLError(
-                    field = listOf("field2"),
-                    message = "Error 2",
-                    code = "ERROR_2"
+            val errors =
+                listOf(
+                    io.github.salomax.neotool.common.graphql.payload.GraphQLError(
+                        field = listOf("field1"),
+                        message = "Error 1",
+                        code = "ERROR_1",
+                    ),
+                    io.github.salomax.neotool.common.graphql.payload.GraphQLError(
+                        field = listOf("field2"),
+                        message = "Error 2",
+                        code = "ERROR_2",
+                    ),
                 )
-            )
 
             val payload = GraphQLPayloadFactory.error<Map<String, Any>>(errors)
 
@@ -160,11 +156,12 @@ class GraphQLPayloadFactoryTest {
 
         @Test
         fun `should create error payload with single error`() {
-            val payload = GraphQLPayloadFactory.error<Map<String, Any>>(
-                field = "fieldName",
-                message = "Custom error message",
-                code = "CUSTOM_ERROR"
-            )
+            val payload =
+                GraphQLPayloadFactory.error<Map<String, Any>>(
+                    field = "fieldName",
+                    message = "Custom error message",
+                    code = "CUSTOM_ERROR",
+                )
 
             assertThat(payload.success).isFalse()
             assertThat(payload.data).isNull()
@@ -176,11 +173,12 @@ class GraphQLPayloadFactoryTest {
 
         @Test
         fun `should create error payload with single error without code`() {
-            val payload = GraphQLPayloadFactory.error<Map<String, Any>>(
-                field = "fieldName",
-                message = "Custom error message",
-                code = null
-            )
+            val payload =
+                GraphQLPayloadFactory.error<Map<String, Any>>(
+                    field = "fieldName",
+                    message = "Custom error message",
+                    code = null,
+                )
 
             assertThat(payload.success).isFalse()
             assertThat(payload.data).isNull()
@@ -191,7 +189,10 @@ class GraphQLPayloadFactoryTest {
         }
     }
 
-    private fun createMockViolation(propertyPath: String, message: String): ConstraintViolation<*> {
+    private fun createMockViolation(
+        propertyPath: String,
+        message: String,
+    ): ConstraintViolation<*> {
         val violation = mock<ConstraintViolation<*>>()
         val path = mock<Path>()
         whenever(violation.message).thenReturn(message)
@@ -201,4 +202,3 @@ class GraphQLPayloadFactoryTest {
         return violation
     }
 }
-

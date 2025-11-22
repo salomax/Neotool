@@ -5,4 +5,4 @@ import io.micronaut.http.HttpResponse
 import io.micronaut.http.client.HttpClient
 
 fun <T> HttpClient.exchangeAsString(req: HttpRequest<T>): HttpResponse<String> =
-  this.toBlocking().exchange(req, String::class.java)
+    this.toBlocking().exchange(req, String::class.java)

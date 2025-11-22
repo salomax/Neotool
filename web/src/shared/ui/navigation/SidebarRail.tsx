@@ -49,19 +49,29 @@ export function SidebarRail() {
       }}
     >
       {/* Logo */}
-      <Box
-        sx={{
-          width: 48,
-          height: 48,
-          borderRadius: '50%',
-          display: 'grid',
-          placeItems: 'center',
-          bgcolor: alpha(theme.palette.primary.contrastText, 0.12),
-          mt: 0.5,
-        }}
-      >
-        <LogoMark variant="white" width={32} height={30} />
-      </Box>
+      <Tooltip title="Home" placement="right">
+        <Box
+          component={Link}
+          href="/"
+          sx={{
+            width: 48,
+            height: 48,
+            borderRadius: '50%',
+            display: 'grid',
+            placeItems: 'center',
+            bgcolor: alpha(theme.palette.primary.contrastText, 0.12),
+            mt: 0.5,
+            cursor: 'pointer',
+            transition: 'background-color 0.2s',
+            '&:hover': {
+              bgcolor: alpha(theme.palette.primary.contrastText, 0.18),
+            },
+          }}
+          aria-label="Go to home page"
+        >
+          <LogoMark variant="white" width={32} height={30} />
+        </Box>
+      </Tooltip>
 
       <Divider sx={{ my: 2, width: '56%', borderColor: alpha(theme.palette.primary.contrastText, 0.25) }} />
 

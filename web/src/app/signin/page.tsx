@@ -40,7 +40,7 @@ export default function SignInPage() {
   return (
     <Box
       sx={{
-        minHeight: "100vh",
+        height: "100%",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",

@@ -10,23 +10,23 @@ import java.time.temporal.ChronoUnit
 
 /**
  * Service for rate limiting password reset requests.
- * 
+ *
  * Enforces a limit of 3 password reset requests per hour per email address.
  */
 @Singleton
 open class RateLimitService(
-    private val passwordResetAttemptRepository: PasswordResetAttemptRepository
+    private val passwordResetAttemptRepository: PasswordResetAttemptRepository,
 ) {
     private val logger = KotlinLogging.logger {}
-    
+
     companion object {
         private const val MAX_ATTEMPTS_PER_HOUR = 3
         private val RATE_LIMIT_WINDOW_HOURS = 1L
     }
-    
+
     /**
      * Check if email is rate limited for password reset requests.
-     * 
+     *
      * @param email Email address to check
      * @return true if rate limited (too many requests), false otherwise
      */
@@ -34,13 +34,13 @@ open class RateLimitService(
     open fun isRateLimited(email: String): Boolean {
         val now = Instant.now()
         val windowStart = now.minus(RATE_LIMIT_WINDOW_HOURS, ChronoUnit.HOURS)
-        
+
         // Find existing attempts within the rate limit window
         val attempts = passwordResetAttemptRepository.findByEmailAndWindowStartGreaterThan(email, windowStart)
-        
+
         // Get the most recent attempt (if any)
         val activeAttempt = attempts.maxByOrNull { it.windowStart }
-        
+
         return if (activeAttempt != null && activeAttempt.windowStart.isAfter(windowStart)) {
             // We have an active attempt within the window
             if (activeAttempt.attemptCount >= MAX_ATTEMPTS_PER_HOUR) {
@@ -54,19 +54,20 @@ open class RateLimitService(
             }
         } else {
             // No active attempt or window expired - create new attempt record
-            val newAttempt = PasswordResetAttemptEntity(
-                email = email,
-                attemptCount = 1,
-                windowStart = now
-            )
+            val newAttempt =
+                PasswordResetAttemptEntity(
+                    email = email,
+                    attemptCount = 1,
+                    windowStart = now,
+                )
             passwordResetAttemptRepository.save(newAttempt)
             false
         }
     }
-    
+
     /**
      * Record a password reset attempt.
-     * 
+     *
      * @param email Email address
      * @return true if rate limited, false otherwise
      */
@@ -74,7 +75,7 @@ open class RateLimitService(
     open fun recordAttempt(email: String): Boolean {
         return isRateLimited(email)
     }
-    
+
     /**
      * Clean up old attempt records (older than 24 hours).
      * Should be called periodically (e.g., via scheduled task).
@@ -89,4 +90,3 @@ open class RateLimitService(
         }
     }
 }
-
