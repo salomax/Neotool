@@ -31,10 +31,22 @@ Feature: User sign in
         | wrong@domain.com      | Correct#123  |
 
   Rule: Social sign in
-    Scenario: Sign in with Google
+    Scenario: Sign in with Google (existing user)
+      Given I have an account created via Google OAuth
       When I press "Continue with Google"
       Then the Google OAuth flow should start
+      And I authenticate with Google
       And upon success I should be redirected to the Home screen
+      And I should be signed in
+
+    Scenario: Sign in with Google (new user)
+      Given I do not have an account
+      When I press "Continue with Google"
+      Then the Google OAuth flow should start
+      And I authenticate with Google
+      And a new account should be created with my Google email
+      And upon success I should be redirected to the Home screen
+      And I should be signed in
 
   Rule: Session persistence
     Scenario: Keep me signed in

@@ -1,29 +1,28 @@
 package io.github.salomax.neotool.common.graphql
 
 import graphql.schema.DataFetchingEnvironment
-import jakarta.validation.ConstraintViolationException
-import jakarta.validation.Validator
 import io.github.salomax.neotool.common.graphql.payload.GraphQLPayload
 import io.github.salomax.neotool.common.graphql.payload.GraphQLPayloadFactory
 import io.micronaut.http.server.exceptions.NotFoundException
-import java.util.*
+import jakarta.validation.ConstraintViolationException
+import jakarta.validation.Validator
+import java.util.UUID
 
 /**
  * Generic CRUD resolver with built-in payload handling
  * This resolver automatically handles success/error payloads for all operations
  */
 abstract class GenericCrudResolver<Entity, InputDTO, ID> : GraphQLResolver<Entity> {
-
     protected abstract val validator: Validator
     protected abstract val service: CrudService<Entity, ID>
-    
+
     /**
      * Default resolve implementation - can be overridden by subclasses
      */
     override fun resolve(environment: DataFetchingEnvironment): Entity? {
         return null
     }
-    
+
     /**
      * Create operation with automatic payload handling
      */
@@ -38,11 +37,14 @@ abstract class GenericCrudResolver<Entity, InputDTO, ID> : GraphQLResolver<Entit
             GraphQLPayloadFactory.error(e)
         }
     }
-    
+
     /**
      * Update operation with automatic payload handling
      */
-    fun update(id: String, input: Map<String, Any?>): GraphQLPayload<Entity> {
+    fun update(
+        id: String,
+        input: Map<String, Any?>,
+    ): GraphQLPayload<Entity> {
         return try {
             val dto = mapToInputDTO(input)
             validateInput(dto)
@@ -57,7 +59,7 @@ abstract class GenericCrudResolver<Entity, InputDTO, ID> : GraphQLResolver<Entit
             GraphQLPayloadFactory.error(e)
         }
     }
-    
+
     /**
      * Delete operation with automatic payload handling (internal use)
      */
@@ -74,7 +76,7 @@ abstract class GenericCrudResolver<Entity, InputDTO, ID> : GraphQLResolver<Entit
             }
         }
     }
-    
+
     /**
      * Delete operation that returns raw data for GraphQL
      */
@@ -91,7 +93,7 @@ abstract class GenericCrudResolver<Entity, InputDTO, ID> : GraphQLResolver<Entit
             }
         }
     }
-    
+
     /**
      * Get by ID with graceful null handling
      */
@@ -103,16 +105,21 @@ abstract class GenericCrudResolver<Entity, InputDTO, ID> : GraphQLResolver<Entit
             null
         }
     }
-    
+
     /**
      * List operation with pagination support
      */
-    fun list(first: Int? = null, after: String? = null, last: Int? = null, before: String? = null): List<Entity> {
+    fun list(
+        first: Int? = null,
+        after: String? = null,
+        last: Int? = null,
+        before: String? = null,
+    ): List<Entity> {
         // Simple implementation - return the list directly
         // TODO: Implement proper cursor-based pagination
         return service.list()
     }
-    
+
     /**
      * Validate input DTO using Bean Validation
      */
@@ -122,7 +129,7 @@ abstract class GenericCrudResolver<Entity, InputDTO, ID> : GraphQLResolver<Entit
             throw ConstraintViolationException(violations)
         }
     }
-    
+
     /**
      * Parse string ID to proper ID type with graceful error handling
      */
@@ -135,14 +142,17 @@ abstract class GenericCrudResolver<Entity, InputDTO, ID> : GraphQLResolver<Entit
             throw IllegalArgumentException("Invalid UUID format: '$id'")
         }
     }
-    
+
     /**
      * Map GraphQL input to DTO - must be implemented by concrete resolvers
      */
     protected abstract fun mapToInputDTO(input: Map<String, Any?>): InputDTO
-    
+
     /**
      * Map DTO to Entity - must be implemented by concrete resolvers
      */
-    protected abstract fun mapToEntity(dto: InputDTO, id: ID? = null): Entity
+    protected abstract fun mapToEntity(
+        dto: InputDTO,
+        id: ID? = null,
+    ): Entity
 }

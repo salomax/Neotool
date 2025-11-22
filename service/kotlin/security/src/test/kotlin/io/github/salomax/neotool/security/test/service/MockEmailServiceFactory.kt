@@ -11,18 +11,17 @@ import jakarta.inject.Singleton
 
 /**
  * Factory that creates a MockEmailService for tests.
- * 
+ *
  * This replaces the real EmailServiceFactory in test environments,
  * ensuring that tests never send actual emails.
- * 
+ *
  * Use @Replaces(EmailServiceFactory::class) to ensure this factory
  * is used instead of the production factory in tests.
  */
 @Factory
 class MockEmailServiceFactory(
-    private val emailConfig: EmailConfig
+    private val emailConfig: EmailConfig,
 ) {
-    
     /**
      * Creates a MockEmailService instance for testing.
      * This is marked as @Primary and @Replaces to ensure it's used
@@ -35,4 +34,3 @@ class MockEmailServiceFactory(
         return MockEmailService(emailConfig)
     }
 }
-

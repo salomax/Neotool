@@ -8,54 +8,75 @@ import graphql.schema.DataFetchingEnvironment
  * Provides high-level abstractions to reduce repetitive argument validation code.
  */
 object GraphQLArgumentUtils {
-    
     /**
      * Get a required argument, throwing an exception if null
      */
-    inline fun <reified T> getRequiredArgument(env: DataFetchingEnvironment, name: String): T {
+    inline fun <reified T> getRequiredArgument(
+        env: DataFetchingEnvironment,
+        name: String,
+    ): T {
         val value = env.getArgument<T>(name)
         return value ?: throw IllegalArgumentException("Required argument '$name' is missing")
     }
-    
+
     /**
      * Get an optional argument, returning null if not present
      */
-    inline fun <reified T> getOptionalArgument(env: DataFetchingEnvironment, name: String): T? {
+    inline fun <reified T> getOptionalArgument(
+        env: DataFetchingEnvironment,
+        name: String,
+    ): T? {
         return env.getArgument<T>(name)
     }
-    
+
     /**
      * Get an argument with a default value
      */
-    inline fun <reified T> getArgumentOrDefault(env: DataFetchingEnvironment, name: String, defaultValue: T): T {
+    inline fun <reified T> getArgumentOrDefault(
+        env: DataFetchingEnvironment,
+        name: String,
+        defaultValue: T,
+    ): T {
         return env.getArgument<T>(name) ?: defaultValue
     }
-    
+
     /**
      * Get a required argument as String
      */
-    fun getRequiredString(env: DataFetchingEnvironment, name: String): String {
+    fun getRequiredString(
+        env: DataFetchingEnvironment,
+        name: String,
+    ): String {
         return getRequiredArgument<String>(env, name)
     }
-    
+
     /**
      * Get an optional argument as String
      */
-    fun getOptionalString(env: DataFetchingEnvironment, name: String): String? {
+    fun getOptionalString(
+        env: DataFetchingEnvironment,
+        name: String,
+    ): String? {
         return getOptionalArgument<String>(env, name)
     }
-    
+
     /**
      * Get a required argument as Map
      */
-    fun getRequiredMap(env: DataFetchingEnvironment, name: String): Map<String, Any?> {
+    fun getRequiredMap(
+        env: DataFetchingEnvironment,
+        name: String,
+    ): Map<String, Any?> {
         return getRequiredArgument<Map<String, Any?>>(env, name)
     }
-    
+
     /**
      * Get an optional argument as Map
      */
-    fun getOptionalMap(env: DataFetchingEnvironment, name: String): Map<String, Any?>? {
+    fun getOptionalMap(
+        env: DataFetchingEnvironment,
+        name: String,
+    ): Map<String, Any?>? {
         return getOptionalArgument<Map<String, Any?>>(env, name)
     }
 
@@ -65,7 +86,10 @@ object GraphQLArgumentUtils {
      * Extracts a required ID argument, throwing IllegalArgumentException if null or empty.
      * This is a specialized version for ID fields that are commonly used in CRUD operations.
      */
-    fun getRequiredId(env: DataFetchingEnvironment, argumentName: String = "id"): String {
+    fun getRequiredId(
+        env: DataFetchingEnvironment,
+        argumentName: String = "id",
+    ): String {
         val value = getRequiredString(env, argumentName)
         if (value.isBlank()) {
             throw IllegalArgumentException("$argumentName is required and cannot be empty")
@@ -77,7 +101,10 @@ object GraphQLArgumentUtils {
      * Extracts a required input argument, throwing IllegalArgumentException if null.
      * This is a specialized version for input objects that are commonly used in mutations.
      */
-    fun getRequiredInput(env: DataFetchingEnvironment, argumentName: String = "input"): Map<String, Any?> {
+    fun getRequiredInput(
+        env: DataFetchingEnvironment,
+        argumentName: String = "input",
+    ): Map<String, Any?> {
         return getRequiredMap(env, argumentName)
     }
 
@@ -85,16 +112,19 @@ object GraphQLArgumentUtils {
      * Validates that all required arguments are present and not null/empty.
      * Throws IllegalArgumentException with a descriptive message if any validation fails.
      */
-    fun validateRequiredArguments(env: DataFetchingEnvironment, vararg argumentNames: String) {
+    fun validateRequiredArguments(
+        env: DataFetchingEnvironment,
+        vararg argumentNames: String,
+    ) {
         val missingArgs = mutableListOf<String>()
-        
+
         argumentNames.forEach { argName ->
             val value = env.getArgument<Any?>(argName)
             if (value == null || (value is String && value.isBlank())) {
                 missingArgs.add(argName)
             }
         }
-        
+
         if (missingArgs.isNotEmpty()) {
             throw IllegalArgumentException("Required arguments are missing or empty: ${missingArgs.joinToString(", ")}")
         }
@@ -105,14 +135,14 @@ object GraphQLArgumentUtils {
     /**
      * Creates a data fetcher with automatic argument validation.
      * This reduces boilerplate by automatically validating required arguments.
-     * 
+     *
      * Note: This data fetcher will run on whatever thread the GraphQL execution is using.
      * If the controller method has @ExecuteOn(TaskExecutors.BLOCKING), the entire GraphQL
      * execution (including data fetchers) should run on virtual threads.
      */
     fun <T> createValidatedDataFetcher(
         requiredArgs: List<String> = emptyList(),
-        block: (DataFetchingEnvironment) -> T
+        block: (DataFetchingEnvironment) -> T,
     ): DataFetcher<T> {
         return DataFetcher { env ->
             validateRequiredArguments(env, *requiredArgs.toTypedArray())
@@ -126,7 +156,7 @@ object GraphQLArgumentUtils {
      */
     fun <T> createCrudDataFetcher(
         operation: String,
-        block: (String) -> T
+        block: (String) -> T,
     ): DataFetcher<T> {
         return createValidatedDataFetcher(listOf("id")) { env ->
             val id = getRequiredId(env)
@@ -140,7 +170,7 @@ object GraphQLArgumentUtils {
      */
     fun <T> createMutationDataFetcher(
         operation: String,
-        block: (Map<String, Any?>) -> T
+        block: (Map<String, Any?>) -> T,
     ): DataFetcher<T> {
         return createValidatedDataFetcher(listOf("input")) { env ->
             val input = getRequiredInput(env)
@@ -154,7 +184,7 @@ object GraphQLArgumentUtils {
      */
     fun <T> createUpdateMutationDataFetcher(
         operation: String,
-        block: (String, Map<String, Any?>) -> T
+        block: (String, Map<String, Any?>) -> T,
     ): DataFetcher<T> {
         return createValidatedDataFetcher(listOf("id", "input")) { env ->
             val id = getRequiredId(env)

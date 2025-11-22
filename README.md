@@ -543,6 +543,7 @@ pnpm run ci:unit
 ### Architecture/Infra
 - [ ] CI/CD (mock deployment)
 - [ ] FE and BE coverage tests (metrics and validation)
+- [ ] Mobile with React Native and Expo
 - [ ] Logging (promtail, loki)
 - [ ] Purge after a period of time (logs and workflow ru on GH)
 - [ ] E2E tests with cypress (running on CI/CD and test the AuthN and AuthZ)

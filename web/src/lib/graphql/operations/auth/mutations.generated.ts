@@ -11,6 +11,13 @@ export type SignInMutationVariables = Types.Exact<{
 
 export type SignInMutation = { signIn: { __typename: 'SignInPayload', token: string, refreshToken: string | null, user: { __typename: 'User', id: string, email: string, displayName: string | null } } };
 
+export type SignInWithOAuthMutationVariables = Types.Exact<{
+  input: Types.SignInWithOAuthInput;
+}>;
+
+
+export type SignInWithOAuthMutation = { signInWithOAuth: { __typename: 'SignInPayload', token: string, refreshToken: string | null, user: { __typename: 'User', id: string, email: string, displayName: string | null } } };
+
 export type SignUpMutationVariables = Types.Exact<{
   input: Types.SignUpInput;
 }>;
@@ -70,6 +77,43 @@ export function useSignInMutation(baseOptions?: ApolloReactHooks.MutationHookOpt
       }
 export type SignInMutationHookResult = ReturnType<typeof useSignInMutation>;
 export type SignInMutationResult = ApolloReactCommon.MutationResult<SignInMutation>;
+export const SignInWithOAuthDocument = gql`
+    mutation SignInWithOAuth($input: SignInWithOAuthInput!) {
+  signInWithOAuth(input: $input) {
+    token
+    refreshToken
+    user {
+      id
+      email
+      displayName
+    }
+  }
+}
+    `;
+
+/**
+ * __useSignInWithOAuthMutation__
+ *
+ * To run a mutation, you first call `useSignInWithOAuthMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useSignInWithOAuthMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [signInWithOAuthMutation, { data, loading, error }] = useSignInWithOAuthMutation({
+ *   variables: {
+ *      input: // value for 'input'
+ *   },
+ * });
+ */
+export function useSignInWithOAuthMutation(baseOptions?: ApolloReactHooks.MutationHookOptions<SignInWithOAuthMutation, SignInWithOAuthMutationVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return ApolloReactHooks.useMutation<SignInWithOAuthMutation, SignInWithOAuthMutationVariables>(SignInWithOAuthDocument, options);
+      }
+export type SignInWithOAuthMutationHookResult = ReturnType<typeof useSignInWithOAuthMutation>;
+export type SignInWithOAuthMutationResult = ApolloReactCommon.MutationResult<SignInWithOAuthMutation>;
 export const SignUpDocument = gql`
     mutation SignUp($input: SignUpInput!) {
   signUp(input: $input) {

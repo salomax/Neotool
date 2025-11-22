@@ -40,7 +40,7 @@ export default function ForgotPasswordPage() {
   return (
     <Box
       sx={{
-        minHeight: "100vh",
+        height: "100%",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",

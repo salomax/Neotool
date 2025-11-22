@@ -7,40 +7,39 @@ data class LLMRequest(
     val messages: List<ChatMessage>,
     val functions: List<FunctionDefinition>,
     val temperature: Double = 0.7,
-    val maxTokens: Int = 2048
+    val maxTokens: Int = 2048,
 )
 
 @Serdeable
 data class ChatMessage(
     val role: MessageRole,
-    val content: String
+    val content: String,
 )
 
 enum class MessageRole {
     USER,
     ASSISTANT,
     SYSTEM,
-    FUNCTION
+    FUNCTION,
 }
 
 @Serdeable
 data class FunctionDefinition(
     val name: String,
     val description: String,
-    val parameters: FunctionParameters
+    val parameters: FunctionParameters,
 )
 
 @Serdeable
 data class FunctionParameters(
     val type: String = "object",
     val properties: Map<String, PropertyDefinition>,
-    val required: List<String> = emptyList()
+    val required: List<String> = emptyList(),
 )
 
 @Serdeable
 data class PropertyDefinition(
     val type: String,
     val description: String,
-    val enum: List<String>? = null
+    val enum: List<String>? = null,
 )
-

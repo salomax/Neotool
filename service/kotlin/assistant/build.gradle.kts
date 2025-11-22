@@ -16,7 +16,7 @@ micronaut {
     }
 }
 
-repositories { 
+repositories {
     mavenCentral()
     google()
 }
@@ -32,13 +32,13 @@ dependencies {
 
     // HTTP Client for GraphQL
     implementation("io.micronaut:micronaut-http-client")
-    
+
     // JSON processing
     implementation("io.micronaut.serde:micronaut-serde-jackson")
-    
+
     // Google Gen AI Java SDK
     implementation("com.google.genai:google-genai:1.26.0")
-    
+
     // Kotlin Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8")
@@ -62,21 +62,21 @@ tasks.withType<Jar> {
 tasks.register<Test>("testIntegration") {
     group = "verification"
     description = "Runs integration tests using Testcontainers"
-    
+
     useJUnitPlatform {
         includeEngines("junit-jupiter")
         includeTags("integration")
     }
-    
+
     testLogging {
         events("passed", "skipped", "failed")
         showStandardStreams = true
     }
-    
+
     // Disable Ryuk to avoid container startup issues
     systemProperty("ryuk.disabled", "true")
     environment("TESTCONTAINERS_RYUK_DISABLED", "true")
-    
+
     // Ensure Docker is available
     doFirst {
         try {
@@ -93,4 +93,3 @@ tasks.register<Test>("testIntegration") {
 
 // Integration test coverage is configured in the parent build.gradle.kts
 // This ensures consistent configuration across all modules with testIntegration task
-

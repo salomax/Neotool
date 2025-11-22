@@ -18,12 +18,12 @@ annotation class LogMethod(
     val level: String = "DEBUG",
     val includeArgs: Boolean = true,
     val includeResult: Boolean = true,
-    val includeTiming: Boolean = true
+    val includeTiming: Boolean = true,
 )
 
 /**
  * Enterprise AOP Interceptor for selective method logging.
- * 
+ *
  * This is Tier 2 of the hybrid logging approach:
  * - Use ONLY for critical business methods
  * - Good performance (~0.3ms overhead per method)
@@ -32,28 +32,27 @@ annotation class LogMethod(
  */
 @Singleton
 class EnterpriseLogMethodInterceptor : MethodInterceptor<Any, Any> {
-    
     private val logger = KotlinLogging.logger {}
 
     override fun intercept(context: MethodInvocationContext<Any, Any>): Any? {
         val methodName = "${context.declaringType.simpleName}.${context.methodName}"
         val correlationId = MDC.get(MDCFilter.CORRELATION_ID_KEY) ?: "unknown"
-        
+
         // Log method entry
         logger.debug { "Entering $methodName - CorrelationId: $correlationId" }
-        
+
         val startTime = Instant.now()
-        
+
         return try {
             val result = context.proceed()
-            
+
             // Log method exit
             logger.debug { "Exiting $methodName - CorrelationId: $correlationId" }
-            
+
             // Log timing
             val duration = Duration.between(startTime, Instant.now())
             logger.debug { "Method $methodName completed in ${duration.toMillis()}ms - CorrelationId: $correlationId" }
-            
+
             result
         } catch (e: Exception) {
             // Log exception

@@ -9,14 +9,18 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.mockito.ArgumentCaptor
-import org.mockito.kotlin.*
+import org.mockito.kotlin.any
+import org.mockito.kotlin.doNothing
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 import java.time.Instant
 import java.time.temporal.ChronoUnit
-import java.util.*
 
 @DisplayName("RateLimitService Unit Tests")
 class RateLimitServiceTest {
-
     private lateinit var passwordResetAttemptRepository: PasswordResetAttemptRepository
     private lateinit var rateLimitService: RateLimitService
 
@@ -29,25 +33,26 @@ class RateLimitServiceTest {
     @Nested
     @DisplayName("Rate Limiting")
     inner class RateLimitingTests {
-
         @Test
         fun `should allow first request`() {
             val email = "test@example.com"
             val now = Instant.now()
 
-            whenever(passwordResetAttemptRepository.findByEmailAndWindowStartGreaterThan(
-                eq(email),
-                any()
-            )).thenReturn(emptyList())
-            whenever(passwordResetAttemptRepository.save(any())).thenAnswer { 
-                it.arguments[0] as PasswordResetAttemptEntity 
+            whenever(
+                passwordResetAttemptRepository.findByEmailAndWindowStartGreaterThan(
+                    eq(email),
+                    any(),
+                ),
+            ).thenReturn(emptyList())
+            whenever(passwordResetAttemptRepository.save(any())).thenAnswer {
+                it.arguments[0] as PasswordResetAttemptEntity
             }
 
             val result = rateLimitService.isRateLimited(email)
 
             assertThat(result).isFalse()
             verify(passwordResetAttemptRepository).save(any())
-            
+
             val captor = ArgumentCaptor.forClass(PasswordResetAttemptEntity::class.java)
             verify(passwordResetAttemptRepository).save(captor.capture())
             val savedAttempt = captor.value
@@ -59,25 +64,28 @@ class RateLimitServiceTest {
         fun `should allow requests within limit`() {
             val email = "test@example.com"
             val now = Instant.now()
-            val existingAttempt = PasswordResetAttemptEntity(
-                email = email,
-                attemptCount = 2,
-                windowStart = now.minus(30, ChronoUnit.MINUTES)
-            )
+            val existingAttempt =
+                PasswordResetAttemptEntity(
+                    email = email,
+                    attemptCount = 2,
+                    windowStart = now.minus(30, ChronoUnit.MINUTES),
+                )
 
-            whenever(passwordResetAttemptRepository.findByEmailAndWindowStartGreaterThan(
-                eq(email),
-                any()
-            )).thenReturn(listOf(existingAttempt))
-            whenever(passwordResetAttemptRepository.save(any())).thenAnswer { 
-                it.arguments[0] as PasswordResetAttemptEntity 
+            whenever(
+                passwordResetAttemptRepository.findByEmailAndWindowStartGreaterThan(
+                    eq(email),
+                    any(),
+                ),
+            ).thenReturn(listOf(existingAttempt))
+            whenever(passwordResetAttemptRepository.save(any())).thenAnswer {
+                it.arguments[0] as PasswordResetAttemptEntity
             }
 
             val result = rateLimitService.isRateLimited(email)
 
             assertThat(result).isFalse()
             verify(passwordResetAttemptRepository).save(any())
-            
+
             val captor = ArgumentCaptor.forClass(PasswordResetAttemptEntity::class.java)
             verify(passwordResetAttemptRepository).save(captor.capture())
             val savedAttempt = captor.value
@@ -88,16 +96,19 @@ class RateLimitServiceTest {
         fun `should block request when limit exceeded`() {
             val email = "test@example.com"
             val now = Instant.now()
-            val existingAttempt = PasswordResetAttemptEntity(
-                email = email,
-                attemptCount = 3,
-                windowStart = now.minus(30, ChronoUnit.MINUTES)
-            )
+            val existingAttempt =
+                PasswordResetAttemptEntity(
+                    email = email,
+                    attemptCount = 3,
+                    windowStart = now.minus(30, ChronoUnit.MINUTES),
+                )
 
-            whenever(passwordResetAttemptRepository.findByEmailAndWindowStartGreaterThan(
-                eq(email),
-                any()
-            )).thenReturn(listOf(existingAttempt))
+            whenever(
+                passwordResetAttemptRepository.findByEmailAndWindowStartGreaterThan(
+                    eq(email),
+                    any(),
+                ),
+            ).thenReturn(listOf(existingAttempt))
 
             val result = rateLimitService.isRateLimited(email)
 
@@ -109,25 +120,29 @@ class RateLimitServiceTest {
         fun `should allow request after window expires`() {
             val email = "test@example.com"
             val now = Instant.now()
-            val oldAttempt = PasswordResetAttemptEntity(
-                email = email,
-                attemptCount = 3,
-                windowStart = now.minus(2, ChronoUnit.HOURS) // Outside window
-            )
+            val oldAttempt =
+                PasswordResetAttemptEntity(
+                    email = email,
+                    attemptCount = 3,
+                    // Outside window
+                    windowStart = now.minus(2, ChronoUnit.HOURS),
+                )
 
-            whenever(passwordResetAttemptRepository.findByEmailAndWindowStartGreaterThan(
-                eq(email),
-                any()
-            )).thenReturn(listOf(oldAttempt))
-            whenever(passwordResetAttemptRepository.save(any())).thenAnswer { 
-                it.arguments[0] as PasswordResetAttemptEntity 
+            whenever(
+                passwordResetAttemptRepository.findByEmailAndWindowStartGreaterThan(
+                    eq(email),
+                    any(),
+                ),
+            ).thenReturn(listOf(oldAttempt))
+            whenever(passwordResetAttemptRepository.save(any())).thenAnswer {
+                it.arguments[0] as PasswordResetAttemptEntity
             }
 
             val result = rateLimitService.isRateLimited(email)
 
             assertThat(result).isFalse()
             verify(passwordResetAttemptRepository).save(any())
-            
+
             val captor = ArgumentCaptor.forClass(PasswordResetAttemptEntity::class.java)
             verify(passwordResetAttemptRepository).save(captor.capture())
             val savedAttempt = captor.value
@@ -138,12 +153,14 @@ class RateLimitServiceTest {
         fun `should create new attempt when no existing attempts found`() {
             val email = "test@example.com"
 
-            whenever(passwordResetAttemptRepository.findByEmailAndWindowStartGreaterThan(
-                eq(email),
-                any()
-            )).thenReturn(emptyList())
-            whenever(passwordResetAttemptRepository.save(any())).thenAnswer { 
-                it.arguments[0] as PasswordResetAttemptEntity 
+            whenever(
+                passwordResetAttemptRepository.findByEmailAndWindowStartGreaterThan(
+                    eq(email),
+                    any(),
+                ),
+            ).thenReturn(emptyList())
+            whenever(passwordResetAttemptRepository.save(any())).thenAnswer {
+                it.arguments[0] as PasswordResetAttemptEntity
             }
 
             val result = rateLimitService.isRateLimited(email)
@@ -156,21 +173,21 @@ class RateLimitServiceTest {
     @Nested
     @DisplayName("Cleanup")
     inner class CleanupTests {
-
         @Test
         fun `should cleanup old attempts`() {
-            val oldAttempts = listOf(
-                PasswordResetAttemptEntity(
-                    email = "test1@example.com",
-                    attemptCount = 1,
-                    windowStart = Instant.now().minus(25, ChronoUnit.HOURS)
-                ),
-                PasswordResetAttemptEntity(
-                    email = "test2@example.com",
-                    attemptCount = 2,
-                    windowStart = Instant.now().minus(26, ChronoUnit.HOURS)
+            val oldAttempts =
+                listOf(
+                    PasswordResetAttemptEntity(
+                        email = "test1@example.com",
+                        attemptCount = 1,
+                        windowStart = Instant.now().minus(25, ChronoUnit.HOURS),
+                    ),
+                    PasswordResetAttemptEntity(
+                        email = "test2@example.com",
+                        attemptCount = 2,
+                        windowStart = Instant.now().minus(26, ChronoUnit.HOURS),
+                    ),
                 )
-            )
 
             whenever(passwordResetAttemptRepository.findByCreatedAtLessThan(any()))
                 .thenReturn(oldAttempts)
@@ -194,4 +211,3 @@ class RateLimitServiceTest {
         }
     }
 }
-

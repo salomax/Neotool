@@ -7,45 +7,50 @@ import java.nio.charset.StandardCharsets
 
 /**
  * Abstract service for sending emails.
- * 
+ *
  * Provides common functionality for email template loading and subject generation.
  * Implementations should provide the actual email sending mechanism.
- * 
+ *
  * Supports i18n email templates loaded from resources.
  */
 abstract class EmailService(
-    protected val emailConfig: EmailConfig
+    protected val emailConfig: EmailConfig,
 ) {
     protected val logger = KotlinLogging.logger {}
-    
+
     /**
      * Send password reset email to user.
-     * 
+     *
      * @param email User's email address
      * @param token Password reset token
      * @param locale Locale for email template (default: "en")
      */
-    abstract fun sendPasswordResetEmail(email: String, token: String, locale: String = "en")
-    
+    abstract fun sendPasswordResetEmail(
+        email: String,
+        token: String,
+        locale: String = "en",
+    )
+
     /**
      * Load email template for given locale.
      * Falls back to English if locale template not found.
      */
     protected fun loadEmailTemplate(locale: String): String {
-        val templatePath = "/emails/password-reset/${locale}.html"
+        val templatePath = "/emails/password-reset/$locale.html"
         val fallbackPath = "/emails/password-reset/en.html"
-        
+
         return try {
-            val resource = javaClass.getResourceAsStream(templatePath)
-                ?: javaClass.getResourceAsStream(fallbackPath)
-                ?: throw IllegalStateException("Email template not found")
+            val resource =
+                javaClass.getResourceAsStream(templatePath)
+                    ?: javaClass.getResourceAsStream(fallbackPath)
+                    ?: throw IllegalStateException("Email template not found")
             resource.bufferedReader().use { it.readText() }
         } catch (e: Exception) {
             logger.warn(e) { "Failed to load email template for locale: $locale, using fallback" }
             getDefaultTemplate()
         }
     }
-    
+
     /**
      * Get email subject for given locale.
      */
@@ -55,7 +60,7 @@ abstract class EmailService(
             else -> "Reset your password"
         }
     }
-    
+
     /**
      * Build reset URL from token.
      */
@@ -63,7 +68,7 @@ abstract class EmailService(
         val frontendUrl = emailConfig.resolveFrontendUrl()
         return "$frontendUrl/reset-password?token=${URLEncoder.encode(token, StandardCharsets.UTF_8)}"
     }
-    
+
     /**
      * Default email template (fallback).
      */
@@ -90,6 +95,6 @@ abstract class EmailService(
                 </div>
             </body>
             </html>
-        """.trimIndent()
+            """.trimIndent()
     }
 }

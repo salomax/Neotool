@@ -1,13 +1,14 @@
 package io.github.salomax.neotool.security.test.service
 
 import io.github.salomax.neotool.security.config.JwtConfig
-import io.github.salomax.neotool.security.model.PasswordResetAttemptEntity
 import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.repo.PasswordResetAttemptRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.AuthenticationService
 import io.github.salomax.neotool.security.service.EmailService
 import io.github.salomax.neotool.security.service.JwtService
+import io.github.salomax.neotool.security.service.OAuthProvider
+import io.github.salomax.neotool.security.service.OAuthProviderRegistry
 import io.github.salomax.neotool.security.service.RateLimitService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import org.assertj.core.api.Assertions.assertThat
@@ -17,14 +18,20 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.ArgumentCaptor
-import org.mockito.kotlin.*
+import org.mockito.kotlin.any
+import org.mockito.kotlin.doNothing
+import org.mockito.kotlin.doThrow
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 import java.time.Instant
 import java.time.temporal.ChronoUnit
-import java.util.*
+import java.util.UUID
 
 @DisplayName("Password Reset Service Unit Tests")
 class PasswordResetServiceTest {
-
     private lateinit var userRepository: UserRepository
     private lateinit var jwtService: JwtService
     private lateinit var emailService: EmailService
@@ -34,37 +41,44 @@ class PasswordResetServiceTest {
     @BeforeEach
     fun setUp() {
         userRepository = mock()
-        val jwtConfig = JwtConfig(
-            secret = "test-secret-key-minimum-32-characters-long-for-hmac-sha256",
-            accessTokenExpirationSeconds = 900L,
-            refreshTokenExpirationSeconds = 604800L
-        )
+        val jwtConfig =
+            JwtConfig(
+                secret = "test-secret-key-minimum-32-characters-long-for-hmac-sha256",
+                accessTokenExpirationSeconds = 900L,
+                refreshTokenExpirationSeconds = 604800L,
+            )
         jwtService = JwtService(jwtConfig)
         emailService = mock()
-        
+
         val passwordResetAttemptRepository: PasswordResetAttemptRepository = mock()
         rateLimitService = RateLimitService(passwordResetAttemptRepository)
-        
-        authenticationService = AuthenticationService(
-            userRepository,
-            jwtService,
-            emailService,
-            rateLimitService
-        )
+
+        val oauthProvider: OAuthProvider = mock()
+        whenever(oauthProvider.getProviderName()).thenReturn("google")
+        val oauthProviderRegistry = OAuthProviderRegistry(listOf(oauthProvider))
+
+        authenticationService =
+            AuthenticationService(
+                userRepository,
+                jwtService,
+                emailService,
+                rateLimitService,
+                oauthProviderRegistry,
+            )
     }
 
     @Nested
     @DisplayName("Request Password Reset")
     inner class RequestPasswordResetTests {
-
         @Test
         fun `should request password reset successfully`() {
             val email = "test@example.com"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = "TestPassword123!"
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = "TestPassword123!",
+                )
 
             whenever(userRepository.findByEmail(email)).thenReturn(user)
             whenever(userRepository.save(any())).thenAnswer { it.arguments[0] as UserEntity }
@@ -76,7 +90,7 @@ class PasswordResetServiceTest {
             verify(userRepository).findByEmail(email)
             verify(userRepository).save(any())
             verify(emailService).sendPasswordResetEmail(eq(email), any(), eq("en"))
-            
+
             val captor = ArgumentCaptor.forClass(UserEntity::class.java)
             verify(userRepository).save(captor.capture())
             val savedUser = captor.value
@@ -102,10 +116,11 @@ class PasswordResetServiceTest {
         @Test
         fun `should return true even if user has no password`() {
             val email = "oauth@example.com"
-            val user = SecurityTestDataBuilders.user(
-                email = email,
-                passwordHash = null
-            )
+            val user =
+                SecurityTestDataBuilders.user(
+                    email = email,
+                    passwordHash = null,
+                )
 
             whenever(userRepository.findByEmail(email)).thenReturn(user)
 
@@ -120,11 +135,12 @@ class PasswordResetServiceTest {
         @Test
         fun `should invalidate existing reset token when requesting new one`() {
             val email = "test@example.com"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = "TestPassword123!"
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = "TestPassword123!",
+                )
             user.passwordResetToken = "old-token"
             user.passwordResetExpiresAt = Instant.now().plus(30, ChronoUnit.MINUTES)
 
@@ -145,11 +161,12 @@ class PasswordResetServiceTest {
         @Test
         fun `should handle email service failure gracefully`() {
             val email = "test@example.com"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = "TestPassword123!"
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = "TestPassword123!",
+                )
 
             whenever(userRepository.findByEmail(email)).thenReturn(user)
             whenever(userRepository.save(any())).thenAnswer { it.arguments[0] as UserEntity }
@@ -166,7 +183,6 @@ class PasswordResetServiceTest {
     @Nested
     @DisplayName("Validate Reset Token")
     inner class ValidateResetTokenTests {
-
         @Test
         fun `should validate valid reset token`() {
             val email = "test@example.com"
@@ -241,18 +257,18 @@ class PasswordResetServiceTest {
     @Nested
     @DisplayName("Reset Password")
     inner class ResetPasswordTests {
-
         @Test
         fun `should reset password successfully`() {
             val email = "test@example.com"
             val token = UUID.randomUUID().toString()
             val oldPassword = "OldPassword123!"
             val newPassword = "NewPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = oldPassword
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = oldPassword,
+                )
             user.passwordResetToken = token
             user.passwordResetExpiresAt = Instant.now().plus(1, ChronoUnit.HOURS)
             user.passwordResetUsedAt = null
@@ -268,11 +284,11 @@ class PasswordResetServiceTest {
             assertThat(result.passwordResetToken).isNull()
             assertThat(result.passwordResetExpiresAt).isNull()
             assertThat(result.passwordResetUsedAt).isNotNull()
-            
+
             // Verify new password works
             val canVerify = authenticationService.verifyPassword(newPassword, result.passwordHash!!)
             assertThat(canVerify).isTrue()
-            
+
             // Verify old password doesn't work
             val oldPasswordWorks = authenticationService.verifyPassword(oldPassword, result.passwordHash!!)
             assertThat(oldPasswordWorks).isFalse()
@@ -329,4 +345,3 @@ class PasswordResetServiceTest {
         }
     }
 }
-

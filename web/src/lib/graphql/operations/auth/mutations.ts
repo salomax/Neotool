@@ -15,6 +15,21 @@ export const SIGN_IN = gql`
   }
 `;
 
+// Sign in with OAuth mutation
+export const SIGN_IN_WITH_OAUTH = gql`
+  mutation SignInWithOAuth($input: SignInWithOAuthInput!) {
+    signInWithOAuth(input: $input) {
+      token
+      refreshToken
+      user {
+        id
+        email
+        displayName
+      }
+    }
+  }
+`;
+
 // Sign up mutation
 export const SIGN_UP = gql`
   mutation SignUp($input: SignUpInput!) {

@@ -10,8 +10,10 @@ import java.util.UUID
 @Repository
 interface PasswordResetAttemptRepository : JpaRepository<PasswordResetAttemptEntity, UUID> {
     @Query("SELECT p FROM PasswordResetAttemptEntity p WHERE p.email = :email AND p.windowStart > :windowStart")
-    fun findByEmailAndWindowStartGreaterThan(email: String, windowStart: Instant): List<PasswordResetAttemptEntity>
-    
+    fun findByEmailAndWindowStartGreaterThan(
+        email: String,
+        windowStart: Instant,
+    ): List<PasswordResetAttemptEntity>
+
     fun findByCreatedAtLessThan(cutoff: Instant): List<PasswordResetAttemptEntity>
 }
-

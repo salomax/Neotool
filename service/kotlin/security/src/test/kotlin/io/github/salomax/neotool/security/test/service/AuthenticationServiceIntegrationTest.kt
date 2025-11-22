@@ -1,14 +1,19 @@
 package io.github.salomax.neotool.security.test.service
 
+import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
+import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.AuthenticationService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
-import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
-import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.*
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.MethodOrderer
+import org.junit.jupiter.api.Tag
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.TestMethodOrder
 
 @MicronautTest(startApplication = true)
 @DisplayName("AuthenticationService Integration Tests")
@@ -18,7 +23,6 @@ import org.junit.jupiter.api.*
 @Tag("security")
 @TestMethodOrder(MethodOrderer.Random::class)
 class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTest {
-
     @Inject
     lateinit var userRepository: UserRepository
 
@@ -41,17 +45,17 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
     @Nested
     @DisplayName("Password Hashing and Verification with Database")
     inner class PasswordHashingIntegrationTests {
-
         @Test
         fun `should hash and verify password with database persistence`() {
             // Arrange
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
 
             // Act - Save user with hashed password
             val savedUser = userRepository.save(user)
@@ -75,11 +79,12 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
             val email = uniqueEmail()
             val correctPassword = "CorrectPassword123!"
             val wrongPassword = "WrongPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = correctPassword
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = correctPassword,
+                )
 
             // Act
             val savedUser = userRepository.save(user)
@@ -97,10 +102,11 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
             val email = uniqueEmail()
             val password = "TestPassword123!"
             val invalidHash = "invalid-hash-format-that-will-cause-exception"
-            val user = SecurityTestDataBuilders.user(
-                email = email,
-                passwordHash = invalidHash
-            )
+            val user =
+                SecurityTestDataBuilders.user(
+                    email = email,
+                    passwordHash = invalidHash,
+                )
             userRepository.save(user)
 
             // Act - This should trigger the exception handling branch in verifyPassword
@@ -114,17 +120,17 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
     @Nested
     @DisplayName("User Authentication with Database")
     inner class UserAuthenticationIntegrationTests {
-
         @Test
         fun `should authenticate user with correct credentials from database`() {
             // Arrange
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
             userRepository.save(user)
 
             // Act
@@ -155,11 +161,12 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
             val email = uniqueEmail()
             val correctPassword = "CorrectPassword123!"
             val wrongPassword = "WrongPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = correctPassword
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = correctPassword,
+                )
             userRepository.save(user)
 
             // Act
@@ -174,10 +181,11 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
             // Arrange
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.user(
-                email = email,
-                passwordHash = null
-            )
+            val user =
+                SecurityTestDataBuilders.user(
+                    email = email,
+                    passwordHash = null,
+                )
             userRepository.save(user)
 
             // Act
@@ -192,19 +200,21 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
             // Arrange
             val email1 = uniqueEmail()
             val password1 = "Password1!"
-            val user1 = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email1,
-                password = password1
-            )
+            val user1 =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email1,
+                    password = password1,
+                )
 
             val email2 = uniqueEmail()
             val password2 = "Password2!"
-            val user2 = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email2,
-                password = password2
-            )
+            val user2 =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email2,
+                    password = password2,
+                )
 
             userRepository.save(user1)
             userRepository.save(user2)
@@ -226,11 +236,12 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
             // Arrange
             val email = uniqueEmail()
             val password = "   " // Blank password (whitespace)
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = "TestPassword123!"
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = "TestPassword123!",
+                )
             userRepository.save(user)
 
             // Act
@@ -245,11 +256,12 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
             // Arrange
             val email = uniqueEmail()
             val password = "" // Empty password
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = "TestPassword123!"
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = "TestPassword123!",
+                )
             userRepository.save(user)
 
             // Act
@@ -277,10 +289,11 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
             // Arrange
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.user(
-                email = email,
-                passwordHash = null
-            )
+            val user =
+                SecurityTestDataBuilders.user(
+                    email = email,
+                    passwordHash = null,
+                )
             userRepository.save(user)
 
             // Act
@@ -294,17 +307,17 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
     @Nested
     @DisplayName("Remember Me Token with Database")
     inner class RememberMeTokenIntegrationTests {
-
         @Test
         fun `should save and retrieve remember me token from database`() {
             // Arrange
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
             val savedUser = userRepository.save(user)
             val token = authenticationService.generateRememberMeToken()
 
@@ -323,11 +336,12 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
             // Arrange
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
             val savedUser = userRepository.save(user)
             val token = authenticationService.generateRememberMeToken()
             authenticationService.saveRememberMeToken(savedUser.id, token)
@@ -358,11 +372,12 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
             // Arrange
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
             val savedUser = userRepository.save(user)
             val token = authenticationService.generateRememberMeToken()
             val userWithToken = authenticationService.saveRememberMeToken(savedUser.id, token)
@@ -382,11 +397,12 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
             // Arrange
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
             val savedUser = userRepository.save(user)
 
             // Act
@@ -409,21 +425,23 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
             // Arrange
             val email1 = uniqueEmail()
             val password1 = "Password1!"
-            val user1 = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email1,
-                password = password1
-            )
+            val user1 =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email1,
+                    password = password1,
+                )
             val savedUser1 = userRepository.save(user1)
             val token1 = authenticationService.generateRememberMeToken()
 
             val email2 = uniqueEmail()
             val password2 = "Password2!"
-            val user2 = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email2,
-                password = password2
-            )
+            val user2 =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email2,
+                    password = password2,
+                )
             val savedUser2 = userRepository.save(user2)
             val token2 = authenticationService.generateRememberMeToken()
 
@@ -446,17 +464,17 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
     @Nested
     @DisplayName("JWT Token Generation and Validation with Database")
     inner class JwtTokenIntegrationTests {
-
         @Test
         fun `should generate and validate JWT access token`() {
             // Arrange
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
             val savedUser = userRepository.save(user)
 
             // Act - Generate access token
@@ -480,11 +498,12 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
             // Arrange
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
             val savedUser = userRepository.save(user)
 
             // Act - Generate refresh token
@@ -521,11 +540,12 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
             // Arrange
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
             val savedUser = userRepository.save(user)
             val refreshToken = authenticationService.generateRefreshToken(savedUser)
             authenticationService.saveRememberMeToken(savedUser.id, refreshToken)
@@ -545,20 +565,21 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
             // Arrange
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
             val savedUser = userRepository.save(user)
             val refreshToken1 = authenticationService.generateRefreshToken(savedUser)
             // Store token1
             authenticationService.saveRememberMeToken(savedUser.id, refreshToken1)
-            
+
             // Wait at least 1 second to ensure token2 has a different issued-at time
             // JWT tokens use seconds precision for iat, so we need at least 1 second difference
             Thread.sleep(1000)
-            
+
             // Generate a different token (token2) for the same user
             val refreshToken2 = authenticationService.generateRefreshToken(savedUser)
             // Ensure token2 is different from token1 (they should be different due to different iat)
@@ -576,11 +597,12 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
             // Arrange
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
             val savedUser = userRepository.save(user)
             val accessToken = authenticationService.generateAccessToken(savedUser)
 
@@ -596,11 +618,12 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
             // Arrange
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
             val savedUser = userRepository.save(user)
             val refreshToken = authenticationService.generateRefreshToken(savedUser)
             authenticationService.saveRememberMeToken(savedUser.id, refreshToken)
@@ -617,11 +640,12 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
             // Arrange
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
             val savedUser = userRepository.save(user)
 
             // Act - Authenticate user
@@ -648,23 +672,24 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
     @Nested
     @DisplayName("Concurrent Operations")
     inner class ConcurrentOperationsTests {
-
         @Test
         fun `should handle concurrent authentication requests`() {
             // Arrange
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
             userRepository.save(user)
 
             // Act - Simulate concurrent authentication attempts
-            val results = (1..10).map {
-                authenticationService.authenticate(email, password)
-            }
+            val results =
+                (1..10).map {
+                    authenticationService.authenticate(email, password)
+                }
 
             // Assert - All should succeed
             results.forEach { result ->
@@ -678,11 +703,12 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
             // Arrange
             val email = uniqueEmail()
             val password = "TestPassword123!"
-            val user = SecurityTestDataBuilders.userWithPassword(
-                authenticationService = authenticationService,
-                email = email,
-                password = password
-            )
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
             val savedUser = userRepository.save(user)
             val userId = savedUser.id
 
@@ -702,5 +728,26 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
             assertThat(authenticatedUser?.rememberMeToken).isEqualTo(lastToken)
         }
     }
-}
 
+    @Nested
+    @DisplayName("OAuth Authentication Integration Tests")
+    inner class OAuthAuthenticationIntegrationTests {
+        @Test
+        fun `should throw exception for unsupported OAuth provider`() {
+            // Arrange
+            val provider = "microsoft"
+            val idToken = "test-id-token"
+
+            // Act & Assert
+            org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+                authenticationService.authenticateWithOAuth(provider, idToken)
+            }.also { exception ->
+                assertThat(exception.message).contains("Unsupported OAuth provider")
+            }
+        }
+
+        // Note: Testing with real Google ID tokens would require actual Google OAuth setup
+        // In a real scenario, you would use test fixtures with valid Google ID tokens
+        // or configure a test Google OAuth application
+    }
+}

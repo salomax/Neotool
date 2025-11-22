@@ -7,6 +7,7 @@ plugins {
     id("org.jetbrains.kotlin.plugin.jpa") version "2.2.20" apply false
     id("com.google.devtools.ksp") version "2.2.20-2.0.3" apply false
     id("com.gradleup.shadow") version "8.3.7" apply false
+    id("org.jlleitschuh.gradle.ktlint") version "12.1.0" apply false
 }
 
 allprojects {
@@ -58,6 +59,40 @@ apply(plugin = "jacoco")
 // JaCoCo configuration for all subprojects
 subprojects {
     apply(plugin = "jacoco")
+    apply(plugin = "org.jlleitschuh.gradle.ktlint")
+    
+    // Configure ktlint
+    configure<org.jlleitschuh.gradle.ktlint.KtlintExtension> {
+        version.set("1.1.1")
+        debug.set(false)
+        verbose.set(true)
+        android.set(false)
+        outputToConsole.set(true)
+        outputColorName.set("RED")
+        ignoreFailures.set(false)
+        enableExperimentalRules.set(true)
+        filter {
+            exclude("**/build/**")
+            exclude("**/generated/**")
+            exclude("**/.gradle/**")
+        }
+    }
+    
+    // Configure ktlint tasks
+    tasks.named("ktlintCheck") {
+        group = "verification"
+        description = "Check Kotlin code style with ktlint"
+    }
+    
+    tasks.named("ktlintFormat") {
+        group = "formatting"
+        description = "Format Kotlin code with ktlint"
+    }
+    
+    // Make check task depend on ktlintCheck (if check task exists)
+    tasks.matching { it.name == "check" }.configureEach {
+        dependsOn(tasks.named("ktlintCheck"))
+    }
     
     // Configure JaCoCo after plugin is applied
     afterEvaluate {
@@ -482,5 +517,18 @@ gradle.projectsEvaluated {
             println("💡 Open the HTML report in your browser to view detailed coverage")
             println("=".repeat(80) + "\n")
         }
+    }
+    
+    // Root-level ktlint tasks that run across all subprojects
+    tasks.register("ktlintCheck") {
+        group = "verification"
+        description = "Run ktlint check on all subprojects"
+        dependsOn(subprojects.map { it.tasks.named("ktlintCheck") })
+    }
+    
+    tasks.register("ktlintFormat") {
+        group = "formatting"
+        description = "Format Kotlin code with ktlint on all subprojects"
+        dependsOn(subprojects.map { it.tasks.named("ktlintFormat") })
     }
 }

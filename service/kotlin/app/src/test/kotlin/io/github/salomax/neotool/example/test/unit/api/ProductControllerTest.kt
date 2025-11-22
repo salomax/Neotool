@@ -16,7 +16,6 @@ import java.util.UUID
 
 @DisplayName("ProductController Unit Tests")
 class ProductControllerTest {
-
     private lateinit var service: ProductService
     private lateinit var controller: ProductController
 
@@ -29,7 +28,6 @@ class ProductControllerTest {
     @Nested
     @DisplayName("get()")
     inner class GetTests {
-
         @Test
         fun `should return empty Optional when product not found`() {
             // Arrange
@@ -47,18 +45,18 @@ class ProductControllerTest {
     @Nested
     @DisplayName("update()")
     inner class UpdateTests {
-
         @Test
         fun `should return empty Optional when product not found`() {
             // Arrange
             val productId = UUID.randomUUID()
-            val request = io.github.salomax.neotool.example.dto.UpdateProductRequest(
-                name = "Updated Product",
-                sku = "UPDATED-001",
-                priceCents = 19999L,
-                stock = 20,
-                version = 1L
-            )
+            val request =
+                io.github.salomax.neotool.example.dto.UpdateProductRequest(
+                    name = "Updated Product",
+                    sku = "UPDATED-001",
+                    priceCents = 19999L,
+                    stock = 20,
+                    version = 1L,
+                )
             whenever(service.update(any())).thenReturn(null)
 
             // Act
@@ -69,4 +67,3 @@ class ProductControllerTest {
         }
     }
 }
-

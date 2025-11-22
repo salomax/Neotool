@@ -10,4 +10,3 @@ object Application {
             .start()
     }
 }
-

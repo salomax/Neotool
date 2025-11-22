@@ -2,22 +2,21 @@ package io.github.salomax.neotool.common.graphql
 
 import graphql.schema.DataFetcher
 import graphql.schema.DataFetchingEnvironment
+import io.github.salomax.neotool.common.graphql.payload.GraphQLError
 import io.github.salomax.neotool.common.graphql.payload.GraphQLPayload
 import io.github.salomax.neotool.common.graphql.payload.SuccessPayload
-import io.github.salomax.neotool.common.graphql.payload.GraphQLError
 
 /**
  * Utility functions for creating data fetchers that work with GraphQL payloads
  */
 object GraphQLPayloadDataFetcher {
-    
     /**
      * Creates a data fetcher that extracts data from a GraphQL payload
      * This is useful when you want to return just the data part of a payload
      */
     fun <T> createPayloadDataFetcher(
         operation: String,
-        block: (DataFetchingEnvironment) -> GraphQLPayload<T>
+        block: (DataFetchingEnvironment) -> GraphQLPayload<T>,
     ): DataFetcher<T?> {
         return DataFetcher { env ->
             val payload = block(env)
@@ -31,30 +30,31 @@ object GraphQLPayloadDataFetcher {
             }
         }
     }
-    
+
     /**
      * Creates a data fetcher that returns the full payload
      * This is useful when you want to return both data and errors
      */
     fun <T> createFullPayloadDataFetcher(
         operation: String,
-        block: (DataFetchingEnvironment) -> GraphQLPayload<T>
+        block: (DataFetchingEnvironment) -> GraphQLPayload<T>,
     ): DataFetcher<GraphQLPayload<T>> {
         return DataFetcher { env ->
             block(env)
         }
     }
-    
+
     /**
      * Creates a mutation data fetcher with automatic payload handling
      */
     fun <T> createMutationDataFetcher(
         operation: String,
-        block: (Map<String, Any?>) -> GraphQLPayload<T>
+        block: (Map<String, Any?>) -> GraphQLPayload<T>,
     ): DataFetcher<T?> {
         return DataFetcher { env ->
-            val input = env.getArgument<Map<String, Any?>>("input")
-                ?: throw IllegalArgumentException("Input is required")
+            val input =
+                env.getArgument<Map<String, Any?>>("input")
+                    ?: throw IllegalArgumentException("Input is required")
             val payload = block(input)
             when (payload) {
                 is SuccessPayload -> payload.data
@@ -62,19 +62,21 @@ object GraphQLPayloadDataFetcher {
             }
         }
     }
-    
+
     /**
      * Creates an update mutation data fetcher with automatic payload handling
      */
     fun <T> createUpdateMutationDataFetcher(
         operation: String,
-        block: (String, Map<String, Any?>) -> GraphQLPayload<T>
+        block: (String, Map<String, Any?>) -> GraphQLPayload<T>,
     ): DataFetcher<T?> {
         return DataFetcher { env ->
-            val id = env.getArgument<String>("id")
-                ?: throw IllegalArgumentException("ID is required")
-            val input = env.getArgument<Map<String, Any?>>("input")
-                ?: throw IllegalArgumentException("Input is required")
+            val id =
+                env.getArgument<String>("id")
+                    ?: throw IllegalArgumentException("ID is required")
+            val input =
+                env.getArgument<Map<String, Any?>>("input")
+                    ?: throw IllegalArgumentException("Input is required")
             val payload = block(id, input)
             when (payload) {
                 is SuccessPayload -> payload.data
@@ -82,17 +84,18 @@ object GraphQLPayloadDataFetcher {
             }
         }
     }
-    
+
     /**
      * Creates a CRUD data fetcher with automatic payload handling
      */
     fun <T> createCrudDataFetcher(
         operation: String,
-        block: (String) -> GraphQLPayload<T>
+        block: (String) -> GraphQLPayload<T>,
     ): DataFetcher<T?> {
         return DataFetcher { env ->
-            val id = env.getArgument<String>("id")
-                ?: throw IllegalArgumentException("ID is required")
+            val id =
+                env.getArgument<String>("id")
+                    ?: throw IllegalArgumentException("ID is required")
             val payload = block(id)
             when (payload) {
                 is SuccessPayload -> payload.data
@@ -106,9 +109,8 @@ object GraphQLPayloadDataFetcher {
  * Exception thrown when a GraphQL payload contains errors
  */
 class GraphQLPayloadException(
-    val errors: List<GraphQLError>
+    val errors: List<GraphQLError>,
 ) : RuntimeException("GraphQL operation failed: ${errors.joinToString { it.message }}") {
-    
     /**
      * Convert the first error to a simple message for GraphQL
      */

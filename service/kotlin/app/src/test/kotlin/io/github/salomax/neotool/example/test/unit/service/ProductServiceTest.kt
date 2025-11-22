@@ -1,10 +1,8 @@
 package io.github.salomax.neotool.example.test.unit.service
 
-import io.github.salomax.neotool.example.domain.Product
 import io.github.salomax.neotool.example.entity.ProductEntity
 import io.github.salomax.neotool.example.repo.ProductRepository
 import io.github.salomax.neotool.example.service.ProductService
-import io.github.salomax.neotool.example.test.TestDataBuilders
 import io.micronaut.http.server.exceptions.NotFoundException
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
@@ -21,7 +19,6 @@ import java.util.UUID
 
 @DisplayName("ProductService Unit Tests")
 class ProductServiceTest {
-
     private lateinit var repository: ProductRepository
     private lateinit var service: ProductService
 
@@ -34,18 +31,18 @@ class ProductServiceTest {
     @Nested
     @DisplayName("get()")
     inner class GetTests {
-
         @Test
         fun `should return product when found`() {
             // Arrange
             val productId = UUID.randomUUID()
-            val entity = ProductEntity(
-                id = productId,
-                name = "Test Product",
-                sku = "TEST-001",
-                priceCents = 9999L,
-                stock = 10
-            )
+            val entity =
+                ProductEntity(
+                    id = productId,
+                    name = "Test Product",
+                    sku = "TEST-001",
+                    priceCents = 9999L,
+                    stock = 10,
+                )
             whenever(repository.findById(productId)).thenReturn(Optional.of(entity))
 
             // Act
@@ -76,18 +73,18 @@ class ProductServiceTest {
     @Nested
     @DisplayName("delete()")
     inner class DeleteTests {
-
         @Test
         fun `should delete product when found`() {
             // Arrange
             val productId = UUID.randomUUID()
-            val entity = ProductEntity(
-                id = productId,
-                name = "Test Product",
-                sku = "TEST-001",
-                priceCents = 9999L,
-                stock = 10
-            )
+            val entity =
+                ProductEntity(
+                    id = productId,
+                    name = "Test Product",
+                    sku = "TEST-001",
+                    priceCents = 9999L,
+                    stock = 10,
+                )
             whenever(repository.findById(productId)).thenReturn(Optional.of(entity))
 
             // Act
@@ -112,4 +109,3 @@ class ProductServiceTest {
         }
     }
 }
-

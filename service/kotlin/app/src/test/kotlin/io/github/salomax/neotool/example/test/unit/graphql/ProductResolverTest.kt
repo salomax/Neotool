@@ -5,7 +5,6 @@ import io.github.salomax.neotool.example.graphql.resolvers.ProductResolver
 import io.github.salomax.neotool.example.service.ProductService
 import jakarta.validation.Validator
 import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -17,7 +16,6 @@ import java.util.UUID
 
 @DisplayName("ProductResolver Unit Tests")
 class ProductResolverTest {
-
     private lateinit var productService: ProductService
     private lateinit var validator: Validator
     private lateinit var resolver: ProductResolver
@@ -32,23 +30,24 @@ class ProductResolverTest {
     @Nested
     @DisplayName("mapToInputDTO() - tested through create()")
     inner class MapToInputDTOTests {
-
         @Test
         fun `should map input to DTO with all fields`() {
             // Arrange
-            val newProduct = Product(
-                id = UUID.randomUUID(),
-                name = "Test Product",
-                sku = "TEST-001",
-                priceCents = 9999L,
-                stock = 10
-            )
-            val input = mapOf(
-                "name" to "Test Product",
-                "sku" to "TEST-001",
-                "priceCents" to 9999L,
-                "stock" to 10
-            )
+            val newProduct =
+                Product(
+                    id = UUID.randomUUID(),
+                    name = "Test Product",
+                    sku = "TEST-001",
+                    priceCents = 9999L,
+                    stock = 10,
+                )
+            val input =
+                mapOf(
+                    "name" to "Test Product",
+                    "sku" to "TEST-001",
+                    "priceCents" to 9999L,
+                    "stock" to 10,
+                )
 
             // Mock the service
             whenever(productService.create(any())).thenReturn(newProduct)
@@ -68,18 +67,20 @@ class ProductResolverTest {
         @Test
         fun `should use default values when optional fields are missing`() {
             // Arrange
-            val newProduct = Product(
-                id = UUID.randomUUID(),
-                name = "Test Product",
-                sku = "TEST-001",
-                priceCents = 0L,
-                stock = 0
-            )
-            val input = mapOf(
-                "name" to "Test Product",
-                "sku" to "TEST-001"
-                // priceCents and stock are missing, should use defaults
-            )
+            val newProduct =
+                Product(
+                    id = UUID.randomUUID(),
+                    name = "Test Product",
+                    sku = "TEST-001",
+                    priceCents = 0L,
+                    stock = 0,
+                )
+            val input =
+                mapOf(
+                    "name" to "Test Product",
+                    "sku" to "TEST-001",
+                    // priceCents and stock are missing, should use defaults
+                )
 
             // Mock the service
             whenever(productService.create(any())).thenReturn(newProduct)
@@ -100,23 +101,24 @@ class ProductResolverTest {
     @Nested
     @DisplayName("extractField() - via create()")
     inner class ExtractFieldTests {
-
         @Test
         fun `should return value when field exists and type matches`() {
             // Arrange
-            val newProduct = Product(
-                id = UUID.randomUUID(),
-                name = "Test Product",
-                sku = "TEST-001",
-                priceCents = 9999L,
-                stock = 10
-            )
-            val input = mapOf(
-                "name" to "Test Product",
-                "sku" to "TEST-001",
-                "priceCents" to 9999L,
-                "stock" to 10
-            )
+            val newProduct =
+                Product(
+                    id = UUID.randomUUID(),
+                    name = "Test Product",
+                    sku = "TEST-001",
+                    priceCents = 9999L,
+                    stock = 10,
+                )
+            val input =
+                mapOf(
+                    "name" to "Test Product",
+                    "sku" to "TEST-001",
+                    "priceCents" to 9999L,
+                    "stock" to 10,
+                )
 
             // Mock the service
             whenever(productService.create(any())).thenReturn(newProduct)
@@ -135,18 +137,20 @@ class ProductResolverTest {
         @Test
         fun `should return default when field missing and default provided`() {
             // Arrange
-            val newProduct = Product(
-                id = UUID.randomUUID(),
-                name = "Test Product",
-                sku = "TEST-001",
-                priceCents = 0L,
-                stock = 0
-            )
-            val input = mapOf(
-                "name" to "Test Product",
-                "sku" to "TEST-001"
-                // priceCents and stock missing, should use defaults
-            )
+            val newProduct =
+                Product(
+                    id = UUID.randomUUID(),
+                    name = "Test Product",
+                    sku = "TEST-001",
+                    priceCents = 0L,
+                    stock = 0,
+                )
+            val input =
+                mapOf(
+                    "name" to "Test Product",
+                    "sku" to "TEST-001",
+                    // priceCents and stock missing, should use defaults
+                )
 
             // Mock the service
             whenever(productService.create(any())).thenReturn(newProduct)
@@ -163,10 +167,11 @@ class ProductResolverTest {
         @Test
         fun `should throw exception when required field is missing and no default`() {
             // Arrange
-            val input = mapOf(
-                "sku" to "TEST-001"
-                // name is missing and has no default
-            )
+            val input =
+                mapOf(
+                    "sku" to "TEST-001",
+                    // name is missing and has no default
+                )
 
             // Act & Assert - create() calls mapToInputDTO which calls extractField
             val result = resolver.create(input)
@@ -178,10 +183,11 @@ class ProductResolverTest {
         @Test
         fun `should throw exception when sku field is missing and no default`() {
             // Arrange
-            val input = mapOf(
-                "name" to "Test Product"
-                // sku is missing and has no default
-            )
+            val input =
+                mapOf(
+                    "name" to "Test Product",
+                    // sku is missing and has no default
+                )
 
             // Act & Assert - create() calls mapToInputDTO which calls extractField
             val result = resolver.create(input)
@@ -191,4 +197,3 @@ class ProductResolverTest {
         }
     }
 }
-

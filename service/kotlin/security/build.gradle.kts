@@ -1,11 +1,11 @@
 
 plugins {
-  id("org.jetbrains.kotlin.jvm")
-  id("io.micronaut.application")
-  id("io.micronaut.aot")
-  id("org.jetbrains.kotlin.plugin.jpa")
-  id("com.google.devtools.ksp")
-  id("com.gradleup.shadow")
+    id("org.jetbrains.kotlin.jvm")
+    id("io.micronaut.application")
+    id("io.micronaut.aot")
+    id("org.jetbrains.kotlin.plugin.jpa")
+    id("com.google.devtools.ksp")
+    id("com.gradleup.shadow")
 }
 
 micronaut {
@@ -34,13 +34,18 @@ dependencies {
     implementation("io.jsonwebtoken:jjwt-api:0.12.5")
     implementation("io.jsonwebtoken:jjwt-impl:0.12.5")
     implementation("io.jsonwebtoken:jjwt-jackson:0.12.5")
-    
+
     // Password hashing - Argon2id
     implementation("com.password4j:password4j:1.8.0")
+
+    // Google OAuth JWT validation
+    implementation("com.google.auth:google-auth-library-oauth2-http:1.23.0")
+    implementation("com.google.oauth-client:google-oauth-client:1.39.0")
+    implementation("com.google.api-client:google-api-client:2.2.0")
 }
 
 application {
-  mainClass.set("io.github.salomax.neotool.security.Application")
+    mainClass.set("io.github.salomax.neotool.security.Application")
 }
 
 // Enable ZIP64 support for all JAR tasks to handle more than 65535 entries
@@ -58,21 +63,21 @@ tasks.test {
 tasks.register<Test>("testIntegration") {
     group = "verification"
     description = "Runs integration tests using Testcontainers"
-    
+
     useJUnitPlatform {
         includeEngines("junit-jupiter")
         includeTags("integration")
     }
-    
+
     testLogging {
         events("passed", "skipped", "failed")
         showStandardStreams = true
     }
-    
+
     // Disable Ryuk to avoid container startup issues
     systemProperty("ryuk.disabled", "true")
     environment("TESTCONTAINERS_RYUK_DISABLED", "true")
-    
+
     // Ensure Docker is available
     doFirst {
         try {
@@ -86,6 +91,3 @@ tasks.register<Test>("testIntegration") {
         }
     }
 }
-
-// Integration test coverage is configured in the parent build.gradle.kts
-// This ensures consistent configuration across all modules with testIntegration task

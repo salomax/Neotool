@@ -11,11 +11,10 @@ import java.io.InputStreamReader
 
 @Factory
 class AssistantGraphQLFactory(
-    private val wiringFactory: AssistantWiringFactory
+    private val wiringFactory: AssistantWiringFactory,
 ) {
-    
     private val logger = LoggerFactory.getLogger(AssistantGraphQLFactory::class.java)
-    
+
     @Singleton
     fun graphQL(): GraphQL {
         val registry = loadSchema()
@@ -23,11 +22,12 @@ class AssistantGraphQLFactory(
         val schema = SchemaGenerator().makeExecutableSchema(registry, runtimeWiring)
         return GraphQL.newGraphQL(schema).build()
     }
-    
+
     private fun loadSchema(): TypeDefinitionRegistry {
-        val schemaResource = javaClass.classLoader.getResourceAsStream("graphql/schema.graphqls")
-            ?: throw IllegalStateException("GraphQL schema file not found: graphql/schema.graphqls")
-        
+        val schemaResource =
+            javaClass.classLoader.getResourceAsStream("graphql/schema.graphqls")
+                ?: throw IllegalStateException("GraphQL schema file not found: graphql/schema.graphqls")
+
         return try {
             InputStreamReader(schemaResource).use { reader ->
                 SchemaParser().parse(reader)
@@ -38,4 +38,3 @@ class AssistantGraphQLFactory(
         }
     }
 }
-

@@ -11,7 +11,6 @@ import jakarta.inject.Singleton
  */
 @Factory
 class GraphQLInstrumentationFactory {
-
     @Bean
     @Singleton
     fun queryComplexityInstrumentation(): MaxQueryComplexityInstrumentation {
