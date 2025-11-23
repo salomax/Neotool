@@ -42,7 +42,7 @@ export const passwordValidationRules: PasswordValidationRule[] = [
   },
   {
     label: "At least one special character",
-    test: (password) => /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password),
+    test: (password) => /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password),
   },
 ];
 
