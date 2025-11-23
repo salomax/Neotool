@@ -58,11 +58,19 @@ export function AppHeader() {
     if (user.displayName) {
       const names = user.displayName.trim().split(/\s+/);
       if (names.length >= 2) {
-        return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
+        const first = names[0]?.[0];
+        const last = names[names.length - 1]?.[0];
+        if (first && last) {
+          return `${first}${last}`.toUpperCase();
+        }
       }
-      return user.displayName[0].toUpperCase();
+      const firstChar = user.displayName.trim()[0];
+      if (firstChar) {
+        return firstChar.toUpperCase();
+      }
     }
-    return user.email[0].toUpperCase();
+    const emailChar = user.email?.[0];
+    return emailChar ? emailChar.toUpperCase() : "?";
   };
 
   const open = Boolean(anchorEl);

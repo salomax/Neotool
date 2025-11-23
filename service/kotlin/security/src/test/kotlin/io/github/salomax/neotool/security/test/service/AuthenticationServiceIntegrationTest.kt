@@ -8,12 +8,15 @@ import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.MethodOrderer
+import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.TestMethodOrder
+import org.junit.jupiter.api.assertThrows
 
 @MicronautTest(startApplication = true)
 @DisplayName("AuthenticationService Integration Tests")
@@ -739,7 +742,7 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
             val idToken = "test-id-token"
 
             // Act & Assert
-            org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+            assertThrows<IllegalArgumentException> {
                 authenticationService.authenticateWithOAuth(provider, idToken)
             }.also { exception ->
                 assertThat(exception.message).contains("Unsupported OAuth provider")

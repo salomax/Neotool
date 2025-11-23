@@ -4,9 +4,12 @@ import io.github.salomax.neotool.assistant.agent.AssistantAgent
 import io.github.salomax.neotool.assistant.agent.ConversationContext
 import io.github.salomax.neotool.assistant.llm.FinishReason
 import io.github.salomax.neotool.assistant.llm.FunctionCall
+import io.github.salomax.neotool.assistant.llm.FunctionDefinition
+import io.github.salomax.neotool.assistant.llm.FunctionParameters
 import io.github.salomax.neotool.assistant.llm.LLMProvider
 import io.github.salomax.neotool.assistant.llm.LLMResponse
 import io.github.salomax.neotool.assistant.llm.MessageRole
+import io.github.salomax.neotool.assistant.llm.PropertyDefinition
 import io.github.salomax.neotool.assistant.llm.tool.Tool
 import io.github.salomax.neotool.assistant.llm.tool.ToolRegistry
 import io.github.salomax.neotool.assistant.llm.tool.ToolResult
@@ -42,15 +45,15 @@ class AssistantAgentTest {
             val userMessage = "Search for USB-C cables"
             val context = ConversationContext(sessionId = "test-session")
 
-            val functions =
+            val functions: List<FunctionDefinition> =
                 listOf(
                     FunctionDefinition(
                         name = "searchCatalogItems",
                         description = "Search catalog",
                         parameters =
                             FunctionParameters(
-                                properties = emptyMap(),
-                                required = emptyList(),
+                                properties = emptyMap<String, PropertyDefinition>(),
+                                required = emptyList<String>(),
                             ),
                     ),
                 )
@@ -82,15 +85,15 @@ class AssistantAgentTest {
             val userMessage = "I need to buy 10 USB-C cables"
             val context = ConversationContext(sessionId = "test-session")
 
-            val functions =
+            val functions: List<FunctionDefinition> =
                 listOf(
                     FunctionDefinition(
                         name = "searchCatalogItems",
                         description = "Search catalog",
                         parameters =
                             FunctionParameters(
-                                properties = emptyMap(),
-                                required = emptyList(),
+                                properties = emptyMap<String, PropertyDefinition>(),
+                                required = emptyList<String>(),
                             ),
                     ),
                 )

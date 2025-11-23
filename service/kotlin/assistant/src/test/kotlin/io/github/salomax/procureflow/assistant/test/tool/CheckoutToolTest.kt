@@ -8,7 +8,9 @@ import kotlinx.coroutines.runBlocking
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
 @MicronautTest
@@ -37,7 +39,7 @@ class CheckoutToolTest {
     fun `should execute checkout function`() {
         runBlocking {
             // Arrange
-            val items =
+            val items: List<Map<String, Any>> =
                 listOf(
                     mapOf(
                         "catalogItemId" to "item-1",
