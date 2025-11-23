@@ -5,7 +5,7 @@ import { useOAuth } from '../useOAuth';
 // Mock the Google OAuth module
 vi.mock('@/lib/auth/oauth/google', () => ({
   signInWithGoogle: vi.fn(),
-  loadGoogleIdentityServices: vi.fn().mockResolvedValue(undefined),
+  loadGoogleIdentityServices: vi.fn(() => Promise.resolve()),
 }));
 
 describe('useOAuth', () => {

@@ -281,7 +281,21 @@ describe('SignInForm', () => {
 
     it('should call signInWithOAuth with ID token on successful OAuth', async () => {
       const user = userEvent.setup();
-      mockSignInOAuth.mockResolvedValue('test-google-id-token');
+      const idToken = 'test-google-id-token';
+      mockSignInOAuth.mockResolvedValue(idToken);
+      
+      const { useOAuth } = await import('@/shared/hooks/useOAuth');
+      let oauthOnSuccess: ((idToken: string) => void) | undefined;
+      
+      vi.mocked(useOAuth).mockImplementation((options) => {
+        oauthOnSuccess = options?.onSuccess;
+        return {
+          signIn: mockSignInOAuth,
+          isLoading: false,
+          error: null,
+        };
+      });
+      
       renderSignInForm();
 
       const googleButton = screen.getByTestId('button-google-signin');
@@ -291,9 +305,16 @@ describe('SignInForm', () => {
         expect(mockSignInOAuth).toHaveBeenCalledWith('google');
       });
 
+      // Trigger the onSuccess callback manually to simulate OAuth completion
+      if (oauthOnSuccess) {
+        await act(async () => {
+          oauthOnSuccess!(idToken);
+        });
+      }
+
       // Wait for the OAuth callback to trigger signInWithOAuth
       await waitFor(() => {
-        expect(mockSignInWithOAuth).toHaveBeenCalledWith('google', 'test-google-id-token', false);
+        expect(mockSignInWithOAuth).toHaveBeenCalledWith('google', idToken, false);
       }, { timeout: 2000 });
     });
 
@@ -308,16 +329,26 @@ describe('SignInForm', () => {
       const { useOAuth } = await import('@/shared/hooks/useOAuth');
       vi.mocked(useOAuth).mockReturnValue({
         signIn: mockSignInOAuth,
-        isLoading: true,
+        isLoading: false,
         error: null,
       });
 
       renderSignInForm();
 
       const googleButton = screen.getByTestId('button-google-signin');
-      expect(googleButton).toBeDisabled();
+      
+      // Click the button to start OAuth flow
+      const clickPromise = user.click(googleButton);
+      
+      // The button should be disabled while the OAuth promise is pending
+      // (isOAuthLoading is set to true in handleGoogleSignIn)
+      await waitFor(() => {
+        expect(googleButton).toBeDisabled();
+      });
 
+      // Resolve the promise to clean up
       resolveOAuth!('test-id-token');
+      await clickPromise;
       await oauthPromise;
     });
 
