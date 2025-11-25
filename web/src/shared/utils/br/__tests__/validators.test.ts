@@ -54,7 +54,8 @@ describe('Brazilian validators', () => {
     it('should validate multiple known valid CPFs', () => {
       // These are known valid CPF numbers
       expect(isValidCPF('11144477735')).toBe(true);
-      expect(isValidCPF('12345678909')).toBe(false); // Invalid check digit
+      expect(isValidCPF('12345678909')).toBe(true); // Valid CPF
+      expect(isValidCPF('12345678901')).toBe(false); // Invalid check digit
     });
   });
 

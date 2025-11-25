@@ -24,8 +24,12 @@ export function useDebouncedFieldValidator<T extends FieldValues>(
 
     if (timer.current) window.clearTimeout(timer.current);
     timer.current = window.setTimeout(async () => {
-      const res = await validate(value);
-      if (res !== true) setError(name, { type: "validate", message: res });
+      try {
+        const res = await validate(value);
+        if (res !== true) setError(name, { type: "validate", message: res });
+      } catch {
+        // Ignore validation errors - component should handle
+      }
     }, delay) as unknown as number;
 
     return () => {

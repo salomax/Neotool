@@ -79,7 +79,10 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onSuccess }) => {
     try {
       setIsSubmitting(true);
       setError(null);
-      await signUp(data.name, data.email, data.password);
+      // Trim name and email before submission
+      const trimmedName = data.name.trim();
+      const trimmedEmail = data.email.trim();
+      await signUp(trimmedName, trimmedEmail, data.password);
       onSuccess?.();
     } catch (err: any) {
       console.error("Sign up error:", err);
@@ -166,6 +169,7 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onSuccess }) => {
             <PasswordField
               name="password"
               label={t("password")}
+              translateError={(key) => t(key)}
               data-testid="textfield-password"
             />
             {passwordValidation && (

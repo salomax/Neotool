@@ -55,9 +55,20 @@ describe('passwordValidation utilities', () => {
     });
 
     it('should return invalid for password missing all requirements', () => {
-      const result = validatePassword('short');
+      const result = validatePassword('123');
       expect(result.isValid).toBe(false);
-      expect(result.rules.every((r) => r.isValid === false)).toBe(true);
+      // '123' has numbers, so the number rule is valid
+      // Check that at least some rules are invalid
+      expect(result.rules.some((r) => r.isValid === false)).toBe(true);
+      // Check specific rules that should be invalid
+      const lengthRule = result.rules.find((r) => r.label.includes('8 characters'));
+      const uppercaseRule = result.rules.find((r) => r.label.includes('uppercase'));
+      const lowercaseRule = result.rules.find((r) => r.label.includes('lowercase'));
+      const specialRule = result.rules.find((r) => r.label.includes('special'));
+      expect(lengthRule?.isValid).toBe(false);
+      expect(uppercaseRule?.isValid).toBe(false);
+      expect(lowercaseRule?.isValid).toBe(false);
+      expect(specialRule?.isValid).toBe(false);
     });
 
     it('should return valid for password meeting all requirements', () => {

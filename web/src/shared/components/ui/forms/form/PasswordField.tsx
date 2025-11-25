@@ -12,6 +12,7 @@ export interface PasswordFieldProps {
   helperText?: React.ReactNode;
   fullWidth?: boolean;
   translateError?: (key: string) => string;
+  'data-testid'?: string;
 }
 
 export const PasswordField: React.FC<PasswordFieldProps> = ({
@@ -20,6 +21,7 @@ export const PasswordField: React.FC<PasswordFieldProps> = ({
   helperText,
   fullWidth = true,
   translateError,
+  'data-testid': dataTestId,
 }) => {
   const { control } = useFormContext();
   const [show, setShow] = React.useState(false);
@@ -40,6 +42,7 @@ export const PasswordField: React.FC<PasswordFieldProps> = ({
             fullWidth={fullWidth}
             error={!!fieldState.error}
             helperText={translatedError ?? helperText}
+            data-testid={dataTestId}
             InputProps={{
               endAdornment: (
                 <InputAdornment position="end">

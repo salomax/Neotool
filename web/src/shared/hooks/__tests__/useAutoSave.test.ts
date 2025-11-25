@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { useAutoSave } from '../useAutoSave';
 
 describe('useAutoSave', () => {
@@ -23,24 +23,20 @@ describe('useAutoSave', () => {
 
   it('should call onSave after debounce delay', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
-    const { result, rerender } = renderHook(
+    renderHook(
       ({ values }) => useAutoSave(values, onSave, 500),
       {
         initialProps: { values: { name: 'test' } },
       }
     );
 
-    expect(result.current.isSaving).toBe(false);
     expect(onSave).not.toHaveBeenCalled();
 
-    // Fast-forward time
-    vi.advanceTimersByTime(500);
+    // Fast-forward time and flush async operations
+    await vi.advanceTimersByTimeAsync(500);
+    await vi.runAllTimersAsync();
 
-    await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith({ name: 'test' });
-    });
-
-    expect(result.current.isSaving).toBe(false);
+    expect(onSave).toHaveBeenCalledWith({ name: 'test' });
   });
 
   it('should set isSaving to true during save', async () => {
@@ -55,30 +51,35 @@ describe('useAutoSave', () => {
       useAutoSave({ name: 'test' }, onSave, 500)
     );
 
-    vi.advanceTimersByTime(500);
+    // Advance timers to trigger debounce and start the save
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    
+    // isSaving should be true while the promise is pending
+    expect(result.current.isSaving).toBe(true);
 
-    await waitFor(() => {
-      expect(result.current.isSaving).toBe(true);
+    // Advance timers to let the promise resolve
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100);
+      await vi.runAllTimersAsync();
     });
 
-    vi.advanceTimersByTime(100);
-
-    await waitFor(() => {
-      expect(result.current.isSaving).toBe(false);
-    });
+    // isSaving should be false after the promise resolves
+    expect(result.current.isSaving).toBe(false);
   });
 
   it('should use custom debounce delay', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderHook(() => useAutoSave({ name: 'test' }, onSave, 1000));
 
-    vi.advanceTimersByTime(500);
+    await vi.advanceTimersByTimeAsync(500);
     expect(onSave).not.toHaveBeenCalled();
 
-    vi.advanceTimersByTime(500);
-    await waitFor(() => {
-      expect(onSave).toHaveBeenCalled();
-    });
+    await vi.advanceTimersByTimeAsync(500);
+    await vi.runAllTimersAsync();
+    
+    expect(onSave).toHaveBeenCalled();
   });
 
   it('should cancel previous save when values change', async () => {
@@ -90,16 +91,15 @@ describe('useAutoSave', () => {
       }
     );
 
-    vi.advanceTimersByTime(300);
+    await vi.advanceTimersByTimeAsync(300);
 
     rerender({ values: { name: 'test2' } });
 
-    vi.advanceTimersByTime(500);
+    await vi.advanceTimersByTimeAsync(500);
+    await vi.runAllTimersAsync();
 
-    await waitFor(() => {
-      expect(onSave).toHaveBeenCalledTimes(1);
-      expect(onSave).toHaveBeenCalledWith({ name: 'test2' });
-    });
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onSave).toHaveBeenCalledWith({ name: 'test2' });
   });
 
   it('should use latest values even if they change during debounce', async () => {
@@ -111,16 +111,15 @@ describe('useAutoSave', () => {
       }
     );
 
-    vi.advanceTimersByTime(300);
+    await vi.advanceTimersByTimeAsync(300);
 
     rerender({ values: { name: 'test2' } });
     rerender({ values: { name: 'test3' } });
 
-    vi.advanceTimersByTime(500);
+    await vi.advanceTimersByTimeAsync(500);
+    await vi.runAllTimersAsync();
 
-    await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith({ name: 'test3' });
-    });
+    expect(onSave).toHaveBeenCalledWith({ name: 'test3' });
   });
 
   it('should handle async onSave function', async () => {
@@ -134,17 +133,22 @@ describe('useAutoSave', () => {
       useAutoSave({ name: 'test' }, onSave, 500)
     );
 
-    vi.advanceTimersByTime(500);
+    // Advance timers to trigger debounce and start the save
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    
+    // isSaving should be true while the promise is pending
+    expect(result.current.isSaving).toBe(true);
 
-    await waitFor(() => {
-      expect(result.current.isSaving).toBe(true);
+    // Advance timers to let the promise resolve
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100);
+      await vi.runAllTimersAsync();
     });
 
-    vi.advanceTimersByTime(100);
-
-    await waitFor(() => {
-      expect(result.current.isSaving).toBe(false);
-    });
+    // isSaving should be false after the promise resolves
+    expect(result.current.isSaving).toBe(false);
   });
 
   it('should handle sync onSave function', async () => {
@@ -152,11 +156,10 @@ describe('useAutoSave', () => {
 
     renderHook(() => useAutoSave({ name: 'test' }, onSave, 500));
 
-    vi.advanceTimersByTime(500);
+    await vi.advanceTimersByTimeAsync(500);
+    await vi.runAllTimersAsync();
 
-    await waitFor(() => {
-      expect(onSave).toHaveBeenCalled();
-    });
+    expect(onSave).toHaveBeenCalled();
   });
 
   it('should handle complex object values', async () => {
@@ -169,11 +172,10 @@ describe('useAutoSave', () => {
 
     renderHook(() => useAutoSave(complexValues, onSave, 500));
 
-    vi.advanceTimersByTime(500);
+    await vi.advanceTimersByTimeAsync(500);
+    await vi.runAllTimersAsync();
 
-    await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith(complexValues);
-    });
+    expect(onSave).toHaveBeenCalledWith(complexValues);
   });
 
   it('should cleanup timeout on unmount', () => {

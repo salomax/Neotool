@@ -1,5 +1,5 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ResetPasswordForm } from '../ResetPasswordForm';
@@ -61,7 +61,6 @@ const renderResetPasswordForm = (props = {}) => {
 describe('ResetPasswordForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.useFakeTimers();
     mockResetPassword.mockResolvedValue({
       data: {
         resetPassword: {
@@ -69,10 +68,6 @@ describe('ResetPasswordForm', () => {
         },
       },
     });
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
   });
 
   it('renders form fields', () => {
@@ -88,7 +83,8 @@ describe('ResetPasswordForm', () => {
     const user = userEvent.setup();
     renderResetPasswordForm();
 
-    const passwordInput = screen.getByTestId('textfield-new-password');
+    const passwordField = screen.getByTestId('textfield-new-password');
+    const passwordInput = passwordField.querySelector('input[name="newPassword"]') as HTMLInputElement;
     const submitButton = screen.getByTestId('button-reset-password');
 
     await user.type(passwordInput, 'weak');
@@ -96,15 +92,17 @@ describe('ResetPasswordForm', () => {
 
     await waitFor(() => {
       expect(screen.queryByText(/weak password|required/i)).toBeInTheDocument();
-    });
+    }, { timeout: 3000 });
   });
 
   it('requires password to have uppercase, lowercase, number, and special character', async () => {
     const user = userEvent.setup();
     renderResetPasswordForm();
 
-    const passwordInput = screen.getByTestId('textfield-new-password');
-    const confirmPasswordInput = screen.getByTestId('textfield-confirm-password');
+    const passwordField = screen.getByTestId('textfield-new-password');
+    const passwordInput = passwordField.querySelector('input[name="newPassword"]') as HTMLInputElement;
+    const confirmField = screen.getByTestId('textfield-confirm-password');
+    const confirmPasswordInput = confirmField.querySelector('input[name="confirmPassword"]') as HTMLInputElement;
     const submitButton = screen.getByTestId('button-reset-password');
 
     await user.type(passwordInput, 'ValidPass123!');
@@ -113,15 +111,17 @@ describe('ResetPasswordForm', () => {
 
     await waitFor(() => {
       expect(mockResetPassword).toHaveBeenCalled();
-    });
+    }, { timeout: 3000 });
   });
 
   it('validates password match', async () => {
     const user = userEvent.setup();
     renderResetPasswordForm();
 
-    const passwordInput = screen.getByTestId('textfield-new-password');
-    const confirmPasswordInput = screen.getByTestId('textfield-confirm-password');
+    const passwordField = screen.getByTestId('textfield-new-password');
+    const passwordInput = passwordField.querySelector('input[name="newPassword"]') as HTMLInputElement;
+    const confirmField = screen.getByTestId('textfield-confirm-password');
+    const confirmPasswordInput = confirmField.querySelector('input[name="confirmPassword"]') as HTMLInputElement;
     const submitButton = screen.getByTestId('button-reset-password');
 
     await user.type(passwordInput, 'ValidPass123!');
@@ -130,7 +130,7 @@ describe('ResetPasswordForm', () => {
 
     await waitFor(() => {
       expect(screen.queryByText(/password mismatch|match/i)).toBeInTheDocument();
-    });
+    }, { timeout: 3000 });
   });
 
   it('submits form with valid passwords', async () => {
@@ -138,8 +138,10 @@ describe('ResetPasswordForm', () => {
     const onSuccess = vi.fn();
     renderResetPasswordForm({ onSuccess });
 
-    const passwordInput = screen.getByTestId('textfield-new-password');
-    const confirmPasswordInput = screen.getByTestId('textfield-confirm-password');
+    const passwordField = screen.getByTestId('textfield-new-password');
+    const passwordInput = passwordField.querySelector('input[name="newPassword"]') as HTMLInputElement;
+    const confirmField = screen.getByTestId('textfield-confirm-password');
+    const confirmPasswordInput = confirmField.querySelector('input[name="confirmPassword"]') as HTMLInputElement;
     const submitButton = screen.getByTestId('button-reset-password');
 
     await user.type(passwordInput, 'ValidPass123!');
@@ -155,15 +157,17 @@ describe('ResetPasswordForm', () => {
           },
         },
       });
-    });
+    }, { timeout: 3000 });
   });
 
   it('shows success message after successful submission', async () => {
     const user = userEvent.setup();
     renderResetPasswordForm();
 
-    const passwordInput = screen.getByTestId('textfield-new-password');
-    const confirmPasswordInput = screen.getByTestId('textfield-confirm-password');
+    const passwordField = screen.getByTestId('textfield-new-password');
+    const passwordInput = passwordField.querySelector('input[name="newPassword"]') as HTMLInputElement;
+    const confirmField = screen.getByTestId('textfield-confirm-password');
+    const confirmPasswordInput = confirmField.querySelector('input[name="confirmPassword"]') as HTMLInputElement;
     const submitButton = screen.getByTestId('button-reset-password');
 
     await user.type(passwordInput, 'ValidPass123!');
@@ -172,15 +176,17 @@ describe('ResetPasswordForm', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/success/i)).toBeInTheDocument();
-    });
+    }, { timeout: 3000 });
   });
 
   it('redirects to signin after successful submission', async () => {
     const user = userEvent.setup();
     renderResetPasswordForm();
 
-    const passwordInput = screen.getByTestId('textfield-new-password');
-    const confirmPasswordInput = screen.getByTestId('textfield-confirm-password');
+    const passwordField = screen.getByTestId('textfield-new-password');
+    const passwordInput = passwordField.querySelector('input[name="newPassword"]') as HTMLInputElement;
+    const confirmField = screen.getByTestId('textfield-confirm-password');
+    const confirmPasswordInput = confirmField.querySelector('input[name="confirmPassword"]') as HTMLInputElement;
     const submitButton = screen.getByTestId('button-reset-password');
 
     await user.type(passwordInput, 'ValidPass123!');
@@ -191,11 +197,9 @@ describe('ResetPasswordForm', () => {
       expect(screen.getByText(/success/i)).toBeInTheDocument();
     });
 
-    vi.advanceTimersByTime(2000);
-
     await waitFor(() => {
       expect(mockPush).toHaveBeenCalledWith('/signin');
-    });
+    }, { timeout: 3000 });
   });
 
   it('calls onSuccess callback after successful submission', async () => {
@@ -203,8 +207,10 @@ describe('ResetPasswordForm', () => {
     const onSuccess = vi.fn();
     renderResetPasswordForm({ onSuccess });
 
-    const passwordInput = screen.getByTestId('textfield-new-password');
-    const confirmPasswordInput = screen.getByTestId('textfield-confirm-password');
+    const passwordField = screen.getByTestId('textfield-new-password');
+    const passwordInput = passwordField.querySelector('input[name="newPassword"]') as HTMLInputElement;
+    const confirmField = screen.getByTestId('textfield-confirm-password');
+    const confirmPasswordInput = confirmField.querySelector('input[name="confirmPassword"]') as HTMLInputElement;
     const submitButton = screen.getByTestId('button-reset-password');
 
     await user.type(passwordInput, 'ValidPass123!');
@@ -213,7 +219,7 @@ describe('ResetPasswordForm', () => {
 
     await waitFor(() => {
       expect(onSuccess).toHaveBeenCalled();
-    });
+    }, { timeout: 3000 });
   });
 
   it('shows error message on submission failure', async () => {
@@ -222,8 +228,10 @@ describe('ResetPasswordForm', () => {
 
     renderResetPasswordForm();
 
-    const passwordInput = screen.getByTestId('textfield-new-password');
-    const confirmPasswordInput = screen.getByTestId('textfield-confirm-password');
+    const passwordField = screen.getByTestId('textfield-new-password');
+    const passwordInput = passwordField.querySelector('input[name="newPassword"]') as HTMLInputElement;
+    const confirmField = screen.getByTestId('textfield-confirm-password');
+    const confirmPasswordInput = confirmField.querySelector('input[name="confirmPassword"]') as HTMLInputElement;
     const submitButton = screen.getByTestId('button-reset-password');
 
     await user.type(passwordInput, 'ValidPass123!');
@@ -232,7 +240,7 @@ describe('ResetPasswordForm', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('reset-password-error')).toBeInTheDocument();
-    });
+    }, { timeout: 3000 });
   });
 
   it('disables submit button while submitting', async () => {
@@ -246,15 +254,19 @@ describe('ResetPasswordForm', () => {
 
     renderResetPasswordForm();
 
-    const passwordInput = screen.getByTestId('textfield-new-password');
-    const confirmPasswordInput = screen.getByTestId('textfield-confirm-password');
+    const passwordField = screen.getByTestId('textfield-new-password');
+    const passwordInput = passwordField.querySelector('input[name="newPassword"]') as HTMLInputElement;
+    const confirmField = screen.getByTestId('textfield-confirm-password');
+    const confirmPasswordInput = confirmField.querySelector('input[name="confirmPassword"]') as HTMLInputElement;
     const submitButton = screen.getByTestId('button-reset-password');
 
     await user.type(passwordInput, 'ValidPass123!');
     await user.type(confirmPasswordInput, 'ValidPass123!');
     await user.click(submitButton);
 
-    expect(submitButton).toBeDisabled();
+    await waitFor(() => {
+      expect(submitButton).toBeDisabled();
+    }, { timeout: 3000 });
   });
 });
 

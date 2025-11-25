@@ -25,9 +25,24 @@ describe('locale utilities', () => {
     });
 
     it('should return default separators on error', () => {
+      // Mock Intl.NumberFormat to throw to test error handling
+      const originalIntl = global.Intl;
+      global.Intl = {
+        ...originalIntl,
+        NumberFormat: class extends originalIntl.NumberFormat {
+          constructor(...args: any[]) {
+            super(...args);
+            throw new Error('Invalid locale');
+          }
+        } as any,
+      };
+
       const result = getLocaleSeparators('invalid-locale');
       expect(result.decimal).toBe('.');
       expect(result.group).toBe(',');
+
+      // Restore original Intl
+      global.Intl = originalIntl;
     });
 
     it('should handle locales with different separator patterns', () => {

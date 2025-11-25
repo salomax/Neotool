@@ -3,7 +3,7 @@ title: Testing Rules
 type: rule
 category: testing
 status: current
-version: 2.0.0
+version: 2.1.0
 tags: [testing, rules, unit-tests, integration-tests, coverage]
 ai_optimized: true
 search_keywords: [testing, unit-tests, integration-tests, coverage, test-rules]
@@ -82,6 +82,68 @@ fun `should return error when data is null`() { ... }
 @Test
 fun `should process data when data is not null`() { ... }
 ```
+
+### Rule: Coverage Exclusions
+
+**Rule**: Certain components may be excluded from coverage requirements when they are:
+1. **Thin wrappers around well-tested libraries**: Components that primarily wrap third-party libraries with minimal custom logic
+2. **Pure presentational components**: Components with no business logic, state, or interactions
+3. **Configuration/boilerplate files**: Next.js boilerplate, middleware, and configuration files better tested via E2E
+
+**Rationale**: Focus testing effort on business logic and custom behavior rather than library integration or trivial presentational code.
+
+**Examples of Exclusions**:
+
+**Frontend (TypeScript/React)**:
+- Thin wrapper components around well-tested libraries:
+  - Chart components wrapping Recharts
+  - DataTable components wrapping ag-grid-react
+  - Error boundaries (React error boundary wrapper)
+  - Lazy loading wrappers
+- Pure presentational components:
+  - Skeleton loaders with no logic
+  - Simple layout components with no state
+- Next.js boilerplate:
+  - `layout.tsx`, `page.tsx`, `not-found.tsx`
+  - `middleware.ts`
+  - Route handlers (`route.ts`)
+
+**Backend (Kotlin/Micronaut)**:
+- Configuration classes with no logic
+- Pure data transfer objects (DTOs) with no validation logic
+- Auto-generated code
+
+**Exception**: Components with significant custom business logic, state management, or complex interactions should NOT be excluded, even if they wrap a library.
+
+**Example**:
+```typescript
+// ✅ Can exclude: Thin wrapper around Recharts
+export const Chart: React.FC<ChartProps> = ({ type, data, ... }) => {
+  return (
+    <ResponsiveContainer>
+      {type === 'line' && <LineChart data={data} />}
+      {type === 'bar' && <BarChart data={data} />}
+    </ResponsiveContainer>
+  );
+};
+
+// ❌ Should NOT exclude: Custom logic and state
+export const Chart: React.FC<ChartProps> = ({ type, data, ... }) => {
+  const [processedData, setProcessedData] = useState([]);
+  const [error, setError] = useState(null);
+  
+  useEffect(() => {
+    // Custom data transformation logic
+    const transformed = transformData(data);
+    setProcessedData(transformed);
+  }, [data]);
+  
+  // Custom error handling, data processing, etc.
+  return <ResponsiveContainer>...</ResponsiveContainer>;
+};
+```
+
+**Implementation**: Exclude files in test coverage configuration (e.g., `vitest.config.ts` coverage exclude list).
 
 ## Test Structure Rules
 

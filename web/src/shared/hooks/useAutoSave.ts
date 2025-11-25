@@ -9,19 +9,27 @@ export function useAutoSave<T extends object>(
 ) {
   const [isSaving, setSaving] = React.useState(false);
   const latest = React.useRef(values);
+  const onSaveRef = React.useRef(onSave);
 
   React.useEffect(() => {
     latest.current = values;
   }, [values]);
 
   React.useEffect(() => {
+    onSaveRef.current = onSave;
+  }, [onSave]);
+
+  React.useEffect(() => {
     const id = setTimeout(async () => {
       setSaving(true);
-      await onSave(latest.current);
-      setSaving(false);
+      try {
+        await onSaveRef.current(latest.current);
+      } finally {
+        setSaving(false);
+      }
     }, debounceMs);
     return () => clearTimeout(id);
-  }, [values, onSave, debounceMs]);
+  }, [values, debounceMs]);
 
   return { isSaving };
 }
