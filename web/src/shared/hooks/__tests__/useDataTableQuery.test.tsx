@@ -2,7 +2,7 @@ import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useDataTableQuery } from '../useDataTableQuery';
+import { useDataTableQuery, type PageResult } from '../useDataTableQuery';
 
 // Helper to create a test wrapper with QueryClient
 const createWrapper = () => {
@@ -250,7 +250,7 @@ describe('useDataTableQuery', () => {
 
   it('should handle query loading state', () => {
     const fetcher = vi.fn(
-      () =>
+      (): Promise<PageResult<unknown>> =>
         new Promise((resolve) => {
           setTimeout(() => resolve({ rows: [], total: 0 }), 100);
         })

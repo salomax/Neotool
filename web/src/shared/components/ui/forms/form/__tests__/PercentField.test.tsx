@@ -58,7 +58,7 @@ describe("PercentField", () => {
 
   it("stores value as percentage (0-100) by default", async () => {
     const Wrapper = () => {
-      const methods = useForm({ defaultValues: { percentage: null } });
+      const methods = useForm<{ percentage: number | null }>({ defaultValues: { percentage: null } });
       const [value, setValue] = React.useState<any>(null);
       
       React.useEffect(() => {

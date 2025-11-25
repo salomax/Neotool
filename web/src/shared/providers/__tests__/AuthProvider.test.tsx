@@ -588,7 +588,6 @@ describe('AuthProvider', () => {
 
       // Manually set token but not user (shouldn't happen in practice, but test the logic)
       await act(async () => {
-        // @ts-expect-error - Testing edge case
         result.current.token = 'token';
         result.current.user = null;
       });
@@ -605,7 +604,6 @@ describe('AuthProvider', () => {
 
       // Manually set user but not token (shouldn't happen in practice, but test the logic)
       await act(async () => {
-        // @ts-expect-error - Testing edge case
         result.current.user = { id: '1', email: 'test@example.com' };
         result.current.token = null;
       });
