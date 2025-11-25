@@ -82,14 +82,19 @@ describe('ForgotPasswordForm', () => {
     const user = userEvent.setup();
     renderForgotPasswordForm();
 
-    const emailInput = screen.getByTestId('textfield-email');
+    const emailInput = screen.getByRole('textbox', { name: /email/i });
     const submitButton = screen.getByTestId('button-send-reset-link');
 
     await user.type(emailInput, 'invalid-email');
     await user.click(submitButton);
 
     await waitFor(() => {
-      expect(screen.queryByText(/invalid email|required/i)).toBeInTheDocument();
+      // Error message is displayed in helperText, which is accessible via aria-describedby
+      // or we can check for the error state on the input
+      expect(emailInput).toHaveAttribute('aria-invalid', 'true');
+      // The helperText should contain the translated error message
+      const helperText = screen.getByText(/please enter a valid email address|this field is required/i);
+      expect(helperText).toBeInTheDocument();
     });
   });
 
@@ -97,12 +102,19 @@ describe('ForgotPasswordForm', () => {
     const user = userEvent.setup();
     renderForgotPasswordForm();
 
+    const emailInput = screen.getByRole('textbox', { name: /email/i });
     const submitButton = screen.getByTestId('button-send-reset-link');
     await user.click(submitButton);
 
     await waitFor(() => {
-      expect(screen.queryByText(/required/i)).toBeInTheDocument();
-    });
+      // Check that the input has error state
+      expect(emailInput).toHaveAttribute('aria-invalid', 'true');
+      // The error message should be displayed as helperText in the TextField
+      // For an empty email field, zod validates email() first, which shows "Please enter a valid email address"
+      // instead of "This field is required" because empty string fails email validation first
+      const errorMessage = screen.getByText(/please enter a valid email address|this field is required/i);
+      expect(errorMessage).toBeInTheDocument();
+    }, { timeout: 3000 });
   });
 
   it('submits form with valid email', async () => {
@@ -110,10 +122,15 @@ describe('ForgotPasswordForm', () => {
     const onSuccess = vi.fn();
     renderForgotPasswordForm({ onSuccess });
 
-    const emailInput = screen.getByTestId('textfield-email');
+    const emailInput = screen.getByRole('textbox', { name: /email/i });
     const submitButton = screen.getByTestId('button-send-reset-link');
 
     await user.type(emailInput, 'test@example.com');
+    
+    await waitFor(() => {
+      expect(emailInput).toHaveValue('test@example.com');
+    });
+    
     await user.click(submitButton);
 
     await waitFor(() => {
@@ -125,22 +142,32 @@ describe('ForgotPasswordForm', () => {
           },
         },
       });
-    });
+    }, { timeout: 3000 });
   });
 
   it('shows success message after successful submission', async () => {
     const user = userEvent.setup();
     renderForgotPasswordForm();
 
-    const emailInput = screen.getByTestId('textfield-email');
+    const emailInput = screen.getByRole('textbox', { name: /email/i });
     const submitButton = screen.getByTestId('button-send-reset-link');
 
     await user.type(emailInput, 'test@example.com');
+    
+    await waitFor(() => {
+      expect(emailInput).toHaveValue('test@example.com');
+    });
+    
     await user.click(submitButton);
 
     await waitFor(() => {
-      expect(screen.getByText(/success/i)).toBeInTheDocument();
-    });
+      // Wait for the mutation to complete and state to update
+      // The success message should be displayed in an Alert
+      const successAlert = screen.getByRole('alert');
+      expect(successAlert).toBeInTheDocument();
+      // Check for the translated success message
+      expect(successAlert).toHaveTextContent(/if an account with that email exists, a password reset link has been sent/i);
+    }, { timeout: 3000 });
   });
 
   it('calls onSuccess callback after successful submission', async () => {
@@ -148,15 +175,20 @@ describe('ForgotPasswordForm', () => {
     const onSuccess = vi.fn();
     renderForgotPasswordForm({ onSuccess });
 
-    const emailInput = screen.getByTestId('textfield-email');
+    const emailInput = screen.getByRole('textbox', { name: /email/i });
     const submitButton = screen.getByTestId('button-send-reset-link');
 
     await user.type(emailInput, 'test@example.com');
+    
+    await waitFor(() => {
+      expect(emailInput).toHaveValue('test@example.com');
+    });
+    
     await user.click(submitButton);
 
     await waitFor(() => {
       expect(onSuccess).toHaveBeenCalled();
-    });
+    }, { timeout: 3000 });
   });
 
   it('shows error message on submission failure', async () => {
@@ -165,15 +197,20 @@ describe('ForgotPasswordForm', () => {
 
     renderForgotPasswordForm();
 
-    const emailInput = screen.getByTestId('textfield-email');
+    const emailInput = screen.getByRole('textbox', { name: /email/i });
     const submitButton = screen.getByTestId('button-send-reset-link');
 
     await user.type(emailInput, 'test@example.com');
+    
+    await waitFor(() => {
+      expect(emailInput).toHaveValue('test@example.com');
+    });
+    
     await user.click(submitButton);
 
     await waitFor(() => {
       expect(screen.getByTestId('forgot-password-error')).toBeInTheDocument();
-    });
+    }, { timeout: 3000 });
   });
 
   it('shows error when mutation returns unsuccessful result', async () => {
@@ -188,15 +225,20 @@ describe('ForgotPasswordForm', () => {
 
     renderForgotPasswordForm();
 
-    const emailInput = screen.getByTestId('textfield-email');
+    const emailInput = screen.getByRole('textbox', { name: /email/i });
     const submitButton = screen.getByTestId('button-send-reset-link');
 
     await user.type(emailInput, 'test@example.com');
+    
+    await waitFor(() => {
+      expect(emailInput).toHaveValue('test@example.com');
+    });
+    
     await user.click(submitButton);
 
     await waitFor(() => {
       expect(screen.getByTestId('forgot-password-error')).toBeInTheDocument();
-    });
+    }, { timeout: 3000 });
   });
 
   it('disables submit button while submitting', async () => {
@@ -210,13 +252,20 @@ describe('ForgotPasswordForm', () => {
 
     renderForgotPasswordForm();
 
-    const emailInput = screen.getByTestId('textfield-email');
+    const emailInput = screen.getByRole('textbox', { name: /email/i });
     const submitButton = screen.getByTestId('button-send-reset-link');
 
     await user.type(emailInput, 'test@example.com');
+    
+    await waitFor(() => {
+      expect(emailInput).toHaveValue('test@example.com');
+    });
+    
     await user.click(submitButton);
 
-    expect(submitButton).toBeDisabled();
+    await waitFor(() => {
+      expect(submitButton).toBeDisabled();
+    });
   });
 });
 

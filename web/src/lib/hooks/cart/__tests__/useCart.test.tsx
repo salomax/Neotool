@@ -1,9 +1,15 @@
-import { describe, it, expect, vi } from 'vitest';
-import { renderHook } from '@testing-library/react';
+import React from 'react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { renderHook, waitFor } from '@testing-library/react';
 import { useCart } from '../useCart';
 import { CartProvider } from '@/shared/providers/CartProvider';
 
 describe('useCart', () => {
+  beforeEach(() => {
+    // Clear localStorage before each test
+    localStorage.clear();
+  });
+
   it('should return cart context when used within CartProvider', () => {
     const wrapper = ({ children }: { children: React.ReactNode }) => (
       <CartProvider>{children}</CartProvider>
@@ -35,12 +41,17 @@ describe('useCart', () => {
     expect(result.current.isEmpty).toBe(true);
   });
 
-  it('should allow adding items to cart', () => {
+  it('should allow adding items to cart', async () => {
     const wrapper = ({ children }: { children: React.ReactNode }) => (
       <CartProvider>{children}</CartProvider>
     );
 
     const { result } = renderHook(() => useCart(), { wrapper });
+
+    // Wait for initialization
+    await waitFor(() => {
+      expect(result.current.items).toEqual([]);
+    });
 
     result.current.addItem({
       catalogItemId: 'item1',
@@ -49,10 +60,12 @@ describe('useCart', () => {
       quantity: 1,
     });
 
-    expect(result.current.items).toHaveLength(1);
-    expect(result.current.itemCount).toBe(1);
-    expect(result.current.totalPriceCents).toBe(1000);
-    expect(result.current.isEmpty).toBe(false);
+    await waitFor(() => {
+      expect(result.current.items).toHaveLength(1);
+      expect(result.current.itemCount).toBe(1);
+      expect(result.current.totalPriceCents).toBe(1000);
+      expect(result.current.isEmpty).toBe(false);
+    });
   });
 
   it('should allow removing items from cart', () => {
@@ -78,12 +91,17 @@ describe('useCart', () => {
     expect(result.current.isEmpty).toBe(true);
   });
 
-  it('should allow updating item quantity', () => {
+  it('should allow updating item quantity', async () => {
     const wrapper = ({ children }: { children: React.ReactNode }) => (
       <CartProvider>{children}</CartProvider>
     );
 
     const { result } = renderHook(() => useCart(), { wrapper });
+
+    // Wait for initialization
+    await waitFor(() => {
+      expect(result.current.items).toEqual([]);
+    });
 
     result.current.addItem({
       catalogItemId: 'item1',
@@ -92,14 +110,20 @@ describe('useCart', () => {
       quantity: 1,
     });
 
+    await waitFor(() => {
+      expect(result.current.items).toHaveLength(1);
+    });
+
     const itemId = result.current.items[0]?.id;
     if (itemId) {
       result.current.updateQuantity(itemId, 3);
     }
 
-    expect(result.current.items[0]?.quantity).toBe(3);
-    expect(result.current.itemCount).toBe(3);
-    expect(result.current.totalPriceCents).toBe(3000);
+    await waitFor(() => {
+      expect(result.current.items[0]?.quantity).toBe(3);
+      expect(result.current.itemCount).toBe(3);
+      expect(result.current.totalPriceCents).toBe(3000);
+    });
   });
 
   it('should allow clearing cart', () => {

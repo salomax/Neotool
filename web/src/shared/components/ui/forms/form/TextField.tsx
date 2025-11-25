@@ -89,21 +89,32 @@ export const TextField: React.FC<TextFieldProps> = ({
   };
 
   // For numeric types, restrict key input and hint virtual keyboards
-  const numericKeydown: React.KeyboardEventHandler<HTMLDivElement> = (e) => {
-    if (type !== 'number') return onKeyDown?.(e);
+  const numericKeydown: React.KeyboardEventHandler<HTMLInputElement> = (e) => {
+    if (type !== 'number') {
+      onKeyDown?.(e);
+      return;
+    }
     const allowedKeys = [
       'Backspace','Tab','ArrowLeft','ArrowRight','Delete','Home','End'
     ];
     // Allow Ctrl/Cmd+A/C/V/X/Z/Y
     if ((e.ctrlKey || e.metaKey) && ['a','c','v','x','z','y'].includes(e.key.toLowerCase())) {
+      onKeyDown?.(e);
       return;
     }
-    if (allowedKeys.includes(e.key)) return;
+    if (allowedKeys.includes(e.key)) {
+      onKeyDown?.(e);
+      return;
+    }
     // Allow one dot for decimals
-    if (e.key === '.') return;
+    if (e.key === '.') {
+      onKeyDown?.(e);
+      return;
+    }
     // Block anything that's not 0-9
     if (!/^[0-9]$/.test(e.key)) {
       e.preventDefault();
+      onKeyDown?.(e);
       return;
     }
     onKeyDown?.(e);
@@ -112,6 +123,7 @@ export const TextField: React.FC<TextFieldProps> = ({
   const mergedInputPropsAttrs = {
     ...inputProps,
     ...(type === 'number' ? { inputMode: 'decimal' as const, pattern: '[0-9]*' } : {}),
+    ...(onKeyDown ? { onKeyDown: numericKeydown } : {}),
   };
 
   return (
@@ -121,7 +133,6 @@ export const TextField: React.FC<TextFieldProps> = ({
       size={muiSize}
       InputProps={mergedInputProps}
       inputProps={mergedInputPropsAttrs}
-      onKeyDown={numericKeydown}
       sx={largeSx}
       {...props}
     />

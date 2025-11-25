@@ -142,7 +142,7 @@ describe('useCustomers', () => {
     expect(result.current.customers).toEqual(mockCustomers);
   });
 
-  it('should filter customers by search term', () => {
+  it('should filter customers by search term', async () => {
     (useGetCustomersQuery as any).mockReturnValue({
       data: { customers: mockCustomers },
       loading: false,
@@ -169,11 +169,13 @@ describe('useCustomers', () => {
 
     result.current.setSearchTerm('John');
 
-    expect(result.current.filteredCustomers).toHaveLength(1);
+    await waitFor(() => {
+      expect(result.current.filteredCustomers).toHaveLength(1);
+    });
     expect(result.current.filteredCustomers[0]?.name).toBe('John Doe');
   });
 
-  it('should filter customers by status', () => {
+  it('should filter customers by status', async () => {
     (useGetCustomersQuery as any).mockReturnValue({
       data: { customers: mockCustomers },
       loading: false,
@@ -200,13 +202,15 @@ describe('useCustomers', () => {
 
     result.current.setStatusFilter(CUSTOMER_STATUSES.ACTIVE);
 
-    expect(result.current.filteredCustomers).toHaveLength(1);
+    await waitFor(() => {
+      expect(result.current.filteredCustomers).toHaveLength(1);
+    });
     expect(result.current.filteredCustomers[0]?.status).toBe(
       CUSTOMER_STATUSES.ACTIVE
     );
   });
 
-  it('should open create dialog', () => {
+  it('should open create dialog', async () => {
     (useGetCustomersQuery as any).mockReturnValue({
       data: { customers: mockCustomers },
       loading: false,
@@ -233,11 +237,13 @@ describe('useCustomers', () => {
 
     result.current.openCreateDialog();
 
-    expect(result.current.dialogOpen).toBe(true);
+    await waitFor(() => {
+      expect(result.current.dialogOpen).toBe(true);
+    });
     expect(result.current.editingCustomer).toBe(null);
   });
 
-  it('should open edit dialog', () => {
+  it('should open edit dialog', async () => {
     (useGetCustomersQuery as any).mockReturnValue({
       data: { customers: mockCustomers },
       loading: false,
@@ -264,7 +270,9 @@ describe('useCustomers', () => {
 
     result.current.openEditDialog(mockCustomers[0]!);
 
-    expect(result.current.dialogOpen).toBe(true);
+    await waitFor(() => {
+      expect(result.current.dialogOpen).toBe(true);
+    });
     expect(result.current.editingCustomer).toEqual(mockCustomers[0]);
   });
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Button } from '../Button';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
@@ -71,24 +71,22 @@ describe('Button', () => {
     expect(handleClick).toHaveBeenCalledTimes(1);
   });
 
-  it('does not call onClick when disabled', async () => {
+  it('does not call onClick when disabled', () => {
     const handleClick = vi.fn();
-    const user = userEvent.setup();
     renderButton({ onClick: handleClick, disabled: true });
 
     const button = screen.getByRole('button');
-    await user.click(button);
+    fireEvent.click(button);
 
     expect(handleClick).not.toHaveBeenCalled();
   });
 
-  it('does not call onClick when loading', async () => {
+  it('does not call onClick when loading', () => {
     const handleClick = vi.fn();
-    const user = userEvent.setup();
     renderButton({ onClick: handleClick, loading: true });
 
     const button = screen.getByRole('button');
-    await user.click(button);
+    fireEvent.click(button);
 
     expect(handleClick).not.toHaveBeenCalled();
   });
