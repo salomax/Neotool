@@ -62,6 +62,7 @@ describe("PercentField", () => {
       const [value, setValue] = React.useState<any>(null);
       
       React.useEffect(() => {
+        // eslint-disable-next-line react-hooks/incompatible-library -- React Hook Form's watch() cannot be memoized, but this is valid usage in tests
         const subscription = methods.watch((data) => {
           setValue(data.percentage);
         });

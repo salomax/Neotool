@@ -1,6 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { ICellRendererParams } from 'ag-grid-community';
 import { actionsColumn } from '../actions';
 
@@ -172,7 +173,8 @@ describe('ActionsCell', () => {
     expect(onDelete).toHaveBeenCalledWith(rowData);
   });
 
-  it('should call both handlers when both buttons are clicked', () => {
+  it('should call both handlers when both buttons are clicked', async () => {
+    const user = userEvent.setup();
     const rowData = { id: 1, name: 'Test Row' };
     const onEdit = vi.fn();
     const onDelete = vi.fn();
@@ -185,8 +187,8 @@ describe('ActionsCell', () => {
     const CellRenderer = colDef.cellRenderer as any;
     render(<CellRenderer {...params} />);
 
-    screen.getByLabelText('edit row').click();
-    screen.getByLabelText('delete row').click();
+    await user.click(screen.getByLabelText('edit row'));
+    await user.click(screen.getByLabelText('delete row'));
 
     expect(onEdit).toHaveBeenCalledTimes(1);
     expect(onEdit).toHaveBeenCalledWith(rowData);
