@@ -116,8 +116,10 @@ describe('focusFirstError', () => {
     };
 
     // Mock document.querySelector
+    // eslint-disable-next-line testing-library/no-node-access -- Testing implementation that uses querySelector internally
     const originalQuerySelector = document.querySelector;
     const mockQuerySelector = vi.fn(() => mockElement);
+    // eslint-disable-next-line testing-library/no-node-access -- Testing implementation that uses querySelector internally
     document.querySelector = mockQuerySelector as any;
 
     focusFirstError(errors);
@@ -125,6 +127,7 @@ describe('focusFirstError', () => {
     expect(mockQuerySelector).toHaveBeenCalledWith('[name="email"]');
 
     // Restore
+    // eslint-disable-next-line testing-library/no-node-access -- Testing implementation that uses querySelector internally
     document.querySelector = originalQuerySelector;
   });
 

@@ -80,9 +80,10 @@ describe("FileUploader", () => {
     const user = userEvent.setup();
     const file = createMockFile("test.txt", 1024);
     
-    renderFileUploader();
+    const { container } = renderFileUploader();
 
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    // eslint-disable-next-line testing-library/no-node-access -- Hidden file input requires direct DOM access
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
     expect(input).toBeInTheDocument();
 
     await user.upload(input, file);
@@ -97,9 +98,10 @@ describe("FileUploader", () => {
     const file1 = createMockFile("test1.txt", 1024);
     const file2 = createMockFile("test2.txt", 2048);
     
-    renderFileUploader({ multiple: true });
+    const { container } = renderFileUploader({ multiple: true });
 
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    // eslint-disable-next-line testing-library/no-node-access -- Hidden file input requires direct DOM access
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
     await user.upload(input, [file1, file2]);
 
     await waitFor(() => {
@@ -114,9 +116,11 @@ describe("FileUploader", () => {
       files: [file],
     };
 
-    renderFileUploader();
+    const { container } = renderFileUploader();
 
-    const dropZone = screen.getByText("Drag & drop here, or").closest("div");
+    const dropZoneText = screen.getByText("Drag & drop here, or");
+    // eslint-disable-next-line testing-library/no-node-access -- Need to access parent container for drag/drop events
+    const dropZone = dropZoneText.closest("div");
     expect(dropZone).toBeInTheDocument();
 
     fireEvent.dragOver(dropZone!, { preventDefault: vi.fn() });
@@ -130,7 +134,9 @@ describe("FileUploader", () => {
   it("prevents default on drag over", () => {
     renderFileUploader();
 
-    const dropZone = screen.getByText("Drag & drop here, or").closest("div");
+    const dropZoneText = screen.getByText("Drag & drop here, or");
+    // eslint-disable-next-line testing-library/no-node-access -- Need to access parent container for drag/drop events
+    const dropZone = dropZoneText.closest("div");
     expect(dropZone).toBeInTheDocument();
     
     // Verify the onDragOver handler is attached by checking the component renders
@@ -159,9 +165,10 @@ describe("FileUploader", () => {
     const largeFile = createMockFile("large.txt", 11 * 1024 * 1024); // 11 MB
     const smallFile = createMockFile("small.txt", 1024); // 1 KB
     
-    renderFileUploader({ maxSizeMb: 10, multiple: true });
+    const { container } = renderFileUploader({ maxSizeMb: 10, multiple: true });
 
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    // eslint-disable-next-line testing-library/no-node-access -- Hidden file input requires direct DOM access
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
     await user.upload(input, [largeFile, smallFile]);
 
     await waitFor(() => {
@@ -176,9 +183,10 @@ describe("FileUploader", () => {
       createMockFile(`test${i}.txt`, 1024)
     );
     
-    renderFileUploader({ maxFiles: 5, multiple: true });
+    const { container } = renderFileUploader({ maxFiles: 5, multiple: true });
 
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    // eslint-disable-next-line testing-library/no-node-access -- Hidden file input requires direct DOM access
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
     await user.upload(input, files);
 
     await waitFor(() => {
@@ -191,9 +199,10 @@ describe("FileUploader", () => {
     const user = userEvent.setup();
     const imageFile = createMockFile("image.jpg", 1024, "image/jpeg");
     
-    renderFileUploader();
+    const { container } = renderFileUploader();
 
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    // eslint-disable-next-line testing-library/no-node-access -- Hidden file input requires direct DOM access
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
     await user.upload(input, imageFile);
 
     await waitFor(() => {
@@ -206,9 +215,10 @@ describe("FileUploader", () => {
     const user = userEvent.setup();
     const textFile = createMockFile("document.txt", 1024, "text/plain");
     
-    renderFileUploader();
+    const { container } = renderFileUploader();
 
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    // eslint-disable-next-line testing-library/no-node-access -- Hidden file input requires direct DOM access
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
     await user.upload(input, textFile);
 
     await waitFor(() => {
@@ -221,9 +231,10 @@ describe("FileUploader", () => {
     const user = userEvent.setup();
     const file = createMockFile("test.txt", 1024);
     
-    renderFileUploader();
+    const { container } = renderFileUploader();
 
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    // eslint-disable-next-line testing-library/no-node-access -- Hidden file input requires direct DOM access
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
     await user.upload(input, file);
 
     await waitFor(() => {
@@ -235,9 +246,10 @@ describe("FileUploader", () => {
     const user = userEvent.setup();
     const file = createMockFile("large.txt", 2 * 1024 * 1024); // 2 MB
     
-    renderFileUploader();
+    const { container } = renderFileUploader();
 
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    // eslint-disable-next-line testing-library/no-node-access -- Hidden file input requires direct DOM access
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
     await user.upload(input, file);
 
     await waitFor(() => {
@@ -249,9 +261,10 @@ describe("FileUploader", () => {
     const user = userEvent.setup();
     const file = createMockFile("tiny.txt", 512); // 512 bytes
     
-    renderFileUploader();
+    const { container } = renderFileUploader();
 
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    // eslint-disable-next-line testing-library/no-node-access -- Hidden file input requires direct DOM access
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
     await user.upload(input, file);
 
     await waitFor(() => {
@@ -263,9 +276,10 @@ describe("FileUploader", () => {
     const user = userEvent.setup();
     const imageFile = createMockFile("image.png", 1024, "image/png");
     
-    renderFileUploader();
+    const { container } = renderFileUploader();
 
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    // eslint-disable-next-line testing-library/no-node-access -- Hidden file input requires direct DOM access
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
     await user.upload(input, imageFile);
 
     await waitFor(() => {
@@ -278,9 +292,10 @@ describe("FileUploader", () => {
     const user = userEvent.setup();
     const textFile = createMockFile("document.pdf", 1024, "application/pdf");
     
-    renderFileUploader();
+    const { container } = renderFileUploader();
 
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    // eslint-disable-next-line testing-library/no-node-access -- Hidden file input requires direct DOM access
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
     await user.upload(input, textFile);
 
     await waitFor(() => {
@@ -292,28 +307,23 @@ describe("FileUploader", () => {
     const user = userEvent.setup();
     const file = createMockFile("test.txt", 1024);
     
-    renderFileUploader();
+    const { container } = renderFileUploader();
 
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    // eslint-disable-next-line testing-library/no-node-access -- Hidden file input requires direct DOM access
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
     await user.upload(input, file);
 
     await waitFor(() => {
       expect(screen.getByText("test.txt")).toBeInTheDocument();
     });
 
-    // Find the delete button (IconButton with DeleteIcon)
-    const deleteButtons = screen.getAllByRole("button");
-    const deleteButton = deleteButtons.find((btn) =>
-      btn.querySelector('svg[data-testid="DeleteIcon"]') || 
-      btn.closest('[aria-label*="delete" i]')
-    ) || deleteButtons[deleteButtons.length - 1]; // Fallback to last button (select files is first)
+    // Find the delete button by label
+    const deleteButton = screen.getByLabelText(/delete/i);
+    await user.click(deleteButton);
     
-    if (deleteButton) {
-      await user.click(deleteButton);
-      await waitFor(() => {
-        expect(screen.queryByText("test.txt")).not.toBeInTheDocument();
-      });
-    }
+    await waitFor(() => {
+      expect(screen.queryByText("test.txt")).not.toBeInTheDocument();
+    });
   });
 
   it("handles removing file from multiple files", async () => {
@@ -321,9 +331,10 @@ describe("FileUploader", () => {
     const file1 = createMockFile("test1.txt", 1024);
     const file2 = createMockFile("test2.txt", 2048);
     
-    renderFileUploader({ multiple: true });
+    const { container } = renderFileUploader({ multiple: true });
 
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    // eslint-disable-next-line testing-library/no-node-access -- Hidden file input requires direct DOM access
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
     await user.upload(input, [file1, file2]);
 
     await waitFor(() => {
@@ -331,23 +342,22 @@ describe("FileUploader", () => {
       expect(screen.getByText("test2.txt")).toBeInTheDocument();
     });
 
-    const deleteButtons = screen.getAllByRole("button");
-    const deleteButton = deleteButtons.find((btn) =>
-      btn.querySelector('svg[data-testid="DeleteIcon"]')
-    );
+    // Find the first delete button (for test1.txt)
+    const deleteButtons = screen.getAllByLabelText(/delete/i);
+    expect(deleteButtons.length).toBeGreaterThan(0);
+    expect(deleteButtons[0]).toBeDefined();
+    await user.click(deleteButtons[0]!);
     
-    if (deleteButton) {
-      await user.click(deleteButton);
-      await waitFor(() => {
-        expect(screen.queryByText("test1.txt")).not.toBeInTheDocument();
-        expect(screen.getByText("test2.txt")).toBeInTheDocument();
-      });
-    }
+    await waitFor(() => {
+      expect(screen.queryByText("test1.txt")).not.toBeInTheDocument();
+      expect(screen.getByText("test2.txt")).toBeInTheDocument();
+    });
   });
 
   it("respects accept prop for file types", () => {
-    renderFileUploader({ accept: "image/*" });
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const { container } = renderFileUploader({ accept: "image/*" });
+    // eslint-disable-next-line testing-library/no-node-access -- Hidden file input requires direct DOM access
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
     expect(input.accept).toBe("image/*");
   });
 
@@ -381,9 +391,10 @@ describe("FileUploader", () => {
     const file1 = createMockFile("test1.txt", 1024);
     const file2 = createMockFile("test2.txt", 2048);
     
-    renderFileUploader({ multiple: true }, { files: [{ file: file1 }] });
+    const { container } = renderFileUploader({ multiple: true }, { files: [{ file: file1 }] });
 
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    // eslint-disable-next-line testing-library/no-node-access -- Hidden file input requires direct DOM access
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
     await user.upload(input, file2);
 
     await waitFor(() => {

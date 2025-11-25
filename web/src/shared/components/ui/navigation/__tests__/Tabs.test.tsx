@@ -6,6 +6,8 @@ import Tabs, { TabItem } from '../Tabs';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
 
 // Mock ResizeObserver (needed for both our component and MUI Tabs)
+type ResizeObserverCallback = (entries: ResizeObserverEntry[], observer: ResizeObserver) => void;
+
 global.ResizeObserver = class ResizeObserver {
   observe = vi.fn();
   unobserve = vi.fn();
@@ -75,7 +77,7 @@ describe('Tabs', () => {
     it('selects first tab by default', () => {
       renderTabs();
       
-      const tab1 = screen.getByText('Tab 1').closest('[role="tab"]');
+      const tab1 = screen.getByRole('tab', { name: 'Tab 1' });
       expect(tab1).toHaveAttribute('aria-selected', 'true');
       expect(screen.getByText('Content 1')).toBeInTheDocument();
     });
@@ -83,7 +85,7 @@ describe('Tabs', () => {
     it('selects tab specified by value prop', () => {
       renderTabs({ value: 'tab2' });
       
-      const tab2 = screen.getByText('Tab 2').closest('[role="tab"]');
+      const tab2 = screen.getByRole('tab', { name: 'Tab 2' });
       expect(tab2).toHaveAttribute('aria-selected', 'true');
       expect(screen.getByText('Content 2')).toBeInTheDocument();
     });
@@ -340,7 +342,7 @@ describe('Tabs', () => {
         </AppThemeProvider>
       );
       
-      const tab = screen.getByText('Tab 1').closest('[role="tab"]');
+      const tab = screen.getByRole('tab', { name: 'Tab 1' });
       // MUI Tabs uses disabled class or aria-disabled, check for either
       expect(tab).toHaveClass('Mui-disabled');
     });

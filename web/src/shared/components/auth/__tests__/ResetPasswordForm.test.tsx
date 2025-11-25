@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ResetPasswordForm } from '../ResetPasswordForm';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
@@ -84,7 +84,7 @@ describe('ResetPasswordForm', () => {
     renderResetPasswordForm();
 
     const passwordField = screen.getByTestId('textfield-new-password');
-    const passwordInput = passwordField.querySelector('input[name="newPassword"]') as HTMLInputElement;
+    const passwordInput = within(passwordField).getByLabelText(/new password/i) as HTMLInputElement;
     const submitButton = screen.getByTestId('button-reset-password');
 
     await user.type(passwordInput, 'weak');
@@ -100,9 +100,9 @@ describe('ResetPasswordForm', () => {
     renderResetPasswordForm();
 
     const passwordField = screen.getByTestId('textfield-new-password');
-    const passwordInput = passwordField.querySelector('input[name="newPassword"]') as HTMLInputElement;
+    const passwordInput = within(passwordField).getByLabelText(/new password/i) as HTMLInputElement;
     const confirmField = screen.getByTestId('textfield-confirm-password');
-    const confirmPasswordInput = confirmField.querySelector('input[name="confirmPassword"]') as HTMLInputElement;
+    const confirmPasswordInput = within(confirmField).getByLabelText(/confirm password/i) as HTMLInputElement;
     const submitButton = screen.getByTestId('button-reset-password');
 
     await user.type(passwordInput, 'ValidPass123!');
@@ -119,9 +119,9 @@ describe('ResetPasswordForm', () => {
     renderResetPasswordForm();
 
     const passwordField = screen.getByTestId('textfield-new-password');
-    const passwordInput = passwordField.querySelector('input[name="newPassword"]') as HTMLInputElement;
+    const passwordInput = within(passwordField).getByLabelText(/new password/i) as HTMLInputElement;
     const confirmField = screen.getByTestId('textfield-confirm-password');
-    const confirmPasswordInput = confirmField.querySelector('input[name="confirmPassword"]') as HTMLInputElement;
+    const confirmPasswordInput = within(confirmField).getByLabelText(/confirm password/i) as HTMLInputElement;
     const submitButton = screen.getByTestId('button-reset-password');
 
     await user.type(passwordInput, 'ValidPass123!');
@@ -139,9 +139,9 @@ describe('ResetPasswordForm', () => {
     renderResetPasswordForm({ onSuccess });
 
     const passwordField = screen.getByTestId('textfield-new-password');
-    const passwordInput = passwordField.querySelector('input[name="newPassword"]') as HTMLInputElement;
+    const passwordInput = within(passwordField).getByLabelText(/new password/i) as HTMLInputElement;
     const confirmField = screen.getByTestId('textfield-confirm-password');
-    const confirmPasswordInput = confirmField.querySelector('input[name="confirmPassword"]') as HTMLInputElement;
+    const confirmPasswordInput = within(confirmField).getByLabelText(/confirm password/i) as HTMLInputElement;
     const submitButton = screen.getByTestId('button-reset-password');
 
     await user.type(passwordInput, 'ValidPass123!');
@@ -165,9 +165,9 @@ describe('ResetPasswordForm', () => {
     renderResetPasswordForm();
 
     const passwordField = screen.getByTestId('textfield-new-password');
-    const passwordInput = passwordField.querySelector('input[name="newPassword"]') as HTMLInputElement;
+    const passwordInput = within(passwordField).getByLabelText(/new password/i) as HTMLInputElement;
     const confirmField = screen.getByTestId('textfield-confirm-password');
-    const confirmPasswordInput = confirmField.querySelector('input[name="confirmPassword"]') as HTMLInputElement;
+    const confirmPasswordInput = within(confirmField).getByLabelText(/confirm password/i) as HTMLInputElement;
     const submitButton = screen.getByTestId('button-reset-password');
 
     await user.type(passwordInput, 'ValidPass123!');
@@ -184,9 +184,9 @@ describe('ResetPasswordForm', () => {
     renderResetPasswordForm();
 
     const passwordField = screen.getByTestId('textfield-new-password');
-    const passwordInput = passwordField.querySelector('input[name="newPassword"]') as HTMLInputElement;
+    const passwordInput = within(passwordField).getByLabelText(/new password/i) as HTMLInputElement;
     const confirmField = screen.getByTestId('textfield-confirm-password');
-    const confirmPasswordInput = confirmField.querySelector('input[name="confirmPassword"]') as HTMLInputElement;
+    const confirmPasswordInput = within(confirmField).getByLabelText(/confirm password/i) as HTMLInputElement;
     const submitButton = screen.getByTestId('button-reset-password');
 
     await user.type(passwordInput, 'ValidPass123!');
@@ -208,9 +208,9 @@ describe('ResetPasswordForm', () => {
     renderResetPasswordForm({ onSuccess });
 
     const passwordField = screen.getByTestId('textfield-new-password');
-    const passwordInput = passwordField.querySelector('input[name="newPassword"]') as HTMLInputElement;
+    const passwordInput = within(passwordField).getByLabelText(/new password/i) as HTMLInputElement;
     const confirmField = screen.getByTestId('textfield-confirm-password');
-    const confirmPasswordInput = confirmField.querySelector('input[name="confirmPassword"]') as HTMLInputElement;
+    const confirmPasswordInput = within(confirmField).getByLabelText(/confirm password/i) as HTMLInputElement;
     const submitButton = screen.getByTestId('button-reset-password');
 
     await user.type(passwordInput, 'ValidPass123!');
@@ -229,9 +229,9 @@ describe('ResetPasswordForm', () => {
     renderResetPasswordForm();
 
     const passwordField = screen.getByTestId('textfield-new-password');
-    const passwordInput = passwordField.querySelector('input[name="newPassword"]') as HTMLInputElement;
+    const passwordInput = within(passwordField).getByLabelText(/new password/i) as HTMLInputElement;
     const confirmField = screen.getByTestId('textfield-confirm-password');
-    const confirmPasswordInput = confirmField.querySelector('input[name="confirmPassword"]') as HTMLInputElement;
+    const confirmPasswordInput = within(confirmField).getByLabelText(/confirm password/i) as HTMLInputElement;
     const submitButton = screen.getByTestId('button-reset-password');
 
     await user.type(passwordInput, 'ValidPass123!');
@@ -255,9 +255,9 @@ describe('ResetPasswordForm', () => {
     renderResetPasswordForm();
 
     const passwordField = screen.getByTestId('textfield-new-password');
-    const passwordInput = passwordField.querySelector('input[name="newPassword"]') as HTMLInputElement;
+    const passwordInput = within(passwordField).getByLabelText(/new password/i) as HTMLInputElement;
     const confirmField = screen.getByTestId('textfield-confirm-password');
-    const confirmPasswordInput = confirmField.querySelector('input[name="confirmPassword"]') as HTMLInputElement;
+    const confirmPasswordInput = within(confirmField).getByLabelText(/confirm password/i) as HTMLInputElement;
     const submitButton = screen.getByTestId('button-reset-password');
 
     await user.type(passwordInput, 'ValidPass123!');
