@@ -70,15 +70,13 @@ describe('ActionsCell', () => {
     setValue: vi.fn(),
     formatValue: vi.fn(),
     api: {} as any,
-    columnApi: {} as any,
     colDef: {} as any,
     column: {} as any,
-    rowIndex: 0,
     node: {} as any,
-    eGridCell: null,
-    eParentOfValue: null,
+    eGridCell: null as any,
+    eParentOfValue: null as any,
     ...overrides,
-  });
+  } as ICellRendererParams);
 
   it('should render both edit and delete buttons when both handlers are provided', () => {
     const onEdit = vi.fn();

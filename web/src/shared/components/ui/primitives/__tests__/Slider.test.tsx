@@ -56,7 +56,7 @@ describe('Slider', () => {
     it('shows value with custom formatter', () => {
       renderSlider({ 
         value: 50, 
-        valueFormatter: (val) => `${val}%` 
+        valueFormatter: (val: number) => `${val}%` 
       });
       expect(screen.getByText('50%')).toBeInTheDocument();
     });

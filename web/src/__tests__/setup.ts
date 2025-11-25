@@ -1,5 +1,12 @@
 import '@testing-library/jest-dom';
 
+// Extend Window interface to include getCurrentEventPriority
+declare global {
+  interface Window {
+    getCurrentEventPriority?: () => number;
+  }
+}
+
 // Fix for React DOM 18.3.1 "window is not defined" error in tests
 // React DOM's development build tries to access window.getCurrentEventPriority
 // during state updates, which can fail in async contexts in jsdom

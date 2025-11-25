@@ -188,7 +188,7 @@ describe('Switch', () => {
       renderSwitch({
         showStatus: true,
         defaultChecked: true,
-        statusFormatter: (checked) => checked ? 'Enabled' : 'Disabled'
+        statusFormatter: (checked: boolean) => checked ? 'Enabled' : 'Disabled'
       });
       expect(screen.getByText('Enabled')).toBeInTheDocument();
     });

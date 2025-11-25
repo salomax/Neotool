@@ -15,7 +15,7 @@ vi.mock('next/navigation', () => ({
 
 // Mock theme mode hook
 const mockToggle = vi.fn();
-const mockUseThemeMode = vi.fn(() => ({
+const mockUseThemeMode = vi.fn<[], { mode: 'light' | 'dark'; toggle: () => void }>(() => ({
   mode: 'light' as const,
   toggle: mockToggle,
 }));
@@ -29,11 +29,35 @@ vi.mock('@/styles/themes/AppThemeProvider', async () => {
 });
 
 // Mock auth provider
+type User = {
+  id: string;
+  email: string;
+  displayName?: string | null;
+};
+
+type AuthContextType = {
+  user: User | null;
+  token: string | null;
+  isLoading: boolean;
+  signIn: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
+  signInWithOAuth: (provider: string, idToken: string, rememberMe?: boolean) => Promise<void>;
+  signUp: (name: string, email: string, password: string) => Promise<void>;
+  signOut: () => void;
+  isAuthenticated: boolean;
+};
+
 const mockSignOut = vi.fn();
-const mockUseAuth = vi.fn(() => ({
+const mockSignIn = vi.fn();
+const mockSignInWithOAuth = vi.fn();
+const mockSignUp = vi.fn();
+const mockUseAuth = vi.fn<[], AuthContextType>(() => ({
   isAuthenticated: false,
   user: null,
+  token: null,
   signOut: mockSignOut,
+  signIn: mockSignIn,
+  signInWithOAuth: mockSignInWithOAuth,
+  signUp: mockSignUp,
   isLoading: false,
 }));
 
@@ -77,7 +101,11 @@ describe('AppHeader', () => {
     mockUseAuth.mockReturnValue({
       isAuthenticated: false,
       user: null,
+      token: null,
       signOut: mockSignOut,
+      signIn: mockSignIn,
+      signInWithOAuth: mockSignInWithOAuth,
+      signUp: mockSignUp,
       isLoading: false,
     });
   });
@@ -108,7 +136,11 @@ describe('AppHeader', () => {
       mockUseAuth.mockReturnValue({
         isAuthenticated: false,
         user: null,
+        token: null,
         signOut: mockSignOut,
+        signIn: mockSignIn,
+        signInWithOAuth: mockSignInWithOAuth,
+        signUp: mockSignUp,
         isLoading: false,
       });
 
@@ -123,10 +155,15 @@ describe('AppHeader', () => {
       mockUseAuth.mockReturnValue({
         isAuthenticated: true,
         user: {
+          id: '1',
           displayName: 'John Doe',
           email: 'john@example.com',
         },
+        token: 'test-token',
         signOut: mockSignOut,
+        signIn: mockSignIn,
+        signInWithOAuth: mockSignInWithOAuth,
+        signUp: mockSignUp,
         isLoading: false,
       });
 
@@ -217,10 +254,15 @@ describe('AppHeader', () => {
       mockUseAuth.mockReturnValue({
         isAuthenticated: true,
         user: {
+          id: '1',
           displayName: 'John Doe',
           email: 'john@example.com',
         },
+        token: 'test-token',
         signOut: mockSignOut,
+        signIn: mockSignIn,
+        signInWithOAuth: mockSignInWithOAuth,
+        signUp: mockSignUp,
         isLoading: false,
       });
 
@@ -239,10 +281,15 @@ describe('AppHeader', () => {
       mockUseAuth.mockReturnValue({
         isAuthenticated: true,
         user: {
+          id: '1',
           displayName: 'John Doe',
           email: 'john@example.com',
         },
+        token: 'test-token',
         signOut: mockSignOut,
+        signIn: mockSignIn,
+        signInWithOAuth: mockSignInWithOAuth,
+        signUp: mockSignUp,
         isLoading: false,
       });
 
@@ -260,10 +307,15 @@ describe('AppHeader', () => {
       mockUseAuth.mockReturnValue({
         isAuthenticated: true,
         user: {
+          id: '1',
           displayName: 'John Doe',
           email: 'john@example.com',
         },
+        token: 'test-token',
         signOut: mockSignOut,
+        signIn: mockSignIn,
+        signInWithOAuth: mockSignInWithOAuth,
+        signUp: mockSignUp,
         isLoading: false,
       });
 
@@ -288,10 +340,15 @@ describe('AppHeader', () => {
       mockUseAuth.mockReturnValue({
         isAuthenticated: true,
         user: {
+          id: '1',
           displayName: 'John Doe',
           email: 'john@example.com',
         },
+        token: 'test-token',
         signOut: mockSignOut,
+        signIn: mockSignIn,
+        signInWithOAuth: mockSignInWithOAuth,
+        signUp: mockSignUp,
         isLoading: false,
       });
 
@@ -315,7 +372,11 @@ describe('AppHeader', () => {
       mockUseAuth.mockReturnValue({
         isAuthenticated: true,
         user: null,
+        token: 'test-token',
         signOut: mockSignOut,
+        signIn: mockSignIn,
+        signInWithOAuth: mockSignInWithOAuth,
+        signUp: mockSignUp,
         isLoading: false,
       });
 
@@ -329,10 +390,15 @@ describe('AppHeader', () => {
       mockUseAuth.mockReturnValue({
         isAuthenticated: true,
         user: {
+          id: '1',
           displayName: 'John Doe',
           email: 'john@example.com',
         },
+        token: 'test-token',
         signOut: mockSignOut,
+        signIn: mockSignIn,
+        signInWithOAuth: mockSignInWithOAuth,
+        signUp: mockSignUp,
         isLoading: false,
       });
 
@@ -347,10 +413,15 @@ describe('AppHeader', () => {
       mockUseAuth.mockReturnValue({
         isAuthenticated: true,
         user: {
+          id: '1',
           displayName: 'John',
           email: 'john@example.com',
         },
+        token: 'test-token',
         signOut: mockSignOut,
+        signIn: mockSignIn,
+        signInWithOAuth: mockSignInWithOAuth,
+        signUp: mockSignUp,
         isLoading: false,
       });
 
@@ -364,10 +435,15 @@ describe('AppHeader', () => {
       mockUseAuth.mockReturnValue({
         isAuthenticated: true,
         user: {
+          id: '1',
           displayName: '  John  ',
           email: 'john@example.com',
         },
+        token: 'test-token',
         signOut: mockSignOut,
+        signIn: mockSignIn,
+        signInWithOAuth: mockSignInWithOAuth,
+        signUp: mockSignUp,
         isLoading: false,
       });
 
@@ -381,10 +457,15 @@ describe('AppHeader', () => {
       mockUseAuth.mockReturnValue({
         isAuthenticated: true,
         user: {
+          id: '1',
           displayName: null,
           email: 'john@example.com',
         },
+        token: 'test-token',
         signOut: mockSignOut,
+        signIn: mockSignIn,
+        signInWithOAuth: mockSignInWithOAuth,
+        signUp: mockSignUp,
         isLoading: false,
       });
 
@@ -398,10 +479,15 @@ describe('AppHeader', () => {
       mockUseAuth.mockReturnValue({
         isAuthenticated: true,
         user: {
+          id: '1',
           displayName: '',
           email: 'john@example.com',
         },
+        token: 'test-token',
         signOut: mockSignOut,
+        signIn: mockSignIn,
+        signInWithOAuth: mockSignInWithOAuth,
+        signUp: mockSignUp,
         isLoading: false,
       });
 
@@ -415,10 +501,15 @@ describe('AppHeader', () => {
       mockUseAuth.mockReturnValue({
         isAuthenticated: true,
         user: {
+          id: '1',
           displayName: null,
           email: '',
         },
+        token: 'test-token',
         signOut: mockSignOut,
+        signIn: mockSignIn,
+        signInWithOAuth: mockSignInWithOAuth,
+        signUp: mockSignUp,
         isLoading: false,
       });
 
@@ -432,10 +523,15 @@ describe('AppHeader', () => {
       mockUseAuth.mockReturnValue({
         isAuthenticated: true,
         user: {
+          id: '1',
           displayName: 'John  Middle  Doe',
           email: 'john@example.com',
         },
+        token: 'test-token',
         signOut: mockSignOut,
+        signIn: mockSignIn,
+        signInWithOAuth: mockSignInWithOAuth,
+        signUp: mockSignUp,
         isLoading: false,
       });
 
@@ -450,10 +546,15 @@ describe('AppHeader', () => {
       mockUseAuth.mockReturnValue({
         isAuthenticated: true,
         user: {
+          id: '1',
           displayName: '   ',
           email: 'john@example.com',
         },
+        token: 'test-token',
         signOut: mockSignOut,
+        signIn: mockSignIn,
+        signInWithOAuth: mockSignInWithOAuth,
+        signUp: mockSignUp,
         isLoading: false,
       });
 
@@ -468,10 +569,15 @@ describe('AppHeader', () => {
       mockUseAuth.mockReturnValue({
         isAuthenticated: true,
         user: {
+          id: '1',
           displayName: null,
           email: 'john@example.com',
         },
+        token: 'test-token',
         signOut: mockSignOut,
+        signIn: mockSignIn,
+        signInWithOAuth: mockSignInWithOAuth,
+        signUp: mockSignUp,
         isLoading: false,
       });
 
@@ -493,10 +599,15 @@ describe('AppHeader', () => {
       mockUseAuth.mockReturnValue({
         isAuthenticated: true,
         user: {
+          id: '1',
           displayName: 'John Doe',
           email: 'john@example.com',
         },
+        token: 'test-token',
         signOut: mockSignOut,
+        signIn: mockSignIn,
+        signInWithOAuth: mockSignInWithOAuth,
+        signUp: mockSignUp,
         isLoading: false,
       });
 
