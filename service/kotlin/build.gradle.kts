@@ -316,8 +316,7 @@ subprojects {
                         element = "PACKAGE"
                         includes = listOf(
                             "io.github.salomax.neotool.security.service.*",
-                            "io.github.salomax.neotool.*.service.*",
-                            "io.github.salomax.procureflow.*.service.*"
+                            "io.github.salomax.neotool.*.service.*"
                         )
                         limit {
                             minimum = "0.80".toBigDecimal()
