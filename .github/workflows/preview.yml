@@ -93,7 +93,7 @@ jobs:
 
       - name: Run ktlint check
         working-directory: ./service/kotlin
-        run: ./gradlew ktlintCheck --no-daemon --parallel
+        run: ./gradlew :${{ matrix.service }}:ktlintCheck --no-daemon --parallel
 
       - name: Run all tests (unit + integration) with coverage
         working-directory: ./service/kotlin
