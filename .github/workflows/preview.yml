@@ -88,16 +88,16 @@ jobs:
           java-version: '21'
           cache: gradle
 
-      - name: Cache Gradle dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-            service/kotlin/.gradle
-          key: ${{ runner.os }}-gradle-${{ hashFiles('service/kotlin/**/*.gradle*', 'service/kotlin/gradle/wrapper/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
+      # - name: Cache Gradle dependencies
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: |
+      #       ~/.gradle/caches
+      #       ~/.gradle/wrapper
+      #       service/kotlin/.gradle
+      #     key: ${{ runner.os }}-gradle-${{ hashFiles('service/kotlin/**/*.gradle*', 'service/kotlin/gradle/wrapper/gradle-wrapper.properties') }}
+      #     restore-keys: |
+      #       ${{ runner.os }}-gradle-
 
       - name: Make gradlew executable
         run: chmod +x service/kotlin/gradlew
