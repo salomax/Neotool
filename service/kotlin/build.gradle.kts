@@ -50,10 +50,6 @@ allprojects {
         testLogging {
             events("passed", "skipped", "failed")
         }
-        
-        // Disable build cache for test compilation to avoid ClassFormatError
-        // This ensures tests always compile fresh, avoiding corrupted cache issues
-        outputs.upToDateWhen { false }
     }
 }
 
