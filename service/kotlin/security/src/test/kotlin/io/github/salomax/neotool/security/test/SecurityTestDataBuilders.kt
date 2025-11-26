@@ -231,7 +231,7 @@ object SecurityTestDataBuilders {
      * Generate a unique email for testing
      */
     fun uniqueEmail(prefix: String = "test"): String {
-        return "$prefix-${System.currentTimeMillis()}-${Thread.currentThread().id}-" +
+        return "$prefix-${System.currentTimeMillis()}-${Thread.currentThread().threadId()}-" +
             "${UUID.randomUUID().toString().take(8)}@example.com"
     }
 
