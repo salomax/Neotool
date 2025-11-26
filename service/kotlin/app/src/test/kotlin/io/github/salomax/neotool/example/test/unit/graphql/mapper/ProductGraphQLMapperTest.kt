@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.example.test.unit.graphql.mapper
 
-import io.github.salomax.neotool.example.domain.Product
 import io.github.salomax.neotool.example.graphql.dto.ProductInputDTO
 import io.github.salomax.neotool.example.graphql.mapper.ProductGraphQLMapper
 import org.assertj.core.api.Assertions.assertThat
@@ -258,5 +257,3 @@ class ProductGraphQLMapperTest {
         }
     }
 }
-
-

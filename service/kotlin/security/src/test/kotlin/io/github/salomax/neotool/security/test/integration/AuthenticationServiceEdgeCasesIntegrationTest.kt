@@ -604,4 +604,3 @@ open class AuthenticationServiceEdgeCasesIntegrationTest : BaseIntegrationTest()
         }
     }
 }
-

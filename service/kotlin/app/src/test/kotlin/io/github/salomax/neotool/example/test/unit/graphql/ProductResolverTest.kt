@@ -207,15 +207,19 @@ class ProductResolverTest {
                     id = UUID.randomUUID(),
                     name = "Test Product",
                     sku = "TEST-001",
-                    priceCents = 0L, // Default value
-                    stock = 0, // Default value
+                    // Default value
+                    priceCents = 0L,
+                    // Default value
+                    stock = 0,
                 )
             val input =
                 mapOf(
                     "name" to "Test Product",
                     "sku" to "TEST-001",
-                    "priceCents" to null, // Field is null
-                    "stock" to null, // Field is null
+                    // Field is null
+                    "priceCents" to null,
+                    // Field is null
+                    "stock" to null,
                 )
 
             // Mock the service
@@ -235,7 +239,8 @@ class ProductResolverTest {
             // Arrange - name field is null and has no default
             val input =
                 mapOf(
-                    "name" to null, // Field is null, no default
+                    // Field is null, no default
+                    "name" to null,
                     "sku" to "TEST-001",
                 )
 
@@ -245,6 +250,5 @@ class ProductResolverTest {
             assertThat(result.errors).isNotEmpty
             assertThat(result.errors[0].message).contains("Field 'name' is required")
         }
-
     }
 }

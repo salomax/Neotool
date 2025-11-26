@@ -288,13 +288,15 @@ class CustomerResolverTest {
                     id = UUID.randomUUID(),
                     name = "Test Customer",
                     email = "test@example.com",
-                    status = CustomerStatus.ACTIVE, // Default value
+                    // Default value
+                    status = CustomerStatus.ACTIVE,
                 )
             val input =
                 mapOf(
                     "name" to "Test Customer",
                     "email" to "test@example.com",
-                    "status" to null, // Field is null
+                    // Field is null
+                    "status" to null,
                 )
 
             // Mock the service
@@ -313,7 +315,8 @@ class CustomerResolverTest {
             // Arrange - name field is null and has no default
             val input =
                 mapOf(
-                    "name" to null, // Field is null, no default
+                    // Field is null, no default
+                    "name" to null,
                     "email" to "test@example.com",
                 )
 
@@ -323,6 +326,5 @@ class CustomerResolverTest {
             assertThat(result.errors).isNotEmpty
             assertThat(result.errors[0].message).contains("Field 'name' is required")
         }
-
     }
 }

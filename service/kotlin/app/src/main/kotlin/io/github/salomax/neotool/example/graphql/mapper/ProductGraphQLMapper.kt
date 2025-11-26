@@ -27,7 +27,7 @@ class ProductGraphQLMapper {
         if (value == null) {
             return defaultValue ?: throw IllegalArgumentException("Field '$name' is required")
         }
-        
+
         return if (value is T) {
             value
         } else {
@@ -82,4 +82,3 @@ class ProductGraphQLMapper {
         )
     }
 }
-
