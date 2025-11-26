@@ -110,20 +110,30 @@ subprojects {
     afterEvaluate {
         // Configure Kover to exclude Micronaut internals and generated classes
         // This prevents ClassFormatError while still collecting coverage for application code
-        extensions.configure<org.jetbrains.kotlinx.kover.gradle.plugin.dsl.KoverExtension> {
-            instrumentation {
-                // Exclude Micronaut service loader classes that cause ClassFormatError
-                // These are loaded via service loading and instrumentation breaks them
-                excludedClasses.add("io.micronaut.core.io.service.SoftServiceLoader")
-                excludedClasses.add("io.micronaut.core.io.service.ServiceLoader")
-                // Exclude generated classes (KSP, annotation processors) using class name patterns
-                excludedClasses.add("*\$*") // Generated inner classes (e.g., MyClass$Companion)
-                excludedClasses.add("*Generated*") // Classes with "Generated" in name
-                excludedClasses.add("*_Factory*") // KSP factory classes
-                excludedClasses.add("*_Impl*") // KSP implementation classes
-                excludedClasses.add("*_Builder*") // Builder classes
-                // Exclude test infrastructure classes from coverage
-                excludedClasses.add("io.github.salomax.neotool.common.test.*")
+        // Use extension by name with dynamic invocation to avoid type resolution issues
+        extensions.findByName("kover")?.let { kover ->
+            try {
+                // Use dynamic method invocation to configure Kover
+                // This avoids the need to resolve the KoverExtension type at configuration time
+                val instrumentation = kover.javaClass.getMethod("getInstrumentation").invoke(kover)
+                val excludedClasses = instrumentation.javaClass.getMethod("getExcludedClasses").invoke(instrumentation) as? MutableCollection<String>
+                excludedClasses?.apply {
+                    // Exclude Micronaut service loader classes that cause ClassFormatError
+                    // These are loaded via service loading and instrumentation breaks them
+                    add("io.micronaut.core.io.service.SoftServiceLoader")
+                    add("io.micronaut.core.io.service.ServiceLoader")
+                    // Exclude generated classes (KSP, annotation processors) using class name patterns
+                    add("*\$*") // Generated inner classes (e.g., MyClass$Companion)
+                    add("*Generated*") // Classes with "Generated" in name
+                    add("*_Factory*") // KSP factory classes
+                    add("*_Impl*") // KSP implementation classes
+                    add("*_Builder*") // Builder classes
+                    // Exclude test infrastructure classes from coverage
+                    add("io.github.salomax.neotool.common.test.*")
+                }
+            } catch (e: Exception) {
+                // If reflection fails, skip configuration (Kover will use defaults)
+                logger.warn("Could not configure Kover exclusions: ${e.message}")
             }
         }
         
