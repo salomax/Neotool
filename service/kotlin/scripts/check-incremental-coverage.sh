@@ -58,14 +58,14 @@ echo -e "${YELLOW}Changed files:${NC}"
 echo "$CHANGED_FILES" | sed 's/^/  - /'
 
 # Check if coverage report exists
-COVERAGE_XML="service/kotlin/$MODULE/build/reports/jacoco/test/jacocoTestReport.xml"
+COVERAGE_XML="service/kotlin/$MODULE/build/reports/kover/xml/report.xml"
 if [ ! -f "$COVERAGE_XML" ]; then
     echo -e "${RED}Error: Coverage report not found at $COVERAGE_XML${NC}"
-    echo -e "${YELLOW}Please run: ./gradlew :$MODULE:test :$MODULE:jacocoTestReport${NC}"
+    echo -e "${YELLOW}Please run: ./gradlew :$MODULE:test :$MODULE:koverXmlReport${NC}"
     exit 1
 fi
 
-# Use Python to parse JaCoCo XML and check coverage for changed lines
+# Use Python to parse Kover XML and check coverage for changed lines
 python3 << EOF
 import xml.etree.ElementTree as ET
 import subprocess
@@ -73,7 +73,7 @@ import sys
 import re
 from pathlib import Path
 
-# Parse JaCoCo XML report
+# Parse Kover XML report
 tree = ET.parse('$COVERAGE_XML')
 root = tree.getroot()
 
@@ -121,7 +121,7 @@ for changed_file in changed_files:
     if not changed_lines:
         continue
     
-    # Find package in JaCoCo report
+    # Find package in Kover report
     # Convert file path to package path
     # service/kotlin/app/src/main/kotlin/io/github/salomax/neotool/example/service/Services.kt
     # -> io/github/salomax/neotool/example/service/Services
@@ -131,21 +131,27 @@ for changed_file in changed_files:
     else:
         continue
     
-    # Find class in JaCoCo report
+    # Find class in Kover report
+    # Kover XML structure: <report><package><class><sourcefile><line>
     class_name = file_path.stem
     found_class = False
     
+    # Kover uses different XML structure - look for packages, then classes, then sourcefiles
     for package_elem in root.findall('.//package'):
-        if package_elem.get('name') in package_path or package_path.endswith(package_elem.get('name')):
+        package_name = package_elem.get('name', '')
+        if package_name in package_path or package_path.endswith(package_name):
             for class_elem in package_elem.findall('.//class'):
-                if class_name in class_elem.get('name', ''):
+                class_name_attr = class_elem.get('name', '')
+                if class_name in class_name_attr or class_name_attr.endswith(class_name):
                     found_class = True
                     # Check coverage for changed lines
-                    for sourcefile in package_elem.findall('.//sourcefile'):
-                        if sourcefile.get('name') == file_path.name:
+                    for sourcefile in class_elem.findall('.//sourcefile'):
+                        sourcefile_name = sourcefile.get('name', '')
+                        if sourcefile_name == file_path.name:
                             for line_elem in sourcefile.findall('.//line'):
-                                line_num = int(line_elem.get('nr'))
+                                line_num = int(line_elem.get('nr', 0))
                                 if line_num in changed_lines:
+                                    # Kover uses 'mi' for missed instructions and 'ci' for covered instructions
                                     mi = int(line_elem.get('mi', 0))  # missed instructions
                                     ci = int(line_elem.get('ci', 0))  # covered instructions
                                     total_missed += mi

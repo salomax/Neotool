@@ -4,54 +4,34 @@ import io.github.salomax.neotool.common.graphql.CrudService
 import io.github.salomax.neotool.common.graphql.GenericCrudResolver
 import io.github.salomax.neotool.example.domain.Product
 import io.github.salomax.neotool.example.graphql.dto.ProductInputDTO
+import io.github.salomax.neotool.example.graphql.mapper.ProductGraphQLMapper
 import io.github.salomax.neotool.example.service.ProductService
 import jakarta.inject.Singleton
 import jakarta.validation.Validator
 import java.util.UUID
 
 /**
- * Product resolver using the generic enhanced CRUD pattern with automatic payload handling
+ * Product resolver using the generic enhanced CRUD pattern with automatic payload handling.
+ * Delegates mapping logic to ProductGraphQLMapper for separation of concerns.
  */
 @Singleton
 class ProductResolver(
     private val productService: ProductService,
     validator: Validator,
+    private val mapper: ProductGraphQLMapper,
 ) : GenericCrudResolver<Product, ProductInputDTO, UUID>() {
     override val validator: Validator = validator
     override val service: CrudService<Product, UUID> = ProductCrudService(productService)
 
     override fun mapToInputDTO(input: Map<String, Any?>): ProductInputDTO {
-        return ProductInputDTO(
-            name = extractField(input, "name"),
-            sku = extractField(input, "sku"),
-            priceCents = extractField(input, "priceCents", 0L),
-            stock = extractField(input, "stock", 0),
-        )
+        return mapper.mapToInputDTO(input)
     }
 
     override fun mapToEntity(
         dto: ProductInputDTO,
         id: UUID?,
     ): Product {
-        return Product(
-            id = id,
-            name = dto.name,
-            sku = dto.sku,
-            priceCents = dto.priceCents,
-            stock = dto.stock,
-        )
-    }
-
-    /**
-     * Extract field with type safety and default values
-     */
-    private fun <T> extractField(
-        input: Map<String, Any?>,
-        name: String,
-        defaultValue: T? = null,
-    ): T {
-        @Suppress("UNCHECKED_CAST")
-        return input[name] as? T ?: defaultValue ?: throw IllegalArgumentException("Field '$name' is required")
+        return mapper.mapToEntity(dto, id)
     }
 }
 

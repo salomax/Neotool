@@ -71,6 +71,35 @@ class CustomerServiceTest {
             // Assert
             assertThat(result).isNull()
             verify(repository).findById(customerId)
+            // This test covers the debug logging branch where entity is null (line 93)
+            // The lambda logger.debug { "entity version: ${entity?.version}" } is executed
+            // with entity = null, covering the null-safe call branch
+        }
+
+        @Test
+        fun `should log debug message with entity version when customer found`() {
+            // Arrange
+            val customerId = UUID.randomUUID()
+            val entity =
+                CustomerEntity(
+                    id = customerId,
+                    name = "Test Customer",
+                    email = "test@example.com",
+                    status = CustomerStatus.ACTIVE,
+                    version = 5L,
+                )
+            whenever(repository.findById(customerId)).thenReturn(Optional.of(entity))
+
+            // Act
+            val result = service.get(customerId)
+
+            // Assert
+            assertThat(result).isNotNull
+            assertThat(result?.version).isEqualTo(5L)
+            verify(repository).findById(customerId)
+            // This test covers the debug logging branch where entity is not null (line 93)
+            // The lambda logger.debug { "entity version: ${entity?.version}" } is executed
+            // with entity != null, covering the non-null branch
         }
     }
 

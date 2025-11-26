@@ -460,10 +460,10 @@ cd service/kotlin
 ./gradlew :[module]:test --no-daemon
 ```
 
-**Unit Tests with Coverage** (generates JaCoCo reports and validates thresholds):
+**Unit Tests with Coverage** (generates Kover reports and validates thresholds):
 ```bash
 cd service/kotlin
-./gradlew :[module]:test :[module]:jacocoTestReport :[module]:jacocoTestCoverageVerification --no-daemon
+./gradlew :[module]:test :[module]:koverXmlReport :[module]:koverHtmlReport :[module]:koverVerify --no-daemon
 ```
 
 **Integration Tests** (runs for each service except common):
@@ -472,16 +472,16 @@ cd service/kotlin
 ./gradlew :[module]:testIntegration --no-daemon
 ```
 
-**Integration Tests with Coverage** (generates JaCoCo reports and validates thresholds):
+**Integration Tests with Coverage** (generates Kover reports and validates thresholds):
 ```bash
 cd service/kotlin
-./gradlew :[module]:testIntegration :[module]:jacocoIntegrationTestReport :[module]:jacocoIntegrationTestCoverageVerification --no-daemon
+./gradlew :[module]:testIntegration :[module]:koverXmlReport :[module]:koverHtmlReport :[module]:koverVerify --no-daemon
 ```
 
 **Run all backend tests with coverage**:
 ```bash
 cd service/kotlin
-./gradlew test testIntegration jacocoRootReport --no-daemon
+./gradlew test testIntegration koverRootReport --no-daemon
 ```
 
 **Coverage Thresholds**:
@@ -489,13 +489,13 @@ cd service/kotlin
 - Integration Tests: 80% minimum coverage (full codebase)
 - Security Services (`io.github.salomax.neotool.security.service.*`): 100% coverage required
 - **Incremental Coverage (PRs)**: 80% minimum for changed lines only (prevents paying past debt)
-- Coverage reports are generated in `build/reports/jacoco/` directory
+- Coverage reports are generated in `build/reports/kover/` directory
 
 **Incremental Coverage for PRs**:
 For Pull Requests, coverage is checked only for lines changed in the PR, not the entire codebase. This prevents failing PRs due to existing low coverage:
 ```bash
 # Check incremental coverage for a module
-./gradlew :[module]:jacocoIncrementalCoverageCheck \
+./gradlew :[module]:koverIncrementalCoverageCheck \
   -Pcoverage.baseBranch=main \
   -Pcoverage.incrementalThreshold=80
 ```

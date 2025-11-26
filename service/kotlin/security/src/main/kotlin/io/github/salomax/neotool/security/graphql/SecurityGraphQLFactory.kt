@@ -26,7 +26,7 @@ class SecurityGraphQLFactory(
             Federation.transform(registry, runtimeWiring)
                 .fetchEntities { env ->
                     val reps = env.getArgument<List<Map<String, Any>>>("representations")
-                    reps?.mapNotNull { rep ->
+                    reps?.map { rep ->
                         val id = rep["id"]
                         if (id == null) {
                             null

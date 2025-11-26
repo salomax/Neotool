@@ -9,7 +9,7 @@ import io.github.salomax.neotool.security.graphql.dto.ResetPasswordPayloadDTO
 import io.github.salomax.neotool.security.graphql.dto.SignInPayloadDTO
 import io.github.salomax.neotool.security.graphql.dto.SignUpPayloadDTO
 import io.github.salomax.neotool.security.graphql.dto.UserDTO
-import io.github.salomax.neotool.security.model.UserEntity
+import io.github.salomax.neotool.security.graphql.mapper.SecurityGraphQLMapper
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.AuthenticationService
 import jakarta.inject.Singleton
@@ -32,6 +32,7 @@ class SecurityAuthResolver(
     private val authenticationService: AuthenticationService,
     private val userRepository: UserRepository,
     private val inputValidator: InputValidator,
+    private val mapper: SecurityGraphQLMapper,
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -67,7 +68,7 @@ class SecurityAuthResolver(
                 SignInPayloadDTO(
                     token = token,
                     refreshToken = refreshToken,
-                    user = userToDTO(user),
+                    user = mapper.userToDTO(user),
                 )
 
             GraphQLPayloadFactory.success(payload)
@@ -99,7 +100,7 @@ class SecurityAuthResolver(
                     return null
                 }
 
-        return userToDTO(user)
+        return mapper.userToDTO(user)
     }
 
     /**
@@ -135,7 +136,7 @@ class SecurityAuthResolver(
                 SignInPayloadDTO(
                     token = token,
                     refreshToken = refreshToken,
-                    user = userToDTO(user),
+                    user = mapper.userToDTO(user),
                 )
 
             GraphQLPayloadFactory.success(payload)
@@ -172,7 +173,7 @@ class SecurityAuthResolver(
                 SignUpPayloadDTO(
                     token = token,
                     refreshToken = refreshToken,
-                    user = userToDTO(user),
+                    user = mapper.userToDTO(user),
                 )
 
             GraphQLPayloadFactory.success(payload)
@@ -276,16 +277,5 @@ class SecurityAuthResolver(
             logger.warn { "Password reset failed: ${e.message}" }
             GraphQLPayloadFactory.error(e)
         }
-    }
-
-    /**
-     * Convert UserEntity to DTO
-     */
-    private fun userToDTO(user: UserEntity): UserDTO {
-        return UserDTO(
-            id = user.id.toString(),
-            email = user.email,
-            displayName = user.displayName,
-        )
     }
 }

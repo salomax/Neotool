@@ -227,8 +227,9 @@ class CustomerApiIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
     @Test
     @Order(8)
     fun `should handle non-existent customer operations`() {
-        // Try to get non-existent customer
-        val getRequest = HttpRequest.GET<Any>("/api/customers/${UUID.randomUUID()}")
+        // Try to get non-existent customer - this covers the debug logging branch with null entity
+        val nonExistentId = UUID.randomUUID()
+        val getRequest = HttpRequest.GET<Any>("/api/customers/$nonExistentId")
         val exceptionGetRequest =
             assertThrows<HttpClientResponseException> {
                 httpClient.exchangeAsString(getRequest)
@@ -236,6 +237,8 @@ class CustomerApiIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
         assert(exceptionGetRequest.status == HttpStatus.NOT_FOUND)
 
         // Try to update non-existent customer
+        // Note: This tests the branch where service.update() throws NotFoundException
+        // The controller's Optional.ofNullable() branch for null return is tested in unit tests
         val updateInput =
             mapOf(
                 "name" to "Non-existent Customer",
