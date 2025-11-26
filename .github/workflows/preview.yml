@@ -106,14 +106,7 @@ jobs:
         working-directory: ./service/kotlin
         run: ./gradlew ktlintCheck --no-daemon
 
-      - name: Clean build artifacts to avoid ClassFormatError
-        working-directory: ./service/kotlin
-        run: |
-          # Clean test classes and KSP-generated classes to prevent ClassFormatError
-          # This ensures fresh compilation and avoids corrupted cache issues
-          ./gradlew :${{ matrix.service }}:cleanTest :${{ matrix.service }}:cleanKspTestKotlin --no-daemon || true
-          # Also clean KSP main classes if they might affect tests
-          ./gradlew :${{ matrix.service }}:cleanKspKotlin --no-daemon || true
+
 
       - name: Run unit tests with coverage
         working-directory: ./service/kotlin
