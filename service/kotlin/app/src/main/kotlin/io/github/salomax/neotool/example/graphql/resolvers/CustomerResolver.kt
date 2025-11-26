@@ -3,73 +3,37 @@ package io.github.salomax.neotool.example.graphql.resolvers
 import io.github.salomax.neotool.common.graphql.CrudService
 import io.github.salomax.neotool.common.graphql.GenericCrudResolver
 import io.github.salomax.neotool.example.domain.Customer
-import io.github.salomax.neotool.example.domain.CustomerStatus
 import io.github.salomax.neotool.example.graphql.dto.CustomerInputDTO
+import io.github.salomax.neotool.example.graphql.mapper.CustomerGraphQLMapper
 import io.github.salomax.neotool.example.service.CustomerService
 import jakarta.inject.Singleton
 import jakarta.validation.Validator
-import mu.KotlinLogging
 import java.util.UUID
 
 /**
- * Customer resolver using the generic enhanced CRUD pattern with automatic payload handling
+ * Customer resolver using the generic enhanced CRUD pattern with automatic payload handling.
+ * Delegates mapping logic to CustomerGraphQLMapper for separation of concerns.
  */
 @Singleton
 class CustomerResolver(
     customerService: CustomerService,
     override val validator: Validator,
 ) : GenericCrudResolver<Customer, CustomerInputDTO, UUID>() {
-    private val logger = KotlinLogging.logger {}
-    override val service: CrudService<Customer, UUID> = CustomerCrudService(customerService)
+    private val customerCrudService = CustomerCrudService(customerService)
+    override val service: CrudService<Customer, UUID> = customerCrudService
+    
+    // Create mapper with function to fetch existing entities for version management
+    private val mapper = CustomerGraphQLMapper { id -> customerCrudService.getById(id) }
 
     override fun mapToInputDTO(input: Map<String, Any?>): CustomerInputDTO {
-        return CustomerInputDTO(
-            name = extractField(input, "name"),
-            email = extractField(input, "email"),
-            status = extractField(input, "status", "ACTIVE"),
-        )
+        return mapper.mapToInputDTO(input)
     }
 
     override fun mapToEntity(
         dto: CustomerInputDTO,
         id: UUID?,
     ): Customer {
-        // For updates, we need to fetch the existing entity to get the current version
-        val existingEntity =
-            if (id != null) {
-                service.getById(id)
-            } else {
-                null
-            }
-
-        logger.debug { "mapToEntity - id: $id, existingEntity: $existingEntity, version: ${existingEntity?.version}" }
-
-        return Customer(
-            id = id,
-            name = dto.name,
-            email = dto.email,
-            status =
-                try {
-                    CustomerStatus.valueOf(dto.status)
-                } catch (e: IllegalArgumentException) {
-                    throw IllegalArgumentException(
-                        "Invalid status: ${dto.status}. Must be one of: ${CustomerStatus.values().joinToString(", ")}",
-                    )
-                },
-            version = existingEntity?.version ?: 0,
-        )
-    }
-
-    /**
-     * Extract field with type safety and default values
-     */
-    private fun <T> extractField(
-        input: Map<String, Any?>,
-        name: String,
-        defaultValue: T? = null,
-    ): T {
-        @Suppress("UNCHECKED_CAST")
-        return input[name] as? T ?: defaultValue ?: throw IllegalArgumentException("Field '$name' is required")
+        return mapper.mapToEntity(dto, id)
     }
 }
 

@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.example.test.unit.graphql
 
 import io.github.salomax.neotool.example.domain.Product
+import io.github.salomax.neotool.example.graphql.mapper.ProductGraphQLMapper
 import io.github.salomax.neotool.example.graphql.resolvers.ProductResolver
 import io.github.salomax.neotool.example.service.ProductService
 import jakarta.validation.Validator
@@ -18,13 +19,15 @@ import java.util.UUID
 class ProductResolverTest {
     private lateinit var productService: ProductService
     private lateinit var validator: Validator
+    private lateinit var mapper: ProductGraphQLMapper
     private lateinit var resolver: ProductResolver
 
     @BeforeEach
     fun setUp() {
         productService = mock()
         validator = mock()
-        resolver = ProductResolver(productService, validator)
+        mapper = ProductGraphQLMapper()
+        resolver = ProductResolver(productService, validator, mapper)
     }
 
     @Nested
@@ -195,5 +198,53 @@ class ProductResolverTest {
             assertThat(result.errors).isNotEmpty
             assertThat(result.errors[0].message).contains("Field 'sku' is required")
         }
+
+        @Test
+        fun `should use default when field is null and default provided`() {
+            // Arrange - field exists but is null, default value provided
+            val newProduct =
+                Product(
+                    id = UUID.randomUUID(),
+                    name = "Test Product",
+                    sku = "TEST-001",
+                    priceCents = 0L, // Default value
+                    stock = 0, // Default value
+                )
+            val input =
+                mapOf(
+                    "name" to "Test Product",
+                    "sku" to "TEST-001",
+                    "priceCents" to null, // Field is null
+                    "stock" to null, // Field is null
+                )
+
+            // Mock the service
+            whenever(productService.create(any())).thenReturn(newProduct)
+
+            // Act - create() calls mapToInputDTO which calls extractField
+            val result = resolver.create(input)
+
+            // Assert - should use default values
+            assertThat(result.success).isTrue
+            assertThat(result.data?.priceCents).isEqualTo(0L) // Default
+            assertThat(result.data?.stock).isEqualTo(0) // Default
+        }
+
+        @Test
+        fun `should throw when field is null and no default provided`() {
+            // Arrange - name field is null and has no default
+            val input =
+                mapOf(
+                    "name" to null, // Field is null, no default
+                    "sku" to "TEST-001",
+                )
+
+            // Act & Assert - create() calls mapToInputDTO which calls extractField
+            val result = resolver.create(input)
+            assertThat(result.success).isFalse
+            assertThat(result.errors).isNotEmpty
+            assertThat(result.errors[0].message).contains("Field 'name' is required")
+        }
+
     }
 }

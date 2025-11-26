@@ -5,7 +5,6 @@ plugins {
     id("org.jetbrains.kotlin.plugin.jpa")
     id("com.google.devtools.ksp")
     id("com.gradleup.shadow")
-    id("jacoco")
 }
 
 micronaut {

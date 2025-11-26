@@ -279,5 +279,50 @@ class CustomerResolverTest {
             assertThat(result.success).isTrue
             assertThat(result.data?.status).isEqualTo(CustomerStatus.ACTIVE)
         }
+
+        @Test
+        fun `should use default when field is null and default provided`() {
+            // Arrange - field exists but is null, default value provided
+            val newCustomer =
+                Customer(
+                    id = UUID.randomUUID(),
+                    name = "Test Customer",
+                    email = "test@example.com",
+                    status = CustomerStatus.ACTIVE, // Default value
+                )
+            val input =
+                mapOf(
+                    "name" to "Test Customer",
+                    "email" to "test@example.com",
+                    "status" to null, // Field is null
+                )
+
+            // Mock the service
+            whenever(customerService.create(any())).thenReturn(newCustomer)
+
+            // Act - create() calls mapToInputDTO which calls extractField
+            val result = resolver.create(input)
+
+            // Assert - should use default value
+            assertThat(result.success).isTrue
+            assertThat(result.data?.status).isEqualTo(CustomerStatus.ACTIVE) // Default
+        }
+
+        @Test
+        fun `should throw when field is null and no default provided`() {
+            // Arrange - name field is null and has no default
+            val input =
+                mapOf(
+                    "name" to null, // Field is null, no default
+                    "email" to "test@example.com",
+                )
+
+            // Act & Assert - create() calls mapToInputDTO which calls extractField
+            val result = resolver.create(input)
+            assertThat(result.success).isFalse
+            assertThat(result.errors).isNotEmpty
+            assertThat(result.errors[0].message).contains("Field 'name' is required")
+        }
+
     }
 }

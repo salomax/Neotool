@@ -188,6 +188,8 @@ class ProductApiIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTest
         assert(exceptionGetRequest.status == HttpStatus.NOT_FOUND)
 
         // Try to update non-existent product
+        // Note: This tests the branch where service.update() throws NotFoundException
+        // The controller's Optional.ofNullable() branch for null return is tested in unit tests
         val updateInput =
             TestDataBuilders.productInput(
                 name = "Non-existent Product",
