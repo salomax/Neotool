@@ -106,8 +106,6 @@ jobs:
         working-directory: ./service/kotlin
         run: ./gradlew ktlintCheck --no-daemon
 
-
-
       - name: Run unit tests with coverage
         working-directory: ./service/kotlin
         env:
