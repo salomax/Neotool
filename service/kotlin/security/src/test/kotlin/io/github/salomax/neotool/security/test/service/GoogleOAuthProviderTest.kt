@@ -2,7 +2,6 @@ package io.github.salomax.neotool.security.test.service
 
 import io.github.salomax.neotool.security.config.OAuthConfig
 import io.github.salomax.neotool.security.service.GoogleOAuthProvider
-import io.github.salomax.neotool.security.service.OAuthUserClaims
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -59,7 +58,11 @@ class GoogleOAuthProviderTest {
             // This tests that resolveClientId() is called
             // We can't easily test the environment variable resolution in unit tests,
             // but we can verify the method is called through the mock
-            val googleConfig = OAuthConfig.GoogleOAuthConfig(clientId = "config-client-id", issuer = "https://accounts.google.com")
+            val googleConfig =
+                OAuthConfig.GoogleOAuthConfig(
+                    clientId = "config-client-id",
+                    issuer = "https://accounts.google.com",
+                )
             whenever(oauthConfig.google).thenReturn(googleConfig)
 
             // The actual resolution happens in GoogleOAuthConfig.resolveClientId()
@@ -148,10 +151,11 @@ class GoogleOAuthProviderTest {
 
             // Create a test token that can be parsed but won't pass verification
             // (because it's not signed with Google's keys)
-            val testToken = GoogleIdTokenTestHelper.createTestToken(
-                clientId = "test-client-id",
-                issuer = "https://accounts.google.com",
-            )
+            val testToken =
+                GoogleIdTokenTestHelper.createTestToken(
+                    clientId = "test-client-id",
+                    issuer = "https://accounts.google.com",
+                )
 
             val result = googleOAuthProvider.validateAndExtractClaims(testToken)
 
@@ -170,10 +174,11 @@ class GoogleOAuthProviderTest {
             whenever(oauthConfig.google).thenReturn(googleConfig)
 
             // Create token with different audience
-            val testToken = GoogleIdTokenTestHelper.createTokenWithWrongAudience(
-                expectedClientId = "expected-client-id",
-                actualClientId = "wrong-client-id",
-            )
+            val testToken =
+                GoogleIdTokenTestHelper.createTokenWithWrongAudience(
+                    expectedClientId = "expected-client-id",
+                    actualClientId = "wrong-client-id",
+                )
 
             val result = googleOAuthProvider.validateAndExtractClaims(testToken)
 
@@ -191,10 +196,11 @@ class GoogleOAuthProviderTest {
             whenever(oauthConfig.google).thenReturn(googleConfig)
 
             // Create token with different issuer
-            val testToken = GoogleIdTokenTestHelper.createTokenWithWrongIssuer(
-                expectedIssuer = "https://accounts.google.com",
-                actualIssuer = "https://wrong-issuer.com",
-            )
+            val testToken =
+                GoogleIdTokenTestHelper.createTokenWithWrongIssuer(
+                    expectedIssuer = "https://accounts.google.com",
+                    actualIssuer = "https://wrong-issuer.com",
+                )
 
             val result = googleOAuthProvider.validateAndExtractClaims(testToken)
 
@@ -254,13 +260,14 @@ class GoogleOAuthProviderTest {
             // Note: This test will fail verification because we're not using Google's keys
             // But it tests the claim extraction logic path
             // In a real scenario, you'd need actual Google tokens or mock the verifier
-            val testToken = GoogleIdTokenTestHelper.createTestToken(
-                clientId = "test-client-id",
-                email = "user@example.com",
-                emailVerified = true,
-                name = "John Doe",
-                picture = "https://example.com/photo.jpg",
-            )
+            val testToken =
+                GoogleIdTokenTestHelper.createTestToken(
+                    clientId = "test-client-id",
+                    email = "user@example.com",
+                    emailVerified = true,
+                    name = "John Doe",
+                    picture = "https://example.com/photo.jpg",
+                )
 
             val result = googleOAuthProvider.validateAndExtractClaims(testToken)
 
@@ -279,12 +286,13 @@ class GoogleOAuthProviderTest {
             whenever(oauthConfig.google).thenReturn(googleConfig)
 
             // Create token with only email (no name, picture)
-            val testToken = GoogleIdTokenTestHelper.createTestToken(
-                clientId = "test-client-id",
-                email = "user@example.com",
-                name = null,
-                picture = null,
-            )
+            val testToken =
+                GoogleIdTokenTestHelper.createTestToken(
+                    clientId = "test-client-id",
+                    email = "user@example.com",
+                    name = null,
+                    picture = null,
+                )
 
             val result = googleOAuthProvider.validateAndExtractClaims(testToken)
 
@@ -301,11 +309,12 @@ class GoogleOAuthProviderTest {
                 )
             whenever(oauthConfig.google).thenReturn(googleConfig)
 
-            val testToken = GoogleIdTokenTestHelper.createTestToken(
-                clientId = "test-client-id",
-                email = "user@example.com",
-                emailVerified = false,
-            )
+            val testToken =
+                GoogleIdTokenTestHelper.createTestToken(
+                    clientId = "test-client-id",
+                    email = "user@example.com",
+                    emailVerified = false,
+                )
 
             val result = googleOAuthProvider.validateAndExtractClaims(testToken)
 

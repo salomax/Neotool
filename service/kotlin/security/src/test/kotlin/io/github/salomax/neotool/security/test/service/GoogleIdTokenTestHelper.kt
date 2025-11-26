@@ -21,7 +21,7 @@ import java.util.Date
  */
 object GoogleIdTokenTestHelper {
     private val jsonFactory = GsonFactory.getDefaultInstance()
-    
+
     // Generate a test RSA key pair for signing tokens
     private val testKeyPair: KeyPair by lazy {
         val keyGen = KeyPairGenerator.getInstance("RSA")
@@ -88,11 +88,12 @@ object GoogleIdTokenTestHelper {
         issuer: String = "https://accounts.google.com",
         email: String = "test@example.com",
     ): String {
+        // Expired 1 hour ago
         return createTestToken(
             clientId = clientId,
             issuer = issuer,
             email = email,
-            expirationSeconds = -3600, // Expired 1 hour ago
+            expirationSeconds = -3600,
         )
     }
 
@@ -161,4 +162,3 @@ object GoogleIdTokenTestHelper {
         }
     }
 }
-

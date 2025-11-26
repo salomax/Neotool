@@ -756,4 +756,3 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
         }
     }
 }
-

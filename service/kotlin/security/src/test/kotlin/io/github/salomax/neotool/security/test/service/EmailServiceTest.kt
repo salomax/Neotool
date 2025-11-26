@@ -18,10 +18,11 @@ import org.junit.jupiter.api.Test
  */
 @DisplayName("EmailService Unit Tests")
 class EmailServiceTest {
-    private val emailConfig = EmailConfig(
-        from = "test@example.com",
-        frontendUrl = "http://localhost:3000",
-    )
+    private val emailConfig =
+        EmailConfig(
+            from = "test@example.com",
+            frontendUrl = "http://localhost:3000",
+        )
 
     /**
      * Test helper that exposes protected methods for testing.
@@ -117,4 +118,3 @@ class EmailServiceTest {
         }
     }
 }
-

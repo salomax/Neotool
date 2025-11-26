@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.security.test.unit.graphql.mapper
 
-import io.github.salomax.neotool.security.graphql.dto.UserDTO
 import io.github.salomax.neotool.security.graphql.mapper.SecurityGraphQLMapper
 import io.github.salomax.neotool.security.model.UserEntity
 import org.assertj.core.api.Assertions.assertThat
@@ -143,5 +142,3 @@ class SecurityGraphQLMapperTest {
         }
     }
 }
-
-

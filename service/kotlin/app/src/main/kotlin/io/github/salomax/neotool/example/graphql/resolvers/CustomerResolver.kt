@@ -21,7 +21,7 @@ class CustomerResolver(
 ) : GenericCrudResolver<Customer, CustomerInputDTO, UUID>() {
     private val customerCrudService = CustomerCrudService(customerService)
     override val service: CrudService<Customer, UUID> = customerCrudService
-    
+
     // Create mapper with function to fetch existing entities for version management
     private val mapper = CustomerGraphQLMapper { id -> customerCrudService.getById(id) }
 

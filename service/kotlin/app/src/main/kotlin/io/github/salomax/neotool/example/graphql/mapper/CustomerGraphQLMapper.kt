@@ -8,10 +8,10 @@ import java.util.UUID
 /**
  * Mapper for converting between GraphQL input maps, DTOs, and domain entities for Customers.
  * Separates mapping concerns from resolver logic for better testability and maintainability.
- * 
+ *
  * Note: The getExistingEntity function is provided to allow fetching existing entities for
  * version management during updates. This keeps the mapper testable without tight coupling.
- * 
+ *
  * This class is not a singleton because it needs resolver-specific dependencies.
  * Instances are created by the resolver.
  */
@@ -34,7 +34,7 @@ class CustomerGraphQLMapper(
         if (value == null) {
             return defaultValue ?: throw IllegalArgumentException("Field '$name' is required")
         }
-        
+
         return if (value is T) {
             value
         } else {
@@ -91,4 +91,3 @@ class CustomerGraphQLMapper(
         )
     }
 }
-
