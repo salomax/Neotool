@@ -31,6 +31,14 @@ search_keywords: [commands, cli, reference]
 ./neotool graphql all       # Run complete workflow
 ```
 
+### Validation
+```bash
+./neotool validate                    # Run all validations (frontend + backend)
+./neotool validate --frontend-only   # Run only frontend validations
+./neotool validate --backend-only     # Run only backend validations
+./neotool validate --skip-coverage    # Run validations without coverage checks
+```
+
 ## Backend Commands
 
 ### Gradle
