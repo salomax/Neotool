@@ -51,22 +51,9 @@ allprojects {
             events("passed", "skipped", "failed")
         }
         
-        // Configure JVM memory for test execution
-        // This helps prevent OutOfMemoryError in CI/CD environments
-        // CI runners typically have limited memory, so we allocate conservatively
-        minHeapSize = "256m"
-        maxHeapSize = "1024m"
-        
-        // Set JVM args for test execution
-        jvmArgs = listOf(
-            "-XX:MaxMetaspaceSize=256m",
-            "-XX:+HeapDumpOnOutOfMemoryError",
-            "-Dfile.encoding=UTF-8"
-        )
-        
-        // Increase timeout for CI environments where tests may run slower
-        // Default is 5 minutes, increase to 10 minutes for CI
-        timeout.set(java.time.Duration.ofMinutes(10))
+        // Disable build cache for test compilation to avoid ClassFormatError
+        // This ensures tests always compile fresh, avoiding corrupted cache issues
+        outputs.upToDateWhen { false }
     }
 }
 
