@@ -1,0 +1,15 @@
+{
+  "title": "Esqueceu sua senha?",
+  "subtitle": "Digite seu endereço de e-mail e enviaremos um link para redefinir sua senha",
+  "email": "E-mail",
+  "sendResetLink": "Enviar link de redefinição",
+  "backToSignIn": "Voltar para entrar",
+  "successMessage": "Se uma conta com esse e-mail existir, um link de redefinição de senha foi enviado.",
+  "errors": {
+    "required": "Este campo é obrigatório",
+    "invalidEmail": "Por favor, insira um endereço de e-mail válido",
+    "networkError": "Erro de rede. Por favor, tente novamente.",
+    "unknownError": "Ocorreu um erro inesperado. Por favor, tente novamente."
+  }
+}
+

@@ -1,0 +1,27 @@
+{
+  "title": "Crie sua conta",
+  "subtitle": "Cadastre-se para começar",
+  "name": "Nome",
+  "email": "E-mail",
+  "password": "Senha",
+  "passwordRequirements": "Requisitos da senha:",
+  "passwordRules": {
+    "0": "Pelo menos 8 caracteres",
+    "1": "Pelo menos uma letra maiúscula",
+    "2": "Pelo menos uma letra minúscula",
+    "3": "Pelo menos um número",
+    "4": "Pelo menos um caractere especial"
+  },
+  "signUpButton": "Criar conta",
+  "alreadyHaveAccount": "Já tem uma conta?",
+  "signIn": "Entrar",
+  "errors": {
+    "required": "Este campo é obrigatório",
+    "invalidEmail": "Por favor, insira um e-mail válido",
+    "invalidPassword": "A senha não atende aos requisitos",
+    "emailExists": "E-mail já existe",
+    "networkError": "Erro de rede. Por favor, tente novamente.",
+    "unknownError": "Ocorreu um erro inesperado. Por favor, tente novamente."
+  }
+}
+

@@ -1,2 +1,2 @@
 // Navigation Components
-export { default as SidebarRail } from './SidebarRail';
+export { SidebarRail } from './SidebarRail';

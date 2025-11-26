@@ -1,5 +1,3 @@
-import java.time.Duration
-
 plugins {
     id("org.jetbrains.kotlin.jvm")
     id("io.micronaut.application")
@@ -10,7 +8,7 @@ plugins {
 }
 
 micronaut {
-    version("4.9.3")
+    version("4.10.2")
     runtime("netty")
     testRuntime("junit5")
     processing {
@@ -24,9 +22,8 @@ repositories { mavenCentral() }
 dependencies {
     // Project dependencies
     implementation(project(":common"))
-    implementation(project(":security"))
 
-   // Add Micronaut Data KSP processor
+    // Add Micronaut Data KSP processor
     ksp("io.micronaut.data:micronaut-data-processor")
     ksp("io.micronaut:micronaut-inject-kotlin")
     ksp("io.micronaut.serde:micronaut-serde-processor")
@@ -68,21 +65,21 @@ tasks.withType<Jar> {
 tasks.register<Test>("testIntegration") {
     group = "verification"
     description = "Runs integration tests using Testcontainers"
-    
+
     useJUnitPlatform {
         includeEngines("junit-jupiter")
         includeTags("integration")
     }
-    
+
     testLogging {
         events("passed", "skipped", "failed")
         showStandardStreams = true
     }
-    
+
     // Disable Ryuk to avoid container startup issues
     systemProperty("ryuk.disabled", "true")
     environment("TESTCONTAINERS_RYUK_DISABLED", "true")
-    
+
     // Ensure Docker is available
     doFirst {
         try {
@@ -96,3 +93,6 @@ tasks.register<Test>("testIntegration") {
         }
     }
 }
+
+// Integration test coverage is configured in the parent build.gradle.kts
+// This ensures consistent configuration across all modules with testIntegration task

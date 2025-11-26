@@ -14,6 +14,8 @@ type AuthContextType = {
   token: string | null;
   isLoading: boolean;
   signIn: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
+  signInWithOAuth: (provider: string, idToken: string, rememberMe?: boolean) => Promise<void>;
+  signUp: (name: string, email: string, password: string) => Promise<void>;
   signOut: () => void;
   isAuthenticated: boolean;
 };
@@ -82,8 +84,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         },
       });
 
-      if (result.data?.signIn) {
-        const { token: newToken, refreshToken, user: newUser } = result.data.signIn;
+      if (result.data && typeof result.data === 'object' && result.data !== null && 'signIn' in result.data && result.data.signIn) {
+        const { token: newToken, refreshToken, user: newUser } = result.data.signIn as { token: string; refreshToken: string | null; user: any };
         
         setToken(newToken);
         setUser(newUser);
@@ -102,6 +104,87 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     } catch (error: any) {
       console.error("Sign in error:", error);
+      throw error;
+    }
+  }, [router]);
+
+  const signInWithOAuth = React.useCallback(async (provider: string, idToken: string, rememberMe = false) => {
+    try {
+      // Dynamic import to avoid SSR issues
+      const { apolloClient } = await import("@/lib/graphql/client");
+      const { SIGN_IN_WITH_OAUTH } = await import("@/lib/graphql/operations/auth");
+
+      const result = await apolloClient.mutate({
+        mutation: SIGN_IN_WITH_OAUTH,
+        variables: {
+          input: {
+            provider,
+            idToken,
+            rememberMe,
+          },
+        },
+      });
+
+      if (result.data && typeof result.data === 'object' && result.data !== null && 'signInWithOAuth' in result.data && result.data.signInWithOAuth) {
+        const { token: newToken, refreshToken, user: newUser } = result.data.signInWithOAuth as { token: string; refreshToken: string | null; user: any };
+        
+        setToken(newToken);
+        setUser(newUser);
+
+        // Store in appropriate storage based on rememberMe
+        const storage = rememberMe ? localStorage : sessionStorage;
+        storage.setItem(TOKEN_KEY, newToken);
+        storage.setItem(USER_KEY, JSON.stringify(newUser));
+        
+        if (refreshToken) {
+          storage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+        }
+
+        // Redirect to home
+        router.push("/");
+      }
+    } catch (error: any) {
+      console.error("OAuth sign in error:", error);
+      throw error;
+    }
+  }, [router]);
+
+  const signUp = React.useCallback(async (name: string, email: string, password: string) => {
+    try {
+      // Dynamic import to avoid SSR issues
+      const { apolloClient } = await import("@/lib/graphql/client");
+      const { SIGN_UP } = await import("@/lib/graphql/operations/auth");
+
+      const result = await apolloClient.mutate({
+        mutation: SIGN_UP,
+        variables: {
+          input: {
+            name,
+            email,
+            password,
+          },
+        },
+      });
+
+      if (result.data && typeof result.data === 'object' && result.data !== null && 'signUp' in result.data && result.data.signUp) {
+        const { token: newToken, refreshToken, user: newUser } = result.data.signUp as { token: string; refreshToken: string | null; user: any };
+        
+        setToken(newToken);
+        setUser(newUser);
+
+        // Store in localStorage (signup users are automatically signed in)
+        localStorage.setItem(TOKEN_KEY, newToken);
+        localStorage.setItem(USER_KEY, JSON.stringify(newUser));
+        
+        if (refreshToken) {
+          localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+        }
+
+        // Redirect to home
+        router.push("/");
+      }
+    } catch (error: any) {
+      console.error("Sign up error:", error);
       throw error;
     }
   }, [router]);
@@ -127,6 +210,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     token,
     isLoading,
     signIn,
+    signInWithOAuth,
+    signUp,
     signOut,
     isAuthenticated: !!user && !!token,
   };

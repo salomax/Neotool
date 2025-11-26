@@ -1,0 +1,202 @@
+schema
+  @link(url: "https://specs.apollo.dev/link/v1.0")
+  @link(url: "https://specs.apollo.dev/join/v0.3", for: EXECUTION)
+{
+  query: Query
+  mutation: Mutation
+}
+
+directive @join__enumValue(graph: join__Graph!) repeatable on ENUM_VALUE
+
+directive @join__field(graph: join__Graph, requires: join__FieldSet, provides: join__FieldSet, type: String, external: Boolean, override: String, usedOverridden: Boolean) repeatable on FIELD_DEFINITION | INPUT_FIELD_DEFINITION
+
+directive @join__graph(name: String!, url: String!) on ENUM_VALUE
+
+directive @join__implements(graph: join__Graph!, interface: String!) repeatable on OBJECT | INTERFACE
+
+directive @join__type(graph: join__Graph!, key: join__FieldSet, extension: Boolean! = false, resolvable: Boolean! = true, isInterfaceObject: Boolean! = false) repeatable on OBJECT | INTERFACE | UNION | ENUM | INPUT_OBJECT | SCALAR
+
+directive @join__unionMember(graph: join__Graph!, member: String!) repeatable on UNION
+
+directive @link(url: String, as: String, for: link__Purpose, import: [link__Import]) repeatable on SCHEMA
+
+input BaseEntityInput
+  @join__type(graph: APP)
+{
+  name: String!
+}
+
+type Customer
+  @join__type(graph: APP, key: "id")
+{
+  id: ID!
+  name: String!
+  email: String!
+  status: String!
+  createdAt: String
+  updatedAt: String
+  version: Int!
+}
+
+input CustomerInput
+  @join__type(graph: APP)
+{
+  name: String!
+  email: String!
+  status: String!
+}
+
+enum CustomerStatus
+  @join__type(graph: APP)
+{
+  ACTIVE @join__enumValue(graph: APP)
+  INACTIVE @join__enumValue(graph: APP)
+  PENDING @join__enumValue(graph: APP)
+}
+
+scalar join__FieldSet
+
+enum join__Graph {
+  APP @join__graph(name: "app", url: "http://host.docker.internal:8081/graphql")
+  SECURITY @join__graph(name: "security", url: "http://host.docker.internal:8080/graphql")
+}
+
+scalar link__Import
+
+enum link__Purpose {
+  """
+  `SECURITY` features provide metadata necessary to securely resolve fields.
+  """
+  SECURITY
+
+  """
+  `EXECUTION` features provide metadata necessary for operation execution.
+  """
+  EXECUTION
+}
+
+type Mutation
+  @join__type(graph: APP)
+  @join__type(graph: SECURITY)
+{
+  createProduct(input: ProductInput!): Product! @join__field(graph: APP)
+  updateProduct(id: ID!, input: ProductInput!): Product! @join__field(graph: APP)
+  deleteProduct(id: ID!): Boolean! @join__field(graph: APP)
+  createCustomer(input: CustomerInput!): Customer! @join__field(graph: APP)
+  updateCustomer(id: ID!, input: CustomerInput!): Customer! @join__field(graph: APP)
+  deleteCustomer(id: ID!): Boolean! @join__field(graph: APP)
+  signIn(input: SignInInput!): SignInPayload! @join__field(graph: SECURITY)
+  signInWithOAuth(input: SignInWithOAuthInput!): SignInPayload! @join__field(graph: SECURITY)
+  signUp(input: SignUpInput!): SignUpPayload! @join__field(graph: SECURITY)
+  requestPasswordReset(input: RequestPasswordResetInput!): RequestPasswordResetPayload! @join__field(graph: SECURITY)
+  resetPassword(input: ResetPasswordInput!): ResetPasswordPayload! @join__field(graph: SECURITY)
+}
+
+type Product
+  @join__type(graph: APP, key: "id")
+{
+  id: ID!
+  name: String!
+  sku: String!
+  priceCents: Int!
+  stock: Int!
+  createdAt: String
+  updatedAt: String
+  version: Int!
+}
+
+input ProductInput
+  @join__type(graph: APP)
+{
+  name: String!
+  sku: String!
+  priceCents: Int!
+  stock: Int!
+}
+
+type Query
+  @join__type(graph: APP)
+  @join__type(graph: SECURITY)
+{
+  products: [Product!]! @join__field(graph: APP)
+  product(id: ID!): Product @join__field(graph: APP)
+  customers: [Customer!]! @join__field(graph: APP)
+  customer(id: ID!): Customer @join__field(graph: APP)
+  currentUser: User @join__field(graph: SECURITY)
+}
+
+input RequestPasswordResetInput
+  @join__type(graph: SECURITY)
+{
+  email: String!
+  locale: String
+}
+
+type RequestPasswordResetPayload
+  @join__type(graph: SECURITY)
+{
+  success: Boolean!
+  message: String!
+}
+
+input ResetPasswordInput
+  @join__type(graph: SECURITY)
+{
+  token: String!
+  newPassword: String!
+}
+
+type ResetPasswordPayload
+  @join__type(graph: SECURITY)
+{
+  success: Boolean!
+  message: String!
+}
+
+input SignInInput
+  @join__type(graph: SECURITY)
+{
+  email: String!
+  password: String!
+  rememberMe: Boolean
+}
+
+type SignInPayload
+  @join__type(graph: SECURITY)
+{
+  token: String!
+  refreshToken: String
+  user: User!
+}
+
+input SignInWithOAuthInput
+  @join__type(graph: SECURITY)
+{
+  provider: String!
+  idToken: String!
+  rememberMe: Boolean
+}
+
+input SignUpInput
+  @join__type(graph: SECURITY)
+{
+  name: String!
+  email: String!
+  password: String!
+}
+
+type SignUpPayload
+  @join__type(graph: SECURITY)
+{
+  token: String!
+  refreshToken: String
+  user: User!
+}
+
+type User
+  @join__type(graph: SECURITY, key: "id")
+{
+  id: ID!
+  email: String!
+  displayName: String
+}

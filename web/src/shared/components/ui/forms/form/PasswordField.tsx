@@ -11,6 +11,8 @@ export interface PasswordFieldProps {
   label?: string;
   helperText?: React.ReactNode;
   fullWidth?: boolean;
+  translateError?: (key: string) => string;
+  'data-testid'?: string;
 }
 
 export const PasswordField: React.FC<PasswordFieldProps> = ({
@@ -18,6 +20,8 @@ export const PasswordField: React.FC<PasswordFieldProps> = ({
   label,
   helperText,
   fullWidth = true,
+  translateError,
+  'data-testid': dataTestId,
 }) => {
   const { control } = useFormContext();
   const [show, setShow] = React.useState(false);
@@ -25,29 +29,36 @@ export const PasswordField: React.FC<PasswordFieldProps> = ({
     <Controller
       name={name}
       control={control}
-      render={({ field, fieldState }) => (
-        <TextField
-          {...field}
-          type={show ? "text" : "password"}
-          label={label}
-          fullWidth={fullWidth}
-          error={!!fieldState.error}
-          helperText={fieldState.error?.message ?? helperText}
-          InputProps={{
-            endAdornment: (
-              <InputAdornment position="end">
-                <IconButton
-                  aria-label={show ? "Hide password" : "Show password"}
-                  onClick={() => setShow((s) => !s)}
-                  edge="end"
-                >
-                  {show ? <VisibilityOff /> : <Visibility />}
-                </IconButton>
-              </InputAdornment>
-            ),
-          }}
-        />
-      )}
+      render={({ field, fieldState }) => {
+        const errorMessage = fieldState.error?.message;
+        const translatedError = errorMessage && translateError
+          ? translateError(errorMessage)
+          : errorMessage;
+        return (
+          <TextField
+            {...field}
+            type={show ? "text" : "password"}
+            label={label}
+            fullWidth={fullWidth}
+            error={!!fieldState.error}
+            helperText={translatedError ?? helperText}
+            data-testid={dataTestId}
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    aria-label={show ? "Hide password" : "Show password"}
+                    onClick={() => setShow((s) => !s)}
+                    edge="end"
+                  >
+                    {show ? <VisibilityOff /> : <Visibility />}
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+          />
+        );
+      }}
     />
   );
 };

@@ -15,7 +15,7 @@ export function getLocaleSeparators(locale: string): LocaleSeparators {
 /**
  * Normalize a user-typed number string to a parseable form.
  * - Accepts both '.' and ',' as decimal markers.
- * - Keeps only the LAST decimal marker as the decimal separator.
+ * - Keeps only the FIRST decimal marker as the decimal separator.
  * - Removes group separators and spaces.
  * - Preserves leading '-' if present and allowed.
  * Returns '' or '-' to keep typing state when applicable.
@@ -32,20 +32,26 @@ export function normalizeDecimalInput(
   if (s === "-" && allowNegative) return s;
   if (s === "") return "";
 
+  // Handle negative sign early
+  const isNegative = s.startsWith("-");
+  if (isNegative && !allowNegative) {
+    s = s.slice(1); // Remove negative sign if not allowed
+  }
+
   const { decimal: _decimal, group } = getLocaleSeparators(locale);
   // Remove spaces (including NBSP) and group separators
   s = s.replace(/\s|\u00A0/g, "");
   if (group) s = s.split(group).join("");
 
-  // Replace ALL '.' and ',' with a placeholder, then restore only the last as '.'
+  // Replace ALL '.' and ',' with a placeholder, then restore only the FIRST as '.'
   const placeholder = "#";
-  s = s.replace(/[\.,]/g, placeholder);
-  const last = s.lastIndexOf(placeholder);
-  if (last !== -1) {
+  s = s.replace(/[.,]/g, placeholder);
+  const first = s.indexOf(placeholder);
+  if (first !== -1) {
     s =
-      s.slice(0, last).replace(new RegExp(placeholder, "g"), "") +
+      s.slice(0, first).replace(new RegExp(placeholder, "g"), "") +
       "." +
-      s.slice(last + 1).replace(new RegExp(placeholder, "g"), "");
+      s.slice(first + 1).replace(new RegExp(placeholder, "g"), "");
   }
 
   // Keep digits, optional leading '-' and single '.'
@@ -56,6 +62,11 @@ export function normalizeDecimalInput(
     const head = s.slice(0, firstDot + 1);
     const tail = s.slice(firstDot + 1).replace(/\./g, "");
     s = head + tail;
+  }
+
+  // Restore negative sign if it was present and allowed
+  if (isNegative && allowNegative && !s.startsWith("-")) {
+    s = "-" + s;
   }
 
   // Prevent "-." -> "-0."
@@ -81,7 +92,7 @@ export function parseLocaleNumber(
   opts?: { fractionDigits?: number; allowNegative?: boolean },
 ): number | "" {
   const s = normalizeDecimalInput(raw, locale, opts?.allowNegative !== false);
-  if (s === "" || s === "-") return s as any;
+  if (s === "" || s === "-") return "" as any;
   const n = Number(s);
   if (Number.isNaN(n)) return "" as any;
   return roundTo(n, opts?.fractionDigits);

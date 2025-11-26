@@ -72,9 +72,9 @@ export function Reel({
           flexShrink: 0,
           scrollSnapAlign: snapAlign === 'none' ? 'none' : snapAlign,
           ...(itemWidthValue !== 'auto' && { width: itemWidthValue }),
-          ...child.props.style,
+          ...(child.props.style || {}),
         },
-      });
+      } as any);
     }
     return child;
   });

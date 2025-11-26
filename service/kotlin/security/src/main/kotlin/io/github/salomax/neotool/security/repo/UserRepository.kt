@@ -8,6 +8,8 @@ import java.util.UUID
 @Repository
 interface UserRepository : JpaRepository<UserEntity, UUID> {
     fun findByEmail(email: String): UserEntity?
-    fun findByRememberMeToken(token: String): UserEntity?
-}
 
+    fun findByRememberMeToken(token: String): UserEntity?
+
+    fun findByPasswordResetToken(token: String): UserEntity?
+}

@@ -10,7 +10,7 @@ import {
   useDeleteCustomerMutation
 } from '@/lib/graphql/operations/customer/mutations.generated';
 import { CustomerInput } from '@/lib/graphql/types/__generated__/graphql';
-import type { ApolloError } from '@apollo/client';
+// Apollo Client v4 uses Error type instead of ApolloError
 import { extractErrorMessage } from './utils';
 import { CUSTOMER_STATUSES } from '@/app/(neotool)/examples/customers/constants';
 
@@ -66,7 +66,7 @@ export type UseCustomersReturn = {
   deleteLoading: boolean;
   
   // Error handling
-  error: ApolloError | undefined;
+  error: Error | undefined;
   
   // Utilities
   refetch: () => void;
@@ -129,8 +129,8 @@ export function useCustomers(options: UseCustomersOptions = {}): UseCustomersRet
   const [updateCustomerMutation, { loading: updateLoading }] = useUpdateCustomerMutation();
   const [deleteCustomerMutation, { loading: deleteLoading }] = useDeleteCustomerMutation();
 
-  // Derived data
-  const customers = customersData?.customers || [];
+  // Derived data - memoize to prevent unnecessary re-renders
+  const customers = useMemo(() => customersData?.customers || [], [customersData?.customers]);
 
   // Filtered customers
   const filteredCustomers = useMemo(() => {

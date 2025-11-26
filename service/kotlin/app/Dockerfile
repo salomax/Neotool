@@ -4,20 +4,37 @@ FROM gradle:8.10.2-jdk21 AS build
 # Set the working directory inside the container for the build process.
 WORKDIR /home/gradle/project
 
-# Copy the entire build context (which is the root of your Gradle project, e.g., 'service/')
-# into the container's working directory.
-COPY . /home/gradle/project
+# Copy Gradle wrapper and build files first for better layer caching
+COPY gradlew ./
+COPY gradle ./gradle
+COPY build.gradle.kts settings.gradle.kts gradle.properties ./
 
-# Run the Gradle command to build the application.
+# Copy common module first (shared dependency)
+COPY common/build.gradle.kts ./common/
+COPY common/src ./common/src
+
+# Copy app module build files
+COPY app/build.gradle.kts ./app/
+COPY app/src ./app/src
+
+# Download dependencies and build common module first (shared by all services)
+# This maximizes cache reuse across all service builds
+# Using BuildKit cache mount to share Gradle cache between builds
+# Using :common:assemble instead of :common:build to skip verification tasks (koverVerify, check)
+# since we're skipping tests and only need the JAR artifact
+RUN --mount=type=cache,target=/home/gradle/.gradle/caches \
+    --mount=type=cache,target=/home/gradle/.gradle/wrapper \
+    ./gradlew :common:assemble --build-cache
+
+# Build the application JAR
 # - './gradlew :app:shadowJar': Executes the `shadowJar` task on the `:app` module. This task typically
 #   creates an "uber" or "fat" JAR containing the application code and all its dependencies.
 # - '-x test': Skips running any tests during the build.
-# - '--no-daemon': Ensures the Gradle daemon is not used, which is generally better for single-run Docker builds
-#   as it prevents a long-running process from persisting unnecessarily.
-# - '-Dkotlin.compiler.execution.strategy=in-process': Forces the Kotlin compiler to run in the same process,
-#   reducing overhead when compared to using a separate daemon.
-RUN ./gradlew :app:shadowJar -x test --no-daemon \
-    -Dkotlin.compiler.execution.strategy=in-process
+# - '--build-cache': Uses the Gradle build cache for faster incremental builds
+# - '--parallel': Builds modules in parallel for better performance
+RUN --mount=type=cache,target=/home/gradle/.gradle/caches \
+    --mount=type=cache,target=/home/gradle/.gradle/wrapper \
+    ./gradlew :app:shadowJar -x test --build-cache --parallel
 
 # Use a minimal JRE (Java Runtime Environment) image based on Eclipse Temurin with JDK 21.
 # This image is much smaller than the full JDK image used for building.
@@ -39,3 +56,4 @@ EXPOSE 8080
 # Define the command that runs when the container starts.
 # - '["java","-jar","/app/service.jar"]': Executes the JAR file using the Java Runtime.
 ENTRYPOINT ["java","-jar","/app/service.jar"]
+    

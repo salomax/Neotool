@@ -8,10 +8,20 @@ export function useZodForm<
   TSchema extends ZodType<any, ZodTypeDef, any>,
   TFieldValues extends FieldValues = any,
 >(schema: TSchema, props?: UseFormProps<TFieldValues>) {
-  return useForm<TFieldValues>({
+  const mode = props?.mode ?? "onBlur";
+  const reValidateMode = props?.reValidateMode ?? "onChange";
+  const form = useForm<TFieldValues>({
     ...props,
     resolver: zodResolver(schema as any),
-    mode: props?.mode ?? "onBlur",
-    reValidateMode: props?.reValidateMode ?? "onChange",
+    mode,
+    reValidateMode,
   });
+  return {
+    ...form,
+    formState: {
+      ...form.formState,
+      mode,
+      reValidateMode,
+    },
+  };
 }

@@ -2,7 +2,7 @@
 
 ## Specification Knowledge Base
 
-This project uses a comprehensive specification located in the `spec/` directory. **ALWAYS** reference the specification when:
+This project uses a comprehensive specification located in the `docs/` directory. **ALWAYS** reference the specification when:
 - Creating new features
 - Making architectural decisions
 - Writing code that follows project patterns
@@ -11,35 +11,34 @@ This project uses a comprehensive specification located in the `spec/` directory
 
 ### Key Specification Documents
 
-1. **Start Here**: `spec/SPECIFICATION_MANIFEST.md` - Complete index of all specification documents
-2. **Architecture**: `spec/ARCHITECTURE_OVERVIEW.md` - System architecture and technology stack
-3. **Quick Reference**: `spec/QUICK_REFERENCE.md` - Common patterns, commands, and conventions
-4. **Glossary**: `spec/GLOSSARY.md` - Terminology and definitions
-5. **Project Setup**: `spec/PROJECT_SETUP.md` - Setup and configuration guide
+1. **Start Here**: `docs/MANIFEST.md` - Complete index of all specification documents
+2. **Architecture**: `docs/00-overview/architecture-overview.md` - System architecture and technology stack
+3. **Quick Reference**: `docs/10-reference/` - Common patterns, commands, and conventions
+4. **Glossary**: `docs/02-domain/glossary.md` - Terminology and definitions
+5. **Project Setup**: `docs/00-overview/quick-start.md` - Setup and configuration guide
 
 ### Architecture Decision Records (ADRs)
 
-All major technical decisions are documented in `spec/adr/`:
-- `spec/adr/0001-monorepo-architecture.md` - Monorepo structure
-- `spec/adr/0002-containerized-architecture.md` - Containerization strategy
-- `spec/adr/0003-kotlin-micronaut-backend.md` - Backend technology choices
-- `spec/adr/0004-typescript-nextjs-frontend.md` - Frontend technology choices
-- `spec/adr/0005-postgresql-database.md` - Database technology choices
+All major technical decisions are documented in `docs/09-adr/`:
+- `docs/09-adr/0001-monorepo-architecture.md` - Monorepo structure
+- `docs/09-adr/0002-containerized-architecture.md` - Containerization strategy
+- `docs/09-adr/0003-kotlin-micronaut-backend.md` - Backend technology choices
+- `docs/09-adr/0004-typescript-nextjs-frontend.md` - Frontend technology choices
+- `docs/09-adr/0005-postgresql-database.md` - Database technology choices
 
 ### Service Layer Documentation
 
-- `spec/service/graphql-federation-architecture.md` - GraphQL Federation patterns
-- `spec/service/database-schema-organization.md` - Database schema rules
-- `spec/service/kotlin/jpa-entity.md` - JPA entity patterns
+- `docs/01-architecture/api-architecture/graphql-federation.md` - GraphQL Federation patterns
+- `docs/01-architecture/data-architecture/schema-organization.md` - Database schema rules
+- `docs/04-patterns/backend-patterns/entity-pattern.md` - JPA entity patterns
 
 ### Frontend Documentation
 
-- `spec/web/web-src-structure.md` - Frontend directory structure
-- `spec/web/web-components.md` - Component system and patterns
-- `spec/web/web-themes.md` - Theme system and design tokens
-- `spec/web/web-graphql-operations.md` - GraphQL operations in frontend
-- `spec/web/web-i18n-architecture.md` - Internationalization patterns
-- `spec/web/web-custom-hooks.md` - Custom React hooks patterns
+- `docs/01-architecture/frontend-architecture/nextjs-structure.md` - Frontend directory structure
+- `docs/04-patterns/frontend-patterns/component-pattern.md` - Component system and patterns
+- `docs/04-patterns/frontend-patterns/styling-pattern.md` - Theme system and design tokens
+- `docs/04-patterns/frontend-patterns/graphql-pattern.md` - GraphQL operations in frontend
+- `docs/04-patterns/frontend-patterns/` - Internationalization and hooks patterns
 
 ## Technology Stack
 
@@ -72,10 +71,10 @@ All major technical decisions are documented in `spec/adr/`:
 1. **Reference the Specification**: Always check relevant spec documents before implementing
 2. **Follow Architecture Patterns**: Use patterns documented in ADRs and architecture docs
 3. **Maintain Type Safety**: Ensure end-to-end type safety from database to UI
-4. **Follow Directory Structure**: Adhere to structure defined in `spec/web/web-src-structure.md` (frontend) and service docs (backend)
-5. **Use GraphQL Federation**: Follow patterns in `spec/service/graphql-federation-architecture.md`
-6. **Follow Component Patterns**: Use component system from `spec/web/web-components.md`
-7. **Apply Theme System**: Use design tokens from `spec/web/web-themes.md`
+4. **Follow Directory Structure**: Adhere to structure defined in `docs/01-architecture/frontend-architecture/nextjs-structure.md` (frontend) and service docs (backend)
+5. **Use GraphQL Federation**: Follow patterns in `docs/01-architecture/api-architecture/graphql-federation.md`
+6. **Follow Component Patterns**: Use component system from `docs/04-patterns/frontend-patterns/component-pattern.md`
+7. **Apply Theme System**: Use design tokens from `docs/04-patterns/frontend-patterns/styling-pattern.md`
 
 ### Code Generation Rules
 
@@ -83,31 +82,31 @@ All major technical decisions are documented in `spec/adr/`:
   - Follow clean architecture: API → Service → Repository → Entity
   - Use dependency injection (Micronaut)
   - Implement GraphQL resolvers following federation patterns
-  - Use JPA entities following patterns in `spec/service/kotlin/jpa-entity.md`
-  - Follow database schema organization from `spec/service/database-schema-organization.md`
+  - Use JPA entities following patterns in `docs/04-patterns/backend-patterns/entity-pattern.md`
+  - Follow database schema organization from `docs/01-architecture/data-architecture/schema-organization.md`
 
 - **Frontend (TypeScript/Next.js)**:
   - Use App Router structure (Next.js 14+)
-  - Follow directory structure from `spec/web/web-src-structure.md`
-  - Use components from design system (`spec/web/web-components.md`)
-  - Apply theme tokens from `spec/web/web-themes.md`
-  - Use GraphQL operations following `spec/web/web-graphql-operations.md`
-  - Implement i18n following `spec/web/web-i18n-architecture.md`
-  - Use custom hooks patterns from `spec/web/web-custom-hooks.md`
+  - Follow directory structure from `docs/01-architecture/frontend-architecture/nextjs-structure.md`
+  - Use components from design system (`docs/04-patterns/frontend-patterns/component-pattern.md`)
+  - Apply theme tokens from `docs/04-patterns/frontend-patterns/styling-pattern.md`
+  - Use GraphQL operations following `docs/04-patterns/frontend-patterns/graphql-pattern.md`
+  - Implement i18n following patterns in `docs/04-patterns/frontend-patterns/`
+  - Use custom hooks patterns from `docs/04-patterns/frontend-patterns/hook-pattern.md`
 
 ### GraphQL Development
 
 - Use Apollo Federation for distributed GraphQL
-- Follow federation patterns in `spec/service/graphql-federation-architecture.md`
+- Follow federation patterns in `docs/01-architecture/api-architecture/graphql-federation.md`
 - Generate TypeScript types from GraphQL schema
 - Use code generation for type safety
-- Reference `spec/contracts/graphql-federation.md` for contract details
+- Reference `contracts/graphql/` for contract details
 
 ### Database Development
 
-- Follow schema organization from `spec/service/database-schema-organization.md`
+- Follow schema organization from `docs/01-architecture/data-architecture/schema-organization.md`
 - Use Flyway for migrations
-- Follow JPA entity patterns from `spec/service/kotlin/jpa-entity.md`
+- Follow JPA entity patterns from `docs/04-patterns/backend-patterns/entity-pattern.md`
 - Maintain domain-driven design principles
 
 ## Project Structure
@@ -122,7 +121,7 @@ neotool/
 ├── infra/            # Infrastructure as Code
 ├── contracts/        # API contracts (GraphQL schemas)
 ├── design/           # Design system and assets
-└── spec/             # Specification and documentation (THIS IS THE KNOWLEDGE BASE)
+└── docs/             # Specification and documentation (THIS IS THE KNOWLEDGE BASE)
 ```
 
 ## Important Patterns
@@ -153,7 +152,7 @@ neotool/
 
 ## When Suggesting Solutions
 
-1. **Always reference the spec**: Check `spec/` folder for relevant documentation
+1. **Always reference the spec**: Check `docs/` folder for relevant documentation
 2. **Follow established patterns**: Use patterns from ADRs and architecture docs
 3. **Maintain consistency**: Follow existing code structure and conventions
 4. **Ensure type safety**: Maintain end-to-end type safety
@@ -171,9 +170,9 @@ The specification is optimized for RAG indexing with:
 - Clear hierarchy and categorization
 
 When searching for information:
-1. Start with `spec/SPECIFICATION_MANIFEST.md` for document discovery
-2. Use `spec/ARCHITECTURE_OVERVIEW.md` for system understanding
-3. Reference `spec/GLOSSARY.md` for terminology
+1. Start with `docs/MANIFEST.md` for document discovery
+2. Use `docs/00-overview/architecture-overview.md` for system understanding
+3. Reference `docs/02-domain/glossary.md` for terminology
 4. Follow cross-references in documents for related context
 5. Use category tags to find related documents
 
@@ -182,7 +181,7 @@ When searching for information:
 When asked to create a new feature:
 
 1. **Understand Requirements**: Review the feature request
-2. **Check Specification**: Search `spec/` for relevant patterns and guidelines
+2. **Check Specification**: Search `docs/` for relevant patterns and guidelines
 3. **Follow Architecture**: Use patterns from architecture docs and ADRs
 4. **Implement Backend** (if needed):
    - Create GraphQL schema in appropriate subgraph
@@ -201,5 +200,5 @@ When asked to create a new feature:
 
 ---
 
-**Remember**: The `spec/` folder is the source of truth. Always reference it when making decisions or implementing features.
+**Remember**: The `docs/` folder is the source of truth. Always reference it when making decisions or implementing features.
 

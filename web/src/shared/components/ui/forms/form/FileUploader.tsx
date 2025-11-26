@@ -150,7 +150,11 @@ export const FileUploader: React.FC<FileUploaderProps> = ({
                       secondary={`${humanSize(it.file.size)}${it.previewUrl ? " • preview" : ""}`}
                     />
                     <ListItemSecondaryAction>
-                      <IconButton edge="end" onClick={() => removeAt(idx)}>
+                      <IconButton
+                        edge="end"
+                        onClick={() => removeAt(idx)}
+                        aria-label="Delete file"
+                      >
                         <DeleteIcon />
                       </IconButton>
                     </ListItemSecondaryAction>

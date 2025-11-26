@@ -23,7 +23,7 @@ export const REPO_CONFIG = {
  */
 export const APP_CONFIG = {
   /** Application name */
-  name: process.env.NEXT_PUBLIC_APP_NAME || "Neotool",
+  name: process.env.NEXT_PUBLIC_APP_NAME || "neotool",
   /** Application version */
   version: process.env.NEXT_PUBLIC_APP_VERSION || "1.0.0",
   /** Required Node.js version (for display) */

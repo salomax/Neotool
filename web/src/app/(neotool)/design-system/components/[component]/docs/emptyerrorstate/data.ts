@@ -6,7 +6,6 @@ export const emptyerrorstateData: ComponentData = {
   status: "stable" as const,
 
   githubUrl: "/web/src/shared/components/ui/data-display/EmptyErrorState.tsx",
-  type: "'empty' | 'error' | 'loading'" as const,
   
   props: [
     { name: "type", type: "'empty' | 'error' | 'loading'", required: true, description: "State type" },

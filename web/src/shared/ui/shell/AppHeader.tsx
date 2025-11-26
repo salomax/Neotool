@@ -1,36 +1,79 @@
 "use client";
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import Box from "@mui/material/Box";
 import Container from "@mui/material/Container";
-import Paper from "@mui/material/Paper";
-import InputBase from "@mui/material/InputBase";
 import IconButton from "@mui/material/IconButton";
-import Badge from "@mui/material/Badge";
 import Avatar from "@mui/material/Avatar";
 import Tooltip from "@mui/material/Tooltip";
-import { alpha } from '@mui/material/styles';
-import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
+import Divider from "@mui/material/Divider";
+import Typography from "@mui/material/Typography";
 import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
-import NotificationsNoneRoundedIcon from "@mui/icons-material/NotificationsNoneRounded";
+import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
+import LogoutIcon from "@mui/icons-material/Logout";
+import PersonIcon from "@mui/icons-material/Person";
+import { useThemeMode } from "@/styles/themes/AppThemeProvider";
+import { ChatDrawer } from "@/shared/components/ui/feedback/Chat";
+import { useAuth } from "@/shared/providers";
+import { Button } from "@/shared/components/ui/primitives/Button";
 
 export function AppHeader() {
-  const onThemeToggle = React.useCallback(() => {
-    // #TODO ThemeProvider, pode trocar por um setter de contexto.
-    try {
-      const KEY = "ui.color-scheme";
-      const cur =
-        (typeof localStorage !== "undefined" &&
-          (localStorage.getItem(KEY) as "light" | "dark" | null)) ||
-        "light";
-      const nextMode = cur === "light" ? "dark" : "light";
-      if (typeof localStorage !== "undefined")
-        localStorage.setItem(KEY, nextMode);
-      if (typeof document !== "undefined")
-        (document.documentElement as any).dataset.colorScheme = nextMode;
-    } catch {
-      /* empty */
+  const { mode, toggle } = useThemeMode();
+  const isDark = mode === "dark";
+  const [chatDrawerOpen, setChatDrawerOpen] = React.useState(false);
+  const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+  const { isAuthenticated, user, signOut, isLoading } = useAuth();
+  const router = useRouter();
+
+  const handleChatIconClick = () => {
+    setChatDrawerOpen(true);
+  };
+
+  const handleChatDrawerClose = () => {
+    setChatDrawerOpen(false);
+  };
+
+  const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleProfileMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleSignIn = () => {
+    router.push("/signin");
+  };
+
+  const handleSignOut = () => {
+    handleProfileMenuClose();
+    signOut();
+  };
+
+  const getInitials = (user: { displayName?: string | null; email: string } | null) => {
+    if (!user) return "?";
+    if (user.displayName) {
+      const names = user.displayName.trim().split(/\s+/);
+      if (names.length >= 2) {
+        const first = names[0]?.[0];
+        const last = names[names.length - 1]?.[0];
+        if (first && last) {
+          return `${first}${last}`.toUpperCase();
+        }
+      }
+      const firstChar = user.displayName.trim()[0];
+      if (firstChar) {
+        return firstChar.toUpperCase();
+      }
     }
-  }, []);
+    const emailChar = user.email?.[0];
+    return emailChar ? emailChar.toUpperCase() : "?";
+  };
+
+  const open = Boolean(anchorEl);
 
   return (
     <Box
@@ -48,76 +91,89 @@ export function AppHeader() {
       }}
     >
       <Container maxWidth="xl" sx={{ py: 1.5 }}>
-        {/* grid: [esquerda vazia] [busca central] [ações à direita] */}
         <Box
           sx={{
-            display: "grid",
+            display: "flex",
             alignItems: "center",
-            gridTemplateColumns: "1fr minmax(360px, 680px) 1fr",
-            gap: 2,
+            justifyContent: "flex-end",
+            gap: 1,
           }}
         >
-          <Box aria-hidden />
-
-          {/* Busca central */}
-          <Paper
-            component="form"
-            onSubmit={(e) => e.preventDefault()}
-            sx={{
-              px: 1,
-              py: 0.25,
-              display: "flex",
-              alignItems: "center",
-              borderRadius: 2,
-              boxShadow: "none",
-              border: "1px solid",
-              borderColor: "divider",
-              bgcolor: (t) =>
-                alpha(
-                  t.palette.common.white,
-                  t.palette.mode === "light" ? 1 : 0.06,
-                ),
-            }}
-          >
-            <InputBase
-              sx={{ ml: 1, flex: 1 }}
-              placeholder="Search here"
-              inputProps={{ "aria-label": "search" }}
-            />
-            <IconButton type="submit" aria-label="search">
-              <SearchRoundedIcon />
-            </IconButton>
-          </Paper>
-
-          {/* Ações à direita */}
-          <Box
-            sx={{
-              justifySelf: "end",
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-            }}
-          >
-            <Tooltip title="Toggle theme">
-              <IconButton aria-label="toggle theme" onClick={onThemeToggle}>
-                <DarkModeRoundedIcon />
+            <Tooltip title={isDark ? "Switch to light mode" : "Switch to dark mode"}>
+              <IconButton aria-label="toggle theme" onClick={toggle}>
+                {isDark ? <LightModeRoundedIcon /> : <DarkModeRoundedIcon />}
               </IconButton>
             </Tooltip>
-            <Tooltip title="Notifications">
-              <IconButton aria-label="notifications">
-                <Badge variant="dot" color="primary">
-                  <NotificationsNoneRoundedIcon />
-                </Badge>
+            <Tooltip title="AI Assistant">
+              <IconButton aria-label="Open AI assistant" onClick={handleChatIconClick}>
+                <AutoAwesomeIcon />
               </IconButton>
             </Tooltip>
-            <Tooltip title="Profile">
-              <IconButton aria-label="profile">
-                <Avatar sx={{ width: 32, height: 32 }}>N</Avatar>
-              </IconButton>
-            </Tooltip>
-          </Box>
+            {isAuthenticated ? (
+              <Tooltip title="Account">
+                <IconButton 
+                  aria-label="Account menu"
+                  onClick={handleProfileMenuOpen}
+                  aria-controls={open ? "profile-menu" : undefined}
+                  aria-haspopup="true"
+                  aria-expanded={open ? "true" : undefined}
+                >
+                  <Avatar sx={{ width: 32, height: 32 }}>
+                    {user ? getInitials(user) : <PersonIcon />}
+                  </Avatar>
+                </IconButton>
+              </Tooltip>
+            ) : (
+              <Button
+                variant="contained"
+                size="small"
+                onClick={handleSignIn}
+                aria-label="Sign in"
+                data-testid="header-signin-button"
+                name="header-signin"
+              >
+                Sign In
+              </Button>
+            )}
         </Box>
       </Container>
+      <ChatDrawer open={chatDrawerOpen} onClose={handleChatDrawerClose} />
+      <Menu
+        id="profile-menu"
+        anchorEl={anchorEl}
+        open={open}
+        onClose={handleProfileMenuClose}
+        onClick={handleProfileMenuClose}
+        transformOrigin={{ horizontal: "right", vertical: "top" }}
+        anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
+        PaperProps={{
+          elevation: 3,
+          sx: {
+            mt: 1.5,
+            minWidth: 200,
+            "& .MuiMenuItem-root": {
+              px: 2,
+              py: 1,
+            },
+          },
+        }}
+      >
+        {user && [
+          <Box key="user-info" sx={{ px: 2, py: 1.5 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+              {user.displayName || "User"}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {user.email}
+            </Typography>
+          </Box>,
+          <Divider key="divider" />,
+          <MenuItem key="sign-out" onClick={handleSignOut}>
+            <LogoutIcon sx={{ mr: 1.5, fontSize: 20 }} />
+            Sign Out
+          </MenuItem>
+        ]}
+      </Menu>
     </Box>
   );
 }

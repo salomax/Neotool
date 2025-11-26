@@ -30,6 +30,10 @@ export function maskCEP(value: string): string {
 export function maskPhoneBR(value: string): string {
   // (99) 99999-9999 or (99) 9999-9999
   const digits = onlyDigits(value).slice(0, 11);
+  if (digits.length === 0) return '';
+  if (digits.length === 2) {
+    return `(${digits})`;
+  }
   if (digits.length <= 10) {
     return digits
       .replace(/^(\d{2})(\d)/, "($1) $2")
@@ -44,8 +48,12 @@ export function parseLocaleNumber(
   input: string,
   locale?: string,
 ): number | null {
+  if (!input || input.trim() === '') return null;
+  
+  // If no locale is provided, default to en-US (uses . as decimal separator)
+  const defaultLocale = locale || 'en-US';
   const example = 1000.5;
-  const formatted = Intl.NumberFormat(locale).format(example);
+  const formatted = Intl.NumberFormat(defaultLocale).format(example);
   const group = formatted.match(/[^0-9]/)?.[0] ?? ",";
   const decimal = formatted.replace(/[0-9]/g, "")[1] ?? ".";
 
@@ -62,7 +70,9 @@ export function formatCurrency(
   locale?: string,
 ): string {
   const v = typeof value === "number" ? value : 0;
-  return new Intl.NumberFormat(locale, {
+  // Default to pt-BR for BRL currency if no locale is provided
+  const defaultLocale = locale || (currency === "BRL" ? "pt-BR" : undefined);
+  return new Intl.NumberFormat(defaultLocale, {
     style: "currency",
     currency,
     minimumFractionDigits: 2,

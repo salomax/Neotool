@@ -14,9 +14,11 @@ export function withResetFilter(col: ColDefAny): ColDefAny {
       name: "Reset filter",
       action: () => {
         const colId = params.column.getColId?.();
-        const model = params.api.getFilterModel?.() || {};
-        if (colId && model[colId]) {
-          delete model[colId];
+        if (colId) {
+          const model = params.api.getFilterModel?.() || {};
+          if (model[colId]) {
+            delete model[colId];
+          }
           params.api.setFilterModel?.(model);
         }
       },

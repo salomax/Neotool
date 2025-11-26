@@ -13,6 +13,13 @@ describe('testid utilities', () => {
       expect(generateTestId('Button', 'add-customer')).toBe('button-add-customer');
     });
 
+    it('should normalize name prop (lowercase, spaces to hyphens)', () => {
+      expect(generateTestId('Avatar', 'John Doe')).toBe('avatar-john-doe');
+      expect(generateTestId('Button', 'Submit Form')).toBe('button-submit-form');
+      expect(generateTestId('Paper', 'Search Filters')).toBe('paper-search-filters');
+      expect(generateTestId('Avatar', '  John   Doe  ')).toBe('avatar-john-doe');
+    });
+
     it('should handle empty name prop', () => {
       expect(generateTestId('Paper', '')).toBe('paper');
       expect(generateTestId('Button', undefined)).toBe('button');

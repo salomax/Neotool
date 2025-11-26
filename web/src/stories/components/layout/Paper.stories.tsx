@@ -150,7 +150,7 @@ export const WithNameProp: Story = {
     <Paper name="search-filters" elevation={2} sx={{ minWidth: 200 }}>
       <Typography variant="h6" gutterBottom>Search Filters</Typography>
       <Typography variant="body2" color="text.secondary">
-        This Paper has name="search-filters", which generates data-testid="paper-search-filters"
+        This Paper has name=&quot;search-filters&quot;, which generates data-testid=&quot;paper-search-filters&quot;
       </Typography>
       <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
         Check the DOM inspector to see the data-testid attribute
@@ -179,7 +179,7 @@ export const WithCustomTestId: Story = {
         When both name and data-testid are provided, data-testid takes precedence.
       </Typography>
       <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-        This should have data-testid="custom-test-id" (not "paper-should-be-ignored")
+        This should have data-testid=&quot;custom-test-id&quot; (not &quot;paper-should-be-ignored&quot;)
       </Typography>
     </Paper>
   ),

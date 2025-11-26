@@ -123,7 +123,7 @@ main() {
     delete_item "contracts/graphql/subgraphs/app/schema.graphqls"
     delete_item "contracts/graphql/subgraphs/app/schema.graphqls.backup"
     delete_item "contracts/graphql/supergraph/supergraph.graphql"
-    delete_item "contracts/graphql/supergraph/supergraph.dev.graphql"
+    delete_item "contracts/graphql/supergraph/supergraph.local.graphql"
     
     # OpenAPI (delete the whole file)
     delete_item "service/kotlin/openapi/openapi.yaml"

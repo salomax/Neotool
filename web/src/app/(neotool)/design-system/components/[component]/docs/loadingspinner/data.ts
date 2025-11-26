@@ -6,7 +6,6 @@ export const loadingspinnerData: ComponentData = {
   status: "stable" as const,
 
   githubUrl: "/web/src/shared/components/ui/primitives/LoadingSpinner.tsx",
-  type: "number | 'small' | 'medium' | 'large'" as const,
   
   props: [
     { name: "size", type: "number | 'small' | 'medium' | 'large'", required: false, description: "Spinner size", default: "'medium'" },

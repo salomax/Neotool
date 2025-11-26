@@ -7,26 +7,27 @@ import io.jsonwebtoken.security.Keys
 import jakarta.inject.Singleton
 import mu.KotlinLogging
 import java.time.Instant
-import java.util.*
+import java.util.Date
+import java.util.UUID
 import javax.crypto.SecretKey
 
 /**
  * Service for JWT token generation and validation.
- * 
+ *
  * Implements JWT best practices:
  * - Uses HMAC-SHA256 (HS256) algorithm for signing
  * - Includes standard claims: sub (subject/userId), iat (issued at), exp (expiration)
  * - Configurable token expiration times
  * - Secure secret key management via configuration
- * 
+ *
  * @see https://tools.ietf.org/html/rfc7519
  */
 @Singleton
 class JwtService(
-    private val jwtConfig: JwtConfig
+    private val jwtConfig: JwtConfig,
 ) {
     private val logger = KotlinLogging.logger {}
-    
+
     private val secretKey: SecretKey by lazy {
         val secret = jwtConfig.secret
         if (secret.length < 32) {
@@ -34,20 +35,23 @@ class JwtService(
         }
         Keys.hmacShaKeyFor(secret.toByteArray())
     }
-    
+
     /**
      * Generate a JWT access token for a user.
-     * 
+     *
      * Access tokens are short-lived (default: 15 minutes) and used for API authentication.
-     * 
+     *
      * @param userId The user ID to include in the token subject claim
      * @param email The user's email (included as a custom claim)
      * @return A signed JWT token string
      */
-    fun generateAccessToken(userId: UUID, email: String): String {
+    fun generateAccessToken(
+        userId: UUID,
+        email: String,
+    ): String {
         val now = Instant.now()
         val expiration = now.plusSeconds(jwtConfig.accessTokenExpirationSeconds)
-        
+
         return Jwts.builder()
             .subject(userId.toString())
             .claim("email", email)
@@ -57,20 +61,20 @@ class JwtService(
             .signWith(secretKey)
             .compact()
     }
-    
+
     /**
      * Generate a JWT refresh token for a user.
-     * 
+     *
      * Refresh tokens are long-lived (default: 7 days) and used to obtain new access tokens.
      * They should be stored securely (e.g., in database) and can be revoked.
-     * 
+     *
      * @param userId The user ID to include in the token subject claim
      * @return A signed JWT token string
      */
     fun generateRefreshToken(userId: UUID): String {
         val now = Instant.now()
         val expiration = now.plusSeconds(jwtConfig.refreshTokenExpirationSeconds)
-        
+
         return Jwts.builder()
             .subject(userId.toString())
             .claim("type", "refresh")
@@ -79,10 +83,10 @@ class JwtService(
             .signWith(secretKey)
             .compact()
     }
-    
+
     /**
      * Validate and parse a JWT token.
-     * 
+     *
      * @param token The JWT token string to validate
      * @return Claims if token is valid, null otherwise
      */
@@ -98,10 +102,10 @@ class JwtService(
             null
         }
     }
-    
+
     /**
      * Extract user ID from a validated JWT token.
-     * 
+     *
      * @param token The JWT token string
      * @return User ID if token is valid, null otherwise
      */
@@ -114,10 +118,10 @@ class JwtService(
             null
         }
     }
-    
+
     /**
      * Check if a token is an access token.
-     * 
+     *
      * @param token The JWT token string
      * @return true if token is a valid access token, false otherwise
      */
@@ -125,10 +129,10 @@ class JwtService(
         val claims = validateToken(token) ?: return false
         return claims["type"] == "access"
     }
-    
+
     /**
      * Check if a token is a refresh token.
-     * 
+     *
      * @param token The JWT token string
      * @return true if token is a valid refresh token, false otherwise
      */
@@ -136,10 +140,10 @@ class JwtService(
         val claims = validateToken(token) ?: return false
         return claims["type"] == "refresh"
     }
-    
+
     /**
      * Get the expiration time of a token.
-     * 
+     *
      * @param token The JWT token string
      * @return Expiration Instant if token is valid, null otherwise
      */
@@ -148,4 +152,3 @@ class JwtService(
         return claims.expiration?.toInstant()
     }
 }
-

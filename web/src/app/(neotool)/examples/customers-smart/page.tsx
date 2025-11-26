@@ -34,7 +34,7 @@ export default function CustomersSmartPage() {
           automatically falls back to common translations when domain translations are not found.
         </Typography>
         <Typography variant="body2" sx={{ mt: 1 }}>
-          Notice how 'save' and 'cancel' fall back to common translations automatically!
+          Notice how &apos;save&apos; and &apos;cancel&apos; fall back to common translations automatically!
         </Typography>
       </Box>
 
