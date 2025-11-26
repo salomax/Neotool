@@ -1,8 +1,12 @@
 micronaut:
   application:
-    name: neotool-service
+    name: neotool-security-service
+  executors:
+    blocking:
+      virtual: true
   server:
     port: 8080
+    thread-selection: blocking
     cors:
       enabled: true
       configurations:
@@ -21,9 +25,17 @@ micronaut:
           allow-credentials: true
           max-age: 3600
   security:
-    enabled: false
-    # JWT configuration is handled by JwtService and JwtConfig
-    # See jwt.* configuration below
+    enabled: true
+    
+  # Micrometer Configuration for Metrics Collection
+  metrics:
+    enabled: true
+    export:
+      prometheus:
+        enabled: true
+        step: PT15S
+  observation:
+    enabled: true
 
 # JWT Configuration
 jwt:
@@ -34,6 +46,23 @@ jwt:
   access-token-expiration-seconds: ${JWT_ACCESS_TOKEN_EXPIRATION_SECONDS:900}
   # Refresh token expiration in seconds (default: 604800 = 7 days)
   refresh-token-expiration-seconds: ${JWT_REFRESH_TOKEN_EXPIRATION_SECONDS:604800}
+
+# Email Configuration
+email:
+  # From email address (used in email templates)
+  # Can be set via EMAIL_FROM environment variable
+  from: ${EMAIL_FROM:noreply@neotool.com}
+  # Frontend URL for generating reset links
+  # Can be set via FRONTEND_URL environment variable
+  frontend-url: ${FRONTEND_URL:http://localhost:3000}
+  # Note: Uses MockEmailService which logs emails to console/logs for testing
+
+# OAuth Configuration
+oauth:
+  google:
+    # Google OAuth client ID (required for Google sign-in)
+    client-id: ${GOOGLE_CLIENT_ID:}
+    issuer: ${GOOGLE_ISSUER:}
 
 datasources:
   default:
@@ -90,39 +119,18 @@ flyway:
       enabled: true
       baseline-on-migrate: true
       baseline-version: 0
-
-redis:
-  uri: redis://${REDIS_HOST:localhost}:${REDIS_PORT:6379}
-
-kafka:
-  bootstrap:
-    servers: ${KAFKA_HOST:localhost}:${KAFKA_PORT:9092}
-
-# Micrometer Configuration for Metrics Collection
-micrometer:
-  metrics:
-    enabled: true
-    export:
-      prometheus:
-        enabled: true
-        step: PT15S
-  # Enable automatic HTTP request metrics
-  observation:
-    enabled: true
+      table: flyway_schema_history_security
 
 # Management Endpoints Configuration
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,prometheus,metrics
-  endpoint:
-    health:
-      show-details: always
-    prometheus:
-      enabled: true
-  # Enable metrics collection
+endpoints:
+  all:
+    enabled: true
+  health:
+    enabled: true
+    sensitive: false
+  prometheus:
+    enabled: true
+    sensitive: false
   metrics:
-    export:
-      prometheus:
-        enabled: true
+    enabled: true
+    sensitive: false

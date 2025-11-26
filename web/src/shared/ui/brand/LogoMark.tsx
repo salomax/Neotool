@@ -25,7 +25,7 @@ export function LogoMark({
   return (
     <Image
       src={logoSrc}
-      alt="Neotool"
+      alt="neotool"
       width={width}
       height={height}
       className={className}

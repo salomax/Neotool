@@ -77,6 +77,7 @@ export { default as SearchIcon } from '@mui/icons-material/Search';
 export { default as AddIcon } from '@mui/icons-material/Add';
 export { default as EditIcon } from '@mui/icons-material/Edit';
 export { default as DeleteIcon } from '@mui/icons-material/Delete';
+export { default as RemoveIcon } from '@mui/icons-material/Remove';
 export { default as SaveIcon } from '@mui/icons-material/Save';
 export { default as CancelIcon } from '@mui/icons-material/Cancel';
 export { default as CloseIcon } from '@mui/icons-material/Close';
@@ -156,6 +157,8 @@ export { default as WidgetsIcon } from '@mui/icons-material/Widgets';
 export { default as ExtensionIcon } from '@mui/icons-material/Extension';
 export { default as ViewModuleIcon } from '@mui/icons-material/ViewModule';
 export { default as ViewListIcon } from '@mui/icons-material/ViewList';
+export { default as ShoppingCartIcon } from '@mui/icons-material/ShoppingCart';
+export { default as AddShoppingCartIcon } from '@mui/icons-material/AddShoppingCart';
 
 // Additional components needed for new components
 export { default as Popover } from '@mui/material/Popover';

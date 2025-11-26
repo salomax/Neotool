@@ -10,16 +10,13 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LogoMark } from '@/shared/ui/brand/LogoMark';
 
-import HomeRoundedIcon from '@mui/icons-material/HomeRounded';
 import DesignServicesRoundedIcon from '@mui/icons-material/DesignServicesRounded';
 import CodeRoundedIcon from '@mui/icons-material/CodeRounded';
 import MenuBookRoundedIcon from '@mui/icons-material/MenuBookRounded';
-import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
 
 type NavItem = { href: string; label: string; icon: React.ElementType };
 
 const NAV_TOP: NavItem[] = [
-  { href: '/', label: 'Home', icon: HomeRoundedIcon },
   { href: '/design-system', label: 'Design System', icon: DesignServicesRoundedIcon },
   { href: '/examples', label: 'Examples', icon: CodeRoundedIcon },
   { href: '/documentation', label: 'Documentation', icon: MenuBookRoundedIcon },
@@ -52,19 +49,29 @@ export function SidebarRail() {
       }}
     >
       {/* Logo */}
-      <Box
-        sx={{
-          width: 48,
-          height: 48,
-          borderRadius: '50%',
-          display: 'grid',
-          placeItems: 'center',
-          bgcolor: alpha(theme.palette.primary.contrastText, 0.12),
-          mt: 0.5,
-        }}
-      >
-        <LogoMark variant="white" width={32} height={30} />
-      </Box>
+      <Tooltip title="Home" placement="right">
+        <Box
+          component={Link}
+          href="/"
+          sx={{
+            width: 48,
+            height: 48,
+            borderRadius: '50%',
+            display: 'grid',
+            placeItems: 'center',
+            bgcolor: alpha(theme.palette.primary.contrastText, 0.12),
+            mt: 0.5,
+            cursor: 'pointer',
+            transition: 'background-color 0.2s',
+            '&:hover': {
+              bgcolor: alpha(theme.palette.primary.contrastText, 0.18),
+            },
+          }}
+          aria-label="Go to home page"
+        >
+          <LogoMark variant="white" width={32} height={30} />
+        </Box>
+      </Tooltip>
 
       <Divider sx={{ my: 2, width: '56%', borderColor: alpha(theme.palette.primary.contrastText, 0.25) }} />
 
@@ -113,26 +120,6 @@ export function SidebarRail() {
       </Stack>
 
       <Box sx={{ flexGrow: 1 }} />
-
-      {/* Rodapé */}
-      <Stack spacing={1.6} sx={{ mb: 1 }}>
-        <Tooltip title="Settings" placement="right">
-          <IconButton
-            LinkComponent={Link}
-            href="/settings"
-            aria-label="Settings"
-            size="large"
-            sx={{
-              color: theme.palette.primary.contrastText,
-              '&:hover': { bgcolor: alpha(theme.palette.common.black, 0.18) },
-              width: 48,
-              height: 48,
-            }}
-          >
-            <SettingsRoundedIcon fontSize="medium" />
-          </IconButton>
-        </Tooltip>
-      </Stack>
     </Box>
   );
 }

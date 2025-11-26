@@ -97,11 +97,13 @@ const Switch: React.FC<SwitchProps> = ({
   }, [readOnly, disabled, isControlled, onChange]);
 
   const renderLabel = () => {
-    if (!showLabel || !label) return null;
+    if (!showLabel) return null;
 
     if (labelComponent) {
       return labelComponent;
     }
+
+    if (!label) return null;
 
     return (
       <Typography 
@@ -302,7 +304,7 @@ const Switch: React.FC<SwitchProps> = ({
       disabled={disabled}
       error={error}
       {...(className && { className })}
-      data-testid={dataTestId}
+      {...testIdProps}
     >
       <Stack direction="row" spacing={2} alignItems="center">
         <Box>

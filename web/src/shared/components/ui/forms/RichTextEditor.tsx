@@ -55,6 +55,32 @@ export interface RichTextEditorProps {
   'data-testid'?: string;
 }
 
+// ToolbarButton component moved outside to avoid creating components during render
+const ToolbarButton = ({ 
+  command, 
+  icon, 
+  tooltip, 
+  disabled = false,
+  onCommand
+}: { 
+  command: string; 
+  icon: React.ReactNode; 
+  tooltip: string; 
+  disabled?: boolean;
+  onCommand: (command: string) => void;
+}) => (
+  <Tooltip title={tooltip}>
+    <IconButton
+      size="small"
+      onClick={() => onCommand(command)}
+      disabled={disabled}
+      data-testid={`toolbar-${command}`}
+    >
+      {icon}
+    </IconButton>
+  </Tooltip>
+);
+
 const RichTextEditor: React.FC<RichTextEditorProps> = ({
   value = '',
   onChange,
@@ -69,19 +95,19 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   'data-testid': testId
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
+  const isInitializedRef = useRef(false);
   const [fontSize, setFontSize] = useState('16px');
   const [textColor, setTextColor] = useState('#000000');
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [menuType, setMenuType] = useState<'size' | 'color' | null>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
 
   // Initialize editor content and handle value changes
   useEffect(() => {
-    if (editorRef.current && !isInitialized) {
+    if (editorRef.current && !isInitializedRef.current) {
       editorRef.current.innerHTML = value || '';
-      setIsInitialized(true);
+      isInitializedRef.current = true;
     }
-  }, [value, isInitialized]);
+  }, [value]);
 
   const execCommand = useCallback((command: string, value?: string) => {
     if (readOnly || !editorRef.current) return;
@@ -290,29 +316,6 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     execCommand('removeFormat');
   };
 
-  const ToolbarButton = ({ 
-    command, 
-    icon, 
-    tooltip, 
-    disabled = false 
-  }: { 
-    command: string; 
-    icon: React.ReactNode; 
-    tooltip: string; 
-    disabled?: boolean;
-  }) => (
-    <Tooltip title={tooltip}>
-      <IconButton
-        size="small"
-        onClick={() => execCommand(command)}
-        disabled={disabled || readOnly}
-        data-testid={`toolbar-${command}`}
-      >
-        {icon}
-      </IconButton>
-    </Tooltip>
-  );
-
   const toolbar = (
     <Toolbar 
       variant="dense" 
@@ -326,16 +329,16 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     >
       {/* Text Formatting */}
       {allowedFormats.includes('bold') && (
-        <ToolbarButton command="bold" icon={<FormatBoldIcon />} tooltip="Bold (Ctrl+B)" />
+        <ToolbarButton command="bold" icon={<FormatBoldIcon />} tooltip="Bold (Ctrl+B)" disabled={readOnly} onCommand={execCommand} />
       )}
       {allowedFormats.includes('italic') && (
-        <ToolbarButton command="italic" icon={<FormatItalicIcon />} tooltip="Italic (Ctrl+I)" />
+        <ToolbarButton command="italic" icon={<FormatItalicIcon />} tooltip="Italic (Ctrl+I)" disabled={readOnly} onCommand={execCommand} />
       )}
       {allowedFormats.includes('underline') && (
-        <ToolbarButton command="underline" icon={<FormatUnderlinedIcon />} tooltip="Underline (Ctrl+U)" />
+        <ToolbarButton command="underline" icon={<FormatUnderlinedIcon />} tooltip="Underline (Ctrl+U)" disabled={readOnly} onCommand={execCommand} />
       )}
       {allowedFormats.includes('strikethrough') && (
-        <ToolbarButton command="strikeThrough" icon={<FormatStrikethroughIcon />} tooltip="Strikethrough" />
+        <ToolbarButton command="strikeThrough" icon={<FormatStrikethroughIcon />} tooltip="Strikethrough" disabled={readOnly} onCommand={execCommand} />
       )}
 
       <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
@@ -343,8 +346,8 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       {/* Lists */}
       {allowedFormats.includes('list') && (
         <>
-          <ToolbarButton command="insertUnorderedList" icon={<FormatListBulletedIcon />} tooltip="Bullet List" />
-          <ToolbarButton command="insertOrderedList" icon={<FormatListNumberedIcon />} tooltip="Numbered List" />
+          <ToolbarButton command="insertUnorderedList" icon={<FormatListBulletedIcon />} tooltip="Bullet List" disabled={readOnly} onCommand={execCommand} />
+          <ToolbarButton command="insertOrderedList" icon={<FormatListNumberedIcon />} tooltip="Numbered List" disabled={readOnly} onCommand={execCommand} />
         </>
       )}
 
@@ -353,10 +356,10 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       {/* Alignment */}
       {allowedFormats.includes('align') && (
         <>
-          <ToolbarButton command="justifyLeft" icon={<FormatAlignLeftIcon />} tooltip="Align Left" />
-          <ToolbarButton command="justifyCenter" icon={<FormatAlignCenterIcon />} tooltip="Align Center" />
-          <ToolbarButton command="justifyRight" icon={<FormatAlignRightIcon />} tooltip="Align Right" />
-          <ToolbarButton command="justifyFull" icon={<FormatAlignJustifyIcon />} tooltip="Justify" />
+          <ToolbarButton command="justifyLeft" icon={<FormatAlignLeftIcon />} tooltip="Align Left" disabled={readOnly} onCommand={execCommand} />
+          <ToolbarButton command="justifyCenter" icon={<FormatAlignCenterIcon />} tooltip="Align Center" disabled={readOnly} onCommand={execCommand} />
+          <ToolbarButton command="justifyRight" icon={<FormatAlignRightIcon />} tooltip="Align Right" disabled={readOnly} onCommand={execCommand} />
+          <ToolbarButton command="justifyFull" icon={<FormatAlignJustifyIcon />} tooltip="Justify" disabled={readOnly} onCommand={execCommand} />
         </>
       )}
 
@@ -436,21 +439,21 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
       {/* Special Elements */}
       {allowedFormats.includes('link') && (
-        <ToolbarButton command="link" icon={<LinkIcon />} tooltip="Insert Link" />
+        <ToolbarButton command="link" icon={<LinkIcon />} tooltip="Insert Link" disabled={readOnly} onCommand={insertLink} />
       )}
       {allowedFormats.includes('image') && (
-        <ToolbarButton command="image" icon={<ImageIcon />} tooltip="Insert Image" />
+        <ToolbarButton command="image" icon={<ImageIcon />} tooltip="Insert Image" disabled={readOnly} onCommand={insertImage} />
       )}
       {allowedFormats.includes('code') && (
-        <ToolbarButton command="code" icon={<CodeIcon />} tooltip="Code Block" />
+        <ToolbarButton command="code" icon={<CodeIcon />} tooltip="Code Block" disabled={readOnly} onCommand={execCommand} />
       )}
 
       <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
 
       {/* Actions */}
-      <ToolbarButton command="undo" icon={<UndoIcon />} tooltip="Undo (Ctrl+Z)" />
-      <ToolbarButton command="redo" icon={<RedoIcon />} tooltip="Redo (Ctrl+Y)" />
-      <ToolbarButton command="removeFormat" icon={<FormatClearIcon />} tooltip="Clear Formatting" />
+      <ToolbarButton command="undo" icon={<UndoIcon />} tooltip="Undo (Ctrl+Z)" disabled={readOnly} onCommand={execCommand} />
+      <ToolbarButton command="redo" icon={<RedoIcon />} tooltip="Redo (Ctrl+Y)" disabled={readOnly} onCommand={execCommand} />
+      <ToolbarButton command="removeFormat" icon={<FormatClearIcon />} tooltip="Clear Formatting" disabled={readOnly} onCommand={clearFormatting} />
     </Toolbar>
   );
 

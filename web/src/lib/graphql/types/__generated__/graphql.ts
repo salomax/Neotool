@@ -12,6 +12,8 @@ export type Scalars = {
   Boolean: { input: boolean; output: boolean; }
   Int: { input: number; output: number; }
   Float: { input: number; output: number; }
+  join__FieldSet: { input: unknown; output: unknown; }
+  link__Import: { input: unknown; output: unknown; }
 };
 
 export type BaseEntityInput = {
@@ -47,6 +49,11 @@ export type Mutation = {
   createProduct: Product;
   deleteCustomer: Scalars['Boolean']['output'];
   deleteProduct: Scalars['Boolean']['output'];
+  requestPasswordReset: RequestPasswordResetPayload;
+  resetPassword: ResetPasswordPayload;
+  signIn: SignInPayload;
+  signInWithOAuth: SignInPayload;
+  signUp: SignUpPayload;
   updateCustomer: Customer;
   updateProduct: Product;
 };
@@ -69,6 +76,31 @@ export type MutationDeleteCustomerArgs = {
 
 export type MutationDeleteProductArgs = {
   id: Scalars['ID']['input'];
+};
+
+
+export type MutationRequestPasswordResetArgs = {
+  input: RequestPasswordResetInput;
+};
+
+
+export type MutationResetPasswordArgs = {
+  input: ResetPasswordInput;
+};
+
+
+export type MutationSignInArgs = {
+  input: SignInInput;
+};
+
+
+export type MutationSignInWithOAuthArgs = {
+  input: SignInWithOAuthInput;
+};
+
+
+export type MutationSignUpArgs = {
+  input: SignUpInput;
 };
 
 
@@ -104,6 +136,7 @@ export type ProductInput = {
 
 export type Query = {
   __typename: 'Query';
+  currentUser: Maybe<User>;
   customer: Maybe<Customer>;
   customers: Array<Customer>;
   product: Maybe<Product>;
@@ -119,3 +152,76 @@ export type QueryCustomerArgs = {
 export type QueryProductArgs = {
   id: Scalars['ID']['input'];
 };
+
+export type RequestPasswordResetInput = {
+  email: Scalars['String']['input'];
+  locale?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type RequestPasswordResetPayload = {
+  __typename: 'RequestPasswordResetPayload';
+  message: Scalars['String']['output'];
+  success: Scalars['Boolean']['output'];
+};
+
+export type ResetPasswordInput = {
+  newPassword: Scalars['String']['input'];
+  token: Scalars['String']['input'];
+};
+
+export type ResetPasswordPayload = {
+  __typename: 'ResetPasswordPayload';
+  message: Scalars['String']['output'];
+  success: Scalars['Boolean']['output'];
+};
+
+export type SignInInput = {
+  email: Scalars['String']['input'];
+  password: Scalars['String']['input'];
+  rememberMe?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
+export type SignInPayload = {
+  __typename: 'SignInPayload';
+  refreshToken: Maybe<Scalars['String']['output']>;
+  token: Scalars['String']['output'];
+  user: User;
+};
+
+export type SignInWithOAuthInput = {
+  idToken: Scalars['String']['input'];
+  provider: Scalars['String']['input'];
+  rememberMe?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
+export type SignUpInput = {
+  email: Scalars['String']['input'];
+  name: Scalars['String']['input'];
+  password: Scalars['String']['input'];
+};
+
+export type SignUpPayload = {
+  __typename: 'SignUpPayload';
+  refreshToken: Maybe<Scalars['String']['output']>;
+  token: Scalars['String']['output'];
+  user: User;
+};
+
+export type User = {
+  __typename: 'User';
+  displayName: Maybe<Scalars['String']['output']>;
+  email: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+};
+
+export enum Join__Graph {
+  App = 'APP',
+  Security = 'SECURITY'
+}
+
+export enum Link__Purpose {
+  /** `EXECUTION` features provide metadata necessary for operation execution. */
+  Execution = 'EXECUTION',
+  /** `SECURITY` features provide metadata necessary to securely resolve fields. */
+  Security = 'SECURITY'
+}

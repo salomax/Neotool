@@ -43,6 +43,7 @@ export const MaskedField: React.FC<MaskedFieldProps> = ({
               label={label}
               placeholder={placeholder}
               fullWidth={fullWidth}
+              disabled={disabled}
               error={!!fieldState.error}
               helperText={fieldState.error?.message}
               inputProps={inputProps}

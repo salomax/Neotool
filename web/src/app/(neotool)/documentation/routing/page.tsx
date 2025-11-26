@@ -160,7 +160,7 @@ export default function ProductPage({ params }: PageProps) {
             Layouts & Templates
           </Typography>
           <Typography variant="body1" paragraph>
-            Layouts allow you to create shared UI that persists across multiple pages. They're perfect
+            Layouts allow you to create shared UI that persists across multiple pages. They&apos;re perfect
             for navigation, headers, footers, and other common elements.
           </Typography>
 

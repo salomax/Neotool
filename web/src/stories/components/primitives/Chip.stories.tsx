@@ -33,10 +33,6 @@ const meta: Meta<typeof Chip> = {
       options: ['small', 'medium', 'large'],
       description: 'Size of the chip'
     },
-    deletable: {
-      control: { type: 'boolean' },
-      description: 'Whether the chip can be deleted'
-    },
     disabled: {
       control: { type: 'boolean' },
       description: 'Whether the chip is disabled'
@@ -151,8 +147,8 @@ export const Deletable: Story = {
 export const WithIcons: Story = {
   render: () => (
     <Stack direction="row" spacing={2} flexWrap="wrap">
-      <Chip label="With Icon" icon="✓" />
-      <Chip label="Deletable with Icon" icon="✓" onDelete={() => {}} />
+      <Chip label="With Icon" icon={<span>✓</span>} />
+      <Chip label="Deletable with Icon" icon={<span>✓</span>} onDelete={() => {}} />
     </Stack>
   ),
   parameters: {

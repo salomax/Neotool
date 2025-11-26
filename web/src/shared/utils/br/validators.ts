@@ -10,8 +10,9 @@ export function isValidCPF(value: string): boolean {
     const digit = cpf[i];
     if (digit) sum += parseInt(digit, 10) * (10 - i);
   }
-  let d1 = (sum * 10) % 11;
-  if (d1 === 10) d1 = 0;
+  let d1 = sum % 11;
+  if (d1 < 2) d1 = 0;
+  else d1 = 11 - d1;
   const digit9 = cpf[9];
   if (digit9 && d1 !== parseInt(digit9, 10)) return false;
 
@@ -20,8 +21,9 @@ export function isValidCPF(value: string): boolean {
     const digit = cpf[i];
     if (digit) sum += parseInt(digit, 10) * (11 - i);
   }
-  let d2 = (sum * 10) % 11;
-  if (d2 === 10) d2 = 0;
+  let d2 = sum % 11;
+  if (d2 < 2) d2 = 0;
+  else d2 = 11 - d2;
   const digit10 = cpf[10];
   if (digit10 && d2 !== parseInt(digit10, 10)) return false;
   return true;

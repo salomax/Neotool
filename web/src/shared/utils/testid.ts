@@ -11,6 +11,7 @@
  * @example
  * generateTestId('Paper', 'search-filters') // returns 'paper-search-filters'
  * generateTestId('Button', 'submit') // returns 'button-submit'
+ * generateTestId('Avatar', 'John Doe') // returns 'avatar-john-doe'
  * generateTestId('Paper') // returns 'paper'
  */
 export function generateTestId(componentName: string, name?: string): string {
@@ -20,7 +21,15 @@ export function generateTestId(componentName: string, name?: string): string {
     return normalizedComponentName;
   }
   
-  return `${normalizedComponentName}-${name}`;
+  // Normalize the name: lowercase, replace spaces with hyphens, remove extra hyphens
+  const normalizedName = name
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-') // Replace one or more spaces with a single hyphen
+    .replace(/-+/g, '-') // Replace multiple consecutive hyphens with a single hyphen
+    .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
+  
+  return `${normalizedComponentName}-${normalizedName}`;
 }
 
 /**

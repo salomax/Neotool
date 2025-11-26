@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutComponentProps } from './types';
+import { LayoutComponentProps, ResponsiveValue } from './types';
 import { getResponsiveValue, spacingToCSS } from './utils';
 
 export interface CoverProps extends LayoutComponentProps {

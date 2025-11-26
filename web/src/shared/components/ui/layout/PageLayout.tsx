@@ -3,7 +3,7 @@
 import React from 'react';
 import { LayoutComponentProps } from './types';
 import { Stack } from './Stack';
-import { Paper, useTheme } from '@mui/material';
+import { Paper, useTheme, Container } from '@mui/material';
 import { getTestIdProps } from '@/shared/utils/testid';
 
 export interface PageLayoutProps extends LayoutComponentProps {
@@ -19,6 +19,8 @@ export interface PageLayoutProps extends LayoutComponentProps {
   fullHeight?: boolean;
   /** Padding for the page */
   padding?: number | string;
+  /** Max width constraint (e.g., 'xl', 'lg', false, or a number) - matches Material-UI Container maxWidth */
+  maxWidth?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | false;
   /** Name for generating test ID */
   name?: string;
   /** Test identifier */
@@ -33,6 +35,7 @@ export function PageLayout({
   fullHeight = true,
   padding = 4,
   gap,
+  maxWidth,
   className,
   style,
   name,
@@ -68,7 +71,7 @@ export function PageLayout({
     ...style,
   };
   
-  return (
+  const content = (
     <Stack
       as="div"
       gap={effectiveGap}
@@ -110,6 +113,17 @@ export function PageLayout({
       {children}
     </Stack>
   );
+
+  // If maxWidth is specified, wrap in Container to match header behavior
+  if (maxWidth !== undefined) {
+    return (
+      <Container maxWidth={maxWidth} disableGutters>
+        {content}
+      </Container>
+    );
+  }
+
+  return content;
 }
 
 export default PageLayout;

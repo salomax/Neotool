@@ -39,12 +39,7 @@ export function FormRow({
       {items.map((child, idx) => (
         <Grid
           key={idx}
-          item
-          xs={12}
-          sm={span("sm")}
-          md={span("md")}
-          lg={span("lg")}
-          xl={span("xl")}
+          size={{ xs: 12, sm: span("sm"), md: span("md"), lg: span("lg"), xl: span("xl") }}
         >
           {child}
         </Grid>

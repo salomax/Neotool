@@ -50,9 +50,9 @@ export function Cluster({
       return React.cloneElement(child, {
         style: {
           minWidth,
-          ...child.props.style,
+          ...(child.props.style || {}),
         },
-      });
+      } as any);
     }
     return child;
   });

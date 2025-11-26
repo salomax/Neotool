@@ -1,34 +1,70 @@
 directive @key(fields: String!) repeatable on OBJECT | INTERFACE
 
-# User type for authentication and authorization
-type User @key(fields: "id") {
+# Specific entity types implementing interfaces
+type Product @key(fields: "id") {
   id: ID!
-  email: String!
-  displayName: String
+  name: String!
+  sku: String!
+  priceCents: Int!
+  stock: Int!
+  createdAt: String
+  updatedAt: String
+  version: Int!
 }
 
-# Query type for security operations
+type Customer @key(fields: "id") {
+  id: ID!
+  name: String!
+  email: String!
+  status: String!
+  createdAt: String
+  updatedAt: String
+  version: Int!
+}
+
+# Query type with clean, focused operations
 type Query {
-  # Authentication queries
-  currentUser: User
+  # Entity queries
+  products: [Product!]!
+  product(id: ID!): Product
+  customers: [Customer!]!
+  customer(id: ID!): Customer
 }
 
-# Mutation type for security operations
+# Mutation type with consistent patterns
 type Mutation {
-  # Authentication mutations
-  signIn(input: SignInInput!): SignInPayload!
+  # Product mutations
+  createProduct(input: ProductInput!): Product!
+  updateProduct(id: ID!, input: ProductInput!): Product!
+  deleteProduct(id: ID!): Boolean!
+  
+  # Customer mutations
+  createCustomer(input: CustomerInput!): Customer!
+  updateCustomer(id: ID!, input: CustomerInput!): Customer!
+  deleteCustomer(id: ID!): Boolean!
 }
 
-# Authentication input types
-input SignInInput {
+# Input types with inheritance patterns
+input BaseEntityInput {
+  name: String!
+}
+
+input ProductInput {
+  name: String!
+  sku: String!
+  priceCents: Int!
+  stock: Int!
+}
+
+input CustomerInput {
+  name: String!
   email: String!
-  password: String!
-  rememberMe: Boolean
+  status: String!
 }
 
-type SignInPayload {
-  token: String!
-  refreshToken: String
-  user: User!
+# Enums for better type safety
+enum CustomerStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
 }
-

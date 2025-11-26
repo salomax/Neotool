@@ -25,7 +25,7 @@ export default function OrdersPage() {
       <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 1 }}>
         <Typography variant="body1" color="text.secondary">
           This page demonstrates automatic domain registration. 
-          The 'orders' domain translations were loaded automatically when you used useTranslation(ordersTranslations).
+          The &apos;orders&apos; domain translations were loaded automatically when you used useTranslation(ordersTranslations).
         </Typography>
         <Typography variant="body2" sx={{ mt: 1 }}>
           Try switching languages to see the translations in action!

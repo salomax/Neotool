@@ -78,35 +78,46 @@ export interface StepProgressProps extends Omit<ProgressBarProps, 'variant' | 'v
   stepStatus?: ('completed' | 'active' | 'pending' | 'error')[];
 }
 
-const ProgressBar: React.FC<ProgressBarProps | StepProgressProps> = ({
-  value = 0,
-  indeterminate = false,
-  variant = 'linear',
-  size = 'medium',
-  color = 'primary',
-  thickness = 4,
-  width,
-  height = 8,
-  showPercentage = true,
-  showLabel = true,
-  label,
-  helperText,
-  error = false,
-  errorMessage,
-  disabled = false,
-  className,
-  'data-testid': dataTestId,
-  // Step progress props
-  currentStep = 0,
-  totalSteps = 3,
-  steps = [],
-  showStepContent = false,
-  stepContent = [],
-  clickable = false,
-  onStepClick,
-  stepStatus = [],
-  ...props
-}) => {
+const ProgressBar: React.FC<ProgressBarProps | StepProgressProps> = (props) => {
+  // Type guard to check if it's step progress
+  const isStepProgress = (p: ProgressBarProps | StepProgressProps): p is StepProgressProps => {
+    return 'steps' in p || 'currentStep' in p || 'totalSteps' in p;
+  };
+
+  const isStep = isStepProgress(props);
+  const baseProps = isStep ? {} : props as ProgressBarProps;
+  const stepProps = isStep ? props as StepProgressProps : {};
+
+  const variant = isStep ? 'step' : ((baseProps as ProgressBarProps).variant ?? 'linear');
+  const size = (isStep ? stepProps.size : baseProps.size) ?? 'medium';
+  const color = (isStep ? stepProps.color : baseProps.color) ?? 'primary';
+  const thickness = (isStep ? stepProps.thickness : baseProps.thickness) ?? 4;
+  const width = isStep ? stepProps.width : baseProps.width;
+  const height = (isStep ? stepProps.height : baseProps.height) ?? 8;
+  const showPercentage = (isStep ? stepProps.showPercentage : baseProps.showPercentage) ?? true;
+  const showLabel = (isStep ? stepProps.showLabel : baseProps.showLabel) ?? true;
+  const label = isStep ? stepProps.label : baseProps.label;
+  const helperText = isStep ? stepProps.helperText : baseProps.helperText;
+  const error = (isStep ? stepProps.error : baseProps.error) ?? false;
+  const errorMessage = isStep ? stepProps.errorMessage : baseProps.errorMessage;
+  const disabled = (isStep ? stepProps.disabled : baseProps.disabled) ?? false;
+  const className = isStep ? stepProps.className : baseProps.className;
+  const dataTestId = isStep ? stepProps['data-testid'] : baseProps['data-testid'];
+
+  // Step progress specific props
+  const currentStep = isStep ? (stepProps.currentStep ?? 0) : 0;
+  const totalSteps = isStep ? (stepProps.totalSteps ?? 3) : 3;
+  const steps = isStep ? (stepProps.steps ?? []) : [];
+  const showStepContent = isStep ? (stepProps.showStepContent ?? false) : false;
+  const stepContent = isStep ? (stepProps.stepContent ?? []) : [];
+  const clickable = isStep ? (stepProps.clickable ?? false) : false;
+  const onStepClick = isStep ? stepProps.onStepClick : undefined;
+  const stepStatus = isStep ? (stepProps.stepStatus ?? []) : [];
+
+  // Only access value if it's not step progress
+  const value = isStep ? 0 : (baseProps.value ?? 0);
+  const indeterminate = isStep ? false : (baseProps.indeterminate ?? false);
+
   // Clamp value between 0 and 100
   const clampedValue = Math.min(100, Math.max(0, value));
   
@@ -251,7 +262,7 @@ const ProgressBar: React.FC<ProgressBarProps | StepProgressProps> = ({
 
   // Render step progress
   const renderStepProgress = () => {
-    const stepProps = props as StepProgressProps;
+    if (!isStep) return null;
     const { steps, showStepContent, stepContent, clickable, onStepClick, stepStatus = [] } = stepProps;
     
     // Use the currentStep and totalSteps from the main component props
@@ -320,7 +331,7 @@ const ProgressBar: React.FC<ProgressBarProps | StepProgressProps> = ({
               >
                 {stepLabel}
               </StepLabel>
-              {showStepContent && stepContent[index] && (
+              {showStepContent && stepContent && stepContent[index] && (
                 <StepContent>
                   {stepContent[index]}
                 </StepContent>

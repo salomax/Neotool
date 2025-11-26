@@ -13,7 +13,7 @@ data class Product(
     val stock: Int = 0,
     val createdAt: Instant = Instant.now(),
     val updatedAt: Instant = Instant.now(),
-    val version: Long = 0
+    val version: Long = 0,
 ) {
     fun toEntity(): ProductEntity {
         return ProductEntity(
@@ -24,10 +24,10 @@ data class Product(
             stock = this.stock,
             createdAt = this.createdAt,
             updatedAt = this.updatedAt,
-            version = this.version
+            version = this.version,
         )
     }
-    
+
     fun toResponse(): ProductResponse {
         return ProductResponse(
             id = this.id?.toString(),
@@ -37,7 +37,7 @@ data class Product(
             stock = this.stock,
             createdAt = this.createdAt,
             updatedAt = this.updatedAt,
-            version = this.version
+            version = this.version,
         )
     }
 }

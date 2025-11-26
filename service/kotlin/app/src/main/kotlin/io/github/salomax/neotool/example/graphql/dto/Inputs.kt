@@ -1,11 +1,14 @@
 package io.github.salomax.neotool.example.graphql.dto
 
-import io.github.salomax.neotool.example.domain.Product
+import io.github.salomax.neotool.common.graphql.BaseInputDTO
 import io.github.salomax.neotool.example.domain.Customer
+import io.github.salomax.neotool.example.domain.Product
 import io.micronaut.core.annotation.Introspected
 import io.micronaut.serde.annotation.Serdeable
-import io.github.salomax.neotool.graphql.BaseInputDTO
-import jakarta.validation.constraints.*
+import jakarta.validation.constraints.Email
+import jakarta.validation.constraints.Min
+import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.Pattern
 
 /**
  * DTOs used for GraphQL inputs. Bean Validation annotations ensure proper constraints.
@@ -20,7 +23,7 @@ data class ProductInputDTO(
     @field:Min(value = 0, message = "priceCents must be >= 0")
     var priceCents: Long = 0,
     @field:Min(value = 0, message = "stock must be >= 0")
-    var stock: Int = 0
+    var stock: Int = 0,
 ) : BaseInputDTO()
 
 @Introspected
@@ -30,8 +33,11 @@ data class CustomerInputDTO(
     var name: String = "",
     @field:Email(message = "Email must be valid")
     var email: String = "",
-    @field:Pattern(regexp = "ACTIVE|INACTIVE|PENDING", message = "❌ Invalid status. Must be one of: ACTIVE, INACTIVE, PENDING")
-    var status: String = "ACTIVE"
+    @field:Pattern(
+        regexp = "ACTIVE|INACTIVE|PENDING",
+        message = "❌ Invalid status. Must be one of: ACTIVE, INACTIVE, PENDING",
+    )
+    var status: String = "ACTIVE",
 ) : BaseInputDTO()
 
 /**
@@ -40,7 +46,7 @@ data class CustomerInputDTO(
 enum class CustomerStatus {
     ACTIVE,
     INACTIVE,
-    PENDING
+    PENDING,
 }
 
 /**
@@ -50,21 +56,21 @@ enum class CustomerStatus {
 @Serdeable
 data class ProductPayload(
     val product: Product? = null,
-    val errors: List<UserError> = emptyList()
+    val errors: List<UserError> = emptyList(),
 )
 
 @Introspected
 @Serdeable
 data class CustomerPayload(
     val customer: Customer? = null,
-    val errors: List<UserError> = emptyList()
+    val errors: List<UserError> = emptyList(),
 )
 
 @Introspected
 @Serdeable
 data class UserError(
     val field: List<String>,
-    val message: String
+    val message: String,
 )
 
 /**
@@ -75,14 +81,14 @@ data class UserError(
 data class ProductConnection(
     val edges: List<ProductEdge>,
     val pageInfo: PageInfo,
-    val totalCount: Int
+    val totalCount: Int,
 )
 
 @Introspected
 @Serdeable
 data class ProductEdge(
     val node: Product,
-    val cursor: String
+    val cursor: String,
 )
 
 @Introspected
@@ -90,14 +96,14 @@ data class ProductEdge(
 data class CustomerConnection(
     val edges: List<CustomerEdge>,
     val pageInfo: PageInfo,
-    val totalCount: Int
+    val totalCount: Int,
 )
 
 @Introspected
 @Serdeable
 data class CustomerEdge(
     val node: Customer,
-    val cursor: String
+    val cursor: String,
 )
 
 @Introspected
@@ -106,7 +112,7 @@ data class PageInfo(
     val hasNextPage: Boolean,
     val hasPreviousPage: Boolean,
     val startCursor: String? = null,
-    val endCursor: String? = null
+    val endCursor: String? = null,
 )
 
 /**
@@ -120,7 +126,7 @@ data class SignInInputDTO(
     var email: String = "",
     @field:NotBlank(message = "Password is required")
     var password: String = "",
-    var rememberMe: Boolean? = false
+    var rememberMe: Boolean? = false,
 ) : BaseInputDTO()
 
 @Introspected
@@ -128,7 +134,7 @@ data class SignInInputDTO(
 data class SignInPayloadDTO(
     val token: String,
     val refreshToken: String? = null,
-    val user: UserDTO
+    val user: UserDTO,
 )
 
 @Introspected
@@ -136,5 +142,5 @@ data class SignInPayloadDTO(
 data class UserDTO(
     val id: String,
     val email: String,
-    val displayName: String? = null
+    val displayName: String? = null,
 )

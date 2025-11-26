@@ -44,10 +44,107 @@ NeoTool brings together several layers under one monorepo:
 
 Before you begin, ensure you have the following installed:
 
-- **Node.js** - Version 18.x or higher (LTS recommended)
-- **npm or pnpm** - Package manager for managing dependencies
+- **Node.js** - Version 20.x or higher (LTS recommended)
+- **JDK** - Version 21 or higher
+- **nvm** (Node Version Manager) - For managing Node.js versions
+- **sdkman** (SDK Manager) - For managing JDK and other SDKs
 - **Git** - Version control system
-- **Docker** (optional) - For running infrastructure services
+- **Docker Engine** - For running infrastructure services (via Colima on Mac/Linux)
+- **Colima** - For running Docker Engine on Mac/Linux without Docker Desktop
+
+**What is Colima?** Colima (Containers on Linux on Mac) is a lightweight, open-source alternative to Docker Desktop. It runs Docker containers using a Linux virtual machine, providing a native Docker experience without the overhead of Docker Desktop.
+
+#### Installation Instructions
+
+##### macOS
+
+```bash
+# Install Homebrew (if not already installed)
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Install Git
+brew install git
+
+# Install nvm (Node Version Manager)
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
+
+# Reload your shell configuration
+source ~/.zshrc  # or ~/.bash_profile if using bash
+
+# Install Node.js 20.x LTS using nvm
+nvm install 20
+nvm use 20
+nvm alias default 20
+
+# Install sdkman (SDK Manager)
+curl -s "https://get.sdkman.io" | bash
+source "$HOME/.sdkman/bin/sdkman-init.sh"
+
+# Install JDK 21 using sdkman
+sdk install java 21-tem
+# Or list available versions: sdk list java
+# Then install a specific version: sdk install java <version>
+
+# Install Colima (Docker Engine alternative)
+brew install colima docker docker-compose
+
+# Start Colima
+colima start
+
+# Verify installations
+node --version    # Should show v20.x.x
+java --version    # Should show openjdk 21.x.x
+git --version     # Should show git version
+docker --version  # Should show Docker version
+```
+
+##### Linux
+
+```bash
+# Install Git
+sudo apt update  # For Debian/Ubuntu
+sudo apt install -y git
+# OR for Fedora/RHEL
+sudo dnf install -y git
+
+# Install nvm (Node Version Manager)
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
+
+# Reload your shell configuration
+source ~/.bashrc  # or ~/.zshrc if using zsh
+
+# Install Node.js 20.x LTS using nvm
+nvm install 20
+nvm use 20
+nvm alias default 20
+
+# Install sdkman (SDK Manager)
+curl -s "https://get.sdkman.io" | bash
+source "$HOME/.sdkman/bin/sdkman-init.sh"
+
+# Install JDK 21 using sdkman
+sdk install java 21-tem
+# Or list available versions: sdk list java
+# Then install a specific version: sdk install java <version>
+
+# Install Colima (Docker Engine alternative)
+# For Debian/Ubuntu
+sudo apt install -y colima docker.io docker-compose
+# OR for Fedora/RHEL
+sudo dnf install -y colima docker docker-compose
+
+# Start Colima (provides Docker Engine)
+colima start
+
+# Verify installations
+node --version    # Should show v20.x.x
+java --version    # Should show openjdk 21.x.x
+git --version     # Should show git version
+docker --version  # Should show Docker version
+```
+
+**Note:** After installing nvm or sdkman, you may need to restart your terminal or run `source ~/.zshrc` (or `~/.bashrc`) for the changes to take effect.
+
 
 ### Setup Options
 
@@ -167,19 +264,34 @@ All commands can also be accessed via `scripts/cli/cli` if you prefer.
 
 Once you have the project set up:
 
-1. **Configure environment variables** - Create `.env.local` files in the `web/` directory with your API URLs
-2. **Start the development server** - Run `npm run dev` or `pnpm dev` in the `web/` directory
-3. **Start the backend** - Run `./gradlew run` in the `service/kotlin/` directory, or use Docker Compose
-4. **Explore the documentation** - Visit the documentation section in the web app for detailed guides
+1. **Configure environment variables for infra** - Create `.env.local` files in the `infra/` directory
 
-### Post-Integration Steps (For Existing Projects)
+```plaintext
+# --- Global ---
+APP_NAME=neotool
+APP_LOCALE=en-US
+GRAPHQL_ENDPOINT=http://router:4000/graphql
 
-If you integrated NeoTool into an existing project, you may need to:
+# --- Database ---
+POSTGRES_USER=neotool
+POSTGRES_PASSWORD=neotool
+POSTGRES_DB=neotool_db
+POSTGRES_HOST=postgres
+POSTGRES_PORT=5432
+DATABASE_URL=jdbc:postgresql://postgres:5432/neotool_db
 
-- **Update Configuration Files** - Review and merge `.gitignore`, `package.json`, and other config files
-- **Update Package Names** - Update `package.json` and `build.gradle.kts` with your project name
-- **Review Documentation** - Update `README.md` and other docs with your project-specific information
-- **Check Port Conflicts** - Ensure docker-compose ports don't conflict with existing services
+# --- Grafana ---
+GF_SECURITY_ADMIN_USER=admin
+GF_SECURITY_ADMIN_PASSWORD=admin
+
+# --- AI ---
+GEMINI_API_KEY=<enter Gemini key here>
+```
+
+2. **Configure environment variables for web** - Create `.env.local` files in the `web/` directory with your API URLs
+3. **Start the development server** - Run `npm run dev` or `pnpm dev` in the `web/` directory
+4. **Start the backend** - Run `./gradlew run` in the `service/kotlin/` directory, or use Docker Compose
+5. **Explore the documentation** - Visit the documentation section in the web app for detailed guides
 
 ### Next Steps
 
@@ -200,52 +312,16 @@ graph TD
 
     subgraph Backend
         ServiceKotlin[Micronaut Service]
-        Gateway[GraphQL Router]
-        Common[Common Utilities]
+        GraphQLGateway[GraphQL Router]
+        RestGateway[REST Gateway]
     end
 
-    subgraph Infra
-        Docker[Docker Compose / K8s]
-        GitOps[ArgoCD]
-        Metrics[Prometheus + Grafana]
-        Logs[Loki + Promtail]
-    end
-
-    Web --> Gateway
-    Mobile --> Gateway
-    Gateway --> ServiceKotlin
-    ServiceKotlin --> DB[(Postgres)]
-    Metrics --> Grafana
-    Logs --> Grafana
-```
-
-```mermaid
----
-title: Feature implementation
----
-flowchart TD
-    User("User") --> Prompt["Insert prompt describing feature to be implemented"]
-    Prompt --> KB["Neotool reads the knowledge base"]
-    KB --> Artifacts["Neotool creates the artifacts"]
-    Artifacts --> CICD["CI/CD"]
-
-    subgraph ArtifactTypes["Artifacts"]
-      Docs["Feature Documentation<br/>(Functional & Non-functional docs)"] --> Gherkin
-      FE["Front-end Artifacts<br/>(Web/Mobile)"]
-      BE["Backend Artifacts<br/>(Services)"]
-      DB[("Storage Layer (Database)")]
-      E2E["E2E Tests"] --> Cypress["Cypress tests"]
-    end
-
-    subgraph CICDType["CICD"]
-        Build --> Deploy
-    end
-
-    Artifacts --> Docs
-    Artifacts --> FE
-    Artifacts --> BE
-    Artifacts --> DB
-    Artifacts --> E2E
+    ExternalClient[External Client] --> RestGateway
+    Web --> GraphQLGateway
+    Mobile --> GraphQLGateway
+    GraphQLGateway --> ServiceKotlin
+    RestGateway --> ServiceKotlin
+    ServiceKotlin --> DB[(Postgres/Pgbouncer)]
 ```
 
 ---
@@ -286,15 +362,218 @@ flowchart TD
 
 ## Data storage layer
 
+# CI/CD
+
+## Test → Build → CR → Preview → Staging → Production 
+
+This model validates code quality before merge (Preview Apps), validates system integration after merge (Staging), and promotes the same artifact digest to Production with gates, rollouts, and fast rollback.
+
+### Goals & Principles
+
+- Shift-left quality: catch issues in PR with automated checks + preview environments.
+
+- Staging as rehearsal: validate real infra, configs, and secrets after merge.
+
+- Promote, don’t rebuild: production uses the exact image digest tested in staging.
+
+- Safe releases: environments, approvals, canaries/blue-green, and automatic rollback.
+
+
+## Stages & Purpose
+
+### Pull Request CI + Preview App (Ephemeral)
+
+Test, build, lint, typecheck, security scan; deploy a temporary environment per PR
+
+PR is approved only after preview validation (automated + manual)
+
+### Staging (Shared, Persistent)
+
+Upon merge to main, deploy to staging using the built images (by tag/digest).
+
+Automated smoke/E2E tests, validate end-to-end integration (infra/secrets/DB migrations) close to prod.
+
+### Promotion to Production (Tag/Release)
+
+Deterministic deployments, create a semantic tag vX.Y.Z; promote the same digest from staging to prod.
+
+Gate via GitHub Environments (approvals), roll out (canary/blue-green), monitor, and auto-rollback if metrics degrade.
+
+Also, provide the release notes.
+
+To trigger it:
+
+```bash
+git tag v1.0.0 && git push origin v1.0.0
+```
+Or create a release in the GitHub UI, which can also create the tag automatically
+
+### 🚨 Emergency Fixes (Using Regular Flow)
+
+For emergency production fixes, we use the **same regular deployment flow** to ensure consistency and full validation.
+
+### Post-Release Verification & Rollback
+
+Health checks, SLO/SLA monitors, error-rate guards.
+
+Stable prod with auditable release trail.
+
+## Flowchart
+
+```mermaid
+graph TD
+  START1[✨ New Feature] --> A[Developer opens PR]
+  START2[🐛 Bug Fix / 🚨 Emergency Fix] --> A
+  A --> B[PR CI: build/lint/test]
+  B --> C{Build OK?}
+  C -- no --> C1[Fix & push]
+  C1 --> B
+  C -- yes --> D[Deploy Preview App]
+  D --> E[Validation on Preview App]
+  E --> F{Approve PR?}
+  F -- no --> C1
+  F -- yes --> G[Merge to main]
+  G --> H[Deploy to Staging using same images]
+  H --> I[Run DB migrations along first execution]
+  I --> J[Smoke + E2E + Contract tests + Observability checks]
+  J --> K{All checks green?}
+  K -- no --> H1[Fix → new PR cycle]
+  H1 --> A
+  K -- yes --> L[Create Tag with GitHub Release]
+  L --> M[Deploy to Production with Canary/Blue-Green]
+  M --> N[Post-release health checks & SLO guardrails]
+  N --> O{Healthy?}
+  O -- no --> P[Auto-rollback to previous digest]
+  O -- yes --> Q[Complete Release]
+```
+
+## Pipeline validations
+
+### Pull Request (Preview) Stage
+
+#### Backend Validations
+
+**Unit Tests** (runs for each service: app, assistant, security, common):
+```bash
+cd service/kotlin
+./gradlew :common:test --no-daemon
+./gradlew :[module]:test --no-daemon
+```
+
+**Unit Tests with Coverage** (generates Kover reports and validates thresholds):
+```bash
+cd service/kotlin
+./gradlew :[module]:test :[module]:koverXmlReport :[module]:koverHtmlReport :[module]:koverVerify --no-daemon
+```
+
+**Integration Tests** (runs for each service except common):
+```bash
+cd service/kotlin
+./gradlew :[module]:testIntegration --no-daemon
+```
+
+**Integration Tests with Coverage** (generates Kover reports and validates thresholds):
+```bash
+cd service/kotlin
+./gradlew :[module]:testIntegration :[module]:koverXmlReport :[module]:koverHtmlReport :[module]:koverVerify --no-daemon
+```
+
+**Run all backend tests with coverage**:
+```bash
+cd service/kotlin
+./gradlew test testIntegration koverRootReport --no-daemon
+```
+
+**Coverage Thresholds**:
+- Unit Tests: 90% minimum coverage (full codebase)
+- Integration Tests: 80% minimum coverage (full codebase)
+- Security Services (`io.github.salomax.neotool.security.service.*`): 100% coverage required
+- **Incremental Coverage (PRs)**: 80% minimum for changed lines only (prevents paying past debt)
+- Coverage reports are generated in `build/reports/kover/` directory
+
+**Incremental Coverage for PRs**:
+For Pull Requests, coverage is checked only for lines changed in the PR, not the entire codebase. This prevents failing PRs due to existing low coverage:
+```bash
+# Check incremental coverage for a module
+./gradlew :[module]:koverIncrementalCoverageCheck \
+  -Pcoverage.baseBranch=main \
+  -Pcoverage.incrementalThreshold=80
+```
+
+#### Frontend Validations
+
+```bash
+# Type checking
+pnpm run typecheck
+
+# Linting
+pnpm run lint
+
+# Unit tests
+pnpm run test
+
+# Tests in watch mode
+pnpm run test:watch
+
+# Tests with coverage
+pnpm run test:coverage
+```
+
+**Coverage Thresholds**:
+- Minimum 80% coverage required for branches, functions, lines, and statements
+- Coverage reports are generated in `web/coverage/` directory
+- CI/CD validates coverage thresholds and fails if not met
+
+**All CI validations**:
+```bash
+pnpm run ci:unit
+```
+
+#### Security Validations
+
+**Vulnerability scanning** (runs Trivy in CI):
+- Scans filesystem for CRITICAL and HIGH severity vulnerabilities
+- Results uploaded to GitHub Security tab
+- Can be run locally with: `trivy fs .`
+
 ---
 
 ## 🧭 Roadmap
 
-- [ ] Lint
-- [ ] Add Security module (Auth, RBAC)
-- [ ] Add feature flag service
+### Architecture/Infra
+- [ ] CI/CD (mock deployment)
+- [ ] FE and BE coverage tests (metrics and validation)
+- [ ] Mobile with React Native and Expo
+- [ ] Logging (promtail, loki)
+- [ ] Purge after a period of time (logs and workflow ru on GH)
+- [ ] E2E tests with cypress (running on CI/CD and test the AuthN and AuthZ)
+- [ ] Visual regression testing (cypress-image-diff)
+- [ ] MCP for AI agents
+- [ ] BI service
+- [ ] File storage abstraction
+- [ ] Monitoring alerts and SLO definitions
+- [ ] Feature flag service (unleash)
+- [ ] Vault service (HashiCorp)
 - [ ] Enable K8s deploy via GitOps  
-- [ ] AI-based documentation assistant 🤖
+- [ ] Autoscaling test 
+- [ ] CDN integration
+
+
+### Security
+- [ ] Security part 2 (User Managment and Oauth2/JWT/API])
+- [ ] Security part 3 (Permission management: RBAC and ABAC)
+- [ ] Audit trail
+
+### Examples / Built-in features
+- [ ] Batch job example (Scheduled tasks (cron-like))
+- [ ] Messaging example with Kafka
+- [ ] Redis cache
+- [ ] Webhook example
+- [ ] AI Chat
+
+### Spec
+- [ ] Service monitoring Dashboards 
+- [ ] Mobile implementation
 
 ---
 
