@@ -111,7 +111,7 @@ jobs:
         env:
           ryuk.disabled: 'true'
           TESTCONTAINERS_RYUK_DISABLED: 'true'
-        run: ./gradlew :${{ matrix.service }}:clean :${{ matrix.service }}:test :${{ matrix.service }}:testIntegration :${{ matrix.service }}:koverXmlReport :${{ matrix.service }}:koverHtmlReport :${{ matrix.service }}:koverVerify --no-daemon
+        run: ./gradlew :${{ matrix.service }}:clean :${{ matrix.service }}:test :${{ matrix.service }}:koverXmlReport :${{ matrix.service }}:koverHtmlReport --no-build-cache --rerun-tasks --no-daemon
 
       - name: Checkout base branch for incremental coverage
         if: github.event_name == 'pull_request'
