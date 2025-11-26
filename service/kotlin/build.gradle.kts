@@ -138,9 +138,32 @@ subprojects {
         }
         
         // Configure test tasks to finalize with Kover reports
+        // But disable Kover for integration tests to avoid ClassFormatError
         tasks.withType<Test> {
-            finalizedBy(tasks.named("koverXmlReport"))
-            finalizedBy(tasks.named("koverHtmlReport"))
+            // Disable Kover instrumentation for integration tests
+            // This prevents ClassFormatError caused by instrumenting Micronaut service loader classes
+            if (name == "testIntegration") {
+                // Disable Kover for integration tests to prevent ClassFormatError
+                // This prevents instrumentation of Micronaut service loader classes
+                extensions.findByName("kover")?.let { koverExt ->
+                    try {
+                        // Access isDisabled property via reflection
+                        val isDisabledMethod = koverExt.javaClass.getMethod("getIsDisabled")
+                        val isDisabledProp = isDisabledMethod.invoke(koverExt)
+                        if (isDisabledProp is org.gradle.api.provider.Property<*>) {
+                            @Suppress("UNCHECKED_CAST")
+                            (isDisabledProp as org.gradle.api.provider.Property<Boolean>).set(true)
+                            logger.info("Kover disabled for testIntegration task in ${project.name}")
+                        }
+                    } catch (e: Exception) {
+                        logger.warn("Could not disable Kover for testIntegration in ${project.name}: ${e.message}")
+                    }
+                }
+            } else {
+                // Only generate coverage reports for unit tests
+                finalizedBy(tasks.named("koverXmlReport"))
+                finalizedBy(tasks.named("koverHtmlReport"))
+            }
         }
         
         // Configure koverVerify task with coverage thresholds
@@ -183,33 +206,9 @@ subprojects {
             }
         }
         
-        // Integration test coverage configuration (only for modules with testIntegration task)
-        // Use whenTaskAdded to handle tasks registered after this block, and also check if already exists
-        var integrationCoverageConfigured = false
-        
-        fun configureIntegrationTestCoverage() {
-            if (integrationCoverageConfigured) return
-            integrationCoverageConfigured = true
-            
-            // Configure testIntegration to finalize with coverage reports
-            // Kover is now configured to exclude problematic classes, so this should work
-            tasks.named("testIntegration") {
-                finalizedBy(tasks.named("koverXmlReport"))
-                finalizedBy(tasks.named("koverHtmlReport"))
-            }
-        }
-        
-        // Check if testIntegration task already exists
-        if (tasks.names.contains("testIntegration")) {
-            configureIntegrationTestCoverage()
-        }
-        
-        // Also handle case where task is registered after this block
-        tasks.all {
-            if (name == "testIntegration" && !integrationCoverageConfigured) {
-                configureIntegrationTestCoverage()
-            }
-        }
+        // Integration tests have Kover disabled to prevent ClassFormatError
+        // No need to generate coverage reports for integration tests
+        // Unit test coverage is sufficient for code coverage metrics
         
         // Combined coverage report task (unit tests + integration tests)
         // Kover automatically combines coverage from all test tasks
