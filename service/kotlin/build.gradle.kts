@@ -108,9 +108,24 @@ subprojects {
     
     // Configure Kover after plugin is applied
     afterEvaluate {
-        // Configure Kover - use the kover extension block
-        // Note: Verification rules will be configured via koverVerify task
-        // Exclusions can be configured via koverReport tasks if needed
+        // Configure Kover to exclude Micronaut internals and generated classes
+        // This prevents ClassFormatError while still collecting coverage for application code
+        extensions.configure<org.jetbrains.kotlinx.kover.gradle.plugin.dsl.KoverExtension> {
+            instrumentation {
+                // Exclude Micronaut service loader classes that cause ClassFormatError
+                // These are loaded via service loading and instrumentation breaks them
+                excludedClasses.add("io.micronaut.core.io.service.SoftServiceLoader")
+                excludedClasses.add("io.micronaut.core.io.service.ServiceLoader")
+                // Exclude generated classes (KSP, annotation processors) using class name patterns
+                excludedClasses.add("*\$*") // Generated inner classes (e.g., MyClass$Companion)
+                excludedClasses.add("*Generated*") // Classes with "Generated" in name
+                excludedClasses.add("*_Factory*") // KSP factory classes
+                excludedClasses.add("*_Impl*") // KSP implementation classes
+                excludedClasses.add("*_Builder*") // Builder classes
+                // Exclude test infrastructure classes from coverage
+                excludedClasses.add("io.github.salomax.neotool.common.test.*")
+            }
+        }
         
         // Configure test tasks to finalize with Kover reports
         tasks.withType<Test> {
@@ -166,10 +181,8 @@ subprojects {
             if (integrationCoverageConfigured) return
             integrationCoverageConfigured = true
             
-            // Additional exclusions for integration tests are handled via Kover's default exclusions
-            // Integration test specific exclusions can be configured via koverReport task if needed
-            
             // Configure testIntegration to finalize with coverage reports
+            // Kover is now configured to exclude problematic classes, so this should work
             tasks.named("testIntegration") {
                 finalizedBy(tasks.named("koverXmlReport"))
                 finalizedBy(tasks.named("koverHtmlReport"))
