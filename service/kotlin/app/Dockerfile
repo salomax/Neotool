@@ -20,9 +20,11 @@ COPY app/src ./app/src
 # Download dependencies and build common module first (shared by all services)
 # This maximizes cache reuse across all service builds
 # Using BuildKit cache mount to share Gradle cache between builds
+# Using :common:assemble instead of :common:build to skip verification tasks (koverVerify, check)
+# since we're skipping tests and only need the JAR artifact
 RUN --mount=type=cache,target=/home/gradle/.gradle/caches \
     --mount=type=cache,target=/home/gradle/.gradle/wrapper \
-    ./gradlew :common:build -x test --build-cache
+    ./gradlew :common:assemble --build-cache
 
 # Build the application JAR
 # - './gradlew :app:shadowJar': Executes the `shadowJar` task on the `:app` module. This task typically
