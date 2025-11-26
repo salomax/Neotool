@@ -120,7 +120,7 @@ jobs:
         env:
           ryuk.disabled: 'true'
           TESTCONTAINERS_RYUK_DISABLED: 'true'
-        run: ./gradlew :${{ matrix.service }}:test :${{ matrix.service }}:jacocoTestReport --no-daemon
+        run: ./gradlew :${{ matrix.service }}:test :${{ matrix.service }}:koverXmlReport :${{ matrix.service }}:koverHtmlReport --no-daemon
 
       - name: Checkout base branch for incremental coverage
         if: github.event_name == 'pull_request'
@@ -136,7 +136,7 @@ jobs:
           GITHUB_BASE_REF: ${{ github.event.pull_request.base.ref }}
           GITHUB_HEAD_REF: ${{ github.head_ref }}
         run: |
-          ./gradlew :${{ matrix.service }}:jacocoIncrementalCoverageCheck \
+          ./gradlew :${{ matrix.service }}:koverIncrementalCoverageCheck \
             -Pcoverage.baseBranch=${{ github.event.pull_request.base.ref }} \
             -Pcoverage.incrementalThreshold=80 \
             --no-daemon
@@ -144,7 +144,7 @@ jobs:
       - name: Verify full coverage (non-PR or fallback)
         if: github.event_name != 'pull_request'
         working-directory: ./service/kotlin
-        run: ./gradlew :${{ matrix.service }}:jacocoTestCoverageVerification --no-daemon
+        run: ./gradlew :${{ matrix.service }}:koverVerify --no-daemon
 
       - name: Clean build artifacts before integration tests
         if: matrix.service != 'common'
@@ -160,12 +160,12 @@ jobs:
         env:
           ryuk.disabled: 'true'
           TESTCONTAINERS_RYUK_DISABLED: 'true'
-        run: ./gradlew :${{ matrix.service }}:testIntegration :${{ matrix.service }}:jacocoIntegrationTestReport --no-daemon
+        run: ./gradlew :${{ matrix.service }}:testIntegration :${{ matrix.service }}:koverXmlReport :${{ matrix.service }}:koverHtmlReport --no-daemon
 
       - name: Verify integration test coverage
         if: matrix.service != 'common'
         working-directory: ./service/kotlin
-        run: ./gradlew :${{ matrix.service }}:jacocoIntegrationTestCoverageVerification --no-daemon
+        run: ./gradlew :${{ matrix.service }}:koverVerify --no-daemon
 
       - name: Upload test results
         if: always()
@@ -182,7 +182,7 @@ jobs:
         with:
           name: backend-coverage-${{ matrix.service }}
           path: |
-            service/kotlin/${{ matrix.service }}/build/reports/jacoco/**/*
+            service/kotlin/${{ matrix.service }}/build/reports/kover/**/*
           retention-days: 30
 
   frontend-tests:
