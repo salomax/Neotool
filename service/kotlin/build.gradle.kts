@@ -190,9 +190,12 @@ subprojects {
         tasks.register("koverCombinedCoverageReport") {
             group = "verification"
             description = "Generates combined coverage report (Unit + Integration Tests)"
-            dependsOn(tasks.named("test"))
-            if (tasks.names.contains("testIntegration")) {
-                dependsOn(tasks.named("testIntegration"))
+            // Only depend on test task if it exists (using findByName to avoid exceptions)
+            tasks.findByName("test")?.let {
+                dependsOn(it)
+            }
+            tasks.findByName("testIntegration")?.let {
+                dependsOn(it)
             }
             dependsOn(tasks.named("koverXmlReport"))
             dependsOn(tasks.named("koverHtmlReport"))
