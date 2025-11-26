@@ -34,7 +34,7 @@ import java.util.concurrent.TimeUnit
 @Tag("product")
 @TestMethodOrder(MethodOrderer.Random::class)
 class GraphQLProductIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTest {
-    private fun uniqueSku() = "GRAPHQL-PRODUCT-${System.currentTimeMillis()}-${Thread.currentThread().id}"
+    private fun uniqueSku() = "GRAPHQL-PRODUCT-${System.currentTimeMillis()}-${Thread.currentThread().threadId()}"
 
     private fun uniqueName() = "GraphQL Product Test ${System.currentTimeMillis()}"
 
