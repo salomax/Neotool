@@ -88,30 +88,35 @@ jobs:
           java-version: '21'
           cache: gradle
 
-      # - name: Cache Gradle dependencies
-      #   uses: actions/cache@v4
-      #   with:
-      #     path: |
-      #       ~/.gradle/caches
-      #       ~/.gradle/wrapper
-      #       service/kotlin/.gradle
-      #     key: ${{ runner.os }}-gradle-${{ hashFiles('service/kotlin/**/*.gradle*', 'service/kotlin/gradle/wrapper/gradle-wrapper.properties') }}
-      #     restore-keys: |
-      #       ${{ runner.os }}-gradle-
-
       - name: Make gradlew executable
         run: chmod +x service/kotlin/gradlew
 
       - name: Run ktlint check
         working-directory: ./service/kotlin
-        run: ./gradlew ktlintCheck --no-daemon
+        run: ./gradlew ktlintCheck --no-daemon --parallel
 
-      - name: Run unit tests with coverage
+      - name: Run all tests (unit + integration) with coverage
         working-directory: ./service/kotlin
         env:
           ryuk.disabled: 'true'
           TESTCONTAINERS_RYUK_DISABLED: 'true'
-        run: ./gradlew :${{ matrix.service }}:clean :${{ matrix.service }}:test :${{ matrix.service }}:koverXmlReport :${{ matrix.service }}:koverHtmlReport --no-build-cache --rerun-tasks --no-daemon
+        run: |
+          # Run unit tests first with Kover coverage, then integration tests
+          # Note: --no-build-cache --rerun-tasks is required due to Kover instrumentation
+          # causing build cache issues. This ensures test results are always fresh.
+          if [ "${{ matrix.service }}" = "common" ]; then
+            # Common module only has unit tests
+            ./gradlew :${{ matrix.service }}:test :${{ matrix.service }}:koverXmlReport :${{ matrix.service }}:koverHtmlReport \
+              --no-build-cache --rerun-tasks --no-daemon --parallel
+          else
+            # For other services: run unit tests with coverage, then integration tests
+            # Clean test classes between runs to prevent ClassFormatError from Kover instrumentation
+            # Integration tests don't need --no-build-cache since they don't use Kover
+            ./gradlew :${{ matrix.service }}:test :${{ matrix.service }}:koverXmlReport :${{ matrix.service }}:koverHtmlReport \
+              --no-build-cache --rerun-tasks --no-daemon --parallel
+            ./gradlew :${{ matrix.service }}:cleanTest :${{ matrix.service }}:testIntegration \
+              --no-daemon --parallel
+          fi
 
       - name: Checkout base branch for incremental coverage
         if: github.event_name == 'pull_request'
@@ -130,33 +135,12 @@ jobs:
           ./gradlew :${{ matrix.service }}:koverIncrementalCoverageCheck \
             -Pcoverage.baseBranch=${{ github.event.pull_request.base.ref }} \
             -Pcoverage.incrementalThreshold=80 \
-            --no-daemon
+            --no-daemon --parallel
 
       - name: Verify full coverage (non-PR or fallback)
         if: github.event_name != 'pull_request'
         working-directory: ./service/kotlin
-        run: ./gradlew :${{ matrix.service }}:koverVerify --no-daemon
-
-      - name: Clean build artifacts before integration tests
-        if: matrix.service != 'common'
-        working-directory: ./service/kotlin
-        run: |
-          # Clean test classes and KSP-generated classes to prevent ClassFormatError
-          ./gradlew :${{ matrix.service }}:cleanTest :${{ matrix.service }}:cleanKspTestKotlin --no-daemon || true
-          ./gradlew :${{ matrix.service }}:cleanKspKotlin --no-daemon || true
-
-      - name: Run integration tests with coverage
-        if: matrix.service != 'common'
-        working-directory: ./service/kotlin
-        env:
-          ryuk.disabled: 'true'
-          TESTCONTAINERS_RYUK_DISABLED: 'true'
-        run: ./gradlew :${{ matrix.service }}:testIntegration :${{ matrix.service }}:koverXmlReport :${{ matrix.service }}:koverHtmlReport --no-daemon
-
-      - name: Verify integration test coverage
-        if: matrix.service != 'common'
-        working-directory: ./service/kotlin
-        run: ./gradlew :${{ matrix.service }}:koverVerify --no-daemon
+        run: ./gradlew :${{ matrix.service }}:koverVerify --no-daemon --parallel
 
       - name: Upload test results
         if: always()
