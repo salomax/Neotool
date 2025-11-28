@@ -97,6 +97,7 @@ This specification is organized into numbered directories (00-11) for clear hier
 | Document | Path | Type | Category | Keywords |
 |----------|------|------|----------|----------|
 | Kotlin Standards | `05-standards/coding-standards/kotlin-standards.md` | standard | coding | kotlin, code-style, naming |
+| Linting Standards | `05-standards/coding-standards/linting-standards.md` | standard | coding | linting, lint, code-quality, validation |
 | Architecture Standards | `05-standards/architecture-standards/layer-rules.md` | standard | architecture | architecture, constraints, patterns |
 | GraphQL Standards | `05-standards/api-standards/graphql-standards.md` | standard | api | graphql, api, patterns |
 | Database Standards | `05-standards/database-standards/schema-standards.md` | standard | database | database, schema, migration |

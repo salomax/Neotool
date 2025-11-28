@@ -1,12 +1,15 @@
 package io.github.salomax.neotool.security.model
 
 import io.github.salomax.neotool.common.entity.BaseEntity
+import io.github.salomax.neotool.security.domain.rbac.Permission
+import io.github.salomax.neotool.security.domain.rbac.Role
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
+import jakarta.persistence.Version
 import java.time.Instant
 import java.util.UUID
 
@@ -42,7 +45,23 @@ open class RoleEntity(
     override val id: Int? = null,
     @Column(nullable = false, unique = true)
     open var name: String,
-) : BaseEntity<Int?>(id)
+    @Column(name = "created_at", nullable = false)
+    open var createdAt: Instant = Instant.now(),
+    @Column(name = "updated_at", nullable = false)
+    open var updatedAt: Instant = Instant.now(),
+    @Version
+    open var version: Long = 0,
+) : BaseEntity<Int?>(id) {
+    fun toDomain(): Role {
+        return Role(
+            id = this.id,
+            name = this.name,
+            createdAt = this.createdAt,
+            updatedAt = this.updatedAt,
+            version = this.version,
+        )
+    }
+}
 
 @Entity
 @Table(name = "permissions", schema = "security")
@@ -52,7 +71,23 @@ open class PermissionEntity(
     override val id: Int? = null,
     @Column(nullable = false, unique = true)
     open var name: String,
-) : BaseEntity<Int?>(id)
+    @Column(name = "created_at", nullable = false)
+    open var createdAt: Instant = Instant.now(),
+    @Column(name = "updated_at", nullable = false)
+    open var updatedAt: Instant = Instant.now(),
+    @Version
+    open var version: Long = 0,
+) : BaseEntity<Int?>(id) {
+    fun toDomain(): Permission {
+        return Permission(
+            id = this.id,
+            name = this.name,
+            createdAt = this.createdAt,
+            updatedAt = this.updatedAt,
+            version = this.version,
+        )
+    }
+}
 
 @Entity
 @Table(name = "password_reset_attempts", schema = "security")

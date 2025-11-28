@@ -87,3 +87,25 @@ data class ResetPasswordPayloadDTO(
     val success: Boolean,
     val message: String,
 )
+
+// Authorization DTOs
+@Introspected
+@Serdeable
+data class AuthorizationResultDTO(
+    val allowed: Boolean,
+    val reason: String,
+)
+
+@Introspected
+@Serdeable
+data class PermissionDTO(
+    val id: Int?,
+    val name: String,
+)
+
+@Introspected
+@Serdeable
+data class RoleDTO(
+    val id: Int?,
+    val name: String,
+)

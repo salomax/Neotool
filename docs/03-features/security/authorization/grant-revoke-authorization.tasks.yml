@@ -1,0 +1,451 @@
+# Task Breakdown for Grant and Revoke Authorization Feature
+# This file breaks down the feature implementation into small, manageable tasks organized by phase
+
+phases:
+  - name: Business Documentation
+    status: completed
+    tasks:
+      - id: doc-001
+        description: Create grant-revoke-authorization.feature file with comprehensive Gherkin scenarios
+        status: completed
+        files:
+          - docs/03-features/security/authorization/grant-revoke-authorization.feature
+      - id: doc-002
+        description: Create grant-revoke-authorization.memory.yml with business rules and validations
+        status: completed
+        files:
+          - docs/03-features/security/authorization/grant-revoke-authorization.memory.yml
+      - id: doc-003
+        description: Create grant-revoke-authorization.tasks.yml task breakdown
+        status: completed
+        files:
+          - docs/03-features/security/authorization/grant-revoke-authorization.tasks.yml
+
+  - name: Domain
+    status: pending
+    tasks:
+      - id: domain-001
+        description: Review existing domain entities from authorization feature
+        status: pending
+        dependencies: []
+        notes: Reuse entities from authorization feature (User, Role, Permission, Group, etc.)
+
+      - id: domain-002
+        description: Add any additional domain entities needed for management operations
+        status: pending
+        dependencies: [domain-001]
+        files:
+          - service/kotlin/security/src/main/kotlin/.../domain/management/AuthorizationChange.kt
+        notes: Track authorization changes for audit purposes
+
+      - id: domain-003
+        description: Review domain code until no issues (lint, type safety, patterns)
+        status: pending
+        dependencies: [domain-002]
+        notes: Loop until all issues resolved
+
+  - name: Backend Service (API Sync)
+    status: pending
+    tasks:
+      - id: backend-001
+        description: Review existing repositories from authorization feature
+        status: pending
+        dependencies: []
+        notes: Reuse repositories from authorization feature
+
+      - id: backend-002
+        description: Implement Role Management Service (grant/revoke roles to users)
+        status: pending
+        dependencies: [backend-001]
+        files:
+          - service/kotlin/security/src/main/kotlin/.../service/RoleManagementService.kt
+        notes: |
+          Methods:
+          - grantRoleToUser(userId, roleId, scope?)
+          - revokeRoleFromUser(userId, roleId)
+          - grantRolesToUser(userId, roleIds)
+          - revokeRolesFromUser(userId, roleIds)
+          - Validate admin permission
+          - Invalidate cache after changes
+          - Create audit logs
+
+      - id: backend-003
+        description: Implement Group Role Management Service (grant/revoke roles to groups)
+        status: pending
+        dependencies: [backend-001]
+        files:
+          - service/kotlin/security/src/main/kotlin/.../service/GroupRoleManagementService.kt
+        notes: |
+          Methods:
+          - grantRoleToGroup(groupId, roleId, scope?)
+          - revokeRoleFromGroup(groupId, roleId)
+          - Propagate changes to group members
+
+      - id: backend-004
+        description: Implement Group Membership Service (add/remove users from groups)
+        status: pending
+        dependencies: [backend-001]
+        files:
+          - service/kotlin/security/src/main/kotlin/.../service/GroupMembershipService.kt
+        notes: |
+          Methods:
+          - addUserToGroup(userId, groupId, membershipType, validUntil?)
+          - removeUserFromGroup(userId, groupId)
+          - changeMembershipType(userId, groupId, newType)
+          - Validate no circular dependencies
+          - Propagate role inheritance
+          - Invalidate cache
+
+      - id: backend-005
+        description: Implement Scoped Binding Service (create/update scoped role bindings)
+        status: pending
+        dependencies: [backend-002, backend-003]
+        files:
+          - service/kotlin/security/src/main/kotlin/.../service/ScopedBindingService.kt
+        notes: |
+          Methods:
+          - createProfileBinding(userId, roleId, profileId)
+          - createProjectBinding(userId, roleId, projectId)
+          - createResourceBinding(userId, roleId, resourceId)
+          - updateBindingScope(bindingId, newScopeType, newScopeId)
+          - Validate scope exists
+
+      - id: backend-006
+        description: Implement Temporary Binding Service (create/update temporary bindings)
+        status: pending
+        dependencies: [backend-002, backend-003]
+        files:
+          - service/kotlin/security/src/main/kotlin/.../service/TemporaryBindingService.kt
+        notes: |
+          Methods:
+          - createTemporaryBinding(userId, roleId, validFrom, validUntil, scope?)
+          - updateBindingExpiry(bindingId, validUntil)
+          - Validate date ranges
+          - Auto-expire old bindings
+
+      - id: backend-007
+        description: Implement ABAC Policy Management Service
+        status: pending
+        dependencies: [backend-001]
+        files:
+          - service/kotlin/security/src/main/kotlin/.../service/AbacPolicyManagementService.kt
+        notes: |
+          Methods:
+          - createPolicy(name, effect, condition)
+          - updatePolicy(policyId, effect?, condition?)
+          - deletePolicy(policyId)
+          - validatePolicySyntax(condition)
+          - Create policy versions
+
+      - id: backend-008
+        description: Implement Permission Management Service
+        status: pending
+        dependencies: [backend-001]
+        files:
+          - service/kotlin/security/src/main/kotlin/.../service/PermissionManagementService.kt
+        notes: |
+          Methods:
+          - createPermission(name)
+          - addPermissionToRole(roleId, permissionId)
+          - removePermissionFromRole(roleId, permissionId)
+          - Propagate changes to users
+
+      - id: backend-009
+        description: Implement Policy Versioning Service
+        status: pending
+        dependencies: [backend-007]
+        files:
+          - service/kotlin/security/src/main/kotlin/.../service/PolicyVersioningService.kt
+        notes: |
+          Methods:
+          - createPolicyVersion(policyId, effect, condition)
+          - activatePolicyVersion(policyId, version)
+          - rollbackPolicy(policyId, targetVersion)
+          - listPolicyVersions(policyId)
+
+      - id: backend-010
+        description: Implement Policy Simulation Service
+        status: pending
+        dependencies: [backend-007, backend-009]
+        files:
+          - service/kotlin/security/src/main/kotlin/.../service/PolicySimulationService.kt
+        notes: |
+          Methods:
+          - simulatePolicyChange(policyId, newCondition, sampleUsers, sampleResources)
+          - Returns impact analysis without making changes
+
+      - id: backend-011
+        description: Implement Validation Service (duplicate checks, circular dependencies, etc.)
+        status: pending
+        dependencies: [backend-002, backend-003, backend-004]
+        files:
+          - service/kotlin/security/src/main/kotlin/.../service/AuthorizationValidationService.kt
+        notes: |
+          Methods:
+          - validateNoDuplicateBinding(userId, roleId, scope?)
+          - validateNoDuplicateMembership(userId, groupId)
+          - validateNoCircularGroupDependency(groupId, targetGroupId)
+          - validateScopeExists(scopeType, scopeId)
+          - validateDateRange(validFrom, validUntil)
+
+      - id: backend-012
+        description: Implement GraphQL resolvers for authorization management
+        status: pending
+        dependencies: [backend-002, backend-003, backend-004, backend-005, backend-006, backend-007, backend-008, backend-009, backend-010]
+        files:
+          - service/kotlin/security/src/main/kotlin/.../graphql/resolver/AuthorizationManagementResolver.kt
+        notes: |
+          Mutations:
+          - grantRoleToUser(userId, roleId, scope)
+          - revokeRoleFromUser(userId, roleId)
+          - grantRoleToGroup(groupId, roleId, scope)
+          - revokeRoleFromGroup(groupId, roleId)
+          - addUserToGroup(userId, groupId, membershipType, validUntil)
+          - removeUserFromGroup(userId, groupId)
+          - createScopedBinding(userId, roleId, scopeType, scopeId)
+          - createTemporaryBinding(userId, roleId, validFrom, validUntil, scope)
+          - createAbacPolicy(name, effect, condition)
+          - updateAbacPolicy(policyId, effect, condition)
+          - deleteAbacPolicy(policyId)
+          - simulatePolicyChange(policyId, newCondition, sampleUsers, sampleResources)
+
+      - id: backend-013
+        description: Implement GraphQL mappers for management types
+        status: pending
+        dependencies: [backend-012]
+        files:
+          - service/kotlin/security/src/main/kotlin/.../graphql/mapper/AuthorizationManagementMapper.kt
+
+      - id: backend-014
+        description: Implement GraphQL configuration (Factory, wiring)
+        status: pending
+        dependencies: [backend-013]
+        files:
+          - service/kotlin/security/src/main/kotlin/.../graphql/config/AuthorizationManagementGraphQLConfig.kt
+
+      - id: backend-015
+        description: Review backend code until no issues (lint, type safety, patterns)
+        status: pending
+        dependencies: [backend-014]
+        notes: Loop until all issues resolved
+
+  - name: Backend Tests
+    status: pending
+    tasks:
+      - id: test-001
+        description: Implement unit tests for Role Management Service
+        status: pending
+        dependencies: [backend-002]
+        files:
+          - service/kotlin/security/src/test/kotlin/.../service/RoleManagementServiceTest.kt
+
+      - id: test-002
+        description: Implement unit tests for Group Management Service
+        status: pending
+        dependencies: [backend-003, backend-004]
+        files:
+          - service/kotlin/security/src/test/kotlin/.../service/GroupRoleManagementServiceTest.kt
+          - service/kotlin/security/src/test/kotlin/.../service/GroupMembershipServiceTest.kt
+
+      - id: test-003
+        description: Implement unit tests for Scoped and Temporary Binding Services
+        status: pending
+        dependencies: [backend-005, backend-006]
+        files:
+          - service/kotlin/security/src/test/kotlin/.../service/ScopedBindingServiceTest.kt
+          - service/kotlin/security/src/test/kotlin/.../service/TemporaryBindingServiceTest.kt
+
+      - id: test-004
+        description: Implement unit tests for ABAC Policy Management Service
+        status: pending
+        dependencies: [backend-007, backend-009, backend-010]
+        files:
+          - service/kotlin/security/src/test/kotlin/.../service/AbacPolicyManagementServiceTest.kt
+          - service/kotlin/security/src/test/kotlin/.../service/PolicyVersioningServiceTest.kt
+          - service/kotlin/security/src/test/kotlin/.../service/PolicySimulationServiceTest.kt
+
+      - id: test-005
+        description: Implement unit tests for Validation Service
+        status: pending
+        dependencies: [backend-011]
+        files:
+          - service/kotlin/security/src/test/kotlin/.../service/AuthorizationValidationServiceTest.kt
+
+      - id: test-006
+        description: Implement integration tests for authorization management operations
+        status: pending
+        dependencies: [backend-015]
+        files:
+          - service/kotlin/security/src/test/kotlin/.../integration/AuthorizationManagementIntegrationTest.kt
+        notes: Test full flow from GraphQL to database
+
+      - id: test-007
+        description: Run tests until success (loop)
+        status: pending
+        dependencies: [test-001, test-002, test-003, test-004, test-005, test-006]
+        notes: Fix any failing tests
+
+  - name: Review Backend code
+    status: pending
+    tasks:
+      - id: review-001
+        description: Run coverage and lint until success (loop)
+        status: pending
+        dependencies: [test-007]
+        notes: Ensure coverage meets standards
+
+  - name: Contract
+    status: pending
+    tasks:
+      - id: contract-001
+        description: Sync and Generate supergraphql (./neotool graphql sync and generate)
+        status: pending
+        dependencies: [review-001]
+        files:
+          - contracts/graphql/subgraphs/security/*.graphqls
+          - contracts/graphql/supergraph/*.graphql
+
+      - id: contract-002
+        description: Run web codegen
+        status: pending
+        dependencies: [contract-001]
+        notes: Generate TypeScript types for frontend
+
+  - name: Front End
+    status: pending
+    tasks:
+      - id: frontend-001
+        description: Implement GraphQL mutations for authorization management
+        status: pending
+        dependencies: [contract-002]
+        files:
+          - web/src/shared/graphql/mutations/authorization-management.graphql
+        notes: Follow GraphQL patterns from docs/04-patterns/frontend-patterns/graphql-pattern.md
+
+      - id: frontend-002
+        description: Implement hooks for authorization management (useGrantRole, useRevokeRole, etc.)
+        status: pending
+        dependencies: [frontend-001]
+        files:
+          - web/src/shared/hooks/useAuthorizationManagement.ts
+        notes: Follow hook patterns from docs/04-patterns/frontend-patterns/hook-pattern.md
+
+      - id: frontend-003
+        description: Implement Role Management UI components
+        status: pending
+        dependencies: [frontend-002]
+        files:
+          - web/src/app/admin/authorization/roles/RoleManagement.tsx
+          - web/src/shared/components/authorization/RoleAssignmentForm.tsx
+          - web/src/shared/components/authorization/RoleList.tsx
+        notes: Use design system components from docs/04-patterns/frontend-patterns/component-pattern.md
+
+      - id: frontend-004
+        description: Implement Group Management UI components
+        status: pending
+        dependencies: [frontend-002]
+        files:
+          - web/src/app/admin/authorization/groups/GroupManagement.tsx
+          - web/src/shared/components/authorization/GroupMembershipForm.tsx
+          - web/src/shared/components/authorization/GroupList.tsx
+
+      - id: frontend-005
+        description: Implement Scoped Binding UI components
+        status: pending
+        dependencies: [frontend-002]
+        files:
+          - web/src/shared/components/authorization/ScopedBindingForm.tsx
+          - web/src/shared/components/authorization/ScopeSelector.tsx
+
+      - id: frontend-006
+        description: Implement Temporary Binding UI components
+        status: pending
+        dependencies: [frontend-002]
+        files:
+          - web/src/shared/components/authorization/TemporaryBindingForm.tsx
+          - web/src/shared/components/authorization/DateRangePicker.tsx
+
+      - id: frontend-007
+        description: Implement ABAC Policy Management UI components
+        status: pending
+        dependencies: [frontend-002]
+        files:
+          - web/src/app/admin/authorization/policies/PolicyManagement.tsx
+          - web/src/shared/components/authorization/PolicyForm.tsx
+          - web/src/shared/components/authorization/PolicyEditor.tsx
+          - web/src/shared/components/authorization/PolicyList.tsx
+
+      - id: frontend-008
+        description: Implement Policy Versioning UI components
+        status: pending
+        dependencies: [frontend-007]
+        files:
+          - web/src/shared/components/authorization/PolicyVersionList.tsx
+          - web/src/shared/components/authorization/PolicyVersionSelector.tsx
+          - web/src/shared/components/authorization/PolicyRollbackDialog.tsx
+
+      - id: frontend-009
+        description: Implement Policy Simulation UI components
+        status: pending
+        dependencies: [frontend-007]
+        files:
+          - web/src/shared/components/authorization/PolicySimulationDialog.tsx
+          - web/src/shared/components/authorization/PolicyImpactTable.tsx
+
+      - id: frontend-010
+        description: Implement Audit Log UI components
+        status: pending
+        dependencies: [frontend-001]
+        files:
+          - web/src/app/admin/authorization/audit/AuditLogViewer.tsx
+          - web/src/shared/components/authorization/AuditLogTable.tsx
+          - web/src/shared/components/authorization/AuditLogFilters.tsx
+
+      - id: frontend-011
+        description: Implement admin authorization check (protect admin routes)
+        status: pending
+        dependencies: [frontend-001]
+        files:
+          - web/src/shared/components/authorization/AdminGuard.tsx
+        notes: Ensure only users with authorization:manage permission can access
+
+      - id: frontend-012
+        description: Review frontend code until no issues (lint, type safety, patterns)
+        status: pending
+        dependencies: [frontend-011]
+        notes: Loop until all issues resolved
+
+  - name: Front End tests
+    status: pending
+    tasks:
+      - id: frontend-test-001
+        description: Implement unit tests for authorization management hooks
+        status: pending
+        dependencies: [frontend-002]
+        files:
+          - web/src/shared/hooks/__tests__/useAuthorizationManagement.test.ts
+
+      - id: frontend-test-002
+        description: Implement component tests for management UI components
+        status: pending
+        dependencies: [frontend-012]
+        files:
+          - web/src/shared/components/authorization/__tests__/RoleAssignmentForm.test.tsx
+          - web/src/shared/components/authorization/__tests__/GroupMembershipForm.test.tsx
+          - web/src/shared/components/authorization/__tests__/PolicyForm.test.tsx
+
+      - id: frontend-test-003
+        description: Run tests until success (loop)
+        status: pending
+        dependencies: [frontend-test-001, frontend-test-002]
+        notes: Fix any failing tests
+
+  - name: Review Frontend code
+    status: pending
+    tasks:
+      - id: frontend-review-001
+        description: Run coverage and lint until success (loop)
+        status: pending
+        dependencies: [frontend-test-003]
+        notes: Ensure coverage meets standards
+

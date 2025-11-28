@@ -33,9 +33,11 @@ search_keywords: [commands, cli, reference]
 
 ### Validation
 ```bash
-./neotool validate                    # Run all validations (frontend + backend)
-./neotool validate --frontend-only   # Run only frontend validations
-./neotool validate --backend-only     # Run only backend validations
+./neotool validate                    # Run all validations (web + services)
+./neotool validate --web              # Run only web (frontend) validations
+./neotool validate --service          # Run all service (backend) validations
+./neotool validate --service security # Run only security service validations
+./neotool validate --service app      # Run only app service validations
 ./neotool validate --skip-coverage    # Run validations without coverage checks
 ```
 
