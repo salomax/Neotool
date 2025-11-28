@@ -104,15 +104,16 @@ jobs:
           # Run unit tests first with Kover coverage, then integration tests
           # Note: --no-build-cache --rerun-tasks is required due to Kover instrumentation
           # causing build cache issues. This ensures test results are always fresh.
+          # Kover reports and verification must be explicitly declared (per build.gradle.kts configuration)
           if [ "${{ matrix.service }}" = "common" ]; then
             # Common module only has unit tests
-            ./gradlew :${{ matrix.service }}:test :${{ matrix.service }}:koverXmlReport :${{ matrix.service }}:koverHtmlReport \
+            ./gradlew :${{ matrix.service }}:test :${{ matrix.service }}:koverXmlReport :${{ matrix.service }}:koverHtmlReport :${{ matrix.service }}:koverVerify \
               --no-build-cache --rerun-tasks --no-daemon --parallel
           else
             # For other services: run unit tests with coverage, then integration tests
             # Clean test classes between runs to prevent ClassFormatError from Kover instrumentation
             # Integration tests don't need --no-build-cache since they don't use Kover
-            ./gradlew :${{ matrix.service }}:test :${{ matrix.service }}:koverXmlReport :${{ matrix.service }}:koverHtmlReport \
+            ./gradlew :${{ matrix.service }}:test :${{ matrix.service }}:koverXmlReport :${{ matrix.service }}:koverHtmlReport :${{ matrix.service }}:koverVerify \
               --no-build-cache --rerun-tasks --no-daemon --parallel
             ./gradlew :${{ matrix.service }}:cleanTest :${{ matrix.service }}:testIntegration \
               --no-daemon --parallel
@@ -132,15 +133,12 @@ jobs:
           GITHUB_BASE_REF: ${{ github.event.pull_request.base.ref }}
           GITHUB_HEAD_REF: ${{ github.head_ref }}
         run: |
+          # Note: Full coverage verification (koverVerify) already ran in the main test step above
+          # This step performs incremental coverage check for changed lines in the PR
           ./gradlew :${{ matrix.service }}:koverIncrementalCoverageCheck \
             -Pcoverage.baseBranch=${{ github.event.pull_request.base.ref }} \
             -Pcoverage.incrementalThreshold=80 \
             --no-daemon --parallel
-
-      - name: Verify full coverage (non-PR or fallback)
-        if: github.event_name != 'pull_request'
-        working-directory: ./service/kotlin
-        run: ./gradlew :${{ matrix.service }}:koverVerify --no-daemon --parallel
 
       - name: Upload test results
         if: always()

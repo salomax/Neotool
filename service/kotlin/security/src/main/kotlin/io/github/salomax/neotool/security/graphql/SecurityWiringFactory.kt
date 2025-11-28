@@ -4,11 +4,15 @@ import graphql.schema.DataFetchingEnvironment
 import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.TypeRuntimeWiring
 import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.createValidatedDataFetcher
+import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.getRequiredString
 import io.github.salomax.neotool.common.graphql.GraphQLPayloadDataFetcher.createMutationDataFetcher
 import io.github.salomax.neotool.common.graphql.GraphQLResolverRegistry
 import io.github.salomax.neotool.common.graphql.GraphQLWiringFactory
+import io.github.salomax.neotool.security.graphql.dto.AuthorizationResultDTO
+import io.github.salomax.neotool.security.graphql.dto.PermissionDTO
 import io.github.salomax.neotool.security.graphql.dto.RequestPasswordResetPayloadDTO
 import io.github.salomax.neotool.security.graphql.dto.ResetPasswordPayloadDTO
+import io.github.salomax.neotool.security.graphql.dto.RoleDTO
 import io.github.salomax.neotool.security.graphql.dto.SignInPayloadDTO
 import io.github.salomax.neotool.security.graphql.dto.SignUpPayloadDTO
 import io.github.salomax.neotool.security.graphql.dto.UserDTO
@@ -20,11 +24,13 @@ import jakarta.inject.Singleton
 @Singleton
 class SecurityWiringFactory(
     private val authResolver: SecurityAuthResolver,
+    private val authorizationResolver: io.github.salomax.neotool.security.graphql.resolver.AuthorizationResolver,
     resolverRegistry: GraphQLResolverRegistry,
 ) : GraphQLWiringFactory() {
     init {
         // Register resolvers in the registry for cross-module access
         resolverRegistry.register("auth", authResolver)
+        resolverRegistry.register("authorization", authorizationResolver)
     }
 
     override fun registerQueryResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder {
@@ -40,6 +46,30 @@ class SecurityWiringFactory(
                             null
                         }
                     authResolver.getCurrentUser(token)
+                },
+            )
+            .dataFetcher(
+                "checkPermission",
+                createValidatedDataFetcher { env ->
+                    val userId = getRequiredString(env, "userId")
+                    val permission = getRequiredString(env, "permission")
+                    val resourceId = env.getArgument<String?>("resourceId")
+                    val scope = env.getArgument<String?>("scope")
+                    authorizationResolver.checkPermission(userId, permission, resourceId, scope)
+                },
+            )
+            .dataFetcher(
+                "getUserPermissions",
+                createValidatedDataFetcher { env ->
+                    val userId = getRequiredString(env, "userId")
+                    authorizationResolver.getUserPermissions(userId)
+                },
+            )
+            .dataFetcher(
+                "getUserRoles",
+                createValidatedDataFetcher { env ->
+                    val userId = getRequiredString(env, "userId")
+                    authorizationResolver.getUserRoles(userId)
                 },
             )
     }
@@ -182,6 +212,54 @@ class SecurityWiringFactory(
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
                         val payload = env.getSource<ResetPasswordPayloadDTO>()
                         payload?.message
+                    },
+                )
+            }
+            .type("AuthorizationResult") { type ->
+                type.dataFetcher(
+                    "allowed",
+                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                        val result = env.getSource<AuthorizationResultDTO>()
+                        result?.allowed
+                    },
+                )
+                type.dataFetcher(
+                    "reason",
+                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                        val result = env.getSource<AuthorizationResultDTO>()
+                        result?.reason
+                    },
+                )
+            }
+            .type("Permission") { type ->
+                type.dataFetcher(
+                    "id",
+                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                        val permission = env.getSource<PermissionDTO>()
+                        permission?.id
+                    },
+                )
+                type.dataFetcher(
+                    "name",
+                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                        val permission = env.getSource<PermissionDTO>()
+                        permission?.name
+                    },
+                )
+            }
+            .type("Role") { type ->
+                type.dataFetcher(
+                    "id",
+                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                        val role = env.getSource<RoleDTO>()
+                        role?.id
+                    },
+                )
+                type.dataFetcher(
+                    "name",
+                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                        val role = env.getSource<RoleDTO>()
+                        role?.name
                     },
                 )
             }

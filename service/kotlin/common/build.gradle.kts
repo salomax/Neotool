@@ -102,3 +102,54 @@ dependencies {
 
     api("org.mockito:mockito-inline:5.2.0")
 }
+
+// Configure Kover exclusions specific to common module
+// Note: We explicitly include parent exclusions to ensure they're not overridden
+afterEvaluate {
+    extensions.configure<kotlinx.kover.gradle.plugin.dsl.KoverProjectExtension> {
+        reports {
+            filters {
+                excludes {
+                    classes(
+                        // Parent exclusions (from root build.gradle.kts)
+                        "io.micronaut.core.io.service.SoftServiceLoader",
+                        "io.micronaut.core.io.service.ServiceLoader",
+                        // Generated inner classes
+                        "*\$*",
+                        "*Generated*",
+                        "*_Factory*",
+                        "*_Impl*",
+                        "*_Builder*",
+                        "*Entity",
+                        "*Config",
+                        "*domain.*",
+                        "*mapper.*",
+                        "*Test",
+                        // Common module specific exclusions
+                        // Test utilities
+                        "*.common.test.*",
+                        "*.common.logging.MDCFilter",
+                        "*.common.logging.EnterpriseLoggingFilter",
+                        "*.common.logging.EnterpriseLogMethodInterceptor",
+                        // Abstract base
+                        "*.common.metrics.GraphQLMetricsInstrumentation",
+                        // Abstract base
+                        "*.common.graphql.BaseSchemaRegistryFactory",
+                        // Abstract base
+                        "*.common.graphql.GraphQLWiringFactory",
+                        // Interface/abstract
+                        "*.common.graphql.GraphQLResolver",
+                        // Abstract base
+                        "*.common.graphql.CrudResolver",
+                        // Abstract base
+                        "*.common.graphql.GenericCrudResolver",
+                        // Abstract base
+                        "*.common.graphql.EnhancedCrudResolver",
+                        // Exception handlers (tested separately)
+                        "*.common.exception.*ExceptionHandler",
+                    )
+                }
+            }
+        }
+    }
+}

@@ -11,6 +11,11 @@ type User @key(fields: "id") {
 type Query {
   # Authentication queries
   currentUser: User
+  
+  # Authorization queries
+  checkPermission(userId: ID!, permission: String!, resourceId: ID, scope: String): AuthorizationResult!
+  getUserPermissions(userId: ID!): [Permission!]!
+  getUserRoles(userId: ID!): [Role!]!
 }
 
 # Mutation type for security operations
@@ -74,5 +79,21 @@ input ResetPasswordInput {
 type ResetPasswordPayload {
   success: Boolean!
   message: String!
+}
+
+# Authorization types
+type AuthorizationResult {
+  allowed: Boolean!
+  reason: String!
+}
+
+type Permission {
+  id: Int
+  name: String!
+}
+
+type Role {
+  id: Int
+  name: String!
 }
 

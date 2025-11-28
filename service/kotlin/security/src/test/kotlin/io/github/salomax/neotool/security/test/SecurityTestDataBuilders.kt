@@ -333,4 +333,170 @@ object SecurityTestDataBuilders {
                 }
                 """.trimIndent(),
         )
+
+    /**
+     * Create a test role entity
+     */
+    fun role(
+        id: Int? = null,
+        name: String = "test-role",
+        createdAt: Instant = Instant.now(),
+        updatedAt: Instant = Instant.now(),
+        version: Long = 0,
+    ): io.github.salomax.neotool.security.model.RoleEntity =
+        io.github.salomax.neotool.security.model.RoleEntity(
+            id = id,
+            name = name,
+            createdAt = createdAt,
+            updatedAt = updatedAt,
+            version = version,
+        )
+
+    /**
+     * Create a test permission entity
+     */
+    fun permission(
+        id: Int? = null,
+        name: String = "resource:action",
+        createdAt: Instant = Instant.now(),
+        updatedAt: Instant = Instant.now(),
+        version: Long = 0,
+    ): io.github.salomax.neotool.security.model.PermissionEntity =
+        io.github.salomax.neotool.security.model.PermissionEntity(
+            id = id,
+            name = name,
+            createdAt = createdAt,
+            updatedAt = updatedAt,
+            version = version,
+        )
+
+    /**
+     * Create a test role assignment entity
+     */
+    fun roleAssignment(
+        id: UUID? = null,
+        userId: UUID = UUID.randomUUID(),
+        roleId: Int = 1,
+        scopeType: io.github.salomax.neotool.security.domain.rbac.ScopeType =
+            io.github.salomax.neotool.security.domain.rbac.ScopeType.PROFILE,
+        scopeId: UUID? = null,
+        validFrom: Instant? = null,
+        validUntil: Instant? = null,
+        createdAt: Instant = Instant.now(),
+        updatedAt: Instant = Instant.now(),
+        version: Long = 0,
+    ): io.github.salomax.neotool.security.model.rbac.RoleAssignmentEntity =
+        io.github.salomax.neotool.security.model.rbac.RoleAssignmentEntity(
+            id = id ?: UUID.randomUUID(),
+            userId = userId,
+            roleId = roleId,
+            scopeType = scopeType,
+            scopeId = scopeId,
+            validFrom = validFrom,
+            validUntil = validUntil,
+            createdAt = createdAt,
+            updatedAt = updatedAt,
+            version = version,
+        )
+
+    /**
+     * Create a test group entity
+     */
+    fun group(
+        id: UUID? = null,
+        name: String = "test-group",
+        description: String? = null,
+        createdAt: Instant = Instant.now(),
+        updatedAt: Instant = Instant.now(),
+        version: Long = 0,
+    ): io.github.salomax.neotool.security.model.rbac.GroupEntity =
+        io.github.salomax.neotool.security.model.rbac.GroupEntity(
+            id = id ?: UUID.randomUUID(),
+            name = name,
+            description = description,
+            createdAt = createdAt,
+            updatedAt = updatedAt,
+            version = version,
+        )
+
+    /**
+     * Create a test group membership entity
+     */
+    fun groupMembership(
+        id: UUID? = null,
+        userId: UUID = UUID.randomUUID(),
+        groupId: UUID = UUID.randomUUID(),
+        membershipType: io.github.salomax.neotool.security.domain.rbac.MembershipType =
+            io.github.salomax.neotool.security.domain.rbac.MembershipType.MEMBER,
+        validUntil: Instant? = null,
+        createdAt: Instant = Instant.now(),
+        updatedAt: Instant = Instant.now(),
+        version: Long = 0,
+    ): io.github.salomax.neotool.security.model.rbac.GroupMembershipEntity =
+        io.github.salomax.neotool.security.model.rbac.GroupMembershipEntity(
+            id = id ?: UUID.randomUUID(),
+            userId = userId,
+            groupId = groupId,
+            membershipType = membershipType,
+            validUntil = validUntil,
+            createdAt = createdAt,
+            updatedAt = updatedAt,
+            version = version,
+        )
+
+    /**
+     * Create a test group role assignment entity
+     */
+    fun groupRoleAssignment(
+        id: UUID? = null,
+        groupId: UUID = UUID.randomUUID(),
+        roleId: Int = 1,
+        scopeType: io.github.salomax.neotool.security.domain.rbac.ScopeType =
+            io.github.salomax.neotool.security.domain.rbac.ScopeType.PROFILE,
+        scopeId: UUID? = null,
+        validFrom: Instant? = null,
+        validUntil: Instant? = null,
+        createdAt: Instant = Instant.now(),
+        updatedAt: Instant = Instant.now(),
+        version: Long = 0,
+    ): io.github.salomax.neotool.security.model.rbac.GroupRoleAssignmentEntity =
+        io.github.salomax.neotool.security.model.rbac.GroupRoleAssignmentEntity(
+            id = id ?: UUID.randomUUID(),
+            groupId = groupId,
+            roleId = roleId,
+            scopeType = scopeType,
+            scopeId = scopeId,
+            validFrom = validFrom,
+            validUntil = validUntil,
+            createdAt = createdAt,
+            updatedAt = updatedAt,
+            version = version,
+        )
+
+    /**
+     * Create a test ABAC policy entity
+     */
+    fun abacPolicy(
+        id: UUID? = null,
+        name: String = "test-policy",
+        description: String? = null,
+        effect: io.github.salomax.neotool.security.domain.abac.PolicyEffect =
+            io.github.salomax.neotool.security.domain.abac.PolicyEffect.ALLOW,
+        condition: String = """{"eq": {"subject.userId": "test"}}""",
+        version: Int = 1,
+        isActive: Boolean = true,
+        createdAt: Instant = Instant.now(),
+        updatedAt: Instant = Instant.now(),
+    ): io.github.salomax.neotool.security.model.abac.AbacPolicyEntity =
+        io.github.salomax.neotool.security.model.abac.AbacPolicyEntity(
+            id = id ?: UUID.randomUUID(),
+            name = name,
+            description = description,
+            effect = effect,
+            condition = condition,
+            version = version,
+            isActive = isActive,
+            createdAt = createdAt,
+            updatedAt = updatedAt,
+        )
 }

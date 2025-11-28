@@ -43,9 +43,9 @@ Commands:
     Run '$0 graphql --help' for more information.
 
   $(log "validate" "$GREEN") [options]
-    Run all validations (frontend and backend).
+    Run all validations (web and services).
     Includes: lint, typecheck, test/testIntegration, and coverage.
-    Options: --frontend-only, --backend-only, --skip-coverage
+    Options: --web, --service [name], --skip-coverage
     Run '$0 validate --help' for more information.
 
 Options:
@@ -58,7 +58,8 @@ Examples:
   $0 graphql sync
   $0 graphql generate
   $0 validate
-  $0 validate --frontend-only
+  $0 validate --web
+  $0 validate --service security
   $0 --version
 
 For more information about a specific command, run it with --help.

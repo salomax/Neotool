@@ -261,6 +261,65 @@ val name = TestDataBuilders.uniqueName("Product")
 val code = "TEST-001" // May conflict with other tests
 ```
 
+### Rule: Transaction Handling in Integration Tests
+
+**Rule**: When setting up test data that needs to be visible to services running in separate transactions, use `EntityManager.runTransaction` instead of `entityManager.flush()`.
+
+**Rationale**: 
+- `flush()` only sends SQL to the database but does not commit the transaction
+- Data must be committed to be visible in subsequent transactions
+- Services typically run in their own transaction context and won't see uncommitted data
+- `runTransaction` commits the transaction, making data visible across transaction boundaries
+
+**When to Use**:
+- Setting up test data before calling services that run in separate transactions
+- Preparing data for GraphQL/HTTP requests that execute in different transaction contexts
+- Ensuring test data is committed before service layer operations
+
+**Example**:
+```kotlin
+// ✅ Correct: Data committed and visible to service
+@Test
+fun `should authorize user with role`() {
+    entityManager.runTransaction {
+        val user = createTestUser()
+        val role = roleRepository.save(createRole())
+        val assignment = roleAssignmentRepository.save(
+            createRoleAssignment(userId = user.id, roleId = role.id)
+        )
+        entityManager.flush()
+    }
+    
+    // Service runs in separate transaction and can see committed data
+    val result = authorizationService.checkPermission(userId, "permission:read")
+    assertThat(result.allowed).isTrue()
+}
+
+// ❌ Incorrect: Data not committed, service won't see it
+@Test
+fun `should authorize user with role`() {
+    val user = createTestUser()
+    val role = roleRepository.save(createRole())
+    val assignment = roleAssignmentRepository.save(
+        createRoleAssignment(userId = user.id, roleId = role.id)
+    )
+    entityManager.flush() // Only flushes, doesn't commit
+    
+    // Service runs in separate transaction and CANNOT see uncommitted data
+    val result = authorizationService.checkPermission(userId, "permission:read")
+    // This will fail because the service can't see the role assignment
+    assertThat(result.allowed).isTrue()
+}
+```
+
+**Implementation**:
+- Import: `import io.github.salomax.neotool.common.test.transaction.runTransaction`
+- Wrap data setup in `entityManager.runTransaction { ... }`
+- The block commits automatically after execution
+- Data is then visible to subsequent service calls
+
+**Exception**: When test and service run in the same transaction context (rare in integration tests), `flush()` may be sufficient, but `runTransaction` is still recommended for consistency.
+
 ## Test Organization Rules
 
 ### Rule: Nested Test Classes
