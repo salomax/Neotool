@@ -12,7 +12,7 @@ user_persona:
       - Ability to grant/revoke roles to users and groups
       - Ability to manage group memberships
       - Ability to create and manage ABAC policies
-      - Ability to create scoped and temporary role bindings
+      - Ability to create temporary role bindings
       - Policy versioning and simulation capabilities
       - Audit logs of all changes
   - name: Security Team
@@ -32,7 +32,6 @@ business_rules:
   - rule: Group membership propagation
     description: When user is added to group, they immediately inherit all group roles
   - rule: Scope validation
-    description: When creating scoped bindings, the scope (profile/project/resource) must exist
   - rule: Date range validation
     description: Temporary bindings must have valid_from <= valid_until
   - rule: No duplicate bindings
@@ -70,7 +69,6 @@ validations:
       rules:
         - Optional
         - Must be one of: profile, project, resource
-        - If provided, scope_id must exist
     - field: valid_from
       rules:
         - Optional
@@ -133,11 +131,6 @@ happy_paths:
       - User is group member
       - User inherits all group roles
       - Audit log created
-  - path: Create scoped binding
-    description: Admin creates profile/project/resource-level role binding
-    steps:
-      - Admin creates scoped role binding
-      - Binding is created at specified scope
       - User has permissions only at that scope
       - Audit log created
   - path: Create temporary binding

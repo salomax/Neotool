@@ -1,7 +1,6 @@
 package io.github.salomax.neotool.security.test.domain
 
 import io.github.salomax.neotool.security.domain.rbac.GroupRoleAssignment
-import io.github.salomax.neotool.security.domain.rbac.ScopeType
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -13,7 +12,6 @@ import java.util.UUID
 class GroupRoleAssignmentTest {
     private val groupId = UUID.randomUUID()
     private val roleId = 1
-    private val scopeId = UUID.randomUUID()
     private val now = Instant.now()
     private val past = now.minusSeconds(3600)
     private val future = now.plusSeconds(3600)
@@ -30,8 +28,6 @@ class GroupRoleAssignmentTest {
                     id = id,
                     groupId = groupId,
                     roleId = roleId,
-                    scopeType = ScopeType.PROJECT,
-                    scopeId = scopeId,
                 )
 
             // Act
@@ -41,8 +37,6 @@ class GroupRoleAssignmentTest {
             assertThat(entity.id).isEqualTo(id)
             assertThat(entity.groupId).isEqualTo(groupId)
             assertThat(entity.roleId).isEqualTo(roleId)
-            assertThat(entity.scopeType).isEqualTo(ScopeType.PROJECT)
-            assertThat(entity.scopeId).isEqualTo(scopeId)
         }
 
         @Test
@@ -53,7 +47,6 @@ class GroupRoleAssignmentTest {
                     id = null,
                     groupId = groupId,
                     roleId = roleId,
-                    scopeType = ScopeType.PROFILE,
                 )
 
             // Act
@@ -76,7 +69,6 @@ class GroupRoleAssignmentTest {
                 GroupRoleAssignment(
                     groupId = groupId,
                     roleId = roleId,
-                    scopeType = ScopeType.PROFILE,
                     validFrom = null,
                     validUntil = null,
                 )
@@ -95,7 +87,6 @@ class GroupRoleAssignmentTest {
                 GroupRoleAssignment(
                     groupId = groupId,
                     roleId = roleId,
-                    scopeType = ScopeType.PROJECT,
                     validFrom = past,
                     validUntil = future,
                 )
@@ -114,7 +105,6 @@ class GroupRoleAssignmentTest {
                 GroupRoleAssignment(
                     groupId = groupId,
                     roleId = roleId,
-                    scopeType = ScopeType.PROJECT,
                     validFrom = now,
                     validUntil = future,
                 )
@@ -133,7 +123,6 @@ class GroupRoleAssignmentTest {
                 GroupRoleAssignment(
                     groupId = groupId,
                     roleId = roleId,
-                    scopeType = ScopeType.PROJECT,
                     validFrom = past,
                     validUntil = now,
                 )
@@ -152,7 +141,6 @@ class GroupRoleAssignmentTest {
                 GroupRoleAssignment(
                     groupId = groupId,
                     roleId = roleId,
-                    scopeType = ScopeType.PROJECT,
                     validFrom = future,
                     validUntil = future.plusSeconds(3600),
                 )
@@ -171,7 +159,6 @@ class GroupRoleAssignmentTest {
                 GroupRoleAssignment(
                     groupId = groupId,
                     roleId = roleId,
-                    scopeType = ScopeType.PROJECT,
                     validFrom = past,
                     validUntil = past,
                 )
@@ -190,7 +177,6 @@ class GroupRoleAssignmentTest {
                 GroupRoleAssignment(
                     groupId = groupId,
                     roleId = roleId,
-                    scopeType = ScopeType.PROJECT,
                     validFrom = null,
                     validUntil = future,
                 )
@@ -209,7 +195,6 @@ class GroupRoleAssignmentTest {
                 GroupRoleAssignment(
                     groupId = groupId,
                     roleId = roleId,
-                    scopeType = ScopeType.PROJECT,
                     validFrom = past,
                     validUntil = null,
                 )
@@ -232,7 +217,6 @@ class GroupRoleAssignmentTest {
                 GroupRoleAssignment(
                     groupId = groupId,
                     roleId = roleId,
-                    scopeType = ScopeType.PROFILE,
                     validFrom = null,
                     validUntil = null,
                 )
@@ -251,7 +235,6 @@ class GroupRoleAssignmentTest {
                 GroupRoleAssignment(
                     groupId = groupId,
                     roleId = roleId,
-                    scopeType = ScopeType.PROJECT,
                     validFrom = past,
                     validUntil = past,
                 )
@@ -270,7 +253,6 @@ class GroupRoleAssignmentTest {
                 GroupRoleAssignment(
                     groupId = groupId,
                     roleId = roleId,
-                    scopeType = ScopeType.PROJECT,
                     validFrom = future,
                     validUntil = future.plusSeconds(3600),
                 )
@@ -293,7 +275,6 @@ class GroupRoleAssignmentTest {
                 GroupRoleAssignment(
                     groupId = groupId,
                     roleId = roleId,
-                    scopeType = ScopeType.PROFILE,
                     validFrom = null,
                     validUntil = null,
                 )
@@ -312,7 +293,6 @@ class GroupRoleAssignmentTest {
                 GroupRoleAssignment(
                     groupId = groupId,
                     roleId = roleId,
-                    scopeType = ScopeType.PROJECT,
                     validFrom = now,
                     validUntil = null,
                 )
@@ -331,7 +311,6 @@ class GroupRoleAssignmentTest {
                 GroupRoleAssignment(
                     groupId = groupId,
                     roleId = roleId,
-                    scopeType = ScopeType.PROJECT,
                     validFrom = null,
                     validUntil = future,
                 )
@@ -350,7 +329,6 @@ class GroupRoleAssignmentTest {
                 GroupRoleAssignment(
                     groupId = groupId,
                     roleId = roleId,
-                    scopeType = ScopeType.PROJECT,
                     validFrom = past,
                     validUntil = future,
                 )
@@ -373,7 +351,6 @@ class GroupRoleAssignmentTest {
                 GroupRoleAssignment(
                     groupId = groupId,
                     roleId = roleId,
-                    scopeType = ScopeType.PROFILE,
                     validFrom = null,
                     validUntil = null,
                 )
@@ -392,7 +369,6 @@ class GroupRoleAssignmentTest {
                 GroupRoleAssignment(
                     groupId = groupId,
                     roleId = roleId,
-                    scopeType = ScopeType.PROJECT,
                     validFrom = now,
                     validUntil = null,
                 )
@@ -411,7 +387,6 @@ class GroupRoleAssignmentTest {
                 GroupRoleAssignment(
                     groupId = groupId,
                     roleId = roleId,
-                    scopeType = ScopeType.PROJECT,
                     validFrom = null,
                     validUntil = future,
                 )
@@ -430,7 +405,6 @@ class GroupRoleAssignmentTest {
                 GroupRoleAssignment(
                     groupId = groupId,
                     roleId = roleId,
-                    scopeType = ScopeType.PROJECT,
                     validFrom = past,
                     validUntil = future,
                 )

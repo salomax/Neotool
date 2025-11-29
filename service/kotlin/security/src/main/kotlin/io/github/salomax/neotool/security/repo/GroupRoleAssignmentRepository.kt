@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.security.repo
 
-import io.github.salomax.neotool.security.domain.rbac.ScopeType
 import io.github.salomax.neotool.security.model.rbac.GroupRoleAssignmentEntity
 import io.micronaut.data.annotation.Query
 import io.micronaut.data.annotation.Repository
@@ -30,26 +29,6 @@ interface GroupRoleAssignmentRepository : JpaRepository<GroupRoleAssignmentEntit
     ): List<GroupRoleAssignmentEntity>
 
     /**
-     * Find role assignments for a group with specific scope.
-     */
-    @Query(
-        """
-        SELECT gra FROM GroupRoleAssignmentEntity gra
-        WHERE gra.groupId = :groupId
-        AND gra.scopeType = :scopeType
-        AND (gra.scopeId IS NULL OR gra.scopeId = :scopeId)
-        AND (gra.validFrom IS NULL OR gra.validFrom <= :now)
-        AND (gra.validUntil IS NULL OR gra.validUntil >= :now)
-        """,
-    )
-    fun findValidAssignmentsByGroupIdAndScope(
-        groupId: UUID,
-        scopeType: ScopeType,
-        scopeId: UUID?,
-        now: Instant = Instant.now(),
-    ): List<GroupRoleAssignmentEntity>
-
-    /**
      * Find all role assignments for a group (including expired and future-dated).
      */
     fun findByGroupId(groupId: UUID): List<GroupRoleAssignmentEntity>
@@ -73,26 +52,6 @@ interface GroupRoleAssignmentRepository : JpaRepository<GroupRoleAssignmentEntit
     )
     fun findValidAssignmentsByGroupIds(
         groupIds: List<UUID>,
-        now: Instant = Instant.now(),
-    ): List<GroupRoleAssignmentEntity>
-
-    /**
-     * Find role assignments for multiple groups with specific scope (batch loading).
-     */
-    @Query(
-        """
-        SELECT gra FROM GroupRoleAssignmentEntity gra
-        WHERE gra.groupId IN (:groupIds)
-        AND gra.scopeType = :scopeType
-        AND (gra.scopeId IS NULL OR gra.scopeId = :scopeId)
-        AND (gra.validFrom IS NULL OR gra.validFrom <= :now)
-        AND (gra.validUntil IS NULL OR gra.validUntil >= :now)
-        """,
-    )
-    fun findValidAssignmentsByGroupIdsAndScope(
-        groupIds: List<UUID>,
-        scopeType: ScopeType,
-        scopeId: UUID?,
         now: Instant = Instant.now(),
     ): List<GroupRoleAssignmentEntity>
 }

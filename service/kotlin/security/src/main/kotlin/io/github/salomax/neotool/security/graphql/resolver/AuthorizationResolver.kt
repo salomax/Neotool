@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.security.graphql.resolver
 
-import io.github.salomax.neotool.security.domain.rbac.ScopeType
 import io.github.salomax.neotool.security.graphql.dto.AuthorizationResultDTO
 import io.github.salomax.neotool.security.graphql.dto.PermissionDTO
 import io.github.salomax.neotool.security.graphql.dto.RoleDTO
@@ -34,32 +33,27 @@ class AuthorizationResolver(
      * @param userId The user ID
      * @param permission The permission name (e.g., "transaction:update")
      * @param resourceId Optional resource ID
-     * @param scope Optional scope type (PROFILE, PROJECT, RESOURCE)
      * @return AuthorizationResultDTO with decision and reason
      */
     fun checkPermission(
         userId: String,
         permission: String,
         resourceId: String? = null,
-        scope: String? = null,
     ): AuthorizationResultDTO {
         return try {
             // Sanitize inputs
             val sanitizedUserId = sanitizeInput(userId, "userId")
             val sanitizedPermission = sanitizeAndValidatePermission(permission)
             val sanitizedResourceId = resourceId?.let { sanitizeInput(it, "resourceId") }
-            val sanitizedScope = scope?.trim()?.uppercase()
 
             // Validate UUIDs
             val userIdUuid = UUID.fromString(sanitizedUserId)
             val resourceIdUuid = sanitizedResourceId?.let { UUID.fromString(it) }
-            val scopeType = sanitizedScope?.let { ScopeType.valueOf(it) }
 
             logger.debug {
                 "Checking permission: user=$userIdUuid, " +
                     "permission=$sanitizedPermission, " +
-                    "resourceId=$resourceIdUuid, " +
-                    "scope=$scopeType"
+                    "resourceId=$resourceIdUuid"
             }
 
             val result =
@@ -68,8 +62,6 @@ class AuthorizationResolver(
                     permission = sanitizedPermission,
                     resourceType = extractResourceType(sanitizedPermission),
                     resourceId = resourceIdUuid,
-                    scopeType = scopeType,
-                    scopeId = resourceIdUuid,
                 )
 
             mapper.toAuthorizationResultDTO(result)

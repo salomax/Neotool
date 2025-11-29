@@ -47,26 +47,22 @@ class AuthorizationResolverTest {
             whenever(
                 authorizationService.checkPermission(
                     // userId: UUID
-                    any(),
+                    any<UUID>(),
                     // permission: String
-                    any(),
+                    any<String>(),
                     // resourceType: String?
-                    anyOrNull(),
+                    anyOrNull<String>(),
                     // resourceId: UUID?
-                    anyOrNull(),
-                    // scopeType: ScopeType?
-                    anyOrNull(),
-                    // scopeId: UUID?
-                    anyOrNull(),
+                    anyOrNull<UUID>(),
                     // subjectAttributes: Map<String, Any>?
-                    anyOrNull(),
+                    anyOrNull<Map<String, Any>>(),
                     // resourceAttributes: Map<String, Any>?
-                    anyOrNull(),
+                    anyOrNull<Map<String, Any>>(),
                     // contextAttributes: Map<String, Any>?
-                    anyOrNull(),
+                    anyOrNull<Map<String, Any>>(),
                 ),
             ).thenReturn(result)
-            whenever(mapper.toAuthorizationResultDTO(any())).thenReturn(dto)
+            whenever(mapper.toAuthorizationResultDTO(any<AuthorizationResult>())).thenReturn(dto)
 
             // Act
             val response = authorizationResolver.checkPermission(userId, permission)
@@ -103,26 +99,22 @@ class AuthorizationResolverTest {
             whenever(
                 authorizationService.checkPermission(
                     // userId: UUID
-                    any(),
+                    any<UUID>(),
                     // permission: String
-                    any(),
+                    any<String>(),
                     // resourceType: String?
-                    anyOrNull(),
+                    anyOrNull<String>(),
                     // resourceId: UUID?
-                    anyOrNull(),
-                    // scopeType: ScopeType?
-                    anyOrNull(),
-                    // scopeId: UUID?
-                    anyOrNull(),
+                    anyOrNull<UUID>(),
                     // subjectAttributes: Map<String, Any>?
-                    anyOrNull(),
+                    anyOrNull<Map<String, Any>>(),
                     // resourceAttributes: Map<String, Any>?
-                    anyOrNull(),
+                    anyOrNull<Map<String, Any>>(),
                     // contextAttributes: Map<String, Any>?
-                    anyOrNull(),
+                    anyOrNull<Map<String, Any>>(),
                 ),
             ).thenReturn(result)
-            whenever(mapper.toAuthorizationResultDTO(any())).thenReturn(dto)
+            whenever(mapper.toAuthorizationResultDTO(any<AuthorizationResult>())).thenReturn(dto)
 
             // Act
             val response = authorizationResolver.checkPermission(userId, permission)
@@ -185,26 +177,22 @@ class AuthorizationResolverTest {
             whenever(
                 authorizationService.checkPermission(
                     // userId: UUID
-                    any(),
+                    any<UUID>(),
                     // permission: String
-                    any(),
+                    any<String>(),
                     // resourceType: String?
-                    anyOrNull(),
+                    anyOrNull<String>(),
                     // resourceId: UUID?
-                    anyOrNull(),
-                    // scopeType: ScopeType?
-                    anyOrNull(),
-                    // scopeId: UUID?
-                    anyOrNull(),
+                    anyOrNull<UUID>(),
                     // subjectAttributes: Map<String, Any>?
-                    anyOrNull(),
+                    anyOrNull<Map<String, Any>>(),
                     // resourceAttributes: Map<String, Any>?
-                    anyOrNull(),
+                    anyOrNull<Map<String, Any>>(),
                     // contextAttributes: Map<String, Any>?
-                    anyOrNull(),
+                    anyOrNull<Map<String, Any>>(),
                 ),
             ).thenReturn(result)
-            whenever(mapper.toAuthorizationResultDTO(any())).thenReturn(dto)
+            whenever(mapper.toAuthorizationResultDTO(any<AuthorizationResult>())).thenReturn(dto)
 
             // Act
             val response = authorizationResolver.checkPermission(userId, permission)
@@ -224,26 +212,22 @@ class AuthorizationResolverTest {
             whenever(
                 authorizationService.checkPermission(
                     // userId: UUID
-                    any(),
+                    any<UUID>(),
                     // permission: String
-                    any(),
+                    any<String>(),
                     // resourceType: String?
-                    anyOrNull(),
+                    anyOrNull<String>(),
                     // resourceId: UUID?
-                    anyOrNull(),
-                    // scopeType: ScopeType?
-                    anyOrNull(),
-                    // scopeId: UUID?
-                    anyOrNull(),
+                    anyOrNull<UUID>(),
                     // subjectAttributes: Map<String, Any>?
-                    anyOrNull(),
+                    anyOrNull<Map<String, Any>>(),
                     // resourceAttributes: Map<String, Any>?
-                    anyOrNull(),
+                    anyOrNull<Map<String, Any>>(),
                     // contextAttributes: Map<String, Any>?
-                    anyOrNull(),
+                    anyOrNull<Map<String, Any>>(),
                 ),
             ).thenReturn(result)
-            whenever(mapper.toAuthorizationResultDTO(any())).thenReturn(dto)
+            whenever(mapper.toAuthorizationResultDTO(any<AuthorizationResult>())).thenReturn(dto)
 
             // Act
             val response = authorizationResolver.checkPermission(userId, permission)
@@ -267,26 +251,22 @@ class AuthorizationResolverTest {
             whenever(
                 authorizationService.checkPermission(
                     // userId: UUID
-                    any(),
+                    any<UUID>(),
                     // permission: String
-                    any(),
+                    any<String>(),
                     // resourceType: String?
-                    anyOrNull(),
+                    anyOrNull<String>(),
                     // resourceId: UUID?
-                    anyOrNull(),
-                    // scopeType: ScopeType?
-                    anyOrNull(),
-                    // scopeId: UUID?
-                    anyOrNull(),
+                    anyOrNull<UUID>(),
                     // subjectAttributes: Map<String, Any>?
-                    anyOrNull(),
+                    anyOrNull<Map<String, Any>>(),
                     // resourceAttributes: Map<String, Any>?
-                    anyOrNull(),
+                    anyOrNull<Map<String, Any>>(),
                     // contextAttributes: Map<String, Any>?
-                    anyOrNull(),
+                    anyOrNull<Map<String, Any>>(),
                 ),
             ).thenReturn(result)
-            whenever(mapper.toAuthorizationResultDTO(any())).thenReturn(dto)
+            whenever(mapper.toAuthorizationResultDTO(any<AuthorizationResult>())).thenReturn(dto)
 
             // Act
             val response = authorizationResolver.checkPermission(userId, permission)
@@ -306,26 +286,22 @@ class AuthorizationResolverTest {
             whenever(
                 authorizationService.checkPermission(
                     // userId: UUID
-                    any(),
+                    any<UUID>(),
                     // permission: String
-                    any(),
+                    any<String>(),
                     // resourceType: String?
-                    anyOrNull(),
+                    anyOrNull<String>(),
                     // resourceId: UUID?
-                    anyOrNull(),
-                    // scopeType: ScopeType?
-                    anyOrNull(),
-                    // scopeId: UUID?
-                    anyOrNull(),
+                    anyOrNull<UUID>(),
                     // subjectAttributes: Map<String, Any>?
-                    anyOrNull(),
+                    anyOrNull<Map<String, Any>>(),
                     // resourceAttributes: Map<String, Any>?
-                    anyOrNull(),
+                    anyOrNull<Map<String, Any>>(),
                     // contextAttributes: Map<String, Any>?
-                    anyOrNull(),
+                    anyOrNull<Map<String, Any>>(),
                 ),
             ).thenReturn(result)
-            whenever(mapper.toAuthorizationResultDTO(any())).thenReturn(dto)
+            whenever(mapper.toAuthorizationResultDTO(any<AuthorizationResult>())).thenReturn(dto)
 
             // Act
             val response = authorizationResolver.checkPermission(userId, permission)
@@ -374,26 +350,22 @@ class AuthorizationResolverTest {
             whenever(
                 authorizationService.checkPermission(
                     // userId: UUID
-                    any(),
+                    any<UUID>(),
                     // permission: String
-                    any(),
+                    any<String>(),
                     // resourceType: String?
-                    anyOrNull(),
+                    anyOrNull<String>(),
                     // resourceId: UUID?
-                    anyOrNull(),
-                    // scopeType: ScopeType?
-                    anyOrNull(),
-                    // scopeId: UUID?
-                    anyOrNull(),
+                    anyOrNull<UUID>(),
                     // subjectAttributes: Map<String, Any>?
-                    anyOrNull(),
+                    anyOrNull<Map<String, Any>>(),
                     // resourceAttributes: Map<String, Any>?
-                    anyOrNull(),
+                    anyOrNull<Map<String, Any>>(),
                     // contextAttributes: Map<String, Any>?
-                    anyOrNull(),
+                    anyOrNull<Map<String, Any>>(),
                 ),
             ).thenReturn(result)
-            whenever(mapper.toAuthorizationResultDTO(any())).thenReturn(dto)
+            whenever(mapper.toAuthorizationResultDTO(any<AuthorizationResult>())).thenReturn(dto)
 
             // Act
             val response = authorizationResolver.checkPermission(userId, permission, resourceId)
@@ -414,29 +386,25 @@ class AuthorizationResolverTest {
             whenever(
                 authorizationService.checkPermission(
                     // userId: UUID
-                    any(),
+                    any<UUID>(),
                     // permission: String
-                    any(),
+                    any<String>(),
                     // resourceType: String?
-                    anyOrNull(),
+                    anyOrNull<String>(),
                     // resourceId: UUID?
-                    anyOrNull(),
-                    // scopeType: ScopeType?
-                    anyOrNull(),
-                    // scopeId: UUID?
-                    anyOrNull(),
+                    anyOrNull<UUID>(),
                     // subjectAttributes: Map<String, Any>?
-                    anyOrNull(),
+                    anyOrNull<Map<String, Any>>(),
                     // resourceAttributes: Map<String, Any>?
-                    anyOrNull(),
+                    anyOrNull<Map<String, Any>>(),
                     // contextAttributes: Map<String, Any>?
-                    anyOrNull(),
+                    anyOrNull<Map<String, Any>>(),
                 ),
             ).thenReturn(result)
-            whenever(mapper.toAuthorizationResultDTO(any())).thenReturn(dto)
+            whenever(mapper.toAuthorizationResultDTO(any<AuthorizationResult>())).thenReturn(dto)
 
             // Act
-            val response = authorizationResolver.checkPermission(userId, permission, null, scope)
+            val response = authorizationResolver.checkPermission(userId, permission)
 
             // Assert
             assertThat(response.allowed).isTrue()
@@ -455,23 +423,19 @@ class AuthorizationResolverTest {
             whenever(
                 authorizationService.checkPermission(
                     // userId: UUID
-                    any(),
+                    any<UUID>(),
                     // permission: String
-                    any(),
+                    any<String>(),
                     // resourceType: String?
-                    anyOrNull(),
+                    anyOrNull<String>(),
                     // resourceId: UUID?
-                    anyOrNull(),
-                    // scopeType: ScopeType?
-                    anyOrNull(),
-                    // scopeId: UUID?
-                    anyOrNull(),
+                    anyOrNull<UUID>(),
                     // subjectAttributes: Map<String, Any>?
-                    anyOrNull(),
+                    anyOrNull<Map<String, Any>>(),
                     // resourceAttributes: Map<String, Any>?
-                    anyOrNull(),
+                    anyOrNull<Map<String, Any>>(),
                     // contextAttributes: Map<String, Any>?
-                    anyOrNull(),
+                    anyOrNull<Map<String, Any>>(),
                 ),
             ).thenThrow(RuntimeException("Internal database error: connection timeout"))
 
@@ -494,23 +458,19 @@ class AuthorizationResolverTest {
             whenever(
                 authorizationService.checkPermission(
                     // userId: UUID
-                    any(),
+                    any<UUID>(),
                     // permission: String
-                    any(),
+                    any<String>(),
                     // resourceType: String?
-                    anyOrNull(),
+                    anyOrNull<String>(),
                     // resourceId: UUID?
-                    anyOrNull(),
-                    // scopeType: ScopeType?
-                    anyOrNull(),
-                    // scopeId: UUID?
-                    anyOrNull(),
+                    anyOrNull<UUID>(),
                     // subjectAttributes: Map<String, Any>?
-                    anyOrNull(),
+                    anyOrNull<Map<String, Any>>(),
                     // resourceAttributes: Map<String, Any>?
-                    anyOrNull(),
+                    anyOrNull<Map<String, Any>>(),
                     // contextAttributes: Map<String, Any>?
-                    anyOrNull(),
+                    anyOrNull<Map<String, Any>>(),
                 ),
             ).thenThrow(IllegalArgumentException("User not found: 12345"))
 
@@ -538,16 +498,12 @@ class AuthorizationResolverTest {
             whenever(
                 authorizationService.getUserPermissions(
                     // userId: UUID
-                    any(),
-                    // scopeType: ScopeType?
-                    anyOrNull(),
-                    // scopeId: UUID?
-                    anyOrNull(),
+                    any<UUID>(),
                     // now: Instant
-                    any(),
+                    any<java.time.Instant>(),
                 ),
             ).thenReturn(permissions)
-            whenever(mapper.toPermissionDTO(any())).thenReturn(dtos[0])
+            whenever(mapper.toPermissionDTO(any<Permission>())).thenReturn(dtos[0])
 
             // Act
             val response = authorizationResolver.getUserPermissions(userId)
@@ -582,16 +538,12 @@ class AuthorizationResolverTest {
             whenever(
                 authorizationService.getUserRoles(
                     // userId: UUID
-                    any(),
-                    // scopeType: ScopeType?
-                    anyOrNull(),
-                    // scopeId: UUID?
-                    anyOrNull(),
+                    any<UUID>(),
                     // now: Instant
-                    any(),
+                    any<java.time.Instant>(),
                 ),
             ).thenReturn(roles)
-            whenever(mapper.toRoleDTO(any())).thenReturn(dtos[0])
+            whenever(mapper.toRoleDTO(any<Role>())).thenReturn(dtos[0])
 
             // Act
             val response = authorizationResolver.getUserRoles(userId)

@@ -2,7 +2,6 @@ package io.github.salomax.neotool.security.service
 
 import io.github.salomax.neotool.security.domain.rbac.Permission
 import io.github.salomax.neotool.security.domain.rbac.Role
-import io.github.salomax.neotool.security.domain.rbac.ScopeType
 import io.github.salomax.neotool.security.repo.GroupMembershipRepository
 import io.github.salomax.neotool.security.repo.GroupRoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.PermissionRepository
@@ -17,7 +16,7 @@ import io.github.salomax.neotool.security.domain.audit.AuthorizationResult as Au
 /**
  * Service for authorization checks.
  * Supports both RBAC-only and hybrid RBAC+ABAC authorization.
- * Handles direct role assignments, group inheritance, and scoped permissions.
+ * Handles direct role assignments and group inheritance.
  */
 @Singleton
 class AuthorizationService(
@@ -38,15 +37,11 @@ class AuthorizationService(
      *
      * @param userId The user ID
      * @param permission The permission name (e.g., "transaction:update")
-     * @param scopeType Optional scope type (PROFILE, PROJECT, RESOURCE)
-     * @param scopeId Optional scope ID (required for PROJECT and RESOURCE scopes)
      * @return AuthorizationResult with decision and reason
      */
     fun checkPermission(
         userId: UUID,
         permission: String,
-        scopeType: ScopeType? = null,
-        scopeId: UUID? = null,
     ): AuthorizationResult {
         // Delegate to the full checkPermission method which evaluates both RBAC and ABAC
         // Use explicit parameter names to call the overloaded method
@@ -57,8 +52,6 @@ class AuthorizationService(
             null,
             // resourceId
             null,
-            scopeType,
-            scopeId,
             // subjectAttributes
             null,
             // resourceAttributes
@@ -76,12 +69,10 @@ class AuthorizationService(
     private fun checkPermissionRbac(
         userId: UUID,
         permission: String,
-        scopeType: ScopeType? = null,
-        scopeId: UUID? = null,
         now: Instant = Instant.now(),
     ): AuthorizationResult {
         // Collect role IDs once
-        val roleIds = collectUserRoleIds(userId, scopeType, scopeId, now)
+        val roleIds = collectUserRoleIds(userId, now)
 
         // Use optimized permission check
         return checkPermissionRbacWithRoleIds(permission, roleIds)
@@ -127,19 +118,15 @@ class AuthorizationService(
      * Optimized to use batch loading to avoid N+1 queries.
      *
      * @param userId The user ID
-     * @param scopeType Optional scope type filter
-     * @param scopeId Optional scope ID filter
      * @param now Current timestamp for validity checks
      * @return List of permissions
      */
     fun getUserPermissions(
         userId: UUID,
-        scopeType: ScopeType? = null,
-        scopeId: UUID? = null,
         now: Instant = Instant.now(),
     ): List<Permission> {
         // Collect all role IDs (direct and group-inherited) using shared logic
-        val roleIds = collectUserRoleIds(userId, scopeType, scopeId, now)
+        val roleIds = collectUserRoleIds(userId, now)
 
         // Batch load all permission IDs for all roles at once
         if (roleIds.isEmpty()) {
@@ -162,19 +149,15 @@ class AuthorizationService(
      * Optimized to use batch loading and shared logic.
      *
      * @param userId The user ID
-     * @param scopeType Optional scope type filter
-     * @param scopeId Optional scope ID filter
      * @param now Current timestamp for validity checks
      * @return List of roles
      */
     fun getUserRoles(
         userId: UUID,
-        scopeType: ScopeType? = null,
-        scopeId: UUID? = null,
         now: Instant = Instant.now(),
     ): List<Role> {
         // Collect all role IDs using shared logic
-        val roleIds = collectUserRoleIds(userId, scopeType, scopeId, now)
+        val roleIds = collectUserRoleIds(userId, now)
 
         if (roleIds.isEmpty()) {
             return emptyList()
@@ -191,21 +174,17 @@ class AuthorizationService(
      * Optimized to use batch loading for group role assignments to avoid N+1 queries.
      *
      * @param userId The user ID
-     * @param scopeType Optional scope type filter
-     * @param scopeId Optional scope ID filter
      * @param now Current timestamp for validity checks
      * @return Set of unique role IDs
      */
     private fun collectUserRoleIds(
         userId: UUID,
-        scopeType: ScopeType?,
-        scopeId: UUID?,
         now: Instant,
     ): Set<Int> {
         val roleIds = mutableSetOf<Int>()
 
         // Get direct role assignments
-        val directAssignments = getDirectRoleAssignments(userId, scopeType, scopeId, now)
+        val directAssignments = roleAssignmentRepository.findValidAssignmentsByUserId(userId, now)
         roleIds.addAll(directAssignments.map { it.roleId })
 
         // Get group memberships
@@ -214,36 +193,11 @@ class AuthorizationService(
         // Batch load group role assignments to avoid N+1 queries
         if (groupMemberships.isNotEmpty()) {
             val groupIds = groupMemberships.map { it.groupId }
-            val groupAssignments =
-                if (scopeType != null) {
-                    groupRoleAssignmentRepository.findValidAssignmentsByGroupIdsAndScope(
-                        groupIds,
-                        scopeType,
-                        scopeId,
-                        now,
-                    )
-                } else {
-                    groupRoleAssignmentRepository.findValidAssignmentsByGroupIds(groupIds, now)
-                }
+            val groupAssignments = groupRoleAssignmentRepository.findValidAssignmentsByGroupIds(groupIds, now)
             roleIds.addAll(groupAssignments.map { it.roleId })
         }
 
         return roleIds
-    }
-
-    /**
-     * Get direct role assignments for a user with optional scope filtering.
-     * Extracted to reduce duplication.
-     */
-    private fun getDirectRoleAssignments(
-        userId: UUID,
-        scopeType: ScopeType?,
-        scopeId: UUID?,
-        now: Instant,
-    ) = if (scopeType != null) {
-        roleAssignmentRepository.findValidAssignmentsByUserIdAndScope(userId, scopeType, scopeId, now)
-    } else {
-        roleAssignmentRepository.findValidAssignmentsByUserId(userId, now)
     }
 
     /**
@@ -255,8 +209,6 @@ class AuthorizationService(
      * @param permission The permission name (e.g., "transaction:update")
      * @param resourceType Optional resource type (e.g., "transaction")
      * @param resourceId Optional resource ID
-     * @param scopeType Optional scope type (PROFILE, PROJECT, RESOURCE)
-     * @param scopeId Optional scope ID
      * @param subjectAttributes Optional additional subject attributes for ABAC
      * @param resourceAttributes Optional additional resource attributes for ABAC
      * @param contextAttributes Optional additional context attributes for ABAC
@@ -267,8 +219,6 @@ class AuthorizationService(
         permission: String,
         resourceType: String? = null,
         resourceId: UUID? = null,
-        scopeType: ScopeType? = null,
-        scopeId: UUID? = null,
         subjectAttributes: Map<String, Any>? = null,
         resourceAttributes: Map<String, Any>? = null,
         contextAttributes: Map<String, Any>? = null,
@@ -277,7 +227,7 @@ class AuthorizationService(
 
         // Step 1: Fetch user context once (role IDs, roles, groups)
         // This eliminates duplicate data fetching between RBAC check and ABAC evaluation
-        val userContext = fetchUserContext(userId, scopeType, scopeId, now)
+        val userContext = fetchUserContext(userId, now)
 
         // Step 2: Evaluate RBAC using pre-fetched role IDs (lightweight check)
         val rbacResult = checkPermissionRbacWithRoleIds(permission, userContext.roleIds)
@@ -404,19 +354,15 @@ class AuthorizationService(
      * This method collects all necessary data once to avoid duplicate queries.
      *
      * @param userId The user ID
-     * @param scopeType Optional scope type filter
-     * @param scopeId Optional scope ID filter
      * @param now Current timestamp for validity checks
      * @return UserContext with role IDs, roles, and groups
      */
     private fun fetchUserContext(
         userId: UUID,
-        scopeType: ScopeType?,
-        scopeId: UUID?,
         now: Instant,
     ): UserContext {
         // Fetch role IDs once (this is the expensive part)
-        val roleIds = collectUserRoleIds(userId, scopeType, scopeId, now)
+        val roleIds = collectUserRoleIds(userId, now)
 
         // Batch load roles if we have any
         val roles =

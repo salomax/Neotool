@@ -6,7 +6,6 @@ SET search_path TO security, public;
 
 -- Indexes for role_assignments table
 CREATE INDEX IF NOT EXISTS idx_role_assignments_user_role ON security.role_assignments(user_id, role_id);
-CREATE INDEX IF NOT EXISTS idx_role_assignments_user_scope ON security.role_assignments(user_id, scope_type, scope_id);
 
 -- Indexes for group_memberships table
 CREATE INDEX IF NOT EXISTS idx_group_memberships_user_group ON security.group_memberships(user_id, group_id);

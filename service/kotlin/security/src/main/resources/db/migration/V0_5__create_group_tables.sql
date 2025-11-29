@@ -25,13 +25,11 @@ CREATE TABLE IF NOT EXISTS security.group_memberships (
     CONSTRAINT group_memberships_user_group_unique UNIQUE (user_id, group_id)
 );
 
--- Create group_role_assignments table for group-level role assignments with scoping
+-- Create group_role_assignments table for group-level role assignments
 CREATE TABLE IF NOT EXISTS security.group_role_assignments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     group_id UUID NOT NULL REFERENCES security.groups(id) ON DELETE CASCADE,
     role_id INT NOT NULL REFERENCES security.roles(id) ON DELETE CASCADE,
-    scope_type VARCHAR(32) NOT NULL, -- profile, project, or resource
-    scope_id UUID, -- nullable, only required for project/resource scope
     valid_from TIMESTAMP, -- nullable, if null then valid from creation
     valid_until TIMESTAMP, -- nullable, if null then no expiry
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),

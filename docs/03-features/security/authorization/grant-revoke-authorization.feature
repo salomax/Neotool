@@ -159,54 +159,6 @@ Feature: Grant and Revoke Authorization
       When I attempt to remove user "mary" from group "sales-team"
       Then an error should indicate user "mary" is not a member of group "sales-team"
 
-  Rule: Scoped Role Bindings
-    @happy-path
-    Scenario: Create profile-level role binding
-      Given a user "nancy" exists
-      And a role "profile-editor" exists with permission "transaction:update"
-      And a profile "profile-123" exists
-      When I grant role "profile-editor" to user "nancy" at profile scope "profile-123"
-      Then user "nancy" should have role "profile-editor" at profile scope "profile-123"
-      And user "nancy" should have permission "transaction:update" on profile "profile-123"
-      And user "nancy" should not have permission "transaction:update" on profile "profile-456"
-
-    @happy-path
-    Scenario: Create resource-level role binding
-      Given a user "oscar" exists
-      And a role "resource-owner" exists with permission "transaction:update"
-      And a resource "transaction-789" exists
-      When I grant role "resource-owner" to user "oscar" at resource scope "transaction-789"
-      Then user "oscar" should have role "resource-owner" at resource scope "transaction-789"
-      And user "oscar" should have permission "transaction:update" on resource "transaction-789"
-      And user "oscar" should not have permission "transaction:update" on resource "transaction-999"
-
-    @happy-path
-    Scenario: Create project-level role binding
-      Given a user "paul" exists
-      And a role "project-manager" exists with permission "project:manage"
-      And a project "project-abc" exists
-      When I grant role "project-manager" to user "paul" at project scope "project-abc"
-      Then user "paul" should have role "project-manager" at project scope "project-abc"
-      And user "paul" should have permission "project:manage" on project "project-abc"
-      And user "paul" should not have permission "project:manage" on project "project-xyz"
-
-    @happy-path
-    Scenario: Update role binding scope
-      Given a user "quinn" exists
-      And a role "editor" exists with permission "transaction:update"
-      And user "quinn" has role "editor" at profile scope "profile-123"
-      When I update role binding for user "quinn" and role "editor" to profile scope "profile-456"
-      Then user "quinn" should have role "editor" at profile scope "profile-456"
-      And user "quinn" should not have role "editor" at profile scope "profile-123"
-
-    @validation
-    Scenario: Cannot create binding for non-existent scope
-      Given a user "rachel" exists
-      And a role "editor" exists
-      When I attempt to grant role "editor" to user "rachel" at profile scope "nonexistent"
-      Then an error should indicate profile "nonexistent" does not exist
-      And user "rachel" should not have role "editor" at profile scope "nonexistent"
-
   Rule: Temporary Role Bindings
     @happy-path
     Scenario: Create temporary role binding with expiry

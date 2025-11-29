@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.security.test.service.unit
 
-import io.github.salomax.neotool.security.domain.rbac.ScopeType
 import io.github.salomax.neotool.security.repo.GroupMembershipRepository
 import io.github.salomax.neotool.security.repo.GroupRoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.PermissionRepository
@@ -68,7 +67,6 @@ class AuthorizationServiceTest {
                 SecurityTestDataBuilders.roleAssignment(
                     userId = userId,
                     roleId = roleId,
-                    scopeType = ScopeType.PROFILE,
                 )
 
             val roleEntity = SecurityTestDataBuilders.role(id = roleId, name = "admin")
@@ -178,7 +176,6 @@ class AuthorizationServiceTest {
                 SecurityTestDataBuilders.groupRoleAssignment(
                     groupId = groupId,
                     roleId = roleId,
-                    scopeType = ScopeType.PROFILE,
                 )
 
             val roleEntity = SecurityTestDataBuilders.role(id = roleId, name = "editor")
@@ -225,83 +222,6 @@ class AuthorizationServiceTest {
 
             // Act
             val result = authorizationService.checkPermission(userId, permission)
-
-            // Assert
-            assertThat(result.allowed).isFalse()
-        }
-    }
-
-    @Nested
-    @DisplayName("Check Permission - Scoped Permissions")
-    inner class CheckPermissionScopedTests {
-        @Test
-        fun `should allow access when user has permission at correct scope`() {
-            // Arrange
-            val userId = UUID.randomUUID()
-            val projectId = UUID.randomUUID()
-            val permission = "transaction:read"
-            val roleId = 1
-            val roleAssignment =
-                SecurityTestDataBuilders.roleAssignment(
-                    userId = userId,
-                    roleId = roleId,
-                    scopeType = ScopeType.PROJECT,
-                    scopeId = projectId,
-                )
-
-            val roleEntity = SecurityTestDataBuilders.role(id = roleId, name = "project-admin")
-
-            whenever(
-                roleAssignmentRepository.findValidAssignmentsByUserIdAndScope(any(), any(), any(), any()),
-            ).thenReturn(listOf(roleAssignment))
-            whenever(
-                permissionRepository.existsPermissionForRoles(permission, listOf(roleId)),
-            ).thenReturn(true)
-            whenever(roleRepository.findByIdIn(any())).thenReturn(listOf(roleEntity))
-            whenever(groupMembershipRepository.findActiveMembershipsByUserId(any(), any())).thenReturn(emptyList())
-            whenever(
-                abacEvaluationService.evaluatePolicies(any(), anyOrNull(), anyOrNull()),
-            ).thenReturn(
-                AbacEvaluationResult(
-                    // No matching ABAC policies
-                    decision = null,
-                    matchedPolicies = emptyList(),
-                    reason = "No matching ABAC policies",
-                ),
-            )
-
-            // Act
-            val result = authorizationService.checkPermission(userId, permission, ScopeType.PROJECT, projectId)
-
-            // Assert
-            assertThat(result.allowed).isTrue()
-        }
-
-        @Test
-        fun `should deny access when user has permission at different scope`() {
-            // Arrange
-            val userId = UUID.randomUUID()
-            val projectId1 = UUID.randomUUID()
-            val projectId2 = UUID.randomUUID()
-            val permission = "transaction:read"
-            val roleId = 1
-            val roleAssignment =
-                SecurityTestDataBuilders.roleAssignment(
-                    userId = userId,
-                    roleId = roleId,
-                    scopeType = ScopeType.PROJECT,
-                    // Different project
-                    scopeId = projectId1,
-                )
-
-            // User has permission for projectId1, but requesting for projectId2
-            whenever(
-                roleAssignmentRepository.findValidAssignmentsByUserIdAndScope(any(), any(), any(), any()),
-            ).thenReturn(emptyList())
-            whenever(groupMembershipRepository.findActiveMembershipsByUserId(any(), any())).thenReturn(emptyList())
-
-            // Act
-            val result = authorizationService.checkPermission(userId, permission, ScopeType.PROJECT, projectId2)
 
             // Assert
             assertThat(result.allowed).isFalse()
@@ -420,36 +340,6 @@ class AuthorizationServiceTest {
             // Assert
             assertThat(result).hasSize(2)
             assertThat(result.map { it.name }).containsExactlyInAnyOrder("transaction:read", "transaction:write")
-        }
-
-        @Test
-        fun `should filter permissions by scope`() {
-            // Arrange
-            val userId = UUID.randomUUID()
-            val projectId = UUID.randomUUID()
-            val roleId = 1
-            val roleAssignment =
-                SecurityTestDataBuilders.roleAssignment(
-                    userId = userId,
-                    roleId = roleId,
-                    scopeType = ScopeType.PROJECT,
-                    scopeId = projectId,
-                )
-            val permission = SecurityTestDataBuilders.permission(id = 1, name = "transaction:read")
-
-            whenever(
-                roleAssignmentRepository.findValidAssignmentsByUserIdAndScope(any(), any(), any(), any()),
-            ).thenReturn(listOf(roleAssignment))
-            whenever(roleRepository.findPermissionIdsByRoleIds(any<List<Int>>())).thenReturn(listOf(1))
-            whenever(permissionRepository.findByIdIn(any())).thenReturn(listOf(permission))
-            whenever(groupMembershipRepository.findActiveMembershipsByUserId(any(), any())).thenReturn(emptyList())
-
-            // Act
-            val result = authorizationService.getUserPermissions(userId, ScopeType.PROJECT, projectId)
-
-            // Assert
-            assertThat(result).hasSize(1)
-            assertThat(result[0].name).isEqualTo("transaction:read")
         }
 
         @Test
@@ -573,35 +463,6 @@ class AuthorizationServiceTest {
             // Assert
             assertThat(result).hasSize(2)
             assertThat(result.map { it.name }).containsExactlyInAnyOrder("admin", "editor")
-        }
-
-        @Test
-        fun `should filter roles by scope`() {
-            // Arrange
-            val userId = UUID.randomUUID()
-            val projectId = UUID.randomUUID()
-            val roleId = 1
-            val roleAssignment =
-                SecurityTestDataBuilders.roleAssignment(
-                    userId = userId,
-                    roleId = roleId,
-                    scopeType = ScopeType.PROJECT,
-                    scopeId = projectId,
-                )
-            val roleEntity = SecurityTestDataBuilders.role(id = roleId, name = "project-admin")
-
-            whenever(
-                roleAssignmentRepository.findValidAssignmentsByUserIdAndScope(any(), any(), any(), any()),
-            ).thenReturn(listOf(roleAssignment))
-            whenever(roleRepository.findByIdIn(any<List<Int>>())).thenReturn(listOf(roleEntity))
-            whenever(groupMembershipRepository.findActiveMembershipsByUserId(any(), any())).thenReturn(emptyList())
-
-            // Act
-            val result = authorizationService.getUserRoles(userId, ScopeType.PROJECT, projectId)
-
-            // Assert
-            assertThat(result).hasSize(1)
-            assertThat(result[0].name).isEqualTo("project-admin")
         }
 
         @Test
