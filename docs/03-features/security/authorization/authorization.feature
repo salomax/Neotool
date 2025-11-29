@@ -90,37 +90,6 @@ Feature: Authorization Access Checks
       Then access should be denied
       And the reason should indicate expired group membership
 
-  Rule: RBAC - Scoped Permissions
-    @happy-path
-    Scenario: User has profile-level permission
-      Given a user "henry" exists
-      And a role "profile-editor" exists with permission "transaction:update"
-      And user "henry" has role "profile-editor" assigned at profile scope "profile-123"
-      When I check if user "henry" has permission "transaction:update" on profile "profile-123"
-      Then access should be granted
-      When I check if user "henry" has permission "transaction:update" on profile "profile-456"
-      Then access should be denied
-
-    @happy-path
-    Scenario: User has resource-level permission
-      Given a user "iris" exists
-      And a role "resource-owner" exists with permission "transaction:update"
-      And user "iris" has role "resource-owner" assigned at resource scope "transaction-789"
-      When I check if user "iris" has permission "transaction:update" on resource "transaction-789"
-      Then access should be granted
-      When I check if user "iris" has permission "transaction:update" on resource "transaction-999"
-      Then access should be denied
-
-    @happy-path
-    Scenario: User has project-level permission
-      Given a user "jack" exists
-      And a role "project-manager" exists with permission "project:manage"
-      And user "jack" has role "project-manager" assigned at project scope "project-abc"
-      When I check if user "jack" has permission "project:manage" on project "project-abc"
-      Then access should be granted
-      When I check if user "jack" has permission "project:manage" on project "project-xyz"
-      Then access should be denied
-
   Rule: ABAC - Policy Evaluation
     @happy-path
     Scenario: ABAC policy allows based on subject attributes
@@ -280,11 +249,11 @@ Feature: Authorization Access Checks
 
   Rule: Read-Global, Write-Limited Pattern
     @happy-path
-    Scenario: User can read all resources in profile
+    Scenario: User can read all resources
       Given a user "yara" exists
       And a role "viewer" exists with permission "transaction:read"
-      And user "yara" has role "viewer" assigned at profile scope "profile-123"
-      And resources "transaction-1", "transaction-2", "transaction-3" exist in profile "profile-123"
+      And user "yara" has role "viewer" assigned directly
+      And resources "transaction-1", "transaction-2", "transaction-3" exist
       When I check if user "yara" has permission "transaction:read" on resource "transaction-1"
       Then access should be granted
       When I check if user "yara" has permission "transaction:read" on resource "transaction-2"
@@ -296,9 +265,9 @@ Feature: Authorization Access Checks
     Scenario: User can write only owned resources
       Given a user "zoe" exists
       And a role "editor" exists with permission "transaction:update"
-      And user "zoe" has role "editor" assigned at profile scope "profile-123"
-      And a resource "transaction-1" exists in profile "profile-123" created by user "zoe"
-      And a resource "transaction-2" exists in profile "profile-123" created by user "alice"
+      And user "zoe" has role "editor" assigned directly
+      And a resource "transaction-1" exists created by user "zoe"
+      And a resource "transaction-2" exists created by user "alice"
       And an ABAC policy exists:
         | effect | condition                                          |
         | allow  | resource.created_by_user_id == subject.user_id     |
@@ -311,8 +280,8 @@ Feature: Authorization Access Checks
     Scenario: User can write draft resources
       Given a user "adam" exists
       And a role "editor" exists with permission "transaction:update"
-      And user "adam" has role "editor" assigned at profile scope "profile-123"
-      And a resource "transaction-1" exists in profile "profile-123" with status "draft"
+      And user "adam" has role "editor" assigned directly
+      And a resource "transaction-1" exists with status "draft"
       And an ABAC policy exists:
         | effect | condition                                  |
         | allow  | resource.status == "draft"                 |

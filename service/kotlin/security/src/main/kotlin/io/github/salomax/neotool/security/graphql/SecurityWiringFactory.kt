@@ -54,8 +54,7 @@ class SecurityWiringFactory(
                     val userId = getRequiredString(env, "userId")
                     val permission = getRequiredString(env, "permission")
                     val resourceId = env.getArgument<String?>("resourceId")
-                    val scope = env.getArgument<String?>("scope")
-                    authorizationResolver.checkPermission(userId, permission, resourceId, scope)
+                    authorizationResolver.checkPermission(userId, permission, resourceId)
                 },
             )
             .dataFetcher(

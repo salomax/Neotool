@@ -4,27 +4,10 @@ import io.github.salomax.neotool.security.model.rbac.RoleAssignmentEntity
 import java.time.Instant
 import java.util.UUID
 
-enum class ScopeType {
-    PROFILE,
-    PROJECT,
-    RESOURCE,
-    ;
-
-    /**
-     * Check if this scope type requires a scopeId.
-     * PROJECT and RESOURCE require scopeId, PROFILE does not.
-     */
-    fun requiresScopeId(): Boolean {
-        return this == PROJECT || this == RESOURCE
-    }
-}
-
 data class RoleAssignment(
     val id: UUID? = null,
     val userId: UUID,
     val roleId: Int,
-    val scopeType: ScopeType,
-    val scopeId: UUID? = null,
     val validFrom: Instant? = null,
     val validUntil: Instant? = null,
     val createdAt: Instant = Instant.now(),
@@ -36,8 +19,6 @@ data class RoleAssignment(
             id = this.id ?: UUID.randomUUID(),
             userId = this.userId,
             roleId = this.roleId,
-            scopeType = this.scopeType,
-            scopeId = this.scopeId,
             validFrom = this.validFrom,
             validUntil = this.validUntil,
             createdAt = this.createdAt,

@@ -3,7 +3,6 @@ package io.github.salomax.neotool.security.test.integration
 import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.common.test.transaction.runTransaction
-import io.github.salomax.neotool.security.domain.rbac.ScopeType
 import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.repo.AbacPolicyRepository
 import io.github.salomax.neotool.security.repo.GroupMembershipRepository
@@ -142,7 +141,6 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
                 SecurityTestDataBuilders.roleAssignment(
                     userId = testUserId,
                     roleId = savedRole.id!!,
-                    scopeType = ScopeType.PROFILE,
                 )
             roleAssignmentRepository.save(roleAssignment)
             entityManager.flush()
@@ -207,7 +205,6 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
                 SecurityTestDataBuilders.groupRoleAssignment(
                     groupId = savedGroup.id,
                     roleId = savedRole.id!!,
-                    scopeType = ScopeType.PROFILE,
                 )
             groupRoleAssignmentRepository.save(groupRoleAssignment)
             entityManager.flush()
@@ -218,103 +215,6 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
             // Assert
             assertThat(result.allowed).isTrue()
             assertThat(result.reason).contains("Access granted")
-        }
-    }
-
-    @Nested
-    @DisplayName("Scoped Permissions")
-    inner class ScopedPermissionsTests {
-        @Test
-        fun `should allow access when user has permission at correct scope`() {
-            // Arrange
-            createTestUser() // Create user before role assignment
-
-            val role = SecurityTestDataBuilders.role(name = "project-admin")
-            val savedRole = roleRepository.save(role)
-
-            val permission = SecurityTestDataBuilders.permission(name = "transaction:update")
-            val savedPermission = permissionRepository.save(permission)
-
-            // Link role and permission
-            entityManager.createNativeQuery(
-                """
-                INSERT INTO security.role_permissions (role_id, permission_id)
-                VALUES (:roleId, :permissionId)
-                """.trimIndent(),
-            )
-                .setParameter("roleId", savedRole.id)
-                .setParameter("permissionId", savedPermission.id)
-                .executeUpdate()
-
-            val roleAssignment =
-                SecurityTestDataBuilders.roleAssignment(
-                    userId = testUserId,
-                    roleId = savedRole.id!!,
-                    scopeType = ScopeType.PROJECT,
-                    scopeId = testProjectId,
-                )
-            roleAssignmentRepository.save(roleAssignment)
-            entityManager.flush()
-
-            // Act
-            val result =
-                authorizationService.checkPermission(
-                    testUserId,
-                    "transaction:update",
-                    ScopeType.PROJECT,
-                    testProjectId,
-                )
-
-            // Assert
-            assertThat(result.allowed).isTrue()
-        }
-
-        @Test
-        fun `should deny access when user has permission at different scope`() {
-            // Arrange
-            createTestUser() // Create user before role assignment
-
-            val role = SecurityTestDataBuilders.role(name = "project-admin")
-            val savedRole = roleRepository.save(role)
-
-            val permission = SecurityTestDataBuilders.permission(name = "transaction:update")
-            val savedPermission = permissionRepository.save(permission)
-
-            // Link role and permission
-            entityManager.createNativeQuery(
-                """
-                INSERT INTO security.role_permissions (role_id, permission_id)
-                VALUES (:roleId, :permissionId)
-                """.trimIndent(),
-            )
-                .setParameter("roleId", savedRole.id)
-                .setParameter("permissionId", savedPermission.id)
-                .executeUpdate()
-
-            val otherProjectId = UUID.randomUUID()
-            val roleAssignment =
-                SecurityTestDataBuilders.roleAssignment(
-                    userId = testUserId,
-                    roleId = savedRole.id!!,
-                    scopeType = ScopeType.PROJECT,
-                    // Different project
-                    scopeId = otherProjectId,
-                )
-            roleAssignmentRepository.save(roleAssignment)
-            entityManager.flush()
-
-            // Act
-            val result =
-                authorizationService.checkPermission(
-                    testUserId,
-                    "transaction:update",
-                    ScopeType.PROJECT,
-                    // Requesting for different project
-                    testProjectId,
-                )
-
-            // Assert
-            assertThat(result.allowed).isFalse()
         }
     }
 
@@ -348,7 +248,6 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
                 SecurityTestDataBuilders.roleAssignment(
                     userId = testUserId,
                     roleId = savedRole.id!!,
-                    scopeType = ScopeType.PROFILE,
                     // Started 1 hour ago
                     validFrom = now.minusSeconds(3600),
                     // Expires in 1 hour
@@ -391,7 +290,6 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
                 SecurityTestDataBuilders.roleAssignment(
                     userId = testUserId,
                     roleId = savedRole.id!!,
-                    scopeType = ScopeType.PROFILE,
                     // Started 2 hours ago
                     validFrom = now.minusSeconds(7200),
                     // Expired 1 hour ago
@@ -455,7 +353,6 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
                 SecurityTestDataBuilders.roleAssignment(
                     userId = testUserId,
                     roleId = savedRole1.id!!,
-                    scopeType = ScopeType.PROFILE,
                 )
             roleAssignmentRepository.save(roleAssignment)
 
@@ -474,7 +371,6 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
                 SecurityTestDataBuilders.groupRoleAssignment(
                     groupId = savedGroup.id,
                     roleId = savedRole2.id!!,
-                    scopeType = ScopeType.PROFILE,
                 )
             groupRoleAssignmentRepository.save(groupRoleAssignment)
             entityManager.flush()
@@ -507,7 +403,6 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
                 SecurityTestDataBuilders.roleAssignment(
                     userId = testUserId,
                     roleId = savedRole1.id!!,
-                    scopeType = ScopeType.PROFILE,
                 )
             roleAssignmentRepository.save(roleAssignment)
 
@@ -526,7 +421,6 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
                 SecurityTestDataBuilders.groupRoleAssignment(
                     groupId = savedGroup.id,
                     roleId = savedRole2.id!!,
-                    scopeType = ScopeType.PROFILE,
                 )
             groupRoleAssignmentRepository.save(groupRoleAssignment)
             entityManager.flush()
@@ -603,7 +497,6 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
                     SecurityTestDataBuilders.roleAssignment(
                         userId = testUserId,
                         roleId = savedRole.id!!,
-                        scopeType = ScopeType.PROFILE,
                     )
                 roleAssignmentRepository.save(roleAssignment)
 
@@ -666,7 +559,6 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
                     SecurityTestDataBuilders.roleAssignment(
                         userId = testUserId,
                         roleId = savedRole.id!!,
-                        scopeType = ScopeType.PROFILE,
                     )
                 roleAssignmentRepository.save(roleAssignment)
 

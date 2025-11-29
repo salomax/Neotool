@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.security.repo
 
-import io.github.salomax.neotool.security.domain.rbac.ScopeType
 import io.github.salomax.neotool.security.model.rbac.RoleAssignmentEntity
 import io.micronaut.data.annotation.Query
 import io.micronaut.data.annotation.Repository
@@ -26,26 +25,6 @@ interface RoleAssignmentRepository : JpaRepository<RoleAssignmentEntity, UUID> {
     )
     fun findValidAssignmentsByUserId(
         userId: UUID,
-        now: Instant = Instant.now(),
-    ): List<RoleAssignmentEntity>
-
-    /**
-     * Find role assignments for a user with specific scope.
-     */
-    @Query(
-        """
-        SELECT ra FROM RoleAssignmentEntity ra
-        WHERE ra.userId = :userId
-        AND ra.scopeType = :scopeType
-        AND (ra.scopeId IS NULL OR ra.scopeId = :scopeId)
-        AND (ra.validFrom IS NULL OR ra.validFrom <= :now)
-        AND (ra.validUntil IS NULL OR ra.validUntil >= :now)
-        """,
-    )
-    fun findValidAssignmentsByUserIdAndScope(
-        userId: UUID,
-        scopeType: ScopeType,
-        scopeId: UUID?,
         now: Instant = Instant.now(),
     ): List<RoleAssignmentEntity>
 

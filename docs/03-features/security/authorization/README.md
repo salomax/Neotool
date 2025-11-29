@@ -28,13 +28,7 @@ This design ensures flexibility, scalability, and strong security aligned with m
   * All roles assigned directly to them.
   * All roles assigned to groups they belong to.
 * A role contains a set of permissions (e.g., `transaction:update`, `account:read`).
-* Permissions are always scoped (tenant-level, profile-level, resource-level).
-* Roles must be bindable at different scopes:
-
-  * Tenant
-  * Profile
-  * Project
-  * Resource/Entity
+* Roles can be assigned to users and groups.
 * Role bindings must support:
 
   * Valid dates (`valid_from`, `valid_until`)
@@ -97,15 +91,10 @@ A user can only edit records they created or records created by their groups.
 
 ---
 
-### **3.3 Multi-Scope Permissions**
+### **3.3 Temporary Access**
 
 **Requirement:**
-Roles must be assignable at different levels of hierarchy:
-
-* **Tenant-level access:** full or broad permissions
-* **Profile-level access:** access restricted to individual profiles
-* **Resource-level access:** access to specific records
-* **Temporary access:** using expiry dates on role bindings
+Roles can be assigned with temporary access using expiry dates on role bindings.
 
 ---
 

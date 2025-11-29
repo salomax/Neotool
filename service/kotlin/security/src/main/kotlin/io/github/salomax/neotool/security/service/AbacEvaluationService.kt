@@ -272,7 +272,9 @@ class AbacEvaluationService(
         for (i in 1 until parts.size) {
             current =
                 when (current) {
-                    is Map<*, *> -> (current as Map<String, Any>)[parts[i]]
+                    is Map<*, *> ->
+                        @Suppress("UNCHECKED_CAST")
+                        (current as Map<String, Any>)[parts[i]]
                     else -> null
                 }
             if (current == null) return null

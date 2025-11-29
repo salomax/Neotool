@@ -1,10 +1,7 @@
 package io.github.salomax.neotool.security.model.rbac
 import io.github.salomax.neotool.common.entity.BaseEntity
-import io.github.salomax.neotool.security.domain.rbac.ScopeType
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
-import jakarta.persistence.EnumType
-import jakarta.persistence.Enumerated
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 import jakarta.persistence.Version
@@ -22,11 +19,6 @@ open class GroupRoleAssignmentEntity(
     open var groupId: UUID,
     @Column(name = "role_id", nullable = false)
     open var roleId: Int,
-    @Enumerated(EnumType.STRING)
-    @Column(name = "scope_type", nullable = false, length = 32)
-    open var scopeType: ScopeType,
-    @Column(name = "scope_id", columnDefinition = "uuid")
-    open var scopeId: UUID? = null,
     @Column(name = "valid_from")
     open var validFrom: Instant? = null,
     @Column(name = "valid_until")
@@ -43,8 +35,6 @@ open class GroupRoleAssignmentEntity(
             id = this.id,
             groupId = this.groupId,
             roleId = this.roleId,
-            scopeType = this.scopeType,
-            scopeId = this.scopeId,
             validFrom = this.validFrom,
             validUntil = this.validUntil,
             createdAt = this.createdAt,

@@ -32,8 +32,6 @@ business_rules:
     description: If any ABAC policy has effect "deny", access is denied even if other policies allow
   - rule: Group inheritance
     description: Users inherit all roles and permissions from groups they belong to
-  - rule: Scope hierarchy
-    description: Permissions are scoped to profile, project, or resource level. More specific scopes take precedence
   - rule: Ownership-based editing
     description: Users can edit resources they created or resources created by their groups (enforced via ABAC)
   - rule: Read-global, write-limited
@@ -63,7 +61,6 @@ validations:
       rules:
         - Optional
         - Must be one of: profile, project, resource
-        - If provided, scope_id must exist
   business_rule_validations:
     - validation: Role binding expiry check
       description: Check if role binding is within valid_from and valid_until dates
@@ -88,7 +85,6 @@ happy_paths:
       - Group has role assigned
       - User inherits permissions
       - Access is granted
-  - path: Scoped permission access
     description: User has permission at correct scope and access is granted
     steps:
       - User has role at profile/project/resource scope

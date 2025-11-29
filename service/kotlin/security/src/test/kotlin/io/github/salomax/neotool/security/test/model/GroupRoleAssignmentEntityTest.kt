@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.security.test.model
 
-import io.github.salomax.neotool.security.domain.rbac.ScopeType
 import io.github.salomax.neotool.security.model.rbac.GroupRoleAssignmentEntity
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
@@ -12,7 +11,6 @@ import java.util.UUID
 @DisplayName("GroupRoleAssignmentEntity Tests")
 class GroupRoleAssignmentEntityTest {
     private val groupId = UUID.randomUUID()
-    private val scopeId = UUID.randomUUID()
 
     @Nested
     @DisplayName("toDomain()")
@@ -31,8 +29,6 @@ class GroupRoleAssignmentEntityTest {
                     id = id,
                     groupId = groupId,
                     roleId = 1,
-                    scopeType = ScopeType.PROJECT,
-                    scopeId = scopeId,
                     validFrom = validFrom,
                     validUntil = validUntil,
                     createdAt = createdAt,
@@ -47,32 +43,11 @@ class GroupRoleAssignmentEntityTest {
             assertThat(domain.id).isEqualTo(id)
             assertThat(domain.groupId).isEqualTo(groupId)
             assertThat(domain.roleId).isEqualTo(1)
-            assertThat(domain.scopeType).isEqualTo(ScopeType.PROJECT)
-            assertThat(domain.scopeId).isEqualTo(scopeId)
             assertThat(domain.validFrom).isEqualTo(validFrom)
             assertThat(domain.validUntil).isEqualTo(validUntil)
             assertThat(domain.createdAt).isEqualTo(createdAt)
             assertThat(domain.updatedAt).isEqualTo(updatedAt)
             assertThat(domain.version).isEqualTo(2L)
-        }
-
-        @Test
-        fun `should convert entity with PROFILE scope type`() {
-            // Arrange
-            val entity =
-                GroupRoleAssignmentEntity(
-                    groupId = groupId,
-                    roleId = 2,
-                    scopeType = ScopeType.PROFILE,
-                    scopeId = null,
-                )
-
-            // Act
-            val domain = entity.toDomain()
-
-            // Assert
-            assertThat(domain.scopeType).isEqualTo(ScopeType.PROFILE)
-            assertThat(domain.scopeId).isNull()
         }
 
         @Test
@@ -82,8 +57,6 @@ class GroupRoleAssignmentEntityTest {
                 GroupRoleAssignmentEntity(
                     groupId = groupId,
                     roleId = 3,
-                    scopeType = ScopeType.PROFILE,
-                    scopeId = null,
                     validFrom = null,
                     validUntil = null,
                 )
@@ -93,7 +66,6 @@ class GroupRoleAssignmentEntityTest {
 
             // Assert
             assertThat(domain.id).isNotNull()
-            assertThat(domain.scopeId).isNull()
             assertThat(domain.validFrom).isNull()
             assertThat(domain.validUntil).isNull()
         }
@@ -105,7 +77,6 @@ class GroupRoleAssignmentEntityTest {
                 GroupRoleAssignmentEntity(
                     groupId = groupId,
                     roleId = 1,
-                    scopeType = ScopeType.PROJECT,
                     version = 10L,
                 )
 

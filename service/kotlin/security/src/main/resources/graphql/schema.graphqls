@@ -13,7 +13,7 @@ type Query {
   currentUser: User
   
   # Authorization queries
-  checkPermission(userId: ID!, permission: String!, resourceId: ID, scope: String): AuthorizationResult!
+  checkPermission(userId: ID!, permission: String!, resourceId: ID): AuthorizationResult!
   getUserPermissions(userId: ID!): [Permission!]!
   getUserRoles(userId: ID!): [Role!]!
 }

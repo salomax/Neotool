@@ -2,7 +2,6 @@ package io.github.salomax.neotool.security.test.service.unit
 
 import io.github.salomax.neotool.security.domain.abac.PolicyEffect
 import io.github.salomax.neotool.security.domain.rbac.Role
-import io.github.salomax.neotool.security.domain.rbac.ScopeType
 import io.github.salomax.neotool.security.repo.GroupMembershipRepository
 import io.github.salomax.neotool.security.repo.GroupRoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.PermissionRepository
@@ -22,7 +21,6 @@ import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
 import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.argumentCaptor
-import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
@@ -79,15 +77,22 @@ class HybridAuthorizationServiceTest {
                 id = roleId,
                 name = "test-role",
             )
-        whenever(roleAssignmentRepository.findValidAssignmentsByUserId(any(), any())).thenReturn(listOf(roleAssignment))
         whenever(
-            roleAssignmentRepository.findValidAssignmentsByUserIdAndScope(any(), any(), any(), any()),
+            roleAssignmentRepository.findValidAssignmentsByUserId(
+                any<UUID>(),
+                any<java.time.Instant>(),
+            ),
         ).thenReturn(listOf(roleAssignment))
         whenever(
             permissionRepository.existsPermissionForRoles(permission, listOf(roleId)),
         ).thenReturn(true)
-        whenever(roleRepository.findByIdIn(any())).thenReturn(listOf(roleEntity))
-        whenever(groupMembershipRepository.findActiveMembershipsByUserId(any(), any())).thenReturn(emptyList())
+        whenever(roleRepository.findByIdIn(any<List<Int>>())).thenReturn(listOf(roleEntity))
+        whenever(
+            groupMembershipRepository.findActiveMembershipsByUserId(
+                any<UUID>(),
+                any<java.time.Instant>(),
+            ),
+        ).thenReturn(emptyList())
     }
 
     @Nested
@@ -105,8 +110,18 @@ class HybridAuthorizationServiceTest {
                 )
 
             // Mock RBAC check to deny
-            whenever(roleAssignmentRepository.findValidAssignmentsByUserId(any(), any())).thenReturn(emptyList())
-            whenever(groupMembershipRepository.findActiveMembershipsByUserId(any(), any())).thenReturn(emptyList())
+            whenever(
+                roleAssignmentRepository.findValidAssignmentsByUserId(
+                    any<UUID>(),
+                    any<java.time.Instant>(),
+                ),
+            ).thenReturn(emptyList())
+            whenever(
+                groupMembershipRepository.findActiveMembershipsByUserId(
+                    any<UUID>(),
+                    any<java.time.Instant>(),
+                ),
+            ).thenReturn(emptyList())
 
             // Act - call the overloaded method with ABAC parameters
             val result =
@@ -120,19 +135,23 @@ class HybridAuthorizationServiceTest {
             assertThat(result.reason).contains("User does not have permission")
 
             // Verify ABAC was not evaluated
-            verify(abacEvaluationService, never()).evaluatePolicies(any(), anyOrNull(), anyOrNull())
+            verify(abacEvaluationService, never()).evaluatePolicies(
+                any<Map<String, Any>>(),
+                anyOrNull<Map<String, Any>>(),
+                anyOrNull<Map<String, Any>>(),
+            )
             // Verify audit was logged with null abacResult
             verify(auditService).logAuthorizationDecision(
-                userId = any(),
-                groups = anyOrNull(),
-                roles = anyOrNull(),
-                requestedAction = any(),
-                resourceType = anyOrNull(),
-                resourceId = anyOrNull(),
-                rbacResult = any(),
-                abacResult = anyOrNull(),
-                finalDecision = any(),
-                metadata = anyOrNull(),
+                userId = any<UUID>(),
+                groups = anyOrNull<List<UUID>>(),
+                roles = anyOrNull<List<Int>>(),
+                requestedAction = any<String>(),
+                resourceType = anyOrNull<String>(),
+                resourceId = anyOrNull<UUID>(),
+                rbacResult = any<io.github.salomax.neotool.security.domain.audit.AuthorizationResult>(),
+                abacResult = anyOrNull<io.github.salomax.neotool.security.domain.audit.AuthorizationResult>(),
+                finalDecision = any<io.github.salomax.neotool.security.domain.audit.AuthorizationResult>(),
+                metadata = anyOrNull<Map<String, Any>>(),
             )
         }
 
@@ -160,15 +179,25 @@ class HybridAuthorizationServiceTest {
                     name = "admin",
                 )
             whenever(
-                roleAssignmentRepository.findValidAssignmentsByUserId(any(), any()),
+                roleAssignmentRepository.findValidAssignmentsByUserId(any<UUID>(), any<java.time.Instant>()),
             ).thenReturn(listOf(roleAssignment))
             whenever(
                 permissionRepository.existsPermissionForRoles(permission, listOf(1)),
             ).thenReturn(true)
-            whenever(roleRepository.findByIdIn(any())).thenReturn(listOf(roleEntity))
-            whenever(groupMembershipRepository.findActiveMembershipsByUserId(any(), any())).thenReturn(emptyList())
-            whenever(groupMembershipRepository.findActiveMembershipsByUserId(any(), any())).thenReturn(emptyList())
-            whenever(abacEvaluationService.evaluatePolicies(any(), anyOrNull(), anyOrNull())).thenReturn(abacResult)
+            whenever(roleRepository.findByIdIn(any<List<Int>>())).thenReturn(listOf(roleEntity))
+            whenever(
+                groupMembershipRepository.findActiveMembershipsByUserId(
+                    any<UUID>(),
+                    any<java.time.Instant>(),
+                ),
+            ).thenReturn(emptyList())
+            whenever(
+                abacEvaluationService.evaluatePolicies(
+                    any<Map<String, Any>>(),
+                    anyOrNull<Map<String, Any>>(),
+                    anyOrNull<Map<String, Any>>(),
+                ),
+            ).thenReturn(abacResult)
 
             // Act - call the overloaded method with ABAC parameters
             val result =
@@ -182,19 +211,23 @@ class HybridAuthorizationServiceTest {
             assertThat(result.reason).contains("Access granted")
 
             // Verify ABAC was evaluated
-            verify(abacEvaluationService).evaluatePolicies(any(), anyOrNull(), anyOrNull())
+            verify(abacEvaluationService).evaluatePolicies(
+                any<Map<String, Any>>(),
+                anyOrNull<Map<String, Any>>(),
+                anyOrNull<Map<String, Any>>(),
+            )
             // Verify audit was logged
             verify(auditService).logAuthorizationDecision(
-                userId = any(),
-                groups = anyOrNull(),
-                roles = anyOrNull(),
-                requestedAction = any(),
-                resourceType = anyOrNull(),
-                resourceId = anyOrNull(),
-                rbacResult = any(),
-                abacResult = anyOrNull(),
-                finalDecision = any(),
-                metadata = anyOrNull(),
+                userId = any<UUID>(),
+                groups = anyOrNull<List<UUID>>(),
+                roles = anyOrNull<List<Int>>(),
+                requestedAction = any<String>(),
+                resourceType = anyOrNull<String>(),
+                resourceId = anyOrNull<UUID>(),
+                rbacResult = any<io.github.salomax.neotool.security.domain.audit.AuthorizationResult>(),
+                abacResult = anyOrNull<io.github.salomax.neotool.security.domain.audit.AuthorizationResult>(),
+                finalDecision = any<io.github.salomax.neotool.security.domain.audit.AuthorizationResult>(),
+                metadata = anyOrNull<Map<String, Any>>(),
             )
         }
     }
@@ -215,7 +248,13 @@ class HybridAuthorizationServiceTest {
                 )
 
             mockRbacAllowing(userId, permission)
-            whenever(abacEvaluationService.evaluatePolicies(any(), anyOrNull(), anyOrNull())).thenReturn(abacResult)
+            whenever(
+                abacEvaluationService.evaluatePolicies(
+                    any<Map<String, Any>>(),
+                    anyOrNull<Map<String, Any>>(),
+                    anyOrNull<Map<String, Any>>(),
+                ),
+            ).thenReturn(abacResult)
 
             // Act
             val result = authorizationService.checkPermission(userId, permission)
@@ -238,7 +277,13 @@ class HybridAuthorizationServiceTest {
                 )
 
             mockRbacAllowing(userId, permission)
-            whenever(abacEvaluationService.evaluatePolicies(any(), anyOrNull(), anyOrNull())).thenReturn(abacResult)
+            whenever(
+                abacEvaluationService.evaluatePolicies(
+                    any<Map<String, Any>>(),
+                    anyOrNull<Map<String, Any>>(),
+                    anyOrNull<Map<String, Any>>(),
+                ),
+            ).thenReturn(abacResult)
 
             // Act
             val result = authorizationService.checkPermission(userId, permission)
@@ -262,7 +307,13 @@ class HybridAuthorizationServiceTest {
                 )
 
             mockRbacAllowing(userId, permission)
-            whenever(abacEvaluationService.evaluatePolicies(any(), anyOrNull(), anyOrNull())).thenReturn(abacResult)
+            whenever(
+                abacEvaluationService.evaluatePolicies(
+                    any<Map<String, Any>>(),
+                    anyOrNull<Map<String, Any>>(),
+                    anyOrNull<Map<String, Any>>(),
+                ),
+            ).thenReturn(abacResult)
 
             // Act
             val result = authorizationService.checkPermission(userId, permission)
@@ -299,12 +350,9 @@ class HybridAuthorizationServiceTest {
                 )
             whenever(
                 roleAssignmentRepository.findValidAssignmentsByUserId(
-                    any(),
-                    any(),
+                    any<UUID>(),
+                    any<java.time.Instant>(),
                 ),
-            ).thenReturn(listOf(roleAssignment1))
-            whenever(
-                roleAssignmentRepository.findValidAssignmentsByUserIdAndScope(any(), any(), any(), any()),
             ).thenReturn(listOf(roleAssignment1))
 
             // Set up group membership with role assignment (role 2)
@@ -320,14 +368,14 @@ class HybridAuthorizationServiceTest {
                 )
             whenever(
                 groupMembershipRepository.findActiveMembershipsByUserId(
-                    any(),
-                    any(),
+                    any<UUID>(),
+                    any<java.time.Instant>(),
                 ),
             ).thenReturn(listOf(groupMembership))
             whenever(
                 groupRoleAssignmentRepository.findValidAssignmentsByGroupIds(
-                    any(),
-                    any(),
+                    any<List<UUID>>(),
+                    any<java.time.Instant>(),
                 ),
             ).thenReturn(listOf(groupRoleAssignment))
 
@@ -342,14 +390,20 @@ class HybridAuthorizationServiceTest {
                     id = 2,
                     name = "editor",
                 )
-            whenever(roleRepository.findByIdIn(any())).thenReturn(listOf(roleEntity1, roleEntity2))
+            whenever(roleRepository.findByIdIn(any<List<Int>>())).thenReturn(listOf(roleEntity1, roleEntity2))
 
             // Mock permission check for both roles
             whenever(
                 permissionRepository.existsPermissionForRoles(permission, listOf(1, 2)),
             ).thenReturn(true)
 
-            whenever(abacEvaluationService.evaluatePolicies(any(), anyOrNull(), anyOrNull())).thenReturn(abacResult)
+            whenever(
+                abacEvaluationService.evaluatePolicies(
+                    any<Map<String, Any>>(),
+                    anyOrNull<Map<String, Any>>(),
+                    anyOrNull<Map<String, Any>>(),
+                ),
+            ).thenReturn(abacResult)
 
             // Act
             authorizationService.checkPermission(userId, permission)
@@ -358,8 +412,8 @@ class HybridAuthorizationServiceTest {
             val subjectCaptor = argumentCaptor<Map<String, Any>>()
             verify(abacEvaluationService).evaluatePolicies(
                 subjectCaptor.capture(),
-                anyOrNull(),
-                anyOrNull(),
+                anyOrNull<Map<String, Any>>(),
+                anyOrNull<Map<String, Any>>(),
             )
             val subjectAttributes = subjectCaptor.firstValue
 
@@ -388,7 +442,13 @@ class HybridAuthorizationServiceTest {
                 )
 
             mockRbacAllowing(userId, permission)
-            whenever(abacEvaluationService.evaluatePolicies(any(), anyOrNull(), anyOrNull())).thenReturn(abacResult)
+            whenever(
+                abacEvaluationService.evaluatePolicies(
+                    any<Map<String, Any>>(),
+                    anyOrNull<Map<String, Any>>(),
+                    anyOrNull<Map<String, Any>>(),
+                ),
+            ).thenReturn(abacResult)
 
             // Act
             authorizationService.checkPermission(
@@ -401,7 +461,11 @@ class HybridAuthorizationServiceTest {
             // Assert
             // For nullable parameters, we need to use a workaround since argumentCaptor doesn't support nullable types
             // We'll verify the call happened - the actual resource attributes building is tested through integration tests
-            verify(abacEvaluationService).evaluatePolicies(any(), anyOrNull(), anyOrNull())
+            verify(abacEvaluationService).evaluatePolicies(
+                any<Map<String, Any>>(),
+                anyOrNull<Map<String, Any>>(),
+                anyOrNull<Map<String, Any>>(),
+            )
         }
 
         @Test
@@ -423,7 +487,13 @@ class HybridAuthorizationServiceTest {
                 )
 
             mockRbacAllowing(userId, permission)
-            whenever(abacEvaluationService.evaluatePolicies(any(), anyOrNull(), anyOrNull())).thenReturn(abacResult)
+            whenever(
+                abacEvaluationService.evaluatePolicies(
+                    any<Map<String, Any>>(),
+                    anyOrNull<Map<String, Any>>(),
+                    anyOrNull<Map<String, Any>>(),
+                ),
+            ).thenReturn(abacResult)
 
             // Act
             authorizationService.checkPermission(
@@ -436,8 +506,8 @@ class HybridAuthorizationServiceTest {
             val subjectCaptor = argumentCaptor<Map<String, Any>>()
             verify(abacEvaluationService).evaluatePolicies(
                 subjectCaptor.capture(),
-                anyOrNull(),
-                anyOrNull(),
+                anyOrNull<Map<String, Any>>(),
+                anyOrNull<Map<String, Any>>(),
             )
             val subjectAttributes = subjectCaptor.firstValue
 
@@ -464,7 +534,13 @@ class HybridAuthorizationServiceTest {
                 )
 
             mockRbacAllowing(userId, permission)
-            whenever(abacEvaluationService.evaluatePolicies(any(), anyOrNull(), anyOrNull())).thenReturn(abacResult)
+            whenever(
+                abacEvaluationService.evaluatePolicies(
+                    any<Map<String, Any>>(),
+                    anyOrNull<Map<String, Any>>(),
+                    anyOrNull<Map<String, Any>>(),
+                ),
+            ).thenReturn(abacResult)
 
             // Act
             authorizationService.checkPermission(
@@ -476,7 +552,11 @@ class HybridAuthorizationServiceTest {
             // Assert
             // For nullable parameters, we need to use a workaround since argumentCaptor doesn't support nullable types
             // We'll verify the call happened - the actual resource attributes building is tested through integration tests
-            verify(abacEvaluationService).evaluatePolicies(any(), anyOrNull(), anyOrNull())
+            verify(abacEvaluationService).evaluatePolicies(
+                any<Map<String, Any>>(),
+                anyOrNull<Map<String, Any>>(),
+                anyOrNull<Map<String, Any>>(),
+            )
         }
 
         @Test
@@ -497,7 +577,13 @@ class HybridAuthorizationServiceTest {
                 )
 
             mockRbacAllowing(userId, permission)
-            whenever(abacEvaluationService.evaluatePolicies(any(), anyOrNull(), anyOrNull())).thenReturn(abacResult)
+            whenever(
+                abacEvaluationService.evaluatePolicies(
+                    any<Map<String, Any>>(),
+                    anyOrNull<Map<String, Any>>(),
+                    anyOrNull<Map<String, Any>>(),
+                ),
+            ).thenReturn(abacResult)
 
             // Act
             authorizationService.checkPermission(
@@ -511,7 +597,11 @@ class HybridAuthorizationServiceTest {
             // Assert
             // When all resource parameters are null, the service should pass null to evaluatePolicies
             // We verify with anyOrNull() since we can't easily capture nullable types
-            verify(abacEvaluationService).evaluatePolicies(any(), anyOrNull(), anyOrNull())
+            verify(abacEvaluationService).evaluatePolicies(
+                any<Map<String, Any>>(),
+                anyOrNull<Map<String, Any>>(),
+                anyOrNull<Map<String, Any>>(),
+            )
         }
     }
 
@@ -530,25 +620,34 @@ class HybridAuthorizationServiceTest {
                 )
 
             // Mock RBAC to deny
-            whenever(roleAssignmentRepository.findValidAssignmentsByUserId(any(), any())).thenReturn(emptyList())
-            whenever(groupMembershipRepository.findActiveMembershipsByUserId(any(), any())).thenReturn(emptyList())
-            whenever(groupMembershipRepository.findActiveMembershipsByUserId(any(), any())).thenReturn(emptyList())
+            whenever(
+                roleAssignmentRepository.findValidAssignmentsByUserId(
+                    any<UUID>(),
+                    any<java.time.Instant>(),
+                ),
+            ).thenReturn(emptyList())
+            whenever(
+                groupMembershipRepository.findActiveMembershipsByUserId(
+                    any<UUID>(),
+                    any<java.time.Instant>(),
+                ),
+            ).thenReturn(emptyList())
 
             // Act
             authorizationService.checkPermission(userId, permission)
 
             // Assert - verify audit was logged (metadata verification is covered by other tests)
             verify(auditService).logAuthorizationDecision(
-                any(),
-                anyOrNull(),
-                anyOrNull(),
-                any(),
-                anyOrNull(),
-                anyOrNull(),
-                any(),
-                anyOrNull(),
-                any(),
-                any(),
+                any<UUID>(),
+                anyOrNull<List<UUID>>(),
+                anyOrNull<List<Int>>(),
+                any<String>(),
+                anyOrNull<String>(),
+                anyOrNull<UUID>(),
+                any<io.github.salomax.neotool.security.domain.audit.AuthorizationResult>(),
+                anyOrNull<io.github.salomax.neotool.security.domain.audit.AuthorizationResult>(),
+                any<io.github.salomax.neotool.security.domain.audit.AuthorizationResult>(),
+                any<Map<String, Any>>(),
             )
         }
 
@@ -570,83 +669,30 @@ class HybridAuthorizationServiceTest {
                 )
 
             mockRbacAllowing(userId, permission)
-            whenever(abacEvaluationService.evaluatePolicies(any(), anyOrNull(), anyOrNull())).thenReturn(abacResult)
+            whenever(
+                abacEvaluationService.evaluatePolicies(
+                    any<Map<String, Any>>(),
+                    anyOrNull<Map<String, Any>>(),
+                    anyOrNull<Map<String, Any>>(),
+                ),
+            ).thenReturn(abacResult)
 
             // Act
             authorizationService.checkPermission(userId, permission)
 
             // Assert - verify audit was logged (metadata verification is covered by other tests)
             verify(auditService).logAuthorizationDecision(
-                any(),
-                anyOrNull(),
-                anyOrNull(),
-                any(),
-                anyOrNull(),
-                anyOrNull(),
-                any(),
-                anyOrNull(),
-                any(),
-                any(),
+                any<UUID>(),
+                anyOrNull<List<UUID>>(),
+                anyOrNull<List<Int>>(),
+                any<String>(),
+                anyOrNull<String>(),
+                anyOrNull<UUID>(),
+                any<io.github.salomax.neotool.security.domain.audit.AuthorizationResult>(),
+                anyOrNull<io.github.salomax.neotool.security.domain.audit.AuthorizationResult>(),
+                any<io.github.salomax.neotool.security.domain.audit.AuthorizationResult>(),
+                any<Map<String, Any>>(),
             )
-        }
-    }
-
-    @Nested
-    @DisplayName("Scoped Permissions")
-    inner class ScopedPermissionsTests {
-        @Test
-        fun `should pass scope to RBAC check`() {
-            // Arrange
-            val userId = UUID.randomUUID()
-            val projectId = UUID.randomUUID()
-            val permission = "transaction:read"
-            val abacResult =
-                AbacEvaluationResult(
-                    decision = PolicyEffect.ALLOW,
-                    matchedPolicies = emptyList(),
-                    reason = "Access allowed",
-                )
-
-            val roleAssignment =
-                SecurityTestDataBuilders.roleAssignment(
-                    userId = userId,
-                    roleId = 1,
-                    scopeType = ScopeType.PROJECT,
-                    scopeId = projectId,
-                )
-            val roleEntity =
-                SecurityTestDataBuilders.role(
-                    id = 1,
-                    name = "project-admin",
-                )
-            whenever(
-                roleAssignmentRepository.findValidAssignmentsByUserIdAndScope(
-                    any(),
-                    any(),
-                    any(),
-                    any(),
-                ),
-            ).thenReturn(listOf(roleAssignment))
-            whenever(
-                permissionRepository.existsPermissionForRoles(permission, listOf(1)),
-            ).thenReturn(true)
-            whenever(roleRepository.findByIdIn(any())).thenReturn(listOf(roleEntity))
-            whenever(groupMembershipRepository.findActiveMembershipsByUserId(any(), any())).thenReturn(emptyList())
-            whenever(groupMembershipRepository.findActiveMembershipsByUserId(any(), any())).thenReturn(emptyList())
-            whenever(abacEvaluationService.evaluatePolicies(any(), anyOrNull(), anyOrNull())).thenReturn(abacResult)
-
-            // Act
-            authorizationService.checkPermission(
-                userId = userId,
-                permission = permission,
-                scopeType = ScopeType.PROJECT,
-                scopeId = projectId,
-            )
-
-            // Assert - verify RBAC was checked with scope
-            verify(
-                roleAssignmentRepository,
-            ).findValidAssignmentsByUserIdAndScope(eq(userId), eq(ScopeType.PROJECT), eq(projectId), any())
         }
     }
 }

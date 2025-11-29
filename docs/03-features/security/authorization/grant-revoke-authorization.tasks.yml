@@ -61,7 +61,7 @@ phases:
           - service/kotlin/security/src/main/kotlin/.../service/RoleManagementService.kt
         notes: |
           Methods:
-          - grantRoleToUser(userId, roleId, scope?)
+          - grantRoleToUser(userId, roleId)
           - revokeRoleFromUser(userId, roleId)
           - grantRolesToUser(userId, roleIds)
           - revokeRolesFromUser(userId, roleIds)
@@ -77,7 +77,7 @@ phases:
           - service/kotlin/security/src/main/kotlin/.../service/GroupRoleManagementService.kt
         notes: |
           Methods:
-          - grantRoleToGroup(groupId, roleId, scope?)
+          - grantRoleToGroup(groupId, roleId)
           - revokeRoleFromGroup(groupId, roleId)
           - Propagate changes to group members
 
@@ -96,20 +96,6 @@ phases:
           - Propagate role inheritance
           - Invalidate cache
 
-      - id: backend-005
-        description: Implement Scoped Binding Service (create/update scoped role bindings)
-        status: pending
-        dependencies: [backend-002, backend-003]
-        files:
-          - service/kotlin/security/src/main/kotlin/.../service/ScopedBindingService.kt
-        notes: |
-          Methods:
-          - createProfileBinding(userId, roleId, profileId)
-          - createProjectBinding(userId, roleId, projectId)
-          - createResourceBinding(userId, roleId, resourceId)
-          - updateBindingScope(bindingId, newScopeType, newScopeId)
-          - Validate scope exists
-
       - id: backend-006
         description: Implement Temporary Binding Service (create/update temporary bindings)
         status: pending
@@ -118,7 +104,7 @@ phases:
           - service/kotlin/security/src/main/kotlin/.../service/TemporaryBindingService.kt
         notes: |
           Methods:
-          - createTemporaryBinding(userId, roleId, validFrom, validUntil, scope?)
+          - createTemporaryBinding(userId, roleId, validFrom, validUntil)
           - updateBindingExpiry(bindingId, validUntil)
           - Validate date ranges
           - Auto-expire old bindings
@@ -182,10 +168,9 @@ phases:
           - service/kotlin/security/src/main/kotlin/.../service/AuthorizationValidationService.kt
         notes: |
           Methods:
-          - validateNoDuplicateBinding(userId, roleId, scope?)
+          - validateNoDuplicateBinding(userId, roleId)
           - validateNoDuplicateMembership(userId, groupId)
           - validateNoCircularGroupDependency(groupId, targetGroupId)
-          - validateScopeExists(scopeType, scopeId)
           - validateDateRange(validFrom, validUntil)
 
       - id: backend-012
@@ -196,14 +181,13 @@ phases:
           - service/kotlin/security/src/main/kotlin/.../graphql/resolver/AuthorizationManagementResolver.kt
         notes: |
           Mutations:
-          - grantRoleToUser(userId, roleId, scope)
+          - grantRoleToUser(userId, roleId)
           - revokeRoleFromUser(userId, roleId)
-          - grantRoleToGroup(groupId, roleId, scope)
+          - grantRoleToGroup(groupId, roleId)
           - revokeRoleFromGroup(groupId, roleId)
           - addUserToGroup(userId, groupId, membershipType, validUntil)
           - removeUserFromGroup(userId, groupId)
-          - createScopedBinding(userId, roleId, scopeType, scopeId)
-          - createTemporaryBinding(userId, roleId, validFrom, validUntil, scope)
+          - createTemporaryBinding(userId, roleId, validFrom, validUntil)
           - createAbacPolicy(name, effect, condition)
           - updateAbacPolicy(policyId, effect, condition)
           - deleteAbacPolicy(policyId)
@@ -248,11 +232,9 @@ phases:
           - service/kotlin/security/src/test/kotlin/.../service/GroupMembershipServiceTest.kt
 
       - id: test-003
-        description: Implement unit tests for Scoped and Temporary Binding Services
+        description: Implement unit tests for Temporary Binding Service
         status: pending
-        dependencies: [backend-005, backend-006]
-        files:
-          - service/kotlin/security/src/test/kotlin/.../service/ScopedBindingServiceTest.kt
+        dependencies: [backend-006]
           - service/kotlin/security/src/test/kotlin/.../service/TemporaryBindingServiceTest.kt
 
       - id: test-004

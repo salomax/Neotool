@@ -35,7 +35,7 @@ phases:
           - users (if not exists)
           - roles
           - permissions
-          - role_assignments (user_id, role_id, scope_type, scope_id, valid_from, valid_until)
+          - role_assignments (user_id, role_id, valid_from, valid_until)
           - role_permissions (role_id, permission_id)
 
       - id: domain-002
@@ -48,7 +48,7 @@ phases:
           Tables needed:
           - groups
           - group_memberships (user_id, group_id, membership_type, valid_until)
-          - group_role_assignments (group_id, role_id, scope_type, scope_id, valid_from, valid_until)
+          - group_role_assignments (group_id, role_id, valid_from, valid_until)
 
       - id: domain-003
         description: Create database migration for ABAC policies
@@ -80,7 +80,7 @@ phases:
         notes: |
           Indexes needed:
           - role_assignments(user_id, role_id)
-          - role_assignments(user_id, scope_type, scope_id)
+          - role_assignments(user_id, role_id)
           - group_memberships(user_id, group_id)
           - group_role_assignments(group_id, role_id)
           - authorization_audit_logs(user_id, timestamp)
@@ -174,7 +174,6 @@ phases:
         notes: |
           AuthorizationService should:
           - Check RBAC permissions (direct and inherited)
-          - Handle scoped permissions
           - Check temporary access validity
           - Cache results for performance
 
