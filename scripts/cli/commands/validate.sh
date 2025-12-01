@@ -7,7 +7,7 @@ set -euo pipefail
 # Runs all validations for both frontend and backend:
 # - Lint (frontend: eslint, backend: ktlint)
 # - Typecheck (frontend: tsc, backend: compile classes)
-# - Tests (frontend: vitest, backend: test + testIntegration)
+# - Tests (frontend: vitest, backend: test - includes unit and integration)
 # - Coverage (frontend: vitest coverage, backend: kover)
 
 # Get script directory and project root
@@ -48,7 +48,7 @@ Usage: $0 [options]
 Runs all validations for both frontend and backend:
   - Lint (frontend: eslint, backend: ktlint)
   - Typecheck (frontend: tsc, backend: compile classes)
-  - Tests (frontend: vitest, backend: test + testIntegration)
+  - Tests (frontend: vitest, backend: test - includes unit and integration)
   - Coverage (frontend: vitest coverage, backend: kover)
 
 Options:
@@ -447,28 +447,11 @@ run_backend_validations() {
         VALIDATION_FAILED=true
     fi
     
-    # Unit Tests
+    # Tests (unit and integration - test task runs both)
     add_new_task "${task_label_prefix}test"
     task_idx=$CURRENT_TASK_INDEX
     if ! run_with_live_output "./gradlew ${task_prefix}test --no-daemon" "${task_label_prefix}test" "$task_idx"; then
         VALIDATION_FAILED=true
-    fi
-    
-    # Integration Tests (skip for common module as it doesn't have testIntegration)
-    if [[ "$service_name" == "common" ]]; then
-        # Skip testIntegration for common module
-        :
-    else
-        add_new_task "${task_label_prefix}testIntegration"
-        task_idx=$CURRENT_TASK_INDEX
-        # When validating all services, exclude common module
-        local test_integration_cmd="./gradlew ${task_prefix}testIntegration --no-daemon"
-        if [[ -z "$service_name" ]]; then
-            test_integration_cmd="./gradlew testIntegration -x :common:testIntegration --no-daemon"
-        fi
-        if ! run_with_live_output "$test_integration_cmd" "${task_label_prefix}testIntegration" "$task_idx"; then
-            VALIDATION_FAILED=true
-        fi
     fi
     
     # Coverage (if not skipped)

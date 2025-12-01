@@ -121,10 +121,10 @@ subprojects {
                             "io.micronaut.core.io.service.ServiceLoader",
                             "*\$*", // Generated inner classes
                             "*Generated*",
-                            "*_Factory*",
-                            "*_Impl*",
-                            "*_Builder*",
+                            "*Factory*",
+                            "*Builder*",
                             "*Entity",
+                            "*DTO",
                             "*Config",
                             "*domain.*",
                             "*mapper.*",

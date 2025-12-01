@@ -24,6 +24,7 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import java.util.UUID
 import org.mockito.ArgumentMatchers.any as anyArg
 
 @DisplayName("SecurityAuthResolver Unit Tests")
@@ -75,7 +76,7 @@ class SecurityAuthResolverTest {
         @Test
         fun `should sign in with rememberMe and generate refresh token`() {
             // Arrange
-            val user = SecurityTestDataBuilders.user(email = "test@example.com")
+            val user = SecurityTestDataBuilders.user(id = UUID.randomUUID(), email = "test@example.com")
             val userDTO = UserDTO(id = user.id.toString(), email = user.email, displayName = user.displayName)
             val input = mapOf("email" to "test@example.com", "password" to "password123", "rememberMe" to true)
 
@@ -93,7 +94,7 @@ class SecurityAuthResolverTest {
             assertThat(payload.token).isEqualTo("access-token")
             assertThat(payload.refreshToken).isEqualTo("refresh-token")
             verify(authenticationService).generateRefreshToken(user)
-            verify(authenticationService).saveRememberMeToken(user.id, "refresh-token")
+            verify(authenticationService).saveRememberMeToken(user.id!!, "refresh-token")
         }
 
         @Test
@@ -280,9 +281,19 @@ class SecurityAuthResolverTest {
         @Test
         fun `should sign up successfully`() {
             // Arrange
-            val user = SecurityTestDataBuilders.user(email = "newuser@example.com", displayName = "New User")
+            val user =
+                SecurityTestDataBuilders.user(
+                    id = UUID.randomUUID(),
+                    email = "newuser@example.com",
+                    displayName = "New User",
+                )
             val userDTO = UserDTO(id = user.id.toString(), email = user.email, displayName = user.displayName)
-            val input = mapOf("name" to "New User", "email" to "newuser@example.com", "password" to "password123")
+            val input =
+                mapOf(
+                    "name" to "New User",
+                    "email" to "newuser@example.com",
+                    "password" to "password123",
+                )
 
             whenever(
                 authenticationService.registerUser(
@@ -304,7 +315,7 @@ class SecurityAuthResolverTest {
             assertThat(payload.token).isEqualTo("access-token")
             assertThat(payload.refreshToken).isEqualTo("refresh-token")
             verify(authenticationService).registerUser("New User", "newuser@example.com", "password123")
-            verify(authenticationService).saveRememberMeToken(user.id, "refresh-token")
+            verify(authenticationService).saveRememberMeToken(user.id!!, "refresh-token")
         }
 
         @Test

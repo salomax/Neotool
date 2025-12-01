@@ -109,7 +109,8 @@ open class AuthenticationService(
      * @return JWT access token string
      */
     fun generateAccessToken(user: UserEntity): String {
-        return jwtService.generateAccessToken(user.id, user.email)
+        val userId = requireNotNull(user.id) { "User ID is required for access token generation" }
+        return jwtService.generateAccessToken(userId, user.email)
     }
 
     /**
@@ -121,7 +122,8 @@ open class AuthenticationService(
      * @return JWT refresh token string
      */
     fun generateRefreshToken(user: UserEntity): String {
-        return jwtService.generateRefreshToken(user.id)
+        val userId = requireNotNull(user.id) { "User ID is required for refresh token generation" }
+        return jwtService.generateRefreshToken(userId)
     }
 
     /**

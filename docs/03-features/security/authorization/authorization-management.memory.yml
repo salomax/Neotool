@@ -1,0 +1,419 @@
+meta:
+  module: security
+  feature_name: Authorization Entities Management (Users, Groups, Roles, Permissions)
+  feature_slug: authorization-management
+  owner: "TBD"
+  status: "draft"
+
+user_persona:
+  - name: Administrator
+    description: System administrators who manage authorization entities (Users, Groups, Roles, Permissions)
+    needs:
+      - Ability to list, search, enable/disable users
+      - Ability to create, update, delete groups
+      - Ability to create, update, delete roles
+      - Ability to assign/remove permissions to/from roles
+      - Ability to list and search permissions
+      - View relationships between entities through GraphQL nodes
+      - Use Relay pagination for all listings
+      - Ensure dependency validation prevents unsafe deletions
+
+business_rules:
+  - rule: Admin-only operations
+    description: Only users with "authorization:manage" permission can manage authorization entities
+  - rule: Unique name constraints
+    description: Names must be unique within their respective domains (users, groups, roles, permissions)
+  - rule: Dependency validation for deletions
+    description: Groups and roles cannot be deleted if they have dependencies (assigned users, roles, permissions, bindings)
+  - rule: Relay pagination
+    description: All listing queries must use Relay GraphQL pagination (edges, nodes, pageInfo)
+  - rule: Default ordering
+    description: |
+      - Users: ordered by name ascending by default
+      - Groups: ordered alphabetically by default
+      - Roles: ordered alphabetically by default
+      - Permissions: ordered alphabetically by default
+  - rule: Real-time permission updates
+    description: Permission assignment and removal from roles must update the role-permission relationship in real time
+  - rule: Status persistence
+    description: User enable/disable status changes must be persisted and visible in listings
+  - rule: Default initialization
+    description: System must automatically create default admin user, group, role, and permissions during bootstrap
+  - rule: GraphQL relationship exposure
+    description: GraphQL nodes must expose all relationships (User: roles, groups, permissions; Group: roles, members; Role: permissions; Permission: roles)
+
+validations:
+  input_validations:
+    - field: user_id
+      rules:
+        - Required for user operations
+        - Must exist in system
+    - field: group_name
+      rules:
+        - Required for group creation/update
+        - Must be unique within groups domain
+        - Cannot be empty
+    - field: role_name
+      rules:
+        - Required for role creation/update
+        - Must be unique within roles domain
+        - Cannot be empty
+    - field: permission_id
+      rules:
+        - Required for permission operations
+        - Must exist in system
+    - field: search_query
+      rules:
+        - Optional
+        - Supports partial and full-text search
+    - field: pagination_first
+      rules:
+        - Optional
+        - Must be positive integer if provided
+    - field: pagination_after
+      rules:
+        - Optional
+        - Must be valid cursor if provided
+  business_rule_validations:
+    - validation: Admin permission check
+      description: Verify user has "authorization:manage" permission before any operation
+    - validation: Group deletion dependency check
+      description: Prevent deleting groups with assigned users, roles, or other bindings
+    - validation: Role deletion dependency check
+      description: Prevent deleting roles with assigned users, groups, or associated permissions
+    - validation: Name uniqueness check
+      description: Prevent creating/updating entities with duplicate names within their domain
+    - validation: Entity existence check
+      description: Verify entity exists before operations (enable/disable, update, delete, assign)
+
+happy_paths:
+  - path: List users with pagination
+    description: Admin lists users with Relay pagination, ordered by name ascending
+    steps:
+      - Admin has authorization:manage permission
+      - Admin requests user list with pagination parameters
+      - System returns paginated list using Relay format
+      - Users are ordered by name ascending
+  - path: Search users
+    description: Admin searches users by name, email, or identifier
+    steps:
+      - Admin provides search query
+      - System performs partial and full-text search
+      - Matching users are returned
+  - path: Enable/disable user
+    description: Admin enables or disables a user account
+    steps:
+      - Admin enables/disables user
+      - Status change is persisted
+      - Status is visible in listings
+  - path: Create group
+    description: Admin creates a new group
+    steps:
+      - Admin provides unique group name
+      - Group is created
+      - Group appears in listings
+  - path: Update group
+    description: Admin updates an existing group
+    steps:
+      - Admin updates group with new name (unique)
+      - Group is updated
+      - Updated group appears in listings
+  - path: Delete group without dependencies
+    description: Admin deletes a group that has no dependencies
+    steps:
+      - Admin attempts to delete group
+      - System validates no dependencies exist
+      - Group is deleted
+  - path: Create role
+    description: Admin creates a new role
+    steps:
+      - Admin provides unique role name
+      - Role is created
+      - Role appears in listings
+  - path: Update role
+    description: Admin updates an existing role
+    steps:
+      - Admin updates role with new name (unique)
+      - Role is updated
+      - Updated role appears in listings
+  - path: Delete role without dependencies
+    description: Admin deletes a role that has no dependencies
+    steps:
+      - Admin attempts to delete role
+      - System validates no dependencies exist
+      - Role is deleted
+  - path: List role permissions
+    description: Admin lists all permissions associated with a role
+    steps:
+      - Admin requests permissions for a role
+      - System returns list of permissions
+  - path: Assign permission to role
+    description: Admin assigns a permission to a role
+    steps:
+      - Admin assigns permission to role
+      - Role-permission relationship is updated in real time
+      - Permission appears in role's permission list
+  - path: Remove permission from role
+    description: Admin removes a permission from a role
+    steps:
+      - Admin removes permission from role
+      - Role-permission relationship is updated in real time
+      - Permission no longer appears in role's permission list
+  - path: List permissions
+    description: Admin lists permissions with Relay pagination
+    steps:
+      - Admin requests permission list with pagination
+      - System returns paginated list using Relay format
+      - Permissions are ordered alphabetically
+  - path: Search permissions
+    description: Admin searches permissions by name
+    steps:
+      - Admin provides search query
+      - System performs partial and full-text search
+      - Matching permissions are returned
+
+edge_cases:
+  - case: Non-existent user
+    description: Attempting to enable/disable user that doesn't exist
+    handling: Error returned, operation fails
+  - case: Non-existent group
+    description: Attempting to update/delete group that doesn't exist
+    handling: Error returned, operation fails
+  - case: Non-existent role
+    description: Attempting to update/delete role that doesn't exist
+    handling: Error returned, operation fails
+  - case: Non-existent permission
+    description: Attempting to assign permission that doesn't exist
+    handling: Error returned, operation fails
+  - case: Duplicate group name
+    description: Attempting to create/update group with existing name
+    handling: Error returned, operation fails
+  - case: Duplicate role name
+    description: Attempting to create/update role with existing name
+    handling: Error returned, operation fails
+  - case: Group deletion with dependencies
+    description: Attempting to delete group with assigned users, roles, or bindings
+    handling: Error returned with descriptive message, deletion blocked
+  - case: Role deletion with dependencies
+    description: Attempting to delete role with assigned users, groups, or permissions
+    handling: Error returned with descriptive message, deletion blocked
+  - case: Remove permission not assigned
+    description: Attempting to remove permission that isn't assigned to role
+    handling: Error returned, operation fails
+  - case: Search with no results
+    description: Searching for entities that don't exist
+    handling: Empty list returned
+  - case: Non-admin attempting operation
+    description: User without authorization:manage permission attempts operation
+    handling: Access denied, error returned
+  - case: Empty pagination results
+    description: Requesting page beyond available results
+    handling: Empty list returned with appropriate pageInfo
+
+graphql_requirements:
+  user_node:
+    description: User GraphQL node must expose relationships
+    fields:
+      - roles: Roles assigned to the user
+      - groups: Groups the user belongs to
+      - permissions: Permissions effectively granted (directly or inherited by groups)
+  group_node:
+    description: Group GraphQL node must expose relationships
+    fields:
+      - roles: Roles assigned to the group
+      - members: Users who are members of the group
+  role_node:
+    description: Role GraphQL node must expose relationships
+    fields:
+      - permissions: Permissions associated with the role
+  permission_node:
+    description: Permission GraphQL node must expose relationships
+    fields:
+      - roles: Roles that include this permission
+  pagination:
+    description: All listing queries must use Relay GraphQL pagination
+    format:
+      - edges: Array of edge objects containing node and cursor
+      - nodes: Array of entity nodes (convenience field)
+      - pageInfo: Object containing hasNextPage, hasPreviousPage, startCursor, endCursor
+
+default_initialization:
+  admin_user:
+    username: admin
+    password: admin
+    description: Default admin user created during system bootstrap
+  admin_group:
+    name: admin
+    description: Default admin group created during bootstrap
+    includes: default admin user
+  admin_role:
+    name: admin
+    description: Default admin role created during bootstrap
+    assigned_to: default admin group
+  permissions:
+    description: Default permissions created during bootstrap
+    rules:
+      - A permission must exist for each action described in this specification
+      - The default admin role must receive all permissions
+
+non_functional_requirements:
+  performance:
+    - requirement: List operations must complete within 200ms
+      priority: Medium
+      measurement: 95th percentile response time
+    - requirement: Search operations must complete within 300ms
+      priority: Medium
+      measurement: 95th percentile response time
+    - requirement: Create/update operations must complete within 150ms
+      priority: Medium
+      measurement: 95th percentile response time
+    - requirement: Delete operations must complete within 200ms
+      priority: Medium
+      measurement: 95th percentile response time
+  scalability:
+    - requirement: Support listing 10,000+ users
+      priority: Medium
+    - requirement: Support listing 1,000+ groups
+      priority: Medium
+    - requirement: Support listing 1,000+ roles
+      priority: Medium
+    - requirement: Support listing 5,000+ permissions
+      priority: Medium
+  security:
+    - requirement: All operations require authorization:manage permission
+      priority: High
+    - requirement: All operations must be audited
+      priority: High
+    - requirement: Dependency validation must prevent unsafe deletions
+      priority: High
+  data_consistency:
+    - requirement: Create/update/delete operations must be atomic
+      priority: High
+    - requirement: Permission assignment/removal must propagate immediately
+      priority: High
+    - requirement: Status changes must be immediately visible
+      priority: High
+  usability:
+    - requirement: Clear error messages for validation failures
+      priority: Medium
+    - requirement: Descriptive error messages for dependency conflicts
+      priority: Medium
+    - requirement: Consistent pagination behavior across all listings
+      priority: Medium
+
+worklog:
+  - date: "2024-12-19"
+    phase: "domain"
+    summary: "Implemented domain layer for authorization management feature, including database migration for user status, domain objects for management operations, UUID v7 pattern implementation, and refactored management objects to remove database concerns"
+    tasks_completed:
+      - "domain-001"
+      - "domain-002"
+      - "domain-003"
+      - "domain-004"
+      - "domain-005"
+    files_created:
+      - "service/kotlin/security/src/main/resources/db/migration/V0_10__add_user_status.sql"
+      - "service/kotlin/security/src/main/kotlin/io/github/salomax/neotool/security/domain/rbac/User.kt"
+      - "service/kotlin/security/src/main/kotlin/io/github/salomax/neotool/security/domain/UserManagement.kt"
+      - "service/kotlin/security/src/main/kotlin/io/github/salomax/neotool/security/domain/GroupManagement.kt"
+      - "service/kotlin/security/src/main/kotlin/io/github/salomax/neotool/security/domain/RoleManagement.kt"
+      - "service/kotlin/security/src/main/kotlin/io/github/salomax/neotool/security/domain/PermissionManagement.kt"
+      - "service/kotlin/security/src/test/kotlin/io/github/salomax/neotool/security/test/migration/UserStatusMigrationTest.kt"
+      - "docs/04-patterns/backend-patterns/uuid-v7-pattern.md"
+    files_modified:
+      - "service/kotlin/security/src/main/kotlin/io/github/salomax/neotool/security/model/Entities.kt"
+      - "service/kotlin/security/src/test/kotlin/io/github/salomax/neotool/security/test/SecurityTestDataBuilders.kt"
+      - "docs/11-validation/code-review-checklist.md"
+      - "docs/05-standards/database-standards/schema-standards.md"
+      - "docs/MANIFEST.md"
+    key_decisions:
+      - "Implemented UUID v7 pattern for User entity primary keys (timestamp-based, sortable UUIDs generated by database)"
+      - "Created management domain objects (UserManagement, GroupManagement, RoleManagement, PermissionManagement) as command DTOs and validation helpers"
+      - "Refactored management objects to remove database concerns - removed in-memory search filtering (moved to repository layer), removed dependency validation (handled by database constraints)"
+      - "Management objects now focus on domain logic: command DTOs with input validation, domain state validation (e.g., user already enabled), and business rules (name uniqueness)"
+      - "Search criteria are now simple data classes for query parameters, not in-memory filtering"
+      - "Created comprehensive UUID v7 pattern documentation and added review checks to code review checklist"
+    issues_resolved:
+      - "Resolved UUID generation concern - switched from application-generated UUID v4 to database-generated UUID v7 for better performance and sortability"
+      - "Removed redundant database constraint validation from domain layer (validateNoDependencies)"
+      - "Removed in-memory search filtering from domain layer (moved to repository SQL queries)"
+      - "Simplified management objects to focus on domain concerns only"
+    next_steps:
+      - "Proceed with backend repository phase to implement search and pagination queries using Micronaut Data"
+      - "Implement repository methods that use SearchCriteria as query parameters"
+      - "Ensure database foreign key constraints handle dependency validation on delete operations"
+  - date: "2024-12-19"
+    phase: "backend-repository"
+    summary: "Implemented repository layer for authorization management feature, adding search, pagination, and dependency check capabilities to all repositories using cursor-based pagination for Relay GraphQL support"
+    tasks_completed:
+      - "repo-001"
+      - "repo-002"
+      - "repo-003"
+      - "repo-004"
+      - "repo-005"
+      - "repo-006"
+      - "repo-007"
+      - "repo-008"
+    files_created:
+      - "service/kotlin/security/src/main/kotlin/io/github/salomax/neotool/security/repo/UserRepository.kt (updated)"
+      - "service/kotlin/security/src/main/kotlin/io/github/salomax/neotool/security/repo/GroupRepository.kt (updated)"
+      - "service/kotlin/security/src/main/kotlin/io/github/salomax/neotool/security/repo/RoleRepository.kt (updated)"
+      - "service/kotlin/security/src/main/kotlin/io/github/salomax/neotool/security/repo/PermissionRepository.kt (updated)"
+    files_modified:
+      - "service/kotlin/security/src/main/kotlin/io/github/salomax/neotool/security/repo/UserRepository.kt"
+      - "service/kotlin/security/src/main/kotlin/io/github/salomax/neotool/security/repo/GroupRepository.kt"
+      - "service/kotlin/security/src/main/kotlin/io/github/salomax/neotool/security/repo/RoleRepository.kt"
+      - "service/kotlin/security/src/main/kotlin/io/github/salomax/neotool/security/repo/PermissionRepository.kt"
+    key_decisions:
+      - "Used native SQL queries with LIMIT for cursor-based pagination (JPQL doesn't support LIMIT)"
+      - "Implemented cursor-based pagination using ID comparison (WHERE id > :after) for all entities"
+      - "Added dependency check methods directly to GroupRepository and RoleRepository instead of separate dependency repositories (Micronaut Data requires repositories to extend JpaRepository)"
+      - "Used EXISTS queries for efficient dependency checks (boolean returns)"
+      - "Ordered all queries by name ascending (or displayName/email for users) with ID as secondary sort for consistent pagination"
+      - "Implemented case-insensitive search using LOWER() function with LIKE pattern matching"
+    issues_resolved:
+      - "Resolved Micronaut Data repository interface requirement - dependency check methods added to existing repositories instead of separate interfaces"
+      - "Used native queries for LIMIT support since JPQL doesn't support LIMIT clauses"
+      - "Implemented proper cursor-based pagination for Relay GraphQL compatibility"
+    next_steps:
+      - "Proceed with backend service phase to implement business logic using the repository methods"
+      - "Service layer will use repository methods for search, pagination, and dependency checks"
+      - "Implement Relay pagination response building in service layer"
+  - date: "2024-12-19"
+    phase: "backend-service"
+    summary: "Implemented service layer for authorization management feature, including all four management services (User, Group, Role, Permission) with Relay pagination support using common pagination utilities"
+    tasks_completed:
+      - "service-001"
+      - "service-002"
+      - "service-003"
+      - "service-004"
+    files_created:
+      - "service/kotlin/security/src/main/kotlin/io/github/salomax/neotool/security/service/UserManagementService.kt"
+      - "service/kotlin/security/src/main/kotlin/io/github/salomax/neotool/security/service/GroupManagementService.kt"
+      - "service/kotlin/security/src/main/kotlin/io/github/salomax/neotool/security/service/RoleManagementService.kt"
+      - "service/kotlin/security/src/main/kotlin/io/github/salomax/neotool/security/service/PermissionManagementService.kt"
+      - "service/kotlin/common/src/main/kotlin/io/github/salomax/neotool/common/graphql/pagination/PaginationConstants.kt"
+      - "service/kotlin/common/src/main/kotlin/io/github/salomax/neotool/common/graphql/pagination/RelayPagination.kt"
+      - "docs/04-patterns/backend-patterns/pagination-pattern.md"
+    files_modified:
+      - "service/kotlin/common/src/main/kotlin/io/github/salomax/neotool/common/graphql/pagination/"
+    key_decisions:
+      - "Used common pagination utilities from common module for consistent Relay pagination across all services"
+      - "Implemented cursor-based pagination using ConnectionBuilder utility with proper hasMore detection (query limit + 1)"
+      - "Services use domain objects for business logic and convert to/from entities at repository boundaries"
+      - "Dependency validation handled by database foreign key constraints (no explicit checks needed in service layer)"
+      - "Name uniqueness validation handled by database unique constraints (exceptions caught and rethrown as appropriate)"
+      - "Created comprehensive pagination pattern documentation for future reference"
+    issues_resolved:
+      - "Resolved pagination implementation - used common utilities for consistency"
+      - "Implemented proper hasMore detection by querying limit + 1 items"
+      - "Standardized cursor encoding/decoding using common utilities"
+    known_issues:
+      - "GroupManagementService.deleteGroup() references undefined 'entity' variable in log statement (line 149)"
+      - "RoleManagementService.assignPermissionToRole() references undefined 'permission' and 'role' variables in log statement (line 179)"
+      - "RoleManagementService.removePermissionFromRole() references undefined 'permission' and 'role' variables in log statement (line 195)"
+    next_steps:
+      - "Fix known issues in service layer (undefined variable references in logging)"
+      - "Proceed with backend GraphQL phase to implement resolvers and schema"
+      - "Implement GraphQL resolvers for all management operations"
+      - "Add GraphQL schema definitions for queries, mutations, and connection types"

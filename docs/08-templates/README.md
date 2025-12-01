@@ -29,8 +29,12 @@ search_keywords: [templates, index]
 
 ## Code Templates
 
-- [Entity Template](./code/entity-template.kt) - To be created
-- [Resolver Template](./code/resolver-template.kt) - To be created
+- [Entity Template](./code/entity-template.kt) - JPA entity template
+- [Repository Template](./code/repository-template.kt) - Micronaut Data repository template
+- [Service Template](./code/service-template.kt) - Business logic service template
+- [Resolver Template](./code/resolver-template.kt) - GraphQL resolver template
+- [InputDTO Template](./code/input-dto-template.kt) - GraphQL input DTO template
+- [Mapper Template](./code/mapper-template.kt) - GraphQL mapper template
 - [Component Template](./code/component-template.tsx) - To be created
 - [Test Template](./code/test-template.kt) - To be created
 

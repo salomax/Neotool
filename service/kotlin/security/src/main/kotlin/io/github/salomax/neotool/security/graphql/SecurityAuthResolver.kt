@@ -59,7 +59,8 @@ class SecurityAuthResolver(
             if (rememberMe) {
                 refreshToken = authenticationService.generateRefreshToken(user)
                 // Store refresh token in database for revocation support
-                authenticationService.saveRememberMeToken(user.id, refreshToken)
+                val userId = requireNotNull(user.id) { "User ID is required for remember me token" }
+                authenticationService.saveRememberMeToken(userId, refreshToken)
             }
 
             logger.info { "User signed in successfully: ${user.email}" }
@@ -127,7 +128,8 @@ class SecurityAuthResolver(
             if (rememberMe) {
                 refreshToken = authenticationService.generateRefreshToken(user)
                 // Store refresh token in database for revocation support
-                authenticationService.saveRememberMeToken(user.id, refreshToken)
+                val userId = requireNotNull(user.id) { "User ID is required for remember me token" }
+                authenticationService.saveRememberMeToken(userId, refreshToken)
             }
 
             logger.info { "User signed in with OAuth successfully: ${user.email} (provider: $provider)" }
@@ -165,7 +167,8 @@ class SecurityAuthResolver(
 
             // Generate refresh token (for automatic sign-in after signup)
             val refreshToken = authenticationService.generateRefreshToken(user)
-            authenticationService.saveRememberMeToken(user.id, refreshToken)
+            val userId = requireNotNull(user.id) { "User ID is required for remember me token" }
+            authenticationService.saveRememberMeToken(userId, refreshToken)
 
             logger.info { "User signed up successfully: ${user.email}" }
 

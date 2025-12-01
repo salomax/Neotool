@@ -12,6 +12,7 @@ related:
   - 11-validation/pr-checklist.md
   - 05-standards/architecture-standards/layer-rules.md
   - 05-standards/coding-standards/linting-standards.md
+  - 04-patterns/backend-patterns/uuid-v7-pattern.md
 ---
 
 # Code Review Checklist
@@ -22,6 +23,8 @@ related:
 
 - [ ] Domain objects use nullable IDs (`UUID?` or `Int?`) for new entities
 - [ ] Domain objects implement `toEntity()` method for conversion
+- [ ] Domain objects with UUID IDs pass `null` to entity (let database generate UUID v7)
+- [ ] Domain objects do NOT generate UUIDs in `toEntity()` method (no `UUID.randomUUID()`)
 - [ ] Domain objects follow DDD principles (rich domain models)
 - [ ] Domain logic is separated from infrastructure concerns
 - [ ] Domain objects are in `domain` package, not mixed with entities
@@ -45,6 +48,7 @@ related:
 - [ ] Service contains business logic, not just pass-through to repository
 - [ ] Service methods handle domain-to-entity conversion correctly
 - [ ] Service methods use domain objects, not entities, for business operations
+- [ ] Service methods do NOT generate UUIDs (no `UUID.randomUUID()` for new entities)
 - [ ] Service methods have proper error handling and validation
 - [ ] Service methods return domain objects or appropriate DTOs
 - [ ] Service follows single responsibility principle
@@ -93,6 +97,11 @@ related:
 - [ ] Entity uses snake_case for column names
 - [ ] Entity explicitly specifies `nullable = false` for required fields
 - [ ] Entity uses `columnDefinition = "uuid"` for UUID columns
+- [ ] **Entity with UUID primary key uses UUID v7 pattern** (see `docs/04-patterns/backend-patterns/uuid-v7-pattern.md`)
+  - [ ] Entity uses nullable `UUID?` type for ID
+  - [ ] Entity uses `@GeneratedValue(strategy = GenerationType.IDENTITY)`
+  - [ ] Entity ID default is `null` (not `UUID.randomUUID()`)
+  - [ ] Entity extends `BaseEntity<UUID?>` (nullable type parameter)
 - [ ] Entity uses `@Enumerated(EnumType.STRING)` for enums
 - [ ] Entity ID type matches domain object ID type (with proper conversion)
 
@@ -102,6 +111,10 @@ related:
 - [ ] Migration sets search path and uses explicit schema qualification
 - [ ] Migration is idempotent (uses `IF NOT EXISTS`, `IF EXISTS`)
 - [ ] Migration creates schema if needed: `CREATE SCHEMA IF NOT EXISTS {schema}`
+- [ ] **Migration uses UUID v7 for UUID primary keys** (see `docs/04-patterns/backend-patterns/uuid-v7-pattern.md`)
+  - [ ] Migration installs extension: `CREATE EXTENSION IF NOT EXISTS pg_uuidv7;`
+  - [ ] Tables with UUID primary keys use `DEFAULT uuidv7()`
+  - [ ] No use of `gen_random_uuid()` or `UUID.randomUUID()` for primary keys
 - [ ] Migration creates indexes on foreign keys
 - [ ] Migration uses proper index naming: `idx_{table}_{columns}`
 - [ ] Migration includes proper constraints (NOT NULL, UNIQUE, FOREIGN KEY)

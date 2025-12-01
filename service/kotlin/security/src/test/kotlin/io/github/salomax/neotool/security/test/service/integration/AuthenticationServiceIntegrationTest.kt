@@ -325,7 +325,7 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
             val token = authenticationService.generateRememberMeToken()
 
             // Act
-            val userWithToken = authenticationService.saveRememberMeToken(savedUser.id, token)
+            val userWithToken = authenticationService.saveRememberMeToken(savedUser.id!!, token)
             val retrievedUser = userRepository.findById(userWithToken.id)
 
             // Assert
@@ -347,7 +347,7 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
                 )
             val savedUser = userRepository.save(user)
             val token = authenticationService.generateRememberMeToken()
-            authenticationService.saveRememberMeToken(savedUser.id, token)
+            authenticationService.saveRememberMeToken(savedUser.id!!, token)
 
             // Act
             val authenticatedUser = authenticationService.authenticateByToken(token)
@@ -383,10 +383,10 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
                 )
             val savedUser = userRepository.save(user)
             val token = authenticationService.generateRememberMeToken()
-            val userWithToken = authenticationService.saveRememberMeToken(savedUser.id, token)
+            val userWithToken = authenticationService.saveRememberMeToken(savedUser.id!!, token)
 
             // Act
-            val userWithoutToken = authenticationService.clearRememberMeToken(userWithToken.id)
+            val userWithoutToken = authenticationService.clearRememberMeToken(userWithToken.id!!)
             val retrievedUser = userRepository.findById(userWithoutToken.id)
 
             // Assert
@@ -413,7 +413,7 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
             Thread.sleep(1) // Ensure timestamp difference
             val token2 = authenticationService.generateRememberMeToken()
 
-            authenticationService.saveRememberMeToken(savedUser.id, token1)
+            authenticationService.saveRememberMeToken(savedUser.id!!, token1)
             val user1 = authenticationService.authenticateByToken(token1)
             val user2 = authenticationService.authenticateByToken(token2)
 
@@ -449,8 +449,8 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
             val token2 = authenticationService.generateRememberMeToken()
 
             // Act
-            authenticationService.saveRememberMeToken(savedUser1.id, token1)
-            authenticationService.saveRememberMeToken(savedUser2.id, token2)
+            authenticationService.saveRememberMeToken(savedUser1.id!!, token1)
+            authenticationService.saveRememberMeToken(savedUser2.id!!, token2)
 
             val authenticatedUser1 = authenticationService.authenticateByToken(token1)
             val authenticatedUser2 = authenticationService.authenticateByToken(token2)
@@ -511,7 +511,7 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
 
             // Act - Generate refresh token
             val refreshToken = authenticationService.generateRefreshToken(savedUser)
-            authenticationService.saveRememberMeToken(savedUser.id, refreshToken)
+            authenticationService.saveRememberMeToken(savedUser.id!!, refreshToken)
 
             // Assert - Token is valid
             assertThat(refreshToken).isNotBlank()
@@ -551,10 +551,10 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
                 )
             val savedUser = userRepository.save(user)
             val refreshToken = authenticationService.generateRefreshToken(savedUser)
-            authenticationService.saveRememberMeToken(savedUser.id, refreshToken)
+            authenticationService.saveRememberMeToken(savedUser.id!!, refreshToken)
 
             // Act - Revoke token
-            authenticationService.clearRememberMeToken(savedUser.id)
+            authenticationService.clearRememberMeToken(savedUser.id!!)
 
             // Act - Try to validate revoked token
             val validatedUser = authenticationService.validateRefreshToken(refreshToken)
@@ -577,7 +577,7 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
             val savedUser = userRepository.save(user)
             val refreshToken1 = authenticationService.generateRefreshToken(savedUser)
             // Store token1
-            authenticationService.saveRememberMeToken(savedUser.id, refreshToken1)
+            authenticationService.saveRememberMeToken(savedUser.id!!, refreshToken1)
 
             // Wait at least 1 second to ensure token2 has a different issued-at time
             // JWT tokens use seconds precision for iat, so we need at least 1 second difference
@@ -629,7 +629,7 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
                 )
             val savedUser = userRepository.save(user)
             val refreshToken = authenticationService.generateRefreshToken(savedUser)
-            authenticationService.saveRememberMeToken(savedUser.id, refreshToken)
+            authenticationService.saveRememberMeToken(savedUser.id!!, refreshToken)
 
             // Act - Try to use refresh token as access token
             val validatedUser = authenticationService.validateAccessToken(refreshToken)
@@ -658,7 +658,7 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
             // Act - Generate tokens
             val accessToken = authenticationService.generateAccessToken(authenticatedUser!!)
             val refreshToken = authenticationService.generateRefreshToken(authenticatedUser)
-            authenticationService.saveRememberMeToken(authenticatedUser.id, refreshToken)
+            authenticationService.saveRememberMeToken(authenticatedUser.id!!, refreshToken)
 
             // Assert - Access token works
             val userFromAccessToken = authenticationService.validateAccessToken(accessToken)
@@ -713,7 +713,7 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
                     password = password,
                 )
             val savedUser = userRepository.save(user)
-            val userId = savedUser.id
+            val userId = savedUser.id!!
 
             // Act - Generate and save multiple tokens sequentially
             // Pass user ID directly - service method fetches fresh from DB, avoiding session conflicts
