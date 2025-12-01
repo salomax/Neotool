@@ -85,7 +85,7 @@ class AuthorizationMapperTest {
 
             // Assert
             assertThat(dto).isNotNull()
-            assertThat(dto.id).isEqualTo(1)
+            assertThat(dto.id).isEqualTo("1")
             assertThat(dto.name).isEqualTo("transaction:read")
         }
 
@@ -124,7 +124,7 @@ class AuthorizationMapperTest {
             val dto = mapper.toPermissionDTO(permission)
 
             // Assert
-            assertThat(dto.id).isEqualTo(42)
+            assertThat(dto.id).isEqualTo("42")
             assertThat(dto.name).isEqualTo("user:delete")
         }
     }
@@ -148,7 +148,7 @@ class AuthorizationMapperTest {
 
             // Assert
             assertThat(dto).isNotNull()
-            assertThat(dto.id).isEqualTo(1)
+            assertThat(dto.id).isEqualTo("1")
             assertThat(dto.name).isEqualTo("admin")
         }
 
@@ -187,7 +187,7 @@ class AuthorizationMapperTest {
             val dto = mapper.toRoleDTO(role)
 
             // Assert
-            assertThat(dto.id).isEqualTo(99)
+            assertThat(dto.id).isEqualTo("99")
             assertThat(dto.name).isEqualTo("moderator")
         }
     }

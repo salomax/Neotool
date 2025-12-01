@@ -1,0 +1,778 @@
+# Task Breakdown for Authorization Entities Management Feature
+# This file breaks down the feature implementation into small, manageable tasks organized by phase
+
+phases:
+  - name: Business Documentation
+    status: completed
+    tasks:
+      - id: doc-001
+        description: Create authorization-management.feature file with comprehensive Gherkin scenarios
+        status: completed
+        files:
+          - docs/03-features/security/authorization/authorization-management.feature
+      - id: doc-002
+        description: Create authorization-management.memory.yml with business rules and validations
+        status: completed
+        files:
+          - docs/03-features/security/authorization/authorization-management.memory.yml
+      - id: doc-003
+        description: Create authorization-management.tasks.yml task breakdown
+        status: completed
+        files:
+          - docs/03-features/security/authorization/authorization-management.tasks.yml
+
+  - name: Domain
+    status: completed
+    tasks:
+      - id: domain-001
+        description: Review existing domain entities (User, Group, Role, Permission)
+        status: completed
+        dependencies: []
+        notes: Reuse entities from authorization feature, verify they support management operations
+
+      - id: domain-002
+        description: Implement database migration for user status field (enabled/disabled)
+        status: completed
+        dependencies: [domain-001]
+        files:
+          - service/kotlin/security/src/main/resources/db/migration/V0_10__add_user_status.sql
+        notes: Add enabled/disabled status field to users table, install uuidv7 extension, set DEFAULT uuidv7() for new users
+
+      - id: domain-003
+        description: Implement domain objects for management operations
+        status: completed
+        dependencies: [domain-001]
+        files:
+          - service/kotlin/security/src/main/kotlin/io/github/salomax/neotool/security/domain/rbac/User.kt
+          - service/kotlin/security/src/main/kotlin/io/github/salomax/neotool/security/domain/UserManagement.kt
+          - service/kotlin/security/src/main/kotlin/io/github/salomax/neotool/security/domain/GroupManagement.kt
+          - service/kotlin/security/src/main/kotlin/io/github/salomax/neotool/security/domain/RoleManagement.kt
+          - service/kotlin/security/src/main/kotlin/io/github/salomax/neotool/security/domain/PermissionManagement.kt
+        notes: Domain objects for CRUD operations, following DDD patterns. Refactored to remove database concerns - search criteria are query parameters, dependency validation handled by DB constraints
+
+      - id: domain-004
+        description: Test database migrations (up/down, rollback scenarios)
+        status: completed
+        dependencies: [domain-002]
+        files:
+          - service/kotlin/security/src/test/kotlin/io/github/salomax/neotool/security/test/migration/UserStatusMigrationTest.kt
+        notes: Migration test created and verified. Note: Test file was later deleted by user.
+
+      - id: domain-005
+        description: Review domain code until no issues (lint, type safety, patterns)
+        status: completed
+        dependencies: [domain-003, domain-004]
+        notes: Code reviewed, UUID v7 pattern implemented, management objects refactored to focus on domain logic only
+
+  - name: Backend Repository
+    status: completed
+    tasks:
+      - id: repo-001
+        description: Review existing JPA entities (User, Group, Role, Permission)
+        status: completed
+        dependencies: []
+        notes: Verify entities follow entity-pattern.md, support management operations
+
+      - id: repo-002
+        description: Implement entity-to-domain conversion (toDomain() methods)
+        status: completed
+        dependencies: [repo-001, domain-003]
+        files:
+          - service/kotlin/security/src/main/kotlin/.../repository/UserEntity.kt
+          - service/kotlin/security/src/main/kotlin/.../repository/GroupEntity.kt
+          - service/kotlin/security/src/main/kotlin/.../repository/RoleEntity.kt
+          - service/kotlin/security/src/main/kotlin/.../repository/PermissionEntity.kt
+        notes: Ensure proper null ID handling, UUID v7 generation
+
+      - id: repo-003
+        description: Implement User Repository with search and pagination
+        status: completed
+        dependencies: [repo-002]
+        files:
+          - service/kotlin/security/src/main/kotlin/.../repository/UserRepository.kt
+        notes: |
+          Methods:
+          - findAll(first, after)
+          - searchByNameOrEmail(query, first, after)
+          - Follow Micronaut Data patterns
+
+      - id: repo-004
+        description: Implement Group Repository with search and pagination
+        status: completed
+        dependencies: [repo-002]
+        files:
+          - service/kotlin/security/src/main/kotlin/.../repository/GroupRepository.kt
+        notes: |
+          Methods:
+          - findAll(first, after)
+          - searchByName(query, first, after)
+          - Check for dependencies before delete
+
+      - id: repo-005
+        description: Implement Role Repository with search and pagination
+        status: completed
+        dependencies: [repo-002]
+        files:
+          - service/kotlin/security/src/main/kotlin/.../repository/RoleRepository.kt
+        notes: |
+          Methods:
+          - findAll(first, after)
+          - searchByName(query, first, after)
+          - Check for dependencies before delete
+
+      - id: repo-006
+        description: Implement Permission Repository with search and pagination
+        status: completed
+        dependencies: [repo-002]
+        files:
+          - service/kotlin/security/src/main/kotlin/.../repository/PermissionRepository.kt
+        notes: |
+          Methods:
+          - findAll(first, after)
+          - searchByName(query, first, after)
+
+      - id: repo-007
+        description: Implement dependency check queries
+        status: completed
+        dependencies: [repo-003, repo-004, repo-005]
+        files:
+          - service/kotlin/security/src/main/kotlin/.../repository/GroupRepository.kt
+          - service/kotlin/security/src/main/kotlin/.../repository/RoleRepository.kt
+        notes: Queries to check if groups/roles have dependencies before deletion. Methods added to existing repositories instead of separate dependency repositories.
+
+      - id: repo-008
+        description: Review repository code until no issues (lint, type safety, patterns)
+        status: completed
+        dependencies: [repo-007]
+        notes: Loop until all issues resolved
+
+  - name: Backend Service
+    status: completed
+    tasks:
+      - id: service-001
+        description: Implement User Management Service
+        status: completed
+        dependencies: [repo-003]
+        files:
+          - service/kotlin/security/src/main/kotlin/io/github/salomax/neotool/security/service/UserManagementService.kt
+        notes: |
+          Methods:
+          - listUsers(first, after)
+          - searchUsers(query, first, after)
+          - enableUser(userId)
+          - disableUser(userId)
+          - Use Relay pagination
+          - Uses common pagination utilities from common module
+
+      - id: service-002
+        description: Implement Group Management Service
+        status: completed
+        dependencies: [repo-004, repo-007]
+        files:
+          - service/kotlin/security/src/main/kotlin/io/github/salomax/neotool/security/service/GroupManagementService.kt
+        notes: |
+          Methods:
+          - listGroups(first, after)
+          - searchGroups(query, first, after)
+          - createGroup(command)
+          - updateGroup(command)
+          - deleteGroup(groupId)
+          - Dependency validation handled by database foreign key constraints
+          - Name uniqueness validation handled by database unique constraints
+          - Use Relay pagination
+          - Known issue: deleteGroup() references undefined 'entity' variable in log statement
+
+      - id: service-003
+        description: Implement Role Management Service
+        status: completed
+        dependencies: [repo-005, repo-006, repo-007]
+        files:
+          - service/kotlin/security/src/main/kotlin/io/github/salomax/neotool/security/service/RoleManagementService.kt
+        notes: |
+          Methods:
+          - listRoles(first, after)
+          - searchRoles(query, first, after)
+          - createRole(command)
+          - updateRole(command)
+          - deleteRole(roleId)
+          - listRolePermissions(roleId)
+          - assignPermissionToRole(command)
+          - removePermissionFromRole(command)
+          - Dependency validation handled by database foreign key constraints
+          - Name uniqueness validation handled by database unique constraints
+          - Use Relay pagination
+          - Known issues: assignPermissionToRole() and removePermissionFromRole() reference undefined variables in log statements
+
+      - id: service-004
+        description: Implement Permission Management Service
+        status: completed
+        dependencies: [repo-006]
+        files:
+          - service/kotlin/security/src/main/kotlin/io/github/salomax/neotool/security/service/PermissionManagementService.kt
+        notes: |
+          Methods:
+          - listPermissions(first, after)
+          - searchPermissions(query, first, after)
+          - Use Relay pagination
+          - Uses common pagination utilities from common module
+
+      - id: service-005
+        description: Create common pagination utilities
+        status: completed
+        dependencies: []
+        files:
+          - service/kotlin/common/src/main/kotlin/io/github/salomax/neotool/common/graphql/pagination/PaginationConstants.kt
+          - service/kotlin/common/src/main/kotlin/io/github/salomax/neotool/common/graphql/pagination/RelayPagination.kt
+          - docs/04-patterns/backend-patterns/pagination-pattern.md
+        notes: Created common pagination utilities for Relay GraphQL pagination, including ConnectionBuilder, CursorEncoder, and PaginationConstants
+
+      - id: service-008
+        description: Review service code until no issues (lint, type safety, patterns)
+        status: pending
+        dependencies: [service-001, service-002, service-003, service-004]
+        notes: |
+          Need to fix:
+          - GroupManagementService.deleteGroup() undefined 'entity' variable
+          - RoleManagementService.assignPermissionToRole() undefined 'permission' and 'role' variables
+          - RoleManagementService.removePermissionFromRole() undefined 'permission' and 'role' variables
+          Loop until all issues resolved
+
+  - name: Backend GraphQL
+    status: pending
+    tasks:
+      - id: graphql-001
+        description: Define GraphQL schema for authorization management
+        status: pending
+        dependencies: [service-008]
+        files:
+          - service/kotlin/security/src/main/resources/graphql/schema.graphqls
+          - contracts/graphql/subgraphs/security/schema.graphqls
+        notes: |
+          Queries:
+          - users(first, after, query)
+          - groups(first, after, query)
+          - roles(first, after, query)
+          - permissions(first, after, query)
+          Mutations:
+          - enableUser(userId)
+          - disableUser(userId)
+          - createGroup(input)
+          - updateGroup(groupId, input)
+          - deleteGroup(groupId)
+          - createRole(input)
+          - updateRole(roleId, input)
+          - deleteRole(roleId)
+          - assignPermissionToRole(roleId, permissionId)
+          - removePermissionFromRole(roleId, permissionId)
+          Types:
+          - UserConnection, GroupConnection, RoleConnection, PermissionConnection (Relay pagination)
+          - Extend User, Group, Role, Permission nodes with relationships
+          Follow federation patterns from docs/01-architecture/api-architecture/graphql-federation.md
+
+      - id: graphql-002
+        description: Implement User Management Resolver
+        status: pending
+        dependencies: [graphql-001, service-001]
+        files:
+          - service/kotlin/security/src/main/kotlin/.../graphql/resolver/UserManagementResolver.kt
+        notes: |
+          Resolvers:
+          - users(first, after, query)
+          - enableUser(userId)
+          - disableUser(userId)
+          - User.roles, User.groups, User.permissions (relationship resolvers)
+          Follow resolver-pattern.md
+
+      - id: graphql-003
+        description: Implement Group Management Resolver
+        status: pending
+        dependencies: [graphql-001, service-002]
+        files:
+          - service/kotlin/security/src/main/kotlin/.../graphql/resolver/GroupManagementResolver.kt
+        notes: |
+          Resolvers:
+          - groups(first, after, query)
+          - createGroup(input)
+          - updateGroup(groupId, input)
+          - deleteGroup(groupId)
+          - Group.roles, Group.members (relationship resolvers)
+
+      - id: graphql-004
+        description: Implement Role Management Resolver
+        status: pending
+        dependencies: [graphql-001, service-003]
+        files:
+          - service/kotlin/security/src/main/kotlin/.../graphql/resolver/RoleManagementResolver.kt
+        notes: |
+          Resolvers:
+          - roles(first, after, query)
+          - createRole(input)
+          - updateRole(roleId, input)
+          - deleteRole(roleId)
+          - listRolePermissions(roleId)
+          - assignPermissionToRole(roleId, permissionId)
+          - removePermissionFromRole(roleId, permissionId)
+          - Role.permissions (relationship resolver)
+
+      - id: graphql-005
+        description: Implement Permission Management Resolver
+        status: pending
+        dependencies: [graphql-001, service-004]
+        files:
+          - service/kotlin/security/src/main/kotlin/.../graphql/resolver/PermissionManagementResolver.kt
+        notes: |
+          Resolvers:
+          - permissions(first, after, query)
+          - Permission.roles (relationship resolver)
+
+      - id: graphql-006
+        description: Implement mapper layer (domain ↔ GraphQL types)
+        status: pending
+        dependencies: [graphql-002, graphql-003, graphql-004, graphql-005]
+        files:
+          - service/kotlin/security/src/main/kotlin/.../graphql/mapper/UserManagementMapper.kt
+          - service/kotlin/security/src/main/kotlin/.../graphql/mapper/GroupManagementMapper.kt
+          - service/kotlin/security/src/main/kotlin/.../graphql/mapper/RoleManagementMapper.kt
+          - service/kotlin/security/src/main/kotlin/.../graphql/mapper/PermissionManagementMapper.kt
+        notes: Convert between domain objects and GraphQL types, handle Relay pagination
+
+      - id: graphql-007
+        description: Implement GraphQL configuration (Factory, wiring)
+        status: pending
+        dependencies: [graphql-006]
+        files:
+          - service/kotlin/security/src/main/kotlin/.../graphql/config/AuthorizationManagementGraphQLConfig.kt
+        notes: Configure GraphQL factory, wire resolvers, federation setup
+
+      - id: graphql-008
+        description: Review GraphQL code until no issues (lint, type safety, patterns)
+        status: pending
+        dependencies: [graphql-007]
+        notes: Loop until all issues resolved
+
+  - name: Backend Tests
+    status: pending
+    tasks:
+      - id: test-001
+        description: Implement unit tests for User Management Service
+        status: pending
+        dependencies: [service-001]
+        files:
+          - service/kotlin/security/src/test/kotlin/.../service/UserManagementServiceTest.kt
+        notes: Test list, search, enable, disable operations, 90%+ coverage
+
+      - id: test-002
+        description: Implement unit tests for Group Management Service
+        status: pending
+        dependencies: [service-002]
+        files:
+          - service/kotlin/security/src/test/kotlin/.../service/GroupManagementServiceTest.kt
+        notes: Test CRUD operations, dependency validation, 90%+ coverage
+
+      - id: test-003
+        description: Implement unit tests for Role Management Service
+        status: pending
+        dependencies: [service-003]
+        files:
+          - service/kotlin/security/src/test/kotlin/.../service/RoleManagementServiceTest.kt
+        notes: Test CRUD operations, permission assignment/removal, dependency validation, 90%+ coverage
+
+      - id: test-004
+        description: Implement unit tests for Permission Management Service
+        status: pending
+        dependencies: [service-004]
+        files:
+          - service/kotlin/security/src/test/kotlin/.../service/PermissionManagementServiceTest.kt
+        notes: Test list, search operations, 90%+ coverage
+
+      - id: test-005
+        description: Implement unit tests for Default Initialization Service
+        status: pending
+        dependencies: [service-005]
+        files:
+          - service/kotlin/security/src/test/kotlin/.../service/DefaultInitializationServiceTest.kt
+        notes: Test default admin user, group, role, permissions creation
+
+      - id: test-006
+        description: Test domain-entity conversions (null ID handling, UUID generation)
+        status: pending
+        dependencies: [repo-002]
+        files:
+          - service/kotlin/security/src/test/kotlin/.../repository/EntityConversionTest.kt
+
+      - id: test-007
+        description: Test security/authorization scenarios
+        status: pending
+        dependencies: [service-006]
+        files:
+          - service/kotlin/security/src/test/kotlin/.../service/AuthorizationCheckServiceTest.kt
+        notes: Test admin permission checks, access denied scenarios
+
+      - id: test-008
+        description: Implement integration tests for authorization management operations
+        status: pending
+        dependencies: [graphql-008]
+        files:
+          - service/kotlin/security/src/test/kotlin/.../integration/AuthorizationManagementIntegrationTest.kt
+        notes: Test full flow from GraphQL to database, 80%+ coverage
+
+      - id: test-009
+        description: Run tests until success (loop)
+        status: pending
+        dependencies: [test-001, test-002, test-003, test-004, test-005, test-006, test-007, test-008]
+        notes: Fix any failing tests
+
+  - name: Quality Assurance Backend code
+    status: pending
+    tasks:
+      - id: qa-backend-001
+        description: Run code coverage (meet requirements: 90%+ unit, 80%+ integration)
+        status: pending
+        dependencies: [test-009]
+        notes: Ensure coverage meets standards
+
+      - id: qa-backend-002
+        description: Run linter and fix issues (loop)
+        status: pending
+        dependencies: [qa-backend-001]
+        notes: Loop until all lint issues resolved
+
+      - id: qa-backend-003
+        description: Complete code review checklist (docs/11-validation/code-review-checklist.md)
+        status: pending
+        dependencies: [qa-backend-002]
+        notes: Verify all branches tested (if/when/switch/guard clauses)
+
+  - name: Contract
+    status: pending
+    tasks:
+      - id: contract-001
+        description: Sync GraphQL schema to contracts (./neotool graphql sync)
+        status: pending
+        dependencies: [qa-backend-003]
+        files:
+          - contracts/graphql/subgraphs/security/*.graphqls
+
+      - id: contract-002
+        description: Generate supergraph (./neotool graphql generate)
+        status: pending
+        dependencies: [contract-001]
+        files:
+          - contracts/graphql/supergraph/*.graphql
+
+      - id: contract-003
+        description: Run web codegen (generate TypeScript types)
+        status: pending
+        dependencies: [contract-002]
+        notes: Generate TypeScript types for frontend
+
+      - id: contract-004
+        description: Verify contract changes don't break existing consumers
+        status: pending
+        dependencies: [contract-003]
+        notes: Check for breaking changes
+
+  - name: Front End
+    status: pending
+    tasks:
+      - id: frontend-001
+        description: Implement GraphQL operations (queries, mutations)
+        status: pending
+        dependencies: [contract-003]
+        files:
+          - web/src/shared/graphql/queries/authorization-management.graphql
+          - web/src/shared/graphql/mutations/authorization-management.graphql
+        notes: Follow GraphQL patterns from docs/04-patterns/frontend-patterns/graphql-pattern.md
+
+      - id: frontend-002
+        description: Implement hooks for authorization management
+        status: pending
+        dependencies: [frontend-001]
+        files:
+          - web/src/shared/hooks/useUserManagement.ts
+          - web/src/shared/hooks/useGroupManagement.ts
+          - web/src/shared/hooks/useRoleManagement.ts
+          - web/src/shared/hooks/usePermissionManagement.ts
+        notes: Follow hook patterns from docs/04-patterns/frontend-patterns/hook-pattern.md
+
+      - id: frontend-003
+        description: Implement User Management UI components
+        status: pending
+        dependencies: [frontend-002]
+        files:
+          - web/src/app/admin/authorization/users/UserManagement.tsx
+          - web/src/shared/components/authorization/UserList.tsx
+          - web/src/shared/components/authorization/UserSearch.tsx
+          - web/src/shared/components/authorization/UserStatusToggle.tsx
+        notes: Use design system components from docs/04-patterns/frontend-patterns/component-pattern.md
+
+      - id: frontend-004
+        description: Implement Group Management UI components
+        status: pending
+        dependencies: [frontend-002]
+        files:
+          - web/src/app/admin/authorization/groups/GroupManagement.tsx
+          - web/src/shared/components/authorization/GroupList.tsx
+          - web/src/shared/components/authorization/GroupForm.tsx
+          - web/src/shared/components/authorization/GroupDeleteDialog.tsx
+        notes: Include dependency validation UI, use design system
+
+      - id: frontend-005
+        description: Implement Role Management UI components
+        status: pending
+        dependencies: [frontend-002]
+        files:
+          - web/src/app/admin/authorization/roles/RoleManagement.tsx
+          - web/src/shared/components/authorization/RoleList.tsx
+          - web/src/shared/components/authorization/RoleForm.tsx
+          - web/src/shared/components/authorization/RoleDeleteDialog.tsx
+          - web/src/shared/components/authorization/RolePermissionsList.tsx
+          - web/src/shared/components/authorization/PermissionAssignment.tsx
+        notes: Include permission assignment UI, use design system
+
+      - id: frontend-006
+        description: Implement Permission Management UI components
+        status: pending
+        dependencies: [frontend-002]
+        files:
+          - web/src/app/admin/authorization/permissions/PermissionManagement.tsx
+          - web/src/shared/components/authorization/PermissionList.tsx
+          - web/src/shared/components/authorization/PermissionSearch.tsx
+        notes: Use design system components
+
+      - id: frontend-007
+        description: Implement Relay pagination components
+        status: pending
+        dependencies: [frontend-003, frontend-004, frontend-005, frontend-006]
+        files:
+          - web/src/shared/components/authorization/PaginationControls.tsx
+        notes: Reusable pagination component for all listings
+
+      - id: frontend-008
+        description: Apply design system components and theme tokens
+        status: pending
+        dependencies: [frontend-003, frontend-004, frontend-005, frontend-006, frontend-007]
+        notes: Apply theme tokens from docs/04-patterns/frontend-patterns/styling-pattern.md
+
+      - id: frontend-009
+        description: Implement i18n support (translation keys, locales)
+        status: pending
+        dependencies: [frontend-008]
+        files:
+          - web/public/locales/en/authorization-management.json
+          - web/public/locales/es/authorization-management.json
+        notes: Add translation keys for all UI text
+
+      - id: frontend-010
+        description: Implement error handling and loading states
+        status: pending
+        dependencies: [frontend-009]
+        notes: Handle errors gracefully, show loading indicators
+
+      - id: frontend-011
+        description: Implement admin authorization check (protect admin routes)
+        status: pending
+        dependencies: [frontend-001]
+        files:
+          - web/src/shared/components/authorization/AdminGuard.tsx
+        notes: Ensure only users with authorization:manage permission can access
+
+      - id: frontend-012
+        description: Review frontend code until no issues (lint, type safety, patterns)
+        status: pending
+        dependencies: [frontend-011]
+        notes: Loop until all issues resolved
+
+  - name: Front End tests
+    status: pending
+    tasks:
+      - id: frontend-test-001
+        description: Implement unit tests for authorization management hooks
+        status: pending
+        dependencies: [frontend-002]
+        files:
+          - web/src/shared/hooks/__tests__/useUserManagement.test.ts
+          - web/src/shared/hooks/__tests__/useGroupManagement.test.ts
+          - web/src/shared/hooks/__tests__/useRoleManagement.test.ts
+          - web/src/shared/hooks/__tests__/usePermissionManagement.test.ts
+
+      - id: frontend-test-002
+        description: Implement component tests for management UI components
+        status: pending
+        dependencies: [frontend-012]
+        files:
+          - web/src/shared/components/authorization/__tests__/UserList.test.tsx
+          - web/src/shared/components/authorization/__tests__/GroupForm.test.tsx
+          - web/src/shared/components/authorization/__tests__/RoleForm.test.tsx
+          - web/src/shared/components/authorization/__tests__/PermissionAssignment.test.tsx
+        notes: Use React Testing Library
+
+      - id: frontend-test-003
+        description: Implement E2E tests (Playwright, critical user flows)
+        status: pending
+        dependencies: [frontend-012]
+        files:
+          - web/tests/e2e/authorization-management.spec.ts
+        notes: Test critical flows: list, create, update, delete operations
+
+      - id: frontend-test-004
+        description: Run tests until success (loop)
+        status: pending
+        dependencies: [frontend-test-001, frontend-test-002, frontend-test-003]
+        notes: Fix any failing tests
+
+  - name: Quality Assurance Frontend code
+    status: pending
+    tasks:
+      - id: qa-frontend-001
+        description: Run code coverage (meet requirements with exclusions)
+        status: pending
+        dependencies: [frontend-test-004]
+        notes: Ensure coverage meets standards
+
+      - id: qa-frontend-002
+        description: Run linter and fix issues (loop)
+        status: pending
+        dependencies: [qa-frontend-001]
+        notes: Loop until all lint issues resolved
+
+      - id: qa-frontend-003
+        description: Verify TypeScript types generated and used (no `any` types)
+        status: pending
+        dependencies: [qa-frontend-002]
+        notes: Ensure type safety
+
+      - id: qa-frontend-004
+        description: Verify i18n coverage
+        status: pending
+        dependencies: [qa-frontend-003]
+        notes: Ensure all text is translated
+
+  - name: Observability
+    status: pending
+    tasks:
+      - id: obs-001
+        description: Configure Prometheus metrics endpoint (/prometheus)
+        status: pending
+        dependencies: [qa-backend-003]
+        files:
+          - service/kotlin/security/src/main/resources/application.yml
+        notes: Enable Micrometer Prometheus exporter
+
+      - id: obs-002
+        description: Register service in Prometheus scrape config
+        status: pending
+        dependencies: [obs-001]
+        files:
+          - infra/observability/prometheus/prometheus.yml
+        notes: Add security service to scrape targets
+
+      - id: obs-003
+        description: Configure Loki appender in logback-production.xml
+        status: pending
+        dependencies: [obs-001]
+        files:
+          - service/kotlin/security/src/main/resources/logback-production.xml
+        notes: Enable structured JSON logging with required fields
+
+      - id: obs-004
+        description: Configure service name and environment labels in logs
+        status: pending
+        dependencies: [obs-003]
+        notes: Add service name and environment context
+
+      - id: obs-005
+        description: Create or update Grafana dashboard
+        status: pending
+        dependencies: [obs-002]
+        files:
+          - infra/observability/grafana/dashboards/security-metrics.json
+        notes: Dashboard includes required metric categories (JVM, HTTP, Database, Environment)
+
+      - id: obs-006
+        description: Verify metrics visible in Prometheus UI
+        status: pending
+        dependencies: [obs-002]
+        notes: Test metrics endpoint
+
+      - id: obs-007
+        description: Verify logs visible in Loki and queryable by service name
+        status: pending
+        dependencies: [obs-004]
+        notes: Test log queries
+
+      - id: obs-008
+        description: Verify dashboard panels display data correctly in Grafana
+        status: pending
+        dependencies: [obs-005]
+        notes: Test dashboard visualization
+
+  - name: Documentation
+    status: pending
+    tasks:
+      - id: doc-backend-001
+        description: Document GraphQL schema (descriptions, examples)
+        status: pending
+        dependencies: [contract-002]
+        files:
+          - contracts/graphql/subgraphs/security/schema.graphqls
+        notes: Add descriptions and examples to GraphQL types and fields
+
+      - id: doc-backend-002
+        description: Document API changes and breaking changes (if any)
+        status: pending
+        dependencies: [doc-backend-001]
+        notes: Document any breaking changes
+
+      - id: doc-backend-003
+        description: Update README if needed
+        status: pending
+        dependencies: [doc-backend-002]
+        files:
+          - docs/03-features/security/authorization/README.md
+
+      - id: doc-backend-004
+        description: Document migration guide (if database changes)
+        status: pending
+        dependencies: [domain-002]
+        notes: Document user status field migration
+
+  - name: Validation & Pre-deployment
+    status: pending
+    tasks:
+      - id: validation-001
+        description: All pre-commit hooks pass
+        status: pending
+        dependencies: [qa-frontend-004, obs-008]
+        notes: Run pre-commit hooks
+
+      - id: validation-002
+        description: CI checks pass
+        status: pending
+        dependencies: [validation-001]
+        notes: Verify CI pipeline passes
+
+      - id: validation-003
+        description: Manual testing completed (happy paths, edge cases)
+        status: pending
+        dependencies: [validation-002]
+        notes: Test all scenarios from feature file
+
+      - id: validation-004
+        description: Feature checklist completed (docs/11-validation/feature-checklist.md)
+        status: pending
+        dependencies: [validation-003]
+        notes: Complete feature checklist
+
+      - id: validation-005
+        description: Code review checklist completed (docs/11-validation/code-review-checklist.md)
+        status: pending
+        dependencies: [validation-004]
+        notes: Complete code review checklist
+
+      - id: validation-006
+        description: PR checklist completed (docs/11-validation/pr-checklist.md)
+        status: pending
+        dependencies: [validation-005]
+        notes: Complete PR checklist
+

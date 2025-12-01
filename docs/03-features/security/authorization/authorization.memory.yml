@@ -164,20 +164,6 @@ open_questions:
     status: Yes, but need to define access controls
 
 non_functional_requirements:
-  performance:
-    - requirement: Authorization checks must complete within 5ms
-      priority: High
-      measurement: 95th percentile response time
-    - requirement: Cache hit rate should be >90%
-      priority: Medium
-      measurement: Cache statistics
-  scalability:
-    - requirement: Support 10,000+ users
-      priority: High
-    - requirement: Support 100,000+ resources
-      priority: High
-    - requirement: Support 1,000+ role bindings per user
-      priority: Medium
   security:
     - requirement: All authorization decisions must be logged
       priority: High

@@ -74,6 +74,9 @@ This specification is organized into numbered directories (00-11) for clear hier
 | Service Pattern | `04-patterns/backend-patterns/service-pattern.md` | pattern | backend | service, business-logic |
 | Resolver Pattern | `04-patterns/backend-patterns/resolver-pattern.md` | pattern | backend | graphql, resolver |
 | Testing Pattern | `04-patterns/backend-patterns/testing-pattern.md` | pattern | backend | testing, unit-tests, integration |
+| UUID v7 Pattern | `04-patterns/backend-patterns/uuid-v7-pattern.md` | pattern | backend | uuid, uuidv7, primary-key, database |
+| Domain-Entity Conversion | `04-patterns/backend-patterns/domain-entity-conversion.md` | pattern | backend | domain, entity, conversion, ddd |
+| Pagination Pattern | `04-patterns/backend-patterns/pagination-pattern.md` | pattern | backend | pagination, relay, graphql, cursor, connection |
 
 ### Frontend Patterns
 
@@ -119,6 +122,7 @@ This specification is organized into numbered directories (00-11) for clear hier
 | Document | Path | Type | Category | Keywords |
 |----------|------|------|----------|----------|
 | Examples Index | `07-examples/README.md` | example | index | examples, index |
+| CRUD Example | `07-examples/backend/crud-example/README.md` | example | backend | crud, complete, flow, entity, repository, service, resolver |
 
 ## Templates (08-templates)
 
@@ -147,6 +151,7 @@ This specification is organized into numbered directories (00-11) for clear hier
 | File Structure | `10-reference/file-structure.md` | reference | structure | file-structure, reference |
 | GraphQL Schema | `10-reference/graphql-schema.md` | reference | graphql | graphql, schema, reference |
 | API Endpoints | `10-reference/api-endpoints.md` | reference | api | api, reference |
+| Backend Quick Reference | `10-reference/backend-quick-reference.md` | reference | backend | backend, kotlin, quick-reference, cheat-sheet, imports, annotations |
 
 ## Validation (11-validation)
 

@@ -59,6 +59,23 @@ tasks.test {
     environment("TESTCONTAINERS_RYUK_DISABLED", "true")
 }
 
+// Task to run unit tests only (excludes integration tests)
+tasks.register<Test>("testUnit") {
+    group = "verification"
+    description = "Runs unit tests only (excludes integration tests)"
+
+    useJUnitPlatform {
+        excludeTags("integration")
+    }
+
+    testLogging {
+        events("passed", "skipped", "failed")
+    }
+
+    systemProperty("ryuk.disabled", "true")
+    environment("TESTCONTAINERS_RYUK_DISABLED", "true")
+}
+
 // Task to run integration tests
 tasks.register<Test>("testIntegration") {
     group = "verification"

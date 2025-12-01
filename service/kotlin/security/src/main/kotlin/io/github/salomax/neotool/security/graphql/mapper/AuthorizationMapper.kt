@@ -29,7 +29,7 @@ class AuthorizationMapper {
      */
     fun toPermissionDTO(permission: Permission): PermissionDTO {
         return PermissionDTO(
-            id = permission.id,
+            id = permission.id?.toString(),
             name = permission.name,
         )
     }
@@ -39,7 +39,7 @@ class AuthorizationMapper {
      */
     fun toRoleDTO(role: Role): RoleDTO {
         return RoleDTO(
-            id = role.id,
+            id = role.id?.toString(),
             name = role.name,
         )
     }

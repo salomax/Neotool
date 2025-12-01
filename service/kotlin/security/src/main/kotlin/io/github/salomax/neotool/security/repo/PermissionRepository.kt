@@ -16,6 +16,24 @@ interface PermissionRepository : JpaRepository<PermissionEntity, Int> {
     fun findByIdIn(ids: List<Int>): List<PermissionEntity>
 
     /**
+     * Find all permissions assigned to a role via the role_permissions join table.
+     * Uses a join query to efficiently load permissions in a single database query.
+     *
+     * @param roleId The role ID
+     * @return List of permissions assigned to the role, ordered by name ascending
+     */
+    @Query(
+        value = """
+        SELECT p.* FROM security.permissions p
+        INNER JOIN security.role_permissions rp ON p.id = rp.permission_id
+        WHERE rp.role_id = :roleId
+        ORDER BY p.name ASC, p.id ASC
+        """,
+        nativeQuery = true,
+    )
+    fun findByRoleId(roleId: Int): List<PermissionEntity>
+
+    /**
      * Check if a permission with the given name exists for any of the given role IDs.
      * This is optimized to check permission existence without loading all permissions.
      * Uses a join query to check if the permission exists in the role_permissions table.
@@ -35,4 +53,51 @@ interface PermissionRepository : JpaRepository<PermissionEntity, Int> {
         permissionName: String,
         roleIds: List<Int>,
     ): Boolean
+
+    /**
+     * Find all permissions with cursor-based pagination, ordered alphabetically by name ascending.
+     *
+     * @param first Maximum number of results to return
+     * @param after Cursor (integer ID) to start after (exclusive)
+     * @return List of permissions ordered by name ascending
+     */
+    @Query(
+        value = """
+        SELECT * FROM security.permissions
+        WHERE (:after IS NULL OR id > :after)
+        ORDER BY name ASC, id ASC
+        LIMIT :first
+        """,
+        nativeQuery = true,
+    )
+    fun findAll(
+        first: Int,
+        after: Int?,
+    ): List<PermissionEntity>
+
+    /**
+     * Search permissions by name with cursor-based pagination.
+     * Performs case-insensitive partial matching on name field.
+     * Results are ordered alphabetically by name ascending.
+     *
+     * @param query Search query (partial match, case-insensitive)
+     * @param first Maximum number of results to return
+     * @param after Cursor (integer ID) to start after (exclusive)
+     * @return List of matching permissions ordered by name ascending
+     */
+    @Query(
+        value = """
+        SELECT * FROM security.permissions
+        WHERE LOWER(name) LIKE LOWER(CONCAT('%', :query, '%'))
+        AND (:after IS NULL OR id > :after)
+        ORDER BY name ASC, id ASC
+        LIMIT :first
+        """,
+        nativeQuery = true,
+    )
+    fun searchByName(
+        query: String,
+        first: Int,
+        after: Int?,
+    ): List<PermissionEntity>
 }

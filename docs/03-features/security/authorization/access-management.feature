@@ -30,6 +30,7 @@ Feature: Grant and Revoke Authorization
       And user "bob" should have role "editor"
       And user "bob" should have permission "transaction:read"
       And user "bob" should have permission "transaction:update"
+      
 
     @happy-path
     Scenario: Revoke role from user
@@ -108,22 +109,6 @@ Feature: Grant and Revoke Authorization
       And an audit log entry should be created for the membership addition
 
     @happy-path
-    Scenario: Add user to group as owner
-      Given a user "henry" exists
-      And a group "managers" exists
-      When I add user "henry" to group "managers" as "owner"
-      Then user "henry" should be an owner of group "managers"
-      And user "henry" should have permission to manage group "managers"
-
-    @happy-path
-    Scenario: Add user to group as manager
-      Given a user "iris" exists
-      And a group "team-alpha" exists
-      When I add user "iris" to group "team-alpha" as "manager"
-      Then user "iris" should be a manager of group "team-alpha"
-      And user "iris" should have permission to manage group "team-alpha" members
-
-    @happy-path
     Scenario: Remove user from group
       Given a user "jack" exists
       And a group "support-team" exists
@@ -134,15 +119,6 @@ Feature: Grant and Revoke Authorization
       Then user "jack" should not be a member of group "support-team"
       And user "jack" should no longer inherit permission "ticket:read"
       And an audit log entry should be created for the membership removal
-
-    @happy-path
-    Scenario: Change group membership type
-      Given a user "karen" exists
-      And a group "finance-team" exists
-      And user "karen" is a member of group "finance-team" as "member"
-      When I change user "karen" membership in group "finance-team" to "manager"
-      Then user "karen" should be a manager of group "finance-team"
-      And user "karen" should have permission to manage group "finance-team" members
 
     @validation
     Scenario: Cannot add user to non-existent group
@@ -283,35 +259,6 @@ Feature: Grant and Revoke Authorization
       When I attempt to add permission "nonexistent" to role "editor"
       Then an error should indicate permission "nonexistent" does not exist
       And role "editor" should not have permission "nonexistent"
-
-  Rule: Policy Versioning and Simulation
-    @happy-path
-    Scenario: Version ABAC policy
-      Given an ABAC policy "finance-only" exists with version 1
-      When I create a new version of ABAC policy "finance-only":
-        | effect | condition                                                      |
-        | allow  | subject.department == "finance" AND subject.status == "active" |
-      Then the ABAC policy "finance-only" should have version 2
-      And version 1 of policy "finance-only" should still exist
-      And version 2 should be the active version
-
-    @happy-path
-    Scenario: Simulate policy change
-      Given an ABAC policy "finance-only" exists with condition "subject.department == \"finance\""
-      When I simulate updating policy "finance-only" with condition "subject.department == \"finance\" AND subject.level == \"senior\""
-      Then the simulation should show:
-        | user_id | current_access | simulated_access |
-        | alice   | allowed        | denied           |
-        | bob     | allowed        | allowed          |
-      And no actual policy changes should be made
-
-    @happy-path
-    Scenario: Rollback to previous policy version
-      Given an ABAC policy "finance-only" exists with version 2 as active
-      And version 1 of policy "finance-only" exists
-      When I rollback policy "finance-only" to version 1
-      Then version 1 of policy "finance-only" should be active
-      And version 2 should still exist but not be active
 
   Rule: Validations
     @validation

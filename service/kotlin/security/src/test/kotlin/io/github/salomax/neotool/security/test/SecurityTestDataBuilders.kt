@@ -21,7 +21,7 @@ object SecurityTestDataBuilders {
         createdAt: Instant = Instant.now(),
     ): UserEntity =
         UserEntity(
-            id = id ?: UUID.randomUUID(),
+            id = id,
             email = email,
             displayName = displayName,
             passwordHash = passwordHash,
@@ -42,7 +42,7 @@ object SecurityTestDataBuilders {
         createdAt: Instant = Instant.now(),
     ): UserEntity =
         UserEntity(
-            id = id ?: UUID.randomUUID(),
+            id = id,
             email = email,
             displayName = displayName,
             passwordHash = authenticationService.hashPassword(password),

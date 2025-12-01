@@ -28,7 +28,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.TestMethodOrder
 import java.time.Instant
-import java.util.UUID
 
 /**
  * Integration tests for authorization checks.
@@ -75,23 +74,23 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
     @Inject
     lateinit var entityManager: EntityManager
 
-    private val testUserId = UUID.randomUUID()
-    private val testProjectId = UUID.randomUUID()
-    private val testResourceId = UUID.randomUUID()
-
     /**
-     * Create a test user with the specified ID.
+     * Create a test user with database-generated UUID v7.
      * Must be called before creating role assignments or group memberships.
+     * Returns the saved user with the generated ID.
      */
-    private fun createTestUser(userId: UUID = testUserId): UserEntity {
+    private fun createTestUser(): UserEntity {
+        // Let database generate UUID v7
         val user =
             SecurityTestDataBuilders.user(
-                id = userId,
+                id = null,
                 email = SecurityTestDataBuilders.uniqueEmail("auth-test"),
             )
-        authenticationService.saveUser(user)
-        entityManager.flush()
-        return user
+        return entityManager.runTransaction {
+            val savedUser = authenticationService.saveUser(user)
+            entityManager.flush()
+            savedUser
+        }
     }
 
     @AfterEach
@@ -118,7 +117,7 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
         @Test
         fun `should allow access when user has direct role with permission`() {
             // Arrange
-            createTestUser() // Create user before role assignment
+            val user = createTestUser() // Create user before role assignment
 
             val role = SecurityTestDataBuilders.role(name = "admin")
             val savedRole = roleRepository.save(role)
@@ -139,14 +138,14 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
 
             val roleAssignment =
                 SecurityTestDataBuilders.roleAssignment(
-                    userId = testUserId,
+                    userId = user.id!!,
                     roleId = savedRole.id!!,
                 )
             roleAssignmentRepository.save(roleAssignment)
             entityManager.flush()
 
             // Act
-            val result = authorizationService.checkPermission(testUserId, "transaction:read")
+            val result = authorizationService.checkPermission(user.id!!, "transaction:read")
 
             // Assert
             assertThat(result.allowed).isTrue()
@@ -155,10 +154,12 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
 
         @Test
         fun `should deny access when user does not have permission`() {
-            // Arrange - No roles or permissions set up
+            // Arrange
+            val user = createTestUser()
+            val userId = user.id!!
 
             // Act
-            val result = authorizationService.checkPermission(testUserId, "transaction:read")
+            val result = authorizationService.checkPermission(userId, "transaction:read")
 
             // Assert
             assertThat(result.allowed).isFalse()
@@ -172,7 +173,8 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
         @Test
         fun `should allow access when user inherits permission from group`() {
             // Arrange
-            createTestUser() // Create user before group membership
+            val user = createTestUser() // Create user before group membership
+            val userId = user.id!!
 
             val role = SecurityTestDataBuilders.role(name = "editor")
             val savedRole = roleRepository.save(role)
@@ -196,7 +198,7 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
 
             val groupMembership =
                 SecurityTestDataBuilders.groupMembership(
-                    userId = testUserId,
+                    userId = userId,
                     groupId = savedGroup.id,
                 )
             groupMembershipRepository.save(groupMembership)
@@ -210,7 +212,7 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
             entityManager.flush()
 
             // Act
-            val result = authorizationService.checkPermission(testUserId, "transaction:write")
+            val result = authorizationService.checkPermission(userId, "transaction:write")
 
             // Assert
             assertThat(result.allowed).isTrue()
@@ -224,7 +226,8 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
         @Test
         fun `should allow access when role assignment is within valid date range`() {
             // Arrange
-            createTestUser() // Create user before role assignment
+            val user = createTestUser() // Create user before role assignment
+            val userId = user.id!!
 
             val role = SecurityTestDataBuilders.role(name = "temp-access")
             val savedRole = roleRepository.save(role)
@@ -246,7 +249,7 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
             val now = Instant.now()
             val roleAssignment =
                 SecurityTestDataBuilders.roleAssignment(
-                    userId = testUserId,
+                    userId = userId,
                     roleId = savedRole.id!!,
                     // Started 1 hour ago
                     validFrom = now.minusSeconds(3600),
@@ -257,7 +260,7 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
             entityManager.flush()
 
             // Act
-            val result = authorizationService.checkPermission(testUserId, "transaction:read")
+            val result = authorizationService.checkPermission(userId, "transaction:read")
 
             // Assert
             assertThat(result.allowed).isTrue()
@@ -266,7 +269,8 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
         @Test
         fun `should deny access when role assignment has expired`() {
             // Arrange
-            createTestUser() // Create user before role assignment
+            val user = createTestUser() // Create user before role assignment
+            val userId = user.id!!
 
             val role = SecurityTestDataBuilders.role(name = "expired-role")
             val savedRole = roleRepository.save(role)
@@ -288,7 +292,7 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
             val now = Instant.now()
             val roleAssignment =
                 SecurityTestDataBuilders.roleAssignment(
-                    userId = testUserId,
+                    userId = userId,
                     roleId = savedRole.id!!,
                     // Started 2 hours ago
                     validFrom = now.minusSeconds(7200),
@@ -299,7 +303,7 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
             entityManager.flush()
 
             // Act
-            val result = authorizationService.checkPermission(testUserId, "transaction:read")
+            val result = authorizationService.checkPermission(userId, "transaction:read")
 
             // Assert
             // Expired assignments should not be returned by findValidAssignmentsByUserId
@@ -313,7 +317,8 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
         @Test
         fun `should return permissions from direct and group-inherited roles`() {
             // Arrange
-            createTestUser() // Create user before role assignments and group memberships
+            val user = createTestUser() // Create user before role assignments and group memberships
+            val userId = user.id!!
 
             val role1 = SecurityTestDataBuilders.role(name = "admin")
             val savedRole1 = roleRepository.save(role1)
@@ -351,7 +356,7 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
             // Direct role assignment
             val roleAssignment =
                 SecurityTestDataBuilders.roleAssignment(
-                    userId = testUserId,
+                    userId = userId,
                     roleId = savedRole1.id!!,
                 )
             roleAssignmentRepository.save(roleAssignment)
@@ -362,7 +367,7 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
 
             val groupMembership =
                 SecurityTestDataBuilders.groupMembership(
-                    userId = testUserId,
+                    userId = userId,
                     groupId = savedGroup.id,
                 )
             groupMembershipRepository.save(groupMembership)
@@ -376,7 +381,7 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
             entityManager.flush()
 
             // Act
-            val result = authorizationService.getUserPermissions(testUserId)
+            val result = authorizationService.getUserPermissions(userId)
 
             // Assert
             assertThat(result).hasSize(2)
@@ -390,7 +395,8 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
         @Test
         fun `should return roles from direct and group-inherited assignments`() {
             // Arrange
-            createTestUser() // Create user before role assignments and group memberships
+            val user = createTestUser() // Create user before role assignments and group memberships
+            val userId = user.id!!
 
             val role1 = SecurityTestDataBuilders.role(name = "admin")
             val savedRole1 = roleRepository.save(role1)
@@ -401,7 +407,7 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
             // Direct role assignment
             val roleAssignment =
                 SecurityTestDataBuilders.roleAssignment(
-                    userId = testUserId,
+                    userId = userId,
                     roleId = savedRole1.id!!,
                 )
             roleAssignmentRepository.save(roleAssignment)
@@ -412,7 +418,7 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
 
             val groupMembership =
                 SecurityTestDataBuilders.groupMembership(
-                    userId = testUserId,
+                    userId = userId,
                     groupId = savedGroup.id,
                 )
             groupMembershipRepository.save(groupMembership)
@@ -426,7 +432,7 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
             entityManager.flush()
 
             // Act
-            val result = authorizationService.getUserRoles(testUserId)
+            val result = authorizationService.getUserRoles(userId)
 
             // Assert
             assertThat(result).hasSize(2)
@@ -439,14 +445,18 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
     inner class HybridAuthorizationTests {
         @Test
         fun `should deny access when RBAC denies without evaluating ABAC`() {
-            // Arrange - No roles or permissions
+            // Arrange
+            val user = createTestUser()
+            val userId = user.id!!
+            val userIdString = userId.toString()
+
             // Setup ABAC policy in a committed transaction to verify it's not evaluated when RBAC denies
             entityManager.runTransaction {
                 val abacPolicy =
                     SecurityTestDataBuilders.abacPolicy(
                         name = "should-not-match",
                         effect = io.github.salomax.neotool.security.domain.abac.PolicyEffect.ALLOW,
-                        condition = """{"eq": {"subject.userId": "$testUserId"}}""",
+                        condition = """{"eq": {"subject.userId": "$userIdString"}}""",
                         isActive = true,
                     )
                 abacPolicyRepository.save(abacPolicy)
@@ -455,7 +465,7 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
             // Act
             val result =
                 authorizationService.checkPermission(
-                    userId = testUserId,
+                    userId = userId,
                     permission = "transaction:read",
                 )
 
@@ -473,50 +483,54 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
         fun `should allow access when RBAC allows and ABAC allows`() {
             // Arrange
             // Setup test data in a committed transaction so it's visible to the service
-            entityManager.runTransaction {
-                createTestUser() // Create user before role assignment
+            val userId =
+                entityManager.runTransaction {
+                    // Create user before role assignment
+                    val user = createTestUser()
+                    val userId = user.id!!
 
-                val role = SecurityTestDataBuilders.role(name = "admin")
-                val savedRole = roleRepository.save(role)
+                    val role = SecurityTestDataBuilders.role(name = "admin")
+                    val savedRole = roleRepository.save(role)
 
-                val permission = SecurityTestDataBuilders.permission(name = "transaction:read")
-                val savedPermission = permissionRepository.save(permission)
+                    val permission = SecurityTestDataBuilders.permission(name = "transaction:read")
+                    val savedPermission = permissionRepository.save(permission)
 
-                // Link role and permission
-                entityManager.createNativeQuery(
-                    """
-                    INSERT INTO security.role_permissions (role_id, permission_id)
-                    VALUES (:roleId, :permissionId)
-                    """.trimIndent(),
-                )
-                    .setParameter("roleId", savedRole.id)
-                    .setParameter("permissionId", savedPermission.id)
-                    .executeUpdate()
-
-                val roleAssignment =
-                    SecurityTestDataBuilders.roleAssignment(
-                        userId = testUserId,
-                        roleId = savedRole.id!!,
+                    // Link role and permission
+                    entityManager.createNativeQuery(
+                        """
+                        INSERT INTO security.role_permissions (role_id, permission_id)
+                        VALUES (:roleId, :permissionId)
+                        """.trimIndent(),
                     )
-                roleAssignmentRepository.save(roleAssignment)
+                        .setParameter("roleId", savedRole.id)
+                        .setParameter("permissionId", savedPermission.id)
+                        .executeUpdate()
 
-                // ABAC policy that allows - use explicit UUID string format
-                val userIdString = testUserId.toString()
-                val abacPolicy =
-                    SecurityTestDataBuilders.abacPolicy(
-                        name = "allow-policy",
-                        effect = io.github.salomax.neotool.security.domain.abac.PolicyEffect.ALLOW,
-                        condition = """{"eq": {"subject.userId": "$userIdString"}}""",
-                        isActive = true,
-                    )
-                abacPolicyRepository.save(abacPolicy)
-                entityManager.flush()
-            }
+                    val roleAssignment =
+                        SecurityTestDataBuilders.roleAssignment(
+                            userId = userId,
+                            roleId = savedRole.id!!,
+                        )
+                    roleAssignmentRepository.save(roleAssignment)
+
+                    // ABAC policy that allows - use explicit UUID string format
+                    val userIdString = userId.toString()
+                    val abacPolicy =
+                        SecurityTestDataBuilders.abacPolicy(
+                            name = "allow-policy",
+                            effect = io.github.salomax.neotool.security.domain.abac.PolicyEffect.ALLOW,
+                            condition = """{"eq": {"subject.userId": "$userIdString"}}""",
+                            isActive = true,
+                        )
+                    abacPolicyRepository.save(abacPolicy)
+                    entityManager.flush()
+                    userId
+                }
 
             // Act
             val result =
                 authorizationService.checkPermission(
-                    userId = testUserId,
+                    userId = userId,
                     permission = "transaction:read",
                 )
 
@@ -535,50 +549,54 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
         fun `should deny access when RBAC allows but ABAC explicitly denies`() {
             // Arrange
             // Setup test data in a committed transaction so it's visible to the service
-            entityManager.runTransaction {
-                createTestUser() // Create user before role assignment
+            val userId =
+                entityManager.runTransaction {
+                    // Create user before role assignment
+                    val user = createTestUser()
+                    val userId = user.id!!
 
-                val role = SecurityTestDataBuilders.role(name = "admin")
-                val savedRole = roleRepository.save(role)
+                    val role = SecurityTestDataBuilders.role(name = "admin")
+                    val savedRole = roleRepository.save(role)
 
-                val permission = SecurityTestDataBuilders.permission(name = "transaction:read")
-                val savedPermission = permissionRepository.save(permission)
+                    val permission = SecurityTestDataBuilders.permission(name = "transaction:read")
+                    val savedPermission = permissionRepository.save(permission)
 
-                // Link role and permission
-                entityManager.createNativeQuery(
-                    """
-                    INSERT INTO security.role_permissions (role_id, permission_id)
-                    VALUES (:roleId, :permissionId)
-                    """.trimIndent(),
-                )
-                    .setParameter("roleId", savedRole.id)
-                    .setParameter("permissionId", savedPermission.id)
-                    .executeUpdate()
-
-                val roleAssignment =
-                    SecurityTestDataBuilders.roleAssignment(
-                        userId = testUserId,
-                        roleId = savedRole.id!!,
+                    // Link role and permission
+                    entityManager.createNativeQuery(
+                        """
+                        INSERT INTO security.role_permissions (role_id, permission_id)
+                        VALUES (:roleId, :permissionId)
+                        """.trimIndent(),
                     )
-                roleAssignmentRepository.save(roleAssignment)
+                        .setParameter("roleId", savedRole.id)
+                        .setParameter("permissionId", savedPermission.id)
+                        .executeUpdate()
 
-                // ABAC policy that explicitly denies - use explicit UUID string format
-                val userIdString = testUserId.toString()
-                val abacPolicy =
-                    SecurityTestDataBuilders.abacPolicy(
-                        name = "deny-policy",
-                        effect = io.github.salomax.neotool.security.domain.abac.PolicyEffect.DENY,
-                        condition = """{"eq": {"subject.userId": "$userIdString"}}""",
-                        isActive = true,
-                    )
-                abacPolicyRepository.save(abacPolicy)
-                entityManager.flush()
-            }
+                    val roleAssignment =
+                        SecurityTestDataBuilders.roleAssignment(
+                            userId = userId,
+                            roleId = savedRole.id!!,
+                        )
+                    roleAssignmentRepository.save(roleAssignment)
+
+                    // ABAC policy that explicitly denies - use explicit UUID string format
+                    val userIdString = userId.toString()
+                    val abacPolicy =
+                        SecurityTestDataBuilders.abacPolicy(
+                            name = "deny-policy",
+                            effect = io.github.salomax.neotool.security.domain.abac.PolicyEffect.DENY,
+                            condition = """{"eq": {"subject.userId": "$userIdString"}}""",
+                            isActive = true,
+                        )
+                    abacPolicyRepository.save(abacPolicy)
+                    entityManager.flush()
+                    userId
+                }
 
             // Act
             val result =
                 authorizationService.checkPermission(
-                    userId = testUserId,
+                    userId = userId,
                     permission = "transaction:read",
                 )
 

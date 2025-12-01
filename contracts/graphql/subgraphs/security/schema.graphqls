@@ -5,12 +5,22 @@ type User @key(fields: "id") {
   id: ID!
   email: String!
   displayName: String
+  enabled: Boolean!
+  roles: [Role!]!
+  groups: [Group!]!
+  permissions: [Permission!]!
 }
 
 # Query type for security operations
 type Query {
   # Authentication queries
   currentUser: User
+  
+  # Authorization management queries
+  users(first: Int, after: String, query: String): UserConnection!
+  groups(first: Int, after: String, query: String): GroupConnection!
+  roles(first: Int, after: String, query: String): RoleConnection!
+  permissions(first: Int, after: String, query: String): PermissionConnection!
 }
 
 # Mutation type for security operations
@@ -21,6 +31,18 @@ type Mutation {
   signUp(input: SignUpInput!): SignUpPayload!
   requestPasswordReset(input: RequestPasswordResetInput!): RequestPasswordResetPayload!
   resetPassword(input: ResetPasswordInput!): ResetPasswordPayload!
+  
+  # Authorization management mutations
+  enableUser(userId: ID!): User!
+  disableUser(userId: ID!): User!
+  createGroup(input: CreateGroupInput!): Group!
+  updateGroup(groupId: ID!, input: UpdateGroupInput!): Group!
+  deleteGroup(groupId: ID!): Boolean!
+  createRole(input: CreateRoleInput!): Role!
+  updateRole(roleId: ID!, input: UpdateRoleInput!): Role!
+  deleteRole(roleId: ID!): Boolean!
+  assignPermissionToRole(roleId: ID!, permissionId: ID!): Role!
+  removePermissionFromRole(roleId: ID!, permissionId: ID!): Role!
 }
 
 # Authentication input types
@@ -74,5 +96,97 @@ input ResetPasswordInput {
 type ResetPasswordPayload {
   success: Boolean!
   message: String!
+}
+
+# Authorization types
+type Permission @key(fields: "id") {
+  id: ID!
+  name: String!
+  roles: [Role!]!
+}
+
+type Role @key(fields: "id") {
+  id: ID!
+  name: String!
+  permissions: [Permission!]!
+}
+
+type Group @key(fields: "id") {
+  id: ID!
+  name: String!
+  description: String
+  roles: [Role!]!
+  members: [User!]!
+}
+
+# Relay pagination types
+type PageInfo {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+}
+
+type UserEdge {
+  node: User!
+  cursor: String!
+}
+
+type GroupEdge {
+  node: Group!
+  cursor: String!
+}
+
+type RoleEdge {
+  node: Role!
+  cursor: String!
+}
+
+type PermissionEdge {
+  node: Permission!
+  cursor: String!
+}
+
+type UserConnection {
+  edges: [UserEdge!]!
+  nodes: [User!]!
+  pageInfo: PageInfo!
+}
+
+type GroupConnection {
+  edges: [GroupEdge!]!
+  nodes: [Group!]!
+  pageInfo: PageInfo!
+}
+
+type RoleConnection {
+  edges: [RoleEdge!]!
+  nodes: [Role!]!
+  pageInfo: PageInfo!
+}
+
+type PermissionConnection {
+  edges: [PermissionEdge!]!
+  nodes: [Permission!]!
+  pageInfo: PageInfo!
+}
+
+# Input types for authorization management
+input CreateGroupInput {
+  name: String!
+  description: String
+}
+
+input UpdateGroupInput {
+  name: String!
+  description: String
+}
+
+input CreateRoleInput {
+  name: String!
+}
+
+input UpdateRoleInput {
+  name: String!
 }
 

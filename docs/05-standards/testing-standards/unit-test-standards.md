@@ -113,6 +113,41 @@ fun `should process data when data is not null`() { ... }
 - Pure data transfer objects (DTOs) with no validation logic
 - Auto-generated code
 
+### Rule: DTO Testing Exclusion
+
+**Rule**: Data Transfer Objects (DTOs) implemented as Kotlin `data class` do not require unit tests.
+
+**Rationale**: 
+- DTOs are pure data structures with no business logic
+- Kotlin data classes automatically generate `equals()`, `hashCode()`, `toString()`, and `copy()` methods
+- Testing data class instantiation and property access provides no value
+- DTOs are validated through integration tests when used in resolvers/services
+- Focus testing effort on business logic, not data structures
+
+**Example**:
+```kotlin
+// ✅ DTO - No tests needed
+@Introspected
+@Serdeable
+data class UserDTO(
+    val id: String,
+    val email: String,
+    val displayName: String? = null,
+)
+
+// ❌ Do NOT create tests like this:
+@Test
+fun `should create UserDTO with all fields`() {
+    val dto = UserDTO(id = "123", email = "test@example.com")
+    assertThat(dto.id).isEqualTo("123")
+    assertThat(dto.email).isEqualTo("test@example.com")
+}
+```
+
+**Exception**: DTOs with custom validation logic, computed properties, or business methods should be tested. However, prefer moving such logic to service/validator classes rather than DTOs.
+
+**Implementation**: DTO classes are excluded from coverage requirements via the `*DTO` pattern in Kover configuration.
+
 **Exception**: Components with significant custom business logic, state management, or complex interactions should NOT be excluded, even if they wrap a library.
 
 **Example**:
