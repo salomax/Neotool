@@ -18,6 +18,7 @@ export const drawerData: ComponentData = {
         { name: "anchor", type: "'left' | 'right' | 'top' | 'bottom'", required: false, description: "Drawer anchor position", default: "'left'" },
         { name: "width", type: "number | string", required: false, description: "Drawer width (for left/right anchors)", default: "280" },
         { name: "height", type: "number | string", required: false, description: "Drawer height (for top/bottom anchors)", default: "'100%'" },
+        { name: "footer", type: "ReactNode", required: false, description: "Footer content (e.g., action buttons). Always visible at the bottom of the drawer." },
         { name: "children", type: "ReactNode", required: true, description: "Drawer content" },
   ],
   examples: [

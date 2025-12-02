@@ -26,6 +26,8 @@ export interface DrawerProps extends Omit<MUIDrawerProps, 'open'> {
   height?: number | string;
   /** If true, forces temporary variant on mobile devices. Default: true */
   forceMobileTemporary?: boolean;
+  /** Footer content (e.g., action buttons). Always visible at the bottom of the drawer. */
+  footer?: React.ReactNode;
   children: React.ReactNode;
 }
 
@@ -41,6 +43,7 @@ export const Drawer: React.FC<DrawerProps> = ({
   width = 600,
   height = '100%',
   forceMobileTemporary = true,
+  footer,
   children,
   sx,
   ...props
@@ -71,7 +74,7 @@ export const Drawer: React.FC<DrawerProps> = ({
       {...props}
     >
       <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-        {/* Header */}
+        {/* Header - Always visible when configured */}
         {(title || showCloseButton || showMenuButton) && (
           <>
             <Box
@@ -81,7 +84,7 @@ export const Drawer: React.FC<DrawerProps> = ({
                 justifyContent: 'space-between',
                 p: 2,
                 minHeight: 64,
-                width: width
+                flexShrink: 0,
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
@@ -117,10 +120,25 @@ export const Drawer: React.FC<DrawerProps> = ({
           </>
         )}
 
-        {/* Content */}
+        {/* Content - Scrollable area */}
         <Box sx={{ flex: 1, overflow: 'auto' }}>
           {children}
         </Box>
+
+        {/* Footer - Always visible when provided */}
+        {footer && (
+          <>
+            <Divider />
+            <Box
+              sx={{
+                p: 2,
+                flexShrink: 0,
+              }}
+            >
+              {footer}
+            </Box>
+          </>
+        )}
       </Box>
     </MUIDrawer>
   );
