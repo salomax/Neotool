@@ -417,3 +417,56 @@ export const EmptyContent: Story = {
     );
   },
 };
+
+export const WithFooter: Story = {
+  render: () => {
+    const [open, setOpen] = useState(false);
+    
+    return (
+      <Box sx={{ p: 2 }}>
+        <Button onClick={() => setOpen(true)}>Open Drawer with Footer</Button>
+        <Drawer 
+          open={open} 
+          onClose={() => setOpen(false)}
+          title="Form Drawer"
+          footer={
+            <Stack direction="row" spacing={2} justifyContent="flex-end">
+              <Button 
+                variant="outlined" 
+                onClick={() => setOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="contained" 
+                onClick={() => {
+                  alert('Saved!');
+                  setOpen(false);
+                }}
+              >
+                Save
+              </Button>
+            </Stack>
+          }
+        >
+          <Box sx={{ p: 2 }}>
+            <Typography variant="body1" paragraph>
+              This drawer demonstrates the footer with action buttons.
+              The footer is always visible at the bottom, and the content area is scrollable.
+            </Typography>
+            <List>
+              {Array.from({ length: 20 }, (_, i) => (
+                <ListItem key={i}>
+                  <ListItemText 
+                    primary={`Form Field ${i + 1}`}
+                    secondary="This is a form field that can be edited"
+                  />
+                </ListItem>
+              ))}
+            </List>
+          </Box>
+        </Drawer>
+      </Box>
+    );
+  },
+};

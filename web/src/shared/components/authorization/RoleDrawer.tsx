@@ -255,6 +255,32 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
       anchor="right"
       width={600}
       variant="temporary"
+      footer={
+        !queryLoading && !queryError ? (
+          <Stack direction="row" spacing={2} justifyContent="flex-end">
+            <Button
+              variant="outlined"
+              onClick={onClose}
+              disabled={createLoading || updateLoading}
+            >
+              {t("roleManagement.form.cancel")}
+            </Button>
+            <Button
+              type="submit"
+              form="role-form"
+              variant="contained"
+              disabled={createLoading || updateLoading}
+              data-testid="role-form-submit"
+            >
+              {createLoading || updateLoading
+                ? t("roleManagement.form.saving")
+                : role
+                ? t("roleManagement.form.save")
+                : t("roleManagement.form.create")}
+            </Button>
+          </Stack>
+        ) : undefined
+      }
     >
       <Box sx={{ p: 3 }}>
         {queryLoading && (
@@ -273,6 +299,7 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
           <FormProvider {...methods}>
             <Box
               component="form"
+              id="role-form"
               onSubmit={methods.handleSubmit(handleSubmit)}
               noValidate
             >
@@ -318,28 +345,6 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
                     />
                   </>
                 )}
-
-                <Stack direction="row" spacing={2} justifyContent="flex-end" sx={{ mt: 3 }}>
-                  <Button
-                    variant="outlined"
-                    onClick={onClose}
-                    disabled={createLoading || updateLoading}
-                  >
-                    {t("roleManagement.form.cancel")}
-                  </Button>
-                  <Button
-                    type="submit"
-                    variant="contained"
-                    disabled={createLoading || updateLoading}
-                    data-testid="role-form-submit"
-                  >
-                    {createLoading || updateLoading
-                      ? t("roleManagement.form.saving")
-                      : role
-                      ? t("roleManagement.form.save")
-                      : t("roleManagement.form.create")}
-                  </Button>
-                </Stack>
               </Stack>
             </Box>
           </FormProvider>
