@@ -1,14 +1,13 @@
 "use client";
 
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useMemo, useCallback, useEffect } from "react";
 import {
   Box,
   Typography,
-  Divider,
   CircularProgress,
   Alert,
-  Button,
-  Stack,
+  Autocomplete,
+  TextField,
   Chip,
 } from "@mui/material";
 import { useGetUsersQuery } from "@/lib/graphql/operations/authorization-management/queries.generated";
@@ -16,7 +15,6 @@ import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(neotool)/settings/i18n";
 import { useToast } from "@/shared/providers";
 import { extractErrorMessage } from "@/shared/utils/error";
-import { SearchField } from "@/shared/components/ui/forms/SearchField";
 
 export interface User {
   id: string;
@@ -35,9 +33,17 @@ export interface RoleUserAssignmentProps {
   onUsersChange?: () => void;
 }
 
+type UserOption = {
+  id: string;
+  label: string;
+  email: string;
+  displayName: string | null;
+  enabled: boolean;
+};
+
 /**
  * RoleUserAssignment component for managing role user assignments
- * Shows assigned users with remove action and available users with assign action
+ * Uses a multi-select Autocomplete to assign and remove users
  */
 export const RoleUserAssignment: React.FC<RoleUserAssignmentProps> = ({
   roleId,
@@ -50,7 +56,6 @@ export const RoleUserAssignment: React.FC<RoleUserAssignmentProps> = ({
 }) => {
   const { t } = useTranslation(authorizationManagementTranslations);
   const toast = useToast();
-  const [searchQuery, setSearchQuery] = useState("");
 
   // Fetch all users for selection
   const { data, loading: usersLoading, error: usersError } = useGetUsersQuery({
@@ -61,43 +66,59 @@ export const RoleUserAssignment: React.FC<RoleUserAssignmentProps> = ({
     skip: false,
   });
 
-  // Transform users data
-  const allUsers = useMemo(() => {
+  // Transform users data for Autocomplete
+  const userOptions = useMemo(() => {
     return (data?.users?.nodes || []).map((user) => ({
       id: user.id,
+      label: user.displayName || user.email,
       email: user.email,
       displayName: user.displayName,
       enabled: user.enabled,
     }));
   }, [data?.users?.nodes]);
 
-  // Filter available users (not already assigned and matching search)
-  const availableUsers = useMemo(() => {
-    if (!allUsers) return [];
-    const assignedIds = new Set(assignedUsers.map((u) => u.id));
-    const searchLower = searchQuery.toLowerCase();
-    return allUsers.filter(
-      (user) =>
-        !assignedIds.has(user.id) &&
-        (user.email.toLowerCase().includes(searchLower) ||
-          (user.displayName?.toLowerCase().includes(searchLower) ?? false))
-    );
-  }, [allUsers, assignedUsers, searchQuery]);
+  // Map assigned users to option format
+  const selectedUsers = useMemo(() => {
+    return assignedUsers.map((user) => ({
+      id: user.id,
+      label: user.displayName || user.email,
+      email: user.email,
+      displayName: user.displayName,
+      enabled: user.enabled,
+    }));
+  }, [assignedUsers]);
 
-  const handleAssignUser = useCallback(
-    async (userId: string) => {
-      if (!roleId) return;
+  const handleChange = useCallback(
+    async (_event: any, newValue: UserOption[]) => {
+      // Prevent duplicates - filter out any duplicates in newValue
+      // Autocomplete should handle this, but we ensure uniqueness
+      const uniqueNewValue = Array.from(
+        new Map(newValue.map((user) => [user.id, user])).values()
+      );
+
+      const currentIds = new Set(assignedUsers.map((u) => u.id));
+      const newIds = new Set(uniqueNewValue.map((u) => u.id));
+
+      // Find added users (in uniqueNewValue but not in assignedUsers)
+      const addedUsers = uniqueNewValue.filter((user) => !currentIds.has(user.id));
+      
+      // Find removed users (in assignedUsers but not in uniqueNewValue)
+      const removedUsers = assignedUsers.filter((user) => !newIds.has(user.id));
+
       try {
-        await onAssignUser(userId);
-        const user = allUsers.find((u) => u.id === userId);
-        toast.success(
-          t("roleManagement.users.userAssigned", {
-            user: user?.displayName || user?.email || "",
-          })
-        );
+        // Assign new users
+        for (const user of addedUsers) {
+          await onAssignUser(user.id);
+        }
+
+        // Remove users
+        for (const user of removedUsers) {
+          await onRemoveUser(user.id);
+        }
+
         onUsersChange?.();
       } catch (err) {
-        console.error("Error assigning user:", err);
+        console.error("Error updating user assignments:", err);
         const errorMessage = extractErrorMessage(
           err,
           t("roleManagement.users.assignError")
@@ -105,41 +126,13 @@ export const RoleUserAssignment: React.FC<RoleUserAssignmentProps> = ({
         toast.error(errorMessage);
       }
     },
-    [roleId, onAssignUser, toast, t, allUsers, onUsersChange]
+    [roleId, assignedUsers, onAssignUser, onRemoveUser, toast, t, onUsersChange]
   );
-
-  const handleRemoveUser = useCallback(
-    async (userId: string) => {
-      if (!roleId) return;
-      try {
-        await onRemoveUser(userId);
-        const user = assignedUsers.find((u) => u.id === userId);
-        toast.success(
-          t("roleManagement.users.userRemoved", {
-            user: user?.displayName || user?.email || "",
-          })
-        );
-        onUsersChange?.();
-      } catch (err) {
-        console.error("Error removing user:", err);
-        const errorMessage = extractErrorMessage(
-          err,
-          t("roleManagement.users.removeError")
-        );
-        toast.error(errorMessage);
-      }
-    },
-    [roleId, onRemoveUser, toast, t, assignedUsers, onUsersChange]
-  );
-
-  const getUserDisplayName = (user: User) => {
-    return user.displayName || user.email;
-  };
 
   if (usersLoading) {
     return (
-      <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
-        <CircularProgress />
+      <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
+        <CircularProgress size={24} />
       </Box>
     );
   }
@@ -153,85 +146,50 @@ export const RoleUserAssignment: React.FC<RoleUserAssignmentProps> = ({
   }
 
   return (
-    <Stack spacing={3}>
-      {/* Assigned Users */}
-      <Box>
-        <Typography variant="h6" gutterBottom>
-          {t("roleManagement.users.assigned")}
-        </Typography>
-        <Divider sx={{ mb: 2 }} />
-        {assignedUsers.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
-            {t("roleManagement.users.noUsers")}
-          </Typography>
-        ) : (
-          <Box>
-            <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: "block" }}>
-              {t("roleManagement.users.assignedCount", { count: assignedUsers.length })}
-            </Typography>
-            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-              {assignedUsers.map((user) => (
-                <Chip
-                  key={user.id}
-                  label={getUserDisplayName(user)}
-                  size="small"
-                  color="primary"
-                  variant="outlined"
-                  onDelete={
-                    !removeLoading
-                      ? () => handleRemoveUser(user.id)
-                      : undefined
-                  }
-                  disabled={removeLoading}
-                  aria-label={t("roleManagement.users.removeUser", {
-                    name: getUserDisplayName(user),
-                  })}
-                />
-              ))}
-            </Box>
-          </Box>
-        )}
-      </Box>
-
-      {/* Available Users */}
-      <Box>
-        <Typography variant="h6" gutterBottom>
-          {t("roleManagement.users.available")}
-        </Typography>
-        <Divider sx={{ mb: 2 }} />
-        <SearchField
-          value={searchQuery}
-          onChange={setSearchQuery}
-          placeholder={t("roleManagement.users.searchPlaceholder")}
-          fullWidth
-          debounceMs={300}
-          name="user-search"
-          data-testid="user-search"
-        />
-        {availableUsers.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
-            {searchQuery
-              ? t("roleManagement.users.noAvailableMatching")
-              : t("roleManagement.users.allAssigned")}
-          </Typography>
-        ) : (
-          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 2 }}>
-            {availableUsers.map((user) => (
-              <Button
-                key={user.id}
+    <Box>
+      <Typography variant="subtitle1" gutterBottom>
+        {t("roleManagement.users.assigned")}
+      </Typography>
+      <Autocomplete
+        multiple
+        options={userOptions}
+        getOptionLabel={(option) => option.label}
+        value={selectedUsers}
+        onChange={handleChange}
+        loading={assignLoading || removeLoading}
+        disabled={assignLoading || removeLoading}
+        isOptionEqualToValue={(option, value) => option.id === value.id}
+        filterOptions={(options, { inputValue }) => {
+          const searchLower = inputValue.toLowerCase();
+          return options.filter(
+            (option) =>
+              option.email.toLowerCase().includes(searchLower) ||
+              option.label.toLowerCase().includes(searchLower)
+          );
+        }}
+        renderTags={(value: UserOption[], getTagProps) =>
+          value.map((option, index) => {
+            const { key, ...tagProps } = getTagProps({ index });
+            return (
+              <Chip
+                key={key}
                 variant="outlined"
-                size="small"
-                onClick={() => handleAssignUser(user.id)}
-                disabled={assignLoading || removeLoading}
-                sx={{ textTransform: "none" }}
-              >
-                {getUserDisplayName(user)}
-              </Button>
-            ))}
-          </Box>
+                label={option.label}
+                {...tagProps}
+              />
+            );
+          })
+        }
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            label={t("roleManagement.users.assigned")}
+            placeholder={t("roleManagement.users.searchPlaceholder")}
+            fullWidth
+          />
         )}
-      </Box>
-    </Stack>
+      />
+    </Box>
   );
 };
 

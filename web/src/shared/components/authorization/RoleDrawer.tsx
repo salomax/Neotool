@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useEffect } from "react";
+import React, { useMemo, useEffect, useState } from "react";
 import {
   Box,
   Button,
@@ -39,16 +39,23 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
   const { t } = useTranslation(authorizationManagementTranslations);
   const toast = useToast();
 
+  // State to track pending selections during role creation
+  const [pendingPermissions, setPendingPermissions] = useState<string[]>([]);
+  const [pendingUsers, setPendingUsers] = useState<string[]>([]);
+  const [pendingGroups, setPendingGroups] = useState<string[]>([]);
+
   // Query roles with permissions to get current role's permissions
+  // Skip only if drawer is closed (not when creating, as we need to show sections)
   const { data: permissionsData, loading: permissionsLoading, error: permissionsError, refetch: refetchPermissions } = useGetRolesWithPermissionsQuery({
-    skip: !open || !role,
+    skip: !open || !role, // Still skip when creating, but we'll handle permissions differently
     fetchPolicy: 'network-only',
     notifyOnNetworkStatusChange: true,
   });
 
   // Query users and groups with their roles to find which users/groups have this role
+  // Always fetch when drawer is open (needed for both create and edit modes)
   const { data: usersGroupsData, loading: usersGroupsLoading, error: usersGroupsError, refetch: refetchUsersGroups } = useGetRoleWithUsersAndGroupsQuery({
-    skip: !open || !role,
+    skip: !open, // Always fetch when drawer is open
     fetchPolicy: 'network-only',
     notifyOnNetworkStatusChange: true,
   });
@@ -62,38 +69,72 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
     return permissionsData.roles.nodes.find((r) => r.id === role.id) || null;
   }, [permissionsData?.roles?.nodes, role]);
 
-  // Extract permissions
+  // Extract permissions - use pending state when creating
   const assignedPermissions = useMemo(() => {
-    return (roleWithPermissions?.permissions || []).map((p) => ({
-      id: p.id,
-      name: p.name,
-    }));
-  }, [roleWithPermissions?.permissions]);
+    if (role) {
+      return (roleWithPermissions?.permissions || []).map((p) => ({
+        id: p.id,
+        name: p.name,
+      }));
+    } else {
+      // Create mode: return pending permissions as Permission objects
+      // The component will fetch all permissions and match by ID
+      return pendingPermissions.map((id) => ({
+        id,
+        name: "", // Will be filled by the component when it fetches all permissions
+      }));
+    }
+  }, [roleWithPermissions?.permissions, role, pendingPermissions]);
 
-  // Extract assigned users (users that have this role)
+  // Extract assigned users - use pending state when creating
   const assignedUsers = useMemo(() => {
-    if (!usersGroupsData?.users?.nodes || !role) return [];
-    return usersGroupsData.users.nodes
-      .filter((user) => user.roles.some((r) => r.id === role.id))
-      .map((user) => ({
-        id: user.id,
-        email: user.email,
-        displayName: user.displayName,
-        enabled: user.enabled,
-      }));
-  }, [usersGroupsData?.users?.nodes, role]);
+    if (role) {
+      if (!usersGroupsData?.users?.nodes) return [];
+      return usersGroupsData.users.nodes
+        .filter((user) => user.roles.some((r) => r.id === role.id))
+        .map((user) => ({
+          id: user.id,
+          email: user.email,
+          displayName: user.displayName,
+          enabled: user.enabled,
+        }));
+    } else {
+      // Create mode: fetch user data for pending user IDs
+      if (!usersGroupsData?.users?.nodes) return [];
+      return usersGroupsData.users.nodes
+        .filter((user) => pendingUsers.includes(user.id))
+        .map((user) => ({
+          id: user.id,
+          email: user.email,
+          displayName: user.displayName,
+          enabled: user.enabled,
+        }));
+    }
+  }, [usersGroupsData?.users?.nodes, role, pendingUsers]);
 
-  // Extract assigned groups (groups that have this role)
+  // Extract assigned groups - use pending state when creating
   const assignedGroups = useMemo(() => {
-    if (!usersGroupsData?.groups?.nodes || !role) return [];
-    return usersGroupsData.groups.nodes
-      .filter((group) => group.roles.some((r) => r.id === role.id))
-      .map((group) => ({
-        id: group.id,
-        name: group.name,
-        description: group.description,
-      }));
-  }, [usersGroupsData?.groups?.nodes, role]);
+    if (role) {
+      if (!usersGroupsData?.groups?.nodes) return [];
+      return usersGroupsData.groups.nodes
+        .filter((group) => group.roles.some((r) => r.id === role.id))
+        .map((group) => ({
+          id: group.id,
+          name: group.name,
+          description: group.description,
+        }));
+    } else {
+      // Create mode: fetch group data for pending group IDs
+      if (!usersGroupsData?.groups?.nodes) return [];
+      return usersGroupsData.groups.nodes
+        .filter((group) => pendingGroups.includes(group.id))
+        .map((group) => ({
+          id: group.id,
+          name: group.name,
+          description: group.description,
+        }));
+    }
+  }, [usersGroupsData?.groups?.nodes, role, pendingGroups]);
 
   const {
     createRole,
@@ -128,10 +169,18 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
       methods.reset({
         name: role.name,
       });
+      // Clear pending state when editing existing role
+      setPendingPermissions([]);
+      setPendingUsers([]);
+      setPendingGroups([]);
     } else {
       methods.reset({
         name: "",
       });
+      // Clear pending state when opening create drawer
+      setPendingPermissions([]);
+      setPendingUsers([]);
+      setPendingGroups([]);
     }
   }, [role, methods]);
 
@@ -149,10 +198,42 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
         await updateRole(role.id, data);
         toast.success(t("roleManagement.toast.roleUpdated", { name: data.name }));
       } else {
-        await createRole(data);
+        // Create role first
+        const newRole = await createRole(data);
+        
+        // Assign all pending selections
+        try {
+          // Assign permissions
+          for (const permissionId of pendingPermissions) {
+            await assignPermissionToRole(newRole.id, permissionId);
+          }
+          
+          // Assign users
+          for (const userId of pendingUsers) {
+            await assignRoleToUser(userId, newRole.id);
+          }
+          
+          // Assign groups
+          for (const groupId of pendingGroups) {
+            await assignRoleToGroup(groupId, newRole.id);
+          }
+        } catch (assignErr) {
+          console.error("Error assigning selections to new role:", assignErr);
+          // Role was created but assignments failed - show warning
+          toast.warning(
+            t("roleManagement.toast.roleCreated", { name: data.name }) +
+            " " +
+            "Some assignments may have failed. Please check and update the role."
+          );
+        }
+        
         toast.success(t("roleManagement.toast.roleCreated", { name: data.name }));
       }
       refetchRoles();
+      // Clear pending state
+      setPendingPermissions([]);
+      setPendingUsers([]);
+      setPendingGroups([]);
       onClose();
     } catch (err) {
       console.error("Error submitting role form:", err);
@@ -167,24 +248,39 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
   };
 
   const handleAssignPermission = async (permissionId: string) => {
-    if (!role) return;
-    try {
-      await assignPermissionToRole(role.id, permissionId);
-      refetchPermissions(); // Refetch to get updated permissions
-      refetchRoles(); // Refetch roles list
-    } catch (err) {
-      throw err; // Let RolePermissionAssignment handle the error
+    if (role) {
+      // Edit mode: assign immediately
+      try {
+        await assignPermissionToRole(role.id, permissionId);
+        refetchPermissions(); // Refetch to get updated permissions
+        refetchRoles(); // Refetch roles list
+      } catch (err) {
+        throw err; // Let RolePermissionAssignment handle the error
+      }
+    } else {
+      // Create mode: add to pending state
+      setPendingPermissions((prev) => {
+        if (!prev.includes(permissionId)) {
+          return [...prev, permissionId];
+        }
+        return prev;
+      });
     }
   };
 
   const handleRemovePermission = async (permissionId: string) => {
-    if (!role) return;
-    try {
-      await removePermissionFromRole(role.id, permissionId);
-      refetchPermissions(); // Refetch to get updated permissions
-      refetchRoles(); // Refetch roles list
-    } catch (err) {
-      throw err; // Let RolePermissionAssignment handle the error
+    if (role) {
+      // Edit mode: remove immediately
+      try {
+        await removePermissionFromRole(role.id, permissionId);
+        refetchPermissions(); // Refetch to get updated permissions
+        refetchRoles(); // Refetch roles list
+      } catch (err) {
+        throw err; // Let RolePermissionAssignment handle the error
+      }
+    } else {
+      // Create mode: remove from pending state
+      setPendingPermissions((prev) => prev.filter((id) => id !== permissionId));
     }
   };
 
@@ -194,24 +290,39 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
   };
 
   const handleAssignUser = async (userId: string) => {
-    if (!role) return;
-    try {
-      await assignRoleToUser(userId, role.id);
-      refetchUsersGroups(); // Refetch to get updated users/groups
-      refetchRoles(); // Refetch roles list
-    } catch (err) {
-      throw err; // Let RoleUserAssignment handle the error
+    if (role) {
+      // Edit mode: assign immediately
+      try {
+        await assignRoleToUser(userId, role.id);
+        refetchUsersGroups(); // Refetch to get updated users/groups
+        refetchRoles(); // Refetch roles list
+      } catch (err) {
+        throw err; // Let RoleUserAssignment handle the error
+      }
+    } else {
+      // Create mode: add to pending state
+      setPendingUsers((prev) => {
+        if (!prev.includes(userId)) {
+          return [...prev, userId];
+        }
+        return prev;
+      });
     }
   };
 
   const handleRemoveUser = async (userId: string) => {
-    if (!role) return;
-    try {
-      await removeRoleFromUser(userId, role.id);
-      refetchUsersGroups(); // Refetch to get updated users/groups
-      refetchRoles(); // Refetch roles list
-    } catch (err) {
-      throw err; // Let RoleUserAssignment handle the error
+    if (role) {
+      // Edit mode: remove immediately
+      try {
+        await removeRoleFromUser(userId, role.id);
+        refetchUsersGroups(); // Refetch to get updated users/groups
+        refetchRoles(); // Refetch roles list
+      } catch (err) {
+        throw err; // Let RoleUserAssignment handle the error
+      }
+    } else {
+      // Create mode: remove from pending state
+      setPendingUsers((prev) => prev.filter((id) => id !== userId));
     }
   };
 
@@ -221,24 +332,39 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
   };
 
   const handleAssignGroup = async (groupId: string) => {
-    if (!role) return;
-    try {
-      await assignRoleToGroup(groupId, role.id);
-      refetchUsersGroups(); // Refetch to get updated users/groups
-      refetchRoles(); // Refetch roles list
-    } catch (err) {
-      throw err; // Let RoleGroupAssignment handle the error
+    if (role) {
+      // Edit mode: assign immediately
+      try {
+        await assignRoleToGroup(groupId, role.id);
+        refetchUsersGroups(); // Refetch to get updated users/groups
+        refetchRoles(); // Refetch roles list
+      } catch (err) {
+        throw err; // Let RoleGroupAssignment handle the error
+      }
+    } else {
+      // Create mode: add to pending state
+      setPendingGroups((prev) => {
+        if (!prev.includes(groupId)) {
+          return [...prev, groupId];
+        }
+        return prev;
+      });
     }
   };
 
   const handleRemoveGroup = async (groupId: string) => {
-    if (!role) return;
-    try {
-      await removeRoleFromGroup(groupId, role.id);
-      refetchUsersGroups(); // Refetch to get updated users/groups
-      refetchRoles(); // Refetch roles list
-    } catch (err) {
-      throw err; // Let RoleGroupAssignment handle the error
+    if (role) {
+      // Edit mode: remove immediately
+      try {
+        await removeRoleFromGroup(groupId, role.id);
+        refetchUsersGroups(); // Refetch to get updated users/groups
+        refetchRoles(); // Refetch roles list
+      } catch (err) {
+        throw err; // Let RoleGroupAssignment handle the error
+      }
+    } else {
+      // Create mode: remove from pending state
+      setPendingGroups((prev) => prev.filter((id) => id !== groupId));
     }
   };
 
@@ -312,39 +438,36 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
                   }
                 />
 
-                {role && (
-                  <>
-                    <RolePermissionAssignment
-                      roleId={role.id}
-                      assignedPermissions={assignedPermissions}
-                      onAssignPermission={handleAssignPermission}
-                      onRemovePermission={handleRemovePermission}
-                      assignLoading={assignPermissionLoading}
-                      removeLoading={removePermissionLoading}
-                      onPermissionsChange={handlePermissionsChange}
-                    />
+                {/* Show permissions, users, and groups sections for both create and edit */}
+                <RolePermissionAssignment
+                  roleId={role?.id || null}
+                  assignedPermissions={assignedPermissions}
+                  onAssignPermission={handleAssignPermission}
+                  onRemovePermission={handleRemovePermission}
+                  assignLoading={assignPermissionLoading}
+                  removeLoading={removePermissionLoading}
+                  onPermissionsChange={handlePermissionsChange}
+                />
 
-                    <RoleUserAssignment
-                      roleId={role.id}
-                      assignedUsers={assignedUsers}
-                      onAssignUser={handleAssignUser}
-                      onRemoveUser={handleRemoveUser}
-                      assignLoading={assignRoleToUserLoading}
-                      removeLoading={removeRoleFromUserLoading}
-                      onUsersChange={handleUsersChange}
-                    />
+                <RoleUserAssignment
+                  roleId={role?.id || null}
+                  assignedUsers={assignedUsers}
+                  onAssignUser={handleAssignUser}
+                  onRemoveUser={handleRemoveUser}
+                  assignLoading={assignRoleToUserLoading}
+                  removeLoading={removeRoleFromUserLoading}
+                  onUsersChange={handleUsersChange}
+                />
 
-                    <RoleGroupAssignment
-                      roleId={role.id}
-                      assignedGroups={assignedGroups}
-                      onAssignGroup={handleAssignGroup}
-                      onRemoveGroup={handleRemoveGroup}
-                      assignLoading={assignRoleToGroupLoading}
-                      removeLoading={removeRoleFromGroupLoading}
-                      onGroupsChange={handleGroupsChange}
-                    />
-                  </>
-                )}
+                <RoleGroupAssignment
+                  roleId={role?.id || null}
+                  assignedGroups={assignedGroups}
+                  onAssignGroup={handleAssignGroup}
+                  onRemoveGroup={handleRemoveGroup}
+                  assignLoading={assignRoleToGroupLoading}
+                  removeLoading={removeRoleFromGroupLoading}
+                  onGroupsChange={handleGroupsChange}
+                />
               </Stack>
             </Box>
           </FormProvider>

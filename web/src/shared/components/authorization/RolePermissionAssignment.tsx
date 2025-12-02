@@ -4,14 +4,14 @@ import React, { useState, useMemo, useCallback } from "react";
 import {
   Box,
   Typography,
-  Divider,
   CircularProgress,
   Alert,
-  Button,
+  Checkbox,
+  FormControlLabel,
   Stack,
+  TextField,
 } from "@mui/material";
 import { usePermissionManagement, type Permission } from "@/shared/hooks/authorization/usePermissionManagement";
-import { PermissionList } from "./PermissionList";
 import { PermissionSearch } from "./PermissionSearch";
 import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(neotool)/settings/i18n";
@@ -30,7 +30,7 @@ export interface RolePermissionAssignmentProps {
 
 /**
  * RolePermissionAssignment component for managing role permissions
- * Shows assigned permissions with remove action and available permissions with assign action
+ * Shows all permissions as a checkbox list where users can select/unselect
  */
 export const RolePermissionAssignment: React.FC<RolePermissionAssignmentProps> = ({
   roleId,
@@ -56,61 +56,68 @@ export const RolePermissionAssignment: React.FC<RolePermissionAssignmentProps> =
     initialFirst: 1000, // Fetch all permissions for selection
   });
 
-  // Filter available permissions (not already assigned and matching search)
-  const availablePermissions = useMemo(() => {
+  // Create a set of assigned permission IDs for quick lookup
+  const assignedPermissionIds = useMemo(() => {
+    return new Set(assignedPermissions.map((p) => p.id));
+  }, [assignedPermissions]);
+
+  // Filter permissions based on search query
+  const filteredPermissions = useMemo(() => {
     if (!allPermissions) return [];
-    const assignedIds = new Set(assignedPermissions.map((p) => p.id));
-    return allPermissions.filter(
-      (permission) =>
-        !assignedIds.has(permission.id) &&
-        permission.name.toLowerCase().includes(searchQuery.toLowerCase())
+    const searchLower = searchQuery.toLowerCase();
+    return allPermissions.filter((permission) =>
+      permission.name.toLowerCase().includes(searchLower)
     );
-  }, [allPermissions, assignedPermissions, searchQuery]);
+  }, [allPermissions, searchQuery]);
 
-  const handleAssignPermission = useCallback(
-    async (permissionId: string) => {
-      if (!roleId) return;
+  const handlePermissionToggle = useCallback(
+    async (permissionId: string, isChecked: boolean) => {
       try {
-        await onAssignPermission(permissionId);
-        toast.success(
-          t("roleManagement.permissions.permissionAssigned", {
-            permission: allPermissions.find((p) => p.id === permissionId)?.name || "",
-          })
-        );
+        if (isChecked) {
+          await onAssignPermission(permissionId);
+          // Only show toast in edit mode (when roleId exists)
+          if (roleId) {
+            const permission = allPermissions?.find((p) => p.id === permissionId);
+            toast.success(
+              t("roleManagement.permissions.permissionAssigned", {
+                permission: permission?.name || "",
+              })
+            );
+          }
+        } else {
+          await onRemovePermission(permissionId);
+          // Only show toast in edit mode (when roleId exists)
+          if (roleId) {
+            const permission = assignedPermissions.find((p) => p.id === permissionId);
+            toast.success(
+              t("roleManagement.permissions.permissionRemoved", {
+                permission: permission?.name || "",
+              })
+            );
+          }
+        }
         onPermissionsChange?.();
       } catch (err) {
-        console.error("Error assigning permission:", err);
+        console.error("Error toggling permission:", err);
         const errorMessage = extractErrorMessage(
           err,
-          t("roleManagement.permissions.assignError")
+          isChecked
+            ? t("roleManagement.permissions.assignError")
+            : t("roleManagement.permissions.removeError")
         );
         toast.error(errorMessage);
       }
     },
-    [roleId, onAssignPermission, toast, t, allPermissions, onPermissionsChange]
-  );
-
-  const handleRemovePermission = useCallback(
-    async (permissionId: string) => {
-      if (!roleId) return;
-      try {
-        await onRemovePermission(permissionId);
-        toast.success(
-          t("roleManagement.permissions.permissionRemoved", {
-            permission: assignedPermissions.find((p) => p.id === permissionId)?.name || "",
-          })
-        );
-        onPermissionsChange?.();
-      } catch (err) {
-        console.error("Error removing permission:", err);
-        const errorMessage = extractErrorMessage(
-          err,
-          t("roleManagement.permissions.removeError")
-        );
-        toast.error(errorMessage);
-      }
-    },
-    [roleId, onRemovePermission, toast, t, assignedPermissions, onPermissionsChange]
+    [
+      roleId,
+      onAssignPermission,
+      onRemovePermission,
+      toast,
+      t,
+      allPermissions,
+      assignedPermissions,
+      onPermissionsChange,
+    ]
   );
 
   const handleSearchChange = useCallback(
@@ -137,57 +144,60 @@ export const RolePermissionAssignment: React.FC<RolePermissionAssignmentProps> =
     );
   }
 
-  return (
-    <Stack spacing={3}>
-      {/* Assigned Permissions */}
-      <Box>
-        <Typography variant="h6" gutterBottom>
-          {t("roleManagement.permissions.assigned")}
-        </Typography>
-        <Divider sx={{ mb: 2 }} />
-        <PermissionList
-          permissions={assignedPermissions}
-          onRemove={handleRemovePermission}
-          loading={removeLoading}
-          showRemoveButton={true}
-        />
-      </Box>
+  const totalPermissions = allPermissions?.length || 0;
+  const assignedCount = assignedPermissions.length;
 
-      {/* Available Permissions */}
-      <Box>
-        <Typography variant="h6" gutterBottom>
-          {t("roleManagement.permissions.available")}
-        </Typography>
-        <Divider sx={{ mb: 2 }} />
-        <PermissionSearch
-          value={searchQuery}
-          onChange={handleSearchChange}
-          placeholder={t("roleManagement.permissions.searchPlaceholder")}
-        />
-        {availablePermissions.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
+  return (
+    <Box>
+      <Typography variant="subtitle1" gutterBottom>
+        {t("roleManagement.permissions.assigned")} ({assignedCount})
+      </Typography>
+      <PermissionSearch
+        value={searchQuery}
+        onChange={handleSearchChange}
+        placeholder={t("roleManagement.permissions.searchPlaceholder")}
+      />
+      <Box
+        sx={{
+          maxHeight: 400,
+          overflowY: "auto",
+          border: "1px solid",
+          borderColor: "divider",
+          borderRadius: 1,
+          p: 1,
+          mt: 2,
+        }}
+      >
+        {filteredPermissions.length === 0 ? (
+          <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
             {searchQuery
               ? t("roleManagement.permissions.noAvailableMatching")
-              : t("roleManagement.permissions.allAssigned")}
+              : t("roleManagement.permissions.noPermissions")}
           </Typography>
         ) : (
-          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 2 }}>
-            {availablePermissions.map((permission) => (
-              <Button
-                key={permission.id}
-                variant="outlined"
-                size="small"
-                onClick={() => handleAssignPermission(permission.id)}
-                disabled={assignLoading || removeLoading}
-                sx={{ textTransform: "none" }}
-              >
-                {permission.name}
-              </Button>
-            ))}
-          </Box>
+          <Stack spacing={0.5}>
+            {filteredPermissions.map((permission) => {
+              const isAssigned = assignedPermissionIds.has(permission.id);
+              return (
+                <FormControlLabel
+                  key={permission.id}
+                  control={
+                    <Checkbox
+                      checked={isAssigned}
+                      onChange={(e) =>
+                        handlePermissionToggle(permission.id, e.target.checked)
+                      }
+                      disabled={assignLoading || removeLoading || !roleId}
+                    />
+                  }
+                  label={permission.name}
+                />
+              );
+            })}
+          </Stack>
         )}
       </Box>
-    </Stack>
+    </Box>
   );
 };
 

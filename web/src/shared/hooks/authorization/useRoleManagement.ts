@@ -67,7 +67,7 @@ export type UseRoleManagementReturn = {
   setDeleteConfirm: (role: Role | null) => void;
   
   // CRUD operations
-  createRole: (data: RoleFormData) => Promise<void>;
+  createRole: (data: RoleFormData) => Promise<Role>;
   updateRole: (roleId: string, data: RoleFormData) => Promise<void>;
   deleteRole: (roleId: string) => Promise<void>;
   
@@ -215,7 +215,7 @@ export function useRoleManagement(options: UseRoleManagementOptions = {}): UseRo
   }, []);
 
   // CRUD operations
-  const createRole = useCallback(async (data: RoleFormData) => {
+  const createRole = useCallback(async (data: RoleFormData): Promise<Role> => {
     try {
       const input: CreateRoleInput = {
         name: data.name.trim(),
@@ -226,10 +226,16 @@ export function useRoleManagement(options: UseRoleManagementOptions = {}): UseRo
       });
 
       // Only refetch if mutation was successful
-      if (result.data) {
+      if (result.data?.createRole) {
+        const createdRole: Role = {
+          id: result.data.createRole.id,
+          name: result.data.createRole.name,
+        };
         refetch();
         closeDialog();
+        return createdRole;
       }
+      throw new Error('Failed to create role: no data returned');
     } catch (err) {
       console.error('Error creating role:', err);
       const errorMessage = extractErrorMessage(err, 'Failed to create role');
