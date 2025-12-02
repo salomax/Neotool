@@ -93,10 +93,12 @@ export const GroupManagement: React.FC<GroupManagementProps> = ({
   // Update form when editingGroup changes
   React.useEffect(() => {
     if (editingGroup) {
+      // Extract user IDs from members if available
+      const userIds = editingGroup.members?.map((member) => member.id) || [];
       methods.reset({
         name: editingGroup.name,
         description: editingGroup.description || "",
-        userIds: [], // Will be loaded from group.members if needed
+        userIds,
       });
     } else {
       methods.reset({
@@ -278,7 +280,7 @@ export const GroupManagement: React.FC<GroupManagementProps> = ({
           >
             <Stack spacing={3}>
               <GroupForm initialValues={editingGroup ? { name: editingGroup.name, description: editingGroup.description } : undefined} />
-              <GroupUserAssignment initialUserIds={editingGroup ? [] : undefined} />
+              <GroupUserAssignment initialUserIds={editingGroup?.members?.map((m) => m.id) || undefined} />
               
               <Stack direction="row" spacing={2} justifyContent="flex-end" sx={{ mt: 3 }}>
                 <Button

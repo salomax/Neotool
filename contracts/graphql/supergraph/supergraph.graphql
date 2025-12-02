@@ -20,6 +20,13 @@ directive @join__unionMember(graph: join__Graph!, member: String!) repeatable on
 
 directive @link(url: String, as: String, for: link__Purpose, import: [link__Import]) repeatable on SCHEMA
 
+type AuthorizationResult
+  @join__type(graph: SECURITY)
+{
+  allowed: Boolean!
+  reason: String!
+}
+
 input BaseEntityInput
   @join__type(graph: APP)
 {
@@ -31,6 +38,7 @@ input CreateGroupInput
 {
   name: String!
   description: String
+  userIds: [ID!]
 }
 
 input CreateRoleInput
@@ -138,6 +146,10 @@ type Mutation
   deleteRole(roleId: ID!): Boolean! @join__field(graph: SECURITY)
   assignPermissionToRole(roleId: ID!, permissionId: ID!): Role! @join__field(graph: SECURITY)
   removePermissionFromRole(roleId: ID!, permissionId: ID!): Role! @join__field(graph: SECURITY)
+  assignRoleToUser(userId: ID!, roleId: ID!): User! @join__field(graph: SECURITY)
+  removeRoleFromUser(userId: ID!, roleId: ID!): User! @join__field(graph: SECURITY)
+  assignRoleToGroup(groupId: ID!, roleId: ID!): Group! @join__field(graph: SECURITY)
+  removeRoleFromGroup(groupId: ID!, roleId: ID!): Group! @join__field(graph: SECURITY)
 }
 
 type PageInfo
@@ -203,6 +215,9 @@ type Query
   customers: [Customer!]! @join__field(graph: APP)
   customer(id: ID!): Customer @join__field(graph: APP)
   currentUser: User @join__field(graph: SECURITY)
+  checkPermission(userId: ID!, permission: String!, resourceId: ID): AuthorizationResult! @join__field(graph: SECURITY)
+  getUserPermissions(userId: ID!): [Permission!]! @join__field(graph: SECURITY)
+  getUserRoles(userId: ID!): [Role!]! @join__field(graph: SECURITY)
   users(first: Int, after: String, query: String): UserConnection! @join__field(graph: SECURITY)
   groups(first: Int, after: String, query: String): GroupConnection! @join__field(graph: SECURITY)
   roles(first: Int, after: String, query: String): RoleConnection! @join__field(graph: SECURITY)
@@ -305,6 +320,7 @@ input UpdateGroupInput
 {
   name: String!
   description: String
+  userIds: [ID!]
 }
 
 input UpdateRoleInput

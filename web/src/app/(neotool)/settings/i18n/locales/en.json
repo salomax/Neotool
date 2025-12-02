@@ -17,6 +17,21 @@
     "editUser": "Edit User",
     "createUser": "Create User",
     "drawerPlaceholder": "User editing form will be implemented here",
+    "drawer": {
+      "viewUser": "User Details",
+      "userInfo": "User Information",
+      "email": "Email",
+      "displayName": "Display Name",
+      "status": "Status",
+      "groups": "Groups",
+      "roles": "Roles",
+      "permissions": "Permissions",
+      "noGroups": "This user is not a member of any groups",
+      "noRoles": "This user has no roles assigned",
+      "noPermissions": "This user has no permissions assigned",
+      "errorLoading": "Failed to load user details",
+      "userNotFound": "User not found"
+    },
     "status": {
       "enabled": "Enabled",
       "disabled": "Disabled",
@@ -94,10 +109,78 @@
     "emptySearchResults": "No roles match your search criteria",
     "editRole": "Edit Role",
     "createRole": "Create Role",
+    "newButton": "New",
     "drawerPlaceholder": "Role editing form will be implemented here",
+    "drawer": {
+      "errorLoading": "Failed to load role details"
+    },
     "table": {
       "name": "Name",
       "actions": "Actions"
+    },
+    "form": {
+      "name": "Name",
+      "cancel": "Cancel",
+      "save": "Save",
+      "create": "Create",
+      "saving": "Saving...",
+      "validation": {
+        "nameRequired": "Name is required",
+        "nameMinLength": "Name must be at least 1 character"
+      }
+    },
+    "permissions": {
+      "assigned": "Assigned Permissions",
+      "available": "Available Permissions",
+      "assignedCount": "{{count}} permission(s) assigned",
+      "noPermissions": "No permissions assigned to this role",
+      "allAssigned": "All available permissions are already assigned",
+      "noAvailableMatching": "No available permissions match your search",
+      "searchPlaceholder": "Search permissions by name...",
+      "permissionAssigned": "Permission '{{permission}}' assigned successfully",
+      "permissionRemoved": "Permission '{{permission}}' removed successfully",
+      "removePermission": "Remove permission {{name}}",
+      "assignError": "Failed to assign permission",
+      "removeError": "Failed to remove permission",
+      "loadError": "Failed to load permissions"
+    },
+    "users": {
+      "assigned": "Assigned Users",
+      "available": "Available Users",
+      "assignedCount": "{{count}} user(s) assigned",
+      "noUsers": "No users assigned to this role",
+      "allAssigned": "All available users are already assigned",
+      "noAvailableMatching": "No available users match your search",
+      "searchPlaceholder": "Search users by name or email...",
+      "userAssigned": "User '{{user}}' assigned successfully",
+      "userRemoved": "User '{{user}}' removed successfully",
+      "removeUser": "Remove user {{name}}",
+      "assignError": "Failed to assign user",
+      "removeError": "Failed to remove user",
+      "loadError": "Failed to load users"
+    },
+    "groups": {
+      "assigned": "Assigned Groups",
+      "available": "Available Groups",
+      "assignedCount": "{{count}} group(s) assigned",
+      "noGroups": "No groups assigned to this role",
+      "allAssigned": "All available groups are already assigned",
+      "noAvailableMatching": "No available groups match your search",
+      "searchPlaceholder": "Search groups by name...",
+      "groupAssigned": "Group '{{group}}' assigned successfully",
+      "groupRemoved": "Group '{{group}}' removed successfully",
+      "removeGroup": "Remove group {{name}}",
+      "assignError": "Failed to assign group",
+      "removeError": "Failed to remove group",
+      "loadError": "Failed to load groups"
+    },
+    "toast": {
+      "roleCreated": "Role '{{name}}' created successfully",
+      "roleUpdated": "Role '{{name}}' updated successfully",
+      "roleDeleted": "Role '{{name}}' deleted successfully",
+      "roleCreateError": "Failed to create role",
+      "roleUpdateError": "Failed to update role",
+      "roleDeleteError": "Failed to delete role"
     }
   },
   "errors": {

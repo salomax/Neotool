@@ -25,6 +25,22 @@ object UserManagement {
     )
 
     /**
+     * Command to assign a role to a user.
+     */
+    data class AssignRoleToUserCommand(
+        val userId: UUID,
+        val roleId: Int,
+    )
+
+    /**
+     * Command to remove a role from a user.
+     */
+    data class RemoveRoleFromUserCommand(
+        val userId: UUID,
+        val roleId: Int,
+    )
+
+    /**
      * Search criteria for finding users.
      * Used as query parameters for repository search methods.
      * Actual filtering is done at the database level via SQL queries.

@@ -6,6 +6,8 @@ import io.github.salomax.neotool.security.domain.GroupManagement
 import io.github.salomax.neotool.security.model.rbac.GroupMembershipEntity
 import io.github.salomax.neotool.security.repo.GroupMembershipRepository
 import io.github.salomax.neotool.security.repo.GroupRepository
+import io.github.salomax.neotool.security.repo.GroupRoleAssignmentRepository
+import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.GroupManagementService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
@@ -28,6 +30,8 @@ import java.util.UUID
 class GroupManagementServiceTest {
     private lateinit var groupRepository: GroupRepository
     private lateinit var groupMembershipRepository: GroupMembershipRepository
+    private lateinit var groupRoleAssignmentRepository: GroupRoleAssignmentRepository
+    private lateinit var roleRepository: RoleRepository
     private lateinit var userRepository: UserRepository
     private lateinit var groupManagementService: GroupManagementService
 
@@ -35,11 +39,15 @@ class GroupManagementServiceTest {
     fun setUp() {
         groupRepository = mock()
         groupMembershipRepository = mock()
+        groupRoleAssignmentRepository = mock()
+        roleRepository = mock()
         userRepository = mock()
         groupManagementService =
             GroupManagementService(
                 groupRepository,
                 groupMembershipRepository,
+                groupRoleAssignmentRepository,
+                roleRepository,
                 userRepository,
             )
     }

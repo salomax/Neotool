@@ -7,7 +7,7 @@ export type ProductFieldsFragment = { __typename: 'Product', id: string, name: s
 
 export type UserFieldsFragment = { __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean };
 
-export type GroupFieldsFragment = { __typename: 'Group', id: string, name: string, description: string | null };
+export type GroupFieldsFragment = { __typename: 'Group', id: string, name: string, description: string | null, members: Array<{ __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean }> };
 
 export type RoleFieldsFragment = { __typename: 'Role', id: string, name: string };
 
@@ -47,6 +47,12 @@ export const GroupFieldsFragmentDoc = gql`
   id
   name
   description
+  members {
+    id
+    email
+    displayName
+    enabled
+  }
 }
     `;
 export const RoleFieldsFragmentDoc = gql`

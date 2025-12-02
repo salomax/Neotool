@@ -16,6 +16,12 @@ export type Scalars = {
   link__Import: { input: unknown; output: unknown; }
 };
 
+export type AuthorizationResult = {
+  __typename: 'AuthorizationResult';
+  allowed: Scalars['Boolean']['output'];
+  reason: Scalars['String']['output'];
+};
+
 export type BaseEntityInput = {
   name: Scalars['String']['input'];
 };
@@ -23,6 +29,7 @@ export type BaseEntityInput = {
 export type CreateGroupInput = {
   description?: InputMaybe<Scalars['String']['input']>;
   name: Scalars['String']['input'];
+  userIds?: InputMaybe<Array<Scalars['ID']['input']>>;
 };
 
 export type CreateRoleInput = {
@@ -77,6 +84,8 @@ export type GroupEdge = {
 export type Mutation = {
   __typename: 'Mutation';
   assignPermissionToRole: Role;
+  assignRoleToGroup: Group;
+  assignRoleToUser: User;
   createCustomer: Customer;
   createGroup: Group;
   createProduct: Product;
@@ -88,6 +97,8 @@ export type Mutation = {
   disableUser: User;
   enableUser: User;
   removePermissionFromRole: Role;
+  removeRoleFromGroup: Group;
+  removeRoleFromUser: User;
   requestPasswordReset: RequestPasswordResetPayload;
   resetPassword: ResetPasswordPayload;
   signIn: SignInPayload;
@@ -103,6 +114,18 @@ export type Mutation = {
 export type MutationAssignPermissionToRoleArgs = {
   permissionId: Scalars['ID']['input'];
   roleId: Scalars['ID']['input'];
+};
+
+
+export type MutationAssignRoleToGroupArgs = {
+  groupId: Scalars['ID']['input'];
+  roleId: Scalars['ID']['input'];
+};
+
+
+export type MutationAssignRoleToUserArgs = {
+  roleId: Scalars['ID']['input'];
+  userId: Scalars['ID']['input'];
 };
 
 
@@ -159,6 +182,18 @@ export type MutationEnableUserArgs = {
 export type MutationRemovePermissionFromRoleArgs = {
   permissionId: Scalars['ID']['input'];
   roleId: Scalars['ID']['input'];
+};
+
+
+export type MutationRemoveRoleFromGroupArgs = {
+  groupId: Scalars['ID']['input'];
+  roleId: Scalars['ID']['input'];
+};
+
+
+export type MutationRemoveRoleFromUserArgs = {
+  roleId: Scalars['ID']['input'];
+  userId: Scalars['ID']['input'];
 };
 
 
@@ -259,9 +294,12 @@ export type ProductInput = {
 
 export type Query = {
   __typename: 'Query';
+  checkPermission: AuthorizationResult;
   currentUser: Maybe<User>;
   customer: Maybe<Customer>;
   customers: Array<Customer>;
+  getUserPermissions: Array<Permission>;
+  getUserRoles: Array<Role>;
   groups: GroupConnection;
   permissions: PermissionConnection;
   product: Maybe<Product>;
@@ -271,8 +309,25 @@ export type Query = {
 };
 
 
+export type QueryCheckPermissionArgs = {
+  permission: Scalars['String']['input'];
+  resourceId?: InputMaybe<Scalars['ID']['input']>;
+  userId: Scalars['ID']['input'];
+};
+
+
 export type QueryCustomerArgs = {
   id: Scalars['ID']['input'];
+};
+
+
+export type QueryGetUserPermissionsArgs = {
+  userId: Scalars['ID']['input'];
+};
+
+
+export type QueryGetUserRolesArgs = {
+  userId: Scalars['ID']['input'];
 };
 
 
@@ -385,6 +440,7 @@ export type SignUpPayload = {
 export type UpdateGroupInput = {
   description?: InputMaybe<Scalars['String']['input']>;
   name: Scalars['String']['input'];
+  userIds?: InputMaybe<Array<Scalars['ID']['input']>>;
 };
 
 export type UpdateRoleInput = {

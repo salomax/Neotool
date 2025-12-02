@@ -21,7 +21,7 @@ export type GetGroupsQueryVariables = Types.Exact<{
 }>;
 
 
-export type GetGroupsQuery = { groups: { __typename: 'GroupConnection', edges: Array<{ __typename: 'GroupEdge', cursor: string, node: { __typename: 'Group', id: string, name: string, description: string | null } }>, nodes: Array<{ __typename: 'Group', id: string, name: string, description: string | null }>, pageInfo: { __typename: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null } } };
+export type GetGroupsQuery = { groups: { __typename: 'GroupConnection', edges: Array<{ __typename: 'GroupEdge', cursor: string, node: { __typename: 'Group', id: string, name: string, description: string | null, members: Array<{ __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean }> } }>, nodes: Array<{ __typename: 'Group', id: string, name: string, description: string | null, members: Array<{ __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean }> }>, pageInfo: { __typename: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null } } };
 
 export type GetRolesQueryVariables = Types.Exact<{
   first?: Types.InputMaybe<Types.Scalars['Int']['input']>;
@@ -40,6 +40,21 @@ export type GetPermissionsQueryVariables = Types.Exact<{
 
 
 export type GetPermissionsQuery = { permissions: { __typename: 'PermissionConnection', edges: Array<{ __typename: 'PermissionEdge', cursor: string, node: { __typename: 'Permission', id: string, name: string } }>, nodes: Array<{ __typename: 'Permission', id: string, name: string }>, pageInfo: { __typename: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null } } };
+
+export type GetUserWithRelationshipsQueryVariables = Types.Exact<{ [key: string]: never; }>;
+
+
+export type GetUserWithRelationshipsQuery = { users: { __typename: 'UserConnection', nodes: Array<{ __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean, groups: Array<{ __typename: 'Group', id: string, name: string, description: string | null, members: Array<{ __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean }> }>, roles: Array<{ __typename: 'Role', id: string, name: string }>, permissions: Array<{ __typename: 'Permission', id: string, name: string }> }> } };
+
+export type GetRolesWithPermissionsQueryVariables = Types.Exact<{ [key: string]: never; }>;
+
+
+export type GetRolesWithPermissionsQuery = { roles: { __typename: 'RoleConnection', nodes: Array<{ __typename: 'Role', id: string, name: string, permissions: Array<{ __typename: 'Permission', id: string, name: string }> }> } };
+
+export type GetRoleWithUsersAndGroupsQueryVariables = Types.Exact<{ [key: string]: never; }>;
+
+
+export type GetRoleWithUsersAndGroupsQuery = { users: { __typename: 'UserConnection', nodes: Array<{ __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean, roles: Array<{ __typename: 'Role', id: string, name: string }> }> }, groups: { __typename: 'GroupConnection', nodes: Array<{ __typename: 'Group', id: string, name: string, description: string | null, roles: Array<{ __typename: 'Role', id: string, name: string }>, members: Array<{ __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean }> }> } };
 
 
 export const GetUsersDocument = gql`
@@ -266,3 +281,155 @@ export type GetPermissionsQueryHookResult = ReturnType<typeof useGetPermissionsQ
 export type GetPermissionsLazyQueryHookResult = ReturnType<typeof useGetPermissionsLazyQuery>;
 export type GetPermissionsSuspenseQueryHookResult = ReturnType<typeof useGetPermissionsSuspenseQuery>;
 export type GetPermissionsQueryResult = ApolloReactCommon.QueryResult<GetPermissionsQuery, GetPermissionsQueryVariables>;
+export const GetUserWithRelationshipsDocument = gql`
+    query GetUserWithRelationships {
+  users(first: 1000) {
+    nodes {
+      ...UserFields
+      groups {
+        ...GroupFields
+      }
+      roles {
+        ...RoleFields
+      }
+      permissions {
+        ...PermissionFields
+      }
+    }
+  }
+}
+    ${UserFieldsFragmentDoc}
+${GroupFieldsFragmentDoc}
+${RoleFieldsFragmentDoc}
+${PermissionFieldsFragmentDoc}`;
+
+/**
+ * __useGetUserWithRelationshipsQuery__
+ *
+ * To run a query within a React component, call `useGetUserWithRelationshipsQuery` and pass it any options that fit your needs.
+ * When your component renders, `useGetUserWithRelationshipsQuery` returns an object from Apollo Client that contains loading, error, and data properties
+ * you can use to render your UI.
+ *
+ * @param baseOptions options that will be passed into the query, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options;
+ *
+ * @example
+ * const { data, loading, error } = useGetUserWithRelationshipsQuery({
+ *   variables: {
+ *   },
+ * });
+ */
+export function useGetUserWithRelationshipsQuery(baseOptions?: ApolloReactHooks.QueryHookOptions<GetUserWithRelationshipsQuery, GetUserWithRelationshipsQueryVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return ApolloReactHooks.useQuery<GetUserWithRelationshipsQuery, GetUserWithRelationshipsQueryVariables>(GetUserWithRelationshipsDocument, options);
+      }
+export function useGetUserWithRelationshipsLazyQuery(baseOptions?: ApolloReactHooks.LazyQueryHookOptions<GetUserWithRelationshipsQuery, GetUserWithRelationshipsQueryVariables>) {
+          const options = {...defaultOptions, ...baseOptions}
+          return ApolloReactHooks.useLazyQuery<GetUserWithRelationshipsQuery, GetUserWithRelationshipsQueryVariables>(GetUserWithRelationshipsDocument, options);
+        }
+export function useGetUserWithRelationshipsSuspenseQuery(baseOptions: ApolloReactHooks.SkipToken | (ApolloReactHooks.SuspenseQueryHookOptions<GetUserWithRelationshipsQuery, GetUserWithRelationshipsQueryVariables> & { variables: GetUserWithRelationshipsQueryVariables })) {
+          const options = baseOptions === ApolloReactHooks.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
+          return ApolloReactHooks.useSuspenseQuery<GetUserWithRelationshipsQuery, GetUserWithRelationshipsQueryVariables>(GetUserWithRelationshipsDocument, options);
+        }
+export type GetUserWithRelationshipsQueryHookResult = ReturnType<typeof useGetUserWithRelationshipsQuery>;
+export type GetUserWithRelationshipsLazyQueryHookResult = ReturnType<typeof useGetUserWithRelationshipsLazyQuery>;
+export type GetUserWithRelationshipsSuspenseQueryHookResult = ReturnType<typeof useGetUserWithRelationshipsSuspenseQuery>;
+export type GetUserWithRelationshipsQueryResult = ApolloReactCommon.QueryResult<GetUserWithRelationshipsQuery, GetUserWithRelationshipsQueryVariables>;
+export const GetRolesWithPermissionsDocument = gql`
+    query GetRolesWithPermissions {
+  roles(first: 1000) {
+    nodes {
+      ...RoleFields
+      permissions {
+        ...PermissionFields
+      }
+    }
+  }
+}
+    ${RoleFieldsFragmentDoc}
+${PermissionFieldsFragmentDoc}`;
+
+/**
+ * __useGetRolesWithPermissionsQuery__
+ *
+ * To run a query within a React component, call `useGetRolesWithPermissionsQuery` and pass it any options that fit your needs.
+ * When your component renders, `useGetRolesWithPermissionsQuery` returns an object from Apollo Client that contains loading, error, and data properties
+ * you can use to render your UI.
+ *
+ * @param baseOptions options that will be passed into the query, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options;
+ *
+ * @example
+ * const { data, loading, error } = useGetRolesWithPermissionsQuery({
+ *   variables: {
+ *   },
+ * });
+ */
+export function useGetRolesWithPermissionsQuery(baseOptions?: ApolloReactHooks.QueryHookOptions<GetRolesWithPermissionsQuery, GetRolesWithPermissionsQueryVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return ApolloReactHooks.useQuery<GetRolesWithPermissionsQuery, GetRolesWithPermissionsQueryVariables>(GetRolesWithPermissionsDocument, options);
+      }
+export function useGetRolesWithPermissionsLazyQuery(baseOptions?: ApolloReactHooks.LazyQueryHookOptions<GetRolesWithPermissionsQuery, GetRolesWithPermissionsQueryVariables>) {
+          const options = {...defaultOptions, ...baseOptions}
+          return ApolloReactHooks.useLazyQuery<GetRolesWithPermissionsQuery, GetRolesWithPermissionsQueryVariables>(GetRolesWithPermissionsDocument, options);
+        }
+export function useGetRolesWithPermissionsSuspenseQuery(baseOptions: ApolloReactHooks.SkipToken | (ApolloReactHooks.SuspenseQueryHookOptions<GetRolesWithPermissionsQuery, GetRolesWithPermissionsQueryVariables> & { variables: GetRolesWithPermissionsQueryVariables })) {
+          const options = baseOptions === ApolloReactHooks.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
+          return ApolloReactHooks.useSuspenseQuery<GetRolesWithPermissionsQuery, GetRolesWithPermissionsQueryVariables>(GetRolesWithPermissionsDocument, options);
+        }
+export type GetRolesWithPermissionsQueryHookResult = ReturnType<typeof useGetRolesWithPermissionsQuery>;
+export type GetRolesWithPermissionsLazyQueryHookResult = ReturnType<typeof useGetRolesWithPermissionsLazyQuery>;
+export type GetRolesWithPermissionsSuspenseQueryHookResult = ReturnType<typeof useGetRolesWithPermissionsSuspenseQuery>;
+export type GetRolesWithPermissionsQueryResult = ApolloReactCommon.QueryResult<GetRolesWithPermissionsQuery, GetRolesWithPermissionsQueryVariables>;
+export const GetRoleWithUsersAndGroupsDocument = gql`
+    query GetRoleWithUsersAndGroups {
+  users(first: 1000) {
+    nodes {
+      ...UserFields
+      roles {
+        ...RoleFields
+      }
+    }
+  }
+  groups(first: 1000) {
+    nodes {
+      ...GroupFields
+      roles {
+        ...RoleFields
+      }
+    }
+  }
+}
+    ${UserFieldsFragmentDoc}
+${RoleFieldsFragmentDoc}
+${GroupFieldsFragmentDoc}`;
+
+/**
+ * __useGetRoleWithUsersAndGroupsQuery__
+ *
+ * To run a query within a React component, call `useGetRoleWithUsersAndGroupsQuery` and pass it any options that fit your needs.
+ * When your component renders, `useGetRoleWithUsersAndGroupsQuery` returns an object from Apollo Client that contains loading, error, and data properties
+ * you can use to render your UI.
+ *
+ * @param baseOptions options that will be passed into the query, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options;
+ *
+ * @example
+ * const { data, loading, error } = useGetRoleWithUsersAndGroupsQuery({
+ *   variables: {
+ *   },
+ * });
+ */
+export function useGetRoleWithUsersAndGroupsQuery(baseOptions?: ApolloReactHooks.QueryHookOptions<GetRoleWithUsersAndGroupsQuery, GetRoleWithUsersAndGroupsQueryVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return ApolloReactHooks.useQuery<GetRoleWithUsersAndGroupsQuery, GetRoleWithUsersAndGroupsQueryVariables>(GetRoleWithUsersAndGroupsDocument, options);
+      }
+export function useGetRoleWithUsersAndGroupsLazyQuery(baseOptions?: ApolloReactHooks.LazyQueryHookOptions<GetRoleWithUsersAndGroupsQuery, GetRoleWithUsersAndGroupsQueryVariables>) {
+          const options = {...defaultOptions, ...baseOptions}
+          return ApolloReactHooks.useLazyQuery<GetRoleWithUsersAndGroupsQuery, GetRoleWithUsersAndGroupsQueryVariables>(GetRoleWithUsersAndGroupsDocument, options);
+        }
+export function useGetRoleWithUsersAndGroupsSuspenseQuery(baseOptions: ApolloReactHooks.SkipToken | (ApolloReactHooks.SuspenseQueryHookOptions<GetRoleWithUsersAndGroupsQuery, GetRoleWithUsersAndGroupsQueryVariables> & { variables: GetRoleWithUsersAndGroupsQueryVariables })) {
+          const options = baseOptions === ApolloReactHooks.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
+          return ApolloReactHooks.useSuspenseQuery<GetRoleWithUsersAndGroupsQuery, GetRoleWithUsersAndGroupsQueryVariables>(GetRoleWithUsersAndGroupsDocument, options);
+        }
+export type GetRoleWithUsersAndGroupsQueryHookResult = ReturnType<typeof useGetRoleWithUsersAndGroupsQuery>;
+export type GetRoleWithUsersAndGroupsLazyQueryHookResult = ReturnType<typeof useGetRoleWithUsersAndGroupsLazyQuery>;
+export type GetRoleWithUsersAndGroupsSuspenseQueryHookResult = ReturnType<typeof useGetRoleWithUsersAndGroupsSuspenseQuery>;
+export type GetRoleWithUsersAndGroupsQueryResult = ApolloReactCommon.QueryResult<GetRoleWithUsersAndGroupsQuery, GetRoleWithUsersAndGroupsQueryVariables>;

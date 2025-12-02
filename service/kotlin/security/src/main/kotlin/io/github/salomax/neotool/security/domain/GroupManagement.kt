@@ -50,6 +50,22 @@ object GroupManagement {
     )
 
     /**
+     * Command to assign a role to a group.
+     */
+    data class AssignRoleToGroupCommand(
+        val groupId: UUID,
+        val roleId: Int,
+    )
+
+    /**
+     * Command to remove a role from a group.
+     */
+    data class RemoveRoleFromGroupCommand(
+        val groupId: UUID,
+        val roleId: Int,
+    )
+
+    /**
      * Search criteria for finding groups.
      * Used as query parameters for repository search methods.
      * Actual filtering is done at the database level via SQL queries.

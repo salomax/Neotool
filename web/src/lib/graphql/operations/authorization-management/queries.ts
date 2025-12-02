@@ -97,3 +97,74 @@ export const GET_PERMISSIONS = gql`
   }
 `;
 
+// Get user with relationships (groups, roles, permissions)
+// Note: Since there's no user(id: ID!) query in the schema, we query users
+// and filter client-side by the provided userId
+export const GET_USER_WITH_RELATIONSHIPS = gql`
+  ${USER_FIELDS}
+  ${GROUP_FIELDS}
+  ${ROLE_FIELDS}
+  ${PERMISSION_FIELDS}
+  query GetUserWithRelationships {
+    users(first: 1000) {
+      nodes {
+        ...UserFields
+        groups {
+          ...GroupFields
+        }
+        roles {
+          ...RoleFields
+        }
+        permissions {
+          ...PermissionFields
+        }
+      }
+    }
+  }
+`;
+
+// Get roles with permissions
+// Note: Since there's no role(id: ID!) query in the schema, we query roles
+// and filter client-side by the provided roleId
+export const GET_ROLES_WITH_PERMISSIONS = gql`
+  ${ROLE_FIELDS}
+  ${PERMISSION_FIELDS}
+  query GetRolesWithPermissions {
+    roles(first: 1000) {
+      nodes {
+        ...RoleFields
+        permissions {
+          ...PermissionFields
+        }
+      }
+    }
+  }
+`;
+
+// Get users and groups with their roles
+// Note: Since there's no role(id: ID!) query in the schema, we query users and groups
+// with their roles and filter client-side to find which users/groups have the specific role
+export const GET_ROLE_WITH_USERS_AND_GROUPS = gql`
+  ${USER_FIELDS}
+  ${GROUP_FIELDS}
+  ${ROLE_FIELDS}
+  query GetRoleWithUsersAndGroups {
+    users(first: 1000) {
+      nodes {
+        ...UserFields
+        roles {
+          ...RoleFields
+        }
+      }
+    }
+    groups(first: 1000) {
+      nodes {
+        ...GroupFields
+        roles {
+          ...RoleFields
+        }
+      }
+    }
+  }
+`;
+

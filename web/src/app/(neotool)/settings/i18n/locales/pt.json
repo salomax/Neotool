@@ -17,6 +17,21 @@
     "editUser": "Editar Usuário",
     "createUser": "Criar Usuário",
     "drawerPlaceholder": "Formulário de edição de usuário será implementado aqui",
+    "drawer": {
+      "viewUser": "Detalhes do Usuário",
+      "userInfo": "Informações do Usuário",
+      "email": "Email",
+      "displayName": "Nome de Exibição",
+      "status": "Status",
+      "groups": "Grupos",
+      "roles": "Perfis",
+      "permissions": "Permissões",
+      "noGroups": "Este usuário não é membro de nenhum grupo",
+      "noRoles": "Este usuário não possui perfis atribuídos",
+      "noPermissions": "Este usuário não possui permissões atribuídas",
+      "errorLoading": "Falha ao carregar detalhes do usuário",
+      "userNotFound": "Usuário não encontrado"
+    },
     "status": {
       "enabled": "Habilitado",
       "disabled": "Desabilitado",
@@ -94,10 +109,78 @@
     "emptySearchResults": "Nenhum perfil corresponde aos critérios de busca",
     "editRole": "Editar Perfil",
     "createRole": "Criar Perfil",
+    "newButton": "Novo",
     "drawerPlaceholder": "Formulário de edição de perfil será implementado aqui",
+    "drawer": {
+      "errorLoading": "Falha ao carregar detalhes do perfil"
+    },
     "table": {
       "name": "Nome",
       "actions": "Ações"
+    },
+    "form": {
+      "name": "Nome",
+      "cancel": "Cancelar",
+      "save": "Salvar",
+      "create": "Criar",
+      "saving": "Salvando...",
+      "validation": {
+        "nameRequired": "Nome é obrigatório",
+        "nameMinLength": "Nome deve ter pelo menos 1 caractere"
+      }
+    },
+    "permissions": {
+      "assigned": "Permissões Atribuídas",
+      "available": "Permissões Disponíveis",
+      "assignedCount": "{{count}} permissão(ões) atribuída(s)",
+      "noPermissions": "Nenhuma permissão atribuída a este perfil",
+      "allAssigned": "Todas as permissões disponíveis já estão atribuídas",
+      "noAvailableMatching": "Nenhuma permissão disponível corresponde à sua busca",
+      "searchPlaceholder": "Buscar permissões por nome...",
+      "permissionAssigned": "Permissão '{{permission}}' atribuída com sucesso",
+      "permissionRemoved": "Permissão '{{permission}}' removida com sucesso",
+      "removePermission": "Remover permissão {{name}}",
+      "assignError": "Falha ao atribuir permissão",
+      "removeError": "Falha ao remover permissão",
+      "loadError": "Falha ao carregar permissões"
+    },
+    "users": {
+      "assigned": "Usuários Atribuídos",
+      "available": "Usuários Disponíveis",
+      "assignedCount": "{{count}} usuário(s) atribuído(s)",
+      "noUsers": "Nenhum usuário atribuído a este perfil",
+      "allAssigned": "Todos os usuários disponíveis já estão atribuídos",
+      "noAvailableMatching": "Nenhum usuário disponível corresponde à sua busca",
+      "searchPlaceholder": "Buscar usuários por nome ou email...",
+      "userAssigned": "Usuário '{{user}}' atribuído com sucesso",
+      "userRemoved": "Usuário '{{user}}' removido com sucesso",
+      "removeUser": "Remover usuário {{name}}",
+      "assignError": "Falha ao atribuir usuário",
+      "removeError": "Falha ao remover usuário",
+      "loadError": "Falha ao carregar usuários"
+    },
+    "groups": {
+      "assigned": "Grupos Atribuídos",
+      "available": "Grupos Disponíveis",
+      "assignedCount": "{{count}} grupo(s) atribuído(s)",
+      "noGroups": "Nenhum grupo atribuído a este perfil",
+      "allAssigned": "Todos os grupos disponíveis já estão atribuídos",
+      "noAvailableMatching": "Nenhum grupo disponível corresponde à sua busca",
+      "searchPlaceholder": "Buscar grupos por nome...",
+      "groupAssigned": "Grupo '{{group}}' atribuído com sucesso",
+      "groupRemoved": "Grupo '{{group}}' removido com sucesso",
+      "removeGroup": "Remover grupo {{name}}",
+      "assignError": "Falha ao atribuir grupo",
+      "removeError": "Falha ao remover grupo",
+      "loadError": "Falha ao carregar grupos"
+    },
+    "toast": {
+      "roleCreated": "Perfil '{{name}}' criado com sucesso",
+      "roleUpdated": "Perfil '{{name}}' atualizado com sucesso",
+      "roleDeleted": "Perfil '{{name}}' excluído com sucesso",
+      "roleCreateError": "Falha ao criar perfil",
+      "roleUpdateError": "Falha ao atualizar perfil",
+      "roleDeleteError": "Falha ao excluir perfil"
     }
   },
   "errors": {

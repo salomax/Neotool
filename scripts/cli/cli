@@ -33,10 +33,6 @@ Commands:
     Options:
       --dry-run    Show what would be deleted/modified without making changes
 
-  $(log "init" "$GREEN")
-    Initialize the project by running setup and clean.
-    This is a convenience command that orchestrates both operations.
-
   $(log "graphql" "$GREEN") <subcommand>
     Manage GraphQL schema synchronization and supergraph generation.
     Subcommands: sync, validate, generate, all
@@ -54,7 +50,6 @@ Options:
 Examples:
   $0 setup
   $0 clean --dry-run
-  $0 init
   $0 graphql sync
   $0 graphql generate
   $0 validate
@@ -105,7 +100,7 @@ main() {
     fi
     
     case "$command" in
-        setup|clean|init|version|validate)
+        setup|clean|version|validate)
             execute_command "$command" "$@"
             ;;
         help|--help|-h|"")

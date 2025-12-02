@@ -95,3 +95,43 @@ export const REMOVE_PERMISSION_FROM_ROLE = gql`
   }
 `;
 
+// Assign role to user
+export const ASSIGN_ROLE_TO_USER = gql`
+  ${USER_FIELDS}
+  mutation AssignRoleToUser($userId: ID!, $roleId: ID!) {
+    assignRoleToUser(userId: $userId, roleId: $roleId) {
+      ...UserFields
+    }
+  }
+`;
+
+// Remove role from user
+export const REMOVE_ROLE_FROM_USER = gql`
+  ${USER_FIELDS}
+  mutation RemoveRoleFromUser($userId: ID!, $roleId: ID!) {
+    removeRoleFromUser(userId: $userId, roleId: $roleId) {
+      ...UserFields
+    }
+  }
+`;
+
+// Assign role to group
+export const ASSIGN_ROLE_TO_GROUP = gql`
+  ${GROUP_FIELDS}
+  mutation AssignRoleToGroup($groupId: ID!, $roleId: ID!) {
+    assignRoleToGroup(groupId: $groupId, roleId: $roleId) {
+      ...GroupFields
+    }
+  }
+`;
+
+// Remove role from group
+export const REMOVE_ROLE_FROM_GROUP = gql`
+  ${GROUP_FIELDS}
+  mutation RemoveRoleFromGroup($groupId: ID!, $roleId: ID!) {
+    removeRoleFromGroup(groupId: $groupId, roleId: $roleId) {
+      ...GroupFields
+    }
+  }
+`;
+

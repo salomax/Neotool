@@ -8,6 +8,7 @@ tags: [resolver, graphql, api, pattern]
 ai_optimized: true
 search_keywords: [resolver, graphql, @Singleton, GenericCrudResolver, mapper, InputDTO]
 related:
+  - 04-patterns/backend-patterns/mapper-pattern.md
   - 04-patterns/backend-patterns/service-pattern.md
   - 05-standards/api-standards/graphql-standards.md
   - 05-standards/coding-standards/kotlin-standards.md
@@ -132,6 +133,8 @@ data class {EntityName}InputDTO(
 
 ### Pattern: Mapper Class
 
+> **Note**: For detailed mapper patterns including list handling in update operations, see the [Mapper Pattern](./mapper-pattern.md).
+
 ```kotlin
 package io.github.salomax.neotool.{module}.graphql.mapper
 
@@ -191,6 +194,7 @@ class {EntityName}GraphQLMapper {
 - `mapToEntity()` - Converts DTO to domain object
 - `extractField()` - Type-safe field extraction with defaults
 - Handle type conversions (Int to Long, etc.)
+- **Important**: For update operations with list fields, see [Mapper Pattern - List Handling](./mapper-pattern.md#critical-pattern-list-handling-in-update-operations)
 
 ### Pattern: Resolver Class
 
@@ -440,6 +444,7 @@ import java.util.UUID
 
 ## Related Documentation
 
+- [Mapper Pattern](./mapper-pattern.md) - Detailed mapper patterns including list handling in update operations
 - [Service Pattern](./service-pattern.md) - Business logic layer
 - [GraphQL Standards](../05-standards/api-standards/graphql-standards.md) - GraphQL API rules
 - [Kotlin Coding Standards](../05-standards/coding-standards/kotlin-standards.md) - General conventions

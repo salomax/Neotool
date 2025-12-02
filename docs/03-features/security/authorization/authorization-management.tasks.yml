@@ -590,17 +590,14 @@ phases:
           - Use design system components
 
       - id: frontend-008
-        description: Implement User Drawer for editing user attributes and roles
+        description: Implement User Drawer for viewing user attributes, groups and roles
         status: pending
         dependencies: [frontend-005]
         files:
           - web/src/shared/components/authorization/UserDrawer.tsx
-          - web/src/shared/components/authorization/UserForm.tsx
-          - web/src/shared/components/authorization/UserRoleAssignment.tsx
         notes: |
-          Drawer component for editing users:
-          - Edit user attributes (name, email, status, etc.)
-          - Manage user roles (assign/remove roles)
+          Drawer component for viewing users:
+          - View user groups and roles
           - Use Drawer component from design system
           - Use i18n for all text
 
@@ -636,6 +633,16 @@ phases:
           - Use Permission Management UI components
           - Use Drawer component from design system
           - Use i18n for all text
+
+      - id: frontend-010.1
+        description: Implement Role Drawer for assigning groups and users to a role
+        status: pending
+        dependencies: [frontend-007, frontend-010]
+        notes: |
+          Drawer component for editing roles:
+          - Manage groups and users to roles (assign/remove them)
+          - Use Drawer component from design system
+          - Use i18n for all text          
 
       - id: frontend-011
         description: Implement Relay pagination components
