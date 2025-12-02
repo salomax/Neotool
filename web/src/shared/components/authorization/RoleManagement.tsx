@@ -6,6 +6,11 @@ import {
   Button,
   Alert,
   Stack,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import { useRoleManagement, type Role } from "@/shared/hooks/authorization/useRoleManagement";
@@ -14,6 +19,8 @@ import { RoleList } from "./RoleList";
 import { RoleDrawer } from "./RoleDrawer";
 import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(neotool)/settings/i18n";
+import { useToast } from "@/shared/providers";
+import { extractErrorMessage } from "@/shared/utils/error";
 
 export interface RoleManagementProps {
   initialSearchQuery?: string;
@@ -27,8 +34,11 @@ export const RoleManagement: React.FC<RoleManagementProps> = ({
   initialSearchQuery = "",
 }) => {
   const { t } = useTranslation(authorizationManagementTranslations);
+  const toast = useToast();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [roleToDelete, setRoleToDelete] = useState<Role | null>(null);
 
   const {
     roles,
@@ -41,6 +51,8 @@ export const RoleManagement: React.FC<RoleManagementProps> = ({
     loading,
     error,
     refetch,
+    deleteRole,
+    deleteLoading,
   } = useRoleManagement({
     initialSearchQuery,
   });
@@ -68,6 +80,34 @@ export const RoleManagement: React.FC<RoleManagementProps> = ({
     },
     [setSearchQuery, goToFirstPage]
   );
+
+  const handleDeleteClick = useCallback((role: Role) => {
+    setRoleToDelete(role);
+    setDeleteConfirmOpen(true);
+  }, []);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (roleToDelete) {
+      try {
+        await deleteRole(roleToDelete.id);
+        toast.success(t("roleManagement.toast.roleDeleted", { name: roleToDelete.name }));
+        setDeleteConfirmOpen(false);
+        setRoleToDelete(null);
+      } catch (err) {
+        console.error("Error deleting role:", err);
+        const errorMessage = extractErrorMessage(
+          err,
+          t("roleManagement.toast.roleDeleteError")
+        );
+        toast.error(errorMessage);
+      }
+    }
+  }, [roleToDelete, deleteRole, toast, t]);
+
+  const handleDeleteCancel = useCallback(() => {
+    setDeleteConfirmOpen(false);
+    setRoleToDelete(null);
+  }, []);
 
   return (
     <Box>
@@ -106,6 +146,7 @@ export const RoleManagement: React.FC<RoleManagementProps> = ({
         roles={roles}
         loading={loading}
         onEdit={handleEdit}
+        onDelete={handleDeleteClick}
         emptyMessage={
           searchQuery
             ? t("roleManagement.emptySearchResults")
@@ -151,6 +192,45 @@ export const RoleManagement: React.FC<RoleManagementProps> = ({
         onClose={handleCloseDrawer}
         role={editingRole}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteConfirmOpen}
+        onClose={handleDeleteCancel}
+        aria-labelledby="delete-dialog-title"
+        aria-describedby="delete-dialog-description"
+      >
+        <DialogTitle id="delete-dialog-title">
+          {t("roleManagement.deleteDialog.title")}
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="delete-dialog-description">
+            {roleToDelete
+              ? t("roleManagement.deleteDialog.message").replace("{name}", roleToDelete.name)
+              : t("roleManagement.deleteDialog.message")}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={handleDeleteCancel}
+            disabled={deleteLoading}
+            data-testid="delete-dialog-cancel"
+          >
+            {t("roleManagement.deleteDialog.cancel")}
+          </Button>
+          <Button
+            onClick={handleDeleteConfirm}
+            color="error"
+            variant="contained"
+            disabled={deleteLoading}
+            data-testid="delete-dialog-confirm"
+          >
+            {deleteLoading
+              ? t("roleManagement.deleteDialog.deleting")
+              : t("roleManagement.deleteDialog.delete")}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

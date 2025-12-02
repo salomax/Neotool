@@ -1,14 +1,13 @@
 "use client";
 
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useMemo, useCallback } from "react";
 import {
   Box,
   Typography,
-  Divider,
   CircularProgress,
   Alert,
-  Button,
-  Stack,
+  Autocomplete,
+  TextField,
   Chip,
 } from "@mui/material";
 import { useGetGroupsQuery } from "@/lib/graphql/operations/authorization-management/queries.generated";
@@ -16,7 +15,6 @@ import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(neotool)/settings/i18n";
 import { useToast } from "@/shared/providers";
 import { extractErrorMessage } from "@/shared/utils/error";
-import { SearchField } from "@/shared/components/ui/forms/SearchField";
 
 export interface Group {
   id: string;
@@ -34,9 +32,16 @@ export interface RoleGroupAssignmentProps {
   onGroupsChange?: () => void;
 }
 
+type GroupOption = {
+  id: string;
+  label: string;
+  name: string;
+  description: string | null;
+};
+
 /**
  * RoleGroupAssignment component for managing role group assignments
- * Shows assigned groups with remove action and available groups with assign action
+ * Uses a multi-select Autocomplete to assign and remove groups
  */
 export const RoleGroupAssignment: React.FC<RoleGroupAssignmentProps> = ({
   roleId,
@@ -49,7 +54,6 @@ export const RoleGroupAssignment: React.FC<RoleGroupAssignmentProps> = ({
 }) => {
   const { t } = useTranslation(authorizationManagementTranslations);
   const toast = useToast();
-  const [searchQuery, setSearchQuery] = useState("");
 
   // Fetch all groups for selection
   const { data, loading: groupsLoading, error: groupsError } = useGetGroupsQuery({
@@ -60,41 +64,57 @@ export const RoleGroupAssignment: React.FC<RoleGroupAssignmentProps> = ({
     skip: false,
   });
 
-  // Transform groups data
-  const allGroups = useMemo(() => {
+  // Transform groups data for Autocomplete
+  const groupOptions = useMemo(() => {
     return (data?.groups?.nodes || []).map((group) => ({
       id: group.id,
+      label: group.name,
       name: group.name,
       description: group.description,
     }));
   }, [data?.groups?.nodes]);
 
-  // Filter available groups (not already assigned and matching search)
-  const availableGroups = useMemo(() => {
-    if (!allGroups) return [];
-    const assignedIds = new Set(assignedGroups.map((g) => g.id));
-    const searchLower = searchQuery.toLowerCase();
-    return allGroups.filter(
-      (group) =>
-        !assignedIds.has(group.id) &&
-        group.name.toLowerCase().includes(searchLower)
-    );
-  }, [allGroups, assignedGroups, searchQuery]);
+  // Map assigned groups to option format
+  const selectedGroups = useMemo(() => {
+    return assignedGroups.map((group) => ({
+      id: group.id,
+      label: group.name,
+      name: group.name,
+      description: group.description,
+    }));
+  }, [assignedGroups]);
 
-  const handleAssignGroup = useCallback(
-    async (groupId: string) => {
-      if (!roleId) return;
+  const handleChange = useCallback(
+    async (_event: any, newValue: GroupOption[]) => {
+      // Prevent duplicates - filter out any duplicates in newValue
+      // Autocomplete should handle this, but we ensure uniqueness
+      const uniqueNewValue = Array.from(
+        new Map(newValue.map((group) => [group.id, group])).values()
+      );
+
+      const currentIds = new Set(assignedGroups.map((g) => g.id));
+      const newIds = new Set(uniqueNewValue.map((g) => g.id));
+
+      // Find added groups (in uniqueNewValue but not in assignedGroups)
+      const addedGroups = uniqueNewValue.filter((group) => !currentIds.has(group.id));
+      
+      // Find removed groups (in assignedGroups but not in uniqueNewValue)
+      const removedGroups = assignedGroups.filter((group) => !newIds.has(group.id));
+
       try {
-        await onAssignGroup(groupId);
-        const group = allGroups.find((g) => g.id === groupId);
-        toast.success(
-          t("roleManagement.groups.groupAssigned", {
-            group: group?.name || "",
-          })
-        );
+        // Assign new groups
+        for (const group of addedGroups) {
+          await onAssignGroup(group.id);
+        }
+
+        // Remove groups
+        for (const group of removedGroups) {
+          await onRemoveGroup(group.id);
+        }
+
         onGroupsChange?.();
       } catch (err) {
-        console.error("Error assigning group:", err);
+        console.error("Error updating group assignments:", err);
         const errorMessage = extractErrorMessage(
           err,
           t("roleManagement.groups.assignError")
@@ -102,37 +122,13 @@ export const RoleGroupAssignment: React.FC<RoleGroupAssignmentProps> = ({
         toast.error(errorMessage);
       }
     },
-    [roleId, onAssignGroup, toast, t, allGroups, onGroupsChange]
-  );
-
-  const handleRemoveGroup = useCallback(
-    async (groupId: string) => {
-      if (!roleId) return;
-      try {
-        await onRemoveGroup(groupId);
-        const group = assignedGroups.find((g) => g.id === groupId);
-        toast.success(
-          t("roleManagement.groups.groupRemoved", {
-            group: group?.name || "",
-          })
-        );
-        onGroupsChange?.();
-      } catch (err) {
-        console.error("Error removing group:", err);
-        const errorMessage = extractErrorMessage(
-          err,
-          t("roleManagement.groups.removeError")
-        );
-        toast.error(errorMessage);
-      }
-    },
-    [roleId, onRemoveGroup, toast, t, assignedGroups, onGroupsChange]
+    [roleId, assignedGroups, onAssignGroup, onRemoveGroup, toast, t, onGroupsChange]
   );
 
   if (groupsLoading) {
     return (
-      <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
-        <CircularProgress />
+      <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
+        <CircularProgress size={24} />
       </Box>
     );
   }
@@ -146,85 +142,48 @@ export const RoleGroupAssignment: React.FC<RoleGroupAssignmentProps> = ({
   }
 
   return (
-    <Stack spacing={3}>
-      {/* Assigned Groups */}
-      <Box>
-        <Typography variant="h6" gutterBottom>
-          {t("roleManagement.groups.assigned")}
-        </Typography>
-        <Divider sx={{ mb: 2 }} />
-        {assignedGroups.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
-            {t("roleManagement.groups.noGroups")}
-          </Typography>
-        ) : (
-          <Box>
-            <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: "block" }}>
-              {t("roleManagement.groups.assignedCount", { count: assignedGroups.length })}
-            </Typography>
-            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-              {assignedGroups.map((group) => (
-                <Chip
-                  key={group.id}
-                  label={group.name}
-                  size="small"
-                  color="primary"
-                  variant="outlined"
-                  onDelete={
-                    !removeLoading
-                      ? () => handleRemoveGroup(group.id)
-                      : undefined
-                  }
-                  disabled={removeLoading}
-                  aria-label={t("roleManagement.groups.removeGroup", {
-                    name: group.name,
-                  })}
-                />
-              ))}
-            </Box>
-          </Box>
-        )}
-      </Box>
-
-      {/* Available Groups */}
-      <Box>
-        <Typography variant="h6" gutterBottom>
-          {t("roleManagement.groups.available")}
-        </Typography>
-        <Divider sx={{ mb: 2 }} />
-        <SearchField
-          value={searchQuery}
-          onChange={setSearchQuery}
-          placeholder={t("roleManagement.groups.searchPlaceholder")}
-          fullWidth
-          debounceMs={300}
-          name="group-search"
-          data-testid="group-search"
-        />
-        {availableGroups.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
-            {searchQuery
-              ? t("roleManagement.groups.noAvailableMatching")
-              : t("roleManagement.groups.allAssigned")}
-          </Typography>
-        ) : (
-          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 2 }}>
-            {availableGroups.map((group) => (
-              <Button
-                key={group.id}
+    <Box>
+      <Typography variant="subtitle1" gutterBottom>
+        {t("roleManagement.groups.assigned")}
+      </Typography>
+      <Autocomplete
+        multiple
+        options={groupOptions}
+        getOptionLabel={(option) => option.label}
+        value={selectedGroups}
+        onChange={handleChange}
+        loading={assignLoading || removeLoading}
+        disabled={assignLoading || removeLoading}
+        isOptionEqualToValue={(option, value) => option.id === value.id}
+        filterOptions={(options, { inputValue }) => {
+          const searchLower = inputValue.toLowerCase();
+          return options.filter((option) =>
+            option.name.toLowerCase().includes(searchLower)
+          );
+        }}
+        renderTags={(value: GroupOption[], getTagProps) =>
+          value.map((option, index) => {
+            const { key, ...tagProps } = getTagProps({ index });
+            return (
+              <Chip
+                key={key}
                 variant="outlined"
-                size="small"
-                onClick={() => handleAssignGroup(group.id)}
-                disabled={assignLoading || removeLoading}
-                sx={{ textTransform: "none" }}
-              >
-                {group.name}
-              </Button>
-            ))}
-          </Box>
+                label={option.label}
+                {...tagProps}
+              />
+            );
+          })
+        }
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            label={t("roleManagement.groups.assigned")}
+            placeholder={t("roleManagement.groups.searchPlaceholder")}
+            fullWidth
+          />
         )}
-      </Box>
-    </Stack>
+      />
+    </Box>
   );
 };
 
