@@ -48,6 +48,10 @@ type Mutation {
   deleteRole(roleId: ID!): Boolean!
   assignPermissionToRole(roleId: ID!, permissionId: ID!): Role!
   removePermissionFromRole(roleId: ID!, permissionId: ID!): Role!
+  assignRoleToUser(userId: ID!, roleId: ID!): User!
+  removeRoleFromUser(userId: ID!, roleId: ID!): User!
+  assignRoleToGroup(groupId: ID!, roleId: ID!): Group!
+  removeRoleFromGroup(groupId: ID!, roleId: ID!): Group!
 }
 
 # Authentication input types

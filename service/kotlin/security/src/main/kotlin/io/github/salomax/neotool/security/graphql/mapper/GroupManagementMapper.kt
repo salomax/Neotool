@@ -67,16 +67,20 @@ class GroupManagementMapper {
      * Convert CreateGroupInputDTO to CreateGroupCommand.
      */
     fun toCreateGroupCommand(input: CreateGroupInputDTO): GroupManagement.CreateGroupCommand {
-        val userIds = input.userIds
-            ?.filter { it.isNotBlank() }
-            ?.map { userIdString ->
-                try {
-                    UUID.fromString(userIdString.trim())
-                } catch (e: IllegalArgumentException) {
-                    throw IllegalArgumentException("Invalid user ID format: '$userIdString'. Expected a valid UUID.", e)
+        val userIds =
+            input.userIds
+                ?.filter { it.isNotBlank() }
+                ?.map { userIdString ->
+                    try {
+                        UUID.fromString(userIdString.trim())
+                    } catch (e: IllegalArgumentException) {
+                        throw IllegalArgumentException(
+                            "Invalid user ID format: '$userIdString'. Expected a valid UUID.",
+                            e,
+                        )
+                    }
                 }
-            }
-            ?.takeIf { it.isNotEmpty() }
+                ?.takeIf { it.isNotEmpty() }
 
         return GroupManagement.CreateGroupCommand(
             name = input.name,
@@ -92,22 +96,38 @@ class GroupManagementMapper {
         groupId: String,
         input: UpdateGroupInputDTO,
     ): GroupManagement.UpdateGroupCommand {
-        val groupIdUuid = try {
-            UUID.fromString(groupId.trim())
-        } catch (e: IllegalArgumentException) {
-            throw IllegalArgumentException("Invalid group ID format: '$groupId'. Expected a valid UUID.", e)
-        }
+        val groupIdUuid =
+            try {
+                UUID.fromString(groupId.trim())
+            } catch (e: IllegalArgumentException) {
+                throw IllegalArgumentException("Invalid group ID format: '$groupId'. Expected a valid UUID.", e)
+            }
 
-        val userIds = input.userIds
-            ?.filter { it.isNotBlank() }
-            ?.map { userIdString ->
-                try {
-                    UUID.fromString(userIdString.trim())
-                } catch (e: IllegalArgumentException) {
-                    throw IllegalArgumentException("Invalid user ID format: '$userIdString'. Expected a valid UUID.", e)
+        // Handle userIds: preserve empty arrays (remove all) vs null (don't change)
+        val inputUserIds = input.userIds
+        val userIds: List<UUID>? =
+            when {
+                inputUserIds == null -> null // null means don't change memberships
+                inputUserIds.isEmpty() -> emptyList() // empty array means remove all users
+                else -> {
+                    // Non-empty array: filter, map, and validate
+                    val processed =
+                        inputUserIds
+                            .filter { it.isNotBlank() }
+                            .map { userIdString ->
+                                try {
+                                    UUID.fromString(userIdString.trim())
+                                } catch (e: IllegalArgumentException) {
+                                    throw IllegalArgumentException(
+                                        "Invalid user ID format: '$userIdString'. Expected a valid UUID.",
+                                        e,
+                                    )
+                                }
+                            }
+                    // Only return null if all were blank/invalid, otherwise return the processed list
+                    processed.takeIf { it.isNotEmpty() }
                 }
             }
-            ?.takeIf { it.isNotEmpty() }
 
         return GroupManagement.UpdateGroupCommand(
             groupId = groupIdUuid,
@@ -126,6 +146,13 @@ class GroupManagementMapper {
         } catch (e: IllegalArgumentException) {
             throw IllegalArgumentException("Invalid group ID format: '$id'. Expected a valid UUID.", e)
         }
+    }
+
+    /**
+     * Convert String ID to Int for role ID.
+     */
+    fun toRoleId(id: String): Int {
+        return id.toInt()
     }
 
     /**
@@ -163,9 +190,10 @@ class GroupManagementMapper {
             when (val userIdsValue = input["userIds"]) {
                 null -> null
                 is List<*> -> {
-                    val extracted = userIdsValue
-                        .mapNotNull { it?.toString()?.trim() }
-                        .filter { it.isNotBlank() }
+                    val extracted =
+                        userIdsValue
+                            .mapNotNull { it?.toString()?.trim() }
+                            .filter { it.isNotBlank() }
                     extracted.takeIf { it.isNotEmpty() }
                 }
                 else -> null
@@ -184,14 +212,23 @@ class GroupManagementMapper {
      * @return UpdateGroupInputDTO with extracted and validated fields
      */
     fun mapToUpdateGroupInputDTO(input: Map<String, Any?>): UpdateGroupInputDTO {
+        // Handle userIds: preserve empty arrays (remove all) vs null (don't change)
         val userIds: List<String>? =
             when (val userIdsValue = input["userIds"]) {
-                null -> null
+                null -> null // null means don't change memberships
                 is List<*> -> {
-                    val extracted = userIdsValue
-                        .mapNotNull { it?.toString()?.trim() }
-                        .filter { it.isNotBlank() }
-                    extracted.takeIf { it.isNotEmpty() }
+                    // Check if it's an empty list first
+                    if (userIdsValue.isEmpty()) {
+                        emptyList() // empty array means remove all users
+                    } else {
+                        // Non-empty list: filter and process
+                        val extracted =
+                            userIdsValue
+                                .mapNotNull { it?.toString()?.trim() }
+                                .filter { it.isNotBlank() }
+                        // Only return null if all were blank/invalid, otherwise return the processed list
+                        extracted.takeIf { it.isNotEmpty() }
+                    }
                 }
                 else -> null
             }

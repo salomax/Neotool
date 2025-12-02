@@ -41,7 +41,14 @@ export const createAppTheme = (mode: Mode) => {
       MuiButton: {
         defaultProps: { disableElevation: true, variant: "contained" },
         styleOverrides: {
-          root: { borderRadius: t.radius.lg },
+          root: { 
+            borderRadius: t.radius.lg,
+            minWidth: '90px',
+          },
+          sizeMedium: {
+            height: '56px',
+            minHeight: '56px',
+          },
         },
       },
       MuiPaper: {

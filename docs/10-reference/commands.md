@@ -18,7 +18,6 @@ search_keywords: [commands, cli, reference]
 ### Project Setup
 ```bash
 ./neotool --version        # Check system requirements
-./neotool init             # Initialize project
 ./neotool setup            # Setup project (rename from neotool)
 ./neotool clean [--dry-run] # Clean up example code
 ```

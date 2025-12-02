@@ -16,6 +16,11 @@ type Query {
   # Authentication queries
   currentUser: User
   
+  # Authorization queries
+  checkPermission(userId: ID!, permission: String!, resourceId: ID): AuthorizationResult!
+  getUserPermissions(userId: ID!): [Permission!]!
+  getUserRoles(userId: ID!): [Role!]!
+  
   # Authorization management queries
   users(first: Int, after: String, query: String): UserConnection!
   groups(first: Int, after: String, query: String): GroupConnection!
@@ -43,6 +48,10 @@ type Mutation {
   deleteRole(roleId: ID!): Boolean!
   assignPermissionToRole(roleId: ID!, permissionId: ID!): Role!
   removePermissionFromRole(roleId: ID!, permissionId: ID!): Role!
+  assignRoleToUser(userId: ID!, roleId: ID!): User!
+  removeRoleFromUser(userId: ID!, roleId: ID!): User!
+  assignRoleToGroup(groupId: ID!, roleId: ID!): Group!
+  removeRoleFromGroup(groupId: ID!, roleId: ID!): Group!
 }
 
 # Authentication input types
@@ -99,6 +108,11 @@ type ResetPasswordPayload {
 }
 
 # Authorization types
+type AuthorizationResult {
+  allowed: Boolean!
+  reason: String!
+}
+
 type Permission @key(fields: "id") {
   id: ID!
   name: String!

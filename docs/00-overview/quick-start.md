@@ -176,13 +176,15 @@ After cloning or integrating the starter, customize the project name from "neoto
 
 2. **Edit `project.config.json`** with your project details
 
-3. **Initialize your project** (recommended):
+3. **Run setup commands:**
    ```bash
-   ./neotool init
+   # Setup project (rename from neotool)
+   ./neotool setup
+   
+   # Clean up examples (optional)
+   ./neotool clean --dry-run  # Preview changes
+   ./neotool clean             # Apply changes
    ```
-   This command will:
-   - Rename all project references from "neotool" to your project name
-   - Optionally clean up example code (with prompts)
 
 ## Configuration
 

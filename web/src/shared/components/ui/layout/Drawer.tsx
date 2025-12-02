@@ -56,6 +56,7 @@ export const Drawer: React.FC<DrawerProps> = ({
     '& .MuiDrawer-paper': {
       width: anchor === 'left' || anchor === 'right' ? width : '100%',
       height: anchor === 'top' || anchor === 'bottom' ? height : '100%',
+      borderRadius: 0,
     },
     ...sx,
   };

@@ -24,8 +24,6 @@ import io.github.salomax.neotool.security.graphql.dto.RoleDTO
 import io.github.salomax.neotool.security.graphql.dto.RoleEdgeDTO
 import io.github.salomax.neotool.security.graphql.dto.SignInPayloadDTO
 import io.github.salomax.neotool.security.graphql.dto.SignUpPayloadDTO
-import io.github.salomax.neotool.security.graphql.dto.UpdateGroupInputDTO
-import io.github.salomax.neotool.security.graphql.dto.UpdateRoleInputDTO
 import io.github.salomax.neotool.security.graphql.dto.UserConnectionDTO
 import io.github.salomax.neotool.security.graphql.dto.UserDTO
 import io.github.salomax.neotool.security.graphql.dto.UserEdgeDTO
@@ -258,6 +256,38 @@ class SecurityWiringFactory(
                     val roleId = getRequiredString(env, "roleId")
                     val permissionId = getRequiredString(env, "permissionId")
                     roleManagementResolver.removePermissionFromRole(roleId, permissionId)
+                },
+            )
+            .dataFetcher(
+                "assignRoleToUser",
+                createValidatedDataFetcher { env ->
+                    val userId = getRequiredString(env, "userId")
+                    val roleId = getRequiredString(env, "roleId")
+                    userManagementResolver.assignRoleToUser(userId, roleId)
+                },
+            )
+            .dataFetcher(
+                "removeRoleFromUser",
+                createValidatedDataFetcher { env ->
+                    val userId = getRequiredString(env, "userId")
+                    val roleId = getRequiredString(env, "roleId")
+                    userManagementResolver.removeRoleFromUser(userId, roleId)
+                },
+            )
+            .dataFetcher(
+                "assignRoleToGroup",
+                createValidatedDataFetcher { env ->
+                    val groupId = getRequiredString(env, "groupId")
+                    val roleId = getRequiredString(env, "roleId")
+                    groupManagementResolver.assignRoleToGroup(groupId, roleId)
+                },
+            )
+            .dataFetcher(
+                "removeRoleFromGroup",
+                createValidatedDataFetcher { env ->
+                    val groupId = getRequiredString(env, "groupId")
+                    val roleId = getRequiredString(env, "roleId")
+                    groupManagementResolver.removeRoleFromGroup(groupId, roleId)
                 },
             )
     }

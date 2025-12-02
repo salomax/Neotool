@@ -210,22 +210,14 @@ After cloning or integrating the starter, you'll want to customize the project n
 
 2. **Edit `project.config.json`** with your project details
 
-3. **Initialize your project** (recommended):
+3. **Run setup commands:**
    ```bash
-   ./neotool init
-   ```
-   This command will:
-   - Rename all project references from "neotool" to your project name
-   - Optionally clean up example code (with prompts)
-
-   Or run commands individually:
-   ```bash
-   # Rename project
-   ./neotool rename-project
+   # Setup project (rename from neotool)
+   ./neotool setup
    
    # Clean up examples (optional)
-   ./neotool clean-examples --dry-run  # Preview changes
-   ./neotool clean-examples             # Apply changes
+   ./neotool clean --dry-run  # Preview changes
+   ./neotool clean             # Apply changes
    ```
 
 4. **Review and commit the changes:**
@@ -245,14 +237,11 @@ The project includes a CLI tool for common tasks:
 # Check system requirements (Node.js, Docker, JVM)
 ./neotool --version
 
-# Rename project from neotool to your project name
-./neotool rename-project
+# Setup project (rename from neotool to your project name)
+./neotool setup
 
 # Clean up example code
-./neotool clean-examples [--dry-run]
-
-# Initialize project (runs rename-project + clean-examples)
-./neotool init
+./neotool clean [--dry-run]
 
 # Show help
 ./neotool help

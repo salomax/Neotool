@@ -3,15 +3,15 @@
 import React, { useState, useCallback } from "react";
 import {
   Box,
-  Typography,
   Button,
   Alert,
   Stack,
 } from "@mui/material";
-import { Drawer } from "@/shared/components/ui/layout/Drawer";
+import AddIcon from "@mui/icons-material/Add";
 import { useRoleManagement, type Role } from "@/shared/hooks/authorization/useRoleManagement";
 import { SearchField } from "@/shared/components/ui/forms/SearchField";
 import { RoleList } from "./RoleList";
+import { RoleDrawer } from "./RoleDrawer";
 import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(neotool)/settings/i18n";
 
@@ -45,6 +45,11 @@ export const RoleManagement: React.FC<RoleManagementProps> = ({
     initialSearchQuery,
   });
 
+  const handleCreate = useCallback(() => {
+    setEditingRole(null);
+    setDrawerOpen(true);
+  }, []);
+
   const handleEdit = useCallback((role: Role) => {
     setEditingRole(role);
     setDrawerOpen(true);
@@ -73,17 +78,27 @@ export const RoleManagement: React.FC<RoleManagementProps> = ({
         </Alert>
       )}
 
-      {/* Search */}
-      <Box sx={{ mb: 2 }}>
-        <SearchField
-          value={searchQuery}
-          onChange={handleSearchChange}
-          placeholder={t("roleManagement.searchPlaceholder")}
-          fullWidth
-          debounceMs={300}
-          name="role-search"
-          data-testid="role-search"
-        />
+      {/* Search and New Button */}
+      <Box sx={{ mb: 2, display: "flex", gap: 2, alignItems: "center" }}>
+        <Box sx={{ flexGrow: 1 }}>
+          <SearchField
+            value={searchQuery}
+            onChange={handleSearchChange}
+            placeholder={t("roleManagement.searchPlaceholder")}
+            fullWidth
+            debounceMs={300}
+            name="role-search"
+            data-testid="role-search"
+          />
+        </Box>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={handleCreate}
+          data-testid="create-role-button"
+        >
+          {t("roleManagement.newButton")}
+        </Button>
       </Box>
 
       {/* Role List */}
@@ -130,24 +145,12 @@ export const RoleManagement: React.FC<RoleManagementProps> = ({
         </Box>
       )}
 
-      {/* Edit Drawer */}
-      <Drawer
+      {/* Create/Edit Drawer */}
+      <RoleDrawer
         open={drawerOpen}
         onClose={handleCloseDrawer}
-        title={editingRole ? t("roleManagement.editRole") : t("roleManagement.createRole")}
-        anchor="right"
-        width={600}
-        variant="temporary"
-      >
-        <Box sx={{ p: 3 }}>
-          <Typography variant="body1" color="text.secondary">
-            {editingRole
-              ? `${t("roleManagement.drawerPlaceholder")} (${editingRole.name})`
-              : t("roleManagement.drawerPlaceholder")}
-          </Typography>
-          {/* Drawer content (RoleForm, RolePermissionAssignment) will be implemented in frontend-010 */}
-        </Box>
-      </Drawer>
+        role={editingRole}
+      />
     </Box>
   );
 };

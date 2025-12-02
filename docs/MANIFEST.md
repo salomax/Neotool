@@ -72,6 +72,7 @@ This specification is organized into numbered directories (00-11) for clear hier
 | Entity Pattern | `04-patterns/backend-patterns/entity-pattern.md` | pattern | backend | jpa, entity, kotlin |
 | Repository Pattern | `04-patterns/backend-patterns/repository-pattern.md` | pattern | backend | repository, data-access |
 | Service Pattern | `04-patterns/backend-patterns/service-pattern.md` | pattern | backend | service, business-logic |
+| Mapper Pattern | `04-patterns/backend-patterns/mapper-pattern.md` | pattern | backend | mapper, graphql, dto, mapping, list-handling |
 | Resolver Pattern | `04-patterns/backend-patterns/resolver-pattern.md` | pattern | backend | graphql, resolver |
 | Testing Pattern | `04-patterns/backend-patterns/testing-pattern.md` | pattern | backend | testing, unit-tests, integration |
 | UUID v7 Pattern | `04-patterns/backend-patterns/uuid-v7-pattern.md` | pattern | backend | uuid, uuidv7, primary-key, database |

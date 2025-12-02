@@ -3,15 +3,14 @@
 import React, { useState, useCallback } from "react";
 import {
   Box,
-  Typography,
   Button,
   Alert,
   Stack,
 } from "@mui/material";
-import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { useUserManagement, type User } from "@/shared/hooks/authorization/useUserManagement";
 import { UserSearch } from "./UserSearch";
 import { UserList } from "./UserList";
+import { UserDrawer } from "./UserDrawer";
 import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(neotool)/settings/i18n";
 import { useToast } from "@/shared/providers";
@@ -157,24 +156,12 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         </Box>
       )}
 
-      {/* Edit Drawer */}
-      <Drawer
+      {/* User Drawer */}
+      <UserDrawer
         open={drawerOpen}
         onClose={handleCloseDrawer}
-        title={editingUser ? t("userManagement.editUser") : t("userManagement.createUser")}
-        anchor="right"
-        width={600}
-        variant="temporary"
-      >
-        <Box sx={{ p: 3 }}>
-          <Typography variant="body1" color="text.secondary">
-            {editingUser
-              ? `${t("userManagement.drawerPlaceholder")} (${editingUser.email})`
-              : t("userManagement.drawerPlaceholder")}
-          </Typography>
-          {/* Drawer content (UserForm, UserRoleAssignment) will be implemented in frontend-008 */}
-        </Box>
-      </Drawer>
+        userId={editingUser?.id || null}
+      />
     </Box>
   );
 };

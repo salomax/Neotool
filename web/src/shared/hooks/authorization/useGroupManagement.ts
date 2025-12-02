@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback } from "react";
 import {
   useGetGroupsQuery,
+  GetUserWithRelationshipsDocument,
 } from '@/lib/graphql/operations/authorization-management/queries.generated';
 import {
   useCreateGroupMutation,
@@ -10,13 +11,11 @@ import {
   useDeleteGroupMutation,
 } from '@/lib/graphql/operations/authorization-management/mutations.generated';
 import { CreateGroupInput, UpdateGroupInput } from '@/lib/graphql/types/__generated__/graphql';
+import { GroupFieldsFragment } from '@/lib/graphql/fragments/common.generated';
 import { extractErrorMessage } from '@/shared/utils/error';
 
-export type Group = {
-  id: string;
-  name: string;
-  description: string | null;
-};
+// Use the fragment type which includes all fields from the query
+export type Group = GroupFieldsFragment;
 
 export type GroupFormData = {
   name: string;
@@ -188,14 +187,18 @@ export function useGroupManagement(options: UseGroupManagementOptions = {}): Use
   // CRUD operations
   const createGroup = useCallback(async (data: GroupFormData) => {
     try {
-      const input: CreateGroupInput = {
+      // Always include userIds - empty array is valid
+      // The GraphQL schema includes userIds but generated types may not
+      const input: CreateGroupInput & { userIds?: string[] } = {
         name: data.name.trim(),
         description: data.description?.trim() || null,
-        userIds: data.userIds || [],
+        userIds: data.userIds ?? [],
       };
 
       const result = await createGroupMutation({
         variables: { input },
+        // Refetch user query to update UserDrawer when group memberships change
+        refetchQueries: [GetUserWithRelationshipsDocument],
       });
 
       // Only refetch if mutation was successful
@@ -212,10 +215,14 @@ export function useGroupManagement(options: UseGroupManagementOptions = {}): Use
 
   const updateGroup = useCallback(async (groupId: string, data: GroupFormData) => {
     try {
-      const input: UpdateGroupInput = {
+      // Always include userIds - empty array means remove all users
+      // The GraphQL schema includes userIds but generated types may not
+      const input: UpdateGroupInput & { userIds?: string[] } = {
         name: data.name.trim(),
         description: data.description?.trim() || null,
-        userIds: data.userIds || [],
+        // Explicitly include userIds - empty array is valid (means remove all users)
+        // undefined/null means don't change memberships (but we always want to sync)
+        userIds: data.userIds ?? [],
       };
 
       const result = await updateGroupMutation({
@@ -223,6 +230,8 @@ export function useGroupManagement(options: UseGroupManagementOptions = {}): Use
           groupId,
           input,
         },
+        // Refetch user query to update UserDrawer when group memberships change
+        refetchQueries: [GetUserWithRelationshipsDocument],
       });
 
       // Only refetch if mutation was successful

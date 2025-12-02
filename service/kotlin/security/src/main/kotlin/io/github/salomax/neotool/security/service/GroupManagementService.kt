@@ -7,9 +7,12 @@ import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import io.github.salomax.neotool.security.domain.GroupManagement
 import io.github.salomax.neotool.security.domain.rbac.Group
 import io.github.salomax.neotool.security.domain.rbac.GroupMembership
+import io.github.salomax.neotool.security.domain.rbac.GroupRoleAssignment
 import io.github.salomax.neotool.security.domain.rbac.MembershipType
 import io.github.salomax.neotool.security.repo.GroupMembershipRepository
 import io.github.salomax.neotool.security.repo.GroupRepository
+import io.github.salomax.neotool.security.repo.GroupRoleAssignmentRepository
+import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import jakarta.inject.Singleton
 import jakarta.transaction.Transactional
@@ -25,6 +28,8 @@ import java.util.UUID
 open class GroupManagementService(
     private val groupRepository: GroupRepository,
     private val groupMembershipRepository: GroupMembershipRepository,
+    private val groupRoleAssignmentRepository: GroupRoleAssignmentRepository,
+    private val roleRepository: RoleRepository,
     private val userRepository: UserRepository,
 ) {
     private val logger = KotlinLogging.logger {}
@@ -295,5 +300,101 @@ open class GroupManagementService(
         if (memberships.isNotEmpty()) {
             groupMembershipRepository.deleteAll(memberships)
         }
+    }
+
+    /**
+     * Assign a role to a group.
+     *
+     * @param command Assign role command with groupId and roleId
+     * @return The updated group
+     * @throws IllegalArgumentException if group or role not found
+     */
+    @Transactional
+    open fun assignRoleToGroup(command: GroupManagement.AssignRoleToGroupCommand): Group {
+        // Validate group and role exist before assigning
+        val group =
+            groupRepository
+                .findById(command.groupId)
+                .orElseThrow {
+                    IllegalArgumentException("Group not found with ID: ${command.groupId}")
+                }
+        val role =
+            roleRepository
+                .findById(command.roleId)
+                .orElseThrow {
+                    IllegalArgumentException("Role not found with ID: ${command.roleId}")
+                }
+
+        // Check for existing assignment
+        val existingAssignments = groupRoleAssignmentRepository.findByGroupId(command.groupId)
+        val existingAssignment = existingAssignments.firstOrNull { it.roleId == command.roleId }
+        if (existingAssignment != null) {
+            logger.info {
+                "Role '${role.name}' already assigned to group '${group.name}' " +
+                    "(Group ID: ${command.groupId}, Role ID: ${command.roleId})"
+            }
+            return group.toDomain()
+        }
+
+        // Create new assignment
+        val assignment =
+            GroupRoleAssignment(
+                groupId = command.groupId,
+                roleId = command.roleId,
+                validFrom = null,
+                validUntil = null,
+                createdAt = Instant.now(),
+                updatedAt = Instant.now(),
+            )
+        groupRoleAssignmentRepository.save(assignment.toEntity())
+
+        logger.info {
+            "Role '${role.name}' assigned to group '${group.name}' " +
+                "(Group ID: ${command.groupId}, Role ID: ${command.roleId})"
+        }
+
+        return group.toDomain()
+    }
+
+    /**
+     * Remove a role from a group.
+     *
+     * @param command Remove role command with groupId and roleId
+     * @return The updated group
+     * @throws IllegalArgumentException if group or role not found
+     */
+    @Transactional
+    open fun removeRoleFromGroup(command: GroupManagement.RemoveRoleFromGroupCommand): Group {
+        // Validate group and role exist before removing
+        val group =
+            groupRepository
+                .findById(command.groupId)
+                .orElseThrow {
+                    IllegalArgumentException("Group not found with ID: ${command.groupId}")
+                }
+        val role =
+            roleRepository
+                .findById(command.roleId)
+                .orElseThrow {
+                    IllegalArgumentException("Role not found with ID: ${command.roleId}")
+                }
+
+        // Find and delete assignment
+        val assignments = groupRoleAssignmentRepository.findByGroupId(command.groupId)
+        val assignmentToRemove = assignments.firstOrNull { it.roleId == command.roleId }
+        if (assignmentToRemove != null) {
+            groupRoleAssignmentRepository.delete(assignmentToRemove)
+            logger.info {
+                "Role '${role.name}' removed from group '${group.name}' " +
+                    "(Group ID: ${command.groupId}, Role ID: ${command.roleId})"
+            }
+        } else {
+            logger.info {
+                "Role '${role.name}' was not assigned to group '${group.name}' " +
+                    "(Group ID: ${command.groupId}, Role ID: ${command.roleId})"
+            }
+        }
+
+        return group.toDomain()
     }
 }

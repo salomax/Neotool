@@ -164,4 +164,52 @@ class GroupManagementResolver(
             emptyList()
         }
     }
+
+    /**
+     * Assign a role to a group.
+     */
+    fun assignRoleToGroup(
+        groupId: String,
+        roleId: String,
+    ): GroupDTO {
+        return try {
+            val command =
+                io.github.salomax.neotool.security.domain.GroupManagement.AssignRoleToGroupCommand(
+                    groupId = mapper.toGroupId(groupId),
+                    roleId = mapper.toRoleId(roleId),
+                )
+            val group = groupManagementService.assignRoleToGroup(command)
+            mapper.toGroupDTO(group)
+        } catch (e: IllegalArgumentException) {
+            logger.warn { "Invalid group ID or role ID: groupId=$groupId, roleId=$roleId" }
+            throw e
+        } catch (e: Exception) {
+            logger.error(e) { "Error assigning role to group: groupId=$groupId, roleId=$roleId" }
+            throw e
+        }
+    }
+
+    /**
+     * Remove a role from a group.
+     */
+    fun removeRoleFromGroup(
+        groupId: String,
+        roleId: String,
+    ): GroupDTO {
+        return try {
+            val command =
+                io.github.salomax.neotool.security.domain.GroupManagement.RemoveRoleFromGroupCommand(
+                    groupId = mapper.toGroupId(groupId),
+                    roleId = mapper.toRoleId(roleId),
+                )
+            val group = groupManagementService.removeRoleFromGroup(command)
+            mapper.toGroupDTO(group)
+        } catch (e: IllegalArgumentException) {
+            logger.warn { "Invalid group ID or role ID: groupId=$groupId, roleId=$roleId" }
+            throw e
+        } catch (e: Exception) {
+            logger.error(e) { "Error removing role from group: groupId=$groupId, roleId=$roleId" }
+            throw e
+        }
+    }
 }

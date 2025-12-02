@@ -10,6 +10,10 @@ import {
   useDeleteRoleMutation,
   useAssignPermissionToRoleMutation,
   useRemovePermissionFromRoleMutation,
+  useAssignRoleToUserMutation,
+  useRemoveRoleFromUserMutation,
+  useAssignRoleToGroupMutation,
+  useRemoveRoleFromGroupMutation,
 } from '@/lib/graphql/operations/authorization-management/mutations.generated';
 import { CreateRoleInput, UpdateRoleInput } from '@/lib/graphql/types/__generated__/graphql';
 import { extractErrorMessage } from '@/shared/utils/error';
@@ -71,6 +75,12 @@ export type UseRoleManagementReturn = {
   assignPermissionToRole: (roleId: string, permissionId: string) => Promise<void>;
   removePermissionFromRole: (roleId: string, permissionId: string) => Promise<void>;
   
+  // User and group management
+  assignRoleToUser: (userId: string, roleId: string) => Promise<void>;
+  removeRoleFromUser: (userId: string, roleId: string) => Promise<void>;
+  assignRoleToGroup: (groupId: string, roleId: string) => Promise<void>;
+  removeRoleFromGroup: (groupId: string, roleId: string) => Promise<void>;
+  
   // Loading states
   loading: boolean;
   createLoading: boolean;
@@ -78,6 +88,10 @@ export type UseRoleManagementReturn = {
   deleteLoading: boolean;
   assignPermissionLoading: boolean;
   removePermissionLoading: boolean;
+  assignRoleToUserLoading: boolean;
+  removeRoleFromUserLoading: boolean;
+  assignRoleToGroupLoading: boolean;
+  removeRoleFromGroupLoading: boolean;
   
   // Error handling
   error: Error | undefined;
@@ -153,6 +167,10 @@ export function useRoleManagement(options: UseRoleManagementOptions = {}): UseRo
   const [deleteRoleMutation, { loading: deleteLoading }] = useDeleteRoleMutation();
   const [assignPermissionMutation, { loading: assignPermissionLoading }] = useAssignPermissionToRoleMutation();
   const [removePermissionMutation, { loading: removePermissionLoading }] = useRemovePermissionFromRoleMutation();
+  const [assignRoleToUserMutation, { loading: assignRoleToUserLoading }] = useAssignRoleToUserMutation();
+  const [removeRoleFromUserMutation, { loading: removeRoleFromUserLoading }] = useRemoveRoleFromUserMutation();
+  const [assignRoleToGroupMutation, { loading: assignRoleToGroupLoading }] = useAssignRoleToGroupMutation();
+  const [removeRoleFromGroupMutation, { loading: removeRoleFromGroupLoading }] = useRemoveRoleFromGroupMutation();
 
   // Derived data - memoize to prevent unnecessary re-renders
   const roles = useMemo(() => {
@@ -303,6 +321,87 @@ export function useRoleManagement(options: UseRoleManagementOptions = {}): UseRo
     }
   }, [removePermissionMutation, refetch]);
 
+  // User and group management
+  const assignRoleToUser = useCallback(async (userId: string, roleId: string) => {
+    try {
+      const result = await assignRoleToUserMutation({
+        variables: {
+          userId,
+          roleId,
+        },
+      });
+
+      // Only refetch if mutation was successful
+      if (result.data) {
+        refetch();
+      }
+    } catch (err) {
+      console.error('Error assigning role to user:', err);
+      const errorMessage = extractErrorMessage(err, 'Failed to assign role to user');
+      throw new Error(errorMessage);
+    }
+  }, [assignRoleToUserMutation, refetch]);
+
+  const removeRoleFromUser = useCallback(async (userId: string, roleId: string) => {
+    try {
+      const result = await removeRoleFromUserMutation({
+        variables: {
+          userId,
+          roleId,
+        },
+      });
+
+      // Only refetch if mutation was successful
+      if (result.data) {
+        refetch();
+      }
+    } catch (err) {
+      console.error('Error removing role from user:', err);
+      const errorMessage = extractErrorMessage(err, 'Failed to remove role from user');
+      throw new Error(errorMessage);
+    }
+  }, [removeRoleFromUserMutation, refetch]);
+
+  const assignRoleToGroup = useCallback(async (groupId: string, roleId: string) => {
+    try {
+      const result = await assignRoleToGroupMutation({
+        variables: {
+          groupId,
+          roleId,
+        },
+      });
+
+      // Only refetch if mutation was successful
+      if (result.data) {
+        refetch();
+      }
+    } catch (err) {
+      console.error('Error assigning role to group:', err);
+      const errorMessage = extractErrorMessage(err, 'Failed to assign role to group');
+      throw new Error(errorMessage);
+    }
+  }, [assignRoleToGroupMutation, refetch]);
+
+  const removeRoleFromGroup = useCallback(async (groupId: string, roleId: string) => {
+    try {
+      const result = await removeRoleFromGroupMutation({
+        variables: {
+          groupId,
+          roleId,
+        },
+      });
+
+      // Only refetch if mutation was successful
+      if (result.data) {
+        refetch();
+      }
+    } catch (err) {
+      console.error('Error removing role from group:', err);
+      const errorMessage = extractErrorMessage(err, 'Failed to remove role from group');
+      throw new Error(errorMessage);
+    }
+  }, [removeRoleFromGroupMutation, refetch]);
+
   return {
     // Data
     roles,
@@ -338,6 +437,12 @@ export function useRoleManagement(options: UseRoleManagementOptions = {}): UseRo
     assignPermissionToRole,
     removePermissionFromRole,
     
+    // User and group management
+    assignRoleToUser,
+    removeRoleFromUser,
+    assignRoleToGroup,
+    removeRoleFromGroup,
+    
     // Loading states
     loading,
     createLoading,
@@ -345,6 +450,10 @@ export function useRoleManagement(options: UseRoleManagementOptions = {}): UseRo
     deleteLoading,
     assignPermissionLoading,
     removePermissionLoading,
+    assignRoleToUserLoading,
+    removeRoleFromUserLoading,
+    assignRoleToGroupLoading,
+    removeRoleFromGroupLoading,
     
     // Error handling
     error: error ? new Error(extractErrorMessage(error)) : undefined,

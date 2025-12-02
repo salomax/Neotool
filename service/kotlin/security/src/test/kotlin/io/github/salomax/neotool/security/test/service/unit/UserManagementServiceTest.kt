@@ -2,6 +2,8 @@ package io.github.salomax.neotool.security.test.service.unit
 
 import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
+import io.github.salomax.neotool.security.repo.RoleAssignmentRepository
+import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.UserManagementService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
@@ -22,12 +24,20 @@ import java.util.UUID
 @DisplayName("UserManagementService Unit Tests")
 class UserManagementServiceTest {
     private lateinit var userRepository: UserRepository
+    private lateinit var roleAssignmentRepository: RoleAssignmentRepository
+    private lateinit var roleRepository: RoleRepository
     private lateinit var userManagementService: UserManagementService
 
     @BeforeEach
     fun setUp() {
         userRepository = mock()
-        userManagementService = UserManagementService(userRepository)
+        roleAssignmentRepository = mock()
+        roleRepository = mock()
+        userManagementService = UserManagementService(
+            userRepository,
+            roleAssignmentRepository,
+            roleRepository,
+        )
     }
 
     @Nested

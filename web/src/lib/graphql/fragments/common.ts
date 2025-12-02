@@ -41,6 +41,12 @@ export const GROUP_FIELDS = gql`
     id
     name
     description
+    members {
+      id
+      email
+      displayName
+      enabled
+    }
   }
 `;
 
