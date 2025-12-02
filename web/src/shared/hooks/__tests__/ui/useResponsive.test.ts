@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useResponsive } from '../useResponsive';
+import { useResponsive } from '@/shared/hooks/ui';
 
 describe('useResponsive', () => {
   const originalInnerWidth = window.innerWidth;

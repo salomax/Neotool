@@ -14,7 +14,7 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import Paper from '@mui/material/Paper';
 import Link from "next/link";
-import { useResponsive } from "@/shared/hooks/useResponsive";
+import { useResponsive } from "@/shared/hooks/ui";
 import dynamic from 'next/dynamic';
 import { getComponentDocs } from './docs/registry';
 

@@ -3,7 +3,10 @@ package io.github.salomax.neotool.security.test.service.unit
 import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import io.github.salomax.neotool.security.domain.GroupManagement
+import io.github.salomax.neotool.security.model.rbac.GroupMembershipEntity
+import io.github.salomax.neotool.security.repo.GroupMembershipRepository
 import io.github.salomax.neotool.security.repo.GroupRepository
+import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.GroupManagementService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import org.assertj.core.api.Assertions.assertThat
@@ -13,6 +16,7 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
@@ -23,12 +27,21 @@ import java.util.UUID
 @DisplayName("GroupManagementService Unit Tests")
 class GroupManagementServiceTest {
     private lateinit var groupRepository: GroupRepository
+    private lateinit var groupMembershipRepository: GroupMembershipRepository
+    private lateinit var userRepository: UserRepository
     private lateinit var groupManagementService: GroupManagementService
 
     @BeforeEach
     fun setUp() {
         groupRepository = mock()
-        groupManagementService = GroupManagementService(groupRepository)
+        groupMembershipRepository = mock()
+        userRepository = mock()
+        groupManagementService =
+            GroupManagementService(
+                groupRepository,
+                groupMembershipRepository,
+                userRepository,
+            )
     }
 
     @Nested
@@ -272,6 +285,132 @@ class GroupManagementServiceTest {
             assertThat(result.name).isEqualTo("New Group")
             assertThat(result.description).isNull()
             verify(groupRepository).save(any())
+            verify(groupMembershipRepository, never()).saveAll(any<List<GroupMembershipEntity>>())
+        }
+
+        @Test
+        fun `should create group with user assignments`() {
+            // Arrange
+            val userId1 = UUID.randomUUID()
+            val userId2 = UUID.randomUUID()
+            val groupId = UUID.randomUUID()
+            val command =
+                GroupManagement.CreateGroupCommand(
+                    name = "New Group",
+                    userIds = listOf(userId1, userId2),
+                )
+            val savedEntity =
+                SecurityTestDataBuilders.group(
+                    id = groupId,
+                    name = "New Group",
+                )
+            val user1 = SecurityTestDataBuilders.user(id = userId1)
+            val user2 = SecurityTestDataBuilders.user(id = userId2)
+            whenever(groupRepository.save(any())).thenReturn(savedEntity)
+            whenever(userRepository.findByIdIn(listOf(userId1, userId2))).thenReturn(listOf(user1, user2))
+            whenever(
+                groupMembershipRepository.saveAll(any<List<GroupMembershipEntity>>()),
+            ).thenAnswer {
+                it.arguments[0] as List<GroupMembershipEntity>
+            }
+
+            // Act
+            val result = groupManagementService.createGroup(command)
+
+            // Assert
+            assertThat(result).isNotNull()
+            assertThat(result.name).isEqualTo("New Group")
+            verify(groupRepository).save(any())
+            verify(userRepository).findByIdIn(listOf(userId1, userId2))
+            val membershipCaptor = argumentCaptor<List<GroupMembershipEntity>>()
+            verify(groupMembershipRepository).saveAll(membershipCaptor.capture())
+            val savedMemberships = membershipCaptor.firstValue
+            assertThat(savedMemberships).hasSize(2)
+        }
+
+        @Test
+        fun `should create group with null userIds`() {
+            // Arrange
+            val command =
+                GroupManagement.CreateGroupCommand(
+                    name = "New Group",
+                    userIds = null,
+                )
+            val savedEntity =
+                SecurityTestDataBuilders.group(
+                    id = UUID.randomUUID(),
+                    name = "New Group",
+                )
+            whenever(groupRepository.save(any())).thenReturn(savedEntity)
+
+            // Act
+            val result = groupManagementService.createGroup(command)
+
+            // Assert
+            assertThat(result).isNotNull()
+            assertThat(result.name).isEqualTo("New Group")
+            verify(groupRepository).save(any())
+            verify(userRepository, never()).findByIdIn(any())
+            verify(groupMembershipRepository, never()).saveAll(any<List<GroupMembershipEntity>>())
+        }
+
+        @Test
+        fun `should create group with empty userIds list`() {
+            // Arrange
+            val command =
+                GroupManagement.CreateGroupCommand(
+                    name = "New Group",
+                    userIds = emptyList(),
+                )
+            val savedEntity =
+                SecurityTestDataBuilders.group(
+                    id = UUID.randomUUID(),
+                    name = "New Group",
+                )
+            whenever(groupRepository.save(any())).thenReturn(savedEntity)
+
+            // Act
+            val result = groupManagementService.createGroup(command)
+
+            // Assert
+            assertThat(result).isNotNull()
+            assertThat(result.name).isEqualTo("New Group")
+            verify(groupRepository).save(any())
+            verify(userRepository, never()).findByIdIn(any())
+            verify(groupMembershipRepository, never()).saveAll(any<List<GroupMembershipEntity>>())
+        }
+
+        @Test
+        fun `should throw exception when creating group with invalid user IDs`() {
+            // Arrange
+            val userId1 = UUID.randomUUID()
+            val userId2 = UUID.randomUUID()
+            val groupId = UUID.randomUUID()
+            val command =
+                GroupManagement.CreateGroupCommand(
+                    name = "New Group",
+                    userIds = listOf(userId1, userId2),
+                )
+            val savedEntity =
+                SecurityTestDataBuilders.group(
+                    id = groupId,
+                    name = "New Group",
+                )
+            val user1 = SecurityTestDataBuilders.user(id = userId1)
+            // userId2 is missing
+            whenever(groupRepository.save(any())).thenReturn(savedEntity)
+            whenever(userRepository.findByIdIn(listOf(userId1, userId2))).thenReturn(listOf(user1))
+
+            // Act & Assert
+            assertThrows<IllegalArgumentException> {
+                groupManagementService.createGroup(command)
+            }.also { exception ->
+                assertThat(exception.message).contains("users not found")
+                assertThat(exception.message).contains(userId2.toString())
+            }
+            verify(groupRepository).save(any())
+            verify(userRepository).findByIdIn(listOf(userId1, userId2))
+            verify(groupMembershipRepository, never()).saveAll(any<List<GroupMembershipEntity>>())
         }
     }
 
@@ -334,6 +473,311 @@ class GroupManagementServiceTest {
             }
             verify(groupRepository).findById(groupId)
             verify(groupRepository, never()).update(any())
+        }
+
+        @Test
+        fun `should update group with user assignments`() {
+            // Arrange
+            val groupId = UUID.randomUUID()
+            val userId1 = UUID.randomUUID()
+            val userId2 = UUID.randomUUID()
+            val existingEntity =
+                SecurityTestDataBuilders.group(
+                    id = groupId,
+                    name = "Old Name",
+                )
+            val command =
+                GroupManagement.UpdateGroupCommand(
+                    groupId = groupId,
+                    name = "New Name",
+                    userIds = listOf(userId1, userId2),
+                )
+            val updatedEntity =
+                SecurityTestDataBuilders.group(
+                    id = groupId,
+                    name = "New Name",
+                )
+            val user1 = SecurityTestDataBuilders.user(id = userId1)
+            val user2 = SecurityTestDataBuilders.user(id = userId2)
+            whenever(groupRepository.findById(groupId)).thenReturn(Optional.of(existingEntity))
+            whenever(groupRepository.update(any())).thenReturn(updatedEntity)
+            whenever(userRepository.findByIdIn(listOf(userId1, userId2))).thenReturn(listOf(user1, user2))
+            whenever(groupMembershipRepository.findByGroupId(groupId)).thenReturn(emptyList())
+            whenever(
+                groupMembershipRepository.saveAll(any<List<GroupMembershipEntity>>()),
+            ).thenAnswer {
+                it.arguments[0] as List<GroupMembershipEntity>
+            }
+
+            // Act
+            val result = groupManagementService.updateGroup(command)
+
+            // Assert
+            assertThat(result).isNotNull()
+            assertThat(result.name).isEqualTo("New Name")
+            verify(groupRepository).findById(groupId)
+            verify(groupRepository).update(any())
+            verify(userRepository).findByIdIn(listOf(userId1, userId2))
+            verify(groupMembershipRepository).findByGroupId(groupId)
+            val membershipCaptor = argumentCaptor<List<GroupMembershipEntity>>()
+            verify(groupMembershipRepository).saveAll(membershipCaptor.capture())
+            val savedMemberships = membershipCaptor.firstValue
+            assertThat(savedMemberships).hasSize(2)
+        }
+
+        @Test
+        fun `should update group to add users`() {
+            // Arrange
+            val groupId = UUID.randomUUID()
+            val existingUserId = UUID.randomUUID()
+            val newUserId = UUID.randomUUID()
+            val existingEntity =
+                SecurityTestDataBuilders.group(
+                    id = groupId,
+                    name = "Group",
+                )
+            val existingMembership =
+                SecurityTestDataBuilders.groupMembership(
+                    userId = existingUserId,
+                    groupId = groupId,
+                )
+            val command =
+                GroupManagement.UpdateGroupCommand(
+                    groupId = groupId,
+                    name = "Group",
+                    userIds = listOf(existingUserId, newUserId),
+                )
+            val updatedEntity =
+                SecurityTestDataBuilders.group(
+                    id = groupId,
+                    name = "Group",
+                )
+            val existingUser = SecurityTestDataBuilders.user(id = existingUserId)
+            val newUser = SecurityTestDataBuilders.user(id = newUserId)
+            whenever(groupRepository.findById(groupId)).thenReturn(Optional.of(existingEntity))
+            whenever(groupRepository.update(any())).thenReturn(updatedEntity)
+            whenever(
+                userRepository.findByIdIn(
+                    listOf(
+                        existingUserId,
+                        newUserId,
+                    ),
+                ),
+            ).thenReturn(
+                listOf(
+                    existingUser,
+                    newUser,
+                ),
+            )
+            whenever(groupMembershipRepository.findByGroupId(groupId)).thenReturn(listOf(existingMembership))
+            whenever(
+                groupMembershipRepository.saveAll(any<List<GroupMembershipEntity>>()),
+            ).thenAnswer {
+                it.arguments[0] as List<GroupMembershipEntity>
+            }
+
+            // Act
+            val result = groupManagementService.updateGroup(command)
+
+            // Assert
+            assertThat(result).isNotNull()
+            verify(groupMembershipRepository).findByGroupId(groupId)
+            val membershipCaptor = argumentCaptor<List<GroupMembershipEntity>>()
+            verify(groupMembershipRepository).saveAll(membershipCaptor.capture())
+            val savedMemberships = membershipCaptor.firstValue
+            assertThat(savedMemberships).hasSize(1) // Only new user added
+        }
+
+        @Test
+        fun `should update group to remove users`() {
+            // Arrange
+            val groupId = UUID.randomUUID()
+            val userId1 = UUID.randomUUID()
+            val userId2 = UUID.randomUUID()
+            val existingEntity =
+                SecurityTestDataBuilders.group(
+                    id = groupId,
+                    name = "Group",
+                )
+            val membership1 =
+                SecurityTestDataBuilders.groupMembership(
+                    userId = userId1,
+                    groupId = groupId,
+                )
+            val membership2 =
+                SecurityTestDataBuilders.groupMembership(
+                    userId = userId2,
+                    groupId = groupId,
+                )
+            val command =
+                GroupManagement.UpdateGroupCommand(
+                    groupId = groupId,
+                    name = "Group",
+                    // Remove userId2
+                    userIds = listOf(userId1),
+                )
+            val updatedEntity =
+                SecurityTestDataBuilders.group(
+                    id = groupId,
+                    name = "Group",
+                )
+            val user1 = SecurityTestDataBuilders.user(id = userId1)
+            whenever(groupRepository.findById(groupId)).thenReturn(Optional.of(existingEntity))
+            whenever(groupRepository.update(any())).thenReturn(updatedEntity)
+            whenever(userRepository.findByIdIn(listOf(userId1))).thenReturn(listOf(user1))
+            whenever(groupMembershipRepository.findByGroupId(groupId)).thenReturn(listOf(membership1, membership2))
+            whenever(
+                groupMembershipRepository.deleteAll(any<List<GroupMembershipEntity>>()),
+            ).thenAnswer {
+                it.arguments[0] as List<GroupMembershipEntity>
+            }
+
+            // Act
+            val result = groupManagementService.updateGroup(command)
+
+            // Assert
+            assertThat(result).isNotNull()
+            verify(groupMembershipRepository).findByGroupId(groupId)
+            val deleteCaptor = argumentCaptor<List<GroupMembershipEntity>>()
+            verify(groupMembershipRepository).deleteAll(deleteCaptor.capture())
+            val deletedMemberships = deleteCaptor.firstValue
+            assertThat(deletedMemberships).hasSize(1) // Only userId2 removed
+        }
+
+        @Test
+        fun `should update group to remove all users`() {
+            // Arrange
+            val groupId = UUID.randomUUID()
+            val userId1 = UUID.randomUUID()
+            val userId2 = UUID.randomUUID()
+            val existingEntity =
+                SecurityTestDataBuilders.group(
+                    id = groupId,
+                    name = "Group",
+                )
+            val membership1 =
+                SecurityTestDataBuilders.groupMembership(
+                    userId = userId1,
+                    groupId = groupId,
+                )
+            val membership2 =
+                SecurityTestDataBuilders.groupMembership(
+                    userId = userId2,
+                    groupId = groupId,
+                )
+            val command =
+                GroupManagement.UpdateGroupCommand(
+                    groupId = groupId,
+                    name = "Group",
+                    // Remove all users
+                    userIds = emptyList(),
+                )
+            val updatedEntity =
+                SecurityTestDataBuilders.group(
+                    id = groupId,
+                    name = "Group",
+                )
+            whenever(groupRepository.findById(groupId)).thenReturn(Optional.of(existingEntity))
+            whenever(groupRepository.update(any())).thenReturn(updatedEntity)
+            whenever(groupMembershipRepository.findByGroupId(groupId)).thenReturn(listOf(membership1, membership2))
+            whenever(
+                groupMembershipRepository.deleteAll(any<List<GroupMembershipEntity>>()),
+            ).thenAnswer {
+                it.arguments[0] as List<GroupMembershipEntity>
+            }
+
+            // Act
+            val result = groupManagementService.updateGroup(command)
+
+            // Assert
+            assertThat(result).isNotNull()
+            verify(userRepository, never()).findByIdIn(any())
+            verify(groupMembershipRepository).findByGroupId(groupId)
+            val deleteCaptor = argumentCaptor<List<GroupMembershipEntity>>()
+            verify(groupMembershipRepository).deleteAll(deleteCaptor.capture())
+            val deletedMemberships = deleteCaptor.firstValue
+            assertThat(deletedMemberships).hasSize(2) // All users removed
+        }
+
+        @Test
+        fun `should update group without changing memberships when userIds is null`() {
+            // Arrange
+            val groupId = UUID.randomUUID()
+            val existingEntity =
+                SecurityTestDataBuilders.group(
+                    id = groupId,
+                    name = "Old Name",
+                )
+            val command =
+                GroupManagement.UpdateGroupCommand(
+                    groupId = groupId,
+                    name = "New Name",
+                    // No change to memberships
+                    userIds = null,
+                )
+            val updatedEntity =
+                SecurityTestDataBuilders.group(
+                    id = groupId,
+                    name = "New Name",
+                )
+            whenever(groupRepository.findById(groupId)).thenReturn(Optional.of(existingEntity))
+            whenever(groupRepository.update(any())).thenReturn(updatedEntity)
+
+            // Act
+            val result = groupManagementService.updateGroup(command)
+
+            // Assert
+            assertThat(result).isNotNull()
+            assertThat(result.name).isEqualTo("New Name")
+            verify(groupRepository).findById(groupId)
+            verify(groupRepository).update(any())
+            verify(userRepository, never()).findByIdIn(any())
+            verify(groupMembershipRepository, never()).findByGroupId(any())
+            verify(groupMembershipRepository, never()).saveAll(any<List<GroupMembershipEntity>>())
+            verify(groupMembershipRepository, never()).deleteAll(any<List<GroupMembershipEntity>>())
+        }
+
+        @Test
+        fun `should throw exception when updating group with invalid user IDs`() {
+            // Arrange
+            val groupId = UUID.randomUUID()
+            val userId1 = UUID.randomUUID()
+            val userId2 = UUID.randomUUID()
+            val existingEntity =
+                SecurityTestDataBuilders.group(
+                    id = groupId,
+                    name = "Group",
+                )
+            val command =
+                GroupManagement.UpdateGroupCommand(
+                    groupId = groupId,
+                    name = "Group",
+                    userIds = listOf(userId1, userId2),
+                )
+            val updatedEntity =
+                SecurityTestDataBuilders.group(
+                    id = groupId,
+                    name = "Group",
+                )
+            val user1 = SecurityTestDataBuilders.user(id = userId1)
+            // userId2 is missing
+            whenever(groupRepository.findById(groupId)).thenReturn(Optional.of(existingEntity))
+            whenever(groupRepository.update(any())).thenReturn(updatedEntity)
+            whenever(userRepository.findByIdIn(listOf(userId1, userId2))).thenReturn(listOf(user1))
+
+            // Act & Assert
+            assertThrows<IllegalArgumentException> {
+                groupManagementService.updateGroup(command)
+            }.also { exception ->
+                assertThat(exception.message).contains("users not found")
+                assertThat(exception.message).contains(userId2.toString())
+            }
+            verify(groupRepository).findById(groupId)
+            verify(groupRepository).update(any())
+            verify(userRepository).findByIdIn(listOf(userId1, userId2))
+            verify(groupMembershipRepository, never()).findByGroupId(any())
+            verify(groupMembershipRepository, never()).saveAll(any<List<GroupMembershipEntity>>())
+            verify(groupMembershipRepository, never()).deleteAll(any<List<GroupMembershipEntity>>())
         }
     }
 

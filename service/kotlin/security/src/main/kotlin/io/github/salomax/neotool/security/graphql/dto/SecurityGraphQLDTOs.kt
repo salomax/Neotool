@@ -126,6 +126,7 @@ data class CreateGroupInputDTO(
     @field:NotBlank(message = "Name is required")
     var name: String = "",
     var description: String? = null,
+    var userIds: List<String>? = null,
 ) : BaseInputDTO()
 
 @Introspected
@@ -134,6 +135,7 @@ data class UpdateGroupInputDTO(
     @field:NotBlank(message = "Name is required")
     var name: String = "",
     var description: String? = null,
+    var userIds: List<String>? = null,
 ) : BaseInputDTO()
 
 @Introspected

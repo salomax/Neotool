@@ -64,7 +64,7 @@ interface PermissionRepository : JpaRepository<PermissionEntity, Int> {
     @Query(
         value = """
         SELECT * FROM security.permissions
-        WHERE (:after IS NULL OR id > :after)
+        WHERE (CAST(:after AS INTEGER) IS NULL OR id > CAST(:after AS INTEGER))
         ORDER BY name ASC, id ASC
         LIMIT :first
         """,
@@ -89,7 +89,7 @@ interface PermissionRepository : JpaRepository<PermissionEntity, Int> {
         value = """
         SELECT * FROM security.permissions
         WHERE LOWER(name) LIKE LOWER(CONCAT('%', :query, '%'))
-        AND (:after IS NULL OR id > :after)
+        AND (CAST(:after AS INTEGER) IS NULL OR id > CAST(:after AS INTEGER))
         ORDER BY name ASC, id ASC
         LIMIT :first
         """,

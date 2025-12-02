@@ -26,6 +26,19 @@ input BaseEntityInput
   name: String!
 }
 
+input CreateGroupInput
+  @join__type(graph: SECURITY)
+{
+  name: String!
+  description: String
+}
+
+input CreateRoleInput
+  @join__type(graph: SECURITY)
+{
+  name: String!
+}
+
 type Customer
   @join__type(graph: APP, key: "id")
 {
@@ -52,6 +65,31 @@ enum CustomerStatus
   ACTIVE @join__enumValue(graph: APP)
   INACTIVE @join__enumValue(graph: APP)
   PENDING @join__enumValue(graph: APP)
+}
+
+type Group
+  @join__type(graph: SECURITY, key: "id")
+{
+  id: ID!
+  name: String!
+  description: String
+  roles: [Role!]!
+  members: [User!]!
+}
+
+type GroupConnection
+  @join__type(graph: SECURITY)
+{
+  edges: [GroupEdge!]!
+  nodes: [Group!]!
+  pageInfo: PageInfo!
+}
+
+type GroupEdge
+  @join__type(graph: SECURITY)
+{
+  node: Group!
+  cursor: String!
 }
 
 scalar join__FieldSet
@@ -90,6 +128,48 @@ type Mutation
   signUp(input: SignUpInput!): SignUpPayload! @join__field(graph: SECURITY)
   requestPasswordReset(input: RequestPasswordResetInput!): RequestPasswordResetPayload! @join__field(graph: SECURITY)
   resetPassword(input: ResetPasswordInput!): ResetPasswordPayload! @join__field(graph: SECURITY)
+  enableUser(userId: ID!): User! @join__field(graph: SECURITY)
+  disableUser(userId: ID!): User! @join__field(graph: SECURITY)
+  createGroup(input: CreateGroupInput!): Group! @join__field(graph: SECURITY)
+  updateGroup(groupId: ID!, input: UpdateGroupInput!): Group! @join__field(graph: SECURITY)
+  deleteGroup(groupId: ID!): Boolean! @join__field(graph: SECURITY)
+  createRole(input: CreateRoleInput!): Role! @join__field(graph: SECURITY)
+  updateRole(roleId: ID!, input: UpdateRoleInput!): Role! @join__field(graph: SECURITY)
+  deleteRole(roleId: ID!): Boolean! @join__field(graph: SECURITY)
+  assignPermissionToRole(roleId: ID!, permissionId: ID!): Role! @join__field(graph: SECURITY)
+  removePermissionFromRole(roleId: ID!, permissionId: ID!): Role! @join__field(graph: SECURITY)
+}
+
+type PageInfo
+  @join__type(graph: SECURITY)
+{
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+}
+
+type Permission
+  @join__type(graph: SECURITY, key: "id")
+{
+  id: ID!
+  name: String!
+  roles: [Role!]!
+}
+
+type PermissionConnection
+  @join__type(graph: SECURITY)
+{
+  edges: [PermissionEdge!]!
+  nodes: [Permission!]!
+  pageInfo: PageInfo!
+}
+
+type PermissionEdge
+  @join__type(graph: SECURITY)
+{
+  node: Permission!
+  cursor: String!
 }
 
 type Product
@@ -123,6 +203,10 @@ type Query
   customers: [Customer!]! @join__field(graph: APP)
   customer(id: ID!): Customer @join__field(graph: APP)
   currentUser: User @join__field(graph: SECURITY)
+  users(first: Int, after: String, query: String): UserConnection! @join__field(graph: SECURITY)
+  groups(first: Int, after: String, query: String): GroupConnection! @join__field(graph: SECURITY)
+  roles(first: Int, after: String, query: String): RoleConnection! @join__field(graph: SECURITY)
+  permissions(first: Int, after: String, query: String): PermissionConnection! @join__field(graph: SECURITY)
 }
 
 input RequestPasswordResetInput
@@ -151,6 +235,29 @@ type ResetPasswordPayload
 {
   success: Boolean!
   message: String!
+}
+
+type Role
+  @join__type(graph: SECURITY, key: "id")
+{
+  id: ID!
+  name: String!
+  permissions: [Permission!]!
+}
+
+type RoleConnection
+  @join__type(graph: SECURITY)
+{
+  edges: [RoleEdge!]!
+  nodes: [Role!]!
+  pageInfo: PageInfo!
+}
+
+type RoleEdge
+  @join__type(graph: SECURITY)
+{
+  node: Role!
+  cursor: String!
 }
 
 input SignInInput
@@ -193,10 +300,42 @@ type SignUpPayload
   user: User!
 }
 
+input UpdateGroupInput
+  @join__type(graph: SECURITY)
+{
+  name: String!
+  description: String
+}
+
+input UpdateRoleInput
+  @join__type(graph: SECURITY)
+{
+  name: String!
+}
+
 type User
   @join__type(graph: SECURITY, key: "id")
 {
   id: ID!
   email: String!
   displayName: String
+  enabled: Boolean!
+  roles: [Role!]!
+  groups: [Group!]!
+  permissions: [Permission!]!
+}
+
+type UserConnection
+  @join__type(graph: SECURITY)
+{
+  edges: [UserEdge!]!
+  nodes: [User!]!
+  pageInfo: PageInfo!
+}
+
+type UserEdge
+  @join__type(graph: SECURITY)
+{
+  node: User!
+  cursor: String!
 }

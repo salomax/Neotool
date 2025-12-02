@@ -24,7 +24,7 @@ import { useToast } from "@/shared/providers";
 import { useTranslation } from "@/shared/i18n/hooks/useTranslation";
 import { signinTranslations } from "@/app/signin/i18n";
 import { extractErrorMessage } from "@/shared/utils/error";
-import { useOAuth } from "@/shared/hooks/useOAuth";
+import { useOAuth } from "@/shared/hooks/auth";
 
 const signInSchema = z.object({
   email: z.string().email("errors.invalidEmail").min(1, "errors.required"),

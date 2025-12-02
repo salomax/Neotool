@@ -37,7 +37,7 @@ vi.mock('@/shared/providers', async () => {
 
 // Mock the OAuth hook
 const mockSignInOAuth = vi.fn();
-vi.mock('@/shared/hooks/useOAuth', () => ({
+vi.mock('@/shared/hooks/auth', () => ({
   useOAuth: vi.fn(() => ({
     signIn: mockSignInOAuth,
     isLoading: false,
@@ -284,7 +284,7 @@ describe('SignInForm', () => {
       const idToken = 'test-google-id-token';
       mockSignInOAuth.mockResolvedValue(idToken);
       
-      const { useOAuth } = await import('@/shared/hooks/useOAuth');
+      const { useOAuth } = await import('@/shared/hooks/auth');
       let oauthOnSuccess: ((idToken: string) => void) | undefined;
       
       vi.mocked(useOAuth).mockImplementation((options) => {
@@ -326,7 +326,7 @@ describe('SignInForm', () => {
       });
       mockSignInOAuth.mockReturnValue(oauthPromise);
 
-      const { useOAuth } = await import('@/shared/hooks/useOAuth');
+      const { useOAuth } = await import('@/shared/hooks/auth');
       vi.mocked(useOAuth).mockReturnValue({
         signIn: mockSignInOAuth,
         isLoading: false,

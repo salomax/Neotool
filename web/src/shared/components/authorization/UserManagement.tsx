@@ -1,0 +1,181 @@
+"use client";
+
+import React, { useState, useCallback } from "react";
+import {
+  Box,
+  Typography,
+  Button,
+  Alert,
+  Stack,
+} from "@mui/material";
+import { Drawer } from "@/shared/components/ui/layout/Drawer";
+import { useUserManagement, type User } from "@/shared/hooks/authorization/useUserManagement";
+import { UserSearch } from "./UserSearch";
+import { UserList } from "./UserList";
+import { useTranslation } from "@/shared/i18n";
+import { authorizationManagementTranslations } from "@/app/(neotool)/settings/i18n";
+import { useToast } from "@/shared/providers";
+import { extractErrorMessage } from "@/shared/utils/error";
+
+export interface UserManagementProps {
+  initialSearchQuery?: string;
+}
+
+/**
+ * UserManagement component - Main orchestrator for user management
+ * Displays list of users with search, pagination, and edit functionality
+ */
+export const UserManagement: React.FC<UserManagementProps> = ({
+  initialSearchQuery = "",
+}) => {
+  const { t } = useTranslation(authorizationManagementTranslations);
+  const toast = useToast();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+
+  const {
+    users,
+    searchQuery,
+    setSearchQuery,
+    pageInfo,
+    loadNextPage,
+    loadPreviousPage,
+    goToFirstPage,
+    enableUser,
+    disableUser,
+    loading,
+    enableLoading,
+    disableLoading,
+    error,
+    refetch,
+  } = useUserManagement({
+    initialSearchQuery,
+  });
+
+  const handleEdit = useCallback((user: User) => {
+    setEditingUser(user);
+    setDrawerOpen(true);
+  }, []);
+
+  const handleCloseDrawer = useCallback(() => {
+    setDrawerOpen(false);
+    setEditingUser(null);
+  }, []);
+
+  const handleToggleStatus = useCallback(
+    async (userId: string, enabled: boolean) => {
+      try {
+        if (enabled) {
+          await enableUser(userId);
+          toast.success(t("userManagement.toast.userEnabled"));
+        } else {
+          await disableUser(userId);
+          toast.success(t("userManagement.toast.userDisabled"));
+        }
+      } catch (err) {
+        console.error("Error toggling user status:", err);
+        const errorMessage = extractErrorMessage(
+          err,
+          enabled
+            ? t("userManagement.toast.userEnableError")
+            : t("userManagement.toast.userDisableError")
+        );
+        toast.error(errorMessage);
+      }
+    },
+    [enableUser, disableUser, toast, t]
+  );
+
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setSearchQuery(value);
+      // Reset to first page when search changes
+      goToFirstPage();
+    },
+    [setSearchQuery, goToFirstPage]
+  );
+
+  return (
+    <Box>
+      {/* Error Alert */}
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => refetch()}>
+          {error.message || t("errors.loadFailed")}
+        </Alert>
+      )}
+
+      {/* Search */}
+      <UserSearch
+        value={searchQuery}
+        onChange={handleSearchChange}
+        placeholder={t("userManagement.searchPlaceholder")}
+      />
+
+      {/* User List */}
+      <UserList
+        users={users}
+        loading={loading}
+        onEdit={handleEdit}
+        onToggleStatus={handleToggleStatus}
+        toggleLoading={enableLoading || disableLoading}
+        emptyMessage={
+          searchQuery
+            ? t("userManagement.emptySearchResults")
+            : t("userManagement.emptyList")
+        }
+      />
+
+      {/* Pagination Controls */}
+      {pageInfo && (pageInfo.hasNextPage || pageInfo.hasPreviousPage) && (
+        <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
+          <Stack direction="row" spacing={2} alignItems="center">
+            <Button
+              variant="outlined"
+              onClick={goToFirstPage}
+              disabled={!pageInfo.hasPreviousPage || loading}
+              size="small"
+            >
+              {t("pagination.first")}
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={loadPreviousPage}
+              disabled={!pageInfo.hasPreviousPage || loading}
+              size="small"
+            >
+              {t("pagination.previous")}
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={loadNextPage}
+              disabled={!pageInfo.hasNextPage || loading}
+              size="small"
+            >
+              {t("pagination.next")}
+            </Button>
+          </Stack>
+        </Box>
+      )}
+
+      {/* Edit Drawer */}
+      <Drawer
+        open={drawerOpen}
+        onClose={handleCloseDrawer}
+        title={editingUser ? t("userManagement.editUser") : t("userManagement.createUser")}
+        anchor="right"
+        width={600}
+        variant="temporary"
+      >
+        <Box sx={{ p: 3 }}>
+          <Typography variant="body1" color="text.secondary">
+            {editingUser
+              ? `${t("userManagement.drawerPlaceholder")} (${editingUser.email})`
+              : t("userManagement.drawerPlaceholder")}
+          </Typography>
+          {/* Drawer content (UserForm, UserRoleAssignment) will be implemented in frontend-008 */}
+        </Box>
+      </Drawer>
+    </Box>
+  );
+};
+

@@ -3,7 +3,7 @@ SET search_path TO security, public;
 
 -- Create groups table
 CREATE TABLE IF NOT EXISTS security.groups (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
     name VARCHAR(255) NOT NULL,
     description TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS security.groups (
 
 -- Create group_memberships table for user-group relationships
 CREATE TABLE IF NOT EXISTS security.group_memberships (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
     user_id UUID NOT NULL REFERENCES security.users(id) ON DELETE CASCADE,
     group_id UUID NOT NULL REFERENCES security.groups(id) ON DELETE CASCADE,
     membership_type VARCHAR(32) NOT NULL DEFAULT 'member', -- member, admin, owner
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS security.group_memberships (
 
 -- Create group_role_assignments table for group-level role assignments
 CREATE TABLE IF NOT EXISTS security.group_role_assignments (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
     group_id UUID NOT NULL REFERENCES security.groups(id) ON DELETE CASCADE,
     role_id INT NOT NULL REFERENCES security.roles(id) ON DELETE CASCADE,
     valid_from TIMESTAMP, -- nullable, if null then valid from creation

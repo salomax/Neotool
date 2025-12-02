@@ -490,7 +490,6 @@ const Tabs: React.FC<TabsProps> = ({
               border: '1px solid',
               borderColor: 'divider',
               borderTop: orientation === 'vertical' ? '1px solid' : 'none',
-              borderLeft: orientation === 'vertical' ? 'none' : '1px solid',
               minHeight: 200,
               overflow: 'auto'
             }}

@@ -128,7 +128,7 @@ fun decodeCursor(cursor: String): Int {
 @Query(
     value = """
     SELECT * FROM {schema}.{table}
-    WHERE (:after IS NULL OR id > :after)
+    WHERE (:after IS NULL OR id > CAST(:after AS {ID_TYPE}))
     ORDER BY {sort_field} ASC, id ASC
     LIMIT :first
     """,
@@ -138,18 +138,43 @@ fun findAll(first: Int, after: {ID_TYPE}?): List<{Entity}>
 ```
 
 **Key Points**:
-- Use `id > :after` for forward pagination (exclusive)
+- Use `id > CAST(:after AS {ID_TYPE})` for forward pagination (exclusive)
+- **CRITICAL**: Always cast nullable cursor parameters to their type (UUID or INTEGER)
 - Always include `id` as secondary sort for consistent ordering
 - Use `LIMIT :first` to control page size
 - Use native queries (JPQL doesn't support LIMIT)
 
-### Example: User Repository
+### PostgreSQL Type Inference Requirement
+
+**IMPORTANT**: When using nullable parameters in SQL comparisons, PostgreSQL requires explicit type casting.
+
+**Problem**: PostgreSQL cannot determine the data type of a parameter when it's NULL. If you use `WHERE (:after IS NULL OR id > :after)` without casting, PostgreSQL will fail with:
+```
+ERROR: could not determine data type of parameter $1
+```
+
+**Solution**: Always cast nullable cursor parameters to their explicit type:
+- For UUID: `CAST(:after AS UUID)`
+- For Integer: `CAST(:after AS INTEGER)`
+
+**Correct Pattern**:
+```kotlin
+// For UUID entities
+WHERE (:after IS NULL OR id > CAST(:after AS UUID))
+
+// For Integer entities
+WHERE (:after IS NULL OR id > CAST(:after AS INTEGER))
+```
+
+**Why Tests Don't Catch This**: Unit tests that mock repositories never execute actual SQL, so they won't catch PostgreSQL compilation errors. Integration tests with a real database are required to catch SQL-level issues.
+
+### Example: User Repository (UUID)
 
 ```kotlin
 @Query(
     value = """
     SELECT * FROM security.users
-    WHERE (:after IS NULL OR id > :after)
+    WHERE (:after IS NULL OR id > CAST(:after AS UUID))
     ORDER BY COALESCE(display_name, email) ASC, id ASC
     LIMIT :first
     """,
@@ -158,7 +183,7 @@ fun findAll(first: Int, after: {ID_TYPE}?): List<{Entity}>
 fun findAll(first: Int, after: UUID?): List<UserEntity>
 ```
 
-### Example: Search Query
+### Example: Search Query (UUID)
 
 ```kotlin
 @Query(
@@ -166,13 +191,28 @@ fun findAll(first: Int, after: UUID?): List<UserEntity>
     SELECT * FROM security.users
     WHERE (LOWER(COALESCE(display_name, '')) LIKE LOWER(CONCAT('%', :query, '%'))
         OR LOWER(email) LIKE LOWER(CONCAT('%', :query, '%')))
-    AND (:after IS NULL OR id > :after)
+    AND (:after IS NULL OR id > CAST(:after AS UUID))
     ORDER BY COALESCE(display_name, email) ASC, id ASC
     LIMIT :first
     """,
     nativeQuery = true,
 )
 fun searchByNameOrEmail(query: String, first: Int, after: UUID?): List<UserEntity>
+```
+
+### Example: Role Repository (Integer)
+
+```kotlin
+@Query(
+    value = """
+    SELECT * FROM security.roles
+    WHERE (:after IS NULL OR id > CAST(:after AS INTEGER))
+    ORDER BY name ASC, id ASC
+    LIMIT :first
+    """,
+    nativeQuery = true,
+)
+fun findAll(first: Int, after: Int?): List<RoleEntity>
 ```
 
 ## Service Layer Pattern
@@ -347,6 +387,24 @@ if (users.isEmpty()) {
     )
 }
 ```
+
+### 6. Testing Repository Methods
+
+**IMPORTANT**: Unit tests that mock repositories will NOT catch SQL compilation errors.
+
+**Unit Tests** (mocked repositories):
+- Test service layer logic
+- Test cursor encoding/decoding
+- Test pagination logic
+- **Will NOT catch**: PostgreSQL type inference errors, SQL syntax errors, query compilation issues
+
+**Integration Tests** (real database):
+- Test actual SQL execution
+- Test query compilation
+- Test type casting requirements
+- **Required for**: Catching SQL-level errors like parameter type inference issues
+
+**Recommendation**: Always write integration tests for repository methods that use native SQL queries to catch PostgreSQL-specific issues early.
 
 ## Examples
 

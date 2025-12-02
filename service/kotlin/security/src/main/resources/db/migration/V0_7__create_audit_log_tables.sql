@@ -3,7 +3,7 @@ SET search_path TO security, public;
 
 -- Create authorization_audit_logs table for comprehensive audit trail
 CREATE TABLE IF NOT EXISTS security.authorization_audit_logs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
     user_id UUID NOT NULL REFERENCES security.users(id) ON DELETE CASCADE,
     groups JSONB, -- array of group IDs the user belongs to at time of check
     roles JSONB, -- array of role IDs the user has at time of check

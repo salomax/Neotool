@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
-import { useOAuth } from '../useOAuth';
+import { useOAuth } from '@/shared/hooks/auth';
 
 // Mock the Google OAuth module
 vi.mock('@/lib/auth/oauth/google', () => ({

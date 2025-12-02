@@ -12,3 +12,6 @@ ALTER TABLE security.permissions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP N
 ALTER TABLE security.permissions ADD COLUMN IF NOT EXISTS version BIGINT NOT NULL DEFAULT 0;
 
 
+
+
+

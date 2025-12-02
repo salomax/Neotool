@@ -8,25 +8,29 @@ import Divider from '@mui/material/Divider';
 import { alpha, useTheme } from '@mui/material/styles';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useTranslation } from 'react-i18next';
 import { LogoMark } from '@/shared/ui/brand/LogoMark';
 
 import DesignServicesRoundedIcon from '@mui/icons-material/DesignServicesRounded';
 import CodeRoundedIcon from '@mui/icons-material/CodeRounded';
 import MenuBookRoundedIcon from '@mui/icons-material/MenuBookRounded';
+import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
 
 type NavItem = { href: string; label: string; icon: React.ElementType };
-
-const NAV_TOP: NavItem[] = [
-  { href: '/design-system', label: 'Design System', icon: DesignServicesRoundedIcon },
-  { href: '/examples', label: 'Examples', icon: CodeRoundedIcon },
-  { href: '/documentation', label: 'Documentation', icon: MenuBookRoundedIcon },
-];
 
 export const RAIL_W = 84;
 
 export function SidebarRail() {
   const theme = useTheme();
   const pathname = usePathname();
+  const { t } = useTranslation('common');
+
+  const NAV_TOP: NavItem[] = [
+    { href: '/design-system', label: 'Design System', icon: DesignServicesRoundedIcon },
+    { href: '/examples', label: t('routes.examples'), icon: CodeRoundedIcon },
+    { href: '/documentation', label: 'Documentation', icon: MenuBookRoundedIcon },
+    { href: '/settings', label: t('routes.settings'), icon: SettingsRoundedIcon },
+  ];
 
   return (
     <Box

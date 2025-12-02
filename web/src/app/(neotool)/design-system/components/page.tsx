@@ -35,7 +35,7 @@ import {
   CloseIcon
 } from "@/shared/ui/mui-imports";
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import { useResponsive } from "@/shared/hooks/useResponsive";
+import { useResponsive } from "@/shared/hooks/ui";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getAllComponentNames, getComponentDocs } from "./[component]/docs/registry";

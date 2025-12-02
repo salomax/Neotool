@@ -52,7 +52,7 @@ interface RoleRepository : JpaRepository<RoleEntity, Int> {
     @Query(
         value = """
         SELECT * FROM security.roles
-        WHERE (:after IS NULL OR id > :after)
+        WHERE (CAST(:after AS INTEGER) IS NULL OR id > CAST(:after AS INTEGER))
         ORDER BY name ASC, id ASC
         LIMIT :first
         """,
@@ -77,7 +77,7 @@ interface RoleRepository : JpaRepository<RoleEntity, Int> {
         value = """
         SELECT * FROM security.roles
         WHERE LOWER(name) LIKE LOWER(CONCAT('%', :query, '%'))
-        AND (:after IS NULL OR id > :after)
+        AND (CAST(:after AS INTEGER) IS NULL OR id > CAST(:after AS INTEGER))
         ORDER BY name ASC, id ASC
         LIMIT :first
         """,

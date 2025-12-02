@@ -1,0 +1,107 @@
+{
+  "title": "Configurações",
+  "tabs": {
+    "users": "Usuários",
+    "groups": "Grupos",
+    "roles": "Perfis"
+  },
+  "placeholders": {
+    "users": "Componente de Gerenciamento de Usuários será implementado aqui",
+    "groups": "Componente de Gerenciamento de Grupos será implementado aqui",
+    "roles": "Componente de Gerenciamento de Perfis será implementado aqui"
+  },
+  "userManagement": {
+    "searchPlaceholder": "Buscar usuários por nome, email ou identificador...",
+    "emptyList": "Nenhum usuário encontrado",
+    "emptySearchResults": "Nenhum usuário corresponde aos critérios de busca",
+    "editUser": "Editar Usuário",
+    "createUser": "Criar Usuário",
+    "drawerPlaceholder": "Formulário de edição de usuário será implementado aqui",
+    "status": {
+      "enabled": "Habilitado",
+      "disabled": "Desabilitado",
+      "enable": "Habilitar usuário",
+      "disable": "Desabilitar usuário"
+    },
+    "table": {
+      "name": "Nome",
+      "email": "Email",
+      "status": "Status",
+      "actions": "Ações"
+    },
+    "toast": {
+      "userEnabled": "Usuário habilitado com sucesso",
+      "userDisabled": "Usuário desabilitado com sucesso",
+      "userEnableError": "Falha ao habilitar usuário",
+      "userDisableError": "Falha ao desabilitar usuário"
+    }
+  },
+  "pagination": {
+    "first": "Primeiro",
+    "previous": "Anterior",
+    "next": "Próximo",
+    "last": "Último"
+  },
+  "groupManagement": {
+    "searchPlaceholder": "Buscar grupos por nome...",
+    "emptyList": "Nenhum grupo encontrado",
+    "emptySearchResults": "Nenhum grupo corresponde aos critérios de busca",
+    "editGroup": "Editar Grupo",
+    "createGroup": "Criar Grupo",
+    "newButton": "Novo",
+    "drawerPlaceholder": "Formulário de edição de grupo será implementado aqui",
+    "table": {
+      "name": "Nome",
+      "description": "Descrição",
+      "actions": "Ações"
+    },
+    "form": {
+      "name": "Nome",
+      "description": "Descrição",
+      "users": "Usuários",
+      "usersHelper": "Selecione usuários para atribuir a este grupo",
+      "cancel": "Cancelar",
+      "save": "Salvar",
+      "create": "Criar",
+      "saving": "Salvando...",
+      "validation": {
+        "nameRequired": "Nome é obrigatório",
+        "nameMinLength": "Nome deve ter pelo menos 1 caractere"
+      },
+      "errors": {
+        "loadUsersFailed": "Falha ao carregar usuários"
+      }
+    },
+    "deleteDialog": {
+      "title": "Excluir Grupo",
+      "message": "Tem certeza de que deseja excluir o grupo \"{name}\"? Esta ação não pode ser desfeita.",
+      "cancel": "Cancelar",
+      "delete": "Excluir",
+      "deleting": "Excluindo..."
+    },
+    "toast": {
+      "groupCreated": "Grupo '{{name}}' criado com sucesso",
+      "groupUpdated": "Grupo '{{name}}' atualizado com sucesso",
+      "groupDeleted": "Grupo '{{name}}' excluído com sucesso",
+      "groupCreateError": "Falha ao criar grupo",
+      "groupUpdateError": "Falha ao atualizar grupo",
+      "groupDeleteError": "Falha ao excluir grupo"
+    }
+  },
+  "roleManagement": {
+    "searchPlaceholder": "Buscar perfis por nome...",
+    "emptyList": "Nenhum perfil encontrado",
+    "emptySearchResults": "Nenhum perfil corresponde aos critérios de busca",
+    "editRole": "Editar Perfil",
+    "createRole": "Criar Perfil",
+    "drawerPlaceholder": "Formulário de edição de perfil será implementado aqui",
+    "table": {
+      "name": "Nome",
+      "actions": "Ações"
+    }
+  },
+  "errors": {
+    "loadFailed": "Falha ao carregar dados. Por favor, tente novamente."
+  }
+}
+

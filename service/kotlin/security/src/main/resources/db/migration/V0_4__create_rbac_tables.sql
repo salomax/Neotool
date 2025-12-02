@@ -3,7 +3,7 @@ SET search_path TO security, public;
 
 -- Create role_assignments table for role assignments with temporal validity
 CREATE TABLE IF NOT EXISTS security.role_assignments (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
     user_id UUID NOT NULL REFERENCES security.users(id) ON DELETE CASCADE,
     role_id INT NOT NULL REFERENCES security.roles(id) ON DELETE CASCADE,
     valid_from TIMESTAMP, -- nullable, if null then valid from creation

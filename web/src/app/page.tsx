@@ -12,7 +12,7 @@ import {
   MenuBookRoundedIcon
 } from "@/shared/ui/mui-imports";
 import Link from "next/link";
-import { useResponsive } from "@/shared/hooks/useResponsive";
+import { useResponsive } from "@/shared/hooks/ui";
 import { Logo } from "@/shared/ui/brand";
 
 export default function WelcomePage() {

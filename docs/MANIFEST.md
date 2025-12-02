@@ -87,6 +87,7 @@ This specification is organized into numbered directories (00-11) for clear hier
 | Hook Pattern | `04-patterns/frontend-patterns/hook-pattern.md` | pattern | frontend | hooks, react, custom-hooks |
 | GraphQL Pattern | `04-patterns/frontend-patterns/graphql-pattern.md` | pattern | frontend | graphql, operations, apollo |
 | Styling Pattern | `04-patterns/frontend-patterns/styling-pattern.md` | pattern | frontend | styling, themes, design-tokens |
+| Toast Notification Pattern | `04-patterns/frontend-patterns/toast-notification-pattern.md` | pattern | frontend | toast, notification, feedback, user-experience |
 
 ### API Patterns
 

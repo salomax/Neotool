@@ -151,4 +151,15 @@ class RoleManagementMapper {
             name = extractField(input, "name"),
         )
     }
+
+    /**
+     * Map GraphQL input map to UpdateRoleInputDTO
+     * @param input The GraphQL input map
+     * @return UpdateRoleInputDTO with extracted and validated fields
+     */
+    fun mapToUpdateRoleInputDTO(input: Map<String, Any?>): UpdateRoleInputDTO {
+        return UpdateRoleInputDTO(
+            name = extractField(input, "name"),
+        )
+    }
 }

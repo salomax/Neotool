@@ -29,7 +29,7 @@ interface UserRepository : JpaRepository<UserEntity, UUID> {
     @Query(
         value = """
         SELECT * FROM security.users
-        WHERE (:after IS NULL OR id > :after)
+        WHERE (CAST(:after AS UUID) IS NULL OR id > CAST(:after AS UUID))
         ORDER BY COALESCE(display_name, email) ASC, id ASC
         LIMIT :first
         """,
@@ -55,7 +55,7 @@ interface UserRepository : JpaRepository<UserEntity, UUID> {
         SELECT * FROM security.users
         WHERE (LOWER(COALESCE(display_name, '')) LIKE LOWER(CONCAT('%', :query, '%'))
             OR LOWER(email) LIKE LOWER(CONCAT('%', :query, '%')))
-        AND (:after IS NULL OR id > :after)
+        AND (CAST(:after AS UUID) IS NULL OR id > CAST(:after AS UUID))
         ORDER BY COALESCE(display_name, email) ASC, id ASC
         LIMIT :first
         """,

@@ -237,13 +237,30 @@ phases:
           - RoleManagementService.removePermissionFromRole() undefined 'permission' and 'role' variables
           Loop until all issues resolved
 
+      - id: service-009
+        description: Add user assignment support to Group Management Service
+        status: pending
+        dependencies: [service-002]
+        files:
+          - service/kotlin/security/src/main/kotlin/io/github/salomax/neotool/security/service/GroupManagementService.kt
+          - service/kotlin/security/src/main/kotlin/io/github/salomax/neotool/security/domain/GroupManagement.kt
+        notes: |
+          Update Group Management Service to support user assignment:
+          - Add userIds field to CreateGroupCommand and UpdateGroupCommand
+          - Update createGroup() to create group_memberships for provided userIds
+          - Update updateGroup() to sync group_memberships based on provided userIds
+          - Handle adding new memberships and removing old ones
+          - Validate that all userIds exist before creating memberships
+          - Use GroupMembershipRepository for membership operations
+          - Follow existing patterns for transaction management
+
   - name: Backend GraphQL
     status: pending
     tasks:
       - id: graphql-001
         description: Define GraphQL schema for authorization management
         status: pending
-        dependencies: [service-008]
+        dependencies: [service-008, service-009]
         files:
           - service/kotlin/security/src/main/resources/graphql/schema.graphqls
           - contracts/graphql/subgraphs/security/schema.graphqls
@@ -267,6 +284,9 @@ phases:
           Types:
           - UserConnection, GroupConnection, RoleConnection, PermissionConnection (Relay pagination)
           - Extend User, Group, Role, Permission nodes with relationships
+          Input Types:
+          - CreateGroupInput: Add userIds: [ID!] field
+          - UpdateGroupInput: Add userIds: [ID!] field
           Follow federation patterns from docs/01-architecture/api-architecture/graphql-federation.md
 
       - id: graphql-002
@@ -496,91 +516,175 @@ phases:
         notes: Follow hook patterns from docs/04-patterns/frontend-patterns/hook-pattern.md
 
       - id: frontend-003
-        description: Implement User Management UI components
+        description: Add Settings menu item to left navigation
         status: pending
         dependencies: [frontend-002]
         files:
-          - web/src/app/admin/authorization/users/UserManagement.tsx
+          - web/src/shared/config/nav.ts
+          - web/src/shared/ui/navigation/SidebarRail.tsx
+        notes: Add "Settings" menu item to left navigation menu, use i18n for label
+
+      - id: frontend-004
+        description: Implement Settings page with tab control
+        status: completed
+        dependencies: [frontend-003]
+        files:
+          - web/src/app/(neotool)/settings/page.tsx
+          - web/src/app/(neotool)/settings/i18n/index.ts
+          - web/src/app/(neotool)/settings/i18n/locales/en.json
+          - web/src/app/(neotool)/settings/i18n/locales/pt.json
+        notes: |
+          Create Settings page with:
+          - Page title
+          - Tab control with three tabs: Users, Groups, Roles
+          - Use Tabs component from design system
+          - Use i18n for all text
+
+      - id: frontend-005
+        description: Implement User Management component for Settings tab
+        status: completed
+        dependencies: [frontend-004]
+        files:
+          - web/src/shared/components/authorization/UserManagement.tsx
           - web/src/shared/components/authorization/UserList.tsx
           - web/src/shared/components/authorization/UserSearch.tsx
           - web/src/shared/components/authorization/UserStatusToggle.tsx
-        notes: Use design system components from docs/04-patterns/frontend-patterns/component-pattern.md
-
-      - id: frontend-004
-        description: Implement Group Management UI components
-        status: pending
-        dependencies: [frontend-002]
-        files:
-          - web/src/app/admin/authorization/groups/GroupManagement.tsx
-          - web/src/shared/components/authorization/GroupList.tsx
-          - web/src/shared/components/authorization/GroupForm.tsx
-          - web/src/shared/components/authorization/GroupDeleteDialog.tsx
-        notes: Include dependency validation UI, use design system
-
-      - id: frontend-005
-        description: Implement Role Management UI components
-        status: pending
-        dependencies: [frontend-002]
-        files:
-          - web/src/app/admin/authorization/roles/RoleManagement.tsx
-          - web/src/shared/components/authorization/RoleList.tsx
-          - web/src/shared/components/authorization/RoleForm.tsx
-          - web/src/shared/components/authorization/RoleDeleteDialog.tsx
-          - web/src/shared/components/authorization/RolePermissionsList.tsx
-          - web/src/shared/components/authorization/PermissionAssignment.tsx
-        notes: Include permission assignment UI, use design system
+        notes: |
+          Component to be used in Users tab:
+          - Display list of users with inline edit button
+          - Edit button opens Drawer for editing
+          - Use design system components
 
       - id: frontend-006
-        description: Implement Permission Management UI components
-        status: pending
-        dependencies: [frontend-002]
+        description: Implement Group Management component for Settings tab
+        status: completed
+        dependencies: [frontend-004]
         files:
-          - web/src/app/admin/authorization/permissions/PermissionManagement.tsx
-          - web/src/shared/components/authorization/PermissionList.tsx
-          - web/src/shared/components/authorization/PermissionSearch.tsx
-        notes: Use design system components
+          - web/src/shared/components/authorization/GroupManagement.tsx
+          - web/src/shared/components/authorization/GroupList.tsx
+          - web/src/shared/components/authorization/GroupForm.tsx
+          - web/src/shared/components/authorization/GroupUserAssignment.tsx
+        notes: |
+          Component to be used in Groups tab:
+          - Display list of groups with inline edit and delete buttons
+          - "New" button opens Drawer for creating groups
+          - Edit button opens Drawer for editing groups
+          - Delete button shows confirmation dialog
+          - GroupForm component for name and description fields
+          - GroupUserAssignment component for selecting users to assign
+          - Use design system components
+          - Full i18n support (English and Portuguese)
+          - Note: User assignment requires backend support (see service-009)
 
       - id: frontend-007
+        description: Implement Role Management component for Settings tab
+        status: pending
+        dependencies: [frontend-004]
+        files:
+          - web/src/shared/components/authorization/RoleManagement.tsx
+          - web/src/shared/components/authorization/RoleList.tsx
+        notes: |
+          Component to be used in Roles tab:
+          - Display list of roles with inline edit button
+          - Edit button opens Drawer for editing
+          - Use design system components
+
+      - id: frontend-008
+        description: Implement User Drawer for editing user attributes and roles
+        status: pending
+        dependencies: [frontend-005]
+        files:
+          - web/src/shared/components/authorization/UserDrawer.tsx
+          - web/src/shared/components/authorization/UserForm.tsx
+          - web/src/shared/components/authorization/UserRoleAssignment.tsx
+        notes: |
+          Drawer component for editing users:
+          - Edit user attributes (name, email, status, etc.)
+          - Manage user roles (assign/remove roles)
+          - Use Drawer component from design system
+          - Use i18n for all text
+
+      - id: frontend-009
+        description: Implement Group Drawer for editing group attributes and roles
+        status: pending
+        dependencies: [frontend-006]
+        files:
+          - web/src/shared/components/authorization/GroupDrawer.tsx
+          - web/src/shared/components/authorization/GroupForm.tsx
+          - web/src/shared/components/authorization/GroupRoleAssignment.tsx
+        notes: |
+          Drawer component for editing groups:
+          - Edit group attributes (name, description, etc.)
+          - Manage group roles (assign/remove roles)
+          - Use Drawer component from design system
+          - Use i18n for all text
+
+      - id: frontend-010
+        description: Implement Role Drawer for editing role attributes and permissions
+        status: pending
+        dependencies: [frontend-007]
+        files:
+          - web/src/shared/components/authorization/RoleDrawer.tsx
+          - web/src/shared/components/authorization/RoleForm.tsx
+          - web/src/shared/components/authorization/RolePermissionAssignment.tsx
+          - web/src/shared/components/authorization/PermissionList.tsx
+          - web/src/shared/components/authorization/PermissionSearch.tsx
+        notes: |
+          Drawer component for editing roles:
+          - Edit role attributes (name, description, etc.)
+          - Manage role permissions (assign/remove permissions)
+          - Use Permission Management UI components
+          - Use Drawer component from design system
+          - Use i18n for all text
+
+      - id: frontend-011
         description: Implement Relay pagination components
         status: pending
-        dependencies: [frontend-003, frontend-004, frontend-005, frontend-006]
+        dependencies: [frontend-005, frontend-006, frontend-007]
         files:
           - web/src/shared/components/authorization/PaginationControls.tsx
         notes: Reusable pagination component for all listings
 
-      - id: frontend-008
-        description: Apply design system components and theme tokens
-        status: pending
-        dependencies: [frontend-003, frontend-004, frontend-005, frontend-006, frontend-007]
-        notes: Apply theme tokens from docs/04-patterns/frontend-patterns/styling-pattern.md
-
-      - id: frontend-009
+      - id: frontend-012
         description: Implement i18n support (translation keys, locales)
         status: pending
-        dependencies: [frontend-008]
+        dependencies: [frontend-004, frontend-005, frontend-006, frontend-007, frontend-008, frontend-009, frontend-010]
         files:
-          - web/public/locales/en/authorization-management.json
-          - web/public/locales/es/authorization-management.json
-        notes: Add translation keys for all UI text
+          - web/src/shared/i18n/locales/en/authorization-management.json
+          - web/src/shared/i18n/locales/pt/authorization-management.json
+        notes: |
+          Add translation keys for all UI text:
+          - Settings page title and tabs
+          - User, Group, Role management labels
+          - Drawer titles and form labels
+          - Actions (edit, save, cancel, etc.)
+          - Error messages
+          - Support pt-BR and en-US locales
 
-      - id: frontend-010
+      - id: frontend-013
+        description: Apply design system components and theme tokens
+        status: pending
+        dependencies: [frontend-012]
+        notes: Apply theme tokens from docs/04-patterns/frontend-patterns/styling-pattern.md
+
+      - id: frontend-014
         description: Implement error handling and loading states
         status: pending
-        dependencies: [frontend-009]
+        dependencies: [frontend-013]
         notes: Handle errors gracefully, show loading indicators
 
-      - id: frontend-011
-        description: Implement admin authorization check (protect admin routes)
+      - id: frontend-015
+        description: Implement admin authorization check (protect Settings route)
         status: pending
-        dependencies: [frontend-001]
+        dependencies: [frontend-004]
         files:
           - web/src/shared/components/authorization/AdminGuard.tsx
-        notes: Ensure only users with authorization:manage permission can access
+        notes: Ensure only users with authorization:manage permission can access Settings page
 
-      - id: frontend-012
+      - id: frontend-016
         description: Review frontend code until no issues (lint, type safety, patterns)
         status: pending
-        dependencies: [frontend-011]
+        dependencies: [frontend-015]
         notes: Loop until all issues resolved
 
   - name: Front End tests
@@ -599,21 +703,32 @@ phases:
       - id: frontend-test-002
         description: Implement component tests for management UI components
         status: pending
-        dependencies: [frontend-012]
+        dependencies: [frontend-016]
         files:
-          - web/src/shared/components/authorization/__tests__/UserList.test.tsx
-          - web/src/shared/components/authorization/__tests__/GroupForm.test.tsx
-          - web/src/shared/components/authorization/__tests__/RoleForm.test.tsx
-          - web/src/shared/components/authorization/__tests__/PermissionAssignment.test.tsx
-        notes: Use React Testing Library
+          - web/src/app/(neotool)/settings/__tests__/page.test.tsx
+          - web/src/shared/components/authorization/__tests__/UserManagement.test.tsx
+          - web/src/shared/components/authorization/__tests__/GroupManagement.test.tsx
+          - web/src/shared/components/authorization/__tests__/RoleManagement.test.tsx
+          - web/src/shared/components/authorization/__tests__/UserDrawer.test.tsx
+          - web/src/shared/components/authorization/__tests__/GroupDrawer.test.tsx
+          - web/src/shared/components/authorization/__tests__/RoleDrawer.test.tsx
+        notes: Use React Testing Library, test Settings page, tabs, and Drawer components
 
       - id: frontend-test-003
         description: Implement E2E tests (Playwright, critical user flows)
         status: pending
-        dependencies: [frontend-012]
+        dependencies: [frontend-016]
         files:
           - web/tests/e2e/authorization-management.spec.ts
-        notes: Test critical flows: list, create, update, delete operations
+        notes: |
+          Test critical flows:
+          - Navigate to Settings page
+          - Switch between Users, Groups, Roles tabs
+          - Open Drawer from inline edit button
+          - Edit user/group/role attributes
+          - Manage roles for users/groups
+          - Manage permissions for roles
+          - Save and cancel operations
 
       - id: frontend-test-004
         description: Run tests until success (loop)
