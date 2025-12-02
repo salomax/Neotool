@@ -3,7 +3,7 @@ SET search_path TO security, public;
 
 -- Create abac_policies table for Attribute-Based Access Control policies
 CREATE TABLE IF NOT EXISTS security.abac_policies (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
     name VARCHAR(255) NOT NULL,
     description TEXT,
     effect VARCHAR(16) NOT NULL, -- allow or deny
@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS security.abac_policies (
 
 -- Create abac_policy_versions table for policy versioning and audit trail
 CREATE TABLE IF NOT EXISTS security.abac_policy_versions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
     policy_id UUID NOT NULL REFERENCES security.abac_policies(id) ON DELETE CASCADE,
     version INT NOT NULL,
     effect VARCHAR(16) NOT NULL, -- allow or deny

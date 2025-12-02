@@ -67,9 +67,21 @@ class GroupManagementMapper {
      * Convert CreateGroupInputDTO to CreateGroupCommand.
      */
     fun toCreateGroupCommand(input: CreateGroupInputDTO): GroupManagement.CreateGroupCommand {
+        val userIds = input.userIds
+            ?.filter { it.isNotBlank() }
+            ?.map { userIdString ->
+                try {
+                    UUID.fromString(userIdString.trim())
+                } catch (e: IllegalArgumentException) {
+                    throw IllegalArgumentException("Invalid user ID format: '$userIdString'. Expected a valid UUID.", e)
+                }
+            }
+            ?.takeIf { it.isNotEmpty() }
+
         return GroupManagement.CreateGroupCommand(
             name = input.name,
             description = input.description,
+            userIds = userIds,
         )
     }
 
@@ -80,10 +92,28 @@ class GroupManagementMapper {
         groupId: String,
         input: UpdateGroupInputDTO,
     ): GroupManagement.UpdateGroupCommand {
+        val groupIdUuid = try {
+            UUID.fromString(groupId.trim())
+        } catch (e: IllegalArgumentException) {
+            throw IllegalArgumentException("Invalid group ID format: '$groupId'. Expected a valid UUID.", e)
+        }
+
+        val userIds = input.userIds
+            ?.filter { it.isNotBlank() }
+            ?.map { userIdString ->
+                try {
+                    UUID.fromString(userIdString.trim())
+                } catch (e: IllegalArgumentException) {
+                    throw IllegalArgumentException("Invalid user ID format: '$userIdString'. Expected a valid UUID.", e)
+                }
+            }
+            ?.takeIf { it.isNotEmpty() }
+
         return GroupManagement.UpdateGroupCommand(
-            groupId = UUID.fromString(groupId),
+            groupId = groupIdUuid,
             name = input.name,
             description = input.description,
+            userIds = userIds,
         )
     }
 
@@ -91,7 +121,11 @@ class GroupManagementMapper {
      * Convert String ID to UUID.
      */
     fun toGroupId(id: String): UUID {
-        return UUID.fromString(id)
+        return try {
+            UUID.fromString(id.trim())
+        } catch (e: IllegalArgumentException) {
+            throw IllegalArgumentException("Invalid group ID format: '$id'. Expected a valid UUID.", e)
+        }
     }
 
     /**
@@ -125,9 +159,47 @@ class GroupManagementMapper {
      * @return CreateGroupInputDTO with extracted and validated fields
      */
     fun mapToCreateGroupInputDTO(input: Map<String, Any?>): CreateGroupInputDTO {
+        val userIds: List<String>? =
+            when (val userIdsValue = input["userIds"]) {
+                null -> null
+                is List<*> -> {
+                    val extracted = userIdsValue
+                        .mapNotNull { it?.toString()?.trim() }
+                        .filter { it.isNotBlank() }
+                    extracted.takeIf { it.isNotEmpty() }
+                }
+                else -> null
+            }
+
         return CreateGroupInputDTO(
             name = extractField<String>(input, "name"),
             description = extractField<String?>(input, "description", null),
+            userIds = userIds,
+        )
+    }
+
+    /**
+     * Map GraphQL input map to UpdateGroupInputDTO
+     * @param input The GraphQL input map
+     * @return UpdateGroupInputDTO with extracted and validated fields
+     */
+    fun mapToUpdateGroupInputDTO(input: Map<String, Any?>): UpdateGroupInputDTO {
+        val userIds: List<String>? =
+            when (val userIdsValue = input["userIds"]) {
+                null -> null
+                is List<*> -> {
+                    val extracted = userIdsValue
+                        .mapNotNull { it?.toString()?.trim() }
+                        .filter { it.isNotBlank() }
+                    extracted.takeIf { it.isNotEmpty() }
+                }
+                else -> null
+            }
+
+        return UpdateGroupInputDTO(
+            name = extractField<String>(input, "name"),
+            description = extractField<String?>(input, "description", null),
+            userIds = userIds,
         )
     }
 }

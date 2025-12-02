@@ -25,5 +25,40 @@ export const PRODUCT_FIELDS = gql`
   }
 `;
 
+// User fields fragment
+export const USER_FIELDS = gql`
+  fragment UserFields on User {
+    id
+    email
+    displayName
+    enabled
+  }
+`;
+
+// Group fields fragment
+export const GROUP_FIELDS = gql`
+  fragment GroupFields on Group {
+    id
+    name
+    description
+  }
+`;
+
+// Role fields fragment
+export const ROLE_FIELDS = gql`
+  fragment RoleFields on Role {
+    id
+    name
+  }
+`;
+
+// Permission fields fragment
+export const PERMISSION_FIELDS = gql`
+  fragment PermissionFields on Permission {
+    id
+    name
+  }
+`;
+
 // Note: The actual schema returns objects directly or boolean values
 // No common response wrapper fragments needed for current schema

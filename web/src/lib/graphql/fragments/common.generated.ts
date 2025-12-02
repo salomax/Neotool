@@ -5,6 +5,14 @@ export type CustomerFieldsFragment = { __typename: 'Customer', id: string, name:
 
 export type ProductFieldsFragment = { __typename: 'Product', id: string, name: string, sku: string, priceCents: number, stock: number, createdAt: string | null, updatedAt: string | null };
 
+export type UserFieldsFragment = { __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean };
+
+export type GroupFieldsFragment = { __typename: 'Group', id: string, name: string, description: string | null };
+
+export type RoleFieldsFragment = { __typename: 'Role', id: string, name: string };
+
+export type PermissionFieldsFragment = { __typename: 'Permission', id: string, name: string };
+
 export const CustomerFieldsFragmentDoc = gql`
     fragment CustomerFields on Customer {
   id
@@ -24,5 +32,32 @@ export const ProductFieldsFragmentDoc = gql`
   stock
   createdAt
   updatedAt
+}
+    `;
+export const UserFieldsFragmentDoc = gql`
+    fragment UserFields on User {
+  id
+  email
+  displayName
+  enabled
+}
+    `;
+export const GroupFieldsFragmentDoc = gql`
+    fragment GroupFields on Group {
+  id
+  name
+  description
+}
+    `;
+export const RoleFieldsFragmentDoc = gql`
+    fragment RoleFields on Role {
+  id
+  name
+}
+    `;
+export const PermissionFieldsFragmentDoc = gql`
+    fragment PermissionFields on Permission {
+  id
+  name
 }
     `;

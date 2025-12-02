@@ -175,11 +175,13 @@ type PermissionConnection {
 input CreateGroupInput {
   name: String!
   description: String
+  userIds: [ID!]
 }
 
 input UpdateGroupInput {
   name: String!
   description: String
+  userIds: [ID!]
 }
 
 input CreateRoleInput {

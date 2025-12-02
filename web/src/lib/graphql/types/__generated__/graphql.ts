@@ -20,6 +20,15 @@ export type BaseEntityInput = {
   name: Scalars['String']['input'];
 };
 
+export type CreateGroupInput = {
+  description?: InputMaybe<Scalars['String']['input']>;
+  name: Scalars['String']['input'];
+};
+
+export type CreateRoleInput = {
+  name: Scalars['String']['input'];
+};
+
 export type Customer = {
   __typename: 'Customer';
   createdAt: Maybe<Scalars['String']['output']>;
@@ -43,19 +52,57 @@ export enum CustomerStatus {
   Pending = 'PENDING'
 }
 
+export type Group = {
+  __typename: 'Group';
+  description: Maybe<Scalars['String']['output']>;
+  id: Scalars['ID']['output'];
+  members: Array<User>;
+  name: Scalars['String']['output'];
+  roles: Array<Role>;
+};
+
+export type GroupConnection = {
+  __typename: 'GroupConnection';
+  edges: Array<GroupEdge>;
+  nodes: Array<Group>;
+  pageInfo: PageInfo;
+};
+
+export type GroupEdge = {
+  __typename: 'GroupEdge';
+  cursor: Scalars['String']['output'];
+  node: Group;
+};
+
 export type Mutation = {
   __typename: 'Mutation';
+  assignPermissionToRole: Role;
   createCustomer: Customer;
+  createGroup: Group;
   createProduct: Product;
+  createRole: Role;
   deleteCustomer: Scalars['Boolean']['output'];
+  deleteGroup: Scalars['Boolean']['output'];
   deleteProduct: Scalars['Boolean']['output'];
+  deleteRole: Scalars['Boolean']['output'];
+  disableUser: User;
+  enableUser: User;
+  removePermissionFromRole: Role;
   requestPasswordReset: RequestPasswordResetPayload;
   resetPassword: ResetPasswordPayload;
   signIn: SignInPayload;
   signInWithOAuth: SignInPayload;
   signUp: SignUpPayload;
   updateCustomer: Customer;
+  updateGroup: Group;
   updateProduct: Product;
+  updateRole: Role;
+};
+
+
+export type MutationAssignPermissionToRoleArgs = {
+  permissionId: Scalars['ID']['input'];
+  roleId: Scalars['ID']['input'];
 };
 
 
@@ -64,8 +111,18 @@ export type MutationCreateCustomerArgs = {
 };
 
 
+export type MutationCreateGroupArgs = {
+  input: CreateGroupInput;
+};
+
+
 export type MutationCreateProductArgs = {
   input: ProductInput;
+};
+
+
+export type MutationCreateRoleArgs = {
+  input: CreateRoleInput;
 };
 
 
@@ -74,8 +131,34 @@ export type MutationDeleteCustomerArgs = {
 };
 
 
+export type MutationDeleteGroupArgs = {
+  groupId: Scalars['ID']['input'];
+};
+
+
 export type MutationDeleteProductArgs = {
   id: Scalars['ID']['input'];
+};
+
+
+export type MutationDeleteRoleArgs = {
+  roleId: Scalars['ID']['input'];
+};
+
+
+export type MutationDisableUserArgs = {
+  userId: Scalars['ID']['input'];
+};
+
+
+export type MutationEnableUserArgs = {
+  userId: Scalars['ID']['input'];
+};
+
+
+export type MutationRemovePermissionFromRoleArgs = {
+  permissionId: Scalars['ID']['input'];
+  roleId: Scalars['ID']['input'];
 };
 
 
@@ -110,9 +193,49 @@ export type MutationUpdateCustomerArgs = {
 };
 
 
+export type MutationUpdateGroupArgs = {
+  groupId: Scalars['ID']['input'];
+  input: UpdateGroupInput;
+};
+
+
 export type MutationUpdateProductArgs = {
   id: Scalars['ID']['input'];
   input: ProductInput;
+};
+
+
+export type MutationUpdateRoleArgs = {
+  input: UpdateRoleInput;
+  roleId: Scalars['ID']['input'];
+};
+
+export type PageInfo = {
+  __typename: 'PageInfo';
+  endCursor: Maybe<Scalars['String']['output']>;
+  hasNextPage: Scalars['Boolean']['output'];
+  hasPreviousPage: Scalars['Boolean']['output'];
+  startCursor: Maybe<Scalars['String']['output']>;
+};
+
+export type Permission = {
+  __typename: 'Permission';
+  id: Scalars['ID']['output'];
+  name: Scalars['String']['output'];
+  roles: Array<Role>;
+};
+
+export type PermissionConnection = {
+  __typename: 'PermissionConnection';
+  edges: Array<PermissionEdge>;
+  nodes: Array<Permission>;
+  pageInfo: PageInfo;
+};
+
+export type PermissionEdge = {
+  __typename: 'PermissionEdge';
+  cursor: Scalars['String']['output'];
+  node: Permission;
 };
 
 export type Product = {
@@ -139,8 +262,12 @@ export type Query = {
   currentUser: Maybe<User>;
   customer: Maybe<Customer>;
   customers: Array<Customer>;
+  groups: GroupConnection;
+  permissions: PermissionConnection;
   product: Maybe<Product>;
   products: Array<Product>;
+  roles: RoleConnection;
+  users: UserConnection;
 };
 
 
@@ -149,8 +276,36 @@ export type QueryCustomerArgs = {
 };
 
 
+export type QueryGroupsArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  query?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type QueryPermissionsArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  query?: InputMaybe<Scalars['String']['input']>;
+};
+
+
 export type QueryProductArgs = {
   id: Scalars['ID']['input'];
+};
+
+
+export type QueryRolesArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  query?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type QueryUsersArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  query?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type RequestPasswordResetInput = {
@@ -173,6 +328,26 @@ export type ResetPasswordPayload = {
   __typename: 'ResetPasswordPayload';
   message: Scalars['String']['output'];
   success: Scalars['Boolean']['output'];
+};
+
+export type Role = {
+  __typename: 'Role';
+  id: Scalars['ID']['output'];
+  name: Scalars['String']['output'];
+  permissions: Array<Permission>;
+};
+
+export type RoleConnection = {
+  __typename: 'RoleConnection';
+  edges: Array<RoleEdge>;
+  nodes: Array<Role>;
+  pageInfo: PageInfo;
+};
+
+export type RoleEdge = {
+  __typename: 'RoleEdge';
+  cursor: Scalars['String']['output'];
+  node: Role;
 };
 
 export type SignInInput = {
@@ -207,11 +382,37 @@ export type SignUpPayload = {
   user: User;
 };
 
+export type UpdateGroupInput = {
+  description?: InputMaybe<Scalars['String']['input']>;
+  name: Scalars['String']['input'];
+};
+
+export type UpdateRoleInput = {
+  name: Scalars['String']['input'];
+};
+
 export type User = {
   __typename: 'User';
   displayName: Maybe<Scalars['String']['output']>;
   email: Scalars['String']['output'];
+  enabled: Scalars['Boolean']['output'];
+  groups: Array<Group>;
   id: Scalars['ID']['output'];
+  permissions: Array<Permission>;
+  roles: Array<Role>;
+};
+
+export type UserConnection = {
+  __typename: 'UserConnection';
+  edges: Array<UserEdge>;
+  nodes: Array<User>;
+  pageInfo: PageInfo;
+};
+
+export type UserEdge = {
+  __typename: 'UserEdge';
+  cursor: Scalars['String']['output'];
+  node: User;
 };
 
 export enum Join__Graph {

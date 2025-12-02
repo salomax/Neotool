@@ -26,7 +26,7 @@ interface GroupRepository : JpaRepository<GroupEntity, UUID> {
     @Query(
         value = """
         SELECT * FROM security.groups
-        WHERE (:after IS NULL OR id > :after)
+        WHERE (CAST(:after AS UUID) IS NULL OR id > CAST(:after AS UUID))
         ORDER BY name ASC, id ASC
         LIMIT :first
         """,
@@ -51,7 +51,7 @@ interface GroupRepository : JpaRepository<GroupEntity, UUID> {
         value = """
         SELECT * FROM security.groups
         WHERE LOWER(name) LIKE LOWER(CONCAT('%', :query, '%'))
-        AND (:after IS NULL OR id > :after)
+        AND (CAST(:after AS UUID) IS NULL OR id > CAST(:after AS UUID))
         ORDER BY name ASC, id ASC
         LIMIT :first
         """,

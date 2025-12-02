@@ -114,23 +114,35 @@ pnpm run typecheck
 
 **Steps**:
 1. Make your code changes
-2. Run `pnpm run lint` in the `web` directory
-3. If errors are found:
+2. **CRITICAL: If you added or modified GraphQL operations OR created hooks that use GraphQL**: 
+   - **MUST run `pnpm run codegen` FIRST** to generate TypeScript types and hooks
+   - **DO NOT create hooks importing from `.generated.ts` files before running codegen**
+   - This will cause TypeScript errors that cannot be resolved until codegen runs
+3. Run `pnpm run lint` in the `web` directory
+4. If errors are found:
    - Run `pnpm run lint:fix` to auto-fix fixable issues
    - Manually fix any remaining errors that cannot be auto-fixed
    - Re-run `pnpm run lint` to verify all errors are resolved
-4. Run `pnpm run typecheck` to ensure no TypeScript errors
-5. Only commit after both `lint` and `typecheck` pass with zero errors
+5. Run `pnpm run typecheck` to ensure no TypeScript errors
+6. Only commit after both `lint` and `typecheck` pass with zero errors
 
 **Example Workflow**:
 ```bash
 cd web
 # Make changes to TypeScript/React files
+
+# ⚠️ CRITICAL: If GraphQL operations were added/modified OR hooks using GraphQL were created:
+# MUST run codegen FIRST before creating hooks or running typecheck
+pnpm run codegen  # Generate types and hooks
+
+# Now create or update hooks that import from .generated.ts files
+
+# Run validation
 pnpm run lint
 # If errors found:
 pnpm run lint:fix
 pnpm run lint  # Verify fixes
-pnpm run typecheck  # Also check types
+pnpm run typecheck  # Also check types (should pass if codegen succeeded)
 # Now safe to commit
 ```
 
@@ -179,14 +191,18 @@ pnpm run typecheck  # Also check types
 ### Mandatory Steps Before Every Commit
 
 1. **Make your changes**
-2. **Run lint checks**:
+2. **CRITICAL: If GraphQL operations were added/modified OR hooks using GraphQL were created**:
+   - **MUST run `cd web && pnpm run codegen` FIRST**
+   - This generates the `.generated.ts` files that hooks depend on
+   - **DO NOT skip this step** - it will cause TypeScript errors
+3. **Run lint checks**:
    - Backend: `cd service/kotlin && ./gradlew ktlintCheck`
    - Frontend: `cd web && pnpm run lint && pnpm run typecheck`
-3. **Fix any lint errors**:
+4. **Fix any lint errors**:
    - Backend: `./gradlew ktlintFormat` then re-check
    - Frontend: `pnpm run lint:fix` then re-check
-4. **Verify fixes**: Re-run lint checks to ensure zero errors
-5. **Commit**: Only commit after lint checks pass
+5. **Verify fixes**: Re-run lint checks to ensure zero errors
+6. **Commit**: Only commit after lint checks pass
 
 ### Quick Validation
 
@@ -307,8 +323,162 @@ val fetcher =
 - TypeScript type errors
 - React hooks violations
 - Import ordering
+- Missing generated GraphQL files
+- Duplicate type exports
 
 **Solution**: Run `pnpm run lint:fix` to auto-fix most issues. Fix TypeScript errors manually.
+
+**Missing Generated GraphQL Files**:
+
+When importing from `.generated.ts` files, ensure the files exist by running codegen first.
+
+**⚠️ CRITICAL WARNING**: **DO NOT create hooks that import from `.generated.ts` files before running codegen**. This will cause TypeScript errors that cannot be resolved until codegen successfully generates the files.
+
+**Error Examples**:
+```typescript
+// ❌ Error: Cannot find module '@/lib/graphql/operations/authorization-management/queries.generated'
+import { useGetRolesQuery } from '@/lib/graphql/operations/authorization-management/queries.generated';
+
+// ❌ Error: Cannot find module '@/lib/graphql/operations/authorization-management/mutations.generated'
+import { useCreateRoleMutation } from '@/lib/graphql/operations/authorization-management/mutations.generated';
+
+// ❌ Error: Module '"@/lib/graphql/types/__generated__/graphql"' has no exported member 'CreateRoleInput'
+import { CreateRoleInput, UpdateRoleInput } from '@/lib/graphql/types/__generated__/graphql';
+```
+
+**Solution**:
+1. **First**: Ensure GraphQL operations are defined in `.ts` files (not `.generated.ts` files)
+2. **Second**: Verify the GraphQL schema includes the operations you're using (check supergraph or schema files)
+3. **Third**: Run `pnpm run codegen` to generate the missing files
+4. **Fourth**: If codegen fails with schema errors, fix the GraphQL schema first, then regenerate the supergraph if needed
+5. **Finally**: Create or update your hooks to import from the generated files
+
+**Rule**: Always run `pnpm run codegen` before `pnpm run typecheck` when:
+- Adding new GraphQL operations (queries, mutations, subscriptions)
+- Modifying existing GraphQL operations
+- Creating hooks that import from `.generated.ts` files
+- The supergraph schema has been updated
+
+**Creating Hooks with GraphQL Operations - Step-by-Step Checklist**:
+
+When creating hooks that use GraphQL operations, follow this order:
+
+1. ✅ **Define GraphQL operations** in `.ts` files (e.g., `queries.ts`, `mutations.ts`)
+   - Use `gql` template literals
+   - Include necessary fragments
+   - **DO NOT** create `.generated.ts` files manually
+
+2. ✅ **Verify GraphQL schema** includes your operations
+   - Check that the supergraph schema (`contracts/graphql/supergraph/supergraph.local.graphql`) includes your types and operations
+   - If not, update the schema first and regenerate the supergraph
+
+3. ✅ **Run codegen** to generate types and hooks:
+   ```bash
+   cd web
+   pnpm run codegen
+   ```
+   - This generates `.generated.ts` files next to your operation files
+   - This generates input/output types in the base types file
+
+4. ✅ **Create the hook file** importing from `.generated.ts` files:
+   ```typescript
+   import { useGetRolesQuery } from '@/lib/graphql/operations/authorization-management/queries.generated';
+   import { CreateRoleInput } from '@/lib/graphql/types/__generated__/graphql';
+   ```
+
+5. ✅ **Run typecheck** to verify types:
+   ```bash
+   pnpm run typecheck
+   ```
+   - Should pass with zero errors if codegen succeeded
+
+6. ✅ **Run lint** to verify code quality:
+   ```bash
+   pnpm run lint
+   ```
+   - Fix any linting issues
+
+**Common Mistake**: Creating hooks before running codegen will result in TypeScript errors that cannot be resolved until codegen runs successfully. Always run codegen first!
+
+**Duplicate Type Exports**:
+
+When multiple files export the same type name, use explicit exports in index files to avoid conflicts.
+
+**Error Example**:
+```typescript
+// ❌ Error: Module './useRoleManagement' has already exported a member named 'Permission'
+export * from './useRoleManagement';
+export * from './usePermissionManagement'; // Also exports Permission
+```
+
+**Solution - Use Explicit Exports**:
+```typescript
+// ✅ Correct - explicit exports avoid conflicts
+export { useRoleManagement } from './useRoleManagement';
+export { usePermissionManagement } from './usePermissionManagement';
+
+export type {
+  Role,
+  UseRoleManagementOptions,
+  UseRoleManagementReturn,
+} from './useRoleManagement';
+
+// Permission type - exported from primary source only
+export type {
+  Permission,
+  UsePermissionManagementOptions,
+  UsePermissionManagementReturn,
+} from './usePermissionManagement';
+```
+
+**Alternative Solution - Remove Duplicate Type**:
+If a type is duplicated across files, remove it from one file and import it from the primary source:
+
+```typescript
+// In useRoleManagement.ts
+// ❌ Don't export duplicate type
+// export type Permission = { ... }
+
+// ✅ Import from primary source if needed
+import type { Permission } from './usePermissionManagement';
+```
+
+**Rule**: 
+- Use explicit named exports in index files when re-exporting from multiple modules
+- Avoid duplicate type definitions - define types in one place and import where needed
+- When types are identical across files, export from the primary/canonical source only
+
+**React Compiler: preserve-manual-memoization**:
+
+When using `useCallback` or `useMemo` with object properties, React Compiler prefers the entire object in the dependency array rather than individual properties. This allows React Compiler to better optimize and infer dependencies.
+
+**Example - Incorrect (specific properties)**:
+```typescript
+const loadNextPage = useCallback(() => {
+  if (pageInfo?.hasNextPage && pageInfo?.endCursor) {
+    setAfter(pageInfo.endCursor);
+  }
+}, [pageInfo?.hasNextPage, pageInfo?.endCursor]); // ❌ React Compiler error
+```
+
+**Example - Correct (entire object)**:
+```typescript
+const loadNextPage = useCallback(() => {
+  if (pageInfo?.hasNextPage && pageInfo?.endCursor) {
+    setAfter(pageInfo.endCursor);
+  }
+}, [pageInfo]); // ✅ React Compiler can optimize
+```
+
+**Rationale**: 
+- React Compiler infers dependencies automatically and prefers object-level dependencies
+- Using the entire object allows React Compiler to better track changes and optimize re-renders
+- The error message indicates: "Inferred less specific property than source" - meaning React Compiler wants the entire object
+
+**When to Apply**:
+- When using `useCallback` or `useMemo` with properties from an object
+- When React Compiler reports `react-hooks/preserve-manual-memoization` errors
+- When the dependency array lists multiple properties from the same object
 
 ## Exceptions and Exclusions
 

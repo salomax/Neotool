@@ -200,11 +200,11 @@ class SecurityWiringFactory(
                 "updateGroup",
                 createValidatedDataFetcher { env ->
                     val groupId = getRequiredString(env, "groupId")
-                    val input =
-                        env
-                            .getArgument<UpdateGroupInputDTO>("input")
+                    val inputMap =
+                        env.getArgument<Map<String, Any?>>("input")
                             ?: throw IllegalArgumentException("input is required")
-                    groupManagementResolver.updateGroup(groupId, input)
+                    val dto = groupManagementMapper.mapToUpdateGroupInputDTO(inputMap)
+                    groupManagementResolver.updateGroup(groupId, dto)
                 },
             )
             .dataFetcher(
@@ -230,11 +230,11 @@ class SecurityWiringFactory(
                 "updateRole",
                 createValidatedDataFetcher { env ->
                     val roleId = getRequiredString(env, "roleId")
-                    val input =
-                        env
-                            .getArgument<UpdateRoleInputDTO>("input")
+                    val inputMap =
+                        env.getArgument<Map<String, Any?>>("input")
                             ?: throw IllegalArgumentException("input is required")
-                    roleManagementResolver.updateRole(roleId, input)
+                    val dto = roleManagementMapper.mapToUpdateRoleInputDTO(inputMap)
+                    roleManagementResolver.updateRole(roleId, dto)
                 },
             )
             .dataFetcher(

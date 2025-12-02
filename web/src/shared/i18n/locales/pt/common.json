@@ -24,7 +24,8 @@
     "dashboard": "Dashboard",
     "profile": "Perfil",
     "examples": "Exemplos",
-    "forms": "Formulários"
+    "forms": "Formulários",
+    "settings": "Configurações"
   },
   "actions": {
     "save": "Salvar",

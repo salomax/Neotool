@@ -1,5 +1,7 @@
 package io.github.salomax.neotool.security.domain
 
+import java.util.UUID
+
 /**
  * Domain objects for group management operations.
  * Provides command objects (DTOs) for group management operations.
@@ -15,6 +17,7 @@ object GroupManagement {
     data class CreateGroupCommand(
         val name: String,
         val description: String? = null,
+        val userIds: List<UUID>? = null,
     ) {
         init {
             require(name.isNotBlank()) { "Group name is required and cannot be blank" }
@@ -27,9 +30,10 @@ object GroupManagement {
      * Includes input validation for domain rules (name length, required fields).
      */
     data class UpdateGroupCommand(
-        val groupId: java.util.UUID,
+        val groupId: UUID,
         val name: String,
         val description: String? = null,
+        val userIds: List<UUID>? = null,
     ) {
         init {
             require(name.isNotBlank()) { "Group name is required and cannot be blank" }

@@ -6,7 +6,11 @@ import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import io.github.salomax.neotool.security.domain.GroupManagement
 import io.github.salomax.neotool.security.domain.rbac.Group
+import io.github.salomax.neotool.security.domain.rbac.GroupMembership
+import io.github.salomax.neotool.security.domain.rbac.MembershipType
+import io.github.salomax.neotool.security.repo.GroupMembershipRepository
 import io.github.salomax.neotool.security.repo.GroupRepository
+import io.github.salomax.neotool.security.repo.UserRepository
 import jakarta.inject.Singleton
 import jakarta.transaction.Transactional
 import mu.KotlinLogging
@@ -20,6 +24,8 @@ import java.util.UUID
 @Singleton
 open class GroupManagementService(
     private val groupRepository: GroupRepository,
+    private val groupMembershipRepository: GroupMembershipRepository,
+    private val userRepository: UserRepository,
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -106,8 +112,9 @@ open class GroupManagementService(
     /**
      * Create a new group.
      *
-     * @param command Create group command with name and optional description
+     * @param command Create group command with name, optional description, and optional user IDs
      * @return The created group
+     * @throws IllegalArgumentException if any user ID doesn't exist
      * @throws DataAccessException if group name already exists (database unique constraint)
      */
     @Transactional
@@ -127,15 +134,24 @@ open class GroupManagementService(
 
         logger.info { "Group created: ${saved.name} (ID: ${saved.id})" }
 
+        // Handle user assignments if provided
+        if (!command.userIds.isNullOrEmpty()) {
+            validateUserIds(command.userIds)
+            createGroupMemberships(saved.id, command.userIds)
+            logger.info {
+                "Group memberships created for group ${saved.name} (ID: ${saved.id}): ${command.userIds.size} users"
+            }
+        }
+
         return saved.toDomain()
     }
 
     /**
      * Update an existing group.
      *
-     * @param command Update group command with groupId, name, and optional description
+     * @param command Update group command with groupId, name, optional description, and optional user IDs
      * @return The updated group
-     * @throws IllegalArgumentException if group not found
+     * @throws IllegalArgumentException if group not found or any user ID doesn't exist
      * @throws DataAccessException if group name already exists (database unique constraint)
      */
     @Transactional
@@ -156,6 +172,24 @@ open class GroupManagementService(
 
         logger.info { "Group updated: ${saved.name} (ID: ${saved.id})" }
 
+        // Handle user membership synchronization if userIds is provided
+        if (command.userIds != null) {
+            if (command.userIds.isEmpty()) {
+                // Empty list means remove all memberships
+                removeAllGroupMemberships(saved.id)
+                logger.info { "All group memberships removed for group ${saved.name} (ID: ${saved.id})" }
+            } else {
+                // Non-empty list means synchronize memberships
+                validateUserIds(command.userIds)
+                synchronizeGroupMemberships(saved.id, command.userIds)
+                logger.info {
+                    "Group memberships synchronized for group ${saved.name} " +
+                        "(ID: ${saved.id}): ${command.userIds.size} users"
+                }
+            }
+        }
+        // If userIds is null, no change to memberships
+
         return saved.toDomain()
     }
 
@@ -171,5 +205,95 @@ open class GroupManagementService(
         groupRepository.deleteById(groupId)
 
         logger.info { "Group deleted (ID: $groupId)" }
+    }
+
+    /**
+     * Validate that all user IDs exist in the system.
+     *
+     * @param userIds List of user IDs to validate
+     * @throws IllegalArgumentException if any user ID doesn't exist
+     */
+    private fun validateUserIds(userIds: List<UUID>) {
+        val foundUsers = userRepository.findByIdIn(userIds)
+        val foundUserIds = foundUsers.map { it.id }.toSet()
+        val missingUserIds = userIds.filter { it !in foundUserIds }
+
+        if (missingUserIds.isNotEmpty()) {
+            throw IllegalArgumentException(
+                "One or more users not found: ${missingUserIds.joinToString(", ")}",
+            )
+        }
+    }
+
+    /**
+     * Create group memberships for a list of user IDs.
+     *
+     * @param groupId The group ID
+     * @param userIds List of user IDs to add as members
+     */
+    private fun createGroupMemberships(
+        groupId: UUID,
+        userIds: List<UUID>,
+    ) {
+        val now = Instant.now()
+        val memberships =
+            userIds.map { userId ->
+                GroupMembership(
+                    userId = userId,
+                    groupId = groupId,
+                    membershipType = MembershipType.MEMBER,
+                    validUntil = null,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            }
+
+        val entities = memberships.map { it.toEntity() }
+        groupMembershipRepository.saveAll(entities)
+    }
+
+    /**
+     * Synchronize group memberships by adding new users and removing users not in the list.
+     *
+     * @param groupId The group ID
+     * @param newUserIds List of user IDs that should be members (replaces current memberships)
+     */
+    private fun synchronizeGroupMemberships(
+        groupId: UUID,
+        newUserIds: List<UUID>,
+    ) {
+        val currentMemberships = groupMembershipRepository.findByGroupId(groupId)
+        val currentUserIds = currentMemberships.map { it.userId }.toSet()
+        val newUserIdsSet = newUserIds.toSet()
+
+        // Calculate users to add and remove
+        val userIdsToAdd = newUserIdsSet - currentUserIds
+        val userIdsToRemove = currentUserIds - newUserIdsSet
+
+        // Add new memberships
+        if (userIdsToAdd.isNotEmpty()) {
+            createGroupMemberships(groupId, userIdsToAdd.toList())
+            logger.debug { "Added ${userIdsToAdd.size} users to group $groupId" }
+        }
+
+        // Remove old memberships
+        if (userIdsToRemove.isNotEmpty()) {
+            val membershipsToRemove =
+                currentMemberships.filter { it.userId in userIdsToRemove }
+            groupMembershipRepository.deleteAll(membershipsToRemove)
+            logger.debug { "Removed ${userIdsToRemove.size} users from group $groupId" }
+        }
+    }
+
+    /**
+     * Remove all group memberships for a group.
+     *
+     * @param groupId The group ID
+     */
+    private fun removeAllGroupMemberships(groupId: UUID) {
+        val memberships = groupMembershipRepository.findByGroupId(groupId)
+        if (memberships.isNotEmpty()) {
+            groupMembershipRepository.deleteAll(memberships)
+        }
     }
 }

@@ -273,6 +273,15 @@ run_with_live_output() {
     local latest_line=""
     local exit_code=0
     
+    # Temporarily disable job control monitoring to suppress termination messages
+    # This prevents bash from reporting when background jobs are terminated
+    local job_control_state="disabled"
+    # Check if monitor option is set (job control monitoring) - bash specific
+    if [[ -o monitor ]] 2>/dev/null; then
+        job_control_state="enabled"
+        set +m 2>/dev/null || true
+    fi
+    
     # Get start time (seconds since epoch with nanoseconds)
     if command -v gdate >/dev/null 2>&1; then
         start_time=$(gdate +%s.%N)
@@ -293,12 +302,19 @@ run_with_live_output() {
         # Wait a bit for file to be created
         sleep 0.1
         if [[ -f "$output_file" ]]; then
-            tail -f "$output_file" 2>/dev/null | while IFS= read -r line || [[ -n "$line" ]]; do
-                if [[ -n "$line" ]]; then
-                    latest_line="$line"
-                    update_task_status "$task_idx" "running" "$latest_line" ""
-                fi
-            done &
+            # Use a subshell with stderr fully suppressed to avoid broken pipe errors
+            # The broken pipe error is harmless but noisy - we suppress it completely
+            (
+                # Redirect stderr for the entire subshell
+                exec 2>/dev/null
+                set +e
+                tail -f "$output_file" | while IFS= read -r line || [[ -n "$line" ]]; do
+                    if [[ -n "$line" ]]; then
+                        latest_line="$line"
+                        update_task_status "$task_idx" "running" "$latest_line" ""
+                    fi
+                done
+            ) 2>/dev/null &
             tail_pid=$!
         fi
     fi
@@ -307,12 +323,34 @@ run_with_live_output() {
     wait "$cmd_pid" 2>/dev/null
     exit_code=$?
     
-    # Stop tail if it's running
+    # Stop tail gracefully - wait for it to process final output, then terminate
+    # Wrap in a subshell with stderr suppressed to prevent any job control messages
     if [[ -n "$tail_pid" ]]; then
-        kill "$tail_pid" 2>/dev/null || true
-        # Give it a moment to finish
-        sleep 0.1
-        kill -9 "$tail_pid" 2>/dev/null || true
+        (
+            # Suppress all stderr in this subshell
+            exec 2>/dev/null
+            # Wait a moment for tail to process any final output from the command
+            sleep 0.3
+            # Check if the process is still running
+            if kill -0 "$tail_pid" 2>/dev/null; then
+                # Send SIGTERM to tail (this will cause it to exit and close the pipe)
+                # The while loop will exit when it reads EOF from the closed pipe
+                kill "$tail_pid" 2>/dev/null || true
+                # Give the while loop time to process the EOF and exit
+                sleep 0.2
+                # Force kill only if still running (shouldn't be necessary)
+                if kill -0 "$tail_pid" 2>/dev/null; then
+                    kill -9 "$tail_pid" 2>/dev/null || true
+                fi
+            fi
+            # Wait for the process to fully terminate (suppress all errors including broken pipe)
+            wait "$tail_pid" 2>/dev/null || true
+        ) 2>/dev/null
+    fi
+    
+    # Restore job control state
+    if [[ "$job_control_state" == "enabled" ]]; then
+        set -m
     fi
     
     # Get the latest line from output

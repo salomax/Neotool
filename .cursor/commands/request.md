@@ -140,6 +140,7 @@ IMPORTANT: It's possible to skip some phase in case that's not required, i.e.: c
     - [ ] Verify contract changes don't break existing consumers
 - [ ] Front End
     - [ ] Implement GraphQL operations (queries, mutations, subscriptions)
+    - [ ] Implement hooks and Providers (follow hook-pattern.md)
     - [ ] Implement UI components (follow component-pattern.md)
     - [ ] Apply design system components and theme tokens
     - [ ] Implement i18n support (translation keys, locales)
