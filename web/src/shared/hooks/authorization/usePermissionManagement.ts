@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import {
   useGetPermissionsQuery,
 } from '@/lib/graphql/operations/authorization-management/queries.generated';
@@ -93,6 +93,10 @@ export function usePermissionManagement(options: UsePermissionManagementOptions 
   const [searchQuery, setSearchQuery] = useState(options.initialSearchQuery || "");
   const [first, setFirst] = useState(options.initialFirst || 10);
   const [after, setAfter] = useState<string | null>(null);
+  const previousSearchQueryRef = useRef<string>(options.initialSearchQuery || "");
+  const previousAfterRef = useRef<string | null>(null);
+  // Cursor history for backward navigation
+  const cursorHistoryRef = useRef<string[]>([]);
 
   // GraphQL hooks
   const { data: permissionsData, loading, error, refetch } = useGetPermissionsQuery({
@@ -113,6 +117,26 @@ export function usePermissionManagement(options: UsePermissionManagementOptions 
     return permissionsData?.permissions?.pageInfo || null;
   }, [permissionsData?.permissions?.pageInfo]);
 
+  // Track cursor history for backward navigation
+  useEffect(() => {
+    // When we navigate forward (after changes from one value to another),
+    // add the previous cursor to history
+    if (after !== null && previousAfterRef.current !== after) {
+      // Only add to history if we're actually moving forward (not resetting)
+      if (previousAfterRef.current !== null) {
+        cursorHistoryRef.current.push(previousAfterRef.current);
+      }
+    }
+    
+    // Reset history when going to first page or search changes
+    if (after === null || previousSearchQueryRef.current !== searchQuery) {
+      cursorHistoryRef.current = [];
+    }
+    
+    previousAfterRef.current = after;
+    previousSearchQueryRef.current = searchQuery;
+  }, [after, searchQuery]);
+
   // Pagination functions
   const loadNextPage = useCallback(() => {
     if (pageInfo?.hasNextPage && pageInfo?.endCursor) {
@@ -120,15 +144,25 @@ export function usePermissionManagement(options: UsePermissionManagementOptions 
     }
   }, [pageInfo]);
 
-  const loadPreviousPage = useCallback(() => {
-    if (pageInfo?.hasPreviousPage && pageInfo?.startCursor) {
-      setAfter(pageInfo.startCursor);
-    }
-  }, [pageInfo]);
-
   const goToFirstPage = useCallback(() => {
     setAfter(null);
+    cursorHistoryRef.current = []; // Clear history when going to first page
   }, []);
+
+  const loadPreviousPage = useCallback(() => {
+    if (pageInfo?.hasPreviousPage) {
+      // Pop the last cursor from history to go back
+      const previousCursor = cursorHistoryRef.current.pop();
+      
+      if (previousCursor !== undefined) {
+        // Use the previous cursor
+        setAfter(previousCursor);
+      } else if (after !== null) {
+        // If no history but we're not on first page, go to first page
+        goToFirstPage();
+      }
+    }
+  }, [pageInfo, after, goToFirstPage]);
 
   return {
     // Data

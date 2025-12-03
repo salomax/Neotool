@@ -3,9 +3,7 @@
 import React, { useState, useCallback } from "react";
 import {
   Box,
-  Button,
   Alert,
-  Stack,
 } from "@mui/material";
 import { useUserManagement, type User } from "@/shared/hooks/authorization/useUserManagement";
 import { UserSearch } from "./UserSearch";
@@ -37,6 +35,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     searchQuery,
     setSearchQuery,
     pageInfo,
+    paginationRange,
     loadNextPage,
     loadPreviousPage,
     goToFirstPage,
@@ -122,39 +121,12 @@ export const UserManagement: React.FC<UserManagementProps> = ({
             ? t("userManagement.emptySearchResults")
             : t("userManagement.emptyList")
         }
+        pageInfo={pageInfo}
+        paginationRange={paginationRange}
+        onLoadNext={loadNextPage}
+        onLoadPrevious={loadPreviousPage}
+        onGoToFirst={goToFirstPage}
       />
-
-      {/* Pagination Controls */}
-      {pageInfo && (pageInfo.hasNextPage || pageInfo.hasPreviousPage) && (
-        <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
-          <Stack direction="row" spacing={2} alignItems="center">
-            <Button
-              variant="outlined"
-              onClick={goToFirstPage}
-              disabled={!pageInfo.hasPreviousPage || loading}
-              size="small"
-            >
-              {t("pagination.first")}
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={loadPreviousPage}
-              disabled={!pageInfo.hasPreviousPage || loading}
-              size="small"
-            >
-              {t("pagination.previous")}
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={loadNextPage}
-              disabled={!pageInfo.hasNextPage || loading}
-              size="small"
-            >
-              {t("pagination.next")}
-            </Button>
-          </Stack>
-        </Box>
-      )}
 
       {/* User Drawer */}
       <UserDrawer

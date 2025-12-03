@@ -18,6 +18,7 @@
     "createUser": "Criar Usuário",
     "drawerPlaceholder": "Formulário de edição de usuário será implementado aqui",
     "drawer": {
+      "title": "Detalhes do Usuário",
       "viewUser": "Detalhes do Usuário",
       "userInfo": "Informações do Usuário",
       "email": "Email",
@@ -30,7 +31,24 @@
       "noRoles": "Este usuário não possui perfis atribuídos",
       "noPermissions": "Este usuário não possui permissões atribuídas",
       "errorLoading": "Falha ao carregar detalhes do usuário",
-      "userNotFound": "Usuário não encontrado"
+      "userNotFound": "Usuário não encontrado",
+      "saveChanges": "Salvar Alterações",
+      "saveSuccess": "Usuário atualizado com sucesso",
+      "saveError": "Falha ao atualizar usuário",
+      "displayNamePlaceholder": "Digite o nome de exibição",
+      "emailPlaceholder": "Digite o endereço de email"
+    },
+    "groups": {
+      "assignError": "Falha ao atribuir grupo",
+      "removeError": "Falha ao remover grupo",
+      "searchPlaceholder": "Buscar grupos...",
+      "loadError": "Falha ao carregar grupos"
+    },
+    "roles": {
+      "assignError": "Falha ao atribuir perfil",
+      "removeError": "Falha ao remover perfil",
+      "searchPlaceholder": "Buscar perfis...",
+      "loadError": "Falha ao carregar perfis"
     },
     "status": {
       "enabled": "Habilitado",
@@ -55,7 +73,12 @@
     "first": "Primeiro",
     "previous": "Anterior",
     "next": "Próximo",
-    "last": "Último"
+    "last": "Último",
+    "range": "{{start}} a {{end}} de {{total}} resultados",
+    "rangeNoTotal": "{{start}} a {{end}}",
+    "singleItem": "{{count}} item",
+    "singleItemTotal": "{{count}} de {{total}} resultados",
+    "empty": "Nenhum item"
   },
   "groupManagement": {
     "searchPlaceholder": "Buscar grupos por nome...",
@@ -192,6 +215,10 @@
   },
   "errors": {
     "loadFailed": "Falha ao carregar dados. Por favor, tente novamente."
+  },
+  "common": {
+    "cancel": "Cancelar",
+    "saving": "Salvando..."
   }
 }
 

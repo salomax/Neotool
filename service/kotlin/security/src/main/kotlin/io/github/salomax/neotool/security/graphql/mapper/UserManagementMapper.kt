@@ -58,6 +58,7 @@ class UserManagementMapper {
             edges = edges,
             nodes = nodes,
             pageInfo = pageInfo,
+            totalCount = connection.totalCount?.toInt(),
         )
     }
 
@@ -73,5 +74,12 @@ class UserManagementMapper {
      */
     fun toRoleId(id: String): Int {
         return id.toInt()
+    }
+
+    /**
+     * Convert String ID to UUID for group ID.
+     */
+    fun toGroupId(id: String): UUID {
+        return UUID.fromString(id)
     }
 }

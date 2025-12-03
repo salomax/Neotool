@@ -13,6 +13,7 @@ import {
 import { CreateGroupInput, UpdateGroupInput } from '@/lib/graphql/types/__generated__/graphql';
 import { GroupFieldsFragment } from '@/lib/graphql/fragments/common.generated';
 import { extractErrorMessage } from '@/shared/utils/error';
+import { useRelayPagination } from '@/shared/hooks/pagination';
 
 // Use the fragment type which includes all fields from the query
 export type Group = GroupFieldsFragment;
@@ -41,6 +42,12 @@ export type UseGroupManagementReturn = {
     startCursor: string | null;
     endCursor: string | null;
   } | null;
+  totalCount: number | null;
+  paginationRange: {
+    start: number;
+    end: number;
+    total: number | null;
+  };
   setFirst: (first: number) => void;
   loadNextPage: () => void;
   loadPreviousPage: () => void;
@@ -148,25 +155,40 @@ export function useGroupManagement(options: UseGroupManagementOptions = {}): Use
   }, [groupsData?.groups?.nodes]);
 
   const pageInfo = useMemo(() => {
-    return groupsData?.groups?.pageInfo || null;
-  }, [groupsData?.groups?.pageInfo]);
-
-  // Pagination functions
-  const loadNextPage = useCallback(() => {
-    if (pageInfo?.hasNextPage && pageInfo?.endCursor) {
-      setAfter(pageInfo.endCursor);
+    const info = groupsData?.groups?.pageInfo || null;
+    if (!info) {
+      return null;
     }
-  }, [pageInfo]);
+    return {
+      ...info,
+      hasPreviousPage: info.hasPreviousPage || after !== null,
+    };
+  }, [groupsData?.groups?.pageInfo, after]);
 
-  const loadPreviousPage = useCallback(() => {
-    if (pageInfo?.hasPreviousPage && pageInfo?.startCursor) {
-      setAfter(pageInfo.startCursor);
+  // totalCount is always calculated by the backend (never null)
+  // When query is null/empty: totalCount = total count of all items
+  // When query is provided: totalCount = total count of filtered items
+  const totalCount = useMemo(() => {
+    return groupsData?.groups?.totalCount ?? null;
+  }, [groupsData?.groups?.totalCount]);
+
+  const {
+    loadNextPage,
+    loadPreviousPage,
+    goToFirstPage,
+    paginationRange,
+  } = useRelayPagination(
+    groups,
+    pageInfo,
+    totalCount,
+    searchQuery,
+    after,
+    setAfter,
+    {
+      initialAfter: null,
+      initialSearchQuery: options.initialSearchQuery,
     }
-  }, [pageInfo]);
-
-  const goToFirstPage = useCallback(() => {
-    setAfter(null);
-  }, []);
+  );
 
   // Dialog management
   const openCreateDialog = useCallback(() => {
@@ -272,6 +294,8 @@ export function useGroupManagement(options: UseGroupManagementOptions = {}): Use
     first,
     after,
     pageInfo,
+    totalCount,
+    paginationRange,
     setFirst,
     loadNextPage,
     loadPreviousPage,
@@ -308,4 +332,3 @@ export function useGroupManagement(options: UseGroupManagementOptions = {}): Use
     refetch,
   };
 }
-

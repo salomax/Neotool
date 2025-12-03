@@ -11,17 +11,24 @@ import java.util.UUID
  * Replace:
  * - {module} with your module name (app, security, assistant, etc.)
  * - {EntityName} with your entity name (e.g., Product, Customer)
- * - Add custom query methods as needed
  * 
- * Query method naming conventions:
+ * IMPORTANT: Only add methods that Micronaut Data can auto-generate.
+ * For complex queries requiring custom implementation, use the custom repository pattern:
+ * - Create {EntityName}RepositoryCustom interface
+ * - Create {EntityName}RepositoryImpl class implementing it
+ * - Inject both repositories in services
+ * 
+ * Query method naming conventions (auto-generatable):
  * - findBy{Field} - Find single entity by field
  * - findAllBy{Field} - Find multiple entities by field
  * - existsBy{Field} - Check if entity exists
  * - countBy{Field} - Count entities by field
+ * 
+ * See repository-pattern.md for custom implementation pattern.
  */
 @Repository
 interface {EntityName}Repository : JpaRepository<{EntityName}Entity, UUID> {
-    // Add custom query methods here
+    // Add auto-generatable query methods here
     // Example: fun findByEmail(email: String): {EntityName}Entity?
     // Example: fun findAllByStatus(status: String): List<{EntityName}Entity>
 }

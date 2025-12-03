@@ -6,6 +6,7 @@ import io.github.salomax.neotool.security.domain.GroupManagement
 import io.github.salomax.neotool.security.model.rbac.GroupMembershipEntity
 import io.github.salomax.neotool.security.repo.GroupMembershipRepository
 import io.github.salomax.neotool.security.repo.GroupRepository
+import io.github.salomax.neotool.security.repo.GroupRepositoryCustom
 import io.github.salomax.neotool.security.repo.GroupRoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.UserRepository
@@ -29,6 +30,7 @@ import java.util.UUID
 @DisplayName("GroupManagementService Unit Tests")
 class GroupManagementServiceTest {
     private lateinit var groupRepository: GroupRepository
+    private lateinit var groupSearchRepository: GroupRepositoryCustom
     private lateinit var groupMembershipRepository: GroupMembershipRepository
     private lateinit var groupRoleAssignmentRepository: GroupRoleAssignmentRepository
     private lateinit var roleRepository: RoleRepository
@@ -38,6 +40,7 @@ class GroupManagementServiceTest {
     @BeforeEach
     fun setUp() {
         groupRepository = mock()
+        groupSearchRepository = mock()
         groupMembershipRepository = mock()
         groupRoleAssignmentRepository = mock()
         roleRepository = mock()
@@ -45,6 +48,7 @@ class GroupManagementServiceTest {
         groupManagementService =
             GroupManagementService(
                 groupRepository,
+                groupSearchRepository,
                 groupMembershipRepository,
                 groupRoleAssignmentRepository,
                 roleRepository,
@@ -60,17 +64,19 @@ class GroupManagementServiceTest {
             // Arrange
             val group1 = SecurityTestDataBuilders.group(id = UUID.randomUUID(), name = "Group One")
             val group2 = SecurityTestDataBuilders.group(id = UUID.randomUUID(), name = "Group Two")
-            whenever(groupRepository.findAll(PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
+            whenever(groupSearchRepository.searchByName(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
                 .thenReturn(listOf(group1, group2))
+            whenever(groupSearchRepository.countByName(null))
+                .thenReturn(2L)
 
             // Act
-            val result = groupManagementService.listGroups(after = null)
+            val result = groupManagementService.searchGroups(query = null, after = null)
 
             // Assert
             assertThat(result).isNotNull()
             assertThat(result.nodes).hasSize(2)
             assertThat(result.pageInfo.hasNextPage).isFalse()
-            verify(groupRepository).findAll(PaginationConstants.DEFAULT_PAGE_SIZE + 1, null)
+            verify(groupSearchRepository).searchByName(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null)
         }
 
         @Test
@@ -78,31 +84,35 @@ class GroupManagementServiceTest {
             // Arrange
             val first = 10
             val group1 = SecurityTestDataBuilders.group(id = UUID.randomUUID(), name = "Group One")
-            whenever(groupRepository.findAll(first + 1, null))
+            whenever(groupSearchRepository.searchByName(null, first + 1, null))
                 .thenReturn(listOf(group1))
+            whenever(groupSearchRepository.countByName(null))
+                .thenReturn(1L)
 
             // Act
-            val result = groupManagementService.listGroups(first = first, after = null)
+            val result = groupManagementService.searchGroups(query = null, first = first, after = null)
 
             // Assert
             assertThat(result).isNotNull()
             assertThat(result.nodes).hasSize(1)
-            verify(groupRepository).findAll(first + 1, null)
+            verify(groupSearchRepository).searchByName(null, first + 1, null)
         }
 
         @Test
         fun `should enforce max page size`() {
             // Arrange
             val first = 200 // Exceeds MAX_PAGE_SIZE
-            whenever(groupRepository.findAll(PaginationConstants.MAX_PAGE_SIZE + 1, null))
+            whenever(groupSearchRepository.searchByName(null, PaginationConstants.MAX_PAGE_SIZE + 1, null))
                 .thenReturn(emptyList())
+            whenever(groupSearchRepository.countByName(null))
+                .thenReturn(0L)
 
             // Act
-            val result = groupManagementService.listGroups(first = first, after = null)
+            val result = groupManagementService.searchGroups(query = null, first = first, after = null)
 
             // Assert
             assertThat(result).isNotNull()
-            verify(groupRepository).findAll(PaginationConstants.MAX_PAGE_SIZE + 1, null)
+            verify(groupSearchRepository).searchByName(null, PaginationConstants.MAX_PAGE_SIZE + 1, null)
         }
 
         @Test
@@ -111,16 +121,18 @@ class GroupManagementServiceTest {
             val afterId = UUID.randomUUID()
             val afterCursor = CursorEncoder.encodeCursor(afterId as UUID)
             val group1 = SecurityTestDataBuilders.group(id = UUID.randomUUID(), name = "Group One")
-            whenever(groupRepository.findAll(PaginationConstants.DEFAULT_PAGE_SIZE + 1, afterId))
+            whenever(groupSearchRepository.searchByName(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, afterId))
                 .thenReturn(listOf(group1))
+            whenever(groupSearchRepository.countByName(null))
+                .thenReturn(1L)
 
             // Act
-            val result = groupManagementService.listGroups(after = afterCursor)
+            val result = groupManagementService.searchGroups(query = null, after = afterCursor)
 
             // Assert
             assertThat(result).isNotNull()
             assertThat(result.nodes).hasSize(1)
-            verify(groupRepository).findAll(PaginationConstants.DEFAULT_PAGE_SIZE + 1, afterId)
+            verify(groupSearchRepository).searchByName(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, afterId)
         }
 
         @Test
@@ -133,11 +145,13 @@ class GroupManagementServiceTest {
                         name = "Group $it",
                     )
                 }
-            whenever(groupRepository.findAll(PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
+            whenever(groupSearchRepository.searchByName(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
                 .thenReturn(groups)
+            whenever(groupSearchRepository.countByName(null))
+                .thenReturn(21L)
 
             // Act
-            val result = groupManagementService.listGroups(after = null)
+            val result = groupManagementService.searchGroups(query = null, after = null)
 
             // Assert
             assertThat(result).isNotNull()
@@ -148,11 +162,13 @@ class GroupManagementServiceTest {
         @Test
         fun `should return empty connection when no groups exist`() {
             // Arrange
-            whenever(groupRepository.findAll(PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
+            whenever(groupSearchRepository.searchByName(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
                 .thenReturn(emptyList())
+            whenever(groupSearchRepository.countByName(null))
+                .thenReturn(0L)
 
             // Act
-            val result = groupManagementService.listGroups(after = null)
+            val result = groupManagementService.searchGroups(query = null, after = null)
 
             // Assert
             assertThat(result).isNotNull()
@@ -168,9 +184,9 @@ class GroupManagementServiceTest {
 
             // Act & Assert
             assertThrows<IllegalArgumentException> {
-                groupManagementService.listGroups(after = invalidCursor)
+                groupManagementService.searchGroups(query = null, after = invalidCursor)
             }
-            verify(groupRepository, never()).findAll(any(), any())
+            verify(groupSearchRepository, never()).searchByName(any(), any(), any())
         }
     }
 
@@ -182,8 +198,10 @@ class GroupManagementServiceTest {
             // Arrange
             val query = "admin"
             val group1 = SecurityTestDataBuilders.group(id = UUID.randomUUID(), name = "Admin Group")
-            whenever(groupRepository.searchByName(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
+            whenever(groupSearchRepository.searchByName(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
                 .thenReturn(listOf(group1))
+            whenever(groupSearchRepository.countByName(query))
+                .thenReturn(1L)
 
             // Act
             val result = groupManagementService.searchGroups(query, after = null)
@@ -192,7 +210,9 @@ class GroupManagementServiceTest {
             assertThat(result).isNotNull()
             assertThat(result.nodes).hasSize(1)
             assertThat(result.nodes.first().name).isEqualTo("Admin Group")
-            verify(groupRepository).searchByName(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null)
+            assertThat(result.totalCount).isEqualTo(1L)
+            verify(groupSearchRepository).searchByName(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null)
+            verify(groupSearchRepository).countByName(query)
         }
 
         @Test
@@ -202,8 +222,10 @@ class GroupManagementServiceTest {
             val afterId = UUID.randomUUID()
             val afterCursor = CursorEncoder.encodeCursor(afterId as UUID)
             val group1 = SecurityTestDataBuilders.group(id = UUID.randomUUID(), name = "Test Group")
-            whenever(groupRepository.searchByName(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, afterId))
+            whenever(groupSearchRepository.searchByName(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, afterId))
                 .thenReturn(listOf(group1))
+            whenever(groupSearchRepository.countByName(query))
+                .thenReturn(3L)
 
             // Act
             val result = groupManagementService.searchGroups(query, after = afterCursor)
@@ -211,15 +233,19 @@ class GroupManagementServiceTest {
             // Assert
             assertThat(result).isNotNull()
             assertThat(result.nodes).hasSize(1)
-            verify(groupRepository).searchByName(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, afterId)
+            assertThat(result.totalCount).isEqualTo(3L)
+            verify(groupSearchRepository).searchByName(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, afterId)
+            verify(groupSearchRepository).countByName(query)
         }
 
         @Test
         fun `should return empty connection when no groups match search`() {
             // Arrange
             val query = "nonexistent"
-            whenever(groupRepository.searchByName(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
+            whenever(groupSearchRepository.searchByName(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
                 .thenReturn(emptyList())
+            whenever(groupSearchRepository.countByName(query))
+                .thenReturn(0L)
 
             // Act
             val result = groupManagementService.searchGroups(query, after = null)
@@ -228,6 +254,8 @@ class GroupManagementServiceTest {
             assertThat(result).isNotNull()
             assertThat(result.nodes).isEmpty()
             assertThat(result.pageInfo.hasNextPage).isFalse()
+            assertThat(result.totalCount).isEqualTo(0L)
+            verify(groupSearchRepository).countByName(query)
         }
 
         @Test
@@ -240,7 +268,7 @@ class GroupManagementServiceTest {
             assertThrows<IllegalArgumentException> {
                 groupManagementService.searchGroups(query, after = invalidCursor)
             }
-            verify(groupRepository, never()).searchByName(any(), any(), any())
+            verify(groupSearchRepository, never()).searchByName(any(), any(), any())
         }
     }
 
@@ -319,6 +347,7 @@ class GroupManagementServiceTest {
             whenever(
                 groupMembershipRepository.saveAll(any<List<GroupMembershipEntity>>()),
             ).thenAnswer {
+                @Suppress("UNCHECKED_CAST")
                 it.arguments[0] as List<GroupMembershipEntity>
             }
 
@@ -514,6 +543,7 @@ class GroupManagementServiceTest {
             whenever(
                 groupMembershipRepository.saveAll(any<List<GroupMembershipEntity>>()),
             ).thenAnswer {
+                @Suppress("UNCHECKED_CAST")
                 it.arguments[0] as List<GroupMembershipEntity>
             }
 
@@ -581,6 +611,7 @@ class GroupManagementServiceTest {
             whenever(
                 groupMembershipRepository.saveAll(any<List<GroupMembershipEntity>>()),
             ).thenAnswer {
+                @Suppress("UNCHECKED_CAST")
                 it.arguments[0] as List<GroupMembershipEntity>
             }
 
@@ -637,6 +668,7 @@ class GroupManagementServiceTest {
             whenever(
                 groupMembershipRepository.deleteAll(any<List<GroupMembershipEntity>>()),
             ).thenAnswer {
+                @Suppress("UNCHECKED_CAST")
                 it.arguments[0] as List<GroupMembershipEntity>
             }
 
@@ -691,6 +723,7 @@ class GroupManagementServiceTest {
             whenever(
                 groupMembershipRepository.deleteAll(any<List<GroupMembershipEntity>>()),
             ).thenAnswer {
+                @Suppress("UNCHECKED_CAST")
                 it.arguments[0] as List<GroupMembershipEntity>
             }
 

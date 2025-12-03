@@ -2,9 +2,12 @@ package io.github.salomax.neotool.security.test.service.unit
 
 import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
+import io.github.salomax.neotool.security.repo.GroupMembershipRepository
+import io.github.salomax.neotool.security.repo.GroupRepository
 import io.github.salomax.neotool.security.repo.RoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.UserRepository
+import io.github.salomax.neotool.security.repo.UserRepositoryCustom
 import io.github.salomax.neotool.security.service.UserManagementService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import org.assertj.core.api.Assertions.assertThat
@@ -24,20 +27,30 @@ import java.util.UUID
 @DisplayName("UserManagementService Unit Tests")
 class UserManagementServiceTest {
     private lateinit var userRepository: UserRepository
+    private lateinit var userSearchRepository: UserRepositoryCustom
     private lateinit var roleAssignmentRepository: RoleAssignmentRepository
     private lateinit var roleRepository: RoleRepository
+    private lateinit var groupMembershipRepository: GroupMembershipRepository
+    private lateinit var groupRepository: GroupRepository
     private lateinit var userManagementService: UserManagementService
 
     @BeforeEach
     fun setUp() {
         userRepository = mock()
+        userSearchRepository = mock()
         roleAssignmentRepository = mock()
         roleRepository = mock()
-        userManagementService = UserManagementService(
-            userRepository,
-            roleAssignmentRepository,
-            roleRepository,
-        )
+        groupMembershipRepository = mock()
+        groupRepository = mock()
+        userManagementService =
+            UserManagementService(
+                userRepository,
+                userSearchRepository,
+                roleAssignmentRepository,
+                roleRepository,
+                groupMembershipRepository,
+                groupRepository,
+            )
     }
 
     @Nested
@@ -58,17 +71,19 @@ class UserManagementServiceTest {
                     email = "user2@example.com",
                     displayName = "User Two",
                 )
-            whenever(userRepository.findAll(PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
+            whenever(userSearchRepository.searchByNameOrEmail(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
                 .thenReturn(listOf(user1, user2))
+            whenever(userSearchRepository.countByNameOrEmail(null))
+                .thenReturn(2L)
 
             // Act
-            val result = userManagementService.listUsers(after = null)
+            val result = userManagementService.searchUsers(query = null, after = null)
 
             // Assert
             assertThat(result).isNotNull()
             assertThat(result.nodes).hasSize(2)
             assertThat(result.pageInfo.hasNextPage).isFalse()
-            verify(userRepository).findAll(PaginationConstants.DEFAULT_PAGE_SIZE + 1, null)
+            verify(userSearchRepository).searchByNameOrEmail(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null)
         }
 
         @Test
@@ -76,31 +91,35 @@ class UserManagementServiceTest {
             // Arrange
             val first = 10
             val user1 = SecurityTestDataBuilders.user(id = UUID.randomUUID(), email = "user1@example.com")
-            whenever(userRepository.findAll(first + 1, null))
+            whenever(userSearchRepository.searchByNameOrEmail(null, first + 1, null))
                 .thenReturn(listOf(user1))
+            whenever(userSearchRepository.countByNameOrEmail(null))
+                .thenReturn(1L)
 
             // Act
-            val result = userManagementService.listUsers(first = first, after = null)
+            val result = userManagementService.searchUsers(query = null, first = first, after = null)
 
             // Assert
             assertThat(result).isNotNull()
             assertThat(result.nodes).hasSize(1)
-            verify(userRepository).findAll(first + 1, null)
+            verify(userSearchRepository).searchByNameOrEmail(null, first + 1, null)
         }
 
         @Test
         fun `should enforce max page size`() {
             // Arrange
             val first = 200 // Exceeds MAX_PAGE_SIZE
-            whenever(userRepository.findAll(PaginationConstants.MAX_PAGE_SIZE + 1, null))
+            whenever(userSearchRepository.searchByNameOrEmail(null, PaginationConstants.MAX_PAGE_SIZE + 1, null))
                 .thenReturn(emptyList())
+            whenever(userSearchRepository.countByNameOrEmail(null))
+                .thenReturn(0L)
 
             // Act
-            val result = userManagementService.listUsers(first = first, after = null)
+            val result = userManagementService.searchUsers(query = null, first = first, after = null)
 
             // Assert
             assertThat(result).isNotNull()
-            verify(userRepository).findAll(PaginationConstants.MAX_PAGE_SIZE + 1, null)
+            verify(userSearchRepository).searchByNameOrEmail(null, PaginationConstants.MAX_PAGE_SIZE + 1, null)
         }
 
         @Test
@@ -109,16 +128,18 @@ class UserManagementServiceTest {
             val afterId = UUID.randomUUID()
             val afterCursor = CursorEncoder.encodeCursor(afterId as UUID)
             val user1 = SecurityTestDataBuilders.user(id = UUID.randomUUID(), email = "user1@example.com")
-            whenever(userRepository.findAll(PaginationConstants.DEFAULT_PAGE_SIZE + 1, afterId))
+            whenever(userSearchRepository.searchByNameOrEmail(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, afterId))
                 .thenReturn(listOf(user1))
+            whenever(userSearchRepository.countByNameOrEmail(null))
+                .thenReturn(1L)
 
             // Act
-            val result = userManagementService.listUsers(after = afterCursor)
+            val result = userManagementService.searchUsers(query = null, after = afterCursor)
 
             // Assert
             assertThat(result).isNotNull()
             assertThat(result.nodes).hasSize(1)
-            verify(userRepository).findAll(PaginationConstants.DEFAULT_PAGE_SIZE + 1, afterId)
+            verify(userSearchRepository).searchByNameOrEmail(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, afterId)
         }
 
         @Test
@@ -131,11 +152,13 @@ class UserManagementServiceTest {
                         email = "user$it@example.com",
                     )
                 }
-            whenever(userRepository.findAll(PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
+            whenever(userSearchRepository.searchByNameOrEmail(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
                 .thenReturn(users)
+            whenever(userSearchRepository.countByNameOrEmail(null))
+                .thenReturn(21L)
 
             // Act
-            val result = userManagementService.listUsers(after = null)
+            val result = userManagementService.searchUsers(query = null, after = null)
 
             // Assert
             assertThat(result).isNotNull()
@@ -146,11 +169,13 @@ class UserManagementServiceTest {
         @Test
         fun `should return empty connection when no users exist`() {
             // Arrange
-            whenever(userRepository.findAll(PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
+            whenever(userSearchRepository.searchByNameOrEmail(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
                 .thenReturn(emptyList())
+            whenever(userSearchRepository.countByNameOrEmail(null))
+                .thenReturn(0L)
 
             // Act
-            val result = userManagementService.listUsers(after = null)
+            val result = userManagementService.searchUsers(query = null, after = null)
 
             // Assert
             assertThat(result).isNotNull()
@@ -166,9 +191,9 @@ class UserManagementServiceTest {
 
             // Act & Assert
             assertThrows<IllegalArgumentException> {
-                userManagementService.listUsers(after = invalidCursor)
+                userManagementService.searchUsers(query = null, after = invalidCursor)
             }
-            verify(userRepository, never()).findAll(any(), any())
+            verify(userSearchRepository, never()).searchByNameOrEmail(any(), any(), any())
         }
     }
 
@@ -186,13 +211,15 @@ class UserManagementServiceTest {
                     displayName = "John Doe",
                 )
             whenever(
-                userRepository.searchByNameOrEmail(
+                userSearchRepository.searchByNameOrEmail(
                     query,
                     PaginationConstants.DEFAULT_PAGE_SIZE + 1,
                     null,
                 ),
             )
                 .thenReturn(listOf(user1))
+            whenever(userSearchRepository.countByNameOrEmail(query))
+                .thenReturn(1L)
 
             // Act
             val result = userManagementService.searchUsers(query, after = null)
@@ -201,7 +228,9 @@ class UserManagementServiceTest {
             assertThat(result).isNotNull()
             assertThat(result.nodes).hasSize(1)
             assertThat(result.nodes.first().email).isEqualTo("john@example.com")
-            verify(userRepository).searchByNameOrEmail(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null)
+            assertThat(result.totalCount).isEqualTo(1L)
+            verify(userSearchRepository).searchByNameOrEmail(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null)
+            verify(userSearchRepository).countByNameOrEmail(query)
         }
 
         @Test
@@ -209,8 +238,10 @@ class UserManagementServiceTest {
             // Arrange
             val query = "example.com"
             val user1 = SecurityTestDataBuilders.user(id = UUID.randomUUID(), email = "user@example.com")
-            whenever(userRepository.searchByNameOrEmail(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
+            whenever(userSearchRepository.searchByNameOrEmail(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
                 .thenReturn(listOf(user1))
+            whenever(userSearchRepository.countByNameOrEmail(query))
+                .thenReturn(1L)
 
             // Act
             val result = userManagementService.searchUsers(query, after = null)
@@ -218,7 +249,9 @@ class UserManagementServiceTest {
             // Assert
             assertThat(result).isNotNull()
             assertThat(result.nodes).hasSize(1)
-            verify(userRepository).searchByNameOrEmail(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null)
+            assertThat(result.totalCount).isEqualTo(1L)
+            verify(userSearchRepository).searchByNameOrEmail(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null)
+            verify(userSearchRepository).countByNameOrEmail(query)
         }
 
         @Test
@@ -228,8 +261,10 @@ class UserManagementServiceTest {
             val afterId = UUID.randomUUID()
             val afterCursor = CursorEncoder.encodeCursor(afterId as UUID)
             val user1 = SecurityTestDataBuilders.user(id = UUID.randomUUID(), email = "test@example.com")
-            whenever(userRepository.searchByNameOrEmail(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, afterId))
+            whenever(userSearchRepository.searchByNameOrEmail(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, afterId))
                 .thenReturn(listOf(user1))
+            whenever(userSearchRepository.countByNameOrEmail(query))
+                .thenReturn(5L)
 
             // Act
             val result = userManagementService.searchUsers(query, after = afterCursor)
@@ -237,15 +272,19 @@ class UserManagementServiceTest {
             // Assert
             assertThat(result).isNotNull()
             assertThat(result.nodes).hasSize(1)
-            verify(userRepository).searchByNameOrEmail(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, afterId)
+            assertThat(result.totalCount).isEqualTo(5L)
+            verify(userSearchRepository).searchByNameOrEmail(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, afterId)
+            verify(userSearchRepository).countByNameOrEmail(query)
         }
 
         @Test
         fun `should return empty connection when no users match search`() {
             // Arrange
             val query = "nonexistent"
-            whenever(userRepository.searchByNameOrEmail(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
+            whenever(userSearchRepository.searchByNameOrEmail(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
                 .thenReturn(emptyList())
+            whenever(userSearchRepository.countByNameOrEmail(query))
+                .thenReturn(0L)
 
             // Act
             val result = userManagementService.searchUsers(query, after = null)
@@ -254,6 +293,8 @@ class UserManagementServiceTest {
             assertThat(result).isNotNull()
             assertThat(result.nodes).isEmpty()
             assertThat(result.pageInfo.hasNextPage).isFalse()
+            assertThat(result.totalCount).isEqualTo(0L)
+            verify(userSearchRepository).countByNameOrEmail(query)
         }
 
         @Test
@@ -266,7 +307,7 @@ class UserManagementServiceTest {
             assertThrows<IllegalArgumentException> {
                 userManagementService.searchUsers(query, after = invalidCursor)
             }
-            verify(userRepository, never()).searchByNameOrEmail(any(), any(), any())
+            verify(userSearchRepository, never()).searchByNameOrEmail(any(), any(), any())
         }
     }
 

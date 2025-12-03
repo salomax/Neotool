@@ -12,7 +12,7 @@ export type GetUsersQueryVariables = Types.Exact<{
 }>;
 
 
-export type GetUsersQuery = { users: { __typename: 'UserConnection', edges: Array<{ __typename: 'UserEdge', cursor: string, node: { __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean } }>, nodes: Array<{ __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean }>, pageInfo: { __typename: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null } } };
+export type GetUsersQuery = { users: { __typename: 'UserConnection', totalCount: number | null, edges: Array<{ __typename: 'UserEdge', cursor: string, node: { __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean } }>, nodes: Array<{ __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean }>, pageInfo: { __typename: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null } } };
 
 export type GetGroupsQueryVariables = Types.Exact<{
   first?: Types.InputMaybe<Types.Scalars['Int']['input']>;
@@ -21,7 +21,7 @@ export type GetGroupsQueryVariables = Types.Exact<{
 }>;
 
 
-export type GetGroupsQuery = { groups: { __typename: 'GroupConnection', edges: Array<{ __typename: 'GroupEdge', cursor: string, node: { __typename: 'Group', id: string, name: string, description: string | null, members: Array<{ __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean }> } }>, nodes: Array<{ __typename: 'Group', id: string, name: string, description: string | null, members: Array<{ __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean }> }>, pageInfo: { __typename: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null } } };
+export type GetGroupsQuery = { groups: { __typename: 'GroupConnection', totalCount: number | null, edges: Array<{ __typename: 'GroupEdge', cursor: string, node: { __typename: 'Group', id: string, name: string, description: string | null, members: Array<{ __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean }> } }>, nodes: Array<{ __typename: 'Group', id: string, name: string, description: string | null, members: Array<{ __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean }> }>, pageInfo: { __typename: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null } } };
 
 export type GetRolesQueryVariables = Types.Exact<{
   first?: Types.InputMaybe<Types.Scalars['Int']['input']>;
@@ -30,7 +30,7 @@ export type GetRolesQueryVariables = Types.Exact<{
 }>;
 
 
-export type GetRolesQuery = { roles: { __typename: 'RoleConnection', edges: Array<{ __typename: 'RoleEdge', cursor: string, node: { __typename: 'Role', id: string, name: string } }>, nodes: Array<{ __typename: 'Role', id: string, name: string }>, pageInfo: { __typename: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null } } };
+export type GetRolesQuery = { roles: { __typename: 'RoleConnection', totalCount: number | null, edges: Array<{ __typename: 'RoleEdge', cursor: string, node: { __typename: 'Role', id: string, name: string } }>, nodes: Array<{ __typename: 'Role', id: string, name: string }>, pageInfo: { __typename: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null } } };
 
 export type GetPermissionsQueryVariables = Types.Exact<{
   first?: Types.InputMaybe<Types.Scalars['Int']['input']>;
@@ -41,10 +41,12 @@ export type GetPermissionsQueryVariables = Types.Exact<{
 
 export type GetPermissionsQuery = { permissions: { __typename: 'PermissionConnection', edges: Array<{ __typename: 'PermissionEdge', cursor: string, node: { __typename: 'Permission', id: string, name: string } }>, nodes: Array<{ __typename: 'Permission', id: string, name: string }>, pageInfo: { __typename: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null } } };
 
-export type GetUserWithRelationshipsQueryVariables = Types.Exact<{ [key: string]: never; }>;
+export type GetUserWithRelationshipsQueryVariables = Types.Exact<{
+  id: Types.Scalars['ID']['input'];
+}>;
 
 
-export type GetUserWithRelationshipsQuery = { users: { __typename: 'UserConnection', nodes: Array<{ __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean, groups: Array<{ __typename: 'Group', id: string, name: string, description: string | null, members: Array<{ __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean }> }>, roles: Array<{ __typename: 'Role', id: string, name: string }>, permissions: Array<{ __typename: 'Permission', id: string, name: string }> }> } };
+export type GetUserWithRelationshipsQuery = { user: { __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean, groups: Array<{ __typename: 'Group', id: string, name: string, description: string | null, members: Array<{ __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean }> }>, roles: Array<{ __typename: 'Role', id: string, name: string }>, permissions: Array<{ __typename: 'Permission', id: string, name: string }> } | null };
 
 export type GetRolesWithPermissionsQueryVariables = Types.Exact<{ [key: string]: never; }>;
 
@@ -75,6 +77,7 @@ export const GetUsersDocument = gql`
       startCursor
       endCursor
     }
+    totalCount
   }
 }
     ${UserFieldsFragmentDoc}`;
@@ -131,6 +134,7 @@ export const GetGroupsDocument = gql`
       startCursor
       endCursor
     }
+    totalCount
   }
 }
     ${GroupFieldsFragmentDoc}`;
@@ -187,6 +191,7 @@ export const GetRolesDocument = gql`
       startCursor
       endCursor
     }
+    totalCount
   }
 }
     ${RoleFieldsFragmentDoc}`;
@@ -282,19 +287,17 @@ export type GetPermissionsLazyQueryHookResult = ReturnType<typeof useGetPermissi
 export type GetPermissionsSuspenseQueryHookResult = ReturnType<typeof useGetPermissionsSuspenseQuery>;
 export type GetPermissionsQueryResult = ApolloReactCommon.QueryResult<GetPermissionsQuery, GetPermissionsQueryVariables>;
 export const GetUserWithRelationshipsDocument = gql`
-    query GetUserWithRelationships {
-  users(first: 1000) {
-    nodes {
-      ...UserFields
-      groups {
-        ...GroupFields
-      }
-      roles {
-        ...RoleFields
-      }
-      permissions {
-        ...PermissionFields
-      }
+    query GetUserWithRelationships($id: ID!) {
+  user(id: $id) {
+    ...UserFields
+    groups {
+      ...GroupFields
+    }
+    roles {
+      ...RoleFields
+    }
+    permissions {
+      ...PermissionFields
     }
   }
 }
@@ -315,10 +318,11 @@ ${PermissionFieldsFragmentDoc}`;
  * @example
  * const { data, loading, error } = useGetUserWithRelationshipsQuery({
  *   variables: {
+ *      id: // value for 'id'
  *   },
  * });
  */
-export function useGetUserWithRelationshipsQuery(baseOptions?: ApolloReactHooks.QueryHookOptions<GetUserWithRelationshipsQuery, GetUserWithRelationshipsQueryVariables>) {
+export function useGetUserWithRelationshipsQuery(baseOptions: ApolloReactHooks.QueryHookOptions<GetUserWithRelationshipsQuery, GetUserWithRelationshipsQueryVariables> & ({ variables: GetUserWithRelationshipsQueryVariables; skip?: boolean; } | { skip: boolean; }) ) {
         const options = {...defaultOptions, ...baseOptions}
         return ApolloReactHooks.useQuery<GetUserWithRelationshipsQuery, GetUserWithRelationshipsQueryVariables>(GetUserWithRelationshipsDocument, options);
       }

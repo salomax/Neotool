@@ -17,6 +17,7 @@ import { useRoleManagement, type Role } from "@/shared/hooks/authorization/useRo
 import { SearchField } from "@/shared/components/ui/forms/SearchField";
 import { RoleList } from "./RoleList";
 import { RoleDrawer } from "./RoleDrawer";
+import { PaginationRange } from "@/shared/components/ui/pagination";
 import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(neotool)/settings/i18n";
 import { useToast } from "@/shared/providers";
@@ -45,6 +46,7 @@ export const RoleManagement: React.FC<RoleManagementProps> = ({
     searchQuery,
     setSearchQuery,
     pageInfo,
+    paginationRange,
     loadNextPage,
     loadPreviousPage,
     goToFirstPage,
@@ -155,36 +157,47 @@ export const RoleManagement: React.FC<RoleManagementProps> = ({
       />
 
       {/* Pagination Controls */}
-      {pageInfo && (pageInfo.hasNextPage || pageInfo.hasPreviousPage) && (
+      {(pageInfo && (pageInfo.hasNextPage || pageInfo.hasPreviousPage)) || (paginationRange.start > 0 && paginationRange.end > 0) ? (
         <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
           <Stack direction="row" spacing={2} alignItems="center">
-            <Button
-              variant="outlined"
-              onClick={goToFirstPage}
-              disabled={!pageInfo.hasPreviousPage || loading}
-              size="small"
-            >
-              {t("pagination.first")}
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={loadPreviousPage}
-              disabled={!pageInfo.hasPreviousPage || loading}
-              size="small"
-            >
-              {t("pagination.previous")}
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={loadNextPage}
-              disabled={!pageInfo.hasNextPage || loading}
-              size="small"
-            >
-              {t("pagination.next")}
-            </Button>
+            {pageInfo && (pageInfo.hasNextPage || pageInfo.hasPreviousPage) && (
+              <>
+                <Button
+                  variant="outlined"
+                  onClick={goToFirstPage}
+                  disabled={!pageInfo.hasPreviousPage || loading}
+                  size="small"
+                >
+                  {t("pagination.first")}
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={loadPreviousPage}
+                  disabled={!pageInfo.hasPreviousPage || loading}
+                  size="small"
+                >
+                  {t("pagination.previous")}
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={loadNextPage}
+                  disabled={!pageInfo.hasNextPage || loading}
+                  size="small"
+                >
+                  {t("pagination.next")}
+                </Button>
+              </>
+            )}
+            {paginationRange.start > 0 && paginationRange.end > 0 && (
+              <PaginationRange
+                start={paginationRange.start}
+                end={paginationRange.end}
+                total={paginationRange.total}
+              />
+            )}
           </Stack>
         </Box>
-      )}
+      ) : null}
 
       {/* Create/Edit Drawer */}
       <RoleDrawer

@@ -91,6 +91,7 @@ type GroupConnection
   edges: [GroupEdge!]!
   nodes: [Group!]!
   pageInfo: PageInfo!
+  totalCount: Int
 }
 
 type GroupEdge
@@ -148,6 +149,8 @@ type Mutation
   removePermissionFromRole(roleId: ID!, permissionId: ID!): Role! @join__field(graph: SECURITY)
   assignRoleToUser(userId: ID!, roleId: ID!): User! @join__field(graph: SECURITY)
   removeRoleFromUser(userId: ID!, roleId: ID!): User! @join__field(graph: SECURITY)
+  assignGroupToUser(userId: ID!, groupId: ID!): User! @join__field(graph: SECURITY)
+  removeGroupFromUser(userId: ID!, groupId: ID!): User! @join__field(graph: SECURITY)
   assignRoleToGroup(groupId: ID!, roleId: ID!): Group! @join__field(graph: SECURITY)
   removeRoleFromGroup(groupId: ID!, roleId: ID!): Group! @join__field(graph: SECURITY)
 }
@@ -218,6 +221,7 @@ type Query
   checkPermission(userId: ID!, permission: String!, resourceId: ID): AuthorizationResult! @join__field(graph: SECURITY)
   getUserPermissions(userId: ID!): [Permission!]! @join__field(graph: SECURITY)
   getUserRoles(userId: ID!): [Role!]! @join__field(graph: SECURITY)
+  user(id: ID!): User @join__field(graph: SECURITY)
   users(first: Int, after: String, query: String): UserConnection! @join__field(graph: SECURITY)
   groups(first: Int, after: String, query: String): GroupConnection! @join__field(graph: SECURITY)
   roles(first: Int, after: String, query: String): RoleConnection! @join__field(graph: SECURITY)
@@ -266,6 +270,7 @@ type RoleConnection
   edges: [RoleEdge!]!
   nodes: [Role!]!
   pageInfo: PageInfo!
+  totalCount: Int
 }
 
 type RoleEdge
@@ -347,6 +352,7 @@ type UserConnection
   edges: [UserEdge!]!
   nodes: [User!]!
   pageInfo: PageInfo!
+  totalCount: Int
 }
 
 type UserEdge

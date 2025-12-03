@@ -5,6 +5,7 @@ import io.github.salomax.neotool.security.graphql.dto.UserDTO
 import io.github.salomax.neotool.security.graphql.mapper.UserManagementMapper
 import io.github.salomax.neotool.security.repo.GroupMembershipRepository
 import io.github.salomax.neotool.security.repo.GroupRepository
+import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.AuthorizationService
 import io.github.salomax.neotool.security.service.UserManagementService
 import jakarta.inject.Singleton
@@ -20,6 +21,7 @@ import java.util.UUID
 class UserManagementResolver(
     private val userManagementService: UserManagementService,
     private val authorizationService: AuthorizationService,
+    private val userRepository: UserRepository,
     private val groupRepository: GroupRepository,
     private val groupMembershipRepository: GroupMembershipRepository,
     private val mapper: UserManagementMapper,
@@ -27,7 +29,29 @@ class UserManagementResolver(
     private val logger = KotlinLogging.logger {}
 
     /**
-     * List all users with optional pagination and search.
+     * Get a single user by ID.
+     */
+    fun user(id: String): UserDTO? {
+        return try {
+            val userIdUuid = mapper.toUserId(id)
+            val entity = userRepository.findById(userIdUuid)
+            entity.map { it.toDomain() }
+                .map { mapper.toUserDTO(it) }
+                .orElse(null)
+        } catch (e: IllegalArgumentException) {
+            logger.warn { "Invalid user ID: $id" }
+            null
+        } catch (e: Exception) {
+            logger.error(e) { "Error getting user: $id" }
+            null
+        }
+    }
+
+    /**
+     * Unified query for users with optional pagination and search.
+     * When query is omitted or empty, returns all users (list behavior).
+     * When query is provided, returns filtered users (search behavior).
+     * totalCount is always calculated.
      */
     fun users(
         first: Int?,
@@ -36,12 +60,7 @@ class UserManagementResolver(
     ): UserConnectionDTO {
         return try {
             val pageSize = first ?: 20
-            val connection =
-                if (query != null && query.isNotBlank()) {
-                    userManagementService.searchUsers(query, pageSize, after)
-                } else {
-                    userManagementService.listUsers(pageSize, after)
-                }
+            val connection = userManagementService.searchUsers(query, pageSize, after)
             mapper.toUserConnectionDTO(connection)
         } catch (e: Exception) {
             logger.error(e) { "Error listing users" }
@@ -196,6 +215,54 @@ class UserManagementResolver(
             throw e
         } catch (e: Exception) {
             logger.error(e) { "Error removing role from user: userId=$userId, roleId=$roleId" }
+            throw e
+        }
+    }
+
+    /**
+     * Assign a group to a user.
+     */
+    fun assignGroupToUser(
+        userId: String,
+        groupId: String,
+    ): UserDTO {
+        return try {
+            val command =
+                io.github.salomax.neotool.security.domain.UserManagement.AssignGroupToUserCommand(
+                    userId = mapper.toUserId(userId),
+                    groupId = mapper.toGroupId(groupId),
+                )
+            val user = userManagementService.assignGroupToUser(command)
+            mapper.toUserDTO(user)
+        } catch (e: IllegalArgumentException) {
+            logger.warn { "Invalid user ID or group ID: userId=$userId, groupId=$groupId" }
+            throw e
+        } catch (e: Exception) {
+            logger.error(e) { "Error assigning group to user: userId=$userId, groupId=$groupId" }
+            throw e
+        }
+    }
+
+    /**
+     * Remove a group from a user.
+     */
+    fun removeGroupFromUser(
+        userId: String,
+        groupId: String,
+    ): UserDTO {
+        return try {
+            val command =
+                io.github.salomax.neotool.security.domain.UserManagement.RemoveGroupFromUserCommand(
+                    userId = mapper.toUserId(userId),
+                    groupId = mapper.toGroupId(groupId),
+                )
+            val user = userManagementService.removeGroupFromUser(command)
+            mapper.toUserDTO(user)
+        } catch (e: IllegalArgumentException) {
+            logger.warn { "Invalid user ID or group ID: userId=$userId, groupId=$groupId" }
+            throw e
+        } catch (e: Exception) {
+            logger.error(e) { "Error removing group from user: userId=$userId, groupId=$groupId" }
             throw e
         }
     }

@@ -43,53 +43,6 @@ interface RoleRepository : JpaRepository<RoleEntity, Int> {
     fun findPermissionIdsByRoleIds(roleIds: List<Int>): List<Int>
 
     /**
-     * Find all roles with cursor-based pagination, ordered alphabetically by name ascending.
-     *
-     * @param first Maximum number of results to return
-     * @param after Cursor (integer ID) to start after (exclusive)
-     * @return List of roles ordered by name ascending
-     */
-    @Query(
-        value = """
-        SELECT * FROM security.roles
-        WHERE (CAST(:after AS INTEGER) IS NULL OR id > CAST(:after AS INTEGER))
-        ORDER BY name ASC, id ASC
-        LIMIT :first
-        """,
-        nativeQuery = true,
-    )
-    fun findAll(
-        first: Int,
-        after: Int?,
-    ): List<RoleEntity>
-
-    /**
-     * Search roles by name with cursor-based pagination.
-     * Performs case-insensitive partial matching on name field.
-     * Results are ordered alphabetically by name ascending.
-     *
-     * @param query Search query (partial match, case-insensitive)
-     * @param first Maximum number of results to return
-     * @param after Cursor (integer ID) to start after (exclusive)
-     * @return List of matching roles ordered by name ascending
-     */
-    @Query(
-        value = """
-        SELECT * FROM security.roles
-        WHERE LOWER(name) LIKE LOWER(CONCAT('%', :query, '%'))
-        AND (CAST(:after AS INTEGER) IS NULL OR id > CAST(:after AS INTEGER))
-        ORDER BY name ASC, id ASC
-        LIMIT :first
-        """,
-        nativeQuery = true,
-    )
-    fun searchByName(
-        query: String,
-        first: Int,
-        after: Int?,
-    ): List<RoleEntity>
-
-    /**
      * Check if a role has any user assignments.
      * Queries the role_assignments table to determine if any users have this role assigned.
      *
