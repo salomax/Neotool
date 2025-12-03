@@ -21,6 +21,7 @@ export const GET_USERS = gql`
         startCursor
         endCursor
       }
+      totalCount
     }
   }
 `;
@@ -45,6 +46,7 @@ export const GET_GROUPS = gql`
         startCursor
         endCursor
       }
+      totalCount
     }
   }
 `;
@@ -69,6 +71,7 @@ export const GET_ROLES = gql`
         startCursor
         endCursor
       }
+      totalCount
     }
   }
 `;
@@ -98,26 +101,22 @@ export const GET_PERMISSIONS = gql`
 `;
 
 // Get user with relationships (groups, roles, permissions)
-// Note: Since there's no user(id: ID!) query in the schema, we query users
-// and filter client-side by the provided userId
 export const GET_USER_WITH_RELATIONSHIPS = gql`
   ${USER_FIELDS}
   ${GROUP_FIELDS}
   ${ROLE_FIELDS}
   ${PERMISSION_FIELDS}
-  query GetUserWithRelationships {
-    users(first: 1000) {
-      nodes {
-        ...UserFields
-        groups {
-          ...GroupFields
-        }
-        roles {
-          ...RoleFields
-        }
-        permissions {
-          ...PermissionFields
-        }
+  query GetUserWithRelationships($id: ID!) {
+    user(id: $id) {
+      ...UserFields
+      groups {
+        ...GroupFields
+      }
+      roles {
+        ...RoleFields
+      }
+      permissions {
+        ...PermissionFields
       }
     }
   }

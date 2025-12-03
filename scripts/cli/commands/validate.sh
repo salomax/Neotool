@@ -30,13 +30,12 @@ VALIDATION_FAILED=false
 # UI state tracking
 declare -a TASK_NAMES=()
 declare -a TASK_STATUSES=()
-declare -a TASK_LATEST_LINES=()
 declare -a TASK_START_TIMES=()
 declare -a TASK_ELAPSED_TIMES=()
 declare -a TASK_COMMANDS=()
+declare -a TASK_HEADER_INITIALIZED=()  # Track if header (status + command) has been displayed
 CURRENT_TASK_INDEX=-1
 UI_INITIALIZED=false
-INITIAL_CURSOR_LINE=0
 
 # Show help text
 show_help() {
@@ -116,9 +115,6 @@ init_validation_ui() {
         return
     fi
     
-    # Save initial cursor position
-    INITIAL_CURSOR_LINE=$(tput lines 2>/dev/null || echo "0")
-    
     # Show header
     log "\n🔍 Starting Validation Process\n" "$BRIGHT"
     echo ""
@@ -130,12 +126,13 @@ init_validation_ui() {
 # Add a new task to the display
 add_new_task() {
     local task_name="$1"
+    local command="${2:-}"
     
     CURRENT_TASK_INDEX=$((CURRENT_TASK_INDEX + 1))
     TASK_NAMES+=("$task_name")
     TASK_STATUSES+=("running")
-    TASK_LATEST_LINES+=("")
-    TASK_COMMANDS+=("")
+    TASK_COMMANDS+=("$command")
+    TASK_HEADER_INITIALIZED+=(false)  # Initialize header as not displayed yet
     
     # Get start time
     if command -v gdate >/dev/null 2>&1; then
@@ -146,17 +143,16 @@ add_new_task() {
     
     TASK_ELAPSED_TIMES+=("")
     
-    # Display the new task with running status
-    update_task_status "$CURRENT_TASK_INDEX" "running" "" ""
+    # Display the new task with running status and command
+    update_task_status "$CURRENT_TASK_INDEX" "running" "" "$command"
 }
 
 # Update task status display
 update_task_status() {
     local task_idx="$1"
     local status="$2"
-    local latest_line="${3:-}"
-    local elapsed_time="${4:-}"
-    local command="${5:-}"
+    local elapsed_time="${3:-}"
+    local command="${4:-}"
     
     if [[ $task_idx -lt 0 ]] || [[ $task_idx -ge ${#TASK_NAMES[@]} ]]; then
         return
@@ -190,12 +186,12 @@ update_task_status() {
         return
     fi
     
-    # Store previous status before updating (needed to clear running line)
     local previous_status="${TASK_STATUSES[$task_idx]}"
+    
+    # Check if this is the initial display (header not shown yet)
+    local header_initialized="${TASK_HEADER_INITIALIZED[$task_idx]:-false}"
+    
     TASK_STATUSES[$task_idx]="$status"
-    if [[ -n "$latest_line" ]]; then
-        TASK_LATEST_LINES[$task_idx]="$latest_line"
-    fi
     if [[ -n "$elapsed_time" ]]; then
         TASK_ELAPSED_TIMES[$task_idx]="$elapsed_time"
     fi
@@ -226,30 +222,70 @@ update_task_status() {
             ;;
     esac
     
-    # Print task status (use carriage return to update in place for running tasks)
     local task_name="${TASK_NAMES[$task_idx]}"
+    local cmd="${command:-${TASK_COMMANDS[$task_idx]}}"
+    if [[ -n "$cmd" ]]; then
+        TASK_COMMANDS[$task_idx]="$cmd"
+    fi
     
-    if [[ "$status" == "running" ]]; then
-        # For running tasks, use carriage return to update in place
-        # Clear to end of line to remove any previous content
-        local term_width=$(tput cols 2>/dev/null || echo "80")
-        printf "\r%s %-40s %s" "$emoji" "$task_name" "$status_text"
-        # Clear rest of line
-        printf "\033[K"
-    else
-        # For completed tasks, first clear the running line if it was previously running
-        if [[ "$previous_status" == "running" ]]; then
-            # Clear the running line by moving to start and clearing to end
-            printf "\r\033[K"
+    # If header not initialized, display it now (status + command lines)
+    if [[ "$header_initialized" == "false" ]]; then
+        # Display status line
+        printf "%s %-40s %s" "$emoji" "$task_name" "$status_text"
+        if command -v tput >/dev/null 2>&1; then
+            tput el 2>/dev/null || printf "\033[K"
+        else
+            printf "\033[K"
         fi
-        # Then print final status on a new line
-        printf "\n%s %-40s %s\n" "$emoji" "$task_name" "$status_text"
+        printf "\n"
         
-        # Show the command if task is done
-        if [[ -n "${TASK_COMMANDS[$task_idx]}" ]]; then
-            local cmd="${TASK_COMMANDS[$task_idx]}"
-            log "    $ $cmd" "$CYAN"
+        # Display command line
+        if [[ -n "$cmd" ]]; then
+            printf "${CYAN}    $ %s${RESET}" "$cmd"
+            if command -v tput >/dev/null 2>&1; then
+                tput el 2>/dev/null || printf "\033[K"
+            else
+                printf "\033[K"
+            fi
+            printf "\n"
         fi
+        
+        TASK_HEADER_INITIALIZED[$task_idx]="true"
+    fi
+    
+    # Handle status change from running to success/failure
+    if [[ "$previous_status" == "running" && "$status" != "running" ]]; then
+        # Move up to status line (1 line for command if exists, or 0)
+        local lines_to_status=1  # Always at least 1 (status line itself)
+        if [[ -n "$cmd" ]]; then
+            lines_to_status=2  # Status + command
+        fi
+        
+        # Move to status line
+        local i=0
+        while [[ $i -lt $lines_to_status ]]; do
+            if command -v tput >/dev/null 2>&1; then
+                tput cuu1 2>/dev/null || printf "\033[1A"
+            else
+                printf "\033[1A"
+            fi
+            i=$((i + 1))
+        done
+        
+        # Update status line
+        printf "%s %-40s %s" "$emoji" "$task_name" "$status_text"
+        if command -v tput >/dev/null 2>&1; then
+            tput el 2>/dev/null || printf "\033[K"
+        else
+            printf "\033[K"
+        fi
+        printf "\n"
+        
+        # Move back down to after command line
+        if [[ -n "$cmd" ]]; then
+            printf "\n"
+        fi
+        return
     fi
 }
 
@@ -262,100 +298,41 @@ cleanup_ui() {
     fi
 }
 
-# Run command with live output capture
-run_with_live_output() {
+# Run command silently in background
+run_command_silently() {
     local command="$1"
     local task_name="$2"
     local task_idx="$3"
     
     local start_time
     local end_time
-    local latest_line=""
     local exit_code=0
     
-    # Temporarily disable job control monitoring to suppress termination messages
-    # This prevents bash from reporting when background jobs are terminated
+    # Temporarily disable job control monitoring
     local job_control_state="disabled"
-    # Check if monitor option is set (job control monitoring) - bash specific
     if [[ -o monitor ]] 2>/dev/null; then
         job_control_state="enabled"
         set +m 2>/dev/null || true
     fi
     
-    # Get start time (seconds since epoch with nanoseconds)
+    # Get start time
     if command -v gdate >/dev/null 2>&1; then
         start_time=$(gdate +%s.%N)
     else
         start_time=$(date +%s.%N 2>/dev/null || date +%s)
     fi
     
-    # Use a temp file to capture output
-    local output_file=$(mktemp)
-    
-    # Execute command in background, redirecting output to file
-    eval "$command" > "$output_file" 2>&1 &
+    # Execute command in background, redirecting all output to /dev/null
+    eval "$command" > /dev/null 2>&1 &
     local cmd_pid=$!
-    
-    # Monitor the output file for new lines using tail -f
-    local tail_pid=""
-    if command -v tail >/dev/null 2>&1; then
-        # Wait a bit for file to be created
-        sleep 0.1
-        if [[ -f "$output_file" ]]; then
-            # Use a subshell with stderr fully suppressed to avoid broken pipe errors
-            # The broken pipe error is harmless but noisy - we suppress it completely
-            (
-                # Redirect stderr for the entire subshell
-                exec 2>/dev/null
-                set +e
-                tail -f "$output_file" | while IFS= read -r line || [[ -n "$line" ]]; do
-                    if [[ -n "$line" ]]; then
-                        latest_line="$line"
-                        update_task_status "$task_idx" "running" "$latest_line" ""
-                    fi
-                done
-            ) 2>/dev/null &
-            tail_pid=$!
-        fi
-    fi
     
     # Wait for command to finish
     wait "$cmd_pid" 2>/dev/null
     exit_code=$?
     
-    # Stop tail gracefully - wait for it to process final output, then terminate
-    # Wrap in a subshell with stderr suppressed to prevent any job control messages
-    if [[ -n "$tail_pid" ]]; then
-        (
-            # Suppress all stderr in this subshell
-            exec 2>/dev/null
-            # Wait a moment for tail to process any final output from the command
-            sleep 0.3
-            # Check if the process is still running
-            if kill -0 "$tail_pid" 2>/dev/null; then
-                # Send SIGTERM to tail (this will cause it to exit and close the pipe)
-                # The while loop will exit when it reads EOF from the closed pipe
-                kill "$tail_pid" 2>/dev/null || true
-                # Give the while loop time to process the EOF and exit
-                sleep 0.2
-                # Force kill only if still running (shouldn't be necessary)
-                if kill -0 "$tail_pid" 2>/dev/null; then
-                    kill -9 "$tail_pid" 2>/dev/null || true
-                fi
-            fi
-            # Wait for the process to fully terminate (suppress all errors including broken pipe)
-            wait "$tail_pid" 2>/dev/null || true
-        ) 2>/dev/null
-    fi
-    
     # Restore job control state
     if [[ "$job_control_state" == "enabled" ]]; then
         set -m
-    fi
-    
-    # Get the latest line from output
-    if [[ -f "$output_file" ]] && [[ -s "$output_file" ]]; then
-        latest_line=$(tail -n 1 "$output_file" 2>/dev/null || echo "")
     fi
     
     # Get end time and calculate elapsed
@@ -365,12 +342,11 @@ run_with_live_output() {
         end_time=$(date +%s.%N 2>/dev/null || date +%s)
     fi
     
-    # Calculate elapsed time using awk for floating point arithmetic
+    # Calculate elapsed time
     local elapsed
     if command -v awk >/dev/null 2>&1; then
         elapsed=$(awk "BEGIN {printf \"%.2f\", $end_time - $start_time}")
     else
-        # Fallback: use integer seconds
         local start_int=${start_time%.*}
         local end_int=${end_time%.*}
         elapsed=$((end_int - start_int))
@@ -380,13 +356,10 @@ run_with_live_output() {
     
     # Update final status
     if [[ $exit_code -eq 0 ]]; then
-        update_task_status "$task_idx" "success" "" "$formatted_time" "$command"
+        update_task_status "$task_idx" "success" "$formatted_time" "$command"
     else
-        update_task_status "$task_idx" "failure" "${latest_line:-Command failed}" "$formatted_time" "$command"
+        update_task_status "$task_idx" "failure" "$formatted_time" "$command"
     fi
-    
-    # Cleanup
-    rm -f "$output_file"
     
     return $exit_code
 }
@@ -409,31 +382,31 @@ run_frontend_validations() {
     fi
     
     # Typecheck
-    add_new_task "web typecheck"
+    add_new_task "web typecheck" "pnpm run typecheck"
     local task_idx=$CURRENT_TASK_INDEX
-    if ! run_with_live_output "pnpm run typecheck" "web typecheck" "$task_idx"; then
+    if ! run_command_silently "pnpm run typecheck" "web typecheck" "$task_idx"; then
         VALIDATION_FAILED=true
     fi
     
     # Lint
-    add_new_task "web lint"
+    add_new_task "web lint" "pnpm run lint"
     task_idx=$CURRENT_TASK_INDEX
-    if ! run_with_live_output "pnpm run lint" "web lint" "$task_idx"; then
+    if ! run_command_silently "pnpm run lint" "web lint" "$task_idx"; then
         VALIDATION_FAILED=true
     fi
     
     # Tests
-    add_new_task "web test"
+    add_new_task "web test" "pnpm run test"
     task_idx=$CURRENT_TASK_INDEX
-    if ! run_with_live_output "pnpm run test" "web test" "$task_idx"; then
+    if ! run_command_silently "pnpm run test" "web test" "$task_idx"; then
         VALIDATION_FAILED=true
     fi
     
     # Coverage (if not skipped)
     if [[ "$skip_coverage" == "false" ]]; then
-        add_new_task "web coverage"
+        add_new_task "web coverage" "pnpm run test:coverage"
         task_idx=$CURRENT_TASK_INDEX
-        if ! run_with_live_output "pnpm run test:coverage" "web coverage" "$task_idx"; then
+        if ! run_command_silently "pnpm run test:coverage" "web coverage" "$task_idx"; then
             VALIDATION_FAILED=true
         fi
     fi
@@ -472,30 +445,28 @@ run_backend_validations() {
     fi
     
     # Lint (ktlint)
-    add_new_task "${task_label_prefix}lint"
+    add_new_task "${task_label_prefix}lint" "./gradlew ${task_prefix}ktlintCheck --no-daemon"
     local task_idx=$CURRENT_TASK_INDEX
-    if ! run_with_live_output "./gradlew ${task_prefix}ktlintCheck --no-daemon" "${task_label_prefix}lint" "$task_idx"; then
+    if ! run_command_silently "./gradlew ${task_prefix}ktlintCheck --no-daemon" "${task_label_prefix}lint" "$task_idx"; then
         VALIDATION_FAILED=true
     fi
     
     # Typecheck (classes - compilation catches type errors)
-    add_new_task "${task_label_prefix}typecheck"
+    add_new_task "${task_label_prefix}typecheck" "./gradlew ${task_prefix}classes --no-daemon"
     task_idx=$CURRENT_TASK_INDEX
-    if ! run_with_live_output "./gradlew ${task_prefix}classes --no-daemon" "${task_label_prefix}typecheck" "$task_idx"; then
+    if ! run_command_silently "./gradlew ${task_prefix}classes --no-daemon" "${task_label_prefix}typecheck" "$task_idx"; then
         VALIDATION_FAILED=true
     fi
     
     # Tests (unit and integration - test task runs both)
-    add_new_task "${task_label_prefix}test"
+    add_new_task "${task_label_prefix}test" "./gradlew ${task_prefix}test --no-daemon"
     task_idx=$CURRENT_TASK_INDEX
-    if ! run_with_live_output "./gradlew ${task_prefix}test --no-daemon" "${task_label_prefix}test" "$task_idx"; then
+    if ! run_command_silently "./gradlew ${task_prefix}test --no-daemon" "${task_label_prefix}test" "$task_idx"; then
         VALIDATION_FAILED=true
     fi
     
     # Coverage (if not skipped)
     if [[ "$skip_coverage" == "false" ]]; then
-        add_new_task "${task_label_prefix}coverage"
-        task_idx=$CURRENT_TASK_INDEX
         # For specific service, use service-specific kover tasks
         # For all services, use root kover tasks
         local coverage_cmd
@@ -504,7 +475,9 @@ run_backend_validations() {
         else
             coverage_cmd="./gradlew koverRootReport koverVerify --no-daemon"
         fi
-        if ! run_with_live_output "$coverage_cmd" "${task_label_prefix}coverage" "$task_idx"; then
+        add_new_task "${task_label_prefix}coverage" "$coverage_cmd"
+        task_idx=$CURRENT_TASK_INDEX
+        if ! run_command_silently "$coverage_cmd" "${task_label_prefix}coverage" "$task_idx"; then
             VALIDATION_FAILED=true
         fi
     fi
@@ -602,4 +575,3 @@ main() {
 
 # Run main function
 main "$@"
-

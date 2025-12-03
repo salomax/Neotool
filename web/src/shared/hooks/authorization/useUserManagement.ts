@@ -7,8 +7,13 @@ import {
 import {
   useEnableUserMutation,
   useDisableUserMutation,
+  useAssignGroupToUserMutation,
+  useRemoveGroupFromUserMutation,
+  useAssignRoleToUserMutation,
+  useRemoveRoleFromUserMutation,
 } from '@/lib/graphql/operations/authorization-management/mutations.generated';
 import { extractErrorMessage } from '@/shared/utils/error';
+import { useRelayPagination } from '@/shared/hooks/pagination';
 
 export type User = {
   id: string;
@@ -35,6 +40,12 @@ export type UseUserManagementReturn = {
     startCursor: string | null;
     endCursor: string | null;
   } | null;
+  totalCount: number | null;
+  paginationRange: {
+    start: number;
+    end: number;
+    total: number | null;
+  };
   setFirst: (first: number) => void;
   loadNextPage: () => void;
   loadPreviousPage: () => void;
@@ -47,11 +58,19 @@ export type UseUserManagementReturn = {
   // Mutations
   enableUser: (userId: string) => Promise<void>;
   disableUser: (userId: string) => Promise<void>;
+  assignGroupToUser: (userId: string, groupId: string) => Promise<void>;
+  removeGroupFromUser: (userId: string, groupId: string) => Promise<void>;
+  assignRoleToUser: (userId: string, roleId: string) => Promise<void>;
+  removeRoleFromUser: (userId: string, roleId: string) => Promise<void>;
   
   // Loading states
   loading: boolean;
   enableLoading: boolean;
   disableLoading: boolean;
+  assignGroupLoading: boolean;
+  removeGroupLoading: boolean;
+  assignRoleLoading: boolean;
+  removeRoleLoading: boolean;
   
   // Error handling
   error: Error | undefined;
@@ -126,6 +145,10 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
 
   const [enableUserMutation, { loading: enableLoading }] = useEnableUserMutation();
   const [disableUserMutation, { loading: disableLoading }] = useDisableUserMutation();
+  const [assignGroupToUserMutation, { loading: assignGroupLoading }] = useAssignGroupToUserMutation();
+  const [removeGroupFromUserMutation, { loading: removeGroupLoading }] = useRemoveGroupFromUserMutation();
+  const [assignRoleToUserMutation, { loading: assignRoleLoading }] = useAssignRoleToUserMutation();
+  const [removeRoleFromUserMutation, { loading: removeRoleLoading }] = useRemoveRoleFromUserMutation();
 
   // Derived data - memoize to prevent unnecessary re-renders
   const users = useMemo(() => {
@@ -133,25 +156,41 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
   }, [usersData?.users?.nodes]);
 
   const pageInfo = useMemo(() => {
-    return usersData?.users?.pageInfo || null;
-  }, [usersData?.users?.pageInfo]);
-
-  // Pagination functions
-  const loadNextPage = useCallback(() => {
-    if (pageInfo?.hasNextPage && pageInfo?.endCursor) {
-      setAfter(pageInfo.endCursor);
+    const info = usersData?.users?.pageInfo || null;
+    if (!info) {
+      return null;
     }
-  }, [pageInfo]);
+    return {
+      ...info,
+      hasPreviousPage: info.hasPreviousPage || after !== null,
+    };
+  }, [usersData?.users?.pageInfo, after]);
 
-  const loadPreviousPage = useCallback(() => {
-    if (pageInfo?.hasPreviousPage && pageInfo?.startCursor) {
-      setAfter(pageInfo.startCursor);
+  // totalCount is always calculated by the backend (never null)
+  // When query is null/empty: totalCount = total count of all items
+  // When query is provided: totalCount = total count of filtered items
+  const totalCount = useMemo(() => {
+    return usersData?.users?.totalCount ?? null;
+  }, [usersData?.users?.totalCount]);
+
+  // Use shared pagination hook
+  const {
+    loadNextPage,
+    loadPreviousPage,
+    goToFirstPage,
+    paginationRange,
+  } = useRelayPagination(
+    users,
+    pageInfo,
+    totalCount,
+    searchQuery,
+    after,
+    setAfter,
+    {
+      initialAfter: null,
+      initialSearchQuery: options.initialSearchQuery,
     }
-  }, [pageInfo]);
-
-  const goToFirstPage = useCallback(() => {
-    setAfter(null);
-  }, []);
+  );
 
   // Mutations
   const enableUser = useCallback(async (userId: string) => {
@@ -188,6 +227,74 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
     }
   }, [disableUserMutation, refetch]);
 
+  const assignGroupToUser = useCallback(async (userId: string, groupId: string) => {
+    try {
+      const result = await assignGroupToUserMutation({
+        variables: { userId, groupId },
+      });
+
+      // Only refetch if mutation was successful
+      if (result.data) {
+        refetch();
+      }
+    } catch (err) {
+      console.error('Error assigning group to user:', err);
+      const errorMessage = extractErrorMessage(err, 'Failed to assign group to user');
+      throw new Error(errorMessage);
+    }
+  }, [assignGroupToUserMutation, refetch]);
+
+  const removeGroupFromUser = useCallback(async (userId: string, groupId: string) => {
+    try {
+      const result = await removeGroupFromUserMutation({
+        variables: { userId, groupId },
+      });
+
+      // Only refetch if mutation was successful
+      if (result.data) {
+        refetch();
+      }
+    } catch (err) {
+      console.error('Error removing group from user:', err);
+      const errorMessage = extractErrorMessage(err, 'Failed to remove group from user');
+      throw new Error(errorMessage);
+    }
+  }, [removeGroupFromUserMutation, refetch]);
+
+  const assignRoleToUser = useCallback(async (userId: string, roleId: string) => {
+    try {
+      const result = await assignRoleToUserMutation({
+        variables: { userId, roleId },
+      });
+
+      // Only refetch if mutation was successful
+      if (result.data) {
+        refetch();
+      }
+    } catch (err) {
+      console.error('Error assigning role to user:', err);
+      const errorMessage = extractErrorMessage(err, 'Failed to assign role to user');
+      throw new Error(errorMessage);
+    }
+  }, [assignRoleToUserMutation, refetch]);
+
+  const removeRoleFromUser = useCallback(async (userId: string, roleId: string) => {
+    try {
+      const result = await removeRoleFromUserMutation({
+        variables: { userId, roleId },
+      });
+
+      // Only refetch if mutation was successful
+      if (result.data) {
+        refetch();
+      }
+    } catch (err) {
+      console.error('Error removing role from user:', err);
+      const errorMessage = extractErrorMessage(err, 'Failed to remove role from user');
+      throw new Error(errorMessage);
+    }
+  }, [removeRoleFromUserMutation, refetch]);
+
   return {
     // Data
     users,
@@ -196,6 +303,8 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
     first,
     after,
     pageInfo,
+    totalCount,
+    paginationRange,
     setFirst,
     loadNextPage,
     loadPreviousPage,
@@ -208,11 +317,19 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
     // Mutations
     enableUser,
     disableUser,
+    assignGroupToUser,
+    removeGroupFromUser,
+    assignRoleToUser,
+    removeRoleFromUser,
     
     // Loading states
     loading,
     enableLoading,
     disableLoading,
+    assignGroupLoading,
+    removeGroupLoading,
+    assignRoleLoading,
+    removeRoleLoading,
     
     // Error handling
     error: error ? new Error(extractErrorMessage(error)) : undefined,
@@ -221,4 +338,3 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
     refetch,
   };
 }
-

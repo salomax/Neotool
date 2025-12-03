@@ -17,53 +17,6 @@ interface GroupRepository : JpaRepository<GroupEntity, UUID> {
     fun findByIdIn(ids: List<UUID>): List<GroupEntity>
 
     /**
-     * Find all groups with cursor-based pagination, ordered alphabetically by name ascending.
-     *
-     * @param first Maximum number of results to return
-     * @param after Cursor (UUID) to start after (exclusive)
-     * @return List of groups ordered by name ascending
-     */
-    @Query(
-        value = """
-        SELECT * FROM security.groups
-        WHERE (CAST(:after AS UUID) IS NULL OR id > CAST(:after AS UUID))
-        ORDER BY name ASC, id ASC
-        LIMIT :first
-        """,
-        nativeQuery = true,
-    )
-    fun findAll(
-        first: Int,
-        after: UUID?,
-    ): List<GroupEntity>
-
-    /**
-     * Search groups by name with cursor-based pagination.
-     * Performs case-insensitive partial matching on name field.
-     * Results are ordered alphabetically by name ascending.
-     *
-     * @param query Search query (partial match, case-insensitive)
-     * @param first Maximum number of results to return
-     * @param after Cursor (UUID) to start after (exclusive)
-     * @return List of matching groups ordered by name ascending
-     */
-    @Query(
-        value = """
-        SELECT * FROM security.groups
-        WHERE LOWER(name) LIKE LOWER(CONCAT('%', :query, '%'))
-        AND (CAST(:after AS UUID) IS NULL OR id > CAST(:after AS UUID))
-        ORDER BY name ASC, id ASC
-        LIMIT :first
-        """,
-        nativeQuery = true,
-    )
-    fun searchByName(
-        query: String,
-        first: Int,
-        after: UUID?,
-    ): List<GroupEntity>
-
-    /**
      * Check if a group has any user members.
      * Queries the group_memberships table to determine if any users are assigned to this group.
      *

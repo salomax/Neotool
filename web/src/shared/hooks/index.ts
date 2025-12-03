@@ -13,3 +13,6 @@ export * from './ui';
 // Data hooks
 export * from './data';
 
+// Pagination hooks
+export * from './pagination';
+

@@ -11,6 +11,7 @@ import io.github.salomax.neotool.security.domain.rbac.GroupRoleAssignment
 import io.github.salomax.neotool.security.domain.rbac.MembershipType
 import io.github.salomax.neotool.security.repo.GroupMembershipRepository
 import io.github.salomax.neotool.security.repo.GroupRepository
+import io.github.salomax.neotool.security.repo.GroupRepositoryCustom
 import io.github.salomax.neotool.security.repo.GroupRoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.UserRepository
@@ -27,6 +28,7 @@ import java.util.UUID
 @Singleton
 open class GroupManagementService(
     private val groupRepository: GroupRepository,
+    private val groupSearchRepository: GroupRepositoryCustom,
     private val groupMembershipRepository: GroupMembershipRepository,
     private val groupRoleAssignmentRepository: GroupRoleAssignmentRepository,
     private val roleRepository: RoleRepository,
@@ -35,54 +37,18 @@ open class GroupManagementService(
     private val logger = KotlinLogging.logger {}
 
     /**
-     * List all groups with cursor-based pagination.
-     *
-     * @param first Maximum number of results to return (default: 20, max: 100)
-     * @param after Cursor string for pagination (base64-encoded UUID)
-     * @return Connection containing paginated groups
-     */
-    fun listGroups(
-        first: Int = PaginationConstants.DEFAULT_PAGE_SIZE,
-        after: String?,
-    ): Connection<Group> {
-        val pageSize =
-            minOf(first, PaginationConstants.MAX_PAGE_SIZE)
-
-        val afterCursor =
-            try {
-                after?.let { CursorEncoder.decodeCursorToUuid(it) }
-            } catch (e: Exception) {
-                throw IllegalArgumentException("Invalid cursor: $after", e)
-            }
-
-        // Query one extra to check for more results
-        val entities =
-            groupRepository.findAll(pageSize + 1, afterCursor)
-        val hasMore = entities.size > pageSize
-
-        // Take only requested number and convert to domain
-        val groups =
-            entities
-                .take(pageSize)
-                .map { it.toDomain() }
-
-        return ConnectionBuilder.buildConnectionWithUuid(
-            items = groups,
-            hasMore = hasMore,
-            getId = { it.id },
-        )
-    }
-
-    /**
      * Search groups by name with cursor-based pagination.
+     * Unified method that handles both list (no query) and search (with query) operations.
+     * When query is null or empty, returns all groups. When query is provided, returns filtered groups.
+     * totalCount is always calculated: total count of all groups when query is empty, total count of filtered groups when query is provided.
      *
-     * @param query Search query (partial match, case-insensitive)
+     * @param query Optional search query (partial match, case-insensitive). If null or empty, returns all groups.
      * @param first Maximum number of results to return (default: 20, max: 100)
      * @param after Cursor string for pagination (base64-encoded UUID)
-     * @return Connection containing paginated matching groups
+     * @return Connection containing paginated groups with totalCount
      */
     fun searchGroups(
-        query: String,
+        query: String?,
         first: Int = PaginationConstants.DEFAULT_PAGE_SIZE,
         after: String?,
     ): Connection<Group> {
@@ -96,10 +62,16 @@ open class GroupManagementService(
                 throw IllegalArgumentException("Invalid cursor: $after", e)
             }
 
+        // Normalize query: convert empty string to null
+        val normalizedQuery = if (query.isNullOrBlank()) null else query
+
         // Query one extra to check for more results
         val entities =
-            groupRepository.searchByName(query, pageSize + 1, afterCursor)
+            groupSearchRepository.searchByName(normalizedQuery, pageSize + 1, afterCursor)
         val hasMore = entities.size > pageSize
+
+        // Always get total count (all groups if query is null, filtered groups if query is provided)
+        val totalCount = groupSearchRepository.countByName(normalizedQuery)
 
         // Take only requested number and convert to domain
         val groups =
@@ -111,6 +83,7 @@ open class GroupManagementService(
             items = groups,
             hasMore = hasMore,
             getId = { it.id },
+            totalCount = totalCount,
         )
     }
 

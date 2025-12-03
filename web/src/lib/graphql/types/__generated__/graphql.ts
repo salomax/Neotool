@@ -73,6 +73,7 @@ export type GroupConnection = {
   edges: Array<GroupEdge>;
   nodes: Array<Group>;
   pageInfo: PageInfo;
+  totalCount: Maybe<Scalars['Int']['output']>;
 };
 
 export type GroupEdge = {
@@ -83,6 +84,7 @@ export type GroupEdge = {
 
 export type Mutation = {
   __typename: 'Mutation';
+  assignGroupToUser: User;
   assignPermissionToRole: Role;
   assignRoleToGroup: Group;
   assignRoleToUser: User;
@@ -96,6 +98,7 @@ export type Mutation = {
   deleteRole: Scalars['Boolean']['output'];
   disableUser: User;
   enableUser: User;
+  removeGroupFromUser: User;
   removePermissionFromRole: Role;
   removeRoleFromGroup: Group;
   removeRoleFromUser: User;
@@ -108,6 +111,12 @@ export type Mutation = {
   updateGroup: Group;
   updateProduct: Product;
   updateRole: Role;
+};
+
+
+export type MutationAssignGroupToUserArgs = {
+  groupId: Scalars['ID']['input'];
+  userId: Scalars['ID']['input'];
 };
 
 
@@ -175,6 +184,12 @@ export type MutationDisableUserArgs = {
 
 
 export type MutationEnableUserArgs = {
+  userId: Scalars['ID']['input'];
+};
+
+
+export type MutationRemoveGroupFromUserArgs = {
+  groupId: Scalars['ID']['input'];
   userId: Scalars['ID']['input'];
 };
 
@@ -305,6 +320,7 @@ export type Query = {
   product: Maybe<Product>;
   products: Array<Product>;
   roles: RoleConnection;
+  user: Maybe<User>;
   users: UserConnection;
 };
 
@@ -357,6 +373,11 @@ export type QueryRolesArgs = {
 };
 
 
+export type QueryUserArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
 export type QueryUsersArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
@@ -397,6 +418,7 @@ export type RoleConnection = {
   edges: Array<RoleEdge>;
   nodes: Array<Role>;
   pageInfo: PageInfo;
+  totalCount: Maybe<Scalars['Int']['output']>;
 };
 
 export type RoleEdge = {
@@ -463,6 +485,7 @@ export type UserConnection = {
   edges: Array<UserEdge>;
   nodes: Array<User>;
   pageInfo: PageInfo;
+  totalCount: Maybe<Scalars['Int']['output']>;
 };
 
 export type UserEdge = {

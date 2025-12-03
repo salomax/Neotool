@@ -115,6 +115,26 @@ export const REMOVE_ROLE_FROM_USER = gql`
   }
 `;
 
+// Assign group to user
+export const ASSIGN_GROUP_TO_USER = gql`
+  ${USER_FIELDS}
+  mutation AssignGroupToUser($userId: ID!, $groupId: ID!) {
+    assignGroupToUser(userId: $userId, groupId: $groupId) {
+      ...UserFields
+    }
+  }
+`;
+
+// Remove group from user
+export const REMOVE_GROUP_FROM_USER = gql`
+  ${USER_FIELDS}
+  mutation RemoveGroupFromUser($userId: ID!, $groupId: ID!) {
+    removeGroupFromUser(userId: $userId, groupId: $groupId) {
+      ...UserFields
+    }
+  }
+`;
+
 // Assign role to group
 export const ASSIGN_ROLE_TO_GROUP = gql`
   ${GROUP_FIELDS}

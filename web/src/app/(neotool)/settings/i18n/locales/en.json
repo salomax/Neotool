@@ -18,6 +18,7 @@
     "createUser": "Create User",
     "drawerPlaceholder": "User editing form will be implemented here",
     "drawer": {
+      "title": "User Details",
       "viewUser": "User Details",
       "userInfo": "User Information",
       "email": "Email",
@@ -30,7 +31,24 @@
       "noRoles": "This user has no roles assigned",
       "noPermissions": "This user has no permissions assigned",
       "errorLoading": "Failed to load user details",
-      "userNotFound": "User not found"
+      "userNotFound": "User not found",
+      "saveChanges": "Save Changes",
+      "saveSuccess": "User updated successfully",
+      "saveError": "Failed to update user",
+      "displayNamePlaceholder": "Enter display name",
+      "emailPlaceholder": "Enter email address"
+    },
+    "groups": {
+      "assignError": "Failed to assign group",
+      "removeError": "Failed to remove group",
+      "searchPlaceholder": "Search groups...",
+      "loadError": "Failed to load groups"
+    },
+    "roles": {
+      "assignError": "Failed to assign role",
+      "removeError": "Failed to remove role",
+      "searchPlaceholder": "Search roles...",
+      "loadError": "Failed to load roles"
     },
     "status": {
       "enabled": "Enabled",
@@ -55,7 +73,12 @@
     "first": "First",
     "previous": "Previous",
     "next": "Next",
-    "last": "Last"
+    "last": "Last",
+    "range": "{{start}} to {{end}} of {{total}} results",
+    "rangeNoTotal": "{{start}} to {{end}}",
+    "singleItem": "{{count}} item",
+    "singleItemTotal": "{{count}} of {{total}} results",
+    "empty": "No items"
   },
   "groupManagement": {
     "searchPlaceholder": "Search groups by name...",
@@ -192,6 +215,10 @@
   },
   "errors": {
     "loadFailed": "Failed to load data. Please try again."
+  },
+  "common": {
+    "cancel": "Cancel",
+    "saving": "Saving..."
   }
 }
 

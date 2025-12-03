@@ -41,6 +41,10 @@ data class Edge<T>(
 /**
  * Connection represents a paginated list of items.
  * Following Relay GraphQL specification.
+ * 
+ * @param totalCount Optional total count of items matching the query (typically used for search operations).
+ *                   This is separate from the paginated results and represents the total number of items
+ *                   that match the search criteria, regardless of pagination.
  */
 @Introspected
 @Serdeable
@@ -48,6 +52,7 @@ data class Connection<T>(
     val edges: List<Edge<T>>,
     val nodes: List<T>,
     val pageInfo: PageInfo,
+    val totalCount: Long? = null,
 )
 
 /**
@@ -137,12 +142,14 @@ object ConnectionBuilder {
      * @param items The list of items to paginate
      * @param hasMore Whether there are more items available (for hasNextPage)
      * @param encodeCursor Function to encode item ID to cursor string
+     * @param totalCount Optional total count of items matching the query (typically used for search operations)
      * @return Connection with edges, nodes, and pageInfo
      */
     fun <T> buildConnection(
         items: List<T>,
         hasMore: Boolean,
         encodeCursor: (T) -> String,
+        totalCount: Long? = null,
     ): Connection<T> {
         if (items.isEmpty()) {
             return Connection(
@@ -152,6 +159,7 @@ object ConnectionBuilder {
                     hasNextPage = false,
                     hasPreviousPage = false,
                 ),
+                totalCount = totalCount,
             )
         }
 
@@ -173,6 +181,7 @@ object ConnectionBuilder {
             edges = edges,
             nodes = items,
             pageInfo = pageInfo,
+            totalCount = totalCount,
         )
     }
 
@@ -183,12 +192,14 @@ object ConnectionBuilder {
      * @param items The list of items to paginate
      * @param hasMore Whether there are more items available
      * @param getId Function to extract UUID from item
+     * @param totalCount Optional total count of items matching the query (typically used for search operations)
      * @return Connection with edges, nodes, and pageInfo
      */
     fun <T> buildConnectionWithUuid(
         items: List<T>,
         hasMore: Boolean,
         getId: (T) -> UUID?,
+        totalCount: Long? = null,
     ): Connection<T> {
         return buildConnection(
             items = items,
@@ -197,6 +208,7 @@ object ConnectionBuilder {
                 val id = getId(item) ?: throw IllegalArgumentException("Item must have a non-null ID")
                 CursorEncoder.encodeCursor(id)
             },
+            totalCount = totalCount,
         )
     }
 
@@ -207,12 +219,14 @@ object ConnectionBuilder {
      * @param items The list of items to paginate
      * @param hasMore Whether there are more items available
      * @param getId Function to extract Int from item
+     * @param totalCount Optional total count of items matching the query (typically used for search operations)
      * @return Connection with edges, nodes, and pageInfo
      */
     fun <T> buildConnectionWithInt(
         items: List<T>,
         hasMore: Boolean,
         getId: (T) -> Int?,
+        totalCount: Long? = null,
     ): Connection<T> {
         return buildConnection(
             items = items,
@@ -221,6 +235,7 @@ object ConnectionBuilder {
                 val id = getId(item) ?: throw IllegalArgumentException("Item must have a non-null ID")
                 CursorEncoder.encodeCursor(id)
             },
+            totalCount = totalCount,
         )
     }
 }

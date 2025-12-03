@@ -22,7 +22,10 @@ class RoleManagementResolver(
     private val logger = KotlinLogging.logger {}
 
     /**
-     * List all roles with optional pagination and search.
+     * Unified query for roles with optional pagination and search.
+     * When query is omitted or empty, returns all roles (list behavior).
+     * When query is provided, returns filtered roles (search behavior).
+     * totalCount is always calculated.
      */
     fun roles(
         first: Int?,
@@ -31,12 +34,7 @@ class RoleManagementResolver(
     ): RoleConnectionDTO {
         return try {
             val pageSize = first ?: 20
-            val connection =
-                if (query != null && query.isNotBlank()) {
-                    roleManagementService.searchRoles(query, pageSize, after)
-                } else {
-                    roleManagementService.listRoles(pageSize, after)
-                }
+            val connection = roleManagementService.searchRoles(query, pageSize, after)
             mapper.toRoleConnectionDTO(connection)
         } catch (e: Exception) {
             logger.error(e) { "Error listing roles" }

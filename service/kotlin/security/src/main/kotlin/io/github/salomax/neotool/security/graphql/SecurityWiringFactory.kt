@@ -99,6 +99,13 @@ class SecurityWiringFactory(
                 },
             )
             .dataFetcher(
+                "user",
+                createValidatedDataFetcher { env ->
+                    val id = getRequiredString(env, "id")
+                    userManagementResolver.user(id)
+                },
+            )
+            .dataFetcher(
                 "users",
                 createValidatedDataFetcher { env ->
                     val first = env.getArgument<Int?>("first")
@@ -272,6 +279,22 @@ class SecurityWiringFactory(
                     val userId = getRequiredString(env, "userId")
                     val roleId = getRequiredString(env, "roleId")
                     userManagementResolver.removeRoleFromUser(userId, roleId)
+                },
+            )
+            .dataFetcher(
+                "assignGroupToUser",
+                createValidatedDataFetcher { env ->
+                    val userId = getRequiredString(env, "userId")
+                    val groupId = getRequiredString(env, "groupId")
+                    userManagementResolver.assignGroupToUser(userId, groupId)
+                },
+            )
+            .dataFetcher(
+                "removeGroupFromUser",
+                createValidatedDataFetcher { env ->
+                    val userId = getRequiredString(env, "userId")
+                    val groupId = getRequiredString(env, "groupId")
+                    userManagementResolver.removeGroupFromUser(userId, groupId)
                 },
             )
             .dataFetcher(

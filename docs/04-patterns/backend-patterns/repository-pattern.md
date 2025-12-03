@@ -228,7 +228,9 @@ interface ProductRepository : JpaRepository<ProductEntity, UUID>
 
 ## Quick Reference Checklist
 
-When creating a repository, verify:
+### Standard Repository Checklist
+
+When creating a standard repository, verify:
 
 - [ ] `@Repository` annotation present
 - [ ] Extends `JpaRepository<EntityType, IDType>`
@@ -240,6 +242,22 @@ When creating a repository, verify:
 - [ ] List queries return `List<Entity>`
 - [ ] Method names follow Micronaut Data conventions
 - [ ] All required imports present
+- [ ] **Only methods that Micronaut Data can auto-generate are included**
+
+### Custom Repository Checklist
+
+When creating a custom repository implementation, verify:
+
+- [ ] Main repository interface (`{EntityName}Repository`) contains only auto-generatable methods
+- [ ] Custom interface (`{EntityName}RepositoryCustom`) is separate and does NOT extend `JpaRepository`
+- [ ] Custom interface does NOT have `@Repository` annotation
+- [ ] Implementation class (`{EntityName}RepositoryImpl`) is annotated with `@Singleton`
+- [ ] Implementation class implements the custom interface
+- [ ] Implementation uses `EntityManager` and JPA Criteria API
+- [ ] **All read-only query methods are annotated with `@ReadOnly`**
+- [ ] Common predicate logic extracted into private helper methods
+- [ ] Service layer injects both repositories when needed
+- [ ] All required imports present (jakarta.persistence.*, io.micronaut.transaction.annotation.ReadOnly)
 
 ## Required Imports
 
@@ -295,6 +313,297 @@ interface ProductRepository : JpaRepository<ProductEntity, UUID> {
     
     // Range
     fun findByPriceCentsBetween(min: Long, max: Long): List<ProductEntity>
+}
+```
+
+## Custom Repository Implementation Pattern
+
+### When to Use Custom Implementation
+
+Use a **separate custom interface** when you need:
+- Complex queries that Micronaut Data cannot auto-generate
+- Dynamic queries with conditional logic
+- Queries using JPA Criteria API
+- Queries that don't follow Micronaut Data naming conventions
+- Cursor-based pagination with complex ordering
+
+**IMPORTANT**: Never add methods to the main repository interface that Micronaut Data cannot auto-generate. This will cause KSP compilation errors.
+
+### Pattern Structure
+
+1. **Main Repository Interface** - Only contains methods Micronaut Data can auto-generate
+2. **Custom Repository Interface** - Contains methods requiring custom implementation
+3. **Custom Implementation Class** - Implements the custom interface using JPA Criteria API or native queries
+4. **Service Layer** - Injects both repositories
+
+### Example: Custom Search Implementation
+
+#### Step 1: Main Repository (Auto-Generated Methods Only)
+
+```kotlin
+package io.github.salomax.neotool.security.repo
+
+import io.github.salomax.neotool.security.model.UserEntity
+import io.micronaut.data.annotation.Repository
+import io.micronaut.data.jpa.repository.JpaRepository
+import java.util.UUID
+
+@Repository
+interface UserRepository : JpaRepository<UserEntity, UUID> {
+    // Only methods that Micronaut Data can auto-generate
+    fun findByEmail(email: String): UserEntity?
+    fun findByRememberMeToken(token: String): UserEntity?
+    fun findByPasswordResetToken(token: String): UserEntity?
+    fun findByIdIn(ids: List<UUID>): List<UserEntity>
+}
+```
+
+#### Step 2: Custom Repository Interface
+
+```kotlin
+package io.github.salomax.neotool.security.repo
+
+import io.github.salomax.neotool.security.model.UserEntity
+import java.util.UUID
+
+/**
+ * Custom query contract for {@link UserRepository}.
+ * Declared separately so Micronaut Data can generate the default repository implementation
+ * while these methods are provided via a manual bean.
+ */
+interface UserRepositoryCustom {
+    /**
+     * Search users by name or email with cursor-based pagination.
+     * Performs case-insensitive partial matching on displayName and email fields.
+     */
+    fun searchByNameOrEmail(
+        query: String?,
+        first: Int,
+        after: UUID?,
+    ): List<UserEntity>
+
+    /**
+     * Count users matching the search query by name or email.
+     */
+    fun countByNameOrEmail(query: String?): Long
+}
+```
+
+#### Step 3: Custom Implementation Class
+
+```kotlin
+package io.github.salomax.neotool.security.repo
+
+import io.github.salomax.neotool.security.model.UserEntity
+import io.micronaut.transaction.annotation.ReadOnly
+import jakarta.inject.Singleton
+import jakarta.persistence.EntityManager
+import jakarta.persistence.TypedQuery
+import jakarta.persistence.criteria.CriteriaBuilder
+import jakarta.persistence.criteria.CriteriaQuery
+import jakarta.persistence.criteria.Predicate
+import jakarta.persistence.criteria.Root
+import java.util.UUID
+
+/**
+ * Custom repository bean that exposes complex search/count queries.
+ * Uses JPA Criteria API for building dynamic filters.
+ */
+@Singleton
+class UserRepositoryImpl(
+    private val entityManager: EntityManager,
+) : UserRepositoryCustom {
+
+    @ReadOnly
+    override fun searchByNameOrEmail(
+        query: String?,
+        first: Int,
+        after: UUID?,
+    ): List<UserEntity> {
+        val criteriaBuilder = entityManager.criteriaBuilder
+        val criteriaQuery = criteriaBuilder.createQuery(UserEntity::class.java)
+        val root = criteriaQuery.from(UserEntity::class.java)
+
+        // Build WHERE clause predicates
+        val predicates = mutableListOf<Predicate>()
+
+        // Add search filter if query is provided
+        if (query != null && query.isNotBlank()) {
+            val likePattern = "%${query.lowercase()}%"
+            val displayNamePath = root.get<String?>("displayName")
+            val emailPath = root.get<String>("email")
+
+            val displayNamePredicate = criteriaBuilder.like(
+                criteriaBuilder.lower(
+                    criteriaBuilder.coalesce(displayNamePath, criteriaBuilder.literal(""))
+                ),
+                likePattern
+            )
+
+            val emailPredicate = criteriaBuilder.like(
+                criteriaBuilder.lower(emailPath),
+                likePattern
+            )
+
+            predicates.add(criteriaBuilder.or(displayNamePredicate, emailPredicate))
+        }
+
+        // Add cursor pagination if after is provided
+        if (after != null) {
+            predicates.add(criteriaBuilder.greaterThan(root.get<UUID>("id"), after))
+        }
+
+        // Apply WHERE clause
+        if (predicates.isNotEmpty()) {
+            criteriaQuery.where(*predicates.toTypedArray())
+        }
+
+        // Build ordering
+        val displayNamePath = root.get<String?>("displayName")
+        val emailPath = root.get<String>("email")
+        val coalesceExpression = criteriaBuilder.coalesce(displayNamePath, emailPath)
+        criteriaQuery.orderBy(
+            criteriaBuilder.asc(coalesceExpression),
+            criteriaBuilder.asc(root.get<UUID>("id"))
+        )
+
+        // Execute query with limit
+        val typedQuery: TypedQuery<UserEntity> = entityManager.createQuery(criteriaQuery)
+        typedQuery.maxResults = first
+
+        return typedQuery.resultList
+    }
+
+    @ReadOnly
+    override fun countByNameOrEmail(query: String?): Long {
+        val criteriaBuilder = entityManager.criteriaBuilder
+        val criteriaQuery = criteriaBuilder.createQuery(Long::class.java)
+        val root = criteriaQuery.from(UserEntity::class.java)
+
+        criteriaQuery.select(criteriaBuilder.count(root))
+
+        // Add search filter if query is provided
+        if (query != null && query.isNotBlank()) {
+            val likePattern = "%${query.lowercase()}%"
+            val displayNamePath = root.get<String?>("displayName")
+            val emailPath = root.get<String>("email")
+
+            val displayNamePredicate = criteriaBuilder.like(
+                criteriaBuilder.lower(
+                    criteriaBuilder.coalesce(displayNamePath, criteriaBuilder.literal(""))
+                ),
+                likePattern
+            )
+
+            val emailPredicate = criteriaBuilder.like(
+                criteriaBuilder.lower(emailPath),
+                likePattern
+            )
+
+            criteriaQuery.where(criteriaBuilder.or(displayNamePredicate, emailPredicate))
+        }
+
+        return entityManager.createQuery(criteriaQuery).singleResult
+    }
+}
+```
+
+#### Step 4: Service Layer Usage
+
+```kotlin
+@Singleton
+class UserManagementService(
+    private val userRepository: UserRepository,           // Auto-generated methods
+    private val userSearchRepository: UserRepositoryCustom, // Custom methods
+) {
+    fun searchUsers(query: String?, first: Int, after: String?): Connection<User> {
+        // Use custom repository for complex queries
+        val entities = userSearchRepository.searchByNameOrEmail(query, first + 1, afterCursor)
+        val totalCount = userSearchRepository.countByNameOrEmail(query)
+        
+        // Use standard repository for simple queries
+        val user = userRepository.findByEmail(email)
+        
+        // ...
+    }
+}
+```
+
+### Naming Conventions
+
+- **Main Repository**: `{EntityName}Repository` (e.g., `UserRepository`)
+- **Custom Interface**: `{EntityName}RepositoryCustom` (e.g., `UserRepositoryCustom`)
+- **Implementation Class**: `{EntityName}RepositoryImpl` (e.g., `UserRepositoryImpl`)
+
+### @ReadOnly Annotation
+
+**IMPORTANT**: Always add `@ReadOnly` annotation to read-only query methods in custom implementations.
+
+The `@ReadOnly` annotation:
+- Optimizes database connection usage for read-only operations
+- Allows database connection pools to route queries to read replicas (if configured)
+- Improves performance by indicating the query won't modify data
+- Should be used on: searches, counts, finds, and any query that only reads data
+- Should NOT be used on: save, delete, update, or any method that modifies data
+
+```kotlin
+import io.micronaut.transaction.annotation.ReadOnly
+
+@ReadOnly
+override fun searchByNameOrEmail(...): List<UserEntity> {
+    // Read-only query implementation
+}
+
+@ReadOnly
+override fun countByNameOrEmail(...): Long {
+    // Read-only count query
+}
+
+// ❌ DON'T use @ReadOnly on write operations
+override fun saveUser(...): UserEntity {
+    // Write operation - no @ReadOnly
+}
+```
+
+### Key Rules
+
+1. ✅ **DO**: Keep auto-generatable methods in the main repository interface
+2. ✅ **DO**: Put custom methods in a separate `{EntityName}RepositoryCustom` interface
+3. ✅ **DO**: Implement the custom interface in a `@Singleton` class
+4. ✅ **DO**: Add `@ReadOnly` annotation to all read-only query methods (searches, counts, finds)
+5. ✅ **DO**: Import `io.micronaut.transaction.annotation.ReadOnly` in implementation classes
+6. ✅ **DO**: Inject both repositories in services that need both
+7. ❌ **DON'T**: Add non-standard method names to the main repository interface
+8. ❌ **DON'T**: Use `@Query` annotation on methods in custom interfaces (not needed)
+9. ❌ **DON'T**: Extend `JpaRepository` in the custom interface
+10. ❌ **DON'T**: Forget `@ReadOnly` on read-only queries (performance optimization)
+11. ❌ **DON'T**: Use `@ReadOnly` on write operations (save, delete, update)
+
+### Common Errors
+
+#### ❌ Error: Adding Custom Methods to Main Repository
+
+```kotlin
+// ❌ INCORRECT - Micronaut Data will try to auto-generate and fail
+@Repository
+interface UserRepository : JpaRepository<UserEntity, UUID> {
+    fun searchByNameOrEmail(query: String?, first: Int, after: UUID?): List<UserEntity>
+    // Error: Cannot query entity on non-existent property: Name
+}
+```
+
+#### ✅ Correct: Separate Custom Interface
+
+```kotlin
+// ✅ CORRECT - Main repository only has auto-generatable methods
+@Repository
+interface UserRepository : JpaRepository<UserEntity, UUID> {
+    fun findByEmail(email: String): UserEntity?
+}
+
+// ✅ CORRECT - Custom methods in separate interface
+interface UserRepositoryCustom {
+    fun searchByNameOrEmail(query: String?, first: Int, after: UUID?): List<UserEntity>
 }
 ```
 

@@ -468,6 +468,153 @@ class UserManagementService(
 }
 ```
 
+## Total Count for Unified List/Search Operations
+
+### Overview
+
+For unified list/search operations, `totalCount` is always calculated and provided to clients. This allows clients to display information like "Showing 20 of 150 results" for both list (all items) and search (filtered items) operations.
+
+### Rule: Always Calculate Total Count
+
+**Rule**: `totalCount` should be implemented for all paginated queries, whether they are list operations (no query filter) or search operations (with query filter).
+
+**Rationale**:
+- Provides consistent behavior and better UX (users always see "X of Y results")
+- When query is null/empty: `totalCount` = total count of all items in the database
+- When query is provided: `totalCount` = total count of filtered items matching the query
+- Repository search methods handle null/empty query by ignoring the filter condition
+
+### Implementation Pattern
+
+#### 1. Add Count Method to Repository
+
+Add a count method that matches the search query's WHERE clause:
+
+```kotlin
+@Query(
+    value = """
+    SELECT COUNT(*) FROM security.users
+    WHERE (LOWER(COALESCE(display_name, '')) LIKE LOWER(CONCAT('%', :query, '%'))
+        OR LOWER(email) LIKE LOWER(CONCAT('%', :query, '%')))
+    """,
+    nativeQuery = true,
+)
+fun countSearchByNameOrEmail(query: String): Long
+```
+
+**Key Points**:
+- Use the same WHERE clause as the search query (without pagination)
+- Return `Long` (database count type)
+- Use native SQL queries for consistency
+
+#### 2. Update Service to Fetch Count
+
+In the search service method, fetch the count and pass it to ConnectionBuilder:
+
+```kotlin
+fun searchUsers(
+    query: String,
+    first: Int = PaginationConstants.DEFAULT_PAGE_SIZE,
+    after: String?,
+): Connection<User> {
+    // ... existing pagination logic ...
+    
+    // Get total count of matching users
+    val totalCount = userRepository.countSearchByNameOrEmail(query)
+    
+    return ConnectionBuilder.buildConnectionWithUuid(
+        items = users,
+        hasMore = hasMore,
+        getId = { it.id },
+        totalCount = totalCount,  // Pass totalCount here
+    )
+}
+```
+
+#### 3. Update GraphQL Schema
+
+Add `totalCount` field to Connection types:
+
+```graphql
+type UserConnection {
+  edges: [UserEdge!]!
+  nodes: [User!]!
+  pageInfo: PageInfo!
+  totalCount: Int  # Optional, only present for search operations
+}
+```
+
+**Note**: GraphQL uses `Int` (not `Long`) for counts. Convert in the mapper.
+
+#### 4. Update DTOs and Mappers
+
+Add `totalCount: Int?` to Connection DTOs and convert from `Long` to `Int` in mappers:
+
+```kotlin
+data class UserConnectionDTO(
+    val edges: List<UserEdgeDTO>,
+    val nodes: List<UserDTO>,
+    val pageInfo: PageInfoDTO,
+    val totalCount: Int? = null,  // Optional field
+)
+
+// In mapper
+fun toUserConnectionDTO(connection: Connection<User>): UserConnectionDTO {
+    return UserConnectionDTO(
+        edges = edges,
+        nodes = nodes,
+        pageInfo = pageInfo,
+        totalCount = connection.totalCount?.toInt(),  // Convert Long to Int
+    )
+}
+```
+
+### Example: Complete Search Implementation
+
+```kotlin
+// Repository
+@Query(
+    value = """
+    SELECT COUNT(*) FROM security.users
+    WHERE (LOWER(COALESCE(display_name, '')) LIKE LOWER(CONCAT('%', :query, '%'))
+        OR LOWER(email) LIKE LOWER(CONCAT('%', :query, '%')))
+    """,
+    nativeQuery = true,
+)
+fun countSearchByNameOrEmail(query: String): Long
+
+// Service
+fun searchUsers(
+    query: String,
+    first: Int = PaginationConstants.DEFAULT_PAGE_SIZE,
+    after: String?,
+): Connection<User> {
+    val pageSize = minOf(first, PaginationConstants.MAX_PAGE_SIZE)
+    val afterCursor = after?.let { CursorEncoder.decodeCursorToUuid(it) }
+    
+    val entities = userRepository.searchByNameOrEmail(query, pageSize + 1, afterCursor)
+    val hasMore = entities.size > pageSize
+    val totalCount = userRepository.countSearchByNameOrEmail(query)  // Fetch count
+    
+    val users = entities.take(pageSize).map { it.toDomain() }
+    
+    return ConnectionBuilder.buildConnectionWithUuid(
+        items = users,
+        hasMore = hasMore,
+        getId = { it.id },
+        totalCount = totalCount,  // Include in connection
+    )
+}
+```
+
+### Best Practices
+
+1. **Separate Queries**: Count query is separate from data query (two database calls)
+2. **Performance**: Count queries are typically fast with proper indexes
+3. **Optional Field**: `totalCount` is optional in Connection type for backward compatibility
+4. **Search Only**: Only include `totalCount` for search operations, not list operations
+5. **Type Conversion**: Convert `Long` (database) to `Int` (GraphQL) in mappers
+
 ## Related Documentation
 
 - [Repository Pattern](./repository-pattern.md) - Repository layer patterns

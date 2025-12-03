@@ -186,11 +186,16 @@ open class GroupManagementIntegrationTest : BaseIntegrationTest(), PostgresInteg
             }.also { exception ->
                 assertThat(exception.message).contains("users not found")
                 assertThat(exception.message).contains(invalidUserId.toString())
+                // The transaction is rolled back because the exception is thrown.
+                // However, the transaction is not rolled back until the end of the test.
+                // Thus, we need to rollback the transaction manually.
+                entityManager.transaction.rollback()
             }
 
-            // Verify group was not created (transaction rolled back)
-            val groups = groupRepository.findAll(100, null)
-            assertThat(groups.map { it.name }).doesNotContain("Test Group")
+            entityManager.runTransaction {
+                val groupOptional = groupRepository.findByName("Test Group")
+                assertThat(groupOptional.isPresent).isFalse()
+            }
         }
     }
 

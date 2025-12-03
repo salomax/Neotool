@@ -95,6 +95,22 @@ export type RemoveRoleFromUserMutationVariables = Types.Exact<{
 
 export type RemoveRoleFromUserMutation = { removeRoleFromUser: { __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean } };
 
+export type AssignGroupToUserMutationVariables = Types.Exact<{
+  userId: Types.Scalars['ID']['input'];
+  groupId: Types.Scalars['ID']['input'];
+}>;
+
+
+export type AssignGroupToUserMutation = { assignGroupToUser: { __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean } };
+
+export type RemoveGroupFromUserMutationVariables = Types.Exact<{
+  userId: Types.Scalars['ID']['input'];
+  groupId: Types.Scalars['ID']['input'];
+}>;
+
+
+export type RemoveGroupFromUserMutation = { removeGroupFromUser: { __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean } };
+
 export type AssignRoleToGroupMutationVariables = Types.Exact<{
   groupId: Types.Scalars['ID']['input'];
   roleId: Types.Scalars['ID']['input'];
@@ -486,6 +502,70 @@ export function useRemoveRoleFromUserMutation(baseOptions?: ApolloReactHooks.Mut
       }
 export type RemoveRoleFromUserMutationHookResult = ReturnType<typeof useRemoveRoleFromUserMutation>;
 export type RemoveRoleFromUserMutationResult = ApolloReactCommon.MutationResult<RemoveRoleFromUserMutation>;
+export const AssignGroupToUserDocument = gql`
+    mutation AssignGroupToUser($userId: ID!, $groupId: ID!) {
+  assignGroupToUser(userId: $userId, groupId: $groupId) {
+    ...UserFields
+  }
+}
+    ${UserFieldsFragmentDoc}`;
+
+/**
+ * __useAssignGroupToUserMutation__
+ *
+ * To run a mutation, you first call `useAssignGroupToUserMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useAssignGroupToUserMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [assignGroupToUserMutation, { data, loading, error }] = useAssignGroupToUserMutation({
+ *   variables: {
+ *      userId: // value for 'userId'
+ *      groupId: // value for 'groupId'
+ *   },
+ * });
+ */
+export function useAssignGroupToUserMutation(baseOptions?: ApolloReactHooks.MutationHookOptions<AssignGroupToUserMutation, AssignGroupToUserMutationVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return ApolloReactHooks.useMutation<AssignGroupToUserMutation, AssignGroupToUserMutationVariables>(AssignGroupToUserDocument, options);
+      }
+export type AssignGroupToUserMutationHookResult = ReturnType<typeof useAssignGroupToUserMutation>;
+export type AssignGroupToUserMutationResult = ApolloReactCommon.MutationResult<AssignGroupToUserMutation>;
+export const RemoveGroupFromUserDocument = gql`
+    mutation RemoveGroupFromUser($userId: ID!, $groupId: ID!) {
+  removeGroupFromUser(userId: $userId, groupId: $groupId) {
+    ...UserFields
+  }
+}
+    ${UserFieldsFragmentDoc}`;
+
+/**
+ * __useRemoveGroupFromUserMutation__
+ *
+ * To run a mutation, you first call `useRemoveGroupFromUserMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useRemoveGroupFromUserMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [removeGroupFromUserMutation, { data, loading, error }] = useRemoveGroupFromUserMutation({
+ *   variables: {
+ *      userId: // value for 'userId'
+ *      groupId: // value for 'groupId'
+ *   },
+ * });
+ */
+export function useRemoveGroupFromUserMutation(baseOptions?: ApolloReactHooks.MutationHookOptions<RemoveGroupFromUserMutation, RemoveGroupFromUserMutationVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return ApolloReactHooks.useMutation<RemoveGroupFromUserMutation, RemoveGroupFromUserMutationVariables>(RemoveGroupFromUserDocument, options);
+      }
+export type RemoveGroupFromUserMutationHookResult = ReturnType<typeof useRemoveGroupFromUserMutation>;
+export type RemoveGroupFromUserMutationResult = ApolloReactCommon.MutationResult<RemoveGroupFromUserMutation>;
 export const AssignRoleToGroupDocument = gql`
     mutation AssignRoleToGroup($groupId: ID!, $roleId: ID!) {
   assignRoleToGroup(groupId: $groupId, roleId: $roleId) {

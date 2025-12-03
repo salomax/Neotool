@@ -5,6 +5,7 @@ import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import io.github.salomax.neotool.security.domain.RoleManagement
 import io.github.salomax.neotool.security.repo.PermissionRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
+import io.github.salomax.neotool.security.repo.RoleRepositoryCustom
 import io.github.salomax.neotool.security.service.RoleManagementService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import org.assertj.core.api.Assertions.assertThat
@@ -23,14 +24,16 @@ import java.util.Optional
 @DisplayName("RoleManagementService Unit Tests")
 class RoleManagementServiceTest {
     private lateinit var roleRepository: RoleRepository
+    private lateinit var roleSearchRepository: RoleRepositoryCustom
     private lateinit var permissionRepository: PermissionRepository
     private lateinit var roleManagementService: RoleManagementService
 
     @BeforeEach
     fun setUp() {
         roleRepository = mock()
+        roleSearchRepository = mock()
         permissionRepository = mock()
-        roleManagementService = RoleManagementService(roleRepository, permissionRepository)
+        roleManagementService = RoleManagementService(roleRepository, roleSearchRepository, permissionRepository)
     }
 
     @Nested
@@ -41,17 +44,19 @@ class RoleManagementServiceTest {
             // Arrange
             val role1 = SecurityTestDataBuilders.role(id = 1, name = "Role One")
             val role2 = SecurityTestDataBuilders.role(id = 2, name = "Role Two")
-            whenever(roleRepository.findAll(PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
+            whenever(roleSearchRepository.searchByName(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
                 .thenReturn(listOf(role1, role2))
+            whenever(roleSearchRepository.countByName(null))
+                .thenReturn(2L)
 
             // Act
-            val result = roleManagementService.listRoles(after = null)
+            val result = roleManagementService.searchRoles(query = null, after = null)
 
             // Assert
             assertThat(result).isNotNull()
             assertThat(result.nodes).hasSize(2)
             assertThat(result.pageInfo.hasNextPage).isFalse()
-            verify(roleRepository).findAll(PaginationConstants.DEFAULT_PAGE_SIZE + 1, null)
+            verify(roleSearchRepository).searchByName(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null)
         }
 
         @Test
@@ -59,31 +64,35 @@ class RoleManagementServiceTest {
             // Arrange
             val first = 10
             val role1 = SecurityTestDataBuilders.role(id = 1, name = "Role One")
-            whenever(roleRepository.findAll(first + 1, null))
+            whenever(roleSearchRepository.searchByName(null, first + 1, null))
                 .thenReturn(listOf(role1))
+            whenever(roleSearchRepository.countByName(null))
+                .thenReturn(1L)
 
             // Act
-            val result = roleManagementService.listRoles(first = first, after = null)
+            val result = roleManagementService.searchRoles(query = null, first = first, after = null)
 
             // Assert
             assertThat(result).isNotNull()
             assertThat(result.nodes).hasSize(1)
-            verify(roleRepository).findAll(first + 1, null)
+            verify(roleSearchRepository).searchByName(null, first + 1, null)
         }
 
         @Test
         fun `should enforce max page size`() {
             // Arrange
             val first = 200 // Exceeds MAX_PAGE_SIZE
-            whenever(roleRepository.findAll(PaginationConstants.MAX_PAGE_SIZE + 1, null))
+            whenever(roleSearchRepository.searchByName(null, PaginationConstants.MAX_PAGE_SIZE + 1, null))
                 .thenReturn(emptyList())
+            whenever(roleSearchRepository.countByName(null))
+                .thenReturn(0L)
 
             // Act
-            val result = roleManagementService.listRoles(first = first, after = null)
+            val result = roleManagementService.searchRoles(query = null, first = first, after = null)
 
             // Assert
             assertThat(result).isNotNull()
-            verify(roleRepository).findAll(PaginationConstants.MAX_PAGE_SIZE + 1, null)
+            verify(roleSearchRepository).searchByName(null, PaginationConstants.MAX_PAGE_SIZE + 1, null)
         }
 
         @Test
@@ -92,16 +101,18 @@ class RoleManagementServiceTest {
             val afterId = 5
             val afterCursor = CursorEncoder.encodeCursor(afterId)
             val role1 = SecurityTestDataBuilders.role(id = 6, name = "Role One")
-            whenever(roleRepository.findAll(PaginationConstants.DEFAULT_PAGE_SIZE + 1, afterId))
+            whenever(roleSearchRepository.searchByName(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, afterId))
                 .thenReturn(listOf(role1))
+            whenever(roleSearchRepository.countByName(null))
+                .thenReturn(1L)
 
             // Act
-            val result = roleManagementService.listRoles(after = afterCursor)
+            val result = roleManagementService.searchRoles(query = null, after = afterCursor)
 
             // Assert
             assertThat(result).isNotNull()
             assertThat(result.nodes).hasSize(1)
-            verify(roleRepository).findAll(PaginationConstants.DEFAULT_PAGE_SIZE + 1, afterId)
+            verify(roleSearchRepository).searchByName(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, afterId)
         }
 
         @Test
@@ -114,11 +125,13 @@ class RoleManagementServiceTest {
                         name = "Role $it",
                     )
                 }
-            whenever(roleRepository.findAll(PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
+            whenever(roleSearchRepository.searchByName(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
                 .thenReturn(roles)
+            whenever(roleSearchRepository.countByName(null))
+                .thenReturn(21L)
 
             // Act
-            val result = roleManagementService.listRoles(after = null)
+            val result = roleManagementService.searchRoles(query = null, after = null)
 
             // Assert
             assertThat(result).isNotNull()
@@ -129,11 +142,13 @@ class RoleManagementServiceTest {
         @Test
         fun `should return empty connection when no roles exist`() {
             // Arrange
-            whenever(roleRepository.findAll(PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
+            whenever(roleSearchRepository.searchByName(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
                 .thenReturn(emptyList())
+            whenever(roleSearchRepository.countByName(null))
+                .thenReturn(0L)
 
             // Act
-            val result = roleManagementService.listRoles(after = null)
+            val result = roleManagementService.searchRoles(query = null, after = null)
 
             // Assert
             assertThat(result).isNotNull()
@@ -149,9 +164,9 @@ class RoleManagementServiceTest {
 
             // Act & Assert
             assertThrows<IllegalArgumentException> {
-                roleManagementService.listRoles(after = invalidCursor)
+                roleManagementService.searchRoles(query = null, after = invalidCursor)
             }
-            verify(roleRepository, never()).findAll(any(), any())
+            verify(roleSearchRepository, never()).searchByName(any(), any(), any())
         }
     }
 
@@ -163,8 +178,10 @@ class RoleManagementServiceTest {
             // Arrange
             val query = "admin"
             val role1 = SecurityTestDataBuilders.role(id = 1, name = "Admin Role")
-            whenever(roleRepository.searchByName(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
+            whenever(roleSearchRepository.searchByName(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
                 .thenReturn(listOf(role1))
+            whenever(roleSearchRepository.countByName(query))
+                .thenReturn(1L)
 
             // Act
             val result = roleManagementService.searchRoles(query, after = null)
@@ -173,7 +190,9 @@ class RoleManagementServiceTest {
             assertThat(result).isNotNull()
             assertThat(result.nodes).hasSize(1)
             assertThat(result.nodes.first().name).isEqualTo("Admin Role")
-            verify(roleRepository).searchByName(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null)
+            assertThat(result.totalCount).isEqualTo(1L)
+            verify(roleSearchRepository).searchByName(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null)
+            verify(roleSearchRepository).countByName(query)
         }
 
         @Test
@@ -183,8 +202,10 @@ class RoleManagementServiceTest {
             val afterId = 5
             val afterCursor = CursorEncoder.encodeCursor(afterId)
             val role1 = SecurityTestDataBuilders.role(id = 6, name = "Test Role")
-            whenever(roleRepository.searchByName(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, afterId))
+            whenever(roleSearchRepository.searchByName(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, afterId))
                 .thenReturn(listOf(role1))
+            whenever(roleSearchRepository.countByName(query))
+                .thenReturn(2L)
 
             // Act
             val result = roleManagementService.searchRoles(query, after = afterCursor)
@@ -192,15 +213,19 @@ class RoleManagementServiceTest {
             // Assert
             assertThat(result).isNotNull()
             assertThat(result.nodes).hasSize(1)
-            verify(roleRepository).searchByName(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, afterId)
+            assertThat(result.totalCount).isEqualTo(2L)
+            verify(roleSearchRepository).searchByName(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, afterId)
+            verify(roleSearchRepository).countByName(query)
         }
 
         @Test
         fun `should return empty connection when no roles match search`() {
             // Arrange
             val query = "nonexistent"
-            whenever(roleRepository.searchByName(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
+            whenever(roleSearchRepository.searchByName(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
                 .thenReturn(emptyList())
+            whenever(roleSearchRepository.countByName(query))
+                .thenReturn(0L)
 
             // Act
             val result = roleManagementService.searchRoles(query, after = null)
@@ -209,6 +234,8 @@ class RoleManagementServiceTest {
             assertThat(result).isNotNull()
             assertThat(result.nodes).isEmpty()
             assertThat(result.pageInfo.hasNextPage).isFalse()
+            assertThat(result.totalCount).isEqualTo(0L)
+            verify(roleSearchRepository).countByName(query)
         }
 
         @Test
@@ -221,7 +248,7 @@ class RoleManagementServiceTest {
             assertThrows<IllegalArgumentException> {
                 roleManagementService.searchRoles(query, after = invalidCursor)
             }
-            verify(roleRepository, never()).searchByName(any(), any(), any())
+            verify(roleSearchRepository, never()).searchByName(any(), any(), any())
         }
     }
 

@@ -5,11 +5,16 @@ import io.github.salomax.neotool.common.graphql.pagination.ConnectionBuilder
 import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import io.github.salomax.neotool.security.domain.UserManagement
+import io.github.salomax.neotool.security.domain.rbac.GroupMembership
+import io.github.salomax.neotool.security.domain.rbac.MembershipType
 import io.github.salomax.neotool.security.domain.rbac.RoleAssignment
 import io.github.salomax.neotool.security.domain.rbac.User
+import io.github.salomax.neotool.security.repo.GroupMembershipRepository
+import io.github.salomax.neotool.security.repo.GroupRepository
 import io.github.salomax.neotool.security.repo.RoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.UserRepository
+import io.github.salomax.neotool.security.repo.UserRepositoryCustom
 import jakarta.inject.Singleton
 import jakarta.transaction.Transactional
 import mu.KotlinLogging
@@ -23,60 +28,27 @@ import java.util.UUID
 @Singleton
 open class UserManagementService(
     private val userRepository: UserRepository,
+    private val userSearchRepository: UserRepositoryCustom,
     private val roleAssignmentRepository: RoleAssignmentRepository,
     private val roleRepository: RoleRepository,
+    private val groupMembershipRepository: GroupMembershipRepository,
+    private val groupRepository: GroupRepository,
 ) {
     private val logger = KotlinLogging.logger {}
 
     /**
-     * List all users with cursor-based pagination.
-     *
-     * @param first Maximum number of results to return (default: 20, max: 100)
-     * @param after Cursor string for pagination (base64-encoded UUID)
-     * @return Connection containing paginated users
-     */
-    fun listUsers(
-        first: Int = PaginationConstants.DEFAULT_PAGE_SIZE,
-        after: String?,
-    ): Connection<User> {
-        val pageSize =
-            minOf(first, PaginationConstants.MAX_PAGE_SIZE)
-
-        val afterCursor =
-            try {
-                after?.let { CursorEncoder.decodeCursorToUuid(it) }
-            } catch (e: Exception) {
-                throw IllegalArgumentException("Invalid cursor: $after", e)
-            }
-
-        // Query one extra to check for more results
-        val entities =
-            userRepository.findAll(pageSize + 1, afterCursor)
-        val hasMore = entities.size > pageSize
-
-        // Take only requested number and convert to domain
-        val users =
-            entities
-                .take(pageSize)
-                .map { it.toDomain() }
-
-        return ConnectionBuilder.buildConnectionWithUuid(
-            items = users,
-            hasMore = hasMore,
-            getId = { it.id },
-        )
-    }
-
-    /**
      * Search users by name or email with cursor-based pagination.
+     * Unified method that handles both list (no query) and search (with query) operations.
+     * When query is null or empty, returns all users. When query is provided, returns filtered users.
+     * totalCount is always calculated: total count of all users when query is empty, total count of filtered users when query is provided.
      *
-     * @param query Search query (partial match, case-insensitive)
+     * @param query Optional search query (partial match, case-insensitive). If null or empty, returns all users.
      * @param first Maximum number of results to return (default: 20, max: 100)
      * @param after Cursor string for pagination (base64-encoded UUID)
-     * @return Connection containing paginated matching users
+     * @return Connection containing paginated users with totalCount
      */
     fun searchUsers(
-        query: String,
+        query: String?,
         first: Int = PaginationConstants.DEFAULT_PAGE_SIZE,
         after: String?,
     ): Connection<User> {
@@ -90,10 +62,16 @@ open class UserManagementService(
                 throw IllegalArgumentException("Invalid cursor: $after", e)
             }
 
+        // Normalize query: convert empty string to null
+        val normalizedQuery = if (query.isNullOrBlank()) null else query
+
         // Query one extra to check for more results
         val entities =
-            userRepository.searchByNameOrEmail(query, pageSize + 1, afterCursor)
+            userSearchRepository.searchByNameOrEmail(normalizedQuery, pageSize + 1, afterCursor)
         val hasMore = entities.size > pageSize
+
+        // Always get total count (all users if query is null, filtered users if query is provided)
+        val totalCount = userSearchRepository.countByNameOrEmail(normalizedQuery)
 
         // Take only requested number and convert to domain
         val users =
@@ -105,6 +83,7 @@ open class UserManagementService(
             items = users,
             hasMore = hasMore,
             getId = { it.id },
+            totalCount = totalCount,
         )
     }
 
@@ -255,6 +234,100 @@ open class UserManagementService(
             logger.info {
                 "Role '${role.name}' was not assigned to user '${user.email}' " +
                     "(User ID: ${command.userId}, Role ID: ${command.roleId})"
+            }
+        }
+
+        return user.toDomain()
+    }
+
+    /**
+     * Assign a group to a user.
+     *
+     * @param command Assign group command with userId and groupId
+     * @return The updated user
+     * @throws IllegalArgumentException if user or group not found
+     */
+    @Transactional
+    open fun assignGroupToUser(command: UserManagement.AssignGroupToUserCommand): User {
+        // Validate user and group exist before assigning
+        val user =
+            userRepository
+                .findById(command.userId)
+                .orElseThrow {
+                    IllegalArgumentException("User not found with ID: ${command.userId}")
+                }
+        val group =
+            groupRepository
+                .findById(command.groupId)
+                .orElseThrow {
+                    IllegalArgumentException("Group not found with ID: ${command.groupId}")
+                }
+
+        // Check for existing membership
+        val existingMemberships = groupMembershipRepository.findByUserIdAndGroupId(command.userId, command.groupId)
+        if (existingMemberships.isNotEmpty()) {
+            logger.info {
+                "User '${user.email}' already member of group '${group.name}' " +
+                    "(User ID: ${command.userId}, Group ID: ${command.groupId})"
+            }
+            return user.toDomain()
+        }
+
+        // Create new membership
+        val membership =
+            GroupMembership(
+                userId = command.userId,
+                groupId = command.groupId,
+                membershipType = MembershipType.MEMBER,
+                validUntil = null,
+                createdAt = Instant.now(),
+                updatedAt = Instant.now(),
+            )
+        groupMembershipRepository.save(membership.toEntity())
+
+        logger.info {
+            "User '${user.email}' assigned to group '${group.name}' " +
+                "(User ID: ${command.userId}, Group ID: ${command.groupId})"
+        }
+
+        return user.toDomain()
+    }
+
+    /**
+     * Remove a group from a user.
+     *
+     * @param command Remove group command with userId and groupId
+     * @return The updated user
+     * @throws IllegalArgumentException if user or group not found
+     */
+    @Transactional
+    open fun removeGroupFromUser(command: UserManagement.RemoveGroupFromUserCommand): User {
+        // Validate user and group exist before removing
+        val user =
+            userRepository
+                .findById(command.userId)
+                .orElseThrow {
+                    IllegalArgumentException("User not found with ID: ${command.userId}")
+                }
+        val group =
+            groupRepository
+                .findById(command.groupId)
+                .orElseThrow {
+                    IllegalArgumentException("Group not found with ID: ${command.groupId}")
+                }
+
+        // Find and delete membership
+        val memberships = groupMembershipRepository.findByUserIdAndGroupId(command.userId, command.groupId)
+        if (memberships.isNotEmpty()) {
+            groupMembershipRepository.deleteAll(memberships)
+            logger.info {
+                "User '${user.email}' removed from group '${group.name}' " +
+                    "(User ID: ${command.userId}, Group ID: ${command.groupId})"
+            }
+        } else {
+            logger.info {
+                "User '${user.email}' was not a member of group '${group.name}' " +
+                    "(User ID: ${command.userId}, Group ID: ${command.groupId})"
             }
         }
 

@@ -21,6 +21,7 @@ import { SearchField } from "@/shared/components/ui/forms/SearchField";
 import { GroupList } from "./GroupList";
 import { GroupForm, type GroupFormData } from "./GroupForm";
 import { GroupUserAssignment } from "./GroupUserAssignment";
+import { RelayPagination } from "@/shared/components/ui/pagination";
 import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(neotool)/settings/i18n";
 import { useToast } from "@/shared/providers";
@@ -49,6 +50,7 @@ export const GroupManagement: React.FC<GroupManagementProps> = ({
     searchQuery,
     setSearchQuery,
     pageInfo,
+    paginationRange,
     loadNextPage,
     loadPreviousPage,
     goToFirstPage,
@@ -231,36 +233,14 @@ export const GroupManagement: React.FC<GroupManagementProps> = ({
       />
 
       {/* Pagination Controls */}
-      {pageInfo && (pageInfo.hasNextPage || pageInfo.hasPreviousPage) && (
-        <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
-          <Stack direction="row" spacing={2} alignItems="center">
-            <Button
-              variant="outlined"
-              onClick={goToFirstPage}
-              disabled={!pageInfo.hasPreviousPage || loading}
-              size="small"
-            >
-              {t("pagination.first")}
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={loadPreviousPage}
-              disabled={!pageInfo.hasPreviousPage || loading}
-              size="small"
-            >
-              {t("pagination.previous")}
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={loadNextPage}
-              disabled={!pageInfo.hasNextPage || loading}
-              size="small"
-            >
-              {t("pagination.next")}
-            </Button>
-          </Stack>
-        </Box>
-      )}
+      <RelayPagination
+        pageInfo={pageInfo}
+        paginationRange={paginationRange}
+        loading={loading}
+        onLoadNext={loadNextPage}
+        onLoadPrevious={loadPreviousPage}
+        onGoToFirst={goToFirstPage}
+      />
 
       {/* Create/Edit Drawer */}
       <Drawer
@@ -349,4 +329,3 @@ export const GroupManagement: React.FC<GroupManagementProps> = ({
     </Box>
   );
 };
-

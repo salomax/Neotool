@@ -9,6 +9,7 @@ import io.github.salomax.neotool.security.domain.rbac.Permission
 import io.github.salomax.neotool.security.domain.rbac.Role
 import io.github.salomax.neotool.security.repo.PermissionRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
+import io.github.salomax.neotool.security.repo.RoleRepositoryCustom
 import jakarta.inject.Singleton
 import jakarta.transaction.Transactional
 import mu.KotlinLogging
@@ -22,59 +23,24 @@ import java.time.Instant
 @Singleton
 open class RoleManagementService(
     private val roleRepository: RoleRepository,
+    private val roleSearchRepository: RoleRepositoryCustom,
     private val permissionRepository: PermissionRepository,
 ) {
     private val logger = KotlinLogging.logger {}
 
     /**
-     * List all roles with cursor-based pagination.
-     *
-     * @param first Maximum number of results to return (default: 20, max: 100)
-     * @param after Cursor string for pagination (base64-encoded Int)
-     * @return Connection containing paginated roles
-     */
-    fun listRoles(
-        first: Int = PaginationConstants.DEFAULT_PAGE_SIZE,
-        after: String?,
-    ): Connection<Role> {
-        val pageSize =
-            minOf(first, PaginationConstants.MAX_PAGE_SIZE)
-
-        val afterCursor =
-            try {
-                after?.let { CursorEncoder.decodeCursorToInt(it) }
-            } catch (e: Exception) {
-                throw IllegalArgumentException("Invalid cursor: $after", e)
-            }
-
-        // Query one extra to check for more results
-        val entities =
-            roleRepository.findAll(pageSize + 1, afterCursor)
-        val hasMore = entities.size > pageSize
-
-        // Take only requested number and convert to domain
-        val roles =
-            entities
-                .take(pageSize)
-                .map { it.toDomain() }
-
-        return ConnectionBuilder.buildConnectionWithInt(
-            items = roles,
-            hasMore = hasMore,
-            getId = { it.id },
-        )
-    }
-
-    /**
      * Search roles by name with cursor-based pagination.
+     * Unified method that handles both list (no query) and search (with query) operations.
+     * When query is null or empty, returns all roles. When query is provided, returns filtered roles.
+     * totalCount is always calculated: total count of all roles when query is empty, total count of filtered roles when query is provided.
      *
-     * @param query Search query (partial match, case-insensitive)
+     * @param query Optional search query (partial match, case-insensitive). If null or empty, returns all roles.
      * @param first Maximum number of results to return (default: 20, max: 100)
      * @param after Cursor string for pagination (base64-encoded Int)
-     * @return Connection containing paginated matching roles
+     * @return Connection containing paginated roles with totalCount
      */
     fun searchRoles(
-        query: String,
+        query: String?,
         first: Int = PaginationConstants.DEFAULT_PAGE_SIZE,
         after: String?,
     ): Connection<Role> {
@@ -88,10 +54,16 @@ open class RoleManagementService(
                 throw IllegalArgumentException("Invalid cursor: $after", e)
             }
 
+        // Normalize query: convert empty string to null
+        val normalizedQuery = if (query.isNullOrBlank()) null else query
+
         // Query one extra to check for more results
         val entities =
-            roleRepository.searchByName(query, pageSize + 1, afterCursor)
+            roleSearchRepository.searchByName(normalizedQuery, pageSize + 1, afterCursor)
         val hasMore = entities.size > pageSize
+
+        // Always get total count (all roles if query is null, filtered roles if query is provided)
+        val totalCount = roleSearchRepository.countByName(normalizedQuery)
 
         // Take only requested number and convert to domain
         val roles =
@@ -103,6 +75,7 @@ open class RoleManagementService(
             items = roles,
             hasMore = hasMore,
             getId = { it.id },
+            totalCount = totalCount,
         )
     }
 

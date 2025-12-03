@@ -32,7 +32,10 @@ class GroupManagementResolver(
     private val logger = KotlinLogging.logger {}
 
     /**
-     * List all groups with optional pagination and search.
+     * Unified query for groups with optional pagination and search.
+     * When query is omitted or empty, returns all groups (list behavior).
+     * When query is provided, returns filtered groups (search behavior).
+     * totalCount is always calculated.
      */
     fun groups(
         first: Int?,
@@ -41,14 +44,7 @@ class GroupManagementResolver(
     ): GroupConnectionDTO {
         return try {
             val pageSize = first ?: 20
-            val connection =
-                if (query != null && query.isNotBlank()) {
-                    groupManagementService
-                        .searchGroups(query, pageSize, after)
-                } else {
-                    groupManagementService
-                        .listGroups(pageSize, after)
-                }
+            val connection = groupManagementService.searchGroups(query, pageSize, after)
             mapper.toGroupConnectionDTO(connection)
         } catch (e: Exception) {
             logger.error(e) { "Error listing groups" }

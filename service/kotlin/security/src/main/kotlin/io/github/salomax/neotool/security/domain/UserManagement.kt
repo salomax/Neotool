@@ -41,6 +41,22 @@ object UserManagement {
     )
 
     /**
+     * Command to assign a group to a user.
+     */
+    data class AssignGroupToUserCommand(
+        val userId: UUID,
+        val groupId: UUID,
+    )
+
+    /**
+     * Command to remove a group from a user.
+     */
+    data class RemoveGroupFromUserCommand(
+        val userId: UUID,
+        val groupId: UUID,
+    )
+
+    /**
      * Search criteria for finding users.
      * Used as query parameters for repository search methods.
      * Actual filtering is done at the database level via SQL queries.

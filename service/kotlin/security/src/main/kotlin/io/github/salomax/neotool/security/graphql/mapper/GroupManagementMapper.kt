@@ -60,6 +60,7 @@ class GroupManagementMapper {
             edges = edges,
             nodes = nodes,
             pageInfo = pageInfo,
+            totalCount = connection.totalCount?.toInt(),
         )
     }
 

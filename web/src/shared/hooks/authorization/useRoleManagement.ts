@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import {
   useGetRolesQuery,
 } from '@/lib/graphql/operations/authorization-management/queries.generated';
@@ -48,6 +48,12 @@ export type UseRoleManagementReturn = {
     startCursor: string | null;
     endCursor: string | null;
   } | null;
+  totalCount: number | null;
+  paginationRange: {
+    start: number;
+    end: number;
+    total: number | null;
+  };
   setFirst: (first: number) => void;
   loadNextPage: () => void;
   loadPreviousPage: () => void;
@@ -148,6 +154,13 @@ export function useRoleManagement(options: UseRoleManagementOptions = {}): UseRo
   const [searchQuery, setSearchQuery] = useState(options.initialSearchQuery || "");
   const [first, setFirst] = useState(options.initialFirst || 10);
   const [after, setAfter] = useState<string | null>(null);
+  const [cumulativeItemsLoaded, setCumulativeItemsLoaded] = useState(0);
+  const previousSearchQueryRef = useRef<string>(options.initialSearchQuery || "");
+  const previousAfterRef = useRef<string | null>(null);
+  // Cursor history for backward navigation
+  const cursorHistoryRef = useRef<string[]>([]);
+  // Track if we're navigating backward to prevent cumulative count from being overridden
+  const isNavigatingBackwardRef = useRef<boolean>(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Role | null>(null);
@@ -181,6 +194,89 @@ export function useRoleManagement(options: UseRoleManagementOptions = {}): UseRo
     return rolesData?.roles?.pageInfo || null;
   }, [rolesData?.roles?.pageInfo]);
 
+  // totalCount is always calculated by the backend (never null)
+  // When query is null/empty: totalCount = total count of all items
+  // When query is provided: totalCount = total count of filtered items
+  const totalCount = useMemo(() => {
+    return rolesData?.roles?.totalCount ?? null;
+  }, [rolesData?.roles?.totalCount]);
+
+  // Track cursor history for backward navigation
+  useEffect(() => {
+    // When we navigate forward (after changes from one value to another),
+    // add the previous cursor to history
+    if (after !== null && previousAfterRef.current !== after) {
+      // Only add to history if we're actually moving forward (not resetting)
+      if (previousAfterRef.current !== null) {
+        cursorHistoryRef.current.push(previousAfterRef.current);
+      }
+    }
+    
+    // Reset history when going to first page or search changes
+    if (after === null || previousSearchQueryRef.current !== searchQuery) {
+      cursorHistoryRef.current = [];
+    }
+    
+    previousAfterRef.current = after;
+    previousSearchQueryRef.current = searchQuery;
+  }, [after, searchQuery]);
+
+  // Track cumulative items loaded for pagination range calculation
+  // For cursor-based pagination, we track items loaded in the current "session"
+  // (since last reset). This works for forward navigation and first page.
+  useEffect(() => {
+    const searchChanged = previousSearchQueryRef.current !== searchQuery;
+    const wentToFirstPage = previousAfterRef.current !== null && after === null;
+    const cursorChanged = previousAfterRef.current !== after;
+    
+    // Reset cumulative count when search changes or going to first page
+    if (searchChanged || wentToFirstPage) {
+      setCumulativeItemsLoaded(roles.length);
+    } else if (roles.length > 0 && cursorChanged) {
+      if (after === null) {
+        // First page - set count to current items
+        setCumulativeItemsLoaded(roles.length);
+        isNavigatingBackwardRef.current = false;
+      } else if (isNavigatingBackwardRef.current) {
+        // We're navigating backward - cumulative count was already adjusted in loadPreviousPage
+        // Just update the ref to match current state
+        isNavigatingBackwardRef.current = false;
+      } else {
+        // Moving forward to a new page (not first page)
+        const wasOnFirstPage = previousAfterRef.current === null;
+        if (!wasOnFirstPage) {
+          // Moving forward - add current items to cumulative count
+          setCumulativeItemsLoaded(prev => prev + roles.length);
+        } else {
+          setCumulativeItemsLoaded(roles.length);
+        }
+      }
+    } else if (after === null && roles.length > 0 && cumulativeItemsLoaded === 0) {
+      // Initial load on first page
+      setCumulativeItemsLoaded(roles.length);
+    }
+    
+    previousSearchQueryRef.current = searchQuery;
+    previousAfterRef.current = after;
+  }, [roles.length, after, searchQuery, cumulativeItemsLoaded]);
+
+  // Calculate pagination range
+  const paginationRange = useMemo(() => {
+    if (roles.length === 0) {
+      return { start: 0, end: 0, total: totalCount };
+    }
+    
+    // Calculate range based on cumulative items loaded
+    const start = cumulativeItemsLoaded > 0 ? cumulativeItemsLoaded - roles.length + 1 : 1;
+    const end = cumulativeItemsLoaded > 0 ? cumulativeItemsLoaded : roles.length;
+    
+    return {
+      start: Math.max(1, start),
+      end: Math.max(1, end),
+      total: totalCount,
+    };
+  }, [roles.length, cumulativeItemsLoaded, totalCount]);
+
   // Pagination functions
   const loadNextPage = useCallback(() => {
     if (pageInfo?.hasNextPage && pageInfo?.endCursor) {
@@ -188,15 +284,30 @@ export function useRoleManagement(options: UseRoleManagementOptions = {}): UseRo
     }
   }, [pageInfo]);
 
-  const loadPreviousPage = useCallback(() => {
-    if (pageInfo?.hasPreviousPage && pageInfo?.startCursor) {
-      setAfter(pageInfo.startCursor);
-    }
-  }, [pageInfo]);
-
   const goToFirstPage = useCallback(() => {
     setAfter(null);
+    setCumulativeItemsLoaded(0);
+    cursorHistoryRef.current = []; // Clear history when going to first page
   }, []);
+
+  const loadPreviousPage = useCallback(() => {
+    if (pageInfo?.hasPreviousPage) {
+      // Pop the last cursor from history to go back
+      const previousCursor = cursorHistoryRef.current.pop();
+      
+      if (previousCursor !== undefined) {
+        // Capture current page size before navigating
+        const currentPageSize = roles.length;
+        // Use the previous cursor
+        setAfter(previousCursor);
+        // Adjust cumulative count - subtract current page size (not first, as last page might be smaller)
+        setCumulativeItemsLoaded(prev => Math.max(0, prev - currentPageSize));
+      } else if (after !== null) {
+        // If no history but we're not on first page, go to first page
+        goToFirstPage();
+      }
+    }
+  }, [pageInfo, after, roles.length, goToFirstPage]);
 
   // Dialog management
   const openCreateDialog = useCallback(() => {
@@ -416,6 +527,8 @@ export function useRoleManagement(options: UseRoleManagementOptions = {}): UseRo
     first,
     after,
     pageInfo,
+    totalCount,
+    paginationRange,
     setFirst,
     loadNextPage,
     loadPreviousPage,
