@@ -60,77 +60,96 @@ export const UserList: React.FC<UserListProps> = ({
   }
 
   return (
-    <>
-      <Paper>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Name</TableCell>
-              <TableCell>Email</TableCell>
-              <TableCell align="center">Status</TableCell>
-              <TableCell align="right">Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {users.length === 0 ? (
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        minHeight: 0,
+      }}
+    >
+      <Paper
+        sx={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          minHeight: 0,
+          overflow: "hidden",
+        }}
+      >
+        <Box sx={{ flex: 1, overflow: "auto", minHeight: 0 }}>
+          <Table stickyHeader>
+            <TableHead>
               <TableRow>
-                <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
-                  <Typography color="text.secondary">{emptyMessage}</Typography>
-                </TableCell>
+                <TableCell>Name</TableCell>
+                <TableCell>Email</TableCell>
+                <TableCell align="center">Status</TableCell>
+                <TableCell align="right">Actions</TableCell>
               </TableRow>
-            ) : (
-              users.map((user) => (
-                <TableRow key={user.id} hover>
-                  <TableCell>
-                    <Typography variant="body2" fontWeight="medium">
-                      {user.displayName || user.email}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" color="text.secondary">
-                      {user.email}
-                    </Typography>
-                  </TableCell>
-                  <TableCell align="center">
-                    <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
-                      <UserStatusToggle
-                        user={user}
-                        enabled={user.enabled}
-                        onToggle={onToggleStatus}
-                        loading={toggleLoading}
-                      />
-                    </Box>
-                  </TableCell>
-                  <TableCell align="right">
-                    <Tooltip title="Edit user">
-                      <IconButton
-                        color="primary"
-                        onClick={() => onEdit(user)}
-                        size="small"
-                        aria-label={`Edit user ${user.email}`}
-                        data-testid={`edit-user-${user.id}`}
-                      >
-                        <EditIcon />
-                      </IconButton>
-                    </Tooltip>
+            </TableHead>
+            <TableBody>
+              {users.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
+                    <Typography color="text.secondary">{emptyMessage}</Typography>
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ) : (
+                users.map((user) => (
+                  <TableRow key={user.id} hover>
+                    <TableCell>
+                      <Typography variant="body2" fontWeight="medium">
+                        {user.displayName || user.email}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" color="text.secondary">
+                        {user.email}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
+                        <UserStatusToggle
+                          user={user}
+                          enabled={user.enabled}
+                          onToggle={onToggleStatus}
+                          loading={toggleLoading}
+                        />
+                      </Box>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Tooltip title="Edit user">
+                        <IconButton
+                          color="primary"
+                          onClick={() => onEdit(user)}
+                          size="small"
+                          aria-label={`Edit user ${user.email}`}
+                          data-testid={`edit-user-${user.id}`}
+                        >
+                          <EditIcon />
+                        </IconButton>
+                      </Tooltip>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </Box>
       </Paper>
       {pageInfo && paginationRange && onLoadNext && onLoadPrevious && onGoToFirst && (
-        <RelayPagination
-          pageInfo={pageInfo}
-          paginationRange={paginationRange}
-          loading={loading}
-          onLoadNext={onLoadNext}
-          onLoadPrevious={onLoadPrevious}
-          onGoToFirst={onGoToFirst}
-        />
+        <Box sx={{ mt: 2 }}>
+          <RelayPagination
+            pageInfo={pageInfo}
+            paginationRange={paginationRange}
+            loading={loading}
+            onLoadNext={onLoadNext}
+            onLoadPrevious={onLoadPrevious}
+            onGoToFirst={onGoToFirst}
+          />
+        </Box>
       )}
-    </>
+    </Box>
   );
 };
 

@@ -94,7 +94,14 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   );
 
   return (
-    <Box>
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        minHeight: 0,
+      }}
+    >
       {/* Error Alert */}
       {error && (
         <Alert severity="error" sx={{ mb: 3 }} onClose={() => refetch()}>
@@ -110,23 +117,25 @@ export const UserManagement: React.FC<UserManagementProps> = ({
       />
 
       {/* User List */}
-      <UserList
-        users={users}
-        loading={loading}
-        onEdit={handleEdit}
-        onToggleStatus={handleToggleStatus}
-        toggleLoading={enableLoading || disableLoading}
-        emptyMessage={
-          searchQuery
-            ? t("userManagement.emptySearchResults")
-            : t("userManagement.emptyList")
-        }
-        pageInfo={pageInfo}
-        paginationRange={paginationRange}
-        onLoadNext={loadNextPage}
-        onLoadPrevious={loadPreviousPage}
-        onGoToFirst={goToFirstPage}
-      />
+      <Box sx={{ flex: 1, minHeight: 0, mt: 2 }}>
+        <UserList
+          users={users}
+          loading={loading}
+          onEdit={handleEdit}
+          onToggleStatus={handleToggleStatus}
+          toggleLoading={enableLoading || disableLoading}
+          emptyMessage={
+            searchQuery
+              ? t("userManagement.emptySearchResults")
+              : t("userManagement.emptyList")
+          }
+          pageInfo={pageInfo}
+          paginationRange={paginationRange}
+          onLoadNext={loadNextPage}
+          onLoadPrevious={loadPreviousPage}
+          onGoToFirst={goToFirstPage}
+        />
+      </Box>
 
       {/* User Drawer */}
       <UserDrawer
