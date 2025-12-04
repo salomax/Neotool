@@ -63,9 +63,14 @@ export const createAppTheme = (mode: Mode) => {
         },
       },
     },
-    // Custom theme properties for layout
+    // Custom theme properties for layout and design tokens
     custom: {
       layout: t.layout,
+      radius: t.radius,
+      palette: {
+        inputBorder: t.palette.inputBorder,
+        tabBorder: t.palette.tabBorder,
+      },
     },
   } as ThemeOptions & { custom?: { layout: typeof t.layout } };
   return createTheme(options);

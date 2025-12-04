@@ -8,6 +8,7 @@ export { Cluster } from './Cluster';
 export { Grid } from './Grid';
 export { PageHeader } from './PageHeader';
 export { PageLayout } from './PageLayout';
+export { PageTitle } from './PageTitle';
 export { Cover } from './Cover';
 export { Reel } from './Reel';
 export { Container } from './Container';
