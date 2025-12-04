@@ -20,6 +20,7 @@ export interface RelayPaginationProps {
   onLoadNext: () => void;
   onLoadPrevious: () => void;
   onGoToFirst: () => void;
+  canLoadPreviousPage?: boolean;
 }
 
 /**
@@ -34,6 +35,7 @@ export interface RelayPaginationProps {
  * @param onLoadNext - Callback for loading next page
  * @param onLoadPrevious - Callback for loading previous page
  * @param onGoToFirst - Callback for going to first page
+ * @param canLoadPreviousPage - Optional flag to independently control whether the "Previous" action is available
  */
 export const RelayPagination: React.FC<RelayPaginationProps> = ({
   pageInfo,
@@ -42,6 +44,7 @@ export const RelayPagination: React.FC<RelayPaginationProps> = ({
   onLoadNext,
   onLoadPrevious,
   onGoToFirst,
+  canLoadPreviousPage,
 }) => {
   const { t } = useTranslation(authorizationManagementTranslations);
 
@@ -53,8 +56,13 @@ export const RelayPagination: React.FC<RelayPaginationProps> = ({
     return null;
   }
 
+  const resolvedCanLoadPrevious =
+    typeof canLoadPreviousPage === "boolean"
+      ? canLoadPreviousPage
+      : Boolean(pageInfo?.hasPreviousPage);
+
   return (
-    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 3 }}>
+    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 1 }}>
       {hasValidRange && (
         <PaginationRange
           start={paginationRange.start}
@@ -75,7 +83,7 @@ export const RelayPagination: React.FC<RelayPaginationProps> = ({
           <Button
             variant="outlined"
             onClick={onLoadPrevious}
-            disabled={!pageInfo.hasPreviousPage || loading}
+            disabled={!resolvedCanLoadPrevious || loading}
             size="small"
           >
             {t("pagination.previous")}
@@ -93,4 +101,3 @@ export const RelayPagination: React.FC<RelayPaginationProps> = ({
     </Box>
   );
 };
-

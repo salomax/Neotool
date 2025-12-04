@@ -6,6 +6,11 @@ import { getTestIdProps } from '@/shared/utils/testid';
 export interface PaperProps extends Omit<MuiPaperProps, 'elevation' | 'sx'> {
   /** Shadow depth (0-24). Defaults to 1. */
   elevation?: number;
+  /** 
+   * When true, applies full-height flex column layout with overflow hidden.
+   * Applies: flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, height: '100%', overflow: 'hidden'
+   */
+  fullHeight?: boolean;
   /** Custom styles to apply to the Paper component. */
   sx?: MuiPaperProps['sx'];
   /** 
@@ -31,6 +36,7 @@ export interface PaperProps extends Omit<MuiPaperProps, 'elevation' | 'sx'> {
  */
 export function Paper({ 
   elevation = 1, 
+  fullHeight = false,
   sx, 
   name,
   'data-testid': dataTestId,
@@ -45,11 +51,22 @@ export function Paper({
   // Generate data-testid from component name and optional name prop
   const testIdProps = getTestIdProps('Paper', name, dataTestId);
   
+  // When fullHeight is true, apply full-height flex column layout
+  const fullHeightStyles = fullHeight ? {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    minHeight: 0,
+    height: '100%',
+    overflow: 'hidden',
+  } : {};
+  
   return (
     <MuiPaper
       elevation={elevation}
       sx={{
         p: paperPadding,
+        ...fullHeightStyles,
         ...sx,
       }}
       {...testIdProps}
