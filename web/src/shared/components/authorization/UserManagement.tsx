@@ -1,11 +1,10 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
-import {
-  Box,
-  Alert,
-} from "@mui/material";
+import React, { useState, useCallback, useRef, useEffect } from "react";
+import { Box } from "@/shared/components/ui/layout";
+import { Alert } from "@mui/material";
 import { useUserManagement, type User } from "@/shared/hooks/authorization/useUserManagement";
+import { useDynamicPageSize } from "@/shared/hooks/ui";
 import { UserSearch } from "./UserSearch";
 import { UserList } from "./UserList";
 import { UserDrawer } from "./UserDrawer";
@@ -29,6 +28,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   const toast = useToast();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const tableContainerRef = useRef<HTMLDivElement>(null);
 
   const {
     users,
@@ -36,6 +36,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     setSearchQuery,
     pageInfo,
     paginationRange,
+    canLoadPreviousPage,
     loadNextPage,
     loadPreviousPage,
     goToFirstPage,
@@ -46,9 +47,29 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     disableLoading,
     error,
     refetch,
+    setFirst,
   } = useUserManagement({
     initialSearchQuery,
+    initialFirst: 10, // Default initial value, will be updated by dynamicPageSize
   });
+
+  // Calculate dynamic page size based on container height and actual table measurements
+  const dynamicPageSize = useDynamicPageSize(tableContainerRef, {
+    minRows: 5,
+    maxRows: 50,
+    rowHeight: 53, // Fallback row height when rows are unavailable
+    reservedHeight: 0,
+    autoDetectHeaderHeight: true,
+    autoDetectRowHeight: true,
+    recalculationKey: `${users.length}-${loading ? "loading" : "ready"}`,
+  });
+
+  // Update page size when container size changes
+  useEffect(() => {
+    if (dynamicPageSize > 0) {
+      setFirst(dynamicPageSize);
+    }
+  }, [dynamicPageSize, setFirst]);
 
   const handleEdit = useCallback((user: User) => {
     setEditingUser(user);
@@ -96,11 +117,9 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   return (
     <Box
       sx={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        minHeight: 0,
+        padding: 2,
       }}
+      fullHeight
     >
       {/* Error Alert */}
       {error && (
@@ -124,6 +143,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
           onEdit={handleEdit}
           onToggleStatus={handleToggleStatus}
           toggleLoading={enableLoading || disableLoading}
+          tableContainerRef={tableContainerRef}
           emptyMessage={
             searchQuery
               ? t("userManagement.emptySearchResults")
@@ -134,6 +154,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
           onLoadNext={loadNextPage}
           onLoadPrevious={loadPreviousPage}
           onGoToFirst={goToFirstPage}
+          canLoadPreviousPage={canLoadPreviousPage}
         />
       </Box>
 
@@ -146,4 +167,3 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     </Box>
   );
 };
-

@@ -46,6 +46,7 @@ export type UseUserManagementReturn = {
     end: number;
     total: number | null;
   };
+  canLoadPreviousPage: boolean;
   setFirst: (first: number) => void;
   loadNextPage: () => void;
   loadPreviousPage: () => void;
@@ -179,6 +180,7 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
     loadPreviousPage,
     goToFirstPage,
     paginationRange,
+    canLoadPreviousPage,
   } = useRelayPagination(
     users,
     pageInfo,
@@ -305,6 +307,7 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
     pageInfo,
     totalCount,
     paginationRange,
+    canLoadPreviousPage,
     setFirst,
     loadNextPage,
     loadPreviousPage,

@@ -13,6 +13,11 @@ export interface BoxProps extends Omit<MuiBoxProps, 'sx'> {
    * Useful for content areas that should fill remaining vertical space.
    */
   autoFill?: boolean;
+  /** 
+   * When true, applies full-height flex column layout with overflow hidden.
+   * Applies: flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, height: '100%', overflow: 'hidden'
+   */
+  fullHeight?: boolean;
   /** Custom styles to apply to the Box component. */
   sx?: MuiBoxProps['sx'];
   /** 
@@ -52,14 +57,16 @@ export interface BoxProps extends Omit<MuiBoxProps, 'sx'> {
  * </Box>
  * ```
  */
-export function Box({ 
+export const Box = React.forwardRef<HTMLDivElement, BoxProps>(function Box( 
+{ 
   fullSize = false,
   autoFill = false,
+  fullHeight = false,
   sx, 
   name,
   'data-testid': dataTestId,
   ...props 
-}: BoxProps) {
+}: BoxProps, ref) {
   // Generate data-testid from component name and optional name prop
   const testIdProps = getTestIdProps('Box', name, dataTestId);
   
@@ -76,18 +83,29 @@ export function Box({
     minHeight: 0,
   } : {};
   
+  // When fullHeight is true, apply full-height flex column layout
+  const fullHeightStyles = fullHeight ? {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    minHeight: 0,
+    height: '100%',
+    overflow: 'hidden',
+  } : {};
+  
   return (
     <MuiBox
-      sx={fullSize || autoFill ? {
+      ref={ref}
+      sx={fullSize || autoFill || fullHeight ? {
         ...fullSizeStyles,
         ...autoFillStyles,
+        ...fullHeightStyles,
         ...sx,
       } : sx}
       {...testIdProps}
       {...props}
     />
   );
-}
+});
 
 export default Box;
-

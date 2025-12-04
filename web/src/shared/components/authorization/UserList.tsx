@@ -2,18 +2,18 @@
 
 import React from "react";
 import {
-  Paper,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableRow,
-  Box,
   Typography,
   IconButton,
   Tooltip,
   CircularProgress,
+  LinearProgress,
 } from "@mui/material";
+import { Box } from "@/shared/components/ui/layout";
 import EditIcon from "@mui/icons-material/Edit";
 import type { User } from "@/shared/hooks/authorization/useUserManagement";
 import { UserStatusToggle } from "./UserStatusToggle";
@@ -31,6 +31,11 @@ export interface UserListProps {
   onLoadNext?: () => void;
   onLoadPrevious?: () => void;
   onGoToFirst?: () => void;
+  canLoadPreviousPage?: boolean;
+  /**
+   * Optional ref to the scrollable table container. Used for dynamic sizing calculations.
+   */
+  tableContainerRef?: React.Ref<HTMLDivElement>;
 }
 
 /**
@@ -48,37 +53,17 @@ export const UserList: React.FC<UserListProps> = ({
   onLoadNext,
   onLoadPrevious,
   onGoToFirst,
+  canLoadPreviousPage,
+  tableContainerRef,
 }) => {
-  if (loading) {
-    return (
-      <Paper>
-        <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
-          <CircularProgress />
-        </Box>
-      </Paper>
-    );
-  }
+  const isInitialLoading = loading && users.length === 0;
+  const showEmptyState = !loading && users.length === 0;
 
   return (
-    <Box
-      sx={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        minHeight: 0,
-      }}
-    >
-      <Paper
-        sx={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          minHeight: 0,
-          overflow: "hidden",
-        }}
-      >
-        <Box sx={{ flex: 1, overflow: "auto", minHeight: 0 }}>
-          <Table stickyHeader>
+    <Box fullHeight>
+      {loading && users.length > 0 && <LinearProgress />}
+        <Box ref={tableContainerRef} sx={{ flex: 1, overflow: "auto", minHeight: 0 }}>
+          <Table stickyHeader id="user-list-table">
             <TableHead>
               <TableRow>
                 <TableCell>Name</TableCell>
@@ -88,7 +73,13 @@ export const UserList: React.FC<UserListProps> = ({
               </TableRow>
             </TableHead>
             <TableBody>
-              {users.length === 0 ? (
+              {isInitialLoading ? (
+                <TableRow>
+                  <TableCell colSpan={4} align="center" sx={{ py: 6 }}>
+                    <CircularProgress />
+                  </TableCell>
+                </TableRow>
+              ) : showEmptyState ? (
                 <TableRow>
                   <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
                     <Typography color="text.secondary">{emptyMessage}</Typography>
@@ -136,9 +127,8 @@ export const UserList: React.FC<UserListProps> = ({
             </TableBody>
           </Table>
         </Box>
-      </Paper>
       {pageInfo && paginationRange && onLoadNext && onLoadPrevious && onGoToFirst && (
-        <Box sx={{ mt: 2 }}>
+        <Box sx={{ px: 2 }}>
           <RelayPagination
             pageInfo={pageInfo}
             paginationRange={paginationRange}
@@ -146,10 +136,10 @@ export const UserList: React.FC<UserListProps> = ({
             onLoadNext={onLoadNext}
             onLoadPrevious={onLoadPrevious}
             onGoToFirst={onGoToFirst}
+            canLoadPreviousPage={canLoadPreviousPage}
           />
         </Box>
       )}
     </Box>
   );
 };
-

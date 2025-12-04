@@ -51,6 +51,7 @@ export const GroupManagement: React.FC<GroupManagementProps> = ({
     setSearchQuery,
     pageInfo,
     paginationRange,
+    canLoadPreviousPage,
     loadNextPage,
     loadPreviousPage,
     goToFirstPage,
@@ -240,6 +241,7 @@ export const GroupManagement: React.FC<GroupManagementProps> = ({
         onLoadNext={loadNextPage}
         onLoadPrevious={loadPreviousPage}
         onGoToFirst={goToFirstPage}
+        canLoadPreviousPage={canLoadPreviousPage}
       />
 
       {/* Create/Edit Drawer */}

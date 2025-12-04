@@ -48,6 +48,7 @@ export type UseGroupManagementReturn = {
     end: number;
     total: number | null;
   };
+  canLoadPreviousPage: boolean;
   setFirst: (first: number) => void;
   loadNextPage: () => void;
   loadPreviousPage: () => void;
@@ -177,6 +178,7 @@ export function useGroupManagement(options: UseGroupManagementOptions = {}): Use
     loadPreviousPage,
     goToFirstPage,
     paginationRange,
+    canLoadPreviousPage,
   } = useRelayPagination(
     groups,
     pageInfo,
@@ -296,6 +298,7 @@ export function useGroupManagement(options: UseGroupManagementOptions = {}): Use
     pageInfo,
     totalCount,
     paginationRange,
+    canLoadPreviousPage,
     setFirst,
     loadNextPage,
     loadPreviousPage,
