@@ -115,12 +115,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   );
 
   return (
-    <Box
-      sx={{
-        padding: 2,
-      }}
-      fullHeight
-    >
+    <Box fullHeight>
       {/* Error Alert */}
       {error && (
         <Alert severity="error" sx={{ mb: 3 }} onClose={() => refetch()}>
@@ -136,7 +131,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
       />
 
       {/* User List */}
-      <Box sx={{ flex: 1, minHeight: 0, mt: 2 }}>
+      <Box sx={{ flex: 1, minHeight: 0 }}>
         <UserList
           users={users}
           loading={loading}

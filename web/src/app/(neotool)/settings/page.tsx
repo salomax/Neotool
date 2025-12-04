@@ -1,8 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { Container, Box } from "@/shared/components/ui/layout";
-import Typography from "@mui/material/Typography";
+import { Container, Box, PageTitle } from "@/shared/components/ui/layout";
 import { useTranslation } from '@/shared/i18n';
 import { authorizationManagementTranslations } from './i18n';
 import Tabs from '@/shared/components/ui/navigation/Tabs';
@@ -42,9 +41,7 @@ export default function SettingsPage() {
       id="settings-page"
       fullSize
     >
-      <Typography variant="h4" component="h1" gutterBottom>
-        {t('title')}
-      </Typography>
+      <PageTitle>{t('title')}</PageTitle>
       <Box autoFill>
         <Tabs
           tabs={tabs}

@@ -5,7 +5,6 @@ import {
   Tabs as MuiTabs,
   Tooltip,
   Typography,
-  Paper,
   Chip,
   Fade,
   useTheme,
@@ -221,6 +220,7 @@ const Tabs: React.FC<TabsProps> = ({
   const renderTabLabel = useCallback((tab: TabItem) => {
     const hasBadge = showBadges && (tab.badge !== undefined && tab.badge !== null);
     const hasIcon = tab.icon !== undefined;
+    const isSelected = activeTab === tab.id;
     
     return (
       <Box
@@ -256,7 +256,8 @@ const Tabs: React.FC<TabsProps> = ({
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
             minWidth: 0,
-            flex: 1
+            flex: 1,
+            fontWeight: isSelected ? 'bold' : 'normal'
           }}
         >
           {tab.label}
@@ -318,7 +319,7 @@ const Tabs: React.FC<TabsProps> = ({
         )}
       </Box>
     );
-  }, [showBadges, showCloseButtons, draggable, handleTabClose, handleDragStart, handleDragOver, handleDrop]);
+  }, [showBadges, showCloseButtons, draggable, activeTab, handleTabClose, handleDragStart, handleDragOver, handleDrop]);
 
   // Memoiza o conteúdo da aba ativa
   const activeTabContent = useMemo(() => {
@@ -339,14 +340,7 @@ const Tabs: React.FC<TabsProps> = ({
         flexDirection: orientation === 'vertical' ? 'row' : 'column'
       }}
     >
-      <Paper
-        elevation={1}
-        sx={{
-          borderRadius: orientation === 'vertical' ? '4px 0 0 4px' : '4px 4px 0 0',
-          overflow: 'hidden',
-          flexShrink: 0
-        }}
-      >
+      <Box>
         <MuiTabs
           ref={tabsContainerRef}
           value={validActiveTab}
@@ -357,7 +351,9 @@ const Tabs: React.FC<TabsProps> = ({
           indicatorColor={indicatorColor}
           textColor={textColor}
           sx={{
+            mx: 2,
             minHeight: orientation === 'vertical' ? 'auto' : 48,
+            borderBottom: orientation === 'vertical' ? 'none' : `1px solid ${(theme as any).custom?.palette?.tabBorder}`,
             '& .MuiTabs-indicator': {
               display: orientation === 'vertical' ? 'none' : 'block'
             },
@@ -393,16 +389,16 @@ const Tabs: React.FC<TabsProps> = ({
                   fontWeight: 500,
                   px: orientation === 'vertical' ? 2 : 1.5,
                   py: orientation === 'vertical' ? 1 : 0.5,
-                  borderBottom: orientation === 'vertical' ? '1px solid' : 'none',
-                  borderRight: orientation === 'vertical' ? 'none' : '1px solid',
+                  borderBottom: 'none',
+                  borderRight: 'none',
                   borderColor: 'divider',
                   '&:last-of-type': {
                     borderBottom: 'none',
                     borderRight: 'none'
                   },
                   '&.Mui-selected': {
-                    backgroundColor: 'action.selected',
-                    color: 'primary.main'
+                    color: 'primary.main',
+                    fontWeight: 'bold'
                   },
                   '&:hover': {
                     backgroundColor: 'action.hover'
@@ -477,7 +473,7 @@ const Tabs: React.FC<TabsProps> = ({
             />
           )}
         </MuiTabs>
-      </Paper>
+      </Box>
       
       {activeTabContent && (
         <Fade in timeout={200}>
@@ -485,11 +481,6 @@ const Tabs: React.FC<TabsProps> = ({
             sx={{
               flex: 1,
               p: 2,
-              backgroundColor: 'background.paper',
-              borderRadius: orientation === 'vertical' ? '0 4px 4px 0' : '0 0 4px 4px',
-              border: '1px solid',
-              borderColor: 'divider',
-              borderTop: orientation === 'vertical' ? '1px solid' : 'none',
               minHeight: 200,
               overflow: 'auto'
             }}

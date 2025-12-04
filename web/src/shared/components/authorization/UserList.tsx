@@ -2,7 +2,6 @@
 
 import React from "react";
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -14,6 +13,7 @@ import {
   LinearProgress,
 } from "@mui/material";
 import { Box } from "@/shared/components/ui/layout";
+import { Table } from "@/shared/components/ui/data-display";
 import EditIcon from "@mui/icons-material/Edit";
 import type { User } from "@/shared/hooks/authorization/useUserManagement";
 import { UserStatusToggle } from "./UserStatusToggle";
