@@ -13,3 +13,4 @@ export { Cover } from './Cover';
 export { Reel } from './Reel';
 export { Container } from './Container';
 export { Box } from './Box';
+export { DynamicTableBox } from './DynamicTableBox';

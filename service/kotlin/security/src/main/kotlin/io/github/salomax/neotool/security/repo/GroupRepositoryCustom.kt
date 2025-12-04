@@ -1,7 +1,8 @@
 package io.github.salomax.neotool.security.repo
 
+import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.security.model.rbac.GroupEntity
-import java.util.UUID
+import io.github.salomax.neotool.security.service.GroupOrderBy
 
 /**
  * Custom query contract for {@link GroupRepository}.
@@ -9,22 +10,23 @@ import java.util.UUID
  * while these methods are provided via a manual bean.
  */
 interface GroupRepositoryCustom {
-
     /**
      * Search groups by name with cursor-based pagination.
      * Performs case-insensitive partial matching on name field when query is provided.
      * When query is null or empty, returns all groups (list behavior).
-     * Results are ordered by name ascending.
+     * Results are ordered according to the orderBy parameter.
      *
      * @param query Search query (partial match, case-insensitive). If null or empty, returns all groups.
      * @param first Maximum number of results to return
-     * @param after Cursor (UUID) to start after (exclusive)
-     * @return List of matching groups ordered by name ascending
+     * @param after Composite cursor to start after (exclusive), or null for first page
+     * @param orderBy List of order by specifications (must include ID as final sort)
+     * @return List of matching groups ordered according to orderBy
      */
     fun searchByName(
         query: String?,
         first: Int,
-        after: UUID?,
+        after: CompositeCursor?,
+        orderBy: List<GroupOrderBy>,
     ): List<GroupEntity>
 
     /**
@@ -38,4 +40,3 @@ interface GroupRepositoryCustom {
      */
     fun countByName(query: String?): Long
 }
-

@@ -1,7 +1,8 @@
 package io.github.salomax.neotool.security.repo
 
+import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.security.model.UserEntity
-import java.util.UUID
+import io.github.salomax.neotool.security.service.UserOrderBy
 
 /**
  * Custom query contract for {@link UserRepository}.
@@ -9,22 +10,23 @@ import java.util.UUID
  * while these methods are provided via a manual bean.
  */
 interface UserRepositoryCustom {
-
     /**
      * Search users by name or email with cursor-based pagination.
      * Performs case-insensitive partial matching on displayName and email fields when query is provided.
      * When query is null or empty, returns all users (list behavior).
-     * Results are ordered by displayName (or email if displayName is null) ascending.
+     * Results are ordered according to the orderBy parameter.
      *
      * @param query Search query (partial match, case-insensitive). If null or empty, returns all users.
      * @param first Maximum number of results to return
-     * @param after Cursor (UUID) to start after (exclusive)
-     * @return List of matching users ordered by name ascending
+     * @param after Composite cursor to start after (exclusive), or null for first page
+     * @param orderBy List of order by specifications (must include ID as final sort)
+     * @return List of matching users ordered according to orderBy
      */
     fun searchByNameOrEmail(
         query: String?,
         first: Int,
-        after: UUID?,
+        after: CompositeCursor?,
+        orderBy: List<UserOrderBy>,
     ): List<UserEntity>
 
     /**

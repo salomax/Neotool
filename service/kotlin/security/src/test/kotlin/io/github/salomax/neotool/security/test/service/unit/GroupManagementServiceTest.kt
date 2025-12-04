@@ -1,6 +1,8 @@
 package io.github.salomax.neotool.security.test.service.unit
 
+import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
+import io.github.salomax.neotool.common.graphql.pagination.OrderDirection
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import io.github.salomax.neotool.security.domain.GroupManagement
 import io.github.salomax.neotool.security.model.rbac.GroupMembershipEntity
@@ -11,6 +13,8 @@ import io.github.salomax.neotool.security.repo.GroupRoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.GroupManagementService
+import io.github.salomax.neotool.security.service.GroupOrderBy
+import io.github.salomax.neotool.security.service.GroupOrderField
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -64,7 +68,19 @@ class GroupManagementServiceTest {
             // Arrange
             val group1 = SecurityTestDataBuilders.group(id = UUID.randomUUID(), name = "Group One")
             val group2 = SecurityTestDataBuilders.group(id = UUID.randomUUID(), name = "Group Two")
-            whenever(groupSearchRepository.searchByName(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
+            val defaultOrderBy =
+                listOf(
+                    GroupOrderBy(GroupOrderField.NAME, OrderDirection.ASC),
+                    GroupOrderBy(GroupOrderField.ID, OrderDirection.ASC),
+                )
+            whenever(
+                groupSearchRepository.searchByName(
+                    null,
+                    PaginationConstants.DEFAULT_PAGE_SIZE + 1,
+                    null,
+                    defaultOrderBy,
+                ),
+            )
                 .thenReturn(listOf(group1, group2))
             whenever(groupSearchRepository.countByName(null))
                 .thenReturn(2L)
@@ -76,7 +92,9 @@ class GroupManagementServiceTest {
             assertThat(result).isNotNull()
             assertThat(result.nodes).hasSize(2)
             assertThat(result.pageInfo.hasNextPage).isFalse()
-            verify(groupSearchRepository).searchByName(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null)
+            verify(
+                groupSearchRepository,
+            ).searchByName(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null, defaultOrderBy)
         }
 
         @Test
@@ -84,7 +102,12 @@ class GroupManagementServiceTest {
             // Arrange
             val first = 10
             val group1 = SecurityTestDataBuilders.group(id = UUID.randomUUID(), name = "Group One")
-            whenever(groupSearchRepository.searchByName(null, first + 1, null))
+            val defaultOrderBy =
+                listOf(
+                    GroupOrderBy(GroupOrderField.NAME, OrderDirection.ASC),
+                    GroupOrderBy(GroupOrderField.ID, OrderDirection.ASC),
+                )
+            whenever(groupSearchRepository.searchByName(null, first + 1, null, defaultOrderBy))
                 .thenReturn(listOf(group1))
             whenever(groupSearchRepository.countByName(null))
                 .thenReturn(1L)
@@ -95,14 +118,21 @@ class GroupManagementServiceTest {
             // Assert
             assertThat(result).isNotNull()
             assertThat(result.nodes).hasSize(1)
-            verify(groupSearchRepository).searchByName(null, first + 1, null)
+            verify(groupSearchRepository).searchByName(null, first + 1, null, defaultOrderBy)
         }
 
         @Test
         fun `should enforce max page size`() {
             // Arrange
             val first = 200 // Exceeds MAX_PAGE_SIZE
-            whenever(groupSearchRepository.searchByName(null, PaginationConstants.MAX_PAGE_SIZE + 1, null))
+            val defaultOrderBy =
+                listOf(
+                    GroupOrderBy(GroupOrderField.NAME, OrderDirection.ASC),
+                    GroupOrderBy(GroupOrderField.ID, OrderDirection.ASC),
+                )
+            whenever(
+                groupSearchRepository.searchByName(null, PaginationConstants.MAX_PAGE_SIZE + 1, null, defaultOrderBy),
+            )
                 .thenReturn(emptyList())
             whenever(groupSearchRepository.countByName(null))
                 .thenReturn(0L)
@@ -112,16 +142,31 @@ class GroupManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            verify(groupSearchRepository).searchByName(null, PaginationConstants.MAX_PAGE_SIZE + 1, null)
+            verify(
+                groupSearchRepository,
+            ).searchByName(null, PaginationConstants.MAX_PAGE_SIZE + 1, null, defaultOrderBy)
         }
 
         @Test
-        fun `should list groups with cursor pagination`() {
+        fun `should list groups with cursor pagination using legacy UUID cursor`() {
             // Arrange
             val afterId = UUID.randomUUID()
-            val afterCursor = CursorEncoder.encodeCursor(afterId as UUID)
+            val afterCursor = CursorEncoder.encodeCursor(afterId)
             val group1 = SecurityTestDataBuilders.group(id = UUID.randomUUID(), name = "Group One")
-            whenever(groupSearchRepository.searchByName(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, afterId))
+            val defaultOrderBy =
+                listOf(
+                    GroupOrderBy(GroupOrderField.NAME, OrderDirection.ASC),
+                    GroupOrderBy(GroupOrderField.ID, OrderDirection.ASC),
+                )
+            val compositeCursor = CompositeCursor(emptyMap(), afterId.toString())
+            whenever(
+                groupSearchRepository.searchByName(
+                    null,
+                    PaginationConstants.DEFAULT_PAGE_SIZE + 1,
+                    compositeCursor,
+                    defaultOrderBy,
+                ),
+            )
                 .thenReturn(listOf(group1))
             whenever(groupSearchRepository.countByName(null))
                 .thenReturn(1L)
@@ -132,7 +177,9 @@ class GroupManagementServiceTest {
             // Assert
             assertThat(result).isNotNull()
             assertThat(result.nodes).hasSize(1)
-            verify(groupSearchRepository).searchByName(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, afterId)
+            verify(
+                groupSearchRepository,
+            ).searchByName(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, compositeCursor, defaultOrderBy)
         }
 
         @Test
@@ -145,7 +192,19 @@ class GroupManagementServiceTest {
                         name = "Group $it",
                     )
                 }
-            whenever(groupSearchRepository.searchByName(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
+            val defaultOrderBy =
+                listOf(
+                    GroupOrderBy(GroupOrderField.NAME, OrderDirection.ASC),
+                    GroupOrderBy(GroupOrderField.ID, OrderDirection.ASC),
+                )
+            whenever(
+                groupSearchRepository.searchByName(
+                    null,
+                    PaginationConstants.DEFAULT_PAGE_SIZE + 1,
+                    null,
+                    defaultOrderBy,
+                ),
+            )
                 .thenReturn(groups)
             whenever(groupSearchRepository.countByName(null))
                 .thenReturn(21L)
@@ -162,7 +221,19 @@ class GroupManagementServiceTest {
         @Test
         fun `should return empty connection when no groups exist`() {
             // Arrange
-            whenever(groupSearchRepository.searchByName(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
+            val defaultOrderBy =
+                listOf(
+                    GroupOrderBy(GroupOrderField.NAME, OrderDirection.ASC),
+                    GroupOrderBy(GroupOrderField.ID, OrderDirection.ASC),
+                )
+            whenever(
+                groupSearchRepository.searchByName(
+                    null,
+                    PaginationConstants.DEFAULT_PAGE_SIZE + 1,
+                    null,
+                    defaultOrderBy,
+                ),
+            )
                 .thenReturn(emptyList())
             whenever(groupSearchRepository.countByName(null))
                 .thenReturn(0L)
@@ -186,7 +257,69 @@ class GroupManagementServiceTest {
             assertThrows<IllegalArgumentException> {
                 groupManagementService.searchGroups(query = null, after = invalidCursor)
             }
-            verify(groupSearchRepository, never()).searchByName(any(), any(), any())
+            verify(groupSearchRepository, never()).searchByName(any(), any(), any(), any())
+        }
+
+        @Test
+        fun `should use default sort when orderBy is null`() {
+            // Arrange
+            val group1 = SecurityTestDataBuilders.group(id = UUID.randomUUID(), name = "Alpha")
+            val group2 = SecurityTestDataBuilders.group(id = UUID.randomUUID(), name = "Beta")
+            val defaultOrderBy =
+                listOf(
+                    GroupOrderBy(GroupOrderField.NAME, OrderDirection.ASC),
+                    GroupOrderBy(GroupOrderField.ID, OrderDirection.ASC),
+                )
+            whenever(
+                groupSearchRepository.searchByName(
+                    null,
+                    PaginationConstants.DEFAULT_PAGE_SIZE + 1,
+                    null,
+                    defaultOrderBy,
+                ),
+            )
+                .thenReturn(listOf(group1, group2))
+            whenever(groupSearchRepository.countByName(null))
+                .thenReturn(2L)
+
+            // Act
+            val result = groupManagementService.searchGroups(query = null, after = null, orderBy = null)
+
+            // Assert
+            assertThat(result).isNotNull()
+            assertThat(result.nodes).hasSize(2)
+            verify(
+                groupSearchRepository,
+            ).searchByName(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null, defaultOrderBy)
+        }
+
+        @Test
+        fun `should sort by NAME DESC when specified`() {
+            // Arrange
+            val group1 = SecurityTestDataBuilders.group(id = UUID.randomUUID(), name = "Zeta")
+            val group2 = SecurityTestDataBuilders.group(id = UUID.randomUUID(), name = "Alpha")
+            val orderBy =
+                listOf(
+                    GroupOrderBy(GroupOrderField.NAME, OrderDirection.DESC),
+                    GroupOrderBy(GroupOrderField.ID, OrderDirection.ASC),
+                )
+            whenever(groupSearchRepository.searchByName(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null, orderBy))
+                .thenReturn(listOf(group1, group2))
+            whenever(groupSearchRepository.countByName(null))
+                .thenReturn(2L)
+
+            // Act
+            val result =
+                groupManagementService.searchGroups(
+                    query = null,
+                    after = null,
+                    orderBy = listOf(GroupOrderBy(GroupOrderField.NAME, OrderDirection.DESC)),
+                )
+
+            // Assert
+            assertThat(result).isNotNull()
+            assertThat(result.nodes).hasSize(2)
+            verify(groupSearchRepository).searchByName(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null, orderBy)
         }
     }
 
@@ -198,7 +331,19 @@ class GroupManagementServiceTest {
             // Arrange
             val query = "admin"
             val group1 = SecurityTestDataBuilders.group(id = UUID.randomUUID(), name = "Admin Group")
-            whenever(groupSearchRepository.searchByName(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
+            val defaultOrderBy =
+                listOf(
+                    GroupOrderBy(GroupOrderField.NAME, OrderDirection.ASC),
+                    GroupOrderBy(GroupOrderField.ID, OrderDirection.ASC),
+                )
+            whenever(
+                groupSearchRepository.searchByName(
+                    query,
+                    PaginationConstants.DEFAULT_PAGE_SIZE + 1,
+                    null,
+                    defaultOrderBy,
+                ),
+            )
                 .thenReturn(listOf(group1))
             whenever(groupSearchRepository.countByName(query))
                 .thenReturn(1L)
@@ -211,7 +356,9 @@ class GroupManagementServiceTest {
             assertThat(result.nodes).hasSize(1)
             assertThat(result.nodes.first().name).isEqualTo("Admin Group")
             assertThat(result.totalCount).isEqualTo(1L)
-            verify(groupSearchRepository).searchByName(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null)
+            verify(
+                groupSearchRepository,
+            ).searchByName(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null, defaultOrderBy)
             verify(groupSearchRepository).countByName(query)
         }
 
@@ -220,9 +367,22 @@ class GroupManagementServiceTest {
             // Arrange
             val query = "test"
             val afterId = UUID.randomUUID()
-            val afterCursor = CursorEncoder.encodeCursor(afterId as UUID)
+            val afterCursor = CursorEncoder.encodeCursor(afterId)
             val group1 = SecurityTestDataBuilders.group(id = UUID.randomUUID(), name = "Test Group")
-            whenever(groupSearchRepository.searchByName(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, afterId))
+            val defaultOrderBy =
+                listOf(
+                    GroupOrderBy(GroupOrderField.NAME, OrderDirection.ASC),
+                    GroupOrderBy(GroupOrderField.ID, OrderDirection.ASC),
+                )
+            val compositeCursor = CompositeCursor(emptyMap(), afterId.toString())
+            whenever(
+                groupSearchRepository.searchByName(
+                    query,
+                    PaginationConstants.DEFAULT_PAGE_SIZE + 1,
+                    compositeCursor,
+                    defaultOrderBy,
+                ),
+            )
                 .thenReturn(listOf(group1))
             whenever(groupSearchRepository.countByName(query))
                 .thenReturn(3L)
@@ -234,7 +394,9 @@ class GroupManagementServiceTest {
             assertThat(result).isNotNull()
             assertThat(result.nodes).hasSize(1)
             assertThat(result.totalCount).isEqualTo(3L)
-            verify(groupSearchRepository).searchByName(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, afterId)
+            verify(
+                groupSearchRepository,
+            ).searchByName(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, compositeCursor, defaultOrderBy)
             verify(groupSearchRepository).countByName(query)
         }
 
@@ -242,7 +404,19 @@ class GroupManagementServiceTest {
         fun `should return empty connection when no groups match search`() {
             // Arrange
             val query = "nonexistent"
-            whenever(groupSearchRepository.searchByName(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
+            val defaultOrderBy =
+                listOf(
+                    GroupOrderBy(GroupOrderField.NAME, OrderDirection.ASC),
+                    GroupOrderBy(GroupOrderField.ID, OrderDirection.ASC),
+                )
+            whenever(
+                groupSearchRepository.searchByName(
+                    query,
+                    PaginationConstants.DEFAULT_PAGE_SIZE + 1,
+                    null,
+                    defaultOrderBy,
+                ),
+            )
                 .thenReturn(emptyList())
             whenever(groupSearchRepository.countByName(query))
                 .thenReturn(0L)
@@ -268,7 +442,7 @@ class GroupManagementServiceTest {
             assertThrows<IllegalArgumentException> {
                 groupManagementService.searchGroups(query, after = invalidCursor)
             }
-            verify(groupSearchRepository, never()).searchByName(any(), any(), any())
+            verify(groupSearchRepository, never()).searchByName(any(), any(), any(), any())
         }
     }
 

@@ -43,21 +43,31 @@ class JwtService(
      *
      * @param userId The user ID to include in the token subject claim
      * @param email The user's email (included as a custom claim)
+     * @param permissions Optional list of permission names to include in the token claims
      * @return A signed JWT token string
      */
     fun generateAccessToken(
         userId: UUID,
         email: String,
+        permissions: List<String>? = null,
     ): String {
         val now = Instant.now()
         val expiration = now.plusSeconds(jwtConfig.accessTokenExpirationSeconds)
 
-        return Jwts.builder()
-            .subject(userId.toString())
-            .claim("email", email)
-            .claim("type", "access")
-            .issuedAt(Date.from(now))
-            .expiration(Date.from(expiration))
+        val builder =
+            Jwts.builder()
+                .subject(userId.toString())
+                .claim("email", email)
+                .claim("type", "access")
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(expiration))
+
+        // Add permissions claim if provided
+        if (permissions != null && permissions.isNotEmpty()) {
+            builder.claim("permissions", permissions)
+        }
+
+        return builder
             .signWith(secretKey)
             .compact()
     }
@@ -115,6 +125,34 @@ class JwtService(
             UUID.fromString(claims.subject)
         } catch (e: Exception) {
             logger.warn { "Invalid user ID in token subject: ${e.message}" }
+            null
+        }
+    }
+
+    /**
+     * Extract permissions from a validated JWT token.
+     *
+     * @param token The JWT token string
+     * @return List of permission names if token is valid and contains permissions claim, null otherwise
+     */
+    fun getPermissionsFromToken(token: String): List<String>? {
+        val claims = validateToken(token) ?: return null
+        return try {
+            val permissionsClaim = claims["permissions"]
+            if (permissionsClaim == null) {
+                return null
+            }
+            // Handle List type casting - permissions are stored as List<String>
+            @Suppress("UNCHECKED_CAST")
+            when (val permissions = permissionsClaim) {
+                is List<*> -> permissions.mapNotNull { it?.toString() }
+                else -> {
+                    logger.warn { "Invalid permissions claim type in token: ${permissions.javaClass.name}" }
+                    null
+                }
+            }
+        } catch (e: Exception) {
+            logger.warn { "Error extracting permissions from token: ${e.message}" }
             null
         }
     }

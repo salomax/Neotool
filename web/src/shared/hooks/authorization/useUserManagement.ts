@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import {
   useGetUsersQuery,
+  GetUsersDocument,
 } from '@/lib/graphql/operations/authorization-management/queries.generated';
 import {
   useEnableUserMutation,
@@ -14,6 +15,8 @@ import {
 } from '@/lib/graphql/operations/authorization-management/mutations.generated';
 import { extractErrorMessage } from '@/shared/utils/error';
 import { useRelayPagination } from '@/shared/hooks/pagination';
+import { toGraphQLOrderBy, getNextSortState, type UserSortState, type UserOrderField } from '@/shared/utils/sorting';
+import type { UserOrderByInput } from '@/lib/graphql/types/__generated__/graphql';
 
 export type User = {
   id: string;
@@ -55,6 +58,11 @@ export type UseUserManagementReturn = {
   // Search
   searchQuery: string;
   setSearchQuery: (query: string) => void;
+  
+  // Sorting
+  orderBy: UserSortState;
+  setOrderBy: (orderBy: UserSortState) => void;
+  handleSort: (field: UserOrderField) => void;
   
   // Mutations
   enableUser: (userId: string) => Promise<void>;
@@ -133,6 +141,16 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
   const [searchQuery, setSearchQuery] = useState(options.initialSearchQuery || "");
   const [first, setFirst] = useState(options.initialFirst || 10);
   const [after, setAfter] = useState<string | null>(null);
+  const [orderBy, setOrderBy] = useState<UserSortState>(null);
+
+  // Ref to preserve previous data during loading to prevent flicker
+  const previousDataRef = useRef<typeof usersData | null>(null);
+  
+  // Ref to track in-flight mutations to prevent race conditions
+  const mutationInFlightRef = useRef<Set<string>>(new Set());
+
+  // Convert sort state to GraphQL format
+  const graphQLOrderBy = useMemo(() => toGraphQLOrderBy(orderBy), [orderBy]);
 
   // GraphQL hooks
   const { data: usersData, loading, error, refetch } = useGetUsersQuery({
@@ -140,9 +158,20 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
       first,
       after: after || undefined,
       query: searchQuery || undefined,
+      // Cast to GraphQL type - the utility function returns compatible structure
+      // but TypeScript sees them as different types due to separate type definitions
+      orderBy: (graphQLOrderBy as UserOrderByInput[] | undefined) || undefined,
     },
     skip: false,
+    notifyOnNetworkStatusChange: true, // Keep loading state accurate during transitions
   });
+
+  // Update previous data ref when we have new data
+  useEffect(() => {
+    if (usersData && !loading) {
+      previousDataRef.current = usersData;
+    }
+  }, [usersData, loading]);
 
   const [enableUserMutation, { loading: enableLoading }] = useEnableUserMutation();
   const [disableUserMutation, { loading: disableLoading }] = useDisableUserMutation();
@@ -151,13 +180,17 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
   const [assignRoleToUserMutation, { loading: assignRoleLoading }] = useAssignRoleToUserMutation();
   const [removeRoleFromUserMutation, { loading: removeRoleLoading }] = useRemoveRoleFromUserMutation();
 
-  // Derived data - memoize to prevent unnecessary re-renders
+  // Derived data - use previous data while loading to prevent flicker
   const users = useMemo(() => {
-    return usersData?.users?.nodes || [];
-  }, [usersData?.users?.nodes]);
+    // Keep previous data visible while loading new data
+    const currentData = usersData || (loading ? previousDataRef.current : null);
+    return currentData?.users?.nodes || [];
+  }, [usersData?.users?.nodes, loading]);
 
   const pageInfo = useMemo(() => {
-    const info = usersData?.users?.pageInfo || null;
+    // Use previous data if current is loading
+    const currentData = usersData || (loading ? previousDataRef.current : null);
+    const info = currentData?.users?.pageInfo || null;
     if (!info) {
       return null;
     }
@@ -165,14 +198,26 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
       ...info,
       hasPreviousPage: info.hasPreviousPage || after !== null,
     };
-  }, [usersData?.users?.pageInfo, after]);
+  }, [usersData?.users?.pageInfo, loading, after]);
 
   // totalCount is always calculated by the backend (never null)
   // When query is null/empty: totalCount = total count of all items
   // When query is provided: totalCount = total count of filtered items
   const totalCount = useMemo(() => {
-    return usersData?.users?.totalCount ?? null;
-  }, [usersData?.users?.totalCount]);
+    // Use previous data if current is loading
+    const currentData = usersData || (loading ? previousDataRef.current : null);
+    return currentData?.users?.totalCount ?? null;
+  }, [usersData?.users?.totalCount, loading]);
+
+  // Reset cursor when sorting changes (similar to search)
+  // Note: We intentionally omit 'after' from dependencies because we only want
+  // to reset when orderBy changes, not when after changes. Including 'after'
+  // would cause the effect to run on every pagination change, which is not desired.
+  useEffect(() => {
+    if (after !== null) {
+      setAfter(null);
+    }
+  }, [orderBy]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Use shared pagination hook
   const {
@@ -194,11 +239,34 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
     }
   );
 
+  // Sorting handlers
+  const handleSort = useCallback((field: UserOrderField) => {
+    const nextSort = getNextSortState(orderBy, field);
+    setOrderBy(nextSort);
+  }, [orderBy]);
+
   // Mutations
   const enableUser = useCallback(async (userId: string) => {
+    // Prevent race conditions: if a mutation is already in flight for this user, skip
+    if (mutationInFlightRef.current.has(userId)) {
+      return;
+    }
+
+    mutationInFlightRef.current.add(userId);
     try {
       const result = await enableUserMutation({
         variables: { userId },
+        refetchQueries: [
+          {
+            query: GetUsersDocument,
+            variables: {
+              first,
+              after: after || undefined,
+              query: searchQuery || undefined,
+              orderBy: (graphQLOrderBy as UserOrderByInput[] | undefined) || undefined,
+            },
+          },
+        ],
       });
 
       // Only refetch if mutation was successful
@@ -209,13 +277,32 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
       console.error('Error enabling user:', err);
       const errorMessage = extractErrorMessage(err, 'Failed to enable user');
       throw new Error(errorMessage);
+    } finally {
+      mutationInFlightRef.current.delete(userId);
     }
-  }, [enableUserMutation, refetch]);
+  }, [enableUserMutation, refetch, first, after, searchQuery, graphQLOrderBy]);
 
   const disableUser = useCallback(async (userId: string) => {
+    // Prevent race conditions: if a mutation is already in flight for this user, skip
+    if (mutationInFlightRef.current.has(userId)) {
+      return;
+    }
+
+    mutationInFlightRef.current.add(userId);
     try {
       const result = await disableUserMutation({
         variables: { userId },
+        refetchQueries: [
+          {
+            query: GetUsersDocument,
+            variables: {
+              first,
+              after: after || undefined,
+              query: searchQuery || undefined,
+              orderBy: (graphQLOrderBy as UserOrderByInput[] | undefined) || undefined,
+            },
+          },
+        ],
       });
 
       // Only refetch if mutation was successful
@@ -226,10 +313,19 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
       console.error('Error disabling user:', err);
       const errorMessage = extractErrorMessage(err, 'Failed to disable user');
       throw new Error(errorMessage);
+    } finally {
+      mutationInFlightRef.current.delete(userId);
     }
-  }, [disableUserMutation, refetch]);
+  }, [disableUserMutation, refetch, first, after, searchQuery, graphQLOrderBy]);
 
   const assignGroupToUser = useCallback(async (userId: string, groupId: string) => {
+    // Create unique key for this user-group combination to prevent duplicate assignments
+    const mutationKey = `assign-group-${userId}-${groupId}`;
+    if (mutationInFlightRef.current.has(mutationKey)) {
+      return;
+    }
+
+    mutationInFlightRef.current.add(mutationKey);
     try {
       const result = await assignGroupToUserMutation({
         variables: { userId, groupId },
@@ -243,10 +339,19 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
       console.error('Error assigning group to user:', err);
       const errorMessage = extractErrorMessage(err, 'Failed to assign group to user');
       throw new Error(errorMessage);
+    } finally {
+      mutationInFlightRef.current.delete(mutationKey);
     }
   }, [assignGroupToUserMutation, refetch]);
 
   const removeGroupFromUser = useCallback(async (userId: string, groupId: string) => {
+    // Create unique key for this user-group combination to prevent duplicate removals
+    const mutationKey = `remove-group-${userId}-${groupId}`;
+    if (mutationInFlightRef.current.has(mutationKey)) {
+      return;
+    }
+
+    mutationInFlightRef.current.add(mutationKey);
     try {
       const result = await removeGroupFromUserMutation({
         variables: { userId, groupId },
@@ -260,10 +365,19 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
       console.error('Error removing group from user:', err);
       const errorMessage = extractErrorMessage(err, 'Failed to remove group from user');
       throw new Error(errorMessage);
+    } finally {
+      mutationInFlightRef.current.delete(mutationKey);
     }
   }, [removeGroupFromUserMutation, refetch]);
 
   const assignRoleToUser = useCallback(async (userId: string, roleId: string) => {
+    // Create unique key for this user-role combination to prevent duplicate assignments
+    const mutationKey = `assign-role-${userId}-${roleId}`;
+    if (mutationInFlightRef.current.has(mutationKey)) {
+      return;
+    }
+
+    mutationInFlightRef.current.add(mutationKey);
     try {
       const result = await assignRoleToUserMutation({
         variables: { userId, roleId },
@@ -277,10 +391,19 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
       console.error('Error assigning role to user:', err);
       const errorMessage = extractErrorMessage(err, 'Failed to assign role to user');
       throw new Error(errorMessage);
+    } finally {
+      mutationInFlightRef.current.delete(mutationKey);
     }
   }, [assignRoleToUserMutation, refetch]);
 
   const removeRoleFromUser = useCallback(async (userId: string, roleId: string) => {
+    // Create unique key for this user-role combination to prevent duplicate removals
+    const mutationKey = `remove-role-${userId}-${roleId}`;
+    if (mutationInFlightRef.current.has(mutationKey)) {
+      return;
+    }
+
+    mutationInFlightRef.current.add(mutationKey);
     try {
       const result = await removeRoleFromUserMutation({
         variables: { userId, roleId },
@@ -294,6 +417,8 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
       console.error('Error removing role from user:', err);
       const errorMessage = extractErrorMessage(err, 'Failed to remove role from user');
       throw new Error(errorMessage);
+    } finally {
+      mutationInFlightRef.current.delete(mutationKey);
     }
   }, [removeRoleFromUserMutation, refetch]);
 
@@ -316,6 +441,11 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
     // Search
     searchQuery,
     setSearchQuery,
+    
+    // Sorting
+    orderBy,
+    setOrderBy,
+    handleSort,
     
     // Mutations
     enableUser,

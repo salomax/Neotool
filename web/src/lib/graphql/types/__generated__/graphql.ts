@@ -82,6 +82,15 @@ export type GroupEdge = {
   node: Group;
 };
 
+export type GroupOrderByInput = {
+  direction: OrderDirection;
+  field: GroupOrderField;
+};
+
+export enum GroupOrderField {
+  Name = 'NAME'
+}
+
 export type Mutation = {
   __typename: 'Mutation';
   assignGroupToUser: User;
@@ -260,6 +269,11 @@ export type MutationUpdateRoleArgs = {
   roleId: Scalars['ID']['input'];
 };
 
+export enum OrderDirection {
+  Asc = 'ASC',
+  Desc = 'DESC'
+}
+
 export type PageInfo = {
   __typename: 'PageInfo';
   endCursor: Maybe<Scalars['String']['output']>;
@@ -350,6 +364,7 @@ export type QueryGetUserRolesArgs = {
 export type QueryGroupsArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<Array<GroupOrderByInput>>;
   query?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -369,6 +384,7 @@ export type QueryProductArgs = {
 export type QueryRolesArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<Array<RoleOrderByInput>>;
   query?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -381,6 +397,7 @@ export type QueryUserArgs = {
 export type QueryUsersArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<Array<UserOrderByInput>>;
   query?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -426,6 +443,15 @@ export type RoleEdge = {
   cursor: Scalars['String']['output'];
   node: Role;
 };
+
+export type RoleOrderByInput = {
+  direction: OrderDirection;
+  field: RoleOrderField;
+};
+
+export enum RoleOrderField {
+  Name = 'NAME'
+}
 
 export type SignInInput = {
   email: Scalars['String']['input'];
@@ -493,6 +519,17 @@ export type UserEdge = {
   cursor: Scalars['String']['output'];
   node: User;
 };
+
+export type UserOrderByInput = {
+  direction: OrderDirection;
+  field: UserOrderField;
+};
+
+export enum UserOrderField {
+  DisplayName = 'DISPLAY_NAME',
+  Email = 'EMAIL',
+  Enabled = 'ENABLED'
+}
 
 export enum Join__Graph {
   App = 'APP',

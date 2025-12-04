@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.security.graphql.mapper
 
 import io.github.salomax.neotool.common.graphql.pagination.Connection
+import io.github.salomax.neotool.common.graphql.pagination.OrderDirection
 import io.github.salomax.neotool.security.domain.RoleManagement
 import io.github.salomax.neotool.security.domain.rbac.Permission
 import io.github.salomax.neotool.security.domain.rbac.Role
@@ -11,6 +12,8 @@ import io.github.salomax.neotool.security.graphql.dto.RoleConnectionDTO
 import io.github.salomax.neotool.security.graphql.dto.RoleDTO
 import io.github.salomax.neotool.security.graphql.dto.RoleEdgeDTO
 import io.github.salomax.neotool.security.graphql.dto.UpdateRoleInputDTO
+import io.github.salomax.neotool.security.service.RoleOrderBy
+import io.github.salomax.neotool.security.service.RoleOrderField
 import jakarta.inject.Singleton
 
 /**
@@ -162,5 +165,39 @@ class RoleManagementMapper {
         return UpdateRoleInputDTO(
             name = extractField(input, "name"),
         )
+    }
+
+    /**
+     * Convert GraphQL orderBy input list to service layer RoleOrderBy list.
+     * Validates field names and directions.
+     */
+    fun toRoleOrderByList(orderBy: List<Map<String, Any?>>?): List<RoleOrderBy>? {
+        if (orderBy == null || orderBy.isEmpty()) {
+            return null
+        }
+
+        return orderBy.map { orderByMap ->
+            val fieldStr =
+                orderByMap["field"] as? String
+                    ?: throw IllegalArgumentException("orderBy field is required")
+            val directionStr =
+                orderByMap["direction"] as? String
+                    ?: throw IllegalArgumentException("orderBy direction is required")
+
+            val field =
+                when (fieldStr) {
+                    "NAME" -> RoleOrderField.NAME
+                    else -> throw IllegalArgumentException("Invalid RoleOrderField: $fieldStr. Allowed: NAME")
+                }
+
+            val direction =
+                when (directionStr) {
+                    "ASC" -> OrderDirection.ASC
+                    "DESC" -> OrderDirection.DESC
+                    else -> throw IllegalArgumentException("Invalid OrderDirection: $directionStr. Allowed: ASC, DESC")
+                }
+
+            RoleOrderBy(field, direction)
+        }
     }
 }

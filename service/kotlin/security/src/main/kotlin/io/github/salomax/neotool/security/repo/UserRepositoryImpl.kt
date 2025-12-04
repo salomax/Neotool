@@ -1,15 +1,15 @@
 package io.github.salomax.neotool.security.repo
 
+import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.security.model.UserEntity
+import io.github.salomax.neotool.security.service.UserOrderBy
 import io.micronaut.transaction.annotation.ReadOnly
 import jakarta.inject.Singleton
 import jakarta.persistence.EntityManager
 import jakarta.persistence.TypedQuery
 import jakarta.persistence.criteria.CriteriaBuilder
-import jakarta.persistence.criteria.CriteriaQuery
 import jakarta.persistence.criteria.Predicate
 import jakarta.persistence.criteria.Root
-import java.util.UUID
 
 /**
  * Custom repository bean that exposes the complex search/count queries used by {@link UserManagementService}.
@@ -19,7 +19,6 @@ import java.util.UUID
 open class UserRepositoryImpl(
     private val entityManager: EntityManager,
 ) : UserRepositoryCustom {
-
     /**
      * Builds a search filter predicate for querying users by name or email.
      * The generated predicate is shared between the search and count methods.
@@ -51,17 +50,19 @@ open class UserRepositoryImpl(
         val displayNamePath = root.get<String?>("displayName")
         val emailPath = root.get<String>("email")
 
-        val displayNamePredicate = criteriaBuilder.like(
-            criteriaBuilder.lower(
-                criteriaBuilder.coalesce(displayNamePath, criteriaBuilder.literal(""))
-            ),
-            likePattern
-        )
+        val displayNamePredicate =
+            criteriaBuilder.like(
+                criteriaBuilder.lower(
+                    criteriaBuilder.coalesce(displayNamePath, criteriaBuilder.literal("")),
+                ),
+                likePattern,
+            )
 
-        val emailPredicate = criteriaBuilder.like(
-            criteriaBuilder.lower(emailPath),
-            likePattern
-        )
+        val emailPredicate =
+            criteriaBuilder.like(
+                criteriaBuilder.lower(emailPath),
+                likePattern,
+            )
 
         // OR condition: displayName LIKE OR email LIKE
         return criteriaBuilder.or(displayNamePredicate, emailPredicate)
@@ -71,8 +72,14 @@ open class UserRepositoryImpl(
     override fun searchByNameOrEmail(
         query: String?,
         first: Int,
-        after: UUID?,
+        after: CompositeCursor?,
+        orderBy: List<UserOrderBy>,
     ): List<UserEntity> {
+        require(orderBy.isNotEmpty()) { "orderBy must not be empty" }
+        require(orderBy.last().field == io.github.salomax.neotool.security.service.UserOrderField.ID) {
+            "Last orderBy field must be ID for deterministic ordering"
+        }
+
         val criteriaBuilder = entityManager.criteriaBuilder
         val criteriaQuery = criteriaBuilder.createQuery(UserEntity::class.java)
         val root = criteriaQuery.from(UserEntity::class.java)
@@ -86,39 +93,15 @@ open class UserRepositoryImpl(
         }
 
         // Add cursor pagination predicate if after is provided
-        // CRITICAL: The cursor predicate must match the sort order
-        // Since we sort by COALESCE(displayName, email) ASC, id ASC,
-        // we need to use composite comparison to correctly paginate
         if (after != null) {
-            // Fetch the last item to get its displayName/email for composite cursor
-            val lastItem = entityManager.find(UserEntity::class.java, after)
-                ?: throw IllegalArgumentException("Invalid cursor: entity not found")
-            
-            val displayNamePath = root.get<String?>("displayName")
-            val emailPath = root.get<String>("email")
-            val coalesceExpression = criteriaBuilder.coalesce(displayNamePath, emailPath)
-            val idPath = root.get<UUID>("id")
-            
-            val lastItemSortKey = lastItem.displayName ?: lastItem.email
-            val lastItemId = lastItem.id
-                ?: throw IllegalStateException("Entity found but has null ID - data integrity issue")
-            
-            // Build composite cursor predicate:
-            // (COALESCE(displayName, email) > lastItemSortKey) 
-            // OR (COALESCE(displayName, email) = lastItemSortKey AND id > lastItemId)
-            // This ensures we get all items that come after the cursor in the sort order
-            val nameGreater = criteriaBuilder.greaterThan(
-                coalesceExpression,
-                criteriaBuilder.literal(lastItemSortKey)
-            )
-            val nameEqual = criteriaBuilder.equal(
-                coalesceExpression,
-                criteriaBuilder.literal(lastItemSortKey)
-            )
-            val idGreater = criteriaBuilder.greaterThan(idPath, lastItemId)
-            val nameEqualAndIdGreater = criteriaBuilder.and(nameEqual, idGreater)
-            
-            predicates.add(criteriaBuilder.or(nameGreater, nameEqualAndIdGreater))
+            val cursorPredicate =
+                SortingHelpers.buildUserCursorPredicate(
+                    root = root,
+                    criteriaBuilder = criteriaBuilder,
+                    cursor = after,
+                    orderBy = orderBy,
+                )
+            predicates.add(cursorPredicate)
         }
 
         // Apply WHERE clause
@@ -126,14 +109,13 @@ open class UserRepositoryImpl(
             criteriaQuery.where(*predicates.toTypedArray())
         }
 
-        // Build ordering: COALESCE(displayName, email) ASC, id ASC
-        val displayNamePath = root.get<String?>("displayName")
-        val emailPath = root.get<String>("email")
-        val coalesceExpression = criteriaBuilder.coalesce(displayNamePath, emailPath)
-        val orders = listOf(
-            criteriaBuilder.asc(coalesceExpression),
-            criteriaBuilder.asc(root.get<UUID>("id"))
-        )
+        // Build ordering dynamically from orderBy
+        val orders =
+            SortingHelpers.buildUserOrderBy(
+                root = root,
+                criteriaBuilder = criteriaBuilder,
+                orderBy = orderBy,
+            )
         criteriaQuery.orderBy(orders)
 
         // Execute query with limit

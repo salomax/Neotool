@@ -1,6 +1,8 @@
 package io.github.salomax.neotool.security.repo
 
+import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.security.model.RoleEntity
+import io.github.salomax.neotool.security.service.RoleOrderBy
 
 /**
  * Custom query contract for {@link RoleRepository}.
@@ -8,22 +10,23 @@ import io.github.salomax.neotool.security.model.RoleEntity
  * while these methods are provided via a manual bean.
  */
 interface RoleRepositoryCustom {
-
     /**
      * Search roles by name with cursor-based pagination.
      * Performs case-insensitive partial matching on name field when query is provided.
      * When query is null or empty, returns all roles (list behavior).
-     * Results are ordered by name ascending.
+     * Results are ordered according to the orderBy parameter.
      *
      * @param query Search query (partial match, case-insensitive). If null or empty, returns all roles.
      * @param first Maximum number of results to return
-     * @param after Cursor (Int ID) to start after (exclusive)
-     * @return List of matching roles ordered by name ascending
+     * @param after Composite cursor to start after (exclusive), or null for first page
+     * @param orderBy List of order by specifications (must include ID as final sort)
+     * @return List of matching roles ordered according to orderBy
      */
     fun searchByName(
         query: String?,
         first: Int,
-        after: Int?,
+        after: CompositeCursor?,
+        orderBy: List<RoleOrderBy>,
     ): List<RoleEntity>
 
     /**
@@ -37,4 +40,3 @@ interface RoleRepositoryCustom {
      */
     fun countByName(query: String?): Long
 }
-

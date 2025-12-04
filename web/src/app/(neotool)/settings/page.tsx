@@ -39,10 +39,10 @@ export default function SettingsPage() {
   return (
     <Container  
       id="settings-page"
-      fullSize
-    >
+      fullHeight
+      maxWidth="xl">
       <PageTitle>{t('title')}</PageTitle>
-      <Box autoFill>
+      <Box fullHeight>
         <Tabs
           tabs={tabs}
           value={activeTab}

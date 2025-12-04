@@ -23,9 +23,9 @@ type Query {
   
   # Authorization management queries
   user(id: ID!): User
-  users(first: Int, after: String, query: String): UserConnection!
-  groups(first: Int, after: String, query: String): GroupConnection!
-  roles(first: Int, after: String, query: String): RoleConnection!
+  users(first: Int, after: String, query: String, orderBy: [UserOrderByInput!]): UserConnection!
+  groups(first: Int, after: String, query: String, orderBy: [GroupOrderByInput!]): GroupConnection!
+  roles(first: Int, after: String, query: String, orderBy: [RoleOrderByInput!]): RoleConnection!
   permissions(first: Int, after: String, query: String): PermissionConnection!
 }
 
@@ -210,5 +210,40 @@ input CreateRoleInput {
 
 input UpdateRoleInput {
   name: String!
+}
+
+# Sorting enums and input types
+enum OrderDirection {
+  ASC
+  DESC
+}
+
+enum UserOrderField {
+  DISPLAY_NAME
+  EMAIL
+  ENABLED
+}
+
+enum GroupOrderField {
+  NAME
+}
+
+enum RoleOrderField {
+  NAME
+}
+
+input UserOrderByInput {
+  field: UserOrderField!
+  direction: OrderDirection!
+}
+
+input GroupOrderByInput {
+  field: GroupOrderField!
+  direction: OrderDirection!
+}
+
+input RoleOrderByInput {
+  field: RoleOrderField!
+  direction: OrderDirection!
 }
 

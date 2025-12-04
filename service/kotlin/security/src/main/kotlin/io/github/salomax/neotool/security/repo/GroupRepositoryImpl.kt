@@ -1,15 +1,15 @@
 package io.github.salomax.neotool.security.repo
 
+import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.security.model.rbac.GroupEntity
+import io.github.salomax.neotool.security.service.GroupOrderBy
 import io.micronaut.transaction.annotation.ReadOnly
 import jakarta.inject.Singleton
 import jakarta.persistence.EntityManager
 import jakarta.persistence.TypedQuery
 import jakarta.persistence.criteria.CriteriaBuilder
-import jakarta.persistence.criteria.CriteriaQuery
 import jakarta.persistence.criteria.Predicate
 import jakarta.persistence.criteria.Root
-import java.util.UUID
 
 /**
  * Custom repository bean that exposes the complex search/count queries used by {@link GroupManagementService}.
@@ -19,7 +19,6 @@ import java.util.UUID
 open class GroupRepositoryImpl(
     private val entityManager: EntityManager,
 ) : GroupRepositoryCustom {
-
     /**
      * Builds a search filter predicate for querying groups by name.
      * The generated predicate is shared between the search and count methods.
@@ -49,7 +48,7 @@ open class GroupRepositoryImpl(
         val namePath = root.get<String>("name")
         return criteriaBuilder.like(
             criteriaBuilder.lower(namePath),
-            likePattern
+            likePattern,
         )
     }
 
@@ -57,8 +56,14 @@ open class GroupRepositoryImpl(
     override fun searchByName(
         query: String?,
         first: Int,
-        after: UUID?,
+        after: CompositeCursor?,
+        orderBy: List<GroupOrderBy>,
     ): List<GroupEntity> {
+        require(orderBy.isNotEmpty()) { "orderBy must not be empty" }
+        require(orderBy.last().field == io.github.salomax.neotool.security.service.GroupOrderField.ID) {
+            "Last orderBy field must be ID for deterministic ordering"
+        }
+
         val criteriaBuilder = entityManager.criteriaBuilder
         val criteriaQuery = criteriaBuilder.createQuery(GroupEntity::class.java)
         val root = criteriaQuery.from(GroupEntity::class.java)
@@ -73,32 +78,14 @@ open class GroupRepositoryImpl(
 
         // Add cursor pagination predicate if after is provided
         if (after != null) {
-            // Since we sort by name ASC, id ASC, we need composite cursor logic
-            // Fetch the last item to get its name for composite cursor
-            val lastItem = entityManager.find(GroupEntity::class.java, after)
-                ?: throw IllegalArgumentException("Invalid cursor: entity not found")
-            
-            val namePath = root.get<String>("name")
-            val idPath = root.get<UUID>("id")
-            
-            val lastItemName = lastItem.name
-            val lastItemId = lastItem.id
-            
-            // Build composite cursor predicate:
-            // (name > lastItemName) OR (name = lastItemName AND id > lastItemId)
-            // This ensures we get all items that come after the cursor in the sort order
-            val nameGreater = criteriaBuilder.greaterThan(
-                namePath,
-                criteriaBuilder.literal(lastItemName)
-            )
-            val nameEqual = criteriaBuilder.equal(
-                namePath,
-                criteriaBuilder.literal(lastItemName)
-            )
-            val idGreater = criteriaBuilder.greaterThan(idPath, lastItemId)
-            val nameEqualAndIdGreater = criteriaBuilder.and(nameEqual, idGreater)
-            
-            predicates.add(criteriaBuilder.or(nameGreater, nameEqualAndIdGreater))
+            val cursorPredicate =
+                SortingHelpers.buildGroupCursorPredicate(
+                    root = root,
+                    criteriaBuilder = criteriaBuilder,
+                    cursor = after,
+                    orderBy = orderBy,
+                )
+            predicates.add(cursorPredicate)
         }
 
         // Apply WHERE clause
@@ -106,11 +93,13 @@ open class GroupRepositoryImpl(
             criteriaQuery.where(*predicates.toTypedArray())
         }
 
-        // Build ordering: name ASC, id ASC
-        val orders = listOf(
-            criteriaBuilder.asc(root.get<String>("name")),
-            criteriaBuilder.asc(root.get<UUID>("id"))
-        )
+        // Build ordering dynamically from orderBy
+        val orders =
+            SortingHelpers.buildGroupOrderBy(
+                root = root,
+                criteriaBuilder = criteriaBuilder,
+                orderBy = orderBy,
+            )
         criteriaQuery.orderBy(orders)
 
         // Execute query with limit
@@ -138,4 +127,3 @@ open class GroupRepositoryImpl(
         return entityManager.createQuery(criteriaQuery).singleResult
     }
 }
-

@@ -41,10 +41,12 @@ class GroupManagementResolver(
         first: Int?,
         after: String?,
         query: String?,
+        orderBy: List<Map<String, Any?>>?,
     ): GroupConnectionDTO {
         return try {
             val pageSize = first ?: 20
-            val connection = groupManagementService.searchGroups(query, pageSize, after)
+            val orderByList = mapper.toGroupOrderByList(orderBy)
+            val connection = groupManagementService.searchGroups(query, pageSize, after, orderByList)
             mapper.toGroupConnectionDTO(connection)
         } catch (e: Exception) {
             logger.error(e) { "Error listing groups" }

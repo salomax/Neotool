@@ -12,6 +12,7 @@ import io.github.salomax.neotool.security.graphql.dto.UserDTO
 import io.github.salomax.neotool.security.graphql.mapper.SecurityGraphQLMapper
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.AuthenticationService
+import io.github.salomax.neotool.security.service.AuthorizationService
 import jakarta.inject.Singleton
 import jakarta.validation.ConstraintViolationException
 import mu.KotlinLogging
@@ -30,6 +31,7 @@ import mu.KotlinLogging
 @Singleton
 class SecurityAuthResolver(
     private val authenticationService: AuthenticationService,
+    private val authorizationService: AuthorizationService,
     private val userRepository: UserRepository,
     private val inputValidator: InputValidator,
     private val mapper: SecurityGraphQLMapper,
@@ -51,15 +53,26 @@ class SecurityAuthResolver(
                 authenticationService.authenticate(email, password)
                     ?: throw IllegalArgumentException("Invalid email or password")
 
-            // Generate JWT access token (short-lived, stateless)
-            val token = authenticationService.generateAccessToken(user)
+            // Fetch user permissions (direct and group-inherited)
+            val userId = requireNotNull(user.id) { "User ID is required for token generation" }
+            val permissions =
+                try {
+                    authorizationService.getUserPermissions(userId).map { it.name }
+                } catch (e: Exception) {
+                    logger.warn(e) {
+                        "Failed to fetch permissions for user ${user.email}, continuing with empty permissions"
+                    }
+                    emptyList()
+                }
+
+            // Generate JWT access token (short-lived, stateless) with permissions
+            val token = authenticationService.generateAccessToken(user, permissions)
 
             // Handle remember me - generate and store refresh token
             var refreshToken: String? = null
             if (rememberMe) {
                 refreshToken = authenticationService.generateRefreshToken(user)
                 // Store refresh token in database for revocation support
-                val userId = requireNotNull(user.id) { "User ID is required for remember me token" }
                 authenticationService.saveRememberMeToken(userId, refreshToken)
             }
 
@@ -120,15 +133,26 @@ class SecurityAuthResolver(
                 authenticationService.authenticateWithOAuth(provider, idToken)
                     ?: throw IllegalArgumentException("OAuth authentication failed")
 
-            // Generate JWT access token (short-lived, stateless)
-            val token = authenticationService.generateAccessToken(user)
+            // Fetch user permissions (direct and group-inherited)
+            val userId = requireNotNull(user.id) { "User ID is required for token generation" }
+            val permissions =
+                try {
+                    authorizationService.getUserPermissions(userId).map { it.name }
+                } catch (e: Exception) {
+                    logger.warn(e) {
+                        "Failed to fetch permissions for user ${user.email}, continuing with empty permissions"
+                    }
+                    emptyList()
+                }
+
+            // Generate JWT access token (short-lived, stateless) with permissions
+            val token = authenticationService.generateAccessToken(user, permissions)
 
             // Handle remember me - generate and store refresh token
             var refreshToken: String? = null
             if (rememberMe) {
                 refreshToken = authenticationService.generateRefreshToken(user)
                 // Store refresh token in database for revocation support
-                val userId = requireNotNull(user.id) { "User ID is required for remember me token" }
                 authenticationService.saveRememberMeToken(userId, refreshToken)
             }
 
@@ -162,12 +186,24 @@ class SecurityAuthResolver(
             // Register user (validates email uniqueness and password strength)
             val user = authenticationService.registerUser(name, email, password)
 
-            // Generate JWT access token
-            val token = authenticationService.generateAccessToken(user)
+            // Fetch user permissions (direct and group-inherited)
+            // New users may have no permissions, but we still fetch in case there are default permissions
+            val userId = requireNotNull(user.id) { "User ID is required for token generation" }
+            val permissions =
+                try {
+                    authorizationService.getUserPermissions(userId).map { it.name }
+                } catch (e: Exception) {
+                    logger.warn(e) {
+                        "Failed to fetch permissions for user ${user.email}, continuing with empty permissions"
+                    }
+                    emptyList()
+                }
+
+            // Generate JWT access token with permissions
+            val token = authenticationService.generateAccessToken(user, permissions)
 
             // Generate refresh token (for automatic sign-in after signup)
             val refreshToken = authenticationService.generateRefreshToken(user)
-            val userId = requireNotNull(user.id) { "User ID is required for remember me token" }
             authenticationService.saveRememberMeToken(userId, refreshToken)
 
             logger.info { "User signed up successfully: ${user.email}" }

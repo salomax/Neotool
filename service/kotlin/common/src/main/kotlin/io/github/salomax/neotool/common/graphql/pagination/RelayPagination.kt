@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.common.graphql.pagination
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import io.micronaut.core.annotation.Introspected
 import io.micronaut.serde.annotation.Serdeable
 import java.util.Base64
@@ -56,9 +57,21 @@ data class Connection<T>(
 )
 
 /**
- * Cursor encoding/decoding utilities for UUID-based cursors.
+ * Composite cursor data class for keyset pagination with multiple sort fields.
+ * Encodes field values and id for proper cursor-based pagination.
+ */
+@Introspected
+@Serdeable
+data class CompositeCursor(
+    val fieldValues: Map<String, Any?>,
+    val id: String,
+)
+
+/**
+ * Cursor encoding/decoding utilities for UUID-based cursors and composite cursors.
  */
 object CursorEncoder {
+    private val objectMapper = ObjectMapper()
     /**
      * Encode a UUID to a base64 URL-safe cursor string.
      *
@@ -129,6 +142,92 @@ object CursorEncoder {
     @Deprecated("Use decodeCursorToUuid() or decodeCursorToInt() explicitly", ReplaceWith("decodeCursorToUuid(cursor)"))
     fun decodeCursor(cursor: String): UUID {
         return decodeCursorToUuid(cursor)
+    }
+
+    /**
+     * Encode a composite cursor (field values + UUID id) to a base64 URL-safe cursor string.
+     * Uses JSON encoding for the composite cursor structure.
+     *
+     * @param fieldValues Map of field names to their values from the ordered fields
+     * @param id The UUID id of the entity
+     * @return Base64 URL-safe encoded cursor string
+     */
+    fun encodeCompositeCursor(fieldValues: Map<String, Any?>, id: UUID): String {
+        val composite = CompositeCursor(
+            fieldValues = fieldValues,
+            id = id.toString(),
+        )
+        val json = objectMapper.writeValueAsString(composite)
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(json.toByteArray())
+    }
+
+    /**
+     * Encode a composite cursor (field values + Int id) to a base64 URL-safe cursor string.
+     * Uses JSON encoding for the composite cursor structure.
+     *
+     * @param fieldValues Map of field names to their values from the ordered fields
+     * @param id The Int id of the entity
+     * @return Base64 URL-safe encoded cursor string
+     */
+    fun encodeCompositeCursor(fieldValues: Map<String, Any?>, id: Int): String {
+        val composite = CompositeCursor(
+            fieldValues = fieldValues,
+            id = id.toString(),
+        )
+        val json = objectMapper.writeValueAsString(composite)
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(json.toByteArray())
+    }
+
+    /**
+     * Decode a base64 URL-safe cursor string to a composite cursor with UUID id.
+     *
+     * @param cursor The cursor string to decode
+     * @return Decoded CompositeCursor with UUID id
+     * @throws IllegalArgumentException if the cursor is invalid
+     */
+    fun decodeCompositeCursorToUuid(cursor: String): CompositeCursor {
+        return try {
+            val decoded = Base64.getUrlDecoder().decode(cursor)
+            val json = String(decoded)
+            // Read as Map first, then construct CompositeCursor manually to handle Any? types
+            @Suppress("UNCHECKED_CAST")
+            val map = objectMapper.readValue(json, Map::class.java) as Map<String, Any?>
+            val fieldValues = (map["fieldValues"] as? Map<*, *>)?.mapKeys { it.key.toString() }
+                ?.mapValues { it.value } as? Map<String, Any?> ?: emptyMap()
+            val id = map["id"] as? String ?: throw IllegalArgumentException("Missing id in cursor")
+            val composite = CompositeCursor(fieldValues = fieldValues, id = id)
+            // Validate that id is a valid UUID
+            UUID.fromString(composite.id)
+            composite
+        } catch (e: Exception) {
+            throw IllegalArgumentException("Invalid composite cursor format: $cursor", e)
+        }
+    }
+
+    /**
+     * Decode a base64 URL-safe cursor string to a composite cursor with Int id.
+     *
+     * @param cursor The cursor string to decode
+     * @return Decoded CompositeCursor with Int id
+     * @throws IllegalArgumentException if the cursor is invalid
+     */
+    fun decodeCompositeCursorToInt(cursor: String): CompositeCursor {
+        return try {
+            val decoded = Base64.getUrlDecoder().decode(cursor)
+            val json = String(decoded)
+            // Read as Map first, then construct CompositeCursor manually to handle Any? types
+            @Suppress("UNCHECKED_CAST")
+            val map = objectMapper.readValue(json, Map::class.java) as Map<String, Any?>
+            val fieldValues = (map["fieldValues"] as? Map<*, *>)?.mapKeys { it.key.toString() }
+                ?.mapValues { it.value } as? Map<String, Any?> ?: emptyMap()
+            val id = map["id"] as? String ?: throw IllegalArgumentException("Missing id in cursor")
+            val composite = CompositeCursor(fieldValues = fieldValues, id = id)
+            // Validate that id is a valid Int
+            composite.id.toInt()
+            composite
+        } catch (e: Exception) {
+            throw IllegalArgumentException("Invalid composite cursor format: $cursor", e)
+        }
     }
 }
 

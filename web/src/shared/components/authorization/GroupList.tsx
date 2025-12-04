@@ -49,7 +49,7 @@ export const GroupList: React.FC<GroupListProps> = ({
 
   return (
     <Paper>
-      <Table>
+      <Table id="group-list-table" stickyHeader>
         <TableHead>
           <TableRow>
             <TableCell>Name</TableCell>

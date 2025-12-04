@@ -87,6 +87,7 @@ export function useRelayPagination<T>(
   const rangeStartRef = useRef<number>(1);
   const cursorHistoryRef = useRef<{ cursor: string | null; start: number }[]>([]);
   const previousSearchQueryRef = useRef<string>(options.initialSearchQuery || "");
+  const previousAfterRef = useRef<string | null>(options.initialAfter || null);
 
   // Reset pagination tracking when search query changes externally
   useEffect(() => {
@@ -98,6 +99,21 @@ export function useRelayPagination<T>(
       setAfter(null);
     }
   }, [searchQuery, setAfter]);
+
+  // Reset pagination tracking when after cursor is reset to null externally
+  // This happens when sorting changes or other operations reset pagination
+  useEffect(() => {
+    // If after changed from non-null to null, and we have cursor history or rangeStart > 1,
+    // it means pagination was reset externally (e.g., by sorting)
+    if (previousAfterRef.current !== null && after === null) {
+      if (cursorHistoryRef.current.length > 0 || rangeStartRef.current > 1) {
+        cursorHistoryRef.current = [];
+        rangeStartRef.current = 1;
+        setRangeStart(1);
+      }
+    }
+    previousAfterRef.current = after;
+  }, [after]);
 
   // Ensure rangeStartRef stays in sync when rangeStart changes elsewhere
   useEffect(() => {
