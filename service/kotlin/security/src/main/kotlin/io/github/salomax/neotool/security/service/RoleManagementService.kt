@@ -1,8 +1,10 @@
 package io.github.salomax.neotool.security.service
 
+import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.common.graphql.pagination.Connection
 import io.github.salomax.neotool.common.graphql.pagination.ConnectionBuilder
 import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
+import io.github.salomax.neotool.common.graphql.pagination.OrderDirection
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import io.github.salomax.neotool.security.domain.RoleManagement
 import io.github.salomax.neotool.security.domain.rbac.Permission
@@ -36,22 +38,53 @@ open class RoleManagementService(
      *
      * @param query Optional search query (partial match, case-insensitive). If null or empty, returns all roles.
      * @param first Maximum number of results to return (default: 20, max: 100)
-     * @param after Cursor string for pagination (base64-encoded Int)
+     * @param after Cursor string for pagination (base64-encoded Int or composite cursor)
+     * @param orderBy Optional list of order by specifications. If null or empty, defaults to NAME ASC, ID ASC. If empty array, defaults to ID ASC.
      * @return Connection containing paginated roles with totalCount
      */
     fun searchRoles(
         query: String?,
         first: Int = PaginationConstants.DEFAULT_PAGE_SIZE,
         after: String?,
+        orderBy: List<RoleOrderBy>? = null,
     ): Connection<Role> {
         val pageSize =
             minOf(first, PaginationConstants.MAX_PAGE_SIZE)
 
-        val afterCursor =
-            try {
-                after?.let { CursorEncoder.decodeCursorToInt(it) }
-            } catch (e: Exception) {
-                throw IllegalArgumentException("Invalid cursor: $after", e)
+        // Determine effective orderBy: default to current sort if null/empty, fallback to ID ASC if empty array
+        val effectiveOrderBy =
+            when {
+                orderBy == null ->
+                    listOf(
+                        RoleOrderBy(RoleOrderField.NAME, OrderDirection.ASC),
+                        RoleOrderBy(RoleOrderField.ID, OrderDirection.ASC),
+                    )
+                orderBy.isEmpty() -> listOf(RoleOrderBy(RoleOrderField.ID, OrderDirection.ASC))
+                else -> {
+                    // Ensure ID is always last for deterministic ordering
+                    val withoutId = orderBy.filter { it.field != RoleOrderField.ID }
+                    withoutId + RoleOrderBy(RoleOrderField.ID, OrderDirection.ASC)
+                }
+            }
+
+        // Decode cursor - try composite first, fallback to Int for backward compatibility
+        val afterCompositeCursor: CompositeCursor? =
+            after?.let {
+                try {
+                    CursorEncoder.decodeCompositeCursorToInt(it)
+                } catch (e: Exception) {
+                    // Try legacy Int cursor for backward compatibility
+                    try {
+                        val intId = CursorEncoder.decodeCursorToInt(it)
+                        // Convert legacy cursor to composite cursor with id only
+                        CompositeCursor(
+                            fieldValues = emptyMap(),
+                            id = intId.toString(),
+                        )
+                    } catch (e2: Exception) {
+                        throw IllegalArgumentException("Invalid cursor: $after", e2)
+                    }
+                }
             }
 
         // Normalize query: convert empty string to null
@@ -59,7 +92,7 @@ open class RoleManagementService(
 
         // Query one extra to check for more results
         val entities =
-            roleSearchRepository.searchByName(normalizedQuery, pageSize + 1, afterCursor)
+            roleSearchRepository.searchByName(normalizedQuery, pageSize + 1, afterCompositeCursor, effectiveOrderBy)
         val hasMore = entities.size > pageSize
 
         // Always get total count (all roles if query is null, filtered roles if query is provided)
@@ -71,10 +104,31 @@ open class RoleManagementService(
                 .take(pageSize)
                 .map { it.toDomain() }
 
-        return ConnectionBuilder.buildConnectionWithInt(
+        // Build connection with composite cursor encoding
+        return ConnectionBuilder.buildConnection(
             items = roles,
             hasMore = hasMore,
-            getId = { it.id },
+            encodeCursor = { role ->
+                val id = role.id ?: throw IllegalArgumentException("Role must have a non-null ID")
+                // Build field values map from orderBy
+                val fieldValues =
+                    effectiveOrderBy
+                        .filter { it.field != RoleOrderField.ID }
+                        .associate { orderBy ->
+                            val fieldName =
+                                when (orderBy.field) {
+                                    RoleOrderField.NAME -> "name"
+                                    RoleOrderField.ID -> throw IllegalStateException("ID should not be in fieldValues")
+                                }
+                            val fieldValue =
+                                when (orderBy.field) {
+                                    RoleOrderField.NAME -> role.name
+                                    RoleOrderField.ID -> throw IllegalStateException("ID should not be in fieldValues")
+                                }
+                            fieldName to fieldValue
+                        }
+                CursorEncoder.encodeCompositeCursor(fieldValues, id)
+            },
             totalCount = totalCount,
         )
     }

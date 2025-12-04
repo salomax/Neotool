@@ -11,7 +11,7 @@
     "roles": "Role Management component will be implemented here"
   },
   "userManagement": {
-    "searchPlaceholder": "Search users by name, email, or identifier...",
+    "searchPlaceholder": "Search users by name or email...",
     "emptyList": "No users found",
     "emptySearchResults": "No users match your search criteria",
     "editUser": "Edit User",

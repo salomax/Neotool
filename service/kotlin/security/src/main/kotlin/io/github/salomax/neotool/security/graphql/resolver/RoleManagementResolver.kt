@@ -31,10 +31,12 @@ class RoleManagementResolver(
         first: Int?,
         after: String?,
         query: String?,
+        orderBy: List<Map<String, Any?>>?,
     ): RoleConnectionDTO {
         return try {
             val pageSize = first ?: 20
-            val connection = roleManagementService.searchRoles(query, pageSize, after)
+            val orderByList = mapper.toRoleOrderByList(orderBy)
+            val connection = roleManagementService.searchRoles(query, pageSize, after, orderByList)
             mapper.toRoleConnectionDTO(connection)
         } catch (e: Exception) {
             logger.error(e) { "Error listing roles" }

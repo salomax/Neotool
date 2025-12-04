@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { Box } from "@/shared/components/ui/layout";
 import { Alert } from "@mui/material";
 import { useUserManagement, type User } from "@/shared/hooks/authorization/useUserManagement";
-import { useDynamicPageSize } from "@/shared/hooks/ui";
 import { UserSearch } from "./UserSearch";
 import { UserList } from "./UserList";
 import { UserDrawer } from "./UserDrawer";
@@ -28,7 +27,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   const toast = useToast();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
-  const tableContainerRef = useRef<HTMLDivElement>(null);
 
   const {
     users,
@@ -48,28 +46,21 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     error,
     refetch,
     setFirst,
+    orderBy,
+    handleSort,
   } = useUserManagement({
     initialSearchQuery,
-    initialFirst: 10, // Default initial value, will be updated by dynamicPageSize
+    initialFirst: 10, // Default initial value, will be updated by DynamicTableBox
   });
 
-  // Calculate dynamic page size based on container height and actual table measurements
-  const dynamicPageSize = useDynamicPageSize(tableContainerRef, {
-    minRows: 5,
-    maxRows: 50,
-    rowHeight: 53, // Fallback row height when rows are unavailable
-    reservedHeight: 0,
-    autoDetectHeaderHeight: true,
-    autoDetectRowHeight: true,
-    recalculationKey: `${users.length}-${loading ? "loading" : "ready"}`,
-  });
-
-  // Update page size when container size changes
-  useEffect(() => {
-    if (dynamicPageSize > 0) {
-      setFirst(dynamicPageSize);
-    }
-  }, [dynamicPageSize, setFirst]);
+  const handleTableResize = useCallback(
+    (pageSize: number) => {
+      if (pageSize > 0) {
+        setFirst(pageSize);
+      }
+    },
+    [setFirst]
+  );
 
   const handleEdit = useCallback((user: User) => {
     setEditingUser(user);
@@ -105,7 +96,24 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     [enableUser, disableUser, toast, t]
   );
 
-  const handleSearchChange = useCallback(
+  // Local state for input value (immediate updates)
+  const [inputValue, setInputValue] = useState(searchQuery);
+
+  // Sync input value when searchQuery changes externally
+  useEffect(() => {
+    setInputValue(searchQuery);
+  }, [searchQuery]);
+
+  // Immediate input update (for display)
+  const handleInputChange = useCallback(
+    (value: string) => {
+      setInputValue(value);
+    },
+    []
+  );
+
+  // Debounced search update (triggers actual search)
+  const handleSearch = useCallback(
     (value: string) => {
       setSearchQuery(value);
       // Reset to first page when search changes
@@ -125,9 +133,11 @@ export const UserManagement: React.FC<UserManagementProps> = ({
 
       {/* Search */}
       <UserSearch
-        value={searchQuery}
-        onChange={handleSearchChange}
+        value={inputValue}
+        onChange={handleInputChange}
+        onSearch={handleSearch}
         placeholder={t("userManagement.searchPlaceholder")}
+        maxWidth="sm"
       />
 
       {/* User List */}
@@ -138,7 +148,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({
           onEdit={handleEdit}
           onToggleStatus={handleToggleStatus}
           toggleLoading={enableLoading || disableLoading}
-          tableContainerRef={tableContainerRef}
           emptyMessage={
             searchQuery
               ? t("userManagement.emptySearchResults")
@@ -150,6 +159,10 @@ export const UserManagement: React.FC<UserManagementProps> = ({
           onLoadPrevious={loadPreviousPage}
           onGoToFirst={goToFirstPage}
           canLoadPreviousPage={canLoadPreviousPage}
+          onTableResize={handleTableResize}
+          recalculationKey={`${users.length}-${loading ? "loading" : "ready"}`}
+          orderBy={orderBy}
+          onSortChange={handleSort}
         />
       </Box>
 

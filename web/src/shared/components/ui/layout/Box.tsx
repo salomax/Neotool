@@ -35,7 +35,7 @@ export interface BoxProps extends Omit<MuiBoxProps, 'sx'> {
  * 
  * @example
  * ```tsx
- * <Container fullSize>
+ * <Container fullHeight>
  *   <Typography>Title</Typography>
  *   <Box autoFill>
  *     Content that fills remaining space

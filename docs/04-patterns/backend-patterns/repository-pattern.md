@@ -4,9 +4,9 @@ type: pattern
 category: backend
 status: current
 version: 1.0.0
-tags: [repository, micronaut-data, jpa, data-access, pattern]
+tags: [repository, micronaut-data, jpa, data-access, pattern, query-builder]
 ai_optimized: true
-search_keywords: [repository, @Repository, JpaRepository, Micronaut Data, interface]
+search_keywords: [repository, @Repository, JpaRepository, Micronaut Data, Micronaut Query Builder, EntityManager, Criteria API, interface]
 related:
   - 04-patterns/backend-patterns/entity-pattern.md
   - 04-patterns/backend-patterns/service-pattern.md
@@ -253,7 +253,7 @@ When creating a custom repository implementation, verify:
 - [ ] Custom interface does NOT have `@Repository` annotation
 - [ ] Implementation class (`{EntityName}RepositoryImpl`) is annotated with `@Singleton`
 - [ ] Implementation class implements the custom interface
-- [ ] Implementation uses `EntityManager` and JPA Criteria API
+- [ ] **Implementation uses Micronaut Query Builder (EntityManager with JPA Criteria API) as the standard approach**
 - [ ] **All read-only query methods are annotated with `@ReadOnly`**
 - [ ] Common predicate logic extracted into private helper methods
 - [ ] Service layer injects both repositories when needed
@@ -323,17 +323,66 @@ interface ProductRepository : JpaRepository<ProductEntity, UUID> {
 Use a **separate custom interface** when you need:
 - Complex queries that Micronaut Data cannot auto-generate
 - Dynamic queries with conditional logic
-- Queries using JPA Criteria API
 - Queries that don't follow Micronaut Data naming conventions
 - Cursor-based pagination with complex ordering
 
 **IMPORTANT**: Never add methods to the main repository interface that Micronaut Data cannot auto-generate. This will cause KSP compilation errors.
 
+### Standard Implementation Approach: Micronaut Query Builder
+
+**STANDARD**: When the default auto-generated repository methods do not meet requirements, custom repository implementations MUST use **Micronaut Query Builder** as the standard approach. This is implemented using `EntityManager` with JPA Criteria API, which provides type-safe, dynamic query building capabilities.
+
+The Micronaut Query Builder pattern:
+- Uses `EntityManager` injected via constructor
+- Builds queries using JPA Criteria API (`CriteriaBuilder`, `CriteriaQuery`, `Root`, `Predicate`)
+- Provides type-safe query construction
+- Supports dynamic query building with conditional logic
+- Enables complex filtering, sorting, and pagination
+
+#### Implementation Structure
+
+```kotlin
+@Singleton
+class {EntityName}RepositoryImpl(
+    private val entityManager: EntityManager,  // Injected EntityManager
+) : {EntityName}RepositoryCustom {
+
+    @ReadOnly
+    override fun customQuery(...): List<{EntityName}Entity> {
+        // 1. Get CriteriaBuilder from EntityManager
+        val criteriaBuilder = entityManager.criteriaBuilder
+        
+        // 2. Create CriteriaQuery for the entity type
+        val criteriaQuery = criteriaBuilder.createQuery({EntityName}Entity::class.java)
+        
+        // 3. Get Root entity reference
+        val root = criteriaQuery.from({EntityName}Entity::class.java)
+        
+        // 4. Build predicates dynamically
+        val predicates = mutableListOf<Predicate>()
+        // ... add predicates based on conditions
+        
+        // 5. Apply WHERE clause
+        if (predicates.isNotEmpty()) {
+            criteriaQuery.where(*predicates.toTypedArray())
+        }
+        
+        // 6. Apply ordering
+        criteriaQuery.orderBy(...)
+        
+        // 7. Execute query
+        val typedQuery = entityManager.createQuery(criteriaQuery)
+        typedQuery.maxResults = limit
+        return typedQuery.resultList
+    }
+}
+```
+
 ### Pattern Structure
 
 1. **Main Repository Interface** - Only contains methods Micronaut Data can auto-generate
 2. **Custom Repository Interface** - Contains methods requiring custom implementation
-3. **Custom Implementation Class** - Implements the custom interface using JPA Criteria API or native queries
+3. **Custom Implementation Class** - Implements the custom interface using **Micronaut Query Builder** (EntityManager + JPA Criteria API)
 4. **Service Layer** - Injects both repositories
 
 ### Example: Custom Search Implementation
@@ -407,7 +456,10 @@ import java.util.UUID
 
 /**
  * Custom repository bean that exposes complex search/count queries.
- * Uses JPA Criteria API for building dynamic filters.
+ * Uses Micronaut Query Builder (EntityManager with JPA Criteria API) for building dynamic filters.
+ * 
+ * This is the standard implementation approach for custom repository queries when
+ * auto-generated methods do not meet requirements.
  */
 @Singleton
 class UserRepositoryImpl(
@@ -570,14 +622,15 @@ override fun saveUser(...): UserEntity {
 1. ✅ **DO**: Keep auto-generatable methods in the main repository interface
 2. ✅ **DO**: Put custom methods in a separate `{EntityName}RepositoryCustom` interface
 3. ✅ **DO**: Implement the custom interface in a `@Singleton` class
-4. ✅ **DO**: Add `@ReadOnly` annotation to all read-only query methods (searches, counts, finds)
-5. ✅ **DO**: Import `io.micronaut.transaction.annotation.ReadOnly` in implementation classes
-6. ✅ **DO**: Inject both repositories in services that need both
-7. ❌ **DON'T**: Add non-standard method names to the main repository interface
-8. ❌ **DON'T**: Use `@Query` annotation on methods in custom interfaces (not needed)
-9. ❌ **DON'T**: Extend `JpaRepository` in the custom interface
-10. ❌ **DON'T**: Forget `@ReadOnly` on read-only queries (performance optimization)
-11. ❌ **DON'T**: Use `@ReadOnly` on write operations (save, delete, update)
+4. ✅ **DO**: Use **Micronaut Query Builder** (EntityManager + JPA Criteria API) as the standard implementation approach
+5. ✅ **DO**: Add `@ReadOnly` annotation to all read-only query methods (searches, counts, finds)
+6. ✅ **DO**: Import `io.micronaut.transaction.annotation.ReadOnly` in implementation classes
+7. ✅ **DO**: Inject both repositories in services that need both
+8. ❌ **DON'T**: Add non-standard method names to the main repository interface
+9. ❌ **DON'T**: Use `@Query` annotation on methods in custom interfaces (not needed)
+10. ❌ **DON'T**: Extend `JpaRepository` in the custom interface
+11. ❌ **DON'T**: Forget `@ReadOnly` on read-only queries (performance optimization)
+12. ❌ **DON'T**: Use `@ReadOnly` on write operations (save, delete, update)
 
 ### Common Errors
 

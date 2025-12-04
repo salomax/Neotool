@@ -86,7 +86,7 @@ This specification is organized into numbered directories (00-11) for clear hier
 | Component Pattern | `04-patterns/frontend-patterns/component-pattern.md` | pattern | frontend | component, react, ui |
 | Page Pattern | `04-patterns/frontend-patterns/page-pattern.md` | pattern | frontend | page, route, nextjs |
 | Hook Pattern | `04-patterns/frontend-patterns/hook-pattern.md` | pattern | frontend | hooks, react, custom-hooks |
-| GraphQL Pattern | `04-patterns/frontend-patterns/graphql-pattern.md` | pattern | frontend | graphql, operations, apollo |
+| GraphQL Mutation Pattern | `04-patterns/frontend-patterns/graphql-mutation-pattern.md` | pattern | frontend | graphql, mutation, apollo, cache, refetch, list, table |
 | Styling Pattern | `04-patterns/frontend-patterns/styling-pattern.md` | pattern | frontend | styling, themes, design-tokens |
 | Toast Notification Pattern | `04-patterns/frontend-patterns/toast-notification-pattern.md` | pattern | frontend | toast, notification, feedback, user-experience |
 

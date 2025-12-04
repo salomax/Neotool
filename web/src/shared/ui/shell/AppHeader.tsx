@@ -90,7 +90,7 @@ export function AppHeader() {
         backdropFilter: "blur(6px)",
       }}
     >
-      <Container maxWidth="xl" sx={{ py: 1.5 }}>
+      <Container maxWidth={false} sx={{ py: 1.5 }}>
         <Box
           sx={{
             display: "flex",

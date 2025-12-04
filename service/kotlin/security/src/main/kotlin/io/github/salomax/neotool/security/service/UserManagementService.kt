@@ -1,8 +1,10 @@
 package io.github.salomax.neotool.security.service
 
+import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.common.graphql.pagination.Connection
 import io.github.salomax.neotool.common.graphql.pagination.ConnectionBuilder
 import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
+import io.github.salomax.neotool.common.graphql.pagination.OrderDirection
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import io.github.salomax.neotool.security.domain.UserManagement
 import io.github.salomax.neotool.security.domain.rbac.GroupMembership
@@ -44,22 +46,53 @@ open class UserManagementService(
      *
      * @param query Optional search query (partial match, case-insensitive). If null or empty, returns all users.
      * @param first Maximum number of results to return (default: 20, max: 100)
-     * @param after Cursor string for pagination (base64-encoded UUID)
+     * @param after Cursor string for pagination (base64-encoded UUID or composite cursor)
+     * @param orderBy Optional list of order by specifications. If null or empty, defaults to DISPLAY_NAME ASC, ID ASC. If empty array, defaults to ID ASC.
      * @return Connection containing paginated users with totalCount
      */
     fun searchUsers(
         query: String?,
         first: Int = PaginationConstants.DEFAULT_PAGE_SIZE,
         after: String?,
+        orderBy: List<UserOrderBy>? = null,
     ): Connection<User> {
         val pageSize =
             minOf(first, PaginationConstants.MAX_PAGE_SIZE)
 
-        val afterCursor =
-            try {
-                after?.let { CursorEncoder.decodeCursorToUuid(it) }
-            } catch (e: Exception) {
-                throw IllegalArgumentException("Invalid cursor: $after", e)
+        // Determine effective orderBy: default to current sort if null/empty, fallback to ID ASC if empty array
+        val effectiveOrderBy =
+            when {
+                orderBy == null ->
+                    listOf(
+                        UserOrderBy(UserOrderField.DISPLAY_NAME, OrderDirection.ASC),
+                        UserOrderBy(UserOrderField.ID, OrderDirection.ASC),
+                    )
+                orderBy.isEmpty() -> listOf(UserOrderBy(UserOrderField.ID, OrderDirection.ASC))
+                else -> {
+                    // Ensure ID is always last for deterministic ordering
+                    val withoutId = orderBy.filter { it.field != UserOrderField.ID }
+                    withoutId + UserOrderBy(UserOrderField.ID, OrderDirection.ASC)
+                }
+            }
+
+        // Decode cursor - try composite first, fallback to UUID for backward compatibility
+        val afterCompositeCursor: CompositeCursor? =
+            after?.let {
+                try {
+                    CursorEncoder.decodeCompositeCursorToUuid(it)
+                } catch (e: Exception) {
+                    // Try legacy UUID cursor for backward compatibility
+                    try {
+                        val uuid = CursorEncoder.decodeCursorToUuid(it)
+                        // Convert legacy cursor to composite cursor with id only
+                        CompositeCursor(
+                            fieldValues = emptyMap(),
+                            id = uuid.toString(),
+                        )
+                    } catch (e2: Exception) {
+                        throw IllegalArgumentException("Invalid cursor: $after", e2)
+                    }
+                }
             }
 
         // Normalize query: convert empty string to null
@@ -67,7 +100,12 @@ open class UserManagementService(
 
         // Query one extra to check for more results
         val entities =
-            userSearchRepository.searchByNameOrEmail(normalizedQuery, pageSize + 1, afterCursor)
+            userSearchRepository.searchByNameOrEmail(
+                normalizedQuery,
+                pageSize + 1,
+                afterCompositeCursor,
+                effectiveOrderBy,
+            )
         val hasMore = entities.size > pageSize
 
         // Always get total count (all users if query is null, filtered users if query is provided)
@@ -79,10 +117,46 @@ open class UserManagementService(
                 .take(pageSize)
                 .map { it.toDomain() }
 
-        return ConnectionBuilder.buildConnectionWithUuid(
+        // Build connection with composite cursor encoding
+        return ConnectionBuilder.buildConnection(
             items = users,
             hasMore = hasMore,
-            getId = { it.id },
+            encodeCursor = { user ->
+                val id = user.id ?: throw IllegalArgumentException("User must have a non-null ID")
+                // Build field values map from orderBy, skipping null values
+                val fieldValues =
+                    effectiveOrderBy
+                        .filter { it.field != UserOrderField.ID }
+                        .mapNotNull { orderBy ->
+                            val fieldName =
+                                when (orderBy.field) {
+                                    UserOrderField.DISPLAY_NAME -> "displayName"
+                                    UserOrderField.EMAIL -> "email"
+                                    UserOrderField.ENABLED -> "enabled"
+                                    UserOrderField.ID -> throw IllegalStateException("ID should not be in fieldValues")
+                                }
+                            val fieldValue: Any? =
+                                when (orderBy.field) {
+                                    UserOrderField.DISPLAY_NAME -> {
+                                        // For DISPLAY_NAME, use COALESCE logic: displayName if not null, else email
+                                        // This matches the sorting logic in SortingHelpers.buildUserOrderBy
+                                        user.displayName ?: user.email
+                                    }
+                                    UserOrderField.EMAIL -> user.email
+                                    UserOrderField.ENABLED -> user.enabled
+                                    UserOrderField.ID -> throw IllegalStateException("ID should not be in fieldValues")
+                                }
+                            // Only include non-null field values in cursor
+                            // Note: Boolean values (ENABLED) are never null, so they're always included
+                            when {
+                                fieldValue is Boolean -> fieldName to fieldValue
+                                fieldValue != null -> fieldName to fieldValue
+                                else -> null
+                            }
+                        }
+                        .toMap()
+                CursorEncoder.encodeCompositeCursor(fieldValues, id)
+            },
             totalCount = totalCount,
         )
     }

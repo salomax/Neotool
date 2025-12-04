@@ -1,6 +1,8 @@
 package io.github.salomax.neotool.security.test.service.unit
 
+import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
+import io.github.salomax.neotool.common.graphql.pagination.OrderDirection
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import io.github.salomax.neotool.security.repo.GroupMembershipRepository
 import io.github.salomax.neotool.security.repo.GroupRepository
@@ -9,6 +11,8 @@ import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.repo.UserRepositoryCustom
 import io.github.salomax.neotool.security.service.UserManagementService
+import io.github.salomax.neotool.security.service.UserOrderBy
+import io.github.salomax.neotool.security.service.UserOrderField
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -71,7 +75,19 @@ class UserManagementServiceTest {
                     email = "user2@example.com",
                     displayName = "User Two",
                 )
-            whenever(userSearchRepository.searchByNameOrEmail(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
+            val defaultOrderBy =
+                listOf(
+                    UserOrderBy(UserOrderField.DISPLAY_NAME, OrderDirection.ASC),
+                    UserOrderBy(UserOrderField.ID, OrderDirection.ASC),
+                )
+            whenever(
+                userSearchRepository.searchByNameOrEmail(
+                    null,
+                    PaginationConstants.DEFAULT_PAGE_SIZE + 1,
+                    null,
+                    defaultOrderBy,
+                ),
+            )
                 .thenReturn(listOf(user1, user2))
             whenever(userSearchRepository.countByNameOrEmail(null))
                 .thenReturn(2L)
@@ -83,7 +99,14 @@ class UserManagementServiceTest {
             assertThat(result).isNotNull()
             assertThat(result.nodes).hasSize(2)
             assertThat(result.pageInfo.hasNextPage).isFalse()
-            verify(userSearchRepository).searchByNameOrEmail(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null)
+            verify(
+                userSearchRepository,
+            ).searchByNameOrEmail(
+                null,
+                PaginationConstants.DEFAULT_PAGE_SIZE + 1,
+                null,
+                defaultOrderBy,
+            )
         }
 
         @Test
@@ -91,7 +114,12 @@ class UserManagementServiceTest {
             // Arrange
             val first = 10
             val user1 = SecurityTestDataBuilders.user(id = UUID.randomUUID(), email = "user1@example.com")
-            whenever(userSearchRepository.searchByNameOrEmail(null, first + 1, null))
+            val defaultOrderBy =
+                listOf(
+                    UserOrderBy(UserOrderField.DISPLAY_NAME, OrderDirection.ASC),
+                    UserOrderBy(UserOrderField.ID, OrderDirection.ASC),
+                )
+            whenever(userSearchRepository.searchByNameOrEmail(null, first + 1, null, defaultOrderBy))
                 .thenReturn(listOf(user1))
             whenever(userSearchRepository.countByNameOrEmail(null))
                 .thenReturn(1L)
@@ -102,14 +130,26 @@ class UserManagementServiceTest {
             // Assert
             assertThat(result).isNotNull()
             assertThat(result.nodes).hasSize(1)
-            verify(userSearchRepository).searchByNameOrEmail(null, first + 1, null)
+            verify(userSearchRepository).searchByNameOrEmail(null, first + 1, null, defaultOrderBy)
         }
 
         @Test
         fun `should enforce max page size`() {
             // Arrange
             val first = 200 // Exceeds MAX_PAGE_SIZE
-            whenever(userSearchRepository.searchByNameOrEmail(null, PaginationConstants.MAX_PAGE_SIZE + 1, null))
+            val defaultOrderBy =
+                listOf(
+                    UserOrderBy(UserOrderField.DISPLAY_NAME, OrderDirection.ASC),
+                    UserOrderBy(UserOrderField.ID, OrderDirection.ASC),
+                )
+            whenever(
+                userSearchRepository.searchByNameOrEmail(
+                    null,
+                    PaginationConstants.MAX_PAGE_SIZE + 1,
+                    null,
+                    defaultOrderBy,
+                ),
+            )
                 .thenReturn(emptyList())
             whenever(userSearchRepository.countByNameOrEmail(null))
                 .thenReturn(0L)
@@ -119,16 +159,32 @@ class UserManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            verify(userSearchRepository).searchByNameOrEmail(null, PaginationConstants.MAX_PAGE_SIZE + 1, null)
+            verify(
+                userSearchRepository,
+            ).searchByNameOrEmail(null, PaginationConstants.MAX_PAGE_SIZE + 1, null, defaultOrderBy)
         }
 
         @Test
-        fun `should list users with cursor pagination`() {
+        fun `should list users with cursor pagination using legacy UUID cursor`() {
             // Arrange
             val afterId = UUID.randomUUID()
-            val afterCursor = CursorEncoder.encodeCursor(afterId as UUID)
+            val afterCursor = CursorEncoder.encodeCursor(afterId)
             val user1 = SecurityTestDataBuilders.user(id = UUID.randomUUID(), email = "user1@example.com")
-            whenever(userSearchRepository.searchByNameOrEmail(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, afterId))
+            val defaultOrderBy =
+                listOf(
+                    UserOrderBy(UserOrderField.DISPLAY_NAME, OrderDirection.ASC),
+                    UserOrderBy(UserOrderField.ID, OrderDirection.ASC),
+                )
+            // Service converts legacy cursor to composite cursor with empty fieldValues
+            val compositeCursor = CompositeCursor(emptyMap(), afterId.toString())
+            whenever(
+                userSearchRepository.searchByNameOrEmail(
+                    null,
+                    PaginationConstants.DEFAULT_PAGE_SIZE + 1,
+                    compositeCursor,
+                    defaultOrderBy,
+                ),
+            )
                 .thenReturn(listOf(user1))
             whenever(userSearchRepository.countByNameOrEmail(null))
                 .thenReturn(1L)
@@ -139,7 +195,9 @@ class UserManagementServiceTest {
             // Assert
             assertThat(result).isNotNull()
             assertThat(result.nodes).hasSize(1)
-            verify(userSearchRepository).searchByNameOrEmail(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, afterId)
+            verify(
+                userSearchRepository,
+            ).searchByNameOrEmail(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, compositeCursor, defaultOrderBy)
         }
 
         @Test
@@ -152,7 +210,19 @@ class UserManagementServiceTest {
                         email = "user$it@example.com",
                     )
                 }
-            whenever(userSearchRepository.searchByNameOrEmail(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
+            val defaultOrderBy =
+                listOf(
+                    UserOrderBy(UserOrderField.DISPLAY_NAME, OrderDirection.ASC),
+                    UserOrderBy(UserOrderField.ID, OrderDirection.ASC),
+                )
+            whenever(
+                userSearchRepository.searchByNameOrEmail(
+                    null,
+                    PaginationConstants.DEFAULT_PAGE_SIZE + 1,
+                    null,
+                    defaultOrderBy,
+                ),
+            )
                 .thenReturn(users)
             whenever(userSearchRepository.countByNameOrEmail(null))
                 .thenReturn(21L)
@@ -169,7 +239,19 @@ class UserManagementServiceTest {
         @Test
         fun `should return empty connection when no users exist`() {
             // Arrange
-            whenever(userSearchRepository.searchByNameOrEmail(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
+            val defaultOrderBy =
+                listOf(
+                    UserOrderBy(UserOrderField.DISPLAY_NAME, OrderDirection.ASC),
+                    UserOrderBy(UserOrderField.ID, OrderDirection.ASC),
+                )
+            whenever(
+                userSearchRepository.searchByNameOrEmail(
+                    null,
+                    PaginationConstants.DEFAULT_PAGE_SIZE + 1,
+                    null,
+                    defaultOrderBy,
+                ),
+            )
                 .thenReturn(emptyList())
             whenever(userSearchRepository.countByNameOrEmail(null))
                 .thenReturn(0L)
@@ -193,7 +275,406 @@ class UserManagementServiceTest {
             assertThrows<IllegalArgumentException> {
                 userManagementService.searchUsers(query = null, after = invalidCursor)
             }
-            verify(userSearchRepository, never()).searchByNameOrEmail(any(), any(), any())
+            verify(userSearchRepository, never()).searchByNameOrEmail(any(), any(), any(), any())
+        }
+    }
+
+    @Nested
+    @DisplayName("Sorting with orderBy")
+    inner class SortingTests {
+        @Test
+        fun `should use default sort when orderBy is null`() {
+            // Arrange
+            val user1 =
+                SecurityTestDataBuilders.user(
+                    id = UUID.randomUUID(),
+                    email = "user1@example.com",
+                    displayName = "Alice",
+                )
+            val user2 =
+                SecurityTestDataBuilders.user(
+                    id = UUID.randomUUID(),
+                    email = "user2@example.com",
+                    displayName = "Bob",
+                )
+            val defaultOrderBy =
+                listOf(
+                    UserOrderBy(UserOrderField.DISPLAY_NAME, OrderDirection.ASC),
+                    UserOrderBy(UserOrderField.ID, OrderDirection.ASC),
+                )
+            whenever(
+                userSearchRepository.searchByNameOrEmail(
+                    null,
+                    PaginationConstants.DEFAULT_PAGE_SIZE + 1,
+                    null,
+                    defaultOrderBy,
+                ),
+            )
+                .thenReturn(listOf(user1, user2))
+            whenever(userSearchRepository.countByNameOrEmail(null))
+                .thenReturn(2L)
+
+            // Act
+            val result = userManagementService.searchUsers(query = null, after = null, orderBy = null)
+
+            // Assert
+            assertThat(result).isNotNull()
+            assertThat(result.nodes).hasSize(2)
+            verify(
+                userSearchRepository,
+            ).searchByNameOrEmail(
+                null,
+                PaginationConstants.DEFAULT_PAGE_SIZE + 1,
+                null,
+                defaultOrderBy,
+            )
+        }
+
+        @Test
+        fun `should fallback to ID ASC when orderBy is empty array`() {
+            // Arrange
+            val user1 = SecurityTestDataBuilders.user(id = UUID.randomUUID(), email = "user1@example.com")
+            val idOnlyOrderBy = listOf(UserOrderBy(UserOrderField.ID, OrderDirection.ASC))
+            whenever(
+                userSearchRepository.searchByNameOrEmail(
+                    null,
+                    PaginationConstants.DEFAULT_PAGE_SIZE + 1,
+                    null,
+                    idOnlyOrderBy,
+                ),
+            )
+                .thenReturn(listOf(user1))
+            whenever(userSearchRepository.countByNameOrEmail(null))
+                .thenReturn(1L)
+
+            // Act
+            val result =
+                userManagementService.searchUsers(
+                    query = null,
+                    after = null,
+                    orderBy = emptyList(),
+                )
+
+            // Assert
+            assertThat(result).isNotNull()
+            assertThat(result.nodes).hasSize(1)
+            verify(
+                userSearchRepository,
+            ).searchByNameOrEmail(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null, idOnlyOrderBy)
+        }
+
+        @Test
+        fun `should sort by EMAIL ASC when specified`() {
+            // Arrange
+            val user1 =
+                SecurityTestDataBuilders.user(
+                    id = UUID.randomUUID(),
+                    email = "alice@example.com",
+                    displayName = "Alice",
+                )
+            val user2 =
+                SecurityTestDataBuilders.user(
+                    id = UUID.randomUUID(),
+                    email = "bob@example.com",
+                    displayName = "Bob",
+                )
+            val orderBy =
+                listOf(
+                    UserOrderBy(UserOrderField.EMAIL, OrderDirection.ASC),
+                    UserOrderBy(UserOrderField.ID, OrderDirection.ASC),
+                )
+            whenever(
+                userSearchRepository.searchByNameOrEmail(
+                    null,
+                    PaginationConstants.DEFAULT_PAGE_SIZE + 1,
+                    null,
+                    orderBy,
+                ),
+            )
+                .thenReturn(listOf(user1, user2))
+            whenever(userSearchRepository.countByNameOrEmail(null))
+                .thenReturn(2L)
+
+            // Act
+            val result =
+                userManagementService.searchUsers(
+                    query = null,
+                    after = null,
+                    orderBy = listOf(UserOrderBy(UserOrderField.EMAIL, OrderDirection.ASC)),
+                )
+
+            // Assert
+            assertThat(result).isNotNull()
+            assertThat(result.nodes).hasSize(2)
+            verify(
+                userSearchRepository,
+            ).searchByNameOrEmail(
+                null,
+                PaginationConstants.DEFAULT_PAGE_SIZE + 1,
+                null,
+                orderBy,
+            )
+        }
+
+        @Test
+        fun `should sort by EMAIL DESC when specified`() {
+            // Arrange
+            val user1 =
+                SecurityTestDataBuilders.user(
+                    id = UUID.randomUUID(),
+                    email = "bob@example.com",
+                    displayName = "Bob",
+                )
+            val user2 =
+                SecurityTestDataBuilders.user(
+                    id = UUID.randomUUID(),
+                    email = "alice@example.com",
+                    displayName = "Alice",
+                )
+            val orderBy =
+                listOf(
+                    UserOrderBy(UserOrderField.EMAIL, OrderDirection.DESC),
+                    UserOrderBy(UserOrderField.ID, OrderDirection.ASC),
+                )
+            whenever(
+                userSearchRepository.searchByNameOrEmail(
+                    null,
+                    PaginationConstants.DEFAULT_PAGE_SIZE + 1,
+                    null,
+                    orderBy,
+                ),
+            )
+                .thenReturn(listOf(user1, user2))
+            whenever(userSearchRepository.countByNameOrEmail(null))
+                .thenReturn(2L)
+
+            // Act
+            val result =
+                userManagementService.searchUsers(
+                    query = null,
+                    after = null,
+                    orderBy = listOf(UserOrderBy(UserOrderField.EMAIL, OrderDirection.DESC)),
+                )
+
+            // Assert
+            assertThat(result).isNotNull()
+            assertThat(result.nodes).hasSize(2)
+            verify(
+                userSearchRepository,
+            ).searchByNameOrEmail(
+                null,
+                PaginationConstants.DEFAULT_PAGE_SIZE + 1,
+                null,
+                orderBy,
+            )
+        }
+
+        @Test
+        fun `should sort by ENABLED then DISPLAY_NAME when multiple fields specified`() {
+            // Arrange
+            val user1 =
+                SecurityTestDataBuilders.user(
+                    id = UUID.randomUUID(),
+                    email = "user1@example.com",
+                    displayName = "Alice",
+                )
+            user1.enabled = true
+            val user2 =
+                SecurityTestDataBuilders.user(
+                    id = UUID.randomUUID(),
+                    email = "user2@example.com",
+                    displayName = "Bob",
+                )
+            user2.enabled = false
+            val orderBy =
+                listOf(
+                    UserOrderBy(UserOrderField.ENABLED, OrderDirection.DESC),
+                    UserOrderBy(UserOrderField.DISPLAY_NAME, OrderDirection.ASC),
+                    UserOrderBy(UserOrderField.ID, OrderDirection.ASC),
+                )
+            whenever(
+                userSearchRepository.searchByNameOrEmail(
+                    null,
+                    PaginationConstants.DEFAULT_PAGE_SIZE + 1,
+                    null,
+                    orderBy,
+                ),
+            )
+                .thenReturn(listOf(user1, user2))
+            whenever(userSearchRepository.countByNameOrEmail(null))
+                .thenReturn(2L)
+
+            // Act
+            val result =
+                userManagementService.searchUsers(
+                    query = null,
+                    after = null,
+                    orderBy =
+                        listOf(
+                            UserOrderBy(UserOrderField.ENABLED, OrderDirection.DESC),
+                            UserOrderBy(UserOrderField.DISPLAY_NAME, OrderDirection.ASC),
+                        ),
+                )
+
+            // Assert
+            assertThat(result).isNotNull()
+            assertThat(result.nodes).hasSize(2)
+            verify(
+                userSearchRepository,
+            ).searchByNameOrEmail(
+                null,
+                PaginationConstants.DEFAULT_PAGE_SIZE + 1,
+                null,
+                orderBy,
+            )
+        }
+
+        @Test
+        fun `should use composite cursor for pagination with orderBy`() {
+            // Arrange
+            val userId = UUID.randomUUID()
+            val fieldValues = mapOf("displayName" to "Alice", "email" to "alice@example.com")
+            val compositeCursor = CompositeCursor(fieldValues, userId.toString())
+            val cursor = CursorEncoder.encodeCompositeCursor(fieldValues, userId)
+            val user1 =
+                SecurityTestDataBuilders.user(
+                    id = UUID.randomUUID(),
+                    email = "bob@example.com",
+                    displayName = "Bob",
+                )
+            val orderBy =
+                listOf(
+                    UserOrderBy(UserOrderField.DISPLAY_NAME, OrderDirection.ASC),
+                    UserOrderBy(UserOrderField.ID, OrderDirection.ASC),
+                )
+            whenever(
+                userSearchRepository.searchByNameOrEmail(
+                    null,
+                    PaginationConstants.DEFAULT_PAGE_SIZE + 1,
+                    compositeCursor,
+                    orderBy,
+                ),
+            )
+                .thenReturn(listOf(user1))
+            whenever(userSearchRepository.countByNameOrEmail(null))
+                .thenReturn(1L)
+
+            // Act
+            val result =
+                userManagementService.searchUsers(
+                    query = null,
+                    after = cursor,
+                    orderBy =
+                        listOf(
+                            UserOrderBy(UserOrderField.DISPLAY_NAME, OrderDirection.ASC),
+                        ),
+                )
+
+            // Assert
+            assertThat(result).isNotNull()
+            assertThat(result.nodes).hasSize(1)
+            verify(
+                userSearchRepository,
+            ).searchByNameOrEmail(
+                null,
+                PaginationConstants.DEFAULT_PAGE_SIZE + 1,
+                compositeCursor,
+                orderBy,
+            )
+        }
+
+        @Test
+        fun `should encode composite cursor with field values in result`() {
+            // Arrange
+            val user1 =
+                SecurityTestDataBuilders.user(
+                    id = UUID.randomUUID(),
+                    email = "alice@example.com",
+                    displayName = "Alice",
+                )
+            user1.enabled = true
+            val orderBy =
+                listOf(
+                    UserOrderBy(UserOrderField.EMAIL, OrderDirection.ASC),
+                    UserOrderBy(UserOrderField.ID, OrderDirection.ASC),
+                )
+            whenever(
+                userSearchRepository.searchByNameOrEmail(
+                    null,
+                    PaginationConstants.DEFAULT_PAGE_SIZE + 1,
+                    null,
+                    orderBy,
+                ),
+            )
+                .thenReturn(listOf(user1))
+            whenever(userSearchRepository.countByNameOrEmail(null))
+                .thenReturn(1L)
+
+            // Act
+            val result =
+                userManagementService.searchUsers(
+                    query = null,
+                    after = null,
+                    orderBy = listOf(UserOrderBy(UserOrderField.EMAIL, OrderDirection.ASC)),
+                )
+
+            // Assert
+            assertThat(result).isNotNull()
+            assertThat(result.edges).hasSize(1)
+            val cursor = result.edges.first().cursor
+            assertThat(cursor).isNotNull()
+            // Verify cursor can be decoded
+            val decoded = CursorEncoder.decodeCompositeCursorToUuid(cursor)
+            assertThat(decoded.id).isEqualTo(user1.id.toString())
+            assertThat(decoded.fieldValues).containsKey("email")
+        }
+
+        @Test
+        fun `should remove ID from orderBy and always append it as final sort`() {
+            // Arrange
+            val user1 = SecurityTestDataBuilders.user(id = UUID.randomUUID(), email = "user1@example.com")
+            // Even if ID is in orderBy, it should be moved to the end
+            val orderBy =
+                listOf(
+                    UserOrderBy(UserOrderField.EMAIL, OrderDirection.ASC),
+                    UserOrderBy(UserOrderField.ID, OrderDirection.ASC),
+                )
+            whenever(
+                userSearchRepository.searchByNameOrEmail(
+                    null,
+                    PaginationConstants.DEFAULT_PAGE_SIZE + 1,
+                    null,
+                    orderBy,
+                ),
+            )
+                .thenReturn(listOf(user1))
+            whenever(userSearchRepository.countByNameOrEmail(null))
+                .thenReturn(1L)
+
+            // Act
+            val result =
+                userManagementService.searchUsers(
+                    query = null,
+                    after = null,
+                    orderBy =
+                        listOf(
+                            UserOrderBy(UserOrderField.EMAIL, OrderDirection.ASC),
+                            // Should be overridden to ASC
+                            UserOrderBy(UserOrderField.ID, OrderDirection.DESC),
+                        ),
+                )
+
+            // Assert
+            assertThat(result).isNotNull()
+            // Verify ID is always last with ASC
+            verify(
+                userSearchRepository,
+            ).searchByNameOrEmail(
+                null,
+                PaginationConstants.DEFAULT_PAGE_SIZE + 1,
+                null,
+                orderBy,
+            )
         }
     }
 
@@ -210,11 +691,17 @@ class UserManagementServiceTest {
                     email = "john@example.com",
                     displayName = "John Doe",
                 )
+            val defaultOrderBy =
+                listOf(
+                    UserOrderBy(UserOrderField.DISPLAY_NAME, OrderDirection.ASC),
+                    UserOrderBy(UserOrderField.ID, OrderDirection.ASC),
+                )
             whenever(
                 userSearchRepository.searchByNameOrEmail(
                     query,
                     PaginationConstants.DEFAULT_PAGE_SIZE + 1,
                     null,
+                    defaultOrderBy,
                 ),
             )
                 .thenReturn(listOf(user1))
@@ -229,7 +716,9 @@ class UserManagementServiceTest {
             assertThat(result.nodes).hasSize(1)
             assertThat(result.nodes.first().email).isEqualTo("john@example.com")
             assertThat(result.totalCount).isEqualTo(1L)
-            verify(userSearchRepository).searchByNameOrEmail(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null)
+            verify(
+                userSearchRepository,
+            ).searchByNameOrEmail(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null, defaultOrderBy)
             verify(userSearchRepository).countByNameOrEmail(query)
         }
 
@@ -238,7 +727,19 @@ class UserManagementServiceTest {
             // Arrange
             val query = "example.com"
             val user1 = SecurityTestDataBuilders.user(id = UUID.randomUUID(), email = "user@example.com")
-            whenever(userSearchRepository.searchByNameOrEmail(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
+            val defaultOrderBy =
+                listOf(
+                    UserOrderBy(UserOrderField.DISPLAY_NAME, OrderDirection.ASC),
+                    UserOrderBy(UserOrderField.ID, OrderDirection.ASC),
+                )
+            whenever(
+                userSearchRepository.searchByNameOrEmail(
+                    query,
+                    PaginationConstants.DEFAULT_PAGE_SIZE + 1,
+                    null,
+                    defaultOrderBy,
+                ),
+            )
                 .thenReturn(listOf(user1))
             whenever(userSearchRepository.countByNameOrEmail(query))
                 .thenReturn(1L)
@@ -250,7 +751,9 @@ class UserManagementServiceTest {
             assertThat(result).isNotNull()
             assertThat(result.nodes).hasSize(1)
             assertThat(result.totalCount).isEqualTo(1L)
-            verify(userSearchRepository).searchByNameOrEmail(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null)
+            verify(
+                userSearchRepository,
+            ).searchByNameOrEmail(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null, defaultOrderBy)
             verify(userSearchRepository).countByNameOrEmail(query)
         }
 
@@ -259,9 +762,22 @@ class UserManagementServiceTest {
             // Arrange
             val query = "test"
             val afterId = UUID.randomUUID()
-            val afterCursor = CursorEncoder.encodeCursor(afterId as UUID)
+            val afterCursor = CursorEncoder.encodeCursor(afterId)
             val user1 = SecurityTestDataBuilders.user(id = UUID.randomUUID(), email = "test@example.com")
-            whenever(userSearchRepository.searchByNameOrEmail(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, afterId))
+            val defaultOrderBy =
+                listOf(
+                    UserOrderBy(UserOrderField.DISPLAY_NAME, OrderDirection.ASC),
+                    UserOrderBy(UserOrderField.ID, OrderDirection.ASC),
+                )
+            val compositeCursor = CompositeCursor(emptyMap(), afterId.toString())
+            whenever(
+                userSearchRepository.searchByNameOrEmail(
+                    query,
+                    PaginationConstants.DEFAULT_PAGE_SIZE + 1,
+                    compositeCursor,
+                    defaultOrderBy,
+                ),
+            )
                 .thenReturn(listOf(user1))
             whenever(userSearchRepository.countByNameOrEmail(query))
                 .thenReturn(5L)
@@ -273,7 +789,9 @@ class UserManagementServiceTest {
             assertThat(result).isNotNull()
             assertThat(result.nodes).hasSize(1)
             assertThat(result.totalCount).isEqualTo(5L)
-            verify(userSearchRepository).searchByNameOrEmail(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, afterId)
+            verify(
+                userSearchRepository,
+            ).searchByNameOrEmail(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, compositeCursor, defaultOrderBy)
             verify(userSearchRepository).countByNameOrEmail(query)
         }
 
@@ -281,7 +799,19 @@ class UserManagementServiceTest {
         fun `should return empty connection when no users match search`() {
             // Arrange
             val query = "nonexistent"
-            whenever(userSearchRepository.searchByNameOrEmail(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
+            val defaultOrderBy =
+                listOf(
+                    UserOrderBy(UserOrderField.DISPLAY_NAME, OrderDirection.ASC),
+                    UserOrderBy(UserOrderField.ID, OrderDirection.ASC),
+                )
+            whenever(
+                userSearchRepository.searchByNameOrEmail(
+                    query,
+                    PaginationConstants.DEFAULT_PAGE_SIZE + 1,
+                    null,
+                    defaultOrderBy,
+                ),
+            )
                 .thenReturn(emptyList())
             whenever(userSearchRepository.countByNameOrEmail(query))
                 .thenReturn(0L)
@@ -307,7 +837,7 @@ class UserManagementServiceTest {
             assertThrows<IllegalArgumentException> {
                 userManagementService.searchUsers(query, after = invalidCursor)
             }
-            verify(userSearchRepository, never()).searchByNameOrEmail(any(), any(), any())
+            verify(userSearchRepository, never()).searchByNameOrEmail(any(), any(), any(), any())
         }
     }
 

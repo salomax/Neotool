@@ -9,6 +9,7 @@ export type GetUsersQueryVariables = Types.Exact<{
   first?: Types.InputMaybe<Types.Scalars['Int']['input']>;
   after?: Types.InputMaybe<Types.Scalars['String']['input']>;
   query?: Types.InputMaybe<Types.Scalars['String']['input']>;
+  orderBy?: Types.InputMaybe<Array<Types.UserOrderByInput> | Types.UserOrderByInput>;
 }>;
 
 
@@ -60,8 +61,8 @@ export type GetRoleWithUsersAndGroupsQuery = { users: { __typename: 'UserConnect
 
 
 export const GetUsersDocument = gql`
-    query GetUsers($first: Int, $after: String, $query: String) {
-  users(first: $first, after: $after, query: $query) {
+    query GetUsers($first: Int, $after: String, $query: String, $orderBy: [UserOrderByInput!]) {
+  users(first: $first, after: $after, query: $query, orderBy: $orderBy) {
     edges {
       node {
         ...UserFields
@@ -97,6 +98,7 @@ export const GetUsersDocument = gql`
  *      first: // value for 'first'
  *      after: // value for 'after'
  *      query: // value for 'query'
+ *      orderBy: // value for 'orderBy'
  *   },
  * });
  */

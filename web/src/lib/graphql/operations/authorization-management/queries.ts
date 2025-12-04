@@ -4,8 +4,8 @@ import { USER_FIELDS, GROUP_FIELDS, ROLE_FIELDS, PERMISSION_FIELDS } from '../..
 // Get users with pagination
 export const GET_USERS = gql`
   ${USER_FIELDS}
-  query GetUsers($first: Int, $after: String, $query: String) {
-    users(first: $first, after: $after, query: $query) {
+  query GetUsers($first: Int, $after: String, $query: String, $orderBy: [UserOrderByInput!]) {
+    users(first: $first, after: $after, query: $query, orderBy: $orderBy) {
       edges {
         node {
           ...UserFields

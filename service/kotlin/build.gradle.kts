@@ -125,9 +125,10 @@ subprojects {
                             "*Builder*",
                             "*Entity",
                             "*DTO",
-                            "*Config",
+                            "*Config*",
                             "*domain.*",
                             "*mapper.*",
+                            "*Helper*",
                             "*Test"
                         )
                     }

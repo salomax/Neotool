@@ -4,11 +4,12 @@ import { getTestIdProps } from '@/shared/utils/testid';
 
 export interface ContainerProps extends Omit<MuiContainerProps, 'maxWidth' | 'sx'> {
   /** 
-   * When true, removes max-width constraints and sets height to 100%.
-   * Overrides maxWidth prop when set to true.
+   * When true, applies full-height flex column layout with overflow hidden.
+   * Applies: flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, height: '100%', overflow: 'hidden'
+   * Does not affect maxWidth prop.
    */
-  fullSize?: boolean;
-  /** Max width constraint. Ignored when fullSize is true. */
+  fullHeight?: boolean;
+  /** Max width constraint. */
   maxWidth?: MuiContainerProps['maxWidth'];
   /** Custom styles to apply to the Container component. */
   sx?: MuiContainerProps['sx'];
@@ -23,20 +24,15 @@ export interface ContainerProps extends Omit<MuiContainerProps, 'maxWidth' | 'sx
 }
 
 /**
- * Container component wrapper that extends MUI Container with fullSize prop
- * for removing max-width constraints and setting height to 100%.
- * 
- * When fullSize is true, it also:
- * - Automatically disables gutters (removes default padding)
- * - Sets up flexbox column layout (display: flex, flexDirection: column)
- * - Prevents overflow (overflow: hidden)
+ * Container component wrapper that extends MUI Container with fullHeight prop
+ * for creating full-height layouts.
  * 
  * This makes it easy to create full-height pages where children can use flex: 1
  * to fill remaining vertical space.
  * 
  * @example
  * ```tsx
- * <Container fullSize>
+ * <Container fullHeight>
  *   <Typography variant="h4">Title</Typography>
  *   <Box sx={{ flex: 1, overflow: 'auto' }}>
  *     Content that fills remaining space
@@ -52,7 +48,7 @@ export interface ContainerProps extends Omit<MuiContainerProps, 'maxWidth' | 'sx
  * ```
  */
 export function Container({ 
-  fullSize = false,
+  fullHeight = false,
   maxWidth,
   sx, 
   name,
@@ -63,21 +59,24 @@ export function Container({
   // Generate data-testid from component name and optional name prop
   const testIdProps = getTestIdProps('Container', name, dataTestId);
   
-  // When fullSize is true, override maxWidth, disable gutters, and set up flexbox layout
-  const effectiveMaxWidth = fullSize ? false : maxWidth;
-  const effectiveDisableGutters = fullSize ? true : (disableGutters ?? false);
+  // When fullHeight is true, apply full-height flex column layout
+  const fullHeightStyles = fullHeight ? {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    minHeight: 0,
+    height: '100%',
+    overflow: 'hidden',
+  } : {};
   
   return (
     <MuiContainer
-      maxWidth={effectiveMaxWidth}
-      disableGutters={effectiveDisableGutters}
-      sx={fullSize ? {
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-        ...sx,
-      } : sx}
+      maxWidth={maxWidth}
+      disableGutters={disableGutters ?? false}
+      sx={[
+        ...(fullHeight ? [fullHeightStyles] : []),
+        ...(Array.isArray(sx) ? sx : sx ? [sx] : []),
+      ]}
       {...testIdProps}
       {...props}
     />

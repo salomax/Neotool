@@ -411,4 +411,126 @@ class JwtServiceTest {
             assertThat(jwtService.isRefreshToken(invalidToken)).isFalse()
         }
     }
+
+    @Nested
+    @DisplayName("Permissions Claim")
+    inner class PermissionsClaimTests {
+        @Test
+        fun `should include permissions in access token when provided`() {
+            val userId = UUID.randomUUID()
+            val email = "test@example.com"
+            val permissions = listOf("transaction:read", "transaction:write")
+
+            val token = jwtService.generateAccessToken(userId, email, permissions)
+            val claims = jwtService.validateToken(token)
+
+            assertThat(claims).isNotNull()
+            @Suppress("UNCHECKED_CAST")
+            val tokenPermissions = claims?.get("permissions", List::class.java) as? List<*>
+            assertThat(tokenPermissions).isNotNull()
+            assertThat(tokenPermissions).hasSize(2)
+            assertThat(tokenPermissions).containsExactlyInAnyOrder("transaction:read", "transaction:write")
+        }
+
+        @Test
+        fun `should not include permissions claim when permissions list is null`() {
+            val userId = UUID.randomUUID()
+            val email = "test@example.com"
+
+            val token = jwtService.generateAccessToken(userId, email, null)
+            val claims = jwtService.validateToken(token)
+
+            assertThat(claims).isNotNull()
+            val tokenPermissions = claims?.get("permissions")
+            assertThat(tokenPermissions).isNull()
+        }
+
+        @Test
+        fun `should not include permissions claim when permissions list is empty`() {
+            val userId = UUID.randomUUID()
+            val email = "test@example.com"
+
+            val token = jwtService.generateAccessToken(userId, email, emptyList())
+            val claims = jwtService.validateToken(token)
+
+            assertThat(claims).isNotNull()
+            val tokenPermissions = claims?.get("permissions")
+            assertThat(tokenPermissions).isNull()
+        }
+
+        @Test
+        fun `should extract permissions from valid token`() {
+            val userId = UUID.randomUUID()
+            val email = "test@example.com"
+            val permissions = listOf("transaction:read", "transaction:write", "user:read")
+
+            val token = jwtService.generateAccessToken(userId, email, permissions)
+            val extractedPermissions = jwtService.getPermissionsFromToken(token)
+
+            assertThat(extractedPermissions).isNotNull()
+            assertThat(extractedPermissions).hasSize(3)
+            assertThat(
+                extractedPermissions,
+            ).containsExactlyInAnyOrder("transaction:read", "transaction:write", "user:read")
+        }
+
+        @Test
+        fun `should return null permissions for token without permissions claim`() {
+            val userId = UUID.randomUUID()
+            val email = "test@example.com"
+
+            val token = jwtService.generateAccessToken(userId, email)
+            val extractedPermissions = jwtService.getPermissionsFromToken(token)
+
+            assertThat(extractedPermissions).isNull()
+        }
+
+        @Test
+        fun `should return null permissions for invalid token`() {
+            val invalidToken = "invalid.token.format"
+
+            val extractedPermissions = jwtService.getPermissionsFromToken(invalidToken)
+
+            assertThat(extractedPermissions).isNull()
+        }
+
+        @Test
+        fun `should handle multiple permissions correctly`() {
+            val userId = UUID.randomUUID()
+            val email = "test@example.com"
+            val permissions =
+                listOf(
+                    "transaction:read",
+                    "transaction:write",
+                    "transaction:delete",
+                    "user:read",
+                    "user:update",
+                    "admin:all",
+                )
+
+            val token = jwtService.generateAccessToken(userId, email, permissions)
+            val extractedPermissions = jwtService.getPermissionsFromToken(token)
+
+            assertThat(extractedPermissions).isNotNull()
+            assertThat(extractedPermissions).hasSize(6)
+            assertThat(extractedPermissions).containsExactlyInAnyOrderElementsOf(permissions)
+        }
+
+        @Test
+        fun `should handle permissions with special characters`() {
+            val userId = UUID.randomUUID()
+            val email = "test@example.com"
+            // Permission names follow pattern: resource:action (lowercase, numbers, underscores, hyphens)
+            val permissions = listOf("resource_123:action-name", "test_resource:test_action")
+
+            val token = jwtService.generateAccessToken(userId, email, permissions)
+            val extractedPermissions = jwtService.getPermissionsFromToken(token)
+
+            assertThat(extractedPermissions).isNotNull()
+            assertThat(extractedPermissions).hasSize(2)
+            assertThat(
+                extractedPermissions,
+            ).containsExactlyInAnyOrder("resource_123:action-name", "test_resource:test_action")
+        }
+    }
 }

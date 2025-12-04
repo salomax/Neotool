@@ -57,10 +57,12 @@ class UserManagementResolver(
         first: Int?,
         after: String?,
         query: String?,
+        orderBy: List<Map<String, Any?>>?,
     ): UserConnectionDTO {
         return try {
             val pageSize = first ?: 20
-            val connection = userManagementService.searchUsers(query, pageSize, after)
+            val orderByList = mapper.toUserOrderByList(orderBy)
+            val connection = userManagementService.searchUsers(query, pageSize, after, orderByList)
             mapper.toUserConnectionDTO(connection)
         } catch (e: Exception) {
             logger.error(e) { "Error listing users" }

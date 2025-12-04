@@ -101,6 +101,19 @@ type GroupEdge
   cursor: String!
 }
 
+input GroupOrderByInput
+  @join__type(graph: SECURITY)
+{
+  field: GroupOrderField!
+  direction: OrderDirection!
+}
+
+enum GroupOrderField
+  @join__type(graph: SECURITY)
+{
+  NAME @join__enumValue(graph: SECURITY)
+}
+
 scalar join__FieldSet
 
 enum join__Graph {
@@ -153,6 +166,13 @@ type Mutation
   removeGroupFromUser(userId: ID!, groupId: ID!): User! @join__field(graph: SECURITY)
   assignRoleToGroup(groupId: ID!, roleId: ID!): Group! @join__field(graph: SECURITY)
   removeRoleFromGroup(groupId: ID!, roleId: ID!): Group! @join__field(graph: SECURITY)
+}
+
+enum OrderDirection
+  @join__type(graph: SECURITY)
+{
+  ASC @join__enumValue(graph: SECURITY)
+  DESC @join__enumValue(graph: SECURITY)
 }
 
 type PageInfo
@@ -222,9 +242,9 @@ type Query
   getUserPermissions(userId: ID!): [Permission!]! @join__field(graph: SECURITY)
   getUserRoles(userId: ID!): [Role!]! @join__field(graph: SECURITY)
   user(id: ID!): User @join__field(graph: SECURITY)
-  users(first: Int, after: String, query: String): UserConnection! @join__field(graph: SECURITY)
-  groups(first: Int, after: String, query: String): GroupConnection! @join__field(graph: SECURITY)
-  roles(first: Int, after: String, query: String): RoleConnection! @join__field(graph: SECURITY)
+  users(first: Int, after: String, query: String, orderBy: [UserOrderByInput!]): UserConnection! @join__field(graph: SECURITY)
+  groups(first: Int, after: String, query: String, orderBy: [GroupOrderByInput!]): GroupConnection! @join__field(graph: SECURITY)
+  roles(first: Int, after: String, query: String, orderBy: [RoleOrderByInput!]): RoleConnection! @join__field(graph: SECURITY)
   permissions(first: Int, after: String, query: String): PermissionConnection! @join__field(graph: SECURITY)
 }
 
@@ -278,6 +298,19 @@ type RoleEdge
 {
   node: Role!
   cursor: String!
+}
+
+input RoleOrderByInput
+  @join__type(graph: SECURITY)
+{
+  field: RoleOrderField!
+  direction: OrderDirection!
+}
+
+enum RoleOrderField
+  @join__type(graph: SECURITY)
+{
+  NAME @join__enumValue(graph: SECURITY)
 }
 
 input SignInInput
@@ -360,4 +393,19 @@ type UserEdge
 {
   node: User!
   cursor: String!
+}
+
+input UserOrderByInput
+  @join__type(graph: SECURITY)
+{
+  field: UserOrderField!
+  direction: OrderDirection!
+}
+
+enum UserOrderField
+  @join__type(graph: SECURITY)
+{
+  DISPLAY_NAME @join__enumValue(graph: SECURITY)
+  EMAIL @join__enumValue(graph: SECURITY)
+  ENABLED @join__enumValue(graph: SECURITY)
 }

@@ -1,8 +1,10 @@
 package io.github.salomax.neotool.security.service
 
+import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.common.graphql.pagination.Connection
 import io.github.salomax.neotool.common.graphql.pagination.ConnectionBuilder
 import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
+import io.github.salomax.neotool.common.graphql.pagination.OrderDirection
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import io.github.salomax.neotool.security.domain.GroupManagement
 import io.github.salomax.neotool.security.domain.rbac.Group
@@ -44,22 +46,53 @@ open class GroupManagementService(
      *
      * @param query Optional search query (partial match, case-insensitive). If null or empty, returns all groups.
      * @param first Maximum number of results to return (default: 20, max: 100)
-     * @param after Cursor string for pagination (base64-encoded UUID)
+     * @param after Cursor string for pagination (base64-encoded UUID or composite cursor)
+     * @param orderBy Optional list of order by specifications. If null or empty, defaults to NAME ASC, ID ASC. If empty array, defaults to ID ASC.
      * @return Connection containing paginated groups with totalCount
      */
     fun searchGroups(
         query: String?,
         first: Int = PaginationConstants.DEFAULT_PAGE_SIZE,
         after: String?,
+        orderBy: List<GroupOrderBy>? = null,
     ): Connection<Group> {
         val pageSize =
             minOf(first, PaginationConstants.MAX_PAGE_SIZE)
 
-        val afterCursor =
-            try {
-                after?.let { CursorEncoder.decodeCursorToUuid(it) }
-            } catch (e: Exception) {
-                throw IllegalArgumentException("Invalid cursor: $after", e)
+        // Determine effective orderBy: default to current sort if null/empty, fallback to ID ASC if empty array
+        val effectiveOrderBy =
+            when {
+                orderBy == null ->
+                    listOf(
+                        GroupOrderBy(GroupOrderField.NAME, OrderDirection.ASC),
+                        GroupOrderBy(GroupOrderField.ID, OrderDirection.ASC),
+                    )
+                orderBy.isEmpty() -> listOf(GroupOrderBy(GroupOrderField.ID, OrderDirection.ASC))
+                else -> {
+                    // Ensure ID is always last for deterministic ordering
+                    val withoutId = orderBy.filter { it.field != GroupOrderField.ID }
+                    withoutId + GroupOrderBy(GroupOrderField.ID, OrderDirection.ASC)
+                }
+            }
+
+        // Decode cursor - try composite first, fallback to UUID for backward compatibility
+        val afterCompositeCursor: CompositeCursor? =
+            after?.let {
+                try {
+                    CursorEncoder.decodeCompositeCursorToUuid(it)
+                } catch (e: Exception) {
+                    // Try legacy UUID cursor for backward compatibility
+                    try {
+                        val uuid = CursorEncoder.decodeCursorToUuid(it)
+                        // Convert legacy cursor to composite cursor with id only
+                        CompositeCursor(
+                            fieldValues = emptyMap(),
+                            id = uuid.toString(),
+                        )
+                    } catch (e2: Exception) {
+                        throw IllegalArgumentException("Invalid cursor: $after", e2)
+                    }
+                }
             }
 
         // Normalize query: convert empty string to null
@@ -67,7 +100,7 @@ open class GroupManagementService(
 
         // Query one extra to check for more results
         val entities =
-            groupSearchRepository.searchByName(normalizedQuery, pageSize + 1, afterCursor)
+            groupSearchRepository.searchByName(normalizedQuery, pageSize + 1, afterCompositeCursor, effectiveOrderBy)
         val hasMore = entities.size > pageSize
 
         // Always get total count (all groups if query is null, filtered groups if query is provided)
@@ -79,10 +112,31 @@ open class GroupManagementService(
                 .take(pageSize)
                 .map { it.toDomain() }
 
-        return ConnectionBuilder.buildConnectionWithUuid(
+        // Build connection with composite cursor encoding
+        return ConnectionBuilder.buildConnection(
             items = groups,
             hasMore = hasMore,
-            getId = { it.id },
+            encodeCursor = { group ->
+                val id = group.id ?: throw IllegalArgumentException("Group must have a non-null ID")
+                // Build field values map from orderBy
+                val fieldValues =
+                    effectiveOrderBy
+                        .filter { it.field != GroupOrderField.ID }
+                        .associate { orderBy ->
+                            val fieldName =
+                                when (orderBy.field) {
+                                    GroupOrderField.NAME -> "name"
+                                    GroupOrderField.ID -> throw IllegalStateException("ID should not be in fieldValues")
+                                }
+                            val fieldValue =
+                                when (orderBy.field) {
+                                    GroupOrderField.NAME -> group.name
+                                    GroupOrderField.ID -> throw IllegalStateException("ID should not be in fieldValues")
+                                }
+                            fieldName to fieldValue
+                        }
+                CursorEncoder.encodeCompositeCursor(fieldValues, id)
+            },
             totalCount = totalCount,
         )
     }

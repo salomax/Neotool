@@ -114,6 +114,23 @@ open class AuthenticationService(
     }
 
     /**
+     * Generate JWT access token for a user with permissions.
+     *
+     * Access tokens are short-lived and stateless.
+     *
+     * @param user The authenticated user
+     * @param permissions List of permission names to include in the token
+     * @return JWT access token string
+     */
+    fun generateAccessToken(
+        user: UserEntity,
+        permissions: List<String>,
+    ): String {
+        val userId = requireNotNull(user.id) { "User ID is required for access token generation" }
+        return jwtService.generateAccessToken(userId, user.email, permissions)
+    }
+
+    /**
      * Generate JWT refresh token for a user.
      *
      * Refresh tokens are long-lived and stored in the database for revocation.

@@ -111,7 +111,8 @@ class SecurityWiringFactory(
                     val first = env.getArgument<Int?>("first")
                     val after = env.getArgument<String?>("after")
                     val query = env.getArgument<String?>("query")
-                    userManagementResolver.users(first, after, query)
+                    val orderBy = env.getArgument<List<Map<String, Any?>>>("orderBy")
+                    userManagementResolver.users(first, after, query, orderBy)
                 },
             )
             .dataFetcher(
@@ -120,7 +121,8 @@ class SecurityWiringFactory(
                     val first = env.getArgument<Int?>("first")
                     val after = env.getArgument<String?>("after")
                     val query = env.getArgument<String?>("query")
-                    groupManagementResolver.groups(first, after, query)
+                    val orderBy = env.getArgument<List<Map<String, Any?>>>("orderBy")
+                    groupManagementResolver.groups(first, after, query, orderBy)
                 },
             )
             .dataFetcher(
@@ -129,7 +131,8 @@ class SecurityWiringFactory(
                     val first = env.getArgument<Int?>("first")
                     val after = env.getArgument<String?>("after")
                     val query = env.getArgument<String?>("query")
-                    roleManagementResolver.roles(first, after, query)
+                    val orderBy = env.getArgument<List<Map<String, Any?>>>("orderBy")
+                    roleManagementResolver.roles(first, after, query, orderBy)
                 },
             )
             .dataFetcher(

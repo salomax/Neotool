@@ -10,6 +10,7 @@ import io.github.salomax.neotool.security.graphql.dto.UserDTO
 import io.github.salomax.neotool.security.graphql.mapper.SecurityGraphQLMapper
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.AuthenticationService
+import io.github.salomax.neotool.security.service.AuthorizationService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import jakarta.validation.ConstraintViolationException
 import org.assertj.core.api.Assertions.assertThat
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
 import org.mockito.kotlin.doNothing
 import org.mockito.kotlin.doThrow
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
@@ -30,6 +32,7 @@ import org.mockito.ArgumentMatchers.any as anyArg
 @DisplayName("SecurityAuthResolver Unit Tests")
 class SecurityAuthResolverTest {
     private lateinit var authenticationService: AuthenticationService
+    private lateinit var authorizationService: AuthorizationService
     private lateinit var userRepository: UserRepository
     private lateinit var inputValidator: InputValidator
     private lateinit var mapper: SecurityGraphQLMapper
@@ -38,10 +41,18 @@ class SecurityAuthResolverTest {
     @BeforeEach
     fun setUp() {
         authenticationService = mock()
+        authorizationService = mock()
         userRepository = mock()
         inputValidator = mock()
         mapper = mock()
-        resolver = SecurityAuthResolver(authenticationService, userRepository, inputValidator, mapper)
+        resolver =
+            SecurityAuthResolver(
+                authenticationService,
+                authorizationService,
+                userRepository,
+                inputValidator,
+                mapper,
+            )
     }
 
     @Nested
@@ -50,12 +61,15 @@ class SecurityAuthResolverTest {
         @Test
         fun `should sign in successfully with valid credentials`() {
             // Arrange
-            val user = SecurityTestDataBuilders.user(email = "test@example.com")
+            val user = SecurityTestDataBuilders.user(id = UUID.randomUUID(), email = "test@example.com")
             val userDTO = UserDTO(id = user.id.toString(), email = user.email, displayName = user.displayName)
             val input = mapOf("email" to "test@example.com", "password" to "password123", "rememberMe" to false)
 
             whenever(authenticationService.authenticate("test@example.com", "password123")).thenReturn(user)
-            whenever(authenticationService.generateAccessToken(user)).thenReturn("access-token")
+            whenever(authorizationService.getUserPermissions(user.id!!)).thenReturn(emptyList())
+            whenever(
+                authenticationService.generateAccessToken(eq(user), any<List<String>>()),
+            ).thenReturn("access-token")
             whenever(mapper.userToDTO(user)).thenReturn(userDTO)
 
             // Act
@@ -68,7 +82,7 @@ class SecurityAuthResolverTest {
             assertThat(payload.refreshToken).isNull()
             assertThat(payload.user).isEqualTo(userDTO)
             verify(authenticationService).authenticate("test@example.com", "password123")
-            verify(authenticationService).generateAccessToken(user)
+            verify(authenticationService).generateAccessToken(eq(user), any<List<String>>())
             verify(authenticationService, never()).generateRefreshToken(any())
             verify(authenticationService, never()).saveRememberMeToken(any(), any())
         }
@@ -81,7 +95,10 @@ class SecurityAuthResolverTest {
             val input = mapOf("email" to "test@example.com", "password" to "password123", "rememberMe" to true)
 
             whenever(authenticationService.authenticate("test@example.com", "password123")).thenReturn(user)
-            whenever(authenticationService.generateAccessToken(user)).thenReturn("access-token")
+            whenever(authorizationService.getUserPermissions(user.id!!)).thenReturn(emptyList())
+            whenever(
+                authenticationService.generateAccessToken(eq(user), any<List<String>>()),
+            ).thenReturn("access-token")
             whenever(authenticationService.generateRefreshToken(user)).thenReturn("refresh-token")
             whenever(mapper.userToDTO(user)).thenReturn(userDTO)
 
@@ -140,12 +157,15 @@ class SecurityAuthResolverTest {
         @Test
         fun `should handle null rememberMe as false`() {
             // Arrange
-            val user = SecurityTestDataBuilders.user(email = "test@example.com")
+            val user = SecurityTestDataBuilders.user(id = UUID.randomUUID(), email = "test@example.com")
             val userDTO = UserDTO(id = user.id.toString(), email = user.email)
             val input = mapOf("email" to "test@example.com", "password" to "password123", "rememberMe" to null)
 
             whenever(authenticationService.authenticate("test@example.com", "password123")).thenReturn(user)
-            whenever(authenticationService.generateAccessToken(user)).thenReturn("access-token")
+            whenever(authorizationService.getUserPermissions(user.id!!)).thenReturn(emptyList())
+            whenever(
+                authenticationService.generateAccessToken(eq(user), any<List<String>>()),
+            ).thenReturn("access-token")
             whenever(mapper.userToDTO(user)).thenReturn(userDTO)
 
             // Act
@@ -153,6 +173,7 @@ class SecurityAuthResolverTest {
 
             // Assert
             assertThat(result.success).isTrue()
+            verify(authenticationService).generateAccessToken(eq(user), any<List<String>>())
             verify(authenticationService, never()).generateRefreshToken(any())
         }
     }
@@ -219,12 +240,15 @@ class SecurityAuthResolverTest {
         @Test
         fun `should sign in successfully with OAuth`() {
             // Arrange
-            val user = SecurityTestDataBuilders.user(email = "oauth@example.com")
+            val user = SecurityTestDataBuilders.user(id = UUID.randomUUID(), email = "oauth@example.com")
             val userDTO = UserDTO(id = user.id.toString(), email = user.email)
             val input = mapOf("provider" to "google", "idToken" to "valid-id-token", "rememberMe" to false)
 
             whenever(authenticationService.authenticateWithOAuth("google", "valid-id-token")).thenReturn(user)
-            whenever(authenticationService.generateAccessToken(user)).thenReturn("access-token")
+            whenever(authorizationService.getUserPermissions(user.id!!)).thenReturn(emptyList())
+            whenever(
+                authenticationService.generateAccessToken(eq(user), any<List<String>>()),
+            ).thenReturn("access-token")
             whenever(mapper.userToDTO(user)).thenReturn(userDTO)
 
             // Act
@@ -302,7 +326,10 @@ class SecurityAuthResolverTest {
                     "password123",
                 ),
             ).thenReturn(user)
-            whenever(authenticationService.generateAccessToken(user)).thenReturn("access-token")
+            whenever(authorizationService.getUserPermissions(user.id!!)).thenReturn(emptyList())
+            whenever(
+                authenticationService.generateAccessToken(eq(user), any<List<String>>()),
+            ).thenReturn("access-token")
             whenever(authenticationService.generateRefreshToken(user)).thenReturn("refresh-token")
             whenever(mapper.userToDTO(user)).thenReturn(userDTO)
 

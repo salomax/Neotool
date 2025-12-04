@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.security.graphql.mapper
 
 import io.github.salomax.neotool.common.graphql.pagination.Connection
+import io.github.salomax.neotool.common.graphql.pagination.OrderDirection
 import io.github.salomax.neotool.security.domain.GroupManagement
 import io.github.salomax.neotool.security.domain.rbac.Group
 import io.github.salomax.neotool.security.graphql.dto.CreateGroupInputDTO
@@ -9,6 +10,8 @@ import io.github.salomax.neotool.security.graphql.dto.GroupDTO
 import io.github.salomax.neotool.security.graphql.dto.GroupEdgeDTO
 import io.github.salomax.neotool.security.graphql.dto.PageInfoDTO
 import io.github.salomax.neotool.security.graphql.dto.UpdateGroupInputDTO
+import io.github.salomax.neotool.security.service.GroupOrderBy
+import io.github.salomax.neotool.security.service.GroupOrderField
 import jakarta.inject.Singleton
 import java.util.UUID
 
@@ -239,5 +242,39 @@ class GroupManagementMapper {
             description = extractField<String?>(input, "description", null),
             userIds = userIds,
         )
+    }
+
+    /**
+     * Convert GraphQL orderBy input list to service layer GroupOrderBy list.
+     * Validates field names and directions.
+     */
+    fun toGroupOrderByList(orderBy: List<Map<String, Any?>>?): List<GroupOrderBy>? {
+        if (orderBy == null || orderBy.isEmpty()) {
+            return null
+        }
+
+        return orderBy.map { orderByMap ->
+            val fieldStr =
+                orderByMap["field"] as? String
+                    ?: throw IllegalArgumentException("orderBy field is required")
+            val directionStr =
+                orderByMap["direction"] as? String
+                    ?: throw IllegalArgumentException("orderBy direction is required")
+
+            val field =
+                when (fieldStr) {
+                    "NAME" -> GroupOrderField.NAME
+                    else -> throw IllegalArgumentException("Invalid GroupOrderField: $fieldStr. Allowed: NAME")
+                }
+
+            val direction =
+                when (directionStr) {
+                    "ASC" -> OrderDirection.ASC
+                    "DESC" -> OrderDirection.DESC
+                    else -> throw IllegalArgumentException("Invalid OrderDirection: $directionStr. Allowed: ASC, DESC")
+                }
+
+            GroupOrderBy(field, direction)
+        }
     }
 }

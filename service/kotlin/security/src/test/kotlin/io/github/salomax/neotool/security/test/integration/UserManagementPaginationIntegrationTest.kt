@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.security.test.integration
 
 import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
+import io.github.salomax.neotool.common.graphql.pagination.OrderDirection
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
@@ -9,6 +10,8 @@ import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.AuthenticationService
 import io.github.salomax.neotool.security.service.UserManagementService
+import io.github.salomax.neotool.security.service.UserOrderBy
+import io.github.salomax.neotool.security.service.UserOrderField
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject
@@ -93,19 +96,21 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
 
             // Create users with names that will sort in a predictable order
             // Using names starting with different letters to ensure proper sorting
-            val names = listOf(
-                "Alice", "Bob", "Charlie", "David", "Eve",
-                "Frank", "Grace", "Henry", "Ivy", "Jack",
-                "Kate", "Liam", "Mia", "Noah", "Olivia",
-                "Paul", "Quinn", "Rachel", "Sam", "Tina",
-                "Uma", "Victor", "Wendy", "Xavier", "Yara",
-            )
+            val names =
+                listOf(
+                    "Alice", "Bob", "Charlie", "David", "Eve",
+                    "Frank", "Grace", "Henry", "Ivy", "Jack",
+                    "Kate", "Liam", "Mia", "Noah", "Olivia",
+                    "Paul", "Quinn", "Rachel", "Sam", "Tina",
+                    "Uma", "Victor", "Wendy", "Xavier", "Yara",
+                )
 
             names.forEachIndexed { index, name ->
-                val user = createTestUser(
-                    displayName = name,
-                    email = SecurityTestDataBuilders.uniqueEmail("pagination-$index"),
-                )
+                val user =
+                    createTestUser(
+                        displayName = name,
+                        email = SecurityTestDataBuilders.uniqueEmail("pagination-$index"),
+                    )
                 users.add(user)
             }
 
@@ -115,11 +120,12 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
             var pageNumber = 0
 
             do {
-                val result = userManagementService.searchUsers(
-                    query = null,
-                    first = pageSize,
-                    after = currentCursor,
-                )
+                val result =
+                    userManagementService.searchUsers(
+                        query = null,
+                        first = pageSize,
+                        after = currentCursor,
+                    )
 
                 assertThat(result).isNotNull()
                 assertThat(result.nodes).isNotEmpty()
@@ -171,19 +177,21 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
             assertThat(page1.nodes).hasSize(2)
             assertThat(page1.pageInfo.hasNextPage).isTrue()
 
-            val page2 = userManagementService.searchUsers(
-                query = null,
-                first = 2,
-                after = page1.pageInfo.endCursor,
-            )
+            val page2 =
+                userManagementService.searchUsers(
+                    query = null,
+                    first = 2,
+                    after = page1.pageInfo.endCursor,
+                )
             assertThat(page2.nodes).hasSize(2)
             assertThat(page2.pageInfo.hasNextPage).isTrue()
 
-            val page3 = userManagementService.searchUsers(
-                query = null,
-                first = 2,
-                after = page2.pageInfo.endCursor,
-            )
+            val page3 =
+                userManagementService.searchUsers(
+                    query = null,
+                    first = 2,
+                    after = page2.pageInfo.endCursor,
+                )
             assertThat(page3.nodes).hasSize(1)
             assertThat(page3.pageInfo.hasNextPage).isFalse()
 
@@ -209,11 +217,12 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
 
             // Act: Paginate
             val page1 = userManagementService.searchUsers(query = null, first = 2, after = null)
-            val page2 = userManagementService.searchUsers(
-                query = null,
-                first = 2,
-                after = page1.pageInfo.endCursor,
-            )
+            val page2 =
+                userManagementService.searchUsers(
+                    query = null,
+                    first = 2,
+                    after = page1.pageInfo.endCursor,
+                )
 
             // Assert: All users retrieved
             val allUsers = page1.nodes + page2.nodes
@@ -240,11 +249,12 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
             assertThat(page1.totalCount).isEqualTo(totalUsers.toLong())
 
             // Act: Get second page
-            val page2 = userManagementService.searchUsers(
-                query = null,
-                first = 5,
-                after = page1.pageInfo.endCursor,
-            )
+            val page2 =
+                userManagementService.searchUsers(
+                    query = null,
+                    first = 5,
+                    after = page1.pageInfo.endCursor,
+                )
 
             // Assert: Total count should still be the same
             assertThat(page2.totalCount).isEqualTo(totalUsers.toLong())
@@ -258,13 +268,14 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
         @Test
         fun `should paginate search results correctly`() {
             // Arrange: Create users with and without "test" in name/email
-            val testUsers = listOf(
-                createTestUser(displayName = "Test User 1", email = SecurityTestDataBuilders.uniqueEmail("test1")),
-                createTestUser(displayName = "Test User 2", email = SecurityTestDataBuilders.uniqueEmail("test2")),
-                createTestUser(displayName = "Test User 3", email = SecurityTestDataBuilders.uniqueEmail("test3")),
-                createTestUser(displayName = "Test User 4", email = SecurityTestDataBuilders.uniqueEmail("test4")),
-                createTestUser(displayName = "Test User 5", email = SecurityTestDataBuilders.uniqueEmail("test5")),
-            )
+            val testUsers =
+                listOf(
+                    createTestUser(displayName = "Test User 1", email = SecurityTestDataBuilders.uniqueEmail("test1")),
+                    createTestUser(displayName = "Test User 2", email = SecurityTestDataBuilders.uniqueEmail("test2")),
+                    createTestUser(displayName = "Test User 3", email = SecurityTestDataBuilders.uniqueEmail("test3")),
+                    createTestUser(displayName = "Test User 4", email = SecurityTestDataBuilders.uniqueEmail("test4")),
+                    createTestUser(displayName = "Test User 5", email = SecurityTestDataBuilders.uniqueEmail("test5")),
+                )
 
             // Create non-matching users
             createTestUser(displayName = "Alice", email = SecurityTestDataBuilders.uniqueEmail("alice"))
@@ -276,20 +287,22 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
             assertThat(page1.totalCount).isEqualTo(5L)
             assertThat(page1.pageInfo.hasNextPage).isTrue()
 
-            val page2 = userManagementService.searchUsers(
-                query = "test",
-                first = 2,
-                after = page1.pageInfo.endCursor,
-            )
+            val page2 =
+                userManagementService.searchUsers(
+                    query = "test",
+                    first = 2,
+                    after = page1.pageInfo.endCursor,
+                )
             assertThat(page2.nodes).hasSize(2)
             assertThat(page2.totalCount).isEqualTo(5L)
             assertThat(page2.pageInfo.hasNextPage).isTrue()
 
-            val page3 = userManagementService.searchUsers(
-                query = "test",
-                first = 2,
-                after = page2.pageInfo.endCursor,
-            )
+            val page3 =
+                userManagementService.searchUsers(
+                    query = "test",
+                    first = 2,
+                    after = page2.pageInfo.endCursor,
+                )
             assertThat(page3.nodes).hasSize(1)
             assertThat(page3.totalCount).isEqualTo(5L)
             assertThat(page3.pageInfo.hasNextPage).isFalse()
@@ -359,11 +372,12 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
             }
 
             // Act
-            val result = userManagementService.searchUsers(
-                query = null,
-                first = PaginationConstants.MAX_PAGE_SIZE + 50, // Request more than max
-                after = null,
-            )
+            val result =
+                userManagementService.searchUsers(
+                    query = null,
+                    first = PaginationConstants.MAX_PAGE_SIZE + 50, // Request more than max
+                    after = null,
+                )
 
             // Assert: Should only return MAX_PAGE_SIZE items
             assertThat(result.nodes).hasSize(PaginationConstants.MAX_PAGE_SIZE)
@@ -388,15 +402,19 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
             val nonExistentId = UUID.randomUUID()
             val invalidCursor = CursorEncoder.encodeCursor(nonExistentId)
 
-            // Act & Assert: Should throw IllegalArgumentException when entity not found
-            // The repository throws IllegalArgumentException if the cursor points to a non-existent entity
-            org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+            // Act: Should return empty result set (cursor predicate won't match anything)
+            // The repository no longer validates cursor existence, it just uses the cursor for pagination
+            val result =
                 userManagementService.searchUsers(
                     query = null,
                     first = 10,
                     after = invalidCursor,
                 )
-            }
+
+            // Assert: Should return empty result set
+            assertThat(result.nodes).isEmpty()
+            assertThat(result.edges).isEmpty()
+            assertThat(result.pageInfo.hasNextPage).isFalse()
         }
     }
 
@@ -407,28 +425,31 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
         fun `should maintain consistent sort order across pages`() {
             // Arrange: Create users with names that will sort in a specific order
             val names = listOf("Alice", "Bob", "Charlie", "David", "Eve")
-            val users = names.map { name ->
-                createTestUser(displayName = name, email = SecurityTestDataBuilders.uniqueEmail(name.lowercase()))
-            }
+            val users =
+                names.map { name ->
+                    createTestUser(displayName = name, email = SecurityTestDataBuilders.uniqueEmail(name.lowercase()))
+                }
 
             // Act: Get first page
             val page1 = userManagementService.searchUsers(query = null, first = 2, after = null)
             val page1Names = page1.nodes.map { it.displayName ?: it.email }
 
             // Act: Get second page
-            val page2 = userManagementService.searchUsers(
-                query = null,
-                first = 2,
-                after = page1.pageInfo.endCursor,
-            )
+            val page2 =
+                userManagementService.searchUsers(
+                    query = null,
+                    first = 2,
+                    after = page1.pageInfo.endCursor,
+                )
             val page2Names = page2.nodes.map { it.displayName ?: it.email }
 
             // Act: Get third page
-            val page3 = userManagementService.searchUsers(
-                query = null,
-                first = 2,
-                after = page2.pageInfo.endCursor,
-            )
+            val page3 =
+                userManagementService.searchUsers(
+                    query = null,
+                    first = 2,
+                    after = page2.pageInfo.endCursor,
+                )
             val page3Names = page3.nodes.map { it.displayName ?: it.email }
 
             // Assert: Combined order should be correct
@@ -436,5 +457,264 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
             assertThat(allNames).containsExactlyElementsOf(names)
         }
     }
-}
 
+    @Nested
+    @DisplayName("Sorting with orderBy")
+    inner class SortingWithOrderByTests {
+        @Test
+        fun `should sort by EMAIL ASC when orderBy specified`() {
+            // Arrange: Create users with different emails
+            val user1 = createTestUser(displayName = "Zoe", email = "alice@example.com")
+            val user2 = createTestUser(displayName = "Alice", email = "bob@example.com")
+            val user3 = createTestUser(displayName = "Bob", email = "charlie@example.com")
+
+            // Act: Sort by email ASC
+            val result =
+                userManagementService.searchUsers(
+                    query = null,
+                    first = 10,
+                    after = null,
+                    orderBy = listOf(UserOrderBy(UserOrderField.EMAIL, OrderDirection.ASC)),
+                )
+
+            // Assert: Should be sorted by email
+            assertThat(result.nodes).hasSize(3)
+            assertThat(result.nodes[0].email).isEqualTo("alice@example.com")
+            assertThat(result.nodes[1].email).isEqualTo("bob@example.com")
+            assertThat(result.nodes[2].email).isEqualTo("charlie@example.com")
+        }
+
+        @Test
+        fun `should sort by EMAIL DESC when orderBy specified`() {
+            // Arrange: Create users with different emails
+            val user1 = createTestUser(displayName = "Zoe", email = "alice@example.com")
+            val user2 = createTestUser(displayName = "Alice", email = "bob@example.com")
+            val user3 = createTestUser(displayName = "Bob", email = "charlie@example.com")
+
+            // Act: Sort by email DESC
+            val result =
+                userManagementService.searchUsers(
+                    query = null,
+                    first = 10,
+                    after = null,
+                    orderBy = listOf(UserOrderBy(UserOrderField.EMAIL, OrderDirection.DESC)),
+                )
+
+            // Assert: Should be sorted by email descending
+            assertThat(result.nodes).hasSize(3)
+            assertThat(result.nodes[0].email).isEqualTo("charlie@example.com")
+            assertThat(result.nodes[1].email).isEqualTo("bob@example.com")
+            assertThat(result.nodes[2].email).isEqualTo("alice@example.com")
+        }
+
+        @Test
+        fun `should sort by ENABLED then DISPLAY_NAME when multiple fields specified`() {
+            // Arrange: Create users with different enabled status and names
+            val user1 = createTestUser(displayName = "Zoe", email = SecurityTestDataBuilders.uniqueEmail("zoe"))
+            user1.enabled = false
+            entityManager.runTransaction { entityManager.merge(user1) }
+            val user2 = createTestUser(displayName = "Alice", email = SecurityTestDataBuilders.uniqueEmail("alice"))
+            user2.enabled = true
+            entityManager.runTransaction { entityManager.merge(user2) }
+            val user3 = createTestUser(displayName = "Bob", email = SecurityTestDataBuilders.uniqueEmail("bob"))
+            user3.enabled = true
+            entityManager.runTransaction { entityManager.merge(user3) }
+            val user4 = createTestUser(displayName = "Charlie", email = SecurityTestDataBuilders.uniqueEmail("charlie"))
+            user4.enabled = false
+            entityManager.runTransaction { entityManager.merge(user4) }
+
+            // Act: Sort by enabled DESC, then displayName ASC
+            val result =
+                userManagementService.searchUsers(
+                    query = null,
+                    first = 10,
+                    after = null,
+                    orderBy =
+                        listOf(
+                            UserOrderBy(UserOrderField.ENABLED, OrderDirection.DESC),
+                            UserOrderBy(UserOrderField.DISPLAY_NAME, OrderDirection.ASC),
+                        ),
+                )
+
+            // Assert: Enabled users first (true > false), then sorted by displayName
+            assertThat(result.nodes).hasSize(4)
+            // First two should be enabled (true)
+            assertThat(result.nodes[0].enabled).isTrue()
+            assertThat(result.nodes[1].enabled).isTrue()
+            // Should be sorted by displayName within enabled group
+            assertThat(result.nodes[0].displayName).isEqualTo("Alice")
+            assertThat(result.nodes[1].displayName).isEqualTo("Bob")
+            // Last two should be disabled (false)
+            assertThat(result.nodes[2].enabled).isFalse()
+            assertThat(result.nodes[3].enabled).isFalse()
+        }
+
+        @Test
+        fun `should use default sort when orderBy is null`() {
+            // Arrange: Create users with different display names
+            val user1 = createTestUser(displayName = "Zoe", email = SecurityTestDataBuilders.uniqueEmail("zoe"))
+            val user2 = createTestUser(displayName = "Alice", email = SecurityTestDataBuilders.uniqueEmail("alice"))
+            val user3 = createTestUser(displayName = "Bob", email = SecurityTestDataBuilders.uniqueEmail("bob"))
+
+            // Act: No orderBy specified (should default to DISPLAY_NAME ASC)
+            val result =
+                userManagementService.searchUsers(
+                    query = null,
+                    first = 10,
+                    after = null,
+                    orderBy = null,
+                )
+
+            // Assert: Should be sorted by displayName ASC (default)
+            assertThat(result.nodes).hasSize(3)
+            assertThat(result.nodes[0].displayName).isEqualTo("Alice")
+            assertThat(result.nodes[1].displayName).isEqualTo("Bob")
+            assertThat(result.nodes[2].displayName).isEqualTo("Zoe")
+        }
+
+        @Test
+        fun `should fallback to ID ASC when orderBy is empty array`() {
+            // Arrange: Create users (order doesn't matter for this test)
+            createTestUser(displayName = "User 1", email = SecurityTestDataBuilders.uniqueEmail("user1"))
+            createTestUser(displayName = "User 2", email = SecurityTestDataBuilders.uniqueEmail("user2"))
+            createTestUser(displayName = "User 3", email = SecurityTestDataBuilders.uniqueEmail("user3"))
+
+            // Act: Empty orderBy array (should fallback to ID ASC)
+            val result =
+                userManagementService.searchUsers(
+                    query = null,
+                    first = 10,
+                    after = null,
+                    orderBy = emptyList(),
+                )
+
+            // Assert: Should return results (sorted by ID)
+            assertThat(result.nodes).hasSize(3)
+            // Verify IDs are in ascending order
+            val ids = result.nodes.map { it.id }
+            assertThat(ids).isSorted()
+        }
+
+        @Test
+        fun `should paginate correctly with custom orderBy`() {
+            // Arrange: Create multiple users
+            val emails = listOf("a@example.com", "b@example.com", "c@example.com", "d@example.com", "e@example.com")
+            emails.forEach { email ->
+                createTestUser(displayName = null, email = email)
+            }
+
+            // Act: Sort by email ASC, paginate
+            val page1 =
+                userManagementService.searchUsers(
+                    query = null,
+                    first = 2,
+                    after = null,
+                    orderBy = listOf(UserOrderBy(UserOrderField.EMAIL, OrderDirection.ASC)),
+                )
+
+            assertThat(page1.nodes).hasSize(2)
+            assertThat(page1.nodes[0].email).isEqualTo("a@example.com")
+            assertThat(page1.nodes[1].email).isEqualTo("b@example.com")
+            assertThat(page1.pageInfo.hasNextPage).isTrue()
+
+            // Act: Get next page
+            val page2 =
+                userManagementService.searchUsers(
+                    query = null,
+                    first = 2,
+                    after = page1.pageInfo.endCursor,
+                    orderBy = listOf(UserOrderBy(UserOrderField.EMAIL, OrderDirection.ASC)),
+                )
+
+            assertThat(page2.nodes).hasSize(2)
+            assertThat(page2.nodes[0].email).isEqualTo("c@example.com")
+            assertThat(page2.nodes[1].email).isEqualTo("d@example.com")
+            assertThat(page2.pageInfo.hasNextPage).isTrue()
+
+            // Act: Get last page
+            val page3 =
+                userManagementService.searchUsers(
+                    query = null,
+                    first = 2,
+                    after = page2.pageInfo.endCursor,
+                    orderBy = listOf(UserOrderBy(UserOrderField.EMAIL, OrderDirection.ASC)),
+                )
+
+            assertThat(page3.nodes).hasSize(1)
+            assertThat(page3.nodes[0].email).isEqualTo("e@example.com")
+            assertThat(page3.pageInfo.hasNextPage).isFalse()
+        }
+
+        @Test
+        fun `should handle composite cursor with field values for pagination`() {
+            // Arrange: Create users with same displayName but different emails
+            val user1 = createTestUser(displayName = "John", email = "john1@example.com")
+            val user2 = createTestUser(displayName = "John", email = "john2@example.com")
+            val user3 = createTestUser(displayName = "John", email = "john3@example.com")
+            val user4 = createTestUser(displayName = "Alice", email = "alice@example.com")
+
+            // Act: Sort by displayName ASC, then email ASC (implicit via ID)
+            val page1 =
+                userManagementService.searchUsers(
+                    query = null,
+                    first = 2,
+                    after = null,
+                    orderBy = listOf(UserOrderBy(UserOrderField.DISPLAY_NAME, OrderDirection.ASC)),
+                )
+
+            // Assert: First page should have Alice and first John
+            assertThat(page1.nodes).hasSize(2)
+            assertThat(page1.nodes[0].displayName).isEqualTo("Alice")
+            assertThat(page1.nodes[1].displayName).isEqualTo("John")
+
+            // Act: Get next page using composite cursor
+            val page2 =
+                userManagementService.searchUsers(
+                    query = null,
+                    first = 2,
+                    after = page1.pageInfo.endCursor,
+                    orderBy = listOf(UserOrderBy(UserOrderField.DISPLAY_NAME, OrderDirection.ASC)),
+                )
+
+            // Assert: Should continue with remaining John users
+            assertThat(page2.nodes).hasSize(2)
+            assertThat(page2.nodes.all { it.displayName == "John" }).isTrue()
+        }
+
+        @Test
+        fun `should maintain sort order across pages with search query`() {
+            // Arrange: Create users with "test" in name/email
+            createTestUser(displayName = "Test User A", email = SecurityTestDataBuilders.uniqueEmail("test-a"))
+            createTestUser(displayName = "Test User B", email = SecurityTestDataBuilders.uniqueEmail("test-b"))
+            createTestUser(displayName = "Test User C", email = SecurityTestDataBuilders.uniqueEmail("test-c"))
+            createTestUser(displayName = "Alice", email = SecurityTestDataBuilders.uniqueEmail("alice")) // Not matching
+
+            // Act: Search with custom sort
+            val page1 =
+                userManagementService.searchUsers(
+                    query = "test",
+                    first = 2,
+                    after = null,
+                    orderBy = listOf(UserOrderBy(UserOrderField.DISPLAY_NAME, OrderDirection.DESC)),
+                )
+
+            assertThat(page1.nodes).hasSize(2)
+            assertThat(page1.totalCount).isEqualTo(3L)
+            // Should be sorted DESC by displayName
+            assertThat(page1.nodes[0].displayName).isEqualTo("Test User C")
+            assertThat(page1.nodes[1].displayName).isEqualTo("Test User B")
+
+            // Act: Get next page
+            val page2 =
+                userManagementService.searchUsers(
+                    query = "test",
+                    first = 2,
+                    after = page1.pageInfo.endCursor,
+                    orderBy = listOf(UserOrderBy(UserOrderField.DISPLAY_NAME, OrderDirection.DESC)),
+                )
+
+            assertThat(page2.nodes).hasSize(1)
+            assertThat(page2.nodes[0].displayName).isEqualTo("Test User A")
+        }
+    }
+}

@@ -224,3 +224,25 @@ data class PermissionConnectionDTO(
     val nodes: List<PermissionDTO>,
     val pageInfo: PageInfoDTO,
 )
+
+// OrderBy DTOs
+@Introspected
+@Serdeable
+data class UserOrderByInputDTO(
+    val field: String,
+    val direction: String,
+)
+
+@Introspected
+@Serdeable
+data class GroupOrderByInputDTO(
+    val field: String,
+    val direction: String,
+)
+
+@Introspected
+@Serdeable
+data class RoleOrderByInputDTO(
+    val field: String,
+    val direction: String,
+)
