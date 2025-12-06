@@ -77,6 +77,7 @@ export function useSignInMutation(baseOptions?: ApolloReactHooks.MutationHookOpt
       }
 export type SignInMutationHookResult = ReturnType<typeof useSignInMutation>;
 export type SignInMutationResult = ApolloReactCommon.MutationResult<SignInMutation>;
+export type SignInMutationOptions = ApolloReactCommon.BaseMutationOptions<SignInMutation, SignInMutationVariables>;
 export const SignInWithOAuthDocument = gql`
     mutation SignInWithOAuth($input: SignInWithOAuthInput!) {
   signInWithOAuth(input: $input) {
@@ -114,6 +115,7 @@ export function useSignInWithOAuthMutation(baseOptions?: ApolloReactHooks.Mutati
       }
 export type SignInWithOAuthMutationHookResult = ReturnType<typeof useSignInWithOAuthMutation>;
 export type SignInWithOAuthMutationResult = ApolloReactCommon.MutationResult<SignInWithOAuthMutation>;
+export type SignInWithOAuthMutationOptions = ApolloReactCommon.BaseMutationOptions<SignInWithOAuthMutation, SignInWithOAuthMutationVariables>;
 export const SignUpDocument = gql`
     mutation SignUp($input: SignUpInput!) {
   signUp(input: $input) {
@@ -151,6 +153,7 @@ export function useSignUpMutation(baseOptions?: ApolloReactHooks.MutationHookOpt
       }
 export type SignUpMutationHookResult = ReturnType<typeof useSignUpMutation>;
 export type SignUpMutationResult = ApolloReactCommon.MutationResult<SignUpMutation>;
+export type SignUpMutationOptions = ApolloReactCommon.BaseMutationOptions<SignUpMutation, SignUpMutationVariables>;
 export const RequestPasswordResetDocument = gql`
     mutation RequestPasswordReset($input: RequestPasswordResetInput!) {
   requestPasswordReset(input: $input) {
@@ -183,6 +186,7 @@ export function useRequestPasswordResetMutation(baseOptions?: ApolloReactHooks.M
       }
 export type RequestPasswordResetMutationHookResult = ReturnType<typeof useRequestPasswordResetMutation>;
 export type RequestPasswordResetMutationResult = ApolloReactCommon.MutationResult<RequestPasswordResetMutation>;
+export type RequestPasswordResetMutationOptions = ApolloReactCommon.BaseMutationOptions<RequestPasswordResetMutation, RequestPasswordResetMutationVariables>;
 export const ResetPasswordDocument = gql`
     mutation ResetPassword($input: ResetPasswordInput!) {
   resetPassword(input: $input) {
@@ -215,3 +219,4 @@ export function useResetPasswordMutation(baseOptions?: ApolloReactHooks.Mutation
       }
 export type ResetPasswordMutationHookResult = ReturnType<typeof useResetPasswordMutation>;
 export type ResetPasswordMutationResult = ApolloReactCommon.MutationResult<ResetPasswordMutation>;
+export type ResetPasswordMutationOptions = ApolloReactCommon.BaseMutationOptions<ResetPasswordMutation, ResetPasswordMutationVariables>;

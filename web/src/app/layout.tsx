@@ -1,6 +1,7 @@
 export { metadata } from "@/shared/seo/metadata";
 import * as React from "react";
 import dynamic from "next/dynamic";
+import { Box } from "@mui/material";
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary";
 import Providers from "./providers";
 
@@ -8,7 +9,18 @@ import Providers from "./providers";
 const AppShell = dynamic(() => import("@/shared/ui/shell/AppShell").then(mod => ({ default: mod.AppShell })), {
   loading: () => {
     const { LoadingSpinner } = require("@/shared/components/ui/primitives/LoadingSpinner");
-    return <LoadingSpinner message="Loading application..." />;
+    return (
+      <Box
+        sx={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <LoadingSpinner message="Loading application..." />
+      </Box>
+    );
   }
 });
 

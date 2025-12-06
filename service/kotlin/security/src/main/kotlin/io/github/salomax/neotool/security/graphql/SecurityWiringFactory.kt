@@ -116,6 +116,13 @@ class SecurityWiringFactory(
                 },
             )
             .dataFetcher(
+                "group",
+                createValidatedDataFetcher { env ->
+                    val id = getRequiredString(env, "id")
+                    groupManagementResolver.group(id)
+                },
+            )
+            .dataFetcher(
                 "groups",
                 createValidatedDataFetcher { env ->
                     val first = env.getArgument<Int?>("first")
@@ -123,6 +130,13 @@ class SecurityWiringFactory(
                     val query = env.getArgument<String?>("query")
                     val orderBy = env.getArgument<List<Map<String, Any?>>>("orderBy")
                     groupManagementResolver.groups(first, after, query, orderBy)
+                },
+            )
+            .dataFetcher(
+                "role",
+                createValidatedDataFetcher { env ->
+                    val id = getRequiredString(env, "id")
+                    roleManagementResolver.role(id)
                 },
             )
             .dataFetcher(
@@ -164,6 +178,12 @@ class SecurityWiringFactory(
                 "signUp",
                 createMutationDataFetcher<SignUpPayloadDTO>("signUp") { input ->
                     authResolver.signUp(input)
+                },
+            )
+            .dataFetcher(
+                "refreshAccessToken",
+                createMutationDataFetcher<SignInPayloadDTO>("refreshAccessToken") { input ->
+                    authResolver.refreshAccessToken(input)
                 },
             )
             .dataFetcher(
@@ -658,13 +678,6 @@ class SecurityWiringFactory(
                     },
                 )
                 type.dataFetcher(
-                    "nodes",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val connection = env.getSource<UserConnectionDTO>()
-                        connection?.nodes ?: emptyList()
-                    },
-                )
-                type.dataFetcher(
                     "pageInfo",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
                         val connection = env.getSource<UserConnectionDTO>()
@@ -678,13 +691,6 @@ class SecurityWiringFactory(
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
                         val connection = env.getSource<GroupConnectionDTO>()
                         connection?.edges ?: emptyList()
-                    },
-                )
-                type.dataFetcher(
-                    "nodes",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val connection = env.getSource<GroupConnectionDTO>()
-                        connection?.nodes ?: emptyList()
                     },
                 )
                 type.dataFetcher(
@@ -704,13 +710,6 @@ class SecurityWiringFactory(
                     },
                 )
                 type.dataFetcher(
-                    "nodes",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val connection = env.getSource<RoleConnectionDTO>()
-                        connection?.nodes ?: emptyList()
-                    },
-                )
-                type.dataFetcher(
                     "pageInfo",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
                         val connection = env.getSource<RoleConnectionDTO>()
@@ -724,13 +723,6 @@ class SecurityWiringFactory(
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
                         val connection = env.getSource<PermissionConnectionDTO>()
                         connection?.edges ?: emptyList()
-                    },
-                )
-                type.dataFetcher(
-                    "nodes",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val connection = env.getSource<PermissionConnectionDTO>()
-                        connection?.nodes ?: emptyList()
                     },
                 )
                 type.dataFetcher(

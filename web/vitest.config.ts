@@ -84,11 +84,11 @@ export default defineConfig({
         // Exclude data-table utility functions (thin wrappers around browser APIs)
         'src/shared/components/ui/data-table/components/enterprise/presets.ts',
         // Exclude feedback components (thin wrappers and pure presentational components)
-        'src/shared/components/ui/feedback/ConfirmDialog.tsx',
-        'src/shared/components/ui/feedback/ConfirmationDialog.tsx',
-        'src/shared/components/ui/feedback/EmptyErrorState.tsx',
-        'src/shared/components/ui/feedback/Tooltip.tsx',
-        'src/shared/components/ui/feedback/ToastProvider.tsx',
+        'src/shared/components/ui/feedback/dialogs/ConfirmDialog.tsx',
+        'src/shared/components/ui/feedback/dialogs/ConfirmationDialog.tsx',
+        'src/shared/components/ui/feedback/states/EmptyErrorState.tsx',
+        'src/shared/components/ui/feedback/tooltip/Tooltip.tsx',
+        'src/shared/components/ui/feedback/toast/ToastProvider.tsx',
         // Exclude Chat components (integration components better tested via E2E)
         'src/shared/components/ui/feedback/Chat/Chat.tsx',
         'src/shared/components/ui/feedback/Chat/ChatDrawer.tsx',

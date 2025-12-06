@@ -70,7 +70,7 @@ class RoleManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).hasSize(2)
+            assertThat(result.edges.map { it.node }).hasSize(2)
             assertThat(result.pageInfo.hasNextPage).isFalse()
             verify(
                 roleSearchRepository,
@@ -97,7 +97,7 @@ class RoleManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).hasSize(1)
+            assertThat(result.edges.map { it.node }).hasSize(1)
             verify(roleSearchRepository).searchByName(null, first + 1, null, defaultOrderBy)
         }
 
@@ -164,7 +164,7 @@ class RoleManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).hasSize(1)
+            assertThat(result.edges.map { it.node }).hasSize(1)
             verify(
                 roleSearchRepository,
             ).searchByName(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, compositeCursor, defaultOrderBy)
@@ -202,7 +202,7 @@ class RoleManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).hasSize(PaginationConstants.DEFAULT_PAGE_SIZE)
+            assertThat(result.edges.map { it.node }).hasSize(PaginationConstants.DEFAULT_PAGE_SIZE)
             assertThat(result.pageInfo.hasNextPage).isTrue()
         }
 
@@ -231,7 +231,7 @@ class RoleManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).isEmpty()
+            assertThat(result.edges.map { it.node }).isEmpty()
             assertThat(result.edges).isEmpty()
             assertThat(result.pageInfo.hasNextPage).isFalse()
         }
@@ -275,7 +275,7 @@ class RoleManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).hasSize(2)
+            assertThat(result.edges.map { it.node }).hasSize(2)
             verify(
                 roleSearchRepository,
             ).searchByName(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null, defaultOrderBy)
@@ -306,7 +306,7 @@ class RoleManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).hasSize(2)
+            assertThat(result.edges.map { it.node }).hasSize(2)
             verify(roleSearchRepository).searchByName(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null, orderBy)
         }
     }
@@ -341,8 +341,8 @@ class RoleManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).hasSize(1)
-            assertThat(result.nodes.first().name).isEqualTo("Admin Role")
+            assertThat(result.edges.map { it.node }).hasSize(1)
+            assertThat(result.edges.first().node.name).isEqualTo("Admin Role")
             assertThat(result.totalCount).isEqualTo(1L)
             verify(
                 roleSearchRepository,
@@ -380,7 +380,7 @@ class RoleManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).hasSize(1)
+            assertThat(result.edges.map { it.node }).hasSize(1)
             assertThat(result.totalCount).isEqualTo(2L)
             verify(
                 roleSearchRepository,
@@ -414,7 +414,7 @@ class RoleManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).isEmpty()
+            assertThat(result.edges.map { it.node }).isEmpty()
             assertThat(result.pageInfo.hasNextPage).isFalse()
             assertThat(result.totalCount).isEqualTo(0L)
             verify(roleSearchRepository).countByName(query)

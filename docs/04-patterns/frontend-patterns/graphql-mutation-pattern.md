@@ -373,6 +373,7 @@ When implementing mutations that affect lists, verify:
 
 ## Related Documentation
 
+- [GraphQL Query Pattern](./graphql-query-pattern.md) - Query patterns and Apollo Client cache configuration
 - [Toast Notification Pattern](./toast-notification-pattern.md) - User feedback for mutations
 - [GraphQL Federation Pattern](../api-patterns/graphql-federation.md) - GraphQL architecture
 - [GraphQL Standards](../../05-standards/api-standards/graphql-standards.md) - API standards

@@ -59,6 +59,7 @@ export function useCreateProductMutation(baseOptions?: ApolloReactHooks.Mutation
       }
 export type CreateProductMutationHookResult = ReturnType<typeof useCreateProductMutation>;
 export type CreateProductMutationResult = ApolloReactCommon.MutationResult<CreateProductMutation>;
+export type CreateProductMutationOptions = ApolloReactCommon.BaseMutationOptions<CreateProductMutation, CreateProductMutationVariables>;
 export const UpdateProductDocument = gql`
     mutation UpdateProduct($id: ID!, $input: ProductInput!) {
   updateProduct(id: $id, input: $input) {
@@ -91,6 +92,7 @@ export function useUpdateProductMutation(baseOptions?: ApolloReactHooks.Mutation
       }
 export type UpdateProductMutationHookResult = ReturnType<typeof useUpdateProductMutation>;
 export type UpdateProductMutationResult = ApolloReactCommon.MutationResult<UpdateProductMutation>;
+export type UpdateProductMutationOptions = ApolloReactCommon.BaseMutationOptions<UpdateProductMutation, UpdateProductMutationVariables>;
 export const DeleteProductDocument = gql`
     mutation DeleteProduct($id: ID!) {
   deleteProduct(id: $id)
@@ -120,3 +122,4 @@ export function useDeleteProductMutation(baseOptions?: ApolloReactHooks.Mutation
       }
 export type DeleteProductMutationHookResult = ReturnType<typeof useDeleteProductMutation>;
 export type DeleteProductMutationResult = ApolloReactCommon.MutationResult<DeleteProductMutation>;
+export type DeleteProductMutationOptions = ApolloReactCommon.BaseMutationOptions<DeleteProductMutation, DeleteProductMutationVariables>;

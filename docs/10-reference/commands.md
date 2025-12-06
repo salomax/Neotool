@@ -58,8 +58,10 @@ npm install                # Install dependencies
 npm run dev                # Start development server
 npm run build              # Build for production
 npm test                   # Run tests
-npm run codegen            # Generate TypeScript types
+npm run codegen            # Run GraphQL codegen + fragment fixer
 ```
+
+> `npm run codegen` (or `pnpm run codegen`) executes `graphql-codegen --config codegen.ts` and then `node scripts/fix-generated-types.mjs`, which regenerates shared fragments from `common.graphql` and normalizes Apollo imports in every `.generated.ts` file.
 
 ## Docker Commands
 
@@ -67,4 +69,3 @@ npm run codegen            # Generate TypeScript types
 docker-compose -f infra/docker/docker-compose.local.yml up -d
 docker-compose -f infra/docker/docker-compose.local.yml down
 ```
-

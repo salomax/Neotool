@@ -90,7 +90,7 @@ class GroupManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).hasSize(2)
+            assertThat(result.edges.map { it.node }).hasSize(2)
             assertThat(result.pageInfo.hasNextPage).isFalse()
             verify(
                 groupSearchRepository,
@@ -117,7 +117,7 @@ class GroupManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).hasSize(1)
+            assertThat(result.edges.map { it.node }).hasSize(1)
             verify(groupSearchRepository).searchByName(null, first + 1, null, defaultOrderBy)
         }
 
@@ -176,7 +176,7 @@ class GroupManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).hasSize(1)
+            assertThat(result.edges.map { it.node }).hasSize(1)
             verify(
                 groupSearchRepository,
             ).searchByName(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, compositeCursor, defaultOrderBy)
@@ -214,7 +214,7 @@ class GroupManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).hasSize(PaginationConstants.DEFAULT_PAGE_SIZE)
+            assertThat(result.edges.map { it.node }).hasSize(PaginationConstants.DEFAULT_PAGE_SIZE)
             assertThat(result.pageInfo.hasNextPage).isTrue()
         }
 
@@ -243,7 +243,7 @@ class GroupManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).isEmpty()
+            assertThat(result.edges.map { it.node }).isEmpty()
             assertThat(result.edges).isEmpty()
             assertThat(result.pageInfo.hasNextPage).isFalse()
         }
@@ -287,7 +287,7 @@ class GroupManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).hasSize(2)
+            assertThat(result.edges.map { it.node }).hasSize(2)
             verify(
                 groupSearchRepository,
             ).searchByName(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null, defaultOrderBy)
@@ -318,7 +318,7 @@ class GroupManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).hasSize(2)
+            assertThat(result.edges.map { it.node }).hasSize(2)
             verify(groupSearchRepository).searchByName(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null, orderBy)
         }
     }
@@ -353,8 +353,8 @@ class GroupManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).hasSize(1)
-            assertThat(result.nodes.first().name).isEqualTo("Admin Group")
+            assertThat(result.edges.map { it.node }).hasSize(1)
+            assertThat(result.edges.first().node.name).isEqualTo("Admin Group")
             assertThat(result.totalCount).isEqualTo(1L)
             verify(
                 groupSearchRepository,
@@ -392,7 +392,7 @@ class GroupManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).hasSize(1)
+            assertThat(result.edges.map { it.node }).hasSize(1)
             assertThat(result.totalCount).isEqualTo(3L)
             verify(
                 groupSearchRepository,
@@ -426,7 +426,7 @@ class GroupManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).isEmpty()
+            assertThat(result.edges.map { it.node }).isEmpty()
             assertThat(result.pageInfo.hasNextPage).isFalse()
             assertThat(result.totalCount).isEqualTo(0L)
             verify(groupSearchRepository).countByName(query)

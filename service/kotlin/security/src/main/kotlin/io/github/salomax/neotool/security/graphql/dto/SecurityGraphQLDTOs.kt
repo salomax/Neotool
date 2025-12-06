@@ -194,7 +194,6 @@ data class PermissionEdgeDTO(
 @Serdeable
 data class UserConnectionDTO(
     val edges: List<UserEdgeDTO>,
-    val nodes: List<UserDTO>,
     val pageInfo: PageInfoDTO,
     val totalCount: Int? = null,
 )
@@ -203,7 +202,6 @@ data class UserConnectionDTO(
 @Serdeable
 data class GroupConnectionDTO(
     val edges: List<GroupEdgeDTO>,
-    val nodes: List<GroupDTO>,
     val pageInfo: PageInfoDTO,
     val totalCount: Int? = null,
 )
@@ -212,7 +210,6 @@ data class GroupConnectionDTO(
 @Serdeable
 data class RoleConnectionDTO(
     val edges: List<RoleEdgeDTO>,
-    val nodes: List<RoleDTO>,
     val pageInfo: PageInfoDTO,
     val totalCount: Int? = null,
 )
@@ -221,7 +218,6 @@ data class RoleConnectionDTO(
 @Serdeable
 data class PermissionConnectionDTO(
     val edges: List<PermissionEdgeDTO>,
-    val nodes: List<PermissionDTO>,
     val pageInfo: PageInfoDTO,
 )
 

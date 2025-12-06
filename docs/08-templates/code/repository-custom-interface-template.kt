@@ -27,3 +27,4 @@ interface {EntityName}RepositoryCustom {
     // Example: fun countByNameOrEmail(query: String?): Long
 }
 
+

@@ -144,3 +144,17 @@ export function getNextSortState(
   return null;
 }
 
+/**
+ * Frontend sort state representation for roles.
+ * null means use backend default sorting.
+ */
+export type RoleSortState = {
+  field: 'NAME';
+  direction: 'asc' | 'desc';
+} | null;
+
+/**
+ * GraphQL RoleOrderField enum values.
+ */
+export type RoleOrderField = 'NAME';
+

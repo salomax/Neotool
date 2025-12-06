@@ -1,6 +1,7 @@
 // Apollo Client imports for GraphQL operations
 import { ApolloClient, InMemoryCache, HttpLink, from } from '@apollo/client';
 import { setContext } from '@apollo/client/link/context';
+import { relayStylePagination } from '@apollo/client/utilities';
 
 // HTTP Link configuration - defines how Apollo Client communicates with the GraphQL server
 const httpLink = new HttpLink({

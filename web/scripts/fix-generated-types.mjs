@@ -1,87 +1,154 @@
 #!/usr/bin/env node
 /**
- * Post-processing script to fix generated GraphQL types for Apollo Client v4
- * Removes BaseMutationOptions type exports that don't exist in v4
+ * GraphQL codegen post-processing.
+ * For now we only need to fix the fragment documents because the stock
+ * typescript-operations plugin emits malformed gql strings when a fragment
+ * spreads another fragment.
  */
 
-import { readFileSync, writeFileSync, readdirSync, statSync } from 'fs';
-import { join, dirname } from 'path';
+import { existsSync, readFileSync, writeFileSync, readdirSync } from 'fs';
+import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
+import { Kind, parse, print, visit } from 'graphql';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const rootDir = join(__dirname, '..');
-const operationsDir = join(rootDir, 'src/lib/graphql/operations');
+const webDir = join(__dirname, '..');
+const fragmentsSource = join(webDir, 'src/lib/graphql/fragments/common.graphql');
+const fragmentsTarget = join(webDir, 'src/lib/graphql/fragments/common.generated.ts');
+const operationsRoot = join(webDir, 'src/lib/graphql/operations');
 
-function findGeneratedFiles(dir) {
-  const files = [];
+function indentBlock(text, spaces = 4) {
+  const pad = ' '.repeat(spaces);
+  return text
+    .split('\n')
+    .map(line => (line ? pad + line : pad))
+    .join('\n');
+}
+
+function collectFragments(source) {
+  const document = parse(source);
+  return document.definitions
+    .filter(def => def.kind === Kind.FRAGMENT_DEFINITION)
+    .map(fragment => {
+      const dependencies = new Set();
+      visit(fragment, {
+        FragmentSpread(node) {
+          if (node.name.value !== fragment.name.value) {
+            dependencies.add(node.name.value);
+          }
+        },
+      });
+      return {
+        name: fragment.name.value,
+        printed: print(fragment),
+        dependencies: Array.from(dependencies),
+      };
+    });
+}
+
+function buildFragmentDoc({ name, printed, dependencies }) {
+  const docLines = [
+    `export const ${name}FragmentDoc = gql\``,
+    indentBlock(printed),
+    dependencies.length
+      ? dependencies.map(dep => `    \${${dep}FragmentDoc}`).join('\n')
+      : '',
+    '`;',
+  ].filter(Boolean);
+
+  // Add an extra newline between fragments to match codegen's output style
+  return docLines.join('\n') + '\n';
+}
+
+function rewriteFragmentDocs() {
+  if (!existsSync(fragmentsSource) || !existsSync(fragmentsTarget)) {
+    return;
+  }
+
+  const fragments = collectFragments(readFileSync(fragmentsSource, 'utf8'));
+  if (!fragments.length) {
+    return;
+  }
+
+  const generatedContent = readFileSync(fragmentsTarget, 'utf8');
+  const docMarkerIndex = fragments
+    .map(fragment => generatedContent.indexOf(`export const ${fragment.name}FragmentDoc`))
+    .filter(index => index !== -1)
+    .reduce((min, index) => Math.min(min, index), Number.POSITIVE_INFINITY);
+
+  if (!Number.isFinite(docMarkerIndex)) {
+    console.warn('⚠️ Could not find fragment markers in', fragmentsTarget);
+    return;
+  }
+
+  const typeSnippets = fragments
+    .map(fragment => {
+      const regex = new RegExp(
+        `export type ${fragment.name}Fragment\\s*=\\s*[^;]+;`,
+        'm',
+      );
+      const match = generatedContent.match(regex);
+      return match ? match[0] : null;
+    })
+    .filter(Boolean);
+
+  if (!typeSnippets.length) {
+    console.warn('⚠️ Could not extract fragment type definitions from', fragmentsTarget);
+    return;
+  }
+
+  const typeSection = typeSnippets.join('\n\n');
+  const fragmentDocs = fragments.map(buildFragmentDoc).join('\n');
+  const header = "import { gql } from '@apollo/client';\n\n";
+  const nextContent = `${header}${typeSection}\n\n${fragmentDocs}`;
+
+  writeFileSync(fragmentsTarget, nextContent, 'utf8');
+  console.log('🔧 Updated fragment documents in common.generated.ts');
+}
+
+function collectOperationFiles(dir) {
   const entries = readdirSync(dir, { withFileTypes: true });
-  
+  const files = [];
   for (const entry of entries) {
     const fullPath = join(dir, entry.name);
     if (entry.isDirectory()) {
-      files.push(...findGeneratedFiles(fullPath));
+      files.push(...collectOperationFiles(fullPath));
     } else if (entry.isFile() && entry.name.endsWith('.generated.ts')) {
       files.push(fullPath);
     }
   }
-  
   return files;
 }
 
-function fixGeneratedFile(filePath) {
-  let content = readFileSync(filePath, 'utf8');
-  let modified = false;
-  
-  // Remove BaseMutationOptions type exports (doesn't exist in Apollo Client v4)
-  // Match both single-line and multi-line patterns, with flexible whitespace
-  const baseMutationOptionsRegex = /export type \w+MutationOptions\s*=\s*ApolloReactCommon\.BaseMutationOptions<[^>]+>;\s*\n?/gm;
-  if (baseMutationOptionsRegex.test(content)) {
-    content = content.replace(baseMutationOptionsRegex, '');
-    modified = true;
+function fixApolloImports() {
+  if (!existsSync(operationsRoot)) {
+    return;
   }
-  
-  // Also handle cases where MutationOptions might be incorrectly imported from ApolloReactCommon
-  // Replace ApolloReactCommon.BaseMutationOptions with MutationOptions from @apollo/client
-  const baseMutationOptionsUsageRegex = /ApolloReactCommon\.BaseMutationOptions/g;
-  if (baseMutationOptionsUsageRegex.test(content)) {
-    // Check if MutationOptions is already imported from @apollo/client
-    if (!content.includes("import { gql, MutationOptions } from '@apollo/client'")) {
-      // Add MutationOptions to existing import if gql is already imported
+  const files = collectOperationFiles(operationsRoot);
+  files.forEach(file => {
+    let content = readFileSync(file, 'utf8');
+    let updated = false;
+    if (content.includes("import * as ApolloReactHooks from '@apollo/client';")) {
       content = content.replace(
-        /import { gql(?:, [^}]+)? } from '@apollo\/client';/,
-        (match) => {
-          if (match.includes('MutationOptions')) {
-            return match;
-          }
-          return match.replace('{ gql', '{ gql, MutationOptions');
-        }
+        "import * as ApolloReactHooks from '@apollo/client';",
+        "import * as ApolloReactHooks from '@apollo/client/react';",
       );
+      updated = true;
     }
-    // Replace BaseMutationOptions usage with MutationOptions
-    content = content.replace(baseMutationOptionsUsageRegex, 'MutationOptions');
-    modified = true;
-  }
-  
-  // Fix useSuspenseQuery type signature - variables must be required when not using skipToken
-  // Change from optional to required variables in the function signature
-  const suspenseQueryRegex = /export function (\w+SuspenseQuery)\(baseOptions\?: ApolloReactHooks\.SkipToken \| ApolloReactHooks\.SuspenseQueryHookOptions<([^,]+), ([^>]+)>\) \{/g;
-  if (suspenseQueryRegex.test(content)) {
-    content = content.replace(suspenseQueryRegex, (match, funcName, queryType, varsType) => {
-      return `export function ${funcName}(baseOptions: ApolloReactHooks.SkipToken | (ApolloReactHooks.SuspenseQueryHookOptions<${queryType}, ${varsType}> & { variables: ${varsType} })) {`;
-    });
-    modified = true;
-  }
-  
-  if (modified) {
-    writeFileSync(filePath, content, 'utf8');
-    console.log(`Fixed: ${filePath.replace(rootDir, '')}`);
-  }
+    if (content.includes("import * as ApolloReactCommon from '@apollo/client';")) {
+      content = content.replace(
+        "import * as ApolloReactCommon from '@apollo/client';",
+        "import * as ApolloReactCommon from '@apollo/client/react';",
+      );
+      updated = true;
+    }
+    if (updated) {
+      writeFileSync(file, content, 'utf8');
+      console.log(`🔧 Fixed Apollo imports in ${file.replace(webDir, '')}`);
+    }
+  });
 }
 
-// Find and fix all generated files
-const generatedFiles = findGeneratedFiles(operationsDir);
-generatedFiles.forEach(fixGeneratedFile);
-
-console.log(`Processed ${generatedFiles.length} generated files`);
-
+rewriteFragmentDocs();
+fixApolloImports();

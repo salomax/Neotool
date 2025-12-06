@@ -1,0 +1,44 @@
+fragment UserFields on User {
+  id
+  email
+  displayName
+  enabled
+}
+
+fragment GroupFields on Group {
+  id
+  name
+  description
+  members {
+    ...UserFields
+  }
+}
+
+fragment RoleFields on Role {
+  id
+  name
+}
+
+fragment PermissionFields on Permission {
+  id
+  name
+}
+
+fragment CustomerFields on Customer {
+  id
+  name
+  email
+  status
+  createdAt
+  updatedAt
+}
+
+fragment ProductFields on Product {
+  id
+  name
+  sku
+  priceCents
+  stock
+  createdAt
+  updatedAt
+}

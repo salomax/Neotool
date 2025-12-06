@@ -86,7 +86,11 @@ This specification is organized into numbered directories (00-11) for clear hier
 | Component Pattern | `04-patterns/frontend-patterns/component-pattern.md` | pattern | frontend | component, react, ui |
 | Page Pattern | `04-patterns/frontend-patterns/page-pattern.md` | pattern | frontend | page, route, nextjs |
 | Hook Pattern | `04-patterns/frontend-patterns/hook-pattern.md` | pattern | frontend | hooks, react, custom-hooks |
+| GraphQL Query Pattern | `04-patterns/frontend-patterns/graphql-query-pattern.md` | pattern | frontend | graphql, query, apollo, cache, pagination, relay, relayStylePagination |
 | GraphQL Mutation Pattern | `04-patterns/frontend-patterns/graphql-mutation-pattern.md` | pattern | frontend | graphql, mutation, apollo, cache, refetch, list, table |
+| Mutation Pattern | `04-patterns/frontend-patterns/mutation-pattern.md` | pattern | frontend | mutation, hooks, refetch, race-condition, apollo, graphql |
+| Management Pattern | `04-patterns/frontend-patterns/management-pattern.md` | pattern | frontend | management, hooks, components, reusable, useManagementBase, useDebouncedSearch, useSorting, ErrorAlert, DeleteConfirmationDialog, useToggleStatus, ManagementLayout |
+| Shared Components Pattern | `04-patterns/frontend-patterns/shared-components-pattern.md` | pattern | frontend | shared components, reusable components, ui components, feedback components, ErrorAlert, DeleteConfirmationDialog, ManagementLayout, useToggleStatus |
 | Styling Pattern | `04-patterns/frontend-patterns/styling-pattern.md` | pattern | frontend | styling, themes, design-tokens |
 | Toast Notification Pattern | `04-patterns/frontend-patterns/toast-notification-pattern.md` | pattern | frontend | toast, notification, feedback, user-experience |
 

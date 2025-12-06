@@ -97,7 +97,7 @@ class UserManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).hasSize(2)
+            assertThat(result.edges.map { it.node }).hasSize(2)
             assertThat(result.pageInfo.hasNextPage).isFalse()
             verify(
                 userSearchRepository,
@@ -129,7 +129,7 @@ class UserManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).hasSize(1)
+            assertThat(result.edges.map { it.node }).hasSize(1)
             verify(userSearchRepository).searchByNameOrEmail(null, first + 1, null, defaultOrderBy)
         }
 
@@ -194,7 +194,7 @@ class UserManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).hasSize(1)
+            assertThat(result.edges.map { it.node }).hasSize(1)
             verify(
                 userSearchRepository,
             ).searchByNameOrEmail(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, compositeCursor, defaultOrderBy)
@@ -232,7 +232,7 @@ class UserManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).hasSize(PaginationConstants.DEFAULT_PAGE_SIZE)
+            assertThat(result.edges.map { it.node }).hasSize(PaginationConstants.DEFAULT_PAGE_SIZE)
             assertThat(result.pageInfo.hasNextPage).isTrue()
         }
 
@@ -261,7 +261,7 @@ class UserManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).isEmpty()
+            assertThat(result.edges.map { it.node }).isEmpty()
             assertThat(result.edges).isEmpty()
             assertThat(result.pageInfo.hasNextPage).isFalse()
         }
@@ -319,7 +319,7 @@ class UserManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).hasSize(2)
+            assertThat(result.edges.map { it.node }).hasSize(2)
             verify(
                 userSearchRepository,
             ).searchByNameOrEmail(
@@ -357,7 +357,7 @@ class UserManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).hasSize(1)
+            assertThat(result.edges.map { it.node }).hasSize(1)
             verify(
                 userSearchRepository,
             ).searchByNameOrEmail(null, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null, idOnlyOrderBy)
@@ -405,7 +405,7 @@ class UserManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).hasSize(2)
+            assertThat(result.edges.map { it.node }).hasSize(2)
             verify(
                 userSearchRepository,
             ).searchByNameOrEmail(
@@ -458,7 +458,7 @@ class UserManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).hasSize(2)
+            assertThat(result.edges.map { it.node }).hasSize(2)
             verify(
                 userSearchRepository,
             ).searchByNameOrEmail(
@@ -518,7 +518,7 @@ class UserManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).hasSize(2)
+            assertThat(result.edges.map { it.node }).hasSize(2)
             verify(
                 userSearchRepository,
             ).searchByNameOrEmail(
@@ -572,7 +572,7 @@ class UserManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).hasSize(1)
+            assertThat(result.edges.map { it.node }).hasSize(1)
             verify(
                 userSearchRepository,
             ).searchByNameOrEmail(
@@ -713,8 +713,8 @@ class UserManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).hasSize(1)
-            assertThat(result.nodes.first().email).isEqualTo("john@example.com")
+            assertThat(result.edges.map { it.node }).hasSize(1)
+            assertThat(result.edges.first().node.email).isEqualTo("john@example.com")
             assertThat(result.totalCount).isEqualTo(1L)
             verify(
                 userSearchRepository,
@@ -749,7 +749,7 @@ class UserManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).hasSize(1)
+            assertThat(result.edges.map { it.node }).hasSize(1)
             assertThat(result.totalCount).isEqualTo(1L)
             verify(
                 userSearchRepository,
@@ -787,7 +787,7 @@ class UserManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).hasSize(1)
+            assertThat(result.edges.map { it.node }).hasSize(1)
             assertThat(result.totalCount).isEqualTo(5L)
             verify(
                 userSearchRepository,
@@ -821,7 +821,7 @@ class UserManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).isEmpty()
+            assertThat(result.edges.map { it.node }).isEmpty()
             assertThat(result.pageInfo.hasNextPage).isFalse()
             assertThat(result.totalCount).isEqualTo(0L)
             verify(userSearchRepository).countByNameOrEmail(query)

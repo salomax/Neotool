@@ -3,7 +3,9 @@ package io.github.salomax.neotool.security.test.service.integration
 import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.security.repo.UserRepository
+import io.github.salomax.neotool.security.service.AuthContextFactory
 import io.github.salomax.neotool.security.service.AuthenticationService
+import io.github.salomax.neotool.security.service.JwtService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject
@@ -31,6 +33,12 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
 
     @Inject
     lateinit var authenticationService: AuthenticationService
+
+    @Inject
+    lateinit var authContextFactory: AuthContextFactory
+
+    @Inject
+    lateinit var jwtService: JwtService
 
     private fun uniqueEmail() = SecurityTestDataBuilders.uniqueEmail("auth-integration")
 
@@ -468,7 +476,7 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
     @DisplayName("JWT Token Generation and Validation with Database")
     inner class JwtTokenIntegrationTests {
         @Test
-        fun `should generate and validate JWT access token`() {
+        fun `should generate and validate JWT access token with AuthContext`() {
             // Arrange
             val email = uniqueEmail()
             val password = "TestPassword123!"
@@ -480,12 +488,18 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
                 )
             val savedUser = userRepository.save(user)
 
-            // Act - Generate access token
-            val accessToken = authenticationService.generateAccessToken(savedUser)
+            // Act - Build AuthContext and generate access token
+            val authContext = authContextFactory.build(savedUser)
+            val accessToken = authenticationService.generateAccessToken(authContext)
 
             // Assert - Token is valid
             assertThat(accessToken).isNotBlank()
             assertThat(accessToken.split(".")).hasSize(3) // JWT has 3 parts
+
+            // Assert - Token contains permissions claim (empty array for user with no roles)
+            val permissions = jwtService.getPermissionsFromToken(accessToken)
+            assertThat(permissions).isNotNull()
+            assertThat(permissions).isEmpty()
 
             // Act - Validate access token
             val validatedUser = authenticationService.validateAccessToken(accessToken)
@@ -607,7 +621,8 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
                     password = password,
                 )
             val savedUser = userRepository.save(user)
-            val accessToken = authenticationService.generateAccessToken(savedUser)
+            val authContext = authContextFactory.build(savedUser)
+            val accessToken = authenticationService.generateAccessToken(authContext)
 
             // Act - Try to use access token as refresh token
             val validatedUser = authenticationService.validateRefreshToken(accessToken)
@@ -639,7 +654,7 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
         }
 
         @Test
-        fun `should complete full authentication flow with JWT tokens`() {
+        fun `should complete full authentication flow with JWT tokens using AuthContext`() {
             // Arrange
             val email = uniqueEmail()
             val password = "TestPassword123!"
@@ -655,15 +670,18 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
             val authenticatedUser = authenticationService.authenticate(email, password)
             assertThat(authenticatedUser).isNotNull()
 
-            // Act - Generate tokens
-            val accessToken = authenticationService.generateAccessToken(authenticatedUser!!)
+            // Act - Build AuthContext and generate tokens
+            val authContext = authContextFactory.build(authenticatedUser!!)
+            val accessToken = authenticationService.generateAccessToken(authContext)
             val refreshToken = authenticationService.generateRefreshToken(authenticatedUser)
             authenticationService.saveRememberMeToken(authenticatedUser.id!!, refreshToken)
 
-            // Assert - Access token works
+            // Assert - Access token works and contains permissions claim
             val userFromAccessToken = authenticationService.validateAccessToken(accessToken)
             assertThat(userFromAccessToken).isNotNull()
             assertThat(userFromAccessToken?.id).isEqualTo(savedUser.id)
+            val permissions = jwtService.getPermissionsFromToken(accessToken)
+            assertThat(permissions).isNotNull() // Permissions claim should always be present
 
             // Assert - Refresh token works
             val userFromRefreshToken = authenticationService.validateRefreshToken(refreshToken)

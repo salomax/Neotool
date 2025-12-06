@@ -400,6 +400,18 @@ When creating hooks that use GraphQL operations, follow this order:
 
 **Common Mistake**: Creating hooks before running codegen will result in TypeScript errors that cannot be resolved until codegen runs successfully. Always run codegen first!
 
+### Shared GraphQL Fragments & Codegen Post-processing
+
+- **Source of truth** for shared fragments is `web/src/lib/graphql/fragments/common.graphql`. Never edit `common.generated.ts` manually—the file is fully overwritten every time codegen runs.
+- `pnpm run codegen` runs `graphql-codegen` **and** `node scripts/fix-generated-types.mjs`. The post-processing script:
+  - Rewrites `common.generated.ts` so it only exports fragment types and valid `gql` documents (including nested spreads like `...UserFields`).
+  - Normalizes generated operations to import hooks/types from `@apollo/client/react`, matching Apollo Client v4’s package layout.
+- **Adding a new shared fragment**:
+  1. Append the fragment definition to `common.graphql`.
+  2. Run `pnpm run codegen` (which also runs the fixer).
+  3. Import the fragment or `FragmentDoc` from `@/lib/graphql/fragments/common.generated`.
+- **Rule**: Treat every file under `src/lib/graphql/fragments/*.generated.ts` and `src/lib/graphql/operations/**/*.generated.ts` as read-only outputs. If something looks wrong in a generated file, update the `.graphql` source or schema and re-run codegen instead of hand-editing the artefact.
+
 **Duplicate Type Exports**:
 
 When multiple files export the same type name, use explicit exports in index files to avoid conflicts.
@@ -536,4 +548,3 @@ const loadNextPage = useCallback(() => {
 - [Feature Development Workflow](../../06-workflows/feature-development.md)
 - [Code Review Checklist](../../11-validation/code-review-checklist.md)
 - [Validation Scripts](../../11-validation/validation-scripts.md)
-

@@ -1,3 +1,11 @@
+/**
+ * @deprecated This file is deprecated. Fragments are now defined in common.graphql
+ * and generated FragmentDoc exports are available from common.generated.ts
+ * 
+ * This file is kept temporarily for backward compatibility but will be removed.
+ * Please use imports from './common.generated' instead.
+ */
+
 import { gql } from '@apollo/client';
 
 // Customer fields fragment
@@ -42,10 +50,7 @@ export const GROUP_FIELDS = gql`
     name
     description
     members {
-      id
-      email
-      displayName
-      enabled
+      ...UserFields
     }
   }
 `;

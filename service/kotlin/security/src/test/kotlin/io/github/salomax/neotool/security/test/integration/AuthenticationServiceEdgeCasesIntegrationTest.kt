@@ -5,6 +5,7 @@ import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.common.test.transaction.runTransaction
 import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.repo.UserRepository
+import io.github.salomax.neotool.security.service.AuthContextFactory
 import io.github.salomax.neotool.security.service.AuthenticationService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
@@ -40,6 +41,9 @@ open class AuthenticationServiceEdgeCasesIntegrationTest : BaseIntegrationTest()
 
     @Inject
     lateinit var authenticationService: AuthenticationService
+
+    @Inject
+    lateinit var authContextFactory: AuthContextFactory
 
     @Inject
     lateinit var entityManager: EntityManager
@@ -187,8 +191,9 @@ open class AuthenticationServiceEdgeCasesIntegrationTest : BaseIntegrationTest()
                 )
             saveUser(user)
 
-            // Generate access token
-            val accessToken = authenticationService.generateAccessToken(user)
+            // Build AuthContext and generate access token
+            val authContext = authContextFactory.build(user)
+            val accessToken = authenticationService.generateAccessToken(authContext)
 
             // Try to validate access token as refresh token - should fail
             val validatedUser = authenticationService.validateRefreshToken(accessToken)

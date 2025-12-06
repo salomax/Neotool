@@ -3,6 +3,7 @@
 import React, { useRef, useEffect } from "react";
 import { Box, type BoxProps } from "./Box";
 import { useDynamicPageSize, type UseDynamicPageSizeOptions } from "@/shared/hooks/ui";
+import type { SxProps, Theme } from "@mui/material/styles";
 
 export interface DynamicTableBoxProps extends BoxProps {
   /**
@@ -21,6 +22,28 @@ export interface DynamicTableBoxProps extends BoxProps {
   recalculationKey?: string | number | boolean;
 }
 
+// Default sx styles for DynamicTableBox
+const defaultSx: SxProps<Theme> = {
+  flex: 1,
+  overflow: "auto",
+  minHeight: 0,
+  // Hide scrollbar while maintaining scroll functionality
+  scrollbarWidth: 'none', // Firefox
+  '&::-webkit-scrollbar': {
+    display: 'none', // Chrome, Safari, Edge
+  },
+};
+
+// Default page size options
+const defaultPageSizeOptions: UseDynamicPageSizeOptions = {
+  minRows: 5,
+  maxRows: 50,
+  rowHeight: 53, // Fallback row height when rows are unavailable
+  reservedHeight: 0,
+  autoDetectHeaderHeight: true,
+  autoDetectRowHeight: true,
+};
+
 /**
  * DynamicTableBox component - A Box that automatically calculates and reports optimal page size
  * 
@@ -30,15 +53,21 @@ export interface DynamicTableBoxProps extends BoxProps {
  * 
  * @example
  * ```tsx
+ * // Basic usage with defaults (sx and pageSizeOptions are applied automatically)
  * <DynamicTableBox
- *   sx={{ flex: 1, overflow: "auto", minHeight: 0 }}
- *   pageSizeOptions={{
- *     minRows: 5,
- *     maxRows: 50,
- *     rowHeight: 53,
- *     autoDetectHeaderHeight: true,
- *     autoDetectRowHeight: true,
- *   }}
+ *   recalculationKey={`${users.length}-${loading ? "loading" : "ready"}`}
+ *   onTableResize={(pageSize) => setFirst(pageSize)}
+ * >
+ *   <Table>...</Table>
+ * </DynamicTableBox>
+ * ```
+ * 
+ * @example
+ * ```tsx
+ * // Override defaults if needed
+ * <DynamicTableBox
+ *   sx={{ flex: 1, overflow: "auto", minHeight: 0, customStyle: "value" }}
+ *   pageSizeOptions={{ minRows: 10, maxRows: 100 }}
  *   recalculationKey={`${users.length}-${loading ? "loading" : "ready"}`}
  *   onTableResize={(pageSize) => setFirst(pageSize)}
  * >
@@ -49,22 +78,24 @@ export interface DynamicTableBoxProps extends BoxProps {
 export const DynamicTableBox = React.forwardRef<HTMLDivElement, DynamicTableBoxProps>(
   function DynamicTableBox(
     {
-      pageSizeOptions = {},
+      pageSizeOptions,
       onTableResize,
       recalculationKey,
+      sx,
       ...boxProps
     }: DynamicTableBoxProps,
-    ref
+    ref: React.ForwardedRef<HTMLDivElement>
   ) {
-    const internalRef = useRef<HTMLDivElement>(null);
+    const internalRef = useRef<HTMLDivElement | null>(null);
 
-    // Merge recalculationKey into pageSizeOptions
-    const optionsWithKey: UseDynamicPageSizeOptions = {
+    // Merge default pageSizeOptions with user-provided options
+    const mergedPageSizeOptions: UseDynamicPageSizeOptions = {
+      ...defaultPageSizeOptions,
       ...pageSizeOptions,
       recalculationKey,
     };
 
-    const dynamicPageSize = useDynamicPageSize(internalRef, optionsWithKey);
+    const dynamicPageSize = useDynamicPageSize(internalRef, mergedPageSizeOptions);
 
     // Call onTableResize when page size changes
     useEffect(() => {
@@ -74,19 +105,32 @@ export const DynamicTableBox = React.forwardRef<HTMLDivElement, DynamicTableBoxP
     }, [dynamicPageSize, onTableResize]);
 
     // Combine refs: forward the external ref and use internal ref for measurements
-    const combinedRef = React.useCallback(
-      (node: HTMLDivElement | null) => {
-        internalRef.current = node;
-        if (typeof ref === "function") {
-          ref(node);
-        } else if (ref && "current" in ref) {
-          (ref as React.MutableRefObject<HTMLDivElement | null>).current = node;
-        }
+    const combinedRef = React.useMemo(
+      () => {
+        const callback: React.RefCallback<HTMLDivElement> = (node: HTMLDivElement | null) => {
+          (internalRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+          if (typeof ref === "function") {
+            ref(node);
+          } else if (ref && typeof ref === "object" && "current" in ref) {
+            (ref as React.MutableRefObject<HTMLDivElement | null>).current = node;
+          }
+        };
+        return callback;
       },
       [ref]
     );
 
-    return <Box ref={combinedRef} {...boxProps} />;
+    // Merge default sx with user-provided sx
+    // MUI's sx prop supports arrays, so we can simply combine them
+    const mergedSx: SxProps<Theme> = React.useMemo(() => {
+      if (!sx) return defaultSx;
+      return [defaultSx, sx] as SxProps<Theme>;
+    }, [sx]);
+
+    // TypeScript has difficulty inferring the ref callback type correctly when combining refs
+    // The logic is correct - this is a known TypeScript limitation with ref forwarding
+    // @ts-expect-error - Ref callback type inference issue with combined refs
+    return <Box ref={combinedRef} sx={mergedSx} {...boxProps} />;
   }
 );
 

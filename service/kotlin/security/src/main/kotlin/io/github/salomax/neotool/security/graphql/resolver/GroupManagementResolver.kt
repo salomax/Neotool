@@ -6,6 +6,7 @@ import io.github.salomax.neotool.security.graphql.dto.GroupDTO
 import io.github.salomax.neotool.security.graphql.dto.UpdateGroupInputDTO
 import io.github.salomax.neotool.security.graphql.mapper.GroupManagementMapper
 import io.github.salomax.neotool.security.repo.GroupMembershipRepository
+import io.github.salomax.neotool.security.repo.GroupRepository
 import io.github.salomax.neotool.security.repo.GroupRoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.UserRepository
@@ -23,6 +24,7 @@ import java.util.UUID
 @Singleton
 class GroupManagementResolver(
     private val groupManagementService: GroupManagementService,
+    private val groupRepository: GroupRepository,
     private val groupRoleAssignmentRepository: GroupRoleAssignmentRepository,
     private val groupMembershipRepository: GroupMembershipRepository,
     private val roleRepository: RoleRepository,
@@ -30,6 +32,25 @@ class GroupManagementResolver(
     private val mapper: GroupManagementMapper,
 ) {
     private val logger = KotlinLogging.logger {}
+
+    /**
+     * Get a single group by ID.
+     */
+    fun group(id: String): GroupDTO? {
+        return try {
+            val groupIdUuid = mapper.toGroupId(id)
+            val entity = groupRepository.findById(groupIdUuid)
+            entity.map { it.toDomain() }
+                .map { mapper.toGroupDTO(it) }
+                .orElse(null)
+        } catch (e: IllegalArgumentException) {
+            logger.warn { "Invalid group ID: $id" }
+            null
+        } catch (e: Exception) {
+            logger.error(e) { "Error getting group: $id" }
+            null
+        }
+    }
 
     /**
      * Unified query for groups with optional pagination and search.

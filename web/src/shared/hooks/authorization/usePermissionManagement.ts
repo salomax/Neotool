@@ -110,8 +110,8 @@ export function usePermissionManagement(options: UsePermissionManagementOptions 
 
   // Derived data - memoize to prevent unnecessary re-renders
   const permissions = useMemo(() => {
-    return permissionsData?.permissions?.nodes || [];
-  }, [permissionsData?.permissions?.nodes]);
+    return permissionsData?.permissions?.edges?.map(e => e.node) || [];
+  }, [permissionsData?.permissions?.edges]);
 
   const pageInfo = useMemo(() => {
     return permissionsData?.permissions?.pageInfo || null;

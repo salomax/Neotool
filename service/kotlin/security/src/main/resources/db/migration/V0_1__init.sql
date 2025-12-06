@@ -35,4 +35,6 @@ CREATE TABLE IF NOT EXISTS security.role_permissions (
 );
 
 INSERT INTO security.roles (name) VALUES ('ADMIN') ON CONFLICT DO NOTHING;
-INSERT INTO security.permissions (name) VALUES ('READ_SELF'), ('READ_USERS') ON CONFLICT DO NOTHING;
+INSERT INTO security.permissions (name) VALUES ('settings:user:view'), ('settings:user:save'), ('settings:user:delete') ON CONFLICT DO NOTHING;
+INSERT INTO security.permissions (name) VALUES ('settings:group:view'), ('settings:group:save'), ('settings:group:delete') ON CONFLICT DO NOTHING;
+INSERT INTO security.permissions (name) VALUES ('settings:role:view'), ('settings:role:save'), ('settings:role:delete') ON CONFLICT DO NOTHING;

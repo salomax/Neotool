@@ -46,11 +46,6 @@ class GroupManagementMapper {
                     )
                 }
 
-        val nodes =
-            connection
-                .nodes
-                .map { toGroupDTO(it) }
-
         val pageInfo =
             PageInfoDTO(
                 hasNextPage = connection.pageInfo.hasNextPage,
@@ -61,7 +56,6 @@ class GroupManagementMapper {
 
         return GroupConnectionDTO(
             edges = edges,
-            nodes = nodes,
             pageInfo = pageInfo,
             totalCount = connection.totalCount?.toInt(),
         )

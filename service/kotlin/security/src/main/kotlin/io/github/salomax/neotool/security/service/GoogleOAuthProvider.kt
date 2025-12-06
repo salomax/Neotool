@@ -38,16 +38,36 @@ class GoogleOAuthProvider(
             val payload = parsedToken.payload
 
             // Get token details for validation
-            val tokenAudience = payload.audienceAsList
+            // Handle audience as either string or list
+            val tokenAudienceList =
+                try {
+                    payload.audienceAsList ?: emptyList()
+                } catch (e: Exception) {
+                    // If audienceAsList fails, try to get it as a string
+                    val audienceString = payload.audience
+                    if (audienceString != null) {
+                        listOf(audienceString)
+                    } else {
+                        throw IllegalArgumentException("Token verification failed: audience not found")
+                    }
+                }
             val tokenIssuer = payload.issuer
             val tokenExpiration = payload.expirationTimeSeconds
             val currentTime = System.currentTimeMillis() / 1000
 
+            // Validate required fields
+            if (tokenAudienceList.isEmpty()) {
+                throw IllegalArgumentException("Token verification failed: audience not found")
+            }
+            if (tokenIssuer == null) {
+                throw IllegalArgumentException("Token verification failed: issuer not found")
+            }
+
             // Manually verify audience (replaces deprecated verifier.verify())
-            if (!tokenAudience.contains(clientId)) {
+            if (!tokenAudienceList.contains(clientId)) {
                 logger.warn {
                     "Token verification failed - audience mismatch. " +
-                        "Token audience: $tokenAudience, Expected: [$clientId]"
+                        "Token audience: $tokenAudienceList, Expected: [$clientId]"
                 }
                 throw IllegalArgumentException("Token verification failed: audience mismatch")
             }

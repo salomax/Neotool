@@ -5,6 +5,7 @@ import io.github.salomax.neotool.security.graphql.dto.RoleConnectionDTO
 import io.github.salomax.neotool.security.graphql.dto.RoleDTO
 import io.github.salomax.neotool.security.graphql.dto.UpdateRoleInputDTO
 import io.github.salomax.neotool.security.graphql.mapper.RoleManagementMapper
+import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.service.RoleManagementService
 import jakarta.inject.Singleton
 import mu.KotlinLogging
@@ -17,9 +18,29 @@ import mu.KotlinLogging
 @Singleton
 class RoleManagementResolver(
     private val roleManagementService: RoleManagementService,
+    private val roleRepository: RoleRepository,
     private val mapper: RoleManagementMapper,
 ) {
     private val logger = KotlinLogging.logger {}
+
+    /**
+     * Get a single role by ID.
+     */
+    fun role(id: String): RoleDTO? {
+        return try {
+            val roleIdInt = mapper.toRoleId(id)
+            val entity = roleRepository.findById(roleIdInt)
+            entity.map { it.toDomain() }
+                .map { mapper.toRoleDTO(it) }
+                .orElse(null)
+        } catch (e: IllegalArgumentException) {
+            logger.warn { "Invalid role ID: $id" }
+            null
+        } catch (e: Exception) {
+            logger.error(e) { "Error getting role: $id" }
+            null
+        }
+    }
 
     /**
      * Unified query for roles with optional pagination and search.

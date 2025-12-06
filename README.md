@@ -553,6 +553,9 @@ pnpm run ci:unit
 - [ ] Security part 3 (Permission management: RBAC and ABAC)
 - [ ] Audit trail
 
+### Authorization
+- **Permission claim caching** — Current logins rebuild permissions on every request, which can become slow as role graphs grow. Plan: add a short-lived cache in `AuthContextFactory`, invalidated when roles change or during refresh issuance, so JWTs stay up to date while reducing redundant lookups.
+
 ### Examples / Built-in features
 - [ ] Batch job example (Scheduled tasks (cron-like))
 - [ ] Messaging example with Kafka

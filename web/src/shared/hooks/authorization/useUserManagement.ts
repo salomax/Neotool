@@ -15,7 +15,10 @@ import {
 } from '@/lib/graphql/operations/authorization-management/mutations.generated';
 import { extractErrorMessage } from '@/shared/utils/error';
 import { useRelayPagination } from '@/shared/hooks/pagination';
-import { toGraphQLOrderBy, getNextSortState, type UserSortState, type UserOrderField } from '@/shared/utils/sorting';
+import { useDebouncedSearch } from '@/shared/hooks/search';
+import { useSorting } from '@/shared/hooks/sorting';
+import { useMutationWithRefetch } from '@/shared/hooks/mutations';
+import type { UserSortState, UserOrderField } from '@/shared/utils/sorting';
 import type { UserOrderByInput } from '@/lib/graphql/types/__generated__/graphql';
 
 export type User = {
@@ -58,6 +61,9 @@ export type UseUserManagementReturn = {
   // Search
   searchQuery: string;
   setSearchQuery: (query: string) => void;
+  inputValue: string;
+  handleInputChange: (value: string) => void;
+  handleSearch: (value: string) => void;
   
   // Sorting
   orderBy: UserSortState;
@@ -138,19 +144,26 @@ export type UseUserManagementReturn = {
  */
 export function useUserManagement(options: UseUserManagementOptions = {}): UseUserManagementReturn {
   // Local state
-  const [searchQuery, setSearchQuery] = useState(options.initialSearchQuery || "");
   const [first, setFirst] = useState(options.initialFirst || 10);
   const [after, setAfter] = useState<string | null>(null);
-  const [orderBy, setOrderBy] = useState<UserSortState>(null);
 
   // Ref to preserve previous data during loading to prevent flicker
   const previousDataRef = useRef<typeof usersData | null>(null);
-  
-  // Ref to track in-flight mutations to prevent race conditions
-  const mutationInFlightRef = useRef<Set<string>>(new Set());
 
-  // Convert sort state to GraphQL format
-  const graphQLOrderBy = useMemo(() => toGraphQLOrderBy(orderBy), [orderBy]);
+  // Search state
+  const [searchQuery, setSearchQuery] = useState(options.initialSearchQuery || "");
+
+  // Sorting - memoize the callback to prevent unnecessary re-renders
+  // Reset cursor when sorting changes (Apollo will automatically refetch when orderBy variable changes)
+  const handleSortChange = useCallback(() => {
+    // Reset cursor when sorting changes
+    setAfter(null);
+  }, []);
+
+  const { orderBy, graphQLOrderBy, setOrderBy, handleSort } = useSorting<UserOrderField>({
+    initialSort: null,
+    onSortChange: handleSortChange,
+  });
 
   // GraphQL hooks
   const { data: usersData, loading, error, refetch } = useGetUsersQuery({
@@ -180,12 +193,25 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
   const [assignRoleToUserMutation, { loading: assignRoleLoading }] = useAssignRoleToUserMutation();
   const [removeRoleFromUserMutation, { loading: removeRoleLoading }] = useRemoveRoleFromUserMutation();
 
+  // Mutation hook with refetch
+  const { executeMutation } = useMutationWithRefetch({
+    refetchQuery: GetUsersDocument,
+    refetchVariables: {
+      first,
+      after: after || undefined,
+      query: searchQuery || undefined,
+      orderBy: (graphQLOrderBy as UserOrderByInput[] | undefined) || undefined,
+    },
+    onRefetch: refetch,
+    errorMessage: 'Failed to update user',
+  });
+
   // Derived data - use previous data while loading to prevent flicker
   const users = useMemo(() => {
     // Keep previous data visible while loading new data
     const currentData = usersData || (loading ? previousDataRef.current : null);
-    return currentData?.users?.nodes || [];
-  }, [usersData?.users?.nodes, loading]);
+    return currentData?.users?.edges?.map(e => e.node) || [];
+  }, [usersData, loading]);
 
   const pageInfo = useMemo(() => {
     // Use previous data if current is loading
@@ -198,7 +224,7 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
       ...info,
       hasPreviousPage: info.hasPreviousPage || after !== null,
     };
-  }, [usersData?.users?.pageInfo, loading, after]);
+  }, [usersData, loading, after]);
 
   // totalCount is always calculated by the backend (never null)
   // When query is null/empty: totalCount = total count of all items
@@ -207,17 +233,7 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
     // Use previous data if current is loading
     const currentData = usersData || (loading ? previousDataRef.current : null);
     return currentData?.users?.totalCount ?? null;
-  }, [usersData?.users?.totalCount, loading]);
-
-  // Reset cursor when sorting changes (similar to search)
-  // Note: We intentionally omit 'after' from dependencies because we only want
-  // to reset when orderBy changes, not when after changes. Including 'after'
-  // would cause the effect to run on every pagination change, which is not desired.
-  useEffect(() => {
-    if (after !== null) {
-      setAfter(null);
-    }
-  }, [orderBy]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [usersData, loading]);
 
   // Use shared pagination hook
   const {
@@ -239,188 +255,77 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
     }
   );
 
-  // Sorting handlers
-  const handleSort = useCallback((field: UserOrderField) => {
-    const nextSort = getNextSortState(orderBy, field);
-    setOrderBy(nextSort);
-  }, [orderBy]);
+  // Search with debounce - now that we have goToFirstPage
+  const {
+    inputValue: searchInputValue,
+    handleInputChange: handleSearchInputChange,
+    handleSearch: handleSearchChange,
+  } = useDebouncedSearch({
+    initialValue: searchQuery,
+    debounceMs: 300,
+    onSearchChange: goToFirstPage,
+    setSearchQuery,
+    searchQuery,
+  });
 
   // Mutations
-  const enableUser = useCallback(async (userId: string) => {
-    // Prevent race conditions: if a mutation is already in flight for this user, skip
-    if (mutationInFlightRef.current.has(userId)) {
-      return;
-    }
+  const enableUser = useCallback(
+    async (userId: string) => {
+      await executeMutation(enableUserMutation, { userId }, userId);
+    },
+    [executeMutation, enableUserMutation]
+  );
 
-    mutationInFlightRef.current.add(userId);
-    try {
-      const result = await enableUserMutation({
-        variables: { userId },
-        refetchQueries: [
-          {
-            query: GetUsersDocument,
-            variables: {
-              first,
-              after: after || undefined,
-              query: searchQuery || undefined,
-              orderBy: (graphQLOrderBy as UserOrderByInput[] | undefined) || undefined,
-            },
-          },
-        ],
-      });
+  const disableUser = useCallback(
+    async (userId: string) => {
+      await executeMutation(disableUserMutation, { userId }, userId);
+    },
+    [executeMutation, disableUserMutation]
+  );
 
-      // Only refetch if mutation was successful
-      if (result.data) {
-        refetch();
-      }
-    } catch (err) {
-      console.error('Error enabling user:', err);
-      const errorMessage = extractErrorMessage(err, 'Failed to enable user');
-      throw new Error(errorMessage);
-    } finally {
-      mutationInFlightRef.current.delete(userId);
-    }
-  }, [enableUserMutation, refetch, first, after, searchQuery, graphQLOrderBy]);
+  const assignGroupToUser = useCallback(
+    async (userId: string, groupId: string) => {
+      await executeMutation(
+        assignGroupToUserMutation,
+        { userId, groupId },
+        `assign-group-${userId}-${groupId}`
+      );
+    },
+    [executeMutation, assignGroupToUserMutation]
+  );
 
-  const disableUser = useCallback(async (userId: string) => {
-    // Prevent race conditions: if a mutation is already in flight for this user, skip
-    if (mutationInFlightRef.current.has(userId)) {
-      return;
-    }
+  const removeGroupFromUser = useCallback(
+    async (userId: string, groupId: string) => {
+      await executeMutation(
+        removeGroupFromUserMutation,
+        { userId, groupId },
+        `remove-group-${userId}-${groupId}`
+      );
+    },
+    [executeMutation, removeGroupFromUserMutation]
+  );
 
-    mutationInFlightRef.current.add(userId);
-    try {
-      const result = await disableUserMutation({
-        variables: { userId },
-        refetchQueries: [
-          {
-            query: GetUsersDocument,
-            variables: {
-              first,
-              after: after || undefined,
-              query: searchQuery || undefined,
-              orderBy: (graphQLOrderBy as UserOrderByInput[] | undefined) || undefined,
-            },
-          },
-        ],
-      });
+  const assignRoleToUser = useCallback(
+    async (userId: string, roleId: string) => {
+      await executeMutation(
+        assignRoleToUserMutation,
+        { userId, roleId },
+        `assign-role-${userId}-${roleId}`
+      );
+    },
+    [executeMutation, assignRoleToUserMutation]
+  );
 
-      // Only refetch if mutation was successful
-      if (result.data) {
-        refetch();
-      }
-    } catch (err) {
-      console.error('Error disabling user:', err);
-      const errorMessage = extractErrorMessage(err, 'Failed to disable user');
-      throw new Error(errorMessage);
-    } finally {
-      mutationInFlightRef.current.delete(userId);
-    }
-  }, [disableUserMutation, refetch, first, after, searchQuery, graphQLOrderBy]);
-
-  const assignGroupToUser = useCallback(async (userId: string, groupId: string) => {
-    // Create unique key for this user-group combination to prevent duplicate assignments
-    const mutationKey = `assign-group-${userId}-${groupId}`;
-    if (mutationInFlightRef.current.has(mutationKey)) {
-      return;
-    }
-
-    mutationInFlightRef.current.add(mutationKey);
-    try {
-      const result = await assignGroupToUserMutation({
-        variables: { userId, groupId },
-      });
-
-      // Only refetch if mutation was successful
-      if (result.data) {
-        refetch();
-      }
-    } catch (err) {
-      console.error('Error assigning group to user:', err);
-      const errorMessage = extractErrorMessage(err, 'Failed to assign group to user');
-      throw new Error(errorMessage);
-    } finally {
-      mutationInFlightRef.current.delete(mutationKey);
-    }
-  }, [assignGroupToUserMutation, refetch]);
-
-  const removeGroupFromUser = useCallback(async (userId: string, groupId: string) => {
-    // Create unique key for this user-group combination to prevent duplicate removals
-    const mutationKey = `remove-group-${userId}-${groupId}`;
-    if (mutationInFlightRef.current.has(mutationKey)) {
-      return;
-    }
-
-    mutationInFlightRef.current.add(mutationKey);
-    try {
-      const result = await removeGroupFromUserMutation({
-        variables: { userId, groupId },
-      });
-
-      // Only refetch if mutation was successful
-      if (result.data) {
-        refetch();
-      }
-    } catch (err) {
-      console.error('Error removing group from user:', err);
-      const errorMessage = extractErrorMessage(err, 'Failed to remove group from user');
-      throw new Error(errorMessage);
-    } finally {
-      mutationInFlightRef.current.delete(mutationKey);
-    }
-  }, [removeGroupFromUserMutation, refetch]);
-
-  const assignRoleToUser = useCallback(async (userId: string, roleId: string) => {
-    // Create unique key for this user-role combination to prevent duplicate assignments
-    const mutationKey = `assign-role-${userId}-${roleId}`;
-    if (mutationInFlightRef.current.has(mutationKey)) {
-      return;
-    }
-
-    mutationInFlightRef.current.add(mutationKey);
-    try {
-      const result = await assignRoleToUserMutation({
-        variables: { userId, roleId },
-      });
-
-      // Only refetch if mutation was successful
-      if (result.data) {
-        refetch();
-      }
-    } catch (err) {
-      console.error('Error assigning role to user:', err);
-      const errorMessage = extractErrorMessage(err, 'Failed to assign role to user');
-      throw new Error(errorMessage);
-    } finally {
-      mutationInFlightRef.current.delete(mutationKey);
-    }
-  }, [assignRoleToUserMutation, refetch]);
-
-  const removeRoleFromUser = useCallback(async (userId: string, roleId: string) => {
-    // Create unique key for this user-role combination to prevent duplicate removals
-    const mutationKey = `remove-role-${userId}-${roleId}`;
-    if (mutationInFlightRef.current.has(mutationKey)) {
-      return;
-    }
-
-    mutationInFlightRef.current.add(mutationKey);
-    try {
-      const result = await removeRoleFromUserMutation({
-        variables: { userId, roleId },
-      });
-
-      // Only refetch if mutation was successful
-      if (result.data) {
-        refetch();
-      }
-    } catch (err) {
-      console.error('Error removing role from user:', err);
-      const errorMessage = extractErrorMessage(err, 'Failed to remove role from user');
-      throw new Error(errorMessage);
-    } finally {
-      mutationInFlightRef.current.delete(mutationKey);
-    }
-  }, [removeRoleFromUserMutation, refetch]);
+  const removeRoleFromUser = useCallback(
+    async (userId: string, roleId: string) => {
+      await executeMutation(
+        removeRoleFromUserMutation,
+        { userId, roleId },
+        `remove-role-${userId}-${roleId}`
+      );
+    },
+    [executeMutation, removeRoleFromUserMutation]
+  );
 
   return {
     // Data
@@ -441,6 +346,9 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
     // Search
     searchQuery,
     setSearchQuery,
+    inputValue: searchInputValue,
+    handleInputChange: handleSearchInputChange,
+    handleSearch: handleSearchChange,
     
     // Sorting
     orderBy,
