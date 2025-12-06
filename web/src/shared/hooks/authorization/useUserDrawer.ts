@@ -10,7 +10,7 @@ import {
   useRemoveRoleFromUserMutation,
 } from "@/lib/graphql/operations/authorization-management/mutations.generated";
 import { useTranslation } from "@/shared/i18n";
-import { authorizationManagementTranslations } from "@/app/(neotool)/settings/i18n";
+import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
 import { useToast } from "@/shared/providers";
 import { extractErrorMessage } from "@/shared/utils/error";
 

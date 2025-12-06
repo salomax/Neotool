@@ -5,14 +5,14 @@ import {
   Box,
   Typography,
   CircularProgress,
-  Alert,
   Autocomplete,
   TextField,
   Chip,
 } from "@mui/material";
+import { ErrorAlert } from "@/shared/components/ui/feedback";
 import { useGetRolesQuery } from "@/lib/graphql/operations/authorization-management/queries.generated";
 import { useTranslation } from "@/shared/i18n";
-import { authorizationManagementTranslations } from "@/app/(neotool)/settings/i18n";
+import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
 import { useToast } from "@/shared/providers";
 import { extractErrorMessage } from "@/shared/utils/error";
 
@@ -57,7 +57,7 @@ export const GroupRoleAssignment: React.FC<GroupRoleAssignmentProps> = ({
   const toast = useToast();
 
   // Query all available roles
-  const { data, loading, error } = useGetRolesQuery({
+  const { data, loading, error, refetch } = useGetRolesQuery({
     variables: { first: 1000 },
   });
 
@@ -153,9 +153,11 @@ export const GroupRoleAssignment: React.FC<GroupRoleAssignmentProps> = ({
 
   if (error) {
     return (
-      <Alert severity="error" sx={{ mb: 2 }}>
-        {t("groupManagement.roles.loadError")}
-      </Alert>
+      <ErrorAlert
+        error={error}
+        onRetry={() => refetch()}
+        fallbackMessage={t("groupManagement.roles.loadError")}
+      />
     );
   }
 

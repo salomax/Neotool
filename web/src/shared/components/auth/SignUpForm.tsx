@@ -7,12 +7,12 @@ import { z } from "zod";
 import {
   Box,
   Typography,
-  Alert,
   List,
   ListItem,
   ListItemIcon,
   ListItemText,
 } from "@mui/material";
+import { ErrorAlert } from "@/shared/components/ui/feedback";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
 import { TextField } from "@/shared/components/ui/forms/form/TextField";
@@ -24,7 +24,7 @@ import { Link } from "@/shared/components/ui/navigation/Link";
 import { useAuth } from "@/shared/providers";
 import { useToast } from "@/shared/providers";
 import { useTranslation } from "@/shared/i18n/hooks/useTranslation";
-import { signupTranslations } from "@/app/signup/i18n";
+import { signupTranslations } from "@/app/(authentication)/signup/i18n";
 import { validatePassword, passwordValidationRules } from "@/shared/utils/passwordValidation";
 import { extractErrorMessage } from "@/shared/utils/error";
 
@@ -106,14 +106,7 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onSuccess }) => {
       >
         <Stack gap={3} name="signup-form-stack">
           {error && (
-            <Alert
-              severity="error"
-              data-testid="signup-error"
-              role="alert"
-              aria-live="assertive"
-            >
-              {error}
-            </Alert>
+            <ErrorAlert error={error} />
           )}
 
           <Controller

@@ -9,8 +9,8 @@ import {
   Typography,
   Button as MUIButton,
   Divider,
-  Alert,
 } from "@mui/material";
+import { ErrorAlert } from "@/shared/components/ui/feedback";
 import GoogleIcon from "@mui/icons-material/Google";
 import { TextField } from "@/shared/components/ui/forms/form/TextField";
 import { PasswordField } from "@/shared/components/ui/forms/form/PasswordField";
@@ -22,7 +22,7 @@ import { Link } from "@/shared/components/ui/navigation/Link";
 import { useAuth } from "@/shared/providers";
 import { useToast } from "@/shared/providers";
 import { useTranslation } from "@/shared/i18n/hooks/useTranslation";
-import { signinTranslations } from "@/app/signin/i18n";
+import { signinTranslations } from "@/app/(authentication)/signin/i18n";
 import { extractErrorMessage } from "@/shared/utils/error";
 import { useOAuth } from "@/shared/hooks/auth";
 
@@ -121,14 +121,7 @@ export const SignInForm: React.FC<SignInFormProps> = ({ onSuccess }) => {
       >
         <Stack gap={3} name="signin-form-stack">
           {error && (
-            <Alert 
-              severity="error" 
-              data-testid="signin-error"
-              role="alert"
-              aria-live="assertive"
-            >
-              {error}
-            </Alert>
+            <ErrorAlert error={error} />
           )}
 
           <Controller

@@ -6,7 +6,7 @@ import { UserSearch } from "./UserSearch";
 import { UserList } from "./UserList";
 import { UserDrawer } from "./UserDrawer";
 import { useTranslation } from "@/shared/i18n";
-import { authorizationManagementTranslations } from "@/app/(neotool)/settings/i18n";
+import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
 import { useToggleStatus } from "@/shared/hooks/mutations";
 import { ManagementLayout } from "@/shared/components/management/ManagementLayout";
 

@@ -186,7 +186,7 @@ function UserManagement() {
 
 ### ErrorAlert Component
 
-Generic error alert component with retry functionality.
+Generic error alert component with optional retry functionality and flexible visibility control.
 
 ```typescript
 import { ErrorAlert } from "@/shared/components/ui/feedback";
@@ -206,6 +206,15 @@ function UserManagement() {
   );
 }
 ```
+
+**Key Features**:
+- Supports both `Error` objects and `string` messages
+- Optional `onRetry` callback (close button only appears when provided)
+- Optional `visible` prop for explicit visibility control
+- Auto-hides when no error (backward compatible default behavior)
+- No need for conditional rendering syntax - component handles it internally
+
+See [Shared Components Pattern](./shared-components-pattern.md#erroralert) for complete documentation.
 
 **Features:**
 - Conditional rendering (returns null if no error)

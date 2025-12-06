@@ -18,7 +18,7 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
 import IconButton from "@mui/material/IconButton";
 import Chip from "@mui/material/Chip";
-import Alert from "@mui/material/Alert";
+import { ErrorAlert } from "@/shared/components/ui/feedback";
 import CircularProgress from "@mui/material/CircularProgress";
 import InputAdornment from "@mui/material/InputAdornment";
 import SearchIcon from "@mui/icons-material/Search";
@@ -198,11 +198,11 @@ export default function ProductsPage() {
         </Button>
       </Box>
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {error.message}
-        </Alert>
-      )}
+      <ErrorAlert
+        error={error || undefined}
+        onRetry={() => refetch()}
+        fallbackMessage="Failed to load products"
+      />
 
       {/* Search and Filter Controls */}
       <Paper sx={{ p: 2, mb: 3 }}>

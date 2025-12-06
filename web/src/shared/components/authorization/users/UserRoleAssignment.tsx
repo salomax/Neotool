@@ -5,14 +5,14 @@ import {
   Box,
   Typography,
   CircularProgress,
-  Alert,
   Autocomplete,
   TextField,
   Chip,
 } from "@mui/material";
+import { ErrorAlert } from "@/shared/components/ui/feedback";
 import { useGetRolesQuery } from "@/lib/graphql/operations/authorization-management/queries.generated";
 import { useTranslation } from "@/shared/i18n";
-import { authorizationManagementTranslations } from "@/app/(neotool)/settings/i18n";
+import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
 
 export interface Role {
   id: string;
@@ -43,7 +43,7 @@ export const UserRoleAssignment: React.FC<UserRoleAssignmentProps> = ({
   const { t } = useTranslation(authorizationManagementTranslations);
 
   // Fetch all roles for selection
-  const { data, loading: rolesLoading, error: rolesError } = useGetRolesQuery({
+  const { data, loading: rolesLoading, error: rolesError, refetch } = useGetRolesQuery({
     variables: {
       first: 1000, // Fetch a large number of roles for selection
       query: undefined,
@@ -97,9 +97,11 @@ export const UserRoleAssignment: React.FC<UserRoleAssignmentProps> = ({
 
   if (rolesError) {
     return (
-      <Alert severity="error" sx={{ mb: 2 }}>
-        {t("userManagement.roles.loadError")}
-      </Alert>
+      <ErrorAlert
+        error={rolesError}
+        onRetry={() => refetch()}
+        fallbackMessage={t("userManagement.roles.loadError")}
+      />
     );
   }
 

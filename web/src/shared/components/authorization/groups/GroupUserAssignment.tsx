@@ -2,10 +2,11 @@
 
 import React, { useMemo } from "react";
 import { useFormContext, Controller } from "react-hook-form";
-import { Box, CircularProgress, Alert, Autocomplete, TextField, Chip, ListItem } from "@mui/material";
+import { Box, CircularProgress, Autocomplete, TextField, Chip, ListItem } from "@mui/material";
+import { ErrorAlert } from "@/shared/components/ui/feedback";
 import { useGetUsersQuery } from "@/lib/graphql/operations/authorization-management/queries.generated";
 import { useTranslation } from "@/shared/i18n";
-import { authorizationManagementTranslations } from "@/app/(neotool)/settings/i18n";
+import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
 import type { GroupFormData } from "./GroupForm";
 
 export interface GroupUserAssignmentProps {
@@ -23,7 +24,7 @@ export const GroupUserAssignment: React.FC<GroupUserAssignmentProps> = ({
   const { watch, control } = useFormContext<GroupFormData>();
 
   // Fetch all users for selection
-  const { data, loading, error } = useGetUsersQuery({
+  const { data, loading, error, refetch } = useGetUsersQuery({
     variables: {
       first: 1000, // Fetch a large number of users for selection
       query: undefined,
@@ -78,9 +79,11 @@ export const GroupUserAssignment: React.FC<GroupUserAssignmentProps> = ({
 
   if (error) {
     return (
-      <Alert severity="error" sx={{ mb: 2 }}>
-        {t("groupManagement.form.errors.loadUsersFailed")}
-      </Alert>
+      <ErrorAlert
+        error={error}
+        onRetry={() => refetch()}
+        fallbackMessage={t("groupManagement.form.errors.loadUsersFailed")}
+      />
     );
   }
 

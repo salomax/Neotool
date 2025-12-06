@@ -4,17 +4,16 @@ import React, { useMemo, useEffect, useState, useCallback } from "react";
 import {
   Box,
   Typography,
-  Alert,
   Stack,
   Button,
 } from "@mui/material";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
-import { LoadingState } from "@/shared/components/ui/feedback";
+import { LoadingState, ErrorAlert } from "@/shared/components/ui/feedback";
 import { useForm, FormProvider } from "react-hook-form";
 import { useGetGroupWithRelationshipsQuery } from "@/lib/graphql/operations/authorization-management/queries.generated";
 import { useCreateGroupMutation } from "@/lib/graphql/operations/authorization-management/mutations.generated";
 import { useTranslation } from "@/shared/i18n";
-import { authorizationManagementTranslations } from "@/app/(neotool)/settings/i18n";
+import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
 import { useGroupManagement, type GroupFormData } from "@/shared/hooks/authorization/useGroupManagement";
 import { GroupRoleAssignment } from "./GroupRoleAssignment";
 import { GroupUserAssignment } from "./GroupUserAssignment";
@@ -297,10 +296,12 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
           <LoadingState isLoading={!isCreateMode && loading} />
 
           {/* Error state for edit mode */}
-          {!isCreateMode && error && (
-            <Alert severity="error" sx={{ mb: 3 }}>
-              {t("groupManagement.drawer.errorLoading")}
-            </Alert>
+          {!isCreateMode && (
+            <ErrorAlert
+              error={error || undefined}
+              onRetry={() => refetch()}
+              fallbackMessage={t("groupManagement.drawer.errorLoading")}
+            />
           )}
 
           {/* Form content - shown in both create and edit modes */}

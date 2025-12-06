@@ -58,7 +58,7 @@ Components specific to a particular feature (e.g., `authorization/`, `auth/`).
 
 ### ErrorAlert
 
-Generic error alert component with retry functionality.
+Generic error alert component with optional retry functionality and flexible visibility control.
 
 **Location**: `web/src/shared/components/ui/feedback/alerts/ErrorAlert.tsx`
 
@@ -68,26 +68,112 @@ import { ErrorAlert } from "@/shared/components/ui/feedback";
 
 function MyComponent() {
   const { error, refetch } = useMyQuery();
+  const [showError, setShowError] = useState(true);
 
   return (
-    <ErrorAlert
-      error={error}
-      onRetry={refetch}
-      fallbackMessage="Failed to load data"
-    />
+    <>
+      {/* Auto-hide when no error (default behavior) */}
+      <ErrorAlert error={error} onRetry={refetch} />
+
+      {/* Explicit visibility control */}
+      <ErrorAlert error="test" visible={showError} />
+
+      {/* Force hide (even if error exists) */}
+      <ErrorAlert error={error} visible={false} />
+
+      {/* With string error (no retry) */}
+      <ErrorAlert error="Something went wrong" />
+
+      {/* With Error object and retry */}
+      <ErrorAlert 
+        error={error} 
+        onRetry={refetch}
+        fallbackMessage="Failed to load data"
+      />
+    </>
   );
 }
 ```
 
 **Props**:
-- `error: Error | null | undefined` - Error object to display
-- `onRetry: () => void` - Callback invoked when user clicks close/retry
-- `fallbackMessage?: string` - Fallback message if error.message is not available
+- `error: Error | string | null | undefined` - Error object or error message string to display
+- `onRetry?: () => void` - Optional callback invoked when user clicks close/retry button. If provided, shows a close button.
+- `fallbackMessage?: string` - Fallback message if error.message is not available (default: "An error occurred")
+- `visible?: boolean` - Controls visibility of the alert:
+  - `undefined` (default): Auto-determine from error presence
+  - `true`: Show if error exists, hide if no error
+  - `false`: Always hide (even if error exists)
 
 **Features**:
-- Conditional rendering (returns null if no error)
-- Retry functionality via onClose callback
+- Supports both Error objects and string messages
+- Optional retry functionality via `onRetry` callback (close button only appears when provided)
+- Flexible visibility control with `visible` prop
+- Auto-hides when no error (backward compatible default behavior)
 - Consistent error UI across the application
+- No need for conditional rendering syntax - component handles it internally
+
+**Visibility Patterns**:
+- **Default (auto-hide)**: `<ErrorAlert error={error} />` - Hides automatically when error is null/undefined/empty
+- **Explicit control**: `<ErrorAlert error={error} visible={showError} />` - Control visibility with state
+- **Force hide**: `<ErrorAlert error={error} visible={false} />` - Always hidden regardless of error
+- **Force show**: `<ErrorAlert error={error} visible={true} />` - Shows if error exists
+
+### WarningAlert
+
+Generic warning alert component with optional close functionality and flexible visibility control.
+
+**Location**: `web/src/shared/components/ui/feedback/alerts/WarningAlert.tsx`
+
+**Usage**:
+```typescript
+import { WarningAlert } from "@/shared/components/ui/feedback";
+
+function MyComponent() {
+  const [warningMessage, setWarningMessage] = useState<string | null>(null);
+  const [showWarning, setShowWarning] = useState(true);
+
+  return (
+    <>
+      {/* Auto-hide when no message (default behavior) */}
+      <WarningAlert message={warningMessage} />
+
+      {/* Explicit visibility control */}
+      <WarningAlert message="test" visible={showWarning} />
+
+      {/* Force hide (even if message exists) */}
+      <WarningAlert message={warningMessage} visible={false} />
+
+      {/* With close handler */}
+      <WarningAlert 
+        message={warningMessage} 
+        onClose={() => setWarningMessage(null)} 
+      />
+    </>
+  );
+}
+```
+
+**Props**:
+- `message: string | null | undefined` - Warning message to display
+- `onClose?: () => void` - Optional callback invoked when user clicks close button. If provided, shows a close button.
+- `fallbackMessage?: string` - Fallback message if message is not available (default: "Warning")
+- `visible?: boolean` - Controls visibility of the alert:
+  - `undefined` (default): Auto-determine from message presence
+  - `true`: Show if message exists, hide if no message
+  - `false`: Always hide (even if message exists)
+
+**Features**:
+- Optional close functionality via `onClose` callback (close button only appears when provided)
+- Flexible visibility control with `visible` prop
+- Auto-hides when no message (backward compatible default behavior)
+- Consistent warning UI across the application
+- No need for conditional rendering syntax - component handles it internally
+
+**Visibility Patterns**:
+- **Default (auto-hide)**: `<WarningAlert message={message} />` - Hides automatically when message is null/undefined/empty
+- **Explicit control**: `<WarningAlert message={message} visible={showWarning} />` - Control visibility with state
+- **Force hide**: `<WarningAlert message={message} visible={false} />` - Always hidden regardless of message
+- **Force show**: `<WarningAlert message={message} visible={true} />` - Shows if message exists
 
 ### LoadingState
 
@@ -261,9 +347,9 @@ function UserManagement() {
 - Delete dialogs belong within the Content component, not as a separate slot
 
 **Props**:
-- `error: Error | null | undefined` - Error object to display in error alert
-- `onErrorRetry: () => void` - Callback invoked when user clicks retry on error alert
-- `errorFallbackMessage?: string` - Fallback message for error alert
+- `error: Error | string | null | undefined` - Error object or error message string to display in error alert
+- `onErrorRetry?: () => void` - Optional callback invoked when user clicks retry on error alert. If provided, shows a close button.
+- `errorFallbackMessage?: string` - Fallback message for error alert (default: "An error occurred")
 - `children: React.ReactNode` - Child components using ManagementLayout subcomponents
 
 **Subcomponents** (static properties):

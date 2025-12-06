@@ -6,7 +6,7 @@ import { SignInForm } from '../SignInForm';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
 import { I18nextProvider } from 'react-i18next';
 import i18n from '@/shared/i18n/config';
-import { signinTranslations } from '@/app/signin/i18n';
+import { signinTranslations } from '@/app/(authentication)/signin/i18n';
 
 // Register signin translations
 i18n.addResourceBundle('en', 'signin', signinTranslations.en, true, true);
