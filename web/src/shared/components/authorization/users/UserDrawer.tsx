@@ -4,18 +4,16 @@ import React from "react";
 import {
   Box,
   Typography,
-  Alert,
   Chip,
   Stack,
   TextField,
   Button,
-  Badge,
 } from "@mui/material";
-import { WarningAlert, LoadingState } from "@/shared/components/ui/feedback";
+import { WarningAlert, LoadingState, ErrorAlert } from "@/shared/components/ui/feedback";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { Avatar } from "@/shared/components/ui/primitives/Avatar";
 import { useTranslation } from "@/shared/i18n";
-import { authorizationManagementTranslations } from "@/app/(neotool)/settings/i18n";
+import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
 import { UserGroupAssignment } from "./UserGroupAssignment";
 import { UserRoleAssignment } from "./UserRoleAssignment";
 import { useUserDrawer } from "@/shared/hooks/authorization/useUserDrawer";
@@ -53,6 +51,7 @@ export const UserDrawer: React.FC<UserDrawerProps> = ({
     updateSelectedRoles,
     handleSave,
     resetChanges,
+    refetch,
   } = useUserDrawer(userId, open);
 
   // Footer with action buttons
@@ -90,11 +89,11 @@ export const UserDrawer: React.FC<UserDrawerProps> = ({
       <Drawer.Body>
         <LoadingState isLoading={loading} />
 
-        {error && (
-          <Alert severity="error" sx={{ mb: 3 }}>
-            {t("userManagement.drawer.errorLoading")}
-          </Alert>
-        )}
+        <ErrorAlert
+          error={error || undefined}
+          onRetry={() => refetch()}
+          fallbackMessage={t("userManagement.drawer.errorLoading")}
+        />
 
         {!loading && !error && user && (
           <Stack spacing={4}>
@@ -107,32 +106,15 @@ export const UserDrawer: React.FC<UserDrawerProps> = ({
                 py: 3,
               }}
             >
-              <Badge
-                overlap="circular"
-                anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-                badgeContent={
-                  <Box
-                    sx={{
-                      width: 12,
-                      height: 12,
-                      borderRadius: "50%",
-                      bgcolor: user.enabled ? "success.main" : "grey.500",
-                      border: "2px solid",
-                      borderColor: "background.paper",
-                    }}
-                  />
-                }
-              >
-                <Avatar
-                  name={user.displayName || user.email}
-                  size="large"
-                  sx={{
-                    width: 80,
-                    height: 80,
-                    fontSize: "2rem",
-                  }}
-                />
-              </Badge>
+              <Avatar
+                name={user.displayName || user.email}
+                size="large"
+                sx={{
+                  width: 80,
+                  height: 80,
+                  fontSize: "2rem",
+                }}
+              />
               <Typography
                 variant="h5"
                 sx={{ mt: 2, fontWeight: "bold", textAlign: "center" }}

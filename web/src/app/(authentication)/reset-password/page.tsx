@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Container, Box, Typography, Alert } from "@mui/material";
+import { Container, Box, Typography } from "@mui/material";
+import { ErrorAlert } from "@/shared/components/ui/feedback";
 import { ResetPasswordForm } from "@/shared/components/auth/ResetPasswordForm";
 import { useAuth } from "@/shared/providers";
 import { Logo } from "@/shared/ui/brand";
@@ -101,9 +102,7 @@ export default function ResetPasswordPage() {
               </Box>
 
               {tokenError ? (
-                <Alert severity="error" sx={{ mb: 2 }}>
-                  {tokenError}
-                </Alert>
+                <ErrorAlert error={tokenError} />
               ) : token ? (
                 <ResetPasswordForm
                   token={token}

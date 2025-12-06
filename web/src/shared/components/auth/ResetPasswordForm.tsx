@@ -6,8 +6,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
   Box,
-  Alert,
 } from "@mui/material";
+import { ErrorAlert } from "@/shared/components/ui/feedback";
 import { PasswordField } from "@/shared/components/ui/forms/form/PasswordField";
 import { Button } from "@/shared/components/ui/primitives/Button";
 import { Stack } from "@/shared/components/ui/layout/Stack";
@@ -15,7 +15,7 @@ import NextLink from "next/link";
 import { Link } from "@/shared/components/ui/navigation/Link";
 import { useToast } from "@/shared/providers";
 import { useTranslation } from "@/shared/i18n/hooks/useTranslation";
-import { resetPasswordTranslations } from "@/app/reset-password/i18n";
+import { resetPasswordTranslations } from "@/app/(authentication)/reset-password/i18n";
 import { extractErrorMessage } from "@/shared/utils/error";
 import { useResetPasswordMutation } from "@/lib/graphql/operations/auth/mutations.generated";
 import { useRouter } from "next/navigation";
@@ -124,14 +124,7 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({ token, onS
       >
         <Stack gap={3} name="reset-password-form-stack">
           {error && (
-            <Alert 
-              severity="error" 
-              data-testid="reset-password-error"
-              role="alert"
-              aria-live="assertive"
-            >
-              {error}
-            </Alert>
+            <ErrorAlert error={error} />
           )}
 
           <PasswordField

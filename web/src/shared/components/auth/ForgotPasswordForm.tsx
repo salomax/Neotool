@@ -7,8 +7,8 @@ import { z } from "zod";
 import {
   Box,
   Typography,
-  Alert,
 } from "@mui/material";
+import { ErrorAlert } from "@/shared/components/ui/feedback";
 import { TextField } from "@/shared/components/ui/forms/form/TextField";
 import { Button } from "@/shared/components/ui/primitives/Button";
 import { Stack } from "@/shared/components/ui/layout/Stack";
@@ -16,7 +16,7 @@ import NextLink from "next/link";
 import { Link } from "@/shared/components/ui/navigation/Link";
 import { useToast } from "@/shared/providers";
 import { useTranslation } from "@/shared/i18n/hooks/useTranslation";
-import { forgotPasswordTranslations } from "@/app/forgot-password/i18n";
+import { forgotPasswordTranslations } from "@/app/(authentication)/forgot-password/i18n";
 import { extractErrorMessage } from "@/shared/utils/error";
 import { useRequestPasswordResetMutation } from "@/lib/graphql/operations/auth/mutations.generated";
 import { useRouter } from "next/navigation";
@@ -110,14 +110,7 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({ onSucces
       >
         <Stack gap={3} name="forgot-password-form-stack">
           {error && (
-            <Alert 
-              severity="error" 
-              data-testid="forgot-password-error"
-              role="alert"
-              aria-live="assertive"
-            >
-              {error}
-            </Alert>
+            <ErrorAlert error={error} />
           )}
 
           <Controller

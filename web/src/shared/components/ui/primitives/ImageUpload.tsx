@@ -7,7 +7,6 @@ import {
   Stack,
   IconButton,
   LinearProgress,
-  Alert,
   Chip,
   FormControl,
   FormLabel,
@@ -507,9 +506,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
       )}
       
       {uploadError && (
-        <Alert severity="error" sx={{ mt: 2 }}>
-          {uploadError}
-        </Alert>
+        <ErrorAlert error={uploadError} />
       )}
       
       {(helperText || errorMessage) && (

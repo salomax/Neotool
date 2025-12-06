@@ -5,16 +5,15 @@ import {
   Box,
   Button,
   Stack,
-  Alert,
 } from "@mui/material";
 import { useForm, FormProvider } from "react-hook-form";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
-import { LoadingState } from "@/shared/components/ui/feedback";
+import { LoadingState, ErrorAlert } from "@/shared/components/ui/feedback";
 import { useGetRolesWithPermissionsQuery, useGetRoleWithUsersAndGroupsQuery } from "@/lib/graphql/operations/authorization-management/queries.generated";
 import { useRoleManagement, type Role } from "@/shared/hooks/authorization/useRoleManagement";
 import { usePermissionManagement } from "@/shared/hooks/authorization/usePermissionManagement";
 import { useTranslation } from "@/shared/i18n";
-import { authorizationManagementTranslations } from "@/app/(neotool)/settings/i18n";
+import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
 import { useToast } from "@/shared/providers";
 import { extractErrorMessage } from "@/shared/utils/error";
 import { RoleForm, type RoleFormData } from "./RoleForm";
@@ -593,11 +592,14 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
       <Drawer.Body>
         <LoadingState isLoading={initialLoading} />
 
-        {queryError && (
-          <Alert severity="error" sx={{ mb: 3 }}>
-            {t("roleManagement.drawer.errorLoading")}
-          </Alert>
-        )}
+        <ErrorAlert
+          error={queryError || undefined}
+          onRetry={() => {
+            refetchPermissions();
+            refetchUsersGroups();
+          }}
+          fallbackMessage={t("roleManagement.drawer.errorLoading")}
+        />
 
         {!initialLoading && !queryError && (
           <FormProvider {...methods}>

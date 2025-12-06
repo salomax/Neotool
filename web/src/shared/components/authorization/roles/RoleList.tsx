@@ -9,7 +9,7 @@ import { ManagementTable, type Column } from "@/shared/components/management";
 import type { PageInfo, PaginationRangeData } from "@/shared/components/ui/pagination";
 import type { RoleSortState, RoleOrderField } from "@/shared/utils/sorting";
 import { useTranslation } from "@/shared/i18n";
-import { authorizationManagementTranslations } from "@/app/(neotool)/settings/i18n";
+import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
 
 export interface RoleListProps {
   roles: Role[];

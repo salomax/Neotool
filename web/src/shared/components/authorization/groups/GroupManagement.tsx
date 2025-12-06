@@ -8,7 +8,7 @@ import { GroupSearch } from "./GroupSearch";
 import { GroupList } from "./GroupList";
 import { GroupDrawer } from "./GroupDrawer";
 import { useTranslation } from "@/shared/i18n";
-import { authorizationManagementTranslations } from "@/app/(neotool)/settings/i18n";
+import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
 import { useToast } from "@/shared/providers";
 import { extractErrorMessage } from "@/shared/utils/error";
 import { DeleteConfirmationDialog } from "@/shared/components/ui/feedback";

@@ -5,14 +5,14 @@ import {
   Box,
   Typography,
   CircularProgress,
-  Alert,
   Autocomplete,
   TextField,
   Chip,
 } from "@mui/material";
+import { ErrorAlert } from "@/shared/components/ui/feedback";
 import { useGetGroupsQuery } from "@/lib/graphql/operations/authorization-management/queries.generated";
 import { useTranslation } from "@/shared/i18n";
-import { authorizationManagementTranslations } from "@/app/(neotool)/settings/i18n";
+import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
 
 export interface Group {
   id: string;
@@ -45,7 +45,7 @@ export const UserGroupAssignment: React.FC<UserGroupAssignmentProps> = ({
   const { t } = useTranslation(authorizationManagementTranslations);
 
   // Fetch all groups for selection
-  const { data, loading: groupsLoading, error: groupsError } = useGetGroupsQuery({
+  const { data, loading: groupsLoading, error: groupsError, refetch } = useGetGroupsQuery({
     variables: {
       first: 1000, // Fetch a large number of groups for selection
       query: undefined,
@@ -102,9 +102,11 @@ export const UserGroupAssignment: React.FC<UserGroupAssignmentProps> = ({
 
   if (groupsError) {
     return (
-      <Alert severity="error" sx={{ mb: 2 }}>
-        {t("userManagement.groups.loadError")}
-      </Alert>
+      <ErrorAlert
+        error={groupsError}
+        onRetry={() => refetch()}
+        fallbackMessage={t("userManagement.groups.loadError")}
+      />
     );
   }
 

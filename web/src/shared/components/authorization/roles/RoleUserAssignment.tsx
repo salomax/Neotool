@@ -5,14 +5,14 @@ import {
   Box,
   Typography,
   CircularProgress,
-  Alert,
   Autocomplete,
   TextField,
   Chip,
 } from "@mui/material";
+import { ErrorAlert } from "@/shared/components/ui/feedback";
 import { useGetUsersQuery } from "@/lib/graphql/operations/authorization-management/queries.generated";
 import { useTranslation } from "@/shared/i18n";
-import { authorizationManagementTranslations } from "@/app/(neotool)/settings/i18n";
+import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
 import { useToast } from "@/shared/providers";
 import { extractErrorMessage } from "@/shared/utils/error";
 
@@ -58,7 +58,7 @@ export const RoleUserAssignment: React.FC<RoleUserAssignmentProps> = ({
   const toast = useToast();
 
   // Fetch all users for selection
-  const { data, loading: usersLoading, error: usersError } = useGetUsersQuery({
+  const { data, loading: usersLoading, error: usersError, refetch } = useGetUsersQuery({
     variables: {
       first: 1000, // Fetch a large number of users for selection
       query: undefined,
@@ -139,9 +139,11 @@ export const RoleUserAssignment: React.FC<RoleUserAssignmentProps> = ({
 
   if (usersError) {
     return (
-      <Alert severity="error" sx={{ mb: 2 }}>
-        {t("roleManagement.users.loadError")}
-      </Alert>
+      <ErrorAlert
+        error={usersError}
+        onRetry={() => refetch()}
+        fallbackMessage={t("roleManagement.users.loadError")}
+      />
     );
   }
 

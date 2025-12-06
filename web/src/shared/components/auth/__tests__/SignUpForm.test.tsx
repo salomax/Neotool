@@ -6,7 +6,7 @@ import { SignUpForm } from '../SignUpForm';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
 import { I18nextProvider } from 'react-i18next';
 import i18n from '@/shared/i18n/config';
-import { signupTranslations } from '@/app/signup/i18n';
+import { signupTranslations } from '@/app/(authentication)/signup/i18n';
 
 // Register translations
 i18n.addResourceBundle('en', 'signup', signupTranslations.en, true, true);

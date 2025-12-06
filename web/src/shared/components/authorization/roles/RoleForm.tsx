@@ -5,7 +5,7 @@ import { Controller, useFormContext } from "react-hook-form";
 import { Stack } from "@mui/material";
 import { TextField } from "@/shared/components/ui/forms/form/TextField";
 import { useTranslation } from "@/shared/i18n";
-import { authorizationManagementTranslations } from "@/app/(neotool)/settings/i18n";
+import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
 
 export interface RoleFormData {
   name: string;

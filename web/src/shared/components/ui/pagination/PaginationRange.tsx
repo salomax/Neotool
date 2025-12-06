@@ -3,7 +3,7 @@
 import React from "react";
 import { Typography } from "@mui/material";
 import { useTranslation } from "@/shared/i18n";
-import { authorizationManagementTranslations } from "@/app/(neotool)/settings/i18n";
+import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
 
 export interface PaginationRangeProps {
   start: number;

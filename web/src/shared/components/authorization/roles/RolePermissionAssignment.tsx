@@ -5,16 +5,16 @@ import {
   Box,
   Typography,
   CircularProgress,
-  Alert,
   Checkbox,
   FormControlLabel,
   Stack,
   TextField,
 } from "@mui/material";
+import { ErrorAlert } from "@/shared/components/ui/feedback";
 import { usePermissionManagement, type Permission } from "@/shared/hooks/authorization/usePermissionManagement";
 import { PermissionSearch } from "../permissions/PermissionSearch";
 import { useTranslation } from "@/shared/i18n";
-import { authorizationManagementTranslations } from "@/app/(neotool)/settings/i18n";
+import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
 import { useToast } from "@/shared/providers";
 import { extractErrorMessage } from "@/shared/utils/error";
 
@@ -52,6 +52,7 @@ export const RolePermissionAssignment: React.FC<RolePermissionAssignmentProps> =
     setSearchQuery: setPermissionSearchQuery,
     loading: permissionsLoading,
     error: permissionsError,
+    refetch: refetchPermissions,
   } = usePermissionManagement({
     initialFirst: 1000, // Fetch all permissions for selection
   });
@@ -138,9 +139,11 @@ export const RolePermissionAssignment: React.FC<RolePermissionAssignmentProps> =
 
   if (permissionsError) {
     return (
-      <Alert severity="error" sx={{ mb: 2 }}>
-        {t("roleManagement.permissions.loadError")}
-      </Alert>
+      <ErrorAlert
+        error={permissionsError}
+        onRetry={() => refetchPermissions()}
+        fallbackMessage={t("roleManagement.permissions.loadError")}
+      />
     );
   }
 
