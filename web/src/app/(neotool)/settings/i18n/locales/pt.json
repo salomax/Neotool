@@ -88,6 +88,28 @@
     "createGroup": "Criar Grupo",
     "newButton": "Novo",
     "drawerPlaceholder": "Formulário de edição de grupo será implementado aqui",
+    "drawer": {
+      "title": "Detalhes do Grupo",
+      "name": "Nome",
+      "description": "Descrição",
+      "members": "Membros",
+      "roles": "Perfis",
+      "noMembers": "Este grupo não possui membros",
+      "errorLoading": "Falha ao carregar detalhes do grupo",
+      "groupNotFound": "Grupo não encontrado",
+      "saveChanges": "Salvar Alterações",
+      "saveSuccess": "Grupo atualizado com sucesso",
+      "saveError": "Falha ao atualizar grupo",
+      "namePlaceholder": "Digite o nome do grupo",
+      "descriptionPlaceholder": "Digite a descrição do grupo"
+    },
+    "roles": {
+      "assignError": "Falha ao atribuir perfil",
+      "removeError": "Falha ao remover perfil",
+      "loadError": "Falha ao carregar perfis",
+      "selectRoles": "Selecione perfis...",
+      "noRolesAssigned": "Nenhum perfil atribuído"
+    },
     "table": {
       "name": "Nome",
       "description": "Descrição",

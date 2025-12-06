@@ -37,7 +37,6 @@ All paginated queries return a `Connection` type with the following structure:
 ```kotlin
 data class Connection<T>(
     val edges: List<Edge<T>>,
-    val nodes: List<T>,  // Convenience field (derived from edges)
     val pageInfo: PageInfo,
 )
 ```
@@ -302,7 +301,6 @@ service/kotlin/common/src/main/kotlin/io/github/salomax/neotool/common/graphql/p
 ```graphql
 type UserConnection {
     edges: [UserEdge!]!
-    nodes: [User!]!  # Convenience field
     pageInfo: PageInfo!
 }
 
@@ -379,7 +377,6 @@ Handle empty results correctly:
 if (users.isEmpty()) {
     return Connection(
         edges = emptyList(),
-        nodes = emptyList(),
         pageInfo = PageInfo(
             hasNextPage = false,
             hasPreviousPage = false,
@@ -538,7 +535,6 @@ Add `totalCount` field to Connection types:
 ```graphql
 type UserConnection {
   edges: [UserEdge!]!
-  nodes: [User!]!
   pageInfo: PageInfo!
   totalCount: Int  # Optional, only present for search operations
 }
@@ -553,7 +549,6 @@ Add `totalCount: Int?` to Connection DTOs and convert from `Long` to `Int` in ma
 ```kotlin
 data class UserConnectionDTO(
     val edges: List<UserEdgeDTO>,
-    val nodes: List<UserDTO>,
     val pageInfo: PageInfoDTO,
     val totalCount: Int? = null,  // Optional field
 )
@@ -562,7 +557,6 @@ data class UserConnectionDTO(
 fun toUserConnectionDTO(connection: Connection<User>): UserConnectionDTO {
     return UserConnectionDTO(
         edges = edges,
-        nodes = nodes,
         pageInfo = pageInfo,
         totalCount = connection.totalCount?.toInt(),  // Convert Long to Int
     )

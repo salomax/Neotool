@@ -44,7 +44,7 @@ class PermissionManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).hasSize(2)
+            assertThat(result.edges.map { it.node }).hasSize(2)
             assertThat(result.pageInfo.hasNextPage).isFalse()
             verify(permissionRepository).findAll(PaginationConstants.DEFAULT_PAGE_SIZE + 1, null)
         }
@@ -62,7 +62,7 @@ class PermissionManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).hasSize(1)
+            assertThat(result.edges.map { it.node }).hasSize(1)
             verify(permissionRepository).findAll(first + 1, null)
         }
 
@@ -95,7 +95,7 @@ class PermissionManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).hasSize(1)
+            assertThat(result.edges.map { it.node }).hasSize(1)
             verify(permissionRepository).findAll(PaginationConstants.DEFAULT_PAGE_SIZE + 1, afterId)
         }
 
@@ -117,7 +117,7 @@ class PermissionManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).hasSize(PaginationConstants.DEFAULT_PAGE_SIZE)
+            assertThat(result.edges.map { it.node }).hasSize(PaginationConstants.DEFAULT_PAGE_SIZE)
             assertThat(result.pageInfo.hasNextPage).isTrue()
         }
 
@@ -132,7 +132,6 @@ class PermissionManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).isEmpty()
             assertThat(result.edges).isEmpty()
             assertThat(result.pageInfo.hasNextPage).isFalse()
         }
@@ -166,8 +165,8 @@ class PermissionManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).hasSize(1)
-            assertThat(result.nodes.first().name).isEqualTo("permission:read")
+            assertThat(result.edges.map { it.node }).hasSize(1)
+            assertThat(result.edges.first().node.name).isEqualTo("permission:read")
             verify(permissionRepository).searchByName(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null)
         }
 
@@ -186,7 +185,7 @@ class PermissionManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).hasSize(1)
+            assertThat(result.edges.map { it.node }).hasSize(1)
             verify(permissionRepository).searchByName(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, afterId)
         }
 
@@ -202,7 +201,7 @@ class PermissionManagementServiceTest {
 
             // Assert
             assertThat(result).isNotNull()
-            assertThat(result.nodes).isEmpty()
+            assertThat(result.edges).isEmpty()
             assertThat(result.pageInfo.hasNextPage).isFalse()
         }
 

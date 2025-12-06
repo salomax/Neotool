@@ -128,11 +128,11 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
                     )
 
                 assertThat(result).isNotNull()
-                assertThat(result.nodes).isNotEmpty()
+                assertThat(result.edges.map { it.node }).isNotEmpty()
                 assertThat(result.totalCount).isEqualTo(totalUsers.toLong())
 
                 // Collect all user names from this page
-                val pageUserNames = result.nodes.map { it.displayName ?: it.email }
+                val pageUserNames = result.edges.map { it.node.displayName ?: it.node.email }
                 allRetrievedUsers.addAll(pageUserNames)
 
                 // Verify page info
@@ -174,7 +174,7 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
 
             // Act: Paginate through all users
             val page1 = userManagementService.searchUsers(query = null, first = 2, after = null)
-            assertThat(page1.nodes).hasSize(2)
+            assertThat(page1.edges.map { it.node }).hasSize(2)
             assertThat(page1.pageInfo.hasNextPage).isTrue()
 
             val page2 =
@@ -183,7 +183,7 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
                     first = 2,
                     after = page1.pageInfo.endCursor,
                 )
-            assertThat(page2.nodes).hasSize(2)
+            assertThat(page2.edges.map { it.node }).hasSize(2)
             assertThat(page2.pageInfo.hasNextPage).isTrue()
 
             val page3 =
@@ -192,11 +192,11 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
                     first = 2,
                     after = page2.pageInfo.endCursor,
                 )
-            assertThat(page3.nodes).hasSize(1)
+            assertThat(page3.edges.map { it.node }).hasSize(1)
             assertThat(page3.pageInfo.hasNextPage).isFalse()
 
             // Assert: All users should be retrieved
-            val allUsers = page1.nodes + page2.nodes + page3.nodes
+            val allUsers = page1.edges.map { it.node } + page2.edges.map { it.node } + page3.edges.map { it.node }
             assertThat(allUsers).hasSize(5)
             val allUserIds = allUsers.map { it.id }.toSet()
             assertThat(allUserIds).containsExactlyInAnyOrder(
@@ -225,7 +225,7 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
                 )
 
             // Assert: All users retrieved
-            val allUsers = page1.nodes + page2.nodes
+            val allUsers = page1.edges.map { it.node } + page2.edges.map { it.node }
             assertThat(allUsers).hasSize(3)
             val allUserIds = allUsers.map { it.id }.toSet()
             assertThat(allUserIds).containsExactlyInAnyOrder(user1.id, user2.id, user3.id)
@@ -283,7 +283,7 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
 
             // Act: Search and paginate
             val page1 = userManagementService.searchUsers(query = "test", first = 2, after = null)
-            assertThat(page1.nodes).hasSize(2)
+            assertThat(page1.edges.map { it.node }).hasSize(2)
             assertThat(page1.totalCount).isEqualTo(5L)
             assertThat(page1.pageInfo.hasNextPage).isTrue()
 
@@ -293,7 +293,7 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
                     first = 2,
                     after = page1.pageInfo.endCursor,
                 )
-            assertThat(page2.nodes).hasSize(2)
+            assertThat(page2.edges.map { it.node }).hasSize(2)
             assertThat(page2.totalCount).isEqualTo(5L)
             assertThat(page2.pageInfo.hasNextPage).isTrue()
 
@@ -303,12 +303,12 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
                     first = 2,
                     after = page2.pageInfo.endCursor,
                 )
-            assertThat(page3.nodes).hasSize(1)
+            assertThat(page3.edges.map { it.node }).hasSize(1)
             assertThat(page3.totalCount).isEqualTo(5L)
             assertThat(page3.pageInfo.hasNextPage).isFalse()
 
             // Assert: All test users retrieved
-            val allUsers = page1.nodes + page2.nodes + page3.nodes
+            val allUsers = page1.edges.map { it.node } + page2.edges.map { it.node } + page3.edges.map { it.node }
             assertThat(allUsers).hasSize(5)
             val allUserIds = allUsers.map { it.id }.toSet()
             assertThat(allUserIds).containsExactlyInAnyOrderElementsOf(testUsers.map { it.id })
@@ -324,7 +324,7 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
             val result = userManagementService.searchUsers(query = "nonexistent", first = 10, after = null)
 
             // Assert
-            assertThat(result.nodes).isEmpty()
+            assertThat(result.edges.map { it.node }).isEmpty()
             assertThat(result.edges).isEmpty()
             assertThat(result.pageInfo.hasNextPage).isFalse()
             assertThat(result.pageInfo.hasPreviousPage).isFalse()
@@ -341,7 +341,7 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
             val result = userManagementService.searchUsers(query = null, first = 10, after = null)
 
             // Assert
-            assertThat(result.nodes).hasSize(2)
+            assertThat(result.edges.map { it.node }).hasSize(2)
             assertThat(result.pageInfo.hasNextPage).isFalse()
             assertThat(result.totalCount).isEqualTo(2L)
         }
@@ -356,7 +356,7 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
             val result = userManagementService.searchUsers(query = null, first = 100, after = null)
 
             // Assert
-            assertThat(result.nodes).hasSize(2)
+            assertThat(result.edges.map { it.node }).hasSize(2)
             assertThat(result.pageInfo.hasNextPage).isFalse()
             assertThat(result.totalCount).isEqualTo(2L)
         }
@@ -372,15 +372,16 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
             }
 
             // Act
+            // Request more than max
             val result =
                 userManagementService.searchUsers(
                     query = null,
-                    first = PaginationConstants.MAX_PAGE_SIZE + 50, // Request more than max
+                    first = PaginationConstants.MAX_PAGE_SIZE + 50,
                     after = null,
                 )
 
             // Assert: Should only return MAX_PAGE_SIZE items
-            assertThat(result.nodes).hasSize(PaginationConstants.MAX_PAGE_SIZE)
+            assertThat(result.edges.map { it.node }).hasSize(PaginationConstants.MAX_PAGE_SIZE)
             assertThat(result.pageInfo.hasNextPage).isTrue() // More items available
         }
 
@@ -412,7 +413,7 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
                 )
 
             // Assert: Should return empty result set
-            assertThat(result.nodes).isEmpty()
+            assertThat(result.edges.map { it.node }).isEmpty()
             assertThat(result.edges).isEmpty()
             assertThat(result.pageInfo.hasNextPage).isFalse()
         }
@@ -432,7 +433,7 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
 
             // Act: Get first page
             val page1 = userManagementService.searchUsers(query = null, first = 2, after = null)
-            val page1Names = page1.nodes.map { it.displayName ?: it.email }
+            val page1Names = page1.edges.map { it.node.displayName ?: it.node.email }
 
             // Act: Get second page
             val page2 =
@@ -441,7 +442,7 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
                     first = 2,
                     after = page1.pageInfo.endCursor,
                 )
-            val page2Names = page2.nodes.map { it.displayName ?: it.email }
+            val page2Names = page2.edges.map { it.node.displayName ?: it.node.email }
 
             // Act: Get third page
             val page3 =
@@ -450,7 +451,7 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
                     first = 2,
                     after = page2.pageInfo.endCursor,
                 )
-            val page3Names = page3.nodes.map { it.displayName ?: it.email }
+            val page3Names = page3.edges.map { it.node.displayName ?: it.node.email }
 
             // Assert: Combined order should be correct
             val allNames = page1Names + page2Names + page3Names
@@ -478,10 +479,10 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
                 )
 
             // Assert: Should be sorted by email
-            assertThat(result.nodes).hasSize(3)
-            assertThat(result.nodes[0].email).isEqualTo("alice@example.com")
-            assertThat(result.nodes[1].email).isEqualTo("bob@example.com")
-            assertThat(result.nodes[2].email).isEqualTo("charlie@example.com")
+            assertThat(result.edges.map { it.node }).hasSize(3)
+            assertThat(result.edges[0].node.email).isEqualTo("alice@example.com")
+            assertThat(result.edges[1].node.email).isEqualTo("bob@example.com")
+            assertThat(result.edges[2].node.email).isEqualTo("charlie@example.com")
         }
 
         @Test
@@ -501,10 +502,10 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
                 )
 
             // Assert: Should be sorted by email descending
-            assertThat(result.nodes).hasSize(3)
-            assertThat(result.nodes[0].email).isEqualTo("charlie@example.com")
-            assertThat(result.nodes[1].email).isEqualTo("bob@example.com")
-            assertThat(result.nodes[2].email).isEqualTo("alice@example.com")
+            assertThat(result.edges.map { it.node }).hasSize(3)
+            assertThat(result.edges[0].node.email).isEqualTo("charlie@example.com")
+            assertThat(result.edges[1].node.email).isEqualTo("bob@example.com")
+            assertThat(result.edges[2].node.email).isEqualTo("alice@example.com")
         }
 
         @Test
@@ -537,16 +538,16 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
                 )
 
             // Assert: Enabled users first (true > false), then sorted by displayName
-            assertThat(result.nodes).hasSize(4)
+            assertThat(result.edges.map { it.node }).hasSize(4)
             // First two should be enabled (true)
-            assertThat(result.nodes[0].enabled).isTrue()
-            assertThat(result.nodes[1].enabled).isTrue()
+            assertThat(result.edges[0].node.enabled).isTrue()
+            assertThat(result.edges[1].node.enabled).isTrue()
             // Should be sorted by displayName within enabled group
-            assertThat(result.nodes[0].displayName).isEqualTo("Alice")
-            assertThat(result.nodes[1].displayName).isEqualTo("Bob")
+            assertThat(result.edges[0].node.displayName).isEqualTo("Alice")
+            assertThat(result.edges[1].node.displayName).isEqualTo("Bob")
             // Last two should be disabled (false)
-            assertThat(result.nodes[2].enabled).isFalse()
-            assertThat(result.nodes[3].enabled).isFalse()
+            assertThat(result.edges[2].node.enabled).isFalse()
+            assertThat(result.edges[3].node.enabled).isFalse()
         }
 
         @Test
@@ -566,10 +567,10 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
                 )
 
             // Assert: Should be sorted by displayName ASC (default)
-            assertThat(result.nodes).hasSize(3)
-            assertThat(result.nodes[0].displayName).isEqualTo("Alice")
-            assertThat(result.nodes[1].displayName).isEqualTo("Bob")
-            assertThat(result.nodes[2].displayName).isEqualTo("Zoe")
+            assertThat(result.edges.map { it.node }).hasSize(3)
+            assertThat(result.edges[0].node.displayName).isEqualTo("Alice")
+            assertThat(result.edges[1].node.displayName).isEqualTo("Bob")
+            assertThat(result.edges[2].node.displayName).isEqualTo("Zoe")
         }
 
         @Test
@@ -589,9 +590,9 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
                 )
 
             // Assert: Should return results (sorted by ID)
-            assertThat(result.nodes).hasSize(3)
+            assertThat(result.edges.map { it.node }).hasSize(3)
             // Verify IDs are in ascending order
-            val ids = result.nodes.map { it.id }
+            val ids = result.edges.map { it.node.id }
             assertThat(ids).isSorted()
         }
 
@@ -612,9 +613,9 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
                     orderBy = listOf(UserOrderBy(UserOrderField.EMAIL, OrderDirection.ASC)),
                 )
 
-            assertThat(page1.nodes).hasSize(2)
-            assertThat(page1.nodes[0].email).isEqualTo("a@example.com")
-            assertThat(page1.nodes[1].email).isEqualTo("b@example.com")
+            assertThat(page1.edges.map { it.node }).hasSize(2)
+            assertThat(page1.edges[0].node.email).isEqualTo("a@example.com")
+            assertThat(page1.edges[1].node.email).isEqualTo("b@example.com")
             assertThat(page1.pageInfo.hasNextPage).isTrue()
 
             // Act: Get next page
@@ -626,9 +627,9 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
                     orderBy = listOf(UserOrderBy(UserOrderField.EMAIL, OrderDirection.ASC)),
                 )
 
-            assertThat(page2.nodes).hasSize(2)
-            assertThat(page2.nodes[0].email).isEqualTo("c@example.com")
-            assertThat(page2.nodes[1].email).isEqualTo("d@example.com")
+            assertThat(page2.edges.map { it.node }).hasSize(2)
+            assertThat(page2.edges[0].node.email).isEqualTo("c@example.com")
+            assertThat(page2.edges[1].node.email).isEqualTo("d@example.com")
             assertThat(page2.pageInfo.hasNextPage).isTrue()
 
             // Act: Get last page
@@ -640,8 +641,8 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
                     orderBy = listOf(UserOrderBy(UserOrderField.EMAIL, OrderDirection.ASC)),
                 )
 
-            assertThat(page3.nodes).hasSize(1)
-            assertThat(page3.nodes[0].email).isEqualTo("e@example.com")
+            assertThat(page3.edges.map { it.node }).hasSize(1)
+            assertThat(page3.edges[0].node.email).isEqualTo("e@example.com")
             assertThat(page3.pageInfo.hasNextPage).isFalse()
         }
 
@@ -663,9 +664,9 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
                 )
 
             // Assert: First page should have Alice and first John
-            assertThat(page1.nodes).hasSize(2)
-            assertThat(page1.nodes[0].displayName).isEqualTo("Alice")
-            assertThat(page1.nodes[1].displayName).isEqualTo("John")
+            assertThat(page1.edges.map { it.node }).hasSize(2)
+            assertThat(page1.edges[0].node.displayName).isEqualTo("Alice")
+            assertThat(page1.edges[1].node.displayName).isEqualTo("John")
 
             // Act: Get next page using composite cursor
             val page2 =
@@ -677,8 +678,8 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
                 )
 
             // Assert: Should continue with remaining John users
-            assertThat(page2.nodes).hasSize(2)
-            assertThat(page2.nodes.all { it.displayName == "John" }).isTrue()
+            assertThat(page2.edges.map { it.node }).hasSize(2)
+            assertThat(page2.edges.map { it.node }.all { it.displayName == "John" }).isTrue()
         }
 
         @Test
@@ -698,11 +699,11 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
                     orderBy = listOf(UserOrderBy(UserOrderField.DISPLAY_NAME, OrderDirection.DESC)),
                 )
 
-            assertThat(page1.nodes).hasSize(2)
+            assertThat(page1.edges.map { it.node }).hasSize(2)
             assertThat(page1.totalCount).isEqualTo(3L)
             // Should be sorted DESC by displayName
-            assertThat(page1.nodes[0].displayName).isEqualTo("Test User C")
-            assertThat(page1.nodes[1].displayName).isEqualTo("Test User B")
+            assertThat(page1.edges[0].node.displayName).isEqualTo("Test User C")
+            assertThat(page1.edges[1].node.displayName).isEqualTo("Test User B")
 
             // Act: Get next page
             val page2 =
@@ -713,8 +714,8 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
                     orderBy = listOf(UserOrderBy(UserOrderField.DISPLAY_NAME, OrderDirection.DESC)),
                 )
 
-            assertThat(page2.nodes).hasSize(1)
-            assertThat(page2.nodes[0].displayName).isEqualTo("Test User A")
+            assertThat(page2.edges.map { it.node }).hasSize(1)
+            assertThat(page2.edges[0].node.displayName).isEqualTo("Test User A")
         }
     }
 }

@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.security.test.service.unit
 
 import io.github.salomax.neotool.security.config.JwtConfig
+import io.github.salomax.neotool.security.service.AuthContext
 import io.github.salomax.neotool.security.service.JwtService
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -433,7 +434,7 @@ class JwtServiceTest {
         }
 
         @Test
-        fun `should not include permissions claim when permissions list is null`() {
+        fun `should include empty permissions array when permissions list is null`() {
             val userId = UUID.randomUUID()
             val email = "test@example.com"
 
@@ -441,12 +442,14 @@ class JwtServiceTest {
             val claims = jwtService.validateToken(token)
 
             assertThat(claims).isNotNull()
-            val tokenPermissions = claims?.get("permissions")
-            assertThat(tokenPermissions).isNull()
+            @Suppress("UNCHECKED_CAST")
+            val tokenPermissions = claims?.get("permissions", List::class.java) as? List<*>
+            assertThat(tokenPermissions).isNotNull()
+            assertThat(tokenPermissions).isEmpty()
         }
 
         @Test
-        fun `should not include permissions claim when permissions list is empty`() {
+        fun `should always include permissions claim as array even when empty`() {
             val userId = UUID.randomUUID()
             val email = "test@example.com"
 
@@ -454,8 +457,10 @@ class JwtServiceTest {
             val claims = jwtService.validateToken(token)
 
             assertThat(claims).isNotNull()
-            val tokenPermissions = claims?.get("permissions")
-            assertThat(tokenPermissions).isNull()
+            @Suppress("UNCHECKED_CAST")
+            val tokenPermissions = claims?.get("permissions", List::class.java) as? List<*>
+            assertThat(tokenPermissions).isNotNull()
+            assertThat(tokenPermissions).isEmpty()
         }
 
         @Test
@@ -475,14 +480,15 @@ class JwtServiceTest {
         }
 
         @Test
-        fun `should return null permissions for token without permissions claim`() {
+        fun `should return empty permissions list for token with empty permissions claim`() {
             val userId = UUID.randomUUID()
             val email = "test@example.com"
 
             val token = jwtService.generateAccessToken(userId, email)
             val extractedPermissions = jwtService.getPermissionsFromToken(token)
 
-            assertThat(extractedPermissions).isNull()
+            assertThat(extractedPermissions).isNotNull()
+            assertThat(extractedPermissions).isEmpty()
         }
 
         @Test
@@ -531,6 +537,57 @@ class JwtServiceTest {
             assertThat(
                 extractedPermissions,
             ).containsExactlyInAnyOrder("resource_123:action-name", "test_resource:test_action")
+        }
+
+        @Test
+        fun `should include permissions claim when generated from AuthContext with empty permissions`() {
+            val userId = UUID.randomUUID()
+            val email = "test@example.com"
+            val authContext =
+                AuthContext(
+                    userId = userId,
+                    email = email,
+                    displayName = "Test User",
+                    roles = emptyList(),
+                    permissions = emptyList(),
+                )
+
+            val token = jwtService.generateAccessToken(authContext)
+            val claims = jwtService.validateToken(token)
+
+            assertThat(claims).isNotNull()
+            @Suppress("UNCHECKED_CAST")
+            val tokenPermissions = claims?.get("permissions", List::class.java) as? List<*>
+            assertThat(tokenPermissions).isNotNull()
+            assertThat(tokenPermissions).isEmpty()
+            assertThat(claims?.subject).isEqualTo(userId.toString())
+            assertThat(claims?.get("email", String::class.java)).isEqualTo(email)
+        }
+
+        @Test
+        fun `should include permissions claim when generated from AuthContext with permissions`() {
+            val userId = UUID.randomUUID()
+            val email = "test@example.com"
+            val permissions = listOf("transaction:read", "transaction:write", "user:read")
+            val authContext =
+                AuthContext(
+                    userId = userId,
+                    email = email,
+                    displayName = "Test User",
+                    roles = listOf("admin"),
+                    permissions = permissions,
+                )
+
+            val token = jwtService.generateAccessToken(authContext)
+            val claims = jwtService.validateToken(token)
+            val extractedPermissions = jwtService.getPermissionsFromToken(token)
+
+            assertThat(claims).isNotNull()
+            assertThat(claims?.subject).isEqualTo(userId.toString())
+            assertThat(claims?.get("email", String::class.java)).isEqualTo(email)
+            assertThat(extractedPermissions).isNotNull()
+            assertThat(extractedPermissions).hasSize(3)
+            assertThat(extractedPermissions).containsExactlyInAnyOrderElementsOf(permissions)
         }
     }
 }

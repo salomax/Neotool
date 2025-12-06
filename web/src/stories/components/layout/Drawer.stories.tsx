@@ -23,21 +23,6 @@ const meta: Meta<typeof Drawer> = {
     onClose: {
       description: 'Callback function called when the drawer is closed'
     },
-    title: {
-      control: { type: 'text' },
-      description: 'Optional title displayed in the drawer header'
-    },
-    showCloseButton: {
-      control: { type: 'boolean' },
-      description: 'Show close button in header. Default: true'
-    },
-    showMenuButton: {
-      control: { type: 'boolean' },
-      description: 'Show menu button in header. Default: false'
-    },
-    onMenuClick: {
-      description: 'Callback function called when the menu button is clicked'
-    },
     anchor: {
       control: { type: 'select' },
       options: ['left', 'right', 'top', 'bottom'],
@@ -48,9 +33,14 @@ const meta: Meta<typeof Drawer> = {
       options: ['temporary', 'persistent', 'permanent'],
       description: 'The drawer variant'
     },
+    size: {
+      control: { type: 'select' },
+      options: ['sm', 'md', 'lg', 'full'],
+      description: 'Predefined drawer size: sm (400px), md (600px), lg (800px), or full (100% - sidebar)'
+    },
     width: {
       control: { type: 'number' },
-      description: 'Drawer width (for left/right anchors). Default: 280'
+      description: 'Custom drawer width (for left/right anchors). Ignored if size is provided. Default: 600'
     },
     height: {
       control: { type: 'text' },
@@ -81,10 +71,8 @@ export const Default: Story = {
           Open Drawer
         </Button>
         <Drawer {...args} open={open} onClose={() => setOpen(false)}>
-          <Box sx={{ width: 250, p: 2 }}>
-            <Typography variant="h6" gutterBottom>
-              Navigation
-            </Typography>
+          <Drawer.Header title="Navigation" />
+          <Drawer.Body>
             <List>
               <ListItem>
                 <ListItemIcon><Home /></ListItemIcon>
@@ -108,7 +96,7 @@ export const Default: Story = {
                 <ListItemText primary="Notifications" />
               </ListItem>
             </List>
-          </Box>
+          </Drawer.Body>
         </Drawer>
       </Box>
     );
@@ -132,31 +120,31 @@ export const Anchors: Story = {
         </Stack>
         
         <Drawer anchor="left" open={leftOpen} onClose={() => setLeftOpen(false)}>
-          <Box sx={{ width: 250, p: 2 }}>
-            <Typography variant="h6">Left Drawer</Typography>
+          <Drawer.Header title="Left Drawer" />
+          <Drawer.Body>
             <Typography>Content slides in from the left</Typography>
-          </Box>
+          </Drawer.Body>
         </Drawer>
         
         <Drawer anchor="right" open={rightOpen} onClose={() => setRightOpen(false)}>
-          <Box sx={{ width: 250, p: 2 }}>
-            <Typography variant="h6">Right Drawer</Typography>
+          <Drawer.Header title="Right Drawer" />
+          <Drawer.Body>
             <Typography>Content slides in from the right</Typography>
-          </Box>
+          </Drawer.Body>
         </Drawer>
         
-        <Drawer anchor="top" open={topOpen} onClose={() => setTopOpen(false)}>
-          <Box sx={{ height: 200, p: 2 }}>
-            <Typography variant="h6">Top Drawer</Typography>
+        <Drawer anchor="top" open={topOpen} onClose={() => setTopOpen(false)} height={200}>
+          <Drawer.Header title="Top Drawer" />
+          <Drawer.Body>
             <Typography>Content slides in from the top</Typography>
-          </Box>
+          </Drawer.Body>
         </Drawer>
         
-        <Drawer anchor="bottom" open={bottomOpen} onClose={() => setBottomOpen(false)}>
-          <Box sx={{ height: 200, p: 2 }}>
-            <Typography variant="h6">Bottom Drawer</Typography>
+        <Drawer anchor="bottom" open={bottomOpen} onClose={() => setBottomOpen(false)} height={200}>
+          <Drawer.Header title="Bottom Drawer" />
+          <Drawer.Body>
             <Typography>Content slides in from the bottom</Typography>
-          </Box>
+          </Drawer.Body>
         </Drawer>
       </Box>
     );
@@ -180,10 +168,10 @@ export const Variants: Story = {
           open={temporaryOpen} 
           onClose={() => setTemporaryOpen(false)}
         >
-          <Box sx={{ width: 250, p: 2 }}>
-            <Typography variant="h6">Temporary Drawer</Typography>
+          <Drawer.Header title="Temporary Drawer" />
+          <Drawer.Body>
             <Typography>Overlays content and can be closed by clicking outside</Typography>
-          </Box>
+          </Drawer.Body>
         </Drawer>
         
         <Drawer 
@@ -191,10 +179,10 @@ export const Variants: Story = {
           open={persistentOpen} 
           onClose={() => setPersistentOpen(false)}
         >
-          <Box sx={{ width: 250, p: 2 }}>
-            <Typography variant="h6">Persistent Drawer</Typography>
+          <Drawer.Header title="Persistent Drawer" />
+          <Drawer.Body>
             <Typography>Pushes content and stays open until explicitly closed</Typography>
-          </Box>
+          </Drawer.Body>
         </Drawer>
       </Box>
     );
@@ -211,23 +199,24 @@ export const WithTitle: Story = {
         <Drawer 
           open={open} 
           onClose={() => setOpen(false)}
-          title="Navigation Menu"
-          showCloseButton={true}
         >
-          <List>
-            <ListItem>
-              <ListItemIcon><Home /></ListItemIcon>
-              <ListItemText primary="Home" />
-            </ListItem>
-            <ListItem>
-              <ListItemIcon><Person /></ListItemIcon>
-              <ListItemText primary="Profile" />
-            </ListItem>
-            <ListItem>
-              <ListItemIcon><Settings /></ListItemIcon>
-              <ListItemText primary="Settings" />
-            </ListItem>
-          </List>
+          <Drawer.Header title="Navigation Menu" showCloseButton={true} />
+          <Drawer.Body>
+            <List>
+              <ListItem>
+                <ListItemIcon><Home /></ListItemIcon>
+                <ListItemText primary="Home" />
+              </ListItem>
+              <ListItem>
+                <ListItemIcon><Person /></ListItemIcon>
+                <ListItemText primary="Profile" />
+              </ListItem>
+              <ListItem>
+                <ListItemIcon><Settings /></ListItemIcon>
+                <ListItemText primary="Settings" />
+              </ListItem>
+            </List>
+          </Drawer.Body>
         </Drawer>
       </Box>
     );
@@ -250,25 +239,29 @@ export const WithMenuButton: Story = {
         <Drawer 
           open={open} 
           onClose={() => setOpen(false)}
-          title="Settings"
-          showCloseButton={true}
-          showMenuButton={true}
-          onMenuClick={() => {
-            setMenuClicked(true);
-            setTimeout(() => setMenuClicked(false), 3000);
-          }}
         >
-          <List>
-            <ListItem>
-              <ListItemText primary="Account Settings" />
-            </ListItem>
-            <ListItem>
-              <ListItemText primary="Privacy" />
-            </ListItem>
-            <ListItem>
-              <ListItemText primary="Notifications" />
-            </ListItem>
-          </List>
+          <Drawer.Header 
+            title="Settings"
+            showCloseButton={true}
+            showMenuButton={true}
+            onMenuClick={() => {
+              setMenuClicked(true);
+              setTimeout(() => setMenuClicked(false), 3000);
+            }}
+          />
+          <Drawer.Body>
+            <List>
+              <ListItem>
+                <ListItemText primary="Account Settings" />
+              </ListItem>
+              <ListItem>
+                <ListItemText primary="Privacy" />
+              </ListItem>
+              <ListItem>
+                <ListItemText primary="Notifications" />
+              </ListItem>
+            </List>
+          </Drawer.Body>
         </Drawer>
       </Box>
     );
@@ -277,42 +270,84 @@ export const WithMenuButton: Story = {
 
 export const CustomSizes: Story = {
   render: () => {
-    const [leftOpen, setLeftOpen] = useState(false);
-    const [rightOpen, setRightOpen] = useState(false);
+    const [smOpen, setSmOpen] = useState(false);
+    const [mdOpen, setMdOpen] = useState(false);
+    const [lgOpen, setLgOpen] = useState(false);
+    const [fullOpen, setFullOpen] = useState(false);
+    const [customOpen, setCustomOpen] = useState(false);
     const [topOpen, setTopOpen] = useState(false);
     const [bottomOpen, setBottomOpen] = useState(false);
     
     return (
       <Box sx={{ p: 2 }}>
-        <Stack direction="row" spacing={2} flexWrap="wrap">
-          <Button onClick={() => setLeftOpen(true)}>Wide Left (400px)</Button>
-          <Button onClick={() => setRightOpen(true)}>Narrow Right (200px)</Button>
+        <Stack direction="row" spacing={2} flexWrap="wrap" sx={{ mb: 2 }}>
+          <Button onClick={() => setSmOpen(true)}>Small (sm - 400px)</Button>
+          <Button onClick={() => setMdOpen(true)}>Medium (md - 600px)</Button>
+          <Button onClick={() => setLgOpen(true)}>Large (lg - 800px)</Button>
+          <Button onClick={() => setFullOpen(true)}>Full Width</Button>
+          <Button onClick={() => setCustomOpen(true)}>Custom (200px)</Button>
           <Button onClick={() => setTopOpen(true)}>Tall Top (300px)</Button>
           <Button onClick={() => setBottomOpen(true)}>Short Bottom (150px)</Button>
         </Stack>
         
         <Drawer 
-          anchor="left" 
-          open={leftOpen} 
-          onClose={() => setLeftOpen(false)}
-          width={400}
-          title="Wide Drawer"
+          anchor="right" 
+          open={smOpen} 
+          onClose={() => setSmOpen(false)}
+          size="sm"
         >
-          <Box sx={{ p: 2 }}>
-            <Typography>This drawer is 400px wide</Typography>
-          </Box>
+          <Drawer.Header title="Small Drawer" />
+          <Drawer.Body>
+            <Typography>This drawer uses size="sm" (400px)</Typography>
+          </Drawer.Body>
         </Drawer>
         
         <Drawer 
           anchor="right" 
-          open={rightOpen} 
-          onClose={() => setRightOpen(false)}
-          width={200}
-          title="Narrow Drawer"
+          open={mdOpen} 
+          onClose={() => setMdOpen(false)}
+          size="md"
         >
-          <Box sx={{ p: 2 }}>
-            <Typography>This drawer is 200px wide</Typography>
-          </Box>
+          <Drawer.Header title="Medium Drawer" />
+          <Drawer.Body>
+            <Typography>This drawer uses size="md" (600px)</Typography>
+          </Drawer.Body>
+        </Drawer>
+        
+        <Drawer 
+          anchor="right" 
+          open={lgOpen} 
+          onClose={() => setLgOpen(false)}
+          size="lg"
+        >
+          <Drawer.Header title="Large Drawer" />
+          <Drawer.Body>
+            <Typography>This drawer uses size="lg" (800px)</Typography>
+          </Drawer.Body>
+        </Drawer>
+        
+        <Drawer 
+          anchor="right" 
+          open={fullOpen} 
+          onClose={() => setFullOpen(false)}
+          size="full"
+        >
+          <Drawer.Header title="Full Width Drawer" />
+          <Drawer.Body>
+            <Typography>This drawer uses size="full" (100% - sidebar width)</Typography>
+          </Drawer.Body>
+        </Drawer>
+        
+        <Drawer 
+          anchor="right" 
+          open={customOpen} 
+          onClose={() => setCustomOpen(false)}
+          width={200}
+        >
+          <Drawer.Header title="Custom Width Drawer" />
+          <Drawer.Body>
+            <Typography>This drawer uses custom width={200} (backward compatible)</Typography>
+          </Drawer.Body>
         </Drawer>
         
         <Drawer 
@@ -320,11 +355,11 @@ export const CustomSizes: Story = {
           open={topOpen} 
           onClose={() => setTopOpen(false)}
           height={300}
-          title="Tall Top Drawer"
         >
-          <Box sx={{ p: 2 }}>
+          <Drawer.Header title="Tall Top Drawer" />
+          <Drawer.Body>
             <Typography>This drawer is 300px tall</Typography>
-          </Box>
+          </Drawer.Body>
         </Drawer>
         
         <Drawer 
@@ -332,11 +367,11 @@ export const CustomSizes: Story = {
           open={bottomOpen} 
           onClose={() => setBottomOpen(false)}
           height={150}
-          title="Short Bottom Drawer"
         >
-          <Box sx={{ p: 2 }}>
+          <Drawer.Header title="Short Bottom Drawer" />
+          <Drawer.Body>
             <Typography>This drawer is 150px tall</Typography>
-          </Box>
+          </Drawer.Body>
         </Drawer>
       </Box>
     );
@@ -353,15 +388,14 @@ export const WithoutHeader: Story = {
         <Drawer 
           open={open} 
           onClose={() => setOpen(false)}
-          showCloseButton={false}
         >
-          <Box sx={{ p: 2 }}>
+          <Drawer.Body>
             <Typography variant="h6" gutterBottom>No Header</Typography>
             <Typography>
               This drawer has no header, title, or close button.
               Click outside to close.
             </Typography>
-          </Box>
+          </Drawer.Body>
         </Drawer>
       </Box>
     );
@@ -378,9 +412,9 @@ export const LongContent: Story = {
         <Drawer 
           open={open} 
           onClose={() => setOpen(false)}
-          title="Long Content"
         >
-          <Box sx={{ p: 2 }}>
+          <Drawer.Header title="Long Content" />
+          <Drawer.Body>
             <List>
               {Array.from({ length: 50 }, (_, i) => (
                 <ListItem key={i}>
@@ -388,7 +422,7 @@ export const LongContent: Story = {
                 </ListItem>
               ))}
             </List>
-          </Box>
+          </Drawer.Body>
         </Drawer>
       </Box>
     );
@@ -405,13 +439,13 @@ export const EmptyContent: Story = {
         <Drawer 
           open={open} 
           onClose={() => setOpen(false)}
-          title="Empty Drawer"
         >
-          <Box sx={{ p: 2 }}>
+          <Drawer.Header title="Empty Drawer" />
+          <Drawer.Body>
             <Typography color="text.secondary">
               This drawer has minimal content
             </Typography>
-          </Box>
+          </Drawer.Body>
         </Drawer>
       </Box>
     );
@@ -428,8 +462,25 @@ export const WithFooter: Story = {
         <Drawer 
           open={open} 
           onClose={() => setOpen(false)}
-          title="Form Drawer"
-          footer={
+        >
+          <Drawer.Header title="Form Drawer" />
+          <Drawer.Body>
+            <Typography variant="body1" paragraph>
+              This drawer demonstrates the footer with action buttons.
+              The footer is always visible at the bottom, and the content area is scrollable.
+            </Typography>
+            <List>
+              {Array.from({ length: 20 }, (_, i) => (
+                <ListItem key={i}>
+                  <ListItemText 
+                    primary={`Form Field ${i + 1}`}
+                    secondary="This is a form field that can be edited"
+                  />
+                </ListItem>
+              ))}
+            </List>
+          </Drawer.Body>
+          <Drawer.Footer>
             <Stack direction="row" spacing={2} justifyContent="flex-end">
               <Button 
                 variant="outlined" 
@@ -447,24 +498,7 @@ export const WithFooter: Story = {
                 Save
               </Button>
             </Stack>
-          }
-        >
-          <Box sx={{ p: 2 }}>
-            <Typography variant="body1" paragraph>
-              This drawer demonstrates the footer with action buttons.
-              The footer is always visible at the bottom, and the content area is scrollable.
-            </Typography>
-            <List>
-              {Array.from({ length: 20 }, (_, i) => (
-                <ListItem key={i}>
-                  <ListItemText 
-                    primary={`Form Field ${i + 1}`}
-                    secondary="This is a form field that can be edited"
-                  />
-                </ListItem>
-              ))}
-            </List>
-          </Box>
+          </Drawer.Footer>
         </Drawer>
       </Box>
     );

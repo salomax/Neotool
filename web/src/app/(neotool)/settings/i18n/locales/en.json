@@ -88,6 +88,28 @@
     "createGroup": "Create Group",
     "newButton": "New",
     "drawerPlaceholder": "Group editing form will be implemented here",
+    "drawer": {
+      "title": "Group Details",
+      "name": "Name",
+      "description": "Description",
+      "members": "Members",
+      "roles": "Roles",
+      "noMembers": "This group has no members",
+      "errorLoading": "Failed to load group details",
+      "groupNotFound": "Group not found",
+      "saveChanges": "Save Changes",
+      "saveSuccess": "Group updated successfully",
+      "saveError": "Failed to update group",
+      "namePlaceholder": "Enter group name",
+      "descriptionPlaceholder": "Enter group description"
+    },
+    "roles": {
+      "assignError": "Failed to assign role",
+      "removeError": "Failed to remove role",
+      "loadError": "Failed to load roles",
+      "selectRoles": "Select roles...",
+      "noRolesAssigned": "No roles assigned"
+    },
     "table": {
       "name": "Name",
       "description": "Description",

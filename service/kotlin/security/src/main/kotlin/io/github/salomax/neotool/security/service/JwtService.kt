@@ -62,14 +62,31 @@ class JwtService(
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiration))
 
-        // Add permissions claim if provided
-        if (permissions != null && permissions.isNotEmpty()) {
-            builder.claim("permissions", permissions)
-        }
+        // Always include permissions claim as array (empty [] when no permissions)
+        builder.claim("permissions", permissions ?: emptyList<String>())
 
         return builder
             .signWith(secretKey)
             .compact()
+    }
+
+    /**
+     * Generate a JWT access token from an AuthContext.
+     *
+     * This method extracts userId, email, and permissions from the AuthContext
+     * to build the JWT token. Token issuance is agnostic of how the user authenticated.
+     *
+     * Access tokens are short-lived (default: 15 minutes) and used for API authentication.
+     *
+     * @param authContext The normalized authentication context containing user identity and permissions
+     * @return A signed JWT token string
+     */
+    fun generateAccessToken(authContext: AuthContext): String {
+        return generateAccessToken(
+            userId = authContext.userId,
+            email = authContext.email,
+            permissions = authContext.permissions,
+        )
     }
 
     /**

@@ -46,11 +46,6 @@ class RoleManagementMapper {
                     )
                 }
 
-        val nodes =
-            connection
-                .nodes
-                .map { toRoleDTO(it) }
-
         val pageInfo =
             PageInfoDTO(
                 hasNextPage = connection.pageInfo.hasNextPage,
@@ -61,7 +56,6 @@ class RoleManagementMapper {
 
         return RoleConnectionDTO(
             edges = edges,
-            nodes = nodes,
             pageInfo = pageInfo,
             totalCount = connection.totalCount?.toInt(),
         )

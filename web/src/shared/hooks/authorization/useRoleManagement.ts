@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import {
   useGetRolesQuery,
+  GetRolesDocument,
 } from '@/lib/graphql/operations/authorization-management/queries.generated';
 import {
   useCreateRoleMutation,
@@ -15,8 +16,13 @@ import {
   useAssignRoleToGroupMutation,
   useRemoveRoleFromGroupMutation,
 } from '@/lib/graphql/operations/authorization-management/mutations.generated';
-import { CreateRoleInput, UpdateRoleInput } from '@/lib/graphql/types/__generated__/graphql';
+import { CreateRoleInput, UpdateRoleInput, RoleOrderByInput } from '@/lib/graphql/types/__generated__/graphql';
 import { extractErrorMessage } from '@/shared/utils/error';
+import { useRelayPagination } from '@/shared/hooks/pagination';
+import { useDebouncedSearch } from '@/shared/hooks/search';
+import { useSorting } from '@/shared/hooks/sorting';
+import { useMutationWithRefetch } from '@/shared/hooks/mutations';
+import type { RoleSortState, RoleOrderField } from '@/shared/utils/sorting';
 
 export type Role = {
   id: string;
@@ -54,6 +60,7 @@ export type UseRoleManagementReturn = {
     end: number;
     total: number | null;
   };
+  canLoadPreviousPage: boolean;
   setFirst: (first: number) => void;
   loadNextPage: () => void;
   loadPreviousPage: () => void;
@@ -62,6 +69,14 @@ export type UseRoleManagementReturn = {
   // Search
   searchQuery: string;
   setSearchQuery: (query: string) => void;
+  inputValue: string;
+  handleInputChange: (value: string) => void;
+  handleSearch: (value: string) => void;
+  
+  // Sorting
+  orderBy: RoleSortState;
+  setOrderBy: (orderBy: RoleSortState) => void;
+  handleSort: (field: RoleOrderField) => void;
   
   // Dialog state
   dialogOpen: boolean;
@@ -151,19 +166,25 @@ export type UseRoleManagementReturn = {
  */
 export function useRoleManagement(options: UseRoleManagementOptions = {}): UseRoleManagementReturn {
   // Local state
-  const [searchQuery, setSearchQuery] = useState(options.initialSearchQuery || "");
   const [first, setFirst] = useState(options.initialFirst || 10);
   const [after, setAfter] = useState<string | null>(null);
-  const [cumulativeItemsLoaded, setCumulativeItemsLoaded] = useState(0);
-  const previousSearchQueryRef = useRef<string>(options.initialSearchQuery || "");
-  const previousAfterRef = useRef<string | null>(null);
-  // Cursor history for backward navigation
-  const cursorHistoryRef = useRef<string[]>([]);
-  // Track if we're navigating backward to prevent cumulative count from being overridden
-  const isNavigatingBackwardRef = useRef<boolean>(false);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingRole, setEditingRole] = useState<Role | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<Role | null>(null);
+
+  // Ref to preserve previous data during loading to prevent flicker
+  const previousDataRef = useRef<typeof rolesData | null>(null);
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState(options.initialSearchQuery || "");
+
+  // Sorting
+  const { orderBy, graphQLOrderBy, setOrderBy, handleSort } = useSorting<RoleOrderField>({
+    initialSort: null,
+    onSortChange: () => {
+      // Reset cursor when sorting changes
+      if (after !== null) {
+        setAfter(null);
+      }
+    },
+  });
 
   // GraphQL hooks
   const { data: rolesData, loading, error, refetch } = useGetRolesQuery({
@@ -171,9 +192,20 @@ export function useRoleManagement(options: UseRoleManagementOptions = {}): UseRo
       first,
       after: after || undefined,
       query: searchQuery || undefined,
-    },
+      // Cast to GraphQL type - the utility function returns compatible structure
+      // but TypeScript sees them as different types due to separate type definitions
+      orderBy: (graphQLOrderBy as RoleOrderByInput[] | undefined) || undefined,
+    } as any, // Type assertion needed until GraphQL types are regenerated with orderBy
     skip: false,
+    notifyOnNetworkStatusChange: true, // Keep loading state accurate during transitions
   });
+
+  // Update previous data ref when we have new data
+  useEffect(() => {
+    if (rolesData && !loading) {
+      previousDataRef.current = rolesData;
+    }
+  }, [rolesData, loading]);
 
   const [createRoleMutation, { loading: createLoading }] = useCreateRoleMutation();
   const [updateRoleMutation, { loading: updateLoading }] = useUpdateRoleMutation();
@@ -185,131 +217,86 @@ export function useRoleManagement(options: UseRoleManagementOptions = {}): UseRo
   const [assignRoleToGroupMutation, { loading: assignRoleToGroupLoading }] = useAssignRoleToGroupMutation();
   const [removeRoleFromGroupMutation, { loading: removeRoleFromGroupLoading }] = useRemoveRoleFromGroupMutation();
 
-  // Derived data - memoize to prevent unnecessary re-renders
+  // Mutation hook with refetch
+  const { executeMutation } = useMutationWithRefetch({
+    refetchQuery: GetRolesDocument,
+    refetchVariables: {
+      first,
+      after: after || undefined,
+      query: searchQuery || undefined,
+      orderBy: (graphQLOrderBy as RoleOrderByInput[] | undefined) || undefined,
+    },
+    onRefetch: refetch,
+    errorMessage: 'Failed to update role',
+  });
+
+  // Derived data - use previous data while loading to prevent flicker
   const roles = useMemo(() => {
-    return rolesData?.roles?.nodes || [];
-  }, [rolesData?.roles?.nodes]);
+    // Keep previous data visible while loading new data
+    const currentData = rolesData || (loading ? previousDataRef.current : null);
+    return currentData?.roles?.edges?.map(e => e.node) || [];
+  }, [rolesData, loading]);
 
   const pageInfo = useMemo(() => {
-    return rolesData?.roles?.pageInfo || null;
-  }, [rolesData?.roles?.pageInfo]);
+    // Use previous data if current is loading
+    const currentData = rolesData || (loading ? previousDataRef.current : null);
+    const info = currentData?.roles?.pageInfo || null;
+    if (!info) {
+      return null;
+    }
+    return {
+      ...info,
+      hasPreviousPage: info.hasPreviousPage || after !== null,
+    };
+  }, [rolesData, loading, after]);
 
   // totalCount is always calculated by the backend (never null)
   // When query is null/empty: totalCount = total count of all items
   // When query is provided: totalCount = total count of filtered items
   const totalCount = useMemo(() => {
-    return rolesData?.roles?.totalCount ?? null;
-  }, [rolesData?.roles?.totalCount]);
+    // Use previous data if current is loading
+    const currentData = rolesData || (loading ? previousDataRef.current : null);
+    return currentData?.roles?.totalCount ?? null;
+  }, [rolesData, loading]);
 
-  // Track cursor history for backward navigation
-  useEffect(() => {
-    // When we navigate forward (after changes from one value to another),
-    // add the previous cursor to history
-    if (after !== null && previousAfterRef.current !== after) {
-      // Only add to history if we're actually moving forward (not resetting)
-      if (previousAfterRef.current !== null) {
-        cursorHistoryRef.current.push(previousAfterRef.current);
-      }
+  // Use shared pagination hook
+  const {
+    loadNextPage,
+    loadPreviousPage,
+    goToFirstPage,
+    paginationRange,
+    canLoadPreviousPage,
+  } = useRelayPagination(
+    roles,
+    pageInfo,
+    totalCount,
+    searchQuery,
+    after,
+    setAfter,
+    {
+      initialAfter: null,
+      initialSearchQuery: options.initialSearchQuery,
     }
-    
-    // Reset history when going to first page or search changes
-    if (after === null || previousSearchQueryRef.current !== searchQuery) {
-      cursorHistoryRef.current = [];
-    }
-    
-    previousAfterRef.current = after;
-    previousSearchQueryRef.current = searchQuery;
-  }, [after, searchQuery]);
+  );
 
-  // Track cumulative items loaded for pagination range calculation
-  // For cursor-based pagination, we track items loaded in the current "session"
-  // (since last reset). This works for forward navigation and first page.
-  useEffect(() => {
-    const searchChanged = previousSearchQueryRef.current !== searchQuery;
-    const wentToFirstPage = previousAfterRef.current !== null && after === null;
-    const cursorChanged = previousAfterRef.current !== after;
-    
-    // Reset cumulative count when search changes or going to first page
-    if (searchChanged || wentToFirstPage) {
-      setCumulativeItemsLoaded(roles.length);
-    } else if (roles.length > 0 && cursorChanged) {
-      if (after === null) {
-        // First page - set count to current items
-        setCumulativeItemsLoaded(roles.length);
-        isNavigatingBackwardRef.current = false;
-      } else if (isNavigatingBackwardRef.current) {
-        // We're navigating backward - cumulative count was already adjusted in loadPreviousPage
-        // Just update the ref to match current state
-        isNavigatingBackwardRef.current = false;
-      } else {
-        // Moving forward to a new page (not first page)
-        const wasOnFirstPage = previousAfterRef.current === null;
-        if (!wasOnFirstPage) {
-          // Moving forward - add current items to cumulative count
-          setCumulativeItemsLoaded(prev => prev + roles.length);
-        } else {
-          setCumulativeItemsLoaded(roles.length);
-        }
-      }
-    } else if (after === null && roles.length > 0 && cumulativeItemsLoaded === 0) {
-      // Initial load on first page
-      setCumulativeItemsLoaded(roles.length);
-    }
-    
-    previousSearchQueryRef.current = searchQuery;
-    previousAfterRef.current = after;
-  }, [roles.length, after, searchQuery, cumulativeItemsLoaded]);
+  // Search with debounce - now that we have goToFirstPage
+  const {
+    inputValue: searchInputValue,
+    handleInputChange: handleSearchInputChange,
+    handleSearch: handleSearchChange,
+  } = useDebouncedSearch({
+    initialValue: searchQuery,
+    debounceMs: 300,
+    onSearchChange: goToFirstPage,
+    setSearchQuery,
+    searchQuery,
+  });
 
-  // Calculate pagination range
-  const paginationRange = useMemo(() => {
-    if (roles.length === 0) {
-      return { start: 0, end: 0, total: totalCount };
-    }
-    
-    // Calculate range based on cumulative items loaded
-    const start = cumulativeItemsLoaded > 0 ? cumulativeItemsLoaded - roles.length + 1 : 1;
-    const end = cumulativeItemsLoaded > 0 ? cumulativeItemsLoaded : roles.length;
-    
-    return {
-      start: Math.max(1, start),
-      end: Math.max(1, end),
-      total: totalCount,
-    };
-  }, [roles.length, cumulativeItemsLoaded, totalCount]);
+  // Dialog management (kept for backward compatibility, but not used in new pattern)
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingRole, setEditingRole] = useState<Role | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<Role | null>(null);
 
-  // Pagination functions
-  const loadNextPage = useCallback(() => {
-    if (pageInfo?.hasNextPage && pageInfo?.endCursor) {
-      setAfter(pageInfo.endCursor);
-    }
-  }, [pageInfo]);
-
-  const goToFirstPage = useCallback(() => {
-    setAfter(null);
-    setCumulativeItemsLoaded(0);
-    cursorHistoryRef.current = []; // Clear history when going to first page
-  }, []);
-
-  const loadPreviousPage = useCallback(() => {
-    if (pageInfo?.hasPreviousPage) {
-      // Pop the last cursor from history to go back
-      const previousCursor = cursorHistoryRef.current.pop();
-      
-      if (previousCursor !== undefined) {
-        // Capture current page size before navigating
-        const currentPageSize = roles.length;
-        // Use the previous cursor
-        setAfter(previousCursor);
-        // Adjust cumulative count - subtract current page size (not first, as last page might be smaller)
-        setCumulativeItemsLoaded(prev => Math.max(0, prev - currentPageSize));
-      } else if (after !== null) {
-        // If no history but we're not on first page, go to first page
-        goToFirstPage();
-      }
-    }
-  }, [pageInfo, after, roles.length, goToFirstPage]);
-
-  // Dialog management
   const openCreateDialog = useCallback(() => {
     setEditingRole(null);
     setDialogOpen(true);
@@ -332,17 +319,17 @@ export function useRoleManagement(options: UseRoleManagementOptions = {}): UseRo
         name: data.name.trim(),
       };
 
-      const result = await createRoleMutation({
-        variables: { input },
-      });
+      const result = await executeMutation(
+        createRoleMutation,
+        { input },
+        'create-role'
+      );
 
-      // Only refetch if mutation was successful
       if (result.data?.createRole) {
         const createdRole: Role = {
           id: result.data.createRole.id,
           name: result.data.createRole.name,
         };
-        refetch();
         closeDialog();
         return createdRole;
       }
@@ -352,7 +339,7 @@ export function useRoleManagement(options: UseRoleManagementOptions = {}): UseRo
       const errorMessage = extractErrorMessage(err, 'Failed to create role');
       throw new Error(errorMessage);
     }
-  }, [createRoleMutation, refetch, closeDialog]);
+  }, [executeMutation, createRoleMutation, closeDialog]);
 
   const updateRole = useCallback(async (roleId: string, data: RoleFormData) => {
     try {
@@ -360,164 +347,101 @@ export function useRoleManagement(options: UseRoleManagementOptions = {}): UseRo
         name: data.name.trim(),
       };
 
-      const result = await updateRoleMutation({
-        variables: {
-          roleId,
-          input,
-        },
-      });
-
-      // Only refetch if mutation was successful
-      if (result.data) {
-        refetch();
-        closeDialog();
-      }
+      await executeMutation(
+        updateRoleMutation,
+        { roleId, input },
+        `update-role-${roleId}`
+      );
+      closeDialog();
     } catch (err) {
       console.error('Error updating role:', err);
       const errorMessage = extractErrorMessage(err, 'Failed to update role');
       throw new Error(errorMessage);
     }
-  }, [updateRoleMutation, refetch, closeDialog]);
+  }, [executeMutation, updateRoleMutation, closeDialog]);
 
   const deleteRole = useCallback(async (roleId: string) => {
     try {
-      const result = await deleteRoleMutation({
-        variables: { roleId },
-      });
-
-      // Only refetch if mutation was successful
-      if (result.data) {
-        refetch();
-        setDeleteConfirm(null);
-      }
+      await executeMutation(
+        deleteRoleMutation,
+        { roleId },
+        `delete-role-${roleId}`
+      );
+      setDeleteConfirm(null);
     } catch (err) {
       console.error('Error deleting role:', err);
       const errorMessage = extractErrorMessage(err, 'Failed to delete role');
       throw new Error(errorMessage);
     }
-  }, [deleteRoleMutation, refetch]);
+  }, [executeMutation, deleteRoleMutation]);
 
   // Permission management
-  const assignPermissionToRole = useCallback(async (roleId: string, permissionId: string) => {
-    try {
-      const result = await assignPermissionMutation({
-        variables: {
-          roleId,
-          permissionId,
-        },
-      });
+  const assignPermissionToRole = useCallback(
+    async (roleId: string, permissionId: string) => {
+      await executeMutation(
+        assignPermissionMutation,
+        { roleId, permissionId },
+        `assign-permission-${roleId}-${permissionId}`
+      );
+    },
+    [executeMutation, assignPermissionMutation]
+  );
 
-      // Only refetch if mutation was successful
-      if (result.data) {
-        refetch();
-      }
-    } catch (err) {
-      console.error('Error assigning permission to role:', err);
-      const errorMessage = extractErrorMessage(err, 'Failed to assign permission to role');
-      throw new Error(errorMessage);
-    }
-  }, [assignPermissionMutation, refetch]);
-
-  const removePermissionFromRole = useCallback(async (roleId: string, permissionId: string) => {
-    try {
-      const result = await removePermissionMutation({
-        variables: {
-          roleId,
-          permissionId,
-        },
-      });
-
-      // Only refetch if mutation was successful
-      if (result.data) {
-        refetch();
-      }
-    } catch (err) {
-      console.error('Error removing permission from role:', err);
-      const errorMessage = extractErrorMessage(err, 'Failed to remove permission from role');
-      throw new Error(errorMessage);
-    }
-  }, [removePermissionMutation, refetch]);
+  const removePermissionFromRole = useCallback(
+    async (roleId: string, permissionId: string) => {
+      await executeMutation(
+        removePermissionMutation,
+        { roleId, permissionId },
+        `remove-permission-${roleId}-${permissionId}`
+      );
+    },
+    [executeMutation, removePermissionMutation]
+  );
 
   // User and group management
-  const assignRoleToUser = useCallback(async (userId: string, roleId: string) => {
-    try {
-      const result = await assignRoleToUserMutation({
-        variables: {
-          userId,
-          roleId,
-        },
-      });
+  const assignRoleToUser = useCallback(
+    async (userId: string, roleId: string) => {
+      await executeMutation(
+        assignRoleToUserMutation,
+        { userId, roleId },
+        `assign-role-${userId}-${roleId}`
+      );
+    },
+    [executeMutation, assignRoleToUserMutation]
+  );
 
-      // Only refetch if mutation was successful
-      if (result.data) {
-        refetch();
-      }
-    } catch (err) {
-      console.error('Error assigning role to user:', err);
-      const errorMessage = extractErrorMessage(err, 'Failed to assign role to user');
-      throw new Error(errorMessage);
-    }
-  }, [assignRoleToUserMutation, refetch]);
+  const removeRoleFromUser = useCallback(
+    async (userId: string, roleId: string) => {
+      await executeMutation(
+        removeRoleFromUserMutation,
+        { userId, roleId },
+        `remove-role-${userId}-${roleId}`
+      );
+    },
+    [executeMutation, removeRoleFromUserMutation]
+  );
 
-  const removeRoleFromUser = useCallback(async (userId: string, roleId: string) => {
-    try {
-      const result = await removeRoleFromUserMutation({
-        variables: {
-          userId,
-          roleId,
-        },
-      });
+  const assignRoleToGroup = useCallback(
+    async (groupId: string, roleId: string) => {
+      await executeMutation(
+        assignRoleToGroupMutation,
+        { groupId, roleId },
+        `assign-role-${groupId}-${roleId}`
+      );
+    },
+    [executeMutation, assignRoleToGroupMutation]
+  );
 
-      // Only refetch if mutation was successful
-      if (result.data) {
-        refetch();
-      }
-    } catch (err) {
-      console.error('Error removing role from user:', err);
-      const errorMessage = extractErrorMessage(err, 'Failed to remove role from user');
-      throw new Error(errorMessage);
-    }
-  }, [removeRoleFromUserMutation, refetch]);
-
-  const assignRoleToGroup = useCallback(async (groupId: string, roleId: string) => {
-    try {
-      const result = await assignRoleToGroupMutation({
-        variables: {
-          groupId,
-          roleId,
-        },
-      });
-
-      // Only refetch if mutation was successful
-      if (result.data) {
-        refetch();
-      }
-    } catch (err) {
-      console.error('Error assigning role to group:', err);
-      const errorMessage = extractErrorMessage(err, 'Failed to assign role to group');
-      throw new Error(errorMessage);
-    }
-  }, [assignRoleToGroupMutation, refetch]);
-
-  const removeRoleFromGroup = useCallback(async (groupId: string, roleId: string) => {
-    try {
-      const result = await removeRoleFromGroupMutation({
-        variables: {
-          groupId,
-          roleId,
-        },
-      });
-
-      // Only refetch if mutation was successful
-      if (result.data) {
-        refetch();
-      }
-    } catch (err) {
-      console.error('Error removing role from group:', err);
-      const errorMessage = extractErrorMessage(err, 'Failed to remove role from group');
-      throw new Error(errorMessage);
-    }
-  }, [removeRoleFromGroupMutation, refetch]);
+  const removeRoleFromGroup = useCallback(
+    async (groupId: string, roleId: string) => {
+      await executeMutation(
+        removeRoleFromGroupMutation,
+        { groupId, roleId },
+        `remove-role-${groupId}-${roleId}`
+      );
+    },
+    [executeMutation, removeRoleFromGroupMutation]
+  );
 
   return {
     // Data
@@ -529,6 +453,7 @@ export function useRoleManagement(options: UseRoleManagementOptions = {}): UseRo
     pageInfo,
     totalCount,
     paginationRange,
+    canLoadPreviousPage,
     setFirst,
     loadNextPage,
     loadPreviousPage,
@@ -537,6 +462,14 @@ export function useRoleManagement(options: UseRoleManagementOptions = {}): UseRo
     // Search
     searchQuery,
     setSearchQuery,
+    inputValue: searchInputValue,
+    handleInputChange: handleSearchInputChange,
+    handleSearch: handleSearchChange,
+    
+    // Sorting
+    orderBy,
+    setOrderBy,
+    handleSort,
     
     // Dialog state
     dialogOpen,
@@ -581,4 +514,3 @@ export function useRoleManagement(options: UseRoleManagementOptions = {}): UseRo
     refetch,
   };
 }
-

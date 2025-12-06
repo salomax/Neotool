@@ -38,11 +38,6 @@ class PermissionManagementMapper {
                     )
                 }
 
-        val nodes =
-            connection
-                .nodes
-                .map { toPermissionDTO(it) }
-
         val pageInfo =
             PageInfoDTO(
                 hasNextPage = connection.pageInfo.hasNextPage,
@@ -53,7 +48,6 @@ class PermissionManagementMapper {
 
         return PermissionConnectionDTO(
             edges = edges,
-            nodes = nodes,
             pageInfo = pageInfo,
         )
     }

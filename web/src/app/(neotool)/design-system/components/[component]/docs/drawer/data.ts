@@ -16,7 +16,8 @@ export const drawerData: ComponentData = {
         { name: "onMenuClick", type: "() => void", required: false, description: "Callback when menu button is clicked" },
         { name: "variant", type: "'temporary' | 'persistent' | 'permanent'", required: false, description: "Drawer variant type", default: "'temporary'" },
         { name: "anchor", type: "'left' | 'right' | 'top' | 'bottom'", required: false, description: "Drawer anchor position", default: "'left'" },
-        { name: "width", type: "number | string", required: false, description: "Drawer width (for left/right anchors)", default: "280" },
+        { name: "size", type: "'sm' | 'md' | 'lg' | 'full'", required: false, description: "Predefined drawer size: sm (400px), md (600px), lg (800px), or full (100% - sidebar)", default: "undefined" },
+        { name: "width", type: "number | string", required: false, description: "Custom drawer width (for left/right anchors). Ignored if size is provided", default: "600" },
         { name: "height", type: "number | string", required: false, description: "Drawer height (for top/bottom anchors)", default: "'100%'" },
         { name: "footer", type: "ReactNode", required: false, description: "Footer content (e.g., action buttons). Always visible at the bottom of the drawer." },
         { name: "children", type: "ReactNode", required: true, description: "Drawer content" },
@@ -27,5 +28,6 @@ export const drawerData: ComponentData = {
         { title: "Different Anchors", description: "Drawer positioned on different sides" },
         { title: "Persistent Drawer", description: "Drawer that stays open and pushes content" },
         { title: "Custom Styling", description: "Drawer with custom colors and styling" },
+        { title: "Full Width", description: "Full width drawer (100% - sidebar width)" },
   ]
 };

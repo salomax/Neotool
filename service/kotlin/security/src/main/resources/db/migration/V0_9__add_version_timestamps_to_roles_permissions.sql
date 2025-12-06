@@ -15,3 +15,4 @@ ALTER TABLE security.permissions ADD COLUMN IF NOT EXISTS version BIGINT NOT NUL
 
 
 
+

@@ -131,6 +131,21 @@ open class AuthenticationService(
     }
 
     /**
+     * Generate JWT access token from an AuthContext.
+     *
+     * This method delegates to JwtService to generate a token from the normalized
+     * authentication context. Token issuance is agnostic of how the user authenticated.
+     *
+     * Access tokens are short-lived and stateless.
+     *
+     * @param authContext The normalized authentication context containing user identity and permissions
+     * @return JWT access token string
+     */
+    fun generateAccessToken(authContext: AuthContext): String {
+        return jwtService.generateAccessToken(authContext)
+    }
+
+    /**
      * Generate JWT refresh token for a user.
      *
      * Refresh tokens are long-lived and stored in the database for revocation.

@@ -63,7 +63,7 @@ describe('useUserManagement', () => {
     (useGetUsersQuery as any).mockReturnValue({
       data: {
         users: {
-          nodes: mockUsers,
+          edges: mockUsers.map(u => ({ node: u, cursor: 'cursor' })),
           pageInfo: mockPageInfo,
           totalCount: 2,
         },

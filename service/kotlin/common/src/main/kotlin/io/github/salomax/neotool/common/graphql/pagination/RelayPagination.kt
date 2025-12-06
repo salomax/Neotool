@@ -51,7 +51,6 @@ data class Edge<T>(
 @Serdeable
 data class Connection<T>(
     val edges: List<Edge<T>>,
-    val nodes: List<T>,
     val pageInfo: PageInfo,
     val totalCount: Long? = null,
 )
@@ -242,7 +241,7 @@ object ConnectionBuilder {
      * @param hasMore Whether there are more items available (for hasNextPage)
      * @param encodeCursor Function to encode item ID to cursor string
      * @param totalCount Optional total count of items matching the query (typically used for search operations)
-     * @return Connection with edges, nodes, and pageInfo
+     * @return Connection with edges and pageInfo
      */
     fun <T> buildConnection(
         items: List<T>,
@@ -253,7 +252,6 @@ object ConnectionBuilder {
         if (items.isEmpty()) {
             return Connection(
                 edges = emptyList(),
-                nodes = emptyList(),
                 pageInfo = PageInfo(
                     hasNextPage = false,
                     hasPreviousPage = false,
@@ -278,7 +276,6 @@ object ConnectionBuilder {
 
         return Connection(
             edges = edges,
-            nodes = items,
             pageInfo = pageInfo,
             totalCount = totalCount,
         )
@@ -292,7 +289,7 @@ object ConnectionBuilder {
      * @param hasMore Whether there are more items available
      * @param getId Function to extract UUID from item
      * @param totalCount Optional total count of items matching the query (typically used for search operations)
-     * @return Connection with edges, nodes, and pageInfo
+     * @return Connection with edges and pageInfo
      */
     fun <T> buildConnectionWithUuid(
         items: List<T>,
@@ -319,7 +316,7 @@ object ConnectionBuilder {
      * @param hasMore Whether there are more items available
      * @param getId Function to extract Int from item
      * @param totalCount Optional total count of items matching the query (typically used for search operations)
-     * @return Connection with edges, nodes, and pageInfo
+     * @return Connection with edges and pageInfo
      */
     fun <T> buildConnectionWithInt(
         items: List<T>,

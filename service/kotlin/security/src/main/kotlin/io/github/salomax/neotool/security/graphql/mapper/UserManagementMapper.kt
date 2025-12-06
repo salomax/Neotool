@@ -44,11 +44,6 @@ class UserManagementMapper {
                     )
                 }
 
-        val nodes =
-            connection
-                .nodes
-                .map { toUserDTO(it) }
-
         val pageInfo =
             PageInfoDTO(
                 hasNextPage = connection.pageInfo.hasNextPage,
@@ -59,7 +54,6 @@ class UserManagementMapper {
 
         return UserConnectionDTO(
             edges = edges,
-            nodes = nodes,
             pageInfo = pageInfo,
             totalCount = connection.totalCount?.toInt(),
         )

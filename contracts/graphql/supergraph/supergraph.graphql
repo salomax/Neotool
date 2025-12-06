@@ -89,7 +89,6 @@ type GroupConnection
   @join__type(graph: SECURITY)
 {
   edges: [GroupEdge!]!
-  nodes: [Group!]!
   pageInfo: PageInfo!
   totalCount: Int
 }
@@ -148,6 +147,7 @@ type Mutation
   signIn(input: SignInInput!): SignInPayload! @join__field(graph: SECURITY)
   signInWithOAuth(input: SignInWithOAuthInput!): SignInPayload! @join__field(graph: SECURITY)
   signUp(input: SignUpInput!): SignUpPayload! @join__field(graph: SECURITY)
+  refreshAccessToken(input: RefreshAccessTokenInput!): SignInPayload! @join__field(graph: SECURITY)
   requestPasswordReset(input: RequestPasswordResetInput!): RequestPasswordResetPayload! @join__field(graph: SECURITY)
   resetPassword(input: ResetPasswordInput!): ResetPasswordPayload! @join__field(graph: SECURITY)
   enableUser(userId: ID!): User! @join__field(graph: SECURITY)
@@ -196,7 +196,6 @@ type PermissionConnection
   @join__type(graph: SECURITY)
 {
   edges: [PermissionEdge!]!
-  nodes: [Permission!]!
   pageInfo: PageInfo!
 }
 
@@ -243,9 +242,17 @@ type Query
   getUserRoles(userId: ID!): [Role!]! @join__field(graph: SECURITY)
   user(id: ID!): User @join__field(graph: SECURITY)
   users(first: Int, after: String, query: String, orderBy: [UserOrderByInput!]): UserConnection! @join__field(graph: SECURITY)
+  group(id: ID!): Group @join__field(graph: SECURITY)
   groups(first: Int, after: String, query: String, orderBy: [GroupOrderByInput!]): GroupConnection! @join__field(graph: SECURITY)
+  role(id: ID!): Role @join__field(graph: SECURITY)
   roles(first: Int, after: String, query: String, orderBy: [RoleOrderByInput!]): RoleConnection! @join__field(graph: SECURITY)
   permissions(first: Int, after: String, query: String): PermissionConnection! @join__field(graph: SECURITY)
+}
+
+input RefreshAccessTokenInput
+  @join__type(graph: SECURITY)
+{
+  refreshToken: String!
 }
 
 input RequestPasswordResetInput
@@ -288,7 +295,6 @@ type RoleConnection
   @join__type(graph: SECURITY)
 {
   edges: [RoleEdge!]!
-  nodes: [Role!]!
   pageInfo: PageInfo!
   totalCount: Int
 }
@@ -383,7 +389,6 @@ type UserConnection
   @join__type(graph: SECURITY)
 {
   edges: [UserEdge!]!
-  nodes: [User!]!
   pageInfo: PageInfo!
   totalCount: Int
 }

@@ -71,7 +71,6 @@ export type Group = {
 export type GroupConnection = {
   __typename: 'GroupConnection';
   edges: Array<GroupEdge>;
-  nodes: Array<Group>;
   pageInfo: PageInfo;
   totalCount: Maybe<Scalars['Int']['output']>;
 };
@@ -107,6 +106,7 @@ export type Mutation = {
   deleteRole: Scalars['Boolean']['output'];
   disableUser: User;
   enableUser: User;
+  refreshAccessToken: SignInPayload;
   removeGroupFromUser: User;
   removePermissionFromRole: Role;
   removeRoleFromGroup: Group;
@@ -194,6 +194,11 @@ export type MutationDisableUserArgs = {
 
 export type MutationEnableUserArgs = {
   userId: Scalars['ID']['input'];
+};
+
+
+export type MutationRefreshAccessTokenArgs = {
+  input: RefreshAccessTokenInput;
 };
 
 
@@ -292,7 +297,6 @@ export type Permission = {
 export type PermissionConnection = {
   __typename: 'PermissionConnection';
   edges: Array<PermissionEdge>;
-  nodes: Array<Permission>;
   pageInfo: PageInfo;
 };
 
@@ -329,10 +333,12 @@ export type Query = {
   customers: Array<Customer>;
   getUserPermissions: Array<Permission>;
   getUserRoles: Array<Role>;
+  group: Maybe<Group>;
   groups: GroupConnection;
   permissions: PermissionConnection;
   product: Maybe<Product>;
   products: Array<Product>;
+  role: Maybe<Role>;
   roles: RoleConnection;
   user: Maybe<User>;
   users: UserConnection;
@@ -361,6 +367,11 @@ export type QueryGetUserRolesArgs = {
 };
 
 
+export type QueryGroupArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
 export type QueryGroupsArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
@@ -377,6 +388,11 @@ export type QueryPermissionsArgs = {
 
 
 export type QueryProductArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type QueryRoleArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -399,6 +415,10 @@ export type QueryUsersArgs = {
   first?: InputMaybe<Scalars['Int']['input']>;
   orderBy?: InputMaybe<Array<UserOrderByInput>>;
   query?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type RefreshAccessTokenInput = {
+  refreshToken: Scalars['String']['input'];
 };
 
 export type RequestPasswordResetInput = {
@@ -433,7 +453,6 @@ export type Role = {
 export type RoleConnection = {
   __typename: 'RoleConnection';
   edges: Array<RoleEdge>;
-  nodes: Array<Role>;
   pageInfo: PageInfo;
   totalCount: Maybe<Scalars['Int']['output']>;
 };
@@ -509,7 +528,6 @@ export type User = {
 export type UserConnection = {
   __typename: 'UserConnection';
   edges: Array<UserEdge>;
-  nodes: Array<User>;
   pageInfo: PageInfo;
   totalCount: Maybe<Scalars['Int']['output']>;
 };

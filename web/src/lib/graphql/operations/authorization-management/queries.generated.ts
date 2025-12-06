@@ -13,25 +13,27 @@ export type GetUsersQueryVariables = Types.Exact<{
 }>;
 
 
-export type GetUsersQuery = { users: { __typename: 'UserConnection', totalCount: number | null, edges: Array<{ __typename: 'UserEdge', cursor: string, node: { __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean } }>, nodes: Array<{ __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean }>, pageInfo: { __typename: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null } } };
+export type GetUsersQuery = { users: { __typename: 'UserConnection', totalCount: number | null, edges: Array<{ __typename: 'UserEdge', cursor: string, node: { __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean } }>, pageInfo: { __typename: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null } } };
 
 export type GetGroupsQueryVariables = Types.Exact<{
   first?: Types.InputMaybe<Types.Scalars['Int']['input']>;
   after?: Types.InputMaybe<Types.Scalars['String']['input']>;
   query?: Types.InputMaybe<Types.Scalars['String']['input']>;
+  orderBy?: Types.InputMaybe<Array<Types.GroupOrderByInput> | Types.GroupOrderByInput>;
 }>;
 
 
-export type GetGroupsQuery = { groups: { __typename: 'GroupConnection', totalCount: number | null, edges: Array<{ __typename: 'GroupEdge', cursor: string, node: { __typename: 'Group', id: string, name: string, description: string | null, members: Array<{ __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean }> } }>, nodes: Array<{ __typename: 'Group', id: string, name: string, description: string | null, members: Array<{ __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean }> }>, pageInfo: { __typename: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null } } };
+export type GetGroupsQuery = { groups: { __typename: 'GroupConnection', totalCount: number | null, edges: Array<{ __typename: 'GroupEdge', cursor: string, node: { __typename: 'Group', id: string, name: string, description: string | null, members: Array<{ __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean }> } }>, pageInfo: { __typename: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null } } };
 
 export type GetRolesQueryVariables = Types.Exact<{
   first?: Types.InputMaybe<Types.Scalars['Int']['input']>;
   after?: Types.InputMaybe<Types.Scalars['String']['input']>;
   query?: Types.InputMaybe<Types.Scalars['String']['input']>;
+  orderBy?: Types.InputMaybe<Array<Types.RoleOrderByInput> | Types.RoleOrderByInput>;
 }>;
 
 
-export type GetRolesQuery = { roles: { __typename: 'RoleConnection', totalCount: number | null, edges: Array<{ __typename: 'RoleEdge', cursor: string, node: { __typename: 'Role', id: string, name: string } }>, nodes: Array<{ __typename: 'Role', id: string, name: string }>, pageInfo: { __typename: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null } } };
+export type GetRolesQuery = { roles: { __typename: 'RoleConnection', totalCount: number | null, edges: Array<{ __typename: 'RoleEdge', cursor: string, node: { __typename: 'Role', id: string, name: string } }>, pageInfo: { __typename: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null } } };
 
 export type GetPermissionsQueryVariables = Types.Exact<{
   first?: Types.InputMaybe<Types.Scalars['Int']['input']>;
@@ -40,7 +42,7 @@ export type GetPermissionsQueryVariables = Types.Exact<{
 }>;
 
 
-export type GetPermissionsQuery = { permissions: { __typename: 'PermissionConnection', edges: Array<{ __typename: 'PermissionEdge', cursor: string, node: { __typename: 'Permission', id: string, name: string } }>, nodes: Array<{ __typename: 'Permission', id: string, name: string }>, pageInfo: { __typename: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null } } };
+export type GetPermissionsQuery = { permissions: { __typename: 'PermissionConnection', edges: Array<{ __typename: 'PermissionEdge', cursor: string, node: { __typename: 'Permission', id: string, name: string } }>, pageInfo: { __typename: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null } } };
 
 export type GetUserWithRelationshipsQueryVariables = Types.Exact<{
   id: Types.Scalars['ID']['input'];
@@ -49,15 +51,22 @@ export type GetUserWithRelationshipsQueryVariables = Types.Exact<{
 
 export type GetUserWithRelationshipsQuery = { user: { __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean, groups: Array<{ __typename: 'Group', id: string, name: string, description: string | null, members: Array<{ __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean }> }>, roles: Array<{ __typename: 'Role', id: string, name: string }>, permissions: Array<{ __typename: 'Permission', id: string, name: string }> } | null };
 
+export type GetGroupWithRelationshipsQueryVariables = Types.Exact<{
+  id: Types.Scalars['ID']['input'];
+}>;
+
+
+export type GetGroupWithRelationshipsQuery = { group: { __typename: 'Group', id: string, name: string, description: string | null, roles: Array<{ __typename: 'Role', id: string, name: string }>, members: Array<{ __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean }> } | null };
+
 export type GetRolesWithPermissionsQueryVariables = Types.Exact<{ [key: string]: never; }>;
 
 
-export type GetRolesWithPermissionsQuery = { roles: { __typename: 'RoleConnection', nodes: Array<{ __typename: 'Role', id: string, name: string, permissions: Array<{ __typename: 'Permission', id: string, name: string }> }> } };
+export type GetRolesWithPermissionsQuery = { roles: { __typename: 'RoleConnection', edges: Array<{ __typename: 'RoleEdge', node: { __typename: 'Role', id: string, name: string, permissions: Array<{ __typename: 'Permission', id: string, name: string }> } }> } };
 
 export type GetRoleWithUsersAndGroupsQueryVariables = Types.Exact<{ [key: string]: never; }>;
 
 
-export type GetRoleWithUsersAndGroupsQuery = { users: { __typename: 'UserConnection', nodes: Array<{ __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean, roles: Array<{ __typename: 'Role', id: string, name: string }> }> }, groups: { __typename: 'GroupConnection', nodes: Array<{ __typename: 'Group', id: string, name: string, description: string | null, roles: Array<{ __typename: 'Role', id: string, name: string }>, members: Array<{ __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean }> }> } };
+export type GetRoleWithUsersAndGroupsQuery = { users: { __typename: 'UserConnection', edges: Array<{ __typename: 'UserEdge', node: { __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean, roles: Array<{ __typename: 'Role', id: string, name: string }> } }> }, groups: { __typename: 'GroupConnection', edges: Array<{ __typename: 'GroupEdge', node: { __typename: 'Group', id: string, name: string, description: string | null, roles: Array<{ __typename: 'Role', id: string, name: string }>, members: Array<{ __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean }> } }> } };
 
 
 export const GetUsersDocument = gql`
@@ -68,9 +77,6 @@ export const GetUsersDocument = gql`
         ...UserFields
       }
       cursor
-    }
-    nodes {
-      ...UserFields
     }
     pageInfo {
       hasNextPage
@@ -110,7 +116,7 @@ export function useGetUsersLazyQuery(baseOptions?: ApolloReactHooks.LazyQueryHoo
           const options = {...defaultOptions, ...baseOptions}
           return ApolloReactHooks.useLazyQuery<GetUsersQuery, GetUsersQueryVariables>(GetUsersDocument, options);
         }
-export function useGetUsersSuspenseQuery(baseOptions: ApolloReactHooks.SkipToken | (ApolloReactHooks.SuspenseQueryHookOptions<GetUsersQuery, GetUsersQueryVariables> & { variables: GetUsersQueryVariables })) {
+export function useGetUsersSuspenseQuery(baseOptions?: ApolloReactHooks.SkipToken | ApolloReactHooks.SuspenseQueryHookOptions<GetUsersQuery, GetUsersQueryVariables>) {
           const options = baseOptions === ApolloReactHooks.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return ApolloReactHooks.useSuspenseQuery<GetUsersQuery, GetUsersQueryVariables>(GetUsersDocument, options);
         }
@@ -119,16 +125,13 @@ export type GetUsersLazyQueryHookResult = ReturnType<typeof useGetUsersLazyQuery
 export type GetUsersSuspenseQueryHookResult = ReturnType<typeof useGetUsersSuspenseQuery>;
 export type GetUsersQueryResult = ApolloReactCommon.QueryResult<GetUsersQuery, GetUsersQueryVariables>;
 export const GetGroupsDocument = gql`
-    query GetGroups($first: Int, $after: String, $query: String) {
-  groups(first: $first, after: $after, query: $query) {
+    query GetGroups($first: Int, $after: String, $query: String, $orderBy: [GroupOrderByInput!]) {
+  groups(first: $first, after: $after, query: $query, orderBy: $orderBy) {
     edges {
       node {
         ...GroupFields
       }
       cursor
-    }
-    nodes {
-      ...GroupFields
     }
     pageInfo {
       hasNextPage
@@ -156,6 +159,7 @@ export const GetGroupsDocument = gql`
  *      first: // value for 'first'
  *      after: // value for 'after'
  *      query: // value for 'query'
+ *      orderBy: // value for 'orderBy'
  *   },
  * });
  */
@@ -167,7 +171,7 @@ export function useGetGroupsLazyQuery(baseOptions?: ApolloReactHooks.LazyQueryHo
           const options = {...defaultOptions, ...baseOptions}
           return ApolloReactHooks.useLazyQuery<GetGroupsQuery, GetGroupsQueryVariables>(GetGroupsDocument, options);
         }
-export function useGetGroupsSuspenseQuery(baseOptions: ApolloReactHooks.SkipToken | (ApolloReactHooks.SuspenseQueryHookOptions<GetGroupsQuery, GetGroupsQueryVariables> & { variables: GetGroupsQueryVariables })) {
+export function useGetGroupsSuspenseQuery(baseOptions?: ApolloReactHooks.SkipToken | ApolloReactHooks.SuspenseQueryHookOptions<GetGroupsQuery, GetGroupsQueryVariables>) {
           const options = baseOptions === ApolloReactHooks.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return ApolloReactHooks.useSuspenseQuery<GetGroupsQuery, GetGroupsQueryVariables>(GetGroupsDocument, options);
         }
@@ -176,16 +180,13 @@ export type GetGroupsLazyQueryHookResult = ReturnType<typeof useGetGroupsLazyQue
 export type GetGroupsSuspenseQueryHookResult = ReturnType<typeof useGetGroupsSuspenseQuery>;
 export type GetGroupsQueryResult = ApolloReactCommon.QueryResult<GetGroupsQuery, GetGroupsQueryVariables>;
 export const GetRolesDocument = gql`
-    query GetRoles($first: Int, $after: String, $query: String) {
-  roles(first: $first, after: $after, query: $query) {
+    query GetRoles($first: Int, $after: String, $query: String, $orderBy: [RoleOrderByInput!]) {
+  roles(first: $first, after: $after, query: $query, orderBy: $orderBy) {
     edges {
       node {
         ...RoleFields
       }
       cursor
-    }
-    nodes {
-      ...RoleFields
     }
     pageInfo {
       hasNextPage
@@ -213,6 +214,7 @@ export const GetRolesDocument = gql`
  *      first: // value for 'first'
  *      after: // value for 'after'
  *      query: // value for 'query'
+ *      orderBy: // value for 'orderBy'
  *   },
  * });
  */
@@ -224,7 +226,7 @@ export function useGetRolesLazyQuery(baseOptions?: ApolloReactHooks.LazyQueryHoo
           const options = {...defaultOptions, ...baseOptions}
           return ApolloReactHooks.useLazyQuery<GetRolesQuery, GetRolesQueryVariables>(GetRolesDocument, options);
         }
-export function useGetRolesSuspenseQuery(baseOptions: ApolloReactHooks.SkipToken | (ApolloReactHooks.SuspenseQueryHookOptions<GetRolesQuery, GetRolesQueryVariables> & { variables: GetRolesQueryVariables })) {
+export function useGetRolesSuspenseQuery(baseOptions?: ApolloReactHooks.SkipToken | ApolloReactHooks.SuspenseQueryHookOptions<GetRolesQuery, GetRolesQueryVariables>) {
           const options = baseOptions === ApolloReactHooks.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return ApolloReactHooks.useSuspenseQuery<GetRolesQuery, GetRolesQueryVariables>(GetRolesDocument, options);
         }
@@ -240,9 +242,6 @@ export const GetPermissionsDocument = gql`
         ...PermissionFields
       }
       cursor
-    }
-    nodes {
-      ...PermissionFields
     }
     pageInfo {
       hasNextPage
@@ -280,7 +279,7 @@ export function useGetPermissionsLazyQuery(baseOptions?: ApolloReactHooks.LazyQu
           const options = {...defaultOptions, ...baseOptions}
           return ApolloReactHooks.useLazyQuery<GetPermissionsQuery, GetPermissionsQueryVariables>(GetPermissionsDocument, options);
         }
-export function useGetPermissionsSuspenseQuery(baseOptions: ApolloReactHooks.SkipToken | (ApolloReactHooks.SuspenseQueryHookOptions<GetPermissionsQuery, GetPermissionsQueryVariables> & { variables: GetPermissionsQueryVariables })) {
+export function useGetPermissionsSuspenseQuery(baseOptions?: ApolloReactHooks.SkipToken | ApolloReactHooks.SuspenseQueryHookOptions<GetPermissionsQuery, GetPermissionsQueryVariables>) {
           const options = baseOptions === ApolloReactHooks.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return ApolloReactHooks.useSuspenseQuery<GetPermissionsQuery, GetPermissionsQueryVariables>(GetPermissionsDocument, options);
         }
@@ -332,7 +331,7 @@ export function useGetUserWithRelationshipsLazyQuery(baseOptions?: ApolloReactHo
           const options = {...defaultOptions, ...baseOptions}
           return ApolloReactHooks.useLazyQuery<GetUserWithRelationshipsQuery, GetUserWithRelationshipsQueryVariables>(GetUserWithRelationshipsDocument, options);
         }
-export function useGetUserWithRelationshipsSuspenseQuery(baseOptions: ApolloReactHooks.SkipToken | (ApolloReactHooks.SuspenseQueryHookOptions<GetUserWithRelationshipsQuery, GetUserWithRelationshipsQueryVariables> & { variables: GetUserWithRelationshipsQueryVariables })) {
+export function useGetUserWithRelationshipsSuspenseQuery(baseOptions?: ApolloReactHooks.SkipToken | ApolloReactHooks.SuspenseQueryHookOptions<GetUserWithRelationshipsQuery, GetUserWithRelationshipsQueryVariables>) {
           const options = baseOptions === ApolloReactHooks.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return ApolloReactHooks.useSuspenseQuery<GetUserWithRelationshipsQuery, GetUserWithRelationshipsQueryVariables>(GetUserWithRelationshipsDocument, options);
         }
@@ -340,13 +339,59 @@ export type GetUserWithRelationshipsQueryHookResult = ReturnType<typeof useGetUs
 export type GetUserWithRelationshipsLazyQueryHookResult = ReturnType<typeof useGetUserWithRelationshipsLazyQuery>;
 export type GetUserWithRelationshipsSuspenseQueryHookResult = ReturnType<typeof useGetUserWithRelationshipsSuspenseQuery>;
 export type GetUserWithRelationshipsQueryResult = ApolloReactCommon.QueryResult<GetUserWithRelationshipsQuery, GetUserWithRelationshipsQueryVariables>;
+export const GetGroupWithRelationshipsDocument = gql`
+    query GetGroupWithRelationships($id: ID!) {
+  group(id: $id) {
+    ...GroupFields
+    roles {
+      ...RoleFields
+    }
+  }
+}
+    ${GroupFieldsFragmentDoc}
+${RoleFieldsFragmentDoc}`;
+
+/**
+ * __useGetGroupWithRelationshipsQuery__
+ *
+ * To run a query within a React component, call `useGetGroupWithRelationshipsQuery` and pass it any options that fit your needs.
+ * When your component renders, `useGetGroupWithRelationshipsQuery` returns an object from Apollo Client that contains loading, error, and data properties
+ * you can use to render your UI.
+ *
+ * @param baseOptions options that will be passed into the query, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options;
+ *
+ * @example
+ * const { data, loading, error } = useGetGroupWithRelationshipsQuery({
+ *   variables: {
+ *      id: // value for 'id'
+ *   },
+ * });
+ */
+export function useGetGroupWithRelationshipsQuery(baseOptions: ApolloReactHooks.QueryHookOptions<GetGroupWithRelationshipsQuery, GetGroupWithRelationshipsQueryVariables> & ({ variables: GetGroupWithRelationshipsQueryVariables; skip?: boolean; } | { skip: boolean; }) ) {
+        const options = {...defaultOptions, ...baseOptions}
+        return ApolloReactHooks.useQuery<GetGroupWithRelationshipsQuery, GetGroupWithRelationshipsQueryVariables>(GetGroupWithRelationshipsDocument, options);
+      }
+export function useGetGroupWithRelationshipsLazyQuery(baseOptions?: ApolloReactHooks.LazyQueryHookOptions<GetGroupWithRelationshipsQuery, GetGroupWithRelationshipsQueryVariables>) {
+          const options = {...defaultOptions, ...baseOptions}
+          return ApolloReactHooks.useLazyQuery<GetGroupWithRelationshipsQuery, GetGroupWithRelationshipsQueryVariables>(GetGroupWithRelationshipsDocument, options);
+        }
+export function useGetGroupWithRelationshipsSuspenseQuery(baseOptions?: ApolloReactHooks.SkipToken | ApolloReactHooks.SuspenseQueryHookOptions<GetGroupWithRelationshipsQuery, GetGroupWithRelationshipsQueryVariables>) {
+          const options = baseOptions === ApolloReactHooks.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
+          return ApolloReactHooks.useSuspenseQuery<GetGroupWithRelationshipsQuery, GetGroupWithRelationshipsQueryVariables>(GetGroupWithRelationshipsDocument, options);
+        }
+export type GetGroupWithRelationshipsQueryHookResult = ReturnType<typeof useGetGroupWithRelationshipsQuery>;
+export type GetGroupWithRelationshipsLazyQueryHookResult = ReturnType<typeof useGetGroupWithRelationshipsLazyQuery>;
+export type GetGroupWithRelationshipsSuspenseQueryHookResult = ReturnType<typeof useGetGroupWithRelationshipsSuspenseQuery>;
+export type GetGroupWithRelationshipsQueryResult = ApolloReactCommon.QueryResult<GetGroupWithRelationshipsQuery, GetGroupWithRelationshipsQueryVariables>;
 export const GetRolesWithPermissionsDocument = gql`
     query GetRolesWithPermissions {
   roles(first: 1000) {
-    nodes {
-      ...RoleFields
-      permissions {
-        ...PermissionFields
+    edges {
+      node {
+        ...RoleFields
+        permissions {
+          ...PermissionFields
+        }
       }
     }
   }
@@ -377,7 +422,7 @@ export function useGetRolesWithPermissionsLazyQuery(baseOptions?: ApolloReactHoo
           const options = {...defaultOptions, ...baseOptions}
           return ApolloReactHooks.useLazyQuery<GetRolesWithPermissionsQuery, GetRolesWithPermissionsQueryVariables>(GetRolesWithPermissionsDocument, options);
         }
-export function useGetRolesWithPermissionsSuspenseQuery(baseOptions: ApolloReactHooks.SkipToken | (ApolloReactHooks.SuspenseQueryHookOptions<GetRolesWithPermissionsQuery, GetRolesWithPermissionsQueryVariables> & { variables: GetRolesWithPermissionsQueryVariables })) {
+export function useGetRolesWithPermissionsSuspenseQuery(baseOptions?: ApolloReactHooks.SkipToken | ApolloReactHooks.SuspenseQueryHookOptions<GetRolesWithPermissionsQuery, GetRolesWithPermissionsQueryVariables>) {
           const options = baseOptions === ApolloReactHooks.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return ApolloReactHooks.useSuspenseQuery<GetRolesWithPermissionsQuery, GetRolesWithPermissionsQueryVariables>(GetRolesWithPermissionsDocument, options);
         }
@@ -388,18 +433,22 @@ export type GetRolesWithPermissionsQueryResult = ApolloReactCommon.QueryResult<G
 export const GetRoleWithUsersAndGroupsDocument = gql`
     query GetRoleWithUsersAndGroups {
   users(first: 1000) {
-    nodes {
-      ...UserFields
-      roles {
-        ...RoleFields
+    edges {
+      node {
+        ...UserFields
+        roles {
+          ...RoleFields
+        }
       }
     }
   }
   groups(first: 1000) {
-    nodes {
-      ...GroupFields
-      roles {
-        ...RoleFields
+    edges {
+      node {
+        ...GroupFields
+        roles {
+          ...RoleFields
+        }
       }
     }
   }
@@ -431,7 +480,7 @@ export function useGetRoleWithUsersAndGroupsLazyQuery(baseOptions?: ApolloReactH
           const options = {...defaultOptions, ...baseOptions}
           return ApolloReactHooks.useLazyQuery<GetRoleWithUsersAndGroupsQuery, GetRoleWithUsersAndGroupsQueryVariables>(GetRoleWithUsersAndGroupsDocument, options);
         }
-export function useGetRoleWithUsersAndGroupsSuspenseQuery(baseOptions: ApolloReactHooks.SkipToken | (ApolloReactHooks.SuspenseQueryHookOptions<GetRoleWithUsersAndGroupsQuery, GetRoleWithUsersAndGroupsQueryVariables> & { variables: GetRoleWithUsersAndGroupsQueryVariables })) {
+export function useGetRoleWithUsersAndGroupsSuspenseQuery(baseOptions?: ApolloReactHooks.SkipToken | ApolloReactHooks.SuspenseQueryHookOptions<GetRoleWithUsersAndGroupsQuery, GetRoleWithUsersAndGroupsQueryVariables>) {
           const options = baseOptions === ApolloReactHooks.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return ApolloReactHooks.useSuspenseQuery<GetRoleWithUsersAndGroupsQuery, GetRoleWithUsersAndGroupsQueryVariables>(GetRoleWithUsersAndGroupsDocument, options);
         }

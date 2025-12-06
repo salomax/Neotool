@@ -5,10 +5,16 @@ set -euo pipefail
 # Validate Command
 # 
 # Runs all validations for both frontend and backend:
-# - Lint (frontend: eslint, backend: ktlint)
-# - Typecheck (frontend: tsc, backend: compile classes)
-# - Tests (frontend: vitest, backend: test - includes unit and integration)
-# - Coverage (frontend: vitest coverage, backend: kover)
+# Backend validation order:
+# - Compile (classes - compiles main sources, runs KSP processing, catches type errors)
+# - Tests (test - includes unit and integration)
+# - Lint (ktlint)
+# - Coverage (kover)
+# Frontend validation order:
+# - Typecheck (tsc)
+# - Lint (eslint)
+# - Tests (vitest)
+# - Coverage (vitest coverage)
 
 # Get script directory and project root
 COMMAND_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -444,17 +450,10 @@ run_backend_validations() {
         task_label_prefix="backend "
     fi
     
-    # Lint (ktlint)
-    add_new_task "${task_label_prefix}lint" "./gradlew ${task_prefix}ktlintCheck --no-daemon"
+    # Compilation validation (classes - compiles main sources and catches type errors)
+    add_new_task "${task_label_prefix}compile" "./gradlew ${task_prefix}classes --no-daemon"
     local task_idx=$CURRENT_TASK_INDEX
-    if ! run_command_silently "./gradlew ${task_prefix}ktlintCheck --no-daemon" "${task_label_prefix}lint" "$task_idx"; then
-        VALIDATION_FAILED=true
-    fi
-    
-    # Typecheck (classes - compilation catches type errors)
-    add_new_task "${task_label_prefix}typecheck" "./gradlew ${task_prefix}classes --no-daemon"
-    task_idx=$CURRENT_TASK_INDEX
-    if ! run_command_silently "./gradlew ${task_prefix}classes --no-daemon" "${task_label_prefix}typecheck" "$task_idx"; then
+    if ! run_command_silently "./gradlew ${task_prefix}classes --no-daemon" "${task_label_prefix}compile" "$task_idx"; then
         VALIDATION_FAILED=true
     fi
     
@@ -462,6 +461,13 @@ run_backend_validations() {
     add_new_task "${task_label_prefix}test" "./gradlew ${task_prefix}test --no-daemon"
     task_idx=$CURRENT_TASK_INDEX
     if ! run_command_silently "./gradlew ${task_prefix}test --no-daemon" "${task_label_prefix}test" "$task_idx"; then
+        VALIDATION_FAILED=true
+    fi
+    
+    # Lint (ktlint)
+    add_new_task "${task_label_prefix}lint" "./gradlew ${task_prefix}ktlintCheck --no-daemon"
+    task_idx=$CURRENT_TASK_INDEX
+    if ! run_command_silently "./gradlew ${task_prefix}ktlintCheck --no-daemon" "${task_label_prefix}lint" "$task_idx"; then
         VALIDATION_FAILED=true
     fi
     
