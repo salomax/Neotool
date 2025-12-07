@@ -978,4 +978,103 @@ class UserManagementServiceTest {
             verify(userRepository, never()).update(any())
         }
     }
+
+    @Nested
+    @DisplayName("Batch Methods Tests")
+    inner class BatchMethodsTests {
+        @Test
+        fun `getUserGroupsBatch should return groups for multiple users`() {
+            // Arrange
+            val userId1 = UUID.randomUUID()
+            val userId2 = UUID.randomUUID()
+            val groupId1 = UUID.randomUUID()
+            val groupId2 = UUID.randomUUID()
+            val membership1 =
+                SecurityTestDataBuilders.groupMembership(
+                    userId = userId1,
+                    groupId = groupId1,
+                )
+            val membership2 =
+                SecurityTestDataBuilders.groupMembership(
+                    userId = userId2,
+                    groupId = groupId2,
+                )
+            val group1 = SecurityTestDataBuilders.group(id = groupId1, name = "Group One")
+            val group2 = SecurityTestDataBuilders.group(id = groupId2, name = "Group Two")
+
+            whenever(
+                groupMembershipRepository.findActiveMembershipsByUserIds(any<List<UUID>>(), any()),
+            ).thenReturn(listOf(membership1, membership2))
+            whenever(groupRepository.findByIdIn(any<List<UUID>>())).thenReturn(listOf(group1, group2))
+
+            // Act
+            val result = userManagementService.getUserGroupsBatch(listOf(userId1, userId2))
+
+            // Assert
+            assertThat(result).hasSize(2)
+            assertThat(result[userId1]).hasSize(1)
+            assertThat(result[userId1]!![0].name).isEqualTo("Group One")
+            assertThat(result[userId2]).hasSize(1)
+            assertThat(result[userId2]!![0].name).isEqualTo("Group Two")
+            verify(groupMembershipRepository).findActiveMembershipsByUserIds(any<List<UUID>>(), any())
+        }
+
+        @Test
+        fun `getUserGroupsBatch should return empty map for empty user list`() {
+            // Act
+            val result = userManagementService.getUserGroupsBatch(emptyList())
+
+            // Assert
+            assertThat(result).isEmpty()
+        }
+
+        @Test
+        fun `getUserGroupsBatch should return empty lists for users with no groups`() {
+            // Arrange
+            val userId = UUID.randomUUID()
+            whenever(
+                groupMembershipRepository.findActiveMembershipsByUserIds(any<List<UUID>>(), any()),
+            ).thenReturn(emptyList())
+
+            // Act
+            val result = userManagementService.getUserGroupsBatch(listOf(userId))
+
+            // Assert
+            assertThat(result).hasSize(1)
+            assertThat(result[userId]).isEmpty()
+        }
+
+        @Test
+        fun `getUserGroupsBatch should handle users with multiple groups`() {
+            // Arrange
+            val userId = UUID.randomUUID()
+            val groupId1 = UUID.randomUUID()
+            val groupId2 = UUID.randomUUID()
+            val membership1 =
+                SecurityTestDataBuilders.groupMembership(
+                    userId = userId,
+                    groupId = groupId1,
+                )
+            val membership2 =
+                SecurityTestDataBuilders.groupMembership(
+                    userId = userId,
+                    groupId = groupId2,
+                )
+            val group1 = SecurityTestDataBuilders.group(id = groupId1, name = "Group One")
+            val group2 = SecurityTestDataBuilders.group(id = groupId2, name = "Group Two")
+
+            whenever(
+                groupMembershipRepository.findActiveMembershipsByUserIds(any<List<UUID>>(), any()),
+            ).thenReturn(listOf(membership1, membership2))
+            whenever(groupRepository.findByIdIn(any<List<UUID>>())).thenReturn(listOf(group1, group2))
+
+            // Act
+            val result = userManagementService.getUserGroupsBatch(listOf(userId))
+
+            // Assert
+            assertThat(result).hasSize(1)
+            assertThat(result[userId]).hasSize(2)
+            assertThat(result[userId]!!.map { it.name }).containsExactlyInAnyOrder("Group One", "Group Two")
+        }
+    }
 }

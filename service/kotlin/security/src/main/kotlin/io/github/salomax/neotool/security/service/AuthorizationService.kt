@@ -7,6 +7,7 @@ import io.github.salomax.neotool.security.repo.GroupRoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.PermissionRepository
 import io.github.salomax.neotool.security.repo.RoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
+import io.github.salomax.neotool.security.service.exception.AuthorizationDeniedException
 import jakarta.inject.Singleton
 import mu.KotlinLogging
 import java.time.Instant
@@ -145,6 +146,68 @@ class AuthorizationService(
     }
 
     /**
+     * Batch get all permissions for multiple users, including direct and group-inherited permissions.
+     * Optimized to avoid N+1 queries.
+     *
+     * @param userIds List of user IDs
+     * @param now Current timestamp for validity checks
+     * @return Map of user ID to list of permissions
+     */
+    fun getUserPermissionsBatch(
+        userIds: List<UUID>,
+        now: Instant = Instant.now(),
+    ): Map<UUID, List<Permission>> {
+        if (userIds.isEmpty()) {
+            return emptyMap()
+        }
+
+        // First get all roles for all users (reuse batch method)
+        val userRolesMap = getUserRolesBatch(userIds, now)
+
+        // Collect all unique role IDs
+        val allRoleIds = userRolesMap.values.flatten().mapNotNull { it.id }.distinct()
+
+        // Batch load all permission IDs for all roles at once
+        val allPermissionIds =
+            if (allRoleIds.isNotEmpty()) {
+                roleRepository.findPermissionIdsByRoleIds(allRoleIds)
+            } else {
+                emptyList()
+            }
+
+        // Batch load all permissions at once
+        val allPermissions =
+            if (allPermissionIds.isNotEmpty()) {
+                permissionRepository.findByIdIn(allPermissionIds.distinct()).map { it.toDomain() }
+                    .associateBy { it.id!! }
+            } else {
+                emptyMap()
+            }
+
+        // For each role, get its permission IDs (we need this mapping)
+        // Note: This is still per-role, but at least it's batched per role, not per user
+        val rolePermissionIdsMap = mutableMapOf<Int, Set<Int>>()
+        for (roleId in allRoleIds) {
+            val permissionIds = roleRepository.findPermissionIdsByRoleId(roleId).toSet()
+            rolePermissionIdsMap[roleId] = permissionIds
+        }
+
+        // Build result map: for each user, collect permissions from all their roles
+        val result = mutableMapOf<UUID, List<Permission>>()
+        for (userId in userIds) {
+            val roles = userRolesMap[userId] ?: emptyList()
+            val permissionIds =
+                roles.mapNotNull { role ->
+                    role.id?.let { rolePermissionIdsMap[it] }
+                }.flatten().distinct()
+            val permissions = permissionIds.mapNotNull { permissionId -> allPermissions[permissionId] }
+            result[userId] = permissions
+        }
+
+        return result
+    }
+
+    /**
      * Get all roles for a user, including direct and group-inherited roles.
      * Optimized to use batch loading and shared logic.
      *
@@ -166,6 +229,91 @@ class AuthorizationService(
         // Batch load all role entities at once
         val roles = roleRepository.findByIdIn(roleIds.toList())
         return roles.mapNotNull { it.toDomain() }
+    }
+
+    /**
+     * Batch get all roles for multiple users, including direct and group-inherited roles.
+     * Optimized to avoid N+1 queries.
+     *
+     * @param userIds List of user IDs
+     * @param now Current timestamp for validity checks
+     * @return Map of user ID to list of roles
+     */
+    fun getUserRolesBatch(
+        userIds: List<UUID>,
+        now: Instant = Instant.now(),
+    ): Map<UUID, List<Role>> {
+        if (userIds.isEmpty()) {
+            return emptyMap()
+        }
+
+        // Batch load all direct role assignments for all users
+        val allDirectAssignments = roleAssignmentRepository.findValidAssignmentsByUserIds(userIds, now)
+
+        // Batch load all group memberships for all users
+        val allGroupMemberships = groupMembershipRepository.findActiveMembershipsByUserIds(userIds, now)
+
+        // Collect all group IDs
+        val allGroupIds = allGroupMemberships.map { it.groupId }.distinct()
+
+        // Batch load all group role assignments
+        val allGroupAssignments =
+            if (allGroupIds.isNotEmpty()) {
+                groupRoleAssignmentRepository.findValidAssignmentsByGroupIds(allGroupIds, now)
+            } else {
+                emptyList()
+            }
+
+        // Create a map of group ID to role IDs
+        val groupRoleIdsMap =
+            allGroupAssignments.groupBy { it.groupId }
+                .mapValues { (_, assignments) -> assignments.map { it.roleId }.toSet() }
+
+        // Create a map of user ID to group IDs
+        val userGroupIdsMap =
+            allGroupMemberships.groupBy { it.userId }
+                .mapValues { (_, memberships) -> memberships.map { it.groupId }.toSet() }
+
+        // Collect all role IDs per user
+        val userRoleIdsMap = mutableMapOf<UUID, MutableSet<Int>>()
+        for (userId in userIds) {
+            userRoleIdsMap[userId] = mutableSetOf()
+        }
+
+        // Add direct role assignments
+        for (assignment in allDirectAssignments) {
+            userRoleIdsMap[assignment.userId]?.add(assignment.roleId)
+        }
+
+        // Add group-inherited role assignments
+        for ((userId, groupIds) in userGroupIdsMap) {
+            for (groupId in groupIds) {
+                val roleIds = groupRoleIdsMap[groupId] ?: emptySet()
+                userRoleIdsMap[userId]?.addAll(roleIds)
+            }
+        }
+
+        // Collect all unique role IDs
+        val allRoleIds = userRoleIdsMap.values.flatten().distinct()
+
+        // Batch load all roles
+        val allRoles =
+            if (allRoleIds.isNotEmpty()) {
+                roleRepository.findByIdIn(allRoleIds).mapNotNull { it.toDomain() }
+                    .associateBy { it.id!! }
+            } else {
+                emptyMap()
+            }
+
+        // Build result map
+        val result = mutableMapOf<UUID, List<Role>>()
+        for (userId in userIds) {
+            val roleIds = userRoleIdsMap[userId] ?: emptySet()
+            val roles = roleIds.mapNotNull { roleId -> allRoles[roleId] }
+            result[userId] = roles
+        }
+
+        return result
     }
 
     /**
@@ -444,6 +592,45 @@ class AuthorizationService(
             io.github.salomax.neotool.security.domain.abac.PolicyEffect.ALLOW -> AuditAuthorizationResult.ALLOWED
             io.github.salomax.neotool.security.domain.abac.PolicyEffect.DENY -> AuditAuthorizationResult.DENIED
             null -> AuditAuthorizationResult.NOT_EVALUATED
+        }
+    }
+
+    /**
+     * Require a permission, throwing an exception if not allowed.
+     * This is a convenience method that calls checkPermission and throws AuthorizationDeniedException
+     * when access is denied. Used internally by AuthorizationManager.
+     *
+     * @param userId The user ID
+     * @param permission The permission name (e.g., "security:user:view")
+     * @param resourceType Optional resource type (e.g., "user")
+     * @param resourceId Optional resource ID
+     * @param subjectAttributes Optional additional subject attributes for ABAC
+     * @param resourceAttributes Optional additional resource attributes for ABAC
+     * @param contextAttributes Optional additional context attributes for ABAC
+     * @throws AuthorizationDeniedException if permission is denied
+     */
+    fun requirePermission(
+        userId: UUID,
+        permission: String,
+        resourceType: String? = null,
+        resourceId: UUID? = null,
+        subjectAttributes: Map<String, Any>? = null,
+        resourceAttributes: Map<String, Any>? = null,
+        contextAttributes: Map<String, Any>? = null,
+    ) {
+        val result =
+            checkPermission(
+                userId = userId,
+                permission = permission,
+                resourceType = resourceType,
+                resourceId = resourceId,
+                subjectAttributes = subjectAttributes,
+                resourceAttributes = resourceAttributes,
+                contextAttributes = contextAttributes,
+            )
+
+        if (!result.allowed) {
+            throw AuthorizationDeniedException("User $userId lacks permission '$permission': ${result.reason}")
         }
     }
 }

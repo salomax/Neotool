@@ -45,4 +45,24 @@ interface RoleAssignmentRepository : JpaRepository<RoleAssignmentEntity, UUID> {
         userId: UUID,
         roleId: Int,
     ): List<RoleAssignmentEntity>
+
+    /**
+     * Find all valid role assignments for multiple users (batch loading).
+     * Checks that:
+     * - validFrom is null or <= now
+     * - validUntil is null or >= now
+     * Optimized to avoid N+1 queries when loading roles for multiple users.
+     */
+    @Query(
+        """
+        SELECT ra FROM RoleAssignmentEntity ra
+        WHERE ra.userId IN (:userIds)
+        AND (ra.validFrom IS NULL OR ra.validFrom <= :now)
+        AND (ra.validUntil IS NULL OR ra.validUntil >= :now)
+        """,
+    )
+    fun findValidAssignmentsByUserIds(
+        userIds: List<UUID>,
+        now: Instant = Instant.now(),
+    ): List<RoleAssignmentEntity>
 }

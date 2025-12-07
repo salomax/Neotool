@@ -1024,4 +1024,103 @@ class GroupManagementServiceTest {
             verify(groupRepository).deleteById(groupId)
         }
     }
+
+    @Nested
+    @DisplayName("Batch Methods Tests")
+    inner class BatchMethodsTests {
+        @Test
+        fun `getGroupRolesBatch should return roles for multiple groups`() {
+            // Arrange
+            val groupId1 = UUID.randomUUID()
+            val groupId2 = UUID.randomUUID()
+            val roleId1 = 1
+            val roleId2 = 2
+            val assignment1 =
+                SecurityTestDataBuilders.groupRoleAssignment(
+                    groupId = groupId1,
+                    roleId = roleId1,
+                )
+            val assignment2 =
+                SecurityTestDataBuilders.groupRoleAssignment(
+                    groupId = groupId2,
+                    roleId = roleId2,
+                )
+            val role1 = SecurityTestDataBuilders.role(id = roleId1, name = "admin")
+            val role2 = SecurityTestDataBuilders.role(id = roleId2, name = "editor")
+
+            whenever(
+                groupRoleAssignmentRepository.findValidAssignmentsByGroupIds(any<List<UUID>>(), any()),
+            ).thenReturn(listOf(assignment1, assignment2))
+            whenever(roleRepository.findByIdIn(any<List<Int>>())).thenReturn(listOf(role1, role2))
+
+            // Act
+            val result = groupManagementService.getGroupRolesBatch(listOf(groupId1, groupId2))
+
+            // Assert
+            assertThat(result).hasSize(2)
+            assertThat(result[groupId1]).hasSize(1)
+            assertThat(result[groupId1]!![0].name).isEqualTo("admin")
+            assertThat(result[groupId2]).hasSize(1)
+            assertThat(result[groupId2]!![0].name).isEqualTo("editor")
+            verify(groupRoleAssignmentRepository).findValidAssignmentsByGroupIds(any<List<UUID>>(), any())
+        }
+
+        @Test
+        fun `getGroupRolesBatch should return empty map for empty group list`() {
+            // Act
+            val result = groupManagementService.getGroupRolesBatch(emptyList())
+
+            // Assert
+            assertThat(result).isEmpty()
+        }
+
+        @Test
+        fun `getGroupRolesBatch should return empty lists for groups with no roles`() {
+            // Arrange
+            val groupId = UUID.randomUUID()
+            whenever(
+                groupRoleAssignmentRepository.findValidAssignmentsByGroupIds(any<List<UUID>>(), any()),
+            ).thenReturn(emptyList())
+
+            // Act
+            val result = groupManagementService.getGroupRolesBatch(listOf(groupId))
+
+            // Assert
+            assertThat(result).hasSize(1)
+            assertThat(result[groupId]).isEmpty()
+        }
+
+        @Test
+        fun `getGroupRolesBatch should handle groups with multiple roles`() {
+            // Arrange
+            val groupId = UUID.randomUUID()
+            val roleId1 = 1
+            val roleId2 = 2
+            val assignment1 =
+                SecurityTestDataBuilders.groupRoleAssignment(
+                    groupId = groupId,
+                    roleId = roleId1,
+                )
+            val assignment2 =
+                SecurityTestDataBuilders.groupRoleAssignment(
+                    groupId = groupId,
+                    roleId = roleId2,
+                )
+            val role1 = SecurityTestDataBuilders.role(id = roleId1, name = "admin")
+            val role2 = SecurityTestDataBuilders.role(id = roleId2, name = "editor")
+
+            whenever(
+                groupRoleAssignmentRepository.findValidAssignmentsByGroupIds(any<List<UUID>>(), any()),
+            ).thenReturn(listOf(assignment1, assignment2))
+            whenever(roleRepository.findByIdIn(any<List<Int>>())).thenReturn(listOf(role1, role2))
+
+            // Act
+            val result = groupManagementService.getGroupRolesBatch(listOf(groupId))
+
+            // Assert
+            assertThat(result).hasSize(1)
+            assertThat(result[groupId]).hasSize(2)
+            assertThat(result[groupId]!!.map { it.name }).containsExactlyInAnyOrder("admin", "editor")
+        }
+    }
 }

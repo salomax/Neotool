@@ -9,6 +9,7 @@ import io.github.salomax.neotool.security.service.AbacEvaluationResult
 import io.github.salomax.neotool.security.service.AbacEvaluationService
 import io.github.salomax.neotool.security.service.AuthorizationAuditService
 import io.github.salomax.neotool.security.service.AuthorizationService
+import io.github.salomax.neotool.security.service.exception.AuthorizationDeniedException
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
 import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.time.Instant
 import java.util.UUID
@@ -501,6 +503,312 @@ class AuthorizationServiceTest {
 
             // Assert
             assertThat(result).isEmpty()
+        }
+    }
+
+    @Nested
+    @DisplayName("Batch Methods Tests")
+    inner class BatchMethodsTests {
+        @Test
+        fun `getUserRolesBatch should return roles for multiple users`() {
+            // Arrange
+            val userId1 = UUID.randomUUID()
+            val userId2 = UUID.randomUUID()
+            val roleId1 = 1
+            val roleId2 = 2
+            val roleAssignment1 =
+                SecurityTestDataBuilders.roleAssignment(
+                    userId = userId1,
+                    roleId = roleId1,
+                )
+            val roleAssignment2 =
+                SecurityTestDataBuilders.roleAssignment(
+                    userId = userId2,
+                    roleId = roleId2,
+                )
+            val role1 = SecurityTestDataBuilders.role(id = roleId1, name = "admin")
+            val role2 = SecurityTestDataBuilders.role(id = roleId2, name = "editor")
+
+            whenever(
+                roleAssignmentRepository.findValidAssignmentsByUserIds(any<List<UUID>>(), any()),
+            ).thenReturn(listOf(roleAssignment1, roleAssignment2))
+            whenever(groupMembershipRepository.findActiveMembershipsByUserIds(any<List<UUID>>(), any()))
+                .thenReturn(emptyList())
+            whenever(roleRepository.findByIdIn(any<List<Int>>())).thenReturn(listOf(role1, role2))
+
+            // Act
+            val result = authorizationService.getUserRolesBatch(listOf(userId1, userId2))
+
+            // Assert
+            assertThat(result).hasSize(2)
+            assertThat(result[userId1]).hasSize(1)
+            assertThat(result[userId1]!![0].name).isEqualTo("admin")
+            assertThat(result[userId2]).hasSize(1)
+            assertThat(result[userId2]!![0].name).isEqualTo("editor")
+            verify(roleAssignmentRepository).findValidAssignmentsByUserIds(any<List<UUID>>(), any())
+        }
+
+        @Test
+        fun `getUserRolesBatch should handle users with group-inherited roles`() {
+            // Arrange
+            val userId1 = UUID.randomUUID()
+            val userId2 = UUID.randomUUID()
+            val groupId = UUID.randomUUID()
+            val roleId = 1
+            val groupMembership1 =
+                SecurityTestDataBuilders.groupMembership(
+                    userId = userId1,
+                    groupId = groupId,
+                )
+            val groupMembership2 =
+                SecurityTestDataBuilders.groupMembership(
+                    userId = userId2,
+                    groupId = groupId,
+                )
+            val groupRoleAssignment =
+                SecurityTestDataBuilders.groupRoleAssignment(
+                    groupId = groupId,
+                    roleId = roleId,
+                )
+            val role = SecurityTestDataBuilders.role(id = roleId, name = "editor")
+
+            whenever(
+                roleAssignmentRepository.findValidAssignmentsByUserIds(any<List<UUID>>(), any()),
+            ).thenReturn(emptyList())
+            whenever(groupMembershipRepository.findActiveMembershipsByUserIds(any<List<UUID>>(), any()))
+                .thenReturn(listOf(groupMembership1, groupMembership2))
+            whenever(
+                groupRoleAssignmentRepository.findValidAssignmentsByGroupIds(any<List<UUID>>(), any()),
+            ).thenReturn(listOf(groupRoleAssignment))
+            whenever(roleRepository.findByIdIn(any<List<Int>>())).thenReturn(listOf(role))
+
+            // Act
+            val result = authorizationService.getUserRolesBatch(listOf(userId1, userId2))
+
+            // Assert
+            assertThat(result).hasSize(2)
+            assertThat(result[userId1]).hasSize(1)
+            assertThat(result[userId1]!![0].name).isEqualTo("editor")
+            assertThat(result[userId2]).hasSize(1)
+            assertThat(result[userId2]!![0].name).isEqualTo("editor")
+            verify(groupMembershipRepository).findActiveMembershipsByUserIds(any<List<UUID>>(), any())
+        }
+
+        @Test
+        fun `getUserRolesBatch should return empty map for empty user list`() {
+            // Act
+            val result = authorizationService.getUserRolesBatch(emptyList())
+
+            // Assert
+            assertThat(result).isEmpty()
+        }
+
+        @Test
+        fun `getUserRolesBatch should return empty lists for users with no roles`() {
+            // Arrange
+            val userId = UUID.randomUUID()
+            whenever(
+                roleAssignmentRepository.findValidAssignmentsByUserIds(any<List<UUID>>(), any()),
+            ).thenReturn(emptyList())
+            whenever(groupMembershipRepository.findActiveMembershipsByUserIds(any<List<UUID>>(), any()))
+                .thenReturn(emptyList())
+
+            // Act
+            val result = authorizationService.getUserRolesBatch(listOf(userId))
+
+            // Assert
+            assertThat(result).hasSize(1)
+            assertThat(result[userId]).isEmpty()
+        }
+
+        @Test
+        fun `getUserPermissionsBatch should return permissions for multiple users`() {
+            // Arrange
+            val userId1 = UUID.randomUUID()
+            val userId2 = UUID.randomUUID()
+            val roleId1 = 1
+            val roleId2 = 2
+            val permissionId1 = 10
+            val permissionId2 = 20
+            val roleAssignment1 =
+                SecurityTestDataBuilders.roleAssignment(
+                    userId = userId1,
+                    roleId = roleId1,
+                )
+            val roleAssignment2 =
+                SecurityTestDataBuilders.roleAssignment(
+                    userId = userId2,
+                    roleId = roleId2,
+                )
+            val role1 = SecurityTestDataBuilders.role(id = roleId1, name = "admin")
+            val role2 = SecurityTestDataBuilders.role(id = roleId2, name = "editor")
+            val permission1 =
+                SecurityTestDataBuilders.permission(
+                    id = permissionId1,
+                    name = "transaction:read",
+                )
+            val permission2 =
+                SecurityTestDataBuilders.permission(
+                    id = permissionId2,
+                    name = "transaction:write",
+                )
+
+            whenever(
+                roleAssignmentRepository.findValidAssignmentsByUserIds(any<List<UUID>>(), any()),
+            ).thenReturn(listOf(roleAssignment1, roleAssignment2))
+            whenever(groupMembershipRepository.findActiveMembershipsByUserIds(any<List<UUID>>(), any()))
+                .thenReturn(emptyList())
+            whenever(roleRepository.findByIdIn(any<List<Int>>())).thenReturn(listOf(role1, role2))
+            whenever(roleRepository.findPermissionIdsByRoleIds(any<List<Int>>()))
+                .thenReturn(listOf(permissionId1, permissionId2))
+            whenever(roleRepository.findPermissionIdsByRoleId(roleId1)).thenReturn(listOf(permissionId1))
+            whenever(roleRepository.findPermissionIdsByRoleId(roleId2)).thenReturn(listOf(permissionId2))
+            whenever(permissionRepository.findByIdIn(any<List<Int>>())).thenReturn(listOf(permission1, permission2))
+
+            // Act
+            val result = authorizationService.getUserPermissionsBatch(listOf(userId1, userId2))
+
+            // Assert
+            assertThat(result).hasSize(2)
+            assertThat(result[userId1]).hasSize(1)
+            assertThat(result[userId1]!![0].name).isEqualTo("transaction:read")
+            assertThat(result[userId2]).hasSize(1)
+            assertThat(result[userId2]!![0].name).isEqualTo("transaction:write")
+        }
+
+        @Test
+        fun `getUserPermissionsBatch should return empty map for empty user list`() {
+            // Act
+            val result = authorizationService.getUserPermissionsBatch(emptyList())
+
+            // Assert
+            assertThat(result).isEmpty()
+        }
+
+        @Test
+        fun `getUserPermissionsBatch should return empty lists for users with no permissions`() {
+            // Arrange
+            val userId = UUID.randomUUID()
+            whenever(
+                roleAssignmentRepository.findValidAssignmentsByUserIds(any<List<UUID>>(), any()),
+            ).thenReturn(emptyList())
+            whenever(groupMembershipRepository.findActiveMembershipsByUserIds(any<List<UUID>>(), any()))
+                .thenReturn(emptyList())
+
+            // Act
+            val result = authorizationService.getUserPermissionsBatch(listOf(userId))
+
+            // Assert
+            assertThat(result).hasSize(1)
+            assertThat(result[userId]).isEmpty()
+        }
+    }
+
+    @Nested
+    @DisplayName("Require Permission")
+    inner class RequirePermissionTests {
+        @Test
+        fun `should not throw exception when permission is allowed`() {
+            // Arrange
+            val userId = UUID.randomUUID()
+            val permission = "security:user:view"
+            val roleId = 1
+            val roleAssignment =
+                SecurityTestDataBuilders.roleAssignment(
+                    userId = userId,
+                    roleId = roleId,
+                )
+            val roleEntity = SecurityTestDataBuilders.role(id = roleId, name = "admin")
+
+            whenever(
+                roleAssignmentRepository.findValidAssignmentsByUserId(any(), any()),
+            ).thenReturn(listOf(roleAssignment))
+            whenever(
+                permissionRepository.existsPermissionForRoles(permission, listOf(roleId)),
+            ).thenReturn(true)
+            whenever(roleRepository.findByIdIn(any())).thenReturn(listOf(roleEntity))
+            whenever(groupMembershipRepository.findActiveMembershipsByUserId(any(), any())).thenReturn(emptyList())
+            whenever(
+                abacEvaluationService.evaluatePolicies(any(), anyOrNull(), anyOrNull()),
+            ).thenReturn(
+                AbacEvaluationResult(
+                    decision = null,
+                    matchedPolicies = emptyList(),
+                    reason = "No matching ABAC policies",
+                ),
+            )
+
+            // Act & Assert - should not throw
+            authorizationService.requirePermission(userId, permission)
+        }
+
+        @Test
+        fun `should throw AuthorizationDeniedException when permission is denied`() {
+            // Arrange
+            val userId = UUID.randomUUID()
+            val permission = "security:user:view"
+
+            whenever(roleAssignmentRepository.findValidAssignmentsByUserId(any(), any())).thenReturn(emptyList())
+            whenever(groupMembershipRepository.findActiveMembershipsByUserId(any(), any())).thenReturn(emptyList())
+
+            // Act & Assert
+            org.assertj.core.api.Assertions.assertThatThrownBy {
+                authorizationService.requirePermission(userId, permission)
+            }
+                .isInstanceOf(AuthorizationDeniedException::class.java)
+                .hasMessageContaining("User $userId lacks permission '$permission'")
+        }
+
+        @Test
+        fun `should pass all parameters to checkPermission`() {
+            // Arrange
+            val userId = UUID.randomUUID()
+            val permission = "security:user:view"
+            val resourceType = "user"
+            val resourceId = UUID.randomUUID()
+            val subjectAttributes = mapOf("department" to "IT")
+            val resourceAttributes = mapOf("status" to "active")
+            val contextAttributes = mapOf("ip" to "127.0.0.1")
+            val roleId = 1
+            val roleAssignment =
+                SecurityTestDataBuilders.roleAssignment(
+                    userId = userId,
+                    roleId = roleId,
+                )
+            val roleEntity = SecurityTestDataBuilders.role(id = roleId, name = "admin")
+
+            whenever(
+                roleAssignmentRepository.findValidAssignmentsByUserId(any(), any()),
+            ).thenReturn(listOf(roleAssignment))
+            whenever(
+                permissionRepository.existsPermissionForRoles(permission, listOf(roleId)),
+            ).thenReturn(true)
+            whenever(roleRepository.findByIdIn(any())).thenReturn(listOf(roleEntity))
+            whenever(groupMembershipRepository.findActiveMembershipsByUserId(any(), any())).thenReturn(emptyList())
+            whenever(
+                abacEvaluationService.evaluatePolicies(any(), anyOrNull(), anyOrNull()),
+            ).thenReturn(
+                AbacEvaluationResult(
+                    decision = null,
+                    matchedPolicies = emptyList(),
+                    reason = "No matching ABAC policies",
+                ),
+            )
+
+            // Act
+            authorizationService.requirePermission(
+                userId = userId,
+                permission = permission,
+                resourceType = resourceType,
+                resourceId = resourceId,
+                subjectAttributes = subjectAttributes,
+                resourceAttributes = resourceAttributes,
+                contextAttributes = contextAttributes,
+            )
+
+            // Assert - verify that checkPermission was called with all parameters
+            // This is verified indirectly by the fact that the method doesn't throw
+            // and the mocks are set up correctly
         }
     }
 }

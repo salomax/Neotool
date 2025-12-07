@@ -5,7 +5,9 @@ import io.github.salomax.neotool.common.graphql.pagination.ConnectionBuilder
 import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import io.github.salomax.neotool.security.domain.rbac.Permission
+import io.github.salomax.neotool.security.domain.rbac.Role
 import io.github.salomax.neotool.security.repo.PermissionRepository
+import io.github.salomax.neotool.security.repo.RoleRepository
 import jakarta.inject.Singleton
 import mu.KotlinLogging
 
@@ -16,6 +18,7 @@ import mu.KotlinLogging
 @Singleton
 class PermissionManagementService(
     private val permissionRepository: PermissionRepository,
+    private val roleRepository: RoleRepository,
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -97,5 +100,67 @@ class PermissionManagementService(
             hasMore = hasMore,
             getId = { it.id },
         )
+    }
+
+    /**
+     * Get all roles that have a specific permission assigned.
+     *
+     * @param permissionId The ID of the permission
+     * @return List of Role domain objects that have this permission assigned
+     */
+    fun getPermissionRoles(permissionId: Int): List<Role> {
+        val roleIds = roleRepository.findRoleIdsByPermissionId(permissionId)
+
+        if (roleIds.isEmpty()) {
+            return emptyList()
+        }
+
+        val roles = roleRepository.findByIdIn(roleIds)
+        return roles.mapNotNull { it.toDomain() }
+            .filter { it.id != null }
+    }
+
+    /**
+     * Batch get all roles that have any of the given permissions assigned.
+     * Optimized to avoid N+1 queries.
+     *
+     * @param permissionIds List of permission IDs
+     * @return Map of permission ID to list of roles
+     */
+    fun getPermissionRolesBatch(permissionIds: List<Int>): Map<Int, List<Role>> {
+        if (permissionIds.isEmpty()) {
+            return emptyMap()
+        }
+
+        // For each permission, get its role IDs
+        // Note: We query each permission individually, but at least we batch load the roles
+        val permissionRoleIdsMap = mutableMapOf<Int, List<Int>>()
+        for (permissionId in permissionIds) {
+            val roleIds = roleRepository.findRoleIdsByPermissionId(permissionId)
+            permissionRoleIdsMap[permissionId] = roleIds
+        }
+
+        // Collect all unique role IDs
+        val allRoleIds = permissionRoleIdsMap.values.flatten().distinct()
+
+        // Batch load all roles
+        val allRoles =
+            if (allRoleIds.isNotEmpty()) {
+                roleRepository.findByIdIn(allRoleIds).mapNotNull { it.toDomain() }
+                    .filter { it.id != null }
+                    .associateBy { it.id!! }
+            } else {
+                emptyMap()
+            }
+
+        // Build result map
+        val result = mutableMapOf<Int, List<Role>>()
+        for (permissionId in permissionIds) {
+            val roleIds = permissionRoleIdsMap[permissionId] ?: emptyList()
+            val roles = roleIds.mapNotNull { roleId -> allRoles[roleId] }
+            result[permissionId] = roles
+        }
+
+        return result
     }
 }

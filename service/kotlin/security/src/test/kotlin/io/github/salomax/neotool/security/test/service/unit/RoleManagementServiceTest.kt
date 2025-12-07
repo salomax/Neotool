@@ -680,4 +680,101 @@ class RoleManagementServiceTest {
             verify(roleRepository, never()).removePermissionFromRole(any(), any())
         }
     }
+
+    @Nested
+    @DisplayName("Batch Methods Tests")
+    inner class BatchMethodsTests {
+        @Test
+        fun `listRolePermissionsBatch should return permissions for multiple roles`() {
+            // Arrange
+            val roleId1 = 1
+            val roleId2 = 2
+            val permissionId1 = 10
+            val permissionId2 = 20
+            val permission1 =
+                SecurityTestDataBuilders.permission(
+                    id = permissionId1,
+                    name = "transaction:read",
+                )
+            val permission2 =
+                SecurityTestDataBuilders.permission(
+                    id = permissionId2,
+                    name = "transaction:write",
+                )
+
+            whenever(roleRepository.findPermissionIdsByRoleIds(any<List<Int>>()))
+                .thenReturn(listOf(permissionId1, permissionId2))
+            whenever(roleRepository.findPermissionIdsByRoleId(roleId1)).thenReturn(listOf(permissionId1))
+            whenever(roleRepository.findPermissionIdsByRoleId(roleId2)).thenReturn(listOf(permissionId2))
+            whenever(permissionRepository.findByIdIn(any<List<Int>>())).thenReturn(listOf(permission1, permission2))
+
+            // Act
+            val result = roleManagementService.listRolePermissionsBatch(listOf(roleId1, roleId2))
+
+            // Assert
+            assertThat(result).hasSize(2)
+            assertThat(result[roleId1]).hasSize(1)
+            assertThat(result[roleId1]!![0].name).isEqualTo("transaction:read")
+            assertThat(result[roleId2]).hasSize(1)
+            assertThat(result[roleId2]!![0].name).isEqualTo("transaction:write")
+            verify(roleRepository).findPermissionIdsByRoleIds(any<List<Int>>())
+        }
+
+        @Test
+        fun `listRolePermissionsBatch should return empty map for empty role list`() {
+            // Act
+            val result = roleManagementService.listRolePermissionsBatch(emptyList())
+
+            // Assert
+            assertThat(result).isEmpty()
+        }
+
+        @Test
+        fun `listRolePermissionsBatch should return empty lists for roles with no permissions`() {
+            // Arrange
+            val roleId = 1
+            whenever(roleRepository.findPermissionIdsByRoleIds(any<List<Int>>())).thenReturn(emptyList())
+            whenever(roleRepository.findPermissionIdsByRoleId(roleId)).thenReturn(emptyList())
+
+            // Act
+            val result = roleManagementService.listRolePermissionsBatch(listOf(roleId))
+
+            // Assert
+            assertThat(result).hasSize(1)
+            assertThat(result[roleId]).isEmpty()
+        }
+
+        @Test
+        fun `listRolePermissionsBatch should handle roles with multiple permissions`() {
+            // Arrange
+            val roleId = 1
+            val permissionId1 = 10
+            val permissionId2 = 20
+            val permission1 =
+                SecurityTestDataBuilders.permission(
+                    id = permissionId1,
+                    name = "transaction:read",
+                )
+            val permission2 =
+                SecurityTestDataBuilders.permission(
+                    id = permissionId2,
+                    name = "transaction:write",
+                )
+
+            whenever(roleRepository.findPermissionIdsByRoleIds(any<List<Int>>()))
+                .thenReturn(listOf(permissionId1, permissionId2))
+            whenever(roleRepository.findPermissionIdsByRoleId(roleId)).thenReturn(listOf(permissionId1, permissionId2))
+            whenever(permissionRepository.findByIdIn(any<List<Int>>())).thenReturn(listOf(permission1, permission2))
+
+            // Act
+            val result = roleManagementService.listRolePermissionsBatch(listOf(roleId))
+
+            // Assert
+            assertThat(result).hasSize(1)
+            assertThat(result[roleId]).hasSize(2)
+            assertThat(
+                result[roleId]!!.map { it.name },
+            ).containsExactlyInAnyOrder("transaction:read", "transaction:write")
+        }
+    }
 }

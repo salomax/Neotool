@@ -42,4 +42,27 @@ interface GroupMembershipRepository : JpaRepository<GroupMembershipEntity, UUID>
         userId: UUID,
         groupId: UUID,
     ): List<GroupMembershipEntity>
+
+    /**
+     * Find all memberships for multiple groups (batch loading).
+     * Optimized to avoid N+1 queries when loading members for multiple groups.
+     */
+    fun findByGroupIdIn(groupIds: List<UUID>): List<GroupMembershipEntity>
+
+    /**
+     * Find all active group memberships for multiple users (batch loading).
+     * A membership is active if validUntil is null or in the future.
+     * Optimized to avoid N+1 queries when loading groups for multiple users.
+     */
+    @Query(
+        """
+        SELECT gm FROM GroupMembershipEntity gm
+        WHERE gm.userId IN (:userIds)
+        AND (gm.validUntil IS NULL OR gm.validUntil >= :now)
+        """,
+    )
+    fun findActiveMembershipsByUserIds(
+        userIds: List<UUID>,
+        now: Instant = Instant.now(),
+    ): List<GroupMembershipEntity>
 }

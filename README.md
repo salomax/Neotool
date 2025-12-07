@@ -530,14 +530,15 @@ pnpm run ci:unit
 ## 🧭 Roadmap
 
 ### Architecture/Infra
-- [ ] CI/CD (mock deployment)
 - [ ] FE and BE coverage tests (metrics and validation)
+- [ ] Distriuted Cache for Security
+- [ ] CI/CD (mock deployment)
 - [ ] Mobile with React Native and Expo
 - [ ] Logging (promtail, loki)
 - [ ] Purge after a period of time (logs and workflow ru on GH)
 - [ ] E2E tests with cypress (running on CI/CD and test the AuthN and AuthZ)
 - [ ] Visual regression testing (cypress-image-diff)
-- [ ] MCP for AI agents
+- [ ] AI agents
 - [ ] BI service
 - [ ] File storage abstraction
 - [ ] Monitoring alerts and SLO definitions
@@ -554,7 +555,12 @@ pnpm run ci:unit
 - [ ] Audit trail
 
 ### Authorization
-- **Permission claim caching** — Current logins rebuild permissions on every request, which can become slow as role graphs grow. Plan: add a short-lived cache in `AuthContextFactory`, invalidated when roles change or during refresh issuance, so JWTs stay up to date while reducing redundant lookups.
+
+- [ ] Add short-lived (30s-60s) caching for RBAC lookups – Introduce @Cacheable layers around collectUserRoleIds and getUserPermissions to cut repeated DB fetches within a pod while honoring per-user invalidation hooks (role assignment changes, group updates).
+
+- [ ] Share cache state across instances – Back the caches with a distributed store or event-driven invalidation (e.g., Redis/Memcached or Kafka-based cache busting) so permission changes on one container instantly purge stale entries on all others.
+
+- [ ] Guardrails and observability – Define TTLs, hit/miss metrics, and a fallback strategy (force bypass on critical actions) to ensure RBAC decisions remain accurate even if the cache is out-of-sync or unavailable.
 
 ### Examples / Built-in features
 - [ ] Batch job example (Scheduled tasks (cron-like))

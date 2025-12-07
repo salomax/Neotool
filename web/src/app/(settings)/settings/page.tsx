@@ -6,9 +6,9 @@ import { useTranslation } from '@/shared/i18n';
 import { authorizationManagementTranslations } from './i18n';
 import Tabs from '@/shared/components/ui/navigation/Tabs';
 import type { TabItem } from '@/shared/components/ui/navigation/Tabs';
-import { UserManagement } from '@/shared/components/authorization/users/UserManagement';
-import { GroupManagement } from '@/shared/components/authorization/groups/GroupManagement';
-import { RoleManagement } from '@/shared/components/authorization/roles/RoleManagement';
+import { UserManagement } from '../authorization/users/UserManagement';
+import { GroupManagement } from '../authorization/groups/GroupManagement';
+import { RoleManagement } from '../authorization/roles/RoleManagement';
 
 export default function SettingsPage() {
   const { t } = useTranslation(authorizationManagementTranslations);
