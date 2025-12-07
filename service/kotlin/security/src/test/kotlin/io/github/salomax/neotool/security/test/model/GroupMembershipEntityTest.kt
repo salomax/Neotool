@@ -54,8 +54,10 @@ class GroupMembershipEntityTest {
         @Test
         fun `should convert entity with MEMBER membership type`() {
             // Arrange
+            val id = UUID.randomUUID()
             val entity =
                 GroupMembershipEntity(
+                    id = id,
                     userId = userId,
                     groupId = groupId,
                     membershipType = MembershipType.MEMBER,
@@ -71,8 +73,10 @@ class GroupMembershipEntityTest {
         @Test
         fun `should convert entity with OWNER membership type`() {
             // Arrange
+            val id = UUID.randomUUID()
             val entity =
                 GroupMembershipEntity(
+                    id = id,
                     userId = userId,
                     groupId = groupId,
                     membershipType = MembershipType.OWNER,
@@ -88,8 +92,10 @@ class GroupMembershipEntityTest {
         @Test
         fun `should convert entity with null validUntil`() {
             // Arrange
+            val id = UUID.randomUUID()
             val entity =
                 GroupMembershipEntity(
+                    id = id,
                     userId = userId,
                     groupId = groupId,
                     validUntil = null,
@@ -106,8 +112,10 @@ class GroupMembershipEntityTest {
         @Test
         fun `should preserve version field`() {
             // Arrange
+            val id = UUID.randomUUID()
             val entity =
                 GroupMembershipEntity(
+                    id = id,
                     userId = userId,
                     groupId = groupId,
                     version = 5L,

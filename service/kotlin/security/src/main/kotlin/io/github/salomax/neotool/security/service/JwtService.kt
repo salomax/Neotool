@@ -206,4 +206,26 @@ class JwtService(
         val claims = validateToken(token) ?: return null
         return claims.expiration?.toInstant()
     }
+
+    /**
+     * Extract token type from a validated JWT token.
+     *
+     * @param token The JWT token string
+     * @return Token type ("access" or "refresh") if token is valid, null otherwise
+     */
+    fun getTokenType(token: String): String? {
+        val claims = validateToken(token) ?: return null
+        return claims["type"]?.toString()
+    }
+
+    /**
+     * Extract email from a validated JWT token.
+     *
+     * @param token The JWT token string
+     * @return Email if token is valid and contains email claim, null otherwise
+     */
+    fun getEmailFromToken(token: String): String? {
+        val claims = validateToken(token) ?: return null
+        return claims["email"]?.toString()
+    }
 }

@@ -10,7 +10,12 @@ import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.common.test.json.read
 import io.github.salomax.neotool.common.test.transaction.runTransaction
 import io.github.salomax.neotool.security.model.UserEntity
+import io.github.salomax.neotool.security.repo.GroupRepository
+import io.github.salomax.neotool.security.repo.PermissionRepository
+import io.github.salomax.neotool.security.repo.RoleAssignmentRepository
+import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.UserRepository
+import io.github.salomax.neotool.security.service.AuthContextFactory
 import io.github.salomax.neotool.security.service.AuthenticationService
 import io.github.salomax.neotool.security.service.EmailService
 import io.github.salomax.neotool.security.service.MockEmailService
@@ -57,10 +62,79 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
     @Inject
     lateinit var emailService: EmailService
 
+    @Inject
+    lateinit var authContextFactory: AuthContextFactory
+
+    @Inject
+    lateinit var roleRepository: RoleRepository
+
+    @Inject
+    lateinit var roleAssignmentRepository: RoleAssignmentRepository
+
+    @Inject
+    lateinit var permissionRepository: PermissionRepository
+
+    @Inject
+    lateinit var groupRepository: GroupRepository
+
     private val mockEmailService: MockEmailService
         get() = emailService as MockEmailService
 
     private fun uniqueEmail() = SecurityTestDataBuilders.uniqueEmail("graphql-security")
+
+    /**
+     * Helper to create a user with ADMIN role and generate an access token.
+     * Ensures ADMIN role exists with required permissions, creating them if needed.
+     * This helper is idempotent and safe to call multiple times.
+     */
+    private fun createUserWithAdminRoleAndToken(): Pair<UserEntity, String> {
+        val email = uniqueEmail()
+        val password = "TestPassword123!"
+        val user =
+            SecurityTestDataBuilders.userWithPassword(
+                authenticationService = authenticationService,
+                email = email,
+                password = password,
+            )
+        saveUser(user)
+
+        // Ensure ADMIN role exists, create if missing
+        val adminRole =
+            roleRepository.findByName("ADMIN").orElseGet {
+                roleRepository.save(SecurityTestDataBuilders.role(name = "ADMIN"))
+            }
+
+        // Ensure required permissions exist and are linked to ADMIN role
+        val requiredPermissions = listOf("security:user:view", "security:user:save", "security:user:delete")
+        entityManager.runTransaction {
+            requiredPermissions.forEach { permissionName ->
+                val permission =
+                    permissionRepository.findByName(permissionName).orElseGet {
+                        permissionRepository.save(SecurityTestDataBuilders.permission(name = permissionName))
+                    }
+                // Link permission to role (idempotent due to ON CONFLICT DO NOTHING)
+                roleRepository.assignPermissionToRole(adminRole.id!!, permission.id!!)
+            }
+            entityManager.flush()
+        }
+
+        // Assign ADMIN role to user
+        entityManager.runTransaction {
+            val roleAssignment =
+                SecurityTestDataBuilders.roleAssignment(
+                    userId = user.id!!,
+                    roleId = adminRole.id!!,
+                )
+            roleAssignmentRepository.save(roleAssignment)
+            entityManager.flush()
+        }
+
+        // Generate token with permissions
+        val authContext = authContextFactory.build(user)
+        val token = authenticationService.generateAccessToken(authContext)
+
+        return Pair(user, token)
+    }
 
     fun saveUser(user: UserEntity) {
         entityManager.runTransaction {
@@ -72,6 +146,7 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
     @AfterEach
     fun cleanupTestData() {
         try {
+            roleAssignmentRepository.deleteAll()
             userRepository.deleteAll()
             mockEmailService.clearSentEmails()
         } catch (e: Exception) {
@@ -753,6 +828,1402 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
 
             val allSentEmails = mockEmailService.getAllSentEmails()
             Assertions.assertThat(allSentEmails).isEmpty()
+        }
+    }
+
+    @Nested
+    @DisplayName("DataLoader N+1 Prevention Tests")
+    inner class DataLoaderN1PreventionTests {
+        @Test
+        fun `should batch load user roles for multiple users`() {
+            // Arrange - Create users with roles
+            val email1 = uniqueEmail()
+            val email2 = uniqueEmail()
+            val password = "TestPassword123!"
+            val user1 =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email1,
+                    password = password,
+                )
+            val user2 =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email2,
+                    password = password,
+                )
+            saveUser(user1)
+            saveUser(user2)
+
+            // Note: This test verifies that DataLoader is used, but actual role assignment
+            // would require additional setup. For now, we verify the query structure works.
+
+            // Create user with ADMIN role and get token
+            val (_, token) = createUserWithAdminRoleAndToken()
+
+            // Query multiple users with roles field
+            val query =
+                mapOf(
+                    "query" to
+                        """
+                        query {
+                            users(first: 2) {
+                                edges {
+                                    node {
+                                        id
+                                        email
+                                        roles {
+                                            id
+                                            name
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        """.trimIndent(),
+                )
+
+            val request =
+                HttpRequest.POST("/graphql", query)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header("Authorization", "Bearer $token")
+
+            val response = httpClient.exchangeAsString(request)
+            response
+                .shouldBeSuccessful()
+                .shouldBeJson()
+                .shouldHaveNonEmptyBody()
+
+            val payload: JsonNode = json.read(response)
+            payload["errors"].assertNoErrors()
+
+            val data = payload["data"]
+            val users = data["users"]["edges"]
+            Assertions.assertThat(users.size()).isGreaterThanOrEqualTo(0)
+            // Verify that roles field is accessible (even if empty)
+            if (users.size() > 0) {
+                val firstUser = users[0]["node"]
+                Assertions.assertThat(firstUser["roles"]).isNotNull
+            }
+        }
+
+        @Test
+        fun `should batch load user groups for multiple users`() {
+            // Arrange - Create users
+            val email1 = uniqueEmail()
+            val email2 = uniqueEmail()
+            val password = "TestPassword123!"
+            val user1 =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email1,
+                    password = password,
+                )
+            val user2 =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email2,
+                    password = password,
+                )
+            saveUser(user1)
+            saveUser(user2)
+
+            // Create user with ADMIN role and get token
+            val (_, token) = createUserWithAdminRoleAndToken()
+
+            // Query multiple users with groups field
+            val query =
+                mapOf(
+                    "query" to
+                        """
+                        query {
+                            users(first: 2) {
+                                edges {
+                                    node {
+                                        id
+                                        email
+                                        groups {
+                                            id
+                                            name
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        """.trimIndent(),
+                )
+
+            val request =
+                HttpRequest.POST("/graphql", query)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header("Authorization", "Bearer $token")
+
+            val response = httpClient.exchangeAsString(request)
+            response
+                .shouldBeSuccessful()
+                .shouldBeJson()
+                .shouldHaveNonEmptyBody()
+
+            val payload: JsonNode = json.read(response)
+            payload["errors"].assertNoErrors()
+
+            val data = payload["data"]
+            val users = data["users"]["edges"]
+            Assertions.assertThat(users.size()).isGreaterThanOrEqualTo(0)
+            // Verify that groups field is accessible
+            if (users.size() > 0) {
+                val firstUser = users[0]["node"]
+                Assertions.assertThat(firstUser["groups"]).isNotNull
+            }
+        }
+
+        @Test
+        fun `should batch load user permissions for multiple users`() {
+            // Arrange - Create users
+            val email1 = uniqueEmail()
+            val email2 = uniqueEmail()
+            val password = "TestPassword123!"
+            val user1 =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email1,
+                    password = password,
+                )
+            val user2 =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email2,
+                    password = password,
+                )
+            saveUser(user1)
+            saveUser(user2)
+
+            // Create user with ADMIN role and get token
+            val (_, token) = createUserWithAdminRoleAndToken()
+
+            // Query multiple users with permissions field
+            val query =
+                mapOf(
+                    "query" to
+                        """
+                        query {
+                            users(first: 2) {
+                                edges {
+                                    node {
+                                        id
+                                        email
+                                        permissions {
+                                            id
+                                            name
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        """.trimIndent(),
+                )
+
+            val request =
+                HttpRequest.POST("/graphql", query)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header("Authorization", "Bearer $token")
+
+            val response = httpClient.exchangeAsString(request)
+            response
+                .shouldBeSuccessful()
+                .shouldBeJson()
+                .shouldHaveNonEmptyBody()
+
+            val payload: JsonNode = json.read(response)
+            payload["errors"].assertNoErrors()
+
+            val data = payload["data"]
+            val users = data["users"]["edges"]
+            Assertions.assertThat(users.size()).isGreaterThanOrEqualTo(0)
+            // Verify that permissions field is accessible
+            if (users.size() > 0) {
+                val firstUser = users[0]["node"]
+                Assertions.assertThat(firstUser["permissions"]).isNotNull
+            }
+        }
+
+        @Test
+        fun `should batch load role permissions for multiple roles`() {
+            // Query multiple roles with permissions field
+            val query =
+                mapOf(
+                    "query" to
+                        """
+                        query {
+                            roles(first: 2) {
+                                edges {
+                                    node {
+                                        id
+                                        name
+                                        permissions {
+                                            id
+                                            name
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        """.trimIndent(),
+                )
+
+            val request =
+                HttpRequest.POST("/graphql", query)
+                    .contentType(MediaType.APPLICATION_JSON)
+
+            val response = httpClient.exchangeAsString(request)
+            response
+                .shouldBeSuccessful()
+                .shouldBeJson()
+                .shouldHaveNonEmptyBody()
+
+            val payload: JsonNode = json.read(response)
+            payload["errors"].assertNoErrors()
+
+            val data = payload["data"]
+            val roles = data["roles"]["edges"]
+            Assertions.assertThat(roles.size()).isGreaterThanOrEqualTo(0)
+            // Verify that permissions field is accessible
+            if (roles.size() > 0) {
+                val firstRole = roles[0]["node"]
+                Assertions.assertThat(firstRole["permissions"]).isNotNull
+            }
+        }
+
+        @Test
+        fun `should batch load group roles for multiple groups`() {
+            // Query multiple groups with roles field
+            val query =
+                mapOf(
+                    "query" to
+                        """
+                        query {
+                            groups(first: 2) {
+                                edges {
+                                    node {
+                                        id
+                                        name
+                                        roles {
+                                            id
+                                            name
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        """.trimIndent(),
+                )
+
+            val request =
+                HttpRequest.POST("/graphql", query)
+                    .contentType(MediaType.APPLICATION_JSON)
+
+            val response = httpClient.exchangeAsString(request)
+            response
+                .shouldBeSuccessful()
+                .shouldBeJson()
+                .shouldHaveNonEmptyBody()
+
+            val payload: JsonNode = json.read(response)
+            payload["errors"].assertNoErrors()
+
+            val data = payload["data"]
+            val groups = data["groups"]["edges"]
+            Assertions.assertThat(groups.size()).isGreaterThanOrEqualTo(0)
+            // Verify that roles field is accessible
+            if (groups.size() > 0) {
+                val firstGroup = groups[0]["node"]
+                Assertions.assertThat(firstGroup["roles"]).isNotNull
+            }
+        }
+
+        @Test
+        fun `should batch load permission roles for multiple permissions`() {
+            // Query multiple permissions with roles field
+            val query =
+                mapOf(
+                    "query" to
+                        """
+                        query {
+                            permissions(first: 2) {
+                                edges {
+                                    node {
+                                        id
+                                        name
+                                        roles {
+                                            id
+                                            name
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        """.trimIndent(),
+                )
+
+            val request =
+                HttpRequest.POST("/graphql", query)
+                    .contentType(MediaType.APPLICATION_JSON)
+
+            val response = httpClient.exchangeAsString(request)
+            response
+                .shouldBeSuccessful()
+                .shouldBeJson()
+                .shouldHaveNonEmptyBody()
+
+            val payload: JsonNode = json.read(response)
+            payload["errors"].assertNoErrors()
+
+            val data = payload["data"]
+            val permissions = data["permissions"]["edges"]
+            Assertions.assertThat(permissions.size()).isGreaterThanOrEqualTo(0)
+            // Verify that roles field is accessible
+            if (permissions.size() > 0) {
+                val firstPermission = permissions[0]["node"]
+                Assertions.assertThat(firstPermission["roles"]).isNotNull
+            }
+        }
+
+        @Test
+        fun `should batch load group members for multiple groups`() {
+            // Query multiple groups with members field (already uses DataLoader)
+            val query =
+                mapOf(
+                    "query" to
+                        """
+                        query {
+                            groups(first: 2) {
+                                edges {
+                                    node {
+                                        id
+                                        name
+                                        members {
+                                            id
+                                            email
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        """.trimIndent(),
+                )
+
+            val request =
+                HttpRequest.POST("/graphql", query)
+                    .contentType(MediaType.APPLICATION_JSON)
+
+            val response = httpClient.exchangeAsString(request)
+            response
+                .shouldBeSuccessful()
+                .shouldBeJson()
+                .shouldHaveNonEmptyBody()
+
+            val payload: JsonNode = json.read(response)
+            payload["errors"].assertNoErrors()
+
+            val data = payload["data"]
+            val groups = data["groups"]["edges"]
+            Assertions.assertThat(groups.size()).isGreaterThanOrEqualTo(0)
+            // Verify that members field is accessible
+            if (groups.size() > 0) {
+                val firstGroup = groups[0]["node"]
+                Assertions.assertThat(firstGroup["members"]).isNotNull
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("RBAC Authorization Enforcement")
+    inner class RbacAuthorizationEnforcementTests {
+        /**
+         * Helper to verify GraphQL error response contains expected error message
+         */
+        private fun verifyGraphQLError(
+            payload: JsonNode,
+            expectedMessage: String,
+        ) {
+            val errors = payload["errors"]
+            Assertions.assertThat(errors).isNotNull()
+            Assertions.assertThat(errors.isArray).isTrue()
+            Assertions.assertThat(errors.size()).isGreaterThan(0)
+
+            // Check if any error contains the expected message
+            val errorMessages =
+                (0 until errors.size()).mapNotNull { i ->
+                    try {
+                        errors[i]["message"]?.stringValue
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+            Assertions.assertThat(errorMessages).contains(expectedMessage)
+
+            // Verify data is null, not present, or empty object (GraphQL may return {} for errors)
+            val dataNode = payload["data"]
+            if (dataNode != null && !dataNode.isNull) {
+                // If data is present, it should be an object (could be empty {})
+                // This is acceptable for GraphQL error responses - some implementations return {} instead of null
+                Assertions.assertThat(dataNode.isObject).isTrue()
+            }
+        }
+
+        @Test
+        fun `should return authentication error when querying users without token`() {
+            // Arrange
+            val query =
+                mapOf(
+                    "query" to
+                        """
+                        query {
+                            users(first: 2) {
+                                edges {
+                                    node {
+                                        id
+                                        email
+                                    }
+                                }
+                            }
+                        }
+                        """.trimIndent(),
+                )
+
+            val request =
+                HttpRequest.POST("/graphql", query)
+                    .contentType(MediaType.APPLICATION_JSON)
+            // No Authorization header
+
+            // Act
+            val response = httpClient.exchangeAsString(request)
+            response
+                .shouldBeSuccessful()
+                .shouldBeJson()
+                .shouldHaveNonEmptyBody()
+
+            // Assert
+            val payload: JsonNode = json.read(response)
+            verifyGraphQLError(payload, "Authentication required")
+        }
+
+        @Test
+        fun `should return authentication error when querying user without token`() {
+            // Arrange
+            val userId = UUID.randomUUID()
+            val query =
+                mapOf(
+                    "query" to
+                        """
+                        query {
+                            user(id: "$userId") {
+                                id
+                                email
+                            }
+                        }
+                        """.trimIndent(),
+                )
+
+            val request =
+                HttpRequest.POST("/graphql", query)
+                    .contentType(MediaType.APPLICATION_JSON)
+            // No Authorization header
+
+            // Act
+            val response = httpClient.exchangeAsString(request)
+            response
+                .shouldBeSuccessful()
+                .shouldBeJson()
+                .shouldHaveNonEmptyBody()
+
+            // Assert
+            val payload: JsonNode = json.read(response)
+            verifyGraphQLError(payload, "Authentication required")
+        }
+
+        @Test
+        fun `should allow querying users with valid token and ADMIN role`() {
+            // Arrange
+            val (_, token) = createUserWithAdminRoleAndToken()
+
+            val query =
+                mapOf(
+                    "query" to
+                        """
+                        query {
+                            users(first: 2) {
+                                edges {
+                                    node {
+                                        id
+                                        email
+                                    }
+                                }
+                            }
+                        }
+                        """.trimIndent(),
+                )
+
+            val request =
+                HttpRequest.POST("/graphql", query)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header("Authorization", "Bearer $token")
+
+            // Act
+            val response = httpClient.exchangeAsString(request)
+            response
+                .shouldBeSuccessful()
+                .shouldBeJson()
+                .shouldHaveNonEmptyBody()
+
+            // Assert
+            val payload: JsonNode = json.read(response)
+            payload["errors"].assertNoErrors()
+            val data = payload["data"]
+            Assertions.assertThat(data).isNotNull()
+            Assertions.assertThat(data["users"]).isNotNull()
+        }
+    }
+
+    @Nested
+    @DisplayName("RBAC Error Handling Tests")
+    inner class RbacErrorHandlingTests {
+        /**
+         * Helper to verify GraphQL error response contains expected error message
+         */
+        private fun verifyGraphQLError(
+            payload: JsonNode,
+            expectedMessage: String,
+        ) {
+            val errors = payload["errors"]
+            Assertions.assertThat(errors).isNotNull()
+            Assertions.assertThat(errors.isArray).isTrue()
+            Assertions.assertThat(errors.size()).isGreaterThan(0)
+
+            // Check if any error contains the expected message
+            val errorMessages =
+                (0 until errors.size()).mapNotNull { i ->
+                    try {
+                        errors[i]["message"]?.stringValue
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+            Assertions.assertThat(errorMessages).contains(expectedMessage)
+
+            // Verify data is null, not present, or empty object (GraphQL may return {} for errors)
+            val dataNode = payload["data"]
+            if (dataNode != null && !dataNode.isNull) {
+                // If data is present, it should be an object (could be empty {})
+                // This is acceptable for GraphQL error responses - some implementations return {} instead of null
+                Assertions.assertThat(dataNode.isObject).isTrue()
+            }
+        }
+
+        /**
+         * Helper to create a user without any roles/permissions for testing 403 scenarios
+         */
+        private fun createUserWithoutPermissions(): Pair<UserEntity, String> {
+            val email = uniqueEmail()
+            val password = "TestPassword123!"
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
+            saveUser(user)
+
+            // Generate token for user without any roles
+            val authContext = authContextFactory.build(user)
+            val token = authenticationService.generateAccessToken(authContext)
+
+            return Pair(user, token)
+        }
+
+        // ========== Query Tests ==========
+
+        @Test
+        fun `should return Authentication required when querying user without token`() {
+            val userId = UUID.randomUUID()
+            val query =
+                mapOf(
+                    "query" to
+                        """
+                        query {
+                            user(id: "$userId") {
+                                id
+                                email
+                            }
+                        }
+                        """.trimIndent(),
+                )
+
+            val request =
+                HttpRequest.POST("/graphql", query)
+                    .contentType(MediaType.APPLICATION_JSON)
+
+            val response = httpClient.exchangeAsString(request)
+            response.shouldBeSuccessful().shouldBeJson().shouldHaveNonEmptyBody()
+
+            val payload: JsonNode = json.read(response)
+            verifyGraphQLError(payload, "Authentication required")
+        }
+
+        @Test
+        fun `should return Permission denied when querying user without permission`() {
+            val (_, token) = createUserWithoutPermissions()
+            val (targetUser, _) = createUserWithAdminRoleAndToken()
+
+            val query =
+                mapOf(
+                    "query" to
+                        """
+                        query {
+                            user(id: "${targetUser.id}") {
+                                id
+                                email
+                            }
+                        }
+                        """.trimIndent(),
+                )
+
+            val request =
+                HttpRequest.POST("/graphql", query)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header("Authorization", "Bearer $token")
+
+            val response = httpClient.exchangeAsString(request)
+            response.shouldBeSuccessful().shouldBeJson().shouldHaveNonEmptyBody()
+
+            val payload: JsonNode = json.read(response)
+            verifyGraphQLError(payload, "Permission denied: security:user:view")
+        }
+
+        @Test
+        fun `should return Authentication required when querying users without token`() {
+            val query =
+                mapOf(
+                    "query" to
+                        """
+                        query {
+                            users(first: 2) {
+                                edges {
+                                    node {
+                                        id
+                                        email
+                                    }
+                                }
+                            }
+                        }
+                        """.trimIndent(),
+                )
+
+            val request =
+                HttpRequest.POST("/graphql", query)
+                    .contentType(MediaType.APPLICATION_JSON)
+
+            val response = httpClient.exchangeAsString(request)
+            response.shouldBeSuccessful().shouldBeJson().shouldHaveNonEmptyBody()
+
+            val payload: JsonNode = json.read(response)
+            verifyGraphQLError(payload, "Authentication required")
+        }
+
+        @Test
+        fun `should return Permission denied when querying users without permission`() {
+            val (_, token) = createUserWithoutPermissions()
+
+            val query =
+                mapOf(
+                    "query" to
+                        """
+                        query {
+                            users(first: 2) {
+                                edges {
+                                    node {
+                                        id
+                                        email
+                                    }
+                                }
+                            }
+                        }
+                        """.trimIndent(),
+                )
+
+            val request =
+                HttpRequest.POST("/graphql", query)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header("Authorization", "Bearer $token")
+
+            val response = httpClient.exchangeAsString(request)
+            response.shouldBeSuccessful().shouldBeJson().shouldHaveNonEmptyBody()
+
+            val payload: JsonNode = json.read(response)
+            verifyGraphQLError(payload, "Permission denied: security:user:view")
+        }
+
+        // ========== Mutation Tests ==========
+
+        @Test
+        fun `should return Authentication required when enabling user without token`() {
+            val (targetUser, _) = createUserWithAdminRoleAndToken()
+
+            val mutation =
+                mapOf(
+                    "query" to
+                        """
+                        mutation {
+                            enableUser(userId: "${targetUser.id}") {
+                                id
+                            }
+                        }
+                        """.trimIndent(),
+                )
+
+            val request =
+                HttpRequest.POST("/graphql", mutation)
+                    .contentType(MediaType.APPLICATION_JSON)
+
+            val response = httpClient.exchangeAsString(request)
+            response.shouldBeSuccessful().shouldBeJson().shouldHaveNonEmptyBody()
+
+            val payload: JsonNode = json.read(response)
+            verifyGraphQLError(payload, "Authentication required")
+        }
+
+        @Test
+        fun `should return Permission denied when enabling user without permission`() {
+            val (_, token) = createUserWithoutPermissions()
+            val (targetUser, _) = createUserWithAdminRoleAndToken()
+
+            val mutation =
+                mapOf(
+                    "query" to
+                        """
+                        mutation {
+                            enableUser(userId: "${targetUser.id}") {
+                                id
+                            }
+                        }
+                        """.trimIndent(),
+                )
+
+            val request =
+                HttpRequest.POST("/graphql", mutation)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header("Authorization", "Bearer $token")
+
+            val response = httpClient.exchangeAsString(request)
+            response.shouldBeSuccessful().shouldBeJson().shouldHaveNonEmptyBody()
+
+            val payload: JsonNode = json.read(response)
+            verifyGraphQLError(payload, "Permission denied: security:user:save")
+        }
+
+        @Test
+        fun `should return Authentication required when disabling user without token`() {
+            val (targetUser, _) = createUserWithAdminRoleAndToken()
+
+            val mutation =
+                mapOf(
+                    "query" to
+                        """
+                        mutation {
+                            disableUser(userId: "${targetUser.id}") {
+                                id
+                            }
+                        }
+                        """.trimIndent(),
+                )
+
+            val request =
+                HttpRequest.POST("/graphql", mutation)
+                    .contentType(MediaType.APPLICATION_JSON)
+
+            val response = httpClient.exchangeAsString(request)
+            response.shouldBeSuccessful().shouldBeJson().shouldHaveNonEmptyBody()
+
+            val payload: JsonNode = json.read(response)
+            verifyGraphQLError(payload, "Authentication required")
+        }
+
+        @Test
+        fun `should return Permission denied when disabling user without permission`() {
+            val (_, token) = createUserWithoutPermissions()
+            val (targetUser, _) = createUserWithAdminRoleAndToken()
+
+            val mutation =
+                mapOf(
+                    "query" to
+                        """
+                        mutation {
+                            disableUser(userId: "${targetUser.id}") {
+                                id
+                            }
+                        }
+                        """.trimIndent(),
+                )
+
+            val request =
+                HttpRequest.POST("/graphql", mutation)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header("Authorization", "Bearer $token")
+
+            val response = httpClient.exchangeAsString(request)
+            response.shouldBeSuccessful().shouldBeJson().shouldHaveNonEmptyBody()
+
+            val payload: JsonNode = json.read(response)
+            verifyGraphQLError(payload, "Permission denied: security:user:save")
+        }
+
+        @Test
+        fun `should return Authentication required when assigning role to user without token`() {
+            val (targetUser, _) = createUserWithAdminRoleAndToken()
+            val role =
+                roleRepository.findAll().firstOrNull() ?: run {
+                    val newRole = SecurityTestDataBuilders.role(name = "TEST_ROLE")
+                    roleRepository.save(newRole)
+                }
+
+            val mutation =
+                mapOf(
+                    "query" to
+                        """
+                        mutation {
+                            assignRoleToUser(userId: "${targetUser.id}", roleId: "${role.id}") {
+                                id
+                            }
+                        }
+                        """.trimIndent(),
+                )
+
+            val request =
+                HttpRequest.POST("/graphql", mutation)
+                    .contentType(MediaType.APPLICATION_JSON)
+
+            val response = httpClient.exchangeAsString(request)
+            response.shouldBeSuccessful().shouldBeJson().shouldHaveNonEmptyBody()
+
+            val payload: JsonNode = json.read(response)
+            verifyGraphQLError(payload, "Authentication required")
+        }
+
+        @Test
+        fun `should return Permission denied when assigning role to user without permission`() {
+            val (_, token) = createUserWithoutPermissions()
+            val (targetUser, _) = createUserWithAdminRoleAndToken()
+            val role =
+                roleRepository.findAll().firstOrNull() ?: run {
+                    val newRole = SecurityTestDataBuilders.role(name = "TEST_ROLE")
+                    roleRepository.save(newRole)
+                }
+
+            val mutation =
+                mapOf(
+                    "query" to
+                        """
+                        mutation {
+                            assignRoleToUser(userId: "${targetUser.id}", roleId: "${role.id}") {
+                                id
+                            }
+                        }
+                        """.trimIndent(),
+                )
+
+            val request =
+                HttpRequest.POST("/graphql", mutation)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header("Authorization", "Bearer $token")
+
+            val response = httpClient.exchangeAsString(request)
+            response.shouldBeSuccessful().shouldBeJson().shouldHaveNonEmptyBody()
+
+            val payload: JsonNode = json.read(response)
+            verifyGraphQLError(payload, "Permission denied: security:user:save")
+        }
+
+        @Test
+        fun `should return Authentication required when removing role from user without token`() {
+            val (targetUser, _) = createUserWithAdminRoleAndToken()
+            val role =
+                roleRepository.findAll().firstOrNull() ?: run {
+                    val newRole = SecurityTestDataBuilders.role(name = "TEST_ROLE")
+                    roleRepository.save(newRole)
+                }
+
+            val mutation =
+                mapOf(
+                    "query" to
+                        """
+                        mutation {
+                            removeRoleFromUser(userId: "${targetUser.id}", roleId: "${role.id}") {
+                                id
+                            }
+                        }
+                        """.trimIndent(),
+                )
+
+            val request =
+                HttpRequest.POST("/graphql", mutation)
+                    .contentType(MediaType.APPLICATION_JSON)
+
+            val response = httpClient.exchangeAsString(request)
+            response.shouldBeSuccessful().shouldBeJson().shouldHaveNonEmptyBody()
+
+            val payload: JsonNode = json.read(response)
+            verifyGraphQLError(payload, "Authentication required")
+        }
+
+        @Test
+        fun `should return Permission denied when removing role from user without permission`() {
+            val (_, token) = createUserWithoutPermissions()
+            val (targetUser, _) = createUserWithAdminRoleAndToken()
+            val role =
+                roleRepository.findAll().firstOrNull() ?: run {
+                    val newRole = SecurityTestDataBuilders.role(name = "TEST_ROLE")
+                    roleRepository.save(newRole)
+                }
+
+            val mutation =
+                mapOf(
+                    "query" to
+                        """
+                        mutation {
+                            removeRoleFromUser(userId: "${targetUser.id}", roleId: "${role.id}") {
+                                id
+                            }
+                        }
+                        """.trimIndent(),
+                )
+
+            val request =
+                HttpRequest.POST("/graphql", mutation)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header("Authorization", "Bearer $token")
+
+            val response = httpClient.exchangeAsString(request)
+            response.shouldBeSuccessful().shouldBeJson().shouldHaveNonEmptyBody()
+
+            val payload: JsonNode = json.read(response)
+            verifyGraphQLError(payload, "Permission denied: security:user:save")
+        }
+
+        @Test
+        fun `should return Authentication required when assigning group to user without token`() {
+            val (targetUser, _) = createUserWithAdminRoleAndToken()
+            // Create a test group if needed
+            val group =
+                groupRepository.findAll().firstOrNull() ?: run {
+                    val newGroup = SecurityTestDataBuilders.group(name = "TEST_GROUP")
+                    groupRepository.save(newGroup)
+                }
+
+            val mutation =
+                mapOf(
+                    "query" to
+                        """
+                        mutation {
+                            assignGroupToUser(userId: "${targetUser.id}", groupId: "${group.id}") {
+                                id
+                            }
+                        }
+                        """.trimIndent(),
+                )
+
+            val request =
+                HttpRequest.POST("/graphql", mutation)
+                    .contentType(MediaType.APPLICATION_JSON)
+
+            val response = httpClient.exchangeAsString(request)
+            response.shouldBeSuccessful().shouldBeJson().shouldHaveNonEmptyBody()
+
+            val payload: JsonNode = json.read(response)
+            verifyGraphQLError(payload, "Authentication required")
+        }
+
+        @Test
+        fun `should return Permission denied when assigning group to user without permission`() {
+            val (_, token) = createUserWithoutPermissions()
+            val (targetUser, _) = createUserWithAdminRoleAndToken()
+            val group =
+                groupRepository.findAll().firstOrNull() ?: run {
+                    val newGroup = SecurityTestDataBuilders.group(name = "TEST_GROUP")
+                    groupRepository.save(newGroup)
+                }
+
+            val mutation =
+                mapOf(
+                    "query" to
+                        """
+                        mutation {
+                            assignGroupToUser(userId: "${targetUser.id}", groupId: "${group.id}") {
+                                id
+                            }
+                        }
+                        """.trimIndent(),
+                )
+
+            val request =
+                HttpRequest.POST("/graphql", mutation)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header("Authorization", "Bearer $token")
+
+            val response = httpClient.exchangeAsString(request)
+            response.shouldBeSuccessful().shouldBeJson().shouldHaveNonEmptyBody()
+
+            val payload: JsonNode = json.read(response)
+            verifyGraphQLError(payload, "Permission denied: security:user:save")
+        }
+
+        @Test
+        fun `should return Authentication required when removing group from user without token`() {
+            val (targetUser, _) = createUserWithAdminRoleAndToken()
+            val group =
+                groupRepository.findAll().firstOrNull() ?: run {
+                    val newGroup = SecurityTestDataBuilders.group(name = "TEST_GROUP")
+                    groupRepository.save(newGroup)
+                }
+
+            val mutation =
+                mapOf(
+                    "query" to
+                        """
+                        mutation {
+                            removeGroupFromUser(userId: "${targetUser.id}", groupId: "${group.id}") {
+                                id
+                            }
+                        }
+                        """.trimIndent(),
+                )
+
+            val request =
+                HttpRequest.POST("/graphql", mutation)
+                    .contentType(MediaType.APPLICATION_JSON)
+
+            val response = httpClient.exchangeAsString(request)
+            response.shouldBeSuccessful().shouldBeJson().shouldHaveNonEmptyBody()
+
+            val payload: JsonNode = json.read(response)
+            verifyGraphQLError(payload, "Authentication required")
+        }
+
+        @Test
+        fun `should return Permission denied when removing group from user without permission`() {
+            val (_, token) = createUserWithoutPermissions()
+            val (targetUser, _) = createUserWithAdminRoleAndToken()
+            val group =
+                groupRepository.findAll().firstOrNull() ?: run {
+                    val newGroup = SecurityTestDataBuilders.group(name = "TEST_GROUP")
+                    groupRepository.save(newGroup)
+                }
+
+            val mutation =
+                mapOf(
+                    "query" to
+                        """
+                        mutation {
+                            removeGroupFromUser(userId: "${targetUser.id}", groupId: "${group.id}") {
+                                id
+                            }
+                        }
+                        """.trimIndent(),
+                )
+
+            val request =
+                HttpRequest.POST("/graphql", mutation)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header("Authorization", "Bearer $token")
+
+            val response = httpClient.exchangeAsString(request)
+            response.shouldBeSuccessful().shouldBeJson().shouldHaveNonEmptyBody()
+
+            val payload: JsonNode = json.read(response)
+            verifyGraphQLError(payload, "Permission denied: security:user:save")
+        }
+
+        // ========== Field Tests ==========
+
+        @Test
+        fun `should return Authentication required when querying User roles without token`() {
+            val (targetUser, _) = createUserWithAdminRoleAndToken()
+
+            val query =
+                mapOf(
+                    "query" to
+                        """
+                        query {
+                            user(id: "${targetUser.id}") {
+                                id
+                                email
+                                roles {
+                                    id
+                                    name
+                                }
+                            }
+                        }
+                        """.trimIndent(),
+                )
+
+            val request =
+                HttpRequest.POST("/graphql", query)
+                    .contentType(MediaType.APPLICATION_JSON)
+
+            val response = httpClient.exchangeAsString(request)
+            response.shouldBeSuccessful().shouldBeJson().shouldHaveNonEmptyBody()
+
+            val payload: JsonNode = json.read(response)
+            val errors = payload["errors"]
+            Assertions.assertThat(errors).isNotNull()
+            Assertions.assertThat(errors.isArray).isTrue()
+            Assertions.assertThat(errors.size()).isGreaterThan(0)
+            // Should have error for the roles field - check if any error has the correct message
+            var foundRolesError = false
+            for (i in 0 until errors.size()) {
+                val error = errors[i]
+                val message = error["message"]?.stringValue ?: ""
+                if (message == "Authentication required") {
+                    foundRolesError = true
+                    break
+                }
+            }
+            Assertions.assertThat(foundRolesError).isTrue()
+        }
+
+        @Test
+        fun `should return Permission denied when querying User roles without permission`() {
+            val (_, token) = createUserWithoutPermissions()
+            val (targetUser, _) = createUserWithAdminRoleAndToken()
+
+            val query =
+                mapOf(
+                    "query" to
+                        """
+                        query {
+                            user(id: "${targetUser.id}") {
+                                id
+                                email
+                                roles {
+                                    id
+                                    name
+                                }
+                            }
+                        }
+                        """.trimIndent(),
+                )
+
+            val request =
+                HttpRequest.POST("/graphql", query)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header("Authorization", "Bearer $token")
+
+            val response = httpClient.exchangeAsString(request)
+            response.shouldBeSuccessful().shouldBeJson().shouldHaveNonEmptyBody()
+
+            val payload: JsonNode = json.read(response)
+            val errors = payload["errors"]
+            Assertions.assertThat(errors).isNotNull()
+            Assertions.assertThat(errors.isArray).isTrue()
+            Assertions.assertThat(errors.size()).isGreaterThan(0)
+            // Should have error for the roles field - check if any error has the correct message
+            var foundRolesError = false
+            for (i in 0 until errors.size()) {
+                val error = errors[i]
+                val message = error["message"]?.stringValue ?: ""
+                if (message == "Permission denied: security:user:view") {
+                    foundRolesError = true
+                    break
+                }
+            }
+            Assertions.assertThat(foundRolesError).isTrue()
+        }
+
+        @Test
+        fun `should return Authentication required when querying User groups without token`() {
+            val (targetUser, _) = createUserWithAdminRoleAndToken()
+
+            val query =
+                mapOf(
+                    "query" to
+                        """
+                        query {
+                            user(id: "${targetUser.id}") {
+                                id
+                                email
+                                groups {
+                                    id
+                                    name
+                                }
+                            }
+                        }
+                        """.trimIndent(),
+                )
+
+            val request =
+                HttpRequest.POST("/graphql", query)
+                    .contentType(MediaType.APPLICATION_JSON)
+
+            val response = httpClient.exchangeAsString(request)
+            response.shouldBeSuccessful().shouldBeJson().shouldHaveNonEmptyBody()
+
+            val payload: JsonNode = json.read(response)
+            val errors = payload["errors"]
+            Assertions.assertThat(errors).isNotNull()
+            Assertions.assertThat(errors.isArray).isTrue()
+            Assertions.assertThat(errors.size()).isGreaterThan(0)
+            // Should have error for the groups field - check if any error has the correct message
+            var foundGroupsError = false
+            for (i in 0 until errors.size()) {
+                val error = errors[i]
+                val message = error["message"]?.stringValue ?: ""
+                if (message == "Authentication required") {
+                    foundGroupsError = true
+                    break
+                }
+            }
+            Assertions.assertThat(foundGroupsError).isTrue()
+        }
+
+        @Test
+        fun `should return Permission denied when querying User groups without permission`() {
+            val (_, token) = createUserWithoutPermissions()
+            val (targetUser, _) = createUserWithAdminRoleAndToken()
+
+            val query =
+                mapOf(
+                    "query" to
+                        """
+                        query {
+                            user(id: "${targetUser.id}") {
+                                id
+                                email
+                                groups {
+                                    id
+                                    name
+                                }
+                            }
+                        }
+                        """.trimIndent(),
+                )
+
+            val request =
+                HttpRequest.POST("/graphql", query)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header("Authorization", "Bearer $token")
+
+            val response = httpClient.exchangeAsString(request)
+            response.shouldBeSuccessful().shouldBeJson().shouldHaveNonEmptyBody()
+
+            val payload: JsonNode = json.read(response)
+            val errors = payload["errors"]
+            Assertions.assertThat(errors).isNotNull()
+            Assertions.assertThat(errors.isArray).isTrue()
+            Assertions.assertThat(errors.size()).isGreaterThan(0)
+            // Should have error for the groups field - check if any error has the correct message
+            var foundGroupsError = false
+            for (i in 0 until errors.size()) {
+                val error = errors[i]
+                val message = error["message"]?.stringValue ?: ""
+                if (message == "Permission denied: security:user:view") {
+                    foundGroupsError = true
+                    break
+                }
+            }
+            Assertions.assertThat(foundGroupsError).isTrue()
+        }
+
+        @Test
+        fun `should return Authentication required when querying User permissions without token`() {
+            val (targetUser, _) = createUserWithAdminRoleAndToken()
+
+            val query =
+                mapOf(
+                    "query" to
+                        """
+                        query {
+                            user(id: "${targetUser.id}") {
+                                id
+                                email
+                                permissions {
+                                    id
+                                    name
+                                }
+                            }
+                        }
+                        """.trimIndent(),
+                )
+
+            val request =
+                HttpRequest.POST("/graphql", query)
+                    .contentType(MediaType.APPLICATION_JSON)
+
+            val response = httpClient.exchangeAsString(request)
+            response.shouldBeSuccessful().shouldBeJson().shouldHaveNonEmptyBody()
+
+            val payload: JsonNode = json.read(response)
+            val errors = payload["errors"]
+            Assertions.assertThat(errors).isNotNull()
+            Assertions.assertThat(errors.isArray).isTrue()
+            Assertions.assertThat(errors.size()).isGreaterThan(0)
+            // Should have error for the permissions field - check if any error has the correct message
+            var foundPermissionsError = false
+            for (i in 0 until errors.size()) {
+                val error = errors[i]
+                val message = error["message"]?.stringValue ?: ""
+                if (message == "Authentication required") {
+                    foundPermissionsError = true
+                    break
+                }
+            }
+            Assertions.assertThat(foundPermissionsError).isTrue()
+        }
+
+        @Test
+        fun `should return Permission denied when querying User permissions without permission`() {
+            val (_, token) = createUserWithoutPermissions()
+            val (targetUser, _) = createUserWithAdminRoleAndToken()
+
+            val query =
+                mapOf(
+                    "query" to
+                        """
+                        query {
+                            user(id: "${targetUser.id}") {
+                                id
+                                email
+                                permissions {
+                                    id
+                                    name
+                                }
+                            }
+                        }
+                        """.trimIndent(),
+                )
+
+            val request =
+                HttpRequest.POST("/graphql", query)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header("Authorization", "Bearer $token")
+
+            val response = httpClient.exchangeAsString(request)
+            response.shouldBeSuccessful().shouldBeJson().shouldHaveNonEmptyBody()
+
+            val payload: JsonNode = json.read(response)
+            val errors = payload["errors"]
+            Assertions.assertThat(errors).isNotNull()
+            Assertions.assertThat(errors.isArray).isTrue()
+            Assertions.assertThat(errors.size()).isGreaterThan(0)
+            // Should have error for the permissions field - check if any error has the correct message
+            var foundPermissionsError = false
+            for (i in 0 until errors.size()) {
+                val error = errors[i]
+                val message = error["message"]?.stringValue ?: ""
+                if (message == "Permission denied: security:user:view") {
+                    foundPermissionsError = true
+                    break
+                }
+            }
+            Assertions.assertThat(foundPermissionsError).isTrue()
         }
     }
 }

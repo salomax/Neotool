@@ -1,19 +1,15 @@
 package io.github.salomax.neotool.security.graphql.resolver
 
+import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import io.github.salomax.neotool.security.graphql.dto.CreateGroupInputDTO
 import io.github.salomax.neotool.security.graphql.dto.GroupConnectionDTO
 import io.github.salomax.neotool.security.graphql.dto.GroupDTO
 import io.github.salomax.neotool.security.graphql.dto.UpdateGroupInputDTO
 import io.github.salomax.neotool.security.graphql.mapper.GroupManagementMapper
-import io.github.salomax.neotool.security.repo.GroupMembershipRepository
-import io.github.salomax.neotool.security.repo.GroupRepository
-import io.github.salomax.neotool.security.repo.GroupRoleAssignmentRepository
-import io.github.salomax.neotool.security.repo.RoleRepository
-import io.github.salomax.neotool.security.repo.UserRepository
+import io.github.salomax.neotool.security.graphql.mapper.UserManagementMapper
 import io.github.salomax.neotool.security.service.GroupManagementService
 import jakarta.inject.Singleton
 import mu.KotlinLogging
-import java.time.Instant
 import java.util.UUID
 
 /**
@@ -24,32 +20,31 @@ import java.util.UUID
 @Singleton
 class GroupManagementResolver(
     private val groupManagementService: GroupManagementService,
-    private val groupRepository: GroupRepository,
-    private val groupRoleAssignmentRepository: GroupRoleAssignmentRepository,
-    private val groupMembershipRepository: GroupMembershipRepository,
-    private val roleRepository: RoleRepository,
-    private val userRepository: UserRepository,
     private val mapper: GroupManagementMapper,
+    private val userManagementMapper: UserManagementMapper,
 ) {
     private val logger = KotlinLogging.logger {}
 
     /**
      * Get a single group by ID.
+     *
+     * @param id The group ID
+     * @return GroupDTO or null if not found
+     * @throws IllegalArgumentException if group ID is invalid
+     * @throws Exception if service fails (propagated as GraphQL error)
      */
     fun group(id: String): GroupDTO? {
-        return try {
-            val groupIdUuid = mapper.toGroupId(id)
-            val entity = groupRepository.findById(groupIdUuid)
-            entity.map { it.toDomain() }
-                .map { mapper.toGroupDTO(it) }
-                .orElse(null)
-        } catch (e: IllegalArgumentException) {
-            logger.warn { "Invalid group ID: $id" }
-            null
-        } catch (e: Exception) {
-            logger.error(e) { "Error getting group: $id" }
-            null
-        }
+        // Validate and convert group ID - throw IllegalArgumentException for invalid input
+        val groupIdUuid =
+            try {
+                mapper.toGroupId(id)
+            } catch (e: IllegalArgumentException) {
+                throw IllegalArgumentException("Invalid group ID format: $id", e)
+            }
+
+        // Use service layer instead of direct repository access
+        val group = groupManagementService.getGroupById(groupIdUuid)
+        return group?.let { mapper.toGroupDTO(it) }
     }
 
     /**
@@ -57,6 +52,14 @@ class GroupManagementResolver(
      * When query is omitted or empty, returns all groups (list behavior).
      * When query is provided, returns filtered groups (search behavior).
      * totalCount is always calculated.
+     *
+     * @param first Maximum number of results (default: 20, min: 1, max: 100)
+     * @param after Cursor for pagination
+     * @param query Optional search query
+     * @param orderBy Optional order by specification
+     * @return GroupConnectionDTO
+     * @throws IllegalArgumentException if first is invalid or orderBy contains invalid fields/directions
+     * @throws Exception if service fails (propagated as GraphQL error)
      */
     fun groups(
         first: Int?,
@@ -64,15 +67,29 @@ class GroupManagementResolver(
         query: String?,
         orderBy: List<Map<String, Any?>>?,
     ): GroupConnectionDTO {
-        return try {
-            val pageSize = first ?: 20
-            val orderByList = mapper.toGroupOrderByList(orderBy)
-            val connection = groupManagementService.searchGroups(query, pageSize, after, orderByList)
-            mapper.toGroupConnectionDTO(connection)
-        } catch (e: Exception) {
-            logger.error(e) { "Error listing groups" }
-            throw e
-        }
+        // Validate pagination parameter
+        val pageSize =
+            when {
+                first == null -> PaginationConstants.DEFAULT_PAGE_SIZE
+                first < 1 -> throw IllegalArgumentException("Parameter 'first' must be at least 1, got: $first")
+                first > PaginationConstants.MAX_PAGE_SIZE ->
+                    throw IllegalArgumentException(
+                        "Parameter 'first' must be at most ${PaginationConstants.MAX_PAGE_SIZE}, got: $first",
+                    )
+                else -> first
+            }
+
+        // Validate orderBy - mapper will throw IllegalArgumentException for invalid fields/directions
+        val orderByList =
+            try {
+                mapper.toGroupOrderByList(orderBy)
+            } catch (e: IllegalArgumentException) {
+                throw IllegalArgumentException("Invalid orderBy parameter: ${e.message}", e)
+            }
+
+        // Call service - propagate any exceptions (will be converted to GraphQL errors)
+        val connection = groupManagementService.searchGroups(query, pageSize, after, orderByList)
+        return mapper.toGroupConnectionDTO(connection)
     }
 
     /**
@@ -129,59 +146,113 @@ class GroupManagementResolver(
     /**
      * Resolve Group.roles relationship.
      * Returns all roles assigned to the group.
+     *
+     * @param groupId The group ID
+     * @return List of RoleDTO
+     * @throws IllegalArgumentException if group ID is invalid
+     * @throws Exception if service fails (propagated as GraphQL error)
      */
     fun resolveGroupRoles(groupId: String): List<io.github.salomax.neotool.security.graphql.dto.RoleDTO> {
-        return try {
-            val groupIdUuid = UUID.fromString(groupId)
-            val assignments = groupRoleAssignmentRepository.findValidAssignmentsByGroupId(groupIdUuid, Instant.now())
-            val roleIds = assignments.map { it.roleId }.distinct()
-
-            if (roleIds.isEmpty()) {
-                return emptyList()
+        // Validate and convert group ID - throw IllegalArgumentException for invalid input
+        val groupIdUuid =
+            try {
+                UUID.fromString(groupId)
+            } catch (e: IllegalArgumentException) {
+                throw IllegalArgumentException("Invalid group ID format: $groupId", e)
             }
 
-            val roles = roleRepository.findByIdIn(roleIds)
-            roles.map { entity ->
-                val role = entity.toDomain()
-                io.github.salomax.neotool.security.graphql.dto.RoleDTO(
-                    id = role.id?.toString() ?: throw IllegalArgumentException("Role must have an ID"),
-                    name = role.name,
-                )
-            }
-        } catch (e: Exception) {
-            logger.error(e) { "Error resolving group roles for group: $groupId" }
-            emptyList()
+        // Use service layer instead of direct repository access
+        val roles = groupManagementService.getGroupRoles(groupIdUuid)
+
+        // Convert domain objects to DTOs
+        return roles.map { role ->
+            io.github.salomax.neotool.security.graphql.dto.RoleDTO(
+                id = role.id?.toString() ?: throw IllegalArgumentException("Role must have an ID"),
+                name = role.name,
+            )
         }
     }
 
     /**
      * Resolve Group.members relationship.
      * Returns all users who are members of the group.
+     *
+     * @param groupId The group ID
+     * @return List of UserDTO
+     * @throws IllegalArgumentException if group ID is invalid
+     * @throws Exception if service fails (propagated as GraphQL error)
      */
     fun resolveGroupMembers(groupId: String): List<io.github.salomax.neotool.security.graphql.dto.UserDTO> {
-        return try {
-            val groupIdUuid = UUID.fromString(groupId)
-            val memberships = groupMembershipRepository.findByGroupId(groupIdUuid)
-            val userIds = memberships.map { it.userId }.distinct()
-
-            if (userIds.isEmpty()) {
-                return emptyList()
+        // Validate and convert group ID - throw IllegalArgumentException for invalid input
+        val groupIdUuid =
+            try {
+                UUID.fromString(groupId)
+            } catch (e: IllegalArgumentException) {
+                throw IllegalArgumentException("Invalid group ID format: $groupId", e)
             }
 
-            val users = userRepository.findByIdIn(userIds)
-            users.map { entity ->
-                val user = entity.toDomain()
-                io.github.salomax.neotool.security.graphql.dto.UserDTO(
-                    id = user.id?.toString() ?: throw IllegalArgumentException("User must have an ID"),
-                    email = user.email,
-                    displayName = user.displayName,
-                    enabled = user.enabled,
-                )
-            }
-        } catch (e: Exception) {
-            logger.error(e) { "Error resolving group members for group: $groupId" }
-            emptyList()
+        // Call service - propagate any exceptions (will be converted to GraphQL errors)
+        val users = groupManagementService.getGroupMembers(groupIdUuid)
+        return users.map { user -> userManagementMapper.toUserDTO(user) }
+    }
+
+    /**
+     * Batch resolve Group.members relationship for multiple groups.
+     * Returns a map of group ID to list of users who are members of that group.
+     * Optimized to avoid N+1 queries.
+     * Guarantees one entry in the result map for each requested group ID, even if invalid.
+     *
+     * @param groupIds List of group IDs
+     * @return Map of group ID to list of UserDTO (empty list for invalid IDs)
+     * @throws Exception if service fails (propagated as GraphQL error)
+     */
+    fun resolveGroupMembersBatch(
+        groupIds: List<String>,
+    ): Map<String, List<io.github.salomax.neotool.security.graphql.dto.UserDTO>> {
+        if (groupIds.isEmpty()) {
+            return emptyMap()
         }
+
+        // Parse valid UUIDs while preserving order and mapping original string to UUID
+        // Invalid IDs are logged but included in result with empty list
+        val groupIdToUuidMap = mutableMapOf<String, UUID>()
+        val groupIdUuids =
+            groupIds.mapNotNull { groupId ->
+                try {
+                    val uuid = UUID.fromString(groupId)
+                    groupIdToUuidMap[groupId] = uuid
+                    uuid
+                } catch (e: IllegalArgumentException) {
+                    logger.warn { "Invalid group ID in batch request: $groupId" }
+                    null
+                }
+            }
+
+        // Use service layer to batch load group members (only for valid IDs)
+        val groupMembersMap =
+            if (groupIdUuids.isNotEmpty()) {
+                groupManagementService.getGroupMembersBatch(groupIdUuids)
+            } else {
+                emptyMap()
+            }
+
+        // Convert domain objects to DTOs and build result map preserving order of original input
+        // Ensure every requested group ID has an entry (empty list for invalid IDs)
+        val result =
+            linkedMapOf<String, List<io.github.salomax.neotool.security.graphql.dto.UserDTO>>()
+        for (groupId in groupIds) {
+            val groupIdUuid = groupIdToUuidMap[groupId]
+            if (groupIdUuid != null) {
+                val users = groupMembersMap[groupIdUuid] ?: emptyList()
+                val userDTOs = users.map { user -> userManagementMapper.toUserDTO(user) }
+                result[groupId] = userDTOs
+            } else {
+                // Invalid ID: add entry with empty list to maintain DataLoader contract
+                result[groupId] = emptyList()
+            }
+        }
+
+        return result
     }
 
     /**
@@ -230,5 +301,68 @@ class GroupManagementResolver(
             logger.error(e) { "Error removing role from group: groupId=$groupId, roleId=$roleId" }
             throw e
         }
+    }
+
+    /**
+     * Batch resolve Group.roles relationship for multiple groups.
+     * Returns a map of group ID to list of roles assigned to that group.
+     * Optimized to avoid N+1 queries.
+     * Invalid IDs are filtered out and not included in the result.
+     *
+     * @param groupIds List of group IDs
+     * @return Map of group ID to list of RoleDTO (only valid IDs included)
+     * @throws Exception if service fails (propagated as GraphQL error)
+     */
+    fun resolveGroupRolesBatch(
+        groupIds: List<String>,
+    ): Map<String, List<io.github.salomax.neotool.security.graphql.dto.RoleDTO>> {
+        if (groupIds.isEmpty()) {
+            return emptyMap()
+        }
+
+        // Parse valid UUIDs while preserving order and mapping original string to UUID
+        // Invalid IDs are logged but included in result with empty list
+        val groupIdToUuidMap = mutableMapOf<String, UUID>()
+        val groupIdUuids =
+            groupIds.mapNotNull { groupId ->
+                try {
+                    val uuid = UUID.fromString(groupId)
+                    groupIdToUuidMap[groupId] = uuid
+                    uuid
+                } catch (e: IllegalArgumentException) {
+                    logger.warn { "Invalid group ID in batch request: $groupId" }
+                    null
+                }
+            }
+
+        // Use service layer to batch load group roles (only for valid IDs)
+        val groupRolesMap =
+            if (groupIdUuids.isNotEmpty()) {
+                groupManagementService.getGroupRolesBatch(groupIdUuids)
+            } else {
+                emptyMap()
+            }
+
+        // Convert domain objects to DTOs and build result map preserving order of original input
+        // Filter out invalid IDs - only include valid IDs in the result
+        val result =
+            linkedMapOf<String, List<io.github.salomax.neotool.security.graphql.dto.RoleDTO>>()
+        for (groupId in groupIds) {
+            val groupIdUuid = groupIdToUuidMap[groupId]
+            if (groupIdUuid != null) {
+                val roles = groupRolesMap[groupIdUuid] ?: emptyList()
+                val roleDTOs =
+                    roles.map { role ->
+                        io.github.salomax.neotool.security.graphql.dto.RoleDTO(
+                            id = role.id?.toString() ?: throw IllegalArgumentException("Role must have an ID"),
+                            name = role.name,
+                        )
+                    }
+                result[groupId] = roleDTOs
+            }
+            // Invalid IDs are filtered out - not included in result
+        }
+
+        return result
     }
 }

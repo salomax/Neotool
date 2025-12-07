@@ -17,7 +17,7 @@ import io.github.salomax.neotool.security.domain.rbac.GroupMembership as GroupMe
 open class GroupMembershipEntity(
     @Id
     @Column(columnDefinition = "uuid")
-    override val id: UUID = UUID.randomUUID(),
+    override val id: UUID,
     @Column(name = "user_id", nullable = false, columnDefinition = "uuid")
     open var userId: UUID,
     @Column(name = "group_id", nullable = false, columnDefinition = "uuid")

@@ -3,6 +3,7 @@ package io.github.salomax.neotool.security.test.service.unit
 import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import io.github.salomax.neotool.security.repo.PermissionRepository
+import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.service.PermissionManagementService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import org.assertj.core.api.Assertions.assertThat
@@ -20,12 +21,14 @@ import org.mockito.kotlin.whenever
 @DisplayName("PermissionManagementService Unit Tests")
 class PermissionManagementServiceTest {
     private lateinit var permissionRepository: PermissionRepository
+    private lateinit var roleRepository: RoleRepository
     private lateinit var permissionManagementService: PermissionManagementService
 
     @BeforeEach
     fun setUp() {
         permissionRepository = mock()
-        permissionManagementService = PermissionManagementService(permissionRepository)
+        roleRepository = mock()
+        permissionManagementService = PermissionManagementService(permissionRepository, roleRepository)
     }
 
     @Nested
@@ -216,6 +219,79 @@ class PermissionManagementServiceTest {
                 permissionManagementService.searchPermissions(query, after = invalidCursor)
             }
             verify(permissionRepository, never()).searchByName(any(), any(), any())
+        }
+    }
+
+    @Nested
+    @DisplayName("Batch Methods Tests")
+    inner class BatchMethodsTests {
+        @Test
+        fun `getPermissionRolesBatch should return roles for multiple permissions`() {
+            // Arrange
+            val permissionId1 = 10
+            val permissionId2 = 20
+            val roleId1 = 1
+            val roleId2 = 2
+            val role1 = SecurityTestDataBuilders.role(id = roleId1, name = "admin")
+            val role2 = SecurityTestDataBuilders.role(id = roleId2, name = "editor")
+
+            whenever(roleRepository.findRoleIdsByPermissionId(permissionId1)).thenReturn(listOf(roleId1))
+            whenever(roleRepository.findRoleIdsByPermissionId(permissionId2)).thenReturn(listOf(roleId2))
+            whenever(roleRepository.findByIdIn(any<List<Int>>())).thenReturn(listOf(role1, role2))
+
+            // Act
+            val result = permissionManagementService.getPermissionRolesBatch(listOf(permissionId1, permissionId2))
+
+            // Assert
+            assertThat(result).hasSize(2)
+            assertThat(result[permissionId1]).hasSize(1)
+            assertThat(result[permissionId1]!![0].name).isEqualTo("admin")
+            assertThat(result[permissionId2]).hasSize(1)
+            assertThat(result[permissionId2]!![0].name).isEqualTo("editor")
+        }
+
+        @Test
+        fun `getPermissionRolesBatch should return empty map for empty permission list`() {
+            // Act
+            val result = permissionManagementService.getPermissionRolesBatch(emptyList())
+
+            // Assert
+            assertThat(result).isEmpty()
+        }
+
+        @Test
+        fun `getPermissionRolesBatch should return empty lists for permissions with no roles`() {
+            // Arrange
+            val permissionId = 10
+            whenever(roleRepository.findRoleIdsByPermissionId(permissionId)).thenReturn(emptyList())
+
+            // Act
+            val result = permissionManagementService.getPermissionRolesBatch(listOf(permissionId))
+
+            // Assert
+            assertThat(result).hasSize(1)
+            assertThat(result[permissionId]).isEmpty()
+        }
+
+        @Test
+        fun `getPermissionRolesBatch should handle permissions with multiple roles`() {
+            // Arrange
+            val permissionId = 10
+            val roleId1 = 1
+            val roleId2 = 2
+            val role1 = SecurityTestDataBuilders.role(id = roleId1, name = "admin")
+            val role2 = SecurityTestDataBuilders.role(id = roleId2, name = "editor")
+
+            whenever(roleRepository.findRoleIdsByPermissionId(permissionId)).thenReturn(listOf(roleId1, roleId2))
+            whenever(roleRepository.findByIdIn(any<List<Int>>())).thenReturn(listOf(role1, role2))
+
+            // Act
+            val result = permissionManagementService.getPermissionRolesBatch(listOf(permissionId))
+
+            // Assert
+            assertThat(result).hasSize(1)
+            assertThat(result[permissionId]).hasSize(2)
+            assertThat(result[permissionId]!!.map { it.name }).containsExactlyInAnyOrder("admin", "editor")
         }
     }
 }

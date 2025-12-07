@@ -39,6 +39,18 @@ open class UserManagementService(
     private val logger = KotlinLogging.logger {}
 
     /**
+     * Get a user by ID.
+     *
+     * @param userId The UUID of the user
+     * @return The user domain object, or null if not found
+     */
+    fun getUserById(userId: UUID): User? {
+        return userRepository.findById(userId)
+            .map { it.toDomain() }
+            .orElse(null)
+    }
+
+    /**
      * Search users by name or email with cursor-based pagination.
      * Unified method that handles both list (no query) and search (with query) operations.
      * When query is null or empty, returns all users. When query is provided, returns filtered users.
@@ -406,5 +418,52 @@ open class UserManagementService(
         }
 
         return user.toDomain()
+    }
+
+    /**
+     * Batch get all groups for multiple users.
+     * Optimized to avoid N+1 queries.
+     *
+     * @param userIds List of user IDs
+     * @param now Current timestamp for validity checks
+     * @return Map of user ID to list of groups
+     */
+    fun getUserGroupsBatch(
+        userIds: List<UUID>,
+        now: Instant = Instant.now(),
+    ): Map<UUID, List<io.github.salomax.neotool.security.domain.rbac.Group>> {
+        if (userIds.isEmpty()) {
+            return emptyMap()
+        }
+
+        // Batch load all group memberships for all users
+        val allMemberships = groupMembershipRepository.findActiveMembershipsByUserIds(userIds, now)
+
+        // Collect all unique group IDs
+        val allGroupIds = allMemberships.map { it.groupId }.distinct()
+
+        // Batch load all groups
+        val allGroups =
+            if (allGroupIds.isNotEmpty()) {
+                groupRepository.findByIdIn(allGroupIds).map { it.toDomain() }
+                    .filter { it.id != null }
+                    .associateBy { it.id!! }
+            } else {
+                emptyMap()
+            }
+
+        // Group memberships by user ID
+        val userMembershipsMap = allMemberships.groupBy { it.userId }
+
+        // Build result map
+        val result = mutableMapOf<UUID, List<io.github.salomax.neotool.security.domain.rbac.Group>>()
+        for (userId in userIds) {
+            val memberships = userMembershipsMap[userId] ?: emptyList()
+            val groupIds = memberships.map { it.groupId }.distinct()
+            val groups = groupIds.mapNotNull { groupId -> allGroups[groupId] }
+            result[userId] = groups
+        }
+
+        return result
     }
 }

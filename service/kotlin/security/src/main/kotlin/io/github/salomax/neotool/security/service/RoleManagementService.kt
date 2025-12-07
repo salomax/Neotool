@@ -31,6 +31,18 @@ open class RoleManagementService(
     private val logger = KotlinLogging.logger {}
 
     /**
+     * Get a role by ID.
+     *
+     * @param roleId The ID of the role
+     * @return The role domain object, or null if not found
+     */
+    fun getRoleById(roleId: Int): Role? {
+        return roleRepository.findById(roleId)
+            .map { it.toDomain() }
+            .orElse(null)
+    }
+
+    /**
      * Search roles by name with cursor-based pagination.
      * Unified method that handles both list (no query) and search (with query) operations.
      * When query is null or empty, returns all roles. When query is provided, returns filtered roles.
@@ -212,6 +224,41 @@ open class RoleManagementService(
         val permissions = permissionRepository.findByRoleId(roleId)
 
         return permissions.map { it.toDomain() }
+    }
+
+    /**
+     * Batch list all permissions assigned to multiple roles.
+     * Optimized to avoid N+1 queries.
+     *
+     * @param roleIds List of role IDs
+     * @return Map of role ID to list of permissions
+     */
+    fun listRolePermissionsBatch(roleIds: List<Int>): Map<Int, List<Permission>> {
+        if (roleIds.isEmpty()) {
+            return emptyMap()
+        }
+
+        // Get all permission IDs for all roles
+        val allPermissionIds = roleRepository.findPermissionIdsByRoleIds(roleIds)
+
+        // Batch load all permissions
+        val allPermissions =
+            if (allPermissionIds.isNotEmpty()) {
+                permissionRepository.findByIdIn(allPermissionIds.distinct()).map { it.toDomain() }
+                    .associateBy { it.id!! }
+            } else {
+                emptyMap()
+            }
+
+        // For each role, get its permission IDs and map to Permission objects
+        val result = mutableMapOf<Int, List<Permission>>()
+        for (roleId in roleIds) {
+            val permissionIds = roleRepository.findPermissionIdsByRoleId(roleId)
+            val permissions = permissionIds.mapNotNull { permissionId -> allPermissions[permissionId] }
+            result[roleId] = permissions
+        }
+
+        return result
     }
 
     /**

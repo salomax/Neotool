@@ -39,6 +39,18 @@ open class GroupManagementService(
     private val logger = KotlinLogging.logger {}
 
     /**
+     * Get a group by ID.
+     *
+     * @param groupId The UUID of the group
+     * @return The group domain object, or null if not found
+     */
+    fun getGroupById(groupId: UUID): Group? {
+        return groupRepository.findById(groupId)
+            .map { it.toDomain() }
+            .orElse(null)
+    }
+
+    /**
      * Search groups by name with cursor-based pagination.
      * Unified method that handles both list (no query) and search (with query) operations.
      * When query is null or empty, returns all groups. When query is provided, returns filtered groups.
@@ -423,5 +435,139 @@ open class GroupManagementService(
         }
 
         return group.toDomain()
+    }
+
+    /**
+     * Get all roles assigned to a group.
+     *
+     * @param groupId The UUID of the group
+     * @param now Current timestamp for validity checks
+     * @return List of Role domain objects assigned to the group
+     */
+    fun getGroupRoles(
+        groupId: UUID,
+        now: Instant = Instant.now(),
+    ): List<io.github.salomax.neotool.security.domain.rbac.Role> {
+        val assignments = groupRoleAssignmentRepository.findValidAssignmentsByGroupId(groupId, now)
+        val roleIds = assignments.map { it.roleId }.distinct()
+
+        if (roleIds.isEmpty()) {
+            return emptyList()
+        }
+
+        val roles = roleRepository.findByIdIn(roleIds)
+        return roles.mapNotNull { it.toDomain() }
+            .filter { it.id != null }
+    }
+
+    /**
+     * Get all users who are members of a group.
+     *
+     * @param groupId The UUID of the group
+     * @return List of User domain objects who are members of the group
+     */
+    fun getGroupMembers(groupId: UUID): List<io.github.salomax.neotool.security.domain.rbac.User> {
+        val memberships = groupMembershipRepository.findByGroupId(groupId)
+        val userIds = memberships.map { it.userId }.distinct()
+
+        if (userIds.isEmpty()) {
+            return emptyList()
+        }
+
+        val users = userRepository.findByIdIn(userIds)
+        return users.map { it.toDomain() }
+    }
+
+    /**
+     * Batch get all users who are members of multiple groups.
+     * Optimized to avoid N+1 queries.
+     *
+     * @param groupIds List of group UUIDs
+     * @return Map of group ID to list of User domain objects who are members of that group
+     */
+    fun getGroupMembersBatch(
+        groupIds: List<UUID>,
+    ): Map<UUID, List<io.github.salomax.neotool.security.domain.rbac.User>> {
+        if (groupIds.isEmpty()) {
+            return emptyMap()
+        }
+
+        // Batch load all memberships for all groups
+        val allMemberships = groupMembershipRepository.findByGroupIdIn(groupIds)
+
+        // Collect all unique user IDs
+        val allUserIds = allMemberships.map { it.userId }.distinct()
+
+        // Batch load all users
+        val users =
+            if (allUserIds.isEmpty()) {
+                emptyList()
+            } else {
+                userRepository.findByIdIn(allUserIds)
+            }
+
+        // Create a map of user ID to User domain object (filter out users without IDs)
+        val userMap =
+            users.map { it.toDomain() }
+                .filter { it.id != null }
+                .associateBy { it.id!! }
+
+        // Group memberships by group ID and map to Users
+        val result = mutableMapOf<UUID, List<io.github.salomax.neotool.security.domain.rbac.User>>()
+        for (groupId in groupIds) {
+            val groupMemberships = allMemberships.filter { it.groupId == groupId }
+            val groupUserIds = groupMemberships.map { it.userId }.distinct()
+            val groupUsers = groupUserIds.mapNotNull { userId -> userMap[userId] }
+            result[groupId] = groupUsers
+        }
+
+        return result
+    }
+
+    /**
+     * Batch get all roles assigned to multiple groups.
+     * Optimized to avoid N+1 queries.
+     *
+     * @param groupIds List of group UUIDs
+     * @param now Current timestamp for validity checks
+     * @return Map of group ID to list of roles
+     */
+    fun getGroupRolesBatch(
+        groupIds: List<UUID>,
+        now: Instant = Instant.now(),
+    ): Map<UUID, List<io.github.salomax.neotool.security.domain.rbac.Role>> {
+        if (groupIds.isEmpty()) {
+            return emptyMap()
+        }
+
+        // Batch load all group role assignments
+        val allAssignments = groupRoleAssignmentRepository.findValidAssignmentsByGroupIds(groupIds, now)
+
+        // Collect all unique role IDs
+        val allRoleIds = allAssignments.map { it.roleId }.distinct()
+
+        // Batch load all roles
+        val allRoles =
+            if (allRoleIds.isNotEmpty()) {
+                roleRepository.findByIdIn(allRoleIds).mapNotNull { it.toDomain() }
+                    .filter { it.id != null }
+                    .associateBy { it.id!! }
+            } else {
+                emptyMap()
+            }
+
+        // Group assignments by group ID
+        val groupAssignmentsMap = allAssignments.groupBy { it.groupId }
+
+        // Build result map
+        val result = mutableMapOf<UUID, List<io.github.salomax.neotool.security.domain.rbac.Role>>()
+        for (groupId in groupIds) {
+            val assignments = groupAssignmentsMap[groupId] ?: emptyList()
+            val roleIds = assignments.map { it.roleId }.distinct()
+            val roles = roleIds.mapNotNull { roleId -> allRoles[roleId] }
+            result[groupId] = roles
+        }
+
+        return result
     }
 }

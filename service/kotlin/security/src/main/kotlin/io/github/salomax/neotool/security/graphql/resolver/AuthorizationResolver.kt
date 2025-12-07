@@ -41,14 +41,26 @@ class AuthorizationResolver(
         resourceId: String? = null,
     ): AuthorizationResultDTO {
         return try {
-            // Sanitize inputs
+            // Sanitize and validate inputs - throw IllegalArgumentException for invalid input
             val sanitizedUserId = sanitizeInput(userId, "userId")
             val sanitizedPermission = sanitizeAndValidatePermission(permission)
             val sanitizedResourceId = resourceId?.let { sanitizeInput(it, "resourceId") }
 
-            // Validate UUIDs
-            val userIdUuid = UUID.fromString(sanitizedUserId)
-            val resourceIdUuid = sanitizedResourceId?.let { UUID.fromString(it) }
+            // Validate UUIDs - throw IllegalArgumentException for malformed UUIDs
+            val userIdUuid =
+                try {
+                    UUID.fromString(sanitizedUserId)
+                } catch (e: IllegalArgumentException) {
+                    throw IllegalArgumentException("Invalid user ID format: $userId", e)
+                }
+            val resourceIdUuid =
+                sanitizedResourceId?.let {
+                    try {
+                        UUID.fromString(it)
+                    } catch (e: IllegalArgumentException) {
+                        throw IllegalArgumentException("Invalid resource ID format: $resourceId", e)
+                    }
+                }
 
             logger.debug {
                 "Checking permission: user=$userIdUuid, " +
@@ -56,6 +68,7 @@ class AuthorizationResolver(
                     "resourceId=$resourceIdUuid"
             }
 
+            // Call service - catch exceptions and return sanitized error messages
             val result =
                 authorizationService.checkPermission(
                     userId = userIdUuid,
@@ -66,12 +79,14 @@ class AuthorizationResolver(
 
             mapper.toAuthorizationResultDTO(result)
         } catch (e: IllegalArgumentException) {
-            logger.warn { "Invalid input for checkPermission: ${e.message}" }
+            // Sanitize validation errors - don't expose internal details
+            logger.warn(e) { "Invalid input in checkPermission" }
             AuthorizationResultDTO(
                 allowed = false,
                 reason = "Invalid input provided",
             )
         } catch (e: Exception) {
+            // Sanitize all other errors - don't expose internal exception details
             logger.error(e) { "Error checking permission" }
             AuthorizationResultDTO(
                 allowed = false,
@@ -84,21 +99,31 @@ class AuthorizationResolver(
      * Get all permissions for a user.
      *
      * @param userId The user ID
-     * @return List of PermissionDTO
+     * @return List of PermissionDTO (empty list for invalid input)
      */
     fun getUserPermissions(userId: String): List<PermissionDTO> {
         return try {
+            // Sanitize and validate input - throw IllegalArgumentException for invalid input
             val sanitizedUserId = sanitizeInput(userId, "userId")
-            val userIdUuid = UUID.fromString(sanitizedUserId)
+            val userIdUuid =
+                try {
+                    UUID.fromString(sanitizedUserId)
+                } catch (e: IllegalArgumentException) {
+                    throw IllegalArgumentException("Invalid user ID format: $userId", e)
+                }
+
             logger.debug { "Getting permissions for user: $userIdUuid" }
 
+            // Call service - catch exceptions and return empty list
             val permissions = authorizationService.getUserPermissions(userIdUuid)
             permissions.map { mapper.toPermissionDTO(it) }
         } catch (e: IllegalArgumentException) {
-            logger.warn { "Invalid user ID provided" }
+            // Invalid input - return empty list
+            logger.warn(e) { "Invalid user ID in getUserPermissions: $userId" }
             emptyList()
         } catch (e: Exception) {
-            logger.error(e) { "Error getting user permissions" }
+            // Service error - return empty list
+            logger.error(e) { "Error getting user permissions for: $userId" }
             emptyList()
         }
     }
@@ -107,21 +132,31 @@ class AuthorizationResolver(
      * Get all roles for a user.
      *
      * @param userId The user ID
-     * @return List of RoleDTO
+     * @return List of RoleDTO (empty list for invalid input)
      */
     fun getUserRoles(userId: String): List<RoleDTO> {
         return try {
+            // Sanitize and validate input - throw IllegalArgumentException for invalid input
             val sanitizedUserId = sanitizeInput(userId, "userId")
-            val userIdUuid = UUID.fromString(sanitizedUserId)
+            val userIdUuid =
+                try {
+                    UUID.fromString(sanitizedUserId)
+                } catch (e: IllegalArgumentException) {
+                    throw IllegalArgumentException("Invalid user ID format: $userId", e)
+                }
+
             logger.debug { "Getting roles for user: $userIdUuid" }
 
+            // Call service - catch exceptions and return empty list
             val roles = authorizationService.getUserRoles(userIdUuid)
             roles.map { mapper.toRoleDTO(it) }
         } catch (e: IllegalArgumentException) {
-            logger.warn { "Invalid user ID provided" }
+            // Invalid input - return empty list
+            logger.warn(e) { "Invalid user ID in getUserRoles: $userId" }
             emptyList()
         } catch (e: Exception) {
-            logger.error(e) { "Error getting user roles" }
+            // Service error - return empty list
+            logger.error(e) { "Error getting user roles for: $userId" }
             emptyList()
         }
     }

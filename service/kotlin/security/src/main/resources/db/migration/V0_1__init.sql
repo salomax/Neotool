@@ -35,6 +35,13 @@ CREATE TABLE IF NOT EXISTS security.role_permissions (
 );
 
 INSERT INTO security.roles (name) VALUES ('ADMIN') ON CONFLICT DO NOTHING;
-INSERT INTO security.permissions (name) VALUES ('settings:user:view'), ('settings:user:save'), ('settings:user:delete') ON CONFLICT DO NOTHING;
-INSERT INTO security.permissions (name) VALUES ('settings:group:view'), ('settings:group:save'), ('settings:group:delete') ON CONFLICT DO NOTHING;
-INSERT INTO security.permissions (name) VALUES ('settings:role:view'), ('settings:role:save'), ('settings:role:delete') ON CONFLICT DO NOTHING;
+INSERT INTO security.permissions (name) VALUES ('security:user:view'), ('security:user:save'), ('security:user:delete') ON CONFLICT DO NOTHING;
+INSERT INTO security.permissions (name) VALUES ('security:group:view'), ('security:group:save'), ('security:group:delete') ON CONFLICT DO NOTHING;
+INSERT INTO security.permissions (name) VALUES ('security:role:view'), ('security:role:save'), ('security:role:delete') ON CONFLICT DO NOTHING;
+
+-- Link ADMIN role to user management permissions
+INSERT INTO security.role_permissions (role_id, permission_id)
+SELECT r.id, p.id FROM security.roles r
+JOIN security.permissions p ON p.name IN ('security:user:view', 'security:user:save', 'security:user:delete')
+WHERE r.name = 'ADMIN'
+ON CONFLICT DO NOTHING;

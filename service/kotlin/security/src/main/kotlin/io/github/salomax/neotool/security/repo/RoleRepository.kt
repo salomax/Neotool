@@ -169,4 +169,23 @@ interface RoleRepository : JpaRepository<RoleEntity, Int> {
         nativeQuery = true,
     )
     fun findRoleIdsByPermissionId(permissionId: Int): List<Int>
+
+    /**
+     * Find all role IDs that have any of the given permissions assigned (batch loading).
+     * Uses native query to query the role_permissions join table.
+     * Returns distinct role IDs that have any of the given permissions.
+     * Note: To get the mapping of permission to roles, use findRoleIdsByPermissionId for each permission
+     * or process the results in the service layer.
+     *
+     * @param permissionIds List of permission IDs
+     * @return List of distinct role IDs that have any of the given permissions
+     */
+    @Query(
+        value = """
+        SELECT DISTINCT role_id FROM security.role_permissions
+        WHERE permission_id IN (:permissionIds)
+        """,
+        nativeQuery = true,
+    )
+    fun findRoleIdsByPermissionIds(permissionIds: List<Int>): List<Int>
 }

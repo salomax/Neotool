@@ -1,6 +1,6 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import RouteErrorBoundaryView from "@/__tests__/RouteErrorBoundaryView";
+import RouteErrorBoundaryView from "./RouteErrorBoundaryView";
 
 describe("RouteErrorBoundaryView", () => {
   it("renders error info and calls reset on click", () => {

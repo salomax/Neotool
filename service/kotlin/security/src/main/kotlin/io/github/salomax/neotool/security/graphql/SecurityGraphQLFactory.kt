@@ -4,7 +4,6 @@ import com.apollographql.federation.graphqljava.Federation
 import graphql.analysis.MaxQueryComplexityInstrumentation
 import graphql.analysis.MaxQueryDepthInstrumentation
 import graphql.schema.idl.TypeDefinitionRegistry
-import io.github.salomax.neotool.common.exception.GraphQLOptimisticLockExceptionHandler
 import io.github.salomax.neotool.security.graphql.dto.GroupDTO
 import io.github.salomax.neotool.security.graphql.dto.PermissionDTO
 import io.github.salomax.neotool.security.graphql.dto.RoleDTO
@@ -145,7 +144,7 @@ class SecurityGraphQLFactory(
         return graphql.GraphQL.newGraphQL(federatedSchema)
             .instrumentation(MaxQueryComplexityInstrumentation(100))
             .instrumentation(MaxQueryDepthInstrumentation(10))
-            .defaultDataFetcherExceptionHandler(GraphQLOptimisticLockExceptionHandler())
+            .defaultDataFetcherExceptionHandler(SecurityGraphQLExceptionHandler())
             .build()
     }
 }

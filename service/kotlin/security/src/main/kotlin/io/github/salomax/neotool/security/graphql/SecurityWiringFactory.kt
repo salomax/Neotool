@@ -9,6 +9,14 @@ import io.github.salomax.neotool.common.graphql.GraphQLPayloadDataFetcher.create
 import io.github.salomax.neotool.common.graphql.GraphQLResolverRegistry
 import io.github.salomax.neotool.common.graphql.GraphQLWiringFactory
 import io.github.salomax.neotool.common.graphql.payload.GraphQLPayloadFactory
+import io.github.salomax.neotool.security.domain.rbac.SecurityPermissions
+import io.github.salomax.neotool.security.graphql.dataloader.GroupMembersDataLoader
+import io.github.salomax.neotool.security.graphql.dataloader.GroupRolesDataLoader
+import io.github.salomax.neotool.security.graphql.dataloader.PermissionRolesDataLoader
+import io.github.salomax.neotool.security.graphql.dataloader.RolePermissionsDataLoader
+import io.github.salomax.neotool.security.graphql.dataloader.UserGroupsDataLoader
+import io.github.salomax.neotool.security.graphql.dataloader.UserPermissionsDataLoader
+import io.github.salomax.neotool.security.graphql.dataloader.UserRolesDataLoader
 import io.github.salomax.neotool.security.graphql.dto.AuthorizationResultDTO
 import io.github.salomax.neotool.security.graphql.dto.GroupConnectionDTO
 import io.github.salomax.neotool.security.graphql.dto.GroupDTO
@@ -33,6 +41,8 @@ import io.github.salomax.neotool.security.graphql.resolver.GroupManagementResolv
 import io.github.salomax.neotool.security.graphql.resolver.PermissionManagementResolver
 import io.github.salomax.neotool.security.graphql.resolver.RoleManagementResolver
 import io.github.salomax.neotool.security.graphql.resolver.UserManagementResolver
+import io.github.salomax.neotool.security.service.AuthorizationManager
+import io.github.salomax.neotool.security.service.RequestPrincipalProvider
 import jakarta.inject.Singleton
 
 /**
@@ -48,6 +58,8 @@ class SecurityWiringFactory(
     private val permissionManagementResolver: PermissionManagementResolver,
     private val groupManagementMapper: GroupManagementMapper,
     private val roleManagementMapper: RoleManagementMapper,
+    private val requestPrincipalProvider: RequestPrincipalProvider,
+    private val authorizationManager: AuthorizationManager,
     resolverRegistry: GraphQLResolverRegistry,
 ) : GraphQLWiringFactory() {
     init {
@@ -58,6 +70,37 @@ class SecurityWiringFactory(
         resolverRegistry.register("groupManagement", groupManagementResolver)
         resolverRegistry.register("roleManagement", roleManagementResolver)
         resolverRegistry.register("permissionManagement", permissionManagementResolver)
+    }
+
+    /**
+     * Helper function to enforce permission checks before executing a data fetcher block.
+     * This helper can be reused for any GraphQL operation that requires authorization.
+     * It extracts the principal from GraphQL context, validates permissions, and executes
+     * the block only if authorization succeeds.
+     *
+     * Exceptions thrown by this method (AuthenticationRequiredException and AuthorizationDeniedException)
+     * are automatically converted to user-friendly GraphQL error messages by SecurityGraphQLExceptionHandler:
+     * - AuthenticationRequiredException → "Authentication required"
+     * - AuthorizationDeniedException → "Permission denied: <action>"
+     *
+     * These errors are returned in the GraphQL response's errors array, and no stack traces
+     * or sensitive information are exposed to the client.
+     *
+     * @param env The GraphQL DataFetchingEnvironment
+     * @param action The permission/action to check (e.g., SecurityPermissions.SECURITY_USER_VIEW)
+     * @param block The block to execute if authorization succeeds
+     * @return The result of executing the block
+     * @throws AuthenticationRequiredException if no valid token is present (converted to GraphQL error)
+     * @throws AuthorizationDeniedException if permission is denied (converted to GraphQL error)
+     */
+    private fun <T> withPermission(
+        env: DataFetchingEnvironment,
+        action: String,
+        block: () -> T,
+    ): T {
+        val principal = requestPrincipalProvider.fromGraphQl(env)
+        authorizationManager.require(principal, action)
+        return block()
     }
 
     override fun registerQueryResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder {
@@ -101,18 +144,22 @@ class SecurityWiringFactory(
             .dataFetcher(
                 "user",
                 createValidatedDataFetcher { env ->
-                    val id = getRequiredString(env, "id")
-                    userManagementResolver.user(id)
+                    withPermission(env, SecurityPermissions.SECURITY_USER_VIEW) {
+                        val id = getRequiredString(env, "id")
+                        userManagementResolver.user(id)
+                    }
                 },
             )
             .dataFetcher(
                 "users",
                 createValidatedDataFetcher { env ->
-                    val first = env.getArgument<Int?>("first")
-                    val after = env.getArgument<String?>("after")
-                    val query = env.getArgument<String?>("query")
-                    val orderBy = env.getArgument<List<Map<String, Any?>>>("orderBy")
-                    userManagementResolver.users(first, after, query, orderBy)
+                    withPermission(env, SecurityPermissions.SECURITY_USER_VIEW) {
+                        val first = env.getArgument<Int?>("first")
+                        val after = env.getArgument<String?>("after")
+                        val query = env.getArgument<String?>("query")
+                        val orderBy = env.getArgument<List<Map<String, Any?>>>("orderBy")
+                        userManagementResolver.users(first, after, query, orderBy)
+                    }
                 },
             )
             .dataFetcher(
@@ -201,15 +248,19 @@ class SecurityWiringFactory(
             .dataFetcher(
                 "enableUser",
                 createValidatedDataFetcher { env ->
-                    val userId = getRequiredString(env, "userId")
-                    userManagementResolver.enableUser(userId)
+                    withPermission(env, SecurityPermissions.SECURITY_USER_SAVE) {
+                        val userId = getRequiredString(env, "userId")
+                        userManagementResolver.enableUser(userId)
+                    }
                 },
             )
             .dataFetcher(
                 "disableUser",
                 createValidatedDataFetcher { env ->
-                    val userId = getRequiredString(env, "userId")
-                    userManagementResolver.disableUser(userId)
+                    withPermission(env, SecurityPermissions.SECURITY_USER_SAVE) {
+                        val userId = getRequiredString(env, "userId")
+                        userManagementResolver.disableUser(userId)
+                    }
                 },
             )
             .dataFetcher(
@@ -291,33 +342,41 @@ class SecurityWiringFactory(
             .dataFetcher(
                 "assignRoleToUser",
                 createValidatedDataFetcher { env ->
-                    val userId = getRequiredString(env, "userId")
-                    val roleId = getRequiredString(env, "roleId")
-                    userManagementResolver.assignRoleToUser(userId, roleId)
+                    withPermission(env, SecurityPermissions.SECURITY_USER_SAVE) {
+                        val userId = getRequiredString(env, "userId")
+                        val roleId = getRequiredString(env, "roleId")
+                        userManagementResolver.assignRoleToUser(userId, roleId)
+                    }
                 },
             )
             .dataFetcher(
                 "removeRoleFromUser",
                 createValidatedDataFetcher { env ->
-                    val userId = getRequiredString(env, "userId")
-                    val roleId = getRequiredString(env, "roleId")
-                    userManagementResolver.removeRoleFromUser(userId, roleId)
+                    withPermission(env, SecurityPermissions.SECURITY_USER_SAVE) {
+                        val userId = getRequiredString(env, "userId")
+                        val roleId = getRequiredString(env, "roleId")
+                        userManagementResolver.removeRoleFromUser(userId, roleId)
+                    }
                 },
             )
             .dataFetcher(
                 "assignGroupToUser",
                 createValidatedDataFetcher { env ->
-                    val userId = getRequiredString(env, "userId")
-                    val groupId = getRequiredString(env, "groupId")
-                    userManagementResolver.assignGroupToUser(userId, groupId)
+                    withPermission(env, SecurityPermissions.SECURITY_USER_SAVE) {
+                        val userId = getRequiredString(env, "userId")
+                        val groupId = getRequiredString(env, "groupId")
+                        userManagementResolver.assignGroupToUser(userId, groupId)
+                    }
                 },
             )
             .dataFetcher(
                 "removeGroupFromUser",
                 createValidatedDataFetcher { env ->
-                    val userId = getRequiredString(env, "userId")
-                    val groupId = getRequiredString(env, "groupId")
-                    userManagementResolver.removeGroupFromUser(userId, groupId)
+                    withPermission(env, SecurityPermissions.SECURITY_USER_SAVE) {
+                        val userId = getRequiredString(env, "userId")
+                        val groupId = getRequiredString(env, "groupId")
+                        userManagementResolver.removeGroupFromUser(userId, groupId)
+                    }
                 },
             )
             .dataFetcher(
@@ -376,22 +435,70 @@ class SecurityWiringFactory(
                 type.dataFetcher(
                     "roles",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val user = env.getSource<UserDTO>()
-                        user?.let { userManagementResolver.resolveUserRoles(it.id) } ?: emptyList()
+                        // Defense in depth: require permission to view user roles
+                        withPermission(env, SecurityPermissions.SECURITY_USER_VIEW) {
+                            val user = env.getSource<UserDTO>()
+                            if (user == null) {
+                                emptyList<io.github.salomax.neotool.security.graphql.dto.RoleDTO>()
+                            } else {
+                                // Get DataLoader from context to batch requests
+                                val dataLoader =
+                                    env.getDataLoader<
+                                        String,
+                                        List<io.github.salomax.neotool.security.graphql.dto.RoleDTO>,
+                                    >(
+                                        UserRolesDataLoader.KEY,
+                                    )
+                                // Load roles for this user (will be batched with other users)
+                                dataLoader?.load(user.id)
+                            }
+                        }
                     },
                 )
                 type.dataFetcher(
                     "groups",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val user = env.getSource<UserDTO>()
-                        user?.let { userManagementResolver.resolveUserGroups(it.id) } ?: emptyList()
+                        // Defense in depth: require permission to view user groups
+                        withPermission(env, SecurityPermissions.SECURITY_USER_VIEW) {
+                            val user = env.getSource<UserDTO>()
+                            if (user == null) {
+                                emptyList<io.github.salomax.neotool.security.graphql.dto.GroupDTO>()
+                            } else {
+                                // Get DataLoader from context to batch requests
+                                val dataLoader =
+                                    env.getDataLoader<
+                                        String,
+                                        List<io.github.salomax.neotool.security.graphql.dto.GroupDTO>,
+                                    >(
+                                        UserGroupsDataLoader.KEY,
+                                    )
+                                // Load groups for this user (will be batched with other users)
+                                dataLoader?.load(user.id)
+                            }
+                        }
                     },
                 )
                 type.dataFetcher(
                     "permissions",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val user = env.getSource<UserDTO>()
-                        user?.let { userManagementResolver.resolveUserPermissions(it.id) } ?: emptyList()
+                        // Defense in depth: require permission to view user permissions
+                        withPermission(env, SecurityPermissions.SECURITY_USER_VIEW) {
+                            val user = env.getSource<UserDTO>()
+                            if (user == null) {
+                                emptyList<io.github.salomax.neotool.security.graphql.dto.PermissionDTO>()
+                            } else {
+                                // Get DataLoader from context to batch requests
+                                val dataLoader =
+                                    env.getDataLoader<
+                                        String,
+                                        List<io.github.salomax.neotool.security.graphql.dto.PermissionDTO>,
+                                    >(
+                                        UserPermissionsDataLoader.KEY,
+                                    )
+                                // Load permissions for this user (will be batched with other users)
+                                dataLoader?.load(user.id)
+                            }
+                        }
                     },
                 )
             }
@@ -524,7 +631,20 @@ class SecurityWiringFactory(
                     "permissions",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
                         val role = env.getSource<RoleDTO>()
-                        role?.id?.let { roleManagementResolver.resolveRolePermissions(it) } ?: emptyList()
+                        if (role == null || role.id == null) {
+                            emptyList<io.github.salomax.neotool.security.graphql.dto.PermissionDTO>()
+                        } else {
+                            // Get DataLoader from context to batch requests
+                            val dataLoader =
+                                env.getDataLoader<
+                                    String,
+                                    List<io.github.salomax.neotool.security.graphql.dto.PermissionDTO>,
+                                >(
+                                    RolePermissionsDataLoader.KEY,
+                                )
+                            // Load permissions for this role (will be batched with other roles)
+                            dataLoader?.load(role.id)
+                        }
                     },
                 )
             }
@@ -554,14 +674,34 @@ class SecurityWiringFactory(
                     "roles",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
                         val group = env.getSource<GroupDTO>()
-                        group?.let { groupManagementResolver.resolveGroupRoles(it.id) } ?: emptyList()
+                        if (group == null) {
+                            emptyList<io.github.salomax.neotool.security.graphql.dto.RoleDTO>()
+                        } else {
+                            // Get DataLoader from context to batch requests
+                            val dataLoader =
+                                env.getDataLoader<String, List<io.github.salomax.neotool.security.graphql.dto.RoleDTO>>(
+                                    GroupRolesDataLoader.KEY,
+                                )
+                            // Load roles for this group (will be batched with other groups)
+                            dataLoader?.load(group.id)
+                        }
                     },
                 )
                 type.dataFetcher(
                     "members",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
                         val group = env.getSource<GroupDTO>()
-                        group?.let { groupManagementResolver.resolveGroupMembers(it.id) } ?: emptyList()
+                        if (group == null) {
+                            emptyList<io.github.salomax.neotool.security.graphql.dto.UserDTO>()
+                        } else {
+                            // Get DataLoader from context to batch requests
+                            val dataLoader =
+                                env.getDataLoader<String, List<io.github.salomax.neotool.security.graphql.dto.UserDTO>>(
+                                    GroupMembersDataLoader.KEY,
+                                )
+                            // Load members for this group (will be batched with other groups)
+                            dataLoader?.load(group.id)
+                        }
                     },
                 )
             }
@@ -570,7 +710,17 @@ class SecurityWiringFactory(
                     "roles",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
                         val permission = env.getSource<PermissionDTO>()
-                        permission?.id?.let { permissionManagementResolver.resolvePermissionRoles(it) } ?: emptyList()
+                        if (permission == null || permission.id == null) {
+                            emptyList<io.github.salomax.neotool.security.graphql.dto.RoleDTO>()
+                        } else {
+                            // Get DataLoader from context to batch requests
+                            val dataLoader =
+                                env.getDataLoader<String, List<io.github.salomax.neotool.security.graphql.dto.RoleDTO>>(
+                                    PermissionRolesDataLoader.KEY,
+                                )
+                            // Load roles for this permission (will be batched with other permissions)
+                            dataLoader?.load(permission.id)
+                        }
                     },
                 )
             }
