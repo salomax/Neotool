@@ -21,6 +21,7 @@ import { RolePermissionAssignment } from "./RolePermissionAssignment";
 import { RoleUserAssignment, type User } from "./RoleUserAssignment";
 import { RoleGroupAssignment, type Group } from "./RoleGroupAssignment";
 import type { Permission } from "../permissions/PermissionList";
+import { PermissionGate } from "@/shared/components/authorization";
 
 export interface RoleDrawerProps {
   open: boolean;
@@ -619,35 +620,37 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
                 />
 
                 {/* Show permissions, users, and groups sections for both create and edit */}
-                <RolePermissionAssignment
-                  roleId={roleId}
-                  assignedPermissions={assignedPermissions}
-                  onAssignPermission={handleAssignPermission}
-                  onRemovePermission={handleRemovePermission}
-                  assignLoading={assignPermissionLoading}
-                  removeLoading={removePermissionLoading}
-                  onPermissionsChange={handlePermissionsChange}
-                />
+                <PermissionGate require="security:role:save">
+                  <RolePermissionAssignment
+                    roleId={roleId}
+                    assignedPermissions={assignedPermissions}
+                    onAssignPermission={handleAssignPermission}
+                    onRemovePermission={handleRemovePermission}
+                    assignLoading={assignPermissionLoading}
+                    removeLoading={removePermissionLoading}
+                    onPermissionsChange={handlePermissionsChange}
+                  />
 
-                <RoleUserAssignment
-                  roleId={roleId}
-                  assignedUsers={assignedUsers}
-                  onAssignUser={handleAssignUser}
-                  onRemoveUser={handleRemoveUser}
-                  assignLoading={assignRoleToUserLoading}
-                  removeLoading={removeRoleFromUserLoading}
-                  onUsersChange={handleUsersChange}
-                />
+                  <RoleUserAssignment
+                    roleId={roleId}
+                    assignedUsers={assignedUsers}
+                    onAssignUser={handleAssignUser}
+                    onRemoveUser={handleRemoveUser}
+                    assignLoading={assignRoleToUserLoading}
+                    removeLoading={removeRoleFromUserLoading}
+                    onUsersChange={handleUsersChange}
+                  />
 
-                <RoleGroupAssignment
-                  roleId={roleId}
-                  assignedGroups={assignedGroups}
-                  onAssignGroup={handleAssignGroup}
-                  onRemoveGroup={handleRemoveGroup}
-                  assignLoading={assignRoleToGroupLoading}
-                  removeLoading={removeRoleFromGroupLoading}
-                  onGroupsChange={handleGroupsChange}
-                />
+                  <RoleGroupAssignment
+                    roleId={roleId}
+                    assignedGroups={assignedGroups}
+                    onAssignGroup={handleAssignGroup}
+                    onRemoveGroup={handleRemoveGroup}
+                    assignLoading={assignRoleToGroupLoading}
+                    removeLoading={removeRoleFromGroupLoading}
+                    onGroupsChange={handleGroupsChange}
+                  />
+                </PermissionGate>
               </Stack>
             </Box>
           </FormProvider>
@@ -655,28 +658,30 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
       </Drawer.Body>
       {!initialLoading && !queryError && (
         <Drawer.Footer>
-          <Stack direction="row" spacing={2} justifyContent="flex-end">
-            <Button
-              variant="outlined"
-              onClick={onClose}
-              disabled={createLoading || updateLoading}
-            >
-              {t("roleManagement.form.cancel")}
-            </Button>
-            <Button
-              type="submit"
-              form="role-form"
-              variant="contained"
-              disabled={createLoading || updateLoading}
-              data-testid="role-form-submit"
-            >
-              {createLoading || updateLoading
-                ? t("roleManagement.form.saving")
-                : isCreateMode
-                ? t("roleManagement.form.create")
-                : t("roleManagement.form.save")}
-            </Button>
-          </Stack>
+          <PermissionGate require={isCreateMode ? "security:role:save" : "security:role:save"}>
+            <Stack direction="row" spacing={2} justifyContent="flex-end">
+              <Button
+                variant="outlined"
+                onClick={onClose}
+                disabled={createLoading || updateLoading}
+              >
+                {t("roleManagement.form.cancel")}
+              </Button>
+              <Button
+                type="submit"
+                form="role-form"
+                variant="contained"
+                disabled={createLoading || updateLoading}
+                data-testid="role-form-submit"
+              >
+                {createLoading || updateLoading
+                  ? t("roleManagement.form.saving")
+                  : isCreateMode
+                  ? t("roleManagement.form.create")
+                  : t("roleManagement.form.save")}
+              </Button>
+            </Stack>
+          </PermissionGate>
         </Drawer.Footer>
       )}
     </Drawer>

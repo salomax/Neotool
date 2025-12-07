@@ -17,6 +17,7 @@ import { authorizationManagementTranslations } from "@/app/(settings)/settings/i
 import { UserGroupAssignment } from "./UserGroupAssignment";
 import { UserRoleAssignment } from "./UserRoleAssignment";
 import { useUserDrawer } from "@/shared/hooks/authorization/useUserDrawer";
+import { PermissionGate } from "@/shared/components/authorization";
 
 export interface UserDrawerProps {
   open: boolean;
@@ -56,25 +57,27 @@ export const UserDrawer: React.FC<UserDrawerProps> = ({
 
   // Footer with action buttons
   const footer = (
-    <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, p: 2 }}>
-      <Button
-        variant="outlined"
-        onClick={resetChanges}
-        disabled={saving || !hasChanges}
-      >
-        {t("common.cancel")}
-      </Button>
-      <Button
-        variant="contained"
-        onClick={handleSave}
-        disabled={saving || !hasChanges}
-        color="primary"
-      >
-        {saving
-          ? t("common.saving")
-          : t("userManagement.drawer.saveChanges")}
-      </Button>
-    </Box>
+    <PermissionGate require="security:user:save">
+      <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, p: 2 }}>
+        <Button
+          variant="outlined"
+          onClick={resetChanges}
+          disabled={saving || !hasChanges}
+        >
+          {t("common.cancel")}
+        </Button>
+        <Button
+          variant="contained"
+          onClick={handleSave}
+          disabled={saving || !hasChanges}
+          color="primary"
+        >
+          {saving
+            ? t("common.saving")
+            : t("userManagement.drawer.saveChanges")}
+        </Button>
+      </Box>
+    </PermissionGate>
   );
 
   return (
@@ -170,28 +173,32 @@ export const UserDrawer: React.FC<UserDrawerProps> = ({
               </Box>
 
               {/* Groups */}
-              <Box>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  {t("userManagement.drawer.groups")}
-                </Typography>
-                <UserGroupAssignment
-                  userId={userId}
-                  assignedGroups={selectedGroups}
-                  onChange={updateSelectedGroups}
-                />
-              </Box>
+              <PermissionGate require="security:user:save">
+                <Box>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    {t("userManagement.drawer.groups")}
+                  </Typography>
+                  <UserGroupAssignment
+                    userId={userId}
+                    assignedGroups={selectedGroups}
+                    onChange={updateSelectedGroups}
+                  />
+                </Box>
+              </PermissionGate>
 
               {/* Roles */}
-              <Box>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  {t("userManagement.drawer.roles")}
-                </Typography>
-                <UserRoleAssignment
-                  userId={userId}
-                  assignedRoles={selectedRoles}
-                  onChange={updateSelectedRoles}
-                />
-              </Box>
+              <PermissionGate require="security:user:save">
+                <Box>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    {t("userManagement.drawer.roles")}
+                  </Typography>
+                  <UserRoleAssignment
+                    userId={userId}
+                    assignedRoles={selectedRoles}
+                    onChange={updateSelectedRoles}
+                  />
+                </Box>
+              </PermissionGate>
             </Stack>
           </Stack>
         )}

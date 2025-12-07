@@ -121,7 +121,7 @@ export const SignInForm: React.FC<SignInFormProps> = ({ onSuccess }) => {
       >
         <Stack gap={3} name="signin-form-stack">
           {error && (
-            <ErrorAlert error={error} />
+            <ErrorAlert error={error} data-testid="signin-error" />
           )}
 
           <Controller

@@ -24,6 +24,10 @@ export interface ErrorAlertProps {
    * @default undefined (auto-determined from error)
    */
   visible?: boolean;
+  /**
+   * Test ID for testing purposes.
+   */
+  "data-testid"?: string;
 }
 
 /**
@@ -55,6 +59,7 @@ export const ErrorAlert: React.FC<ErrorAlertProps> = ({
   onRetry,
   fallbackMessage = "An error occurred",
   visible,
+  "data-testid": dataTestId,
 }) => {
   // If visible is explicitly false, don't render
   if (visible === false) {
@@ -77,7 +82,12 @@ export const ErrorAlert: React.FC<ErrorAlertProps> = ({
   const message = typeof error === "string" ? error : error?.message || fallbackMessage;
 
   return (
-    <Alert severity="error" sx={{ mb: 3 }} onClose={onRetry || undefined}>
+    <Alert 
+      severity="error" 
+      sx={{ mb: 3 }} 
+      onClose={onRetry || undefined}
+      data-testid={dataTestId}
+    >
       {message}
     </Alert>
   );

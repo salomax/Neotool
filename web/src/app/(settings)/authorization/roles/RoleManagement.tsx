@@ -14,6 +14,7 @@ import { extractErrorMessage } from "@/shared/utils/error";
 import { DeleteConfirmationDialog } from "@/shared/components/ui/feedback";
 import { ManagementLayout } from "@/shared/components/management/ManagementLayout";
 import { Box } from "@/shared/components/ui/layout";
+import { PermissionGate } from "@/shared/components/authorization";
 
 export interface RoleManagementProps {
   initialSearchQuery?: string;
@@ -127,14 +128,16 @@ export const RoleManagement: React.FC<RoleManagementProps> = ({
             />
           </Box>
           <Box sx={{ mb: 2 }}>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={handleCreate}
-              data-testid="create-role-button"
-            >
-              {t("roleManagement.newButton")}
-            </Button>
+            <PermissionGate require="security:role:save">
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={handleCreate}
+                data-testid="create-role-button"
+              >
+                {t("roleManagement.newButton")}
+              </Button>
+            </PermissionGate>
           </Box>
         </Box>
       </ManagementLayout.Header>

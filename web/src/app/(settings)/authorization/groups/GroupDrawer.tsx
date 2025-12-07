@@ -21,6 +21,7 @@ import { GroupForm } from "./GroupForm";
 import { useToast } from "@/shared/providers";
 import { extractErrorMessage } from "@/shared/utils/error";
 import { GetGroupsDocument } from "@/lib/graphql/operations/authorization-management/queries.generated";
+import { PermissionGate } from "@/shared/components/authorization";
 
 export interface GroupDrawerProps {
   open: boolean;
@@ -319,42 +320,46 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
                 />
 
                 {/* Users Assignment */}
-                <Box>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    {t("groupManagement.form.users")}
-                  </Typography>
-                  <GroupUserAssignment
-                    initialUserIds={
-                      isCreateMode
-                        ? undefined
-                        : group?.members?.map((m: { id: string }) => m.id)
-                    }
-                  />
-                </Box>
+                <PermissionGate require="security:group:save">
+                  <Box>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      {t("groupManagement.form.users")}
+                    </Typography>
+                    <GroupUserAssignment
+                      initialUserIds={
+                        isCreateMode
+                          ? undefined
+                          : group?.members?.map((m: { id: string }) => m.id)
+                      }
+                    />
+                  </Box>
+                </PermissionGate>
 
                 {/* Roles Assignment */}
-                <Box>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    {t("groupManagement.drawer.roles")}
-                  </Typography>
-                  <GroupRoleAssignment
-                    groupId={groupId}
-                    assignedRoles={
-                      isCreateMode
-                        ? pendingRoles
-                        : roles.map((r: { id: string; name: string }) => ({
-                            id: r.id,
-                            name: r.name,
-                          }))
-                    }
-                    onAssignRole={isCreateMode ? undefined : handleAssignRole}
-                    onRemoveRole={isCreateMode ? undefined : handleRemoveRole}
-                    assignLoading={assignRoleLoading}
-                    removeLoading={removeRoleLoading}
-                    onRolesChange={handleRolesChange}
-                    onPendingRolesChange={setPendingRoles}
-                  />
-                </Box>
+                <PermissionGate require="security:group:save">
+                  <Box>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      {t("groupManagement.drawer.roles")}
+                    </Typography>
+                    <GroupRoleAssignment
+                      groupId={groupId}
+                      assignedRoles={
+                        isCreateMode
+                          ? pendingRoles
+                          : roles.map((r: { id: string; name: string }) => ({
+                              id: r.id,
+                              name: r.name,
+                            }))
+                      }
+                      onAssignRole={isCreateMode ? undefined : handleAssignRole}
+                      onRemoveRole={isCreateMode ? undefined : handleRemoveRole}
+                      assignLoading={assignRoleLoading}
+                      removeLoading={removeRoleLoading}
+                      onRolesChange={handleRolesChange}
+                      onPendingRolesChange={setPendingRoles}
+                    />
+                  </Box>
+                </PermissionGate>
               </Stack>
             </Stack>
           )}
@@ -368,27 +373,29 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
         </FormProvider>
       </Drawer.Body>
       <Drawer.Footer>
-        <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2 }}>
-          <Button
-            variant="outlined"
-            onClick={handleCancel}
-            disabled={saving || createLoading || updateLoading}
-          >
-            {t("common.cancel")}
-          </Button>
-          <Button
-            variant="contained"
-            onClick={methods.handleSubmit(handleSave)}
-            disabled={saving || createLoading || updateLoading}
-            color="primary"
-          >
-            {saving || createLoading || updateLoading
-              ? t("common.saving")
-              : isCreateMode
-              ? t("groupManagement.form.create")
-              : t("groupManagement.form.save")}
-          </Button>
-        </Box>
+        <PermissionGate require="security:group:save">
+          <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2 }}>
+            <Button
+              variant="outlined"
+              onClick={handleCancel}
+              disabled={saving || createLoading || updateLoading}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button
+              variant="contained"
+              onClick={methods.handleSubmit(handleSave)}
+              disabled={saving || createLoading || updateLoading}
+              color="primary"
+            >
+              {saving || createLoading || updateLoading
+                ? t("common.saving")
+                : isCreateMode
+                ? t("groupManagement.form.create")
+                : t("groupManagement.form.save")}
+            </Button>
+          </Box>
+        </PermissionGate>
       </Drawer.Footer>
     </Drawer>
   );

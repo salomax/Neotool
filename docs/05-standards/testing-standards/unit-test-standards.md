@@ -391,6 +391,48 @@ inner class EntityCreationTests {
 class EntityIntegrationTest { ... }
 ```
 
+### Rule: Repository Testing Strategy
+
+**Rule**: Repositories and custom repository implementations must be tested **only** through integration tests. Do not write unit tests for repositories.
+
+**Rationale**: 
+- Repositories interact directly with the database and JPA/Hibernate
+- Unit tests with mocks don't accurately test database queries, transactions, and persistence behavior
+- Integration tests provide real database interactions and validate actual SQL generation
+- Repository logic (Criteria API, JPQL, native queries) is best validated against a real database
+- Reduces maintenance burden of complex mock setups for JPA components
+
+**What This Applies To**:
+- Repository interfaces (`*Repository`)
+- Custom repository implementations (`*RepositoryImpl`, `*RepositoryCustom`)
+- Repository helper classes used by repositories (e.g., `SortingHelpers`, `SortingConfigs`)
+
+**Example**:
+```kotlin
+// ✅ Correct: Integration test for repository
+@Tag("integration")
+class UserRepositoryIntegrationTest {
+    @Test
+    fun `should search users by name or email`() {
+        // Test with real database
+        val result = userRepository.searchByNameOrEmail("test", 10, null, orderBy)
+        assertThat(result).hasSize(5)
+    }
+}
+
+// ❌ Incorrect: Unit test with mocks
+class UserRepositoryImplTest {
+    @Test
+    fun `should search users by name or email`() {
+        // Mocking EntityManager, CriteriaBuilder, etc.
+        whenever(criteriaBuilder.coalesce(...)).thenReturn(...)
+        // This doesn't test actual database behavior
+    }
+}
+```
+
+**Exception**: None. All repository testing must be done via integration tests.
+
 ## Error Testing Rules
 
 ### Rule: Test Error Cases
