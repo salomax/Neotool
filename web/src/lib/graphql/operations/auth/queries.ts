@@ -7,6 +7,14 @@ export const CURRENT_USER = gql`
       id
       email
       displayName
+      roles {
+        id
+        name
+      }
+      permissions {
+        id
+        name
+      }
     }
   }
 `;

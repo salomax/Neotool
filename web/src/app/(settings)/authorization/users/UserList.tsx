@@ -10,6 +10,7 @@ import type { PageInfo, PaginationRangeData } from "@/shared/components/ui/pagin
 import type { UserSortState, UserOrderField } from "@/shared/utils/sorting";
 import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
+import { PermissionGate } from "@/shared/components/authorization";
 
 export interface UserListProps {
   users: User[];
@@ -137,12 +138,14 @@ export const UserList: React.FC<UserListProps> = ({
               alignItems: "center",
             }}
           >
-            <UserStatusToggle
-              user={user}
-              enabled={user.enabled}
-              onToggle={onToggleStatus}
-              loading={toggleLoading}
-            />
+            <PermissionGate require="security:user:save">
+              <UserStatusToggle
+                user={user}
+                enabled={user.enabled}
+                onToggle={onToggleStatus}
+                loading={toggleLoading}
+              />
+            </PermissionGate>
           </Box>
         ),
         sortable: !!onSortChange,
@@ -155,17 +158,19 @@ export const UserList: React.FC<UserListProps> = ({
   // Render actions column
   const renderActions = useMemo(
     () => (user: User) => (
-      <Tooltip title={t("userManagement.editUser")}>
-        <IconButton
-          color="primary"
-          onClick={() => onEdit(user)}
-          size="small"
-          aria-label={`${t("userManagement.editUser")} ${user.email}`}
-          data-testid={`edit-user-${user.id}`}
-        >
-          <EditIcon />
-        </IconButton>
-      </Tooltip>
+      <PermissionGate require="security:user:view">
+        <Tooltip title={t("userManagement.editUser")}>
+          <IconButton
+            color="primary"
+            onClick={() => onEdit(user)}
+            size="small"
+            aria-label={`${t("userManagement.editUser")} ${user.email}`}
+            data-testid={`edit-user-${user.id}`}
+          >
+            <EditIcon />
+          </IconButton>
+        </Tooltip>
+      </PermissionGate>
     ),
     [t, onEdit]
   );

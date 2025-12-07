@@ -10,6 +10,14 @@ export const SIGN_IN = gql`
         id
         email
         displayName
+        roles {
+          id
+          name
+        }
+        permissions {
+          id
+          name
+        }
       }
     }
   }
@@ -25,6 +33,14 @@ export const SIGN_IN_WITH_OAUTH = gql`
         id
         email
         displayName
+        roles {
+          id
+          name
+        }
+        permissions {
+          id
+          name
+        }
       }
     }
   }
@@ -40,6 +56,14 @@ export const SIGN_UP = gql`
         id
         email
         displayName
+        roles {
+          id
+          name
+        }
+        permissions {
+          id
+          name
+        }
       }
     }
   }

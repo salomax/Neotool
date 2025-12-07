@@ -5,6 +5,7 @@ import { useUserManagement } from '../useUserManagement';
 // Mock the GraphQL operations
 vi.mock('@/lib/graphql/operations/authorization-management/queries.generated', () => ({
   useGetUsersQuery: vi.fn(),
+  GetUsersDocument: {}, // Mock document for refetch
 }));
 
 vi.mock('@/lib/graphql/operations/authorization-management/mutations.generated', () => ({

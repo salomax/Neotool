@@ -875,4 +875,548 @@ class AbacEvaluationServiceTest {
             assertThat(result.reason).doesNotContain(sensitiveCondition)
         }
     }
+
+    @Nested
+    @DisplayName("Comparison Operators - Edge Cases")
+    inner class ComparisonOperatorEdgeCasesTests {
+        @Test
+        fun `should return false when comparison node has multiple fields`() {
+            // Arrange
+            val condition = """{"eq": {"subject.userId": "user-123", "subject.email": "test@example.com"}}"""
+            val policy =
+                SecurityTestDataBuilders.abacPolicy(
+                    name = "test-policy",
+                    effect = PolicyEffect.ALLOW,
+                    condition = condition,
+                )
+            whenever(abacPolicyRepository.findActivePolicies()).thenReturn(listOf(policy))
+
+            val subjectAttributes = mapOf("userId" to "user-123")
+            val resourceAttributes = null
+            val contextAttributes = null
+
+            // Act
+            val result =
+                abacEvaluationService.evaluatePolicies(
+                    subjectAttributes,
+                    resourceAttributes,
+                    contextAttributes,
+                )
+
+            // Assert
+            assertThat(result.decision).isNull()
+            assertThat(result.matchedPolicies).isEmpty()
+        }
+
+        @Test
+        fun `should handle Float numbers in gt comparison`() {
+            // Arrange
+            val condition = """{"gt": {"resource.amount": 1000.5}}"""
+            val policy =
+                SecurityTestDataBuilders.abacPolicy(
+                    name = "test-policy",
+                    effect = PolicyEffect.ALLOW,
+                    condition = condition,
+                )
+            whenever(abacPolicyRepository.findActivePolicies()).thenReturn(listOf(policy))
+
+            val subjectAttributes = mapOf<String, Any>()
+            val resourceAttributes = mapOf("amount" to 1500.75f)
+            val contextAttributes = null
+
+            // Act
+            val result =
+                abacEvaluationService.evaluatePolicies(
+                    subjectAttributes,
+                    resourceAttributes,
+                    contextAttributes,
+                )
+
+            // Assert
+            assertThat(result.decision).isEqualTo(PolicyEffect.ALLOW)
+        }
+
+        @Test
+        fun `should handle Double numbers in gte comparison`() {
+            // Arrange
+            val condition = """{"gte": {"resource.amount": 1000.5}}"""
+            val policy =
+                SecurityTestDataBuilders.abacPolicy(
+                    name = "test-policy",
+                    effect = PolicyEffect.ALLOW,
+                    condition = condition,
+                )
+            whenever(abacPolicyRepository.findActivePolicies()).thenReturn(listOf(policy))
+
+            val subjectAttributes = mapOf<String, Any>()
+            val resourceAttributes = mapOf("amount" to 1000.5)
+            val contextAttributes = null
+
+            // Act
+            val result =
+                abacEvaluationService.evaluatePolicies(
+                    subjectAttributes,
+                    resourceAttributes,
+                    contextAttributes,
+                )
+
+            // Assert
+            assertThat(result.decision).isEqualTo(PolicyEffect.ALLOW)
+        }
+
+        @Test
+        fun `should handle Int numbers in lt comparison`() {
+            // Arrange
+            val condition = """{"lt": {"resource.amount": 1000}}"""
+            val policy =
+                SecurityTestDataBuilders.abacPolicy(
+                    name = "test-policy",
+                    effect = PolicyEffect.ALLOW,
+                    condition = condition,
+                )
+            whenever(abacPolicyRepository.findActivePolicies()).thenReturn(listOf(policy))
+
+            val subjectAttributes = mapOf<String, Any>()
+            val resourceAttributes = mapOf("amount" to 500)
+            val contextAttributes = null
+
+            // Act
+            val result =
+                abacEvaluationService.evaluatePolicies(
+                    subjectAttributes,
+                    resourceAttributes,
+                    contextAttributes,
+                )
+
+            // Assert
+            assertThat(result.decision).isEqualTo(PolicyEffect.ALLOW)
+        }
+
+        @Test
+        fun `should handle Long numbers in lte comparison`() {
+            // Arrange
+            val condition = """{"lte": {"resource.amount": 1000}}"""
+            val policy =
+                SecurityTestDataBuilders.abacPolicy(
+                    name = "test-policy",
+                    effect = PolicyEffect.ALLOW,
+                    condition = condition,
+                )
+            whenever(abacPolicyRepository.findActivePolicies()).thenReturn(listOf(policy))
+
+            val subjectAttributes = mapOf<String, Any>()
+            val resourceAttributes = mapOf("amount" to 1000L)
+            val contextAttributes = null
+
+            // Act
+            val result =
+                abacEvaluationService.evaluatePolicies(
+                    subjectAttributes,
+                    resourceAttributes,
+                    contextAttributes,
+                )
+
+            // Assert
+            assertThat(result.decision).isEqualTo(PolicyEffect.ALLOW)
+        }
+
+        @Test
+        fun `should handle null values in comparison`() {
+            // Arrange
+            val condition = """{"eq": {"subject.userId": "user-123"}}"""
+            val policy =
+                SecurityTestDataBuilders.abacPolicy(
+                    name = "test-policy",
+                    effect = PolicyEffect.ALLOW,
+                    condition = condition,
+                )
+            whenever(abacPolicyRepository.findActivePolicies()).thenReturn(listOf(policy))
+
+            @Suppress("UNCHECKED_CAST")
+            val subjectAttributes = mapOf("userId" to null) as Map<String, Any>
+            val resourceAttributes = null
+            val contextAttributes = null
+
+            // Act
+            val result =
+                abacEvaluationService.evaluatePolicies(
+                    subjectAttributes,
+                    resourceAttributes,
+                    contextAttributes,
+                )
+
+            // Assert
+            assertThat(result.decision).isNull()
+            assertThat(result.matchedPolicies).isEmpty()
+        }
+    }
+
+    @Nested
+    @DisplayName("In Operator - Edge Cases")
+    inner class InOperatorEdgeCasesTests {
+        @Test
+        fun `should return false when in operation has non-array value`() {
+            // Arrange
+            val condition = """{"in": {"subject.roles": "admin"}}"""
+            val policy =
+                SecurityTestDataBuilders.abacPolicy(
+                    name = "test-policy",
+                    effect = PolicyEffect.ALLOW,
+                    condition = condition,
+                )
+            whenever(abacPolicyRepository.findActivePolicies()).thenReturn(listOf(policy))
+
+            val subjectAttributes = mapOf("roles" to listOf("admin"))
+            val resourceAttributes = null
+            val contextAttributes = null
+
+            // Act
+            val result =
+                abacEvaluationService.evaluatePolicies(
+                    subjectAttributes,
+                    resourceAttributes,
+                    contextAttributes,
+                )
+
+            // Assert
+            assertThat(result.decision).isNull()
+            assertThat(result.matchedPolicies).isEmpty()
+        }
+
+        @Test
+        fun `should handle empty collections in in operation`() {
+            // Arrange
+            val condition = """{"in": {"subject.roles": ["admin", "editor"]}}"""
+            val policy =
+                SecurityTestDataBuilders.abacPolicy(
+                    name = "test-policy",
+                    effect = PolicyEffect.ALLOW,
+                    condition = condition,
+                )
+            whenever(abacPolicyRepository.findActivePolicies()).thenReturn(listOf(policy))
+
+            val subjectAttributes = mapOf("roles" to emptyList<String>())
+            val resourceAttributes = null
+            val contextAttributes = null
+
+            // Act
+            val result =
+                abacEvaluationService.evaluatePolicies(
+                    subjectAttributes,
+                    resourceAttributes,
+                    contextAttributes,
+                )
+
+            // Assert
+            assertThat(result.decision).isNull()
+            assertThat(result.matchedPolicies).isEmpty()
+        }
+
+        @Test
+        fun `should handle null values in collections for in operation`() {
+            // Arrange
+            val condition = """{"in": {"subject.roles": ["admin", "editor"]}}"""
+            val policy =
+                SecurityTestDataBuilders.abacPolicy(
+                    name = "test-policy",
+                    effect = PolicyEffect.ALLOW,
+                    condition = condition,
+                )
+            whenever(abacPolicyRepository.findActivePolicies()).thenReturn(listOf(policy))
+
+            val subjectAttributes = mapOf("roles" to listOf("admin", null))
+            val resourceAttributes = null
+            val contextAttributes = null
+
+            // Act
+            val result =
+                abacEvaluationService.evaluatePolicies(
+                    subjectAttributes,
+                    resourceAttributes,
+                    contextAttributes,
+                )
+
+            // Assert
+            assertThat(result.decision).isEqualTo(PolicyEffect.ALLOW)
+        }
+
+        @Test
+        fun `should return false when in operation has multiple fields`() {
+            // Arrange
+            val condition = """{"in": {"subject.roles": ["admin"], "subject.groups": ["group1"]}}"""
+            val policy =
+                SecurityTestDataBuilders.abacPolicy(
+                    name = "test-policy",
+                    effect = PolicyEffect.ALLOW,
+                    condition = condition,
+                )
+            whenever(abacPolicyRepository.findActivePolicies()).thenReturn(listOf(policy))
+
+            val subjectAttributes = mapOf("roles" to listOf("admin"))
+            val resourceAttributes = null
+            val contextAttributes = null
+
+            // Act
+            val result =
+                abacEvaluationService.evaluatePolicies(
+                    subjectAttributes,
+                    resourceAttributes,
+                    contextAttributes,
+                )
+
+            // Assert
+            assertThat(result.decision).isNull()
+            assertThat(result.matchedPolicies).isEmpty()
+        }
+    }
+
+    @Nested
+    @DisplayName("Attribute Path - Edge Cases")
+    inner class AttributePathEdgeCasesTests {
+        @Test
+        fun `should handle empty path string`() {
+            // Arrange
+            val condition = """{"eq": {"": "value"}}"""
+            val policy =
+                SecurityTestDataBuilders.abacPolicy(
+                    name = "test-policy",
+                    effect = PolicyEffect.ALLOW,
+                    condition = condition,
+                )
+            whenever(abacPolicyRepository.findActivePolicies()).thenReturn(listOf(policy))
+
+            val subjectAttributes = mapOf("userId" to "user-123")
+            val resourceAttributes = null
+            val contextAttributes = null
+
+            // Act
+            val result =
+                abacEvaluationService.evaluatePolicies(
+                    subjectAttributes,
+                    resourceAttributes,
+                    contextAttributes,
+                )
+
+            // Assert
+            assertThat(result.decision).isNull()
+            assertThat(result.matchedPolicies).isEmpty()
+        }
+
+        @Test
+        fun `should handle deeply nested paths with 3 levels`() {
+            // Arrange
+            val condition = """{"eq": {"subject.user.profile.email": "test@example.com"}}"""
+            val policy =
+                SecurityTestDataBuilders.abacPolicy(
+                    name = "test-policy",
+                    effect = PolicyEffect.ALLOW,
+                    condition = condition,
+                )
+            whenever(abacPolicyRepository.findActivePolicies()).thenReturn(listOf(policy))
+
+            val subjectAttributes =
+                mapOf(
+                    "user" to
+                        mapOf(
+                            "profile" to
+                                mapOf("email" to "test@example.com"),
+                        ),
+                )
+            val resourceAttributes = null
+            val contextAttributes = null
+
+            // Act
+            val result =
+                abacEvaluationService.evaluatePolicies(
+                    subjectAttributes,
+                    resourceAttributes,
+                    contextAttributes,
+                )
+
+            // Assert
+            assertThat(result.decision).isEqualTo(PolicyEffect.ALLOW)
+        }
+
+        @Test
+        fun `should handle deeply nested paths with 4 levels`() {
+            // Arrange
+            val condition = """{"eq": {"subject.user.profile.settings.theme": "dark"}}"""
+            val policy =
+                SecurityTestDataBuilders.abacPolicy(
+                    name = "test-policy",
+                    effect = PolicyEffect.ALLOW,
+                    condition = condition,
+                )
+            whenever(abacPolicyRepository.findActivePolicies()).thenReturn(listOf(policy))
+
+            val subjectAttributes =
+                mapOf(
+                    "user" to
+                        mapOf(
+                            "profile" to
+                                mapOf(
+                                    "settings" to
+                                        mapOf("theme" to "dark"),
+                                ),
+                        ),
+                )
+            val resourceAttributes = null
+            val contextAttributes = null
+
+            // Act
+            val result =
+                abacEvaluationService.evaluatePolicies(
+                    subjectAttributes,
+                    resourceAttributes,
+                    contextAttributes,
+                )
+
+            // Assert
+            assertThat(result.decision).isEqualTo(PolicyEffect.ALLOW)
+        }
+
+        @Test
+        fun `should handle missing intermediate path in nested structure`() {
+            // Arrange
+            val condition = """{"eq": {"subject.user.profile.email": "test@example.com"}}"""
+            val policy =
+                SecurityTestDataBuilders.abacPolicy(
+                    name = "test-policy",
+                    effect = PolicyEffect.ALLOW,
+                    condition = condition,
+                )
+            whenever(abacPolicyRepository.findActivePolicies()).thenReturn(listOf(policy))
+
+            val subjectAttributes = mapOf("user" to mapOf("name" to "Test User"))
+            val resourceAttributes = null
+            val contextAttributes = null
+
+            // Act
+            val result =
+                abacEvaluationService.evaluatePolicies(
+                    subjectAttributes,
+                    resourceAttributes,
+                    contextAttributes,
+                )
+
+            // Assert
+            assertThat(result.decision).isNull()
+            assertThat(result.matchedPolicies).isEmpty()
+        }
+    }
+
+    @Nested
+    @DisplayName("Error Handling - Edge Cases")
+    inner class ErrorHandlingEdgeCasesTests {
+        @Test
+        fun `should handle unknown operator gracefully`() {
+            // Arrange
+            val condition = """{"unknown": {"subject.userId": "user-123"}}"""
+            val policy =
+                SecurityTestDataBuilders.abacPolicy(
+                    name = "test-policy",
+                    effect = PolicyEffect.ALLOW,
+                    condition = condition,
+                )
+            val validPolicy =
+                SecurityTestDataBuilders.abacPolicy(
+                    name = "valid-policy",
+                    effect = PolicyEffect.ALLOW,
+                    condition = """{"eq": {"subject.userId": "user-123"}}""",
+                )
+            whenever(abacPolicyRepository.findActivePolicies()).thenReturn(listOf(policy, validPolicy))
+
+            val subjectAttributes = mapOf("userId" to "user-123")
+            val resourceAttributes = null
+            val contextAttributes = null
+
+            // Act
+            val result =
+                abacEvaluationService.evaluatePolicies(
+                    subjectAttributes,
+                    resourceAttributes,
+                    contextAttributes,
+                )
+
+            // Assert
+            // Should still evaluate valid policy even if unknown operator fails
+            assertThat(result.decision).isEqualTo(PolicyEffect.ALLOW)
+            assertThat(result.matchedPolicies).hasSize(1)
+            assertThat(result.matchedPolicies[0].name).isEqualTo("valid-policy")
+        }
+
+        @Test
+        fun `should handle malformed JSON condition gracefully`() {
+            // Arrange
+            val malformedCondition = """{"eq": {"subject.userId": "user-123"}}}"""
+            val policy =
+                SecurityTestDataBuilders.abacPolicy(
+                    name = "malformed-policy",
+                    effect = PolicyEffect.ALLOW,
+                    condition = malformedCondition,
+                )
+            val validPolicy =
+                SecurityTestDataBuilders.abacPolicy(
+                    name = "valid-policy",
+                    effect = PolicyEffect.ALLOW,
+                    condition = """{"eq": {"subject.userId": "user-123"}}""",
+                )
+            whenever(abacPolicyRepository.findActivePolicies()).thenReturn(listOf(policy, validPolicy))
+
+            val subjectAttributes = mapOf("userId" to "user-123")
+            val resourceAttributes = null
+            val contextAttributes = null
+
+            // Act
+            val result =
+                abacEvaluationService.evaluatePolicies(
+                    subjectAttributes,
+                    resourceAttributes,
+                    contextAttributes,
+                )
+
+            // Assert
+            // Should still evaluate valid policy even if malformed one fails
+            assertThat(result.decision).isEqualTo(PolicyEffect.ALLOW)
+            assertThat(result.matchedPolicies).hasSize(1)
+            assertThat(result.matchedPolicies[0].name).isEqualTo("valid-policy")
+        }
+
+        @Test
+        fun `should handle completely invalid JSON condition`() {
+            // Arrange
+            val invalidCondition = "not json at all"
+            val policy =
+                SecurityTestDataBuilders.abacPolicy(
+                    name = "invalid-policy",
+                    effect = PolicyEffect.ALLOW,
+                    condition = invalidCondition,
+                )
+            val validPolicy =
+                SecurityTestDataBuilders.abacPolicy(
+                    name = "valid-policy",
+                    effect = PolicyEffect.ALLOW,
+                    condition = """{"eq": {"subject.userId": "user-123"}}""",
+                )
+            whenever(abacPolicyRepository.findActivePolicies()).thenReturn(listOf(policy, validPolicy))
+
+            val subjectAttributes = mapOf("userId" to "user-123")
+            val resourceAttributes = null
+            val contextAttributes = null
+
+            // Act
+            val result =
+                abacEvaluationService.evaluatePolicies(
+                    subjectAttributes,
+                    resourceAttributes,
+                    contextAttributes,
+                )
+
+            // Assert
+            // Should still evaluate valid policy even if invalid one fails
+            assertThat(result.decision).isEqualTo(PolicyEffect.ALLOW)
+            assertThat(result.matchedPolicies).hasSize(1)
+            assertThat(result.matchedPolicies[0].name).isEqualTo("valid-policy")
+        }
+    }
 }

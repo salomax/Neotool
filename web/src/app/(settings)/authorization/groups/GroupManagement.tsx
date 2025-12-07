@@ -14,6 +14,7 @@ import { extractErrorMessage } from "@/shared/utils/error";
 import { DeleteConfirmationDialog } from "@/shared/components/ui/feedback";
 import { ManagementLayout } from "@/shared/components/management/ManagementLayout";
 import { Box } from "@/shared/components/ui/layout";
+import { PermissionGate } from "@/shared/components/authorization";
 
 export interface GroupManagementProps {
   initialSearchQuery?: string;
@@ -131,14 +132,16 @@ export const GroupManagement: React.FC<GroupManagementProps> = ({
             />
           </Box>
           <Box sx={{ mb: 2 }}>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={handleCreate}
-              data-testid="create-group-button"
-            >
-              {t("groupManagement.newButton")}
-            </Button>
+            <PermissionGate require="security:group:save">
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={handleCreate}
+                data-testid="create-group-button"
+              >
+                {t("groupManagement.newButton")}
+              </Button>
+            </PermissionGate>
           </Box>
         </Box>
       </ManagementLayout.Header>

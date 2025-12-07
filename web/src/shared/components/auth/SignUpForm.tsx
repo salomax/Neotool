@@ -106,7 +106,7 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onSuccess }) => {
       >
         <Stack gap={3} name="signup-form-stack">
           {error && (
-            <ErrorAlert error={error} />
+            <ErrorAlert error={error} data-testid="signup-error" />
           )}
 
           <Controller

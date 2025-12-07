@@ -10,6 +10,7 @@ import type { PageInfo, PaginationRangeData } from "@/shared/components/ui/pagin
 import type { SortState } from "@/shared/hooks/sorting";
 import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
+import { PermissionGate } from "@/shared/components/authorization";
 
 export type GroupSortState = SortState<GroupOrderField>;
 
@@ -127,29 +128,33 @@ export const GroupList: React.FC<GroupListProps> = ({
   const renderActions = useMemo(
     () => (group: Group) => (
       <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
-        <Tooltip title={t("groupManagement.editGroup")}>
-          <IconButton
-            color="primary"
-            onClick={() => onEdit(group)}
-            size="small"
-            aria-label={`${t("groupManagement.editGroup")} ${group.name}`}
-            data-testid={`edit-group-${group.id}`}
-          >
-            <EditIcon />
-          </IconButton>
-        </Tooltip>
-        {onDelete && (
-          <Tooltip title={t("groupManagement.deleteGroup", "Delete group")}>
+        <PermissionGate require="security:group:view">
+          <Tooltip title={t("groupManagement.editGroup")}>
             <IconButton
-              color="error"
-              onClick={() => onDelete(group)}
+              color="primary"
+              onClick={() => onEdit(group)}
               size="small"
-              aria-label={`${t("groupManagement.deleteGroup", "Delete group")} ${group.name}`}
-              data-testid={`delete-group-${group.id}`}
+              aria-label={`${t("groupManagement.editGroup")} ${group.name}`}
+              data-testid={`edit-group-${group.id}`}
             >
-              <DeleteIcon />
+              <EditIcon />
             </IconButton>
           </Tooltip>
+        </PermissionGate>
+        {onDelete && (
+          <PermissionGate require="security:group:delete">
+            <Tooltip title={t("groupManagement.deleteGroup", "Delete group")}>
+              <IconButton
+                color="error"
+                onClick={() => onDelete(group)}
+                size="small"
+                aria-label={`${t("groupManagement.deleteGroup", "Delete group")} ${group.name}`}
+                data-testid={`delete-group-${group.id}`}
+              >
+                <DeleteIcon />
+              </IconButton>
+            </Tooltip>
+          </PermissionGate>
         )}
       </Box>
     ),

@@ -9,21 +9,21 @@ export type SignInMutationVariables = Types.Exact<{
 }>;
 
 
-export type SignInMutation = { signIn: { __typename: 'SignInPayload', token: string, refreshToken: string | null, user: { __typename: 'User', id: string, email: string, displayName: string | null } } };
+export type SignInMutation = { signIn: { __typename: 'SignInPayload', token: string, refreshToken: string | null, user: { __typename: 'User', id: string, email: string, displayName: string | null, roles: Array<{ __typename: 'Role', id: string, name: string }>, permissions: Array<{ __typename: 'Permission', id: string, name: string }> } } };
 
 export type SignInWithOAuthMutationVariables = Types.Exact<{
   input: Types.SignInWithOAuthInput;
 }>;
 
 
-export type SignInWithOAuthMutation = { signInWithOAuth: { __typename: 'SignInPayload', token: string, refreshToken: string | null, user: { __typename: 'User', id: string, email: string, displayName: string | null } } };
+export type SignInWithOAuthMutation = { signInWithOAuth: { __typename: 'SignInPayload', token: string, refreshToken: string | null, user: { __typename: 'User', id: string, email: string, displayName: string | null, roles: Array<{ __typename: 'Role', id: string, name: string }>, permissions: Array<{ __typename: 'Permission', id: string, name: string }> } } };
 
 export type SignUpMutationVariables = Types.Exact<{
   input: Types.SignUpInput;
 }>;
 
 
-export type SignUpMutation = { signUp: { __typename: 'SignUpPayload', token: string, refreshToken: string | null, user: { __typename: 'User', id: string, email: string, displayName: string | null } } };
+export type SignUpMutation = { signUp: { __typename: 'SignUpPayload', token: string, refreshToken: string | null, user: { __typename: 'User', id: string, email: string, displayName: string | null, roles: Array<{ __typename: 'Role', id: string, name: string }>, permissions: Array<{ __typename: 'Permission', id: string, name: string }> } } };
 
 export type RequestPasswordResetMutationVariables = Types.Exact<{
   input: Types.RequestPasswordResetInput;
@@ -49,6 +49,14 @@ export const SignInDocument = gql`
       id
       email
       displayName
+      roles {
+        id
+        name
+      }
+      permissions {
+        id
+        name
+      }
     }
   }
 }
@@ -87,6 +95,14 @@ export const SignInWithOAuthDocument = gql`
       id
       email
       displayName
+      roles {
+        id
+        name
+      }
+      permissions {
+        id
+        name
+      }
     }
   }
 }
@@ -125,6 +141,14 @@ export const SignUpDocument = gql`
       id
       email
       displayName
+      roles {
+        id
+        name
+      }
+      permissions {
+        id
+        name
+      }
     }
   }
 }

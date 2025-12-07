@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
   Box,
+  Alert,
 } from "@mui/material";
 import { ErrorAlert } from "@/shared/components/ui/feedback";
 import { PasswordField } from "@/shared/components/ui/forms/form/PasswordField";

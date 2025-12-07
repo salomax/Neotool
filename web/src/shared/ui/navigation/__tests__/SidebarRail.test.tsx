@@ -4,11 +4,21 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SidebarRail } from '../SidebarRail';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
+import { AuthProvider } from '@/shared/providers/AuthProvider';
+import { AuthorizationProvider } from '@/shared/providers/AuthorizationProvider';
 
 // Mock Next.js navigation
 const mockPathname = vi.fn();
+const mockPush = vi.fn();
 vi.mock('next/navigation', () => ({
   usePathname: () => mockPathname(),
+  useRouter: () => ({
+    push: mockPush,
+    replace: vi.fn(),
+    refresh: vi.fn(),
+    back: vi.fn(),
+    forward: vi.fn(),
+  }),
   Link: ({ children, href, ...props }: any) => (
     <a href={href} {...props}>
       {children}
@@ -25,10 +35,38 @@ vi.mock('@/shared/ui/brand/LogoMark', () => ({
   ),
 }));
 
+// Mock GraphQL queries
+vi.mock('@/lib/graphql/operations/auth/queries.generated', () => ({
+  useCurrentUserQuery: vi.fn(() => ({
+    data: {
+      currentUser: {
+        id: '1',
+        email: 'test@example.com',
+        displayName: 'Test User',
+        roles: [],
+        permissions: [],
+      },
+    },
+    loading: false,
+    refetch: vi.fn(),
+  })),
+}));
+
+// Mock i18n
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => key,
+  }),
+}));
+
 const renderSidebarRail = () => {
   return render(
     <AppThemeProvider>
-      <SidebarRail />
+      <AuthProvider>
+        <AuthorizationProvider>
+          <SidebarRail />
+        </AuthorizationProvider>
+      </AuthProvider>
     </AppThemeProvider>
   );
 };

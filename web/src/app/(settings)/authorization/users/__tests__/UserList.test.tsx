@@ -4,8 +4,21 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { UserList } from '../UserList';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
+import { AuthProvider } from '@/shared/providers/AuthProvider';
+import { AuthorizationProvider } from '@/shared/providers/AuthorizationProvider';
 import type { User } from '@/shared/hooks/authorization/useUserManagement';
 import type { UserSortState } from '@/shared/utils/sorting';
+
+// Mock Next.js navigation
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    refresh: vi.fn(),
+    back: vi.fn(),
+    forward: vi.fn(),
+  }),
+}));
 
 // Mock UserStatusToggle
 vi.mock('../UserStatusToggle', () => ({
@@ -25,6 +38,23 @@ vi.mock('@/shared/components/ui/pagination', () => ({
 vi.mock('@/shared/components/ui/layout', () => ({
   Box: ({ children, ...props }: any) => <div {...props}>{children}</div>,
   DynamicTableBox: ({ children, ...props }: any) => <div {...props}>{children}</div>,
+}));
+
+// Mock GraphQL queries
+vi.mock('@/lib/graphql/operations/auth/queries.generated', () => ({
+  useCurrentUserQuery: vi.fn(() => ({
+    data: {
+      currentUser: {
+        id: '1',
+        email: 'test@example.com',
+        displayName: 'Test User',
+        roles: [],
+        permissions: [],
+      },
+    },
+    loading: false,
+    refetch: vi.fn(),
+  })),
 }));
 
 const mockUsers: User[] = [
@@ -52,7 +82,11 @@ const renderUserList = (props = {}) => {
 
   return render(
     <AppThemeProvider>
-      <UserList {...defaultProps} />
+      <AuthProvider>
+        <AuthorizationProvider>
+          <UserList {...defaultProps} />
+        </AuthorizationProvider>
+      </AuthProvider>
     </AppThemeProvider>
   );
 };
