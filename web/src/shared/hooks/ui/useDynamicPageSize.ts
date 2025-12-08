@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, RefObject } from "react";
+import { useState, useEffect, useCallback, RefObject, startTransition } from "react";
 
 export interface UseDynamicPageSizeOptions {
   /**
@@ -84,7 +84,9 @@ export function useDynamicPageSize(
 
   const calculatePageSize = useCallback(() => {
     if (!containerRef.current) {
-      setPageSize(minRows);
+      startTransition(() => {
+        setPageSize(minRows);
+      });
       return;
     }
 
@@ -115,7 +117,9 @@ export function useDynamicPageSize(
     const availableHeight = containerHeight - effectiveReservedHeight;
     
     if (availableHeight <= 0 || effectiveRowHeight <= 0) {
-      setPageSize(minRows);
+      startTransition(() => {
+        setPageSize(minRows);
+      });
       return;
     }
 
@@ -125,7 +129,9 @@ export function useDynamicPageSize(
     // Clamp between min and max
     const clampedRows = Math.max(minRows, Math.min(maxRows, calculatedRows));
     
-    setPageSize(clampedRows);
+    startTransition(() => {
+      setPageSize(clampedRows);
+    });
   }, [
     containerRef,
     minRows,

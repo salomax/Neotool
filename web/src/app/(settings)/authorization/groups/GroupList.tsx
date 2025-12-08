@@ -126,38 +126,43 @@ export const GroupList: React.FC<GroupListProps> = ({
 
   // Render actions column
   const renderActions = useMemo(
-    () => (group: Group) => (
-      <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
-        <PermissionGate require="security:group:view">
-          <Tooltip title={t("groupManagement.editGroup")}>
-            <IconButton
-              color="primary"
-              onClick={() => onEdit(group)}
-              size="small"
-              aria-label={`${t("groupManagement.editGroup")} ${group.name}`}
-              data-testid={`edit-group-${group.id}`}
-            >
-              <EditIcon />
-            </IconButton>
-          </Tooltip>
-        </PermissionGate>
-        {onDelete && (
-          <PermissionGate require="security:group:delete">
-            <Tooltip title={t("groupManagement.deleteGroup", "Delete group")}>
-              <IconButton
-                color="error"
-                onClick={() => onDelete(group)}
-                size="small"
-                aria-label={`${t("groupManagement.deleteGroup", "Delete group")} ${group.name}`}
-                data-testid={`delete-group-${group.id}`}
-              >
-                <DeleteIcon />
-              </IconButton>
-            </Tooltip>
-          </PermissionGate>
-        )}
-      </Box>
-    ),
+    () => {
+      function GroupActionsRenderer(group: Group) {
+        return (
+          <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
+            <PermissionGate require="security:group:view">
+              <Tooltip title={t("groupManagement.editGroup")}>
+                <IconButton
+                  color="primary"
+                  onClick={() => onEdit(group)}
+                  size="small"
+                  aria-label={`${t("groupManagement.editGroup")} ${group.name}`}
+                  data-testid={`edit-group-${group.id}`}
+                >
+                  <EditIcon />
+                </IconButton>
+              </Tooltip>
+            </PermissionGate>
+            {onDelete && (
+              <PermissionGate require="security:group:delete">
+                <Tooltip title={t("groupManagement.deleteGroup", "Delete group")}>
+                  <IconButton
+                    color="error"
+                    onClick={() => onDelete(group)}
+                    size="small"
+                    aria-label={`${t("groupManagement.deleteGroup", "Delete group")} ${group.name}`}
+                    data-testid={`delete-group-${group.id}`}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </Tooltip>
+              </PermissionGate>
+            )}
+          </Box>
+        );
+      }
+      return GroupActionsRenderer;
+    },
     [t, onEdit, onDelete]
   );
 

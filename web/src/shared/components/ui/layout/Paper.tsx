@@ -1,5 +1,5 @@
 import React from 'react';
-import { Paper as MuiPaper, PaperProps as MuiPaperProps } from '@mui/material';
+import { Paper as MuiPaper, PaperProps as MuiPaperProps, SxProps, Theme } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { getTestIdProps } from '@/shared/utils/testid';
 
@@ -61,14 +61,16 @@ export function Paper({
     overflow: 'hidden',
   } : {};
   
+  const combinedSx: SxProps<Theme> = {
+    p: paperPadding,
+    ...fullHeightStyles,
+    ...sx,
+  } as SxProps<Theme>;
+
   return (
     <MuiPaper
       elevation={elevation}
-      sx={{
-        p: paperPadding,
-        ...fullHeightStyles,
-        ...sx,
-      }}
+      sx={combinedSx}
       {...testIdProps}
       {...props}
     />

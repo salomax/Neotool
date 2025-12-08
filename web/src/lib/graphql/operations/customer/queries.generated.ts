@@ -91,7 +91,7 @@ export function useGetCustomerLazyQuery(baseOptions?: ApolloReactHooks.LazyQuery
         }
 export function useGetCustomerSuspenseQuery(baseOptions?: ApolloReactHooks.SkipToken | ApolloReactHooks.SuspenseQueryHookOptions<GetCustomerQuery, GetCustomerQueryVariables>) {
           const options = baseOptions === ApolloReactHooks.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
-          return ApolloReactHooks.useSuspenseQuery<GetCustomerQuery, GetCustomerQueryVariables>(GetCustomerDocument, options);
+          return ApolloReactHooks.useSuspenseQuery<GetCustomerQuery, GetCustomerQueryVariables>(GetCustomerDocument, options as ApolloReactHooks.SkipToken | ApolloReactHooks.useSuspenseQuery.Options<GetCustomerQueryVariables>);
         }
 export type GetCustomerQueryHookResult = ReturnType<typeof useGetCustomerQuery>;
 export type GetCustomerLazyQueryHookResult = ReturnType<typeof useGetCustomerLazyQuery>;

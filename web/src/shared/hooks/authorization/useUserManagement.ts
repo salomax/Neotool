@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useState, useMemo, useCallback, useEffect, startTransition } from "react";
 import {
   useGetUsersQuery,
   GetUsersDocument,
@@ -147,8 +147,8 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
   const [first, setFirst] = useState(options.initialFirst || 10);
   const [after, setAfter] = useState<string | null>(null);
 
-  // Ref to preserve previous data during loading to prevent flicker
-  const previousDataRef = useRef<typeof usersData | null>(null);
+  // State to preserve previous data during loading to prevent flicker
+  const [previousData, setPreviousData] = useState<typeof usersData | null>(null);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState(options.initialSearchQuery || "");
@@ -179,10 +179,12 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
     notifyOnNetworkStatusChange: true, // Keep loading state accurate during transitions
   });
 
-  // Update previous data ref when we have new data
+  // Update previous data state when we have new data
   useEffect(() => {
     if (usersData && !loading) {
-      previousDataRef.current = usersData;
+      startTransition(() => {
+        setPreviousData(usersData);
+      });
     }
   }, [usersData, loading]);
 
@@ -209,13 +211,13 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
   // Derived data - use previous data while loading to prevent flicker
   const users = useMemo(() => {
     // Keep previous data visible while loading new data
-    const currentData = usersData || (loading ? previousDataRef.current : null);
+    const currentData = usersData || (loading ? previousData : null);
     return currentData?.users?.edges?.map(e => e.node) || [];
-  }, [usersData, loading]);
+  }, [usersData, loading, previousData]);
 
   const pageInfo = useMemo(() => {
     // Use previous data if current is loading
-    const currentData = usersData || (loading ? previousDataRef.current : null);
+    const currentData = usersData || (loading ? previousData : null);
     const info = currentData?.users?.pageInfo || null;
     if (!info) {
       return null;
@@ -224,16 +226,16 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
       ...info,
       hasPreviousPage: info.hasPreviousPage || after !== null,
     };
-  }, [usersData, loading, after]);
+  }, [usersData, loading, after, previousData]);
 
   // totalCount is always calculated by the backend (never null)
   // When query is null/empty: totalCount = total count of all items
   // When query is provided: totalCount = total count of filtered items
   const totalCount = useMemo(() => {
     // Use previous data if current is loading
-    const currentData = usersData || (loading ? previousDataRef.current : null);
+    const currentData = usersData || (loading ? previousData : null);
     return currentData?.users?.totalCount ?? null;
-  }, [usersData, loading]);
+  }, [usersData, loading, previousData]);
 
   // Use shared pagination hook
   const {

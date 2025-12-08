@@ -124,7 +124,7 @@ export function useDebouncedSearch(
     }, debounceMs);
 
     return () => clearTimeout(timeoutId);
-  }, [inputValue, debounceMs, onSearchChange, searchQuery]);
+  }, [inputValue, debounceMs, onSearchChange, searchQuery, setSearchQuery]);
 
   const handleSearch = useCallback(
     (value: string) => {

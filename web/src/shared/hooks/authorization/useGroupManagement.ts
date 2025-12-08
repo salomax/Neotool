@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useState, useMemo, useCallback, useEffect, startTransition } from "react";
 import {
   useGetGroupsQuery,
   GetGroupsDocument,
@@ -152,8 +152,8 @@ export function useGroupManagement(options: UseGroupManagementOptions = {}): Use
   const [first, setFirst] = useState(options.initialFirst || 10);
   const [after, setAfter] = useState<string | null>(null);
 
-  // Ref to preserve previous data during loading to prevent flicker
-  const previousDataRef = useRef<typeof groupsData | null>(null);
+  // State to preserve previous data during loading to prevent flicker
+  const [previousData, setPreviousData] = useState<typeof groupsData | null>(null);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState(options.initialSearchQuery || "");
@@ -186,10 +186,12 @@ export function useGroupManagement(options: UseGroupManagementOptions = {}): Use
     notifyOnNetworkStatusChange: true, // Keep loading state accurate during transitions
   });
 
-  // Update previous data ref when we have new data
+  // Update previous data state when we have new data
   useEffect(() => {
     if (groupsData && !loading) {
-      previousDataRef.current = groupsData;
+      startTransition(() => {
+        setPreviousData(groupsData);
+      });
     }
   }, [groupsData, loading]);
 
@@ -215,13 +217,13 @@ export function useGroupManagement(options: UseGroupManagementOptions = {}): Use
   // Derived data - use previous data while loading to prevent flicker
   const groups = useMemo(() => {
     // Keep previous data visible while loading new data
-    const currentData = groupsData || (loading ? previousDataRef.current : null);
+    const currentData = groupsData || (loading ? previousData : null);
     return currentData?.groups?.edges?.map(e => e.node) || [];
-  }, [groupsData, loading]);
+  }, [groupsData, loading, previousData]);
 
   const pageInfo = useMemo(() => {
     // Use previous data if current is loading
-    const currentData = groupsData || (loading ? previousDataRef.current : null);
+    const currentData = groupsData || (loading ? previousData : null);
     const info = currentData?.groups?.pageInfo || null;
     if (!info) {
       return null;
@@ -230,16 +232,16 @@ export function useGroupManagement(options: UseGroupManagementOptions = {}): Use
       ...info,
       hasPreviousPage: info.hasPreviousPage || after !== null,
     };
-  }, [groupsData, loading, after]);
+  }, [groupsData, loading, after, previousData]);
 
   // totalCount is always calculated by the backend (never null)
   // When query is null/empty: totalCount = total count of all items
   // When query is provided: totalCount = total count of filtered items
   const totalCount = useMemo(() => {
     // Use previous data if current is loading
-    const currentData = groupsData || (loading ? previousDataRef.current : null);
+    const currentData = groupsData || (loading ? previousData : null);
     return currentData?.groups?.totalCount ?? null;
-  }, [groupsData, loading]);
+  }, [groupsData, loading, previousData]);
 
   // Use shared pagination hook
   const {

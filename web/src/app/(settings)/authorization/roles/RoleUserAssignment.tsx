@@ -125,7 +125,7 @@ export const RoleUserAssignment: React.FC<RoleUserAssignmentProps> = ({
         toast.error(errorMessage);
       }
     },
-    [roleId, assignedUsers, onAssignUser, onRemoveUser, toast, t, onUsersChange]
+    [assignedUsers, onAssignUser, onRemoveUser, toast, t, onUsersChange]
   );
 
   if (usersLoading) {

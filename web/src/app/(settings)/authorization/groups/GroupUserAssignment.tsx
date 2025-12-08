@@ -47,12 +47,11 @@ export const GroupUserAssignment: React.FC<GroupUserAssignmentProps> = ({
     return uniqueUsers;
   }, [data?.users?.edges]);
 
-  // Get current userIds from form (should be string IDs)
-  const currentUserIds = watch("userIds") || [];
-
   // Map current userIds (strings) to user objects for Autocomplete display
   // Deduplicate to prevent duplicate selections
   const selectedUsers = useMemo(() => {
+    // Get current userIds from form (should be string IDs)
+    const currentUserIds = watch("userIds") || [];
     if (!currentUserIds.length) return [];
     // Handle both string IDs and objects (for backward compatibility)
     const ids = Array.from(
@@ -67,7 +66,7 @@ export const GroupUserAssignment: React.FC<GroupUserAssignmentProps> = ({
     return Array.from(
       new Map(selected.map((user) => [user.id, user])).values()
     );
-  }, [currentUserIds, userOptions]);
+  }, [watch, userOptions]);
 
   if (loading) {
     return (

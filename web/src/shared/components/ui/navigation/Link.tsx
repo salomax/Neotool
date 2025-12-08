@@ -45,8 +45,11 @@ export const Link = React.forwardRef<HTMLAnchorElement, LinkProps>(({
      (component.name === 'Link' || component.displayName === 'Link'));
   const linkComponent = isNextLink ? NextLinkBehavior : component;
   
+  // Only pass component prop if it's defined
+  const muiLinkProps = linkComponent ? { component: linkComponent } : {};
+  
   return (
-    <MuiLink ref={ref} {...props} {...testIdProps} component={linkComponent} {...rest}>
+    <MuiLink ref={ref} {...props} {...testIdProps} {...muiLinkProps} {...rest}>
       {children}
       {showIcon && (
         <OpenInNewIcon fontSize="inherit" style={{ marginLeft: 4 }} />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef, startTransition } from "react";
 import type { PaginationRangeData } from "@/shared/components/ui/pagination";
 
 export interface PageInfo {
@@ -88,15 +88,19 @@ export function useRelayPagination<T>(
   const cursorHistoryRef = useRef<{ cursor: string | null; start: number }[]>([]);
   const previousSearchQueryRef = useRef<string>(options.initialSearchQuery || "");
   const previousAfterRef = useRef<string | null>(options.initialAfter || null);
+  const [canLoadPreviousPage, setCanLoadPreviousPage] = useState(false);
 
   // Reset pagination tracking when search query changes externally
   useEffect(() => {
     if (previousSearchQueryRef.current !== searchQuery) {
       cursorHistoryRef.current = [];
       rangeStartRef.current = 1;
-      setRangeStart(1);
+      startTransition(() => {
+        setRangeStart(1);
+        setCanLoadPreviousPage(false);
+        setAfter(null);
+      });
       previousSearchQueryRef.current = searchQuery;
-      setAfter(null);
     }
   }, [searchQuery, setAfter]);
 
@@ -109,7 +113,10 @@ export function useRelayPagination<T>(
       if (cursorHistoryRef.current.length > 0 || rangeStartRef.current > 1) {
         cursorHistoryRef.current = [];
         rangeStartRef.current = 1;
-        setRangeStart(1);
+        startTransition(() => {
+          setRangeStart(1);
+          setCanLoadPreviousPage(false);
+        });
       }
     }
     previousAfterRef.current = after;
@@ -147,6 +154,7 @@ export function useRelayPagination<T>(
       });
       rangeStartRef.current = nextStart;
       setRangeStart(nextStart);
+      setCanLoadPreviousPage(true);
       setAfter(nextCursor);
     }
   }, [pageInfo, setAfter, items.length, after]);
@@ -155,6 +163,7 @@ export function useRelayPagination<T>(
     cursorHistoryRef.current = [];
     rangeStartRef.current = 1;
     setRangeStart(1);
+    setCanLoadPreviousPage(false);
     setAfter(null);
   }, [setAfter]);
 
@@ -164,11 +173,10 @@ export function useRelayPagination<T>(
     if (previousEntry) {
       rangeStartRef.current = Math.max(1, previousEntry.start);
       setRangeStart(rangeStartRef.current);
+      setCanLoadPreviousPage(cursorHistoryRef.current.length > 0);
       setAfter(previousEntry.cursor);
     }
   }, [setAfter]);
-
-  const canLoadPreviousPage = cursorHistoryRef.current.length > 0;
 
   return {
     after,

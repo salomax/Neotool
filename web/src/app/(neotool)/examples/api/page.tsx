@@ -7,6 +7,7 @@ import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
+import Alert from "@mui/material/Alert";
 import { ErrorAlert } from "@/shared/components/ui/feedback";
 import CodeBlock from "@mui/material/Box";
 import { Button } from "@/shared/components/ui/primitives";

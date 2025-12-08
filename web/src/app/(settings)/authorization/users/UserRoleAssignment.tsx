@@ -122,13 +122,13 @@ export const UserRoleAssignment: React.FC<UserRoleAssignmentProps> = ({
         }}
         renderTags={(value: RoleOption[], getTagProps) =>
           value.map((option, index) => {
-            const { key, ...tagProps } = getTagProps({ index });
+            const { key, onDelete, ...tagProps } = getTagProps({ index });
             return (
               <Chip
                 key={key}
                 variant="outlined"
                 label={option.label}
-                onDelete={tagProps.onDelete}
+                onDelete={onDelete}
                 {...tagProps}
               />
             );
