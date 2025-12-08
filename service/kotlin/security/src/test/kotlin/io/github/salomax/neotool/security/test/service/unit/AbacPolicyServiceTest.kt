@@ -287,5 +287,17 @@ class AbacPolicyServiceTest {
             // Assert
             verify(abacPolicyRepository).deleteById(policyId)
         }
+
+        @Test
+        fun `should handle delete operation gracefully when policy doesn't exist`() {
+            // Arrange
+            val nonExistentPolicyId = UUID.randomUUID()
+
+            // Act - delete should not throw even if policy doesn't exist
+            abacPolicyService.delete(nonExistentPolicyId)
+
+            // Assert
+            verify(abacPolicyRepository).deleteById(nonExistentPolicyId)
+        }
     }
 }

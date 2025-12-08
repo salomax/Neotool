@@ -132,14 +132,14 @@ describe('useUserManagement', () => {
       );
     });
 
-    it('should pass orderBy to GraphQL query when sort state is set', () => {
+    it('should pass orderBy to GraphQL query when sort state is set', async () => {
       const { result } = renderHook(() => useUserManagement());
 
       act(() => {
         result.current.setOrderBy({ field: 'DISPLAY_NAME', direction: 'asc' });
       });
 
-      waitFor(() => {
+      await waitFor(() => {
         expect(useGetUsersQuery).toHaveBeenCalledWith(
           expect.objectContaining({
             variables: expect.objectContaining({
@@ -203,7 +203,7 @@ describe('useUserManagement', () => {
       });
     });
 
-    it('should reset cursor when orderBy changes', () => {
+    it('should reset cursor when orderBy changes', async () => {
       const mockSetAfter = vi.fn();
       // Mock useState to track setAfter calls
       vi.spyOn(require('react'), 'useState').mockImplementation((initial) => {
@@ -221,7 +221,7 @@ describe('useUserManagement', () => {
 
       // Note: The actual cursor reset happens in useEffect, which is tested indirectly
       // by checking that the query is called with after: undefined
-      waitFor(() => {
+      await waitFor(() => {
         expect(useGetUsersQuery).toHaveBeenCalledWith(
           expect.objectContaining({
             variables: expect.objectContaining({
@@ -232,7 +232,7 @@ describe('useUserManagement', () => {
       });
     });
 
-    it('should convert sort state to GraphQL format correctly', () => {
+    it('should convert sort state to GraphQL format correctly', async () => {
       const { result } = renderHook(() => useUserManagement());
 
       // Test DISPLAY_NAME asc
@@ -240,7 +240,7 @@ describe('useUserManagement', () => {
         result.current.setOrderBy({ field: 'DISPLAY_NAME', direction: 'asc' });
       });
 
-      waitFor(() => {
+      await waitFor(() => {
         const lastCall = (useGetUsersQuery as any).mock.calls[
           (useGetUsersQuery as any).mock.calls.length - 1
         ];
@@ -254,7 +254,7 @@ describe('useUserManagement', () => {
         result.current.setOrderBy({ field: 'EMAIL', direction: 'desc' });
       });
 
-      waitFor(() => {
+      await waitFor(() => {
         const lastCall = (useGetUsersQuery as any).mock.calls[
           (useGetUsersQuery as any).mock.calls.length - 1
         ];
@@ -268,7 +268,7 @@ describe('useUserManagement', () => {
         result.current.setOrderBy({ field: 'ENABLED', direction: 'asc' });
       });
 
-      waitFor(() => {
+      await waitFor(() => {
         const lastCall = (useGetUsersQuery as any).mock.calls[
           (useGetUsersQuery as any).mock.calls.length - 1
         ];

@@ -53,10 +53,6 @@ AuthProvider (authentication)
 - Exposes all `AuthorizationProvider` context values
 - Throws error if used outside provider
 
-#### useCheckPermission Hook
-- Client-side hook for checking specific permissions via GraphQL
-- Uses Apollo cache to avoid redundant requests
-- Returns `{ allowed, loading, error }`
 
 ### Permission Format
 We use the backend permission format (e.g., `security:user:view`, `security:role:save`, `security:group:delete`).
@@ -64,7 +60,7 @@ We use the backend permission format (e.g., `security:user:view`, `security:role
 ### GraphQL Integration
 - `CURRENT_USER` query includes `roles { id name }` and `permissions { id name }`
 - Authentication mutations (`SIGN_IN`, `SIGN_UP`, `SIGN_IN_WITH_OAUTH`) return expanded user with roles/permissions
-- `CHECK_PERMISSION` query available for dynamic permission checks
+- All permission checks are done client-side against the permissions list from `currentUser` (no additional GraphQL queries needed)
 
 ## Consequences
 
@@ -81,6 +77,11 @@ We use the backend permission format (e.g., `security:user:view`, `security:role
 - **GraphQL Query Overhead**: `currentUser` query now fetches more data (roles and permissions)
 - **Learning Curve**: Developers need to learn new components and hooks
 
+### Security Considerations
+- **No Permission Enumeration**: We intentionally do NOT expose a `checkPermission` GraphQL query to prevent attackers from enumerating which resources they can access
+- **Client-Side Only for UX**: Permission checks in the frontend are purely for UX (showing/hiding UI elements)
+- **Backend Validation Required**: All mutations and queries must validate permissions server-side - never trust client-side checks for security
+
 ### Neutral
 - **Backend Dependency**: Frontend relies on backend permission structure
 - **Caching Strategy**: Apollo Client handles caching automatically
@@ -94,15 +95,12 @@ web/src/
 │   ├── auth/
 │   │   ├── queries.ts (updated)
 │   │   └── mutations.ts (updated)
-│   └── authorization/
-│       └── queries.ts (new)
 ├── shared/
 │   ├── providers/
 │   │   ├── AuthorizationProvider.tsx (new)
 │   │   └── index.ts (updated)
 │   ├── hooks/authorization/
 │   │   ├── useAuthorization.ts (exported from provider)
-│   │   ├── useCheckPermission.ts (new)
 │   │   └── index.ts (updated)
 │   └── components/authorization/
 │       ├── PermissionGate.tsx (new)
@@ -156,17 +154,6 @@ if (hasAny(['security:user:edit', 'security:user:view'])) {
 }
 ```
 
-#### useCheckPermission Hook
-```tsx
-const { allowed, loading, error } = useCheckPermission(
-  'security:user:edit',
-  userId // optional resourceId
-);
-
-if (allowed) {
-  // Permission granted
-}
-```
 
 ### Navigation Filtering
 The `SidebarRail` component filters navigation items based on permissions:

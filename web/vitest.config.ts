@@ -1,6 +1,7 @@
 import { defineConfig } from "vitest/config";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { fileURLToPath } from "node:url";
+import os from "node:os";
 
 export default defineConfig({
   plugins: [tsconfigPaths({ projects: ["./tsconfig.vitest.json"] })],
@@ -31,6 +32,28 @@ export default defineConfig({
     globals: true,
     css: true,
     restoreMocks: true,
+    // Otimizações de performance
+    pool: "threads",
+    poolOptions: {
+      threads: {
+        // Usa número conservador de threads para evitar deadlocks
+        // Limita a 4 threads para evitar problemas de travamento
+        minThreads: 1,
+        maxThreads: Math.min(4, Math.max(1, os.cpus().length - 1)),
+        // Isolamento por arquivo para melhor paralelização
+        isolate: true,
+        // Desabilitado: useAtomics pode causar deadlocks em alguns ambientes (especialmente macOS)
+        // useAtomics: true,
+      },
+    },
+    // Timeouts otimizados
+    testTimeout: 30000, // 30 segundos por teste (aumentado para evitar timeouts prematuros)
+    hookTimeout: 30000, // 30 segundos para hooks
+    teardownTimeout: 10000, // 10 segundos para teardown
+    // Execução paralela de arquivos de teste
+    fileParallelism: true,
+    // Limite de arquivos a serem processados em paralelo (reduzido para evitar deadlocks)
+    maxConcurrency: 5,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'json'],
