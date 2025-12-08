@@ -3,7 +3,6 @@ export { useRoleManagement } from './useRoleManagement';
 export { useUserManagement } from './useUserManagement';
 export { useGroupManagement } from './useGroupManagement';
 export { usePermissionManagement } from './usePermissionManagement';
-export { useCheckPermission } from './useCheckPermission';
 
 // Export types explicitly to avoid conflicts
 export type {

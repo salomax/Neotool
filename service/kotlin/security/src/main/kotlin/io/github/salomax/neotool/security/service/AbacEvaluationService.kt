@@ -112,8 +112,17 @@ class AbacEvaluationService(
                 return false
             }
 
-            val conditionNode = objectMapper.readTree(condition)
-            evaluateConditionNode(conditionNode, attributes, depth = 0)
+            // Use JsonParser to validate entire input is consumed
+            return objectMapper.factory.createParser(condition).use { parser ->
+                val conditionNode: JsonNode = objectMapper.readTree(parser)
+                // Check if there's any remaining content after parsing
+                if (parser.nextToken() != null) {
+                    logger.debug { "Malformed JSON: extra content after root object" }
+                    false
+                } else {
+                    evaluateConditionNode(conditionNode, attributes, depth = 0)
+                }
+            }
         } catch (e: Exception) {
             logger.debug(e) { "Failed to parse condition" }
             false

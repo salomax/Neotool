@@ -36,3 +36,29 @@ if (typeof window !== 'undefined') {
     });
   }
 }
+
+// Suppress React act() warnings in tests
+// These warnings come from React when state updates occur outside of act().
+// Many libraries (Material-UI, third-party components) have internal async state updates
+// that are properly handled by the library but trigger these warnings in tests.
+// Suppressing these warnings doesn't affect test correctness.
+const originalError = console.error;
+console.error = (...args: unknown[]) => {
+  // Check all arguments for React act() warnings
+  const message = args.map(String).join(' ');
+  if (
+    message.includes('Warning: An update to') &&
+    message.includes('inside a test was not wrapped in act(...)')
+  ) {
+    // Suppress all React act() warnings
+    return;
+  }
+  // Also suppress the general act() warning message
+  if (
+    message.includes('act(...)') &&
+    (message.includes('not wrapped') || message.includes('wrapped in act'))
+  ) {
+    return;
+  }
+  originalError.call(console, ...args);
+};
