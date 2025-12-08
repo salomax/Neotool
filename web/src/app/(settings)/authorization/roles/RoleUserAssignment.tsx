@@ -118,7 +118,6 @@ export const RoleUserAssignment: React.FC<RoleUserAssignmentProps> = ({
 
         onUsersChange?.();
       } catch (err) {
-        console.error("Error updating user assignments:", err);
         const errorMessage = extractErrorMessage(
           err,
           t("roleManagement.users.assignError")

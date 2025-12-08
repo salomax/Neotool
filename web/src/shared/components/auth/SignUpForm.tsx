@@ -85,7 +85,6 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onSuccess }) => {
       await signUp(trimmedName, trimmedEmail, data.password);
       onSuccess?.();
     } catch (err: any) {
-      console.error("Sign up error:", err);
       const errorMessage = extractErrorMessage(err, t("errors.unknownError"));
       setError(errorMessage);
       showError(errorMessage);
@@ -105,9 +104,7 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onSuccess }) => {
         aria-label={t("signUpButton")}
       >
         <Stack gap={3} name="signup-form-stack">
-          {error && (
-            <ErrorAlert error={error} data-testid="signup-error" />
-          )}
+          <ErrorAlert error={error} data-testid="signup-error" />
 
           <Controller
             name="name"

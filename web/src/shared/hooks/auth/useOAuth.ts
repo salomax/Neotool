@@ -1,5 +1,6 @@
 import * as React from "react";
 import { signInWithGoogle, loadGoogleIdentityServices } from "@/lib/auth/oauth/google";
+import { logger } from "@/shared/utils/logger";
 
 export type OAuthProvider = "google";
 
@@ -26,7 +27,7 @@ export function useOAuth(options: UseOAuthOptions = {}): UseOAuthReturn {
   // Load Google Identity Services on mount
   React.useEffect(() => {
     loadGoogleIdentityServices().catch((err) => {
-      console.error("Failed to load Google Identity Services:", err);
+      logger.error("Failed to load Google Identity Services:", err);
     });
   }, []);
 

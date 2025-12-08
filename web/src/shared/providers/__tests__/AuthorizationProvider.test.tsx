@@ -4,8 +4,38 @@ import { renderHook, waitFor, act } from '@testing-library/react';
 import { AuthProvider } from '../AuthProvider';
 import { AuthorizationProvider, useAuthorization } from '../AuthorizationProvider';
 
+// Use vi.hoisted() to define variables that need to be available in mock factories
+const { mockPush, mockQuery, mockUseCurrentUserQuery, mockUser, defaultMockAuthContext, mockAuthContextRef, mockUseAuth } = vi.hoisted(() => {
+  const mockPush = vi.fn();
+  const mockQuery = vi.fn();
+  const mockUseCurrentUserQuery = vi.fn();
+  const mockUser = { id: '1', email: 'test@example.com', displayName: 'Test User' };
+  const defaultMockAuthContext = {
+    user: mockUser,
+    token: 'test-token',
+    isLoading: false,
+    signIn: vi.fn(),
+    signInWithOAuth: vi.fn(),
+    signUp: vi.fn(),
+    signOut: vi.fn(),
+    isAuthenticated: true,
+  };
+  // Use a ref object so we can reassign the value in tests
+  const mockAuthContextRef = { current: { ...defaultMockAuthContext } };
+  const mockUseAuth = vi.fn(() => mockAuthContextRef.current);
+  
+  return {
+    mockPush,
+    mockQuery,
+    mockUseCurrentUserQuery,
+    mockUser,
+    defaultMockAuthContext,
+    mockAuthContextRef,
+    mockUseAuth,
+  };
+});
+
 // Mock Next.js router
-const mockPush = vi.fn();
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: mockPush,
@@ -13,7 +43,6 @@ vi.mock('next/navigation', () => ({
 }));
 
 // Mock Apollo Client
-const mockQuery = vi.fn();
 vi.mock('@/lib/graphql/client', () => ({
   apolloClient: {
     query: mockQuery,
@@ -21,28 +50,11 @@ vi.mock('@/lib/graphql/client', () => ({
 }));
 
 // Mock useCurrentUserQuery
-const mockUseCurrentUserQuery = vi.fn();
 vi.mock('@/lib/graphql/operations/auth/queries.generated', () => ({
   useCurrentUserQuery: (options: any) => mockUseCurrentUserQuery(options),
 }));
 
 // Mock AuthProvider's useAuth
-const mockUser = { id: '1', email: 'test@example.com', displayName: 'Test User' };
-const defaultMockAuthContext = {
-  user: mockUser,
-  token: 'test-token',
-  isLoading: false,
-  signIn: vi.fn(),
-  signInWithOAuth: vi.fn(),
-  signUp: vi.fn(),
-  signOut: vi.fn(),
-  isAuthenticated: true,
-};
-
-// Create a mutable mock context that can be changed per test
-let mockAuthContext = { ...defaultMockAuthContext };
-const mockUseAuth = vi.fn(() => mockAuthContext);
-
 vi.mock('../AuthProvider', async () => {
   const actual = await vi.importActual('../AuthProvider');
   return {
@@ -55,7 +67,7 @@ describe('AuthorizationProvider', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Reset mock auth context to default
-    mockAuthContext = { ...defaultMockAuthContext };
+    mockAuthContextRef.current = { ...defaultMockAuthContext };
     mockUseCurrentUserQuery.mockReturnValue({
       data: {
         currentUser: {
@@ -137,7 +149,7 @@ describe('AuthorizationProvider', () => {
 
     it('should reset state when user is not authenticated', async () => {
       // Override mock auth context for this test
-      mockAuthContext = {
+      mockAuthContextRef.current = {
         ...defaultMockAuthContext,
         user: null,
         token: null,

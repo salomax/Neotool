@@ -114,7 +114,6 @@ export const RoleGroupAssignment: React.FC<RoleGroupAssignmentProps> = ({
 
         onGroupsChange?.();
       } catch (err) {
-        console.error("Error updating group assignments:", err);
         const errorMessage = extractErrorMessage(
           err,
           t("roleManagement.groups.assignError")

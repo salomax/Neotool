@@ -5,6 +5,22 @@ import userEvent from '@testing-library/user-event';
 import { ErrorBoundary } from '../ErrorBoundary';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
 
+// Use vi.hoisted() to define variables that need to be available in mock factories
+const { mockLoggerError } = vi.hoisted(() => {
+  const mockLoggerError = vi.fn();
+  
+  return {
+    mockLoggerError,
+  };
+});
+
+// Mock logger
+vi.mock('@/shared/utils/logger', () => ({
+  logger: {
+    error: mockLoggerError,
+  },
+}));
+
 // Component that throws an error for testing
 const ThrowError = ({ shouldThrow = false, message = 'Test error' }: { shouldThrow?: boolean; message?: string }) => {
   if (shouldThrow) {
@@ -31,8 +47,8 @@ const renderErrorBoundary = (children: React.ReactNode, props = {}) => {
 
 describe('ErrorBoundary', () => {
   beforeEach(() => {
-    // Suppress console.error for error boundary tests
-    vi.spyOn(console, 'error').mockImplementation(() => {});
+    // Clear logger mock calls before each test
+    mockLoggerError.mockClear();
   });
 
   it('renders children when no error occurs', () => {
@@ -130,14 +146,14 @@ describe('ErrorBoundary', () => {
   });
 
   it('logs error to console when error occurs', () => {
-    const consoleErrorSpy = vi.spyOn(console, 'error');
-    
     renderErrorBoundary(<ThrowError shouldThrow={true} message="Console test" />);
     
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
+    expect(mockLoggerError).toHaveBeenCalledWith(
       'ErrorBoundary caught an error:',
-      expect.objectContaining({ message: 'Console test' }),
-      expect.any(Object)
+      expect.objectContaining({
+        error: expect.objectContaining({ message: 'Console test' }),
+        errorInfo: expect.any(Object),
+      })
     );
   });
 

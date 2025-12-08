@@ -545,7 +545,9 @@ pnpm run ci:unit
 - [ ] Feature flag service (unleash)
 - [ ] Vault service (HashiCorp)
 - [ ] Enable K8s deploy via GitOps  
-- [ ] Autoscaling test 
+- [ ] K8S Autoscaling
+- [ ] Error tracker / Update Frontend / see Sentry (self-hosted or cloud)
+- [ ] Metrics tracker / Google Analytics
 - [ ] CDN integration
 
 

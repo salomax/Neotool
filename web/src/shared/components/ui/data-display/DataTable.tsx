@@ -236,9 +236,7 @@ export function DataTable<T extends { id?: string | number }>(
   return (
     <Stack spacing={1} sx={{ width: "100%", height: "100%" }}>
       {loading && <LinearProgress />}
-      {error && (
-        <ErrorAlert error={error} />
-      )}
+      <ErrorAlert error={error} />
 
       <Box className={gridThemeClass} sx={{ height, width: "100%" }}>
         <AgGridReact<T>

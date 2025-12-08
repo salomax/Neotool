@@ -53,7 +53,6 @@ export const SignInForm: React.FC<SignInFormProps> = ({ onSuccess }) => {
         await signInWithOAuth("google", idToken, false);
         onSuccess?.();
       } catch (err: any) {
-        console.error("OAuth sign in error:", err);
         const errorMessage = extractErrorMessage(err, t("errors.unknownError"));
         setError(errorMessage);
         showError(errorMessage);
@@ -62,7 +61,6 @@ export const SignInForm: React.FC<SignInFormProps> = ({ onSuccess }) => {
       }
     },
     onError: (err) => {
-      console.error("OAuth error:", err);
       const errorMessage = extractErrorMessage(err, t("errors.unknownError"));
       setError(errorMessage);
       showError(errorMessage);
@@ -86,7 +84,6 @@ export const SignInForm: React.FC<SignInFormProps> = ({ onSuccess }) => {
       await signIn(data.email, data.password, data.rememberMe);
       onSuccess?.();
     } catch (err: any) {
-      console.error("Sign in error:", err);
       const errorMessage = extractErrorMessage(err, t("errors.invalidCredentials"));
       setError(errorMessage);
       showError(errorMessage);
@@ -101,7 +98,6 @@ export const SignInForm: React.FC<SignInFormProps> = ({ onSuccess }) => {
       setError(null);
       await signInOAuth("google");
     } catch (err: any) {
-      console.error("Google sign in error:", err);
       const errorMessage = extractErrorMessage(err, t("errors.unknownError"));
       setError(errorMessage);
       showError(errorMessage);
@@ -120,9 +116,7 @@ export const SignInForm: React.FC<SignInFormProps> = ({ onSuccess }) => {
         aria-label={t("signInButton")}
       >
         <Stack gap={3} name="signin-form-stack">
-          {error && (
-            <ErrorAlert error={error} data-testid="signin-error" />
-          )}
+          <ErrorAlert error={error} data-testid="signin-error" />
 
           <Controller
             name="email"

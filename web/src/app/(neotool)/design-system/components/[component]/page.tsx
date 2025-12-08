@@ -36,7 +36,7 @@ const CodeHighlighter = dynamic(() =>
           import('react-syntax-highlighter/dist/esm/styles/prism').then(styleMod => {
             setStyle(styleMod.vscDarkPlus);
           }).catch(err => {
-            console.error('Failed to load syntax highlighter style:', err);
+            // Silently handle style loading failure - fallback will be used
           });
         }, []);
         
@@ -101,7 +101,6 @@ export default function ComponentPage({ params }: ComponentPageProps) {
       await navigator.clipboard.writeText(code);
       alert('Code copied to clipboard!');
     } catch (err) {
-      console.error('Failed to copy: ', err);
       alert('Failed to copy to clipboard');
     }
   };

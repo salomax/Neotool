@@ -3,6 +3,7 @@
 import React from 'react';
 import { ApolloProvider } from '@apollo/client/react';
 import { getApolloClient } from './client';
+import { logger } from '@/shared/utils/logger';
 
 interface GraphQLProviderProps {
   children: React.ReactNode;
@@ -13,12 +14,12 @@ export function GraphQLProvider({ children }: GraphQLProviderProps) {
   const apolloClient = React.useMemo(() => getApolloClient(), []);
 
   if (!apolloClient) {
-    console.error('apolloClient is undefined!');
+    logger.error('apolloClient is undefined!');
     return <div>Error: Apollo Client not available</div>;
   }
 
   if (!ApolloProvider) {
-    console.error('ApolloProvider is undefined!');
+    logger.error('ApolloProvider is undefined!');
     return <div>Error: ApolloProvider not available</div>;
   }
   

@@ -75,7 +75,6 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({ onSucces
         throw new Error("Failed to send reset link");
       }
     } catch (err: any) {
-      console.error("Forgot password error:", err);
       const errorMessage = extractErrorMessage(err, t("errors.unknownError"));
       setError(errorMessage);
       showError(errorMessage);
@@ -110,9 +109,7 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({ onSucces
         aria-label={t("sendResetLink")}
       >
         <Stack gap={3} name="forgot-password-form-stack">
-          {error && (
-            <ErrorAlert error={error} />
-          )}
+          <ErrorAlert error={error} data-testid="forgot-password-error" />
 
           <Controller
             name="email"

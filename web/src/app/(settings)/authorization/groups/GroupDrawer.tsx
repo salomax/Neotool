@@ -203,8 +203,7 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
               await assignRoleToGroup(newGroupId, role.id);
             }
           } catch (roleErr) {
-            // Log error but don't fail the entire operation
-            console.error("Error assigning roles to new group:", roleErr);
+            // Don't fail the entire operation
             toast.error(
               t("groupManagement.roles.assignError") +
                 " " +

@@ -63,7 +63,7 @@
     "react-error-boundary": "^6.0.0",
     "react-hook-form": "^7.62.0",
     "react-i18next": "14.1.2",
-    "react-input-mask": "^2.0.4",
+    "react-imask": "^7.6.1",
     "react-is": "^18.3.1",
     "react-number-format": "^5.4.4",
     "react-syntax-highlighter": "^15.6.6",

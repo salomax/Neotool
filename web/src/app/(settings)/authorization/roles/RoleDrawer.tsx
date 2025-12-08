@@ -251,8 +251,12 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
   // Refetch when drawer opens to ensure fresh data
   useEffect(() => {
     if (open && roleId) {
-      refetchPermissions().catch(console.error);
-      refetchUsersGroups().catch(console.error);
+      refetchPermissions().catch(() => {
+        // Silently handle refetch failures - data will refresh on next interaction
+      });
+      refetchUsersGroups().catch(() => {
+        // Silently handle refetch failures - data will refresh on next interaction
+      });
       // Clear optimistic state when opening drawer to ensure fresh data
       setOptimisticPermissions(null);
       setOptimisticUsers(null);
@@ -286,7 +290,6 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
             await assignRoleToGroup(groupId, newRole.id);
           }
         } catch (assignErr) {
-          console.error("Error assigning selections to new role:", assignErr);
           // Role was created but assignments failed - show warning
           toast.warning(
             t("roleManagement.toast.roleCreated", { name: data.name }) +
@@ -304,7 +307,6 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
       setPendingGroups([]);
       onClose();
     } catch (err) {
-      console.error("Error submitting role form:", err);
       const errorMessage = extractErrorMessage(
         err,
         isCreateMode
@@ -335,8 +337,12 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
       try {
         await assignPermissionToRole(role.id, permissionId);
         // Refetch in background without blocking UI
-        refetchPermissions().catch(console.error);
-        refetchRoles().catch(console.error);
+        refetchPermissions().catch(() => {
+          // Silently handle refetch failures - data will refresh on next interaction
+        });
+        refetchRoles().catch(() => {
+          // Silently handle refetch failures - data will refresh on next interaction
+        });
         // Clear optimistic state after successful refetch (with a small delay to let refetch complete)
         setTimeout(() => {
           setOptimisticPermissions(null);
@@ -372,8 +378,12 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
       try {
         await removePermissionFromRole(role.id, permissionId);
         // Refetch in background without blocking UI
-        refetchPermissions().catch(console.error);
-        refetchRoles().catch(console.error);
+        refetchPermissions().catch(() => {
+          // Silently handle refetch failures - data will refresh on next interaction
+        });
+        refetchRoles().catch(() => {
+          // Silently handle refetch failures - data will refresh on next interaction
+        });
         // Clear optimistic state after successful refetch
         setTimeout(() => {
           setOptimisticPermissions(null);
@@ -426,8 +436,12 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
       try {
         await assignRoleToUser(userId, role.id);
         // Refetch in background without blocking UI
-        refetchUsersGroups().catch(console.error);
-        refetchRoles().catch(console.error);
+        refetchUsersGroups().catch(() => {
+          // Silently handle refetch failures - data will refresh on next interaction
+        });
+        refetchRoles().catch(() => {
+          // Silently handle refetch failures - data will refresh on next interaction
+        });
         // Clear optimistic state after successful refetch
         setTimeout(() => {
           setOptimisticUsers(null);
@@ -467,8 +481,12 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
       try {
         await removeRoleFromUser(userId, role.id);
         // Refetch in background without blocking UI
-        refetchUsersGroups().catch(console.error);
-        refetchRoles().catch(console.error);
+        refetchUsersGroups().catch(() => {
+          // Silently handle refetch failures - data will refresh on next interaction
+        });
+        refetchRoles().catch(() => {
+          // Silently handle refetch failures - data will refresh on next interaction
+        });
         // Clear optimistic state after successful refetch
         setTimeout(() => {
           setOptimisticUsers(null);
@@ -519,8 +537,12 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
       try {
         await assignRoleToGroup(groupId, role.id);
         // Refetch in background without blocking UI
-        refetchUsersGroups().catch(console.error);
-        refetchRoles().catch(console.error);
+        refetchUsersGroups().catch(() => {
+          // Silently handle refetch failures - data will refresh on next interaction
+        });
+        refetchRoles().catch(() => {
+          // Silently handle refetch failures - data will refresh on next interaction
+        });
         // Clear optimistic state after successful refetch
         setTimeout(() => {
           setOptimisticGroups(null);
@@ -559,8 +581,12 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
       try {
         await removeRoleFromGroup(groupId, role.id);
         // Refetch in background without blocking UI
-        refetchUsersGroups().catch(console.error);
-        refetchRoles().catch(console.error);
+        refetchUsersGroups().catch(() => {
+          // Silently handle refetch failures - data will refresh on next interaction
+        });
+        refetchRoles().catch(() => {
+          // Silently handle refetch failures - data will refresh on next interaction
+        });
         // Clear optimistic state after successful refetch
         setTimeout(() => {
           setOptimisticGroups(null);

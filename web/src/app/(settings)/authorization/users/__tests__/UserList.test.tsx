@@ -4,8 +4,6 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { UserList } from '../UserList';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
-import { AuthProvider } from '@/shared/providers/AuthProvider';
-import { AuthorizationProvider } from '@/shared/providers/AuthorizationProvider';
 import type { User } from '@/shared/hooks/authorization/useUserManagement';
 import type { UserSortState } from '@/shared/utils/sorting';
 
@@ -36,11 +34,15 @@ vi.mock('@/shared/components/ui/pagination', () => ({
 
 // Mock DynamicTableBox
 vi.mock('@/shared/components/ui/layout', () => ({
-  Box: ({ children, ...props }: any) => <div {...props}>{children}</div>,
-  DynamicTableBox: ({ children, ...props }: any) => <div {...props}>{children}</div>,
+  Box: ({ children, fullHeight, fullSize, autoFill, name, 'data-testid': dataTestId, ...props }: any) => (
+    <div {...props}>{children}</div>
+  ),
+  DynamicTableBox: ({ children, onTableResize, recalculationKey, pageSizeOptions, ...props }: any) => (
+    <div {...props}>{children}</div>
+  ),
 }));
 
-// Mock GraphQL queries
+// Mock GraphQL queries - return immediately resolved data
 vi.mock('@/lib/graphql/operations/auth/queries.generated', () => ({
   useCurrentUserQuery: vi.fn(() => ({
     data: {
@@ -55,6 +57,35 @@ vi.mock('@/lib/graphql/operations/auth/queries.generated', () => ({
     loading: false,
     refetch: vi.fn(),
   })),
+}));
+
+// Mock AuthorizationProvider to avoid expensive GraphQL queries
+vi.mock('@/shared/providers/AuthorizationProvider', () => ({
+  AuthorizationProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  useAuthorization: () => ({
+    permissions: new Set(),
+    roles: [],
+    loading: false,
+    has: vi.fn(() => true),
+    hasAny: vi.fn(() => true),
+    hasAll: vi.fn(() => true),
+    refreshAuthorization: vi.fn(),
+  }),
+}));
+
+// Mock AuthProvider to avoid localStorage reads
+vi.mock('@/shared/providers/AuthProvider', () => ({
+  AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  useAuth: () => ({
+    user: { id: '1', email: 'test@example.com', displayName: 'Test User' },
+    token: 'test-token',
+    isLoading: false,
+    signIn: vi.fn(),
+    signInWithOAuth: vi.fn(),
+    signUp: vi.fn(),
+    signOut: vi.fn(),
+    isAuthenticated: true,
+  }),
 }));
 
 const mockUsers: User[] = [
@@ -72,6 +103,7 @@ const mockUsers: User[] = [
   },
 ];
 
+// Minimal wrapper - only AppThemeProvider is needed for MUI components
 const renderUserList = (props = {}) => {
   const defaultProps = {
     users: mockUsers,
@@ -82,16 +114,15 @@ const renderUserList = (props = {}) => {
 
   return render(
     <AppThemeProvider>
-      <AuthProvider>
-        <AuthorizationProvider>
-          <UserList {...defaultProps} />
-        </AuthorizationProvider>
-      </AuthProvider>
+      <UserList {...defaultProps} />
     </AppThemeProvider>
   );
 };
 
 describe('UserList', () => {
+  // Reuse userEvent instance across tests for better performance
+  const user = userEvent.setup();
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -165,7 +196,6 @@ describe('UserList', () => {
 
   describe('sort interactions', () => {
     it('should call onSortChange with DISPLAY_NAME when Name header is clicked', async () => {
-      const user = userEvent.setup();
       const onSortChange = vi.fn();
       
       renderUserList({ onSortChange });
@@ -178,7 +208,6 @@ describe('UserList', () => {
     });
 
     it('should call onSortChange with EMAIL when Email header is clicked', async () => {
-      const user = userEvent.setup();
       const onSortChange = vi.fn();
       
       renderUserList({ onSortChange });
@@ -191,7 +220,6 @@ describe('UserList', () => {
     });
 
     it('should call onSortChange with ENABLED when Status header is clicked', async () => {
-      const user = userEvent.setup();
       const onSortChange = vi.fn();
       
       renderUserList({ onSortChange });
@@ -204,8 +232,6 @@ describe('UserList', () => {
     });
 
     it('should not call onSortChange when header is clicked but onSortChange is not provided', async () => {
-      const user = userEvent.setup();
-      
       renderUserList({ onSortChange: undefined });
 
       const nameHeader = screen.getByText('Name');
@@ -216,7 +242,6 @@ describe('UserList', () => {
     });
 
     it('should handle multiple sort clicks', async () => {
-      const user = userEvent.setup();
       const onSortChange = vi.fn();
       
       renderUserList({ onSortChange });

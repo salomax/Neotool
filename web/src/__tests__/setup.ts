@@ -37,28 +37,73 @@ if (typeof window !== 'undefined') {
   }
 }
 
-// Suppress React act() warnings in tests
-// These warnings come from React when state updates occur outside of act().
-// Many libraries (Material-UI, third-party components) have internal async state updates
-// that are properly handled by the library but trigger these warnings in tests.
-// Suppressing these warnings doesn't affect test correctness.
+// Suppress act() warnings from Material-UI internal components
+// MUI components (ButtonBase, TouchRipple, Tooltip, Grow, etc.) have internal
+// animations and transitions that trigger act() warnings but are properly handled
+// by the library. We suppress these specific warnings while keeping warnings
+// for user code to help identify tests that need act() wrapping.
 const originalError = console.error;
 console.error = (...args: unknown[]) => {
-  // Check all arguments for React act() warnings
   const message = args.map(String).join(' ');
-  if (
-    message.includes('Warning: An update to') &&
-    message.includes('inside a test was not wrapped in act(...)')
-  ) {
-    // Suppress all React act() warnings
-    return;
-  }
-  // Also suppress the general act() warning message
-  if (
+  
+  // Suppress only MUI-specific act() warnings from internal components
+  // These are from library internals we can't control
+  const muiInternalComponents = [
+    'ButtonBase',
+    'TouchRipple',
+    'Tooltip',
+    'Grow',
+    'Fade',
+    'Slide',
+    'Zoom',
+    'Collapse',
+    '@mui/material',
+  ];
+  
+  const isMuiInternalWarning = 
     message.includes('act(...)') &&
-    (message.includes('not wrapped') || message.includes('wrapped in act'))
-  ) {
+    muiInternalComponents.some(component => message.includes(component));
+  
+  if (isMuiInternalWarning) {
+    // Suppress MUI internal act() warnings
     return;
   }
+  
+  // Suppress MUI Tabs value validation warnings
+  // This is a known timing issue in tests where MUI validates the value
+  // before Tab children are fully rendered, especially in React strict mode
+  const isMuiTabsValueWarning = 
+    message.includes('MUI:') &&
+    message.includes('The `value` provided to the Tabs component is invalid');
+  
+  if (isMuiTabsValueWarning) {
+    // Suppress MUI Tabs value validation warnings in tests
+    return;
+  }
+  
+  // Suppress act() warnings from test components
+  // Test helper components (IntegrationTestComponent, MultiDomainIntegrationComponent, etc.)
+  // have internal state updates that are properly handled but trigger warnings
+  // These warnings include the component name and file path, so we check for test file patterns
+  const isTestComponentWarning = 
+    message.includes('act(...)') &&
+    message.includes('inside a test was not wrapped in act(...)') &&
+    (
+      message.includes('TestComponent') ||
+      message.includes('IntegrationComponent') ||
+      message.includes('__tests__') ||
+      message.includes('.test.') ||
+      message.includes('.spec.')
+    );
+  
+  if (isTestComponentWarning) {
+    // Suppress act() warnings from test components
+    return;
+  }
+  
+  // Note: findDOMNode warnings from react-input-mask have been resolved
+  // by migrating to react-imask which doesn't use deprecated React APIs
+  
+  // Keep all other warnings, including act() warnings from user code
   originalError.call(console, ...args);
 };

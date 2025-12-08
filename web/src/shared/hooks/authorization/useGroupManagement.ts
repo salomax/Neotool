@@ -316,7 +316,6 @@ export function useGroupManagement(options: UseGroupManagementOptions = {}): Use
       await refetch();
       closeDialog();
     } catch (err) {
-      console.error('Error creating group:', err);
       const errorMessage = extractErrorMessage(err, 'Failed to create group');
       throw new Error(errorMessage);
     }
@@ -345,7 +344,6 @@ export function useGroupManagement(options: UseGroupManagementOptions = {}): Use
       await refetch();
       closeDialog();
     } catch (err) {
-      console.error('Error updating group:', err);
       const errorMessage = extractErrorMessage(err, 'Failed to update group');
       throw new Error(errorMessage);
     }
@@ -360,7 +358,6 @@ export function useGroupManagement(options: UseGroupManagementOptions = {}): Use
       );
       setDeleteConfirm(null);
     } catch (err) {
-      console.error('Error deleting group:', err);
       const errorMessage = extractErrorMessage(err, 'Failed to delete group');
       throw new Error(errorMessage);
     }

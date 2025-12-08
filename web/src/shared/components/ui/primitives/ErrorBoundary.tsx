@@ -3,6 +3,7 @@
 import React, { Component, ReactNode } from 'react';
 import { Box } from '@mui/material';
 import { ErrorAlert } from '@/shared/components/ui/feedback';
+import { logger } from '@/shared/utils/logger';
 
 interface Props {
   children: ReactNode;
@@ -26,7 +27,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   override componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    logger.error('ErrorBoundary caught an error:', { error, errorInfo });
     this.props.onError?.(error, errorInfo);
   }
 

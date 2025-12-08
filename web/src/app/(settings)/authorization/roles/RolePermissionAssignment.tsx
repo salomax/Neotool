@@ -99,7 +99,6 @@ export const RolePermissionAssignment: React.FC<RolePermissionAssignmentProps> =
         }
         onPermissionsChange?.();
       } catch (err) {
-        console.error("Error toggling permission:", err);
         const errorMessage = extractErrorMessage(
           err,
           isChecked
