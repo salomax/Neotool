@@ -6,6 +6,7 @@ import {
   Typography,
   Stack,
   Button,
+  Alert,
 } from "@mui/material";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { LoadingState, ErrorAlert } from "@/shared/components/ui/feedback";

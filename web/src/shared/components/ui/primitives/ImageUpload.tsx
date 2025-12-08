@@ -19,6 +19,7 @@ import {
   CheckCircleIcon,
   ErrorIcon
 } from '@/shared/ui/mui-imports';
+import { ErrorAlert } from '@/shared/components/ui/feedback';
 
 export interface ImageUploadProps {
   /** Current uploaded files */

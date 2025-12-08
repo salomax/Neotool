@@ -281,7 +281,7 @@ const DrawerFullWidthExample = () => {
         <Drawer.Header title="Full Width Drawer" showCloseButton={true} />
         <Drawer.Body>
           <Typography variant="body1" paragraph>
-            This drawer uses size="full" which makes it take up 100% of the viewport width
+            This drawer uses size=&quot;full&quot; which makes it take up 100% of the viewport width
             minus the sidebar width (84px).
           </Typography>
           <List>

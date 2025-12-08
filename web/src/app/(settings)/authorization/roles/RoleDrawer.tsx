@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useEffect, useState } from "react";
+import React, { useMemo, useEffect, useState, startTransition } from "react";
 import {
   Box,
   Button,
@@ -81,7 +81,7 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
   const roleWithPermissions = useMemo(() => {
     if (!permissionsData?.roles?.edges || !roleId) return null;
     return permissionsData.roles.edges.map(e => e.node).find((r) => r.id === roleId) || null;
-  }, [permissionsData?.roles?.edges, roleId]);
+  }, [permissionsData.roles.edges, roleId]);
 
   // Derive role object from roleId and query data
   const role = useMemo(() => {
@@ -146,7 +146,7 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
           enabled: user.enabled,
         }));
     }
-  }, [usersGroupsData?.users?.edges, role, pendingUsers, optimisticUsers]);
+  }, [usersGroupsData.users.edges, role, pendingUsers, optimisticUsers]);
 
   // Extract assigned groups - use optimistic state if available
   const assignedGroups = useMemo(() => {
@@ -175,7 +175,7 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
           description: group.description,
         }));
     }
-  }, [usersGroupsData?.groups?.edges, role, pendingGroups, optimisticGroups]);
+  }, [usersGroupsData.groups.edges, role, pendingGroups, optimisticGroups]);
 
   const {
     createRole,
@@ -212,24 +212,28 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
         name: "",
       });
       // Clear pending and optimistic state when opening create drawer
-      setPendingPermissions([]);
-      setPendingUsers([]);
-      setPendingGroups([]);
-      setOptimisticPermissions(null);
-      setOptimisticUsers(null);
-      setOptimisticGroups(null);
+      startTransition(() => {
+        setPendingPermissions([]);
+        setPendingUsers([]);
+        setPendingGroups([]);
+        setOptimisticPermissions(null);
+        setOptimisticUsers(null);
+        setOptimisticGroups(null);
+      });
     } else if (role) {
       // Initialize form with role data for edit mode
       methods.reset({
         name: role.name,
       });
       // Clear pending and optimistic state when editing existing role
-      setPendingPermissions([]);
-      setPendingUsers([]);
-      setPendingGroups([]);
-      setOptimisticPermissions(null);
-      setOptimisticUsers(null);
-      setOptimisticGroups(null);
+      startTransition(() => {
+        setPendingPermissions([]);
+        setPendingUsers([]);
+        setPendingGroups([]);
+        setOptimisticPermissions(null);
+        setOptimisticUsers(null);
+        setOptimisticGroups(null);
+      });
     }
   }, [role, isCreateMode, methods]);
 
@@ -239,12 +243,14 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
       methods.reset({
         name: "",
       });
-      setPendingPermissions([]);
-      setPendingUsers([]);
-      setPendingGroups([]);
-      setOptimisticPermissions(null);
-      setOptimisticUsers(null);
-      setOptimisticGroups(null);
+      startTransition(() => {
+        setPendingPermissions([]);
+        setPendingUsers([]);
+        setPendingGroups([]);
+        setOptimisticPermissions(null);
+        setOptimisticUsers(null);
+        setOptimisticGroups(null);
+      });
     }
   }, [open, methods]);
 
@@ -258,9 +264,11 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
         // Silently handle refetch failures - data will refresh on next interaction
       });
       // Clear optimistic state when opening drawer to ensure fresh data
-      setOptimisticPermissions(null);
-      setOptimisticUsers(null);
-      setOptimisticGroups(null);
+      startTransition(() => {
+        setOptimisticPermissions(null);
+        setOptimisticUsers(null);
+        setOptimisticGroups(null);
+      });
     }
   }, [open, roleId, refetchPermissions, refetchUsersGroups]);
 
@@ -340,9 +348,7 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
         refetchPermissions().catch(() => {
           // Silently handle refetch failures - data will refresh on next interaction
         });
-        refetchRoles().catch(() => {
-          // Silently handle refetch failures - data will refresh on next interaction
-        });
+        refetchRoles();
         // Clear optimistic state after successful refetch (with a small delay to let refetch complete)
         setTimeout(() => {
           setOptimisticPermissions(null);
@@ -381,9 +387,7 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
         refetchPermissions().catch(() => {
           // Silently handle refetch failures - data will refresh on next interaction
         });
-        refetchRoles().catch(() => {
-          // Silently handle refetch failures - data will refresh on next interaction
-        });
+        refetchRoles();
         // Clear optimistic state after successful refetch
         setTimeout(() => {
           setOptimisticPermissions(null);
@@ -439,9 +443,7 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
         refetchUsersGroups().catch(() => {
           // Silently handle refetch failures - data will refresh on next interaction
         });
-        refetchRoles().catch(() => {
-          // Silently handle refetch failures - data will refresh on next interaction
-        });
+        refetchRoles();
         // Clear optimistic state after successful refetch
         setTimeout(() => {
           setOptimisticUsers(null);
@@ -484,9 +486,7 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
         refetchUsersGroups().catch(() => {
           // Silently handle refetch failures - data will refresh on next interaction
         });
-        refetchRoles().catch(() => {
-          // Silently handle refetch failures - data will refresh on next interaction
-        });
+        refetchRoles();
         // Clear optimistic state after successful refetch
         setTimeout(() => {
           setOptimisticUsers(null);
@@ -540,9 +540,7 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
         refetchUsersGroups().catch(() => {
           // Silently handle refetch failures - data will refresh on next interaction
         });
-        refetchRoles().catch(() => {
-          // Silently handle refetch failures - data will refresh on next interaction
-        });
+        refetchRoles();
         // Clear optimistic state after successful refetch
         setTimeout(() => {
           setOptimisticGroups(null);
@@ -584,9 +582,7 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
         refetchUsersGroups().catch(() => {
           // Silently handle refetch failures - data will refresh on next interaction
         });
-        refetchRoles().catch(() => {
-          // Silently handle refetch failures - data will refresh on next interaction
-        });
+        refetchRoles();
         // Clear optimistic state after successful refetch
         setTimeout(() => {
           setOptimisticGroups(null);

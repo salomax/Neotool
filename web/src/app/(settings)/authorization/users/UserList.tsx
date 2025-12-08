@@ -157,21 +157,26 @@ export const UserList: React.FC<UserListProps> = ({
 
   // Render actions column
   const renderActions = useMemo(
-    () => (user: User) => (
-      <PermissionGate require="security:user:view">
-        <Tooltip title={t("userManagement.editUser")}>
-          <IconButton
-            color="primary"
-            onClick={() => onEdit(user)}
-            size="small"
-            aria-label={`${t("userManagement.editUser")} ${user.email}`}
-            data-testid={`edit-user-${user.id}`}
-          >
-            <EditIcon />
-          </IconButton>
-        </Tooltip>
-      </PermissionGate>
-    ),
+    () => {
+      function UserActionsRenderer(user: User) {
+        return (
+          <PermissionGate require="security:user:view">
+            <Tooltip title={t("userManagement.editUser")}>
+              <IconButton
+                color="primary"
+                onClick={() => onEdit(user)}
+                size="small"
+                aria-label={`${t("userManagement.editUser")} ${user.email}`}
+                data-testid={`edit-user-${user.id}`}
+              >
+                <EditIcon />
+              </IconButton>
+            </Tooltip>
+          </PermissionGate>
+        );
+      }
+      return UserActionsRenderer;
+    },
     [t, onEdit]
   );
 

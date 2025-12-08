@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { ApolloError } from "@apollo/client";
 import { useGetUserWithRelationshipsQuery, GetUserWithRelationshipsDocument } from "@/lib/graphql/operations/authorization-management/queries.generated";
 import {
   useAssignGroupToUserMutation,
@@ -27,7 +26,7 @@ export interface UseUserDrawerReturn {
   // Data
   user: User | null;
   loading: boolean;
-  error: ApolloError | undefined;
+  error: Error | undefined;
   
   // Form state
   displayName: string;

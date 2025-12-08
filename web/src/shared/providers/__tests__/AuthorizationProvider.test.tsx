@@ -119,7 +119,7 @@ describe('AuthorizationProvider', () => {
       expect(result.current.permissions.has('security:user:save')).toBe(true);
       expect(result.current.permissions.has('security:role:view')).toBe(true);
       expect(result.current.roles).toHaveLength(2);
-      expect(result.current.roles[0].name).toBe('Admin');
+      expect(result.current.roles[0]?.name).toBe('Admin');
     });
 
     it('should handle empty permissions and roles', async () => {
@@ -151,8 +151,8 @@ describe('AuthorizationProvider', () => {
       // Override mock auth context for this test
       mockAuthContextRef.current = {
         ...defaultMockAuthContext,
-        user: null,
-        token: null,
+        user: null as any,
+        token: null as any,
         isAuthenticated: false,
       };
 

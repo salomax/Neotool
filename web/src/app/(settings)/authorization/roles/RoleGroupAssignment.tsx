@@ -121,7 +121,7 @@ export const RoleGroupAssignment: React.FC<RoleGroupAssignmentProps> = ({
         toast.error(errorMessage);
       }
     },
-    [roleId, assignedGroups, onAssignGroup, onRemoveGroup, toast, t, onGroupsChange]
+    [assignedGroups, onAssignGroup, onRemoveGroup, toast, t, onGroupsChange]
   );
 
   if (groupsLoading) {

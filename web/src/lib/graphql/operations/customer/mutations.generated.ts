@@ -59,7 +59,6 @@ export function useCreateCustomerMutation(baseOptions?: ApolloReactHooks.Mutatio
       }
 export type CreateCustomerMutationHookResult = ReturnType<typeof useCreateCustomerMutation>;
 export type CreateCustomerMutationResult = ApolloReactCommon.MutationResult<CreateCustomerMutation>;
-export type CreateCustomerMutationOptions = ApolloReactCommon.BaseMutationOptions<CreateCustomerMutation, CreateCustomerMutationVariables>;
 export const UpdateCustomerDocument = gql`
     mutation UpdateCustomer($id: ID!, $input: CustomerInput!) {
   updateCustomer(id: $id, input: $input) {
@@ -92,7 +91,6 @@ export function useUpdateCustomerMutation(baseOptions?: ApolloReactHooks.Mutatio
       }
 export type UpdateCustomerMutationHookResult = ReturnType<typeof useUpdateCustomerMutation>;
 export type UpdateCustomerMutationResult = ApolloReactCommon.MutationResult<UpdateCustomerMutation>;
-export type UpdateCustomerMutationOptions = ApolloReactCommon.BaseMutationOptions<UpdateCustomerMutation, UpdateCustomerMutationVariables>;
 export const DeleteCustomerDocument = gql`
     mutation DeleteCustomer($id: ID!) {
   deleteCustomer(id: $id)
@@ -122,4 +120,3 @@ export function useDeleteCustomerMutation(baseOptions?: ApolloReactHooks.Mutatio
       }
 export type DeleteCustomerMutationHookResult = ReturnType<typeof useDeleteCustomerMutation>;
 export type DeleteCustomerMutationResult = ApolloReactCommon.MutationResult<DeleteCustomerMutation>;
-export type DeleteCustomerMutationOptions = ApolloReactCommon.BaseMutationOptions<DeleteCustomerMutation, DeleteCustomerMutationVariables>;

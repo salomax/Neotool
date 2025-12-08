@@ -159,7 +159,7 @@ describe('UserList', () => {
       renderUserList({ onSortChange, orderBy });
 
       // TableSortLabel should be active
-      const nameHeader = screen.getByText('Name').closest('th');
+      const nameHeader = screen.getByRole('columnheader', { name: /name/i });
       expect(nameHeader).toBeInTheDocument();
     });
 
@@ -169,7 +169,7 @@ describe('UserList', () => {
       
       renderUserList({ onSortChange, orderBy });
 
-      const emailHeader = screen.getByText('Email').closest('th');
+      const emailHeader = screen.getByRole('columnheader', { name: /email/i });
       expect(emailHeader).toBeInTheDocument();
     });
 
@@ -179,7 +179,7 @@ describe('UserList', () => {
       
       renderUserList({ onSortChange, orderBy });
 
-      const statusHeader = screen.getByText('Status').closest('th');
+      const statusHeader = screen.getByRole('columnheader', { name: /status/i });
       expect(statusHeader).toBeInTheDocument();
     });
 

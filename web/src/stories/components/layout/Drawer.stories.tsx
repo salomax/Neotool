@@ -298,7 +298,7 @@ export const CustomSizes: Story = {
         >
           <Drawer.Header title="Small Drawer" />
           <Drawer.Body>
-            <Typography>This drawer uses size="sm" (400px)</Typography>
+            <Typography>This drawer uses size=&quot;sm&quot; (400px)</Typography>
           </Drawer.Body>
         </Drawer>
         
@@ -310,7 +310,7 @@ export const CustomSizes: Story = {
         >
           <Drawer.Header title="Medium Drawer" />
           <Drawer.Body>
-            <Typography>This drawer uses size="md" (600px)</Typography>
+            <Typography>This drawer uses size=&quot;md&quot; (600px)</Typography>
           </Drawer.Body>
         </Drawer>
         
@@ -322,7 +322,7 @@ export const CustomSizes: Story = {
         >
           <Drawer.Header title="Large Drawer" />
           <Drawer.Body>
-            <Typography>This drawer uses size="lg" (800px)</Typography>
+            <Typography>This drawer uses size=&quot;lg&quot; (800px)</Typography>
           </Drawer.Body>
         </Drawer>
         
@@ -334,7 +334,7 @@ export const CustomSizes: Story = {
         >
           <Drawer.Header title="Full Width Drawer" />
           <Drawer.Body>
-            <Typography>This drawer uses size="full" (100% - sidebar width)</Typography>
+            <Typography>This drawer uses size=&quot;full&quot; (100% - sidebar width)</Typography>
           </Drawer.Body>
         </Drawer>
         

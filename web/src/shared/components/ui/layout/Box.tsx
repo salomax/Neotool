@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box as MuiBox, BoxProps as MuiBoxProps } from '@mui/material';
+import { Box as MuiBox, BoxProps as MuiBoxProps, SxProps, Theme } from '@mui/material';
 import { getTestIdProps } from '@/shared/utils/testid';
 
 export interface BoxProps extends Omit<MuiBoxProps, 'sx'> {
@@ -93,15 +93,17 @@ export const Box = React.forwardRef<HTMLDivElement, BoxProps>(function Box(
     overflow: 'hidden',
   } : {};
   
+  const combinedSx: SxProps<Theme> | undefined = fullSize || autoFill || fullHeight ? {
+    ...fullSizeStyles,
+    ...autoFillStyles,
+    ...fullHeightStyles,
+    ...sx,
+  } as SxProps<Theme> : sx;
+
   return (
     <MuiBox
       ref={ref}
-      sx={fullSize || autoFill || fullHeight ? {
-        ...fullSizeStyles,
-        ...autoFillStyles,
-        ...fullHeightStyles,
-        ...sx,
-      } : sx}
+      sx={combinedSx}
       {...testIdProps}
       {...props}
     />

@@ -333,7 +333,7 @@ export function useGetUserWithRelationshipsLazyQuery(baseOptions?: ApolloReactHo
         }
 export function useGetUserWithRelationshipsSuspenseQuery(baseOptions?: ApolloReactHooks.SkipToken | ApolloReactHooks.SuspenseQueryHookOptions<GetUserWithRelationshipsQuery, GetUserWithRelationshipsQueryVariables>) {
           const options = baseOptions === ApolloReactHooks.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
-          return ApolloReactHooks.useSuspenseQuery<GetUserWithRelationshipsQuery, GetUserWithRelationshipsQueryVariables>(GetUserWithRelationshipsDocument, options);
+          return ApolloReactHooks.useSuspenseQuery<GetUserWithRelationshipsQuery, GetUserWithRelationshipsQueryVariables>(GetUserWithRelationshipsDocument, options as ApolloReactHooks.SkipToken | ApolloReactHooks.useSuspenseQuery.Options<GetUserWithRelationshipsQueryVariables>);
         }
 export type GetUserWithRelationshipsQueryHookResult = ReturnType<typeof useGetUserWithRelationshipsQuery>;
 export type GetUserWithRelationshipsLazyQueryHookResult = ReturnType<typeof useGetUserWithRelationshipsLazyQuery>;
@@ -377,7 +377,7 @@ export function useGetGroupWithRelationshipsLazyQuery(baseOptions?: ApolloReactH
         }
 export function useGetGroupWithRelationshipsSuspenseQuery(baseOptions?: ApolloReactHooks.SkipToken | ApolloReactHooks.SuspenseQueryHookOptions<GetGroupWithRelationshipsQuery, GetGroupWithRelationshipsQueryVariables>) {
           const options = baseOptions === ApolloReactHooks.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
-          return ApolloReactHooks.useSuspenseQuery<GetGroupWithRelationshipsQuery, GetGroupWithRelationshipsQueryVariables>(GetGroupWithRelationshipsDocument, options);
+          return ApolloReactHooks.useSuspenseQuery<GetGroupWithRelationshipsQuery, GetGroupWithRelationshipsQueryVariables>(GetGroupWithRelationshipsDocument, options as ApolloReactHooks.SkipToken | ApolloReactHooks.useSuspenseQuery.Options<GetGroupWithRelationshipsQueryVariables>);
         }
 export type GetGroupWithRelationshipsQueryHookResult = ReturnType<typeof useGetGroupWithRelationshipsQuery>;
 export type GetGroupWithRelationshipsLazyQueryHookResult = ReturnType<typeof useGetGroupWithRelationshipsLazyQuery>;

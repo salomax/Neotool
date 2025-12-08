@@ -159,7 +159,6 @@ export function useEnableUserMutation(baseOptions?: ApolloReactHooks.MutationHoo
       }
 export type EnableUserMutationHookResult = ReturnType<typeof useEnableUserMutation>;
 export type EnableUserMutationResult = ApolloReactCommon.MutationResult<EnableUserMutation>;
-export type EnableUserMutationOptions = ApolloReactCommon.BaseMutationOptions<EnableUserMutation, EnableUserMutationVariables>;
 export const DisableUserDocument = gql`
     mutation DisableUser($userId: ID!) {
   disableUser(userId: $userId) {
@@ -191,7 +190,6 @@ export function useDisableUserMutation(baseOptions?: ApolloReactHooks.MutationHo
       }
 export type DisableUserMutationHookResult = ReturnType<typeof useDisableUserMutation>;
 export type DisableUserMutationResult = ApolloReactCommon.MutationResult<DisableUserMutation>;
-export type DisableUserMutationOptions = ApolloReactCommon.BaseMutationOptions<DisableUserMutation, DisableUserMutationVariables>;
 export const CreateGroupDocument = gql`
     mutation CreateGroup($input: CreateGroupInput!) {
   createGroup(input: $input) {
@@ -223,7 +221,6 @@ export function useCreateGroupMutation(baseOptions?: ApolloReactHooks.MutationHo
       }
 export type CreateGroupMutationHookResult = ReturnType<typeof useCreateGroupMutation>;
 export type CreateGroupMutationResult = ApolloReactCommon.MutationResult<CreateGroupMutation>;
-export type CreateGroupMutationOptions = ApolloReactCommon.BaseMutationOptions<CreateGroupMutation, CreateGroupMutationVariables>;
 export const UpdateGroupDocument = gql`
     mutation UpdateGroup($groupId: ID!, $input: UpdateGroupInput!) {
   updateGroup(groupId: $groupId, input: $input) {
@@ -256,7 +253,6 @@ export function useUpdateGroupMutation(baseOptions?: ApolloReactHooks.MutationHo
       }
 export type UpdateGroupMutationHookResult = ReturnType<typeof useUpdateGroupMutation>;
 export type UpdateGroupMutationResult = ApolloReactCommon.MutationResult<UpdateGroupMutation>;
-export type UpdateGroupMutationOptions = ApolloReactCommon.BaseMutationOptions<UpdateGroupMutation, UpdateGroupMutationVariables>;
 export const DeleteGroupDocument = gql`
     mutation DeleteGroup($groupId: ID!) {
   deleteGroup(groupId: $groupId)
@@ -286,7 +282,6 @@ export function useDeleteGroupMutation(baseOptions?: ApolloReactHooks.MutationHo
       }
 export type DeleteGroupMutationHookResult = ReturnType<typeof useDeleteGroupMutation>;
 export type DeleteGroupMutationResult = ApolloReactCommon.MutationResult<DeleteGroupMutation>;
-export type DeleteGroupMutationOptions = ApolloReactCommon.BaseMutationOptions<DeleteGroupMutation, DeleteGroupMutationVariables>;
 export const CreateRoleDocument = gql`
     mutation CreateRole($input: CreateRoleInput!) {
   createRole(input: $input) {
@@ -318,7 +313,6 @@ export function useCreateRoleMutation(baseOptions?: ApolloReactHooks.MutationHoo
       }
 export type CreateRoleMutationHookResult = ReturnType<typeof useCreateRoleMutation>;
 export type CreateRoleMutationResult = ApolloReactCommon.MutationResult<CreateRoleMutation>;
-export type CreateRoleMutationOptions = ApolloReactCommon.BaseMutationOptions<CreateRoleMutation, CreateRoleMutationVariables>;
 export const UpdateRoleDocument = gql`
     mutation UpdateRole($roleId: ID!, $input: UpdateRoleInput!) {
   updateRole(roleId: $roleId, input: $input) {
@@ -351,7 +345,6 @@ export function useUpdateRoleMutation(baseOptions?: ApolloReactHooks.MutationHoo
       }
 export type UpdateRoleMutationHookResult = ReturnType<typeof useUpdateRoleMutation>;
 export type UpdateRoleMutationResult = ApolloReactCommon.MutationResult<UpdateRoleMutation>;
-export type UpdateRoleMutationOptions = ApolloReactCommon.BaseMutationOptions<UpdateRoleMutation, UpdateRoleMutationVariables>;
 export const DeleteRoleDocument = gql`
     mutation DeleteRole($roleId: ID!) {
   deleteRole(roleId: $roleId)
@@ -381,7 +374,6 @@ export function useDeleteRoleMutation(baseOptions?: ApolloReactHooks.MutationHoo
       }
 export type DeleteRoleMutationHookResult = ReturnType<typeof useDeleteRoleMutation>;
 export type DeleteRoleMutationResult = ApolloReactCommon.MutationResult<DeleteRoleMutation>;
-export type DeleteRoleMutationOptions = ApolloReactCommon.BaseMutationOptions<DeleteRoleMutation, DeleteRoleMutationVariables>;
 export const AssignPermissionToRoleDocument = gql`
     mutation AssignPermissionToRole($roleId: ID!, $permissionId: ID!) {
   assignPermissionToRole(roleId: $roleId, permissionId: $permissionId) {
@@ -414,7 +406,6 @@ export function useAssignPermissionToRoleMutation(baseOptions?: ApolloReactHooks
       }
 export type AssignPermissionToRoleMutationHookResult = ReturnType<typeof useAssignPermissionToRoleMutation>;
 export type AssignPermissionToRoleMutationResult = ApolloReactCommon.MutationResult<AssignPermissionToRoleMutation>;
-export type AssignPermissionToRoleMutationOptions = ApolloReactCommon.BaseMutationOptions<AssignPermissionToRoleMutation, AssignPermissionToRoleMutationVariables>;
 export const RemovePermissionFromRoleDocument = gql`
     mutation RemovePermissionFromRole($roleId: ID!, $permissionId: ID!) {
   removePermissionFromRole(roleId: $roleId, permissionId: $permissionId) {
@@ -447,7 +438,6 @@ export function useRemovePermissionFromRoleMutation(baseOptions?: ApolloReactHoo
       }
 export type RemovePermissionFromRoleMutationHookResult = ReturnType<typeof useRemovePermissionFromRoleMutation>;
 export type RemovePermissionFromRoleMutationResult = ApolloReactCommon.MutationResult<RemovePermissionFromRoleMutation>;
-export type RemovePermissionFromRoleMutationOptions = ApolloReactCommon.BaseMutationOptions<RemovePermissionFromRoleMutation, RemovePermissionFromRoleMutationVariables>;
 export const AssignRoleToUserDocument = gql`
     mutation AssignRoleToUser($userId: ID!, $roleId: ID!) {
   assignRoleToUser(userId: $userId, roleId: $roleId) {
@@ -480,7 +470,6 @@ export function useAssignRoleToUserMutation(baseOptions?: ApolloReactHooks.Mutat
       }
 export type AssignRoleToUserMutationHookResult = ReturnType<typeof useAssignRoleToUserMutation>;
 export type AssignRoleToUserMutationResult = ApolloReactCommon.MutationResult<AssignRoleToUserMutation>;
-export type AssignRoleToUserMutationOptions = ApolloReactCommon.BaseMutationOptions<AssignRoleToUserMutation, AssignRoleToUserMutationVariables>;
 export const RemoveRoleFromUserDocument = gql`
     mutation RemoveRoleFromUser($userId: ID!, $roleId: ID!) {
   removeRoleFromUser(userId: $userId, roleId: $roleId) {
@@ -513,7 +502,6 @@ export function useRemoveRoleFromUserMutation(baseOptions?: ApolloReactHooks.Mut
       }
 export type RemoveRoleFromUserMutationHookResult = ReturnType<typeof useRemoveRoleFromUserMutation>;
 export type RemoveRoleFromUserMutationResult = ApolloReactCommon.MutationResult<RemoveRoleFromUserMutation>;
-export type RemoveRoleFromUserMutationOptions = ApolloReactCommon.BaseMutationOptions<RemoveRoleFromUserMutation, RemoveRoleFromUserMutationVariables>;
 export const AssignGroupToUserDocument = gql`
     mutation AssignGroupToUser($userId: ID!, $groupId: ID!) {
   assignGroupToUser(userId: $userId, groupId: $groupId) {
@@ -546,7 +534,6 @@ export function useAssignGroupToUserMutation(baseOptions?: ApolloReactHooks.Muta
       }
 export type AssignGroupToUserMutationHookResult = ReturnType<typeof useAssignGroupToUserMutation>;
 export type AssignGroupToUserMutationResult = ApolloReactCommon.MutationResult<AssignGroupToUserMutation>;
-export type AssignGroupToUserMutationOptions = ApolloReactCommon.BaseMutationOptions<AssignGroupToUserMutation, AssignGroupToUserMutationVariables>;
 export const RemoveGroupFromUserDocument = gql`
     mutation RemoveGroupFromUser($userId: ID!, $groupId: ID!) {
   removeGroupFromUser(userId: $userId, groupId: $groupId) {
@@ -579,7 +566,6 @@ export function useRemoveGroupFromUserMutation(baseOptions?: ApolloReactHooks.Mu
       }
 export type RemoveGroupFromUserMutationHookResult = ReturnType<typeof useRemoveGroupFromUserMutation>;
 export type RemoveGroupFromUserMutationResult = ApolloReactCommon.MutationResult<RemoveGroupFromUserMutation>;
-export type RemoveGroupFromUserMutationOptions = ApolloReactCommon.BaseMutationOptions<RemoveGroupFromUserMutation, RemoveGroupFromUserMutationVariables>;
 export const AssignRoleToGroupDocument = gql`
     mutation AssignRoleToGroup($groupId: ID!, $roleId: ID!) {
   assignRoleToGroup(groupId: $groupId, roleId: $roleId) {
@@ -612,7 +598,6 @@ export function useAssignRoleToGroupMutation(baseOptions?: ApolloReactHooks.Muta
       }
 export type AssignRoleToGroupMutationHookResult = ReturnType<typeof useAssignRoleToGroupMutation>;
 export type AssignRoleToGroupMutationResult = ApolloReactCommon.MutationResult<AssignRoleToGroupMutation>;
-export type AssignRoleToGroupMutationOptions = ApolloReactCommon.BaseMutationOptions<AssignRoleToGroupMutation, AssignRoleToGroupMutationVariables>;
 export const RemoveRoleFromGroupDocument = gql`
     mutation RemoveRoleFromGroup($groupId: ID!, $roleId: ID!) {
   removeRoleFromGroup(groupId: $groupId, roleId: $roleId) {
@@ -645,4 +630,3 @@ export function useRemoveRoleFromGroupMutation(baseOptions?: ApolloReactHooks.Mu
       }
 export type RemoveRoleFromGroupMutationHookResult = ReturnType<typeof useRemoveRoleFromGroupMutation>;
 export type RemoveRoleFromGroupMutationResult = ApolloReactCommon.MutationResult<RemoveRoleFromGroupMutation>;
-export type RemoveRoleFromGroupMutationOptions = ApolloReactCommon.BaseMutationOptions<RemoveRoleFromGroupMutation, RemoveRoleFromGroupMutationVariables>;

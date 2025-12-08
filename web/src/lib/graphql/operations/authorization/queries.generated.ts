@@ -55,7 +55,7 @@ export function useCheckPermissionLazyQuery(baseOptions?: ApolloReactHooks.LazyQ
         }
 export function useCheckPermissionSuspenseQuery(baseOptions?: ApolloReactHooks.SkipToken | ApolloReactHooks.SuspenseQueryHookOptions<CheckPermissionQuery, CheckPermissionQueryVariables>) {
           const options = baseOptions === ApolloReactHooks.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
-          return ApolloReactHooks.useSuspenseQuery<CheckPermissionQuery, CheckPermissionQueryVariables>(CheckPermissionDocument, options);
+          return ApolloReactHooks.useSuspenseQuery<CheckPermissionQuery, CheckPermissionQueryVariables>(CheckPermissionDocument, options as ApolloReactHooks.SkipToken | ApolloReactHooks.useSuspenseQuery.Options<CheckPermissionQueryVariables>);
         }
 export type CheckPermissionQueryHookResult = ReturnType<typeof useCheckPermissionQuery>;
 export type CheckPermissionLazyQueryHookResult = ReturnType<typeof useCheckPermissionLazyQuery>;
