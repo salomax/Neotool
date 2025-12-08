@@ -123,7 +123,6 @@ export function useMutationWithRefetch<TData, TVariables>(
 
         return result;
       } catch (err) {
-        console.error("Error executing mutation:", err);
         const errorMessageText = extractErrorMessage(err, errorMessage);
         throw new Error(errorMessageText);
       } finally {

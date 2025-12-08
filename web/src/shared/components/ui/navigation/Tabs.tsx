@@ -222,7 +222,7 @@ const Tabs: React.FC<TabsProps> = ({
     const hasIcon = tab.icon !== undefined;
     const isSelected = activeTab === tab.id;
     
-    return (
+    const labelContent = (
       <Box
         sx={{
           display: 'flex',
@@ -319,6 +319,12 @@ const Tabs: React.FC<TabsProps> = ({
         )}
       </Box>
     );
+    
+    return tab.tooltip ? (
+      <Tooltip title={tab.tooltip}>
+        {labelContent}
+      </Tooltip>
+    ) : labelContent;
   }, [showBadges, showCloseButtons, draggable, activeTab, handleTabClose, handleDragStart, handleDragOver, handleDrop]);
 
   // Memoiza o conteúdo da aba ativa
@@ -327,7 +333,14 @@ const Tabs: React.FC<TabsProps> = ({
   }, [tabs, activeTab]);
 
   // Garante que o activeTab seja sempre válido para o MUI
-  const validActiveTab = tabs.find(tab => tab.id === activeTab) ? activeTab : (tabs[0]?.id || '');
+  // Use useMemo to ensure it's computed after tabs are set
+  const validActiveTab = useMemo(() => {
+    if (tabs.length === 0) {
+      return false; // MUI Tabs expects false when no tabs
+    }
+    const foundTab = tabs.find(tab => tab.id === activeTab);
+    return foundTab ? activeTab : (tabs[0]?.id || false);
+  }, [tabs, activeTab]);
 
   return (
     <Box
@@ -371,51 +384,43 @@ const Tabs: React.FC<TabsProps> = ({
             }
           }}
         >
-          {tabs.map((tab) => {
-            const TabComponent = (
-              <Tab
-                key={tab.id}
-                value={tab.id}
-                label={renderTabLabel(tab)}
-                disabled={tab.disabled || false}
-                sx={{
-                  minHeight: orientation === 'vertical' ? 48 : 48,
-                  minWidth: orientation === 'vertical' ? 120 : shouldScroll ? 120 : 'auto',
-                  maxWidth: orientation === 'vertical' ? 200 : shouldScroll ? 200 : 'none',
-                  width: shouldScroll ? 'auto' : 'auto',
-                  flexShrink: shouldScroll ? 0 : 1,
-                  textTransform: 'none',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  px: orientation === 'vertical' ? 2 : 1.5,
-                  py: orientation === 'vertical' ? 1 : 0.5,
+          {tabs.map((tab) => (
+            <Tab
+              key={tab.id}
+              value={tab.id}
+              label={renderTabLabel(tab)}
+              disabled={tab.disabled || false}
+              sx={{
+                minHeight: orientation === 'vertical' ? 48 : 48,
+                minWidth: orientation === 'vertical' ? 120 : shouldScroll ? 120 : 'auto',
+                maxWidth: orientation === 'vertical' ? 200 : shouldScroll ? 200 : 'none',
+                width: shouldScroll ? 'auto' : 'auto',
+                flexShrink: shouldScroll ? 0 : 1,
+                textTransform: 'none',
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                px: orientation === 'vertical' ? 2 : 1.5,
+                py: orientation === 'vertical' ? 1 : 0.5,
+                borderBottom: 'none',
+                borderRight: 'none',
+                borderColor: 'divider',
+                '&:last-of-type': {
                   borderBottom: 'none',
-                  borderRight: 'none',
-                  borderColor: 'divider',
-                  '&:last-of-type': {
-                    borderBottom: 'none',
-                    borderRight: 'none'
-                  },
-                  '&.Mui-selected': {
-                    color: 'primary.main',
-                    fontWeight: 'bold'
-                  },
-                  '&:hover': {
-                    backgroundColor: 'action.hover'
-                  },
-                  '&.Mui-disabled': {
-                    opacity: 0.5
-                  }
-                }}
-              />
-            );
-
-            return tab.tooltip ? (
-              <Tooltip key={tab.id} title={tab.tooltip}>
-                {TabComponent}
-              </Tooltip>
-            ) : TabComponent;
-          })}
+                  borderRight: 'none'
+                },
+                '&.Mui-selected': {
+                  color: 'primary.main',
+                  fontWeight: 'bold'
+                },
+                '&:hover': {
+                  backgroundColor: 'action.hover'
+                },
+                '&.Mui-disabled': {
+                  opacity: 0.5
+                }
+              }}
+            />
+          ))}
           
           {showAddButton && tabs.length < maxTabs && (
             <Tab

@@ -335,7 +335,6 @@ export function useRoleManagement(options: UseRoleManagementOptions = {}): UseRo
       }
       throw new Error('Failed to create role: no data returned');
     } catch (err) {
-      console.error('Error creating role:', err);
       const errorMessage = extractErrorMessage(err, 'Failed to create role');
       throw new Error(errorMessage);
     }
@@ -354,7 +353,6 @@ export function useRoleManagement(options: UseRoleManagementOptions = {}): UseRo
       );
       closeDialog();
     } catch (err) {
-      console.error('Error updating role:', err);
       const errorMessage = extractErrorMessage(err, 'Failed to update role');
       throw new Error(errorMessage);
     }
@@ -369,7 +367,6 @@ export function useRoleManagement(options: UseRoleManagementOptions = {}): UseRo
       );
       setDeleteConfirm(null);
     } catch (err) {
-      console.error('Error deleting role:', err);
       const errorMessage = extractErrorMessage(err, 'Failed to delete role');
       throw new Error(errorMessage);
     }

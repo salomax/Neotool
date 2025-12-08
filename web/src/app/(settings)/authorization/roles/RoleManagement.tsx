@@ -96,7 +96,6 @@ export const RoleManagement: React.FC<RoleManagementProps> = ({
         setDeleteConfirmOpen(false);
         setRoleToDelete(null);
       } catch (err) {
-        console.error("Error deleting role:", err);
         const errorMessage = extractErrorMessage(
           err,
           t("roleManagement.toast.roleDeleteError")

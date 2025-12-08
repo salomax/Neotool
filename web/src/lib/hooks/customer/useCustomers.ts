@@ -160,7 +160,6 @@ export function useCustomers(options: UseCustomersOptions = {}): UseCustomersRet
         refetch();
       }
     } catch (err) {
-      console.error('Error creating customer:', err);
       const errorMessage = extractErrorMessage(err, 'Failed to create customer');
       throw new Error(errorMessage);
     }
@@ -186,7 +185,6 @@ export function useCustomers(options: UseCustomersOptions = {}): UseCustomersRet
         refetch();
       }
     } catch (err) {
-      console.error('Error updating customer:', err);
       const errorMessage = extractErrorMessage(err, 'Failed to update customer');
       throw new Error(errorMessage);
     }
@@ -203,7 +201,6 @@ export function useCustomers(options: UseCustomersOptions = {}): UseCustomersRet
         refetch();
       }
     } catch (err) {
-      console.error('Error deleting customer:', err);
       const errorMessage = extractErrorMessage(err, 'Failed to delete customer');
       throw new Error(errorMessage);
     }

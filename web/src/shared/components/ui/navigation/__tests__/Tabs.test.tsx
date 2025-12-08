@@ -191,6 +191,7 @@ describe('Tabs', () => {
         <AppThemeProvider>
           <Tabs 
             tabs={singleTab} 
+            value="only-tab"
             showCloseButtons={true}
             onTabsChange={handleTabsChange}
           />
@@ -276,7 +277,7 @@ describe('Tabs', () => {
       
       render(
         <AppThemeProvider>
-          <Tabs tabs={tabsWithBadge} showBadges={true} />
+          <Tabs tabs={tabsWithBadge} value="tab1" showBadges={true} />
         </AppThemeProvider>
       );
       
@@ -293,7 +294,7 @@ describe('Tabs', () => {
       
       render(
         <AppThemeProvider>
-          <Tabs tabs={tabsWithBadge} showBadges={false} />
+          <Tabs tabs={tabsWithBadge} value="tab1" showBadges={false} />
         </AppThemeProvider>
       );
       
@@ -314,7 +315,7 @@ describe('Tabs', () => {
       
       render(
         <AppThemeProvider>
-          <Tabs tabs={tabsWithTooltip} />
+          <Tabs tabs={tabsWithTooltip} value="tab1" />
         </AppThemeProvider>
       );
       
@@ -338,7 +339,7 @@ describe('Tabs', () => {
       
       render(
         <AppThemeProvider>
-          <Tabs tabs={disabledTabs} />
+          <Tabs tabs={disabledTabs} value="tab1" />
         </AppThemeProvider>
       );
       
@@ -378,7 +379,7 @@ describe('Tabs', () => {
       
       rerender(
         <AppThemeProvider>
-          <Tabs tabs={newTabs} />
+          <Tabs tabs={newTabs} value="new-tab" />
         </AppThemeProvider>
       );
       

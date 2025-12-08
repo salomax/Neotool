@@ -3,8 +3,20 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { AuthProvider, useAuth } from '../AuthProvider';
 
+// Use vi.hoisted() to define variables that need to be available in mock factories
+const { mockPush, mockMutate, mockLoggerError } = vi.hoisted(() => {
+  const mockPush = vi.fn();
+  const mockMutate = vi.fn();
+  const mockLoggerError = vi.fn();
+  
+  return {
+    mockPush,
+    mockMutate,
+    mockLoggerError,
+  };
+});
+
 // Mock Next.js router
-const mockPush = vi.fn();
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: mockPush,
@@ -12,7 +24,6 @@ vi.mock('next/navigation', () => ({
 }));
 
 // Mock Apollo Client
-const mockMutate = vi.fn();
 vi.mock('@/lib/graphql/client', () => ({
   apolloClient: {
     mutate: mockMutate,
@@ -24,6 +35,13 @@ vi.mock('@/lib/graphql/operations/auth', () => ({
   SIGN_IN: { kind: 'Document', definitions: [] },
   SIGN_IN_WITH_OAUTH: { kind: 'Document', definitions: [] },
   SIGN_UP: { kind: 'Document', definitions: [] },
+}));
+
+// Mock logger
+vi.mock('@/shared/utils/logger', () => ({
+  logger: {
+    error: mockLoggerError,
+  },
 }));
 
 // Create storage mocks
@@ -126,8 +144,6 @@ describe('AuthProvider', () => {
     });
 
     it('should handle invalid stored user data gracefully', async () => {
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
       localStorageMock.setItem('auth_token', 'test-token');
       localStorageMock.setItem('auth_user', 'invalid-json');
 
@@ -144,9 +160,7 @@ describe('AuthProvider', () => {
       expect(localStorageMock.removeItem).toHaveBeenCalledWith('auth_user');
       expect(sessionStorageMock.removeItem).toHaveBeenCalledWith('auth_token');
       expect(sessionStorageMock.removeItem).toHaveBeenCalledWith('auth_user');
-      expect(consoleErrorSpy).toHaveBeenCalled();
-
-      consoleErrorSpy.mockRestore();
+      expect(mockLoggerError).toHaveBeenCalled();
     });
 
     it('should set isLoading to false after initialization', async () => {
@@ -267,7 +281,6 @@ describe('AuthProvider', () => {
     });
 
     it('should handle sign in error', async () => {
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       const mockError = new Error('Invalid credentials');
 
       mockMutate.mockRejectedValue(mockError);
@@ -286,9 +299,8 @@ describe('AuthProvider', () => {
 
       expect(result.current.user).toBeNull();
       expect(result.current.token).toBeNull();
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Sign in error:', mockError);
-
-      consoleErrorSpy.mockRestore();
+      // Verify logger was called (technical errors should be logged)
+      expect(mockLoggerError).toHaveBeenCalledWith('Sign in error:', mockError);
     });
 
     it('should not update state when sign in response is invalid', async () => {
@@ -394,7 +406,6 @@ describe('AuthProvider', () => {
     });
 
     it('should handle OAuth sign in error', async () => {
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       const mockError = new Error('OAuth error');
 
       mockMutate.mockRejectedValue(mockError);
@@ -413,9 +424,7 @@ describe('AuthProvider', () => {
 
       expect(result.current.user).toBeNull();
       expect(result.current.token).toBeNull();
-      expect(consoleErrorSpy).toHaveBeenCalledWith('OAuth sign in error:', mockError);
-
-      consoleErrorSpy.mockRestore();
+      expect(mockLoggerError).toHaveBeenCalledWith('OAuth sign in error:', mockError);
     });
   });
 
@@ -468,7 +477,6 @@ describe('AuthProvider', () => {
     });
 
     it('should handle sign up error', async () => {
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       const mockError = new Error('Email already exists');
 
       mockMutate.mockRejectedValue(mockError);
@@ -487,9 +495,7 @@ describe('AuthProvider', () => {
 
       expect(result.current.user).toBeNull();
       expect(result.current.token).toBeNull();
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Sign up error:', mockError);
-
-      consoleErrorSpy.mockRestore();
+      expect(mockLoggerError).toHaveBeenCalledWith('Sign up error:', mockError);
     });
   });
 

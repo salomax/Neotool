@@ -1,8 +1,9 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { vi } from "vitest";
 import RouteErrorBoundaryView from "./RouteErrorBoundaryView";
 
-describe.skip("RouteErrorBoundaryView", () => {
+describe("RouteErrorBoundaryView", () => {
   // TODO: Re-enable test when issues are resolved
   it("renders error info and calls reset on click", () => {
     const reset = vi.fn();

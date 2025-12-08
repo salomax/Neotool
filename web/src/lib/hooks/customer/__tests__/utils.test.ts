@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { extractErrorMessage } from '../utils';
 
-describe.skip('customer utils', () => {
+describe('customer utils', () => {
   // TODO: Re-enable tests when issues are resolved
   it('should re-export extractErrorMessage from shared utils', () => {
     expect(extractErrorMessage).toBeDefined();

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { CartItem, Cart, CartItemInput } from "@/lib/hooks/cart/types";
+import { logger } from "@/shared/utils/logger";
 
 type CartContextType = {
   // Cart state
@@ -72,12 +73,12 @@ const loadCartFromStorage = (): CartItem[] => {
     }
     return [];
   } catch (e) {
-    console.error("Error loading cart from localStorage:", e);
+    logger.error("Error loading cart from localStorage:", e);
     // Clear invalid data
     try {
       localStorage.removeItem(CART_STORAGE_KEY);
     } catch (clearError) {
-      console.error("Error clearing invalid cart data:", clearError);
+      logger.error("Error clearing invalid cart data:", clearError);
     }
     return [];
   }
@@ -96,9 +97,9 @@ const saveCartToStorage = (items: CartItem[]): void => {
   } catch (e) {
     // Handle quota exceeded or other storage errors
     if (e instanceof DOMException && e.name === "QuotaExceededError") {
-      console.error("localStorage quota exceeded. Cart data not saved.");
+      logger.error("localStorage quota exceeded. Cart data not saved.");
     } else {
-      console.error("Error saving cart to localStorage:", e);
+      logger.error("Error saving cart to localStorage:", e);
     }
   }
 };

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import InputMask from "react-input-mask";
+import { IMaskInput } from "react-imask";
 import { Controller, useFormContext } from "react-hook-form";
 import { TextField, TextFieldProps } from "@mui/material";
 
@@ -14,6 +14,46 @@ export type MaskedFieldProps = {
   fullWidth?: boolean;
   inputProps?: TextFieldProps["inputProps"];
 };
+
+// Convert react-input-mask format (9 = digit) to react-imask format (0 = digit)
+const convertMaskFormat = (mask: string): string => {
+  return mask.replace(/9/g, "0");
+};
+
+// Custom input component that wraps IMaskInput for Material-UI TextField
+const MaskedInput = React.forwardRef<
+  HTMLInputElement,
+  {
+    onChange: (event: { target: { name: string; value: string } }) => void;
+    name: string;
+    mask: string;
+    value: string;
+    disabled?: boolean;
+  }
+>(function MaskedInput(props, ref) {
+  const { onChange, mask, ...other } = props;
+  const convertedMask = convertMaskFormat(mask);
+  
+  return (
+    <IMaskInput
+      {...other}
+      mask={convertedMask}
+      definitions={{
+        "0": /[0-9]/,
+      }}
+      inputRef={ref}
+      onAccept={(value: string) => {
+        onChange({
+          target: {
+            name: props.name,
+            value,
+          },
+        });
+      }}
+      overwrite
+    />
+  );
+});
 
 export const MaskedField: React.FC<MaskedFieldProps> = ({
   name,
@@ -30,26 +70,27 @@ export const MaskedField: React.FC<MaskedFieldProps> = ({
       name={name}
       control={control}
       render={({ field, fieldState }) => (
-        <InputMask
-          mask={mask}
-          value={field.value ?? ""}
-          onChange={field.onChange}
-          onBlur={field.onBlur}
+        <TextField
+          label={label}
+          placeholder={placeholder}
+          fullWidth={fullWidth}
           disabled={disabled}
-        >
-          {(inputProps2: any) => (
-            <TextField
-              {...inputProps2}
-              label={label}
-              placeholder={placeholder}
-              fullWidth={fullWidth}
-              disabled={disabled}
-              error={!!fieldState.error}
-              helperText={fieldState.error?.message}
-              inputProps={inputProps}
-            />
-          )}
-        </InputMask>
+          error={!!fieldState.error}
+          helperText={fieldState.error?.message}
+          value={field.value ?? ""}
+          onBlur={field.onBlur}
+          InputProps={{
+            inputComponent: MaskedInput as any,
+            inputProps: {
+              mask: mask,
+              name: name,
+              onChange: field.onChange,
+              value: field.value ?? "",
+              disabled: disabled,
+              ...inputProps,
+            },
+          }}
+        />
       )}
     />
   );

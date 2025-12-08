@@ -219,6 +219,7 @@ export default function EnterpriseTable() {
 
       <div className="ag-theme-quartz" style={{ height: 480 }}>
         <AgGridReact<Row>
+          theme="legacy"
           rowData={rowData}
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
@@ -226,8 +227,8 @@ export default function EnterpriseTable() {
             mode: "multiRow",
             checkboxes: true,
             headerCheckbox: true,
+            enableClickSelection: false,
           }}
-          suppressRowClickSelection
           onGridReady={onGridReady}
           quickFilterText={quickFilter}
         />

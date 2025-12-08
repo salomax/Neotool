@@ -184,7 +184,7 @@ const handleSubmit = async () => {
     });
     console.log('Customer created:', result.data);
   } catch (error) {
-    console.error('Error creating customer:', error);
+    // Error handling example - in real code, show toast/error message
   }
 };`}
         </CodeBlock>
@@ -235,12 +235,10 @@ function RestApiExample() {
             {loading ? "Loading..." : "Fetch Customers"}
           </Button>
         </Box>
-        {error && (
-          <ErrorAlert
-            error={error}
-            onRetry={fetchData}
-          />
-        )}
+        <ErrorAlert
+          error={error}
+          onRetry={fetchData}
+        />
         {data && (
           <CodeBlock component="pre" sx={{ 
             backgroundColor: 'grey.100', 

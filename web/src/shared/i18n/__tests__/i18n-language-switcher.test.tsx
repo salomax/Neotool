@@ -1,4 +1,4 @@
-import React from "react";
+import React, { act } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@/shared/i18n/config";
@@ -10,12 +10,16 @@ describe("LanguageSwitcher", () => {
     const current = screen.getByTestId("lang-current");
     expect(current).toHaveTextContent("en");
     
-    await userEvent.click(screen.getByTestId("lang-pt"));
+    await act(async () => {
+      await userEvent.click(screen.getByTestId("lang-pt"));
+    });
     await waitFor(() => {
       expect(current).toHaveTextContent("pt");
     });
     
-    await userEvent.click(screen.getByTestId("lang-en"));
+    await act(async () => {
+      await userEvent.click(screen.getByTestId("lang-en"));
+    });
     await waitFor(() => {
       expect(current).toHaveTextContent("en");
     });

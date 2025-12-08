@@ -83,7 +83,6 @@ export function useToggleStatus({
           toast.success(t(disableSuccessMessage));
         }
       } catch (err) {
-        console.error("Error toggling status:", err);
         const errorMessage = extractErrorMessage(
           err,
           enabled ? t(enableErrorMessage) : t(disableErrorMessage)

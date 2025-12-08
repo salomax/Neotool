@@ -110,7 +110,7 @@ export default function ProductsPage() {
       setDialogOpen(false);
       setEditingProduct(null);
     } catch (err) {
-      console.error('Failed to save product:', err);
+      // Error handling done via toast in mutation
     }
   };
 
@@ -123,7 +123,7 @@ export default function ProductsPage() {
       });
       setDeleteConfirm(null);
     } catch (err) {
-      console.error('Failed to delete product:', err);
+      // Error handling done via toast in mutation
     }
   };
 

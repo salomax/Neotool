@@ -4,8 +4,6 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SidebarRail } from '../SidebarRail';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
-import { AuthProvider } from '@/shared/providers/AuthProvider';
-import { AuthorizationProvider } from '@/shared/providers/AuthorizationProvider';
 
 // Mock Next.js navigation
 const mockPathname = vi.fn();
@@ -35,7 +33,7 @@ vi.mock('@/shared/ui/brand/LogoMark', () => ({
   ),
 }));
 
-// Mock GraphQL queries
+// Mock GraphQL queries - return immediately resolved data
 vi.mock('@/lib/graphql/operations/auth/queries.generated', () => ({
   useCurrentUserQuery: vi.fn(() => ({
     data: {
@@ -52,6 +50,37 @@ vi.mock('@/lib/graphql/operations/auth/queries.generated', () => ({
   })),
 }));
 
+// Mock AuthorizationProvider to avoid expensive GraphQL queries
+vi.mock('@/shared/providers/AuthorizationProvider', () => ({
+  AuthorizationProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  useAuthorization: () => ({
+    permissions: new Set(['security:user:view', 'security:role:view']),
+    roles: [],
+    loading: false,
+    has: vi.fn((permission: string) => permission === 'security:user:view' || permission === 'security:role:view'),
+    hasAny: vi.fn((permissions: string[]) => 
+      permissions.some(p => p === 'security:user:view' || p === 'security:role:view')
+    ),
+    hasAll: vi.fn(() => true),
+    refreshAuthorization: vi.fn(),
+  }),
+}));
+
+// Mock AuthProvider to avoid localStorage reads
+vi.mock('@/shared/providers/AuthProvider', () => ({
+  AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  useAuth: () => ({
+    user: { id: '1', email: 'test@example.com', displayName: 'Test User' },
+    token: 'test-token',
+    isLoading: false,
+    signIn: vi.fn(),
+    signInWithOAuth: vi.fn(),
+    signUp: vi.fn(),
+    signOut: vi.fn(),
+    isAuthenticated: true,
+  }),
+}));
+
 // Mock i18n
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -62,11 +91,7 @@ vi.mock('react-i18next', () => ({
 const renderSidebarRail = () => {
   return render(
     <AppThemeProvider>
-      <AuthProvider>
-        <AuthorizationProvider>
-          <SidebarRail />
-        </AuthorizationProvider>
-      </AuthProvider>
+      <SidebarRail />
     </AppThemeProvider>
   );
 };
@@ -101,7 +126,7 @@ describe('SidebarRail', () => {
       renderSidebarRail();
       
       expect(screen.getByLabelText('Design System')).toBeInTheDocument();
-      expect(screen.getByLabelText('Examples')).toBeInTheDocument();
+      expect(screen.getByLabelText('routes.examples')).toBeInTheDocument();
       expect(screen.getByLabelText('Documentation')).toBeInTheDocument();
     });
 
@@ -110,7 +135,7 @@ describe('SidebarRail', () => {
       
       // IconButton with LinkComponent wraps the button in a link
       const designSystemButton = screen.getByLabelText('Design System');
-      const examplesButton = screen.getByLabelText('Examples');
+      const examplesButton = screen.getByLabelText('routes.examples');
       const documentationButton = screen.getByLabelText('Documentation');
       
       expect(designSystemButton).toBeInTheDocument();
@@ -182,7 +207,7 @@ describe('SidebarRail', () => {
       mockPathname.mockReturnValue('/examples/code-samples');
       renderSidebarRail();
       
-      const examplesButton = screen.getByLabelText('Examples');
+      const examplesButton = screen.getByLabelText('routes.examples');
       
       expect(examplesButton).toBeInTheDocument();
     });
@@ -201,14 +226,16 @@ describe('SidebarRail', () => {
       
       // Tooltips are rendered by MUI, we can check the aria-labels
       expect(screen.getByLabelText('Design System')).toBeInTheDocument();
-      expect(screen.getByLabelText('Examples')).toBeInTheDocument();
+      expect(screen.getByLabelText('routes.examples')).toBeInTheDocument();
       expect(screen.getByLabelText('Documentation')).toBeInTheDocument();
     });
   });
 
   describe('Interactions', () => {
+    // Reuse userEvent instance across tests for better performance
+    const user = userEvent.setup();
+
     it('navigates to home when logo is clicked', async () => {
-      const user = userEvent.setup();
       renderSidebarRail();
       
       const logoLink = screen.getByLabelText('Go to home page');
@@ -219,7 +246,6 @@ describe('SidebarRail', () => {
     });
 
     it('navigates to correct page when nav item is clicked', async () => {
-      const user = userEvent.setup();
       renderSidebarRail();
       
       const designSystemButton = screen.getByLabelText('Design System');

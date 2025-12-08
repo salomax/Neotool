@@ -30,7 +30,6 @@ export const UserStatusToggle: React.FC<UserStatusToggleProps> = ({
     try {
       await onToggle(user.id, checked);
     } catch (error) {
-      console.error("Error toggling user status:", error);
       // Error handling is done at the parent level
     } finally {
       setIsToggling(false);

@@ -89,7 +89,6 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({ token, onS
         throw new Error("Failed to reset password");
       }
     } catch (err: any) {
-      console.error("Reset password error:", err);
       const errorMessage = extractErrorMessage(err, t("errors.unknownError"));
       setError(errorMessage);
       showError(errorMessage);
@@ -124,9 +123,7 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({ token, onS
         aria-label={t("resetPassword")}
       >
         <Stack gap={3} name="reset-password-form-stack">
-          {error && (
-            <ErrorAlert error={error} />
-          )}
+          <ErrorAlert error={error} data-testid="reset-password-error" />
 
           <PasswordField
             name="newPassword"

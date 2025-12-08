@@ -100,7 +100,6 @@ export const GroupManagement: React.FC<GroupManagementProps> = ({
         setDeleteConfirmOpen(false);
         setGroupToDelete(null);
       } catch (err) {
-        console.error("Error deleting group:", err);
         const errorMessage = extractErrorMessage(
           err,
           t("groupManagement.toast.groupDeleteError")
