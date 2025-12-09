@@ -8,8 +8,9 @@ tags: [checklist, pr, pull-request, validation]
 ai_optimized: true
 search_keywords: [checklist, pr, pull-request]
 related:
-  - 07-validation/feature-checklist.md
-  - 07-validation/code-review-checklist.md
+  - 11-validation/feature-checklist.md
+  - 11-validation/code-review-checklist.md
+  - 05-standards/coding-standards/linting-standards.md
 ---
 
 # Pull Request Checklist
@@ -20,8 +21,11 @@ related:
 
 - [ ] Feature checklist completed
 - [ ] Code review checklist completed
+- [ ] **Lint checks pass** (see [Linting Standards](../05-standards/coding-standards/linting-standards.md))
+  - [ ] Backend: `./gradlew ktlintCheck` passes with zero errors
+  - [ ] Frontend: `pnpm run lint` passes with zero errors and zero warnings
+  - [ ] Frontend: `pnpm run typecheck` passes with zero errors
 - [ ] All tests passing
-- [ ] No linter errors
 - [ ] Documentation updated
 
 ## PR Description

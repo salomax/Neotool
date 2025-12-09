@@ -72,8 +72,12 @@ This specification is organized into numbered directories (00-11) for clear hier
 | Entity Pattern | `04-patterns/backend-patterns/entity-pattern.md` | pattern | backend | jpa, entity, kotlin |
 | Repository Pattern | `04-patterns/backend-patterns/repository-pattern.md` | pattern | backend | repository, data-access |
 | Service Pattern | `04-patterns/backend-patterns/service-pattern.md` | pattern | backend | service, business-logic |
+| Mapper Pattern | `04-patterns/backend-patterns/mapper-pattern.md` | pattern | backend | mapper, graphql, dto, mapping, list-handling |
 | Resolver Pattern | `04-patterns/backend-patterns/resolver-pattern.md` | pattern | backend | graphql, resolver |
 | Testing Pattern | `04-patterns/backend-patterns/testing-pattern.md` | pattern | backend | testing, unit-tests, integration |
+| UUID v7 Pattern | `04-patterns/backend-patterns/uuid-v7-pattern.md` | pattern | backend | uuid, uuidv7, primary-key, database |
+| Domain-Entity Conversion | `04-patterns/backend-patterns/domain-entity-conversion.md` | pattern | backend | domain, entity, conversion, ddd |
+| Pagination Pattern | `04-patterns/backend-patterns/pagination-pattern.md` | pattern | backend | pagination, relay, graphql, cursor, connection |
 
 ### Frontend Patterns
 
@@ -82,8 +86,14 @@ This specification is organized into numbered directories (00-11) for clear hier
 | Component Pattern | `04-patterns/frontend-patterns/component-pattern.md` | pattern | frontend | component, react, ui |
 | Page Pattern | `04-patterns/frontend-patterns/page-pattern.md` | pattern | frontend | page, route, nextjs |
 | Hook Pattern | `04-patterns/frontend-patterns/hook-pattern.md` | pattern | frontend | hooks, react, custom-hooks |
-| GraphQL Pattern | `04-patterns/frontend-patterns/graphql-pattern.md` | pattern | frontend | graphql, operations, apollo |
+| GraphQL Query Pattern | `04-patterns/frontend-patterns/graphql-query-pattern.md` | pattern | frontend | graphql, query, apollo, cache, pagination, relay, relayStylePagination |
+| GraphQL Mutation Pattern | `04-patterns/frontend-patterns/graphql-mutation-pattern.md` | pattern | frontend | graphql, mutation, apollo, cache, refetch, list, table |
+| Mutation Pattern | `04-patterns/frontend-patterns/mutation-pattern.md` | pattern | frontend | mutation, hooks, refetch, race-condition, apollo, graphql |
+| Management Pattern | `04-patterns/frontend-patterns/management-pattern.md` | pattern | frontend | management, hooks, components, reusable, useManagementBase, useDebouncedSearch, useSorting, ErrorAlert, DeleteConfirmationDialog, useToggleStatus, ManagementLayout |
+| Shared Components Pattern | `04-patterns/frontend-patterns/shared-components-pattern.md` | pattern | frontend | shared components, reusable components, ui components, feedback components, ErrorAlert, DeleteConfirmationDialog, ManagementLayout, useToggleStatus |
 | Styling Pattern | `04-patterns/frontend-patterns/styling-pattern.md` | pattern | frontend | styling, themes, design-tokens |
+| Toast Notification Pattern | `04-patterns/frontend-patterns/toast-notification-pattern.md` | pattern | frontend | toast, notification, feedback, user-experience |
+| Testing Pattern | `04-patterns/frontend-patterns/testing-pattern.md` | pattern | frontend | testing, frontend, react, react-hook-form, vitest, testing-library |
 
 ### API Patterns
 
@@ -97,12 +107,14 @@ This specification is organized into numbered directories (00-11) for clear hier
 | Document | Path | Type | Category | Keywords |
 |----------|------|------|----------|----------|
 | Kotlin Standards | `05-standards/coding-standards/kotlin-standards.md` | standard | coding | kotlin, code-style, naming |
+| Linting Standards | `05-standards/coding-standards/linting-standards.md` | standard | coding | linting, lint, code-quality, validation |
 | Architecture Standards | `05-standards/architecture-standards/layer-rules.md` | standard | architecture | architecture, constraints, patterns |
 | GraphQL Standards | `05-standards/api-standards/graphql-standards.md` | standard | api | graphql, api, patterns |
 | Database Standards | `05-standards/database-standards/schema-standards.md` | standard | database | database, schema, migration |
 | Testing Standards | `05-standards/testing-standards/unit-test-standards.md` | standard | testing | testing, test-patterns, requirements |
 | Security Standards | `05-standards/security-standards/authentication-standards.md` | standard | security | security, auth, authorization |
 | Observability Standards | `05-standards/observability-standards.md` | standard | observability | observability, metrics, logging, monitoring |
+| Batch Workflow Standard | `05-standards/workflow-standards/batch-workflow-standard.md` | standard | workflow | batch, workflow, prefect, kafka |
 
 ## Workflows (06-workflows)
 
@@ -118,6 +130,7 @@ This specification is organized into numbered directories (00-11) for clear hier
 | Document | Path | Type | Category | Keywords |
 |----------|------|------|----------|----------|
 | Examples Index | `07-examples/README.md` | example | index | examples, index |
+| CRUD Example | `07-examples/backend/crud-example/README.md` | example | backend | crud, complete, flow, entity, repository, service, resolver |
 
 ## Templates (08-templates)
 
@@ -127,6 +140,7 @@ This specification is organized into numbered directories (00-11) for clear hier
 | Questionnaire | `08-templates/feature-templates/questionnaire.md` | template | feature | questionnaire, discovery |
 | Workflow | `08-templates/feature-templates/workflow.md` | template | feature | workflow, process |
 | AI Prompts | `08-templates/ai-prompts/` | template | ai-prompt | ai-prompt, feature-creation |
+| Batch Workflow Template | `08-templates/documents/batch-workflow-template.md` | template | workflow | batch, workflow, template |
 
 ## Architecture Decision Records (09-adr)
 
@@ -146,6 +160,7 @@ This specification is organized into numbered directories (00-11) for clear hier
 | File Structure | `10-reference/file-structure.md` | reference | structure | file-structure, reference |
 | GraphQL Schema | `10-reference/graphql-schema.md` | reference | graphql | graphql, schema, reference |
 | API Endpoints | `10-reference/api-endpoints.md` | reference | api | api, reference |
+| Backend Quick Reference | `10-reference/backend-quick-reference.md` | reference | backend | backend, kotlin, quick-reference, cheat-sheet, imports, annotations |
 
 ## Validation (11-validation)
 
@@ -196,4 +211,3 @@ This specification is organized into numbered directories (00-11) for clear hier
 ---
 
 *This manifest is the source of truth for all specification documents. Keep it updated as the specification evolves.*
-

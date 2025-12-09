@@ -8,25 +8,47 @@ import Divider from '@mui/material/Divider';
 import { alpha, useTheme } from '@mui/material/styles';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useTranslation } from 'react-i18next';
 import { LogoMark } from '@/shared/ui/brand/LogoMark';
+import { useAuthorization } from '@/shared/providers';
 
 import DesignServicesRoundedIcon from '@mui/icons-material/DesignServicesRounded';
 import CodeRoundedIcon from '@mui/icons-material/CodeRounded';
 import MenuBookRoundedIcon from '@mui/icons-material/MenuBookRounded';
+import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
 
 type NavItem = { href: string; label: string; icon: React.ElementType };
-
-const NAV_TOP: NavItem[] = [
-  { href: '/design-system', label: 'Design System', icon: DesignServicesRoundedIcon },
-  { href: '/examples', label: 'Examples', icon: CodeRoundedIcon },
-  { href: '/documentation', label: 'Documentation', icon: MenuBookRoundedIcon },
-];
 
 export const RAIL_W = 84;
 
 export function SidebarRail() {
   const theme = useTheme();
   const pathname = usePathname();
+  const { t } = useTranslation('common');
+  const { hasAny } = useAuthorization();
+
+  // Check if user has any authorization management permissions
+  const hasAuthorizationAccess = hasAny([
+    'security:user:view',
+    'security:user:save',
+    'security:user:delete',
+    'security:role:view',
+    'security:role:save',
+    'security:role:delete',
+    'security:group:view',
+    'security:group:save',
+    'security:group:delete',
+  ]);
+
+  const NAV_TOP: NavItem[] = [
+    { href: '/design-system', label: 'Design System', icon: DesignServicesRoundedIcon },
+    { href: '/examples', label: t('routes.examples'), icon: CodeRoundedIcon },
+    { href: '/documentation', label: 'Documentation', icon: MenuBookRoundedIcon },
+    // Only show Settings if user has authorization permissions
+    ...(hasAuthorizationAccess
+      ? [{ href: '/settings', label: t('routes.settings'), icon: SettingsRoundedIcon }]
+      : []),
+  ];
 
   return (
     <Box
@@ -53,6 +75,7 @@ export function SidebarRail() {
         <Box
           component={Link}
           href="/"
+          data-testid="sidebar-rail-home-link"
           sx={{
             width: 48,
             height: 48,

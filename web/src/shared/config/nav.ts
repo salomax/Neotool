@@ -25,4 +25,11 @@ export const NAV: NavItem[] = [
     href: "/examples",
     icon: "Science",
   },
+  {
+    id: "settings",
+    i18nKey: "routes.settings",
+    href: "/settings",
+    icon: "Settings",
+    permission: "authorization:manage",
+  },
 ];

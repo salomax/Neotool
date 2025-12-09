@@ -17,7 +17,7 @@ import BookIcon from '@mui/icons-material/MenuBook';
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
 import CodeIcon from '@mui/icons-material/Code';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import { useResponsive } from "@/shared/hooks/useResponsive";
+import { useResponsive } from "@/shared/hooks/ui";
 import Link from "next/link";
 
 export default function DesignSystemPage() {

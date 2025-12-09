@@ -1,8 +1,9 @@
 "use client";
 
 import React, { Component, ReactNode } from 'react';
-import { Alert, Box, Button, Typography } from '@mui/material';
-import RefreshIcon from '@mui/icons-material/Refresh';
+import { Box } from '@mui/material';
+import { ErrorAlert } from '@/shared/components/ui/feedback';
+import { logger } from '@/shared/utils/logger';
 
 interface Props {
   children: ReactNode;
@@ -26,7 +27,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   override componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    logger.error('ErrorBoundary caught an error:', { error, errorInfo });
     this.props.onError?.(error, errorInfo);
   }
 
@@ -42,21 +43,11 @@ export class ErrorBoundary extends Component<Props, State> {
 
       return (
         <Box sx={{ p: 3, textAlign: 'center' }}>
-          <Alert severity="error" sx={{ mb: 2 }}>
-            <Typography variant="h6" gutterBottom>
-              Something went wrong
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {this.state.error?.message || 'An unexpected error occurred'}
-            </Typography>
-          </Alert>
-          <Button
-            variant="contained"
-            startIcon={<RefreshIcon />}
-            onClick={this.handleRetry}
-          >
-            Try Again
-          </Button>
+          <ErrorAlert
+            error={this.state.error || new Error('An unexpected error occurred')}
+            onRetry={this.handleRetry}
+            fallbackMessage="Something went wrong"
+          />
         </Box>
       );
     }

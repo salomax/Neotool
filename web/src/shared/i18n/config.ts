@@ -3,6 +3,7 @@ import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import en from "./locales/en/common.json";
 import pt from "./locales/pt/common.json";
+import { logger } from "@/shared/utils/logger";
 
 // Initialize i18n with common translations only
 if (!i18n.isInitialized) {
@@ -21,7 +22,7 @@ if (!i18n.isInitialized) {
       initImmediate: false,
     })
     .catch((error) => {
-      console.error("Failed to initialize i18n:", error);
+      logger.error("Failed to initialize i18n:", error);
     });
 }
 

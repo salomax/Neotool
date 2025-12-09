@@ -1,0 +1,246 @@
+{
+  "title": "Settings",
+  "tabs": {
+    "users": "Users",
+    "groups": "Groups",
+    "roles": "Roles"
+  },
+  "placeholders": {
+    "users": "User Management component will be implemented here",
+    "groups": "Group Management component will be implemented here",
+    "roles": "Role Management component will be implemented here"
+  },
+  "userManagement": {
+    "searchPlaceholder": "Search users by name or email...",
+    "emptyList": "No users found",
+    "emptySearchResults": "No users match your search criteria",
+    "editUser": "Edit User",
+    "createUser": "Create User",
+    "drawerPlaceholder": "User editing form will be implemented here",
+    "drawer": {
+      "title": "User Details",
+      "viewUser": "User Details",
+      "userInfo": "User Information",
+      "email": "Email",
+      "displayName": "Display Name",
+      "status": "Status",
+      "groups": "Groups",
+      "roles": "Roles",
+      "permissions": "Permissions",
+      "noGroups": "This user is not a member of any groups",
+      "noRoles": "This user has no roles assigned",
+      "noPermissions": "This user has no permissions assigned",
+      "errorLoading": "Failed to load user details",
+      "userNotFound": "User not found",
+      "saveChanges": "Save Changes",
+      "saveSuccess": "User updated successfully",
+      "saveError": "Failed to update user",
+      "displayNamePlaceholder": "Enter display name",
+      "emailPlaceholder": "Enter email address"
+    },
+    "groups": {
+      "assignError": "Failed to assign group",
+      "removeError": "Failed to remove group",
+      "searchPlaceholder": "Search groups...",
+      "loadError": "Failed to load groups"
+    },
+    "roles": {
+      "assignError": "Failed to assign role",
+      "removeError": "Failed to remove role",
+      "searchPlaceholder": "Search roles...",
+      "loadError": "Failed to load roles"
+    },
+    "status": {
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "enable": "Enable user",
+      "disable": "Disable user"
+    },
+    "table": {
+      "name": "Name",
+      "email": "Email",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "toast": {
+      "userEnabled": "User enabled successfully",
+      "userDisabled": "User disabled successfully",
+      "userEnableError": "Failed to enable user",
+      "userDisableError": "Failed to disable user"
+    }
+  },
+  "pagination": {
+    "first": "First",
+    "previous": "Previous",
+    "next": "Next",
+    "last": "Last",
+    "range": "{{start}} to {{end}} of {{total}} results",
+    "rangeNoTotal": "{{start}} to {{end}}",
+    "singleItem": "{{count}} item",
+    "singleItemTotal": "{{count}} of {{total}} results",
+    "empty": "No items"
+  },
+  "groupManagement": {
+    "searchPlaceholder": "Search groups by name...",
+    "emptyList": "No groups found",
+    "emptySearchResults": "No groups match your search criteria",
+    "editGroup": "Edit Group",
+    "createGroup": "Create Group",
+    "newButton": "New",
+    "drawerPlaceholder": "Group editing form will be implemented here",
+    "drawer": {
+      "title": "Group Details",
+      "name": "Name",
+      "description": "Description",
+      "members": "Members",
+      "roles": "Roles",
+      "noMembers": "This group has no members",
+      "errorLoading": "Failed to load group details",
+      "groupNotFound": "Group not found",
+      "saveChanges": "Save Changes",
+      "saveSuccess": "Group updated successfully",
+      "saveError": "Failed to update group",
+      "namePlaceholder": "Enter group name",
+      "descriptionPlaceholder": "Enter group description"
+    },
+    "roles": {
+      "assignError": "Failed to assign role",
+      "removeError": "Failed to remove role",
+      "loadError": "Failed to load roles",
+      "selectRoles": "Select roles...",
+      "noRolesAssigned": "No roles assigned"
+    },
+    "table": {
+      "name": "Name",
+      "description": "Description",
+      "actions": "Actions"
+    },
+    "form": {
+      "name": "Name",
+      "description": "Description",
+      "users": "Users",
+      "usersHelper": "Select users to assign to this group",
+      "cancel": "Cancel",
+      "save": "Save",
+      "create": "Create",
+      "saving": "Saving...",
+      "validation": {
+        "nameRequired": "Name is required",
+        "nameMinLength": "Name must be at least 1 character"
+      },
+      "errors": {
+        "loadUsersFailed": "Failed to load users"
+      }
+    },
+    "deleteDialog": {
+      "title": "Delete Group",
+      "message": "Are you sure you want to delete the group \"{name}\"? This action cannot be undone.",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "deleting": "Deleting..."
+    },
+    "toast": {
+      "groupCreated": "Group '{{name}}' created successfully",
+      "groupUpdated": "Group '{{name}}' updated successfully",
+      "groupDeleted": "Group '{{name}}' deleted successfully",
+      "groupCreateError": "Failed to create group",
+      "groupUpdateError": "Failed to update group",
+      "groupDeleteError": "Failed to delete group"
+    }
+  },
+  "roleManagement": {
+    "searchPlaceholder": "Search roles by name...",
+    "emptyList": "No roles found",
+    "emptySearchResults": "No roles match your search criteria",
+    "editRole": "Edit Role",
+    "createRole": "Create Role",
+    "newButton": "New",
+    "drawerPlaceholder": "Role editing form will be implemented here",
+    "drawer": {
+      "errorLoading": "Failed to load role details"
+    },
+    "table": {
+      "name": "Name",
+      "actions": "Actions"
+    },
+    "form": {
+      "name": "Name",
+      "cancel": "Cancel",
+      "save": "Save",
+      "create": "Create",
+      "saving": "Saving...",
+      "validation": {
+        "nameRequired": "Name is required",
+        "nameMinLength": "Name must be at least 1 character"
+      }
+    },
+    "permissions": {
+      "assigned": "Assigned Permissions",
+      "available": "Available Permissions",
+      "assignedCount": "{{count}} permission(s) assigned",
+      "noPermissions": "No permissions assigned to this role",
+      "allAssigned": "All available permissions are already assigned",
+      "noAvailableMatching": "No available permissions match your search",
+      "searchPlaceholder": "Search permissions by name...",
+      "permissionAssigned": "Permission '{{permission}}' assigned successfully",
+      "permissionRemoved": "Permission '{{permission}}' removed successfully",
+      "removePermission": "Remove permission {{name}}",
+      "assignError": "Failed to assign permission",
+      "removeError": "Failed to remove permission",
+      "loadError": "Failed to load permissions"
+    },
+    "users": {
+      "assigned": "Assigned Users",
+      "available": "Available Users",
+      "assignedCount": "{{count}} user(s) assigned",
+      "noUsers": "No users assigned to this role",
+      "allAssigned": "All available users are already assigned",
+      "noAvailableMatching": "No available users match your search",
+      "searchPlaceholder": "Search users by name or email...",
+      "userAssigned": "User '{{user}}' assigned successfully",
+      "userRemoved": "User '{{user}}' removed successfully",
+      "removeUser": "Remove user {{name}}",
+      "assignError": "Failed to assign user",
+      "removeError": "Failed to remove user",
+      "loadError": "Failed to load users"
+    },
+    "groups": {
+      "assigned": "Assigned Groups",
+      "available": "Available Groups",
+      "assignedCount": "{{count}} group(s) assigned",
+      "noGroups": "No groups assigned to this role",
+      "allAssigned": "All available groups are already assigned",
+      "noAvailableMatching": "No available groups match your search",
+      "searchPlaceholder": "Search groups by name...",
+      "groupAssigned": "Group '{{group}}' assigned successfully",
+      "groupRemoved": "Group '{{group}}' removed successfully",
+      "removeGroup": "Remove group {{name}}",
+      "assignError": "Failed to assign group",
+      "removeError": "Failed to remove group",
+      "loadError": "Failed to load groups"
+    },
+    "deleteDialog": {
+      "title": "Delete Role",
+      "message": "Are you sure you want to delete the role \"{name}\"? This action cannot be undone.",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "deleting": "Deleting..."
+    },
+    "toast": {
+      "roleCreated": "Role '{{name}}' created successfully",
+      "roleUpdated": "Role '{{name}}' updated successfully",
+      "roleDeleted": "Role '{{name}}' deleted successfully",
+      "roleCreateError": "Failed to create role",
+      "roleUpdateError": "Failed to update role",
+      "roleDeleteError": "Failed to delete role"
+    }
+  },
+  "errors": {
+    "loadFailed": "Failed to load data. Please try again."
+  },
+  "common": {
+    "cancel": "Cancel",
+    "saving": "Saving..."
+  }
+}
+

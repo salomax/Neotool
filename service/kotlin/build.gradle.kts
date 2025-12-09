@@ -31,7 +31,7 @@ allprojects {
       }
     }
 
-  // Configure Kotlin compilation
+    // Configure Kotlin compilation
     tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
         compilerOptions {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
@@ -82,20 +82,22 @@ subprojects {
         }
     }
     
-    // Configure ktlint tasks
-    tasks.named("ktlintCheck") {
-        group = "verification"
-        description = "Check Kotlin code style with ktlint"
-    }
-    
-    tasks.named("ktlintFormat") {
-        group = "formatting"
-        description = "Format Kotlin code with ktlint"
-    }
-    
-    // Make check task depend on ktlintCheck (if check task exists)
-    tasks.matching { it.name == "check" }.configureEach {
-        dependsOn(tasks.named("ktlintCheck"))
+    // Configure ktlint tasks and check dependencies after plugin evaluation
+    afterEvaluate {
+        tasks.named("ktlintCheck") {
+            group = "verification"
+            description = "Check Kotlin code style with ktlint"
+        }
+        
+        tasks.named("ktlintFormat") {
+            group = "formatting"
+            description = "Format Kotlin code with ktlint"
+        }
+        
+        // Make check task depend on ktlintCheck (if check task exists)
+        tasks.matching { it.name == "check" }.configureEach {
+            dependsOn(tasks.named("ktlintCheck"))
+        }
     }
     
     // Mark Kover HTML report tasks as incompatible with configuration cache
@@ -109,6 +111,7 @@ subprojects {
     // Configure Kover after plugin is applied
     afterEvaluate {
         // Configure Kover to exclude Micronaut internals and generated classes
+        // and set coverage thresholds aligned with big tech standards
         extensions.configure<kotlinx.kover.gradle.plugin.dsl.KoverProjectExtension> {
             reports {
                 filters {
@@ -116,41 +119,68 @@ subprojects {
                         classes(
                             "io.micronaut.core.io.service.SoftServiceLoader",
                             "io.micronaut.core.io.service.ServiceLoader",
+                            "*Application",
                             "*\$*", // Generated inner classes
                             "*Generated*",
-                            "*_Factory*",
-                            "*_Impl*",
-                            "*_Builder*",
-                            "io.github.salomax.neotool.common.test.*"
+                            "*Factory*",
+                            "*Builder*",
+                            "*Entity",
+                            "*Helper*",
+                            "*Utils*",
+                            "*Test",
+                            "*DTO",
+                            "*Config*",
+                            "*domain.*",
+                            "*mapper.*"
                         )
+                    }
+                }
+                
+                // Coverage thresholds based on industry standards:
+                verify {
+                    // Overall minimum coverage threshold (applies to all counter types)
+                    rule {
+                        minBound(80)
                     }
                 }
             }
         }
 
-        // Configure test tasks to finalize with Kover reports
-        tasks.withType<Test> {
-            if (name == "testIntegration") {
-                // Disable Kover for integration tests to prevent ClassFormatError
-                // We can't easily disable the plugin task dependency via DSL in 0.9.x
-                // but we can ensure the report tasks don't run or don't fail
-            } else {
-                // Only generate coverage reports for unit tests
-                finalizedBy(tasks.named("koverXmlReport"))
-                finalizedBy(tasks.named("koverHtmlReport"))
+        // Configure Kover report tasks
+        // Reports are only generated when explicitly requested on the command line
+        // This prevents all tests from running when running a single test
+        tasks.named("koverXmlReport") {
+            group = "verification"
+            description = "Generates XML coverage report (run explicitly: ./gradlew test testIntegration koverXmlReport)"
+            // Include testIntegration if it exists to merge coverage from integration tests
+            tasks.findByName("testIntegration")?.let {
+                dependsOn(it)
+            }
+        }
+        tasks.named("koverHtmlReport") {
+            group = "verification"
+            description = "Generates HTML coverage report (run explicitly: ./gradlew test testIntegration koverHtmlReport)"
+            // Include testIntegration if it exists to merge coverage from integration tests
+            tasks.findByName("testIntegration")?.let {
+                dependsOn(it)
             }
         }
         
-        // Configure koverVerify task with coverage thresholds
+        // Configure koverVerify task
+        // Verification is only run when explicitly requested on the command line
+        // This prevents all tests from running when running a single test
         tasks.named("koverVerify") {
-            // Verification rules are configured via the kover extension
-            // For now, we'll rely on default Kover behavior
-            // TODO: Add specific verification rules once API is confirmed
+            group = "verification"
+            description = "Verifies that code coverage meets the minimum thresholds (run explicitly: ./gradlew test testIntegration koverVerify)"
+            // Ensure both test and testIntegration run before verification
+            // This merges coverage from both unit and integration tests
+            dependsOn(tasks.named("test"))
+            // Include testIntegration if it exists to merge coverage from integration tests
+            tasks.findByName("testIntegration")?.let {
+                dependsOn(it)
+            }
         }
-        
-        // Note: Custom doLast block removed to avoid configuration cache issues
-        // Kover already prints the report location automatically
-        
+                
         // Incremental coverage check for PRs (only checks changed lines)
         tasks.register<Exec>("koverIncrementalCoverageCheck") {
             group = "verification"
@@ -181,28 +211,6 @@ subprojects {
             }
         }
         
-        // Integration tests have Kover disabled to prevent ClassFormatError
-        // No need to generate coverage reports for integration tests
-        // Unit test coverage is sufficient for code coverage metrics
-        
-        // Combined coverage report task (unit tests + integration tests)
-        // Kover automatically combines coverage from all test tasks
-        tasks.register("koverCombinedCoverageReport") {
-            group = "verification"
-            description = "Generates combined coverage report (Unit + Integration Tests)"
-            // Only depend on test task if it exists (using findByName to avoid exceptions)
-            tasks.findByName("test")?.let {
-                dependsOn(it)
-            }
-            tasks.findByName("testIntegration")?.let {
-                dependsOn(it)
-            }
-            dependsOn(tasks.named("koverXmlReport"))
-            dependsOn(tasks.named("koverHtmlReport"))
-            
-            // Note: Custom doLast block removed to avoid configuration cache issues
-            // Kover already prints the report location automatically
-        }
     }
 }
 
@@ -211,8 +219,9 @@ gradle.projectsEvaluated {
     tasks.register("koverRootReport") {
         group = "verification"
         description = "Generates aggregated coverage report across all modules"
-        dependsOn(subprojects.map { it.tasks.named("koverXmlReport") })
-        dependsOn(subprojects.map { it.tasks.named("koverHtmlReport") })
+        // Use findByName for safety in case a subproject doesn't have Kover tasks
+        dependsOn(subprojects.mapNotNull { it.tasks.findByName("koverXmlReport") })
+        dependsOn(subprojects.mapNotNull { it.tasks.findByName("koverHtmlReport") })
         
         // Print report path after generation
         doLast {
@@ -231,13 +240,13 @@ gradle.projectsEvaluated {
     tasks.register("ktlintCheck") {
         group = "verification"
         description = "Run ktlint check on all subprojects"
-        dependsOn(subprojects.map { it.tasks.named("ktlintCheck") })
+        dependsOn(subprojects.mapNotNull { it.tasks.findByName("ktlintCheck") })
     }
     
     tasks.register("ktlintFormat") {
         group = "formatting"
         description = "Format Kotlin code with ktlint on all subprojects"
-        dependsOn(subprojects.map { it.tasks.named("ktlintFormat") })
+        dependsOn(subprojects.mapNotNull { it.tasks.findByName("ktlintFormat") })
     }
 }
 

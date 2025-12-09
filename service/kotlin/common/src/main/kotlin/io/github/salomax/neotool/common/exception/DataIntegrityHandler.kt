@@ -14,7 +14,7 @@ import org.postgresql.util.PSQLException
 import jakarta.validation.ConstraintViolationException as ValidationConstraintViolationException
 
 @Singleton
-class DataAccessHandler :
+class DataAccessExceptionHandler :
     ExceptionHandler<DataAccessException, HttpResponse<JsonError>> {
     override fun handle(
         req: HttpRequest<*>,

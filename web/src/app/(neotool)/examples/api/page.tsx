@@ -8,6 +8,7 @@ import Paper from "@mui/material/Paper";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import Alert from "@mui/material/Alert";
+import { ErrorAlert } from "@/shared/components/ui/feedback";
 import CodeBlock from "@mui/material/Box";
 import { Button } from "@/shared/components/ui/primitives";
 // import { useQuery, useMutation, useLazyQuery } from '@apollo/client';
@@ -184,7 +185,7 @@ const handleSubmit = async () => {
     });
     console.log('Customer created:', result.data);
   } catch (error) {
-    console.error('Error creating customer:', error);
+    // Error handling example - in real code, show toast/error message
   }
 };`}
         </CodeBlock>
@@ -235,7 +236,10 @@ function RestApiExample() {
             {loading ? "Loading..." : "Fetch Customers"}
           </Button>
         </Box>
-        {error && <Alert severity="error">{error}</Alert>}
+        <ErrorAlert
+          error={error}
+          onRetry={fetchData}
+        />
         {data && (
           <CodeBlock component="pre" sx={{ 
             backgroundColor: 'grey.100', 

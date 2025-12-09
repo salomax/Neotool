@@ -151,7 +151,23 @@ class CustomerService { ... }
 
 **Rationale**: Clear import organization.
 
+## Domain-Entity Conversion
+
+### Rule: Nullable ID Handling
+
+**Rule**: When converting domain objects to entities, handle nullable IDs correctly. See [Domain-Entity Conversion Pattern](../../04-patterns/backend-patterns/domain-entity-conversion.md) for detailed rules.
+
+**Rationale**: Prevents type mismatch errors and ensures correct ID generation.
+
+**Quick Reference**:
+- Domain objects use nullable IDs (`UUID?`, `Int?`) for new entities
+- Entities use non-nullable IDs (`UUID`) for UUID-based entities
+- Use `id ?: UUID.randomUUID()` when converting `UUID?` to `UUID`
+- Pass `id` directly when both are nullable (`Int?` to `Int?`)
+
 ## Related Documentation
 
+- [Linting Standards](./linting-standards.md)
 - [Architecture Rules](./architecture-rules.md)
+- [Domain-Entity Conversion Pattern](../../04-patterns/backend-patterns/domain-entity-conversion.md)
 

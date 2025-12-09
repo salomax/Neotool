@@ -1,12 +1,10 @@
 package io.github.salomax.neotool.security.service
 
 import com.google.api.client.auth.openidconnect.IdToken
-import com.google.api.client.auth.openidconnect.IdTokenVerifier
 import com.google.api.client.json.gson.GsonFactory
 import io.github.salomax.neotool.security.config.OAuthConfig
 import jakarta.inject.Singleton
 import mu.KotlinLogging
-import java.util.Collections
 
 /**
  * Google OAuth provider implementation.
@@ -40,26 +38,47 @@ class GoogleOAuthProvider(
             val payload = parsedToken.payload
 
             // Get token details for validation
-            val tokenAudience = payload.audienceAsList
+            // Handle audience as either string or list
+            val tokenAudienceList =
+                try {
+                    payload.audienceAsList ?: emptyList()
+                } catch (e: Exception) {
+                    // If audienceAsList fails, try to get it as a string
+                    val audienceString = payload.audience
+                    if (audienceString != null) {
+                        listOf(audienceString)
+                    } else {
+                        throw IllegalArgumentException("Token verification failed: audience not found")
+                    }
+                }
             val tokenIssuer = payload.issuer
             val tokenExpiration = payload.expirationTimeSeconds
             val currentTime = System.currentTimeMillis() / 1000
 
-            // Create token verifier for Google ID tokens
-            val verifier =
-                IdTokenVerifier.Builder()
-                    .setAudience(Collections.singletonList(clientId))
-                    .setIssuer(issuer)
-                    .build()
+            // Validate required fields
+            if (tokenAudienceList.isEmpty()) {
+                throw IllegalArgumentException("Token verification failed: audience not found")
+            }
+            if (tokenIssuer == null) {
+                throw IllegalArgumentException("Token verification failed: issuer not found")
+            }
 
-            // Verify the token
-            if (!verifier.verify(parsedToken)) {
+            // Manually verify audience (replaces deprecated verifier.verify())
+            if (!tokenAudienceList.contains(clientId)) {
                 logger.warn {
-                    "Token verification failed - audience or issuer mismatch. " +
-                        "Token audience: $tokenAudience, Expected: [$clientId]. " +
+                    "Token verification failed - audience mismatch. " +
+                        "Token audience: $tokenAudienceList, Expected: [$clientId]"
+                }
+                throw IllegalArgumentException("Token verification failed: audience mismatch")
+            }
+
+            // Manually verify issuer (replaces deprecated verifier.verify())
+            if (tokenIssuer != issuer) {
+                logger.warn {
+                    "Token verification failed - issuer mismatch. " +
                         "Token issuer: '$tokenIssuer', Expected: '$issuer'"
                 }
-                throw IllegalArgumentException("Token verification failed: audience or issuer mismatch")
+                throw IllegalArgumentException("Token verification failed: issuer mismatch")
             }
 
             // Check expiration

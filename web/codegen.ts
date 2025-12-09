@@ -1,108 +1,86 @@
-// GraphQL Code Generator configuration for generating TypeScript types and React hooks
-// This file configures how GraphQL operations are converted into type-safe TypeScript code
+/**
+ * GraphQL Code Generator configuration for generating TypeScript types and React hooks.
+ * 
+ * This file configures how GraphQL operations are converted into type-safe TypeScript code.
+ * 
+ * Apollo Client 4 Compatibility Notes:
+ * - The @graphql-codegen/typescript-react-apollo plugin (v4.3.3) has some compatibility
+ *   issues with Apollo Client 4 that are fixed in the post-processing script:
+ *   - BaseMutationOptions types are generated but don't exist in Apollo Client 4
+ *   - useSuspenseQuery has type mismatches when queries have required variables
+ * 
+ * These issues are handled by scripts/fix-generated-types.mjs which runs after codegen.
+ * 
+ * See scripts/fix-generated-types.mjs for detailed documentation of the fixes.
+ */
 import type { CodegenConfig } from '@graphql-codegen/cli';
 
-// GraphQL endpoint configuration with fallback chain
 const GRAPHQL_ENDPOINT =
   process.env.NEXT_PUBLIC_GRAPHQL_URL ||
   process.env.VITE_GRAPHQL_HTTP ||
-  'http://localhost:4000/graphql'; // Apollo Router (supergraph)
+  'http://localhost:4000/graphql';
 
-// Use supergraph schema file if available, otherwise fall back to endpoint
-const SCHEMA_SOURCE = process.env.GRAPHQL_SCHEMA_PATH || 
+const SCHEMA_SOURCE =
+  process.env.GRAPHQL_SCHEMA_PATH ||
   '../contracts/graphql/supergraph/supergraph.local.graphql';
 
+const sharedTypeConfig = {
+  defaultScalarType: 'unknown',
+  nonOptionalTypename: true,
+  skipTypeNameForRoot: true,
+  avoidOptionals: { field: true, inputValue: false },
+} as const;
+
+const baseDocuments = [
+  'src/**/*.{ts,tsx,graphql}',
+  '!src/**/*.generated.ts',
+  '!src/**/*.generated.tsx',
+  '!src/**/*.generated*.ts',
+  '!src/**/*.generated*.tsx',
+  '!src/lib/graphql/types/__generated__/**',
+  '!src/lib/graphql/fragments/common.graphql',
+];
+
 const config: CodegenConfig = {
-  // Overwrite existing generated files instead of merging
   overwrite: true,
-  
-  // GraphQL schema source - can be URL, file path, or introspection result
-  schema: SCHEMA_SOURCE,
-  
-  // Glob patterns to find GraphQL operations (queries, mutations, subscriptions)
-  // Scans all .ts and .tsx files in src/ directory for gql`` template literals
-  // Exclude generated files to avoid recursive generation (file.generated.ts, file.generated.generated.ts, etc.)
-  // Exclude any file containing '.generated' in its name to prevent recursive generation
-  documents: [
-    'src/**/*.{ts,tsx}',
-    '!src/**/*.generated.ts',
-    '!src/**/*.generated.tsx',
-    '!src/**/*.generated*.ts',
-    '!src/**/*.generated*.tsx',
-    '!src/lib/graphql/types/__generated__/**',
-  ],
-  
-  // Don't fail if no GraphQL documents are found (useful for incremental builds)
+  schema: SCHEMA_SOURCE || GRAPHQL_ENDPOINT,
+  documents: baseDocuments,
   ignoreNoDocuments: true,
-  
-  // Output generation configuration - defines where and how files are generated
   generates: {
-    // Base types generated once - shared across all operations
-    // Contains core GraphQL types, scalars, and schema definitions
     'src/lib/graphql/types/__generated__/graphql.ts': {
-      // Generate TypeScript types from GraphQL schema
       plugins: ['typescript'],
       config: {
-        // Use 'unknown' for scalar types instead of 'any' for better type safety
-        defaultScalarType: 'unknown',
-        // Nullable fields use 'T | null' instead of 'T | null | undefined'
+        ...sharedTypeConfig,
         maybeValue: 'T | null',
-        // Always include __typename field in generated types
-        nonOptionalTypename: true,
-        // Don't include __typename in root query/mutation types
-        skipTypeNameForRoot: true,
-        // Make fields optional only when necessary, not inputs
-        avoidOptionals: { field: true, inputValue: false },
       },
     },
-    
-    // Near-operation-file preset - generates files next to GraphQL operations
-    // Each .ts/.tsx file with GraphQL gets a corresponding .generated.ts file
+    'src/lib/graphql/fragments/common.generated.ts': {
+      documents: ['src/lib/graphql/fragments/common.graphql'],
+      plugins: ['typescript', 'typescript-operations'],
+      config: {
+        ...sharedTypeConfig,
+        importOperationTypesFrom: 'Types',
+      },
+    },
     'src/': {
-      // Preset that generates files adjacent to source files
       preset: 'near-operation-file',
       presetConfig: {
-        // Path to base types file (relative to generated files)
         baseTypesPath: 'lib/graphql/types/__generated__/graphql.ts',
-        // File extension for generated files
         extension: '.generated.ts',
       },
-      plugins: [
-        // Generate TypeScript types for operations (queries, mutations, etc.)
-        'typescript-operations',
-        // Generate React Apollo hooks (useQuery, useMutation, etc.)
-        'typescript-react-apollo',
-      ],
+      plugins: ['typescript-operations', 'typescript-react-apollo'],
       config: {
-        // Generate React hooks for all operations
+        ...sharedTypeConfig,
         withHooks: true,
-        
-        // Use Apollo Client v4 hooks API
-        reactApolloVersion: 4,
-        
-        // Import React hooks from the correct module (@apollo/client/react)
-        // This fixes "useQuery is not a function" errors by ensuring hooks
-        // are imported from the module that actually exports them
+        reactApolloVersion: 4, // Apollo Client 4 compatibility
         apolloReactHooksImportFrom: '@apollo/client/react',
-        
-        // Import common types from @apollo/client/react (v4 types are in react package)
-        // Note: This should import MutationResult and QueryResult from @apollo/client/react
         apolloReactCommonImportFrom: '@apollo/client/react',
-        
-        // Don't generate MutationFunction - it doesn't exist in Apollo Client v4
         withMutationFn: false,
-        
-        // Don't generate component wrappers
         withComponent: false,
-        
-        // Add documentation blocks
         addDocBlocks: true,
-        
-        // Type generation settings (same as base types for consistency)
-        defaultScalarType: 'unknown',
-        nonOptionalTypename: true,
-        skipTypeNameForRoot: true,
-        avoidOptionals: { field: true, inputValue: false },
+        // Note: skipExportingMutationOptions could be set to true to prevent
+        // BaseMutationOptions generation, but we handle it in post-processing
+        // for better visibility and control. See scripts/fix-generated-types.mjs
       },
     },
   },

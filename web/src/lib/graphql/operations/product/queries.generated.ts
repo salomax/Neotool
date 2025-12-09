@@ -49,7 +49,7 @@ export function useGetProductsLazyQuery(baseOptions?: ApolloReactHooks.LazyQuery
           const options = {...defaultOptions, ...baseOptions}
           return ApolloReactHooks.useLazyQuery<GetProductsQuery, GetProductsQueryVariables>(GetProductsDocument, options);
         }
-export function useGetProductsSuspenseQuery(baseOptions: ApolloReactHooks.SkipToken | (ApolloReactHooks.SuspenseQueryHookOptions<GetProductsQuery, GetProductsQueryVariables> & { variables: GetProductsQueryVariables })) {
+export function useGetProductsSuspenseQuery(baseOptions?: ApolloReactHooks.SkipToken | ApolloReactHooks.SuspenseQueryHookOptions<GetProductsQuery, GetProductsQueryVariables>) {
           const options = baseOptions === ApolloReactHooks.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return ApolloReactHooks.useSuspenseQuery<GetProductsQuery, GetProductsQueryVariables>(GetProductsDocument, options);
         }
@@ -89,9 +89,9 @@ export function useGetProductLazyQuery(baseOptions?: ApolloReactHooks.LazyQueryH
           const options = {...defaultOptions, ...baseOptions}
           return ApolloReactHooks.useLazyQuery<GetProductQuery, GetProductQueryVariables>(GetProductDocument, options);
         }
-export function useGetProductSuspenseQuery(baseOptions: ApolloReactHooks.SkipToken | (ApolloReactHooks.SuspenseQueryHookOptions<GetProductQuery, GetProductQueryVariables> & { variables: GetProductQueryVariables })) {
+export function useGetProductSuspenseQuery(baseOptions?: ApolloReactHooks.SkipToken | ApolloReactHooks.SuspenseQueryHookOptions<GetProductQuery, GetProductQueryVariables>) {
           const options = baseOptions === ApolloReactHooks.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
-          return ApolloReactHooks.useSuspenseQuery<GetProductQuery, GetProductQueryVariables>(GetProductDocument, options);
+          return ApolloReactHooks.useSuspenseQuery<GetProductQuery, GetProductQueryVariables>(GetProductDocument, options as ApolloReactHooks.SkipToken | ApolloReactHooks.useSuspenseQuery.Options<GetProductQueryVariables>);
         }
 export type GetProductQueryHookResult = ReturnType<typeof useGetProductQuery>;
 export type GetProductLazyQueryHookResult = ReturnType<typeof useGetProductLazyQuery>;

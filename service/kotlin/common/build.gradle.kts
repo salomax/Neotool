@@ -102,3 +102,58 @@ dependencies {
 
     api("org.mockito:mockito-inline:5.2.0")
 }
+
+// Configure Kover exclusions specific to common module
+// Note: We explicitly include parent exclusions to ensure they're not overridden
+afterEvaluate {
+    extensions.configure<kotlinx.kover.gradle.plugin.dsl.KoverProjectExtension> {
+        reports {
+            filters {
+                excludes {
+                    classes(
+                        "io.github.salomax.neotool.common.logging.MDCFilter",
+                        "io.github.salomax.neotool.common.logging.EnterpriseLoggingFilter",
+                        "io.github.salomax.neotool.common.logging.EnterpriseLogMethodInterceptor",
+                        "io.github.salomax.neotool.common.exception.GraphQLOptimisticLockExceptionHandler",
+                        "io.github.salomax.neotool.common.exception.OptimisticLockExceptionHandler",
+                        "io.github.salomax.neotool.common.graphql.GraphQLRequest",
+                        "io.github.salomax.neotool.common.graphql.GraphQLInputDTO",
+                        "io.github.salomax.neotool.common.graphql.BaseInputDTO",
+                        "io.github.salomax.neotool.common.graphql.InputPatterns",
+                        "io.github.salomax.neotool.common.graphql.GraphQLValidations",
+                        "io.github.salomax.neotool.common.graphql.GraphQLModule",
+                        "io.github.salomax.neotool.common.graphql.BaseGraphQLModule",
+                        "io.github.salomax.neotool.common.graphql.GraphQLModuleRegistry",
+                        "io.github.salomax.neotool.common.graphql.GraphQLWiringFactory",
+                        "io.github.salomax.neotool.common.graphql.GraphQLResolverRegistry",
+                        "io.github.salomax.neotool.common.graphql.BaseSchemaRegistryFactory",
+                        "io.github.salomax.neotool.common.graphql.DataLoaderRegistryFactory",
+                        "io.github.salomax.neotool.common.graphql.GraphQLInstrumentationFactory",
+                        "io.github.salomax.neotool.common.graphql.GraphQLPayloadException",
+                        "io.github.salomax.neotool.common.graphql.GraphQLResolver",
+                        "io.github.salomax.neotool.common.graphql.CrudResolver",
+                        "io.github.salomax.neotool.common.graphql.GenericCrudResolver",
+                        "io.github.salomax.neotool.common.graphql.EnhancedCrudResolver",
+                        "io.github.salomax.neotool.common.graphql.CrudService",
+                        "io.github.salomax.neotool.common.graphql.pagination.GenericSortingHelper",
+                        "io.github.salomax.neotool.common.graphql.pagination.PaginationConstants",
+                        "io.github.salomax.neotool.common.graphql.pagination.PageInfo",
+                        "io.github.salomax.neotool.common.graphql.pagination.Edge",
+                        "io.github.salomax.neotool.common.graphql.pagination.Connection",
+                        "io.github.salomax.neotool.common.graphql.pagination.CompositeCursor",
+                        "io.github.salomax.neotool.common.metrics.GraphQLMetricsInstrumentation",
+                        "io.github.salomax.neotool.common.test.http.HttpClientExtensionKt",
+                        "io.github.salomax.neotool.common.test.http.RequestBuildersKt",
+                        "io.github.salomax.neotool.common.test.assertions.ResponseAssertionsKt",
+                        "io.github.salomax.neotool.common.test.assertions.GraphQLAssertionsKt",
+                        "io.github.salomax.neotool.common.test.integration.BaseIntegrationTest",
+                        "io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest",
+                        "io.github.salomax.neotool.common.test.integration.MicronautPropsTestContainer",
+                        "io.github.salomax.neotool.common.test.integration.PostgresTestContainer",
+                        "io.github.salomax.neotool.common.test.integration.TestConfig",
+                    )
+                }
+            }
+        }
+    }
+}

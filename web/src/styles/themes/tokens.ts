@@ -15,6 +15,7 @@ export interface DesignTokens {
     md: number;
     lg: number;
     xl: number;
+    table: number;
   };
   layout: {
     paper: {
@@ -56,13 +57,15 @@ export interface DesignTokens {
     text: string;
     textMuted: string;
     divider: string;
+    inputBorder: string;
+    tabBorder: string;
   };
 }
 
 export const tokens: Record<Mode, DesignTokens> = {
   light: {
     spacing: { xs: 4, sm: 8, md: 12, lg: 16, xl: 24 },
-    radius: { sm: 4, md: 8, lg: 12, xl: 16 },
+    radius: { sm: 4, md: 8, lg: 12, xl: 16, table: 8 },
     layout: {
       paper: {
         padding: 2,
@@ -103,11 +106,13 @@ export const tokens: Record<Mode, DesignTokens> = {
       text: "#0f172a",
       textMuted: "#475569",
       divider: "#e2e8f0",
+      inputBorder: "rgba(0, 0, 0, 0.23)",
+      tabBorder: "rgba(0, 0, 0, 0.23)",
     },
   },
   dark: {
     spacing: { xs: 4, sm: 8, md: 12, lg: 16, xl: 24 },
-    radius: { sm: 4, md: 8, lg: 12, xl: 16 },
+    radius: { sm: 4, md: 8, lg: 12, xl: 16, table: 8 },
     layout: {
       paper: {
         padding: 2,
@@ -148,6 +153,8 @@ export const tokens: Record<Mode, DesignTokens> = {
       text: "#e5e7eb",
       textMuted: "#94a3b8",
       divider: "#1f2937",
+      inputBorder: "rgba(255, 255, 255, 0.23)",
+      tabBorder: "rgba(255, 255, 255, 0.23)",
     },
   },
 };

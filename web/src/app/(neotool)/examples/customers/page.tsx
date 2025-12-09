@@ -67,8 +67,6 @@ function CustomersPageContent() {
       }
       closeDialog();
     } catch (err) {
-      console.error(t('errorSaving'), err);
-      
       // Extract and display specific error message
       const errorMessage = extractErrorMessage(
         err,
@@ -87,7 +85,6 @@ function CustomersPageContent() {
       toast.success(t('toast.customerDeleted', { name: deleteConfirm.name }));
       setDeleteConfirm(null);
     } catch (err) {
-      console.error(t('errorDeleting'), err);
       const errorMessage = extractErrorMessage(err, t('toast.customerDeleteError'));
       toast.error(errorMessage);
     }

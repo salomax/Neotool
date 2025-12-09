@@ -4,8 +4,13 @@ import com.apollographql.federation.graphqljava.Federation
 import graphql.analysis.MaxQueryComplexityInstrumentation
 import graphql.analysis.MaxQueryDepthInstrumentation
 import graphql.schema.idl.TypeDefinitionRegistry
-import io.github.salomax.neotool.common.exception.GraphQLOptimisticLockExceptionHandler
+import io.github.salomax.neotool.security.graphql.dto.GroupDTO
+import io.github.salomax.neotool.security.graphql.dto.PermissionDTO
+import io.github.salomax.neotool.security.graphql.dto.RoleDTO
 import io.github.salomax.neotool.security.graphql.dto.UserDTO
+import io.github.salomax.neotool.security.repo.GroupRepository
+import io.github.salomax.neotool.security.repo.PermissionRepository
+import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.micronaut.context.annotation.Factory
 import jakarta.inject.Singleton
@@ -16,6 +21,9 @@ class SecurityGraphQLFactory(
     private val registry: TypeDefinitionRegistry,
     private val wiringFactory: SecurityWiringFactory,
     private val userRepository: UserRepository,
+    private val groupRepository: GroupRepository,
+    private val roleRepository: RoleRepository,
+    private val permissionRepository: PermissionRepository,
 ) {
     @Singleton
     fun graphQL(): graphql.GraphQL {
@@ -40,6 +48,54 @@ class SecurityGraphQLFactory(
                                                 id = it.id.toString(),
                                                 email = it.email,
                                                 displayName = it.displayName,
+                                                enabled = it.enabled,
+                                            )
+                                        }
+                                    }
+                                    "Group" -> {
+                                        val group =
+                                            groupRepository.findById(
+                                                UUID.fromString(id.toString()),
+                                            )
+                                                .orElse(null)
+                                        group?.let {
+                                            val groupDomain = it.toDomain()
+                                            GroupDTO(
+                                                id =
+                                                    groupDomain.id?.toString()
+                                                        ?: throw IllegalArgumentException("Group must have an ID"),
+                                                name = groupDomain.name,
+                                                description = groupDomain.description,
+                                            )
+                                        }
+                                    }
+                                    "Role" -> {
+                                        val role =
+                                            roleRepository.findById(
+                                                id.toString().toInt(),
+                                            )
+                                                .orElse(null)
+                                        role?.let {
+                                            val roleDomain = it.toDomain()
+                                            RoleDTO(
+                                                id =
+                                                    roleDomain.id?.toString()
+                                                        ?: throw IllegalArgumentException("Role must have an ID"),
+                                                name = roleDomain.name,
+                                            )
+                                        }
+                                    }
+                                    "Permission" -> {
+                                        val permission =
+                                            permissionRepository.findById(id.toString().toInt())
+                                                .orElse(null)
+                                        permission?.let {
+                                            val permissionDomain = it.toDomain()
+                                            PermissionDTO(
+                                                id =
+                                                    permissionDomain.id?.toString()
+                                                        ?: throw IllegalArgumentException("Permission must have an ID"),
+                                                name = permissionDomain.name,
                                             )
                                         }
                                     }
@@ -69,6 +125,15 @@ class SecurityGraphQLFactory(
                         is UserDTO ->
                             schema.getObjectType("User")
                                 ?: throw IllegalStateException("User type not found in schema")
+                        is GroupDTO ->
+                            schema.getObjectType("Group")
+                                ?: throw IllegalStateException("Group type not found in schema")
+                        is RoleDTO ->
+                            schema.getObjectType("Role")
+                                ?: throw IllegalStateException("Role type not found in schema")
+                        is PermissionDTO ->
+                            schema.getObjectType("Permission")
+                                ?: throw IllegalStateException("Permission type not found in schema")
                         else -> throw IllegalStateException(
                             "Unknown federated type for entity: ${entity?.javaClass?.name}",
                         )
@@ -79,7 +144,7 @@ class SecurityGraphQLFactory(
         return graphql.GraphQL.newGraphQL(federatedSchema)
             .instrumentation(MaxQueryComplexityInstrumentation(100))
             .instrumentation(MaxQueryDepthInstrumentation(10))
-            .defaultDataFetcherExceptionHandler(GraphQLOptimisticLockExceptionHandler())
+            .defaultDataFetcherExceptionHandler(SecurityGraphQLExceptionHandler())
             .build()
     }
 }

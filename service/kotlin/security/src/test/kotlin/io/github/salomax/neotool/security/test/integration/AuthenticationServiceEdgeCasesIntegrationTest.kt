@@ -5,6 +5,7 @@ import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.common.test.transaction.runTransaction
 import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.repo.UserRepository
+import io.github.salomax.neotool.security.service.AuthContextFactory
 import io.github.salomax.neotool.security.service.AuthenticationService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
@@ -40,6 +41,9 @@ open class AuthenticationServiceEdgeCasesIntegrationTest : BaseIntegrationTest()
 
     @Inject
     lateinit var authenticationService: AuthenticationService
+
+    @Inject
+    lateinit var authContextFactory: AuthContextFactory
 
     @Inject
     lateinit var entityManager: EntityManager
@@ -79,7 +83,7 @@ open class AuthenticationServiceEdgeCasesIntegrationTest : BaseIntegrationTest()
 
             // Generate refresh token
             val refreshToken = authenticationService.generateRefreshToken(user)
-            authenticationService.saveRememberMeToken(user.id, refreshToken)
+            authenticationService.saveRememberMeToken(user.id!!, refreshToken)
 
             // Validate refresh token
             val validatedUser = authenticationService.validateRefreshToken(refreshToken)
@@ -124,10 +128,10 @@ open class AuthenticationServiceEdgeCasesIntegrationTest : BaseIntegrationTest()
 
             // Generate and save refresh token
             val refreshToken = authenticationService.generateRefreshToken(user)
-            authenticationService.saveRememberMeToken(user.id, refreshToken)
+            authenticationService.saveRememberMeToken(user.id!!, refreshToken)
 
             // Revoke token by clearing it
-            authenticationService.clearRememberMeToken(user.id)
+            authenticationService.clearRememberMeToken(user.id!!)
 
             // Try to validate refresh token - should fail
             val validatedUser = authenticationService.validateRefreshToken(refreshToken)
@@ -149,7 +153,7 @@ open class AuthenticationServiceEdgeCasesIntegrationTest : BaseIntegrationTest()
             // Generate and save refresh token
             val refreshToken1 = authenticationService.generateRefreshToken(user)
             entityManager.runTransaction {
-                authenticationService.saveRememberMeToken(user.id, refreshToken1)
+                authenticationService.saveRememberMeToken(user.id!!, refreshToken1)
                 entityManager.flush()
             }
 
@@ -187,8 +191,9 @@ open class AuthenticationServiceEdgeCasesIntegrationTest : BaseIntegrationTest()
                 )
             saveUser(user)
 
-            // Generate access token
-            val accessToken = authenticationService.generateAccessToken(user)
+            // Build AuthContext and generate access token
+            val authContext = authContextFactory.build(user)
+            val accessToken = authenticationService.generateAccessToken(authContext)
 
             // Try to validate access token as refresh token - should fail
             val validatedUser = authenticationService.validateRefreshToken(accessToken)
@@ -213,7 +218,7 @@ open class AuthenticationServiceEdgeCasesIntegrationTest : BaseIntegrationTest()
 
             // Generate refresh token
             val refreshToken = authenticationService.generateRefreshToken(user)
-            authenticationService.saveRememberMeToken(user.id, refreshToken)
+            authenticationService.saveRememberMeToken(user.id!!, refreshToken)
 
             // Authenticate using legacy method
             val authenticatedUser = authenticationService.authenticateByToken(refreshToken)
@@ -466,7 +471,7 @@ open class AuthenticationServiceEdgeCasesIntegrationTest : BaseIntegrationTest()
             saveUser(user)
 
             val token = "test-remember-me-token"
-            val updatedUser = authenticationService.saveRememberMeToken(user.id, token)
+            val updatedUser = authenticationService.saveRememberMeToken(user.id!!, token)
 
             Assertions.assertThat(updatedUser.rememberMeToken).isEqualTo(token)
         }
@@ -496,10 +501,10 @@ open class AuthenticationServiceEdgeCasesIntegrationTest : BaseIntegrationTest()
 
             // Set token first
             val token = "test-token"
-            authenticationService.saveRememberMeToken(user.id, token)
+            authenticationService.saveRememberMeToken(user.id!!, token)
 
             // Clear token
-            val updatedUser = authenticationService.clearRememberMeToken(user.id)
+            val updatedUser = authenticationService.clearRememberMeToken(user.id!!)
 
             Assertions.assertThat(updatedUser.rememberMeToken).isNull()
         }

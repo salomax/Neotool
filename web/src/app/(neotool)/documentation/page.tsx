@@ -24,7 +24,7 @@ import BugReportIcon from '@mui/icons-material/BugReport';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import Link from 'next/link';
-import { useResponsive } from "@/shared/hooks/useResponsive";
+import { useResponsive } from "@/shared/hooks/ui";
 
 export default function DocumentationPage() {
   const { isMobile } = useResponsive();

@@ -18,7 +18,11 @@ const Drawer = dynamic(() =>
     ssr: false,
     loading: () => <div>Loading...</div>
   }
-);
+) as React.ComponentType<any> & {
+  Header: React.ComponentType<any>;
+  Body: React.ComponentType<any>;
+  Footer: React.ComponentType<any>;
+};
 
 // Interactive Drawer Example Component
 const DrawerExample = () => {
@@ -40,23 +44,24 @@ const DrawerExample = () => {
       <Drawer
         open={open}
         onClose={() => setOpen(false)}
-        title="Navigation"
-        showCloseButton={true}
         variant="temporary"
         anchor="left"
-        width={280}
+        size="sm"
       >
-        <List>
-          <ListItem>
-            <ListItemText primary="Home" />
-          </ListItem>
-          <ListItem>
-            <ListItemText primary="Profile" />
-          </ListItem>
-          <ListItem>
-            <ListItemText primary="Settings" />
-          </ListItem>
-        </List>
+        <Drawer.Header title="Navigation" showCloseButton={true} />
+        <Drawer.Body>
+          <List>
+            <ListItem>
+              <ListItemText primary="Home" />
+            </ListItem>
+            <ListItem>
+              <ListItemText primary="Profile" />
+            </ListItem>
+            <ListItem>
+              <ListItemText primary="Settings" />
+            </ListItem>
+          </List>
+        </Drawer.Body>
       </Drawer>
     </Box>
   );
@@ -82,27 +87,27 @@ const DrawerWithTitleExample = () => {
       <Drawer
         open={open}
         onClose={() => setOpen(false)}
-        title="My Application"
-        showCloseButton={true}
-        showMenuButton={false}
         variant="temporary"
         anchor="left"
-        width={300}
+        size="md"
       >
-        <List>
-          <ListItem>
-            <ListItemText primary="Dashboard" />
-          </ListItem>
-          <ListItem>
-            <ListItemText primary="Users" />
-          </ListItem>
-          <ListItem>
-            <ListItemText primary="Reports" />
-          </ListItem>
-          <ListItem>
-            <ListItemText primary="Settings" />
-          </ListItem>
-        </List>
+        <Drawer.Header title="My Application" showCloseButton={true} showMenuButton={false} />
+        <Drawer.Body>
+          <List>
+            <ListItem>
+              <ListItemText primary="Dashboard" />
+            </ListItem>
+            <ListItem>
+              <ListItemText primary="Users" />
+            </ListItem>
+            <ListItem>
+              <ListItemText primary="Reports" />
+            </ListItem>
+            <ListItem>
+              <ListItemText primary="Settings" />
+            </ListItem>
+          </List>
+        </Drawer.Body>
       </Drawer>
     </Box>
   );
@@ -139,64 +144,68 @@ const DrawerAnchorsExample = () => {
       <Drawer
         open={leftOpen}
         onClose={() => setLeftOpen(false)}
-        title="Left Panel"
-        showCloseButton={true}
         variant="temporary"
         anchor="left"
         width={280}
       >
-        <List>
-          <ListItem><ListItemText primary="Left Menu Item 1" /></ListItem>
-          <ListItem><ListItemText primary="Left Menu Item 2" /></ListItem>
-        </List>
+        <Drawer.Header title="Left Panel" showCloseButton={true} />
+        <Drawer.Body>
+          <List>
+            <ListItem><ListItemText primary="Left Menu Item 1" /></ListItem>
+            <ListItem><ListItemText primary="Left Menu Item 2" /></ListItem>
+          </List>
+        </Drawer.Body>
       </Drawer>
 
       {/* Right Drawer */}
       <Drawer
         open={rightOpen}
         onClose={() => setRightOpen(false)}
-        title="Right Panel"
-        showCloseButton={true}
         variant="temporary"
         anchor="right"
-        width={320}
+        size="md"
       >
-        <List>
-          <ListItem><ListItemText primary="Right Menu Item 1" /></ListItem>
-          <ListItem><ListItemText primary="Right Menu Item 2" /></ListItem>
-        </List>
+        <Drawer.Header title="Right Panel" showCloseButton={true} />
+        <Drawer.Body>
+          <List>
+            <ListItem><ListItemText primary="Right Menu Item 1" /></ListItem>
+            <ListItem><ListItemText primary="Right Menu Item 2" /></ListItem>
+          </List>
+        </Drawer.Body>
       </Drawer>
 
       {/* Top Drawer */}
       <Drawer
         open={topOpen}
         onClose={() => setTopOpen(false)}
-        title="Top Panel"
-        showCloseButton={true}
         variant="temporary"
         anchor="top"
         height={200}
       >
-        <List>
-          <ListItem><ListItemText primary="Top Menu Item 1" /></ListItem>
-          <ListItem><ListItemText primary="Top Menu Item 2" /></ListItem>
-        </List>
+        <Drawer.Header title="Top Panel" showCloseButton={true} />
+        <Drawer.Body>
+          <List>
+            <ListItem><ListItemText primary="Top Menu Item 1" /></ListItem>
+            <ListItem><ListItemText primary="Top Menu Item 2" /></ListItem>
+          </List>
+        </Drawer.Body>
       </Drawer>
 
       {/* Bottom Drawer */}
       <Drawer
         open={bottomOpen}
         onClose={() => setBottomOpen(false)}
-        title="Bottom Panel"
-        showCloseButton={true}
         variant="temporary"
         anchor="bottom"
         height={300}
       >
-        <List>
-          <ListItem><ListItemText primary="Bottom Menu Item 1" /></ListItem>
-          <ListItem><ListItemText primary="Bottom Menu Item 2" /></ListItem>
-        </List>
+        <Drawer.Header title="Bottom Panel" showCloseButton={true} />
+        <Drawer.Body>
+          <List>
+            <ListItem><ListItemText primary="Bottom Menu Item 1" /></ListItem>
+            <ListItem><ListItemText primary="Bottom Menu Item 2" /></ListItem>
+          </List>
+        </Drawer.Body>
       </Drawer>
     </Box>
   );
@@ -222,23 +231,71 @@ const DrawerPersistentExample = () => {
       <Drawer
         open={open}
         onClose={() => setOpen(false)}
-        title="Persistent Sidebar"
-        showCloseButton={true}
         variant="persistent"
         anchor="left"
-        width={280}
+        size="sm"
       >
-        <List>
-          <ListItem>
-            <ListItemText primary="Persistent Item 1" />
-          </ListItem>
-          <ListItem>
-            <ListItemText primary="Persistent Item 2" />
-          </ListItem>
-          <ListItem>
-            <ListItemText primary="Persistent Item 3" />
-          </ListItem>
-        </List>
+        <Drawer.Header title="Persistent Sidebar" showCloseButton={true} />
+        <Drawer.Body>
+          <List>
+            <ListItem>
+              <ListItemText primary="Persistent Item 1" />
+            </ListItem>
+            <ListItem>
+              <ListItemText primary="Persistent Item 2" />
+            </ListItem>
+            <ListItem>
+              <ListItemText primary="Persistent Item 3" />
+            </ListItem>
+          </List>
+        </Drawer.Body>
+      </Drawer>
+    </Box>
+  );
+};
+
+// Full Width Drawer Example
+const DrawerFullWidthExample = () => {
+  const [open, setOpen] = React.useState(false);
+
+  return (
+    <Box sx={{ position: 'relative', height: 200, border: '1px dashed #ccc', borderRadius: 1, p: 2 }}>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        Full width drawer (100% - sidebar width)
+      </Typography>
+      <Button 
+        variant="outlined" 
+        size="small"
+        onClick={() => setOpen(true)}
+      >
+        Open Full Width Drawer
+      </Button>
+      
+      <Drawer
+        open={open}
+        onClose={() => setOpen(false)}
+        variant="temporary"
+        anchor="right"
+        size="full"
+      >
+        <Drawer.Header title="Full Width Drawer" showCloseButton={true} />
+        <Drawer.Body>
+          <Typography variant="body1" paragraph>
+            This drawer uses size=&quot;full&quot; which makes it take up 100% of the viewport width
+            minus the sidebar width (84px).
+          </Typography>
+          <List>
+            <ListItem>
+              <ListItemText primary="Full Width Item 1" />
+            </ListItem>
+            <ListItem>
+              <ListItemText primary="Full Width Item 2" />
+            </ListItem>
+            <ListItem>
+              <ListItemText primary="Full Width Item 3" />
+            </ListItem>
+          </List>
+        </Drawer.Body>
       </Drawer>
     </Box>
   );
@@ -265,11 +322,9 @@ const DrawerStyledExample = () => {
       <Drawer
         open={open}
         onClose={() => setOpen(false)}
-        title="Styled Drawer"
-        showCloseButton={true}
         variant="temporary"
         anchor="left"
-        width={280}
+        size="sm"
         sx={{
           '& .MuiDrawer-paper': {
             backgroundColor: '#f5f5f5',
@@ -277,17 +332,20 @@ const DrawerStyledExample = () => {
           },
         }}
       >
-        <List>
-          <ListItem>
-            <ListItemText primary="Styled Item 1" />
-          </ListItem>
-          <ListItem>
-            <ListItemText primary="Styled Item 2" />
-          </ListItem>
-          <ListItem>
-            <ListItemText primary="Styled Item 3" />
-          </ListItem>
-        </List>
+        <Drawer.Header title="Styled Drawer" showCloseButton={true} />
+        <Drawer.Body>
+          <List>
+            <ListItem>
+              <ListItemText primary="Styled Item 1" />
+            </ListItem>
+            <ListItem>
+              <ListItemText primary="Styled Item 2" />
+            </ListItem>
+            <ListItem>
+              <ListItemText primary="Styled Item 3" />
+            </ListItem>
+          </List>
+        </Drawer.Body>
       </Drawer>
     </Box>
   );
@@ -309,6 +367,9 @@ export const DrawerRenderer: React.FC<ComponentRendererProps> = ({ example }) =>
     
     case 'Custom Styling':
       return <DrawerStyledExample />;
+    
+    case 'Full Width':
+      return <DrawerFullWidthExample />;
     
     default:
       return (

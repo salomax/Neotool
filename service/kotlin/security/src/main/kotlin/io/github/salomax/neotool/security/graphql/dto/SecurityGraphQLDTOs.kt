@@ -54,6 +54,7 @@ data class UserDTO(
     val id: String,
     val email: String,
     val displayName: String? = null,
+    val enabled: Boolean? = null,
 )
 
 @Introspected
@@ -86,4 +87,158 @@ data class ResetPasswordInputDTO(
 data class ResetPasswordPayloadDTO(
     val success: Boolean,
     val message: String,
+)
+
+// Authorization DTOs
+@Introspected
+@Serdeable
+data class AuthorizationResultDTO(
+    val allowed: Boolean,
+    val reason: String,
+)
+
+@Introspected
+@Serdeable
+data class PermissionDTO(
+    val id: String?,
+    val name: String,
+)
+
+@Introspected
+@Serdeable
+data class RoleDTO(
+    val id: String?,
+    val name: String,
+)
+
+@Introspected
+@Serdeable
+data class GroupDTO(
+    val id: String,
+    val name: String,
+    val description: String? = null,
+)
+
+// Input DTOs for mutations
+@Introspected
+@Serdeable
+data class CreateGroupInputDTO(
+    @field:NotBlank(message = "Name is required")
+    var name: String = "",
+    var description: String? = null,
+    var userIds: List<String>? = null,
+) : BaseInputDTO()
+
+@Introspected
+@Serdeable
+data class UpdateGroupInputDTO(
+    @field:NotBlank(message = "Name is required")
+    var name: String = "",
+    var description: String? = null,
+    var userIds: List<String>? = null,
+) : BaseInputDTO()
+
+@Introspected
+@Serdeable
+data class CreateRoleInputDTO(
+    @field:NotBlank(message = "Name is required")
+    var name: String = "",
+) : BaseInputDTO()
+
+@Introspected
+@Serdeable
+data class UpdateRoleInputDTO(
+    @field:NotBlank(message = "Name is required")
+    var name: String = "",
+) : BaseInputDTO()
+
+// Relay pagination DTOs
+@Introspected
+@Serdeable
+data class PageInfoDTO(
+    val hasNextPage: Boolean,
+    val hasPreviousPage: Boolean,
+    val startCursor: String? = null,
+    val endCursor: String? = null,
+)
+
+@Introspected
+@Serdeable
+data class UserEdgeDTO(
+    val node: UserDTO,
+    val cursor: String,
+)
+
+@Introspected
+@Serdeable
+data class GroupEdgeDTO(
+    val node: GroupDTO,
+    val cursor: String,
+)
+
+@Introspected
+@Serdeable
+data class RoleEdgeDTO(
+    val node: RoleDTO,
+    val cursor: String,
+)
+
+@Introspected
+@Serdeable
+data class PermissionEdgeDTO(
+    val node: PermissionDTO,
+    val cursor: String,
+)
+
+@Introspected
+@Serdeable
+data class UserConnectionDTO(
+    val edges: List<UserEdgeDTO>,
+    val pageInfo: PageInfoDTO,
+    val totalCount: Int? = null,
+)
+
+@Introspected
+@Serdeable
+data class GroupConnectionDTO(
+    val edges: List<GroupEdgeDTO>,
+    val pageInfo: PageInfoDTO,
+    val totalCount: Int? = null,
+)
+
+@Introspected
+@Serdeable
+data class RoleConnectionDTO(
+    val edges: List<RoleEdgeDTO>,
+    val pageInfo: PageInfoDTO,
+    val totalCount: Int? = null,
+)
+
+@Introspected
+@Serdeable
+data class PermissionConnectionDTO(
+    val edges: List<PermissionEdgeDTO>,
+    val pageInfo: PageInfoDTO,
+)
+
+// OrderBy DTOs
+@Introspected
+@Serdeable
+data class UserOrderByInputDTO(
+    val field: String,
+    val direction: String,
+)
+
+@Introspected
+@Serdeable
+data class GroupOrderByInputDTO(
+    val field: String,
+    val direction: String,
+)
+
+@Introspected
+@Serdeable
+data class RoleOrderByInputDTO(
+    val field: String,
+    val direction: String,
 )

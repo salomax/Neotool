@@ -186,21 +186,29 @@ describe("I18n Integration Tests", () => {
       const user = userEvent.setup();
       render(<IntegrationTestComponent />);
       
-      // Click add button to show dialog
+      // Click add button to show dialog - userEvent automatically wraps in act()
       await user.click(screen.getByTestId('add-btn'));
-      expect(screen.getByTestId('dialog')).toBeInTheDocument();
+      
+      // Wait for dialog to appear (state update)
+      await waitFor(() => {
+        expect(screen.getByTestId('dialog')).toBeInTheDocument();
+      });
       expect(screen.getByTestId('confirm-text')).toHaveTextContent('Are you sure you want to delete this customer?');
       
       // Click save button to show success message
       await user.click(screen.getByTestId('save-btn'));
-      expect(screen.getByTestId('message')).toHaveTextContent('Customer saved successfully!');
+      
+      // Wait for message to appear (state update)
+      await waitFor(() => {
+        expect(screen.getByTestId('message')).toHaveTextContent('Customer saved successfully!');
+      });
     });
 
     it("should switch languages and update all translations", async () => {
       const user = userEvent.setup();
       render(<IntegrationTestComponent />);
       
-      // Switch to Portuguese
+      // Switch to Portuguese - waitFor automatically handles act()
       const i18n = (await import('i18next')).default;
       await i18n.changeLanguage('pt');
       
@@ -259,7 +267,7 @@ describe("I18n Integration Tests", () => {
     it("should switch languages across all domains", async () => {
       render(<MultiDomainIntegrationComponent />);
       
-      // Switch to Portuguese
+      // Switch to Portuguese - waitFor automatically handles act()
       const i18n = (await import('i18next')).default;
       await i18n.changeLanguage('pt');
       
@@ -294,14 +302,26 @@ describe("I18n Integration Tests", () => {
       
       const i18n = (await import('i18next')).default;
       
-      // Rapidly switch languages
+      // Rapidly switch languages - waitFor will handle any necessary act() wrapping
       await i18n.changeLanguage('pt');
-      await i18n.changeLanguage('en');
-      await i18n.changeLanguage('pt');
-      await i18n.changeLanguage('en');
+      await waitFor(() => {
+        expect(screen.getByTestId('page-title')).toHaveTextContent('Gerenciamento de Clientes');
+      });
       
-      // Should still render correctly
-      expect(screen.getByTestId('page-title')).toHaveTextContent('Customer Management');
+      await i18n.changeLanguage('en');
+      await waitFor(() => {
+        expect(screen.getByTestId('page-title')).toHaveTextContent('Customer Management');
+      });
+      
+      await i18n.changeLanguage('pt');
+      await waitFor(() => {
+        expect(screen.getByTestId('page-title')).toHaveTextContent('Gerenciamento de Clientes');
+      });
+      
+      await i18n.changeLanguage('en');
+      await waitFor(() => {
+        expect(screen.getByTestId('page-title')).toHaveTextContent('Customer Management');
+      });
     });
   });
 

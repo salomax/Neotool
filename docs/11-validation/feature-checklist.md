@@ -39,6 +39,10 @@ related:
 - [ ] GraphQL operations follow patterns (spec/04-patterns/frontend/graphql-pattern.md)
 - [ ] i18n support added
 - [ ] TypeScript types generated and used
+- [ ] Toast notifications implemented for all mutations (spec/04-patterns/frontend-patterns/toast-notification-pattern.md)
+  - [ ] Success toasts for create, update, delete operations
+  - [ ] Error toasts with extracted error messages
+  - [ ] Toast messages internationalized (i18n)
 - [ ] Tests written
 
 ## Observability

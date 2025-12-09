@@ -2,7 +2,7 @@ import React from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import type { ColDef } from "ag-grid-community";
 import { ListPage } from "../ListPage";
-import { useDataTableQuery } from "@/shared/hooks/useDataTableQuery";
+import { useDataTableQuery } from "@/shared/hooks/data";
 import { Button, Stack, TextField } from "@mui/material";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-quartz.css";
