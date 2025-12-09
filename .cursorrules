@@ -28,17 +28,20 @@ All major technical decisions are documented in `docs/09-adr/`:
 
 ### Service Layer Documentation
 
-- `docs/01-architecture/api-architecture/graphql-federation.md` - GraphQL Federation patterns
-- `docs/01-architecture/data-architecture/schema-organization.md` - Database schema rules
+- `docs/04-patterns/api-patterns/graphql-query-pattern.md` - GraphQL query patterns (backend)
 - `docs/04-patterns/backend-patterns/entity-pattern.md` - JPA entity patterns
+- `docs/04-patterns/backend-patterns/pagination-pattern.md` - Pagination patterns
+- `docs/04-patterns/backend-patterns/resolver-pattern.md` - GraphQL resolver patterns
 
 ### Frontend Documentation
 
-- `docs/01-architecture/frontend-architecture/nextjs-structure.md` - Frontend directory structure
-- `docs/04-patterns/frontend-patterns/component-pattern.md` - Component system and patterns
-- `docs/04-patterns/frontend-patterns/styling-pattern.md` - Theme system and design tokens
-- `docs/04-patterns/frontend-patterns/graphql-pattern.md` - GraphQL operations in frontend
-- `docs/04-patterns/frontend-patterns/` - Internationalization and hooks patterns
+- `docs/00-overview/project-structure.md` - Project structure including frontend directory structure
+- `docs/04-patterns/frontend-patterns/graphql-query-pattern.md` - GraphQL query patterns (frontend)
+- `docs/04-patterns/frontend-patterns/graphql-mutation-pattern.md` - GraphQL mutation patterns
+- `docs/04-patterns/frontend-patterns/shared-components-pattern.md` - Shared component patterns
+- `docs/04-patterns/frontend-patterns/management-pattern.md` - Management UI patterns
+- `docs/04-patterns/frontend-patterns/hook-pattern.md` - Custom hooks patterns
+- `docs/04-patterns/frontend-patterns/testing-pattern.md` - Frontend testing patterns
 
 ## Technology Stack
 
@@ -51,12 +54,12 @@ All major technical decisions are documented in `docs/09-adr/`:
 - **Database**: PostgreSQL 15+
 
 ### Frontend
-- **Framework**: Next.js 14+ (App Router)
+- **Framework**: Next.js 15+ (App Router)
 - **Language**: TypeScript
 - **UI Library**: React 18+
-- **Styling**: Material-UI + Custom Design System
+- **Styling**: Material-UI (MUI) + Custom Design System
 - **API Client**: Apollo Client (GraphQL)
-- **State**: React Context + Custom Hooks
+- **State**: React Context + Custom Hooks + Zustand
 
 ### Infrastructure
 - **Containers**: Docker
@@ -71,10 +74,10 @@ All major technical decisions are documented in `docs/09-adr/`:
 1. **Reference the Specification**: Always check relevant spec documents before implementing
 2. **Follow Architecture Patterns**: Use patterns documented in ADRs and architecture docs
 3. **Maintain Type Safety**: Ensure end-to-end type safety from database to UI
-4. **Follow Directory Structure**: Adhere to structure defined in `docs/01-architecture/frontend-architecture/nextjs-structure.md` (frontend) and service docs (backend)
-5. **Use GraphQL Federation**: Follow patterns in `docs/01-architecture/api-architecture/graphql-federation.md`
-6. **Follow Component Patterns**: Use component system from `docs/04-patterns/frontend-patterns/component-pattern.md`
-7. **Apply Theme System**: Use design tokens from `docs/04-patterns/frontend-patterns/styling-pattern.md`
+4. **Follow Directory Structure**: Adhere to structure defined in `docs/00-overview/project-structure.md` (frontend) and service docs (backend)
+5. **Use GraphQL Patterns**: Follow GraphQL patterns in `docs/04-patterns/api-patterns/graphql-query-pattern.md` (backend) and `docs/04-patterns/frontend-patterns/graphql-query-pattern.md` (frontend)
+6. **Follow Component Patterns**: Use component system from `docs/04-patterns/frontend-patterns/shared-components-pattern.md` and `docs/04-patterns/frontend-patterns/management-pattern.md`
+7. **Apply Testing Patterns**: Follow testing patterns from `docs/04-patterns/frontend-patterns/testing-pattern.md`
 
 ### Code Generation Rules
 
@@ -86,27 +89,30 @@ All major technical decisions are documented in `docs/09-adr/`:
   - Follow database schema organization from `docs/01-architecture/data-architecture/schema-organization.md`
 
 - **Frontend (TypeScript/Next.js)**:
-  - Use App Router structure (Next.js 14+)
-  - Follow directory structure from `docs/01-architecture/frontend-architecture/nextjs-structure.md`
-  - Use components from design system (`docs/04-patterns/frontend-patterns/component-pattern.md`)
-  - Apply theme tokens from `docs/04-patterns/frontend-patterns/styling-pattern.md`
-  - Use GraphQL operations following `docs/04-patterns/frontend-patterns/graphql-pattern.md`
-  - Implement i18n following patterns in `docs/04-patterns/frontend-patterns/`
+  - Use App Router structure (Next.js 15+)
+  - Follow directory structure from `docs/00-overview/project-structure.md`
+  - Use components from design system (`docs/04-patterns/frontend-patterns/shared-components-pattern.md`)
+  - Use GraphQL queries following `docs/04-patterns/frontend-patterns/graphql-query-pattern.md`
+  - Use GraphQL mutations following `docs/04-patterns/frontend-patterns/graphql-mutation-pattern.md`
+  - Use management patterns from `docs/04-patterns/frontend-patterns/management-pattern.md`
   - Use custom hooks patterns from `docs/04-patterns/frontend-patterns/hook-pattern.md`
+  - Follow testing patterns from `docs/04-patterns/frontend-patterns/testing-pattern.md`
 
 ### GraphQL Development
 
 - Use Apollo Federation for distributed GraphQL
-- Follow federation patterns in `docs/01-architecture/api-architecture/graphql-federation.md`
+- Follow GraphQL query patterns in `docs/04-patterns/api-patterns/graphql-query-pattern.md` (backend)
+- Follow GraphQL query patterns in `docs/04-patterns/frontend-patterns/graphql-query-pattern.md` (frontend)
+- Follow GraphQL mutation patterns in `docs/04-patterns/frontend-patterns/graphql-mutation-pattern.md` (frontend)
 - Generate TypeScript types from GraphQL schema
 - Use code generation for type safety
 - Reference `contracts/graphql/` for contract details
 
 ### Database Development
 
-- Follow schema organization from `docs/01-architecture/data-architecture/schema-organization.md`
 - Use Flyway for migrations
 - Follow JPA entity patterns from `docs/04-patterns/backend-patterns/entity-pattern.md`
+- Follow pagination patterns from `docs/04-patterns/backend-patterns/pagination-pattern.md`
 - Maintain domain-driven design principles
 
 ## Project Structure
@@ -114,14 +120,16 @@ All major technical decisions are documented in `docs/09-adr/`:
 ```
 neotool/
 ├── service/          # Backend services (Kotlin/Micronaut)
-│   ├── kotlin/      # Main service application
-│   └── gateway/     # Apollo Router configuration
+│   └── kotlin/      # Main service application (app, assistant, security, common modules)
 ├── web/              # Web frontend (Next.js)
-├── mobile/           # Mobile app (React Native/Expo)
 ├── infra/            # Infrastructure as Code
+│   ├── docker/      # Docker Compose configurations
+│   ├── router/      # Apollo Router configuration
+│   └── observability/ # Prometheus, Grafana, Loki configs
 ├── contracts/        # API contracts (GraphQL schemas)
 ├── design/           # Design system and assets
-└── docs/             # Specification and documentation (THIS IS THE KNOWLEDGE BASE)
+├── docs/             # Specification and documentation (THIS IS THE KNOWLEDGE BASE)
+└── scripts/          # Build and utility scripts
 ```
 
 ## Important Patterns
@@ -134,7 +142,7 @@ neotool/
 ### GraphQL Federation
 - Distributed schema development
 - Type composition across services
-- Apollo Router as gateway
+- Apollo Router as gateway (configured in `infra/router/`)
 
 ### Domain-Driven Design
 - Domain entities, services, repositories

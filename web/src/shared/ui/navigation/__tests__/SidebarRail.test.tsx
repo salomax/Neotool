@@ -17,11 +17,6 @@ vi.mock('next/navigation', () => ({
     back: vi.fn(),
     forward: vi.fn(),
   }),
-  Link: ({ children, href, ...props }: any) => (
-    <a href={href} {...props}>
-      {children}
-    </a>
-  ),
 }));
 
 // Mock LogoMark component
@@ -113,7 +108,7 @@ describe('SidebarRail', () => {
     it('renders logo with home link', () => {
       renderSidebarRail();
       
-      const logoLink = screen.getByLabelText('Go to home page');
+      const logoLink = screen.getByTestId('sidebar-rail-home-link');
       expect(logoLink).toBeInTheDocument();
       expect(logoLink).toHaveAttribute('href', '/');
       
@@ -238,11 +233,11 @@ describe('SidebarRail', () => {
     it('navigates to home when logo is clicked', async () => {
       renderSidebarRail();
       
-      const logoLink = screen.getByLabelText('Go to home page');
-      await user.click(logoLink);
-      
-      // Link should have correct href
+      const logoLink = screen.getByTestId('sidebar-rail-home-link');
+      // Verify the link is clickable and has correct href
       expect(logoLink).toHaveAttribute('href', '/');
+      await user.click(logoLink);
+      // Click should not throw errors (navigation is handled by Next.js Link)
     });
 
     it('navigates to correct page when nav item is clicked', async () => {

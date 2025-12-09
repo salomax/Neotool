@@ -93,6 +93,7 @@ This specification is organized into numbered directories (00-11) for clear hier
 | Shared Components Pattern | `04-patterns/frontend-patterns/shared-components-pattern.md` | pattern | frontend | shared components, reusable components, ui components, feedback components, ErrorAlert, DeleteConfirmationDialog, ManagementLayout, useToggleStatus |
 | Styling Pattern | `04-patterns/frontend-patterns/styling-pattern.md` | pattern | frontend | styling, themes, design-tokens |
 | Toast Notification Pattern | `04-patterns/frontend-patterns/toast-notification-pattern.md` | pattern | frontend | toast, notification, feedback, user-experience |
+| Testing Pattern | `04-patterns/frontend-patterns/testing-pattern.md` | pattern | frontend | testing, frontend, react, react-hook-form, vitest, testing-library |
 
 ### API Patterns
 
@@ -113,6 +114,7 @@ This specification is organized into numbered directories (00-11) for clear hier
 | Testing Standards | `05-standards/testing-standards/unit-test-standards.md` | standard | testing | testing, test-patterns, requirements |
 | Security Standards | `05-standards/security-standards/authentication-standards.md` | standard | security | security, auth, authorization |
 | Observability Standards | `05-standards/observability-standards.md` | standard | observability | observability, metrics, logging, monitoring |
+| Batch Workflow Standard | `05-standards/workflow-standards/batch-workflow-standard.md` | standard | workflow | batch, workflow, prefect, kafka |
 
 ## Workflows (06-workflows)
 
@@ -138,6 +140,7 @@ This specification is organized into numbered directories (00-11) for clear hier
 | Questionnaire | `08-templates/feature-templates/questionnaire.md` | template | feature | questionnaire, discovery |
 | Workflow | `08-templates/feature-templates/workflow.md` | template | feature | workflow, process |
 | AI Prompts | `08-templates/ai-prompts/` | template | ai-prompt | ai-prompt, feature-creation |
+| Batch Workflow Template | `08-templates/documents/batch-workflow-template.md` | template | workflow | batch, workflow, template |
 
 ## Architecture Decision Records (09-adr)
 
@@ -208,4 +211,3 @@ This specification is organized into numbered directories (00-11) for clear hier
 ---
 
 *This manifest is the source of truth for all specification documents. Keep it updated as the specification evolves.*
-

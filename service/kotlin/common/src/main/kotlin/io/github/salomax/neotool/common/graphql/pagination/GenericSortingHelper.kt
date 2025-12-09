@@ -36,24 +36,20 @@ data class SortingConfig<F : OrderFieldEnum, O : OrderBySpec<F>>(
      * Maps order field enum to database column name.
      */
     val fieldToColumn: (F) -> String,
-
     /**
      * Builds JPA Criteria API Expression for a given field.
      * This handles special cases like COALESCE for displayName.
      */
     val buildFieldPath: (Root<*>, CriteriaBuilder, F) -> Expression<out Comparable<*>>,
-
     /**
      * Extracts cursor value from CompositeCursor for a given field.
      * Handles type conversion and special cases (e.g., ID field from cursor.id).
      */
     val extractCursorValue: (CompositeCursor, F, String) -> Any?,
-
     /**
      * Set of allowed column names for security (SQL injection prevention).
      */
     val allowedColumns: Set<String>,
-
     /**
      * Validates that the last field in orderBy is the ID field.
      */
@@ -173,11 +169,14 @@ object GenericSortingHelper {
 
             // Combine: (prev1 = val1 AND prev2 = val2 AND ... AND current > val)
             if (equalPredicates.isNotEmpty()) {
+                // Chain equal predicates: p1 AND p2 AND p3 AND ...
+                var combinedEqualPredicate = equalPredicates[0]
+                for (k in 1 until equalPredicates.size) {
+                    combinedEqualPredicate = criteriaBuilder.and(combinedEqualPredicate, equalPredicates[k])
+                }
+                // Combine with greater/less predicate
                 predicates.add(
-                    criteriaBuilder.and(
-                        criteriaBuilder.and(*equalPredicates.toTypedArray()),
-                        greaterPredicate,
-                    ),
+                    criteriaBuilder.and(combinedEqualPredicate, greaterPredicate),
                 )
             } else {
                 predicates.add(greaterPredicate)
@@ -195,4 +194,3 @@ object GenericSortingHelper {
         return criteriaBuilder.or(*predicates.toTypedArray())
     }
 }
-

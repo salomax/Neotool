@@ -12,8 +12,8 @@ set -euo pipefail
 # - Coverage (kover)
 # Frontend validation order:
 # - Typecheck (tsc)
-# - Lint (eslint)
 # - Tests (vitest)
+# - Lint (eslint)
 # - Coverage (vitest coverage)
 
 # Get script directory and project root
@@ -394,17 +394,17 @@ run_frontend_validations() {
         VALIDATION_FAILED=true
     fi
     
-    # Lint
-    add_new_task "web lint" "pnpm run lint"
-    task_idx=$CURRENT_TASK_INDEX
-    if ! run_command_silently "pnpm run lint" "web lint" "$task_idx"; then
-        VALIDATION_FAILED=true
-    fi
-    
     # Tests
     add_new_task "web test" "pnpm run test"
     task_idx=$CURRENT_TASK_INDEX
     if ! run_command_silently "pnpm run test" "web test" "$task_idx"; then
+        VALIDATION_FAILED=true
+    fi
+    
+    # Lint
+    add_new_task "web lint" "pnpm run lint"
+    task_idx=$CURRENT_TASK_INDEX
+    if ! run_command_silently "pnpm run lint" "web lint" "$task_idx"; then
         VALIDATION_FAILED=true
     fi
     

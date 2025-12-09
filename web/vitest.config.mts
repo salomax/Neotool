@@ -33,28 +33,26 @@ export default defineConfig({
     css: true,
     restoreMocks: true,
     bail: 1, // Stop after first failure
-    // Otimizações de performance
+    // Performance optimizations - enable parallel execution
     pool: "threads",
     poolOptions: {
       threads: {
-        // Usa número conservador de threads para evitar deadlocks
-        // Limita a 4 threads para evitar problemas de travamento
         minThreads: 1,
-        maxThreads: 1, // Run sequentially (1 thread = no parallelism)
-        // Isolamento por arquivo para melhor paralelização
+        // Use CPU cores minus 1 (leave one for system), but at least 2 and at most 8
+        maxThreads: Math.max(2, Math.min(os.cpus().length - 1, 8)),
         isolate: true,
-        // Desabilitado: useAtomics pode causar deadlocks em alguns ambientes (especialmente macOS)
-        // useAtomics: true,
+        // Use singleThreaded: false to allow tests within files to run in parallel
+        singleThreaded: false,
       },
     },
-    // Timeouts otimizados
-    testTimeout: 30000, // 30 segundos por teste (aumentado para evitar timeouts prematuros)
-    hookTimeout: 30000, // 30 segundos para hooks
-    teardownTimeout: 10000, // 10 segundos para teardown
-    // Execução sequencial de arquivos de teste (desabilitado paralelismo)
-    fileParallelism: false,
-    // Limite de arquivos a serem processados em paralelo (1 = sequencial)
-    maxConcurrency: 1,
+    // Timeouts 
+    testTimeout: 30000,
+    hookTimeout: 30000,
+    teardownTimeout: 10000,
+    // Enable file parallelism - allows multiple test files to run simultaneously
+    fileParallelism: true,
+    // Allow concurrent tests within files (should match or exceed maxThreads)
+    maxConcurrency: Math.max(5, Math.min(os.cpus().length, 10)),
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'json'],

@@ -492,6 +492,62 @@ const loadNextPage = useCallback(() => {
 - When React Compiler reports `react-hooks/preserve-manual-memoization` errors
 - When the dependency array lists multiple properties from the same object
 
+**React Hooks: Potentially Undefined Nested Properties in Dependency Arrays**:
+
+When using `useMemo` or `useCallback` with nested properties that may be undefined, use the parent object in the dependency array instead of the nested property with optional chaining. This satisfies both TypeScript's strict null checks and React Compiler's dependency inference.
+
+**Example - Incorrect (optional chaining in dependency array)**:
+```typescript
+const roleWithPermissions = useMemo(() => {
+  if (!permissionsData?.roles?.edges || !roleId) return null;
+  return permissionsData.roles.edges.map(e => e.node).find((r) => r.id === roleId) || null;
+}, [permissionsData?.roles?.edges, roleId]); // ❌ TypeScript error + React Compiler error
+```
+
+**Example - Correct (parent object in dependency array)**:
+```typescript
+const roleWithPermissions = useMemo(() => {
+  if (!permissionsData?.roles?.edges || !roleId) return null;
+  return permissionsData.roles.edges.map(e => e.node).find((r) => r.id === roleId) || null;
+}, [permissionsData, roleId]); // ✅ TypeScript happy + React Compiler happy
+```
+
+**Rationale**:
+- **TypeScript**: Accessing potentially undefined nested properties in dependency arrays causes TypeScript errors (`TS18048: 'X' is possibly 'undefined'`)
+- **React Compiler**: React Compiler infers dependencies from actual code usage, not from optional chaining in dependency arrays. It sees `permissionsData.roles.edges` being accessed and expects `permissionsData` (the parent object) in the dependency array
+- **Safety**: The null/undefined checks inside the memoized function ensure safe access to nested properties
+- **Correctness**: When the parent object changes (including when it goes from `undefined` to defined), the memoized value will correctly recalculate
+
+**When to Apply**:
+- When using `useMemo` or `useCallback` with nested properties that may be undefined
+- When TypeScript reports `TS18048` errors about possibly undefined values in dependency arrays
+- When React Compiler reports `react-hooks/preserve-manual-memoization` errors with "Inferred different dependency than source"
+- When accessing nested properties from GraphQL query results or other potentially undefined data structures
+
+**Pattern**:
+1. Use the parent object (e.g., `permissionsData`, `usersGroupsData`) in the dependency array
+2. Handle null/undefined checks inside the memoized function using optional chaining (`?.`)
+3. Access nested properties safely after the null check
+
+**Additional Example**:
+```typescript
+// ❌ Incorrect
+const assignedUsers = useMemo(() => {
+  if (!usersGroupsData?.users?.edges) return [];
+  return usersGroupsData.users.edges.map(e => e.node)
+    .filter((user) => user.roles.some((r) => r.id === role.id))
+    .map((user) => ({ id: user.id, email: user.email }));
+}, [usersGroupsData?.users?.edges, role, pendingUsers]); // ❌ Errors
+
+// ✅ Correct
+const assignedUsers = useMemo(() => {
+  if (!usersGroupsData?.users?.edges) return [];
+  return usersGroupsData.users.edges.map(e => e.node)
+    .filter((user) => user.roles.some((r) => r.id === role.id))
+    .map((user) => ({ id: user.id, email: user.email }));
+}, [usersGroupsData, role, pendingUsers]); // ✅ No errors
+```
+
 ## Exceptions and Exclusions
 
 ### Generated Code

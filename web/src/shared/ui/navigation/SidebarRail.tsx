@@ -75,6 +75,7 @@ export function SidebarRail() {
         <Box
           component={Link}
           href="/"
+          data-testid="sidebar-rail-home-link"
           sx={{
             width: 48,
             height: 48,

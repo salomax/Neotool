@@ -80,6 +80,9 @@ describe('ErrorBoundary', () => {
   });
 
   it('renders custom fallback when provided', () => {
+    // Suppress console.error for this test since we're intentionally throwing an error
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    
     const customFallback = <div data-testid="custom-fallback">Custom error UI</div>;
     renderErrorBoundary(
       <ThrowError shouldThrow={true} message="Error occurred" />,
@@ -89,9 +92,14 @@ describe('ErrorBoundary', () => {
     expect(screen.getByTestId('custom-fallback')).toBeInTheDocument();
     expect(screen.getByText('Custom error UI')).toBeInTheDocument();
     expect(screen.queryByText('Something went wrong')).not.toBeInTheDocument();
+    
+    consoleErrorSpy.mockRestore();
   });
 
   it('calls onError callback when error occurs', () => {
+    // Suppress console.error for this test since we're intentionally throwing an error
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    
     const onError = vi.fn();
     const errorInfo = { componentStack: 'test stack' } as React.ErrorInfo;
     
@@ -105,6 +113,8 @@ describe('ErrorBoundary', () => {
       expect.objectContaining({ message: 'Callback test' }),
       expect.any(Object)
     );
+    
+    consoleErrorSpy.mockRestore();
   });
 
   it('does not call onError when no error occurs', () => {
@@ -146,6 +156,10 @@ describe('ErrorBoundary', () => {
   });
 
   it('logs error to console when error occurs', () => {
+    // Suppress console.error for this test since we're intentionally throwing an error
+    // Note: We're testing that the logger.error is called, not console.error
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    
     renderErrorBoundary(<ThrowError shouldThrow={true} message="Console test" />);
     
     expect(mockLoggerError).toHaveBeenCalledWith(
@@ -155,6 +169,8 @@ describe('ErrorBoundary', () => {
         errorInfo: expect.any(Object),
       })
     );
+    
+    consoleErrorSpy.mockRestore();
   });
 
   it('works with complex children components', () => {

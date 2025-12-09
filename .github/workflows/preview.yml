@@ -113,10 +113,8 @@ jobs:
             # For other services: run unit tests with coverage, then integration tests
             # Clean test classes between runs to prevent ClassFormatError from Kover instrumentation
             # Integration tests don't need --no-build-cache since they don't use Kover
-            ./gradlew :${{ matrix.service }}:test :${{ matrix.service }}:koverXmlReport :${{ matrix.service }}:koverHtmlReport :${{ matrix.service }}:koverVerify \
-              --no-build-cache --rerun-tasks --no-daemon --parallel
-            ./gradlew :${{ matrix.service }}:cleanTest :${{ matrix.service }}:testIntegration \
-              --no-daemon --parallel
+            ./gradlew :${{ matrix.service }}:test :${{ matrix.service }}:testIntegration :${{ matrix.service }}:koverXmlReport :${{ matrix.service }}:koverHtmlReport \
+              :${{ matrix.service }}:koverVerify --no-build-cache --rerun-tasks --no-daemon --parallel
           fi
 
       - name: Checkout base branch for incremental coverage
