@@ -7,15 +7,6 @@ import java.util.Base64
 import java.util.UUID
 
 /**
- * Relay GraphQL pagination utilities for building consistent pagination responses.
- *
- * This module provides reusable types and functions for implementing Relay-style
- * cursor-based pagination across all services.
- *
- * @see [Pagination Pattern Documentation](../../../../../../docs/04-patterns/backend-patterns/pagination-pattern.md)
- */
-
-/**
  * PageInfo contains metadata about the pagination state.
  * Following Relay GraphQL specification.
  */
@@ -42,7 +33,7 @@ data class Edge<T>(
 /**
  * Connection represents a paginated list of items.
  * Following Relay GraphQL specification.
- * 
+ *
  * @param totalCount Optional total count of items matching the query (typically used for search operations).
  *                   This is separate from the paginated results and represents the total number of items
  *                   that match the search criteria, regardless of pagination.
@@ -71,6 +62,7 @@ data class CompositeCursor(
  */
 object CursorEncoder {
     private val objectMapper = ObjectMapper()
+
     /**
      * Encode a UUID to a base64 URL-safe cursor string.
      *
@@ -151,13 +143,19 @@ object CursorEncoder {
      * @param id The UUID id of the entity
      * @return Base64 URL-safe encoded cursor string
      */
-    fun encodeCompositeCursor(fieldValues: Map<String, Any?>, id: UUID): String {
-        val composite = CompositeCursor(
-            fieldValues = fieldValues,
-            id = id.toString(),
-        )
+    fun encodeCompositeCursor(
+        fieldValues: Map<String, Any?>,
+        id: UUID,
+    ): String {
+        val composite =
+            CompositeCursor(
+                fieldValues = fieldValues,
+                id = id.toString(),
+            )
         val json = objectMapper.writeValueAsString(composite)
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(json.toByteArray())
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(
+            json.toByteArray(),
+        )
     }
 
     /**
@@ -168,13 +166,19 @@ object CursorEncoder {
      * @param id The Int id of the entity
      * @return Base64 URL-safe encoded cursor string
      */
-    fun encodeCompositeCursor(fieldValues: Map<String, Any?>, id: Int): String {
-        val composite = CompositeCursor(
-            fieldValues = fieldValues,
-            id = id.toString(),
-        )
+    fun encodeCompositeCursor(
+        fieldValues: Map<String, Any?>,
+        id: Int,
+    ): String {
+        val composite =
+            CompositeCursor(
+                fieldValues = fieldValues,
+                id = id.toString(),
+            )
         val json = objectMapper.writeValueAsString(composite)
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(json.toByteArray())
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(
+            json.toByteArray(),
+        )
     }
 
     /**
@@ -189,15 +193,29 @@ object CursorEncoder {
             val decoded = Base64.getUrlDecoder().decode(cursor)
             val json = String(decoded)
             // Read as Map first, then construct CompositeCursor manually to handle Any? types
+
             @Suppress("UNCHECKED_CAST")
-            val map = objectMapper.readValue(json, Map::class.java) as Map<String, Any?>
-            val fieldValues = (map["fieldValues"] as? Map<*, *>)?.mapKeys { it.key.toString() }
-                ?.mapValues { it.value } as? Map<String, Any?> ?: emptyMap()
-            val id = map["id"] as? String ?: throw IllegalArgumentException("Missing id in cursor")
-            val composite = CompositeCursor(fieldValues = fieldValues, id = id)
+            val map =
+                objectMapper.readValue(json, Map::class.java) as Map<String, Any?>
+            val fieldValues =
+                (map["fieldValues"] as? Map<*, *>)?.mapKeys { it.key.toString() }
+                    ?.mapValues { it.value } as? Map<String, Any?> ?: emptyMap()
+            val id =
+                map["id"] as? String ?: throw IllegalArgumentException("Missing id in cursor")
+            val composite =
+                CompositeCursor(
+                    fieldValues = fieldValues,
+                    id = id,
+                )
             // Validate that id is a valid UUID
             UUID.fromString(composite.id)
             composite
+        } catch (e: IllegalArgumentException) {
+            // Preserve the original message if it's about missing id
+            if (e.message?.contains("Missing id in cursor") == true) {
+                throw e
+            }
+            throw IllegalArgumentException("Invalid composite cursor format: $cursor", e)
         } catch (e: Exception) {
             throw IllegalArgumentException("Invalid composite cursor format: $cursor", e)
         }
@@ -215,15 +233,29 @@ object CursorEncoder {
             val decoded = Base64.getUrlDecoder().decode(cursor)
             val json = String(decoded)
             // Read as Map first, then construct CompositeCursor manually to handle Any? types
+
             @Suppress("UNCHECKED_CAST")
-            val map = objectMapper.readValue(json, Map::class.java) as Map<String, Any?>
-            val fieldValues = (map["fieldValues"] as? Map<*, *>)?.mapKeys { it.key.toString() }
-                ?.mapValues { it.value } as? Map<String, Any?> ?: emptyMap()
-            val id = map["id"] as? String ?: throw IllegalArgumentException("Missing id in cursor")
-            val composite = CompositeCursor(fieldValues = fieldValues, id = id)
+            val map =
+                objectMapper.readValue(json, Map::class.java) as Map<String, Any?>
+            val fieldValues =
+                (map["fieldValues"] as? Map<*, *>)?.mapKeys { it.key.toString() }
+                    ?.mapValues { it.value } as? Map<String, Any?> ?: emptyMap()
+            val id =
+                map["id"] as? String ?: throw IllegalArgumentException("Missing id in cursor")
+            val composite =
+                CompositeCursor(
+                    fieldValues = fieldValues,
+                    id = id,
+                )
             // Validate that id is a valid Int
             composite.id.toInt()
             composite
+        } catch (e: IllegalArgumentException) {
+            // Preserve the original message if it's about missing id
+            if (e.message?.contains("Missing id in cursor") == true) {
+                throw e
+            }
+            throw IllegalArgumentException("Invalid composite cursor format: $cursor", e)
         } catch (e: Exception) {
             throw IllegalArgumentException("Invalid composite cursor format: $cursor", e)
         }
@@ -252,27 +284,31 @@ object ConnectionBuilder {
         if (items.isEmpty()) {
             return Connection(
                 edges = emptyList(),
-                pageInfo = PageInfo(
-                    hasNextPage = false,
-                    hasPreviousPage = false,
-                ),
+                pageInfo =
+                    PageInfo(
+                        hasNextPage = false,
+                        hasPreviousPage = false,
+                    ),
                 totalCount = totalCount,
             )
         }
 
-        val edges = items.map { item ->
-            Edge(
-                node = item,
-                cursor = encodeCursor(item),
-            )
-        }
+        val edges =
+            items.map { item ->
+                Edge(
+                    node = item,
+                    cursor = encodeCursor(item),
+                )
+            }
 
-        val pageInfo = PageInfo(
-            hasNextPage = hasMore,
-            hasPreviousPage = false, // Forward-only pagination (can be extended for backward)
-            startCursor = edges.firstOrNull()?.cursor,
-            endCursor = edges.lastOrNull()?.cursor,
-        )
+        val pageInfo =
+            PageInfo(
+                hasNextPage = hasMore,
+                // Forward-only pagination (can be extended for backward)
+                hasPreviousPage = false,
+                startCursor = edges.firstOrNull()?.cursor,
+                endCursor = edges.lastOrNull()?.cursor,
+            )
 
         return Connection(
             edges = edges,
@@ -301,7 +337,9 @@ object ConnectionBuilder {
             items = items,
             hasMore = hasMore,
             encodeCursor = { item ->
-                val id = getId(item) ?: throw IllegalArgumentException("Item must have a non-null ID")
+                val id =
+                    getId(item)
+                        ?: throw IllegalArgumentException("Item must have a non-null ID")
                 CursorEncoder.encodeCursor(id)
             },
             totalCount = totalCount,
@@ -328,11 +366,12 @@ object ConnectionBuilder {
             items = items,
             hasMore = hasMore,
             encodeCursor = { item ->
-                val id = getId(item) ?: throw IllegalArgumentException("Item must have a non-null ID")
+                val id =
+                    getId(item)
+                        ?: throw IllegalArgumentException("Item must have a non-null ID")
                 CursorEncoder.encodeCursor(id)
             },
             totalCount = totalCount,
         )
     }
 }
-

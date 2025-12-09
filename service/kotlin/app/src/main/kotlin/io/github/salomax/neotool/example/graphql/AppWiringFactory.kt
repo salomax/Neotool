@@ -168,51 +168,5 @@ class AppWiringFactory(
                     },
                 )
             }
-            .type("User") { type ->
-                type.dataFetcher(
-                    "id",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val user = env.getSource<io.github.salomax.neotool.example.graphql.dto.UserDTO>()
-                        user?.id
-                    },
-                )
-                type.dataFetcher(
-                    "email",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val user = env.getSource<io.github.salomax.neotool.example.graphql.dto.UserDTO>()
-                        user?.email
-                    },
-                )
-                type.dataFetcher(
-                    "displayName",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val user = env.getSource<io.github.salomax.neotool.example.graphql.dto.UserDTO>()
-                        user?.displayName
-                    },
-                )
-            }
-            .type("SignInPayload") { type ->
-                type.dataFetcher(
-                    "token",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val payload = env.getSource<io.github.salomax.neotool.example.graphql.dto.SignInPayloadDTO>()
-                        payload?.token
-                    },
-                )
-                type.dataFetcher(
-                    "refreshToken",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val payload = env.getSource<io.github.salomax.neotool.example.graphql.dto.SignInPayloadDTO>()
-                        payload?.refreshToken
-                    },
-                )
-                type.dataFetcher(
-                    "user",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val payload = env.getSource<io.github.salomax.neotool.example.graphql.dto.SignInPayloadDTO>()
-                        payload?.user
-                    },
-                )
-            }
     }
 }

@@ -1,8 +1,8 @@
-
 services:
 
   # -------------------------------------------------------------
   # Tooling Stack (database)
+  # Profile: database
   # -------------------------------------------------------------
   postgres:
     image: postgres:18rc1
@@ -19,6 +19,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    profiles:
+      - database
 
   pgbouncer:
     image: edoburu/pgbouncer:latest
@@ -41,11 +43,72 @@ services:
       interval: 5s
       timeout: 5s
       retries: 30
+    profiles:
+      - database
+
+  # -------------------------------------------------------------
+  # Kafka Stack (KRaft mode - no Zookeeper needed)
+  # Profile: kafka
+  # -------------------------------------------------------------
+  kafka:
+    image: apache/kafka:3.7.0
+    container_name: neotool-kafka
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    volumes:
+      - kafka-data:/tmp/kraft-combined-logs
+    profiles:
+      - kafka
+
+  # -------------------------------------------------------------
+  # Prefect Stack
+  # Profile: prefect
+  # -------------------------------------------------------------
+  prefect-server:
+    image: prefecthq/prefect:2-latest
+    container_name: neotool-prefect-server
+    command: prefect server start --host 0.0.0.0
+    ports:
+      - "4200:4200"
+    environment:
+      PREFECT_API_URL: http://localhost:4200/api
+    volumes:
+      - prefect-data:/root/.prefect
+    profiles:
+      - prefect
+
+  prefect-ui:
+    image: prefecthq/prefect:2-latest
+    container_name: neotool-prefect-ui
+    command: prefect server start --host 0.0.0.0 --ui
+    ports:
+      - "4201:4200"
+    depends_on:
+      - prefect-server
+    environment:
+      PREFECT_API_URL: http://prefect-server:4200/api
+    profiles:
+      - prefect
 
   # -------------------------------------------------------------
   # Service Stack
+  # Profile: services
   # -------------------------------------------------------------
-
   security:
     build:
       context: ../../service/kotlin
@@ -61,6 +124,8 @@ services:
       pgbouncer:
         condition: service_healthy
     expose: ["8080"]
+    profiles:
+      - services
 
   app:
     build:
@@ -77,6 +142,8 @@ services:
       pgbouncer:
         condition: service_healthy
     expose: ["8080"]
+    profiles:
+      - services
 
   assistant:
     build:
@@ -93,11 +160,13 @@ services:
       pgbouncer:
         condition: service_healthy
     expose: ["8080"]
+    profiles:
+      - services
 
   # -------------------------------------------------------------
   # Frontend Stack
+  # Profile: frontend
   # -------------------------------------------------------------
-
   web:
     build:
       context: ../../web
@@ -109,11 +178,13 @@ services:
       GRAPHQL_SCHEMA_PATH: ../contracts/graphql/supergraph/supergraph.graphql
     ports:
       - "3000:3000"
+    profiles:
+      - frontend
 
   # -------------------------------------------------------------
   # API Gateway Stack
+  # Profile: gateway
   # -------------------------------------------------------------
-
   router:
     image: ghcr.io/apollographql/router:v2.7.0
     container_name: neotool-graphql-router
@@ -130,11 +201,13 @@ services:
       - APOLLO_ROUTER_TELEMETRY_METRICS_PROMETHEUS_ENABLED=true
       - APOLLO_ROUTER_TELEMETRY_METRICS_PROMETHEUS_LISTEN=0.0.0.0:9090
       - APOLLO_ROUTER_TELEMETRY_METRICS_PROMETHEUS_PATH=/metrics
+    profiles:
+      - gateway
 
   # -------------------------------------------------------------
   # Observability Stack
+  # Profile: observability
   # -------------------------------------------------------------
-
   prometheus:
     image: prom/prometheus:v2.55.1
     container_name: neotool-prometheus
@@ -145,6 +218,8 @@ services:
       - ../observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     ports:
       - "9090:9090"
+    profiles:
+      - observability
 
   grafana:
     image: grafana/grafana:11.1.4
@@ -160,6 +235,8 @@ services:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
       - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+    profiles:
+      - observability
 
   # PostgreSQL Exporter - monitors database metrics via pgbouncer
   postgres-exporter:
@@ -173,6 +250,9 @@ services:
     depends_on:
       pgbouncer:
         condition: service_healthy
+    profiles:
+      - observability
+      - database  # Also available when database profile is active
 
   # Loki - Log aggregation system
   loki:
@@ -186,6 +266,8 @@ services:
       - loki-data:/loki
     depends_on:
       - prometheus
+    profiles:
+      - observability
 
   # Promtail - Log collection agent
   promtail:
@@ -199,11 +281,15 @@ services:
     command: -config.file=/etc/promtail/config.yml
     depends_on:
       - loki
+    profiles:
+      - observability
       
 volumes:
   pgdata:
   loki-data:
   grafana-data:
+  kafka-data:
+  prefect-data:
 
 networks:
   postgres-internal:

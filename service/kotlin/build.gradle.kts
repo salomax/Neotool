@@ -119,17 +119,19 @@ subprojects {
                         classes(
                             "io.micronaut.core.io.service.SoftServiceLoader",
                             "io.micronaut.core.io.service.ServiceLoader",
+                            "*Application",
                             "*\$*", // Generated inner classes
                             "*Generated*",
                             "*Factory*",
                             "*Builder*",
                             "*Entity",
+                            "*Helper*",
+                            "*Utils*",
+                            "*Test",
                             "*DTO",
                             "*Config*",
                             "*domain.*",
-                            "*mapper.*",
-                            "*Helper*",
-                            "*Test"
+                            "*mapper.*"
                         )
                     }
                 }
@@ -149,11 +151,19 @@ subprojects {
         // This prevents all tests from running when running a single test
         tasks.named("koverXmlReport") {
             group = "verification"
-            description = "Generates XML coverage report (run explicitly: ./gradlew test koverXmlReport)"
+            description = "Generates XML coverage report (run explicitly: ./gradlew test testIntegration koverXmlReport)"
+            // Include testIntegration if it exists to merge coverage from integration tests
+            tasks.findByName("testIntegration")?.let {
+                dependsOn(it)
+            }
         }
         tasks.named("koverHtmlReport") {
             group = "verification"
-            description = "Generates HTML coverage report (run explicitly: ./gradlew test koverHtmlReport)"
+            description = "Generates HTML coverage report (run explicitly: ./gradlew test testIntegration koverHtmlReport)"
+            // Include testIntegration if it exists to merge coverage from integration tests
+            tasks.findByName("testIntegration")?.let {
+                dependsOn(it)
+            }
         }
         
         // Configure koverVerify task
@@ -161,13 +171,14 @@ subprojects {
         // This prevents all tests from running when running a single test
         tasks.named("koverVerify") {
             group = "verification"
-            description = "Verifies that code coverage meets the minimum thresholds (run explicitly: ./gradlew test koverVerify)"
-        }
-        
-        // Make check task depend on koverVerify (if check task exists)
-        // This is safe because check is typically run explicitly, not as part of single test runs
-        tasks.matching { it.name == "check" }.configureEach {
-            dependsOn(tasks.named("koverVerify"))
+            description = "Verifies that code coverage meets the minimum thresholds (run explicitly: ./gradlew test testIntegration koverVerify)"
+            // Ensure both test and testIntegration run before verification
+            // This merges coverage from both unit and integration tests
+            dependsOn(tasks.named("test"))
+            // Include testIntegration if it exists to merge coverage from integration tests
+            tasks.findByName("testIntegration")?.let {
+                dependsOn(it)
+            }
         }
                 
         // Incremental coverage check for PRs (only checks changed lines)

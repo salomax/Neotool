@@ -253,9 +253,14 @@ describe('AuthorizationProvider', () => {
 
   describe('Error handling', () => {
     it('should throw error when used outside provider', () => {
+      // Suppress console.error for this test
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
       expect(() => {
         renderHook(() => useAuthorization());
       }).toThrow('useAuthorization must be used within AuthorizationProvider');
+
+      consoleErrorSpy.mockRestore();
     });
   });
 });

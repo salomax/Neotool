@@ -12,7 +12,7 @@ function Wrapper() {
   );
 }
 
-describe.skip("NumberField", () => {
+describe("NumberField", () => {
   it("renders", () => {
     render(<Wrapper />);
     expect(screen.getByLabelText("Amount")).toBeInTheDocument();

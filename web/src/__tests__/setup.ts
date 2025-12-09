@@ -101,6 +101,19 @@ console.error = (...args: unknown[]) => {
     return;
   }
   
+  // Suppress jsdom navigation errors
+  // jsdom doesn't fully implement navigation (only hash changes are supported)
+  // This is a known limitation when testing Next.js Link components that render as anchor tags
+  // The navigation is properly mocked via Next.js router mocks, so this error is expected
+  const isJsdomNavigationError = 
+    message.includes('Not implemented: navigation') &&
+    message.includes('except hash changes');
+  
+  if (isJsdomNavigationError) {
+    // Suppress jsdom navigation errors - navigation is handled by mocked Next.js router
+    return;
+  }
+  
   // Note: findDOMNode warnings from react-input-mask have been resolved
   // by migrating to react-imask which doesn't use deprecated React APIs
   

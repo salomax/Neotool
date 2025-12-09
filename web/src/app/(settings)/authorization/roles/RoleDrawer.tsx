@@ -81,7 +81,7 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
   const roleWithPermissions = useMemo(() => {
     if (!permissionsData?.roles?.edges || !roleId) return null;
     return permissionsData.roles.edges.map(e => e.node).find((r) => r.id === roleId) || null;
-  }, [permissionsData.roles.edges, roleId]);
+  }, [permissionsData, roleId]);
 
   // Derive role object from roleId and query data
   const role = useMemo(() => {
@@ -146,7 +146,7 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
           enabled: user.enabled,
         }));
     }
-  }, [usersGroupsData.users.edges, role, pendingUsers, optimisticUsers]);
+  }, [usersGroupsData, role, pendingUsers, optimisticUsers]);
 
   // Extract assigned groups - use optimistic state if available
   const assignedGroups = useMemo(() => {
@@ -175,7 +175,7 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
           description: group.description,
         }));
     }
-  }, [usersGroupsData.groups.edges, role, pendingGroups, optimisticGroups]);
+  }, [usersGroupsData, role, pendingGroups, optimisticGroups]);
 
   const {
     createRole,

@@ -15,6 +15,7 @@ coverage/
 **/build/
 out/
 *.log
+*.hprof
 
 __pycache__/
 

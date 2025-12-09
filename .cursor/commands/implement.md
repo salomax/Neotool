@@ -44,14 +44,14 @@ Based on the phase, load the appropriate specification documents from `docs/`:
 ### For Domain Phase:
 - `docs/05-standards/database-standards/schema-standards.md` - Database schema rules
 - `docs/04-patterns/backend-patterns/entity-pattern.md` - Entity patterns
-- `docs/01-architecture/data-architecture/` - Data architecture patterns
+- `docs/04-patterns/backend-patterns/uuid-v7-pattern.md` - UUID patterns
 - `docs/09-adr/0005-postgresql-database.md` - Database ADR
 
 ### For Backend Service Phase:
 - `docs/04-patterns/backend-patterns/repository-pattern.md` - Repository patterns
 - `docs/04-patterns/backend-patterns/service-pattern.md` - Service patterns
 - `docs/04-patterns/backend-patterns/resolver-pattern.md` - GraphQL resolver patterns
-- `docs/04-patterns/api-patterns/graphql-federation.md` - GraphQL federation patterns
+- `docs/04-patterns/api-patterns/graphql-query-pattern.md` - GraphQL query patterns
 - `docs/05-standards/api-standards/graphql-standards.md` - GraphQL standards
 - `docs/05-standards/coding-standards/kotlin-standards.md` - Kotlin coding standards
 - `docs/09-adr/0003-kotlin-micronaut-backend.md` - Backend ADR
@@ -61,17 +61,17 @@ Based on the phase, load the appropriate specification documents from `docs/`:
 - `docs/05-standards/testing-standards/unit-test-standards.md` - Testing standards
 
 ### For Contract Phase:
-- `docs/04-patterns/api-patterns/graphql-federation.md` - GraphQL federation
+- `docs/04-patterns/api-patterns/graphql-query-pattern.md` - GraphQL query patterns
 - `docs/05-standards/api-standards/graphql-standards.md` - GraphQL standards
 - `docs/10-reference/commands.md` - CLI commands reference
 
 ### For Frontend Phase:
-- `docs/04-patterns/frontend-patterns/component-pattern.md` - Component patterns
-- `docs/04-patterns/frontend-patterns/page-pattern.md` - Page patterns
+- `docs/04-patterns/frontend-patterns/shared-components-pattern.md` - Component patterns
+- `docs/04-patterns/frontend-patterns/management-pattern.md` - Management UI patterns
 - `docs/04-patterns/frontend-patterns/hook-pattern.md` - Hook patterns
-- `docs/04-patterns/frontend-patterns/graphql-pattern.md` - GraphQL operations
-- `docs/04-patterns/frontend-patterns/styling-pattern.md` - Styling patterns
-- `docs/01-architecture/frontend-architecture/nextjs-structure.md` - Next.js structure
+- `docs/04-patterns/frontend-patterns/graphql-query-pattern.md` - GraphQL query operations
+- `docs/04-patterns/frontend-patterns/graphql-mutation-pattern.md` - GraphQL mutation operations
+- `docs/00-overview/project-structure.md` - Next.js structure
 - `docs/05-standards/coding-standards/` - TypeScript/React standards
 - `docs/09-adr/0004-typescript-nextjs-frontend.md` - Frontend ADR
 
@@ -155,10 +155,10 @@ For each task in dependency order:
   - Use dependency injection
   - Separate business logic from data access
   - Handle errors appropriately
-- **Resolvers**: Follow `resolver-pattern.md` and `graphql-federation.md`
+- **Resolvers**: Follow `resolver-pattern.md` and `graphql-query-pattern.md`
   - Implement GraphQL resolvers
   - Use mappers for domain ↔ GraphQL conversion
-  - Follow federation patterns
+  - Follow GraphQL query patterns
   - Wire up in GraphQL configuration
 
 ### Backend Tests Phase:
@@ -172,7 +172,7 @@ For each task in dependency order:
   - Clean up test data
 
 ### Contract Phase:
-- **GraphQL Schema**: Follow `graphql-federation.md`
+- **GraphQL Schema**: Follow `graphql-standards.md` and `graphql-query-pattern.md`
   - Define types in subgraph schema
   - Use federation directives appropriately
   - Follow naming conventions

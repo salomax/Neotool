@@ -8,4 +8,3 @@ enum class OrderDirection {
     ASC,
     DESC,
 }
-
