@@ -6,7 +6,7 @@ import { ResetPasswordForm } from '../ResetPasswordForm';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
 import { I18nextProvider } from 'react-i18next';
 import i18n from '@/shared/i18n/config';
-import { resetPasswordTranslations } from '@/app/reset-password/i18n';
+import { resetPasswordTranslations } from '@/app/(authentication)/reset-password/i18n';
 
 // Register translations
 i18n.addResourceBundle('en', 'resetPassword', resetPasswordTranslations.en, true, true);

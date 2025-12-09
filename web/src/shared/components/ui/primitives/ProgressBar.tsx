@@ -7,7 +7,6 @@ import {
   Stepper,
   Step,
   StepLabel,
-  StepContent,
   Chip,
   Stack,
   FormControl,
@@ -301,6 +300,9 @@ const ProgressBar: React.FC<ProgressBarProps | StepProgressProps> = (props) => {
       }
     };
 
+    // Get active step content
+    const activeStepContent = showStepContent && stepContent && stepContent[currentStep] ? stepContent[currentStep] : null;
+
     return (
       <Box>
         {showLabel && (
@@ -331,14 +333,14 @@ const ProgressBar: React.FC<ProgressBarProps | StepProgressProps> = (props) => {
               >
                 {stepLabel}
               </StepLabel>
-              {showStepContent && stepContent && stepContent[index] && (
-                <StepContent>
-                  {stepContent[index]}
-                </StepContent>
-              )}
             </Step>
           ))}
         </Stepper>
+        {activeStepContent && (
+          <Box sx={{ mt: 3, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+            {activeStepContent}
+          </Box>
+        )}
         {showPercentage && !indeterminate && (
           <Box sx={{ mt: 2, textAlign: 'center' }}>
             <Chip

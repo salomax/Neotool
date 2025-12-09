@@ -89,7 +89,6 @@ export function CustomerForm({
     } catch (error) {
       // Error handling is done in the parent component
       // Form stays open so user can fix errors
-      console.error('Form submission error:', error);
     }
   };
 

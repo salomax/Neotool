@@ -16,7 +16,7 @@ import {
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import Link from "next/link";
-import { useResponsive } from "@/shared/hooks/useResponsive";
+import { useResponsive } from "@/shared/hooks/ui";
 import { REPO_CONFIG, APP_CONFIG } from "@/shared/config/repo.constants";
 
 export default function GettingStartedPage() {

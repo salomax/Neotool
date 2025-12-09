@@ -14,7 +14,7 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import Paper from '@mui/material/Paper';
 import Link from "next/link";
-import { useResponsive } from "@/shared/hooks/useResponsive";
+import { useResponsive } from "@/shared/hooks/ui";
 import dynamic from 'next/dynamic';
 import { getComponentDocs } from './docs/registry';
 
@@ -36,7 +36,7 @@ const CodeHighlighter = dynamic(() =>
           import('react-syntax-highlighter/dist/esm/styles/prism').then(styleMod => {
             setStyle(styleMod.vscDarkPlus);
           }).catch(err => {
-            console.error('Failed to load syntax highlighter style:', err);
+            // Silently handle style loading failure - fallback will be used
           });
         }, []);
         
@@ -101,7 +101,6 @@ export default function ComponentPage({ params }: ComponentPageProps) {
       await navigator.clipboard.writeText(code);
       alert('Code copied to clipboard!');
     } catch (err) {
-      console.error('Failed to copy: ', err);
       alert('Failed to copy to clipboard');
     }
   };

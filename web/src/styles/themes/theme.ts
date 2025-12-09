@@ -41,7 +41,14 @@ export const createAppTheme = (mode: Mode) => {
       MuiButton: {
         defaultProps: { disableElevation: true, variant: "contained" },
         styleOverrides: {
-          root: { borderRadius: t.radius.lg },
+          root: { 
+            borderRadius: t.radius.lg,
+            minWidth: '90px',
+          },
+          sizeMedium: {
+            height: '56px',
+            minHeight: '56px',
+          },
         },
       },
       MuiPaper: {
@@ -56,9 +63,14 @@ export const createAppTheme = (mode: Mode) => {
         },
       },
     },
-    // Custom theme properties for layout
+    // Custom theme properties for layout and design tokens
     custom: {
       layout: t.layout,
+      radius: t.radius,
+      palette: {
+        inputBorder: t.palette.inputBorder,
+        tabBorder: t.palette.tabBorder,
+      },
     },
   } as ThemeOptions & { custom?: { layout: typeof t.layout } };
   return createTheme(options);

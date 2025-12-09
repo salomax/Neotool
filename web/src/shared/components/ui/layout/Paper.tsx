@@ -1,11 +1,16 @@
 import React from 'react';
-import { Paper as MuiPaper, PaperProps as MuiPaperProps } from '@mui/material';
+import { Paper as MuiPaper, PaperProps as MuiPaperProps, SxProps, Theme } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { getTestIdProps } from '@/shared/utils/testid';
 
 export interface PaperProps extends Omit<MuiPaperProps, 'elevation' | 'sx'> {
   /** Shadow depth (0-24). Defaults to 1. */
   elevation?: number;
+  /** 
+   * When true, applies full-height flex column layout with overflow hidden.
+   * Applies: flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, height: '100%', overflow: 'hidden'
+   */
+  fullHeight?: boolean;
   /** Custom styles to apply to the Paper component. */
   sx?: MuiPaperProps['sx'];
   /** 
@@ -31,6 +36,7 @@ export interface PaperProps extends Omit<MuiPaperProps, 'elevation' | 'sx'> {
  */
 export function Paper({ 
   elevation = 1, 
+  fullHeight = false,
   sx, 
   name,
   'data-testid': dataTestId,
@@ -45,13 +51,26 @@ export function Paper({
   // Generate data-testid from component name and optional name prop
   const testIdProps = getTestIdProps('Paper', name, dataTestId);
   
+  // When fullHeight is true, apply full-height flex column layout
+  const fullHeightStyles = fullHeight ? {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    minHeight: 0,
+    height: '100%',
+    overflow: 'hidden',
+  } : {};
+  
+  const combinedSx: SxProps<Theme> = {
+    p: paperPadding,
+    ...fullHeightStyles,
+    ...sx,
+  } as SxProps<Theme>;
+
   return (
     <MuiPaper
       elevation={elevation}
-      sx={{
-        p: paperPadding,
-        ...sx,
-      }}
+      sx={combinedSx}
       {...testIdProps}
       {...props}
     />

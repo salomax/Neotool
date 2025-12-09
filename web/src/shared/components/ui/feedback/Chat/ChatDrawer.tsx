@@ -19,23 +19,25 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
   open,
   onClose,
   anchor = "right",
-  width = 480,
+  width,
 }) => {
   return (
     <Drawer
       open={open}
       onClose={onClose}
       anchor={anchor}
+      size={width ? undefined : "sm"}
       width={width}
-      showCloseButton={true}
-      title="AI Assistant"
       sx={{
         "& .MuiDrawer-paper": {
           borderRadius: 0,
         },
       }}
     >
-      <Chat />
+      <Drawer.Header title="AI Assistant" showCloseButton={true} />
+      <Drawer.Body>
+        <Chat />
+      </Drawer.Body>
     </Drawer>
   );
 };

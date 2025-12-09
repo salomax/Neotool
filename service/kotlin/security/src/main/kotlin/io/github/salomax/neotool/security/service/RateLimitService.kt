@@ -19,10 +19,8 @@ open class RateLimitService(
 ) {
     private val logger = KotlinLogging.logger {}
 
-    companion object {
-        private const val MAX_ATTEMPTS_PER_HOUR = 3
-        private val RATE_LIMIT_WINDOW_HOURS = 1L
-    }
+    private val maxAttemptsPerHour = 3
+    private val rateLimitWindowHours = 1L
 
     /**
      * Check if email is rate limited for password reset requests.
@@ -33,7 +31,7 @@ open class RateLimitService(
     @Transactional
     open fun isRateLimited(email: String): Boolean {
         val now = Instant.now()
-        val windowStart = now.minus(RATE_LIMIT_WINDOW_HOURS, ChronoUnit.HOURS)
+        val windowStart = now.minus(rateLimitWindowHours, ChronoUnit.HOURS)
 
         // Find existing attempts within the rate limit window
         val attempts = passwordResetAttemptRepository.findByEmailAndWindowStartGreaterThan(email, windowStart)
@@ -43,7 +41,7 @@ open class RateLimitService(
 
         return if (activeAttempt != null && activeAttempt.windowStart.isAfter(windowStart)) {
             // We have an active attempt within the window
-            if (activeAttempt.attemptCount >= MAX_ATTEMPTS_PER_HOUR) {
+            if (activeAttempt.attemptCount >= maxAttemptsPerHour) {
                 logger.warn { "Rate limit exceeded for email: $email (${activeAttempt.attemptCount} attempts)" }
                 true
             } else {

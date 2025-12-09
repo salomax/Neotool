@@ -113,6 +113,41 @@ fun `should process data when data is not null`() { ... }
 - Pure data transfer objects (DTOs) with no validation logic
 - Auto-generated code
 
+### Rule: DTO Testing Exclusion
+
+**Rule**: Data Transfer Objects (DTOs) implemented as Kotlin `data class` do not require unit tests.
+
+**Rationale**: 
+- DTOs are pure data structures with no business logic
+- Kotlin data classes automatically generate `equals()`, `hashCode()`, `toString()`, and `copy()` methods
+- Testing data class instantiation and property access provides no value
+- DTOs are validated through integration tests when used in resolvers/services
+- Focus testing effort on business logic, not data structures
+
+**Example**:
+```kotlin
+// ✅ DTO - No tests needed
+@Introspected
+@Serdeable
+data class UserDTO(
+    val id: String,
+    val email: String,
+    val displayName: String? = null,
+)
+
+// ❌ Do NOT create tests like this:
+@Test
+fun `should create UserDTO with all fields`() {
+    val dto = UserDTO(id = "123", email = "test@example.com")
+    assertThat(dto.id).isEqualTo("123")
+    assertThat(dto.email).isEqualTo("test@example.com")
+}
+```
+
+**Exception**: DTOs with custom validation logic, computed properties, or business methods should be tested. However, prefer moving such logic to service/validator classes rather than DTOs.
+
+**Implementation**: DTO classes are excluded from coverage requirements via the `*DTO` pattern in Kover configuration.
+
 **Exception**: Components with significant custom business logic, state management, or complex interactions should NOT be excluded, even if they wrap a library.
 
 **Example**:
@@ -261,6 +296,65 @@ val name = TestDataBuilders.uniqueName("Product")
 val code = "TEST-001" // May conflict with other tests
 ```
 
+### Rule: Transaction Handling in Integration Tests
+
+**Rule**: When setting up test data that needs to be visible to services running in separate transactions, use `EntityManager.runTransaction` instead of `entityManager.flush()`.
+
+**Rationale**: 
+- `flush()` only sends SQL to the database but does not commit the transaction
+- Data must be committed to be visible in subsequent transactions
+- Services typically run in their own transaction context and won't see uncommitted data
+- `runTransaction` commits the transaction, making data visible across transaction boundaries
+
+**When to Use**:
+- Setting up test data before calling services that run in separate transactions
+- Preparing data for GraphQL/HTTP requests that execute in different transaction contexts
+- Ensuring test data is committed before service layer operations
+
+**Example**:
+```kotlin
+// ✅ Correct: Data committed and visible to service
+@Test
+fun `should authorize user with role`() {
+    entityManager.runTransaction {
+        val user = createTestUser()
+        val role = roleRepository.save(createRole())
+        val assignment = roleAssignmentRepository.save(
+            createRoleAssignment(userId = user.id, roleId = role.id)
+        )
+        entityManager.flush()
+    }
+    
+    // Service runs in separate transaction and can see committed data
+    val result = authorizationService.checkPermission(userId, "permission:read")
+    assertThat(result.allowed).isTrue()
+}
+
+// ❌ Incorrect: Data not committed, service won't see it
+@Test
+fun `should authorize user with role`() {
+    val user = createTestUser()
+    val role = roleRepository.save(createRole())
+    val assignment = roleAssignmentRepository.save(
+        createRoleAssignment(userId = user.id, roleId = role.id)
+    )
+    entityManager.flush() // Only flushes, doesn't commit
+    
+    // Service runs in separate transaction and CANNOT see uncommitted data
+    val result = authorizationService.checkPermission(userId, "permission:read")
+    // This will fail because the service can't see the role assignment
+    assertThat(result.allowed).isTrue()
+}
+```
+
+**Implementation**:
+- Import: `import io.github.salomax.neotool.common.test.transaction.runTransaction`
+- Wrap data setup in `entityManager.runTransaction { ... }`
+- The block commits automatically after execution
+- Data is then visible to subsequent service calls
+
+**Exception**: When test and service run in the same transaction context (rare in integration tests), `flush()` may be sufficient, but `runTransaction` is still recommended for consistency.
+
 ## Test Organization Rules
 
 ### Rule: Nested Test Classes
@@ -296,6 +390,48 @@ inner class EntityCreationTests {
 @Tag("database")
 class EntityIntegrationTest { ... }
 ```
+
+### Rule: Repository Testing Strategy
+
+**Rule**: Repositories and custom repository implementations must be tested **only** through integration tests. Do not write unit tests for repositories.
+
+**Rationale**: 
+- Repositories interact directly with the database and JPA/Hibernate
+- Unit tests with mocks don't accurately test database queries, transactions, and persistence behavior
+- Integration tests provide real database interactions and validate actual SQL generation
+- Repository logic (Criteria API, JPQL, native queries) is best validated against a real database
+- Reduces maintenance burden of complex mock setups for JPA components
+
+**What This Applies To**:
+- Repository interfaces (`*Repository`)
+- Custom repository implementations (`*RepositoryImpl`, `*RepositoryCustom`)
+- Repository helper classes used by repositories (e.g., `SortingHelpers`, `SortingConfigs`)
+
+**Example**:
+```kotlin
+// ✅ Correct: Integration test for repository
+@Tag("integration")
+class UserRepositoryIntegrationTest {
+    @Test
+    fun `should search users by name or email`() {
+        // Test with real database
+        val result = userRepository.searchByNameOrEmail("test", 10, null, orderBy)
+        assertThat(result).hasSize(5)
+    }
+}
+
+// ❌ Incorrect: Unit test with mocks
+class UserRepositoryImplTest {
+    @Test
+    fun `should search users by name or email`() {
+        // Mocking EntityManager, CriteriaBuilder, etc.
+        whenever(criteriaBuilder.coalesce(...)).thenReturn(...)
+        // This doesn't test actual database behavior
+    }
+}
+```
+
+**Exception**: None. All repository testing must be done via integration tests.
 
 ## Error Testing Rules
 

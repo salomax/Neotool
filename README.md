@@ -210,22 +210,14 @@ After cloning or integrating the starter, you'll want to customize the project n
 
 2. **Edit `project.config.json`** with your project details
 
-3. **Initialize your project** (recommended):
+3. **Run setup commands:**
    ```bash
-   ./neotool init
-   ```
-   This command will:
-   - Rename all project references from "neotool" to your project name
-   - Optionally clean up example code (with prompts)
-
-   Or run commands individually:
-   ```bash
-   # Rename project
-   ./neotool rename-project
+   # Setup project (rename from neotool)
+   ./neotool setup
    
    # Clean up examples (optional)
-   ./neotool clean-examples --dry-run  # Preview changes
-   ./neotool clean-examples             # Apply changes
+   ./neotool clean --dry-run  # Preview changes
+   ./neotool clean             # Apply changes
    ```
 
 4. **Review and commit the changes:**
@@ -245,14 +237,11 @@ The project includes a CLI tool for common tasks:
 # Check system requirements (Node.js, Docker, JVM)
 ./neotool --version
 
-# Rename project from neotool to your project name
-./neotool rename-project
+# Setup project (rename from neotool to your project name)
+./neotool setup
 
 # Clean up example code
-./neotool clean-examples [--dry-run]
-
-# Initialize project (runs rename-project + clean-examples)
-./neotool init
+./neotool clean [--dry-run]
 
 # Show help
 ./neotool help
@@ -541,21 +530,24 @@ pnpm run ci:unit
 ## 🧭 Roadmap
 
 ### Architecture/Infra
-- [ ] CI/CD (mock deployment)
 - [ ] FE and BE coverage tests (metrics and validation)
+- [ ] Distriuted Cache for Security
+- [ ] CI/CD (mock deployment)
 - [ ] Mobile with React Native and Expo
 - [ ] Logging (promtail, loki)
 - [ ] Purge after a period of time (logs and workflow ru on GH)
 - [ ] E2E tests with cypress (running on CI/CD and test the AuthN and AuthZ)
 - [ ] Visual regression testing (cypress-image-diff)
-- [ ] MCP for AI agents
+- [ ] AI agents
 - [ ] BI service
 - [ ] File storage abstraction
 - [ ] Monitoring alerts and SLO definitions
 - [ ] Feature flag service (unleash)
 - [ ] Vault service (HashiCorp)
 - [ ] Enable K8s deploy via GitOps  
-- [ ] Autoscaling test 
+- [ ] K8S Autoscaling
+- [ ] Error tracker / Update Frontend / see Sentry (self-hosted or cloud)
+- [ ] Metrics tracker / Google Analytics
 - [ ] CDN integration
 
 
@@ -563,6 +555,14 @@ pnpm run ci:unit
 - [ ] Security part 2 (User Managment and Oauth2/JWT/API])
 - [ ] Security part 3 (Permission management: RBAC and ABAC)
 - [ ] Audit trail
+
+### Authorization
+
+- [ ] Add short-lived (30s-60s) caching for RBAC lookups – Introduce @Cacheable layers around collectUserRoleIds and getUserPermissions to cut repeated DB fetches within a pod while honoring per-user invalidation hooks (role assignment changes, group updates).
+
+- [ ] Share cache state across instances – Back the caches with a distributed store or event-driven invalidation (e.g., Redis/Memcached or Kafka-based cache busting) so permission changes on one container instantly purge stale entries on all others.
+
+- [ ] Guardrails and observability – Define TTLs, hit/miss metrics, and a fallback strategy (force bypass on critical actions) to ensure RBAC decisions remain accurate even if the cache is out-of-sync or unavailable.
 
 ### Examples / Built-in features
 - [ ] Batch job example (Scheduled tasks (cron-like))

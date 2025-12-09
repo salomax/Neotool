@@ -9,8 +9,8 @@ import {
   Typography,
   Button as MUIButton,
   Divider,
-  Alert,
 } from "@mui/material";
+import { ErrorAlert } from "@/shared/components/ui/feedback";
 import GoogleIcon from "@mui/icons-material/Google";
 import { TextField } from "@/shared/components/ui/forms/form/TextField";
 import { PasswordField } from "@/shared/components/ui/forms/form/PasswordField";
@@ -22,9 +22,9 @@ import { Link } from "@/shared/components/ui/navigation/Link";
 import { useAuth } from "@/shared/providers";
 import { useToast } from "@/shared/providers";
 import { useTranslation } from "@/shared/i18n/hooks/useTranslation";
-import { signinTranslations } from "@/app/signin/i18n";
+import { signinTranslations } from "@/app/(authentication)/signin/i18n";
 import { extractErrorMessage } from "@/shared/utils/error";
-import { useOAuth } from "@/shared/hooks/useOAuth";
+import { useOAuth } from "@/shared/hooks/auth";
 
 const signInSchema = z.object({
   email: z.string().email("errors.invalidEmail").min(1, "errors.required"),
@@ -53,7 +53,6 @@ export const SignInForm: React.FC<SignInFormProps> = ({ onSuccess }) => {
         await signInWithOAuth("google", idToken, false);
         onSuccess?.();
       } catch (err: any) {
-        console.error("OAuth sign in error:", err);
         const errorMessage = extractErrorMessage(err, t("errors.unknownError"));
         setError(errorMessage);
         showError(errorMessage);
@@ -62,7 +61,6 @@ export const SignInForm: React.FC<SignInFormProps> = ({ onSuccess }) => {
       }
     },
     onError: (err) => {
-      console.error("OAuth error:", err);
       const errorMessage = extractErrorMessage(err, t("errors.unknownError"));
       setError(errorMessage);
       showError(errorMessage);
@@ -86,7 +84,6 @@ export const SignInForm: React.FC<SignInFormProps> = ({ onSuccess }) => {
       await signIn(data.email, data.password, data.rememberMe);
       onSuccess?.();
     } catch (err: any) {
-      console.error("Sign in error:", err);
       const errorMessage = extractErrorMessage(err, t("errors.invalidCredentials"));
       setError(errorMessage);
       showError(errorMessage);
@@ -101,7 +98,6 @@ export const SignInForm: React.FC<SignInFormProps> = ({ onSuccess }) => {
       setError(null);
       await signInOAuth("google");
     } catch (err: any) {
-      console.error("Google sign in error:", err);
       const errorMessage = extractErrorMessage(err, t("errors.unknownError"));
       setError(errorMessage);
       showError(errorMessage);
@@ -120,16 +116,7 @@ export const SignInForm: React.FC<SignInFormProps> = ({ onSuccess }) => {
         aria-label={t("signInButton")}
       >
         <Stack gap={3} name="signin-form-stack">
-          {error && (
-            <Alert 
-              severity="error" 
-              data-testid="signin-error"
-              role="alert"
-              aria-live="assertive"
-            >
-              {error}
-            </Alert>
-          )}
+          <ErrorAlert error={error} data-testid="signin-error" />
 
           <Controller
             name="email"

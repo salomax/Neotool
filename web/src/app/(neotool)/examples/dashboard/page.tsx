@@ -26,7 +26,7 @@ export default function DashboardPage() {
         });
         setSeries([]);
       } catch (error) {
-        console.error('Error loading dashboard data:', error);
+        // Silently handle dashboard data loading errors
       }
     })();
   }, []);

@@ -11,7 +11,7 @@ CREATE INDEX IF NOT EXISTS idx_users_password_reset_token ON security.users(pass
 
 -- Create password reset attempts table for rate limiting
 CREATE TABLE IF NOT EXISTS security.password_reset_attempts (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
     email VARCHAR(255) NOT NULL,
     attempt_count INT NOT NULL DEFAULT 1,
     window_start TIMESTAMP NOT NULL DEFAULT NOW(),

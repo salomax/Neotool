@@ -5,6 +5,7 @@ import { LayoutComponentProps } from './types';
 import { Stack } from './Stack';
 import { Paper, useTheme, Container } from '@mui/material';
 import { getTestIdProps } from '@/shared/utils/testid';
+import { ErrorAlert } from '@/shared/components/ui/feedback';
 
 export interface PageLayoutProps extends LayoutComponentProps {
   /** Header content (title + actions) - common to all pages */
@@ -95,19 +96,7 @@ export function PageLayout({
       )}
 
       {/* Error Display */}
-      {error && (
-        <Paper 
-          elevation={0} 
-          sx={{ 
-            p: layoutTokens.paper?.padding ?? 2, 
-            flexShrink: layoutTokens.paper?.flexShrink ?? 0,
-            backgroundColor: palette.error?.main,
-            color: palette.error?.contrastText || palette.common.white
-          }}
-        >
-          {error}
-        </Paper>
-      )}
+      <ErrorAlert error={error} />
 
       {/* Main Content - children can include filters, content, etc. */}
       {children}

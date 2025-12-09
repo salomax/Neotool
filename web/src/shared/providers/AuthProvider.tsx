@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { logger } from "@/shared/utils/logger";
 
 type User = {
   id: string;
@@ -55,7 +56,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setToken(storedToken);
           setUser(JSON.parse(storedUser));
         } catch (e) {
-          console.error("Error parsing stored user:", e);
+          logger.error("Error parsing stored user:", e);
           // Clear invalid data
           localStorage.removeItem(TOKEN_KEY);
           localStorage.removeItem(USER_KEY);
@@ -103,7 +104,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         router.push("/");
       }
     } catch (error: any) {
-      console.error("Sign in error:", error);
+      // Log technical errors (network failures, GraphQL errors)
+      // Business errors (invalid credentials) are handled in UI components
+      logger.error("Sign in error:", error);
       throw error;
     }
   }, [router]);
@@ -144,7 +147,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         router.push("/");
       }
     } catch (error: any) {
-      console.error("OAuth sign in error:", error);
+      // Log technical errors (network failures, GraphQL errors)
+      // Business errors (OAuth denied/cancelled) are handled in UI components
+      logger.error("OAuth sign in error:", error);
       throw error;
     }
   }, [router]);
@@ -184,7 +189,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         router.push("/");
       }
     } catch (error: any) {
-      console.error("Sign up error:", error);
+      // Log technical errors (network failures, GraphQL errors)
+      // Business errors (validation, duplicate email) are handled in UI components
+      logger.error("Sign up error:", error);
       throw error;
     }
   }, [router]);

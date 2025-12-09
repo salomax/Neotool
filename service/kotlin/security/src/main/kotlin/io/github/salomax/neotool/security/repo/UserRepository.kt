@@ -12,4 +12,6 @@ interface UserRepository : JpaRepository<UserEntity, UUID> {
     fun findByRememberMeToken(token: String): UserEntity?
 
     fun findByPasswordResetToken(token: String): UserEntity?
+
+    fun findByIdIn(ids: List<UUID>): List<UserEntity>
 }

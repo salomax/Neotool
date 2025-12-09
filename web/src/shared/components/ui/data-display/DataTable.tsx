@@ -7,13 +7,13 @@ import { useTheme } from "@mui/material/styles";
 import {
   Box,
   LinearProgress,
-  Alert,
   Stack,
   Pagination,
   Typography,
   IconButton,
   Tooltip,
 } from "@mui/material";
+import { ErrorAlert } from "@/shared/components/ui/feedback";
 import DownloadIcon from "@mui/icons-material/Download";
 
 import { AgGridReact } from "ag-grid-react";
@@ -236,7 +236,7 @@ export function DataTable<T extends { id?: string | number }>(
   return (
     <Stack spacing={1} sx={{ width: "100%", height: "100%" }}>
       {loading && <LinearProgress />}
-      {error && <Alert severity="error">{error}</Alert>}
+      <ErrorAlert error={error} />
 
       <Box className={gridThemeClass} sx={{ height, width: "100%" }}>
         <AgGridReact<T>

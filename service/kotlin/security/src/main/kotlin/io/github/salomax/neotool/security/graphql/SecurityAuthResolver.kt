@@ -11,7 +11,9 @@ import io.github.salomax.neotool.security.graphql.dto.SignUpPayloadDTO
 import io.github.salomax.neotool.security.graphql.dto.UserDTO
 import io.github.salomax.neotool.security.graphql.mapper.SecurityGraphQLMapper
 import io.github.salomax.neotool.security.repo.UserRepository
+import io.github.salomax.neotool.security.service.AuthContextFactory
 import io.github.salomax.neotool.security.service.AuthenticationService
+import io.github.salomax.neotool.security.service.AuthorizationService
 import jakarta.inject.Singleton
 import jakarta.validation.ConstraintViolationException
 import mu.KotlinLogging
@@ -30,6 +32,8 @@ import mu.KotlinLogging
 @Singleton
 class SecurityAuthResolver(
     private val authenticationService: AuthenticationService,
+    private val authorizationService: AuthorizationService,
+    private val authContextFactory: AuthContextFactory,
     private val userRepository: UserRepository,
     private val inputValidator: InputValidator,
     private val mapper: SecurityGraphQLMapper,
@@ -51,15 +55,19 @@ class SecurityAuthResolver(
                 authenticationService.authenticate(email, password)
                     ?: throw IllegalArgumentException("Invalid email or password")
 
-            // Generate JWT access token (short-lived, stateless)
-            val token = authenticationService.generateAccessToken(user)
+            // Build authentication context (loads roles and permissions)
+            val authContext = authContextFactory.build(user)
+
+            // Generate JWT access token (short-lived, stateless) with permissions
+            val token = authenticationService.generateAccessToken(authContext)
 
             // Handle remember me - generate and store refresh token
             var refreshToken: String? = null
             if (rememberMe) {
+                val userId = requireNotNull(user.id) { "User ID is required for refresh token generation" }
                 refreshToken = authenticationService.generateRefreshToken(user)
                 // Store refresh token in database for revocation support
-                authenticationService.saveRememberMeToken(user.id, refreshToken)
+                authenticationService.saveRememberMeToken(userId, refreshToken)
             }
 
             logger.info { "User signed in successfully: ${user.email}" }
@@ -119,15 +127,19 @@ class SecurityAuthResolver(
                 authenticationService.authenticateWithOAuth(provider, idToken)
                     ?: throw IllegalArgumentException("OAuth authentication failed")
 
-            // Generate JWT access token (short-lived, stateless)
-            val token = authenticationService.generateAccessToken(user)
+            // Build authentication context (loads roles and permissions)
+            val authContext = authContextFactory.build(user)
+
+            // Generate JWT access token (short-lived, stateless) with permissions
+            val token = authenticationService.generateAccessToken(authContext)
 
             // Handle remember me - generate and store refresh token
             var refreshToken: String? = null
             if (rememberMe) {
+                val userId = requireNotNull(user.id) { "User ID is required for refresh token generation" }
                 refreshToken = authenticationService.generateRefreshToken(user)
                 // Store refresh token in database for revocation support
-                authenticationService.saveRememberMeToken(user.id, refreshToken)
+                authenticationService.saveRememberMeToken(userId, refreshToken)
             }
 
             logger.info { "User signed in with OAuth successfully: ${user.email} (provider: $provider)" }
@@ -160,12 +172,16 @@ class SecurityAuthResolver(
             // Register user (validates email uniqueness and password strength)
             val user = authenticationService.registerUser(name, email, password)
 
-            // Generate JWT access token
-            val token = authenticationService.generateAccessToken(user)
+            // Build authentication context (loads roles and permissions)
+            val authContext = authContextFactory.build(user)
+
+            // Generate JWT access token with permissions
+            val token = authenticationService.generateAccessToken(authContext)
 
             // Generate refresh token (for automatic sign-in after signup)
+            val userId = requireNotNull(user.id) { "User ID is required for refresh token generation" }
             val refreshToken = authenticationService.generateRefreshToken(user)
-            authenticationService.saveRememberMeToken(user.id, refreshToken)
+            authenticationService.saveRememberMeToken(userId, refreshToken)
 
             logger.info { "User signed up successfully: ${user.email}" }
 
@@ -245,6 +261,48 @@ class SecurityAuthResolver(
                     message = "If an account with that email exists, a password reset link has been sent.",
                 )
             GraphQLPayloadFactory.success(payload)
+        }
+    }
+
+    /**
+     * Refresh access token mutation resolver.
+     *
+     * Validates a refresh token and issues a new access token with current permissions.
+     * Does not generate a new refresh token - the existing one remains valid.
+     */
+    fun refreshAccessToken(input: Map<String, Any?>): GraphQLPayload<SignInPayloadDTO> {
+        return try {
+            val refreshToken =
+                input["refreshToken"] as? String
+                    ?: throw IllegalArgumentException("Refresh token is required")
+
+            logger.debug { "Refresh access token attempt" }
+
+            // Validate refresh token and get user
+            val user =
+                authenticationService.validateRefreshToken(refreshToken)
+                    ?: throw IllegalArgumentException("Invalid or expired refresh token")
+
+            // Build authentication context (loads current roles and permissions)
+            val authContext = authContextFactory.build(user)
+
+            // Generate new JWT access token with current permissions
+            val token = authenticationService.generateAccessToken(authContext)
+
+            logger.info { "Access token refreshed successfully for user: ${user.email}" }
+
+            val payload =
+                SignInPayloadDTO(
+                    token = token,
+                    // Don't return refresh token - client should keep existing one
+                    refreshToken = null,
+                    user = mapper.userToDTO(user),
+                )
+
+            GraphQLPayloadFactory.success(payload)
+        } catch (e: Exception) {
+            logger.warn { "Refresh access token failed: ${e.message}" }
+            GraphQLPayloadFactory.error(e)
         }
     }
 

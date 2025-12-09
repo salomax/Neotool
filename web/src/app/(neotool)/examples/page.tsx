@@ -15,7 +15,7 @@ import DashboardRoundedIcon from '@mui/icons-material/DashboardRounded';
 import ApiRoundedIcon from '@mui/icons-material/ApiRounded';
 import StorageRoundedIcon from '@mui/icons-material/StorageRounded';
 import SchemaRoundedIcon from '@mui/icons-material/SchemaRounded';
-import { useResponsive } from "@/shared/hooks/useResponsive";
+import { useResponsive } from "@/shared/hooks/ui";
 import Link from "next/link";
 
 export default function ExamplesPage() {

@@ -27,7 +27,7 @@ const iconMap: Record<string, React.ReactNode> = {
   'visibility-off': <VisibilityOffIcon />,
 };
 
-export const TextField: React.FC<TextFieldProps> = ({
+export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(({
   size = 'medium',
   startIcon,
   endIcon,
@@ -37,7 +37,7 @@ export const TextField: React.FC<TextFieldProps> = ({
   onKeyDown,
   sx,
   ...props
-}) => {
+}, ref) => {
   const [showPassword, setShowPassword] = useState(false);
 
   // Handle custom 'large' size with styling
@@ -128,6 +128,7 @@ export const TextField: React.FC<TextFieldProps> = ({
 
   return (
     <MUITextField
+      ref={ref}
       fullWidth
       type={inputType}
       size={muiSize}
@@ -137,6 +138,8 @@ export const TextField: React.FC<TextFieldProps> = ({
       {...props}
     />
   );
-};
+});
+
+TextField.displayName = 'TextField';
 
 export default TextField;

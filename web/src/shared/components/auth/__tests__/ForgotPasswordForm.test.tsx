@@ -6,7 +6,7 @@ import { ForgotPasswordForm } from '../ForgotPasswordForm';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
 import { I18nextProvider } from 'react-i18next';
 import i18n from '@/shared/i18n/config';
-import { forgotPasswordTranslations } from '@/app/forgot-password/i18n';
+import { forgotPasswordTranslations } from '@/app/(authentication)/forgot-password/i18n';
 
 // Register translations
 i18n.addResourceBundle('en', 'forgotPassword', forgotPasswordTranslations.en, true, true);

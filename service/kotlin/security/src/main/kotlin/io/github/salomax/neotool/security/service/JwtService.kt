@@ -43,23 +43,50 @@ class JwtService(
      *
      * @param userId The user ID to include in the token subject claim
      * @param email The user's email (included as a custom claim)
+     * @param permissions Optional list of permission names to include in the token claims
      * @return A signed JWT token string
      */
     fun generateAccessToken(
         userId: UUID,
         email: String,
+        permissions: List<String>? = null,
     ): String {
         val now = Instant.now()
         val expiration = now.plusSeconds(jwtConfig.accessTokenExpirationSeconds)
 
-        return Jwts.builder()
-            .subject(userId.toString())
-            .claim("email", email)
-            .claim("type", "access")
-            .issuedAt(Date.from(now))
-            .expiration(Date.from(expiration))
+        val builder =
+            Jwts.builder()
+                .subject(userId.toString())
+                .claim("email", email)
+                .claim("type", "access")
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(expiration))
+
+        // Always include permissions claim as array (empty [] when no permissions)
+        builder.claim("permissions", permissions ?: emptyList<String>())
+
+        return builder
             .signWith(secretKey)
             .compact()
+    }
+
+    /**
+     * Generate a JWT access token from an AuthContext.
+     *
+     * This method extracts userId, email, and permissions from the AuthContext
+     * to build the JWT token. Token issuance is agnostic of how the user authenticated.
+     *
+     * Access tokens are short-lived (default: 15 minutes) and used for API authentication.
+     *
+     * @param authContext The normalized authentication context containing user identity and permissions
+     * @return A signed JWT token string
+     */
+    fun generateAccessToken(authContext: AuthContext): String {
+        return generateAccessToken(
+            userId = authContext.userId,
+            email = authContext.email,
+            permissions = authContext.permissions,
+        )
     }
 
     /**
@@ -120,6 +147,34 @@ class JwtService(
     }
 
     /**
+     * Extract permissions from a validated JWT token.
+     *
+     * @param token The JWT token string
+     * @return List of permission names if token is valid and contains permissions claim, null otherwise
+     */
+    fun getPermissionsFromToken(token: String): List<String>? {
+        val claims = validateToken(token) ?: return null
+        return try {
+            val permissionsClaim = claims["permissions"]
+            if (permissionsClaim == null) {
+                return null
+            }
+            // Handle List type casting - permissions are stored as List<String>
+            @Suppress("UNCHECKED_CAST")
+            when (val permissions = permissionsClaim) {
+                is List<*> -> permissions.mapNotNull { it?.toString() }
+                else -> {
+                    logger.warn { "Invalid permissions claim type in token: ${permissions.javaClass.name}" }
+                    null
+                }
+            }
+        } catch (e: Exception) {
+            logger.warn { "Error extracting permissions from token: ${e.message}" }
+            null
+        }
+    }
+
+    /**
      * Check if a token is an access token.
      *
      * @param token The JWT token string
@@ -150,5 +205,27 @@ class JwtService(
     fun getTokenExpiration(token: String): Instant? {
         val claims = validateToken(token) ?: return null
         return claims.expiration?.toInstant()
+    }
+
+    /**
+     * Extract token type from a validated JWT token.
+     *
+     * @param token The JWT token string
+     * @return Token type ("access" or "refresh") if token is valid, null otherwise
+     */
+    fun getTokenType(token: String): String? {
+        val claims = validateToken(token) ?: return null
+        return claims["type"]?.toString()
+    }
+
+    /**
+     * Extract email from a validated JWT token.
+     *
+     * @param token The JWT token string
+     * @return Email if token is valid and contains email claim, null otherwise
+     */
+    fun getEmailFromToken(token: String): String? {
+        val claims = validateToken(token) ?: return null
+        return claims["email"]?.toString()
     }
 }

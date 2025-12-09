@@ -109,7 +109,40 @@ open class AuthenticationService(
      * @return JWT access token string
      */
     fun generateAccessToken(user: UserEntity): String {
-        return jwtService.generateAccessToken(user.id, user.email)
+        val userId = requireNotNull(user.id) { "User ID is required for access token generation" }
+        return jwtService.generateAccessToken(userId, user.email)
+    }
+
+    /**
+     * Generate JWT access token for a user with permissions.
+     *
+     * Access tokens are short-lived and stateless.
+     *
+     * @param user The authenticated user
+     * @param permissions List of permission names to include in the token
+     * @return JWT access token string
+     */
+    fun generateAccessToken(
+        user: UserEntity,
+        permissions: List<String>,
+    ): String {
+        val userId = requireNotNull(user.id) { "User ID is required for access token generation" }
+        return jwtService.generateAccessToken(userId, user.email, permissions)
+    }
+
+    /**
+     * Generate JWT access token from an AuthContext.
+     *
+     * This method delegates to JwtService to generate a token from the normalized
+     * authentication context. Token issuance is agnostic of how the user authenticated.
+     *
+     * Access tokens are short-lived and stateless.
+     *
+     * @param authContext The normalized authentication context containing user identity and permissions
+     * @return JWT access token string
+     */
+    fun generateAccessToken(authContext: AuthContext): String {
+        return jwtService.generateAccessToken(authContext)
     }
 
     /**
@@ -121,7 +154,8 @@ open class AuthenticationService(
      * @return JWT refresh token string
      */
     fun generateRefreshToken(user: UserEntity): String {
-        return jwtService.generateRefreshToken(user.id)
+        val userId = requireNotNull(user.id) { "User ID is required for refresh token generation" }
+        return jwtService.generateRefreshToken(userId)
     }
 
     /**

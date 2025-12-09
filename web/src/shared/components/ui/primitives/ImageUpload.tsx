@@ -7,7 +7,6 @@ import {
   Stack,
   IconButton,
   LinearProgress,
-  Alert,
   Chip,
   FormControl,
   FormLabel,
@@ -20,6 +19,7 @@ import {
   CheckCircleIcon,
   ErrorIcon
 } from '@/shared/ui/mui-imports';
+import { ErrorAlert } from '@/shared/components/ui/feedback';
 
 export interface ImageUploadProps {
   /** Current uploaded files */
@@ -507,9 +507,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
       )}
       
       {uploadError && (
-        <Alert severity="error" sx={{ mt: 2 }}>
-          {uploadError}
-        </Alert>
+        <ErrorAlert error={uploadError} />
       )}
       
       {(helperText || errorMessage) && (

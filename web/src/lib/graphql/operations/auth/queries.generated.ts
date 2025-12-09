@@ -7,7 +7,7 @@ const defaultOptions = {} as const;
 export type CurrentUserQueryVariables = Types.Exact<{ [key: string]: never; }>;
 
 
-export type CurrentUserQuery = { currentUser: { __typename: 'User', id: string, email: string, displayName: string | null } | null };
+export type CurrentUserQuery = { currentUser: { __typename: 'User', id: string, email: string, displayName: string | null, roles: Array<{ __typename: 'Role', id: string, name: string }>, permissions: Array<{ __typename: 'Permission', id: string, name: string }> } | null };
 
 
 export const CurrentUserDocument = gql`
@@ -16,6 +16,14 @@ export const CurrentUserDocument = gql`
     id
     email
     displayName
+    roles {
+      id
+      name
+    }
+    permissions {
+      id
+      name
+    }
   }
 }
     `;
@@ -43,7 +51,7 @@ export function useCurrentUserLazyQuery(baseOptions?: ApolloReactHooks.LazyQuery
           const options = {...defaultOptions, ...baseOptions}
           return ApolloReactHooks.useLazyQuery<CurrentUserQuery, CurrentUserQueryVariables>(CurrentUserDocument, options);
         }
-export function useCurrentUserSuspenseQuery(baseOptions: ApolloReactHooks.SkipToken | (ApolloReactHooks.SuspenseQueryHookOptions<CurrentUserQuery, CurrentUserQueryVariables> & { variables: CurrentUserQueryVariables })) {
+export function useCurrentUserSuspenseQuery(baseOptions?: ApolloReactHooks.SkipToken | ApolloReactHooks.SuspenseQueryHookOptions<CurrentUserQuery, CurrentUserQueryVariables>) {
           const options = baseOptions === ApolloReactHooks.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return ApolloReactHooks.useSuspenseQuery<CurrentUserQuery, CurrentUserQueryVariables>(CurrentUserDocument, options);
         }

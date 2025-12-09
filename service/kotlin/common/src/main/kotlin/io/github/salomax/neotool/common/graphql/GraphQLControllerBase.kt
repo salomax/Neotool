@@ -11,6 +11,8 @@ import io.micronaut.http.annotation.Header
 import io.micronaut.http.annotation.Post
 import io.micronaut.scheduling.TaskExecutors
 import io.micronaut.scheduling.annotation.ExecuteOn
+import jakarta.inject.Inject
+import org.dataloader.DataLoaderRegistry
 
 /**
  * Base GraphQL HTTP endpoint, designed to be reusable across apps.
@@ -23,7 +25,10 @@ import io.micronaut.scheduling.annotation.ExecuteOn
  *    we rely on result.toSpecification() which yields a plain Map<String, Any?>.
  */
 @Controller("/graphql")
-open class GraphQLControllerBase(private val graphQL: GraphQL) {
+open class GraphQLControllerBase(
+    private val graphQL: GraphQL,
+    @Inject private val dataLoaderRegistryFactories: List<DataLoaderRegistryFactory> = emptyList(),
+) {
     /**
      * Accepts a standard GraphQL request payload.
      *
@@ -50,6 +55,18 @@ open class GraphQLControllerBase(private val graphQL: GraphQL) {
         // Extract token from Authorization header (Bearer <token>)
         val token = authorization?.removePrefix("Bearer ")?.takeIf { it.isNotBlank() }
 
+        // Create DataLoader registry by merging all module registries
+        val dataLoaderRegistry = DataLoaderRegistry()
+        for (factory in dataLoaderRegistryFactories) {
+            val moduleRegistry = factory.createDataLoaderRegistry()
+            // Merge all DataLoaders from this module's registry into the main registry
+            moduleRegistry.keys.forEach { key ->
+                @Suppress("UNCHECKED_CAST")
+                val dataLoader = moduleRegistry.getDataLoader<Any?, Any?>(key) as org.dataloader.DataLoader<Any?, Any?>
+                dataLoaderRegistry.register(key, dataLoader)
+            }
+        }
+
         // Build the ExecutionInput incrementally so we can attach operationName conditionally.
         val execution =
             graphql.ExecutionInput
@@ -64,6 +81,8 @@ open class GraphQLControllerBase(private val graphQL: GraphQL) {
                         builder.of("token", token)
                     }
                 }
+                // Register DataLoaders for this request
+                .dataLoaderRegistry(dataLoaderRegistry)
 
         // Only set operationName if present and non-blank.
         // Additionally, we pre-validate that the named operation exists in the document.

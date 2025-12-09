@@ -2,15 +2,21 @@
 "use client";
 
 import * as React from "react";
-import { Alert } from "@mui/material";
+import { ErrorAlert } from "@/shared/components/ui/feedback";
 
 export type FormErrorBannerProps = {
   message?: string;
+  onRetry?: () => void;
 };
 
-export function FormErrorBanner({ message }: FormErrorBannerProps) {
+export function FormErrorBanner({ message, onRetry }: FormErrorBannerProps) {
   if (!message) return null;
-  return <Alert severity="error">{message}</Alert>;
+  return (
+    <ErrorAlert
+      error={message}
+      onRetry={onRetry}
+    />
+  );
 }
 
 export default FormErrorBanner;

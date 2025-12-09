@@ -8,8 +8,9 @@ tags: [workflow, testing, process]
 ai_optimized: true
 search_keywords: [workflow, testing]
 related:
-  - 05-standards/testing-rules.md
-  - 04-patterns/backend/testing-pattern.md
+  - 05-standards/testing-standards/unit-test-standards.md
+  - 04-patterns/backend-patterns/testing-pattern.md
+  - 04-patterns/frontend-patterns/testing-pattern.md
 ---
 
 # Testing Workflow
@@ -32,6 +33,7 @@ related:
 
 ## Related Documentation
 
-- [Testing Rules](../05-standards/testing-rules.md)
-- [Testing Pattern](../04-patterns/backend/testing-pattern.md)
+- [Testing Standards](../05-standards/testing-standards/unit-test-standards.md)
+- [Backend Testing Pattern](../04-patterns/backend-patterns/testing-pattern.md)
+- [Frontend Testing Pattern](../04-patterns/frontend-patterns/testing-pattern.md)
 
