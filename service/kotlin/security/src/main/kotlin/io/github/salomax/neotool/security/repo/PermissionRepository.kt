@@ -5,15 +5,16 @@ import io.micronaut.data.annotation.Query
 import io.micronaut.data.annotation.Repository
 import io.micronaut.data.jpa.repository.JpaRepository
 import java.util.Optional
+import java.util.UUID
 
 @Repository
-interface PermissionRepository : JpaRepository<PermissionEntity, Int> {
+interface PermissionRepository : JpaRepository<PermissionEntity, UUID> {
     fun findByName(name: String): Optional<PermissionEntity>
 
     /**
      * Find all permissions by their IDs.
      */
-    fun findByIdIn(ids: List<Int>): List<PermissionEntity>
+    fun findByIdIn(ids: List<UUID>): List<PermissionEntity>
 
     /**
      * Find all permissions assigned to a role via the role_permissions join table.
@@ -31,7 +32,7 @@ interface PermissionRepository : JpaRepository<PermissionEntity, Int> {
         """,
         nativeQuery = true,
     )
-    fun findByRoleId(roleId: Int): List<PermissionEntity>
+    fun findByRoleId(roleId: UUID): List<PermissionEntity>
 
     /**
      * Check if a permission with the given name exists for any of the given role IDs.
@@ -51,20 +52,20 @@ interface PermissionRepository : JpaRepository<PermissionEntity, Int> {
     )
     fun existsPermissionForRoles(
         permissionName: String,
-        roleIds: List<Int>,
+        roleIds: List<UUID>,
     ): Boolean
 
     /**
      * Find all permissions with cursor-based pagination, ordered alphabetically by name ascending.
      *
      * @param first Maximum number of results to return
-     * @param after Cursor (integer ID) to start after (exclusive)
+     * @param after Cursor (UUID ID) to start after (exclusive)
      * @return List of permissions ordered by name ascending
      */
     @Query(
         value = """
         SELECT * FROM security.permissions
-        WHERE (CAST(:after AS INTEGER) IS NULL OR id > CAST(:after AS INTEGER))
+        WHERE (CAST(:after AS UUID) IS NULL OR id > CAST(:after AS UUID))
         ORDER BY name ASC, id ASC
         LIMIT :first
         """,
@@ -72,7 +73,7 @@ interface PermissionRepository : JpaRepository<PermissionEntity, Int> {
     )
     fun findAll(
         first: Int,
-        after: Int?,
+        after: UUID?,
     ): List<PermissionEntity>
 
     /**
@@ -82,14 +83,14 @@ interface PermissionRepository : JpaRepository<PermissionEntity, Int> {
      *
      * @param query Search query (partial match, case-insensitive)
      * @param first Maximum number of results to return
-     * @param after Cursor (integer ID) to start after (exclusive)
+     * @param after Cursor (UUID ID) to start after (exclusive)
      * @return List of matching permissions ordered by name ascending
      */
     @Query(
         value = """
         SELECT * FROM security.permissions
         WHERE LOWER(name) LIKE LOWER(CONCAT('%', :query, '%'))
-        AND (CAST(:after AS INTEGER) IS NULL OR id > CAST(:after AS INTEGER))
+        AND (CAST(:after AS UUID) IS NULL OR id > CAST(:after AS UUID))
         ORDER BY name ASC, id ASC
         LIMIT :first
         """,
@@ -98,6 +99,6 @@ interface PermissionRepository : JpaRepository<PermissionEntity, Int> {
     fun searchByName(
         query: String,
         first: Int,
-        after: Int?,
+        after: UUID?,
     ): List<PermissionEntity>
 }

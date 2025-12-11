@@ -24,7 +24,7 @@ class AuthorizationAuditLogEntityTest {
             // Arrange
             val id = UUID.randomUUID()
             val groups = listOf(groupId1, groupId2)
-            val roles = listOf(1, 2, 3)
+            val roles = listOf(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID())
             val metadata = mapOf("ip" to "127.0.0.1", "userAgent" to "Mozilla/5.0")
             val timestamp = Instant.now()
             val createdAt = Instant.now().minusSeconds(3600)

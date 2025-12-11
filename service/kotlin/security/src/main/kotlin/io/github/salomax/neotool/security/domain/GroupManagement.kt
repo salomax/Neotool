@@ -54,7 +54,7 @@ object GroupManagement {
      */
     data class AssignRoleToGroupCommand(
         val groupId: UUID,
-        val roleId: Int,
+        val roleId: UUID,
     )
 
     /**
@@ -62,7 +62,7 @@ object GroupManagement {
      */
     data class RemoveRoleFromGroupCommand(
         val groupId: UUID,
-        val roleId: Int,
+        val roleId: UUID,
     )
 
     /**

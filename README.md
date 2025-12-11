@@ -243,8 +243,25 @@ The project includes a CLI tool for common tasks:
 # Clean up example code
 ./neotool clean [--dry-run]
 
+# GraphQL schema management
+./neotool graphql sync      # Interactive schema sync
+./neotool graphql validate  # Validate schema consistency
+./neotool graphql generate  # Generate supergraph schema
+
+# Validation
+./neotool validate                    # Run all validations
+./neotool validate --web              # Frontend only
+./neotool validate --service          # Backend only
+
+# Kafka management
+./neotool kafka --topic                              # List topics
+./neotool kafka --topic <name>                       # Describe topic
+./neotool kafka --consumer-group                     # List consumer groups
+./neotool kafka --consumer-group <name>              # Describe consumer group
+
 # Show help
 ./neotool help
+./neotool <command> --help  # Command-specific help
 ```
 
 All commands can also be accessed via `scripts/cli/cli` if you prefer.
@@ -550,6 +567,9 @@ pnpm run ci:unit
 - [ ] Metrics tracker / Google Analytics
 - [ ] CDN integration
 
+### Prefect
+
+- [ ] Setup multi-env (local and container)
 
 ### Security
 - [ ] Security part 2 (User Managment and Oauth2/JWT/API])

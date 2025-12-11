@@ -76,8 +76,12 @@ dependencies {
     // Database drivers - api so other modules can use them
     api("org.postgresql:postgresql:42.7.7")
 
+    // Kafka - api for other modules (needed for batch processing)
+    api("io.micronaut.kafka:micronaut-kafka")
+
     // Utilities - api for other modules
     api("org.apache.commons:commons-lang3:3.18.0")
+    api("commons-codec:commons-codec:1.17.1")
     api("org.yaml:snakeyaml")
 
     // Logging - api for other modules
@@ -96,6 +100,7 @@ dependencies {
     api("org.assertj:assertj-core:3.27.3")
     api("org.testcontainers:junit-jupiter:1.20.6")
     api("org.testcontainers:postgresql:1.20.6")
+    api("org.testcontainers:kafka:1.20.6")
     api("org.testcontainers:testcontainers:1.20.6")
     api("org.junit.jupiter:junit-jupiter:5.12.2")
     api("org.mockito.kotlin:mockito-kotlin:3.2.0")
@@ -148,8 +153,10 @@ afterEvaluate {
                         "io.github.salomax.neotool.common.test.assertions.GraphQLAssertionsKt",
                         "io.github.salomax.neotool.common.test.integration.BaseIntegrationTest",
                         "io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest",
+                        "io.github.salomax.neotool.common.test.integration.KafkaIntegrationTest",
                         "io.github.salomax.neotool.common.test.integration.MicronautPropsTestContainer",
                         "io.github.salomax.neotool.common.test.integration.PostgresTestContainer",
+                        "io.github.salomax.neotool.common.test.integration.KafkaTestContainer",
                         "io.github.salomax.neotool.common.test.integration.TestConfig",
                     )
                 }

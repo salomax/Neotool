@@ -65,7 +65,7 @@ class HybridAuthorizationServiceTest {
     private fun mockRbacAllowing(
         userId: UUID,
         permission: String,
-        roleId: Int = 1,
+        roleId: UUID = UUID.randomUUID(),
     ) {
         val roleAssignment =
             SecurityTestDataBuilders.roleAssignment(
@@ -86,7 +86,7 @@ class HybridAuthorizationServiceTest {
         whenever(
             permissionRepository.existsPermissionForRoles(permission, listOf(roleId)),
         ).thenReturn(true)
-        whenever(roleRepository.findByIdIn(any<List<Int>>())).thenReturn(listOf(roleEntity))
+        whenever(roleRepository.findByIdIn(any<List<UUID>>())).thenReturn(listOf(roleEntity))
         whenever(
             groupMembershipRepository.findActiveMembershipsByUserId(
                 any<UUID>(),
@@ -144,7 +144,7 @@ class HybridAuthorizationServiceTest {
             verify(auditService).logAuthorizationDecision(
                 userId = any<UUID>(),
                 groups = anyOrNull<List<UUID>>(),
-                roles = anyOrNull<List<Int>>(),
+                roles = anyOrNull<List<UUID>>(),
                 requestedAction = any<String>(),
                 resourceType = anyOrNull<String>(),
                 resourceId = anyOrNull<UUID>(),
@@ -168,23 +168,24 @@ class HybridAuthorizationServiceTest {
                 )
 
             // Mock RBAC to allow - user has permission
+            val roleId = UUID.randomUUID()
             val roleAssignment =
                 SecurityTestDataBuilders.roleAssignment(
                     userId = userId,
-                    roleId = 1,
+                    roleId = roleId,
                 )
             val roleEntity =
                 SecurityTestDataBuilders.role(
-                    id = 1,
+                    id = roleId,
                     name = "admin",
                 )
             whenever(
                 roleAssignmentRepository.findValidAssignmentsByUserId(any<UUID>(), any<java.time.Instant>()),
             ).thenReturn(listOf(roleAssignment))
             whenever(
-                permissionRepository.existsPermissionForRoles(permission, listOf(1)),
+                permissionRepository.existsPermissionForRoles(permission, listOf(roleId)),
             ).thenReturn(true)
-            whenever(roleRepository.findByIdIn(any<List<Int>>())).thenReturn(listOf(roleEntity))
+            whenever(roleRepository.findByIdIn(any<List<UUID>>())).thenReturn(listOf(roleEntity))
             whenever(
                 groupMembershipRepository.findActiveMembershipsByUserId(
                     any<UUID>(),
@@ -220,7 +221,7 @@ class HybridAuthorizationServiceTest {
             verify(auditService).logAuthorizationDecision(
                 userId = any<UUID>(),
                 groups = anyOrNull<List<UUID>>(),
-                roles = anyOrNull<List<Int>>(),
+                roles = anyOrNull<List<UUID>>(),
                 requestedAction = any<String>(),
                 resourceType = anyOrNull<String>(),
                 resourceId = anyOrNull<UUID>(),
@@ -332,8 +333,8 @@ class HybridAuthorizationServiceTest {
             // Arrange
             val userId = UUID.randomUUID()
             val permission = "transaction:read"
-            val role1 = Role(id = 1, name = "admin")
-            val role2 = Role(id = 2, name = "editor")
+            val role1 = Role(id = UUID.randomUUID(), name = "admin")
+            val role2 = Role(id = UUID.randomUUID(), name = "editor")
             val groupId = UUID.randomUUID()
             val abacResult =
                 AbacEvaluationResult(
@@ -343,10 +344,11 @@ class HybridAuthorizationServiceTest {
                 )
 
             // Set up direct role assignment (role 1)
+            val roleId1 = UUID.randomUUID()
             val roleAssignment1 =
                 SecurityTestDataBuilders.roleAssignment(
                     userId = userId,
-                    roleId = 1,
+                    roleId = roleId1,
                 )
             whenever(
                 roleAssignmentRepository.findValidAssignmentsByUserId(
@@ -356,6 +358,7 @@ class HybridAuthorizationServiceTest {
             ).thenReturn(listOf(roleAssignment1))
 
             // Set up group membership with role assignment (role 2)
+            val roleId2 = UUID.randomUUID()
             val groupMembership =
                 SecurityTestDataBuilders.groupMembership(
                     userId = userId,
@@ -364,7 +367,7 @@ class HybridAuthorizationServiceTest {
             val groupRoleAssignment =
                 SecurityTestDataBuilders.groupRoleAssignment(
                     groupId = groupId,
-                    roleId = 2,
+                    roleId = roleId2,
                 )
             whenever(
                 groupMembershipRepository.findActiveMembershipsByUserId(
@@ -382,19 +385,19 @@ class HybridAuthorizationServiceTest {
             // Mock role entities
             val roleEntity1 =
                 SecurityTestDataBuilders.role(
-                    id = 1,
+                    id = roleId1,
                     name = "admin",
                 )
             val roleEntity2 =
                 SecurityTestDataBuilders.role(
-                    id = 2,
+                    id = roleId2,
                     name = "editor",
                 )
-            whenever(roleRepository.findByIdIn(any<List<Int>>())).thenReturn(listOf(roleEntity1, roleEntity2))
+            whenever(roleRepository.findByIdIn(any<List<UUID>>())).thenReturn(listOf(roleEntity1, roleEntity2))
 
             // Mock permission check for both roles
             whenever(
-                permissionRepository.existsPermissionForRoles(permission, listOf(1, 2)),
+                permissionRepository.existsPermissionForRoles(permission, listOf(roleId1, roleId2)),
             ).thenReturn(true)
 
             whenever(
@@ -419,7 +422,7 @@ class HybridAuthorizationServiceTest {
 
             assertThat(subjectAttributes["userId"]).isEqualTo(userId.toString())
             assertThat(subjectAttributes["roles"] as List<*>).containsExactlyInAnyOrder("admin", "editor")
-            assertThat(subjectAttributes["roleIds"] as List<*>).containsExactlyInAnyOrder(1, 2)
+            assertThat(subjectAttributes["roleIds"] as List<*>).containsExactlyInAnyOrder(roleId1, roleId2)
             assertThat(subjectAttributes["groups"] as List<*>).contains(groupId.toString())
         }
 
@@ -640,7 +643,7 @@ class HybridAuthorizationServiceTest {
             verify(auditService).logAuthorizationDecision(
                 any<UUID>(),
                 anyOrNull<List<UUID>>(),
-                anyOrNull<List<Int>>(),
+                anyOrNull<List<UUID>>(),
                 any<String>(),
                 anyOrNull<String>(),
                 anyOrNull<UUID>(),
@@ -684,7 +687,7 @@ class HybridAuthorizationServiceTest {
             verify(auditService).logAuthorizationDecision(
                 any<UUID>(),
                 anyOrNull<List<UUID>>(),
-                anyOrNull<List<Int>>(),
+                anyOrNull<List<UUID>>(),
                 any<String>(),
                 anyOrNull<String>(),
                 anyOrNull<UUID>(),

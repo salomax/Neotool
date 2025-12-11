@@ -5,15 +5,16 @@ import io.micronaut.data.annotation.Query
 import io.micronaut.data.annotation.Repository
 import io.micronaut.data.jpa.repository.JpaRepository
 import java.util.Optional
+import java.util.UUID
 
 @Repository
-interface RoleRepository : JpaRepository<RoleEntity, Int> {
+interface RoleRepository : JpaRepository<RoleEntity, UUID> {
     fun findByName(name: String): Optional<RoleEntity>
 
     /**
      * Find all roles by their IDs.
      */
-    fun findByIdIn(ids: List<Int>): List<RoleEntity>
+    fun findByIdIn(ids: List<UUID>): List<RoleEntity>
 
     /**
      * Find permission IDs for a role via the role_permissions join table.
@@ -26,7 +27,7 @@ interface RoleRepository : JpaRepository<RoleEntity, Int> {
         """,
         nativeQuery = true,
     )
-    fun findPermissionIdsByRoleId(roleId: Int): List<Int>
+    fun findPermissionIdsByRoleId(roleId: UUID): List<UUID>
 
     /**
      * Find all unique permission IDs for multiple roles via the role_permissions join table.
@@ -40,7 +41,7 @@ interface RoleRepository : JpaRepository<RoleEntity, Int> {
         """,
         nativeQuery = true,
     )
-    fun findPermissionIdsByRoleIds(roleIds: List<Int>): List<Int>
+    fun findPermissionIdsByRoleIds(roleIds: List<UUID>): List<UUID>
 
     /**
      * Check if a role has any user assignments.
@@ -58,7 +59,7 @@ interface RoleRepository : JpaRepository<RoleEntity, Int> {
         """,
         nativeQuery = true,
     )
-    fun hasUserAssignments(roleId: Int): Boolean
+    fun hasUserAssignments(roleId: UUID): Boolean
 
     /**
      * Check if a role has any group assignments.
@@ -76,7 +77,7 @@ interface RoleRepository : JpaRepository<RoleEntity, Int> {
         """,
         nativeQuery = true,
     )
-    fun hasGroupAssignments(roleId: Int): Boolean
+    fun hasGroupAssignments(roleId: UUID): Boolean
 
     /**
      * Check if a role has any permissions assigned.
@@ -94,7 +95,7 @@ interface RoleRepository : JpaRepository<RoleEntity, Int> {
         """,
         nativeQuery = true,
     )
-    fun hasPermissions(roleId: Int): Boolean
+    fun hasPermissions(roleId: UUID): Boolean
 
     /**
      * Assign a permission to a role by inserting into the role_permissions join table.
@@ -111,8 +112,8 @@ interface RoleRepository : JpaRepository<RoleEntity, Int> {
         nativeQuery = true,
     )
     fun assignPermissionToRole(
-        roleId: Int,
-        permissionId: Int,
+        roleId: UUID,
+        permissionId: UUID,
     )
 
     /**
@@ -129,8 +130,8 @@ interface RoleRepository : JpaRepository<RoleEntity, Int> {
         nativeQuery = true,
     )
     fun removePermissionFromRole(
-        roleId: Int,
-        permissionId: Int,
+        roleId: UUID,
+        permissionId: UUID,
     )
 
     /**
@@ -150,8 +151,8 @@ interface RoleRepository : JpaRepository<RoleEntity, Int> {
         nativeQuery = true,
     )
     fun isPermissionAssignedToRole(
-        roleId: Int,
-        permissionId: Int,
+        roleId: UUID,
+        permissionId: UUID,
     ): Boolean
 
     /**
@@ -168,7 +169,7 @@ interface RoleRepository : JpaRepository<RoleEntity, Int> {
         """,
         nativeQuery = true,
     )
-    fun findRoleIdsByPermissionId(permissionId: Int): List<Int>
+    fun findRoleIdsByPermissionId(permissionId: UUID): List<UUID>
 
     /**
      * Find all role IDs that have any of the given permissions assigned (batch loading).
@@ -187,5 +188,5 @@ interface RoleRepository : JpaRepository<RoleEntity, Int> {
         """,
         nativeQuery = true,
     )
-    fun findRoleIdsByPermissionIds(permissionIds: List<Int>): List<Int>
+    fun findRoleIdsByPermissionIds(permissionIds: List<UUID>): List<UUID>
 }

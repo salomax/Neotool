@@ -36,14 +36,14 @@ interface RoleAssignmentRepository : JpaRepository<RoleAssignmentEntity, UUID> {
     /**
      * Find role assignments by role ID.
      */
-    fun findByRoleId(roleId: Int): List<RoleAssignmentEntity>
+    fun findByRoleId(roleId: UUID): List<RoleAssignmentEntity>
 
     /**
      * Find role assignments by user ID and role ID.
      */
     fun findByUserIdAndRoleId(
         userId: UUID,
-        roleId: Int,
+        roleId: UUID,
     ): List<RoleAssignmentEntity>
 
     /**

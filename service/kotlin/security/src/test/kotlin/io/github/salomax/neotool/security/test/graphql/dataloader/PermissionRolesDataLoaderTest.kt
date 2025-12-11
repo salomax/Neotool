@@ -13,6 +13,7 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import java.util.UUID
 
 @DisplayName("PermissionRolesDataLoader Tests")
 class PermissionRolesDataLoaderTest {
@@ -33,8 +34,8 @@ class PermissionRolesDataLoaderTest {
             // Arrange
             val permissionId1 = "10"
             val permissionId2 = "20"
-            val role1 = RoleDTO(id = "1", name = "admin")
-            val role2 = RoleDTO(id = "2", name = "editor")
+            val role1 = RoleDTO(id = UUID.randomUUID().toString(), name = "admin")
+            val role2 = RoleDTO(id = UUID.randomUUID().toString(), name = "editor")
             whenever(permissionManagementResolver.resolvePermissionRolesBatch(any<List<String>>()))
                 .thenReturn(
                     mapOf(

@@ -72,7 +72,7 @@ class SecurityGraphQLFactory(
                                     "Role" -> {
                                         val role =
                                             roleRepository.findById(
-                                                id.toString().toInt(),
+                                                UUID.fromString(id.toString()),
                                             )
                                                 .orElse(null)
                                         role?.let {
@@ -87,7 +87,7 @@ class SecurityGraphQLFactory(
                                     }
                                     "Permission" -> {
                                         val permission =
-                                            permissionRepository.findById(id.toString().toInt())
+                                            permissionRepository.findById(UUID.fromString(id.toString()))
                                                 .orElse(null)
                                         permission?.let {
                                             val permissionDomain = it.toDomain()

@@ -1033,8 +1033,8 @@ class GroupManagementServiceTest {
             // Arrange
             val groupId1 = UUID.randomUUID()
             val groupId2 = UUID.randomUUID()
-            val roleId1 = 1
-            val roleId2 = 2
+            val roleId1 = UUID.randomUUID()
+            val roleId2 = UUID.randomUUID()
             val assignment1 =
                 SecurityTestDataBuilders.groupRoleAssignment(
                     groupId = groupId1,
@@ -1051,7 +1051,7 @@ class GroupManagementServiceTest {
             whenever(
                 groupRoleAssignmentRepository.findValidAssignmentsByGroupIds(any<List<UUID>>(), any()),
             ).thenReturn(listOf(assignment1, assignment2))
-            whenever(roleRepository.findByIdIn(any<List<Int>>())).thenReturn(listOf(role1, role2))
+            whenever(roleRepository.findByIdIn(any<List<UUID>>())).thenReturn(listOf(role1, role2))
 
             // Act
             val result = groupManagementService.getGroupRolesBatch(listOf(groupId1, groupId2))
@@ -1094,8 +1094,8 @@ class GroupManagementServiceTest {
         fun `getGroupRolesBatch should handle groups with multiple roles`() {
             // Arrange
             val groupId = UUID.randomUUID()
-            val roleId1 = 1
-            val roleId2 = 2
+            val roleId1 = UUID.randomUUID()
+            val roleId2 = UUID.randomUUID()
             val assignment1 =
                 SecurityTestDataBuilders.groupRoleAssignment(
                     groupId = groupId,
@@ -1112,7 +1112,7 @@ class GroupManagementServiceTest {
             whenever(
                 groupRoleAssignmentRepository.findValidAssignmentsByGroupIds(any<List<UUID>>(), any()),
             ).thenReturn(listOf(assignment1, assignment2))
-            whenever(roleRepository.findByIdIn(any<List<Int>>())).thenReturn(listOf(role1, role2))
+            whenever(roleRepository.findByIdIn(any<List<UUID>>())).thenReturn(listOf(role1, role2))
 
             // Act
             val result = groupManagementService.getGroupRolesBatch(listOf(groupId))

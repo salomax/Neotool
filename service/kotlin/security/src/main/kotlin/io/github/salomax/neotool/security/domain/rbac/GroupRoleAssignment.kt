@@ -7,7 +7,7 @@ import java.util.UUID
 data class GroupRoleAssignment(
     val id: UUID? = null,
     val groupId: UUID,
-    val roleId: Int,
+    val roleId: UUID,
     val validFrom: Instant? = null,
     val validUntil: Instant? = null,
     val createdAt: Instant = Instant.now(),

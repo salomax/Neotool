@@ -44,6 +44,11 @@ Commands:
     Options: --web, --service [name], --skip-coverage
     Run '$0 validate --help' for more information.
 
+  $(log "kafka" "$GREEN") [options] <command>
+    Manage Kafka topics and consumer groups.
+    Commands: --topic [name], --consumer-group [name], --reset-offsets
+    Run '$0 kafka --help' for more information.
+
 Options:
   -v, --version    Check system requirements (Node.js, Docker, JVM)
 
@@ -55,6 +60,10 @@ Examples:
   $0 validate
   $0 validate --web
   $0 validate --service security
+  $0 kafka --topic
+  $0 kafka --topic swapi.people.v1
+  $0 kafka --consumer-group
+  $0 kafka --reset-offsets --group swapi-people-consumer-group --topic swapi.people.v1 --to-earliest --execute
   $0 --version
 
 For more information about a specific command, run it with --help.
@@ -96,6 +105,12 @@ main() {
     # Handle graphql command (has subcommands)
     if [[ "$command" == "graphql" ]]; then
         execute_command "graphql" "$@"
+        exit $?
+    fi
+    
+    # Handle kafka command (has subcommands)
+    if [[ "$command" == "kafka" ]]; then
+        execute_command "kafka" "$@"
         exit $?
     fi
     

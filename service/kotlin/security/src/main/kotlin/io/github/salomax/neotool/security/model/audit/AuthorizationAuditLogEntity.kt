@@ -26,7 +26,7 @@ open class AuthorizationAuditLogEntity(
     open var groups: List<UUID>? = null,
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "roles", columnDefinition = "jsonb")
-    open var roles: List<Int>? = null,
+    open var roles: List<UUID>? = null,
     @Column(name = "requested_action", nullable = false)
     open var requestedAction: String,
     @Column(name = "resource_type")

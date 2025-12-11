@@ -147,9 +147,11 @@ class CustomerService { ... }
 
 ### Rule: Imports
 
-**Rule**: Organize imports: standard library, third-party, project imports.
+**Rule**: Organize imports in lexicographic (alphabetical) order: project imports, third-party imports, then standard library imports (`java.*`, `javax.*`, `kotlin.*`) at the end.
 
-**Rationale**: Clear import organization.
+**Rationale**: Clear import organization following ktlint standards.
+
+**Details**: See [Linting Standards](./linting-standards.md#import-ordering-pattern) for complete import ordering rules and examples.
 
 ## Domain-Entity Conversion
 

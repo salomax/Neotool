@@ -13,6 +13,7 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import java.util.UUID
 
 @DisplayName("UserRolesDataLoader Tests")
 class UserRolesDataLoaderTest {
@@ -33,8 +34,8 @@ class UserRolesDataLoaderTest {
             // Arrange
             val userId1 = "user1"
             val userId2 = "user2"
-            val role1 = RoleDTO(id = "1", name = "admin")
-            val role2 = RoleDTO(id = "2", name = "editor")
+            val role1 = RoleDTO(id = UUID.randomUUID().toString(), name = "admin")
+            val role2 = RoleDTO(id = UUID.randomUUID().toString(), name = "editor")
             whenever(userManagementResolver.resolveUserRolesBatch(any<List<String>>()))
                 .thenReturn(
                     mapOf(
@@ -66,9 +67,9 @@ class UserRolesDataLoaderTest {
             val userId1 = "user1"
             val userId2 = "user2"
             val userId3 = "user3"
-            val role1 = RoleDTO(id = "1", name = "admin")
-            val role2 = RoleDTO(id = "2", name = "editor")
-            val role3 = RoleDTO(id = "3", name = "viewer")
+            val role1 = RoleDTO(id = UUID.randomUUID().toString(), name = "admin")
+            val role2 = RoleDTO(id = UUID.randomUUID().toString(), name = "editor")
+            val role3 = RoleDTO(id = UUID.randomUUID().toString(), name = "viewer")
             whenever(userManagementResolver.resolveUserRolesBatch(any<List<String>>()))
                 .thenReturn(
                     mapOf(

@@ -17,6 +17,7 @@ import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.util.Optional
+import java.util.UUID
 
 @DisplayName("RoleManagementService Error Handling Tests")
 class RoleManagementServiceErrorTest {
@@ -44,7 +45,7 @@ class RoleManagementServiceErrorTest {
         @Test
         fun `should throw exception when updating non-existent role`() {
             // Arrange
-            val nonExistentRoleId = 999
+            val nonExistentRoleId = UUID.randomUUID()
             val command =
                 RoleManagement.UpdateRoleCommand(
                     roleId = nonExistentRoleId,
@@ -70,7 +71,7 @@ class RoleManagementServiceErrorTest {
         @Test
         fun `should handle delete operation gracefully when role doesn't exist`() {
             // Arrange
-            val nonExistentRoleId = 999
+            val nonExistentRoleId = UUID.randomUUID()
 
             // Act - delete should not throw even if role doesn't exist
             roleManagementService.deleteRole(nonExistentRoleId)
@@ -86,8 +87,8 @@ class RoleManagementServiceErrorTest {
         @Test
         fun `should throw exception when assigning permission to non-existent role`() {
             // Arrange
-            val nonExistentRoleId = 999
-            val permissionId = 1
+            val nonExistentRoleId = UUID.randomUUID()
+            val permissionId = UUID.randomUUID()
             val command = RoleManagement.AssignPermissionCommand(nonExistentRoleId, permissionId)
             whenever(roleRepository.findById(nonExistentRoleId)).thenReturn(Optional.empty())
 
@@ -105,8 +106,8 @@ class RoleManagementServiceErrorTest {
         @Test
         fun `should throw exception when assigning non-existent permission to role`() {
             // Arrange
-            val roleId = 1
-            val nonExistentPermissionId = 999
+            val roleId = UUID.randomUUID()
+            val nonExistentPermissionId = UUID.randomUUID()
             val command = RoleManagement.AssignPermissionCommand(roleId, nonExistentPermissionId)
             val roleEntity = io.github.salomax.neotool.security.test.SecurityTestDataBuilders.role(id = roleId)
             whenever(roleRepository.findById(roleId)).thenReturn(Optional.of(roleEntity))
@@ -130,8 +131,8 @@ class RoleManagementServiceErrorTest {
         @Test
         fun `should throw exception when removing permission from non-existent role`() {
             // Arrange
-            val nonExistentRoleId = 999
-            val permissionId = 1
+            val nonExistentRoleId = UUID.randomUUID()
+            val permissionId = UUID.randomUUID()
             val command = RoleManagement.RemovePermissionCommand(nonExistentRoleId, permissionId)
             whenever(roleRepository.findById(nonExistentRoleId)).thenReturn(Optional.empty())
 
@@ -149,8 +150,8 @@ class RoleManagementServiceErrorTest {
         @Test
         fun `should throw exception when removing non-existent permission from role`() {
             // Arrange
-            val roleId = 1
-            val nonExistentPermissionId = 999
+            val roleId = UUID.randomUUID()
+            val nonExistentPermissionId = UUID.randomUUID()
             val command = RoleManagement.RemovePermissionCommand(roleId, nonExistentPermissionId)
             val roleEntity = io.github.salomax.neotool.security.test.SecurityTestDataBuilders.role(id = roleId)
             whenever(roleRepository.findById(roleId)).thenReturn(Optional.of(roleEntity))

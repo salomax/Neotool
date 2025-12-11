@@ -120,12 +120,12 @@ object SortingConfigs {
             buildFieldPath = { root, _, field ->
                 when (field) {
                     RoleOrderField.NAME -> root.get<String>("name")
-                    RoleOrderField.ID -> root.get<Int>("id")
+                    RoleOrderField.ID -> root.get<UUID>("id")
                 }
             },
             extractCursorValue = { cursor, field, fieldName ->
                 when (field) {
-                    RoleOrderField.ID -> cursor.id.toInt()
+                    RoleOrderField.ID -> UUID.fromString(cursor.id)
                     else -> cursor.fieldValues[fieldName]
                 }
             },

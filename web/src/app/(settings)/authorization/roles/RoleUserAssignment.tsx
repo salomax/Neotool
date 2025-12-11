@@ -15,6 +15,7 @@ import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
 import { useToast } from "@/shared/providers";
 import { extractErrorMessage } from "@/shared/utils/error";
+import { useAuth } from "@/shared/providers/AuthProvider";
 
 export interface User {
   id: string;
@@ -56,6 +57,7 @@ export const RoleUserAssignment: React.FC<RoleUserAssignmentProps> = ({
 }) => {
   const { t } = useTranslation(authorizationManagementTranslations);
   const toast = useToast();
+  const { isAuthenticated } = useAuth();
 
   // Fetch all users for selection
   const { data, loading: usersLoading, error: usersError, refetch } = useGetUsersQuery({
@@ -63,7 +65,8 @@ export const RoleUserAssignment: React.FC<RoleUserAssignmentProps> = ({
       first: 1000, // Fetch a large number of users for selection
       query: undefined,
     },
-    skip: false,
+    skip: !isAuthenticated, // Skip if not authenticated
+    fetchPolicy: 'network-only', // Always fetch from network, no cache
   });
 
   // Transform users data for Autocomplete

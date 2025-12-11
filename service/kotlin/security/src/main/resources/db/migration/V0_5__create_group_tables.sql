@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS security.group_memberships (
 CREATE TABLE IF NOT EXISTS security.group_role_assignments (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
     group_id UUID NOT NULL REFERENCES security.groups(id) ON DELETE CASCADE,
-    role_id INT NOT NULL REFERENCES security.roles(id) ON DELETE CASCADE,
+    role_id UUID NOT NULL REFERENCES security.roles(id) ON DELETE CASCADE,
     valid_from TIMESTAMP, -- nullable, if null then valid from creation
     valid_until TIMESTAMP, -- nullable, if null then no expiry
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),

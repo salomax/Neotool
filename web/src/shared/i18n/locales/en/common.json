@@ -36,5 +36,12 @@
     "create": "Create",
     "update": "Update",
     "loading": "Loading..."
+  },
+  "errors": {
+    "connectionError": "We were unable to connect to the server. Please check your internet connection or wait a few moments.",
+    "connectionTimeout": "The request took too long to complete. Please check your connection and try again.",
+    "serviceUnavailable": "The service is temporarily unavailable. Please try again in a few moments.",
+    "gatewayTimeout": "The server is taking too long to respond. Please try again later.",
+    "default": "An error occurred"
   }
 }

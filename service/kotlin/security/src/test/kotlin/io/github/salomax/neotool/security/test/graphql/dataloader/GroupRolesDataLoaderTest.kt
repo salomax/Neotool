@@ -13,6 +13,7 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import java.util.UUID
 
 @DisplayName("GroupRolesDataLoader Tests")
 class GroupRolesDataLoaderTest {
@@ -33,8 +34,8 @@ class GroupRolesDataLoaderTest {
             // Arrange
             val groupId1 = "group1"
             val groupId2 = "group2"
-            val role1 = RoleDTO(id = "1", name = "admin")
-            val role2 = RoleDTO(id = "2", name = "editor")
+            val role1 = RoleDTO(id = UUID.randomUUID().toString(), name = "admin")
+            val role2 = RoleDTO(id = UUID.randomUUID().toString(), name = "editor")
             whenever(groupManagementResolver.resolveGroupRolesBatch(any<List<String>>()))
                 .thenReturn(
                     mapOf(

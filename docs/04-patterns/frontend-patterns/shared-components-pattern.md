@@ -39,7 +39,7 @@ Generic UI components organized by purpose:
 - **`forms/`** - Form components and form fields
 - **`layout/`** - Layout components (Box, Stack, Grid, etc.)
 - **`data-display/`** - Data display components (Table, Chart, etc.)
-- **`navigation/`** - Navigation components (Tabs, Link, etc.)
+- **`navigation/`** - Navigation components (Breadcrumb, Tabs, Link, etc.)
 - **`pagination/`** - Pagination components
 - **`primitives/`** - Basic UI primitives (Button, Avatar, etc.)
 - **`patterns/`** - Reusable UI patterns
@@ -365,6 +365,151 @@ function UserManagement() {
 - All subcomponents are optional (only include what you need)
 - Generic slot names allow for flexible content (not just search/lists)
 
+## Navigation Components
+
+### Breadcrumb
+
+Breadcrumb navigation component for displaying page hierarchy and enabling quick navigation to parent pages.
+
+**Location**: `web/src/shared/components/ui/navigation/Breadcrumb.tsx`
+
+**Usage**:
+```typescript
+import { Breadcrumb, BreadcrumbItem } from "@/shared/components/ui/navigation";
+
+// Auto-generate from pathname
+function ProductPage() {
+  return (
+    <div>
+      <Breadcrumb />
+      {/* Page content */}
+    </div>
+  );
+}
+
+// Manual items for custom flows
+function PageB() {
+  const items: BreadcrumbItem[] = [
+    { label: "Page A", href: "/a" },
+    { label: "Page B" },
+  ];
+
+  return (
+    <div>
+      <Breadcrumb items={items} />
+      {/* Page content */}
+    </div>
+  );
+}
+
+// With route configuration for dynamic routes
+function UserProfilePage() {
+  const routeConfig = [
+    { path: "/users", label: "Users" },
+    { path: "/users/[id]", label: (params) => `User ${params.id}` },
+  ];
+
+  return (
+    <div>
+      <Breadcrumb routeConfig={routeConfig} />
+      {/* Page content */}
+    </div>
+  );
+}
+```
+
+**Props**:
+- `items?: BreadcrumbItem[]` - Manual breadcrumb items (takes precedence over auto-generation)
+- `autoGenerate?: boolean` - Auto-generate from pathname (default: true)
+- `routeConfig?: RouteConfig[]` - Route configuration for custom labels
+- `homeLabel?: string` - Home label (default: "Home")
+- `homeHref?: string` - Home href (default: "/")
+- `maxItems?: number` - Maximum visible items (default: 5)
+- `showHome?: boolean` - Show home item (default: true)
+- `currentPageClickable?: boolean` - Make last item clickable (default: false)
+- `responsive?: boolean` - Collapse on mobile (default: true)
+- `separator?: React.ReactNode` - Custom separator
+- `variant?: "default" | "compact" | "minimal"` - Visual variant
+- `size?: "small" | "medium" | "large"` - Size variant
+- `renderItem?: (item, index, isLast) => React.ReactNode` - Custom item renderer
+- `renderSeparator?: () => React.ReactNode` - Custom separator renderer
+
+**Features**:
+- Auto-generation from Next.js pathname
+- Manual items for custom navigation flows
+- Route configuration for dynamic routes
+- Automatic truncation with maxItems
+- Responsive collapse on mobile
+- Accessibility support (ARIA labels, keyboard navigation)
+- Customizable variants and sizes
+- Icon support per breadcrumb item
+
+**See also**: [Breadcrumb Pattern](./breadcrumb-pattern.md) - Detailed breadcrumb usage patterns
+
+### Link
+
+Enhanced Link component that integrates Next.js Link with Material-UI Link.
+
+**Location**: `web/src/shared/components/ui/navigation/Link.tsx`
+
+**Usage**:
+```typescript
+import { Link } from "@/shared/components/ui/navigation";
+
+// Internal link
+<Link href="/products">Products</Link>
+
+// External link
+<Link href="https://example.com" external>External Site</Link>
+
+// With icon
+<Link href="/products" showIcon>Products</Link>
+```
+
+**Props**:
+- `href: string` - Link destination
+- `external?: boolean` - External link (opens in new tab)
+- `showIcon?: boolean` - Show external link icon
+- `name?: string` - Name for test ID generation
+- All Material-UI Link props
+
+**Features**:
+- Integrates Next.js Link with MUI Link
+- Automatic external link handling
+- Test ID generation support
+- Consistent styling with design system
+
+### Tabs
+
+Advanced tabs component with drag-and-drop, closable tabs, and badges.
+
+**Location**: `web/src/shared/components/ui/navigation/Tabs.tsx`
+
+**Usage**:
+```typescript
+import { Tabs, TabItem } from "@/shared/components/ui/navigation";
+
+const tabs: TabItem[] = [
+  { id: "tab1", label: "Tab 1", content: <div>Content 1</div> },
+  { id: "tab2", label: "Tab 2", content: <div>Content 2</div> },
+];
+
+<Tabs 
+  tabs={tabs}
+  showCloseButtons
+  draggable
+  onTabsChange={(newTabs) => console.log(newTabs)}
+/>
+```
+
+**Features**:
+- Closable tabs
+- Drag-and-drop reordering
+- Badge support
+- Icon support
+- Responsive scrolling
+- Customizable variants
+
 ## Mutation Hooks
 
 ### useToggleStatus
@@ -503,6 +648,7 @@ Don't create a shared component when:
 
 ## Related Documentation
 
+- [Breadcrumb Pattern](./breadcrumb-pattern.md) - Detailed breadcrumb navigation patterns
 - [Management Pattern](./management-pattern.md) - How to use shared components in management pages
 - [Toast Notification Pattern](./toast-notification-pattern.md) - User feedback patterns
 - [Component Pattern](./component-pattern.md) - General component patterns

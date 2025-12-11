@@ -1,5 +1,7 @@
 package io.github.salomax.neotool.security.domain
 
+import java.util.UUID
+
 /**
  * Domain objects for role management operations.
  * Provides command objects (DTOs) for role management operations.
@@ -26,7 +28,7 @@ object RoleManagement {
      * Includes input validation for domain rules (name length, required fields).
      */
     data class UpdateRoleCommand(
-        val roleId: Int,
+        val roleId: UUID,
         val name: String,
     ) {
         init {
@@ -40,23 +42,23 @@ object RoleManagement {
      * Note: Database foreign key constraints will prevent deletion if dependencies exist.
      */
     data class DeleteRoleCommand(
-        val roleId: Int,
+        val roleId: UUID,
     )
 
     /**
      * Command to assign a permission to a role.
      */
     data class AssignPermissionCommand(
-        val roleId: Int,
-        val permissionId: Int,
+        val roleId: UUID,
+        val permissionId: UUID,
     )
 
     /**
      * Command to remove a permission from a role.
      */
     data class RemovePermissionCommand(
-        val roleId: Int,
-        val permissionId: Int,
+        val roleId: UUID,
+        val permissionId: UUID,
     )
 
     /**

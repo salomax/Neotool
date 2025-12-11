@@ -29,7 +29,7 @@ object UserManagement {
      */
     data class AssignRoleToUserCommand(
         val userId: UUID,
-        val roleId: Int,
+        val roleId: UUID,
     )
 
     /**
@@ -37,7 +37,7 @@ object UserManagement {
      */
     data class RemoveRoleFromUserCommand(
         val userId: UUID,
-        val roleId: Int,
+        val roleId: UUID,
     )
 
     /**

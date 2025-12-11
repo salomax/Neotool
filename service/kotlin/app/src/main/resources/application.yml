@@ -4,6 +4,8 @@ micronaut:
   executors:
     blocking:
       virtual: true
+    consumer:
+      virtual: true
   server:
     port: 8081
     thread-selection: blocking
@@ -103,6 +105,149 @@ flyway:
       baseline-on-migrate: true
       baseline-version: 0
       table: flyway_schema_history_app
+
+# Kafka Configuration
+kafka:
+  # Kafka broker connection string
+  # Format: host1:port1,host2:port2 (for cluster)
+  # Example: localhost:9092 or kafka1:9092,kafka2:9092,kafka3:9092
+  bootstrap:
+    servers: ${KAFKA_BROKERS:localhost:9092}
+  
+  # Consumer configurations
+  # Each consumer configuration is named and can be referenced by consumer classes
+  consumers:
+    swapi-people:
+      # Consumer group ID - all consumers with same group-id share partitions
+      # Example: swapi-people-consumer-group, orders-processor-group
+      group-id: swapi-people-consumer-group
+      
+      # Manual commit control - when false, offsets are committed manually after processing
+      # true = auto-commit (less control, potential message loss on crashes)
+      # false = manual commit (recommended for at-least-once processing)
+      enable-auto-commit: false
+      
+      # Offset reset strategy when no committed offset exists
+      # earliest = read from beginning of topic
+      # latest = read only new messages (skip existing)
+      # none = throw exception if no offset found
+      auto-offset-reset: earliest
+      
+      # Maximum number of records to fetch in a single poll
+      # Higher = more throughput but more memory usage
+      # Lower = less memory but more network round-trips
+      # Example: 100 (default), 500 (high throughput), 10 (low memory)
+      max-poll-records: 100
+      
+      # Maximum time (ms) consumer can be idle before being removed from group
+      # If consumer doesn't send heartbeat within this time, it's considered dead
+      # Must be > heartbeat-interval-ms * 3
+      # Example: 30000 (30s), 60000 (60s for slow processing)
+      session-timeout-ms: 30000
+      
+      # How often (ms) consumer sends heartbeat to broker
+      # Must be < session-timeout-ms / 3
+      # Example: 10000 (10s), 3000 (3s for faster failure detection)
+      heartbeat-interval-ms: 10000
+      
+      # Deserializer for message keys (usually String or Long)
+      # Converts bytes from Kafka to Java/Kotlin objects
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      
+      # Deserializer for message values (JSON, Avro, etc.)
+      # Micronaut's serde handles JSON automatically with @Serdeable classes
+      value-deserializer: io.micronaut.serde.kafka.KafkaSerdeDeserializer
+  
+  # Producer configurations
+  # Used by @KafkaClient interfaces (e.g., DLQ publishers)
+  producers:
+    default:
+      # Acknowledgment requirement for message delivery
+      # 0 = no ack (fastest, can lose messages)
+      # 1 = leader ack (fast, can lose if leader fails before replication)
+      # all/-1 = all replicas ack (safest, slower)
+      acks: all
+      
+      # Prevent duplicate messages even if producer retries
+      # true = exactly-once semantics (recommended)
+      # false = at-least-once (may have duplicates)
+      enable-idempotence: true
+      
+      # Compression algorithm for message batches
+      # none = no compression (fastest, largest)
+      # gzip = good compression, slower
+      # snappy = fast compression, good balance (recommended)
+      # lz4 = fastest compression, less compression
+      # zstd = best compression, slower
+      compression-type: snappy
+      
+      # Wait time (ms) before sending batch to allow more messages
+      # 0 = send immediately (more network calls)
+      # 10 = wait 10ms to batch messages (good balance)
+      # Higher = better batching but more latency
+      linger-ms: 10
+      
+      # Number of retries for failed sends
+      # 0 = no retries (fail fast)
+      # 5 = retry 5 times (recommended)
+      # Higher = more resilience but potential duplicates
+      retries: 5
+      
+      # Serializer for message keys (usually String or Long)
+      # Converts Java/Kotlin objects to bytes for Kafka
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      
+      # Serializer for message values (JSON, Avro, etc.)
+      # Micronaut's serde handles JSON automatically with @Serdeable classes
+      value-serializer: io.micronaut.serde.kafka.KafkaSerdeSerializer
+
+# Batch Consumer Configuration
+# Controls retry behavior, DLQ handling, and commit timeouts for Kafka batch consumers
+batch:
+  consumer:
+    # Maximum number of retry attempts before sending message to DLQ
+    # Default: 3 (means 1 initial attempt + 3 retries = 4 total attempts)
+    # Example: 5 (for more resilient processing), 1 (for faster DLQ routing)
+    max-retries: 3
+    
+    # Initial delay (ms) before first retry attempt
+    # Default: 1000 (1 second)
+    # Example: 500 (faster retries), 2000 (more conservative)
+    initial-retry-delay-ms: 1000
+    
+    # Maximum delay (ms) between retry attempts (caps exponential backoff)
+    # Default: 10000 (10 seconds)
+    # Example: 30000 (for very slow systems), 5000 (for faster recovery)
+    max-retry-delay-ms: 10000
+    
+    # Exponential backoff multiplier for retry delays
+    # Formula: delay = initialRetryDelayMs * (multiplier ^ (attempt - 1))
+    # Default: 2.0 (doubles each retry: 1s, 2s, 4s, 8s, ...)
+    # Example: 1.5 (gentler backoff), 3.0 (more aggressive backoff)
+    retry-backoff-multiplier: 2.0
+    
+    # Timeout (seconds) for Kafka offset commit operations
+    # Default: 5
+    # Example: 10 (for slow networks), 3 (for fast local clusters)
+    commit-timeout-seconds: 5
+    
+    # Enable DLQ fallback mechanism (alternative storage when DLQ publish fails)
+    # Default: false (disabled until concrete implementation exists)
+    # Note: When enabled but not implemented, logs "not implemented" and returns false
+    # Example: true (when fallback storage is implemented)
+    enable-dlq-fallback: false
+    
+    # Maximum number of retry attempts for DLQ publishing itself
+    # Default: 3
+    # Example: 5 (for unreliable DLQ infrastructure), 1 (fail fast)
+    dlq-max-retries: 3
+    
+    # Timeout (seconds) for graceful shutdown to wait for in-flight work to complete
+    # During shutdown, the consumer will pause partitions and wait up to this duration
+    # for all in-flight messages to finish processing before closing
+    # Default: 30
+    # Example: 60 (for slow processing), 10 (for fast processing)
+    shutdown-timeout-seconds: 30
 
 # Management Endpoints Configuration
 endpoints:

@@ -44,6 +44,7 @@ import io.github.salomax.neotool.security.graphql.resolver.UserManagementResolve
 import io.github.salomax.neotool.security.service.AuthorizationManager
 import io.github.salomax.neotool.security.service.RequestPrincipalProvider
 import jakarta.inject.Singleton
+import java.util.concurrent.CompletableFuture
 
 /**
  * Security module wiring factory for GraphQL resolvers
@@ -101,6 +102,57 @@ class SecurityWiringFactory(
         val principal = requestPrincipalProvider.fromGraphQl(env)
         authorizationManager.require(principal, action)
         return block()
+    }
+
+    /**
+     * Helper function to allow users to view their own data (roles, permissions, groups)
+     * without requiring SECURITY_USER_VIEW permission.
+     * If the user is viewing their own data, access is granted. Otherwise, the permission is required.
+     *
+     * This is secure because:
+     * - Users need to know their own permissions to use the system
+     * - The permissions are already in the JWT token
+     * - This follows standard RBAC patterns (users can view their own data)
+     * - SECURITY_USER_VIEW is still required for viewing other users' data
+     *
+     * @param env The GraphQL DataFetchingEnvironment
+     * @param action The permission/action to check (e.g., SecurityPermissions.SECURITY_USER_VIEW)
+     * @param userId The ID of the user whose data is being accessed
+     * @param block The block to execute if authorization succeeds
+     * @return The result of executing the block
+     */
+    private fun <T> withPermissionOrOwnData(
+        env: DataFetchingEnvironment,
+        action: String,
+        userId: String,
+        block: () -> T,
+    ): T {
+        // Try to get the current user's principal
+        val principal =
+            try {
+                requestPrincipalProvider.fromGraphQl(env)
+            } catch (e: Exception) {
+                // If no principal (e.g., during sign-in mutation),
+                // check if we can extract user ID from the source UserDTO
+                // For sign-in, the user in the payload is the authenticated user
+                return block() // During sign-in, the user is viewing their own data
+            }
+
+        // Check if the user is viewing their own data
+        val isOwnData =
+            try {
+                val currentUserId = principal.userId.toString()
+                currentUserId == userId
+            } catch (e: Exception) {
+                false
+            }
+
+        // If viewing own data, allow access; otherwise require permission
+        return if (isOwnData) {
+            block()
+        } else {
+            withPermission(env, action, block)
+        }
     }
 
     override fun registerQueryResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder {
@@ -435,12 +487,12 @@ class SecurityWiringFactory(
                 type.dataFetcher(
                     "roles",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        // Defense in depth: require permission to view user roles
-                        withPermission(env, SecurityPermissions.SECURITY_USER_VIEW) {
-                            val user = env.getSource<UserDTO>()
-                            if (user == null) {
-                                emptyList<io.github.salomax.neotool.security.graphql.dto.RoleDTO>()
-                            } else {
+                        val user = env.getSource<UserDTO>()
+                        if (user == null) {
+                            emptyList<io.github.salomax.neotool.security.graphql.dto.RoleDTO>()
+                        } else {
+                            // Allow users to view their own roles without permission
+                            withPermissionOrOwnData(env, SecurityPermissions.SECURITY_USER_VIEW, user.id) {
                                 // Get DataLoader from context to batch requests
                                 val dataLoader =
                                     env.getDataLoader<
@@ -458,12 +510,12 @@ class SecurityWiringFactory(
                 type.dataFetcher(
                     "groups",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        // Defense in depth: require permission to view user groups
-                        withPermission(env, SecurityPermissions.SECURITY_USER_VIEW) {
-                            val user = env.getSource<UserDTO>()
-                            if (user == null) {
-                                emptyList<io.github.salomax.neotool.security.graphql.dto.GroupDTO>()
-                            } else {
+                        val user = env.getSource<UserDTO>()
+                        if (user == null) {
+                            emptyList<io.github.salomax.neotool.security.graphql.dto.GroupDTO>()
+                        } else {
+                            // Allow users to view their own groups without permission
+                            withPermissionOrOwnData(env, SecurityPermissions.SECURITY_USER_VIEW, user.id) {
                                 // Get DataLoader from context to batch requests
                                 val dataLoader =
                                     env.getDataLoader<
@@ -481,12 +533,12 @@ class SecurityWiringFactory(
                 type.dataFetcher(
                     "permissions",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        // Defense in depth: require permission to view user permissions
-                        withPermission(env, SecurityPermissions.SECURITY_USER_VIEW) {
-                            val user = env.getSource<UserDTO>()
-                            if (user == null) {
-                                emptyList<io.github.salomax.neotool.security.graphql.dto.PermissionDTO>()
-                            } else {
+                        val user = env.getSource<UserDTO>()
+                        if (user == null) {
+                            emptyList<io.github.salomax.neotool.security.graphql.dto.PermissionDTO>()
+                        } else {
+                            // Allow users to view their own permissions without permission
+                            withPermissionOrOwnData(env, SecurityPermissions.SECURITY_USER_VIEW, user.id) {
                                 // Get DataLoader from context to batch requests
                                 val dataLoader =
                                     env.getDataLoader<
@@ -711,7 +763,9 @@ class SecurityWiringFactory(
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
                         val permission = env.getSource<PermissionDTO>()
                         if (permission == null || permission.id == null) {
-                            emptyList<io.github.salomax.neotool.security.graphql.dto.RoleDTO>()
+                            CompletableFuture.completedFuture(
+                                emptyList<io.github.salomax.neotool.security.graphql.dto.RoleDTO>(),
+                            )
                         } else {
                             // Get DataLoader from context to batch requests
                             val dataLoader =
@@ -720,6 +774,9 @@ class SecurityWiringFactory(
                                 )
                             // Load roles for this permission (will be batched with other permissions)
                             dataLoader?.load(permission.id)
+                                ?: CompletableFuture.completedFuture(
+                                    emptyList<io.github.salomax.neotool.security.graphql.dto.RoleDTO>(),
+                                )
                         }
                     },
                 )

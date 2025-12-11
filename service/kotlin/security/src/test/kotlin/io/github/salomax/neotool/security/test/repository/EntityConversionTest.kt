@@ -177,7 +177,7 @@ class EntityConversionTest {
         @Test
         fun `toEntity should preserve existing ID when domain has id`() {
             // Arrange
-            val existingId = 1
+            val existingId = UUID.randomUUID()
             val domain =
                 Role(
                     id = existingId,
@@ -199,7 +199,7 @@ class EntityConversionTest {
             // Arrange
             val entity =
                 SecurityTestDataBuilders.role(
-                    id = 1,
+                    id = UUID.randomUUID(),
                     name = "Test Role",
                 )
 
@@ -240,7 +240,7 @@ class EntityConversionTest {
         @Test
         fun `toEntity should preserve existing ID when domain has id`() {
             // Arrange
-            val existingId = 1
+            val existingId = UUID.randomUUID()
             val domain =
                 Permission(
                     id = existingId,
@@ -262,7 +262,7 @@ class EntityConversionTest {
             // Arrange
             val entity =
                 SecurityTestDataBuilders.permission(
-                    id = 1,
+                    id = UUID.randomUUID(),
                     name = "permission:test",
                 )
 

@@ -1,0 +1,98 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SWAPI People Message",
+  "description": "Kafka message schema for SWAPI people data",
+  "type": "object",
+  "required": ["batch_id", "record_id", "ingested_at", "payload"],
+  "properties": {
+    "batch_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identifier for the ETL batch run"
+    },
+    "record_id": {
+      "type": "string",
+      "description": "Unique identifier for the person record (extracted from SWAPI URL)"
+    },
+    "ingested_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when the record was ingested"
+    },
+    "payload": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Person's name"
+        },
+        "height": {
+          "type": "string",
+          "description": "Person's height in centimeters"
+        },
+        "mass": {
+          "type": "string",
+          "description": "Person's mass in kilograms"
+        },
+        "hair_color": {
+          "type": "string",
+          "description": "Person's hair color"
+        },
+        "skin_color": {
+          "type": "string",
+          "description": "Person's skin color"
+        },
+        "eye_color": {
+          "type": "string",
+          "description": "Person's eye color"
+        },
+        "birth_year": {
+          "type": "string",
+          "description": "Person's birth year (BBY/ABY format)"
+        },
+        "gender": {
+          "type": "string",
+          "description": "Person's gender"
+        },
+        "homeworld_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to the person's homeworld"
+        },
+        "films": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uri"
+          },
+          "description": "List of film URLs featuring this person"
+        },
+        "species": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uri"
+          },
+          "description": "List of species URLs for this person"
+        },
+        "vehicles": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uri"
+          },
+          "description": "List of vehicle URLs owned by this person"
+        },
+        "starships": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uri"
+          },
+          "description": "List of starship URLs owned by this person"
+        }
+      }
+    }
+  }
+}

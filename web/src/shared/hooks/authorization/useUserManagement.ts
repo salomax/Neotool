@@ -14,10 +14,12 @@ import {
   useRemoveRoleFromUserMutation,
 } from '@/lib/graphql/operations/authorization-management/mutations.generated';
 import { extractErrorMessage } from '@/shared/utils/error';
+import { hasAuthToken, isAuthenticationError, handleAuthError } from '@/shared/utils/auth';
 import { useRelayPagination } from '@/shared/hooks/pagination';
 import { useDebouncedSearch } from '@/shared/hooks/search';
 import { useSorting } from '@/shared/hooks/sorting';
 import { useMutationWithRefetch } from '@/shared/hooks/mutations';
+import { useAuth } from '@/shared/providers/AuthProvider';
 import type { UserSortState, UserOrderField } from '@/shared/utils/sorting';
 import type { UserOrderByInput } from '@/lib/graphql/types/__generated__/graphql';
 
@@ -143,12 +145,20 @@ export type UseUserManagementReturn = {
  * ```
  */
 export function useUserManagement(options: UseUserManagementOptions = {}): UseUserManagementReturn {
+  const { isAuthenticated } = useAuth();
+  
   // Local state
   const [first, setFirst] = useState(options.initialFirst || 10);
   const [after, setAfter] = useState<string | null>(null);
 
   // State to preserve previous data during loading to prevent flicker
   const [previousData, setPreviousData] = useState<typeof usersData | null>(null);
+  
+  // Track if we've seen an auth error to prevent infinite retries
+  const [hasAuthError, setHasAuthError] = useState(false);
+  
+  // Check if we actually have a token (even if isAuthenticated is true, token might be invalid)
+  const hasToken = hasAuthToken();
 
   // Search state
   const [searchQuery, setSearchQuery] = useState(options.initialSearchQuery || "");
@@ -165,7 +175,7 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
     onSortChange: handleSortChange,
   });
 
-  // GraphQL hooks
+  // GraphQL hooks - skip query if not authenticated or if we've seen an auth error
   const { data: usersData, loading, error, refetch } = useGetUsersQuery({
     variables: {
       first,
@@ -175,9 +185,30 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
       // but TypeScript sees them as different types due to separate type definitions
       orderBy: (graphQLOrderBy as UserOrderByInput[] | undefined) || undefined,
     },
-    skip: false,
+    skip: !isAuthenticated || !hasToken || hasAuthError, // Skip if not authenticated, no token, or auth error occurred
     notifyOnNetworkStatusChange: true, // Keep loading state accurate during transitions
+    fetchPolicy: 'network-only', // Always fetch from network, no cache
   });
+
+  // Helper to check if error is auth error
+  const isAuthError = useMemo(() => {
+    if (!error) return false;
+    const errorMessage = extractErrorMessage(error);
+    return isAuthenticationError(error, errorMessage);
+  }, [error]);
+
+  // Handle authentication errors - redirect to sign-in and prevent retries
+  useEffect(() => {
+    if (error && isAuthError && !hasAuthError) {
+      // Set error flag immediately to prevent further queries
+      setHasAuthError(true);
+      // Clear storage and redirect
+      handleAuthError('/signin');
+    } else if (isAuthenticated && hasToken && hasAuthError) {
+      // Reset auth error flag if user becomes authenticated and has a token
+      setHasAuthError(false);
+    }
+  }, [error, isAuthError, isAuthenticated, hasToken, hasAuthError]);
 
   // Update previous data state when we have new data
   useEffect(() => {
@@ -208,16 +239,17 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
     errorMessage: 'Failed to update user',
   });
 
-  // Derived data - use previous data while loading to prevent flicker
-  const users = useMemo(() => {
-    // Keep previous data visible while loading new data
-    const currentData = usersData || (loading ? previousData : null);
-    return currentData?.users?.edges?.map(e => e.node) || [];
+  // Get current data (use previous data while loading to prevent flicker)
+  const currentData = useMemo(() => {
+    return usersData || (loading ? previousData : null);
   }, [usersData, loading, previousData]);
 
+  // Derived data - use previous data while loading to prevent flicker
+  const users = useMemo(() => {
+    return currentData?.users?.edges?.map(e => e.node) || [];
+  }, [currentData]);
+
   const pageInfo = useMemo(() => {
-    // Use previous data if current is loading
-    const currentData = usersData || (loading ? previousData : null);
     const info = currentData?.users?.pageInfo || null;
     if (!info) {
       return null;
@@ -226,16 +258,14 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
       ...info,
       hasPreviousPage: info.hasPreviousPage || after !== null,
     };
-  }, [usersData, loading, after, previousData]);
+  }, [currentData, after]);
 
   // totalCount is always calculated by the backend (never null)
   // When query is null/empty: totalCount = total count of all items
   // When query is provided: totalCount = total count of filtered items
   const totalCount = useMemo(() => {
-    // Use previous data if current is loading
-    const currentData = usersData || (loading ? previousData : null);
     return currentData?.users?.totalCount ?? null;
-  }, [usersData, loading, previousData]);
+  }, [currentData]);
 
   // Use shared pagination hook
   const {
@@ -374,8 +404,8 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
     assignRoleLoading,
     removeRoleLoading,
     
-    // Error handling
-    error: error ? new Error(extractErrorMessage(error)) : undefined,
+    // Error handling - don't return auth errors to prevent blinking
+    error: error && !isAuthError ? new Error(extractErrorMessage(error)) : undefined,
     
     // Utilities
     refetch,

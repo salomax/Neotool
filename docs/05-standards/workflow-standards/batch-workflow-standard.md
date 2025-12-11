@@ -3,10 +3,10 @@ title: Batch Workflow Standard
 type: standard
 category: workflow
 status: current
-version: 1.0.0
+version: 1.1.0
 tags: [workflow, batch, prefect, kafka, kotlin, cron, retries]
 ai_optimized: true
-search_keywords: [batch job, workflow standard, prefect, kafka, cron, retry, fallback]
+search_keywords: [batch job, workflow standard, prefect, kafka, cron, retry, fallback, prefect3]
 related:
   - 04-patterns/backend-patterns/repository-pattern.md
   - 05-standards/observability-standards.md
@@ -16,9 +16,11 @@ related:
 
 # Batch Workflow Standard
 
-> **Purpose**: Define mandatory rules for designing, implementing, and operating batch workflows orchestrated via Prefect and processed by Kotlin services using Kafka.
+> **Purpose**: Define mandatory rules for designing, implementing, and operating batch workflows orchestrated via Prefect 3.x and processed by Kotlin services using Kafka.
 
 This standard applies to every job that runs under `workflow/` or `pipelines/` and to all Kotlin consumers that belong to `service/kotlin/**/batch`.
+
+**Note**: This standard is based on Prefect 3.6.5+ which uses work pools and work queues instead of the older deployment model.
 
 ## 1. Architecture Rules
 
@@ -41,9 +43,12 @@ This standard applies to every job that runs under `workflow/` or `pipelines/` a
 - **Rule**: Cron strings MUST avoid overlaps with other critical jobs; annotate environment/timezone in the template.
 
 ### 2.2 Deployments
-- Prefect deployment files belong under `workflow/` or `pipelines/`.
-- Command MUST include: deployment name, work queue, storage block, concurrency key, and schedule.
-- Store deployment command, parameters, and environment variables inside the template.
+- Prefect 3.x uses `prefect.yaml` configuration files (located under `workflow/` or `pipelines/`).
+- Prefect 3.x requires work pools and work queues (replaces older deployment model).
+- Deployment command: `prefect deploy --name <deployment-name>` (uses `prefect.yaml`).
+- For local development: use `process` work pool type, answer "n" to remote storage.
+- For production: use `docker`/`kubernetes` work pool type, use remote storage (GitHub, S3, etc.).
+- Store deployment configuration, parameters, and environment variables in `prefect.yaml` and template.
 
 ### 2.3 Concurrency Controls
 - **Rule**: Set Prefect concurrency limits (tags or concurrency key) to prevent overlapping runs per environment.
@@ -116,6 +121,7 @@ Before releasing a new job:
 ## 6. Documentation Requirements
 
 - Every job MUST have a completed [Batch Workflow Template](../../08-templates/documents/batch-workflow-template.md) stored under `docs/07-examples` or project-specific folder.
+- Every job MUST have a runbook (operations guide) committed alongside the job docs (e.g., under `docs/07-examples/<job>/` or the service module’s docs). The runbook MUST cover: how to start/stop the job, required env vars/secrets, health checks, Kafka commands/topics/groups, DLQ handling, troubleshooting steps, and escalation. Use the SWAPI ETL runbook as a reference pattern.
 - Link template + runbook inside feature specs when relevant.
 - Update `docs/MANIFEST.md` when adding new job docs.
 

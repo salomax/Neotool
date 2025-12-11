@@ -162,7 +162,7 @@ export const GroupManagement: React.FC<GroupManagementProps> = ({
           onGoToFirst={goToFirstPage}
           canLoadPreviousPage={canLoadPreviousPage}
           onTableResize={handleTableResize}
-          recalculationKey={`${groups.length}-${loading ? "loading" : "ready"}`}
+          recalculationKey={groups.length}
           orderBy={orderBy}
           onSortChange={handleSort}
         />
