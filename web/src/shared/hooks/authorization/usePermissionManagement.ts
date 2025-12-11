@@ -14,6 +14,10 @@ export type Permission = {
 export type UsePermissionManagementOptions = {
   initialSearchQuery?: string;
   initialFirst?: number;
+  /**
+   * When true, skips executing the query. Useful to defer fetching until UI is visible.
+   */
+  skip?: boolean;
 };
 
 export type UsePermissionManagementReturn = {
@@ -97,6 +101,7 @@ export function usePermissionManagement(options: UsePermissionManagementOptions 
   const previousAfterRef = useRef<string | null>(null);
   // Cursor history for backward navigation
   const cursorHistoryRef = useRef<string[]>([]);
+  const waitingForData = options.skip ?? false;
 
   // GraphQL hooks
   const { data: permissionsData, loading, error, refetch } = useGetPermissionsQuery({
@@ -105,17 +110,23 @@ export function usePermissionManagement(options: UsePermissionManagementOptions 
       after: after || undefined,
       query: searchQuery || undefined,
     },
-    skip: false,
+    skip: waitingForData,
   });
 
   // Derived data - memoize to prevent unnecessary re-renders
   const permissions = useMemo(() => {
+    if (waitingForData) {
+      return [];
+    }
     return permissionsData?.permissions?.edges?.map(e => e.node) || [];
-  }, [permissionsData?.permissions?.edges]);
+  }, [permissionsData?.permissions?.edges, waitingForData]);
 
   const pageInfo = useMemo(() => {
+    if (waitingForData) {
+      return null;
+    }
     return permissionsData?.permissions?.pageInfo || null;
-  }, [permissionsData?.permissions?.pageInfo]);
+  }, [permissionsData?.permissions?.pageInfo, waitingForData]);
 
   // Track cursor history for backward navigation
   useEffect(() => {
@@ -182,13 +193,12 @@ export function usePermissionManagement(options: UsePermissionManagementOptions 
     setSearchQuery,
     
     // Loading states
-    loading,
+    loading: waitingForData || loading,
     
     // Error handling
-    error: error ? new Error(extractErrorMessage(error)) : undefined,
+    error: waitingForData ? undefined : error ? new Error(extractErrorMessage(error)) : undefined,
     
     // Utilities
     refetch,
   };
 }
-

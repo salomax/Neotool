@@ -98,11 +98,15 @@ export function useRelayPagination<T>(
       startTransition(() => {
         setRangeStart(1);
         setCanLoadPreviousPage(false);
-        setAfter(null);
+        // Only set after to null if it's not already null to avoid unnecessary state updates
+        // that could cause Apollo Client to cancel in-flight requests
+        if (after !== null) {
+          setAfter(null);
+        }
       });
       previousSearchQueryRef.current = searchQuery;
     }
-  }, [searchQuery, setAfter]);
+  }, [searchQuery, setAfter, after]);
 
   // Reset pagination tracking when after cursor is reset to null externally
   // This happens when sorting changes or other operations reset pagination
@@ -143,7 +147,7 @@ export function useRelayPagination<T>(
     };
   }, [items.length, rangeStart, totalCount]);
 
-  // Pagination functions
+  // Pagination functions (non-urgent updates)
   const loadNextPage = useCallback(() => {
     if (pageInfo?.hasNextPage && pageInfo?.endCursor) {
       const nextCursor = pageInfo.endCursor;
@@ -153,18 +157,22 @@ export function useRelayPagination<T>(
         start: rangeStartRef.current,
       });
       rangeStartRef.current = nextStart;
-      setRangeStart(nextStart);
-      setCanLoadPreviousPage(true);
-      setAfter(nextCursor);
+      startTransition(() => {
+        setRangeStart(nextStart);
+        setCanLoadPreviousPage(true);
+        setAfter(nextCursor);
+      });
     }
   }, [pageInfo, setAfter, items.length, after]);
 
   const goToFirstPage = useCallback(() => {
     cursorHistoryRef.current = [];
     rangeStartRef.current = 1;
-    setRangeStart(1);
-    setCanLoadPreviousPage(false);
-    setAfter(null);
+    startTransition(() => {
+      setRangeStart(1);
+      setCanLoadPreviousPage(false);
+      setAfter(null);
+    });
   }, [setAfter]);
 
   const loadPreviousPage = useCallback(() => {
@@ -172,9 +180,11 @@ export function useRelayPagination<T>(
 
     if (previousEntry) {
       rangeStartRef.current = Math.max(1, previousEntry.start);
-      setRangeStart(rangeStartRef.current);
-      setCanLoadPreviousPage(cursorHistoryRef.current.length > 0);
-      setAfter(previousEntry.cursor);
+      startTransition(() => {
+        setRangeStart(rangeStartRef.current);
+        setCanLoadPreviousPage(cursorHistoryRef.current.length > 0);
+        setAfter(previousEntry.cursor);
+      });
     }
   }, [setAfter]);
 

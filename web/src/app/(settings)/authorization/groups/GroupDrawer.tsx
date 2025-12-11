@@ -15,6 +15,7 @@ import { useGetGroupWithRelationshipsQuery } from "@/lib/graphql/operations/auth
 import { useCreateGroupMutation } from "@/lib/graphql/operations/authorization-management/mutations.generated";
 import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
+import { useGroupMutations } from "@/shared/hooks/authorization/useGroupMutations";
 import { useGroupManagement, type GroupFormData } from "@/shared/hooks/authorization/useGroupManagement";
 import { GroupRoleAssignment } from "./GroupRoleAssignment";
 import { GroupUserAssignment } from "./GroupUserAssignment";
@@ -43,6 +44,7 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
   const toast = useToast();
   const isCreateMode = groupId === null;
   
+  // Use mutation hook directly - drawer doesn't need the query
   const {
     updateGroup,
     assignRoleToGroup,
@@ -50,8 +52,9 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
     updateLoading,
     assignRoleLoading,
     removeRoleLoading,
-    refetch: refetchGroups,
-  } = useGroupManagement();
+  } = useGroupMutations({
+    // No refetch needed - drawer manages its own queries
+  });
 
   // Use mutation directly for create to get the created group ID
   const [createGroupMutation, { loading: createLoading }] = useCreateGroupMutation({
@@ -215,8 +218,7 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
 
         toast.success(t("groupManagement.toast.groupCreated", { name: submitData.name }));
         
-        // Refetch groups list
-        await refetchGroups();
+        // Note: No need to refetch groups list - mutations update cache and parent will refetch when needed
         
         // Close drawer
         onClose();
@@ -245,7 +247,6 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
     updateGroup,
     groupId,
     refetch,
-    refetchGroups,
     toast,
     t,
     onClose,

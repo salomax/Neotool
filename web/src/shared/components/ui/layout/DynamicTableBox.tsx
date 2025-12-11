@@ -34,14 +34,17 @@ const defaultSx: SxProps<Theme> = {
   },
 };
 
+export const MANAGEMENT_TABLE_ROW_HEIGHT = 66;
+export const TABLE_STABILITY_DELAY = 75;
+
 // Default page size options
 const defaultPageSizeOptions: UseDynamicPageSizeOptions = {
   minRows: 5,
   maxRows: 50,
-  rowHeight: 53, // Fallback row height when rows are unavailable
+  rowHeight: MANAGEMENT_TABLE_ROW_HEIGHT, // Fixed row height to keep calculations predictable across screens
   reservedHeight: 0,
   autoDetectHeaderHeight: true,
-  autoDetectRowHeight: true,
+  autoDetectRowHeight: false,
 };
 
 /**
@@ -96,12 +99,40 @@ export const DynamicTableBox = React.forwardRef<HTMLDivElement, DynamicTableBoxP
     };
 
     const dynamicPageSize = useDynamicPageSize(internalRef, mergedPageSizeOptions);
+    const stabilityTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const pendingSizeRef = useRef<number>(0);
+    const lastCommittedSizeRef = useRef<number>(0);
 
-    // Call onTableResize when page size changes
     useEffect(() => {
-      if (onTableResize && dynamicPageSize > 0) {
-        onTableResize(dynamicPageSize);
+      if (!onTableResize || dynamicPageSize <= 0) {
+        return;
       }
+
+      pendingSizeRef.current = dynamicPageSize;
+
+      if (stabilityTimeoutRef.current) {
+        clearTimeout(stabilityTimeoutRef.current);
+      }
+
+      const scheduledSize = dynamicPageSize;
+
+      stabilityTimeoutRef.current = setTimeout(() => {
+        stabilityTimeoutRef.current = null;
+        if (
+          pendingSizeRef.current === scheduledSize &&
+          scheduledSize !== lastCommittedSizeRef.current
+        ) {
+          lastCommittedSizeRef.current = scheduledSize;
+          onTableResize(scheduledSize);
+        }
+      }, TABLE_STABILITY_DELAY);
+
+      return () => {
+        if (stabilityTimeoutRef.current) {
+          clearTimeout(stabilityTimeoutRef.current);
+          stabilityTimeoutRef.current = null;
+        }
+      };
     }, [dynamicPageSize, onTableResize]);
 
     // Combine refs: forward the external ref and use internal ref for measurements
@@ -135,4 +166,3 @@ export const DynamicTableBox = React.forwardRef<HTMLDivElement, DynamicTableBoxP
 );
 
 export default DynamicTableBox;
-

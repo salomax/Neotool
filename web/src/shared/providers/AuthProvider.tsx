@@ -68,6 +68,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, []);
 
+  // Listen for token refresh events from Apollo Client
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleTokenRefresh = (event: CustomEvent) => {
+      const { token: newToken, user: newUser } = event.detail;
+      setToken(newToken);
+      setUser(newUser);
+      logger.debug("Token refreshed successfully");
+    };
+
+    window.addEventListener('auth:token-refreshed', handleTokenRefresh as EventListener);
+    
+    return () => {
+      window.removeEventListener('auth:token-refreshed', handleTokenRefresh as EventListener);
+    };
+  }, []);
+
   const signIn = React.useCallback(async (email: string, password: string, rememberMe = false) => {
     try {
       // Dynamic import to avoid SSR issues

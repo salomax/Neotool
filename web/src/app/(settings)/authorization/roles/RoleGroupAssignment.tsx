@@ -30,6 +30,10 @@ export interface RoleGroupAssignmentProps {
   assignLoading?: boolean;
   removeLoading?: boolean;
   onGroupsChange?: () => void;
+  /**
+   * When false, skips loading group options and renders nothing.
+   */
+  active?: boolean;
 }
 
 type GroupOption = {
@@ -51,17 +55,20 @@ export const RoleGroupAssignment: React.FC<RoleGroupAssignmentProps> = ({
   assignLoading = false,
   removeLoading = false,
   onGroupsChange,
+  active = true,
 }) => {
   const { t } = useTranslation(authorizationManagementTranslations);
   const toast = useToast();
 
   // Fetch all groups for selection
+  const shouldFetchGroups = active;
+
   const { data, loading: groupsLoading, error: groupsError, refetch } = useGetGroupsQuery({
     variables: {
       first: 1000, // Fetch a large number of groups for selection
       query: undefined,
     },
-    skip: false,
+    skip: !shouldFetchGroups,
   });
 
   // Transform groups data for Autocomplete
@@ -123,6 +130,10 @@ export const RoleGroupAssignment: React.FC<RoleGroupAssignmentProps> = ({
     },
     [assignedGroups, onAssignGroup, onRemoveGroup, toast, t, onGroupsChange]
   );
+
+  if (!active) {
+    return null;
+  }
 
   if (groupsLoading) {
     return (
@@ -187,4 +198,3 @@ export const RoleGroupAssignment: React.FC<RoleGroupAssignmentProps> = ({
     </Box>
   );
 };
-

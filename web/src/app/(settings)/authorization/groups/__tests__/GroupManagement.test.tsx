@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { GroupManagement } from '../GroupManagement';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
@@ -19,8 +19,11 @@ const mockGroups = [
   { id: '2', name: 'User Group', description: 'Regular users' },
 ];
 
-const mockUseGroupManagement = vi.fn(() => ({
+const DEFAULT_PAGE_SIZE = 13;
+
+const buildGroupManagementHookReturn = (overrides: Record<string, any> = {}) => ({
   groups: mockGroups,
+  first: 10,
   searchQuery: '',
   inputValue: '',
   handleInputChange: vi.fn(),
@@ -48,7 +51,10 @@ const mockUseGroupManagement = vi.fn(() => ({
   orderBy: null,
   handleSort: vi.fn(),
   setFirst: vi.fn(),
-}));
+  ...overrides,
+});
+
+const mockUseGroupManagement = vi.fn();
 
 vi.mock('@/shared/hooks/authorization/useGroupManagement', () => ({
   useGroupManagement: () => mockUseGroupManagement(),
@@ -102,31 +108,33 @@ vi.mock('../GroupSearch', () => ({
 }));
 
 vi.mock('../GroupList', () => ({
-  GroupList: ({
-    groups,
-    onEdit,
-    onDelete,
-    loading,
-    emptyMessage,
-    orderBy,
-    onSortChange,
-  }: any) => (
-    <div data-testid="group-list">
-      {loading && <div>Loading...</div>}
-      {!loading && groups.length === 0 && <div>{emptyMessage}</div>}
-      {!loading && groups.length > 0 && (
-        <div>
-          {groups.map((group: any) => (
-            <div key={group.id}>
-              <span>{group.name}</span>
-              <button onClick={() => onEdit(group)}>Edit</button>
-              {onDelete && <button onClick={() => onDelete(group)}>Delete</button>}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  ),
+  GroupList: (props: any) => {
+    (window as any).__groupListProps = props;
+    const {
+      groups,
+      onEdit,
+      onDelete,
+      loading,
+      emptyMessage,
+    } = props;
+    return (
+      <div data-testid="group-list">
+        {loading && <div>Loading...</div>}
+        {!loading && groups.length === 0 && <div>{emptyMessage}</div>}
+        {!loading && groups.length > 0 && (
+          <div>
+            {groups.map((group: any) => (
+              <div key={group.id}>
+                <span>{group.name}</span>
+                <button onClick={() => onEdit(group)}>Edit</button>
+                {onDelete && <button onClick={() => onDelete(group)}>Delete</button>}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  },
 }));
 
 vi.mock('../GroupDrawer', () => ({
@@ -209,12 +217,33 @@ vi.mock('@/shared/components/ui/layout', () => ({
   ),
 }));
 
-const renderGroupManagement = (props = {}) => {
-  return render(
+const renderGroupManagement = (
+  props = {},
+  options: { skipMeasurement?: boolean; pageSize?: number } = {}
+) => {
+  const { skipMeasurement = false, pageSize = DEFAULT_PAGE_SIZE } = options;
+
+  const utils = render(
     <AppThemeProvider>
       <GroupManagement {...props} />
     </AppThemeProvider>
   );
+
+  const measureTable = (size = pageSize) => {
+    const groupListProps = (window as any).__groupListProps;
+    if (!groupListProps?.onTableResize) {
+      throw new Error("GroupList measurement props are not available");
+    }
+    act(() => {
+      groupListProps.onTableResize(size);
+    });
+  };
+
+  if (!skipMeasurement) {
+    measureTable(pageSize);
+  }
+
+  return { ...utils, measureTable };
 };
 
 describe('GroupManagement', () => {
@@ -222,36 +251,8 @@ describe('GroupManagement', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseGroupManagement.mockReturnValue({
-      groups: mockGroups,
-      searchQuery: '',
-      inputValue: '',
-      handleInputChange: vi.fn(),
-      handleSearch: vi.fn(),
-      pageInfo: {
-        hasNextPage: false,
-        hasPreviousPage: false,
-        startCursor: null,
-        endCursor: null,
-      },
-      paginationRange: { start: 1, end: 2, total: 2 },
-      canLoadPreviousPage: false,
-      loadNextPage: vi.fn(),
-      loadPreviousPage: vi.fn(),
-      goToFirstPage: vi.fn(),
-      loading: false,
-      error: undefined,
-      refetch: vi.fn(),
-      createGroup: vi.fn().mockResolvedValue(undefined),
-      updateGroup: vi.fn().mockResolvedValue(undefined),
-      deleteGroup: vi.fn().mockResolvedValue(undefined),
-      createLoading: false,
-      updateLoading: false,
-      deleteLoading: false,
-      orderBy: null,
-      handleSort: vi.fn(),
-      setFirst: vi.fn(),
-    });
+    (window as any).__groupListProps = undefined;
+    mockUseGroupManagement.mockImplementation(() => buildGroupManagementHookReturn());
   });
 
   describe('Rendering', () => {
@@ -282,11 +283,12 @@ describe('GroupManagement', () => {
     });
 
     it('should display empty message when no groups', () => {
-      mockUseGroupManagement.mockReturnValue({
-        ...mockUseGroupManagement(),
-        groups: [],
-        searchQuery: '',
-      });
+      mockUseGroupManagement.mockImplementation(() =>
+        buildGroupManagementHookReturn({
+          groups: [],
+          searchQuery: '',
+        })
+      );
 
       renderGroupManagement();
 
@@ -344,10 +346,11 @@ describe('GroupManagement', () => {
 
     it('should call deleteGroup when delete is confirmed', async () => {
       const deleteGroup = vi.fn().mockResolvedValue(undefined);
-      mockUseGroupManagement.mockReturnValue({
-        ...mockUseGroupManagement(),
-        deleteGroup,
-      });
+      mockUseGroupManagement.mockImplementation(() =>
+        buildGroupManagementHookReturn({
+          deleteGroup,
+        })
+      );
 
       renderGroupManagement();
 
@@ -372,10 +375,11 @@ describe('GroupManagement', () => {
 
     it('should show success toast when delete succeeds', async () => {
       const deleteGroup = vi.fn().mockResolvedValue(undefined);
-      mockUseGroupManagement.mockReturnValue({
-        ...mockUseGroupManagement(),
-        deleteGroup,
-      });
+      mockUseGroupManagement.mockImplementation(() =>
+        buildGroupManagementHookReturn({
+          deleteGroup,
+        })
+      );
 
       renderGroupManagement();
 
@@ -400,10 +404,11 @@ describe('GroupManagement', () => {
 
     it('should show error toast when delete fails', async () => {
       const deleteGroup = vi.fn().mockRejectedValue(new Error('Delete failed'));
-      mockUseGroupManagement.mockReturnValue({
-        ...mockUseGroupManagement(),
-        deleteGroup,
-      });
+      mockUseGroupManagement.mockImplementation(() =>
+        buildGroupManagementHookReturn({
+          deleteGroup,
+        })
+      );
 
       renderGroupManagement();
 
@@ -451,11 +456,12 @@ describe('GroupManagement', () => {
 
   describe('Search functionality', () => {
     it('should pass search props to GroupSearch', () => {
-      mockUseGroupManagement.mockReturnValue({
-        ...mockUseGroupManagement(),
-        inputValue: 'test query',
-        searchQuery: 'test query',
-      });
+      mockUseGroupManagement.mockImplementation(() =>
+        buildGroupManagementHookReturn({
+          inputValue: 'test query',
+          searchQuery: 'test query',
+        })
+      );
 
       renderGroupManagement();
 
@@ -465,11 +471,12 @@ describe('GroupManagement', () => {
     });
 
     it('should display empty search results message', () => {
-      mockUseGroupManagement.mockReturnValue({
-        ...mockUseGroupManagement(),
-        groups: [],
-        searchQuery: 'test',
-      });
+      mockUseGroupManagement.mockImplementation(() =>
+        buildGroupManagementHookReturn({
+          groups: [],
+          searchQuery: 'test',
+        })
+      );
 
       renderGroupManagement();
 
@@ -479,10 +486,11 @@ describe('GroupManagement', () => {
 
   describe('Error handling', () => {
     it('should display error state when error occurs', () => {
-      mockUseGroupManagement.mockReturnValue({
-        ...mockUseGroupManagement(),
-        error: new Error('Failed to load') as any,
-      });
+      mockUseGroupManagement.mockImplementation(() =>
+        buildGroupManagementHookReturn({
+          error: new Error('Failed to load') as any,
+        })
+      );
 
       renderGroupManagement();
 
@@ -491,11 +499,12 @@ describe('GroupManagement', () => {
 
     it('should call refetch when retry is clicked', async () => {
       const refetch = vi.fn();
-      mockUseGroupManagement.mockReturnValue({
-        ...mockUseGroupManagement(),
-        error: new Error('Failed to load') as any,
-        refetch,
-      });
+      mockUseGroupManagement.mockImplementation(() =>
+        buildGroupManagementHookReturn({
+          error: new Error('Failed to load') as any,
+          refetch,
+        })
+      );
 
       renderGroupManagement();
 
@@ -509,10 +518,12 @@ describe('GroupManagement', () => {
 
   describe('Initial search query', () => {
     it('should pass initialSearchQuery to useGroupManagement', () => {
-      renderGroupManagement({ initialSearchQuery: 'initial query' });
+      renderGroupManagement({ initialSearchQuery: 'initial query' }, { pageSize: 18 });
 
-      // Verify the hook was called with the initial search query
-      expect(mockUseGroupManagement).toHaveBeenCalled();
+      expect(mockUseGroupManagement).toHaveBeenCalledWith({
+        initialSearchQuery: 'initial query',
+        initialFirst: 18,
+      });
     });
   });
 

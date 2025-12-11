@@ -25,6 +25,45 @@ export function hasAuthToken(): boolean {
 }
 
 /**
+ * Gets the refresh token from storage
+ * Checks both localStorage and sessionStorage
+ */
+export function getRefreshToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(REFRESH_TOKEN_KEY) || sessionStorage.getItem(REFRESH_TOKEN_KEY);
+}
+
+/**
+ * Updates the authentication token in storage
+ * Updates in the same storage location where it was originally stored
+ */
+export function updateAuthToken(newToken: string): void {
+  if (typeof window === 'undefined') return;
+  
+  // Check which storage has the token and update there
+  if (localStorage.getItem(TOKEN_KEY)) {
+    localStorage.setItem(TOKEN_KEY, newToken);
+  } else if (sessionStorage.getItem(TOKEN_KEY)) {
+    sessionStorage.setItem(TOKEN_KEY, newToken);
+  }
+}
+
+/**
+ * Updates the user data in storage
+ * Updates in the same storage location where it was originally stored
+ */
+export function updateAuthUser(user: any): void {
+  if (typeof window === 'undefined') return;
+  
+  // Check which storage has the user and update there
+  if (localStorage.getItem(USER_KEY)) {
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+  } else if (sessionStorage.getItem(USER_KEY)) {
+    sessionStorage.setItem(USER_KEY, JSON.stringify(user));
+  }
+}
+
+/**
  * Clears all authentication-related data from storage
  * Clears from both localStorage and sessionStorage
  */

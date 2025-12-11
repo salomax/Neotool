@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { UserManagement } from '../UserManagement';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
@@ -19,8 +19,11 @@ const mockUsers = [
   { id: '2', email: 'user2@example.com', displayName: 'User Two', enabled: false },
 ];
 
-const mockUseUserManagement = vi.fn((_args?: any) => ({
+const DEFAULT_PAGE_SIZE = 13;
+
+const buildUserManagementHookReturn = (overrides: Record<string, any> = {}) => ({
   users: mockUsers,
+  first: 10,
   searchQuery: '',
   inputValue: '',
   handleInputChange: vi.fn(),
@@ -46,7 +49,10 @@ const mockUseUserManagement = vi.fn((_args?: any) => ({
   setFirst: vi.fn(),
   orderBy: null,
   handleSort: vi.fn(),
-}));
+  ...overrides,
+});
+
+const mockUseUserManagement = vi.fn();
 
 vi.mock('@/shared/hooks/authorization/useUserManagement', () => ({
   useUserManagement: (args: any) => mockUseUserManagement(args),
@@ -212,12 +218,33 @@ vi.mock('@/shared/components/management/ManagementLayout', () => {
   };
 });
 
-const renderUserManagement = (props = {}) => {
-  return render(
+const renderUserManagement = (
+  props = {},
+  options: { skipMeasurement?: boolean; pageSize?: number } = {}
+) => {
+  const { skipMeasurement = false, pageSize = DEFAULT_PAGE_SIZE } = options;
+
+  const utils = render(
     <AppThemeProvider>
       <UserManagement {...props} />
     </AppThemeProvider>
   );
+
+  const measureTable = (size = pageSize) => {
+    const userListProps = (window as any).__userListProps;
+    if (!userListProps?.onTableResize) {
+      throw new Error("UserList measurement props are not available");
+    }
+    act(() => {
+      userListProps.onTableResize(size);
+    });
+  };
+
+  if (!skipMeasurement) {
+    measureTable(pageSize);
+  }
+
+  return { ...utils, measureTable };
 };
 
 describe('UserManagement', () => {
@@ -226,34 +253,7 @@ describe('UserManagement', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (window as any).__userListProps = undefined;
-    mockUseUserManagement.mockReturnValue({
-      users: mockUsers,
-      searchQuery: '',
-      inputValue: '',
-      handleInputChange: vi.fn(),
-      handleSearch: vi.fn(),
-      pageInfo: {
-        hasNextPage: false,
-        hasPreviousPage: false,
-        startCursor: null,
-        endCursor: null,
-      },
-      paginationRange: { start: 1, end: 2, total: 2 },
-      canLoadPreviousPage: false,
-      loadNextPage: vi.fn(),
-      loadPreviousPage: vi.fn(),
-      goToFirstPage: vi.fn(),
-      enableUser: vi.fn().mockResolvedValue(undefined),
-      disableUser: vi.fn().mockResolvedValue(undefined),
-      loading: false,
-      enableLoading: false,
-      disableLoading: false,
-      error: undefined,
-      refetch: vi.fn(),
-      setFirst: vi.fn(),
-      orderBy: null,
-      handleSort: vi.fn(),
-    });
+    mockUseUserManagement.mockImplementation(() => buildUserManagementHookReturn());
   });
 
   describe('Component integration', () => {
@@ -277,21 +277,22 @@ describe('UserManagement', () => {
     });
 
     it('should pass initialSearchQuery to useUserManagement', () => {
-      renderUserManagement({ initialSearchQuery: 'test query' });
+      renderUserManagement({ initialSearchQuery: 'test query' }, { pageSize: 17 });
 
       expect(mockUseUserManagement).toHaveBeenCalledWith({
         initialSearchQuery: 'test query',
-        initialFirst: 10,
+        initialFirst: 17,
       });
     });
   });
 
   describe('Search integration', () => {
     it('should pass inputValue and handleInputChange to UserSearch', () => {
-      mockUseUserManagement.mockReturnValue({
-        ...mockUseUserManagement(),
-        inputValue: 'test input',
-      });
+      mockUseUserManagement.mockImplementation(() =>
+        buildUserManagementHookReturn({
+          inputValue: 'test input',
+        })
+      );
 
       renderUserManagement();
 
@@ -301,10 +302,11 @@ describe('UserManagement', () => {
 
     it('should pass handleSearch to UserSearch', () => {
       const handleSearch = vi.fn();
-      mockUseUserManagement.mockReturnValue({
-        ...mockUseUserManagement(),
-        handleSearch,
-      });
+      mockUseUserManagement.mockImplementation(() =>
+        buildUserManagementHookReturn({
+          handleSearch,
+        })
+      );
 
       renderUserManagement();
 
@@ -314,11 +316,12 @@ describe('UserManagement', () => {
     });
 
     it('should pass correct empty message for search results', () => {
-      mockUseUserManagement.mockReturnValue({
-        ...mockUseUserManagement(),
-        searchQuery: 'test',
-        users: [],
-      });
+      mockUseUserManagement.mockImplementation(() =>
+        buildUserManagementHookReturn({
+          searchQuery: 'test',
+          users: [],
+        })
+      );
 
       renderUserManagement();
 
@@ -327,11 +330,12 @@ describe('UserManagement', () => {
     });
 
     it('should pass correct empty message for empty list', () => {
-      mockUseUserManagement.mockReturnValue({
-        ...mockUseUserManagement(),
-        searchQuery: '',
-        users: [],
-      });
+      mockUseUserManagement.mockImplementation(() =>
+        buildUserManagementHookReturn({
+          searchQuery: '',
+          users: [],
+        })
+      );
 
       renderUserManagement();
 
@@ -349,10 +353,11 @@ describe('UserManagement', () => {
     });
 
     it('should pass loading state to UserList', () => {
-      mockUseUserManagement.mockReturnValue({
-        ...mockUseUserManagement(),
-        loading: true,
-      });
+      mockUseUserManagement.mockImplementation(() =>
+        buildUserManagementHookReturn({
+          loading: true,
+        })
+      );
 
       renderUserManagement();
 
@@ -377,11 +382,12 @@ describe('UserManagement', () => {
     });
 
     it('should pass toggleLoading state to UserList', () => {
-      mockUseUserManagement.mockReturnValue({
-        ...mockUseUserManagement(),
-        enableLoading: true,
-        disableLoading: false,
-      });
+      mockUseUserManagement.mockImplementation(() =>
+        buildUserManagementHookReturn({
+          enableLoading: true,
+          disableLoading: false,
+        })
+      );
 
       renderUserManagement();
 
@@ -401,14 +407,15 @@ describe('UserManagement', () => {
       const loadPreviousPage = vi.fn();
       const goToFirstPage = vi.fn();
 
-      mockUseUserManagement.mockReturnValue({
-        ...mockUseUserManagement(),
-        pageInfo: pageInfo as any,
-        paginationRange,
-        loadNextPage,
-        loadPreviousPage,
-        goToFirstPage,
-      });
+      mockUseUserManagement.mockImplementation(() =>
+        buildUserManagementHookReturn({
+          pageInfo: pageInfo as any,
+          paginationRange,
+          loadNextPage,
+          loadPreviousPage,
+          goToFirstPage,
+        })
+      );
 
       renderUserManagement();
 
@@ -421,10 +428,11 @@ describe('UserManagement', () => {
     });
 
     it('should pass canLoadPreviousPage to UserList', () => {
-      mockUseUserManagement.mockReturnValue({
-        ...mockUseUserManagement(),
-        canLoadPreviousPage: true,
-      });
+      mockUseUserManagement.mockImplementation(() =>
+        buildUserManagementHookReturn({
+          canLoadPreviousPage: true,
+        })
+      );
 
       renderUserManagement();
 
@@ -436,31 +444,30 @@ describe('UserManagement', () => {
       renderUserManagement();
 
       const props = (window as any).__userListProps;
-      expect(props.onTableResize).toBeDefined();
       expect(typeof props.onTableResize).toBe('function');
     });
 
-    it('should call setFirst when onTableResize is called', () => {
+    it('should call setFirst when onTableResize is triggered', () => {
       const setFirst = vi.fn();
-      mockUseUserManagement.mockReturnValue({
-        ...mockUseUserManagement(),
-        setFirst,
-      });
+      mockUseUserManagement.mockImplementation(() =>
+        buildUserManagementHookReturn({
+          setFirst,
+        })
+      );
 
       renderUserManagement();
-
       const props = (window as any).__userListProps;
       props.onTableResize(20);
-
       expect(setFirst).toHaveBeenCalledWith(20);
     });
 
     it('should pass recalculationKey based on users length and loading state', () => {
-      mockUseUserManagement.mockReturnValue({
-        ...mockUseUserManagement(),
-        users: mockUsers,
-        loading: false,
-      });
+      mockUseUserManagement.mockImplementation(() =>
+        buildUserManagementHookReturn({
+          users: mockUsers,
+          loading: false,
+        })
+      );
 
       renderUserManagement();
 
@@ -472,11 +479,12 @@ describe('UserManagement', () => {
       const orderBy = { field: 'DISPLAY_NAME' as const, direction: 'asc' as const };
       const handleSort = vi.fn();
 
-      mockUseUserManagement.mockReturnValue({
-        ...mockUseUserManagement(),
-        orderBy: orderBy as any,
-        handleSort,
-      });
+      mockUseUserManagement.mockImplementation(() =>
+        buildUserManagementHookReturn({
+          orderBy: orderBy as any,
+          handleSort,
+        })
+      );
 
       renderUserManagement();
 
@@ -579,10 +587,11 @@ describe('UserManagement', () => {
   describe('Error handling', () => {
     it('should pass error to ManagementLayout', () => {
       const error = new Error('Failed to load');
-      mockUseUserManagement.mockReturnValue({
-        ...mockUseUserManagement(),
-        error: error as any,
-      });
+      mockUseUserManagement.mockImplementation(() =>
+        buildUserManagementHookReturn({
+          error: error as any,
+        })
+      );
 
       renderUserManagement();
 
@@ -591,11 +600,12 @@ describe('UserManagement', () => {
 
     it('should pass onErrorRetry (refetch) to ManagementLayout', async () => {
       const refetch = vi.fn();
-      mockUseUserManagement.mockReturnValue({
-        ...mockUseUserManagement(),
-        error: new Error('Failed to load') as any,
-        refetch,
-      });
+      mockUseUserManagement.mockImplementation(() =>
+        buildUserManagementHookReturn({
+          error: new Error('Failed to load') as any,
+          refetch,
+        })
+      );
 
       renderUserManagement();
 
@@ -606,10 +616,11 @@ describe('UserManagement', () => {
     });
 
     it('should pass correct error fallback message', () => {
-      mockUseUserManagement.mockReturnValue({
-        ...mockUseUserManagement(),
-        error: new Error('Failed to load') as any,
-      });
+      mockUseUserManagement.mockImplementation(() =>
+        buildUserManagementHookReturn({
+          error: new Error('Failed to load') as any,
+        })
+      );
 
       renderUserManagement();
 
