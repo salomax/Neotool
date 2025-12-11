@@ -89,7 +89,7 @@ class AuthorizationService(
      */
     private fun checkPermissionRbacWithRoleIds(
         permission: String,
-        roleIds: Set<Int>,
+        roleIds: Set<UUID>,
     ): AuthorizationResult {
         if (roleIds.isEmpty()) {
             return AuthorizationResult(
@@ -186,7 +186,7 @@ class AuthorizationService(
 
         // For each role, get its permission IDs (we need this mapping)
         // Note: This is still per-role, but at least it's batched per role, not per user
-        val rolePermissionIdsMap = mutableMapOf<Int, Set<Int>>()
+        val rolePermissionIdsMap = mutableMapOf<UUID, Set<UUID>>()
         for (roleId in allRoleIds) {
             val permissionIds = roleRepository.findPermissionIdsByRoleId(roleId).toSet()
             rolePermissionIdsMap[roleId] = permissionIds
@@ -275,7 +275,7 @@ class AuthorizationService(
                 .mapValues { (_, memberships) -> memberships.map { it.groupId }.toSet() }
 
         // Collect all role IDs per user
-        val userRoleIdsMap = mutableMapOf<UUID, MutableSet<Int>>()
+        val userRoleIdsMap = mutableMapOf<UUID, MutableSet<UUID>>()
         for (userId in userIds) {
             userRoleIdsMap[userId] = mutableSetOf()
         }
@@ -328,8 +328,8 @@ class AuthorizationService(
     private fun collectUserRoleIds(
         userId: UUID,
         now: Instant,
-    ): Set<Int> {
-        val roleIds = mutableSetOf<Int>()
+    ): Set<UUID> {
+        val roleIds = mutableSetOf<UUID>()
 
         // Get direct role assignments
         val directAssignments = roleAssignmentRepository.findValidAssignmentsByUserId(userId, now)
@@ -492,7 +492,7 @@ class AuthorizationService(
      * Used to avoid duplicate fetching in hybrid authorization checks.
      */
     private data class UserContext(
-        val roleIds: Set<Int>,
+        val roleIds: Set<UUID>,
         val roles: List<Role>,
         val groups: List<UUID>,
     )

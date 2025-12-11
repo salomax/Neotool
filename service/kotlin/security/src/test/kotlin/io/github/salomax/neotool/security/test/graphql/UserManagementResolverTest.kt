@@ -47,8 +47,20 @@ class UserManagementResolverTest {
             // Arrange
             val userId1 = UUID.randomUUID()
             val userId2 = UUID.randomUUID()
-            val role1 = Role(id = 1, name = "admin", createdAt = Instant.now(), updatedAt = Instant.now())
-            val role2 = Role(id = 2, name = "editor", createdAt = Instant.now(), updatedAt = Instant.now())
+            val role1 =
+                Role(
+                    id = UUID.randomUUID(),
+                    name = "admin",
+                    createdAt = Instant.now(),
+                    updatedAt = Instant.now(),
+                )
+            val role2 =
+                Role(
+                    id = UUID.randomUUID(),
+                    name = "editor",
+                    createdAt = Instant.now(),
+                    updatedAt = Instant.now(),
+                )
             whenever(authorizationService.getUserRolesBatch(any<List<UUID>>(), any()))
                 .thenReturn(
                     mapOf(
@@ -83,7 +95,13 @@ class UserManagementResolverTest {
             // Arrange
             val userId1 = UUID.randomUUID()
             val invalidId = "not-a-uuid"
-            val role1 = Role(id = 1, name = "admin", createdAt = Instant.now(), updatedAt = Instant.now())
+            val role1 =
+                Role(
+                    id = UUID.randomUUID(),
+                    name = "admin",
+                    createdAt = Instant.now(),
+                    updatedAt = Instant.now(),
+                )
             whenever(authorizationService.getUserRolesBatch(any<List<UUID>>(), any()))
                 .thenReturn(mapOf(userId1 to listOf(role1)))
 
@@ -102,8 +120,20 @@ class UserManagementResolverTest {
             val userId1 = UUID.randomUUID()
             val userId2 = UUID.randomUUID()
             val userId3 = UUID.randomUUID()
-            val role1 = Role(id = 1, name = "admin", createdAt = Instant.now(), updatedAt = Instant.now())
-            val role2 = Role(id = 2, name = "editor", createdAt = Instant.now(), updatedAt = Instant.now())
+            val role1 =
+                Role(
+                    id = UUID.randomUUID(),
+                    name = "admin",
+                    createdAt = Instant.now(),
+                    updatedAt = Instant.now(),
+                )
+            val role2 =
+                Role(
+                    id = UUID.randomUUID(),
+                    name = "editor",
+                    createdAt = Instant.now(),
+                    updatedAt = Instant.now(),
+                )
             whenever(authorizationService.getUserRolesBatch(any<List<UUID>>(), any()))
                 .thenReturn(
                     mapOf(
@@ -212,9 +242,19 @@ class UserManagementResolverTest {
             val userId1 = UUID.randomUUID()
             val userId2 = UUID.randomUUID()
             val permission1 =
-                Permission(id = 10, name = "transaction:read", createdAt = Instant.now(), updatedAt = Instant.now())
+                Permission(
+                    id = UUID.randomUUID(),
+                    name = "transaction:read",
+                    createdAt = Instant.now(),
+                    updatedAt = Instant.now(),
+                )
             val permission2 =
-                Permission(id = 20, name = "transaction:write", createdAt = Instant.now(), updatedAt = Instant.now())
+                Permission(
+                    id = UUID.randomUUID(),
+                    name = "transaction:write",
+                    createdAt = Instant.now(),
+                    updatedAt = Instant.now(),
+                )
             whenever(authorizationService.getUserPermissionsBatch(any<List<UUID>>(), any()))
                 .thenReturn(
                     mapOf(
@@ -253,7 +293,12 @@ class UserManagementResolverTest {
             val userId1 = UUID.randomUUID()
             val invalidId = "not-a-uuid"
             val permission1 =
-                Permission(id = 10, name = "transaction:read", createdAt = Instant.now(), updatedAt = Instant.now())
+                Permission(
+                    id = UUID.randomUUID(),
+                    name = "transaction:read",
+                    createdAt = Instant.now(),
+                    updatedAt = Instant.now(),
+                )
             whenever(authorizationService.getUserPermissionsBatch(any<List<UUID>>(), any()))
                 .thenReturn(mapOf(userId1 to listOf(permission1)))
 

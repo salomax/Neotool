@@ -11,7 +11,7 @@ import java.util.UUID
 @DisplayName("GroupRoleAssignment Domain Tests")
 class GroupRoleAssignmentTest {
     private val groupId = UUID.randomUUID()
-    private val roleId = 1
+    private val roleId = UUID.randomUUID()
     private val now = Instant.now()
     private val past = now.minusSeconds(3600)
     private val future = now.plusSeconds(3600)

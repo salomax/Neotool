@@ -287,7 +287,6 @@ export function useRoleManagement(options: UseRoleManagementOptions = {}): UseRo
   } = useDebouncedSearch({
     initialValue: searchQuery,
     debounceMs: 300,
-    onSearchChange: goToFirstPage,
     setSearchQuery,
     searchQuery,
   });

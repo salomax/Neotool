@@ -19,6 +19,7 @@ import { useThemeMode } from "@/styles/themes/AppThemeProvider";
 import { ChatDrawer } from "@/shared/components/ui/feedback/Chat";
 import { useAuth } from "@/shared/providers";
 import { Button } from "@/shared/components/ui/primitives/Button";
+import { usePageTitleValue } from "@/shared/hooks/ui/usePageTitle";
 
 export function AppHeader() {
   const { mode, toggle } = useThemeMode();
@@ -27,6 +28,7 @@ export function AppHeader() {
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
   const { isAuthenticated, user, signOut, isLoading } = useAuth();
   const router = useRouter();
+  const pageTitle = usePageTitleValue();
 
   const handleChatIconClick = () => {
     setChatDrawerOpen(true);
@@ -95,10 +97,38 @@ export function AppHeader() {
           sx={{
             display: "flex",
             alignItems: "center",
-            justifyContent: "flex-end",
-            gap: 1,
+            justifyContent: "space-between",
+            gap: 2,
           }}
         >
+          {/* Page Title - Left aligned */}
+          {pageTitle && (
+            <Typography
+              variant="h4"
+              component="h1"
+              sx={{
+                fontWeight: 600,
+                flex: "0 1 auto",
+                minWidth: 0, // Allow text truncation
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {pageTitle}
+            </Typography>
+          )}
+
+          {/* Actions - Right aligned */}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "flex-end",
+              gap: 1,
+              flex: pageTitle ? "0 0 auto" : "1 1 auto",
+            }}
+          >
             <Tooltip title={isDark ? "Switch to light mode" : "Switch to dark mode"}>
               <IconButton aria-label="toggle theme" onClick={toggle}>
                 {isDark ? <LightModeRoundedIcon /> : <DarkModeRoundedIcon />}
@@ -135,6 +165,7 @@ export function AppHeader() {
                 Sign In
               </Button>
             )}
+          </Box>
         </Box>
       </Container>
       <ChatDrawer open={chatDrawerOpen} onClose={handleChatDrawerClose} />

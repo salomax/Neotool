@@ -17,6 +17,7 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import java.util.UUID
 
 @DisplayName("PermissionManagementService Unit Tests")
 class PermissionManagementServiceTest {
@@ -37,8 +38,8 @@ class PermissionManagementServiceTest {
         @Test
         fun `should list permissions with default page size`() {
             // Arrange
-            val permission1 = SecurityTestDataBuilders.permission(id = 1, name = "permission:read")
-            val permission2 = SecurityTestDataBuilders.permission(id = 2, name = "permission:write")
+            val permission1 = SecurityTestDataBuilders.permission(id = UUID.randomUUID(), name = "permission:read")
+            val permission2 = SecurityTestDataBuilders.permission(id = UUID.randomUUID(), name = "permission:write")
             whenever(permissionRepository.findAll(PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
                 .thenReturn(listOf(permission1, permission2))
 
@@ -56,7 +57,7 @@ class PermissionManagementServiceTest {
         fun `should list permissions with custom page size`() {
             // Arrange
             val first = 10
-            val permission1 = SecurityTestDataBuilders.permission(id = 1, name = "permission:read")
+            val permission1 = SecurityTestDataBuilders.permission(id = UUID.randomUUID(), name = "permission:read")
             whenever(permissionRepository.findAll(first + 1, null))
                 .thenReturn(listOf(permission1))
 
@@ -87,9 +88,9 @@ class PermissionManagementServiceTest {
         @Test
         fun `should list permissions with cursor pagination`() {
             // Arrange
-            val afterId = 5
+            val afterId = UUID.randomUUID()
             val afterCursor = CursorEncoder.encodeCursor(afterId)
-            val permission1 = SecurityTestDataBuilders.permission(id = 6, name = "permission:read")
+            val permission1 = SecurityTestDataBuilders.permission(id = UUID.randomUUID(), name = "permission:read")
             whenever(permissionRepository.findAll(PaginationConstants.DEFAULT_PAGE_SIZE + 1, afterId))
                 .thenReturn(listOf(permission1))
 
@@ -108,7 +109,7 @@ class PermissionManagementServiceTest {
             val permissions =
                 (1..21).map {
                     SecurityTestDataBuilders.permission(
-                        id = it,
+                        id = UUID.randomUUID(),
                         name = "permission:$it",
                     )
                 }
@@ -159,7 +160,7 @@ class PermissionManagementServiceTest {
         fun `should search permissions by name`() {
             // Arrange
             val query = "read"
-            val permission1 = SecurityTestDataBuilders.permission(id = 1, name = "permission:read")
+            val permission1 = SecurityTestDataBuilders.permission(id = UUID.randomUUID(), name = "permission:read")
             whenever(permissionRepository.searchByName(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, null))
                 .thenReturn(listOf(permission1))
 
@@ -177,9 +178,9 @@ class PermissionManagementServiceTest {
         fun `should search permissions with pagination`() {
             // Arrange
             val query = "write"
-            val afterId = 5
+            val afterId = UUID.randomUUID()
             val afterCursor = CursorEncoder.encodeCursor(afterId)
-            val permission1 = SecurityTestDataBuilders.permission(id = 6, name = "permission:write")
+            val permission1 = SecurityTestDataBuilders.permission(id = UUID.randomUUID(), name = "permission:write")
             whenever(permissionRepository.searchByName(query, PaginationConstants.DEFAULT_PAGE_SIZE + 1, afterId))
                 .thenReturn(listOf(permission1))
 
@@ -228,16 +229,16 @@ class PermissionManagementServiceTest {
         @Test
         fun `getPermissionRolesBatch should return roles for multiple permissions`() {
             // Arrange
-            val permissionId1 = 10
-            val permissionId2 = 20
-            val roleId1 = 1
-            val roleId2 = 2
+            val permissionId1 = UUID.randomUUID()
+            val permissionId2 = UUID.randomUUID()
+            val roleId1 = UUID.randomUUID()
+            val roleId2 = UUID.randomUUID()
             val role1 = SecurityTestDataBuilders.role(id = roleId1, name = "admin")
             val role2 = SecurityTestDataBuilders.role(id = roleId2, name = "editor")
 
             whenever(roleRepository.findRoleIdsByPermissionId(permissionId1)).thenReturn(listOf(roleId1))
             whenever(roleRepository.findRoleIdsByPermissionId(permissionId2)).thenReturn(listOf(roleId2))
-            whenever(roleRepository.findByIdIn(any<List<Int>>())).thenReturn(listOf(role1, role2))
+            whenever(roleRepository.findByIdIn(any<List<UUID>>())).thenReturn(listOf(role1, role2))
 
             // Act
             val result = permissionManagementService.getPermissionRolesBatch(listOf(permissionId1, permissionId2))
@@ -262,7 +263,7 @@ class PermissionManagementServiceTest {
         @Test
         fun `getPermissionRolesBatch should return empty lists for permissions with no roles`() {
             // Arrange
-            val permissionId = 10
+            val permissionId = UUID.randomUUID()
             whenever(roleRepository.findRoleIdsByPermissionId(permissionId)).thenReturn(emptyList())
 
             // Act
@@ -276,14 +277,14 @@ class PermissionManagementServiceTest {
         @Test
         fun `getPermissionRolesBatch should handle permissions with multiple roles`() {
             // Arrange
-            val permissionId = 10
-            val roleId1 = 1
-            val roleId2 = 2
+            val permissionId = UUID.randomUUID()
+            val roleId1 = UUID.randomUUID()
+            val roleId2 = UUID.randomUUID()
             val role1 = SecurityTestDataBuilders.role(id = roleId1, name = "admin")
             val role2 = SecurityTestDataBuilders.role(id = roleId2, name = "editor")
 
             whenever(roleRepository.findRoleIdsByPermissionId(permissionId)).thenReturn(listOf(roleId1, roleId2))
-            whenever(roleRepository.findByIdIn(any<List<Int>>())).thenReturn(listOf(role1, role2))
+            whenever(roleRepository.findByIdIn(any<List<UUID>>())).thenReturn(listOf(role1, role2))
 
             // Act
             val result = permissionManagementService.getPermissionRolesBatch(listOf(permissionId))

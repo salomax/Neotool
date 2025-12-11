@@ -65,13 +65,13 @@ class AuthContextFactoryTest {
 
             val roles =
                 listOf(
-                    Role(id = 1, name = "admin"),
-                    Role(id = 2, name = "editor"),
+                    Role(id = UUID.randomUUID(), name = "admin"),
+                    Role(id = UUID.randomUUID(), name = "editor"),
                 )
             val permissions =
                 listOf(
-                    Permission(id = 1, name = "transaction:read"),
-                    Permission(id = 2, name = "transaction:write"),
+                    Permission(id = UUID.randomUUID(), name = "transaction:read"),
+                    Permission(id = UUID.randomUUID(), name = "transaction:write"),
                 )
 
             whenever(authorizationService.getUserRoles(any(), any())).thenReturn(roles)
@@ -96,11 +96,11 @@ class AuthContextFactoryTest {
 
             val roles =
                 listOf(
-                    Role(id = 3, name = "viewer"),
+                    Role(id = UUID.randomUUID(), name = "viewer"),
                 )
             val permissions =
                 listOf(
-                    Permission(id = 3, name = "transaction:read"),
+                    Permission(id = UUID.randomUUID(), name = "transaction:read"),
                 )
 
             whenever(authorizationService.getUserRoles(any(), any())).thenReturn(roles)
@@ -123,16 +123,16 @@ class AuthContextFactoryTest {
 
             val roles =
                 listOf(
-                    Role(id = 1, name = "admin"),
-                    Role(id = 2, name = "editor"),
+                    Role(id = UUID.randomUUID(), name = "admin"),
+                    Role(id = UUID.randomUUID(), name = "editor"),
                     // Group-inherited
-                    Role(id = 3, name = "viewer"),
+                    Role(id = UUID.randomUUID(), name = "viewer"),
                 )
             val permissions =
                 listOf(
-                    Permission(id = 1, name = "transaction:read"),
-                    Permission(id = 2, name = "transaction:write"),
-                    Permission(id = 3, name = "transaction:delete"),
+                    Permission(id = UUID.randomUUID(), name = "transaction:read"),
+                    Permission(id = UUID.randomUUID(), name = "transaction:write"),
+                    Permission(id = UUID.randomUUID(), name = "transaction:delete"),
                 )
 
             whenever(authorizationService.getUserRoles(any(), any())).thenReturn(roles)
@@ -197,7 +197,7 @@ class AuthContextFactoryTest {
             val userId = UUID.randomUUID()
             val user = SecurityTestDataBuilders.user(id = userId, email = "test@example.com", displayName = "Test User")
 
-            val roles = listOf(Role(id = 1, name = "admin"))
+            val roles = listOf(Role(id = UUID.randomUUID(), name = "admin"))
 
             whenever(authorizationService.getUserRoles(any(), any())).thenReturn(roles)
             whenever(authorizationService.getUserPermissions(any(), any()))
@@ -261,9 +261,9 @@ class AuthContextFactoryTest {
 
             val roles =
                 listOf(
-                    Role(id = 1, name = "role1"),
-                    Role(id = 2, name = "role2"),
-                    Role(id = 3, name = "role3"),
+                    Role(id = UUID.randomUUID(), name = "role1"),
+                    Role(id = UUID.randomUUID(), name = "role2"),
+                    Role(id = UUID.randomUUID(), name = "role3"),
                 )
 
             whenever(authorizationService.getUserRoles(any(), any())).thenReturn(roles)
@@ -284,9 +284,9 @@ class AuthContextFactoryTest {
 
             val permissions =
                 listOf(
-                    Permission(id = 1, name = "permission1"),
-                    Permission(id = 2, name = "permission2"),
-                    Permission(id = 3, name = "permission3"),
+                    Permission(id = UUID.randomUUID(), name = "permission1"),
+                    Permission(id = UUID.randomUUID(), name = "permission2"),
+                    Permission(id = UUID.randomUUID(), name = "permission3"),
                 )
 
             whenever(authorizationService.getUserRoles(any(), any())).thenReturn(emptyList())
@@ -317,13 +317,13 @@ class AuthContextFactoryTest {
 
             val roles =
                 listOf(
-                    Role(id = 1, name = "admin"),
-                    Role(id = 2, name = "editor"),
+                    Role(id = UUID.randomUUID(), name = "admin"),
+                    Role(id = UUID.randomUUID(), name = "editor"),
                 )
             val permissions =
                 listOf(
-                    Permission(id = 1, name = "transaction:read"),
-                    Permission(id = 2, name = "transaction:write"),
+                    Permission(id = UUID.randomUUID(), name = "transaction:read"),
+                    Permission(id = UUID.randomUUID(), name = "transaction:write"),
                 )
 
             whenever(authorizationService.getUserRoles(any(), any())).thenReturn(roles)
@@ -354,13 +354,13 @@ class AuthContextFactoryTest {
 
             val roles =
                 listOf(
-                    Role(id = 1, name = "admin"),
-                    Role(id = 2, name = "editor"),
+                    Role(id = UUID.randomUUID(), name = "admin"),
+                    Role(id = UUID.randomUUID(), name = "editor"),
                 )
             val permissions =
                 listOf(
-                    Permission(id = 1, name = "transaction:read"),
-                    Permission(id = 2, name = "transaction:write"),
+                    Permission(id = UUID.randomUUID(), name = "transaction:read"),
+                    Permission(id = UUID.randomUUID(), name = "transaction:write"),
                 )
 
             whenever(authorizationService.getUserRoles(any(), any())).thenReturn(roles)
@@ -402,13 +402,13 @@ class AuthContextFactoryTest {
 
             val roles =
                 listOf(
-                    Role(id = 1, name = "admin"),
-                    Role(id = 2, name = "viewer"),
+                    Role(id = UUID.randomUUID(), name = "admin"),
+                    Role(id = UUID.randomUUID(), name = "viewer"),
                 )
             val permissions =
                 listOf(
-                    Permission(id = 1, name = "transaction:read"),
-                    Permission(id = 2, name = "transaction:delete"),
+                    Permission(id = UUID.randomUUID(), name = "transaction:read"),
+                    Permission(id = UUID.randomUUID(), name = "transaction:delete"),
                 )
 
             whenever(authorizationService.getUserRoles(any(), any())).thenReturn(roles)
@@ -441,11 +441,11 @@ class AuthContextFactoryTest {
 
             val roles =
                 listOf(
-                    Role(id = 1, name = "user"),
+                    Role(id = UUID.randomUUID(), name = "user"),
                 )
             val permissions =
                 listOf(
-                    Permission(id = 1, name = "profile:read"),
+                    Permission(id = UUID.randomUUID(), name = "profile:read"),
                 )
 
             whenever(authorizationService.getUserRoles(any(), any())).thenReturn(roles)
@@ -475,15 +475,15 @@ class AuthContextFactoryTest {
 
             val roles =
                 listOf(
-                    Role(id = 1, name = "admin"),
-                    Role(id = 2, name = "editor"),
-                    Role(id = 3, name = "viewer"),
+                    Role(id = UUID.randomUUID(), name = "admin"),
+                    Role(id = UUID.randomUUID(), name = "editor"),
+                    Role(id = UUID.randomUUID(), name = "viewer"),
                 )
             val permissions =
                 listOf(
-                    Permission(id = 1, name = "transaction:read"),
-                    Permission(id = 2, name = "transaction:write"),
-                    Permission(id = 3, name = "transaction:delete"),
+                    Permission(id = UUID.randomUUID(), name = "transaction:read"),
+                    Permission(id = UUID.randomUUID(), name = "transaction:write"),
+                    Permission(id = UUID.randomUUID(), name = "transaction:delete"),
                 )
 
             whenever(authorizationService.getUserRoles(any(), any())).thenReturn(roles)

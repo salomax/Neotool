@@ -57,19 +57,24 @@ Describe cache/idempotency rules per task.
 
 ## Deployment & Scheduling
 
-- **Flow File**: `pipelines/<file>.py`
+- **Flow File**: `workflow/example/<domain>/flows/<file>.py` or `pipelines/<file>.py`
 - **Flow Name**: `<Prefect flow name>`
+- **Prefect Version**: 3.6.5+ (uses work pools and work queues)
+- **Deployment Configuration**: `prefect.yaml` (Prefect 3.x standard)
 - **Deployment Command**:
   ```bash
-  prefect deployment build pipelines/<file>.py:<flow_fn> \
-    -n <deployment-name> \
-    -q <work-queue> \
-    -sb <storage-block> \
-    --cron "<cron>"
+  prefect deploy --name <deployment-name>
   ```
+  This uses the `prefect.yaml` configuration file.
+- **Prerequisites**:
+  - Work pool: `prefect work-pool create <pool-name> --type <process|docker|kubernetes>`
+  - Work queue: `prefect work-queue create <queue-name> --pool <pool-name>`
 - **Parameters**: `<force_full, since, dry_run>`
-- **Concurrency Guardrails**: `<Prefect tag/key>` (prevent overlapping runs)
+- **Concurrency Guardrails**: Prefect 3.x work queues prevent overlapping runs
 - **Environment Variables / Secrets**: `<SWAPI_BASE_URL, KAFKA_BROKERS, ...>`
+- **Storage**: 
+  - Local development: Answer "n" to remote storage (uses filesystem)
+  - Production: Use remote storage block (GitHub, S3, GCS, etc.)
 
 ## Kafka Contracts
 

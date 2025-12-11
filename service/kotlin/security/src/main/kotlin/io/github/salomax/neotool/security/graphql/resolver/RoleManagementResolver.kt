@@ -9,6 +9,7 @@ import io.github.salomax.neotool.security.graphql.mapper.RoleManagementMapper
 import io.github.salomax.neotool.security.service.RoleManagementService
 import jakarta.inject.Singleton
 import mu.KotlinLogging
+import java.util.UUID
 
 /**
  * GraphQL resolver for role management operations.
@@ -32,7 +33,7 @@ class RoleManagementResolver(
      */
     fun role(id: String): RoleDTO? {
         // Validate and convert role ID - throw IllegalArgumentException for invalid input
-        val roleIdInt =
+        val roleId =
             try {
                 mapper.toRoleId(id)
             } catch (e: IllegalArgumentException) {
@@ -40,7 +41,7 @@ class RoleManagementResolver(
             }
 
         // Use service layer instead of direct repository access
-        val role = roleManagementService.getRoleById(roleIdInt)
+        val role = roleManagementService.getRoleById(roleId)
         return role?.let { mapper.toRoleDTO(it) }
     }
 
@@ -128,8 +129,8 @@ class RoleManagementResolver(
      */
     fun deleteRole(roleId: String): Boolean {
         return try {
-            val roleIdInt = mapper.toRoleId(roleId)
-            roleManagementService.deleteRole(roleIdInt)
+            val roleId = mapper.toRoleId(roleId)
+            roleManagementService.deleteRole(roleId)
             true
         } catch (e: IllegalArgumentException) {
             logger.warn { "Invalid role ID or role not found: $roleId" }
@@ -199,7 +200,7 @@ class RoleManagementResolver(
      */
     fun resolveRolePermissions(roleId: String): List<io.github.salomax.neotool.security.graphql.dto.PermissionDTO> {
         // Validate and convert role ID - throw IllegalArgumentException for invalid input
-        val roleIdInt =
+        val roleId =
             try {
                 mapper.toRoleId(roleId)
             } catch (e: IllegalArgumentException) {
@@ -207,7 +208,7 @@ class RoleManagementResolver(
             }
 
         // Call service - propagate any exceptions (will be converted to GraphQL errors)
-        val permissions = roleManagementService.listRolePermissions(roleIdInt)
+        val permissions = roleManagementService.listRolePermissions(roleId)
         return mapper.toPermissionDTOList(permissions)
     }
 
@@ -228,25 +229,25 @@ class RoleManagementResolver(
             return emptyMap()
         }
 
-        // Parse valid role IDs while preserving order and mapping original string to int
+        // Parse valid role IDs while preserving order and mapping original string to UUID
         // Invalid IDs are logged but included in result with empty list
-        val validRoleIdMap = mutableMapOf<String, Int>()
-        val roleIdInts =
-            roleIds.mapNotNull { roleId ->
+        val validRoleIdMap = mutableMapOf<String, UUID>()
+        val roleIdUuids =
+            roleIds.mapNotNull { roleIdStr ->
                 try {
-                    val roleIdInt = mapper.toRoleId(roleId)
-                    validRoleIdMap[roleId] = roleIdInt
-                    roleIdInt
+                    val roleIdUuid = mapper.toRoleId(roleIdStr)
+                    validRoleIdMap[roleIdStr] = roleIdUuid
+                    roleIdUuid
                 } catch (e: IllegalArgumentException) {
-                    logger.warn { "Invalid role ID in batch request: $roleId" }
+                    logger.warn { "Invalid role ID in batch request: $roleIdStr" }
                     null
                 }
             }
 
         // Use service layer to batch load role permissions (only for valid IDs)
         val rolePermissionsMap =
-            if (roleIdInts.isNotEmpty()) {
-                roleManagementService.listRolePermissionsBatch(roleIdInts)
+            if (roleIdUuids.isNotEmpty()) {
+                roleManagementService.listRolePermissionsBatch(roleIdUuids)
             } else {
                 emptyMap()
             }
@@ -255,12 +256,12 @@ class RoleManagementResolver(
         // Filter out invalid IDs - only include valid IDs in the result
         val result =
             linkedMapOf<String, List<io.github.salomax.neotool.security.graphql.dto.PermissionDTO>>()
-        for (roleId in roleIds) {
-            val roleIdInt = validRoleIdMap[roleId]
-            if (roleIdInt != null) {
-                val permissions = rolePermissionsMap[roleIdInt] ?: emptyList()
+        for (roleIdStr in roleIds) {
+            val roleIdUuid = validRoleIdMap[roleIdStr]
+            if (roleIdUuid != null) {
+                val permissions = rolePermissionsMap[roleIdUuid] ?: emptyList()
                 val permissionDTOs = mapper.toPermissionDTOList(permissions)
-                result[roleId] = permissionDTOs
+                result[roleIdStr] = permissionDTOs
             }
             // Invalid IDs are filtered out - not included in result
         }

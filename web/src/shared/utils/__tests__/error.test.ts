@@ -97,24 +97,40 @@ describe('error utilities', () => {
       expect(extractErrorMessage(error)).toBe('GraphQL error');
     });
 
-    it('should extract message from network error', () => {
+    it('should extract and translate connection error from network error', () => {
       const error = {
         networkError: {
-          message: 'Network error occurred',
+          message: 'HTTP fetch failed: tcp connect error',
         },
       };
-      expect(extractErrorMessage(error)).toBe('Network error occurred');
+      // Should return translated connection error message (or fallback if i18n not initialized)
+      const result = extractErrorMessage(error);
+      expect(result).toContain('connect');
+      expect(result).toContain('server');
     });
 
-    it('should extract message from network error.error', () => {
+    it('should extract and translate connection error from network error.error', () => {
       const error = {
         networkError: {
           error: {
-            message: 'Nested network error',
+            message: 'tcp connect error',
           },
         },
       };
-      expect(extractErrorMessage(error)).toBe('Nested network error');
+      // Should return translated connection error message (or fallback if i18n not initialized)
+      const result = extractErrorMessage(error);
+      expect(result).toContain('connect');
+      expect(result).toContain('server');
+    });
+
+    it('should extract non-connection error message from network error', () => {
+      const error = {
+        networkError: {
+          message: 'Authentication failed',
+        },
+      };
+      // Non-connection errors should pass through
+      expect(extractErrorMessage(error)).toBe('Authentication failed');
     });
 
     it('should prefer GraphQL errors over network error', () => {
@@ -123,9 +139,10 @@ describe('error utilities', () => {
           { message: 'GraphQL error' },
         ],
         networkError: {
-          message: 'Network error',
+          message: 'HTTP fetch failed: tcp connect error',
         },
       };
+      // GraphQL errors should be preferred even if network error is a connection error
       expect(extractErrorMessage(error)).toBe('GraphQL error');
     });
 
@@ -164,6 +181,36 @@ describe('error utilities', () => {
       // When cleaned message is empty, it returns the original message, not default
       const result = extractErrorMessage(error);
       expect(result).toBeTruthy();
+    });
+
+    it('should detect and translate connection timeout errors', () => {
+      const error = {
+        networkError: {
+          message: 'Connection timeout',
+        },
+      };
+      const result = extractErrorMessage(error);
+      expect(result).toContain('long');
+      expect(result).toContain('complete');
+    });
+
+    it('should detect and translate service unavailable errors', () => {
+      const error = {
+        networkError: {
+          message: 'Service unavailable (503)',
+        },
+      };
+      const result = extractErrorMessage(error);
+      expect(result).toContain('unavailable');
+      expect(result).toContain('temporarily');
+    });
+
+    it('should detect connection errors in Error instances', () => {
+      const error = new Error('HTTP fetch failed from security: tcp connect error');
+      error.name = 'NetworkError';
+      const result = extractErrorMessage(error);
+      expect(result).toContain('connect');
+      expect(result).toContain('server');
     });
   });
 });

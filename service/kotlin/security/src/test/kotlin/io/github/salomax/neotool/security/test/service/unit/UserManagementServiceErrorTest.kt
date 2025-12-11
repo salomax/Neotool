@@ -98,7 +98,7 @@ class UserManagementServiceErrorTest {
         fun `should throw exception when assigning role to non-existent user`() {
             // Arrange
             val nonExistentUserId = UUID.randomUUID()
-            val roleId = 1
+            val roleId = UUID.randomUUID()
             val command = UserManagement.AssignRoleToUserCommand(nonExistentUserId, roleId)
             whenever(userRepository.findById(nonExistentUserId)).thenReturn(Optional.empty())
 
@@ -117,7 +117,7 @@ class UserManagementServiceErrorTest {
         fun `should throw exception when assigning role to user with non-existent role`() {
             // Arrange
             val userId = UUID.randomUUID()
-            val nonExistentRoleId = 999
+            val nonExistentRoleId = UUID.randomUUID()
             val command = UserManagement.AssignRoleToUserCommand(userId, nonExistentRoleId)
             val userEntity = io.github.salomax.neotool.security.test.SecurityTestDataBuilders.user(id = userId)
             whenever(userRepository.findById(userId)).thenReturn(Optional.of(userEntity))
@@ -142,7 +142,7 @@ class UserManagementServiceErrorTest {
         fun `should throw exception when removing role from non-existent user`() {
             // Arrange
             val nonExistentUserId = UUID.randomUUID()
-            val roleId = 1
+            val roleId = UUID.randomUUID()
             val command = UserManagement.RemoveRoleFromUserCommand(nonExistentUserId, roleId)
             whenever(userRepository.findById(nonExistentUserId)).thenReturn(Optional.empty())
 
@@ -161,7 +161,7 @@ class UserManagementServiceErrorTest {
         fun `should throw exception when removing non-existent role from user`() {
             // Arrange
             val userId = UUID.randomUUID()
-            val nonExistentRoleId = 999
+            val nonExistentRoleId = UUID.randomUUID()
             val command = UserManagement.RemoveRoleFromUserCommand(userId, nonExistentRoleId)
             val userEntity = io.github.salomax.neotool.security.test.SecurityTestDataBuilders.user(id = userId)
             whenever(userRepository.findById(userId)).thenReturn(Optional.of(userEntity))

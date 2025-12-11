@@ -7,6 +7,7 @@ import { ErrorAlert } from "@/shared/components/ui/feedback";
 import { useGetUsersQuery } from "@/lib/graphql/operations/authorization-management/queries.generated";
 import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
+import { useAuth } from "@/shared/providers/AuthProvider";
 import type { GroupFormData } from "./GroupForm";
 
 export interface GroupUserAssignmentProps {
@@ -22,6 +23,7 @@ export const GroupUserAssignment: React.FC<GroupUserAssignmentProps> = ({
 }) => {
   const { t } = useTranslation(authorizationManagementTranslations);
   const { watch, control } = useFormContext<GroupFormData>();
+  const { isAuthenticated } = useAuth();
 
   // Fetch all users for selection
   const { data, loading, error, refetch } = useGetUsersQuery({
@@ -29,7 +31,8 @@ export const GroupUserAssignment: React.FC<GroupUserAssignmentProps> = ({
       first: 1000, // Fetch a large number of users for selection
       query: undefined,
     },
-    skip: false,
+    skip: !isAuthenticated, // Skip if not authenticated
+    fetchPolicy: 'network-only', // Always fetch from network, no cache
   });
 
   // Transform users data for AutocompleteField and deduplicate by ID

@@ -338,7 +338,7 @@ object SecurityTestDataBuilders {
      * Create a test role entity
      */
     fun role(
-        id: Int? = null,
+        id: UUID? = null,
         name: String = "test-role",
         createdAt: Instant = Instant.now(),
         updatedAt: Instant = Instant.now(),
@@ -356,7 +356,7 @@ object SecurityTestDataBuilders {
      * Create a test permission entity
      */
     fun permission(
-        id: Int? = null,
+        id: UUID? = null,
         name: String = "resource:action",
         createdAt: Instant = Instant.now(),
         updatedAt: Instant = Instant.now(),
@@ -376,7 +376,7 @@ object SecurityTestDataBuilders {
     fun roleAssignment(
         id: UUID? = null,
         userId: UUID = UUID.randomUUID(),
-        roleId: Int = 1,
+        roleId: UUID = UUID.randomUUID(),
         validFrom: Instant? = null,
         validUntil: Instant? = null,
         createdAt: Instant = Instant.now(),
@@ -445,7 +445,7 @@ object SecurityTestDataBuilders {
     fun groupRoleAssignment(
         id: UUID? = null,
         groupId: UUID = UUID.randomUUID(),
-        roleId: Int = 1,
+        roleId: UUID = UUID.randomUUID(),
         validFrom: Instant? = null,
         validUntil: Instant? = null,
         createdAt: Instant = Instant.now(),

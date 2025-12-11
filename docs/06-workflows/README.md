@@ -20,3 +20,7 @@ search_keywords: [workflows, index]
 - [Testing Workflow](./testing-workflow.md) - Testing workflow
 - [Deployment Workflow](./deployment-workflow.md) - Deployment workflow
 
+## Examples
+
+- [SWAPI ETL Workflow](../07-examples/batch-workflows/swapi-etl-workflow.md) - Complete example of a batch ETL workflow using Prefect and Kafka
+

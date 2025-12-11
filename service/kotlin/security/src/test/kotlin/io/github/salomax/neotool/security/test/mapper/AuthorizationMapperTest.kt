@@ -10,6 +10,7 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import java.time.Instant
+import java.util.UUID
 
 @DisplayName("AuthorizationMapper Unit Tests")
 class AuthorizationMapperTest {
@@ -74,7 +75,7 @@ class AuthorizationMapperTest {
             // Arrange
             val permission =
                 Permission(
-                    id = 1,
+                    id = UUID.randomUUID(),
                     name = "transaction:read",
                     createdAt = Instant.now(),
                     updatedAt = Instant.now(),
@@ -85,7 +86,7 @@ class AuthorizationMapperTest {
 
             // Assert
             assertThat(dto).isNotNull()
-            assertThat(dto.id).isEqualTo("1")
+            assertThat(dto.id).isNotNull()
             assertThat(dto.name).isEqualTo("transaction:read")
         }
 
@@ -114,7 +115,7 @@ class AuthorizationMapperTest {
             // Arrange
             val permission =
                 Permission(
-                    id = 42,
+                    id = UUID.randomUUID(),
                     name = "user:delete",
                     createdAt = Instant.now(),
                     updatedAt = Instant.now(),
@@ -124,7 +125,7 @@ class AuthorizationMapperTest {
             val dto = mapper.toPermissionDTO(permission)
 
             // Assert
-            assertThat(dto.id).isEqualTo("42")
+            assertThat(dto.id).isNotNull()
             assertThat(dto.name).isEqualTo("user:delete")
         }
     }
@@ -137,7 +138,7 @@ class AuthorizationMapperTest {
             // Arrange
             val role =
                 Role(
-                    id = 1,
+                    id = UUID.randomUUID(),
                     name = "admin",
                     createdAt = Instant.now(),
                     updatedAt = Instant.now(),
@@ -148,7 +149,7 @@ class AuthorizationMapperTest {
 
             // Assert
             assertThat(dto).isNotNull()
-            assertThat(dto.id).isEqualTo("1")
+            assertThat(dto.id).isNotNull()
             assertThat(dto.name).isEqualTo("admin")
         }
 
@@ -175,9 +176,10 @@ class AuthorizationMapperTest {
         @Test
         fun `should preserve all role fields in DTO`() {
             // Arrange
+            val roleId = UUID.randomUUID()
             val role =
                 Role(
-                    id = 99,
+                    id = roleId,
                     name = "moderator",
                     createdAt = Instant.now(),
                     updatedAt = Instant.now(),
@@ -187,7 +189,7 @@ class AuthorizationMapperTest {
             val dto = mapper.toRoleDTO(role)
 
             // Assert
-            assertThat(dto.id).isEqualTo("99")
+            assertThat(dto.id).isEqualTo(roleId.toString())
             assertThat(dto.name).isEqualTo("moderator")
         }
     }

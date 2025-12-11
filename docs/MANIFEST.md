@@ -69,6 +69,7 @@ This specification is organized into numbered directories (00-11) for clear hier
 
 | Document | Path | Type | Category | Keywords |
 |----------|------|------|----------|----------|
+| Domain Model Pattern | `04-patterns/backend-patterns/domain-model-pattern.md` | pattern | backend | domain, model, entity, repository, database, sql, jpa, consolidated |
 | Entity Pattern | `04-patterns/backend-patterns/entity-pattern.md` | pattern | backend | jpa, entity, kotlin |
 | Repository Pattern | `04-patterns/backend-patterns/repository-pattern.md` | pattern | backend | repository, data-access |
 | Service Pattern | `04-patterns/backend-patterns/service-pattern.md` | pattern | backend | service, business-logic |
@@ -78,6 +79,7 @@ This specification is organized into numbered directories (00-11) for clear hier
 | UUID v7 Pattern | `04-patterns/backend-patterns/uuid-v7-pattern.md` | pattern | backend | uuid, uuidv7, primary-key, database |
 | Domain-Entity Conversion | `04-patterns/backend-patterns/domain-entity-conversion.md` | pattern | backend | domain, entity, conversion, ddd |
 | Pagination Pattern | `04-patterns/backend-patterns/pagination-pattern.md` | pattern | backend | pagination, relay, graphql, cursor, connection |
+| Kafka Consumer Pattern | `04-patterns/backend-patterns/kafka-consumer-pattern.md` | pattern | backend | kafka, consumer, batch, retry, dlq |
 
 ### Frontend Patterns
 
@@ -91,6 +93,7 @@ This specification is organized into numbered directories (00-11) for clear hier
 | Mutation Pattern | `04-patterns/frontend-patterns/mutation-pattern.md` | pattern | frontend | mutation, hooks, refetch, race-condition, apollo, graphql |
 | Management Pattern | `04-patterns/frontend-patterns/management-pattern.md` | pattern | frontend | management, hooks, components, reusable, useManagementBase, useDebouncedSearch, useSorting, ErrorAlert, DeleteConfirmationDialog, useToggleStatus, ManagementLayout |
 | Shared Components Pattern | `04-patterns/frontend-patterns/shared-components-pattern.md` | pattern | frontend | shared components, reusable components, ui components, feedback components, ErrorAlert, DeleteConfirmationDialog, ManagementLayout, useToggleStatus |
+| Breadcrumb Pattern | `04-patterns/frontend-patterns/breadcrumb-pattern.md` | pattern | frontend | breadcrumb, navigation, page hierarchy, navigation path, breadcrumb component |
 | Styling Pattern | `04-patterns/frontend-patterns/styling-pattern.md` | pattern | frontend | styling, themes, design-tokens |
 | Toast Notification Pattern | `04-patterns/frontend-patterns/toast-notification-pattern.md` | pattern | frontend | toast, notification, feedback, user-experience |
 | Testing Pattern | `04-patterns/frontend-patterns/testing-pattern.md` | pattern | frontend | testing, frontend, react, react-hook-form, vitest, testing-library |
@@ -131,6 +134,8 @@ This specification is organized into numbered directories (00-11) for clear hier
 |----------|------|------|----------|----------|
 | Examples Index | `07-examples/README.md` | example | index | examples, index |
 | CRUD Example | `07-examples/backend/crud-example/README.md` | example | backend | crud, complete, flow, entity, repository, service, resolver |
+| SWAPI ETL Workflow | `07-examples/batch-workflows/swapi-etl-workflow.md` | example | workflow | swapi, etl, batch, prefect, kafka, workflow |
+| SWAPI ETL Runbook | `07-examples/batch-workflows/swapi-etl-runbook.md` | runbook | operations | swapi, etl, runbook, operations, troubleshooting |
 
 ## Templates (08-templates)
 
@@ -141,6 +146,7 @@ This specification is organized into numbered directories (00-11) for clear hier
 | Workflow | `08-templates/feature-templates/workflow.md` | template | feature | workflow, process |
 | AI Prompts | `08-templates/ai-prompts/` | template | ai-prompt | ai-prompt, feature-creation |
 | Batch Workflow Template | `08-templates/documents/batch-workflow-template.md` | template | workflow | batch, workflow, template |
+| Kafka Consumer Template | `08-templates/code/kafka-consumer-template.kt` | template | code | kafka, consumer, template, kotlin |
 
 ## Architecture Decision Records (09-adr)
 

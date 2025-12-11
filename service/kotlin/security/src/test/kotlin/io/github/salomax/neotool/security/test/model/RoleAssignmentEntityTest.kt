@@ -19,6 +19,7 @@ class RoleAssignmentEntityTest {
         fun `should convert entity to domain with all fields`() {
             // Arrange
             val id = UUID.randomUUID()
+            val roleId = UUID.randomUUID()
             val createdAt = Instant.now().minusSeconds(3600)
             val updatedAt = Instant.now()
             val validFrom = Instant.now().minusSeconds(1800)
@@ -28,7 +29,7 @@ class RoleAssignmentEntityTest {
                 RoleAssignmentEntity(
                     id = id,
                     userId = userId,
-                    roleId = 1,
+                    roleId = roleId,
                     validFrom = validFrom,
                     validUntil = validUntil,
                     createdAt = createdAt,
@@ -42,7 +43,7 @@ class RoleAssignmentEntityTest {
             // Assert
             assertThat(domain.id).isEqualTo(id)
             assertThat(domain.userId).isEqualTo(userId)
-            assertThat(domain.roleId).isEqualTo(1)
+            assertThat(domain.roleId).isEqualTo(roleId)
             assertThat(domain.validFrom).isEqualTo(validFrom)
             assertThat(domain.validUntil).isEqualTo(validUntil)
             assertThat(domain.createdAt).isEqualTo(createdAt)
@@ -56,7 +57,7 @@ class RoleAssignmentEntityTest {
             val entity =
                 RoleAssignmentEntity(
                     userId = userId,
-                    roleId = 3,
+                    roleId = UUID.randomUUID(),
                     validFrom = null,
                     validUntil = null,
                 )
@@ -76,7 +77,7 @@ class RoleAssignmentEntityTest {
             val entity =
                 RoleAssignmentEntity(
                     userId = userId,
-                    roleId = 1,
+                    roleId = UUID.randomUUID(),
                     version = 10L,
                 )
 

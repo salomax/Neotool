@@ -1,0 +1,14 @@
+name: swapi-people-etl-deployment
+flow_name: swapi-people-etl
+description: Daily ETL job to fetch SWAPI people data and publish to Kafka
+schedule:
+  cron: "0 2 * * *"  # Daily at 2:00 AM UTC
+  timezone: UTC
+work_queue_name: swapi-etl
+work_pool_name: default
+parameters: {}
+tags:
+  - etl
+  - swapi
+  - people
+  - daily

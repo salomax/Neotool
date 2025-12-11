@@ -1,7 +1,9 @@
 // Apollo Client imports for GraphQL operations
 import { ApolloClient, InMemoryCache, HttpLink, from } from '@apollo/client';
 import { setContext } from '@apollo/client/link/context';
+import { onError } from '@apollo/client/link/error';
 import { relayStylePagination } from '@apollo/client/utilities';
+import { getAuthToken, clearAuthStorage, isAuthenticationError } from '@/shared/utils/auth';
 
 // HTTP Link configuration - defines how Apollo Client communicates with the GraphQL server
 const httpLink = new HttpLink({
@@ -10,11 +12,7 @@ const httpLink = new HttpLink({
 
 // Auth link to add token to requests
 const authLink = setContext((_, { headers }) => {
-  // Get token from storage (check both localStorage and sessionStorage)
-  let token: string | null = null;
-  if (typeof window !== 'undefined') {
-    token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
-  }
+  const token = getAuthToken();
   
   return {
     headers: {
@@ -24,15 +22,39 @@ const authLink = setContext((_, { headers }) => {
   };
 });
 
+// Error link to handle authentication errors globally
+const errorLink = onError(({ graphQLErrors, networkError }) => {
+  // Check GraphQL errors
+  if (graphQLErrors?.some(({ message }) => isAuthenticationError(null, message))) {
+    clearAuthStorage();
+  }
+
+  // Check network errors (401 status codes)
+  if (networkError && isAuthenticationError(networkError)) {
+    clearAuthStorage();
+  }
+});
+
 function createApolloClient() {
   // Create Apollo Client with proper configuration
   return new ApolloClient({
-    link: from([authLink, httpLink]),
+    link: from([errorLink, authLink, httpLink]),
     // Cache: stores the results of GraphQL operations in memory
     // InMemoryCache provides automatic normalization and caching of query results
     // This improves performance by avoiding duplicate requests and enabling optimistic updates
     cache: new InMemoryCache(),
     ssrMode: typeof window === 'undefined',
+    defaultOptions: {
+      // Prevent automatic refetches to avoid infinite loops
+      watchQuery: {
+        fetchPolicy: 'network-only', // Always fetch from network, no cache
+        errorPolicy: 'all', // Return both data and errors
+      },
+      query: {
+        fetchPolicy: 'network-only', // Always fetch from network, no cache
+        errorPolicy: 'all', // Return both data and errors
+      },
+    },
   });
 }
 

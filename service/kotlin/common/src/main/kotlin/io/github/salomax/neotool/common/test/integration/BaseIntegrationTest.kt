@@ -14,6 +14,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.TestInstance
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Testcontainers
+import org.testcontainers.kafka.KafkaContainer
 import java.sql.DriverManager
 import kotlin.reflect.full.isSuperclassOf
 
@@ -31,11 +32,18 @@ abstract class BaseIntegrationTest : TestPropertyProvider {
             props += PostgresTestContainer.micronautProps()
         }
 
+        if (KafkaIntegrationTest::class.isSuperclassOf(this::class)) {
+            val kafka = KafkaTestContainer.container // init container
+            props += KafkaTestContainer.micronautProps()
+        }
+
         return props
     }
 
     fun getPgContainer(): PostgreSQLContainer<*> = PostgresTestContainer.container
-//  fun getKafkaContainer(): KafkaContainer = TODO()
+
+    fun getKafkaContainer(): KafkaContainer = KafkaTestContainer.container
+
 //  fun getRedisContainer(): RedisContainer = TODO()
 
     @Inject
@@ -70,6 +78,15 @@ abstract class BaseIntegrationTest : TestPropertyProvider {
                     }
                 }
             }
+        }
+
+        // Test Kafka test container
+        if (KafkaIntegrationTest::class.isSuperclassOf(this::class)) {
+            val kafkaContainer = KafkaTestContainer.container
+            assertThat(kafkaContainer.isRunning).isTrue()
+            assertThat(kafkaContainer.bootstrapServers).isNotNull()
+            assertThat(kafkaContainer.bootstrapServers).isNotEmpty()
+            assertThat(kafkaContainer.firstMappedPort).isGreaterThan(0)
         }
     }
 

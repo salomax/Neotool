@@ -40,6 +40,65 @@ search_keywords: [commands, cli, reference]
 ./neotool validate --skip-coverage    # Run validations without coverage checks
 ```
 
+### Kafka Management
+```bash
+./neotool kafka --topic                              # List all topics (excluding internals)
+./neotool kafka --topic <name>                       # Describe a specific topic
+./neotool kafka --consumer-group                     # List all consumer groups
+./neotool kafka --consumer-group <name>              # Describe a specific consumer group
+./neotool kafka --reset-offsets                      # Reset consumer group offsets (requires --group, --topic, and strategy)
+./neotool kafka --topic --bootstrap-server <server> # Use custom bootstrap server
+./neotool kafka --topic --docker                     # Force Docker execution
+```
+
+**Kafka Options**:
+- `--bootstrap-server <server>`: Override default bootstrap server (default: `localhost:9092`)
+- `--docker`: Force using Docker exec (useful when Kafka tools aren't installed locally)
+- Environment variable `KAFKA_BOOTSTRAP_SERVER`: Set default bootstrap server
+
+**Reset Offsets Options**:
+- `--group <name>`: Consumer group name (required)
+- `--topic <name>`: Topic name (required)
+- `--to-earliest`: Reset to beginning of topic (reprocess all messages)
+- `--to-latest`: Reset to end of topic (skip all existing messages)
+- `--to-offset <offset>`: Reset to specific offset (per partition)
+- `--to-datetime <time>`: Reset to messages after datetime (format: YYYY-MM-DDTHH:mm:ss)
+- `--execute`: Actually perform the reset (default is dry-run)
+- `--force`: Skip confirmation prompt (use with caution)
+
+**Examples**:
+```bash
+# List all topics (excluding internal topics like __consumer_offsets)
+./neotool kafka --topic
+
+# Describe a specific topic
+./neotool kafka --topic swapi.people.v1
+
+# List all consumer groups
+./neotool kafka --consumer-group
+
+# Describe a specific consumer group
+./neotool kafka --consumer-group swapi-people-consumer-group
+
+# Preview offset reset (dry-run)
+./neotool kafka --reset-offsets --group swapi-people-consumer-group --topic swapi.people.v1 --to-earliest
+
+# Reset offsets to beginning (reprocess all messages)
+./neotool kafka --reset-offsets --group swapi-people-consumer-group --topic swapi.people.v1 --to-earliest --execute
+
+# Reset offsets to latest (skip existing messages)
+./neotool kafka --reset-offsets --group swapi-people-consumer-group --topic swapi.people.v1 --to-latest --execute --force
+
+# Reset offsets to specific datetime
+./neotool kafka --reset-offsets --group swapi-people-consumer-group --topic swapi.people.v1 --to-datetime 2024-01-01T00:00:00 --execute
+
+# Use custom bootstrap server
+./neotool kafka --topic --bootstrap-server kafka.example.com:9092
+
+# Force Docker execution
+./neotool kafka --topic --docker
+```
+
 ## Backend Commands
 
 ### Gradle

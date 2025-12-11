@@ -15,6 +15,7 @@ import io.github.salomax.neotool.security.graphql.dto.UpdateRoleInputDTO
 import io.github.salomax.neotool.security.service.RoleOrderBy
 import io.github.salomax.neotool.security.service.RoleOrderField
 import jakarta.inject.Singleton
+import java.util.UUID
 
 /**
  * Mapper for converting between role management domain objects and GraphQL DTOs.
@@ -95,23 +96,23 @@ class RoleManagementMapper {
         input: UpdateRoleInputDTO,
     ): RoleManagement.UpdateRoleCommand {
         return RoleManagement.UpdateRoleCommand(
-            roleId = roleId.toInt(),
+            roleId = UUID.fromString(roleId),
             name = input.name,
         )
     }
 
     /**
-     * Convert String ID to Int.
+     * Convert String ID to UUID.
      */
-    fun toRoleId(id: String): Int {
-        return id.toInt()
+    fun toRoleId(id: String): UUID {
+        return UUID.fromString(id)
     }
 
     /**
-     * Convert String ID to Int for permission ID.
+     * Convert String ID to UUID for permission ID.
      */
-    fun toPermissionId(id: String): Int {
-        return id.toInt()
+    fun toPermissionId(id: String): UUID {
+        return UUID.fromString(id)
     }
 
     /**

@@ -17,6 +17,7 @@ import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.time.Instant
 import java.util.Optional
+import java.util.UUID
 
 @DisplayName("PermissionService Unit Tests")
 class PermissionServiceTest {
@@ -35,7 +36,7 @@ class PermissionServiceTest {
         @Test
         fun `should find permission by id`() {
             // Arrange
-            val permissionId = 1
+            val permissionId = UUID.randomUUID()
             val permissionEntity = SecurityTestDataBuilders.permission(id = permissionId, name = "transaction:read")
             whenever(permissionRepository.findById(permissionId)).thenReturn(Optional.of(permissionEntity))
 
@@ -52,7 +53,7 @@ class PermissionServiceTest {
         @Test
         fun `should return null when permission not found by id`() {
             // Arrange
-            val permissionId = 999
+            val permissionId = UUID.randomUUID()
             whenever(permissionRepository.findById(permissionId)).thenReturn(Optional.empty())
 
             // Act
@@ -67,7 +68,7 @@ class PermissionServiceTest {
         fun `should find permission by name`() {
             // Arrange
             val permissionName = "transaction:read"
-            val permissionEntity = SecurityTestDataBuilders.permission(id = 1, name = permissionName)
+            val permissionEntity = SecurityTestDataBuilders.permission(id = UUID.randomUUID(), name = permissionName)
             whenever(permissionRepository.findByName(permissionName)).thenReturn(Optional.of(permissionEntity))
 
             // Act
@@ -96,8 +97,8 @@ class PermissionServiceTest {
         @Test
         fun `should find all permissions`() {
             // Arrange
-            val permission1 = SecurityTestDataBuilders.permission(id = 1, name = "transaction:read")
-            val permission2 = SecurityTestDataBuilders.permission(id = 2, name = "transaction:write")
+            val permission1 = SecurityTestDataBuilders.permission(id = UUID.randomUUID(), name = "transaction:read")
+            val permission2 = SecurityTestDataBuilders.permission(id = UUID.randomUUID(), name = "transaction:write")
             whenever(permissionRepository.findAll()).thenReturn(listOf(permission1, permission2))
 
             // Act
@@ -135,7 +136,7 @@ class PermissionServiceTest {
                     createdAt = Instant.now(),
                     updatedAt = Instant.now(),
                 )
-            val savedEntity = SecurityTestDataBuilders.permission(id = 1, name = "transaction:read")
+            val savedEntity = SecurityTestDataBuilders.permission(id = UUID.randomUUID(), name = "transaction:read")
             whenever(permissionRepository.save(any())).thenReturn(savedEntity)
 
             // Act
@@ -154,7 +155,7 @@ class PermissionServiceTest {
         @Test
         fun `should update permission successfully`() {
             // Arrange
-            val permissionId = 1
+            val permissionId = UUID.randomUUID()
             val existingEntity = SecurityTestDataBuilders.permission(id = permissionId, name = "transaction:old")
             val updatedPermission =
                 Permission(
@@ -201,7 +202,7 @@ class PermissionServiceTest {
         @Test
         fun `should throw exception when updating non-existent permission`() {
             // Arrange
-            val permissionId = 999
+            val permissionId = UUID.randomUUID()
             val permission =
                 Permission(
                     id = permissionId,
@@ -228,7 +229,7 @@ class PermissionServiceTest {
         @Test
         fun `should delete permission successfully`() {
             // Arrange
-            val permissionId = 1
+            val permissionId = UUID.randomUUID()
 
             // Act
             permissionService.delete(permissionId)

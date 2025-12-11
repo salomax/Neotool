@@ -67,10 +67,10 @@ class UserManagementMapper {
     }
 
     /**
-     * Convert String ID to Int for role ID.
+     * Convert String ID to UUID for role ID.
      */
-    fun toRoleId(id: String): Int {
-        return id.toInt()
+    fun toRoleId(id: String): UUID {
+        return UUID.fromString(id)
     }
 
     /**

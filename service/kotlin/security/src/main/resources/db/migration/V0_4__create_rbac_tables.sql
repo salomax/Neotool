@@ -5,7 +5,7 @@ SET search_path TO security, public;
 CREATE TABLE IF NOT EXISTS security.role_assignments (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
     user_id UUID NOT NULL REFERENCES security.users(id) ON DELETE CASCADE,
-    role_id INT NOT NULL REFERENCES security.roles(id) ON DELETE CASCADE,
+    role_id UUID NOT NULL REFERENCES security.roles(id) ON DELETE CASCADE,
     valid_from TIMESTAMP, -- nullable, if null then valid from creation
     valid_until TIMESTAMP, -- nullable, if null then no expiry
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -19,4 +19,15 @@ CREATE INDEX IF NOT EXISTS idx_role_assignments_user_role ON security.role_assig
 -- Add index on valid_from and valid_until for temporal validity checks
 CREATE INDEX IF NOT EXISTS idx_role_assignments_validity ON security.role_assignments(valid_from, valid_until);
 
+-- Ensure admin user has ADMIN role assignment
+INSERT INTO security.role_assignments (user_id, role_id, created_at, updated_at)
+SELECT u.id, r.id, NOW(), NOW()
+FROM security.users u
+CROSS JOIN security.roles r
+WHERE u.email = 'admin@example.com' 
+  AND r.name = 'ADMIN'
+  AND NOT EXISTS (
+      SELECT 1 FROM security.role_assignments ra
+      WHERE ra.user_id = u.id AND ra.role_id = r.id
+  );
 

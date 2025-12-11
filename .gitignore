@@ -7,6 +7,7 @@ bin/
 coverage/
 .env
 .env.*
+venv
 
 *.code-workspace
 .idea

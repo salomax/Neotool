@@ -54,6 +54,7 @@ services:
   kafka:
     image: apache/kafka:3.7.0
     container_name: neotool-kafka
+    restart: unless-stopped
     ports:
       - "9092:9092"
       - "9093:9093"
@@ -69,10 +70,10 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
       CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
     volumes:
-      - kafka-data:/tmp/kraft-combined-logs
+      - kafka-data:/var/lib/kafka/data
     profiles:
       - kafka
 
@@ -81,7 +82,7 @@ services:
   # Profile: prefect
   # -------------------------------------------------------------
   prefect-server:
-    image: prefecthq/prefect:2-latest
+    image: prefecthq/prefect:3-latest
     container_name: neotool-prefect-server
     command: prefect server start --host 0.0.0.0
     ports:
@@ -94,7 +95,7 @@ services:
       - prefect
 
   prefect-ui:
-    image: prefecthq/prefect:2-latest
+    image: prefecthq/prefect:3-latest
     container_name: neotool-prefect-ui
     command: prefect server start --host 0.0.0.0 --ui
     ports:
