@@ -1,24 +1,17 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect, startTransition } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef, startTransition } from "react";
 import {
   useGetUsersQuery,
   GetUsersDocument,
+  GetUsersQueryVariables,
 } from '@/lib/graphql/operations/authorization-management/queries.generated';
-import {
-  useEnableUserMutation,
-  useDisableUserMutation,
-  useAssignGroupToUserMutation,
-  useRemoveGroupFromUserMutation,
-  useAssignRoleToUserMutation,
-  useRemoveRoleFromUserMutation,
-} from '@/lib/graphql/operations/authorization-management/mutations.generated';
 import { extractErrorMessage } from '@/shared/utils/error';
 import { hasAuthToken, isAuthenticationError, handleAuthError } from '@/shared/utils/auth';
 import { useRelayPagination } from '@/shared/hooks/pagination';
 import { useDebouncedSearch } from '@/shared/hooks/search';
 import { useSorting } from '@/shared/hooks/sorting';
-import { useMutationWithRefetch } from '@/shared/hooks/mutations';
+import { useUserMutations } from './useUserMutations';
 import { useAuth } from '@/shared/providers/AuthProvider';
 import type { UserSortState, UserOrderField } from '@/shared/utils/sorting';
 import type { UserOrderByInput } from '@/lib/graphql/types/__generated__/graphql';
@@ -33,6 +26,10 @@ export type User = {
 export type UseUserManagementOptions = {
   initialSearchQuery?: string;
   initialFirst?: number;
+  /**
+   * When true, skips executing the query (useful while waiting for dynamic sizing).
+   */
+  skip?: boolean;
 };
 
 export type UseUserManagementReturn = {
@@ -146,19 +143,25 @@ export type UseUserManagementReturn = {
  */
 export function useUserManagement(options: UseUserManagementOptions = {}): UseUserManagementReturn {
   const { isAuthenticated } = useAuth();
+  const waitingForPageSize = options.skip ?? false;
   
   // Local state
-  const [first, setFirst] = useState(options.initialFirst || 10);
+  const [firstState, setFirstState] = useState(options.initialFirst || 10);
   const [after, setAfter] = useState<string | null>(null);
 
+  // Ref to track current first value for guard
+  const firstRef = useRef(firstState);
+  firstRef.current = firstState;
+
   // State to preserve previous data during loading to prevent flicker
-  const [previousData, setPreviousData] = useState<typeof usersData | null>(null);
+  const [previousData, setPreviousData] = useState<any>(null);
   
   // Track if we've seen an auth error to prevent infinite retries
   const [hasAuthError, setHasAuthError] = useState(false);
   
   // Check if we actually have a token (even if isAuthenticated is true, token might be invalid)
   const hasToken = hasAuthToken();
+  const shouldSkipQuery = waitingForPageSize || !isAuthenticated || !hasToken || hasAuthError;
 
   // Search state
   const [searchQuery, setSearchQuery] = useState(options.initialSearchQuery || "");
@@ -166,26 +169,34 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
   // Sorting - memoize the callback to prevent unnecessary re-renders
   // Reset cursor when sorting changes (Apollo will automatically refetch when orderBy variable changes)
   const handleSortChange = useCallback(() => {
-    // Reset cursor when sorting changes
-    setAfter(null);
-  }, []);
+    // Reset cursor when sorting changes (non-urgent update)
+    if (after !== null) {
+      startTransition(() => {
+        setAfter(null);
+      });
+    }
+  }, [after]);
 
   const { orderBy, graphQLOrderBy, setOrderBy, handleSort } = useSorting<UserOrderField>({
     initialSort: null,
     onSortChange: handleSortChange,
   });
 
+  // Memoize query variables to prevent unnecessary re-renders
+  const queryVariables = useMemo<GetUsersQueryVariables>(() => {
+    const vars: GetUsersQueryVariables = {
+      first: firstState,
+      ...(after && { after }),
+      ...(searchQuery && { query: searchQuery }),
+      ...(graphQLOrderBy && graphQLOrderBy.length > 0 && { orderBy: graphQLOrderBy as UserOrderByInput[] }),
+    };
+    return vars;
+  }, [firstState, after, searchQuery, graphQLOrderBy]);
+
   // GraphQL hooks - skip query if not authenticated or if we've seen an auth error
   const { data: usersData, loading, error, refetch } = useGetUsersQuery({
-    variables: {
-      first,
-      after: after || undefined,
-      query: searchQuery || undefined,
-      // Cast to GraphQL type - the utility function returns compatible structure
-      // but TypeScript sees them as different types due to separate type definitions
-      orderBy: (graphQLOrderBy as UserOrderByInput[] | undefined) || undefined,
-    },
-    skip: !isAuthenticated || !hasToken || hasAuthError, // Skip if not authenticated, no token, or auth error occurred
+    variables: queryVariables,
+    skip: shouldSkipQuery, // Skip if not authenticated, no token, auth error, or awaiting page size
     notifyOnNetworkStatusChange: true, // Keep loading state accurate during transitions
     fetchPolicy: 'network-only', // Always fetch from network, no cache
   });
@@ -219,25 +230,38 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
     }
   }, [usersData, loading]);
 
-  const [enableUserMutation, { loading: enableLoading }] = useEnableUserMutation();
-  const [disableUserMutation, { loading: disableLoading }] = useDisableUserMutation();
-  const [assignGroupToUserMutation, { loading: assignGroupLoading }] = useAssignGroupToUserMutation();
-  const [removeGroupFromUserMutation, { loading: removeGroupLoading }] = useRemoveGroupFromUserMutation();
-  const [assignRoleToUserMutation, { loading: assignRoleLoading }] = useAssignRoleToUserMutation();
-  const [removeRoleFromUserMutation, { loading: removeRoleLoading }] = useRemoveRoleFromUserMutation();
-
-  // Mutation hook with refetch
-  const { executeMutation } = useMutationWithRefetch({
+  // Use mutation hook internally
+  const {
+    enableUser,
+    disableUser,
+    assignGroupToUser,
+    removeGroupFromUser,
+    assignRoleToUser,
+    removeRoleFromUser,
+    enableLoading,
+    disableLoading,
+    assignGroupLoading,
+    removeGroupLoading,
+    assignRoleLoading,
+    removeRoleLoading,
+  } = useUserMutations({
     refetchQuery: GetUsersDocument,
-    refetchVariables: {
-      first,
-      after: after || undefined,
-      query: searchQuery || undefined,
-      orderBy: (graphQLOrderBy as UserOrderByInput[] | undefined) || undefined,
-    },
+    refetchVariables: queryVariables,
     onRefetch: refetch,
-    errorMessage: 'Failed to update user',
   });
+
+  // Guard setFirst to only update if value actually changed
+  const setFirst = useCallback((newFirst: number) => {
+    if (firstRef.current === newFirst) {
+      return; // No change, prevent unnecessary state update and query
+    }
+    startTransition(() => {
+      setFirstState(newFirst);
+    });
+  }, []);
+
+  // Use the state value
+  const first = firstState;
 
   // Get current data (use previous data while loading to prevent flicker)
   const currentData = useMemo(() => {
@@ -246,7 +270,7 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
 
   // Derived data - use previous data while loading to prevent flicker
   const users = useMemo(() => {
-    return currentData?.users?.edges?.map(e => e.node) || [];
+    return currentData?.users?.edges?.map((e: { node: User }) => e.node) || [];
   }, [currentData]);
 
   const pageInfo = useMemo(() => {
@@ -295,69 +319,12 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
   } = useDebouncedSearch({
     initialValue: searchQuery,
     debounceMs: 300,
-    onSearchChange: goToFirstPage,
+    // Removed onSearchChange - useRelayPagination already handles pagination reset when searchQuery changes
     setSearchQuery,
     searchQuery,
   });
 
-  // Mutations
-  const enableUser = useCallback(
-    async (userId: string) => {
-      await executeMutation(enableUserMutation, { userId }, userId);
-    },
-    [executeMutation, enableUserMutation]
-  );
-
-  const disableUser = useCallback(
-    async (userId: string) => {
-      await executeMutation(disableUserMutation, { userId }, userId);
-    },
-    [executeMutation, disableUserMutation]
-  );
-
-  const assignGroupToUser = useCallback(
-    async (userId: string, groupId: string) => {
-      await executeMutation(
-        assignGroupToUserMutation,
-        { userId, groupId },
-        `assign-group-${userId}-${groupId}`
-      );
-    },
-    [executeMutation, assignGroupToUserMutation]
-  );
-
-  const removeGroupFromUser = useCallback(
-    async (userId: string, groupId: string) => {
-      await executeMutation(
-        removeGroupFromUserMutation,
-        { userId, groupId },
-        `remove-group-${userId}-${groupId}`
-      );
-    },
-    [executeMutation, removeGroupFromUserMutation]
-  );
-
-  const assignRoleToUser = useCallback(
-    async (userId: string, roleId: string) => {
-      await executeMutation(
-        assignRoleToUserMutation,
-        { userId, roleId },
-        `assign-role-${userId}-${roleId}`
-      );
-    },
-    [executeMutation, assignRoleToUserMutation]
-  );
-
-  const removeRoleFromUser = useCallback(
-    async (userId: string, roleId: string) => {
-      await executeMutation(
-        removeRoleFromUserMutation,
-        { userId, roleId },
-        `remove-role-${userId}-${roleId}`
-      );
-    },
-    [executeMutation, removeRoleFromUserMutation]
-  );
+  const effectiveLoading = waitingForPageSize || loading;
 
   return {
     // Data
@@ -396,7 +363,7 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
     removeRoleFromUser,
     
     // Loading states
-    loading,
+    loading: effectiveLoading,
     enableLoading,
     disableLoading,
     assignGroupLoading,
@@ -405,7 +372,9 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
     removeRoleLoading,
     
     // Error handling - don't return auth errors to prevent blinking
-    error: error && !isAuthError ? new Error(extractErrorMessage(error)) : undefined,
+    error: !waitingForPageSize && error && !isAuthError
+      ? new Error(extractErrorMessage(error))
+      : undefined,
     
     // Utilities
     refetch,

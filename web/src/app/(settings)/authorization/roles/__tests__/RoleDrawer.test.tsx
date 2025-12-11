@@ -117,8 +117,8 @@ vi.mock('@/lib/graphql/operations/authorization-management/queries.generated', (
   useGetRoleWithUsersAndGroupsQuery: () => mockUseGetRoleWithUsersAndGroupsQuery(),
 }));
 
-// Mock useRoleManagement hook
-const mockUseRoleManagement = vi.fn(() => ({
+// Mock useRoleMutations hook
+const mockUseRoleMutations = vi.fn(() => ({
   createRole: vi.fn().mockResolvedValue({ id: 'role-2', name: 'New Role' }),
   updateRole: vi.fn().mockResolvedValue(undefined),
   assignPermissionToRole: vi.fn().mockResolvedValue(undefined),
@@ -135,11 +135,10 @@ const mockUseRoleManagement = vi.fn(() => ({
   removeRoleFromUserLoading: false,
   assignRoleToGroupLoading: false,
   removeRoleFromGroupLoading: false,
-  refetch: vi.fn(),
 }));
 
-vi.mock('@/shared/hooks/authorization/useRoleManagement', () => ({
-  useRoleManagement: () => mockUseRoleManagement(),
+vi.mock('@/shared/hooks/authorization/useRoleMutations', () => ({
+  useRoleMutations: () => mockUseRoleMutations(),
 }));
 
 // Mock usePermissionManagement hook
@@ -151,7 +150,7 @@ const mockUsePermissionManagement = vi.fn(() => ({
 }));
 
 vi.mock('@/shared/hooks/authorization/usePermissionManagement', () => ({
-  usePermissionManagement: () => mockUsePermissionManagement(),
+  usePermissionManagement: (options: any) => mockUsePermissionManagement(options),
 }));
 
 // Mock translations
@@ -299,7 +298,7 @@ describe('RoleDrawer', () => {
         },
       }),
     });
-    mockUseRoleManagement.mockReturnValue({
+    mockUseRoleMutations.mockReturnValue({
       createRole: vi.fn().mockResolvedValue({ id: 'role-2', name: 'New Role' }),
       updateRole: vi.fn().mockResolvedValue(undefined),
       assignPermissionToRole: vi.fn().mockResolvedValue(undefined),
@@ -438,8 +437,8 @@ describe('RoleDrawer', () => {
     });
 
     it('should disable buttons when saving', () => {
-      mockUseRoleManagement.mockReturnValue({
-        ...mockUseRoleManagement(),
+      mockUseRoleMutations.mockReturnValue({
+        ...mockUseRoleMutations(),
         createLoading: true,
       });
 

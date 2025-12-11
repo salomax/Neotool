@@ -88,19 +88,18 @@ vi.mock('@/lib/graphql/operations/authorization-management/mutations.generated',
   useCreateGroupMutation: () => mockUseCreateGroupMutation(),
 }));
 
-// Mock useGroupManagement hook
-const mockUseGroupManagement = vi.fn(() => ({
+// Mock useGroupMutations hook
+const mockUseGroupMutations = vi.fn(() => ({
   updateGroup: vi.fn().mockResolvedValue(undefined),
   assignRoleToGroup: vi.fn().mockResolvedValue(undefined),
   removeRoleFromGroup: vi.fn().mockResolvedValue(undefined),
   updateLoading: false,
   assignRoleLoading: false,
   removeRoleLoading: false,
-  refetch: vi.fn(),
 }));
 
-vi.mock('@/shared/hooks/authorization/useGroupManagement', () => ({
-  useGroupManagement: () => mockUseGroupManagement(),
+vi.mock('@/shared/hooks/authorization/useGroupMutations', () => ({
+  useGroupMutations: () => mockUseGroupMutations(),
 }));
 
 // Mock translations
@@ -227,7 +226,7 @@ describe('GroupDrawer', () => {
       }),
       { loading: false },
     ]);
-    mockUseGroupManagement.mockReturnValue({
+    mockUseGroupMutations.mockReturnValue({
       updateGroup: vi.fn().mockResolvedValue(undefined),
       assignRoleToGroup: vi.fn().mockResolvedValue(undefined),
       removeRoleFromGroup: vi.fn().mockResolvedValue(undefined),
@@ -401,7 +400,7 @@ describe('GroupDrawer', () => {
     it('should handle role assignment in edit mode', async () => {
       const assignRoleToGroup = vi.fn().mockResolvedValue(undefined);
       const refetch = vi.fn().mockResolvedValue({ data: { group: mockGroup } });
-      mockUseGroupManagement.mockReturnValue({
+      mockUseGroupMutations.mockReturnValue({
         assignRoleToGroup,
         removeRoleFromGroup: vi.fn(),
         updateGroup: vi.fn(),

@@ -32,6 +32,10 @@ export interface RoleUserAssignmentProps {
   assignLoading?: boolean;
   removeLoading?: boolean;
   onUsersChange?: () => void;
+  /**
+   * When false, skips loading user options and renders nothing.
+   */
+  active?: boolean;
 }
 
 type UserOption = {
@@ -54,18 +58,21 @@ export const RoleUserAssignment: React.FC<RoleUserAssignmentProps> = ({
   assignLoading = false,
   removeLoading = false,
   onUsersChange,
+  active = true,
 }) => {
   const { t } = useTranslation(authorizationManagementTranslations);
   const toast = useToast();
   const { isAuthenticated } = useAuth();
 
   // Fetch all users for selection
+  const shouldFetchUsers = active && isAuthenticated;
+
   const { data, loading: usersLoading, error: usersError, refetch } = useGetUsersQuery({
     variables: {
       first: 1000, // Fetch a large number of users for selection
       query: undefined,
     },
-    skip: !isAuthenticated, // Skip if not authenticated
+    skip: !shouldFetchUsers, // Skip if not authenticated or drawer closed
     fetchPolicy: 'network-only', // Always fetch from network, no cache
   });
 
@@ -130,6 +137,10 @@ export const RoleUserAssignment: React.FC<RoleUserAssignmentProps> = ({
     },
     [assignedUsers, onAssignUser, onRemoveUser, toast, t, onUsersChange]
   );
+
+  if (!active) {
+    return null;
+  }
 
   if (usersLoading) {
     return (
@@ -196,4 +207,3 @@ export const RoleUserAssignment: React.FC<RoleUserAssignmentProps> = ({
     </Box>
   );
 };
-

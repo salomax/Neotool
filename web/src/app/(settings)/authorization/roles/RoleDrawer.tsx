@@ -10,6 +10,7 @@ import { useForm, FormProvider } from "react-hook-form";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { LoadingState, ErrorAlert } from "@/shared/components/ui/feedback";
 import { useGetRolesWithPermissionsQuery, useGetRoleWithUsersAndGroupsQuery } from "@/lib/graphql/operations/authorization-management/queries.generated";
+import { useRoleMutations } from "@/shared/hooks/authorization/useRoleMutations";
 import { useRoleManagement, type Role } from "@/shared/hooks/authorization/useRoleManagement";
 import { usePermissionManagement } from "@/shared/hooks/authorization/usePermissionManagement";
 import { useTranslation } from "@/shared/i18n";
@@ -55,6 +56,7 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
   // Fetch all permissions for optimistic updates (need permission names)
   const { permissions: allPermissions } = usePermissionManagement({
     initialFirst: 1000, // Fetch all permissions
+    skip: !open,
   });
 
   // Query roles with permissions to get current role's permissions
@@ -177,6 +179,7 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
     }
   }, [usersGroupsData, role, pendingGroups, optimisticGroups]);
 
+  // Use mutation hook directly - drawer doesn't need the query
   const {
     createRole,
     updateRole,
@@ -194,8 +197,9 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
     removeRoleFromUserLoading,
     assignRoleToGroupLoading,
     removeRoleFromGroupLoading,
-    refetch: refetchRoles,
-  } = useRoleManagement();
+  } = useRoleMutations({
+    // No refetch needed - drawer manages its own queries
+  });
 
   // Form setup
   const methods = useForm<RoleFormData>({
@@ -308,7 +312,7 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
         
         toast.success(t("roleManagement.toast.roleCreated", { name: data.name }));
       }
-      refetchRoles();
+      // Note: No need to refetch roles list - mutations update cache and parent will refetch when needed
       // Clear pending state
       setPendingPermissions([]);
       setPendingUsers([]);
@@ -348,7 +352,7 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
         refetchPermissions().catch(() => {
           // Silently handle refetch failures - data will refresh on next interaction
         });
-        refetchRoles();
+        // Note: No need to refetch roles list - mutations update cache
         // Clear optimistic state after successful refetch (with a small delay to let refetch complete)
         setTimeout(() => {
           setOptimisticPermissions(null);
@@ -387,7 +391,7 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
         refetchPermissions().catch(() => {
           // Silently handle refetch failures - data will refresh on next interaction
         });
-        refetchRoles();
+        // Note: No need to refetch roles list - mutations update cache
         // Clear optimistic state after successful refetch
         setTimeout(() => {
           setOptimisticPermissions(null);
@@ -405,7 +409,7 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
 
   const handlePermissionsChange = () => {
     refetchPermissions();
-    refetchRoles();
+    // Note: No need to refetch roles list - mutations update cache
   };
 
   const handleAssignUser = async (userId: string) => {
@@ -443,7 +447,7 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
         refetchUsersGroups().catch(() => {
           // Silently handle refetch failures - data will refresh on next interaction
         });
-        refetchRoles();
+        // Note: No need to refetch roles list - mutations update cache
         // Clear optimistic state after successful refetch
         setTimeout(() => {
           setOptimisticUsers(null);
@@ -486,7 +490,7 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
         refetchUsersGroups().catch(() => {
           // Silently handle refetch failures - data will refresh on next interaction
         });
-        refetchRoles();
+        // Note: No need to refetch roles list - mutations update cache
         // Clear optimistic state after successful refetch
         setTimeout(() => {
           setOptimisticUsers(null);
@@ -504,7 +508,7 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
 
   const handleUsersChange = () => {
     refetchUsersGroups();
-    refetchRoles();
+    // Note: No need to refetch roles list - mutations update cache
   };
 
   const handleAssignGroup = async (groupId: string) => {
@@ -540,7 +544,7 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
         refetchUsersGroups().catch(() => {
           // Silently handle refetch failures - data will refresh on next interaction
         });
-        refetchRoles();
+        // Note: No need to refetch roles list - mutations update cache
         // Clear optimistic state after successful refetch
         setTimeout(() => {
           setOptimisticGroups(null);
@@ -582,7 +586,7 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
         refetchUsersGroups().catch(() => {
           // Silently handle refetch failures - data will refresh on next interaction
         });
-        refetchRoles();
+        // Note: No need to refetch roles list - mutations update cache
         // Clear optimistic state after successful refetch
         setTimeout(() => {
           setOptimisticGroups(null);
@@ -600,7 +604,7 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
 
   const handleGroupsChange = () => {
     refetchUsersGroups();
-    refetchRoles();
+    // Note: No need to refetch roles list - mutations update cache
   };
 
   return (
@@ -651,6 +655,7 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
                     assignLoading={assignPermissionLoading}
                     removeLoading={removePermissionLoading}
                     onPermissionsChange={handlePermissionsChange}
+                    active={open}
                   />
 
                   <RoleUserAssignment
@@ -661,6 +666,7 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
                     assignLoading={assignRoleToUserLoading}
                     removeLoading={removeRoleFromUserLoading}
                     onUsersChange={handleUsersChange}
+                    active={open}
                   />
 
                   <RoleGroupAssignment
@@ -671,6 +677,7 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
                     assignLoading={assignRoleToGroupLoading}
                     removeLoading={removeRoleFromGroupLoading}
                     onGroupsChange={handleGroupsChange}
+                    active={open}
                   />
                 </PermissionGate>
               </Stack>
@@ -709,4 +716,3 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
     </Drawer>
   );
 };
-

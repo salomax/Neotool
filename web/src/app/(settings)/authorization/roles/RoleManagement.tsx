@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import { Button } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import { useRoleManagement, type Role } from "@/shared/hooks/authorization/useRoleManagement";
@@ -27,6 +27,30 @@ export interface RoleManagementProps {
 export const RoleManagement: React.FC<RoleManagementProps> = ({
   initialSearchQuery = "",
 }) => {
+  const [initialPageSize, setInitialPageSize] = useState<number | null>(null);
+
+  const handleMeasurement = useCallback((size: number) => {
+    if (size > 0) {
+      setInitialPageSize((prev) => prev ?? size);
+    }
+  }, []);
+
+  if (initialPageSize === null) {
+    return <RoleManagementSizer onMeasured={handleMeasurement} />;
+  }
+
+  return (
+    <RoleManagementContent
+      initialPageSize={initialPageSize}
+      initialSearchQuery={initialSearchQuery}
+    />
+  );
+};
+
+const RoleManagementContent: React.FC<{
+  initialPageSize: number;
+  initialSearchQuery: string;
+}> = ({ initialPageSize, initialSearchQuery }) => {
   const { t } = useTranslation(authorizationManagementTranslations);
   const toast = useToast();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -56,7 +80,7 @@ export const RoleManagement: React.FC<RoleManagementProps> = ({
     setFirst,
   } = useRoleManagement({
     initialSearchQuery,
-    initialFirst: 10, // Default initial value, will be updated by DynamicTableBox
+    initialFirst: initialPageSize,
   });
 
   const handleCreate = useCallback(() => {
@@ -183,6 +207,69 @@ export const RoleManagement: React.FC<RoleManagementProps> = ({
           roleId={drawerRoleId}
         />
       </ManagementLayout.Drawer>
+    </ManagementLayout>
+  );
+};
+
+const RoleManagementSizer: React.FC<{ onMeasured: (size: number) => void }> = ({
+  onMeasured,
+}) => {
+  const { t } = useTranslation(authorizationManagementTranslations);
+  const hasReported = useRef(false);
+
+  const handleTableResize = useCallback(
+    (size: number) => {
+      if (size > 0 && !hasReported.current) {
+        hasReported.current = true;
+        onMeasured(size);
+      }
+    },
+    [onMeasured]
+  );
+
+  return (
+    <ManagementLayout
+      error={undefined}
+      onErrorRetry={undefined}
+      errorFallbackMessage={t("errors.loadFailed")}
+    >
+      <ManagementLayout.Header>
+        <Box sx={{ display: "flex", gap: 2, alignItems: "flex-end" }}>
+          <Box sx={{ flexGrow: 1 }} maxWidth="sm">
+            <RoleSearch
+              value=""
+              onChange={() => {}}
+              onSearch={() => {}}
+              placeholder={t("roleManagement.searchPlaceholder")}
+            />
+          </Box>
+          <Box sx={{ mb: 2 }}>
+            <PermissionGate require="security:role:save">
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                disabled
+                data-testid="create-role-button"
+              >
+                {t("roleManagement.newButton")}
+              </Button>
+            </PermissionGate>
+          </Box>
+        </Box>
+      </ManagementLayout.Header>
+      <ManagementLayout.Content>
+        <RoleList
+          roles={[]}
+          loading
+          onEdit={() => {}}
+          onDelete={undefined}
+          emptyMessage={t("roleManagement.emptyList")}
+          pageInfo={null}
+          paginationRange={undefined}
+          onTableResize={handleTableResize}
+          recalculationKey="role-measurement"
+        />
+      </ManagementLayout.Content>
     </ManagementLayout>
   );
 };

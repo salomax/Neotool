@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import { Button } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import { useGroupManagement, type Group } from "@/shared/hooks/authorization/useGroupManagement";
@@ -21,12 +21,35 @@ export interface GroupManagementProps {
 }
 
 /**
- * GroupManagement component - Main orchestrator for group management
- * Displays list of groups with search, pagination, and edit functionality
+ * GroupManagement orchestrates measurement + content rendering.
  */
 export const GroupManagement: React.FC<GroupManagementProps> = ({
   initialSearchQuery = "",
 }) => {
+  const [initialPageSize, setInitialPageSize] = useState<number | null>(null);
+
+  const handleMeasurement = useCallback((size: number) => {
+    if (size > 0) {
+      setInitialPageSize((prev) => prev ?? size);
+    }
+  }, []);
+
+  if (initialPageSize === null) {
+    return <GroupManagementSizer onMeasured={handleMeasurement} />;
+  }
+
+  return (
+    <GroupManagementContent
+      initialPageSize={initialPageSize}
+      initialSearchQuery={initialSearchQuery}
+    />
+  );
+};
+
+const GroupManagementContent: React.FC<{
+  initialPageSize: number;
+  initialSearchQuery: string;
+}> = ({ initialPageSize, initialSearchQuery }) => {
   const { t } = useTranslation(authorizationManagementTranslations);
   const toast = useToast();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -60,7 +83,7 @@ export const GroupManagement: React.FC<GroupManagementProps> = ({
     setFirst,
   } = useGroupManagement({
     initialSearchQuery,
-    initialFirst: 10, // Default initial value, will be updated by DynamicTableBox
+    initialFirst: initialPageSize,
   });
 
   const handleCreate = useCallback(() => {
@@ -162,7 +185,7 @@ export const GroupManagement: React.FC<GroupManagementProps> = ({
           onGoToFirst={goToFirstPage}
           canLoadPreviousPage={canLoadPreviousPage}
           onTableResize={handleTableResize}
-          recalculationKey={groups.length}
+          recalculationKey={`${groups.length}-${loading ? "loading" : "ready"}`}
           orderBy={orderBy}
           onSortChange={handleSort}
         />
@@ -190,3 +213,67 @@ export const GroupManagement: React.FC<GroupManagementProps> = ({
     </ManagementLayout>
   );
 };
+
+const GroupManagementSizer: React.FC<{ onMeasured: (size: number) => void }> = ({
+  onMeasured,
+}) => {
+  const { t } = useTranslation(authorizationManagementTranslations);
+  const hasReported = useRef(false);
+
+  const handleTableResize = useCallback(
+    (size: number) => {
+      if (size > 0 && !hasReported.current) {
+        hasReported.current = true;
+        onMeasured(size);
+      }
+    },
+    [onMeasured]
+  );
+
+  return (
+    <ManagementLayout
+      error={undefined}
+      onErrorRetry={undefined}
+      errorFallbackMessage={t("errors.loadFailed")}
+    >
+      <ManagementLayout.Header>
+        <Box sx={{ display: "flex", gap: 2, alignItems: "flex-end" }}>
+          <Box sx={{ flexGrow: 1 }} maxWidth="sm">
+            <GroupSearch
+              value=""
+              onChange={() => {}}
+              onSearch={() => {}}
+              placeholder={t("groupManagement.searchPlaceholder")}
+            />
+          </Box>
+          <Box sx={{ mb: 2 }}>
+            <PermissionGate require="security:group:save">
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                disabled
+                data-testid="create-group-button"
+              >
+                {t("groupManagement.newButton")}
+              </Button>
+            </PermissionGate>
+          </Box>
+        </Box>
+      </ManagementLayout.Header>
+      <ManagementLayout.Content>
+        <GroupList
+          groups={[]}
+          loading
+          onEdit={() => {}}
+          onDelete={undefined}
+          emptyMessage={t("groupManagement.emptyList")}
+          pageInfo={null}
+          paginationRange={undefined}
+          onTableResize={handleTableResize}
+          recalculationKey="group-measurement"
+        />
+      </ManagementLayout.Content>
+    </ManagementLayout>
+  );
+};
+

@@ -1,25 +1,19 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect, startTransition } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef, startTransition } from "react";
 import {
   useGetGroupsQuery,
   GetGroupsDocument,
   GetUserWithRelationshipsDocument,
+  GetGroupsQueryVariables,
 } from '@/lib/graphql/operations/authorization-management/queries.generated';
-import {
-  useCreateGroupMutation,
-  useUpdateGroupMutation,
-  useDeleteGroupMutation,
-  useAssignRoleToGroupMutation,
-  useRemoveRoleFromGroupMutation,
-} from '@/lib/graphql/operations/authorization-management/mutations.generated';
-import { CreateGroupInput, UpdateGroupInput, GroupOrderByInput } from '@/lib/graphql/types/__generated__/graphql';
+import { GroupOrderByInput } from '@/lib/graphql/types/__generated__/graphql';
 import { GroupFieldsFragment } from '@/lib/graphql/fragments/common.generated';
 import { extractErrorMessage } from '@/shared/utils/error';
 import { useRelayPagination } from '@/shared/hooks/pagination';
 import { useDebouncedSearch } from '@/shared/hooks/search';
 import { useSorting } from '@/shared/hooks/sorting';
-import { useMutationWithRefetch } from '@/shared/hooks/mutations';
+import { useGroupMutations } from './useGroupMutations';
 
 // Use the fragment type which includes all fields from the query
 export type Group = GroupFieldsFragment;
@@ -33,6 +27,10 @@ export type GroupFormData = {
 export type UseGroupManagementOptions = {
   initialSearchQuery?: string;
   initialFirst?: number;
+  /**
+   * When true, skips executing the query (useful while waiting for dynamic sizing).
+   */
+  skip?: boolean;
 };
 
 export type GroupOrderField = 'NAME';
@@ -148,12 +146,18 @@ export type UseGroupManagementReturn = {
  * ```
  */
 export function useGroupManagement(options: UseGroupManagementOptions = {}): UseGroupManagementReturn {
+  const waitingForPageSize = options.skip ?? false;
+
   // Local state
-  const [first, setFirst] = useState(options.initialFirst || 10);
+  const [firstState, setFirstState] = useState(options.initialFirst || 10);
   const [after, setAfter] = useState<string | null>(null);
 
+  // Ref to track current first value for guard
+  const firstRef = useRef(firstState);
+  firstRef.current = firstState;
+
   // State to preserve previous data during loading to prevent flicker
-  const [previousData, setPreviousData] = useState<typeof groupsData | null>(null);
+  const [previousData, setPreviousData] = useState<any>(null);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState(options.initialSearchQuery || "");
@@ -162,27 +166,32 @@ export function useGroupManagement(options: UseGroupManagementOptions = {}): Use
   const { orderBy, graphQLOrderBy, setOrderBy, handleSort } = useSorting<GroupOrderField>({
     initialSort: null,
     onSortChange: () => {
-      // Reset cursor when sorting changes
+      // Reset cursor when sorting changes (non-urgent update)
       if (after !== null) {
-        setAfter(null);
+        startTransition(() => {
+          setAfter(null);
+        });
       }
     },
   });
+
+  // Memoize query variables to prevent unnecessary re-renders
+  const queryVariables = useMemo<GetGroupsQueryVariables>(() => {
+    const vars: GetGroupsQueryVariables = {
+      first: firstState,
+      ...(after && { after }),
+      ...(searchQuery && { query: searchQuery }),
+      ...(graphQLOrderBy && graphQLOrderBy.length > 0 && { orderBy: graphQLOrderBy as GroupOrderByInput[] }),
+    };
+    return vars;
+  }, [firstState, after, searchQuery, graphQLOrderBy]);
 
   // GraphQL hooks
   // Note: orderBy is added to the query but generated types may not include it yet
   // Type assertion is used until GraphQL types are regenerated
   const { data: groupsData, loading, error, refetch } = useGetGroupsQuery({
-    variables: {
-      first,
-      after: after || undefined,
-      query: searchQuery || undefined,
-      // Cast to GraphQL type - the utility function returns compatible structure
-      // but TypeScript sees them as different types due to separate type definitions
-      // Also need to cast variables object since generated types may not include orderBy yet
-      orderBy: (graphQLOrderBy as GroupOrderByInput[] | undefined) || undefined,
-    } as any, // Type assertion needed until GraphQL types are regenerated with orderBy
-    skip: false,
+    variables: queryVariables,
+    skip: waitingForPageSize,
     notifyOnNetworkStatusChange: true, // Keep loading state accurate during transitions
   });
 
@@ -195,30 +204,64 @@ export function useGroupManagement(options: UseGroupManagementOptions = {}): Use
     }
   }, [groupsData, loading]);
 
-  const [createGroupMutation, { loading: createLoading }] = useCreateGroupMutation();
-  const [updateGroupMutation, { loading: updateLoading }] = useUpdateGroupMutation();
-  const [deleteGroupMutation, { loading: deleteLoading }] = useDeleteGroupMutation();
-  const [assignRoleToGroupMutation, { loading: assignRoleLoading }] = useAssignRoleToGroupMutation();
-  const [removeRoleFromGroupMutation, { loading: removeRoleLoading }] = useRemoveRoleFromGroupMutation();
+  // Dialog management (kept for backward compatibility, but not used in new pattern)
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<Group | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<Group | null>(null);
 
-  // Mutation hook with refetch
-  const { executeMutation } = useMutationWithRefetch({
+  const openCreateDialog = useCallback(() => {
+    setEditingGroup(null);
+    setDialogOpen(true);
+  }, []);
+
+  const openEditDialog = useCallback((group: Group) => {
+    setEditingGroup(group);
+    setDialogOpen(true);
+  }, []);
+
+  const closeDialog = useCallback(() => {
+    setDialogOpen(false);
+    setEditingGroup(null);
+  }, []);
+
+  // Use mutation hook internally
+  const {
+    createGroup: createGroupMutation,
+    updateGroup: updateGroupMutation,
+    deleteGroup: deleteGroupMutation,
+    assignRoleToGroup,
+    removeRoleFromGroup,
+    createLoading,
+    updateLoading,
+    deleteLoading,
+    assignRoleLoading,
+    removeRoleLoading,
+  } = useGroupMutations({
     refetchQuery: GetGroupsDocument,
-    refetchVariables: {
-      first,
-      after: after || undefined,
-      query: searchQuery || undefined,
-      orderBy: (graphQLOrderBy as GroupOrderByInput[] | undefined) || undefined,
-    },
+    refetchVariables: queryVariables,
     onRefetch: refetch,
-    errorMessage: 'Failed to update group',
+    onGroupSaved: closeDialog,
+    onGroupDeleted: () => setDeleteConfirm(null),
   });
+
+  // Guard setFirst to only update if value actually changed
+  const setFirst = useCallback((newFirst: number) => {
+    if (firstRef.current === newFirst) {
+      return; // No change, prevent unnecessary state update and query
+    }
+    startTransition(() => {
+      setFirstState(newFirst);
+    });
+  }, []);
+
+  // Use the state value
+  const first = firstState;
 
   // Derived data - use previous data while loading to prevent flicker
   const groups = useMemo(() => {
     // Keep previous data visible while loading new data
     const currentData = groupsData || (loading ? previousData : null);
-    return currentData?.groups?.edges?.map(e => e.node) || [];
+    return currentData?.groups?.edges?.map((e: { node: Group }) => e.node) || [];
   }, [groupsData, loading, previousData]);
 
   const pageInfo = useMemo(() => {
@@ -271,121 +314,31 @@ export function useGroupManagement(options: UseGroupManagementOptions = {}): Use
   } = useDebouncedSearch({
     initialValue: searchQuery,
     debounceMs: 300,
-    onSearchChange: goToFirstPage,
+    // Removed onSearchChange - useRelayPagination already handles pagination reset when searchQuery changes
     setSearchQuery,
     searchQuery,
   });
 
-  // Dialog management (kept for backward compatibility, but not used in new pattern)
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingGroup, setEditingGroup] = useState<Group | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<Group | null>(null);
+  const effectiveLoading = waitingForPageSize || loading;
 
-  const openCreateDialog = useCallback(() => {
-    setEditingGroup(null);
-    setDialogOpen(true);
-  }, []);
-
-  const openEditDialog = useCallback((group: Group) => {
-    setEditingGroup(group);
-    setDialogOpen(true);
-  }, []);
-
-  const closeDialog = useCallback(() => {
-    setDialogOpen(false);
-    setEditingGroup(null);
-  }, []);
-
-  // CRUD operations
+  // Wrap mutation functions to handle refetch of user query if needed
   const createGroup = useCallback(async (data: GroupFormData) => {
-    try {
-      // Always include userIds - empty array is valid
-      // The GraphQL schema includes userIds but generated types may not
-      const input: CreateGroupInput & { userIds?: string[] } = {
-        name: data.name.trim(),
-        description: data.description?.trim() || null,
-        userIds: data.userIds ?? [],
-      };
-
-      await executeMutation(
-        createGroupMutation,
-        { input },
-        'create-group'
-      );
-
-      // Refetch user query to update UserDrawer when group memberships change
-      // Note: This is done separately since it's not part of the main refetch
-      await refetch();
-      closeDialog();
-    } catch (err) {
-      const errorMessage = extractErrorMessage(err, 'Failed to create group');
-      throw new Error(errorMessage);
-    }
-  }, [executeMutation, createGroupMutation, refetch, closeDialog]);
+    await createGroupMutation(data);
+    // Refetch user query to update UserDrawer when group memberships change
+    // Note: This is done separately since it's not part of the main refetch
+    await refetch();
+  }, [createGroupMutation, refetch]);
 
   const updateGroup = useCallback(async (groupId: string, data: GroupFormData) => {
-    try {
-      // Always include userIds - empty array means remove all users
-      // The GraphQL schema includes userIds but generated types may not
-      const input: UpdateGroupInput & { userIds?: string[] } = {
-        name: data.name.trim(),
-        description: data.description?.trim() || null,
-        // Explicitly include userIds - empty array is valid (means remove all users)
-        // undefined/null means don't change memberships (but we always want to sync)
-        userIds: data.userIds ?? [],
-      };
-
-      await executeMutation(
-        updateGroupMutation,
-        { groupId, input },
-        `update-group-${groupId}`
-      );
-
-      // Refetch user query to update UserDrawer when group memberships change
-      // Note: This is done separately since it's not part of the main refetch
-      await refetch();
-      closeDialog();
-    } catch (err) {
-      const errorMessage = extractErrorMessage(err, 'Failed to update group');
-      throw new Error(errorMessage);
-    }
-  }, [executeMutation, updateGroupMutation, refetch, closeDialog]);
+    await updateGroupMutation(groupId, data);
+    // Refetch user query to update UserDrawer when group memberships change
+    // Note: This is done separately since it's not part of the main refetch
+    await refetch();
+  }, [updateGroupMutation, refetch]);
 
   const deleteGroup = useCallback(async (groupId: string) => {
-    try {
-      await executeMutation(
-        deleteGroupMutation,
-        { groupId },
-        `delete-group-${groupId}`
-      );
-      setDeleteConfirm(null);
-    } catch (err) {
-      const errorMessage = extractErrorMessage(err, 'Failed to delete group');
-      throw new Error(errorMessage);
-    }
-  }, [executeMutation, deleteGroupMutation]);
-
-  const assignRoleToGroup = useCallback(
-    async (groupId: string, roleId: string) => {
-      await executeMutation(
-        assignRoleToGroupMutation,
-        { groupId, roleId },
-        `assign-role-${groupId}-${roleId}`
-      );
-    },
-    [executeMutation, assignRoleToGroupMutation]
-  );
-
-  const removeRoleFromGroup = useCallback(
-    async (groupId: string, roleId: string) => {
-      await executeMutation(
-        removeRoleFromGroupMutation,
-        { groupId, roleId },
-        `remove-role-${groupId}-${roleId}`
-      );
-    },
-    [executeMutation, removeRoleFromGroupMutation]
-  );
+    return deleteGroupMutation(groupId);
+  }, [deleteGroupMutation]);
 
   return {
     // Data
@@ -432,7 +385,7 @@ export function useGroupManagement(options: UseGroupManagementOptions = {}): Use
     removeRoleFromGroup,
     
     // Loading states
-    loading,
+    loading: effectiveLoading,
     createLoading,
     updateLoading,
     deleteLoading,
@@ -440,7 +393,7 @@ export function useGroupManagement(options: UseGroupManagementOptions = {}): Use
     removeRoleLoading,
     
     // Error handling
-    error: error ? new Error(extractErrorMessage(error)) : undefined,
+    error: waitingForPageSize ? undefined : error ? new Error(extractErrorMessage(error)) : undefined,
     
     // Utilities
     refetch,

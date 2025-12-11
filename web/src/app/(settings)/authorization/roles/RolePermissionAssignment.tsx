@@ -26,6 +26,10 @@ export interface RolePermissionAssignmentProps {
   assignLoading?: boolean;
   removeLoading?: boolean;
   onPermissionsChange?: () => void;
+  /**
+   * When false, skips loading data and renders nothing (used when drawer is closed).
+   */
+  active?: boolean;
 }
 
 /**
@@ -40,6 +44,7 @@ export const RolePermissionAssignment: React.FC<RolePermissionAssignmentProps> =
   assignLoading = false,
   removeLoading = false,
   onPermissionsChange,
+  active = true,
 }) => {
   const { t } = useTranslation(authorizationManagementTranslations);
   const toast = useToast();
@@ -55,7 +60,12 @@ export const RolePermissionAssignment: React.FC<RolePermissionAssignmentProps> =
     refetch: refetchPermissions,
   } = usePermissionManagement({
     initialFirst: 1000, // Fetch all permissions for selection
+    skip: !active,
   });
+
+  if (!active) {
+    return null;
+  }
 
   // Create a set of assigned permission IDs for quick lookup
   const assignedPermissionIds = useMemo(() => {
@@ -202,4 +212,3 @@ export const RolePermissionAssignment: React.FC<RolePermissionAssignmentProps> =
     </Box>
   );
 };
-

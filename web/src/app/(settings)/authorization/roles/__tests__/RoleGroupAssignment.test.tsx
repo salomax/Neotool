@@ -38,7 +38,7 @@ const mockUseGetGroupsQuery = vi.fn(() => ({
 }));
 
 vi.mock('@/lib/graphql/operations/authorization-management/queries.generated', () => ({
-  useGetGroupsQuery: () => mockUseGetGroupsQuery(),
+  useGetGroupsQuery: (options: any) => mockUseGetGroupsQuery(options),
 }));
 
 // Mock translations
@@ -132,6 +132,15 @@ describe('RoleGroupAssignment', () => {
       });
 
       expect(screen.getByText('Guest Group')).toBeInTheDocument();
+    });
+
+    it('should skip fetching and render nothing when inactive', () => {
+      renderRoleGroupAssignment({ active: false });
+
+      expect(screen.queryByText('Assigned Groups')).not.toBeInTheDocument();
+      expect(mockUseGetGroupsQuery).toHaveBeenCalledWith(
+        expect.objectContaining({ skip: true })
+      );
     });
   });
 
