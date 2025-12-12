@@ -9,6 +9,7 @@ import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.common.test.json.read
 import io.github.salomax.neotool.common.test.transaction.runTransaction
+import io.github.salomax.neotool.security.domain.rbac.SecurityPermissions
 import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.repo.GroupRepository
 import io.github.salomax.neotool.security.repo.PermissionRepository
@@ -49,7 +50,9 @@ import java.util.UUID
 @Tag("security")
 @Tag("federation")
 @TestMethodOrder(MethodOrderer.Random::class)
-open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTest {
+open class SecurityGraphQLIntegrationTest :
+    BaseIntegrationTest(),
+    PostgresIntegrationTest {
     @Inject
     lateinit var userRepository: UserRepository
 
@@ -100,12 +103,25 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
 
         // Ensure ADMIN role exists, create if missing
         val adminRole =
-            roleRepository.findByName("ADMIN").orElseGet {
-                roleRepository.save(SecurityTestDataBuilders.role(name = "ADMIN"))
+            entityManager.runTransaction {
+                roleRepository.findByName("ADMIN").orElseGet {
+                    roleRepository.save(SecurityTestDataBuilders.role(name = "ADMIN"))
+                }
             }
 
         // Ensure required permissions exist and are linked to ADMIN role
-        val requiredPermissions = listOf("security:user:view", "security:user:save", "security:user:delete")
+        val requiredPermissions =
+            listOf(
+                SecurityPermissions.SECURITY_USER_VIEW,
+                SecurityPermissions.SECURITY_USER_SAVE,
+                SecurityPermissions.SECURITY_USER_DELETE,
+                SecurityPermissions.SECURITY_GROUP_VIEW,
+                SecurityPermissions.SECURITY_GROUP_SAVE,
+                SecurityPermissions.SECURITY_GROUP_DELETE,
+                SecurityPermissions.SECURITY_ROLE_VIEW,
+                SecurityPermissions.SECURITY_ROLE_SAVE,
+                SecurityPermissions.SECURITY_ROLE_DELETE,
+            )
         entityManager.runTransaction {
             requiredPermissions.forEach { permissionName ->
                 val permission =
@@ -139,7 +155,6 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
     fun saveUser(user: UserEntity) {
         entityManager.runTransaction {
             authenticationService.saveUser(user)
-            entityManager.flush()
         }
     }
 
@@ -199,7 +214,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", query)
+                HttpRequest
+                    .POST("/graphql", query)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
@@ -255,7 +271,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", query)
+                HttpRequest
+                    .POST("/graphql", query)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
@@ -305,7 +322,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", query)
+                HttpRequest
+                    .POST("/graphql", query)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
@@ -353,7 +371,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", query)
+                HttpRequest
+                    .POST("/graphql", query)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
@@ -400,7 +419,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", query)
+                HttpRequest
+                    .POST("/graphql", query)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
@@ -473,7 +493,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", query)
+                HttpRequest
+                    .POST("/graphql", query)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
@@ -519,7 +540,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val signInRequest =
-                HttpRequest.POST("/graphql", signInMutation)
+                HttpRequest
+                    .POST("/graphql", signInMutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val signInResponse = httpClient.exchangeAsString(signInRequest)
@@ -543,7 +565,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", query)
+                HttpRequest
+                    .POST("/graphql", query)
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("Authorization", "Bearer $token")
 
@@ -583,7 +606,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
@@ -618,7 +642,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
@@ -659,7 +684,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
@@ -706,7 +732,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
@@ -884,7 +911,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", query)
+                HttpRequest
+                    .POST("/graphql", query)
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("Authorization", "Bearer $token")
 
@@ -954,7 +982,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", query)
+                HttpRequest
+                    .POST("/graphql", query)
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("Authorization", "Bearer $token")
 
@@ -1024,7 +1053,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", query)
+                HttpRequest
+                    .POST("/graphql", query)
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("Authorization", "Bearer $token")
 
@@ -1049,6 +1079,9 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
 
         @Test
         fun `should batch load role permissions for multiple roles`() {
+            // Create user with ADMIN role and get token
+            val (_, token) = createUserWithAdminRoleAndToken()
+
             // Query multiple roles with permissions field
             val query =
                 mapOf(
@@ -1072,8 +1105,10 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", query)
+                HttpRequest
+                    .POST("/graphql", query)
                     .contentType(MediaType.APPLICATION_JSON)
+                    .header("Authorization", "Bearer $token")
 
             val response = httpClient.exchangeAsString(request)
             response
@@ -1096,6 +1131,9 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
 
         @Test
         fun `should batch load group roles for multiple groups`() {
+            // Create user with ADMIN role and get token
+            val (_, token) = createUserWithAdminRoleAndToken()
+
             // Query multiple groups with roles field
             val query =
                 mapOf(
@@ -1119,8 +1157,10 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", query)
+                HttpRequest
+                    .POST("/graphql", query)
                     .contentType(MediaType.APPLICATION_JSON)
+                    .header("Authorization", "Bearer $token")
 
             val response = httpClient.exchangeAsString(request)
             response
@@ -1143,13 +1183,50 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
 
         @Test
         fun `should batch load permission roles for multiple permissions`() {
-            // Query multiple permissions with roles field
+            // Arrange - Create specific test data for this test
+            val testRole1 =
+                entityManager.runTransaction {
+                    roleRepository.save(
+                        SecurityTestDataBuilders.role(name = "TEST_ROLE_1_${System.currentTimeMillis()}"),
+                    )
+                }
+            val testRole2 =
+                entityManager.runTransaction {
+                    roleRepository.save(
+                        SecurityTestDataBuilders.role(name = "TEST_ROLE_2_${System.currentTimeMillis()}"),
+                    )
+                }
+
+            val testPermission1 =
+                entityManager.runTransaction {
+                    permissionRepository.save(
+                        SecurityTestDataBuilders.permission(name = "test:permission:1_${System.currentTimeMillis()}"),
+                    )
+                }
+            val testPermission2 =
+                entityManager.runTransaction {
+                    permissionRepository.save(
+                        SecurityTestDataBuilders.permission(name = "test:permission:2_${System.currentTimeMillis()}"),
+                    )
+                }
+
+            // Link permissions to roles
+            entityManager.runTransaction {
+                roleRepository.assignPermissionToRole(testRole1.id!!, testPermission1.id!!)
+                roleRepository.assignPermissionToRole(testRole1.id!!, testPermission2.id!!)
+                roleRepository.assignPermissionToRole(testRole2.id!!, testPermission1.id!!)
+            }
+
+            // Create user with ADMIN role and get token
+            val (_, token) = createUserWithAdminRoleAndToken()
+
+            // Query the specific test permissions by name
             val query =
                 mapOf(
                     "query" to
                         """
                         query {
-                            permissions(first: 2) {
+                            permissions(first: 10, query: "${testPermission1.name}") {
                                 edges {
                                     node {
                                         id
@@ -1166,8 +1243,10 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", query)
+                HttpRequest
+                    .POST("/graphql", query)
                     .contentType(MediaType.APPLICATION_JSON)
+                    .header("Authorization", "Bearer $token")
 
             val response = httpClient.exchangeAsString(request)
             response
@@ -1180,16 +1259,30 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
 
             val data = payload["data"]
             val permissions = data["permissions"]["edges"]
-            Assertions.assertThat(permissions.size()).isGreaterThanOrEqualTo(0)
-            // Verify that roles field is accessible
-            if (permissions.size() > 0) {
-                val firstPermission = permissions[0]["node"]
-                Assertions.assertThat(firstPermission["roles"]).isNotNull
-            }
+            // Assert on specific test data - should find at least our test permission
+            Assertions.assertThat(permissions.size()).isGreaterThanOrEqualTo(1)
+
+            // Find our test permission in the results
+            val testPermission1Result =
+                (0 until permissions.size())
+                    .mapNotNull { i ->
+                        val perm = permissions[i]["node"]
+                        if (perm["id"].stringValue == testPermission1.id.toString()) perm else null
+                    }.firstOrNull()
+
+            Assertions.assertThat(testPermission1Result).isNotNull()
+            Assertions.assertThat(testPermission1Result!!["roles"]).isNotNull
+            // Verify it has the expected roles
+            val roles = testPermission1Result["roles"]
+            Assertions.assertThat(roles.isArray).isTrue()
+            Assertions.assertThat(roles.size()).isGreaterThanOrEqualTo(1)
         }
 
         @Test
         fun `should batch load group members for multiple groups`() {
+            // Create user with ADMIN role and get token
+            val (_, token) = createUserWithAdminRoleAndToken()
+
             // Query multiple groups with members field (already uses DataLoader)
             val query =
                 mapOf(
@@ -1213,8 +1306,10 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", query)
+                HttpRequest
+                    .POST("/graphql", query)
                     .contentType(MediaType.APPLICATION_JSON)
+                    .header("Authorization", "Bearer $token")
 
             val response = httpClient.exchangeAsString(request)
             response
@@ -1292,7 +1387,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", query)
+                HttpRequest
+                    .POST("/graphql", query)
                     .contentType(MediaType.APPLICATION_JSON)
             // No Authorization header
 
@@ -1326,7 +1422,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", query)
+                HttpRequest
+                    .POST("/graphql", query)
                     .contentType(MediaType.APPLICATION_JSON)
             // No Authorization header
 
@@ -1365,7 +1462,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", query)
+                HttpRequest
+                    .POST("/graphql", query)
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("Authorization", "Bearer $token")
 
@@ -1460,7 +1558,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", query)
+                HttpRequest
+                    .POST("/graphql", query)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
@@ -1489,7 +1588,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", query)
+                HttpRequest
+                    .POST("/graphql", query)
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("Authorization", "Bearer $token")
 
@@ -1520,7 +1620,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", query)
+                HttpRequest
+                    .POST("/graphql", query)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
@@ -1552,7 +1653,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", query)
+                HttpRequest
+                    .POST("/graphql", query)
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("Authorization", "Bearer $token")
 
@@ -1582,7 +1684,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
@@ -1610,7 +1713,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("Authorization", "Bearer $token")
 
@@ -1638,7 +1742,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
@@ -1666,7 +1771,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("Authorization", "Bearer $token")
 
@@ -1699,7 +1805,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
@@ -1732,7 +1839,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("Authorization", "Bearer $token")
 
@@ -1765,7 +1873,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
@@ -1798,7 +1907,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("Authorization", "Bearer $token")
 
@@ -1832,7 +1942,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
@@ -1865,7 +1976,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("Authorization", "Bearer $token")
 
@@ -1898,7 +2010,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
@@ -1931,7 +2044,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("Authorization", "Bearer $token")
 
@@ -1966,7 +2080,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", query)
+                HttpRequest
+                    .POST("/graphql", query)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
@@ -2013,7 +2128,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", query)
+                HttpRequest
+                    .POST("/graphql", query)
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("Authorization", "Bearer $token")
 
@@ -2060,7 +2176,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", query)
+                HttpRequest
+                    .POST("/graphql", query)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
@@ -2107,7 +2224,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", query)
+                HttpRequest
+                    .POST("/graphql", query)
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("Authorization", "Bearer $token")
 
@@ -2154,7 +2272,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", query)
+                HttpRequest
+                    .POST("/graphql", query)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
@@ -2201,7 +2320,8 @@ open class SecurityGraphQLIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             val request =
-                HttpRequest.POST("/graphql", query)
+                HttpRequest
+                    .POST("/graphql", query)
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("Authorization", "Bearer $token")
 

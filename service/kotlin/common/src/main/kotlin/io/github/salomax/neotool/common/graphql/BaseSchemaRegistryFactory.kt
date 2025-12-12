@@ -46,10 +46,11 @@ abstract class BaseSchemaRegistryFactory {
     protected fun loadSchemaFromResource(resourcePath: String): TypeDefinitionRegistry {
         // Use the context classloader or the concrete subclass's classloader
         // to ensure resources are loaded from the correct module
-        val classLoader = Thread.currentThread().contextClassLoader
-            ?: this::class.java.classLoader
-            ?: javaClass.classLoader
-        
+        val classLoader =
+            Thread.currentThread().contextClassLoader
+                ?: this::class.java.classLoader
+                ?: javaClass.classLoader
+
         return classLoader.getResourceAsStream(resourcePath)
             ?.use { SchemaParser().parse(InputStreamReader(it)) }
             ?: error("GraphQL schema not found at: $resourcePath")

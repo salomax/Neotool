@@ -31,12 +31,12 @@ class SecurityGraphQLExceptionHandlerTest {
         val env = mock<DataFetchingEnvironment>()
         val executionStepInfo = mock<ExecutionStepInfo>()
         val resultPath = ResultPath.rootPath()
-        
+
         // Mock ExecutionStepInfo to return a valid path
         whenever(executionStepInfo.path).thenReturn(resultPath)
         // Mock DataFetchingEnvironment to return the ExecutionStepInfo
         whenever(env.getExecutionStepInfo()).thenReturn(executionStepInfo)
-        
+
         return env
     }
 
@@ -49,7 +49,8 @@ class SecurityGraphQLExceptionHandlerTest {
             val exception = AuthenticationRequiredException("Access token is required")
             val env = createMockEnvironment()
             val handlerParameters =
-                DataFetcherExceptionHandlerParameters.newExceptionParameters()
+                DataFetcherExceptionHandlerParameters
+                    .newExceptionParameters()
                     .exception(exception)
                     .dataFetchingEnvironment(env)
                     .build()
@@ -71,7 +72,8 @@ class SecurityGraphQLExceptionHandlerTest {
             val exception = AuthenticationRequiredException(sensitiveMessage)
             val env = createMockEnvironment()
             val handlerParameters =
-                DataFetcherExceptionHandlerParameters.newExceptionParameters()
+                DataFetcherExceptionHandlerParameters
+                    .newExceptionParameters()
                     .exception(exception)
                     .dataFetchingEnvironment(env)
                     .build()
@@ -100,7 +102,8 @@ class SecurityGraphQLExceptionHandlerTest {
                 )
             val env = createMockEnvironment()
             val handlerParameters =
-                DataFetcherExceptionHandlerParameters.newExceptionParameters()
+                DataFetcherExceptionHandlerParameters
+                    .newExceptionParameters()
                     .exception(exception)
                     .dataFetchingEnvironment(env)
                     .build()
@@ -121,7 +124,8 @@ class SecurityGraphQLExceptionHandlerTest {
             val exception = AuthorizationDeniedException("Permission denied")
             val env = createMockEnvironment()
             val handlerParameters =
-                DataFetcherExceptionHandlerParameters.newExceptionParameters()
+                DataFetcherExceptionHandlerParameters
+                    .newExceptionParameters()
                     .exception(exception)
                     .dataFetchingEnvironment(env)
                     .build()
@@ -144,7 +148,8 @@ class SecurityGraphQLExceptionHandlerTest {
             val exception = AuthorizationDeniedException(sensitiveMessage)
             val env = createMockEnvironment()
             val handlerParameters =
-                DataFetcherExceptionHandlerParameters.newExceptionParameters()
+                DataFetcherExceptionHandlerParameters
+                    .newExceptionParameters()
                     .exception(exception)
                     .dataFetchingEnvironment(env)
                     .build()
@@ -172,7 +177,8 @@ class SecurityGraphQLExceptionHandlerTest {
             val exception = IllegalArgumentException("Invalid input")
             val env = createMockEnvironment()
             val handlerParameters =
-                DataFetcherExceptionHandlerParameters.newExceptionParameters()
+                DataFetcherExceptionHandlerParameters
+                    .newExceptionParameters()
                     .exception(exception)
                     .dataFetchingEnvironment(env)
                     .build()
@@ -217,7 +223,8 @@ class SecurityGraphQLExceptionHandlerTest {
             val exception = RuntimeException("Unexpected error")
             val env = createMockEnvironment()
             val handlerParameters =
-                DataFetcherExceptionHandlerParameters.newExceptionParameters()
+                DataFetcherExceptionHandlerParameters
+                    .newExceptionParameters()
                     .exception(exception)
                     .dataFetchingEnvironment(env)
                     .build()

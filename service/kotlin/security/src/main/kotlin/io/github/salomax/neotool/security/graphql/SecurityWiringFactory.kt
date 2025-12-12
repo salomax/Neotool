@@ -8,7 +8,6 @@ import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.getRequired
 import io.github.salomax.neotool.common.graphql.GraphQLPayloadDataFetcher.createMutationDataFetcher
 import io.github.salomax.neotool.common.graphql.GraphQLResolverRegistry
 import io.github.salomax.neotool.common.graphql.GraphQLWiringFactory
-import io.github.salomax.neotool.common.graphql.payload.GraphQLPayloadFactory
 import io.github.salomax.neotool.security.domain.rbac.SecurityPermissions
 import io.github.salomax.neotool.security.graphql.dataloader.GroupMembersDataLoader
 import io.github.salomax.neotool.security.graphql.dataloader.GroupRolesDataLoader
@@ -155,8 +154,8 @@ class SecurityWiringFactory(
         }
     }
 
-    override fun registerQueryResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder {
-        return type
+    override fun registerQueryResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder =
+        type
             .dataFetcher(
                 "currentUser",
                 createValidatedDataFetcher { env ->
@@ -169,8 +168,7 @@ class SecurityWiringFactory(
                         }
                     authResolver.getCurrentUser(token)
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "checkPermission",
                 createValidatedDataFetcher { env ->
                     withPermission(env, SecurityPermissions.SECURITY_USER_VIEW) {
@@ -180,8 +178,7 @@ class SecurityWiringFactory(
                         authorizationResolver.checkPermission(userId, permission, resourceId)
                     }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "getUserPermissions",
                 createValidatedDataFetcher { env ->
                     withPermission(env, SecurityPermissions.SECURITY_USER_VIEW) {
@@ -189,8 +186,7 @@ class SecurityWiringFactory(
                         authorizationResolver.getUserPermissions(userId)
                     }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "getUserRoles",
                 createValidatedDataFetcher { env ->
                     withPermission(env, SecurityPermissions.SECURITY_USER_VIEW) {
@@ -198,8 +194,7 @@ class SecurityWiringFactory(
                         authorizationResolver.getUserRoles(userId)
                     }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "user",
                 createValidatedDataFetcher { env ->
                     withPermission(env, SecurityPermissions.SECURITY_USER_VIEW) {
@@ -207,8 +202,7 @@ class SecurityWiringFactory(
                         userManagementResolver.user(id)
                     }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "users",
                 createValidatedDataFetcher { env ->
                     withPermission(env, SecurityPermissions.SECURITY_USER_VIEW) {
@@ -219,8 +213,7 @@ class SecurityWiringFactory(
                         userManagementResolver.users(first, after, query, orderBy)
                     }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "group",
                 createValidatedDataFetcher { env ->
                     withPermission(env, SecurityPermissions.SECURITY_GROUP_VIEW) {
@@ -228,8 +221,7 @@ class SecurityWiringFactory(
                         groupManagementResolver.group(id)
                     }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "groups",
                 createValidatedDataFetcher { env ->
                     withPermission(env, SecurityPermissions.SECURITY_GROUP_VIEW) {
@@ -240,8 +232,7 @@ class SecurityWiringFactory(
                         groupManagementResolver.groups(first, after, query, orderBy)
                     }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "role",
                 createValidatedDataFetcher { env ->
                     withPermission(env, SecurityPermissions.SECURITY_ROLE_VIEW) {
@@ -249,8 +240,7 @@ class SecurityWiringFactory(
                         roleManagementResolver.role(id)
                     }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "roles",
                 createValidatedDataFetcher { env ->
                     withPermission(env, SecurityPermissions.SECURITY_ROLE_VIEW) {
@@ -261,8 +251,7 @@ class SecurityWiringFactory(
                         roleManagementResolver.roles(first, after, query, orderBy)
                     }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "permissions",
                 createValidatedDataFetcher { env ->
                     withPermission(env, SecurityPermissions.SECURITY_ROLE_VIEW) {
@@ -273,47 +262,40 @@ class SecurityWiringFactory(
                     }
                 },
             )
-    }
 
-    override fun registerMutationResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder {
-        return type
+    override fun registerMutationResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder =
+        type
             .dataFetcher(
                 "signIn",
                 createMutationDataFetcher<SignInPayloadDTO>("signIn") { input ->
                     authResolver.signIn(input)
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "signInWithOAuth",
                 createMutationDataFetcher<SignInPayloadDTO>("signInWithOAuth") { input ->
                     authResolver.signInWithOAuth(input)
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "signUp",
                 createMutationDataFetcher<SignUpPayloadDTO>("signUp") { input ->
                     authResolver.signUp(input)
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "refreshAccessToken",
                 createMutationDataFetcher<SignInPayloadDTO>("refreshAccessToken") { input ->
                     authResolver.refreshAccessToken(input)
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "requestPasswordReset",
                 createMutationDataFetcher<RequestPasswordResetPayloadDTO>("requestPasswordReset") { input ->
                     authResolver.requestPasswordReset(input)
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "resetPassword",
                 createMutationDataFetcher<ResetPasswordPayloadDTO>("resetPassword") { input ->
                     authResolver.resetPassword(input)
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "enableUser",
                 createValidatedDataFetcher { env ->
                     withPermission(env, SecurityPermissions.SECURITY_USER_SAVE) {
@@ -321,8 +303,7 @@ class SecurityWiringFactory(
                         userManagementResolver.enableUser(userId)
                     }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "disableUser",
                 createValidatedDataFetcher { env ->
                     withPermission(env, SecurityPermissions.SECURITY_USER_SAVE) {
@@ -330,20 +311,19 @@ class SecurityWiringFactory(
                         userManagementResolver.disableUser(userId)
                     }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "createGroup",
                 createValidatedDataFetcher { env ->
                     withPermission(env, SecurityPermissions.SECURITY_GROUP_SAVE) {
-                        val input = env.getArgument<Map<String, Any?>>("input")
-                            ?: throw IllegalArgumentException("input is required")
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
                         val dto = groupManagementMapper.mapToCreateGroupInputDTO(input)
                         val result = groupManagementResolver.createGroup(dto)
                         result
                     }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "updateGroup",
                 createValidatedDataFetcher { env ->
                     withPermission(env, SecurityPermissions.SECURITY_GROUP_SAVE) {
@@ -355,8 +335,7 @@ class SecurityWiringFactory(
                         groupManagementResolver.updateGroup(groupId, dto)
                     }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "deleteGroup",
                 createValidatedDataFetcher { env ->
                     withPermission(env, SecurityPermissions.SECURITY_GROUP_DELETE) {
@@ -364,20 +343,19 @@ class SecurityWiringFactory(
                         groupManagementResolver.deleteGroup(groupId)
                     }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "createRole",
                 createValidatedDataFetcher { env ->
                     withPermission(env, SecurityPermissions.SECURITY_ROLE_SAVE) {
-                        val input = env.getArgument<Map<String, Any?>>("input")
-                            ?: throw IllegalArgumentException("input is required")
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
                         val dto = roleManagementMapper.mapToCreateRoleInputDTO(input)
                         val result = roleManagementResolver.createRole(dto)
                         result
                     }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "updateRole",
                 createValidatedDataFetcher { env ->
                     withPermission(env, SecurityPermissions.SECURITY_ROLE_SAVE) {
@@ -389,8 +367,7 @@ class SecurityWiringFactory(
                         roleManagementResolver.updateRole(roleId, dto)
                     }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "deleteRole",
                 createValidatedDataFetcher { env ->
                     withPermission(env, SecurityPermissions.SECURITY_ROLE_DELETE) {
@@ -398,8 +375,7 @@ class SecurityWiringFactory(
                         roleManagementResolver.deleteRole(roleId)
                     }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "assignPermissionToRole",
                 createValidatedDataFetcher { env ->
                     withPermission(env, SecurityPermissions.SECURITY_ROLE_SAVE) {
@@ -408,8 +384,7 @@ class SecurityWiringFactory(
                         roleManagementResolver.assignPermissionToRole(roleId, permissionId)
                     }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "removePermissionFromRole",
                 createValidatedDataFetcher { env ->
                     withPermission(env, SecurityPermissions.SECURITY_ROLE_SAVE) {
@@ -418,8 +393,7 @@ class SecurityWiringFactory(
                         roleManagementResolver.removePermissionFromRole(roleId, permissionId)
                     }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "assignRoleToUser",
                 createValidatedDataFetcher { env ->
                     withPermission(env, SecurityPermissions.SECURITY_USER_SAVE) {
@@ -428,8 +402,7 @@ class SecurityWiringFactory(
                         userManagementResolver.assignRoleToUser(userId, roleId)
                     }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "removeRoleFromUser",
                 createValidatedDataFetcher { env ->
                     withPermission(env, SecurityPermissions.SECURITY_USER_SAVE) {
@@ -438,8 +411,7 @@ class SecurityWiringFactory(
                         userManagementResolver.removeRoleFromUser(userId, roleId)
                     }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "assignGroupToUser",
                 createValidatedDataFetcher { env ->
                     withPermission(env, SecurityPermissions.SECURITY_USER_SAVE) {
@@ -448,8 +420,7 @@ class SecurityWiringFactory(
                         userManagementResolver.assignGroupToUser(userId, groupId)
                     }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "removeGroupFromUser",
                 createValidatedDataFetcher { env ->
                     withPermission(env, SecurityPermissions.SECURITY_USER_SAVE) {
@@ -458,8 +429,7 @@ class SecurityWiringFactory(
                         userManagementResolver.removeGroupFromUser(userId, groupId)
                     }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "assignRoleToGroup",
                 createValidatedDataFetcher { env ->
                     withPermission(env, SecurityPermissions.SECURITY_GROUP_SAVE) {
@@ -468,8 +438,7 @@ class SecurityWiringFactory(
                         groupManagementResolver.assignRoleToGroup(groupId, roleId)
                     }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "removeRoleFromGroup",
                 createValidatedDataFetcher { env ->
                     withPermission(env, SecurityPermissions.SECURITY_GROUP_SAVE) {
@@ -479,14 +448,11 @@ class SecurityWiringFactory(
                     }
                 },
             )
-    }
 
-    override fun registerSubscriptionResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder {
-        return type
-    }
+    override fun registerSubscriptionResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder = type
 
-    override fun registerCustomTypeResolvers(builder: RuntimeWiring.Builder): RuntimeWiring.Builder {
-        return builder
+    override fun registerCustomTypeResolvers(builder: RuntimeWiring.Builder): RuntimeWiring.Builder =
+        builder
             .type("User") { type ->
                 type.dataFetcher(
                     "id",
@@ -521,7 +487,9 @@ class SecurityWiringFactory(
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
                         val user = env.getSource<UserDTO>()
                         if (user == null) {
-                            emptyList<io.github.salomax.neotool.security.graphql.dto.RoleDTO>()
+                            CompletableFuture.completedFuture(
+                                emptyList<io.github.salomax.neotool.security.graphql.dto.RoleDTO>(),
+                            )
                         } else {
                             // Allow users to view their own roles without permission
                             withPermissionOrOwnData(env, SecurityPermissions.SECURITY_USER_VIEW, user.id) {
@@ -535,6 +503,9 @@ class SecurityWiringFactory(
                                     )
                                 // Load roles for this user (will be batched with other users)
                                 dataLoader?.load(user.id)
+                                    ?: CompletableFuture.completedFuture(
+                                        emptyList<io.github.salomax.neotool.security.graphql.dto.RoleDTO>(),
+                                    )
                             }
                         }
                     },
@@ -544,7 +515,9 @@ class SecurityWiringFactory(
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
                         val user = env.getSource<UserDTO>()
                         if (user == null) {
-                            emptyList<io.github.salomax.neotool.security.graphql.dto.GroupDTO>()
+                            CompletableFuture.completedFuture(
+                                emptyList<io.github.salomax.neotool.security.graphql.dto.GroupDTO>(),
+                            )
                         } else {
                             // Allow users to view their own groups without permission
                             withPermissionOrOwnData(env, SecurityPermissions.SECURITY_USER_VIEW, user.id) {
@@ -558,6 +531,9 @@ class SecurityWiringFactory(
                                     )
                                 // Load groups for this user (will be batched with other users)
                                 dataLoader?.load(user.id)
+                                    ?: CompletableFuture.completedFuture(
+                                        emptyList<io.github.salomax.neotool.security.graphql.dto.GroupDTO>(),
+                                    )
                             }
                         }
                     },
@@ -567,7 +543,9 @@ class SecurityWiringFactory(
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
                         val user = env.getSource<UserDTO>()
                         if (user == null) {
-                            emptyList<io.github.salomax.neotool.security.graphql.dto.PermissionDTO>()
+                            CompletableFuture.completedFuture(
+                                emptyList<io.github.salomax.neotool.security.graphql.dto.PermissionDTO>(),
+                            )
                         } else {
                             // Allow users to view their own permissions without permission
                             withPermissionOrOwnData(env, SecurityPermissions.SECURITY_USER_VIEW, user.id) {
@@ -581,12 +559,14 @@ class SecurityWiringFactory(
                                     )
                                 // Load permissions for this user (will be batched with other users)
                                 dataLoader?.load(user.id)
+                                    ?: CompletableFuture.completedFuture(
+                                        emptyList<io.github.salomax.neotool.security.graphql.dto.PermissionDTO>(),
+                                    )
                             }
                         }
                     },
                 )
-            }
-            .type("SignInPayload") { type ->
+            }.type("SignInPayload") { type ->
                 type.dataFetcher(
                     "token",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -608,8 +588,7 @@ class SecurityWiringFactory(
                         payload?.user
                     },
                 )
-            }
-            .type("SignUpPayload") { type ->
+            }.type("SignUpPayload") { type ->
                 type.dataFetcher(
                     "token",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -631,8 +610,7 @@ class SecurityWiringFactory(
                         payload?.user
                     },
                 )
-            }
-            .type("RequestPasswordResetPayload") { type ->
+            }.type("RequestPasswordResetPayload") { type ->
                 type.dataFetcher(
                     "success",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -647,8 +625,7 @@ class SecurityWiringFactory(
                         payload?.message
                     },
                 )
-            }
-            .type("ResetPasswordPayload") { type ->
+            }.type("ResetPasswordPayload") { type ->
                 type.dataFetcher(
                     "success",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -663,8 +640,7 @@ class SecurityWiringFactory(
                         payload?.message
                     },
                 )
-            }
-            .type("AuthorizationResult") { type ->
+            }.type("AuthorizationResult") { type ->
                 type.dataFetcher(
                     "allowed",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -679,8 +655,7 @@ class SecurityWiringFactory(
                         result?.reason
                     },
                 )
-            }
-            .type("Permission") { type ->
+            }.type("Permission") { type ->
                 type.dataFetcher(
                     "id",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -695,8 +670,7 @@ class SecurityWiringFactory(
                         permission?.name
                     },
                 )
-            }
-            .type("Role") { type ->
+            }.type("Role") { type ->
                 type.dataFetcher(
                     "id",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -728,11 +702,13 @@ class SecurityWiringFactory(
                                 )
                             // Load permissions for this role (will be batched with other roles)
                             dataLoader?.load(role.id)
+                                ?: CompletableFuture.completedFuture(
+                                    emptyList<io.github.salomax.neotool.security.graphql.dto.PermissionDTO>(),
+                                )
                         }
                     },
                 )
-            }
-            .type("Group") { type ->
+            }.type("Group") { type ->
                 type.dataFetcher(
                     "id",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -768,6 +744,9 @@ class SecurityWiringFactory(
                                 )
                             // Load roles for this group (will be batched with other groups)
                             dataLoader?.load(group.id)
+                                ?: CompletableFuture.completedFuture(
+                                    emptyList<io.github.salomax.neotool.security.graphql.dto.RoleDTO>(),
+                                )
                         }
                     },
                 )
@@ -785,11 +764,13 @@ class SecurityWiringFactory(
                                 )
                             // Load members for this group (will be batched with other groups)
                             dataLoader?.load(group.id)
+                                ?: CompletableFuture.completedFuture(
+                                    emptyList<io.github.salomax.neotool.security.graphql.dto.UserDTO>(),
+                                )
                         }
                     },
                 )
-            }
-            .type("Permission") { type ->
+            }.type("Permission") { type ->
                 type.dataFetcher(
                     "roles",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -843,8 +824,7 @@ class SecurityWiringFactory(
                         pageInfo?.endCursor
                     },
                 )
-            }
-            .type("UserEdge") { type ->
+            }.type("UserEdge") { type ->
                 type.dataFetcher(
                     "node",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -859,8 +839,7 @@ class SecurityWiringFactory(
                         edge?.cursor
                     },
                 )
-            }
-            .type("GroupEdge") { type ->
+            }.type("GroupEdge") { type ->
                 type.dataFetcher(
                     "node",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -875,8 +854,7 @@ class SecurityWiringFactory(
                         edge?.cursor
                     },
                 )
-            }
-            .type("RoleEdge") { type ->
+            }.type("RoleEdge") { type ->
                 type.dataFetcher(
                     "node",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -891,8 +869,7 @@ class SecurityWiringFactory(
                         edge?.cursor
                     },
                 )
-            }
-            .type("PermissionEdge") { type ->
+            }.type("PermissionEdge") { type ->
                 type.dataFetcher(
                     "node",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -907,8 +884,7 @@ class SecurityWiringFactory(
                         edge?.cursor
                     },
                 )
-            }
-            .type("UserConnection") { type ->
+            }.type("UserConnection") { type ->
                 type.dataFetcher(
                     "edges",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -923,8 +899,7 @@ class SecurityWiringFactory(
                         connection?.pageInfo
                     },
                 )
-            }
-            .type("GroupConnection") { type ->
+            }.type("GroupConnection") { type ->
                 type.dataFetcher(
                     "edges",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -939,8 +914,7 @@ class SecurityWiringFactory(
                         connection?.pageInfo
                     },
                 )
-            }
-            .type("RoleConnection") { type ->
+            }.type("RoleConnection") { type ->
                 type.dataFetcher(
                     "edges",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -955,8 +929,7 @@ class SecurityWiringFactory(
                         connection?.pageInfo
                     },
                 )
-            }
-            .type("PermissionConnection") { type ->
+            }.type("PermissionConnection") { type ->
                 type.dataFetcher(
                     "edges",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -972,5 +945,4 @@ class SecurityWiringFactory(
                     },
                 )
             }
-    }
 }
