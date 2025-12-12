@@ -86,7 +86,6 @@ vi.mock('@/shared/providers/AuthProvider', () => ({
 vi.mock('@/shared/utils/auth', () => ({
   hasAuthToken: vi.fn(() => true),
   isAuthenticationError: vi.fn(() => false),
-  handleAuthError: vi.fn(),
 }));
 
 import { useGetRolesQuery } from '@/lib/graphql/operations/authorization-management/queries.generated';
@@ -283,4 +282,3 @@ describe('Query Deduplication', () => {
     });
   });
 });
-

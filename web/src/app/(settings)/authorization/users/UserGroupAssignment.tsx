@@ -47,7 +47,7 @@ export const UserGroupAssignment: React.FC<UserGroupAssignmentProps> = ({
   // Fetch all groups for selection
   const { data, loading: groupsLoading, error: groupsError, refetch } = useGetGroupsQuery({
     variables: {
-      first: 1000, // Fetch a large number of groups for selection
+      first: 100, // API limit is 100 items per request
       query: undefined,
     },
     skip: false,

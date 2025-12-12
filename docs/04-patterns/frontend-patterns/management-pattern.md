@@ -349,6 +349,38 @@ When displaying both a search field and action button in the Header, use `alignI
 - Action buttons should be wrapped in `<Box sx={{ mb: 2 }}>` to match
 - Use `alignItems: "flex-end"` instead of `alignItems: "center"` for bottom-edge alignment
 
+### Drawer Cancel Button Pattern
+
+**Default Behavior**: The Cancel button in Drawer components (UserDrawer, GroupDrawer, RoleDrawer, etc.) MUST follow this pattern:
+
+1. **Always Enabled**: The Cancel button should remain enabled regardless of form changes. It should only be disabled during loading/saving operations to prevent interruption.
+
+2. **Closes Drawer**: When clicked, the Cancel button MUST close the drawer by calling the `onClose` callback. Any form reset logic should be executed before closing.
+
+3. **Implementation Pattern**:
+```typescript
+<Button
+  variant="outlined"
+  onClick={() => {
+    // Reset form state if needed
+    resetChanges();
+    // Always close the drawer
+    onClose();
+  }}
+  disabled={saving || createLoading || updateLoading} // Only disable during operations
+>
+  {t("common.cancel")}
+</Button>
+```
+
+**Key Points**:
+- Cancel button is NOT disabled based on `hasChanges` or form state
+- Cancel button MUST call `onClose()` to close the drawer
+- Cancel button MAY reset form state before closing (optional, but recommended)
+- Cancel button SHOULD be disabled only during active save/load operations
+
+This ensures users can always cancel and close the drawer, providing a consistent and predictable user experience across all management drawers.
+
 ## Avoiding Duplicate Hook Instances
 
 ### Critical Rule: Never Call Complex Management Hooks in Child Components
@@ -900,6 +932,12 @@ When implementing a new management module, verify:
 - [ ] All table labels use i18n translation keys
 - [ ] Row actions support single or multiple actions via `renderActions`
 - [ ] Assignment components use generic `AssignmentComponent` when possible (future)
+
+### Drawer Patterns
+- [ ] Cancel button is always enabled (only disabled during save/load operations)
+- [ ] Cancel button closes the drawer by calling `onClose()`
+- [ ] Cancel button may reset form state before closing (optional but recommended)
+- [ ] Save button is disabled when there are no changes or during save operations
 
 ### Critical Rules
 - [ ] **Child components (drawers/modals) use direct mutation hooks, NOT the full management hook**

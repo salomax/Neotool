@@ -55,7 +55,7 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
 
   // Fetch all permissions for optimistic updates (need permission names)
   const { permissions: allPermissions } = usePermissionManagement({
-    initialFirst: 1000, // Fetch all permissions
+    initialFirst: 100, // Fetch up to 100 permissions (max allowed)
     skip: !open,
   });
 

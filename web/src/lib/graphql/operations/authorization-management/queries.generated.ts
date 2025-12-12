@@ -385,7 +385,7 @@ export type GetGroupWithRelationshipsSuspenseQueryHookResult = ReturnType<typeof
 export type GetGroupWithRelationshipsQueryResult = ApolloReactCommon.QueryResult<GetGroupWithRelationshipsQuery, GetGroupWithRelationshipsQueryVariables>;
 export const GetRolesWithPermissionsDocument = gql`
     query GetRolesWithPermissions {
-  roles(first: 1000) {
+  roles(first: 100) {
     edges {
       node {
         ...RoleFields
@@ -432,7 +432,7 @@ export type GetRolesWithPermissionsSuspenseQueryHookResult = ReturnType<typeof u
 export type GetRolesWithPermissionsQueryResult = ApolloReactCommon.QueryResult<GetRolesWithPermissionsQuery, GetRolesWithPermissionsQueryVariables>;
 export const GetRoleWithUsersAndGroupsDocument = gql`
     query GetRoleWithUsersAndGroups {
-  users(first: 1000) {
+  users(first: 100) {
     edges {
       node {
         ...UserFields
@@ -442,7 +442,7 @@ export const GetRoleWithUsersAndGroupsDocument = gql`
       }
     }
   }
-  groups(first: 1000) {
+  groups(first: 100) {
     edges {
       node {
         ...GroupFields

@@ -112,7 +112,7 @@ kafka:
   # Format: host1:port1,host2:port2 (for cluster)
   # Example: localhost:9092 or kafka1:9092,kafka2:9092,kafka3:9092
   bootstrap:
-    servers: ${KAFKA_BROKERS:localhost:9092}
+    servers: ${KAFKA_BROKERS}
   
   # Consumer configurations
   # Each consumer configuration is named and can be referenced by consumer classes

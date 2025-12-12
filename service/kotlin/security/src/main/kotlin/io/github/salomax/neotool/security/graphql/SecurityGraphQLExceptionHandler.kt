@@ -5,6 +5,8 @@ import graphql.execution.DataFetcherExceptionHandler
 import graphql.execution.DataFetcherExceptionHandlerParameters
 import graphql.execution.DataFetcherExceptionHandlerResult
 import io.github.salomax.neotool.common.exception.GraphQLOptimisticLockExceptionHandler
+import io.github.salomax.neotool.common.graphql.GraphQLPayloadException
+import io.github.salomax.neotool.common.graphql.payload.GraphQLError as PayloadGraphQLError
 import io.github.salomax.neotool.security.service.exception.AuthenticationRequiredException
 import io.github.salomax.neotool.security.service.exception.AuthorizationDeniedException
 import org.slf4j.LoggerFactory
@@ -39,6 +41,9 @@ class SecurityGraphQLExceptionHandler : DataFetcherExceptionHandler {
                 val error =
                     GraphQLError.newError()
                         .message("Authentication required")
+                        .path(handlerParameters.path)
+                        .location(handlerParameters.sourceLocation)
+                        .extensions(buildExtensions("UNAUTHENTICATED"))
                         .build()
 
                 CompletableFuture.completedFuture(
@@ -62,11 +67,49 @@ class SecurityGraphQLExceptionHandler : DataFetcherExceptionHandler {
                 val error =
                     GraphQLError.newError()
                         .message(errorMessage)
+                        .path(handlerParameters.path)
+                        .location(handlerParameters.sourceLocation)
+                        .extensions(buildExtensions("FORBIDDEN", action))
                         .build()
 
                 CompletableFuture.completedFuture(
                     DataFetcherExceptionHandlerResult.newResult()
                         .error(error)
+                        .build(),
+                )
+            }
+            is GraphQLPayloadException -> {
+                logger.debug("GraphQL payload exception: ${exception.message}")
+                val payloadErrors =
+                    exception.errors.ifEmpty {
+                        listOf(
+                            PayloadGraphQLError(
+                                field = listOf("general"),
+                                message = exception.message ?: "Operation failed",
+                                code = "GRAPHQL_PAYLOAD_ERROR",
+                            ),
+                        )
+                    }
+
+                val errors =
+                    payloadErrors.map { payloadError ->
+                        GraphQLError.newError()
+                            .message(payloadError.message)
+                            .path(handlerParameters.path)
+                            .location(handlerParameters.sourceLocation)
+                            .extensions(
+                                buildExtensions(
+                                    payloadError.code ?: "GRAPHQL_PAYLOAD_ERROR",
+                                    null,
+                                    payloadError.field,
+                                ),
+                            )
+                            .build()
+                    }
+
+                CompletableFuture.completedFuture(
+                    DataFetcherExceptionHandlerResult.newResult()
+                        .errors(errors)
                         .build(),
                 )
             }
@@ -93,5 +136,23 @@ class SecurityGraphQLExceptionHandler : DataFetcherExceptionHandler {
         } else {
             null
         }
+    }
+
+    private fun buildExtensions(
+        code: String,
+        action: String? = null,
+        field: List<String>? = null,
+    ): Map<String, Any?> {
+        val extensions = mutableMapOf<String, Any?>(
+            "code" to code,
+            "service" to "security",
+        )
+        if (!action.isNullOrBlank()) {
+            extensions["action"] = action
+        }
+        if (!field.isNullOrEmpty()) {
+            extensions["field"] = field
+        }
+        return extensions
     }
 }
