@@ -11,6 +11,7 @@
  */
 
 const isDev = process.env.NODE_ENV === 'development';
+const isDebugEnabled = isDev || process.env.NEXT_PUBLIC_ENABLE_DEBUG_LOGS === 'true';
 
 /**
  * Logs technical errors
@@ -37,6 +38,12 @@ export const logger = {
       // - LogRocket: LogRocket.captureException(error);
       // - Datadog: datadogLogs.logger.error(message, { error });
       // - Custom: errorTracker.captureException(error, { context: { message } });
+    }
+  },
+  debug: (...args: unknown[]) => {
+    if (isDebugEnabled) {
+      // eslint-disable-next-line no-console
+      console.debug(...args);
     }
   },
 };

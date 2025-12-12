@@ -113,7 +113,7 @@ open class GraphQLControllerBase(
             val logger = org.slf4j.LoggerFactory.getLogger(GraphQLControllerBase::class.java)
             logger.error("GraphQL execution threw exception (unexpected): ${e.javaClass.simpleName} - ${e.message}", e)
             // Catch any other unexpected exceptions and convert to GraphQL error format
-            errorSpec("GraphQL execution failed: ${e.message ?: "Unknown error"}")
+            errorSpec("GraphQL execution failed: ${e.message ?: "Unknown error"}", code = "INTERNAL_ERROR")
         }
     }
 
@@ -140,5 +140,8 @@ open class GraphQLControllerBase(
      *  }
      * This format is what most GraphQL clients expect and can uniformly handle.
      */
-    private fun errorSpec(message: String) = mapOf("data" to null, "errors" to listOf(mapOf("message" to message)))
+    private fun errorSpec(
+        message: String,
+        code: String = "BAD_REQUEST",
+    ) = mapOf("data" to null, "errors" to listOf(mapOf("message" to message, "extensions" to mapOf("code" to code))))
 }

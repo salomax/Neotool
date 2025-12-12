@@ -7,7 +7,7 @@ import {
   GetUsersQueryVariables,
 } from '@/lib/graphql/operations/authorization-management/queries.generated';
 import { extractErrorMessage } from '@/shared/utils/error';
-import { hasAuthToken, isAuthenticationError, handleAuthError } from '@/shared/utils/auth';
+import { hasAuthToken, isAuthenticationError } from '@/shared/utils/auth';
 import { useRelayPagination } from '@/shared/hooks/pagination';
 import { useDebouncedSearch } from '@/shared/hooks/search';
 import { useSorting } from '@/shared/hooks/sorting';
@@ -15,6 +15,7 @@ import { useUserMutations } from './useUserMutations';
 import { useAuth } from '@/shared/providers/AuthProvider';
 import type { UserSortState, UserOrderField } from '@/shared/utils/sorting';
 import type { UserOrderByInput } from '@/lib/graphql/types/__generated__/graphql';
+import { logger } from '@/shared/utils/logger';
 
 export type User = {
   id: string;
@@ -156,12 +157,9 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
   // State to preserve previous data during loading to prevent flicker
   const [previousData, setPreviousData] = useState<any>(null);
   
-  // Track if we've seen an auth error to prevent infinite retries
-  const [hasAuthError, setHasAuthError] = useState(false);
-  
   // Check if we actually have a token (even if isAuthenticated is true, token might be invalid)
   const hasToken = hasAuthToken();
-  const shouldSkipQuery = waitingForPageSize || !isAuthenticated || !hasToken || hasAuthError;
+  const shouldSkipQuery = waitingForPageSize || !isAuthenticated || !hasToken;
 
   // Search state
   const [searchQuery, setSearchQuery] = useState(options.initialSearchQuery || "");
@@ -202,24 +200,25 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
   });
 
   // Helper to check if error is auth error
-  const isAuthError = useMemo(() => {
-    if (!error) return false;
-    const errorMessage = extractErrorMessage(error);
-    return isAuthenticationError(error, errorMessage);
+  const authErrorMessage = useMemo(() => {
+    if (!error) return null;
+    return extractErrorMessage(error);
   }, [error]);
 
-  // Handle authentication errors - redirect to sign-in and prevent retries
+  const isAuthError = useMemo(() => {
+    if (!error) return false;
+    return isAuthenticationError(error, authErrorMessage || undefined);
+  }, [error, authErrorMessage]);
+
+  // Log authentication errors, actual redirect/refresh handled globally by Apollo error link
   useEffect(() => {
-    if (error && isAuthError && !hasAuthError) {
-      // Set error flag immediately to prevent further queries
-      setHasAuthError(true);
-      // Clear storage and redirect
-      handleAuthError('/signin');
-    } else if (isAuthenticated && hasToken && hasAuthError) {
-      // Reset auth error flag if user becomes authenticated and has a token
-      setHasAuthError(false);
+    if (error && isAuthError) {
+      logger.debug('[useUserManagement] Authentication error detected (delegated to Apollo error link)', {
+        message: authErrorMessage,
+        hasToken,
+      });
     }
-  }, [error, isAuthError, isAuthenticated, hasToken, hasAuthError]);
+  }, [error, isAuthError, authErrorMessage, hasToken]);
 
   // Update previous data state when we have new data
   useEffect(() => {
@@ -371,10 +370,8 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
     assignRoleLoading,
     removeRoleLoading,
     
-    // Error handling - don't return auth errors to prevent blinking
-    error: !waitingForPageSize && error && !isAuthError
-      ? new Error(extractErrorMessage(error))
-      : undefined,
+    // Error handling - consistent with useRoleManagement and useGroupManagement
+    error: !waitingForPageSize && error ? new Error(extractErrorMessage(error)) : undefined,
     
     // Utilities
     refetch,

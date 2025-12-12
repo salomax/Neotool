@@ -130,7 +130,7 @@ export const GET_GROUP_WITH_RELATIONSHIPS = gql`
 // and filter client-side by the provided roleId
 export const GET_ROLES_WITH_PERMISSIONS = gql`
   query GetRolesWithPermissions {
-    roles(first: 1000) {
+    roles(first: 100) {
       edges {
         node {
           ...RoleFields
@@ -150,7 +150,7 @@ export const GET_ROLES_WITH_PERMISSIONS = gql`
 // with their roles and filter client-side to find which users/groups have the specific role
 export const GET_ROLE_WITH_USERS_AND_GROUPS = gql`
   query GetRoleWithUsersAndGroups {
-    users(first: 1000) {
+    users(first: 100) {
       edges {
         node {
           ...UserFields
@@ -160,7 +160,7 @@ export const GET_ROLE_WITH_USERS_AND_GROUPS = gql`
         }
       }
     }
-    groups(first: 1000) {
+    groups(first: 100) {
       edges {
         node {
           ...GroupFields

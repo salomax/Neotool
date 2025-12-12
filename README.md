@@ -572,8 +572,11 @@ pnpm run ci:unit
 - [ ] Setup multi-env (local and container)
 
 ### Security
-- [ ] Security part 2 (User Managment and Oauth2/JWT/API])
-- [ ] Security part 3 (Permission management: RBAC and ABAC)
+
+- [ ] Refresh token rotation: Implement a mechanism to track used Refresh Tokens (RTs). When an RT is used to get a new pair, it must be IMMEDIATELY invalidated. When a valid, un-replayed Refresh Token is received, the server MUST generate a brand new Access Token and a brand new Refresh Token.
+
+- [ ] Implement Idle Timeout: Define a period of inactivity (e.g., 30 days). If the Refresh Token has not been used within this period, it MUST be revoked. This cleans up unused sessions and forces re-login after long periods of absence.
+
 - [ ] Audit trail
 
 ### Authorization

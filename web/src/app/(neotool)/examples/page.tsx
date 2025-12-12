@@ -10,11 +10,6 @@ import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import PeopleRoundedIcon from '@mui/icons-material/PeopleRounded';
-import InventoryRoundedIcon from '@mui/icons-material/InventoryRounded';
-import DashboardRoundedIcon from '@mui/icons-material/DashboardRounded';
-import ApiRoundedIcon from '@mui/icons-material/ApiRounded';
-import StorageRoundedIcon from '@mui/icons-material/StorageRounded';
-import SchemaRoundedIcon from '@mui/icons-material/SchemaRounded';
 import { useResponsive } from "@/shared/hooks/ui";
 import Link from "next/link";
 
@@ -35,46 +30,6 @@ export default function ExamplesPage() {
       href: "/examples/customers",
       technologies: ["React", "GraphQL", "PostgreSQL", "REST API"],
       features: ["List/Search", "Create", "Update", "Delete", "Validation"]
-    },
-    {
-      title: "Product Catalog",
-      description: "Full product management system with inventory tracking and pricing",
-      icon: InventoryRoundedIcon,
-      href: "/examples/products",
-      technologies: ["React", "GraphQL", "PostgreSQL", "REST API"],
-      features: ["List/Search", "Create", "Update", "Delete", "Inventory"]
-    },
-    {
-      title: "Analytics Dashboard",
-      description: "Real-time dashboard with charts and data visualization",
-      icon: DashboardRoundedIcon,
-      href: "/examples/dashboard",
-      technologies: ["React", "Charts", "API", "Real-time"],
-      features: ["Charts", "Metrics", "Real-time", "Responsive"]
-    },
-    {
-      title: "API Integration",
-      description: "GraphQL and REST API integration patterns and examples",
-      icon: ApiRoundedIcon,
-      href: "/examples/api",
-      technologies: ["GraphQL", "REST", "TanStack Query", "TypeScript"],
-      features: ["Queries", "Mutations", "Subscriptions", "Error Handling"]
-    },
-    {
-      title: "Database Operations",
-      description: "PostgreSQL operations and data modeling examples",
-      icon: StorageRoundedIcon,
-      href: "/examples/database",
-      technologies: ["PostgreSQL", "Migrations", "Indexes", "Relations"],
-      features: ["Schema", "Migrations", "Queries", "Performance"]
-    },
-    {
-      title: "GraphQL Schema",
-      description: "GraphQL schema design and federation examples",
-      icon: SchemaRoundedIcon,
-      href: "/examples/graphql",
-      technologies: ["GraphQL", "Schema", "Federation", "Subgraphs"],
-      features: ["Schema", "Types", "Resolvers", "Federation"]
     }
   ];
 

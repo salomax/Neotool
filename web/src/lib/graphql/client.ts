@@ -1,9 +1,10 @@
 // Apollo Client imports for GraphQL operations
-import { ApolloClient, InMemoryCache, HttpLink, from } from '@apollo/client';
-import { setContext } from '@apollo/client/link/context';
-import { onError } from '@apollo/client/link/error';
-import { relayStylePagination } from '@apollo/client/utilities';
+import { ApolloClient, InMemoryCache, HttpLink, ApolloLink, Observable, type Operation, type NextLink, type FetchResult } from '@apollo/client';
+import { SetContextLink } from '@apollo/client/link/context';
+import { ErrorLink } from '@apollo/client/link/error';
+import { CombinedGraphQLErrors, CombinedProtocolErrors } from '@apollo/client/errors';
 import { getAuthToken, clearAuthStorage, isAuthenticationError, getRefreshToken, updateAuthToken, updateAuthUser } from '@/shared/utils/auth';
+import { logger } from '@/shared/utils/logger';
 
 // HTTP Link configuration - defines how Apollo Client communicates with the GraphQL server
 const httpLink = new HttpLink({
@@ -11,12 +12,12 @@ const httpLink = new HttpLink({
 });
 
 // Auth link to add token to requests
-const authLink = setContext((_, { headers }) => {
+const authLink = new SetContextLink((prevContext, operation) => {
   const token = getAuthToken();
   
   return {
     headers: {
-      ...headers,
+      ...prevContext.headers,
       ...(token && { authorization: `Bearer ${token}` }),
     },
   };
@@ -80,8 +81,10 @@ async function refreshAccessToken(): Promise<string | null> {
         return newToken;
       }
       
+      logger.error('[Apollo] refreshAccessToken mutation returned no data');
       return null;
     } catch (error) {
+      logger.error('[Apollo] refreshAccessToken mutation failed', error);
       // Refresh failed - clear storage and redirect
       clearAuthStorage();
       if (typeof window !== 'undefined') {
@@ -97,12 +100,70 @@ async function refreshAccessToken(): Promise<string | null> {
   return refreshPromise;
 }
 
+// Link to convert GraphQL errors in successful responses into actual errors
+const responseErrorLink = new ApolloLink((operation: Operation, forward: NextLink) => {
+  return new Observable<FetchResult>((observer) => {
+    const subscription = forward(operation).subscribe({
+      next: (result) => {
+        if (result.errors && result.errors.length > 0) {
+          const error = new Error(result.errors.map((e) => e.message).join(', '));
+          (error as any).graphQLErrors = result.errors;
+          (error as any).response = {
+            data: result.data,
+            errors: result.errors,
+          };
+          observer.error(error);
+          return;
+        }
+        observer.next(result);
+      },
+      error: (err) => observer.error(err),
+      complete: () => observer.complete(),
+    });
+    return () => subscription.unsubscribe();
+  });
+});
+
 // Error link to handle authentication errors globally
-const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) => {
-  // Comprehensive error detection: check GraphQL errors, network errors, and error extensions
+// Using Apollo Client 4.0 ErrorLink class (onError is deprecated)
+const errorLink = new ErrorLink(({ error, operation, forward }) => {
+  if (!error) {
+    logger.error('[Apollo] errorLink triggered without error', {
+      operationName: operation.operationName,
+      context: operation.getContext(),
+    });
+    return;
+  }
+
+  // Extract errors based on type (Apollo Client 4.0 API)
+  let graphQLErrors: Array<{ message: string; extensions?: any }> = [];
+  let protocolErrors: Array<{ message: string; extensions?: any }> = [];
+  let networkError: Error | null = null;
+
+  if (CombinedGraphQLErrors.is(error)) {
+    graphQLErrors = error.errors;
+  } else if (CombinedProtocolErrors.is(error)) {
+    protocolErrors = error.errors;
+  } else if (error instanceof Error) {
+    networkError = error;
+  }
+
+  // Combine all errors for auth checking
+  const allErrors = [...graphQLErrors, ...protocolErrors];
+  const hasErrors = allErrors.length > 0 || networkError !== null;
+
+  if (!hasErrors) {
+    logger.error('[Apollo] errorLink triggered without error details', {
+      operationName: operation.operationName,
+      context: operation.getContext(),
+    });
+    return;
+  }
+
+  // Comprehensive error detection: check GraphQL errors, protocol errors, and network errors
   const isAuthError = 
-    // Check GraphQL errors with message matching and error extensions
-    graphQLErrors?.some(({ message, extensions }) => 
+    // Check GraphQL/protocol errors with message matching and error extensions
+    allErrors.some(({ message, extensions }) => 
       isAuthenticationError(null, message) ||
       extensions?.code === 'UNAUTHENTICATED' ||
       extensions?.code === 'UNAUTHORIZED'
@@ -111,29 +172,52 @@ const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) 
     (networkError && isAuthenticationError(networkError));
 
   if (isAuthError) {
+    // Check if this is a retry after a refresh (to prevent infinite loops)
+    const isRetry = operation.getContext().retryAfterRefresh === true;
+    if (isRetry) {
+      logger.error('[Apollo] Auth error on retry after refresh, redirecting to signin');
+      clearAuthStorage();
+      if (typeof window !== 'undefined') {
+        window.location.href = '/signin';
+      }
+      return;
+    }
+    
     const refreshToken = getRefreshToken();
     
     // If we have a refresh token, try to refresh the access token
     if (refreshToken) {
-      // Return Promise - Apollo Client v4 automatically converts it to Observable
-      // and handles Observables returned from the promise correctly
-      return refreshAccessToken().then((newToken) => {
-        if (newToken) {
-          // Update operation context with new token
-          const oldHeaders = operation.getContext().headers;
-          operation.setContext({
-            headers: {
-              ...oldHeaders,
-              authorization: `Bearer ${newToken}`,
-            },
+      // Return Observable - properly handle the retry
+      return new Observable((observer) => {
+        refreshAccessToken()
+          .then((newToken) => {
+            if (newToken) {
+              // Update operation context with new token and mark as retry
+              const oldHeaders = operation.getContext().headers;
+              operation.setContext({
+                headers: {
+                  ...oldHeaders,
+                  authorization: `Bearer ${newToken}`,
+                },
+                retryAfterRefresh: true, // Mark as retry to prevent infinite loops
+              });
+              // Retry the original request - forward returns an Observable
+              const retryObservable = forward(operation);
+              retryObservable.subscribe({
+                next: (result) => observer.next(result),
+                error: (err) => observer.error(err),
+                complete: () => observer.complete(),
+              });
+            } else {
+              logger.error('[Apollo] Token refresh did not return a new token, redirecting to signin');
+              // Refresh failed - redirect is already handled in refreshAccessToken
+              observer.error(new Error('Token refresh failed'));
+            }
+          })
+          .catch((err) => {
+            logger.error('[Apollo] Token refresh promise rejected', err);
+            observer.error(err);
           });
-          // Retry the original request - forward returns an Observable
-          // Apollo Client will handle the Observable correctly
-          return forward(operation);
-        }
-        // Refresh failed - return undefined to stop the chain
-        // The redirect is already handled in refreshAccessToken
-        return;
       });
     } else {
       // No refresh token - clear storage and redirect
@@ -153,7 +237,7 @@ const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) 
 function createApolloClient() {
   // Create Apollo Client with proper configuration
   return new ApolloClient({
-    link: from([errorLink, authLink, httpLink]),
+    link: ApolloLink.from([errorLink, responseErrorLink, authLink, httpLink]),
     // Cache: stores the results of GraphQL operations in memory
     // InMemoryCache provides automatic normalization and caching of query results
     // This improves performance by avoiding duplicate requests and enabling optimistic updates
@@ -201,11 +285,11 @@ function createApolloClient() {
       // This allows Apollo to deduplicate identical queries while still fetching from network
       watchQuery: {
         fetchPolicy: 'cache-and-network', // Check cache first, then fetch from network
-        errorPolicy: 'all', // Return both data and errors
+        errorPolicy: 'none', // Treat GraphQL errors as errors so global handlers can react
       },
       query: {
         fetchPolicy: 'cache-and-network', // Check cache first, then fetch from network
-        errorPolicy: 'all', // Return both data and errors
+        errorPolicy: 'none', // Prevent silent failures when backend returns errors
       },
     },
   });

@@ -59,7 +59,7 @@ export const RolePermissionAssignment: React.FC<RolePermissionAssignmentProps> =
     error: permissionsError,
     refetch: refetchPermissions,
   } = usePermissionManagement({
-    initialFirst: 1000, // Fetch all permissions for selection
+    initialFirst: 100, // Fetch up to 100 permissions for selection (max allowed)
     skip: !active,
   });
 

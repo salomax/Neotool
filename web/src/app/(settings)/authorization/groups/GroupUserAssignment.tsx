@@ -2,17 +2,24 @@
 
 import React, { useMemo } from "react";
 import { useFormContext, Controller } from "react-hook-form";
-import { Box, CircularProgress, Autocomplete, TextField, Chip, ListItem } from "@mui/material";
-import { ErrorAlert } from "@/shared/components/ui/feedback";
-import { useGetUsersQuery } from "@/lib/graphql/operations/authorization-management/queries.generated";
+import { ListItem } from "@mui/material";
+import { useGetUsersQuery, type GetUsersQuery, type GetUsersQueryVariables } from "@/lib/graphql/operations/authorization-management/queries.generated";
 import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
 import { useAuth } from "@/shared/providers/AuthProvider";
+import { SearchableAutocomplete } from "@/shared/components/ui/forms/SearchableAutocomplete";
 import type { GroupFormData } from "./GroupForm";
 
 export interface GroupUserAssignmentProps {
   initialUserIds?: string[];
 }
+
+type UserOption = {
+  id: string;
+  label: string;
+  email: string;
+  displayName: string | null;
+};
 
 /**
  * GroupUserAssignment component for selecting users to assign to a group
@@ -25,36 +32,11 @@ export const GroupUserAssignment: React.FC<GroupUserAssignmentProps> = ({
   const { watch, control } = useFormContext<GroupFormData>();
   const { isAuthenticated } = useAuth();
 
-  // Fetch all users for selection
-  const { data, loading, error, refetch } = useGetUsersQuery({
-    variables: {
-      first: 1000, // Fetch a large number of users for selection
-      query: undefined,
-    },
-    skip: !isAuthenticated, // Skip if not authenticated
-    fetchPolicy: 'network-only', // Always fetch from network, no cache
-  });
-
-  // Transform users data for AutocompleteField and deduplicate by ID
-  const userOptions = useMemo(() => {
-    const users = (data?.users?.edges?.map(e => e.node) || []).map((user) => ({
-      id: user.id,
-      label: user.displayName || user.email,
-      email: user.email,
-      displayName: user.displayName,
-    }));
-    // Deduplicate by ID to ensure uniqueness
-    const uniqueUsers = Array.from(
-      new Map(users.map((user) => [user.id, user])).values()
-    );
-    return uniqueUsers;
-  }, [data?.users?.edges]);
-
-  // Map current userIds (strings) to user objects for Autocomplete display
-  // Deduplicate to prevent duplicate selections
+  // Get current userIds from form (should be string IDs)
+  const currentUserIds = watch("userIds") || [];
+  
+  // Map current userIds to user option format for selected items
   const selectedUsers = useMemo(() => {
-    // Get current userIds from form (should be string IDs)
-    const currentUserIds = watch("userIds") || [];
     if (!currentUserIds.length) return [];
     // Handle both string IDs and objects (for backward compatibility)
     const ids = Array.from(
@@ -64,51 +46,54 @@ export const GroupUserAssignment: React.FC<GroupUserAssignmentProps> = ({
           .filter(Boolean)
       )
     );
-    const selected = userOptions.filter((user) => ids.includes(user.id));
-    // Deduplicate by ID to ensure uniqueness
-    return Array.from(
-      new Map(selected.map((user) => [user.id, user])).values()
-    );
-  }, [watch, userOptions]);
-
-  if (loading) {
-    return (
-      <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
-        <CircularProgress size={24} />
-      </Box>
-    );
-  }
-
-  if (error) {
-    return (
-      <ErrorAlert
-        error={error}
-        onRetry={() => refetch()}
-        fallbackMessage={t("groupManagement.form.errors.loadUsersFailed")}
-      />
-    );
-  }
+    // Create placeholder options for selected items (they'll be merged with search results)
+    return ids.map((id) => ({
+      id: id as string,
+      label: id as string, // Temporary, will be replaced by actual data
+      email: "",
+      displayName: null,
+    }));
+  }, [currentUserIds]);
 
   return (
     <Controller
       name="userIds"
       control={control}
       render={({ field, fieldState }) => (
-        <Autocomplete
-          multiple
-          options={userOptions}
-          getOptionLabel={(option) => option.label}
-          isOptionEqualToValue={(option, value) => option.id === value.id}
-          value={selectedUsers}
-          onChange={(_event, newValue) => {
-            // Deduplicate by ID to prevent duplicates
-            const uniqueUsers = Array.from(
-              new Map(newValue.map((user) => [user.id, user])).values()
-            );
+        <SearchableAutocomplete<
+          UserOption,
+          UserOption,
+          GetUsersQuery,
+          GetUsersQueryVariables
+        >
+          useQuery={useGetUsersQuery}
+          getQueryVariables={(searchQuery) => ({
+            first: 100,
+            query: searchQuery || undefined,
+          })}
+          extractData={(data) => data?.users?.edges?.map((e) => e.node) || []}
+          transformOption={(user) => ({
+            id: user.id,
+            label: user.displayName || user.email,
+            email: user.email,
+            displayName: user.displayName,
+          })}
+          selectedItems={selectedUsers}
+          onChange={(newSelected) => {
             // Extract only the IDs from the selected user objects
-            const userIds = uniqueUsers.map((user) => user.id);
+            const userIds = newSelected.map((user) => user.id);
             field.onChange(userIds);
           }}
+          getOptionId={(option) => option.id}
+          getOptionLabel={(option) => option.label}
+          isOptionEqualToValue={(option, value) => option.id === value.id}
+          multiple
+          label={t("groupManagement.form.users")}
+          placeholder={t("groupManagement.form.usersHelper")}
+          skip={!isAuthenticated}
+          errorMessage={t("groupManagement.form.errors.loadUsersFailed")}
+          fieldError={!!fieldState.error}
+          helperText={fieldState.error?.message ?? t("groupManagement.form.usersHelper")}
           renderOption={(props, option) => {
             const { key, ...otherProps } = props;
             return (
@@ -117,28 +102,6 @@ export const GroupUserAssignment: React.FC<GroupUserAssignmentProps> = ({
               </ListItem>
             );
           }}
-          renderTags={(value: typeof userOptions, getTagProps) =>
-            value.map((option, index) => {
-              const { key, ...tagProps } = getTagProps({ index });
-              return (
-                <Chip
-                  key={option.id}
-                  variant="outlined"
-                  label={option.label}
-                  {...tagProps}
-                />
-              );
-            })
-          }
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              label={t("groupManagement.form.users")}
-              error={!!fieldState.error}
-              helperText={fieldState.error?.message ?? t("groupManagement.form.usersHelper")}
-              fullWidth
-            />
-          )}
         />
       )}
     />

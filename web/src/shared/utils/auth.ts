@@ -2,6 +2,7 @@
  * Authentication utility functions
  * Shared utilities for authentication-related operations
  */
+import { logger } from './logger';
 
 // Storage keys - must match AuthProvider constants
 const TOKEN_KEY = 'auth_token';
@@ -123,8 +124,15 @@ export function isAuthenticationError(
  * @param redirectTo - Path to redirect to (default: '/signin')
  */
 export function handleAuthError(redirectTo: string = '/signin'): void {
+  logger.debug('[Auth] handleAuthError triggered', {
+    redirectTo,
+    hasWindow: typeof window !== 'undefined',
+  });
   clearAuthStorage();
   if (typeof window !== 'undefined') {
+    logger.debug('[Auth] Redirecting to sign-in after auth error', { redirectTo });
     window.location.href = redirectTo;
+  } else {
+    logger.debug('[Auth] Skipping redirect (window is undefined)');
   }
 }
