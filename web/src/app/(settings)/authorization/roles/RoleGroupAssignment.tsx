@@ -18,8 +18,8 @@ export interface Group {
 export interface RoleGroupAssignmentProps {
   roleId: string | null;
   assignedGroups: Group[];
-  onAssignGroup: (groupId: string) => Promise<void>;
-  onRemoveGroup: (groupId: string) => Promise<void>;
+  onAssignGroup?: (groupId: string) => Promise<void>;
+  onRemoveGroup?: (groupId: string) => Promise<void>;
   assignLoading?: boolean;
   removeLoading?: boolean;
   onGroupsChange?: () => void;
@@ -27,6 +27,10 @@ export interface RoleGroupAssignmentProps {
    * When false, skips loading group options and renders nothing.
    */
   active?: boolean;
+  /**
+   * For edit mode with deferred mutations: callback when groups change (updates local state only)
+   */
+  onChange?: (groups: Group[]) => void;
 }
 
 type GroupOption = {
@@ -49,6 +53,7 @@ export const RoleGroupAssignment: React.FC<RoleGroupAssignmentProps> = ({
   removeLoading = false,
   onGroupsChange,
   active = true,
+  onChange,
 }) => {
   const { t } = useTranslation(authorizationManagementTranslations);
   const toast = useToast();
@@ -70,6 +75,21 @@ export const RoleGroupAssignment: React.FC<RoleGroupAssignmentProps> = ({
       const uniqueNewValue = Array.from(
         new Map(newValue.map((group) => [group.id, group])).values()
       );
+
+      const newGroups: Group[] = uniqueNewValue.map((group) => ({
+        id: group.id,
+        name: group.name,
+        description: group.description,
+      }));
+
+      // If onChange is provided (edit mode with deferred mutations), use it
+      if (onChange) {
+        onChange(newGroups);
+        return;
+      }
+
+      // Legacy mode: immediate mutations
+      if (!onAssignGroup || !onRemoveGroup) return;
 
       const currentIds = new Set(assignedGroups.map((g) => g.id));
       const newIds = new Set(uniqueNewValue.map((g) => g.id));
@@ -100,7 +120,7 @@ export const RoleGroupAssignment: React.FC<RoleGroupAssignmentProps> = ({
         toast.error(errorMessage);
       }
     },
-    [assignedGroups, onAssignGroup, onRemoveGroup, toast, t, onGroupsChange]
+    [assignedGroups, onAssignGroup, onRemoveGroup, onChange, toast, t, onGroupsChange]
   );
 
   if (!active) {
@@ -138,7 +158,7 @@ export const RoleGroupAssignment: React.FC<RoleGroupAssignmentProps> = ({
         multiple
         label={t("roleManagement.groups.assigned")}
         placeholder={t("roleManagement.groups.searchPlaceholder")}
-        disabled={assignLoading || removeLoading}
+        disabled={assignLoading || removeLoading || (!!roleId && !onChange && (!onAssignGroup || !onRemoveGroup))}
         loading={assignLoading || removeLoading}
         skip={!active}
         errorMessage={t("roleManagement.groups.loadError")}

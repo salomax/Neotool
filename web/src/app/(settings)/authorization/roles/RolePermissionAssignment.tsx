@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, memo } from "react";
 import {
   Box,
   Typography,
@@ -21,8 +21,8 @@ import { extractErrorMessage } from "@/shared/utils/error";
 export interface RolePermissionAssignmentProps {
   roleId: string | null;
   assignedPermissions: Permission[];
-  onAssignPermission: (permissionId: string) => Promise<void>;
-  onRemovePermission: (permissionId: string) => Promise<void>;
+  onAssignPermission?: (permissionId: string) => Promise<void>;
+  onRemovePermission?: (permissionId: string) => Promise<void>;
   assignLoading?: boolean;
   removeLoading?: boolean;
   onPermissionsChange?: () => void;
@@ -30,13 +30,47 @@ export interface RolePermissionAssignmentProps {
    * When false, skips loading data and renders nothing (used when drawer is closed).
    */
   active?: boolean;
+  /**
+   * For edit mode with deferred mutations: callback when permissions change (updates local state only)
+   */
+  onChange?: (permissions: Permission[]) => void;
 }
 
 /**
  * RolePermissionAssignment component for managing role permissions
  * Shows all permissions as a checkbox list where users can select/unselect
  */
-export const RolePermissionAssignment: React.FC<RolePermissionAssignmentProps> = ({
+// Memoized permission item component to prevent unnecessary re-renders
+const PermissionItem = memo<{
+  permission: Permission;
+  isAssigned: boolean;
+  disabled: boolean;
+  onToggle: (permissionId: string, isChecked: boolean) => void;
+}>(({ permission, isAssigned, disabled, onToggle }) => {
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      onToggle(permission.id, e.target.checked);
+    },
+    [permission.id, onToggle]
+  );
+
+  return (
+    <FormControlLabel
+      control={
+        <Checkbox
+          checked={isAssigned}
+          onChange={handleChange}
+          disabled={disabled}
+        />
+      }
+      label={permission.name}
+    />
+  );
+});
+
+PermissionItem.displayName = "PermissionItem";
+
+const RolePermissionAssignmentComponent: React.FC<RolePermissionAssignmentProps> = ({
   roleId,
   assignedPermissions,
   onAssignPermission,
@@ -45,9 +79,13 @@ export const RolePermissionAssignment: React.FC<RolePermissionAssignmentProps> =
   removeLoading = false,
   onPermissionsChange,
   active = true,
+  onChange,
 }) => {
   const { t } = useTranslation(authorizationManagementTranslations);
   const toast = useToast();
+  
+  // Separate input state (immediate) from filter state (debounced)
+  const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
   // Fetch all available permissions
@@ -63,18 +101,15 @@ export const RolePermissionAssignment: React.FC<RolePermissionAssignmentProps> =
     skip: !active,
   });
 
-  if (!active) {
-    return null;
-  }
-
   // Create a set of assigned permission IDs for quick lookup
   const assignedPermissionIds = useMemo(() => {
     return new Set(assignedPermissions.map((p) => p.id));
   }, [assignedPermissions]);
 
-  // Filter permissions based on search query
+  // Filter permissions based on debounced search query
   const filteredPermissions = useMemo(() => {
     if (!allPermissions) return [];
+    if (!searchQuery.trim()) return allPermissions;
     const searchLower = searchQuery.toLowerCase();
     return allPermissions.filter((permission) =>
       permission.name.toLowerCase().includes(searchLower)
@@ -83,6 +118,29 @@ export const RolePermissionAssignment: React.FC<RolePermissionAssignmentProps> =
 
   const handlePermissionToggle = useCallback(
     async (permissionId: string, isChecked: boolean) => {
+      // Edit mode with deferred mutations: use onChange callback to update local state
+      if (onChange) {
+        const currentPermissionIds = new Set(assignedPermissions.map(p => p.id));
+        let newPermissions: Permission[];
+        
+        if (isChecked) {
+          // Add permission
+          const permission = allPermissions?.find((p) => p.id === permissionId);
+          if (permission && !currentPermissionIds.has(permissionId)) {
+            newPermissions = [...assignedPermissions, { id: permission.id, name: permission.name }];
+            onChange(newPermissions);
+          }
+        } else {
+          // Remove permission
+          newPermissions = assignedPermissions.filter((p) => p.id !== permissionId);
+          onChange(newPermissions);
+        }
+        return;
+      }
+
+      // Legacy edit mode: assign/remove permissions via immediate mutations
+      if (!onAssignPermission || !onRemovePermission) return;
+
       try {
         if (isChecked) {
           await onAssignPermission(permissionId);
@@ -122,6 +180,7 @@ export const RolePermissionAssignment: React.FC<RolePermissionAssignmentProps> =
       roleId,
       onAssignPermission,
       onRemovePermission,
+      onChange,
       toast,
       t,
       allPermissions,
@@ -130,6 +189,12 @@ export const RolePermissionAssignment: React.FC<RolePermissionAssignmentProps> =
     ]
   );
 
+  // Handle immediate input change (for responsive typing)
+  const handleInputChange = useCallback((value: string) => {
+    setSearchInput(value);
+  }, []);
+
+  // Handle debounced search change (for actual filtering)
   const handleSearchChange = useCallback(
     (value: string) => {
       setSearchQuery(value);
@@ -137,6 +202,10 @@ export const RolePermissionAssignment: React.FC<RolePermissionAssignmentProps> =
     },
     [setPermissionSearchQuery]
   );
+
+  if (!active) {
+    return null;
+  }
 
   if (permissionsLoading) {
     return (
@@ -165,8 +234,9 @@ export const RolePermissionAssignment: React.FC<RolePermissionAssignmentProps> =
         {t("roleManagement.permissions.assigned")} ({assignedCount})
       </Typography>
       <PermissionSearch
-        value={searchQuery}
-        onChange={handleSearchChange}
+        value={searchInput}
+        onChange={handleInputChange}
+        onSearch={handleSearchChange}
         placeholder={t("roleManagement.permissions.searchPlaceholder")}
       />
       <Box
@@ -191,18 +261,12 @@ export const RolePermissionAssignment: React.FC<RolePermissionAssignmentProps> =
             {filteredPermissions.map((permission) => {
               const isAssigned = assignedPermissionIds.has(permission.id);
               return (
-                <FormControlLabel
+                <PermissionItem
                   key={permission.id}
-                  control={
-                    <Checkbox
-                      checked={isAssigned}
-                      onChange={(e) =>
-                        handlePermissionToggle(permission.id, e.target.checked)
-                      }
-                      disabled={assignLoading || removeLoading || !roleId}
-                    />
-                  }
-                  label={permission.name}
+                  permission={permission}
+                  isAssigned={isAssigned}
+                  disabled={assignLoading || removeLoading || (!!roleId && !onChange && (!onAssignPermission || !onRemovePermission))}
+                  onToggle={handlePermissionToggle}
                 />
               );
             })}
@@ -212,3 +276,7 @@ export const RolePermissionAssignment: React.FC<RolePermissionAssignmentProps> =
     </Box>
   );
 };
+
+// Memoize the component to prevent unnecessary re-renders
+// The default shallow comparison is sufficient since we're already memoizing individual items
+export const RolePermissionAssignment = memo(RolePermissionAssignmentComponent);

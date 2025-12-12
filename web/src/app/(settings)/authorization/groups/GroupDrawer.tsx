@@ -17,6 +17,7 @@ import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
 import { useGroupMutations } from "@/shared/hooks/authorization/useGroupMutations";
 import { useGroupManagement, type GroupFormData } from "@/shared/hooks/authorization/useGroupManagement";
+import { useGroupDrawer } from "@/shared/hooks/authorization/useGroupDrawer";
 import { GroupRoleAssignment } from "./GroupRoleAssignment";
 import { GroupUserAssignment } from "./GroupUserAssignment";
 import { GroupForm } from "./GroupForm";
@@ -44,14 +45,24 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
   const toast = useToast();
   const isCreateMode = groupId === null;
   
+  // Use group drawer hook for edit mode (handles roles state and mutations)
+  const {
+    group: groupFromHook,
+    loading: drawerLoading,
+    error: drawerError,
+    selectedRoles,
+    hasChanges: hasRoleChanges,
+    saving: savingRoles,
+    updateSelectedRoles,
+    handleSave: handleSaveRoles,
+    resetChanges: resetRoleChanges,
+  } = useGroupDrawer(groupId, open && !isCreateMode);
+  
   // Use mutation hook directly - drawer doesn't need the query
   const {
     updateGroup,
     assignRoleToGroup,
-    removeRoleFromGroup,
     updateLoading,
-    assignRoleLoading,
-    removeRoleLoading,
   } = useGroupMutations({
     // No refetch needed - drawer manages its own queries
   });
@@ -74,23 +85,13 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
   const [pendingRoles, setPendingRoles] = useState<Array<{ id: string; name: string }>>([]);
   const [saving, setSaving] = useState(false);
 
-  // Query group with relationships (only in edit mode)
-  const { data, loading, error, refetch } = useGetGroupWithRelationshipsQuery({
-    skip: !open || !groupId,
-    variables: { id: groupId! },
-    fetchPolicy: 'network-only',
-    notifyOnNetworkStatusChange: true,
-  });
-
-  // Get the group directly from the query result
-  const group = useMemo(() => {
-    if (!data?.group || !groupId) return null;
-    return data.group;
-  }, [data?.group, groupId]);
+  // Use group from hook in edit mode, or query directly in create mode
+  const group = isCreateMode ? null : groupFromHook;
+  const loading = isCreateMode ? false : drawerLoading;
+  const error = isCreateMode ? undefined : drawerError;
 
   // Extract relationships
   const members = useMemo(() => group?.members || [], [group?.members]);
-  const roles = useMemo(() => group?.roles || [], [group?.roles]);
 
   // Initialize form when group data loads (edit mode) or drawer opens (create mode)
   useEffect(() => {
@@ -104,7 +105,8 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
       setPendingRoles([]);
     } else if (group) {
       // Initialize form with group data for edit mode
-      const userIds = group.members?.map((member: { id: string }) => member.id) || [];
+      // Note: members might not be in the query result, so we handle it gracefully
+      const userIds: string[] = [];
       methods.reset({
         name: group.name || "",
         description: group.description || "",
@@ -126,41 +128,6 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
     }
   }, [open, methods]);
 
-  const handleAssignRole = useCallback(
-    async (roleId: string) => {
-      if (!groupId) return;
-      try {
-        await assignRoleToGroup(groupId, roleId);
-        await refetch();
-      } catch (err) {
-        const errorMessage = extractErrorMessage(
-          err,
-          t("groupManagement.roles.assignError")
-        );
-        toast.error(errorMessage);
-        throw err;
-      }
-    },
-    [groupId, assignRoleToGroup, refetch, toast, t]
-  );
-
-  const handleRemoveRole = useCallback(
-    async (roleId: string) => {
-      if (!groupId) return;
-      try {
-        await removeRoleFromGroup(groupId, roleId);
-        await refetch();
-      } catch (err) {
-        const errorMessage = extractErrorMessage(
-          err,
-          t("groupManagement.roles.removeError")
-        );
-        toast.error(errorMessage);
-        throw err;
-      }
-    },
-    [groupId, removeRoleFromGroup, refetch, toast, t]
-  );
 
   const handleSave = useCallback(async () => {
     setSaving(true);
@@ -223,11 +190,18 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
         // Close drawer
         onClose();
       } else {
-        // Edit mode: update group
+        // Edit mode: update group (name, description, users) first, then save role changes
         if (!groupId) return;
+        
+        // Update group basic info and users
         await updateGroup(groupId, submitData);
+        
+        // Save role changes if any
+        if (hasRoleChanges) {
+          await handleSaveRoles();
+        }
+        
         toast.success(t("groupManagement.toast.groupUpdated", { name: submitData.name }));
-        await refetch();
       }
     } catch (err) {
       const errorMessage = extractErrorMessage(
@@ -246,12 +220,13 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
     createGroupMutation,
     updateGroup,
     groupId,
-    refetch,
     toast,
     t,
     onClose,
     pendingRoles,
     assignRoleToGroup,
+    hasRoleChanges,
+    handleSaveRoles,
   ]);
 
   const handleCancel = useCallback(() => {
@@ -262,22 +237,21 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
         userIds: [],
       });
       setPendingRoles([]);
-    } else if (group) {
-      const userIds = group.members?.map((member: { id: string }) => member.id) || [];
-      methods.reset({
-        name: group.name || "",
-        description: group.description || "",
-        userIds,
-      });
+    } else {
+      // Reset form
+      if (group) {
+        const userIds: string[] = [];
+        methods.reset({
+          name: group.name || "",
+          description: group.description || "",
+          userIds,
+        });
+      }
+      // Reset role changes
+      resetRoleChanges();
     }
     onClose();
-  }, [isCreateMode, group, methods, onClose]);
-
-  const handleRolesChange = useCallback(() => {
-    if (!isCreateMode && groupId) {
-      refetch();
-    }
-  }, [isCreateMode, groupId, refetch]);
+  }, [isCreateMode, group, methods, onClose, resetRoleChanges]);
 
   const drawerTitle = isCreateMode
     ? t("groupManagement.createGroup")
@@ -301,7 +275,9 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
           {!isCreateMode && (
             <ErrorAlert
               error={error || undefined}
-              onRetry={() => refetch()}
+              onRetry={() => {
+                // Refetch is handled by useGroupDrawer hook
+              }}
               fallbackMessage={t("groupManagement.drawer.errorLoading")}
             />
           )}
@@ -347,17 +323,15 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
                       assignedRoles={
                         isCreateMode
                           ? pendingRoles
-                          : roles.map((r: { id: string; name: string }) => ({
-                              id: r.id,
-                              name: r.name,
-                            }))
+                          : selectedRoles
                       }
-                      onAssignRole={isCreateMode ? undefined : handleAssignRole}
-                      onRemoveRole={isCreateMode ? undefined : handleRemoveRole}
-                      assignLoading={assignRoleLoading}
-                      removeLoading={removeRoleLoading}
-                      onRolesChange={handleRolesChange}
-                      onPendingRolesChange={setPendingRoles}
+                      onAssignRole={undefined}
+                      onRemoveRole={undefined}
+                      assignLoading={false}
+                      removeLoading={false}
+                      onRolesChange={undefined}
+                      onPendingRolesChange={isCreateMode ? setPendingRoles : undefined}
+                      onChange={isCreateMode ? undefined : updateSelectedRoles}
                     />
                   </Box>
                 </PermissionGate>
@@ -386,10 +360,10 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
             <Button
               variant="contained"
               onClick={methods.handleSubmit(handleSave)}
-              disabled={saving || createLoading || updateLoading}
+              disabled={saving || createLoading || updateLoading || savingRoles || (!isCreateMode && !hasRoleChanges && !methods.formState.isDirty)}
               color="primary"
             >
-              {saving || createLoading || updateLoading
+              {saving || createLoading || updateLoading || savingRoles
                 ? t("common.saving")
                 : isCreateMode
                 ? t("groupManagement.form.create")

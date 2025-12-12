@@ -61,11 +61,8 @@ export const UserDrawer: React.FC<UserDrawerProps> = ({
       <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, p: 2 }}>
         <Button
           variant="outlined"
-          onClick={() => {
-            resetChanges();
-            onClose();
-          }}
-          disabled={saving}
+          onClick={resetChanges}
+          disabled={saving || !hasChanges}
         >
           {t("common.cancel")}
         </Button>

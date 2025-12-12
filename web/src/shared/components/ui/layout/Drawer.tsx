@@ -307,6 +307,7 @@ const Footer: React.FC<DrawerFooterProps> = ({ children }) => {
       sx={{
         p: 2,
         flexShrink: 0,
+        bgcolor: 'background.default'
       }}
     >
       {children}
