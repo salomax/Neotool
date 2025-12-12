@@ -45,7 +45,7 @@ export const UserRoleAssignment: React.FC<UserRoleAssignmentProps> = ({
   // Fetch all roles for selection
   const { data, loading: rolesLoading, error: rolesError, refetch } = useGetRolesQuery({
     variables: {
-      first: 100, // API limit is 100 items per request
+      first: 100,
       query: undefined,
     },
     skip: false,

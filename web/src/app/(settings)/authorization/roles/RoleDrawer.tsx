@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useEffect, useState, startTransition } from "react";
+import React, { useMemo, useEffect, useState, useCallback, startTransition } from "react";
 import {
   Box,
   Button,
@@ -9,10 +9,9 @@ import {
 import { useForm, FormProvider } from "react-hook-form";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { LoadingState, ErrorAlert } from "@/shared/components/ui/feedback";
-import { useGetRolesWithPermissionsQuery, useGetRoleWithUsersAndGroupsQuery } from "@/lib/graphql/operations/authorization-management/queries.generated";
+import { useGetRoleWithUsersAndGroupsQuery } from "@/lib/graphql/operations/authorization-management/queries.generated";
 import { useRoleMutations } from "@/shared/hooks/authorization/useRoleMutations";
-import { useRoleManagement, type Role } from "@/shared/hooks/authorization/useRoleManagement";
-import { usePermissionManagement } from "@/shared/hooks/authorization/usePermissionManagement";
+import { useRoleDrawer } from "@/shared/hooks/authorization/useRoleDrawer";
 import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
 import { useToast } from "@/shared/providers";
@@ -47,25 +46,21 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
   const [pendingPermissions, setPendingPermissions] = useState<string[]>([]);
   const [pendingUsers, setPendingUsers] = useState<string[]>([]);
   const [pendingGroups, setPendingGroups] = useState<string[]>([]);
-
-  // Optimistic state for immediate UI updates without waiting for refetch
-  const [optimisticPermissions, setOptimisticPermissions] = useState<Permission[] | null>(null);
-  const [optimisticUsers, setOptimisticUsers] = useState<User[] | null>(null);
-  const [optimisticGroups, setOptimisticGroups] = useState<Group[] | null>(null);
-
-  // Fetch all permissions for optimistic updates (need permission names)
-  const { permissions: allPermissions } = usePermissionManagement({
-    initialFirst: 100, // Fetch up to 100 permissions (max allowed)
-    skip: !open,
-  });
-
-  // Query roles with permissions to get current role's permissions
-  // Only query when editing (roleId is provided), skip in create mode
-  const { data: permissionsData, loading: permissionsLoading, error: permissionsError, refetch: refetchPermissions } = useGetRolesWithPermissionsQuery({
-    skip: !open || !roleId, // Skip when drawer is closed or in create mode
-    fetchPolicy: 'network-only', // Always fetch fresh data when drawer opens
-    notifyOnNetworkStatusChange: true,
-  });
+  
+  // Use role drawer hook for edit mode (handles users, groups, and permissions state and mutations)
+  const {
+    role: roleFromHook,
+    selectedUsers,
+    selectedGroups,
+    selectedPermissions,
+    hasChanges: hasUserGroupPermissionChanges,
+    saving: savingUserGroups,
+    updateSelectedUsers,
+    updateSelectedGroups,
+    updateSelectedPermissions,
+    handleSave: handleSaveUserGroups,
+    resetChanges: resetUserGroupChanges,
+  } = useRoleDrawer(roleId, open && !isCreateMode);
 
   // Query users and groups with their roles to find which users/groups have this role
   // Always fetch when drawer is open (needed for both create and edit modes)
@@ -75,40 +70,18 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
     notifyOnNetworkStatusChange: true,
   });
 
+  // Use role from hook in edit mode, or null in create mode
+  const role = isCreateMode ? null : roleFromHook;
+
   // Only show loading spinner on initial load, not on refetches
-  const initialLoading = (permissionsLoading && !permissionsData) || (usersGroupsLoading && !usersGroupsData);
-  const queryError = permissionsError || usersGroupsError;
+  const initialLoading = usersGroupsLoading && !usersGroupsData;
+  const queryError = usersGroupsError;
 
-  // Find the specific role from the query results
-  const roleWithPermissions = useMemo(() => {
-    if (!permissionsData?.roles?.edges || !roleId) return null;
-    return permissionsData.roles.edges.map(e => e.node).find((r) => r.id === roleId) || null;
-  }, [permissionsData, roleId]);
-
-  // Derive role object from roleId and query data
-  const role = useMemo(() => {
-    if (!roleId) return null;
-    if (roleWithPermissions) {
-      return {
-        id: roleWithPermissions.id,
-        name: roleWithPermissions.name,
-      };
-    }
-    return null;
-  }, [roleId, roleWithPermissions]);
-
-  // Extract permissions - use optimistic state if available, otherwise use query data
+  // Extract permissions - use hook state for edit mode, pending state for create mode
   const assignedPermissions = useMemo(() => {
-    // Use optimistic state if available (for immediate UI updates)
-    if (optimisticPermissions !== null) {
-      return optimisticPermissions;
-    }
-    
     if (role) {
-      return (roleWithPermissions?.permissions || []).map((p) => ({
-        id: p.id,
-        name: p.name,
-      }));
+      // Edit mode: use selectedPermissions from hook
+      return selectedPermissions;
     } else {
       // Create mode: return pending permissions as Permission objects
       // The component will fetch all permissions and match by ID
@@ -117,25 +90,13 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
         name: "", // Will be filled by the component when it fetches all permissions
       }));
     }
-  }, [roleWithPermissions?.permissions, role, pendingPermissions, optimisticPermissions]);
+  }, [role, selectedPermissions, pendingPermissions]);
 
-  // Extract assigned users - use optimistic state if available
+  // Extract assigned users - use hook state for edit mode, pending state for create mode
   const assignedUsers = useMemo(() => {
-    // Use optimistic state if available (for immediate UI updates)
-    if (optimisticUsers !== null) {
-      return optimisticUsers;
-    }
-    
     if (role) {
-      if (!usersGroupsData?.users?.edges) return [];
-      return usersGroupsData.users.edges.map(e => e.node)
-        .filter((user) => user.roles.some((r) => r.id === role.id))
-        .map((user) => ({
-          id: user.id,
-          email: user.email,
-          displayName: user.displayName,
-          enabled: user.enabled,
-        }));
+      // Edit mode: use selectedUsers from hook
+      return selectedUsers;
     } else {
       // Create mode: fetch user data for pending user IDs
       if (!usersGroupsData?.users?.edges) return [];
@@ -148,24 +109,13 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
           enabled: user.enabled,
         }));
     }
-  }, [usersGroupsData, role, pendingUsers, optimisticUsers]);
+  }, [role, selectedUsers, usersGroupsData, pendingUsers]);
 
-  // Extract assigned groups - use optimistic state if available
+  // Extract assigned groups - use hook state for edit mode, pending state for create mode
   const assignedGroups = useMemo(() => {
-    // Use optimistic state if available (for immediate UI updates)
-    if (optimisticGroups !== null) {
-      return optimisticGroups;
-    }
-    
     if (role) {
-      if (!usersGroupsData?.groups?.edges) return [];
-      return usersGroupsData.groups.edges.map(e => e.node)
-        .filter((group) => group.roles.some((r) => r.id === role.id))
-        .map((group) => ({
-          id: group.id,
-          name: group.name,
-          description: group.description,
-        }));
+      // Edit mode: use selectedGroups from hook
+      return selectedGroups;
     } else {
       // Create mode: fetch group data for pending group IDs
       if (!usersGroupsData?.groups?.edges) return [];
@@ -177,26 +127,17 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
           description: group.description,
         }));
     }
-  }, [usersGroupsData, role, pendingGroups, optimisticGroups]);
+  }, [role, selectedGroups, usersGroupsData, pendingGroups]);
 
   // Use mutation hook directly - drawer doesn't need the query
   const {
     createRole,
     updateRole,
     assignPermissionToRole,
-    removePermissionFromRole,
     assignRoleToUser,
-    removeRoleFromUser,
     assignRoleToGroup,
-    removeRoleFromGroup,
     createLoading,
     updateLoading,
-    assignPermissionLoading,
-    removePermissionLoading,
-    assignRoleToUserLoading,
-    removeRoleFromUserLoading,
-    assignRoleToGroupLoading,
-    removeRoleFromGroupLoading,
   } = useRoleMutations({
     // No refetch needed - drawer manages its own queries
   });
@@ -215,28 +156,22 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
       methods.reset({
         name: "",
       });
-      // Clear pending and optimistic state when opening create drawer
+      // Clear pending state when opening create drawer
       startTransition(() => {
         setPendingPermissions([]);
         setPendingUsers([]);
         setPendingGroups([]);
-        setOptimisticPermissions(null);
-        setOptimisticUsers(null);
-        setOptimisticGroups(null);
       });
     } else if (role) {
       // Initialize form with role data for edit mode
       methods.reset({
         name: role.name,
       });
-      // Clear pending and optimistic state when editing existing role
+      // Clear pending state when editing existing role
       startTransition(() => {
         setPendingPermissions([]);
         setPendingUsers([]);
         setPendingGroups([]);
-        setOptimisticPermissions(null);
-        setOptimisticUsers(null);
-        setOptimisticGroups(null);
       });
     }
   }, [role, isCreateMode, methods]);
@@ -251,9 +186,6 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
         setPendingPermissions([]);
         setPendingUsers([]);
         setPendingGroups([]);
-        setOptimisticPermissions(null);
-        setOptimisticUsers(null);
-        setOptimisticGroups(null);
       });
     }
   }, [open, methods]);
@@ -261,25 +193,23 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
   // Refetch when drawer opens to ensure fresh data
   useEffect(() => {
     if (open && roleId) {
-      refetchPermissions().catch(() => {
-        // Silently handle refetch failures - data will refresh on next interaction
-      });
       refetchUsersGroups().catch(() => {
         // Silently handle refetch failures - data will refresh on next interaction
       });
-      // Clear optimistic state when opening drawer to ensure fresh data
-      startTransition(() => {
-        setOptimisticPermissions(null);
-        setOptimisticUsers(null);
-        setOptimisticGroups(null);
-      });
     }
-  }, [open, roleId, refetchPermissions, refetchUsersGroups]);
+  }, [open, roleId, refetchUsersGroups]);
 
   const handleSubmit = async (data: RoleFormData) => {
     try {
       if (role) {
+        // Edit mode: update role name first, then save user/group/permission changes
         await updateRole(role.id, data);
+        
+        // Save user, group, and permission changes if any
+        if (hasUserGroupPermissionChanges) {
+          await handleSaveUserGroups();
+        }
+        
         toast.success(t("roleManagement.toast.roleUpdated", { name: data.name }));
       } else {
         // Create role first
@@ -329,283 +259,44 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
     }
   };
 
-  const handleAssignPermission = async (permissionId: string) => {
-    if (role) {
-      // Edit mode: optimistically update UI immediately
-      const permission = allPermissions?.find((p) => p.id === permissionId);
-      if (permission) {
-        setOptimisticPermissions((prev) => {
-          // Get current base value from query data if prev is null
-          const basePermissions = prev || (roleWithPermissions?.permissions || []).map((p) => ({
-            id: p.id,
-            name: p.name,
-          }));
-          // Don't add if already exists
-          if (basePermissions.some((p) => p.id === permissionId)) return basePermissions;
-          return [...basePermissions, { id: permission.id, name: permission.name }];
-        });
-      }
-      
-      try {
-        await assignPermissionToRole(role.id, permissionId);
-        // Refetch in background without blocking UI
-        refetchPermissions().catch(() => {
-          // Silently handle refetch failures - data will refresh on next interaction
-        });
-        // Note: No need to refetch roles list - mutations update cache
-        // Clear optimistic state after successful refetch (with a small delay to let refetch complete)
-        setTimeout(() => {
-          setOptimisticPermissions(null);
-        }, 1000);
-      } catch (err) {
-        // Rollback optimistic update on error
-        setOptimisticPermissions(null);
-        throw err; // Let RolePermissionAssignment handle the error
-      }
-    } else {
-      // Create mode: add to pending state
-      setPendingPermissions((prev) => {
-        if (!prev.includes(permissionId)) {
-          return [...prev, permissionId];
-        }
-        return prev;
-      });
+  // Handle permission changes for create mode
+  const handleCreateModePermissionChange = useCallback((permissions: Permission[]) => {
+    if (isCreateMode) {
+      setPendingPermissions(permissions.map(p => p.id));
     }
-  };
+  }, [isCreateMode]);
+  
+  // Handle permission changes for edit mode (handled by hook via onChange)
+  const handlePermissionsChange = useCallback(() => {
+    // No-op for edit mode (handled by hook)
+    // For create mode, this is handled by pendingPermissions state
+  }, []);
 
-  const handleRemovePermission = async (permissionId: string) => {
-    if (role) {
-      // Edit mode: optimistically update UI immediately
-      setOptimisticPermissions((prev) => {
-        // Get current base value from query data if prev is null
-        const basePermissions = prev || (roleWithPermissions?.permissions || []).map((p) => ({
-          id: p.id,
-          name: p.name,
-        }));
-        return basePermissions.filter((p) => p.id !== permissionId);
-      });
-      
-      try {
-        await removePermissionFromRole(role.id, permissionId);
-        // Refetch in background without blocking UI
-        refetchPermissions().catch(() => {
-          // Silently handle refetch failures - data will refresh on next interaction
-        });
-        // Note: No need to refetch roles list - mutations update cache
-        // Clear optimistic state after successful refetch
-        setTimeout(() => {
-          setOptimisticPermissions(null);
-        }, 1000);
-      } catch (err) {
-        // Rollback optimistic update on error
-        setOptimisticPermissions(null);
-        throw err; // Let RolePermissionAssignment handle the error
-      }
-    } else {
-      // Create mode: remove from pending state
-      setPendingPermissions((prev) => prev.filter((id) => id !== permissionId));
+  // Handle user changes for create mode
+  const handleCreateModeUserChange = useCallback((users: User[]) => {
+    if (isCreateMode) {
+      setPendingUsers(users.map(u => u.id));
     }
-  };
-
-  const handlePermissionsChange = () => {
-    refetchPermissions();
-    // Note: No need to refetch roles list - mutations update cache
-  };
-
-  const handleAssignUser = async (userId: string) => {
-    if (role) {
-      // Edit mode: optimistically update UI immediately
-      const user = usersGroupsData?.users?.edges?.map(e => e.node).find((u) => u.id === userId);
-      if (user) {
-        setOptimisticUsers((prev) => {
-          // Get current base value from query data if prev is null
-          const baseUsers = prev || (usersGroupsData?.users?.edges?.map(e => e.node) || [])
-            .filter((u) => u.roles.some((r) => r.id === role.id))
-            .map((u) => ({
-              id: u.id,
-              email: u.email,
-              displayName: u.displayName,
-              enabled: u.enabled,
-            }));
-          // Don't add if already exists
-          if (baseUsers.some((u) => u.id === userId)) return baseUsers;
-          return [
-            ...baseUsers,
-            {
-              id: user.id,
-              email: user.email,
-              displayName: user.displayName,
-              enabled: user.enabled,
-            },
-          ];
-        });
-      }
-      
-      try {
-        await assignRoleToUser(userId, role.id);
-        // Refetch in background without blocking UI
-        refetchUsersGroups().catch(() => {
-          // Silently handle refetch failures - data will refresh on next interaction
-        });
-        // Note: No need to refetch roles list - mutations update cache
-        // Clear optimistic state after successful refetch
-        setTimeout(() => {
-          setOptimisticUsers(null);
-        }, 1000);
-      } catch (err) {
-        // Rollback optimistic update on error
-        setOptimisticUsers(null);
-        throw err; // Let RoleUserAssignment handle the error
-      }
-    } else {
-      // Create mode: add to pending state
-      setPendingUsers((prev) => {
-        if (!prev.includes(userId)) {
-          return [...prev, userId];
-        }
-        return prev;
-      });
+  }, [isCreateMode]);
+  
+  // Handle group changes for create mode
+  const handleCreateModeGroupChange = useCallback((groups: Group[]) => {
+    if (isCreateMode) {
+      setPendingGroups(groups.map(g => g.id));
     }
-  };
-
-  const handleRemoveUser = async (userId: string) => {
-    if (role) {
-      // Edit mode: optimistically update UI immediately
-      setOptimisticUsers((prev) => {
-        // Get current base value from query data if prev is null
-        const baseUsers = prev || (usersGroupsData?.users?.edges?.map(e => e.node) || [])
-          .filter((u) => u.roles.some((r) => r.id === role.id))
-          .map((u) => ({
-            id: u.id,
-            email: u.email,
-            displayName: u.displayName,
-            enabled: u.enabled,
-          }));
-        return baseUsers.filter((u) => u.id !== userId);
-      });
-      
-      try {
-        await removeRoleFromUser(userId, role.id);
-        // Refetch in background without blocking UI
-        refetchUsersGroups().catch(() => {
-          // Silently handle refetch failures - data will refresh on next interaction
-        });
-        // Note: No need to refetch roles list - mutations update cache
-        // Clear optimistic state after successful refetch
-        setTimeout(() => {
-          setOptimisticUsers(null);
-        }, 1000);
-      } catch (err) {
-        // Rollback optimistic update on error
-        setOptimisticUsers(null);
-        throw err; // Let RoleUserAssignment handle the error
-      }
-    } else {
-      // Create mode: remove from pending state
-      setPendingUsers((prev) => prev.filter((id) => id !== userId));
-    }
-  };
-
-  const handleUsersChange = () => {
-    refetchUsersGroups();
-    // Note: No need to refetch roles list - mutations update cache
-  };
-
-  const handleAssignGroup = async (groupId: string) => {
-    if (role) {
-      // Edit mode: optimistically update UI immediately
-      const group = usersGroupsData?.groups?.edges?.map(e => e.node).find((g) => g.id === groupId);
-      if (group) {
-        setOptimisticGroups((prev) => {
-          // Get current base value from query data if prev is null
-          const baseGroups = prev || (usersGroupsData?.groups?.edges?.map(e => e.node) || [])
-            .filter((g) => g.roles.some((r) => r.id === role.id))
-            .map((g) => ({
-              id: g.id,
-              name: g.name,
-              description: g.description,
-            }));
-          // Don't add if already exists
-          if (baseGroups.some((g) => g.id === groupId)) return baseGroups;
-          return [
-            ...baseGroups,
-            {
-              id: group.id,
-              name: group.name,
-              description: group.description,
-            },
-          ];
-        });
-      }
-      
-      try {
-        await assignRoleToGroup(groupId, role.id);
-        // Refetch in background without blocking UI
-        refetchUsersGroups().catch(() => {
-          // Silently handle refetch failures - data will refresh on next interaction
-        });
-        // Note: No need to refetch roles list - mutations update cache
-        // Clear optimistic state after successful refetch
-        setTimeout(() => {
-          setOptimisticGroups(null);
-        }, 1000);
-      } catch (err) {
-        // Rollback optimistic update on error
-        setOptimisticGroups(null);
-        throw err; // Let RoleGroupAssignment handle the error
-      }
-    } else {
-      // Create mode: add to pending state
-      setPendingGroups((prev) => {
-        if (!prev.includes(groupId)) {
-          return [...prev, groupId];
-        }
-        return prev;
-      });
-    }
-  };
-
-  const handleRemoveGroup = async (groupId: string) => {
-    if (role) {
-      // Edit mode: optimistically update UI immediately
-      setOptimisticGroups((prev) => {
-        // Get current base value from query data if prev is null
-        const baseGroups = prev || (usersGroupsData?.groups?.edges?.map(e => e.node) || [])
-          .filter((g) => g.roles.some((r) => r.id === role.id))
-          .map((g) => ({
-            id: g.id,
-            name: g.name,
-            description: g.description,
-          }));
-        return baseGroups.filter((g) => g.id !== groupId);
-      });
-      
-      try {
-        await removeRoleFromGroup(groupId, role.id);
-        // Refetch in background without blocking UI
-        refetchUsersGroups().catch(() => {
-          // Silently handle refetch failures - data will refresh on next interaction
-        });
-        // Note: No need to refetch roles list - mutations update cache
-        // Clear optimistic state after successful refetch
-        setTimeout(() => {
-          setOptimisticGroups(null);
-        }, 1000);
-      } catch (err) {
-        // Rollback optimistic update on error
-        setOptimisticGroups(null);
-        throw err; // Let RoleGroupAssignment handle the error
-      }
-    } else {
-      // Create mode: remove from pending state
-      setPendingGroups((prev) => prev.filter((id) => id !== groupId));
-    }
-  };
-
-  const handleGroupsChange = () => {
-    refetchUsersGroups();
-    // Note: No need to refetch roles list - mutations update cache
-  };
+  }, [isCreateMode]);
+  
+  // Handle user changes for create mode (edit mode handled by hook)
+  const handleUsersChange = useCallback(() => {
+    // No-op for edit mode (handled by hook)
+    // For create mode, this is handled by pendingUsers state
+  }, []);
+  
+  // Handle group changes for create mode (edit mode handled by hook)
+  const handleGroupsChange = useCallback(() => {
+    // No-op for edit mode (handled by hook)
+    // For create mode, this is handled by pendingGroups state
+  }, []);
 
   return (
     <Drawer
@@ -622,7 +313,6 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
         <ErrorAlert
           error={queryError || undefined}
           onRetry={() => {
-            refetchPermissions();
             refetchUsersGroups();
           }}
           fallbackMessage={t("roleManagement.drawer.errorLoading")}
@@ -650,34 +340,37 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
                   <RolePermissionAssignment
                     roleId={roleId}
                     assignedPermissions={assignedPermissions}
-                    onAssignPermission={handleAssignPermission}
-                    onRemovePermission={handleRemovePermission}
-                    assignLoading={assignPermissionLoading}
-                    removeLoading={removePermissionLoading}
+                    onAssignPermission={undefined}
+                    onRemovePermission={undefined}
+                    assignLoading={false}
+                    removeLoading={false}
                     onPermissionsChange={handlePermissionsChange}
                     active={open}
+                    onChange={isCreateMode ? handleCreateModePermissionChange : updateSelectedPermissions}
                   />
 
                   <RoleUserAssignment
                     roleId={roleId}
                     assignedUsers={assignedUsers}
-                    onAssignUser={handleAssignUser}
-                    onRemoveUser={handleRemoveUser}
-                    assignLoading={assignRoleToUserLoading}
-                    removeLoading={removeRoleFromUserLoading}
+                    onAssignUser={undefined}
+                    onRemoveUser={undefined}
+                    assignLoading={false}
+                    removeLoading={false}
                     onUsersChange={handleUsersChange}
                     active={open}
+                    onChange={isCreateMode ? handleCreateModeUserChange : updateSelectedUsers}
                   />
 
                   <RoleGroupAssignment
                     roleId={roleId}
                     assignedGroups={assignedGroups}
-                    onAssignGroup={handleAssignGroup}
-                    onRemoveGroup={handleRemoveGroup}
-                    assignLoading={assignRoleToGroupLoading}
-                    removeLoading={removeRoleFromGroupLoading}
+                    onAssignGroup={undefined}
+                    onRemoveGroup={undefined}
+                    assignLoading={false}
+                    removeLoading={false}
                     onGroupsChange={handleGroupsChange}
                     active={open}
+                    onChange={isCreateMode ? handleCreateModeGroupChange : updateSelectedGroups}
                   />
                 </PermissionGate>
               </Stack>
@@ -691,8 +384,13 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
             <Stack direction="row" spacing={2} justifyContent="flex-end">
               <Button
                 variant="outlined"
-                onClick={onClose}
-                disabled={createLoading || updateLoading}
+                onClick={() => {
+                  if (!isCreateMode) {
+                    resetUserGroupChanges();
+                  }
+                  onClose();
+                }}
+                disabled={createLoading || updateLoading || savingUserGroups}
               >
                 {t("roleManagement.form.cancel")}
               </Button>
@@ -700,10 +398,10 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
                 type="submit"
                 form="role-form"
                 variant="contained"
-                disabled={createLoading || updateLoading}
+                disabled={createLoading || updateLoading || savingUserGroups || (!isCreateMode && !hasUserGroupPermissionChanges && !methods.formState.isDirty)}
                 data-testid="role-form-submit"
               >
-                {createLoading || updateLoading
+                {createLoading || updateLoading || savingUserGroups
                   ? t("roleManagement.form.saving")
                   : isCreateMode
                   ? t("roleManagement.form.create")

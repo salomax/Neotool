@@ -24,6 +24,8 @@ export interface GroupRoleAssignmentProps {
   onRolesChange?: () => void;
   // For create mode: callback when roles are selected (before group is created)
   onPendingRolesChange?: (roles: Role[]) => void;
+  // For edit mode with deferred mutations: callback when roles change (updates local state only)
+  onChange?: (roles: Role[]) => void;
 }
 
 type RoleOption = {
@@ -45,6 +47,7 @@ export const GroupRoleAssignment: React.FC<GroupRoleAssignmentProps> = ({
   removeLoading = false,
   onRolesChange,
   onPendingRolesChange,
+  onChange,
 }) => {
   const { t } = useTranslation(authorizationManagementTranslations);
   const toast = useToast();
@@ -61,17 +64,24 @@ export const GroupRoleAssignment: React.FC<GroupRoleAssignmentProps> = ({
   // Handle role selection changes
   const handleRoleChange = useCallback(
     async (newValue: RoleOption[]) => {
+      const newRoles: Role[] = newValue.map((option) => ({
+        id: option.id,
+        name: option.name,
+      }));
+
       // If in create mode (no groupId), just update pending roles
       if (!groupId) {
-        const pendingRoles: Role[] = newValue.map((option) => ({
-          id: option.id,
-          name: option.name,
-        }));
-        onPendingRolesChange?.(pendingRoles);
+        onPendingRolesChange?.(newRoles);
         return;
       }
 
-      // Edit mode: assign/remove roles via mutations
+      // Edit mode with deferred mutations: use onChange callback to update local state
+      if (onChange) {
+        onChange(newRoles);
+        return;
+      }
+
+      // Legacy edit mode: assign/remove roles via immediate mutations
       if (!onAssignRole || !onRemoveRole) return;
 
       const currentRoleIds = new Set(assignedRoles.map((r) => r.id));
@@ -114,6 +124,7 @@ export const GroupRoleAssignment: React.FC<GroupRoleAssignmentProps> = ({
       onRemoveRole,
       onRolesChange,
       onPendingRolesChange,
+      onChange,
       toast,
       t,
     ]
@@ -145,7 +156,7 @@ export const GroupRoleAssignment: React.FC<GroupRoleAssignmentProps> = ({
         isOptionEqualToValue={(option, value) => option.id === value.id}
         multiple
         placeholder={t("groupManagement.roles.selectRoles")}
-        disabled={assignLoading || removeLoading || (!!groupId && (!onAssignRole || !onRemoveRole))}
+        disabled={assignLoading || removeLoading || (!!groupId && !onChange && (!onAssignRole || !onRemoveRole))}
         loading={assignLoading || removeLoading}
         errorMessage={t("groupManagement.roles.loadError")}
         renderTags={(value, getTagProps) =>

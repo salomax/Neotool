@@ -20,8 +20,8 @@ export interface User {
 export interface RoleUserAssignmentProps {
   roleId: string | null;
   assignedUsers: User[];
-  onAssignUser: (userId: string) => Promise<void>;
-  onRemoveUser: (userId: string) => Promise<void>;
+  onAssignUser?: (userId: string) => Promise<void>;
+  onRemoveUser?: (userId: string) => Promise<void>;
   assignLoading?: boolean;
   removeLoading?: boolean;
   onUsersChange?: () => void;
@@ -29,6 +29,10 @@ export interface RoleUserAssignmentProps {
    * When false, skips loading user options and renders nothing.
    */
   active?: boolean;
+  /**
+   * For edit mode with deferred mutations: callback when users change (updates local state only)
+   */
+  onChange?: (users: User[]) => void;
 }
 
 type UserOption = {
@@ -52,6 +56,7 @@ export const RoleUserAssignment: React.FC<RoleUserAssignmentProps> = ({
   removeLoading = false,
   onUsersChange,
   active = true,
+  onChange,
 }) => {
   const { t } = useTranslation(authorizationManagementTranslations);
   const toast = useToast();
@@ -75,6 +80,22 @@ export const RoleUserAssignment: React.FC<RoleUserAssignmentProps> = ({
       const uniqueNewValue = Array.from(
         new Map(newValue.map((user) => [user.id, user])).values()
       );
+
+      const newUsers: User[] = uniqueNewValue.map((user) => ({
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+        enabled: user.enabled,
+      }));
+
+      // If onChange is provided (edit mode with deferred mutations), use it
+      if (onChange) {
+        onChange(newUsers);
+        return;
+      }
+
+      // Legacy mode: immediate mutations
+      if (!onAssignUser || !onRemoveUser) return;
 
       const currentIds = new Set(assignedUsers.map((u) => u.id));
       const newIds = new Set(uniqueNewValue.map((u) => u.id));
@@ -105,7 +126,7 @@ export const RoleUserAssignment: React.FC<RoleUserAssignmentProps> = ({
         toast.error(errorMessage);
       }
     },
-    [assignedUsers, onAssignUser, onRemoveUser, toast, t, onUsersChange]
+    [assignedUsers, onAssignUser, onRemoveUser, onChange, toast, t, onUsersChange]
   );
 
   if (!active) {
@@ -144,7 +165,7 @@ export const RoleUserAssignment: React.FC<RoleUserAssignmentProps> = ({
         multiple
         label={t("roleManagement.users.assigned")}
         placeholder={t("roleManagement.users.searchPlaceholder")}
-        disabled={assignLoading || removeLoading}
+        disabled={assignLoading || removeLoading || (!!roleId && !onChange && (!onAssignUser || !onRemoveUser))}
         loading={assignLoading || removeLoading}
         skip={!active || !isAuthenticated}
         errorMessage={t("roleManagement.users.loadError")}

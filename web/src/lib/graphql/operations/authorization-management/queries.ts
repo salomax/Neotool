@@ -150,7 +150,7 @@ export const GET_ROLES_WITH_PERMISSIONS = gql`
 // with their roles and filter client-side to find which users/groups have the specific role
 export const GET_ROLE_WITH_USERS_AND_GROUPS = gql`
   query GetRoleWithUsersAndGroups {
-    users(first: 100) {
+    users(first: 1000) {
       edges {
         node {
           ...UserFields
@@ -160,7 +160,7 @@ export const GET_ROLE_WITH_USERS_AND_GROUPS = gql`
         }
       }
     }
-    groups(first: 100) {
+    groups(first: 1000) {
       edges {
         node {
           ...GroupFields
