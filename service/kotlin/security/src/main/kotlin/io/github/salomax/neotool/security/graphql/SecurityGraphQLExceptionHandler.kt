@@ -38,13 +38,22 @@ class SecurityGraphQLExceptionHandler : DataFetcherExceptionHandler {
             is AuthenticationRequiredException -> {
                 logger.debug("GraphQL authentication required: ${exception.message}")
 
-                val error =
-                    GraphQLError.newError()
-                        .message("Authentication required")
-                        .path(handlerParameters.path)
-                        .location(handlerParameters.sourceLocation)
-                        .extensions(buildExtensions("UNAUTHENTICATED"))
-                        .build()
+                val errorBuilder = GraphQLError.newError()
+                    .message("Authentication required")
+                
+                // Only set path and location if they're not null to avoid NPE
+                // when GraphQL tries to derive them from DataFetchingEnvironment
+                // Note: sourceLocation access can throw NPE if field is null, so we wrap it in try-catch
+                handlerParameters.path?.let { errorBuilder.path(it) }
+                try {
+                    handlerParameters.sourceLocation?.let { errorBuilder.location(it) }
+                } catch (e: NullPointerException) {
+                    // sourceLocation can throw NPE if field is null, ignore it
+                }
+                
+                val error = errorBuilder
+                    .extensions(buildExtensions("UNAUTHENTICATED"))
+                    .build()
 
                 CompletableFuture.completedFuture(
                     DataFetcherExceptionHandlerResult.newResult()
@@ -64,13 +73,21 @@ class SecurityGraphQLExceptionHandler : DataFetcherExceptionHandler {
                         "Permission denied"
                     }
 
-                val error =
-                    GraphQLError.newError()
-                        .message(errorMessage)
-                        .path(handlerParameters.path)
-                        .location(handlerParameters.sourceLocation)
-                        .extensions(buildExtensions("FORBIDDEN", action))
-                        .build()
+                val errorBuilder = GraphQLError.newError()
+                    .message(errorMessage)
+                
+                // Only set path and location if they're not null to avoid NPE
+                // Note: sourceLocation access can throw NPE if field is null, so we wrap it in try-catch
+                handlerParameters.path?.let { errorBuilder.path(it) }
+                try {
+                    handlerParameters.sourceLocation?.let { errorBuilder.location(it) }
+                } catch (e: NullPointerException) {
+                    // sourceLocation can throw NPE if field is null, ignore it
+                }
+                
+                val error = errorBuilder
+                    .extensions(buildExtensions("FORBIDDEN", action))
+                    .build()
 
                 CompletableFuture.completedFuture(
                     DataFetcherExceptionHandlerResult.newResult()
@@ -93,10 +110,19 @@ class SecurityGraphQLExceptionHandler : DataFetcherExceptionHandler {
 
                 val errors =
                     payloadErrors.map { payloadError ->
-                        GraphQLError.newError()
+                        val errorBuilder = GraphQLError.newError()
                             .message(payloadError.message)
-                            .path(handlerParameters.path)
-                            .location(handlerParameters.sourceLocation)
+                        
+                        // Only set path and location if they're not null to avoid NPE
+                        // Note: sourceLocation access can throw NPE if field is null, so we wrap it in try-catch
+                        handlerParameters.path?.let { errorBuilder.path(it) }
+                        try {
+                            handlerParameters.sourceLocation?.let { errorBuilder.location(it) }
+                        } catch (e: NullPointerException) {
+                            // sourceLocation can throw NPE if field is null, ignore it
+                        }
+                        
+                        errorBuilder
                             .extensions(
                                 buildExtensions(
                                     payloadError.code ?: "GRAPHQL_PAYLOAD_ERROR",
