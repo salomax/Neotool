@@ -1,6 +1,8 @@
 package io.github.salomax.neotool.security.test.graphql
 
 import graphql.execution.DataFetcherExceptionHandlerParameters
+import graphql.execution.ExecutionStepInfo
+import graphql.execution.ResultPath
 import graphql.schema.DataFetchingEnvironment
 import io.github.salomax.neotool.security.graphql.SecurityGraphQLExceptionHandler
 import io.github.salomax.neotool.security.service.exception.AuthenticationRequiredException
@@ -9,7 +11,8 @@ import org.assertj.core.api.Assertions
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
-import org.mockito.Mockito.mock
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
 import java.util.concurrent.CompletableFuture
 
 /**
@@ -20,6 +23,23 @@ import java.util.concurrent.CompletableFuture
 class SecurityGraphQLExceptionHandlerTest {
     private val handler = SecurityGraphQLExceptionHandler()
 
+    /**
+     * Creates a properly mocked DataFetchingEnvironment that won't cause NPEs
+     * when GraphQL tries to access getExecutionStepInfo()
+     */
+    private fun createMockEnvironment(): DataFetchingEnvironment {
+        val env = mock<DataFetchingEnvironment>()
+        val executionStepInfo = mock<ExecutionStepInfo>()
+        val resultPath = ResultPath.rootPath()
+        
+        // Mock ExecutionStepInfo to return a valid path
+        whenever(executionStepInfo.path).thenReturn(resultPath)
+        // Mock DataFetchingEnvironment to return the ExecutionStepInfo
+        whenever(env.getExecutionStepInfo()).thenReturn(executionStepInfo)
+        
+        return env
+    }
+
     @Nested
     @DisplayName("AuthenticationRequiredException Handling")
     inner class AuthenticationRequiredExceptionTests {
@@ -27,7 +47,7 @@ class SecurityGraphQLExceptionHandlerTest {
         fun `should convert AuthenticationRequiredException to user-friendly message`() {
             // Arrange
             val exception = AuthenticationRequiredException("Access token is required")
-            val env = mock(DataFetchingEnvironment::class.java)
+            val env = createMockEnvironment()
             val handlerParameters =
                 DataFetcherExceptionHandlerParameters.newExceptionParameters()
                     .exception(exception)
@@ -49,7 +69,7 @@ class SecurityGraphQLExceptionHandlerTest {
             // Arrange
             val sensitiveMessage = "Access token is required - User ID: 12345"
             val exception = AuthenticationRequiredException(sensitiveMessage)
-            val env = mock(DataFetchingEnvironment::class.java)
+            val env = createMockEnvironment()
             val handlerParameters =
                 DataFetcherExceptionHandlerParameters.newExceptionParameters()
                     .exception(exception)
@@ -78,7 +98,7 @@ class SecurityGraphQLExceptionHandlerTest {
                 AuthorizationDeniedException(
                     "User abc-123 lacks permission 'security:user:view': Insufficient permissions",
                 )
-            val env = mock(DataFetchingEnvironment::class.java)
+            val env = createMockEnvironment()
             val handlerParameters =
                 DataFetcherExceptionHandlerParameters.newExceptionParameters()
                     .exception(exception)
@@ -99,7 +119,7 @@ class SecurityGraphQLExceptionHandlerTest {
         fun `should handle AuthorizationDeniedException without action in message`() {
             // Arrange
             val exception = AuthorizationDeniedException("Permission denied")
-            val env = mock(DataFetchingEnvironment::class.java)
+            val env = createMockEnvironment()
             val handlerParameters =
                 DataFetcherExceptionHandlerParameters.newExceptionParameters()
                     .exception(exception)
@@ -122,7 +142,7 @@ class SecurityGraphQLExceptionHandlerTest {
             val sensitiveMessage =
                 "User abc-123 lacks permission 'security:user:view': User ID 12345 does not have role ADMIN"
             val exception = AuthorizationDeniedException(sensitiveMessage)
-            val env = mock(DataFetchingEnvironment::class.java)
+            val env = createMockEnvironment()
             val handlerParameters =
                 DataFetcherExceptionHandlerParameters.newExceptionParameters()
                     .exception(exception)
@@ -150,7 +170,7 @@ class SecurityGraphQLExceptionHandlerTest {
         fun `should delegate other exceptions to next handler`() {
             // Arrange
             val exception = IllegalArgumentException("Invalid input")
-            val env = mock(DataFetchingEnvironment::class.java)
+            val env = createMockEnvironment()
             val handlerParameters =
                 DataFetcherExceptionHandlerParameters.newExceptionParameters()
                     .exception(exception)
@@ -195,7 +215,7 @@ class SecurityGraphQLExceptionHandlerTest {
         fun `should delegate RuntimeException to next handler`() {
             // Arrange
             val exception = RuntimeException("Unexpected error")
-            val env = mock(DataFetchingEnvironment::class.java)
+            val env = createMockEnvironment()
             val handlerParameters =
                 DataFetcherExceptionHandlerParameters.newExceptionParameters()
                     .exception(exception)
