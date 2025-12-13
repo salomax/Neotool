@@ -1,7 +1,6 @@
 import * as Types from '../../types/__generated__/graphql';
 
 import { gql } from '@apollo/client';
-import { CustomerFieldsFragmentDoc } from '../../fragments/common.generated';
 import * as ApolloReactCommon from '@apollo/client/react';
 import * as ApolloReactHooks from '@apollo/client/react';
 const defaultOptions = {} as const;
@@ -21,10 +20,14 @@ export type GetCustomerQuery = { customer: { __typename: 'Customer', id: string,
 export const GetCustomersDocument = gql`
     query GetCustomers {
   customers {
-    ...CustomerFields
+    id
+    name
+    email
+    status
+    createdAt
+    updatedAt
   }
-}
-    ${CustomerFieldsFragmentDoc}`;
+}`;
 
 /**
  * __useGetCustomersQuery__
@@ -60,10 +63,14 @@ export type GetCustomersQueryResult = ApolloReactCommon.QueryResult<GetCustomers
 export const GetCustomerDocument = gql`
     query GetCustomer($id: ID!) {
   customer(id: $id) {
-    ...CustomerFields
+    id
+    name
+    email
+    status
+    createdAt
+    updatedAt
   }
-}
-    ${CustomerFieldsFragmentDoc}`;
+}`;
 
 /**
  * __useGetCustomerQuery__

@@ -30,5 +30,3 @@ CREATE INDEX IF NOT EXISTS idx_authorization_audit_logs_action ON security.autho
 CREATE INDEX IF NOT EXISTS idx_authorization_audit_logs_groups_gin ON security.authorization_audit_logs USING GIN (groups);
 CREATE INDEX IF NOT EXISTS idx_authorization_audit_logs_roles_gin ON security.authorization_audit_logs USING GIN (roles);
 CREATE INDEX IF NOT EXISTS idx_authorization_audit_logs_metadata_gin ON security.authorization_audit_logs USING GIN (metadata);
-
-

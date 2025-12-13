@@ -5,7 +5,6 @@ import io.github.salomax.neotool.security.domain.rbac.Role
 import io.github.salomax.neotool.security.repo.GroupMembershipRepository
 import io.github.salomax.neotool.security.repo.GroupRoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.PermissionRepository
-import io.github.salomax.neotool.security.repo.RoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.service.AbacEvaluationResult
 import io.github.salomax.neotool.security.service.AbacEvaluationService
@@ -31,7 +30,6 @@ import java.util.UUID
 class HybridAuthorizationServiceTest {
     private lateinit var roleRepository: RoleRepository
     private lateinit var permissionRepository: PermissionRepository
-    private lateinit var roleAssignmentRepository: RoleAssignmentRepository
     private lateinit var groupMembershipRepository: GroupMembershipRepository
     private lateinit var groupRoleAssignmentRepository: GroupRoleAssignmentRepository
     private lateinit var abacEvaluationService: AbacEvaluationService
@@ -42,7 +40,6 @@ class HybridAuthorizationServiceTest {
     fun setUp() {
         roleRepository = mock()
         permissionRepository = mock()
-        roleAssignmentRepository = mock()
         groupMembershipRepository = mock()
         groupRoleAssignmentRepository = mock()
         abacEvaluationService = mock()
@@ -51,7 +48,6 @@ class HybridAuthorizationServiceTest {
             AuthorizationService(
                 roleRepository = roleRepository,
                 permissionRepository = permissionRepository,
-                roleAssignmentRepository = roleAssignmentRepository,
                 groupMembershipRepository = groupMembershipRepository,
                 groupRoleAssignmentRepository = groupRoleAssignmentRepository,
                 abacEvaluationService = abacEvaluationService,
@@ -60,16 +56,22 @@ class HybridAuthorizationServiceTest {
     }
 
     /**
-     * Helper function to mock RBAC allowing for a user and permission.
+     * Helper function to mock RBAC allowing for a user and permission via group membership.
      */
     private fun mockRbacAllowing(
         userId: UUID,
         permission: String,
         roleId: UUID = UUID.randomUUID(),
+        groupId: UUID = UUID.randomUUID(),
     ) {
-        val roleAssignment =
-            SecurityTestDataBuilders.roleAssignment(
+        val groupMembership =
+            SecurityTestDataBuilders.groupMembership(
                 userId = userId,
+                groupId = groupId,
+            )
+        val groupRoleAssignment =
+            SecurityTestDataBuilders.groupRoleAssignment(
+                groupId = groupId,
                 roleId = roleId,
             )
         val roleEntity =
@@ -78,21 +80,21 @@ class HybridAuthorizationServiceTest {
                 name = "test-role",
             )
         whenever(
-            roleAssignmentRepository.findValidAssignmentsByUserId(
-                any<UUID>(),
-                any<java.time.Instant>(),
-            ),
-        ).thenReturn(listOf(roleAssignment))
-        whenever(
-            permissionRepository.existsPermissionForRoles(permission, listOf(roleId)),
-        ).thenReturn(true)
-        whenever(roleRepository.findByIdIn(any<List<UUID>>())).thenReturn(listOf(roleEntity))
-        whenever(
             groupMembershipRepository.findActiveMembershipsByUserId(
                 any<UUID>(),
                 any<java.time.Instant>(),
             ),
-        ).thenReturn(emptyList())
+        ).thenReturn(listOf(groupMembership))
+        whenever(
+            groupRoleAssignmentRepository.findValidAssignmentsByGroupIds(
+                any<List<UUID>>(),
+                any<java.time.Instant>(),
+            ),
+        ).thenReturn(listOf(groupRoleAssignment))
+        whenever(
+            permissionRepository.existsPermissionForRoles(permission, listOf(roleId)),
+        ).thenReturn(true)
+        whenever(roleRepository.findByIdIn(any<List<UUID>>())).thenReturn(listOf(roleEntity))
     }
 
     @Nested
@@ -109,13 +111,7 @@ class HybridAuthorizationServiceTest {
                     reason = "User does not have permission",
                 )
 
-            // Mock RBAC check to deny
-            whenever(
-                roleAssignmentRepository.findValidAssignmentsByUserId(
-                    any<UUID>(),
-                    any<java.time.Instant>(),
-                ),
-            ).thenReturn(emptyList())
+            // Mock RBAC check to deny - no group memberships
             whenever(
                 groupMembershipRepository.findActiveMembershipsByUserId(
                     any<UUID>(),
@@ -167,11 +163,17 @@ class HybridAuthorizationServiceTest {
                     reason = "Access allowed by ABAC policy",
                 )
 
-            // Mock RBAC to allow - user has permission
+            // Mock RBAC to allow - user has permission via group
             val roleId = UUID.randomUUID()
-            val roleAssignment =
-                SecurityTestDataBuilders.roleAssignment(
+            val groupId = UUID.randomUUID()
+            val groupMembership =
+                SecurityTestDataBuilders.groupMembership(
                     userId = userId,
+                    groupId = groupId,
+                )
+            val groupRoleAssignment =
+                SecurityTestDataBuilders.groupRoleAssignment(
+                    groupId = groupId,
                     roleId = roleId,
                 )
             val roleEntity =
@@ -180,18 +182,21 @@ class HybridAuthorizationServiceTest {
                     name = "admin",
                 )
             whenever(
-                roleAssignmentRepository.findValidAssignmentsByUserId(any<UUID>(), any<java.time.Instant>()),
-            ).thenReturn(listOf(roleAssignment))
-            whenever(
-                permissionRepository.existsPermissionForRoles(permission, listOf(roleId)),
-            ).thenReturn(true)
-            whenever(roleRepository.findByIdIn(any<List<UUID>>())).thenReturn(listOf(roleEntity))
-            whenever(
                 groupMembershipRepository.findActiveMembershipsByUserId(
                     any<UUID>(),
                     any<java.time.Instant>(),
                 ),
-            ).thenReturn(emptyList())
+            ).thenReturn(listOf(groupMembership))
+            whenever(
+                groupRoleAssignmentRepository.findValidAssignmentsByGroupIds(
+                    any<List<UUID>>(),
+                    any<java.time.Instant>(),
+                ),
+            ).thenReturn(listOf(groupRoleAssignment))
+            whenever(
+                permissionRepository.existsPermissionForRoles(permission, listOf(roleId)),
+            ).thenReturn(true)
+            whenever(roleRepository.findByIdIn(any<List<UUID>>())).thenReturn(listOf(roleEntity))
             whenever(
                 abacEvaluationService.evaluatePolicies(
                     any<Map<String, Any>>(),
@@ -343,28 +348,28 @@ class HybridAuthorizationServiceTest {
                     reason = "Access allowed",
                 )
 
-            // Set up direct role assignment (role 1)
+            // Set up group membership with role assignment (role 1)
             val roleId1 = UUID.randomUUID()
-            val roleAssignment1 =
-                SecurityTestDataBuilders.roleAssignment(
+            val groupId1 = UUID.randomUUID()
+            val groupMembership1 =
+                SecurityTestDataBuilders.groupMembership(
                     userId = userId,
+                    groupId = groupId1,
+                )
+            val groupRoleAssignment1 =
+                SecurityTestDataBuilders.groupRoleAssignment(
+                    groupId = groupId1,
                     roleId = roleId1,
                 )
-            whenever(
-                roleAssignmentRepository.findValidAssignmentsByUserId(
-                    any<UUID>(),
-                    any<java.time.Instant>(),
-                ),
-            ).thenReturn(listOf(roleAssignment1))
 
             // Set up group membership with role assignment (role 2)
             val roleId2 = UUID.randomUUID()
-            val groupMembership =
+            val groupMembership2 =
                 SecurityTestDataBuilders.groupMembership(
                     userId = userId,
                     groupId = groupId,
                 )
-            val groupRoleAssignment =
+            val groupRoleAssignment2 =
                 SecurityTestDataBuilders.groupRoleAssignment(
                     groupId = groupId,
                     roleId = roleId2,
@@ -374,13 +379,13 @@ class HybridAuthorizationServiceTest {
                     any<UUID>(),
                     any<java.time.Instant>(),
                 ),
-            ).thenReturn(listOf(groupMembership))
+            ).thenReturn(listOf(groupMembership1, groupMembership2))
             whenever(
                 groupRoleAssignmentRepository.findValidAssignmentsByGroupIds(
                     any<List<UUID>>(),
                     any<java.time.Instant>(),
                 ),
-            ).thenReturn(listOf(groupRoleAssignment))
+            ).thenReturn(listOf(groupRoleAssignment1, groupRoleAssignment2))
 
             // Mock role entities
             val roleEntity1 =
@@ -622,13 +627,7 @@ class HybridAuthorizationServiceTest {
                     reason = "User does not have permission",
                 )
 
-            // Mock RBAC to deny
-            whenever(
-                roleAssignmentRepository.findValidAssignmentsByUserId(
-                    any<UUID>(),
-                    any<java.time.Instant>(),
-                ),
-            ).thenReturn(emptyList())
+            // Mock RBAC to deny - no group memberships
             whenever(
                 groupMembershipRepository.findActiveMembershipsByUserId(
                     any<UUID>(),

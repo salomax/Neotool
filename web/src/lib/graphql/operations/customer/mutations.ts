@@ -1,24 +1,31 @@
 import { gql } from '@apollo/client';
-import { CustomerFieldsFragmentDoc } from '../../fragments/common.generated';
 
 // Create new customer
 export const CREATE_CUSTOMER = gql`
   mutation CreateCustomer($input: CustomerInput!) {
     createCustomer(input: $input) {
-      ...CustomerFields
+      id
+      name
+      email
+      status
+      createdAt
+      updatedAt
     }
   }
-  ${CustomerFieldsFragmentDoc}
 `;
 
 // Update existing customer
 export const UPDATE_CUSTOMER = gql`
   mutation UpdateCustomer($id: ID!, $input: CustomerInput!) {
     updateCustomer(id: $id, input: $input) {
-      ...CustomerFields
+      id
+      name
+      email
+      status
+      createdAt
+      updatedAt
     }
   }
-  ${CustomerFieldsFragmentDoc}
 `;
 
 // Delete customer

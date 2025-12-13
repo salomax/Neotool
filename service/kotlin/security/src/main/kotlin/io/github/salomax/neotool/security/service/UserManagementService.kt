@@ -9,12 +9,9 @@ import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import io.github.salomax.neotool.security.domain.UserManagement
 import io.github.salomax.neotool.security.domain.rbac.GroupMembership
 import io.github.salomax.neotool.security.domain.rbac.MembershipType
-import io.github.salomax.neotool.security.domain.rbac.RoleAssignment
 import io.github.salomax.neotool.security.domain.rbac.User
 import io.github.salomax.neotool.security.repo.GroupMembershipRepository
 import io.github.salomax.neotool.security.repo.GroupRepository
-import io.github.salomax.neotool.security.repo.RoleAssignmentRepository
-import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.repo.UserRepositoryCustom
 import jakarta.inject.Singleton
@@ -31,8 +28,6 @@ import java.util.UUID
 open class UserManagementService(
     private val userRepository: UserRepository,
     private val userSearchRepository: UserRepositoryCustom,
-    private val roleAssignmentRepository: RoleAssignmentRepository,
-    private val roleRepository: RoleRepository,
     private val groupMembershipRepository: GroupMembershipRepository,
     private val groupRepository: GroupRepository,
 ) {
@@ -230,100 +225,6 @@ open class UserManagementService(
         logger.info { "User disabled: ${saved.email} (ID: ${saved.id})" }
 
         return saved.toDomain()
-    }
-
-    /**
-     * Assign a role to a user.
-     *
-     * @param command Assign role command with userId and roleId
-     * @return The updated user
-     * @throws IllegalArgumentException if user or role not found
-     */
-    @Transactional
-    open fun assignRoleToUser(command: UserManagement.AssignRoleToUserCommand): User {
-        // Validate user and role exist before assigning
-        val user =
-            userRepository
-                .findById(command.userId)
-                .orElseThrow {
-                    IllegalArgumentException("User not found with ID: ${command.userId}")
-                }
-        val role =
-            roleRepository
-                .findById(command.roleId)
-                .orElseThrow {
-                    IllegalArgumentException("Role not found with ID: ${command.roleId}")
-                }
-
-        // Check for existing assignment
-        val existingAssignments = roleAssignmentRepository.findByUserIdAndRoleId(command.userId, command.roleId)
-        if (existingAssignments.isNotEmpty()) {
-            logger.info {
-                "Role '${role.name}' already assigned to user '${user.email}' " +
-                    "(User ID: ${command.userId}, Role ID: ${command.roleId})"
-            }
-            return user.toDomain()
-        }
-
-        // Create new assignment
-        val assignment =
-            RoleAssignment(
-                userId = command.userId,
-                roleId = command.roleId,
-                validFrom = null,
-                validUntil = null,
-                createdAt = Instant.now(),
-                updatedAt = Instant.now(),
-            )
-        roleAssignmentRepository.save(assignment.toEntity())
-
-        logger.info {
-            "Role '${role.name}' assigned to user '${user.email}' " +
-                "(User ID: ${command.userId}, Role ID: ${command.roleId})"
-        }
-
-        return user.toDomain()
-    }
-
-    /**
-     * Remove a role from a user.
-     *
-     * @param command Remove role command with userId and roleId
-     * @return The updated user
-     * @throws IllegalArgumentException if user or role not found
-     */
-    @Transactional
-    open fun removeRoleFromUser(command: UserManagement.RemoveRoleFromUserCommand): User {
-        // Validate user and role exist before removing
-        val user =
-            userRepository
-                .findById(command.userId)
-                .orElseThrow {
-                    IllegalArgumentException("User not found with ID: ${command.userId}")
-                }
-        val role =
-            roleRepository
-                .findById(command.roleId)
-                .orElseThrow {
-                    IllegalArgumentException("Role not found with ID: ${command.roleId}")
-                }
-
-        // Find and delete assignment
-        val assignments = roleAssignmentRepository.findByUserIdAndRoleId(command.userId, command.roleId)
-        if (assignments.isNotEmpty()) {
-            roleAssignmentRepository.deleteAll(assignments)
-            logger.info {
-                "Role '${role.name}' removed from user '${user.email}' " +
-                    "(User ID: ${command.userId}, Role ID: ${command.roleId})"
-            }
-        } else {
-            logger.info {
-                "Role '${role.name}' was not assigned to user '${user.email}' " +
-                    "(User ID: ${command.userId}, Role ID: ${command.roleId})"
-            }
-        }
-
-        return user.toDomain()
     }
 
     /**

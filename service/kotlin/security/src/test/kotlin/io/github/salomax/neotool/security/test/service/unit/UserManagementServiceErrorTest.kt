@@ -3,7 +3,6 @@ package io.github.salomax.neotool.security.test.service.unit
 import io.github.salomax.neotool.security.domain.UserManagement
 import io.github.salomax.neotool.security.repo.GroupMembershipRepository
 import io.github.salomax.neotool.security.repo.GroupRepository
-import io.github.salomax.neotool.security.repo.RoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.repo.UserRepositoryCustom
@@ -26,7 +25,6 @@ import java.util.UUID
 class UserManagementServiceErrorTest {
     private lateinit var userRepository: UserRepository
     private lateinit var userSearchRepository: UserRepositoryCustom
-    private lateinit var roleAssignmentRepository: RoleAssignmentRepository
     private lateinit var roleRepository: RoleRepository
     private lateinit var groupMembershipRepository: GroupMembershipRepository
     private lateinit var groupRepository: GroupRepository
@@ -36,7 +34,6 @@ class UserManagementServiceErrorTest {
     fun setUp() {
         userRepository = mock()
         userSearchRepository = mock()
-        roleAssignmentRepository = mock()
         roleRepository = mock()
         groupMembershipRepository = mock()
         groupRepository = mock()
@@ -44,8 +41,6 @@ class UserManagementServiceErrorTest {
             UserManagementService(
                 userRepository,
                 userSearchRepository,
-                roleAssignmentRepository,
-                roleRepository,
                 groupMembershipRepository,
                 groupRepository,
             )
@@ -88,94 +83,6 @@ class UserManagementServiceErrorTest {
             }
 
             verify(userRepository).findById(nonExistentUserId)
-        }
-    }
-
-    @Nested
-    @DisplayName("Assign Role To User Error Handling")
-    inner class AssignRoleToUserErrorTests {
-        @Test
-        fun `should throw exception when assigning role to non-existent user`() {
-            // Arrange
-            val nonExistentUserId = UUID.randomUUID()
-            val roleId = UUID.randomUUID()
-            val command = UserManagement.AssignRoleToUserCommand(nonExistentUserId, roleId)
-            whenever(userRepository.findById(nonExistentUserId)).thenReturn(Optional.empty())
-
-            // Act & Assert
-            assertThrows<IllegalArgumentException> {
-                userManagementService.assignRoleToUser(command)
-            }.also { exception ->
-                assertThat(exception.message).contains("User not found with ID: $nonExistentUserId")
-            }
-
-            verify(userRepository).findById(nonExistentUserId)
-            verify(roleRepository, never()).findById(any())
-        }
-
-        @Test
-        fun `should throw exception when assigning role to user with non-existent role`() {
-            // Arrange
-            val userId = UUID.randomUUID()
-            val nonExistentRoleId = UUID.randomUUID()
-            val command = UserManagement.AssignRoleToUserCommand(userId, nonExistentRoleId)
-            val userEntity = io.github.salomax.neotool.security.test.SecurityTestDataBuilders.user(id = userId)
-            whenever(userRepository.findById(userId)).thenReturn(Optional.of(userEntity))
-            whenever(roleRepository.findById(nonExistentRoleId)).thenReturn(Optional.empty())
-
-            // Act & Assert
-            assertThrows<IllegalArgumentException> {
-                userManagementService.assignRoleToUser(command)
-            }.also { exception ->
-                assertThat(exception.message).contains("Role not found with ID: $nonExistentRoleId")
-            }
-
-            verify(userRepository).findById(userId)
-            verify(roleRepository).findById(nonExistentRoleId)
-        }
-    }
-
-    @Nested
-    @DisplayName("Remove Role From User Error Handling")
-    inner class RemoveRoleFromUserErrorTests {
-        @Test
-        fun `should throw exception when removing role from non-existent user`() {
-            // Arrange
-            val nonExistentUserId = UUID.randomUUID()
-            val roleId = UUID.randomUUID()
-            val command = UserManagement.RemoveRoleFromUserCommand(nonExistentUserId, roleId)
-            whenever(userRepository.findById(nonExistentUserId)).thenReturn(Optional.empty())
-
-            // Act & Assert
-            assertThrows<IllegalArgumentException> {
-                userManagementService.removeRoleFromUser(command)
-            }.also { exception ->
-                assertThat(exception.message).contains("User not found with ID: $nonExistentUserId")
-            }
-
-            verify(userRepository).findById(nonExistentUserId)
-            verify(roleRepository, never()).findById(any())
-        }
-
-        @Test
-        fun `should throw exception when removing non-existent role from user`() {
-            // Arrange
-            val userId = UUID.randomUUID()
-            val nonExistentRoleId = UUID.randomUUID()
-            val command = UserManagement.RemoveRoleFromUserCommand(userId, nonExistentRoleId)
-            val userEntity = io.github.salomax.neotool.security.test.SecurityTestDataBuilders.user(id = userId)
-            whenever(userRepository.findById(userId)).thenReturn(Optional.of(userEntity))
-            whenever(roleRepository.findById(nonExistentRoleId)).thenReturn(Optional.empty())
-
-            // Act & Assert
-            assertThrows<IllegalArgumentException> {
-                userManagementService.removeRoleFromUser(command)
-            }.also { exception ->
-                assertThat(exception.message).contains("Role not found with ID: $nonExistentRoleId")
-            }
-
-            verify(userRepository).findById(userId)
-            verify(roleRepository).findById(nonExistentRoleId)
         }
     }
 

@@ -38,7 +38,7 @@ const baseDocuments = [
   '!src/**/*.generated*.ts',
   '!src/**/*.generated*.tsx',
   '!src/lib/graphql/types/__generated__/**',
-  '!src/lib/graphql/fragments/common.graphql',
+  '!src/lib/graphql/fragments/**', // Exclude all fragment files - fragments are not used
 ];
 
 const config: CodegenConfig = {
@@ -54,14 +54,8 @@ const config: CodegenConfig = {
         maybeValue: 'T | null',
       },
     },
-    'src/lib/graphql/fragments/common.generated.ts': {
-      documents: ['src/lib/graphql/fragments/common.graphql'],
-      plugins: ['typescript', 'typescript-operations'],
-      config: {
-        ...sharedTypeConfig,
-        importOperationTypesFrom: 'Types',
-      },
-    },
+    // Fragment generation removed - fragments are not used in this project
+    // Each query/mutation must specify only the fields it needs inline
     'src/': {
       preset: 'near-operation-file',
       presetConfig: {

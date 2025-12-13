@@ -156,7 +156,6 @@ export const RoleGroupAssignment: React.FC<RoleGroupAssignmentProps> = ({
         getOptionLabel={(option) => option.label}
         isOptionEqualToValue={(option, value) => option.id === value.id}
         multiple
-        label={t("roleManagement.groups.assigned")}
         placeholder={t("roleManagement.groups.searchPlaceholder")}
         disabled={assignLoading || removeLoading || (!!roleId && !onChange && (!onAssignGroup || !onRemoveGroup))}
         loading={assignLoading || removeLoading}

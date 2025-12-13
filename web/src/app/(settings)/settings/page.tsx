@@ -2,6 +2,9 @@
 
 import React, { useState, useMemo } from "react";
 import { Container, Box } from "@/shared/components/ui/layout";
+import PersonIcon from "@mui/icons-material/Person";
+import GroupIcon from "@mui/icons-material/Group";
+import { ShieldCheckIcon } from "@/shared/components/ui/icons/ShieldCheckIcon";
 import { useTranslation } from '@/shared/i18n';
 import { authorizationManagementTranslations } from './i18n';
 import Tabs from '@/shared/components/ui/navigation/Tabs';
@@ -22,16 +25,19 @@ export default function SettingsPage() {
     {
       id: "users",
       label: t('tabs.users'),
+      icon: <PersonIcon sx={{ fontSize: '1.25rem' }} />,
       content: <UserManagement />,
     },
     {
       id: "groups",
       label: t('tabs.groups'),
+      icon: <GroupIcon sx={{ fontSize: '1.25rem' }} />,
       content: <GroupManagement />,
     },
     {
       id: "roles",
       label: t('tabs.roles'),
+      icon: <ShieldCheckIcon sx={{ fontSize: '1.25rem' }} />,
       content: <RoleManagement />,
     },
   ], [t]);

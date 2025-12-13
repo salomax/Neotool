@@ -394,24 +394,6 @@ class SecurityWiringFactory(
                     }
                 },
             ).dataFetcher(
-                "assignRoleToUser",
-                createValidatedDataFetcher { env ->
-                    withPermission(env, SecurityPermissions.SECURITY_USER_SAVE) {
-                        val userId = getRequiredString(env, "userId")
-                        val roleId = getRequiredString(env, "roleId")
-                        userManagementResolver.assignRoleToUser(userId, roleId)
-                    }
-                },
-            ).dataFetcher(
-                "removeRoleFromUser",
-                createValidatedDataFetcher { env ->
-                    withPermission(env, SecurityPermissions.SECURITY_USER_SAVE) {
-                        val userId = getRequiredString(env, "userId")
-                        val roleId = getRequiredString(env, "roleId")
-                        userManagementResolver.removeRoleFromUser(userId, roleId)
-                    }
-                },
-            ).dataFetcher(
                 "assignGroupToUser",
                 createValidatedDataFetcher { env ->
                     withPermission(env, SecurityPermissions.SECURITY_USER_SAVE) {

@@ -8,7 +8,9 @@ import {
   Stack,
   TextField,
   Button,
+  IconButton,
 } from "@mui/material";
+import PersonIcon from "@mui/icons-material/Person";
 import { WarningAlert, LoadingState, ErrorAlert } from "@/shared/components/ui/feedback";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { Avatar } from "@/shared/components/ui/primitives/Avatar";
@@ -18,6 +20,7 @@ import { UserGroupAssignment } from "./UserGroupAssignment";
 import { UserRoleAssignment } from "./UserRoleAssignment";
 import { useUserDrawer } from "@/shared/hooks/authorization/useUserDrawer";
 import { PermissionGate } from "@/shared/components/authorization";
+import { CloseIcon } from "@/shared/ui/mui-imports";
 
 export interface UserDrawerProps {
   open: boolean;
@@ -61,8 +64,11 @@ export const UserDrawer: React.FC<UserDrawerProps> = ({
       <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, p: 2 }}>
         <Button
           variant="outlined"
-          onClick={resetChanges}
-          disabled={saving || !hasChanges}
+          onClick={() => {
+            resetChanges();
+            onClose();
+          }}
+          disabled={saving}
         >
           {t("common.cancel")}
         </Button>
@@ -88,7 +94,21 @@ export const UserDrawer: React.FC<UserDrawerProps> = ({
       size="md"
       variant="temporary"
     >
-      <Drawer.Header title={t("userManagement.drawer.title")} />
+      <Drawer.Header>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flex: 1 }}>
+          <PersonIcon sx={{ color: "text.secondary" }} />
+          <Typography variant="h6" component="h2" sx={{ flex: 1 }}>
+            {t("userManagement.drawer.title")}
+          </Typography>
+        </Box>
+        <IconButton
+          onClick={onClose}
+          size="small"
+          aria-label={`Close ${t("userManagement.drawer.title")}`}
+        >
+          <CloseIcon />
+        </IconButton>
+      </Drawer.Header>
       <Drawer.Body>
         <LoadingState isLoading={loading} />
 
@@ -186,19 +206,17 @@ export const UserDrawer: React.FC<UserDrawerProps> = ({
                 </Box>
               </PermissionGate>
 
-              {/* Roles */}
-              <PermissionGate require="security:user:save">
-                <Box>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    {t("userManagement.drawer.roles")}
-                  </Typography>
-                  <UserRoleAssignment
-                    userId={userId}
-                    assignedRoles={selectedRoles}
-                    onChange={updateSelectedRoles}
-                  />
-                </Box>
-              </PermissionGate>
+              {/* Roles - Readonly (roles are assigned through groups only) */}
+              <Box>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  {t("userManagement.drawer.roles")}
+                </Typography>
+                <UserRoleAssignment
+                  userId={userId}
+                  assignedRoles={selectedRoles}
+                  readonly={true}
+                />
+              </Box>
             </Stack>
           </Stack>
         )}

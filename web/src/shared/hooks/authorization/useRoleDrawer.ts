@@ -3,8 +3,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useGetRoleWithUsersAndGroupsQuery, useGetRolesWithPermissionsQuery } from "@/lib/graphql/operations/authorization-management/queries.generated";
 import {
-  useAssignRoleToUserMutation,
-  useRemoveRoleFromUserMutation,
   useAssignRoleToGroupMutation,
   useRemoveRoleFromGroupMutation,
   useAssignPermissionToRoleMutation,
@@ -168,8 +166,6 @@ export function useRoleDrawer(
   const [saving, setSaving] = useState(false);
 
   // Mutation hooks
-  const [assignRoleToUserMutation] = useAssignRoleToUserMutation();
-  const [removeRoleFromUserMutation] = useRemoveRoleFromUserMutation();
   const [assignRoleToGroupMutation] = useAssignRoleToGroupMutation();
   const [removeRoleFromGroupMutation] = useRemoveRoleFromGroupMutation();
   const [assignPermissionToRoleMutation] = useAssignPermissionToRoleMutation();
@@ -200,12 +196,7 @@ export function useRoleDrawer(
   const hasChanges = useMemo(() => {
     if (!role) return false;
     
-    const originalUserIds = new Set(originalUsers.map(u => u.id));
-    const currentUserIds = new Set(selectedUsers.map(u => u.id));
-    const usersChanged = 
-      selectedUsers.length !== originalUsers.length ||
-      selectedUsers.some(u => !originalUserIds.has(u.id)) ||
-      originalUsers.some(u => !currentUserIds.has(u.id));
+    // Users are readonly (assigned through groups only), so don't include in hasChanges
     
     const originalGroupIds = new Set(originalGroups.map(g => g.id));
     const currentGroupIds = new Set(selectedGroups.map(g => g.id));
@@ -221,7 +212,7 @@ export function useRoleDrawer(
       selectedPermissions.some(p => !originalPermissionIds.has(p.id)) ||
       originalPermissions.some(p => !currentPermissionIds.has(p.id));
     
-    return usersChanged || groupsChanged || permissionsChanged;
+    return groupsChanged || permissionsChanged;
   }, [role, originalUsers, originalGroups, originalPermissions, selectedUsers, selectedGroups, selectedPermissions]);
 
   // Handlers for updating local state
@@ -265,11 +256,7 @@ export function useRoleDrawer(
     setSaving(true);
     
     try {
-      // Calculate differences for users
-      const originalUserIds = new Set(originalUsers.map(u => u.id));
-      const currentUserIds = new Set(selectedUsers.map(u => u.id));
-      const usersToAdd = selectedUsers.filter(u => !originalUserIds.has(u.id)).map(u => u.id);
-      const usersToRemove = Array.from(originalUserIds).filter(id => !currentUserIds.has(id));
+      // Users are readonly (assigned through groups only), so no user mutations
 
       // Calculate differences for groups
       const originalGroupIds = new Set(originalGroups.map(g => g.id));
@@ -286,23 +273,6 @@ export function useRoleDrawer(
       // Execute all mutations in parallel
       const mutationPromises: Promise<any>[] = [];
       
-      // User mutations
-      for (const userId of usersToAdd) {
-        mutationPromises.push(
-          assignRoleToUserMutation({
-            variables: { userId, roleId },
-          })
-        );
-      }
-      
-      for (const userId of usersToRemove) {
-        mutationPromises.push(
-          removeRoleFromUserMutation({
-            variables: { userId, roleId },
-          })
-        );
-      }
-
       // Group mutations
       for (const groupId of groupsToAdd) {
         mutationPromises.push(
@@ -360,15 +330,11 @@ export function useRoleDrawer(
   }, [
     role,
     roleId,
-    originalUsers,
     originalGroups,
     originalPermissions,
-    selectedUsers,
     selectedGroups,
     selectedPermissions,
     saving,
-    assignRoleToUserMutation,
-    removeRoleFromUserMutation,
     assignRoleToGroupMutation,
     removeRoleFromGroupMutation,
     assignPermissionToRoleMutation,

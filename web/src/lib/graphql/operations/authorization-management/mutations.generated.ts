@@ -1,7 +1,6 @@
 import * as Types from '../../types/__generated__/graphql';
 
 import { gql } from '@apollo/client';
-import { UserFieldsFragmentDoc, GroupFieldsFragmentDoc, RoleFieldsFragmentDoc } from '../../fragments/common.generated';
 import * as ApolloReactCommon from '@apollo/client/react';
 import * as ApolloReactHooks from '@apollo/client/react';
 const defaultOptions = {} as const;
@@ -79,22 +78,6 @@ export type RemovePermissionFromRoleMutationVariables = Types.Exact<{
 
 export type RemovePermissionFromRoleMutation = { removePermissionFromRole: { __typename: 'Role', id: string, name: string } };
 
-export type AssignRoleToUserMutationVariables = Types.Exact<{
-  userId: Types.Scalars['ID']['input'];
-  roleId: Types.Scalars['ID']['input'];
-}>;
-
-
-export type AssignRoleToUserMutation = { assignRoleToUser: { __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean } };
-
-export type RemoveRoleFromUserMutationVariables = Types.Exact<{
-  userId: Types.Scalars['ID']['input'];
-  roleId: Types.Scalars['ID']['input'];
-}>;
-
-
-export type RemoveRoleFromUserMutation = { removeRoleFromUser: { __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean } };
-
 export type AssignGroupToUserMutationVariables = Types.Exact<{
   userId: Types.Scalars['ID']['input'];
   groupId: Types.Scalars['ID']['input'];
@@ -131,10 +114,12 @@ export type RemoveRoleFromGroupMutation = { removeRoleFromGroup: { __typename: '
 export const EnableUserDocument = gql`
     mutation EnableUser($userId: ID!) {
   enableUser(userId: $userId) {
-    ...UserFields
+    id
+    email
+    displayName
+    enabled
   }
-}
-    ${UserFieldsFragmentDoc}`;
+}`;
 
 /**
  * __useEnableUserMutation__
@@ -162,10 +147,12 @@ export type EnableUserMutationResult = ApolloReactCommon.MutationResult<EnableUs
 export const DisableUserDocument = gql`
     mutation DisableUser($userId: ID!) {
   disableUser(userId: $userId) {
-    ...UserFields
+    id
+    email
+    displayName
+    enabled
   }
-}
-    ${UserFieldsFragmentDoc}`;
+}`;
 
 /**
  * __useDisableUserMutation__
@@ -193,10 +180,17 @@ export type DisableUserMutationResult = ApolloReactCommon.MutationResult<Disable
 export const CreateGroupDocument = gql`
     mutation CreateGroup($input: CreateGroupInput!) {
   createGroup(input: $input) {
-    ...GroupFields
+    id
+    name
+    description
+    members {
+      id
+      email
+      displayName
+      enabled
+    }
   }
-}
-    ${GroupFieldsFragmentDoc}`;
+}`;
 
 /**
  * __useCreateGroupMutation__
@@ -224,10 +218,17 @@ export type CreateGroupMutationResult = ApolloReactCommon.MutationResult<CreateG
 export const UpdateGroupDocument = gql`
     mutation UpdateGroup($groupId: ID!, $input: UpdateGroupInput!) {
   updateGroup(groupId: $groupId, input: $input) {
-    ...GroupFields
+    id
+    name
+    description
+    members {
+      id
+      email
+      displayName
+      enabled
+    }
   }
-}
-    ${GroupFieldsFragmentDoc}`;
+}`;
 
 /**
  * __useUpdateGroupMutation__
@@ -285,10 +286,10 @@ export type DeleteGroupMutationResult = ApolloReactCommon.MutationResult<DeleteG
 export const CreateRoleDocument = gql`
     mutation CreateRole($input: CreateRoleInput!) {
   createRole(input: $input) {
-    ...RoleFields
+    id
+    name
   }
-}
-    ${RoleFieldsFragmentDoc}`;
+}`;
 
 /**
  * __useCreateRoleMutation__
@@ -316,10 +317,10 @@ export type CreateRoleMutationResult = ApolloReactCommon.MutationResult<CreateRo
 export const UpdateRoleDocument = gql`
     mutation UpdateRole($roleId: ID!, $input: UpdateRoleInput!) {
   updateRole(roleId: $roleId, input: $input) {
-    ...RoleFields
+    id
+    name
   }
-}
-    ${RoleFieldsFragmentDoc}`;
+}`;
 
 /**
  * __useUpdateRoleMutation__
@@ -377,10 +378,10 @@ export type DeleteRoleMutationResult = ApolloReactCommon.MutationResult<DeleteRo
 export const AssignPermissionToRoleDocument = gql`
     mutation AssignPermissionToRole($roleId: ID!, $permissionId: ID!) {
   assignPermissionToRole(roleId: $roleId, permissionId: $permissionId) {
-    ...RoleFields
+    id
+    name
   }
-}
-    ${RoleFieldsFragmentDoc}`;
+}`;
 
 /**
  * __useAssignPermissionToRoleMutation__
@@ -409,10 +410,10 @@ export type AssignPermissionToRoleMutationResult = ApolloReactCommon.MutationRes
 export const RemovePermissionFromRoleDocument = gql`
     mutation RemovePermissionFromRole($roleId: ID!, $permissionId: ID!) {
   removePermissionFromRole(roleId: $roleId, permissionId: $permissionId) {
-    ...RoleFields
+    id
+    name
   }
-}
-    ${RoleFieldsFragmentDoc}`;
+}`;
 
 /**
  * __useRemovePermissionFromRoleMutation__
@@ -438,77 +439,15 @@ export function useRemovePermissionFromRoleMutation(baseOptions?: ApolloReactHoo
       }
 export type RemovePermissionFromRoleMutationHookResult = ReturnType<typeof useRemovePermissionFromRoleMutation>;
 export type RemovePermissionFromRoleMutationResult = ApolloReactCommon.MutationResult<RemovePermissionFromRoleMutation>;
-export const AssignRoleToUserDocument = gql`
-    mutation AssignRoleToUser($userId: ID!, $roleId: ID!) {
-  assignRoleToUser(userId: $userId, roleId: $roleId) {
-    ...UserFields
-  }
-}
-    ${UserFieldsFragmentDoc}`;
-
-/**
- * __useAssignRoleToUserMutation__
- *
- * To run a mutation, you first call `useAssignRoleToUserMutation` within a React component and pass it any options that fit your needs.
- * When your component renders, `useAssignRoleToUserMutation` returns a tuple that includes:
- * - A mutate function that you can call at any time to execute the mutation
- * - An object with fields that represent the current status of the mutation's execution
- *
- * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
- *
- * @example
- * const [assignRoleToUserMutation, { data, loading, error }] = useAssignRoleToUserMutation({
- *   variables: {
- *      userId: // value for 'userId'
- *      roleId: // value for 'roleId'
- *   },
- * });
- */
-export function useAssignRoleToUserMutation(baseOptions?: ApolloReactHooks.MutationHookOptions<AssignRoleToUserMutation, AssignRoleToUserMutationVariables>) {
-        const options = {...defaultOptions, ...baseOptions}
-        return ApolloReactHooks.useMutation<AssignRoleToUserMutation, AssignRoleToUserMutationVariables>(AssignRoleToUserDocument, options);
-      }
-export type AssignRoleToUserMutationHookResult = ReturnType<typeof useAssignRoleToUserMutation>;
-export type AssignRoleToUserMutationResult = ApolloReactCommon.MutationResult<AssignRoleToUserMutation>;
-export const RemoveRoleFromUserDocument = gql`
-    mutation RemoveRoleFromUser($userId: ID!, $roleId: ID!) {
-  removeRoleFromUser(userId: $userId, roleId: $roleId) {
-    ...UserFields
-  }
-}
-    ${UserFieldsFragmentDoc}`;
-
-/**
- * __useRemoveRoleFromUserMutation__
- *
- * To run a mutation, you first call `useRemoveRoleFromUserMutation` within a React component and pass it any options that fit your needs.
- * When your component renders, `useRemoveRoleFromUserMutation` returns a tuple that includes:
- * - A mutate function that you can call at any time to execute the mutation
- * - An object with fields that represent the current status of the mutation's execution
- *
- * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
- *
- * @example
- * const [removeRoleFromUserMutation, { data, loading, error }] = useRemoveRoleFromUserMutation({
- *   variables: {
- *      userId: // value for 'userId'
- *      roleId: // value for 'roleId'
- *   },
- * });
- */
-export function useRemoveRoleFromUserMutation(baseOptions?: ApolloReactHooks.MutationHookOptions<RemoveRoleFromUserMutation, RemoveRoleFromUserMutationVariables>) {
-        const options = {...defaultOptions, ...baseOptions}
-        return ApolloReactHooks.useMutation<RemoveRoleFromUserMutation, RemoveRoleFromUserMutationVariables>(RemoveRoleFromUserDocument, options);
-      }
-export type RemoveRoleFromUserMutationHookResult = ReturnType<typeof useRemoveRoleFromUserMutation>;
-export type RemoveRoleFromUserMutationResult = ApolloReactCommon.MutationResult<RemoveRoleFromUserMutation>;
 export const AssignGroupToUserDocument = gql`
     mutation AssignGroupToUser($userId: ID!, $groupId: ID!) {
   assignGroupToUser(userId: $userId, groupId: $groupId) {
-    ...UserFields
+    id
+    email
+    displayName
+    enabled
   }
-}
-    ${UserFieldsFragmentDoc}`;
+}`;
 
 /**
  * __useAssignGroupToUserMutation__
@@ -537,10 +476,12 @@ export type AssignGroupToUserMutationResult = ApolloReactCommon.MutationResult<A
 export const RemoveGroupFromUserDocument = gql`
     mutation RemoveGroupFromUser($userId: ID!, $groupId: ID!) {
   removeGroupFromUser(userId: $userId, groupId: $groupId) {
-    ...UserFields
+    id
+    email
+    displayName
+    enabled
   }
-}
-    ${UserFieldsFragmentDoc}`;
+}`;
 
 /**
  * __useRemoveGroupFromUserMutation__
@@ -569,10 +510,17 @@ export type RemoveGroupFromUserMutationResult = ApolloReactCommon.MutationResult
 export const AssignRoleToGroupDocument = gql`
     mutation AssignRoleToGroup($groupId: ID!, $roleId: ID!) {
   assignRoleToGroup(groupId: $groupId, roleId: $roleId) {
-    ...GroupFields
+    id
+    name
+    description
+    members {
+      id
+      email
+      displayName
+      enabled
+    }
   }
-}
-    ${GroupFieldsFragmentDoc}`;
+}`;
 
 /**
  * __useAssignRoleToGroupMutation__
@@ -601,10 +549,17 @@ export type AssignRoleToGroupMutationResult = ApolloReactCommon.MutationResult<A
 export const RemoveRoleFromGroupDocument = gql`
     mutation RemoveRoleFromGroup($groupId: ID!, $roleId: ID!) {
   removeRoleFromGroup(groupId: $groupId, roleId: $roleId) {
-    ...GroupFields
+    id
+    name
+    description
+    members {
+      id
+      email
+      displayName
+      enabled
+    }
   }
-}
-    ${GroupFieldsFragmentDoc}`;
+}`;
 
 /**
  * __useRemoveRoleFromGroupMutation__

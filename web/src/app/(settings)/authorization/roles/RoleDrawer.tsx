@@ -5,9 +5,13 @@ import {
   Box,
   Button,
   Stack,
+  Typography,
+  IconButton,
 } from "@mui/material";
+import { ShieldCheckIcon } from "@/shared/components/ui/icons/ShieldCheckIcon";
 import { useForm, FormProvider } from "react-hook-form";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
+import { CloseIcon } from "@/shared/ui/mui-imports";
 import { LoadingState, ErrorAlert } from "@/shared/components/ui/feedback";
 import { useGetRoleWithUsersAndGroupsQuery } from "@/lib/graphql/operations/authorization-management/queries.generated";
 import { useRoleMutations } from "@/shared/hooks/authorization/useRoleMutations";
@@ -298,6 +302,8 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
     // For create mode, this is handled by pendingGroups state
   }, []);
 
+  const drawerTitle = isCreateMode ? t("roleManagement.createRole") : t("roleManagement.editRole");
+
   return (
     <Drawer
       open={open}
@@ -306,7 +312,21 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
       size="md"
       variant="temporary"
     >
-      <Drawer.Header title={isCreateMode ? t("roleManagement.createRole") : t("roleManagement.editRole")} />
+      <Drawer.Header>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flex: 1 }}>
+          <ShieldCheckIcon sx={{ color: "text.secondary" }} />
+          <Typography variant="h6" component="h2" sx={{ flex: 1 }}>
+            {drawerTitle}
+          </Typography>
+        </Box>
+        <IconButton
+          onClick={onClose}
+          size="small"
+          aria-label={`Close ${drawerTitle}`}
+        >
+          <CloseIcon />
+        </IconButton>
+      </Drawer.Header>
       <Drawer.Body>
         <LoadingState isLoading={initialLoading} />
 
@@ -358,7 +378,7 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
                     removeLoading={false}
                     onUsersChange={handleUsersChange}
                     active={open}
-                    onChange={isCreateMode ? handleCreateModeUserChange : updateSelectedUsers}
+                    readonly={true}
                   />
 
                   <RoleGroupAssignment

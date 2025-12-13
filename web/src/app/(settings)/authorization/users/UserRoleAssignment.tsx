@@ -23,6 +23,7 @@ export interface UserRoleAssignmentProps {
   userId: string | null;
   assignedRoles: Role[];
   onChange?: (selectedRoles: Role[]) => void;
+  readonly?: boolean;
 }
 
 type RoleOption = {
@@ -34,11 +35,13 @@ type RoleOption = {
 /**
  * UserRoleAssignment component for managing user role assignments
  * Uses a multi-select Autocomplete to assign and remove roles
+ * When readonly, displays roles as chips only (no editing capability)
  */
 export const UserRoleAssignment: React.FC<UserRoleAssignmentProps> = ({
   userId,
   assignedRoles,
   onChange,
+  readonly = false,
 }) => {
   const { t } = useTranslation(authorizationManagementTranslations);
 
@@ -102,6 +105,29 @@ export const UserRoleAssignment: React.FC<UserRoleAssignmentProps> = ({
         onRetry={() => refetch()}
         fallbackMessage={t("userManagement.roles.loadError")}
       />
+    );
+  }
+
+  // Readonly mode: just display roles as chips
+  if (readonly) {
+    return (
+      <Box>
+        {selectedRoles.length === 0 ? (
+          <Typography variant="body2" color="text.secondary">
+            {t("userManagement.roles.noRoles")}
+          </Typography>
+        ) : (
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+            {selectedRoles.map((role) => (
+              <Chip
+                key={role.id}
+                variant="outlined"
+                label={role.label}
+              />
+            ))}
+          </Box>
+        )}
+      </Box>
     );
   }
 

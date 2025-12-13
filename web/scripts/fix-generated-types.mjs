@@ -2,14 +2,9 @@
 /**
  * GraphQL codegen post-processing script.
  * 
- * This script fixes several issues in the generated GraphQL code:
+ * This script fixes Apollo Client 4 compatibility issues in the generated GraphQL code:
  * 
- * 1. Fragment Documents Fix:
- *    The stock typescript-operations plugin emits malformed gql strings when
- *    a fragment spreads another fragment. This function rewrites the fragment
- *    documents to properly handle nested fragment spreads.
- * 
- * 2. Apollo Client 4 Compatibility Fixes:
+ * 1. Apollo Client 4 Compatibility Fixes:
  *    - BaseMutationOptions Removal:
  *      The @graphql-codegen/typescript-react-apollo plugin generates
  *      BaseMutationOptions types that don't exist in Apollo Client 4.
@@ -31,103 +26,11 @@
 import { existsSync, readFileSync, writeFileSync, readdirSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-import { Kind, parse, print, visit } from 'graphql';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const webDir = join(__dirname, '..');
-const fragmentsSource = join(webDir, 'src/lib/graphql/fragments/common.graphql');
-const fragmentsTarget = join(webDir, 'src/lib/graphql/fragments/common.generated.ts');
 const operationsRoot = join(webDir, 'src/lib/graphql/operations');
-
-function indentBlock(text, spaces = 4) {
-  const pad = ' '.repeat(spaces);
-  return text
-    .split('\n')
-    .map(line => (line ? pad + line : pad))
-    .join('\n');
-}
-
-function collectFragments(source) {
-  const document = parse(source);
-  return document.definitions
-    .filter(def => def.kind === Kind.FRAGMENT_DEFINITION)
-    .map(fragment => {
-      const dependencies = new Set();
-      visit(fragment, {
-        FragmentSpread(node) {
-          if (node.name.value !== fragment.name.value) {
-            dependencies.add(node.name.value);
-          }
-        },
-      });
-      return {
-        name: fragment.name.value,
-        printed: print(fragment),
-        dependencies: Array.from(dependencies),
-      };
-    });
-}
-
-function buildFragmentDoc({ name, printed, dependencies }) {
-  const docLines = [
-    `export const ${name}FragmentDoc = gql\``,
-    indentBlock(printed),
-    dependencies.length
-      ? dependencies.map(dep => `    \${${dep}FragmentDoc}`).join('\n')
-      : '',
-    '`;',
-  ].filter(Boolean);
-
-  // Add an extra newline between fragments to match codegen's output style
-  return docLines.join('\n') + '\n';
-}
-
-function rewriteFragmentDocs() {
-  if (!existsSync(fragmentsSource) || !existsSync(fragmentsTarget)) {
-    return;
-  }
-
-  const fragments = collectFragments(readFileSync(fragmentsSource, 'utf8'));
-  if (!fragments.length) {
-    return;
-  }
-
-  const generatedContent = readFileSync(fragmentsTarget, 'utf8');
-  const docMarkerIndex = fragments
-    .map(fragment => generatedContent.indexOf(`export const ${fragment.name}FragmentDoc`))
-    .filter(index => index !== -1)
-    .reduce((min, index) => Math.min(min, index), Number.POSITIVE_INFINITY);
-
-  if (!Number.isFinite(docMarkerIndex)) {
-    console.warn('⚠️ Could not find fragment markers in', fragmentsTarget);
-    return;
-  }
-
-  const typeSnippets = fragments
-    .map(fragment => {
-      const regex = new RegExp(
-        `export type ${fragment.name}Fragment\\s*=\\s*[^;]+;`,
-        'm',
-      );
-      const match = generatedContent.match(regex);
-      return match ? match[0] : null;
-    })
-    .filter(Boolean);
-
-  if (!typeSnippets.length) {
-    console.warn('⚠️ Could not extract fragment type definitions from', fragmentsTarget);
-    return;
-  }
-
-  const typeSection = typeSnippets.join('\n\n');
-  const fragmentDocs = fragments.map(buildFragmentDoc).join('\n');
-  const header = "import { gql } from '@apollo/client';\n\n";
-  const nextContent = `${header}${typeSection}\n\n${fragmentDocs}`;
-
-  writeFileSync(fragmentsTarget, nextContent, 'utf8');
-  console.log('🔧 Updated fragment documents in common.generated.ts');
-}
 
 function collectOperationFiles(dir) {
   const entries = readdirSync(dir, { withFileTypes: true });
@@ -279,7 +182,6 @@ function fixSuspenseQueryVariables() {
 }
 
 // Execute all post-processing fixes
-rewriteFragmentDocs();
 fixApolloImports();
 removeBaseMutationOptions(); // Remove BaseMutationOptions types (incompatible with Apollo Client 4)
 fixSuspenseQueryVariables(); // Fix useSuspenseQuery type errors for queries with required variables

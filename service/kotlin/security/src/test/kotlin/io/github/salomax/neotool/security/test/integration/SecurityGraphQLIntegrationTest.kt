@@ -11,9 +11,10 @@ import io.github.salomax.neotool.common.test.json.read
 import io.github.salomax.neotool.common.test.transaction.runTransaction
 import io.github.salomax.neotool.security.domain.rbac.SecurityPermissions
 import io.github.salomax.neotool.security.model.UserEntity
+import io.github.salomax.neotool.security.repo.GroupMembershipRepository
 import io.github.salomax.neotool.security.repo.GroupRepository
+import io.github.salomax.neotool.security.repo.GroupRoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.PermissionRepository
-import io.github.salomax.neotool.security.repo.RoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.AuthContextFactory
@@ -72,13 +73,16 @@ open class SecurityGraphQLIntegrationTest :
     lateinit var roleRepository: RoleRepository
 
     @Inject
-    lateinit var roleAssignmentRepository: RoleAssignmentRepository
-
-    @Inject
     lateinit var permissionRepository: PermissionRepository
 
     @Inject
     lateinit var groupRepository: GroupRepository
+
+    @Inject
+    lateinit var groupMembershipRepository: GroupMembershipRepository
+
+    @Inject
+    lateinit var groupRoleAssignmentRepository: GroupRoleAssignmentRepository
 
     private val mockEmailService: MockEmailService
         get() = emailService as MockEmailService
@@ -86,8 +90,8 @@ open class SecurityGraphQLIntegrationTest :
     private fun uniqueEmail() = SecurityTestDataBuilders.uniqueEmail("graphql-security")
 
     /**
-     * Helper to create a user with ADMIN role and generate an access token.
-     * Ensures ADMIN role exists with required permissions, creating them if needed.
+     * Helper to create a user with Authorization Manager role and generate an access token.
+     * Ensures Authorization Manager role exists with required permissions, creating them if needed.
      * This helper is idempotent and safe to call multiple times.
      */
     private fun createUserWithAdminRoleAndToken(): Pair<UserEntity, String> {
@@ -101,15 +105,15 @@ open class SecurityGraphQLIntegrationTest :
             )
         saveUser(user)
 
-        // Ensure ADMIN role exists, create if missing
+        // Ensure Authorization Manager role exists, create if missing
         val adminRole =
             entityManager.runTransaction {
-                roleRepository.findByName("ADMIN").orElseGet {
-                    roleRepository.save(SecurityTestDataBuilders.role(name = "ADMIN"))
+                roleRepository.findByName("Authorization Manager").orElseGet {
+                    roleRepository.save(SecurityTestDataBuilders.role(name = "Authorization Manager"))
                 }
             }
 
-        // Ensure required permissions exist and are linked to ADMIN role
+        // Ensure required permissions exist and are linked to Authorization Manager role
         val requiredPermissions =
             listOf(
                 SecurityPermissions.SECURITY_USER_VIEW,
@@ -134,14 +138,24 @@ open class SecurityGraphQLIntegrationTest :
             entityManager.flush()
         }
 
-        // Assign ADMIN role to user
+        // Create group and assign Authorization Manager role to group, then add user to group
         entityManager.runTransaction {
-            val roleAssignment =
-                SecurityTestDataBuilders.roleAssignment(
-                    userId = user.id!!,
+            val group = SecurityTestDataBuilders.group(name = "admin-group-${UUID.randomUUID()}")
+            val savedGroup = groupRepository.save(group)
+
+            val groupRoleAssignment =
+                SecurityTestDataBuilders.groupRoleAssignment(
+                    groupId = savedGroup.id,
                     roleId = adminRole.id!!,
                 )
-            roleAssignmentRepository.save(roleAssignment)
+            groupRoleAssignmentRepository.save(groupRoleAssignment)
+
+            val groupMembership =
+                SecurityTestDataBuilders.groupMembership(
+                    userId = user.id!!,
+                    groupId = savedGroup.id,
+                )
+            groupMembershipRepository.save(groupMembership)
             entityManager.flush()
         }
 
@@ -161,7 +175,8 @@ open class SecurityGraphQLIntegrationTest :
     @AfterEach
     fun cleanupTestData() {
         try {
-            roleAssignmentRepository.deleteAll()
+            groupRoleAssignmentRepository.deleteAll()
+            groupMembershipRepository.deleteAll()
             userRepository.deleteAll()
             mockEmailService.clearSentEmails()
         } catch (e: Exception) {
@@ -885,7 +900,7 @@ open class SecurityGraphQLIntegrationTest :
             // Note: This test verifies that DataLoader is used, but actual role assignment
             // would require additional setup. For now, we verify the query structure works.
 
-            // Create user with ADMIN role and get token
+            // Create user with Authorization Manager role and get token
             val (_, token) = createUserWithAdminRoleAndToken()
 
             // Query multiple users with roles field
@@ -956,7 +971,7 @@ open class SecurityGraphQLIntegrationTest :
             saveUser(user1)
             saveUser(user2)
 
-            // Create user with ADMIN role and get token
+            // Create user with Authorization Manager role and get token
             val (_, token) = createUserWithAdminRoleAndToken()
 
             // Query multiple users with groups field
@@ -1027,7 +1042,7 @@ open class SecurityGraphQLIntegrationTest :
             saveUser(user1)
             saveUser(user2)
 
-            // Create user with ADMIN role and get token
+            // Create user with Authorization Manager role and get token
             val (_, token) = createUserWithAdminRoleAndToken()
 
             // Query multiple users with permissions field
@@ -1079,7 +1094,7 @@ open class SecurityGraphQLIntegrationTest :
 
         @Test
         fun `should batch load role permissions for multiple roles`() {
-            // Create user with ADMIN role and get token
+            // Create user with Authorization Manager role and get token
             val (_, token) = createUserWithAdminRoleAndToken()
 
             // Query multiple roles with permissions field
@@ -1131,7 +1146,7 @@ open class SecurityGraphQLIntegrationTest :
 
         @Test
         fun `should batch load group roles for multiple groups`() {
-            // Create user with ADMIN role and get token
+            // Create user with Authorization Manager role and get token
             val (_, token) = createUserWithAdminRoleAndToken()
 
             // Query multiple groups with roles field
@@ -1217,7 +1232,7 @@ open class SecurityGraphQLIntegrationTest :
                 roleRepository.assignPermissionToRole(testRole2.id!!, testPermission1.id!!)
             }
 
-            // Create user with ADMIN role and get token
+            // Create user with Authorization Manager role and get token
             val (_, token) = createUserWithAdminRoleAndToken()
 
             // Query the specific test permissions by name
@@ -1280,7 +1295,7 @@ open class SecurityGraphQLIntegrationTest :
 
         @Test
         fun `should batch load group members for multiple groups`() {
-            // Create user with ADMIN role and get token
+            // Create user with Authorization Manager role and get token
             val (_, token) = createUserWithAdminRoleAndToken()
 
             // Query multiple groups with members field (already uses DataLoader)
@@ -1440,7 +1455,7 @@ open class SecurityGraphQLIntegrationTest :
         }
 
         @Test
-        fun `should allow querying users with valid token and ADMIN role`() {
+        fun `should allow querying users with valid token and Authorization Manager role`() {
             // Arrange
             val (_, token) = createUserWithAdminRoleAndToken()
 
@@ -1786,10 +1801,10 @@ open class SecurityGraphQLIntegrationTest :
         @Test
         fun `should return Authentication required when assigning role to user without token`() {
             val (targetUser, _) = createUserWithAdminRoleAndToken()
-            val role =
-                roleRepository.findAll().firstOrNull() ?: run {
-                    val newRole = SecurityTestDataBuilders.role(name = "TEST_ROLE")
-                    roleRepository.save(newRole)
+            val group =
+                entityManager.runTransaction {
+                    val newGroup = SecurityTestDataBuilders.group(name = "test-group-${UUID.randomUUID()}")
+                    groupRepository.save(newGroup)
                 }
 
             val mutation =
@@ -1797,7 +1812,7 @@ open class SecurityGraphQLIntegrationTest :
                     "query" to
                         """
                         mutation {
-                            assignRoleToUser(userId: "${targetUser.id}", roleId: "${role.id}") {
+                            assignGroupToUser(userId: "${targetUser.id}", groupId: "${group.id}") {
                                 id
                             }
                         }
@@ -1820,10 +1835,10 @@ open class SecurityGraphQLIntegrationTest :
         fun `should return Permission denied when assigning role to user without permission`() {
             val (_, token) = createUserWithoutPermissions()
             val (targetUser, _) = createUserWithAdminRoleAndToken()
-            val role =
-                roleRepository.findAll().firstOrNull() ?: run {
-                    val newRole = SecurityTestDataBuilders.role(name = "TEST_ROLE")
-                    roleRepository.save(newRole)
+            val group =
+                entityManager.runTransaction {
+                    val newGroup = SecurityTestDataBuilders.group(name = "test-group-${UUID.randomUUID()}")
+                    groupRepository.save(newGroup)
                 }
 
             val mutation =
@@ -1831,7 +1846,7 @@ open class SecurityGraphQLIntegrationTest :
                     "query" to
                         """
                         mutation {
-                            assignRoleToUser(userId: "${targetUser.id}", roleId: "${role.id}") {
+                            assignGroupToUser(userId: "${targetUser.id}", groupId: "${group.id}") {
                                 id
                             }
                         }
@@ -1854,10 +1869,18 @@ open class SecurityGraphQLIntegrationTest :
         @Test
         fun `should return Authentication required when removing role from user without token`() {
             val (targetUser, _) = createUserWithAdminRoleAndToken()
-            val role =
-                roleRepository.findAll().firstOrNull() ?: run {
-                    val newRole = SecurityTestDataBuilders.role(name = "TEST_ROLE")
-                    roleRepository.save(newRole)
+            val group =
+                entityManager.runTransaction {
+                    val newGroup = SecurityTestDataBuilders.group(name = "test-group-${UUID.randomUUID()}")
+                    val savedGroup = groupRepository.save(newGroup)
+                    // Add user to group first so we can test removal
+                    val membership =
+                        SecurityTestDataBuilders.groupMembership(
+                            userId = targetUser.id!!,
+                            groupId = savedGroup.id,
+                        )
+                    groupMembershipRepository.save(membership)
+                    savedGroup
                 }
 
             val mutation =
@@ -1865,7 +1888,7 @@ open class SecurityGraphQLIntegrationTest :
                     "query" to
                         """
                         mutation {
-                            removeRoleFromUser(userId: "${targetUser.id}", roleId: "${role.id}") {
+                            removeGroupFromUser(userId: "${targetUser.id}", groupId: "${group.id}") {
                                 id
                             }
                         }
@@ -1888,10 +1911,18 @@ open class SecurityGraphQLIntegrationTest :
         fun `should return Permission denied when removing role from user without permission`() {
             val (_, token) = createUserWithoutPermissions()
             val (targetUser, _) = createUserWithAdminRoleAndToken()
-            val role =
-                roleRepository.findAll().firstOrNull() ?: run {
-                    val newRole = SecurityTestDataBuilders.role(name = "TEST_ROLE")
-                    roleRepository.save(newRole)
+            val group =
+                entityManager.runTransaction {
+                    val newGroup = SecurityTestDataBuilders.group(name = "test-group-${UUID.randomUUID()}")
+                    val savedGroup = groupRepository.save(newGroup)
+                    // Add user to group first so we can test removal
+                    val membership =
+                        SecurityTestDataBuilders.groupMembership(
+                            userId = targetUser.id!!,
+                            groupId = savedGroup.id,
+                        )
+                    groupMembershipRepository.save(membership)
+                    savedGroup
                 }
 
             val mutation =
@@ -1899,7 +1930,7 @@ open class SecurityGraphQLIntegrationTest :
                     "query" to
                         """
                         mutation {
-                            removeRoleFromUser(userId: "${targetUser.id}", roleId: "${role.id}") {
+                            removeGroupFromUser(userId: "${targetUser.id}", groupId: "${group.id}") {
                                 id
                             }
                         }

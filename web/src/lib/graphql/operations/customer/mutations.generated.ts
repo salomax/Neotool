@@ -1,7 +1,6 @@
 import * as Types from '../../types/__generated__/graphql';
 
 import { gql } from '@apollo/client';
-import { CustomerFieldsFragmentDoc } from '../../fragments/common.generated';
 import * as ApolloReactCommon from '@apollo/client/react';
 import * as ApolloReactHooks from '@apollo/client/react';
 const defaultOptions = {} as const;
@@ -31,10 +30,14 @@ export type DeleteCustomerMutation = { deleteCustomer: boolean };
 export const CreateCustomerDocument = gql`
     mutation CreateCustomer($input: CustomerInput!) {
   createCustomer(input: $input) {
-    ...CustomerFields
+    id
+    name
+    email
+    status
+    createdAt
+    updatedAt
   }
-}
-    ${CustomerFieldsFragmentDoc}`;
+}`;
 
 /**
  * __useCreateCustomerMutation__
@@ -62,10 +65,14 @@ export type CreateCustomerMutationResult = ApolloReactCommon.MutationResult<Crea
 export const UpdateCustomerDocument = gql`
     mutation UpdateCustomer($id: ID!, $input: CustomerInput!) {
   updateCustomer(id: $id, input: $input) {
-    ...CustomerFields
+    id
+    name
+    email
+    status
+    createdAt
+    updatedAt
   }
-}
-    ${CustomerFieldsFragmentDoc}`;
+}`;
 
 /**
  * __useUpdateCustomerMutation__

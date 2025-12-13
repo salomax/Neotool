@@ -6,8 +6,10 @@ import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.common.test.transaction.runTransaction
 import io.github.salomax.neotool.security.domain.rbac.SecurityPermissions
 import io.github.salomax.neotool.security.model.UserEntity
+import io.github.salomax.neotool.security.repo.GroupMembershipRepository
+import io.github.salomax.neotool.security.repo.GroupRepository
+import io.github.salomax.neotool.security.repo.GroupRoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.PermissionRepository
-import io.github.salomax.neotool.security.repo.RoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.AuthContextFactory
@@ -64,10 +66,16 @@ open class AuthorizationInterceptorIntegrationTest : BaseIntegrationTest(), Post
     lateinit var roleRepository: RoleRepository
 
     @Inject
-    lateinit var roleAssignmentRepository: RoleAssignmentRepository
+    lateinit var permissionRepository: PermissionRepository
 
     @Inject
-    lateinit var permissionRepository: PermissionRepository
+    lateinit var groupRepository: GroupRepository
+
+    @Inject
+    lateinit var groupMembershipRepository: GroupMembershipRepository
+
+    @Inject
+    lateinit var groupRoleAssignmentRepository: GroupRoleAssignmentRepository
 
     private val mockEmailService: MockEmailService
         get() = emailService as MockEmailService
@@ -104,14 +112,24 @@ open class AuthorizationInterceptorIntegrationTest : BaseIntegrationTest(), Post
             entityManager.flush()
         }
 
-        // Assign role to user
+        // Create group and assign role to group, then add user to group
         entityManager.runTransaction {
-            val roleAssignment =
-                SecurityTestDataBuilders.roleAssignment(
-                    userId = user.id!!,
+            val group = SecurityTestDataBuilders.group(name = "test-group-${UUID.randomUUID().toString().take(8)}")
+            val savedGroup = groupRepository.save(group)
+
+            val groupRoleAssignment =
+                SecurityTestDataBuilders.groupRoleAssignment(
+                    groupId = savedGroup.id,
                     roleId = role.id!!,
                 )
-            roleAssignmentRepository.save(roleAssignment)
+            groupRoleAssignmentRepository.save(groupRoleAssignment)
+
+            val groupMembership =
+                SecurityTestDataBuilders.groupMembership(
+                    userId = user.id!!,
+                    groupId = savedGroup.id,
+                )
+            groupMembershipRepository.save(groupMembership)
             entityManager.flush()
         }
 
@@ -153,7 +171,8 @@ open class AuthorizationInterceptorIntegrationTest : BaseIntegrationTest(), Post
     @AfterEach
     fun cleanupTestData() {
         try {
-            roleAssignmentRepository.deleteAll()
+            groupRoleAssignmentRepository.deleteAll()
+            groupMembershipRepository.deleteAll()
             userRepository.deleteAll()
             mockEmailService.clearSentEmails()
         } catch (e: Exception) {

@@ -160,8 +160,6 @@ type Mutation
   deleteRole(roleId: ID!): Boolean! @join__field(graph: SECURITY)
   assignPermissionToRole(roleId: ID!, permissionId: ID!): Role! @join__field(graph: SECURITY)
   removePermissionFromRole(roleId: ID!, permissionId: ID!): Role! @join__field(graph: SECURITY)
-  assignRoleToUser(userId: ID!, roleId: ID!): User! @join__field(graph: SECURITY)
-  removeRoleFromUser(userId: ID!, roleId: ID!): User! @join__field(graph: SECURITY)
   assignGroupToUser(userId: ID!, groupId: ID!): User! @join__field(graph: SECURITY)
   removeGroupFromUser(userId: ID!, groupId: ID!): User! @join__field(graph: SECURITY)
   assignRoleToGroup(groupId: ID!, roleId: ID!): Group! @join__field(graph: SECURITY)

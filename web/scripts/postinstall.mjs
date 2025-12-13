@@ -51,7 +51,7 @@ try {
   });
   console.log('✅ GraphQL code generation completed successfully');
   
-  console.log('🔧 Syncing fragment documents...');
+  console.log('🔧 Running post-processing fixes...');
   execSync('node scripts/fix-generated-types.mjs', {
     cwd: webDir,
     stdio: 'inherit',

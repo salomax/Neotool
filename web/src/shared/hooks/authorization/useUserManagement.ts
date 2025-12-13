@@ -75,8 +75,6 @@ export type UseUserManagementReturn = {
   disableUser: (userId: string) => Promise<void>;
   assignGroupToUser: (userId: string, groupId: string) => Promise<void>;
   removeGroupFromUser: (userId: string, groupId: string) => Promise<void>;
-  assignRoleToUser: (userId: string, roleId: string) => Promise<void>;
-  removeRoleFromUser: (userId: string, roleId: string) => Promise<void>;
   
   // Loading states
   loading: boolean;
@@ -235,14 +233,10 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
     disableUser,
     assignGroupToUser,
     removeGroupFromUser,
-    assignRoleToUser,
-    removeRoleFromUser,
     enableLoading,
     disableLoading,
     assignGroupLoading,
     removeGroupLoading,
-    assignRoleLoading,
-    removeRoleLoading,
   } = useUserMutations({
     refetchQuery: GetUsersDocument,
     refetchVariables: queryVariables,
@@ -358,8 +352,6 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
     disableUser,
     assignGroupToUser,
     removeGroupFromUser,
-    assignRoleToUser,
-    removeRoleFromUser,
     
     // Loading states
     loading: effectiveLoading,
@@ -367,8 +359,6 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
     disableLoading,
     assignGroupLoading,
     removeGroupLoading,
-    assignRoleLoading,
-    removeRoleLoading,
     
     // Error handling - consistent with useRoleManagement and useGroupManagement
     error: !waitingForPageSize && error ? new Error(extractErrorMessage(error)) : undefined,

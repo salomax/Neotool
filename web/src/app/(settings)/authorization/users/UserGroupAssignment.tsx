@@ -142,7 +142,6 @@ export const UserGroupAssignment: React.FC<UserGroupAssignmentProps> = ({
         renderInput={(params) => (
           <TextField
             {...params}
-            label={t("userManagement.drawer.groups")}
             placeholder={t("userManagement.groups.searchPlaceholder")}
             fullWidth
           />

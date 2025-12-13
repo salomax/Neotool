@@ -25,22 +25,6 @@ object UserManagement {
     )
 
     /**
-     * Command to assign a role to a user.
-     */
-    data class AssignRoleToUserCommand(
-        val userId: UUID,
-        val roleId: UUID,
-    )
-
-    /**
-     * Command to remove a role from a user.
-     */
-    data class RemoveRoleFromUserCommand(
-        val userId: UUID,
-        val roleId: UUID,
-    )
-
-    /**
      * Command to assign a group to a user.
      */
     data class AssignGroupToUserCommand(
