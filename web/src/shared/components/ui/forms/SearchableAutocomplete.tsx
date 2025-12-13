@@ -118,6 +118,12 @@ export interface SearchableAutocompleteProps<
    * @default 300
    */
   debounceMs?: number;
+
+  /**
+   * TextField variant
+   * @default "outlined"
+   */
+  variant?: "outlined" | "filled" | "standard";
 }
 
 /**
@@ -178,6 +184,7 @@ export function SearchableAutocomplete<
   fetchPolicy = "network-only",
   notifyOnNetworkStatusChange = true,
   debounceMs = 300,
+  variant = "outlined",
 }: SearchableAutocompleteProps<TOption, TSelected, TQueryData, TQueryVariables>) {
   // Debounced search
   const { inputValue, searchQuery, handleInputChange } = useDebouncedSearch({
@@ -339,6 +346,22 @@ export function SearchableAutocomplete<
           error={fieldError}
           helperText={helperText}
           fullWidth
+          variant={variant}
+          sx={{
+            ...(variant === "outlined" && {
+              '& .MuiOutlinedInput-root': {
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: 'primary.main',
+                },
+                '&:hover .MuiOutlinedInput-notchedOutline': {
+                  borderColor: 'primary.main',
+                },
+                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                  borderColor: 'primary.main',
+                },
+              },
+            }),
+          }}
           InputProps={{
             ...params.InputProps,
             endAdornment: (
@@ -360,6 +383,7 @@ export function SearchableAutocomplete<
               <Chip
                 key={key || getOptionId(option)}
                 variant="outlined"
+                color="primary"
                 label={getOptionLabel(option)}
                 {...tagProps}
               />

@@ -201,6 +201,7 @@ export const RoleUserAssignment: React.FC<RoleUserAssignmentProps> = ({
         loading={assignLoading || removeLoading}
         skip={!active || !isAuthenticated}
         errorMessage={t("roleManagement.users.loadError")}
+        variant="outlined"
         renderTags={(value, getTagProps) =>
           value.map((option, index) => {
             const { key, ...tagProps } = getTagProps({ index });
@@ -208,6 +209,7 @@ export const RoleUserAssignment: React.FC<RoleUserAssignmentProps> = ({
               <Chip
                 key={key || option.id}
                 variant="outlined"
+                color="primary"
                 label={option.label}
                 {...tagProps}
               />

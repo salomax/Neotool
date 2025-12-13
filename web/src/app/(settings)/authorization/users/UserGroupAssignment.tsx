@@ -6,9 +6,9 @@ import {
   Typography,
   CircularProgress,
   Autocomplete,
-  TextField,
   Chip,
 } from "@mui/material";
+import { TextField } from "@/shared/components/ui/primitives";
 import { ErrorAlert } from "@/shared/components/ui/feedback";
 import { useGetGroupsQuery } from "@/lib/graphql/operations/authorization-management/queries.generated";
 import { useTranslation } from "@/shared/i18n";
@@ -132,6 +132,7 @@ export const UserGroupAssignment: React.FC<UserGroupAssignmentProps> = ({
               <Chip
                 key={key}
                 variant="outlined"
+                color="primary"
                 label={option.label}
                 onDelete={onDelete}
                 {...tagProps}
@@ -144,6 +145,20 @@ export const UserGroupAssignment: React.FC<UserGroupAssignmentProps> = ({
             {...params}
             placeholder={t("userManagement.groups.searchPlaceholder")}
             fullWidth
+            variant="outlined"
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: 'primary.main',
+                },
+                '&:hover .MuiOutlinedInput-notchedOutline': {
+                  borderColor: 'primary.main',
+                },
+                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                  borderColor: 'primary.main',
+                },
+              },
+            }}
           />
         )}
       />

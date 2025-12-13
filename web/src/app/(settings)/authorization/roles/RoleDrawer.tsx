@@ -357,16 +357,16 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
 
                 {/* Show permissions, users, and groups sections for both create and edit */}
                 <PermissionGate require="security:role:save">
-                  <RolePermissionAssignment
+                  <RoleGroupAssignment
                     roleId={roleId}
-                    assignedPermissions={assignedPermissions}
-                    onAssignPermission={undefined}
-                    onRemovePermission={undefined}
+                    assignedGroups={assignedGroups}
+                    onAssignGroup={undefined}
+                    onRemoveGroup={undefined}
                     assignLoading={false}
                     removeLoading={false}
-                    onPermissionsChange={handlePermissionsChange}
+                    onGroupsChange={handleGroupsChange}
                     active={open}
-                    onChange={isCreateMode ? handleCreateModePermissionChange : updateSelectedPermissions}
+                    onChange={isCreateMode ? handleCreateModeGroupChange : updateSelectedGroups}
                   />
 
                   <RoleUserAssignment
@@ -381,16 +381,16 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
                     readonly={true}
                   />
 
-                  <RoleGroupAssignment
+                  <RolePermissionAssignment
                     roleId={roleId}
-                    assignedGroups={assignedGroups}
-                    onAssignGroup={undefined}
-                    onRemoveGroup={undefined}
+                    assignedPermissions={assignedPermissions}
+                    onAssignPermission={undefined}
+                    onRemovePermission={undefined}
                     assignLoading={false}
                     removeLoading={false}
-                    onGroupsChange={handleGroupsChange}
+                    onPermissionsChange={handlePermissionsChange}
                     active={open}
-                    onChange={isCreateMode ? handleCreateModeGroupChange : updateSelectedGroups}
+                    onChange={isCreateMode ? handleCreateModePermissionChange : updateSelectedPermissions}
                   />
                 </PermissionGate>
               </Stack>

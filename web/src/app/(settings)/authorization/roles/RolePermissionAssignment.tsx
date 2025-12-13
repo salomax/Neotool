@@ -8,7 +8,6 @@ import {
   Checkbox,
   FormControlLabel,
   Stack,
-  TextField,
 } from "@mui/material";
 import { ErrorAlert } from "@/shared/components/ui/feedback";
 import { usePermissionManagement, type Permission } from "@/shared/hooks/authorization/usePermissionManagement";
@@ -70,6 +69,89 @@ const PermissionItem = memo<{
 
 PermissionItem.displayName = "PermissionItem";
 
+// Permissions list component - handles filtering internally
+interface PermissionsListProps {
+  allPermissions: Permission[] | null | undefined;  // Changed from filteredPermissions
+  assignedPermissionIds: string[];
+  disabled: boolean;
+  onToggle: (permissionId: string, isChecked: boolean) => void;
+  searchQuery: string;
+  emptyMessageNoQuery: string;
+  emptyMessageWithQuery: string;
+}
+
+const PermissionsList = memo<PermissionsListProps>(({ 
+  allPermissions,  // Changed from filteredPermissions
+  assignedPermissionIds, 
+  disabled, 
+  onToggle,
+  searchQuery,
+  emptyMessageNoQuery,
+  emptyMessageWithQuery,
+}) => {
+  // Filter INSIDE this component - parent doesn't recalculate
+  const filteredPermissions = useMemo(() => {
+    if (!allPermissions) return [];
+    if (!searchQuery.trim()) return allPermissions;
+    const searchLower = searchQuery.toLowerCase();
+    return allPermissions.filter((permission) =>
+      permission.name.toLowerCase().includes(searchLower)
+    );
+  }, [allPermissions, searchQuery]);
+
+  const assignedSet = useMemo(() => new Set(assignedPermissionIds), [assignedPermissionIds]);
+  
+  return (
+    <Box
+      sx={{
+        minHeight: 400,
+        overflowY: "auto",
+        border: "1px solid",
+        borderColor: "divider",
+        borderRadius: 1,
+        p: 1,
+        mt: 2,
+      }}
+    >
+      {filteredPermissions.length === 0 ? (
+        <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
+          {searchQuery ? emptyMessageWithQuery : emptyMessageNoQuery}
+        </Typography>
+      ) : (
+        <Stack spacing={0.5}>
+          {filteredPermissions.map((permission) => {
+            const isAssigned = assignedSet.has(permission.id);
+            return (
+              <PermissionItem
+                key={permission.id}
+                permission={permission}
+                isAssigned={isAssigned}
+                disabled={disabled}
+                onToggle={onToggle}
+              />
+            );
+          })}
+        </Stack>
+      )}
+    </Box>
+  );
+}, (prevProps, nextProps) => {
+  // Compare allPermissions by reference (stable from hook)
+  const allPermissionsEqual = prevProps.allPermissions === nextProps.allPermissions;
+  const assignedIdsEqual = 
+    prevProps.assignedPermissionIds.length === nextProps.assignedPermissionIds.length &&
+    prevProps.assignedPermissionIds.every((id, i) => id === nextProps.assignedPermissionIds[i]);
+  
+  return (
+    allPermissionsEqual &&
+    assignedIdsEqual &&
+    prevProps.disabled === nextProps.disabled &&
+    prevProps.searchQuery === nextProps.searchQuery &&
+    prevProps.emptyMessageNoQuery === nextProps.emptyMessageNoQuery &&
+    prevProps.emptyMessageWithQuery === nextProps.emptyMessageWithQuery
+  );
+});
+
 const RolePermissionAssignmentComponent: React.FC<RolePermissionAssignmentProps> = ({
   roleId,
   assignedPermissions,
@@ -105,16 +187,6 @@ const RolePermissionAssignmentComponent: React.FC<RolePermissionAssignmentProps>
   const assignedPermissionIds = useMemo(() => {
     return new Set(assignedPermissions.map((p) => p.id));
   }, [assignedPermissions]);
-
-  // Filter permissions based on debounced search query
-  const filteredPermissions = useMemo(() => {
-    if (!allPermissions) return [];
-    if (!searchQuery.trim()) return allPermissions;
-    const searchLower = searchQuery.toLowerCase();
-    return allPermissions.filter((permission) =>
-      permission.name.toLowerCase().includes(searchLower)
-    );
-  }, [allPermissions, searchQuery]);
 
   const handlePermissionToggle = useCallback(
     async (permissionId: string, isChecked: boolean) => {
@@ -239,40 +311,15 @@ const RolePermissionAssignmentComponent: React.FC<RolePermissionAssignmentProps>
         onSearch={handleSearchChange}
         placeholder={t("roleManagement.permissions.searchPlaceholder")}
       />
-      <Box
-        sx={{
-          maxHeight: 400,
-          overflowY: "auto",
-          border: "1px solid",
-          borderColor: "divider",
-          borderRadius: 1,
-          p: 1,
-          mt: 2,
-        }}
-      >
-        {filteredPermissions.length === 0 ? (
-          <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
-            {searchQuery
-              ? t("roleManagement.permissions.noAvailableMatching")
-              : t("roleManagement.permissions.noPermissions")}
-          </Typography>
-        ) : (
-          <Stack spacing={0.5}>
-            {filteredPermissions.map((permission) => {
-              const isAssigned = assignedPermissionIds.has(permission.id);
-              return (
-                <PermissionItem
-                  key={permission.id}
-                  permission={permission}
-                  isAssigned={isAssigned}
-                  disabled={assignLoading || removeLoading || (!!roleId && !onChange && (!onAssignPermission || !onRemovePermission))}
-                  onToggle={handlePermissionToggle}
-                />
-              );
-            })}
-          </Stack>
-        )}
-      </Box>
+      <PermissionsList
+        allPermissions={allPermissions}  // Changed from filteredPermissions
+        assignedPermissionIds={assignedPermissionIds}
+        disabled={assignLoading || removeLoading || (!!roleId && !onChange && (!onAssignPermission || !onRemovePermission))}
+        onToggle={handlePermissionToggle}
+        searchQuery={searchQuery}
+        emptyMessageNoQuery={t("roleManagement.permissions.noPermissions")}
+        emptyMessageWithQuery={t("roleManagement.permissions.noAvailableMatching")}
+      />
     </Box>
   );
 };
