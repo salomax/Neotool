@@ -52,8 +52,6 @@ type Mutation {
   deleteRole(roleId: ID!): Boolean!
   assignPermissionToRole(roleId: ID!, permissionId: ID!): Role!
   removePermissionFromRole(roleId: ID!, permissionId: ID!): Role!
-  assignRoleToUser(userId: ID!, roleId: ID!): User!
-  removeRoleFromUser(userId: ID!, roleId: ID!): User!
   assignGroupToUser(userId: ID!, groupId: ID!): User!
   removeGroupFromUser(userId: ID!, groupId: ID!): User!
   assignRoleToGroup(groupId: ID!, roleId: ID!): Group!

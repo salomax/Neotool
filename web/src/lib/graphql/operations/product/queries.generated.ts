@@ -1,7 +1,6 @@
 import * as Types from '../../types/__generated__/graphql';
 
 import { gql } from '@apollo/client';
-import { ProductFieldsFragmentDoc } from '../../fragments/common.generated';
 import * as ApolloReactCommon from '@apollo/client/react';
 import * as ApolloReactHooks from '@apollo/client/react';
 const defaultOptions = {} as const;
@@ -21,10 +20,15 @@ export type GetProductQuery = { product: { __typename: 'Product', id: string, na
 export const GetProductsDocument = gql`
     query GetProducts {
   products {
-    ...ProductFields
+    id
+    name
+    sku
+    priceCents
+    stock
+    createdAt
+    updatedAt
   }
-}
-    ${ProductFieldsFragmentDoc}`;
+}`;
 
 /**
  * __useGetProductsQuery__
@@ -60,10 +64,15 @@ export type GetProductsQueryResult = ApolloReactCommon.QueryResult<GetProductsQu
 export const GetProductDocument = gql`
     query GetProduct($id: ID!) {
   product(id: $id) {
-    ...ProductFields
+    id
+    name
+    sku
+    priceCents
+    stock
+    createdAt
+    updatedAt
   }
-}
-    ${ProductFieldsFragmentDoc}`;
+}`;
 
 /**
  * __useGetProductQuery__

@@ -44,17 +44,22 @@ interface RoleRepository : JpaRepository<RoleEntity, UUID> {
     fun findPermissionIdsByRoleIds(roleIds: List<UUID>): List<UUID>
 
     /**
-     * Check if a role has any user assignments.
-     * Queries the role_assignments table to determine if any users have this role assigned.
+     * Check if a role has any user assignments through groups.
+     * Queries the group_role_assignments and group_memberships tables to determine if any users have this role assigned via groups.
      *
      * @param roleId The role ID to check
-     * @return true if the role has user assignments, false otherwise
+     * @return true if the role has user assignments through groups, false otherwise
      */
     @Query(
         value = """
         SELECT EXISTS(
-            SELECT 1 FROM security.role_assignments
-            WHERE role_id = :roleId
+            SELECT 1 
+            FROM security.group_role_assignments gra
+            INNER JOIN security.group_memberships gm ON gra.group_id = gm.group_id
+            WHERE gra.role_id = :roleId
+            AND (gra.valid_from IS NULL OR gra.valid_from <= NOW())
+            AND (gra.valid_until IS NULL OR gra.valid_until >= NOW())
+            AND (gm.valid_until IS NULL OR gm.valid_until >= NOW())
         )
         """,
         nativeQuery = true,

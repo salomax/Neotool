@@ -49,5 +49,3 @@ CREATE INDEX IF NOT EXISTS idx_group_role_assignments_group ON security.group_ro
 CREATE INDEX IF NOT EXISTS idx_group_role_assignments_role ON security.group_role_assignments(role_id);
 CREATE INDEX IF NOT EXISTS idx_group_role_assignments_group_role ON security.group_role_assignments(group_id, role_id);
 CREATE INDEX IF NOT EXISTS idx_group_role_assignments_validity ON security.group_role_assignments(valid_from, valid_until);
-
-

@@ -36,5 +36,3 @@ CREATE INDEX IF NOT EXISTS idx_abac_policies_effect ON security.abac_policies(ef
 CREATE INDEX IF NOT EXISTS idx_abac_policy_versions_policy ON security.abac_policy_versions(policy_id);
 CREATE INDEX IF NOT EXISTS idx_abac_policy_versions_policy_version ON security.abac_policy_versions(policy_id, version);
 CREATE INDEX IF NOT EXISTS idx_abac_policy_versions_active ON security.abac_policy_versions(is_active);
-
-

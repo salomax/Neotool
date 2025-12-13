@@ -5,8 +5,6 @@ import { useGetUserWithRelationshipsQuery, GetUserWithRelationshipsDocument } fr
 import {
   useAssignGroupToUserMutation,
   useRemoveGroupFromUserMutation,
-  useAssignRoleToUserMutation,
-  useRemoveRoleFromUserMutation,
 } from "@/lib/graphql/operations/authorization-management/mutations.generated";
 import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
@@ -91,8 +89,6 @@ export function useUserDrawer(
   // Mutation hooks
   const [assignGroupToUserMutation] = useAssignGroupToUserMutation();
   const [removeGroupFromUserMutation] = useRemoveGroupFromUserMutation();
-  const [assignRoleToUserMutation] = useAssignRoleToUserMutation();
-  const [removeRoleFromUserMutation] = useRemoveRoleFromUserMutation();
 
   // Initialize form state when user data loads
   useEffect(() => {
@@ -125,14 +121,8 @@ export function useUserDrawer(
       selectedGroups.some(g => !originalGroupIds.has(g.id)) ||
       user.groups.some(g => !currentGroupIds.has(g.id));
     
-    const originalRoleIds = new Set(user.roles.map(r => r.id));
-    const currentRoleIds = new Set(selectedRoles.map(r => r.id));
-    const rolesChanged = 
-      selectedRoles.length !== user.roles.length ||
-      selectedRoles.some(r => !originalRoleIds.has(r.id)) ||
-      user.roles.some(r => !currentRoleIds.has(r.id));
-    
-    return displayNameChanged || emailChanged || groupsChanged || rolesChanged;
+    // Roles are readonly (assigned through groups only), so don't include in hasChanges
+    return displayNameChanged || emailChanged || groupsChanged;
   }, [user, displayName, email, selectedGroups, selectedRoles]);
 
   // Handlers for updating local state
@@ -182,11 +172,7 @@ export function useUserDrawer(
       const groupsToAdd = selectedGroups.filter(g => !originalGroupIds.has(g.id)).map(g => g.id);
       const groupsToRemove = Array.from(originalGroupIds).filter(id => !currentGroupIds.has(id));
 
-      // Calculate differences for roles
-      const originalRoleIds = new Set(user.roles.map(r => r.id));
-      const currentRoleIds = new Set(selectedRoles.map(r => r.id));
-      const rolesToAdd = selectedRoles.filter(r => !originalRoleIds.has(r.id)).map(r => r.id);
-      const rolesToRemove = Array.from(originalRoleIds).filter(id => !currentRoleIds.has(id));
+      // Roles are readonly (assigned through groups only), so no role mutations
 
       // Execute all mutations in parallel
       const mutationPromises: Promise<any>[] = [];
@@ -205,25 +191,6 @@ export function useUserDrawer(
         mutationPromises.push(
           removeGroupFromUserMutation({
             variables: { userId, groupId },
-            refetchQueries: [GetUserWithRelationshipsDocument],
-          })
-        );
-      }
-
-      // Role mutations
-      for (const roleId of rolesToAdd) {
-        mutationPromises.push(
-          assignRoleToUserMutation({
-            variables: { userId, roleId },
-            refetchQueries: [GetUserWithRelationshipsDocument],
-          })
-        );
-      }
-      
-      for (const roleId of rolesToRemove) {
-        mutationPromises.push(
-          removeRoleFromUserMutation({
-            variables: { userId, roleId },
             refetchQueries: [GetUserWithRelationshipsDocument],
           })
         );
@@ -256,12 +223,9 @@ export function useUserDrawer(
     user,
     userId,
     selectedGroups,
-    selectedRoles,
     saving,
     assignGroupToUserMutation,
     removeGroupFromUserMutation,
-    assignRoleToUserMutation,
-    removeRoleFromUserMutation,
     refetch,
     toast,
     t,

@@ -95,7 +95,6 @@ export type Mutation = {
   assignGroupToUser: User;
   assignPermissionToRole: Role;
   assignRoleToGroup: Group;
-  assignRoleToUser: User;
   createCustomer: Customer;
   createGroup: Group;
   createProduct: Product;
@@ -110,7 +109,6 @@ export type Mutation = {
   removeGroupFromUser: User;
   removePermissionFromRole: Role;
   removeRoleFromGroup: Group;
-  removeRoleFromUser: User;
   requestPasswordReset: RequestPasswordResetPayload;
   resetPassword: ResetPasswordPayload;
   signIn: SignInPayload;
@@ -138,12 +136,6 @@ export type MutationAssignPermissionToRoleArgs = {
 export type MutationAssignRoleToGroupArgs = {
   groupId: Scalars['ID']['input'];
   roleId: Scalars['ID']['input'];
-};
-
-
-export type MutationAssignRoleToUserArgs = {
-  roleId: Scalars['ID']['input'];
-  userId: Scalars['ID']['input'];
 };
 
 
@@ -217,12 +209,6 @@ export type MutationRemovePermissionFromRoleArgs = {
 export type MutationRemoveRoleFromGroupArgs = {
   groupId: Scalars['ID']['input'];
   roleId: Scalars['ID']['input'];
-};
-
-
-export type MutationRemoveRoleFromUserArgs = {
-  roleId: Scalars['ID']['input'];
-  userId: Scalars['ID']['input'];
 };
 
 

@@ -1,7 +1,6 @@
 import * as Types from '../../types/__generated__/graphql';
 
 import { gql } from '@apollo/client';
-import { UserFieldsFragmentDoc, GroupFieldsFragmentDoc, RoleFieldsFragmentDoc, PermissionFieldsFragmentDoc } from '../../fragments/common.generated';
 import * as ApolloReactCommon from '@apollo/client/react';
 import * as ApolloReactHooks from '@apollo/client/react';
 const defaultOptions = {} as const;
@@ -74,7 +73,10 @@ export const GetUsersDocument = gql`
   users(first: $first, after: $after, query: $query, orderBy: $orderBy) {
     edges {
       node {
-        ...UserFields
+        id
+        email
+        displayName
+        enabled
       }
       cursor
     }
@@ -86,8 +88,7 @@ export const GetUsersDocument = gql`
     }
     totalCount
   }
-}
-    ${UserFieldsFragmentDoc}`;
+}`;
 
 /**
  * __useGetUsersQuery__
@@ -129,7 +130,15 @@ export const GetGroupsDocument = gql`
   groups(first: $first, after: $after, query: $query, orderBy: $orderBy) {
     edges {
       node {
-        ...GroupFields
+        id
+        name
+        description
+        members {
+          id
+          email
+          displayName
+          enabled
+        }
       }
       cursor
     }
@@ -141,8 +150,7 @@ export const GetGroupsDocument = gql`
     }
     totalCount
   }
-}
-    ${GroupFieldsFragmentDoc}`;
+}`;
 
 /**
  * __useGetGroupsQuery__
@@ -184,7 +192,8 @@ export const GetRolesDocument = gql`
   roles(first: $first, after: $after, query: $query, orderBy: $orderBy) {
     edges {
       node {
-        ...RoleFields
+        id
+        name
       }
       cursor
     }
@@ -196,8 +205,7 @@ export const GetRolesDocument = gql`
     }
     totalCount
   }
-}
-    ${RoleFieldsFragmentDoc}`;
+}`;
 
 /**
  * __useGetRolesQuery__
@@ -239,7 +247,8 @@ export const GetPermissionsDocument = gql`
   permissions(first: $first, after: $after, query: $query) {
     edges {
       node {
-        ...PermissionFields
+        id
+        name
       }
       cursor
     }
@@ -250,8 +259,7 @@ export const GetPermissionsDocument = gql`
       endCursor
     }
   }
-}
-    ${PermissionFieldsFragmentDoc}`;
+}`;
 
 /**
  * __useGetPermissionsQuery__
@@ -290,22 +298,31 @@ export type GetPermissionsQueryResult = ApolloReactCommon.QueryResult<GetPermiss
 export const GetUserWithRelationshipsDocument = gql`
     query GetUserWithRelationships($id: ID!) {
   user(id: $id) {
-    ...UserFields
+    id
+    email
+    displayName
+    enabled
     groups {
-      ...GroupFields
+      id
+      name
+      description
+      members {
+        id
+        email
+        displayName
+        enabled
+      }
     }
     roles {
-      ...RoleFields
+      id
+      name
     }
     permissions {
-      ...PermissionFields
+      id
+      name
     }
   }
-}
-    ${UserFieldsFragmentDoc}
-${GroupFieldsFragmentDoc}
-${RoleFieldsFragmentDoc}
-${PermissionFieldsFragmentDoc}`;
+}`;
 
 /**
  * __useGetUserWithRelationshipsQuery__
@@ -342,14 +359,21 @@ export type GetUserWithRelationshipsQueryResult = ApolloReactCommon.QueryResult<
 export const GetGroupWithRelationshipsDocument = gql`
     query GetGroupWithRelationships($id: ID!) {
   group(id: $id) {
-    ...GroupFields
+    id
+    name
+    description
+    members {
+      id
+      email
+      displayName
+      enabled
+    }
     roles {
-      ...RoleFields
+      id
+      name
     }
   }
-}
-    ${GroupFieldsFragmentDoc}
-${RoleFieldsFragmentDoc}`;
+}`;
 
 /**
  * __useGetGroupWithRelationshipsQuery__
@@ -388,16 +412,16 @@ export const GetRolesWithPermissionsDocument = gql`
   roles(first: 100) {
     edges {
       node {
-        ...RoleFields
+        id
+        name
         permissions {
-          ...PermissionFields
+          id
+          name
         }
       }
     }
   }
-}
-    ${RoleFieldsFragmentDoc}
-${PermissionFieldsFragmentDoc}`;
+}`;
 
 /**
  * __useGetRolesWithPermissionsQuery__
@@ -435,9 +459,13 @@ export const GetRoleWithUsersAndGroupsDocument = gql`
   users(first: 100) {
     edges {
       node {
-        ...UserFields
+        id
+        email
+        displayName
+        enabled
         roles {
-          ...RoleFields
+          id
+          name
         }
       }
     }
@@ -445,17 +473,23 @@ export const GetRoleWithUsersAndGroupsDocument = gql`
   groups(first: 100) {
     edges {
       node {
-        ...GroupFields
+        id
+        name
+        description
+        members {
+          id
+          email
+          displayName
+          enabled
+        }
         roles {
-          ...RoleFields
+          id
+          name
         }
       }
     }
   }
-}
-    ${UserFieldsFragmentDoc}
-${RoleFieldsFragmentDoc}
-${GroupFieldsFragmentDoc}`;
+}`;
 
 /**
  * __useGetRoleWithUsersAndGroupsQuery__

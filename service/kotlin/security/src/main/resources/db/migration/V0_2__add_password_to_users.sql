@@ -22,4 +22,3 @@ VALUES (
     '$argon2id$v=19$m=65536,t=3,p=1$xmdmHNUKPVO0PGYDh7U4CQ$O3xjDII/BKIKmneSB+ptDZ88lEPcDftwnA4Ls7u3KWM'
 )
 ON CONFLICT (email) DO NOTHING;
-

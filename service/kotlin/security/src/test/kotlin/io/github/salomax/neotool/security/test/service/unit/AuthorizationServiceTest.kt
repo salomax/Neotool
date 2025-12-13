@@ -3,7 +3,6 @@ package io.github.salomax.neotool.security.test.service.unit
 import io.github.salomax.neotool.security.repo.GroupMembershipRepository
 import io.github.salomax.neotool.security.repo.GroupRoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.PermissionRepository
-import io.github.salomax.neotool.security.repo.RoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.service.AbacEvaluationResult
 import io.github.salomax.neotool.security.service.AbacEvaluationService
@@ -21,14 +20,12 @@ import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
-import java.time.Instant
 import java.util.UUID
 
 @DisplayName("AuthorizationService Unit Tests")
 class AuthorizationServiceTest {
     private lateinit var roleRepository: RoleRepository
     private lateinit var permissionRepository: PermissionRepository
-    private lateinit var roleAssignmentRepository: RoleAssignmentRepository
     private lateinit var groupMembershipRepository: GroupMembershipRepository
     private lateinit var groupRoleAssignmentRepository: GroupRoleAssignmentRepository
     private lateinit var abacEvaluationService: AbacEvaluationService
@@ -39,7 +36,6 @@ class AuthorizationServiceTest {
     fun setUp() {
         roleRepository = mock()
         permissionRepository = mock()
-        roleAssignmentRepository = mock()
         groupMembershipRepository = mock()
         groupRoleAssignmentRepository = mock()
         abacEvaluationService = mock()
@@ -48,7 +44,6 @@ class AuthorizationServiceTest {
             AuthorizationService(
                 roleRepository = roleRepository,
                 permissionRepository = permissionRepository,
-                roleAssignmentRepository = roleAssignmentRepository,
                 groupMembershipRepository = groupMembershipRepository,
                 groupRoleAssignmentRepository = groupRoleAssignmentRepository,
                 abacEvaluationService = abacEvaluationService,
@@ -57,30 +52,38 @@ class AuthorizationServiceTest {
     }
 
     @Nested
-    @DisplayName("Check Permission - Direct Role Assignments")
-    inner class CheckPermissionDirectRoleTests {
+    @DisplayName("Check Permission - Group-Based Role Assignments")
+    inner class CheckPermissionGroupBasedRoleTests {
         @Test
-        fun `should allow access when user has direct role with permission`() {
+        fun `should allow access when user has role through group membership`() {
             // Arrange
             val userId = UUID.randomUUID()
             val permission = "transaction:read"
             val roleId = UUID.randomUUID()
-            val roleAssignment =
-                SecurityTestDataBuilders.roleAssignment(
+            val groupId = UUID.randomUUID()
+            val groupMembership =
+                SecurityTestDataBuilders.groupMembership(
                     userId = userId,
+                    groupId = groupId,
+                )
+            val groupRoleAssignment =
+                SecurityTestDataBuilders.groupRoleAssignment(
+                    groupId = groupId,
                     roleId = roleId,
                 )
 
             val roleEntity = SecurityTestDataBuilders.role(id = roleId, name = "admin")
 
             whenever(
-                roleAssignmentRepository.findValidAssignmentsByUserId(any(), any()),
-            ).thenReturn(listOf(roleAssignment))
+                groupMembershipRepository.findActiveMembershipsByUserId(any(), any()),
+            ).thenReturn(listOf(groupMembership))
+            whenever(
+                groupRoleAssignmentRepository.findValidAssignmentsByGroupIds(any<List<UUID>>(), any()),
+            ).thenReturn(listOf(groupRoleAssignment))
             whenever(
                 permissionRepository.existsPermissionForRoles(permission, listOf(roleId)),
             ).thenReturn(true)
             whenever(roleRepository.findByIdIn(any())).thenReturn(listOf(roleEntity))
-            whenever(groupMembershipRepository.findActiveMembershipsByUserId(any(), any())).thenReturn(emptyList())
             whenever(
                 abacEvaluationService.evaluatePolicies(any(), anyOrNull(), anyOrNull()),
             ).thenReturn(
@@ -105,7 +108,6 @@ class AuthorizationServiceTest {
             // Arrange
             val userId = UUID.randomUUID()
             val permission = "transaction:read"
-            whenever(roleAssignmentRepository.findValidAssignmentsByUserId(any(), any())).thenReturn(emptyList())
             whenever(groupMembershipRepository.findActiveMembershipsByUserId(any(), any())).thenReturn(emptyList())
 
             // Act
@@ -122,16 +124,7 @@ class AuthorizationServiceTest {
             val userId = UUID.randomUUID()
             val permission = "transaction:read"
             val roleId = UUID.randomUUID()
-            val expiredAssignment =
-                SecurityTestDataBuilders.roleAssignment(
-                    userId = userId,
-                    roleId = roleId,
-                    // Expired 1 hour ago
-                    validUntil = Instant.now().minusSeconds(3600),
-                )
-
-            // Expired assignments should not be returned by findValidAssignmentsByUserId
-            whenever(roleAssignmentRepository.findValidAssignmentsByUserId(any(), any())).thenReturn(emptyList())
+            // Expired group role assignments should not be returned by findValidAssignmentsByGroupIds
             whenever(groupMembershipRepository.findActiveMembershipsByUserId(any(), any())).thenReturn(emptyList())
 
             // Act
@@ -147,8 +140,7 @@ class AuthorizationServiceTest {
             val userId = UUID.randomUUID()
             val permission = "transaction:read"
 
-            // Future-dated assignments should not be returned by findValidAssignmentsByUserId
-            whenever(roleAssignmentRepository.findValidAssignmentsByUserId(any(), any())).thenReturn(emptyList())
+            // Future-dated group role assignments should not be returned by findValidAssignmentsByGroupIds
             whenever(groupMembershipRepository.findActiveMembershipsByUserId(any(), any())).thenReturn(emptyList())
 
             // Act
@@ -182,7 +174,6 @@ class AuthorizationServiceTest {
 
             val roleEntity = SecurityTestDataBuilders.role(id = roleId, name = "editor")
 
-            whenever(roleAssignmentRepository.findValidAssignmentsByUserId(any(), any())).thenReturn(emptyList())
             whenever(
                 groupMembershipRepository.findActiveMembershipsByUserId(any(), any()),
             ).thenReturn(listOf(groupMembership))
@@ -219,7 +210,6 @@ class AuthorizationServiceTest {
             val permission = "transaction:read"
 
             // Expired memberships should not be returned by findActiveMembershipsByUserId
-            whenever(roleAssignmentRepository.findValidAssignmentsByUserId(any(), any())).thenReturn(emptyList())
             whenever(groupMembershipRepository.findActiveMembershipsByUserId(any(), any())).thenReturn(emptyList())
 
             // Act
@@ -234,28 +224,36 @@ class AuthorizationServiceTest {
     @DisplayName("Get User Permissions")
     inner class GetUserPermissionsTests {
         @Test
-        fun `should return permissions from direct role assignments`() {
+        fun `should return permissions from group-inherited role assignments`() {
             // Arrange
             val userId = UUID.randomUUID()
+            val groupId = UUID.randomUUID()
             val roleId = UUID.randomUUID()
             val permissionId1 = UUID.randomUUID()
             val permissionId2 = UUID.randomUUID()
-            val roleAssignment =
-                SecurityTestDataBuilders.roleAssignment(
+            val groupMembership =
+                SecurityTestDataBuilders.groupMembership(
                     userId = userId,
+                    groupId = groupId,
+                )
+            val groupRoleAssignment =
+                SecurityTestDataBuilders.groupRoleAssignment(
+                    groupId = groupId,
                     roleId = roleId,
                 )
             val permission1 = SecurityTestDataBuilders.permission(id = permissionId1, name = "transaction:read")
             val permission2 = SecurityTestDataBuilders.permission(id = permissionId2, name = "transaction:write")
 
             whenever(
-                roleAssignmentRepository.findValidAssignmentsByUserId(any(), any()),
-            ).thenReturn(listOf(roleAssignment))
+                groupMembershipRepository.findActiveMembershipsByUserId(any(), any()),
+            ).thenReturn(listOf(groupMembership))
+            whenever(
+                groupRoleAssignmentRepository.findValidAssignmentsByGroupIds(any<List<UUID>>(), any()),
+            ).thenReturn(listOf(groupRoleAssignment))
             whenever(
                 roleRepository.findPermissionIdsByRoleIds(any<List<UUID>>()),
             ).thenReturn(listOf(permissionId1, permissionId2))
             whenever(permissionRepository.findByIdIn(any())).thenReturn(listOf(permission1, permission2))
-            whenever(groupMembershipRepository.findActiveMembershipsByUserId(any(), any())).thenReturn(emptyList())
 
             // Act
             val result = authorizationService.getUserPermissions(userId)
@@ -284,7 +282,6 @@ class AuthorizationServiceTest {
                 )
             val permission = SecurityTestDataBuilders.permission(id = permissionId, name = "transaction:delete")
 
-            whenever(roleAssignmentRepository.findValidAssignmentsByUserId(any(), any())).thenReturn(emptyList())
             whenever(
                 groupMembershipRepository.findActiveMembershipsByUserId(any(), any()),
             ).thenReturn(listOf(groupMembership))
@@ -313,17 +310,25 @@ class AuthorizationServiceTest {
             val groupRoleId = UUID.randomUUID()
             val permissionId1 = UUID.randomUUID()
             val permissionId2 = UUID.randomUUID()
-            val directAssignment =
-                SecurityTestDataBuilders.roleAssignment(
+            // Group 1 with role 1
+            val group1 = UUID.randomUUID()
+            val groupMembership1 =
+                SecurityTestDataBuilders.groupMembership(
                     userId = userId,
+                    groupId = group1,
+                )
+            val groupRoleAssignment1 =
+                SecurityTestDataBuilders.groupRoleAssignment(
+                    groupId = group1,
                     roleId = directRoleId,
                 )
-            val groupMembership =
+            // Group 2 with role 2
+            val groupMembership2 =
                 SecurityTestDataBuilders.groupMembership(
                     userId = userId,
                     groupId = groupId,
                 )
-            val groupRoleAssignment =
+            val groupRoleAssignment2 =
                 SecurityTestDataBuilders.groupRoleAssignment(
                     groupId = groupId,
                     roleId = groupRoleId,
@@ -332,20 +337,17 @@ class AuthorizationServiceTest {
             val groupPermission = SecurityTestDataBuilders.permission(id = permissionId2, name = "transaction:write")
 
             whenever(
-                roleAssignmentRepository.findValidAssignmentsByUserId(any(), any()),
-            ).thenReturn(listOf(directAssignment))
+                groupMembershipRepository.findActiveMembershipsByUserId(any(), any()),
+            ).thenReturn(listOf(groupMembership1, groupMembership2))
+            whenever(
+                groupRoleAssignmentRepository.findValidAssignmentsByGroupIds(any<List<UUID>>(), any()),
+            ).thenReturn(listOf(groupRoleAssignment1, groupRoleAssignment2))
             whenever(
                 roleRepository.findPermissionIdsByRoleIds(any<List<UUID>>()),
             ).thenReturn(listOf(permissionId1, permissionId2))
             whenever(
                 permissionRepository.findByIdIn(any()),
             ).thenReturn(listOf(directPermission, groupPermission))
-            whenever(
-                groupMembershipRepository.findActiveMembershipsByUserId(any(), any()),
-            ).thenReturn(listOf(groupMembership))
-            whenever(
-                groupRoleAssignmentRepository.findValidAssignmentsByGroupIds(any<List<UUID>>(), any()),
-            ).thenReturn(listOf(groupRoleAssignment))
 
             // Act
             val result = authorizationService.getUserPermissions(userId)
@@ -359,7 +361,6 @@ class AuthorizationServiceTest {
         fun `should return empty list when user has no permissions`() {
             // Arrange
             val userId = UUID.randomUUID()
-            whenever(roleAssignmentRepository.findValidAssignmentsByUserId(any(), any())).thenReturn(emptyList())
             whenever(groupMembershipRepository.findActiveMembershipsByUserId(any(), any())).thenReturn(emptyList())
 
             // Act
@@ -374,22 +375,30 @@ class AuthorizationServiceTest {
     @DisplayName("Get User Roles")
     inner class GetUserRolesTests {
         @Test
-        fun `should return roles from direct role assignments`() {
+        fun `should return roles from group-inherited role assignments`() {
             // Arrange
             val userId = UUID.randomUUID()
+            val groupId = UUID.randomUUID()
             val roleId = UUID.randomUUID()
-            val roleAssignment =
-                SecurityTestDataBuilders.roleAssignment(
+            val groupMembership =
+                SecurityTestDataBuilders.groupMembership(
                     userId = userId,
+                    groupId = groupId,
+                )
+            val groupRoleAssignment =
+                SecurityTestDataBuilders.groupRoleAssignment(
+                    groupId = groupId,
                     roleId = roleId,
                 )
             val roleEntity = SecurityTestDataBuilders.role(id = roleId, name = "admin")
 
             whenever(
-                roleAssignmentRepository.findValidAssignmentsByUserId(any(), any()),
-            ).thenReturn(listOf(roleAssignment))
+                groupMembershipRepository.findActiveMembershipsByUserId(any(), any()),
+            ).thenReturn(listOf(groupMembership))
+            whenever(
+                groupRoleAssignmentRepository.findValidAssignmentsByGroupIds(any<List<UUID>>(), any()),
+            ).thenReturn(listOf(groupRoleAssignment))
             whenever(roleRepository.findByIdIn(any<List<UUID>>())).thenReturn(listOf(roleEntity))
-            whenever(groupMembershipRepository.findActiveMembershipsByUserId(any(), any())).thenReturn(emptyList())
 
             // Act
             val result = authorizationService.getUserRoles(userId)
@@ -417,7 +426,6 @@ class AuthorizationServiceTest {
                 )
             val roleEntity = SecurityTestDataBuilders.role(id = roleId, name = "editor")
 
-            whenever(roleAssignmentRepository.findValidAssignmentsByUserId(any(), any())).thenReturn(emptyList())
             whenever(
                 groupMembershipRepository.findActiveMembershipsByUserId(any(), any()),
             ).thenReturn(listOf(groupMembership))
@@ -435,40 +443,43 @@ class AuthorizationServiceTest {
         }
 
         @Test
-        fun `should combine roles from direct and group-inherited assignments`() {
+        fun `should combine roles from multiple group-inherited assignments`() {
             // Arrange
             val userId = UUID.randomUUID()
-            val groupId = UUID.randomUUID()
-            val directRoleId = UUID.randomUUID()
-            val groupRoleId = UUID.randomUUID()
-            val directAssignment =
-                SecurityTestDataBuilders.roleAssignment(
-                    userId = userId,
-                    roleId = directRoleId,
-                )
-            val groupMembership =
+            val groupId1 = UUID.randomUUID()
+            val groupId2 = UUID.randomUUID()
+            val roleId1 = UUID.randomUUID()
+            val roleId2 = UUID.randomUUID()
+            val groupMembership1 =
                 SecurityTestDataBuilders.groupMembership(
                     userId = userId,
-                    groupId = groupId,
+                    groupId = groupId1,
                 )
-            val groupRoleAssignment =
+            val groupRoleAssignment1 =
                 SecurityTestDataBuilders.groupRoleAssignment(
-                    groupId = groupId,
-                    roleId = groupRoleId,
+                    groupId = groupId1,
+                    roleId = roleId1,
                 )
-            val directRole = SecurityTestDataBuilders.role(id = directRoleId, name = "admin")
-            val groupRole = SecurityTestDataBuilders.role(id = groupRoleId, name = "editor")
+            val groupMembership2 =
+                SecurityTestDataBuilders.groupMembership(
+                    userId = userId,
+                    groupId = groupId2,
+                )
+            val groupRoleAssignment2 =
+                SecurityTestDataBuilders.groupRoleAssignment(
+                    groupId = groupId2,
+                    roleId = roleId2,
+                )
+            val role1 = SecurityTestDataBuilders.role(id = roleId1, name = "admin")
+            val role2 = SecurityTestDataBuilders.role(id = roleId2, name = "editor")
 
             whenever(
-                roleAssignmentRepository.findValidAssignmentsByUserId(any(), any()),
-            ).thenReturn(listOf(directAssignment))
-            whenever(roleRepository.findByIdIn(any<List<UUID>>())).thenReturn(listOf(directRole, groupRole))
-            whenever(
                 groupMembershipRepository.findActiveMembershipsByUserId(any(), any()),
-            ).thenReturn(listOf(groupMembership))
+            ).thenReturn(listOf(groupMembership1, groupMembership2))
             whenever(
                 groupRoleAssignmentRepository.findValidAssignmentsByGroupIds(any<List<UUID>>(), any()),
-            ).thenReturn(listOf(groupRoleAssignment))
+            ).thenReturn(listOf(groupRoleAssignment1, groupRoleAssignment2))
+            whenever(roleRepository.findByIdIn(any<List<UUID>>())).thenReturn(listOf(role1, role2))
 
             // Act
             val result = authorizationService.getUserRoles(userId)
@@ -482,7 +493,6 @@ class AuthorizationServiceTest {
         fun `should return empty list when user has no roles`() {
             // Arrange
             val userId = UUID.randomUUID()
-            whenever(roleAssignmentRepository.findValidAssignmentsByUserId(any(), any())).thenReturn(emptyList())
             whenever(groupMembershipRepository.findActiveMembershipsByUserId(any(), any())).thenReturn(emptyList())
 
             // Act
@@ -496,18 +506,26 @@ class AuthorizationServiceTest {
         fun `should skip roles that do not exist in repository`() {
             // Arrange
             val userId = UUID.randomUUID()
+            val groupId = UUID.randomUUID()
             val roleId = UUID.randomUUID() // Non-existent role
-            val roleAssignment =
-                SecurityTestDataBuilders.roleAssignment(
+            val groupMembership =
+                SecurityTestDataBuilders.groupMembership(
                     userId = userId,
+                    groupId = groupId,
+                )
+            val groupRoleAssignment =
+                SecurityTestDataBuilders.groupRoleAssignment(
+                    groupId = groupId,
                     roleId = roleId,
                 )
 
             whenever(
-                roleAssignmentRepository.findValidAssignmentsByUserId(any(), any()),
-            ).thenReturn(listOf(roleAssignment))
+                groupMembershipRepository.findActiveMembershipsByUserId(any(), any()),
+            ).thenReturn(listOf(groupMembership))
+            whenever(
+                groupRoleAssignmentRepository.findValidAssignmentsByGroupIds(any<List<UUID>>(), any()),
+            ).thenReturn(listOf(groupRoleAssignment))
             whenever(roleRepository.findByIdIn(any<List<UUID>>())).thenReturn(emptyList())
-            whenever(groupMembershipRepository.findActiveMembershipsByUserId(any(), any())).thenReturn(emptyList())
 
             // Act
             val result = authorizationService.getUserRoles(userId)
@@ -525,26 +543,38 @@ class AuthorizationServiceTest {
             // Arrange
             val userId1 = UUID.randomUUID()
             val userId2 = UUID.randomUUID()
+            val groupId1 = UUID.randomUUID()
+            val groupId2 = UUID.randomUUID()
             val roleId1 = UUID.randomUUID()
             val roleId2 = UUID.randomUUID()
-            val roleAssignment1 =
-                SecurityTestDataBuilders.roleAssignment(
+            val groupMembership1 =
+                SecurityTestDataBuilders.groupMembership(
                     userId = userId1,
+                    groupId = groupId1,
+                )
+            val groupRoleAssignment1 =
+                SecurityTestDataBuilders.groupRoleAssignment(
+                    groupId = groupId1,
                     roleId = roleId1,
                 )
-            val roleAssignment2 =
-                SecurityTestDataBuilders.roleAssignment(
+            val groupMembership2 =
+                SecurityTestDataBuilders.groupMembership(
                     userId = userId2,
+                    groupId = groupId2,
+                )
+            val groupRoleAssignment2 =
+                SecurityTestDataBuilders.groupRoleAssignment(
+                    groupId = groupId2,
                     roleId = roleId2,
                 )
             val role1 = SecurityTestDataBuilders.role(id = roleId1, name = "admin")
             val role2 = SecurityTestDataBuilders.role(id = roleId2, name = "editor")
 
-            whenever(
-                roleAssignmentRepository.findValidAssignmentsByUserIds(any<List<UUID>>(), any()),
-            ).thenReturn(listOf(roleAssignment1, roleAssignment2))
             whenever(groupMembershipRepository.findActiveMembershipsByUserIds(any<List<UUID>>(), any()))
-                .thenReturn(emptyList())
+                .thenReturn(listOf(groupMembership1, groupMembership2))
+            whenever(
+                groupRoleAssignmentRepository.findValidAssignmentsByGroupIds(any<List<UUID>>(), any()),
+            ).thenReturn(listOf(groupRoleAssignment1, groupRoleAssignment2))
             whenever(roleRepository.findByIdIn(any<List<UUID>>())).thenReturn(listOf(role1, role2))
 
             // Act
@@ -556,7 +586,7 @@ class AuthorizationServiceTest {
             assertThat(result[userId1]!![0].name).isEqualTo("admin")
             assertThat(result[userId2]).hasSize(1)
             assertThat(result[userId2]!![0].name).isEqualTo("editor")
-            verify(roleAssignmentRepository).findValidAssignmentsByUserIds(any<List<UUID>>(), any())
+            verify(groupMembershipRepository).findActiveMembershipsByUserIds(any<List<UUID>>(), any())
         }
 
         @Test
@@ -583,9 +613,6 @@ class AuthorizationServiceTest {
                 )
             val role = SecurityTestDataBuilders.role(id = roleId, name = "editor")
 
-            whenever(
-                roleAssignmentRepository.findValidAssignmentsByUserIds(any<List<UUID>>(), any()),
-            ).thenReturn(emptyList())
             whenever(groupMembershipRepository.findActiveMembershipsByUserIds(any<List<UUID>>(), any()))
                 .thenReturn(listOf(groupMembership1, groupMembership2))
             whenever(
@@ -618,9 +645,6 @@ class AuthorizationServiceTest {
         fun `getUserRolesBatch should return empty lists for users with no roles`() {
             // Arrange
             val userId = UUID.randomUUID()
-            whenever(
-                roleAssignmentRepository.findValidAssignmentsByUserIds(any<List<UUID>>(), any()),
-            ).thenReturn(emptyList())
             whenever(groupMembershipRepository.findActiveMembershipsByUserIds(any<List<UUID>>(), any()))
                 .thenReturn(emptyList())
 
@@ -641,14 +665,26 @@ class AuthorizationServiceTest {
             val roleId2 = UUID.randomUUID()
             val permissionId1 = UUID.randomUUID()
             val permissionId2 = UUID.randomUUID()
-            val roleAssignment1 =
-                SecurityTestDataBuilders.roleAssignment(
+            val groupId1 = UUID.randomUUID()
+            val groupId2 = UUID.randomUUID()
+            val groupMembership1 =
+                SecurityTestDataBuilders.groupMembership(
                     userId = userId1,
+                    groupId = groupId1,
+                )
+            val groupRoleAssignment1 =
+                SecurityTestDataBuilders.groupRoleAssignment(
+                    groupId = groupId1,
                     roleId = roleId1,
                 )
-            val roleAssignment2 =
-                SecurityTestDataBuilders.roleAssignment(
+            val groupMembership2 =
+                SecurityTestDataBuilders.groupMembership(
                     userId = userId2,
+                    groupId = groupId2,
+                )
+            val groupRoleAssignment2 =
+                SecurityTestDataBuilders.groupRoleAssignment(
+                    groupId = groupId2,
                     roleId = roleId2,
                 )
             val role1 = SecurityTestDataBuilders.role(id = roleId1, name = "admin")
@@ -664,11 +700,11 @@ class AuthorizationServiceTest {
                     name = "transaction:write",
                 )
 
-            whenever(
-                roleAssignmentRepository.findValidAssignmentsByUserIds(any<List<UUID>>(), any()),
-            ).thenReturn(listOf(roleAssignment1, roleAssignment2))
             whenever(groupMembershipRepository.findActiveMembershipsByUserIds(any<List<UUID>>(), any()))
-                .thenReturn(emptyList())
+                .thenReturn(listOf(groupMembership1, groupMembership2))
+            whenever(
+                groupRoleAssignmentRepository.findValidAssignmentsByGroupIds(any<List<UUID>>(), any()),
+            ).thenReturn(listOf(groupRoleAssignment1, groupRoleAssignment2))
             whenever(roleRepository.findByIdIn(any<List<UUID>>())).thenReturn(listOf(role1, role2))
             whenever(roleRepository.findPermissionIdsByRoleIds(any<List<UUID>>()))
                 .thenReturn(listOf(permissionId1, permissionId2))
@@ -700,9 +736,6 @@ class AuthorizationServiceTest {
         fun `getUserPermissionsBatch should return empty lists for users with no permissions`() {
             // Arrange
             val userId = UUID.randomUUID()
-            whenever(
-                roleAssignmentRepository.findValidAssignmentsByUserIds(any<List<UUID>>(), any()),
-            ).thenReturn(emptyList())
             whenever(groupMembershipRepository.findActiveMembershipsByUserIds(any<List<UUID>>(), any()))
                 .thenReturn(emptyList())
 
@@ -723,22 +756,30 @@ class AuthorizationServiceTest {
             // Arrange
             val userId = UUID.randomUUID()
             val permission = "security:user:view"
+            val groupId = UUID.randomUUID()
             val roleId = UUID.randomUUID()
-            val roleAssignment =
-                SecurityTestDataBuilders.roleAssignment(
+            val groupMembership =
+                SecurityTestDataBuilders.groupMembership(
                     userId = userId,
+                    groupId = groupId,
+                )
+            val groupRoleAssignment =
+                SecurityTestDataBuilders.groupRoleAssignment(
+                    groupId = groupId,
                     roleId = roleId,
                 )
             val roleEntity = SecurityTestDataBuilders.role(id = roleId, name = "admin")
 
             whenever(
-                roleAssignmentRepository.findValidAssignmentsByUserId(any(), any()),
-            ).thenReturn(listOf(roleAssignment))
+                groupMembershipRepository.findActiveMembershipsByUserId(any(), any()),
+            ).thenReturn(listOf(groupMembership))
+            whenever(
+                groupRoleAssignmentRepository.findValidAssignmentsByGroupIds(any<List<UUID>>(), any()),
+            ).thenReturn(listOf(groupRoleAssignment))
             whenever(
                 permissionRepository.existsPermissionForRoles(permission, listOf(roleId)),
             ).thenReturn(true)
             whenever(roleRepository.findByIdIn(any())).thenReturn(listOf(roleEntity))
-            whenever(groupMembershipRepository.findActiveMembershipsByUserId(any(), any())).thenReturn(emptyList())
             whenever(
                 abacEvaluationService.evaluatePolicies(any(), anyOrNull(), anyOrNull()),
             ).thenReturn(
@@ -759,7 +800,6 @@ class AuthorizationServiceTest {
             val userId = UUID.randomUUID()
             val permission = "security:user:view"
 
-            whenever(roleAssignmentRepository.findValidAssignmentsByUserId(any(), any())).thenReturn(emptyList())
             whenever(groupMembershipRepository.findActiveMembershipsByUserId(any(), any())).thenReturn(emptyList())
 
             // Act & Assert
@@ -780,22 +820,30 @@ class AuthorizationServiceTest {
             val subjectAttributes = mapOf("department" to "IT")
             val resourceAttributes = mapOf("status" to "active")
             val contextAttributes = mapOf("ip" to "127.0.0.1")
+            val groupId = UUID.randomUUID()
             val roleId = UUID.randomUUID()
-            val roleAssignment =
-                SecurityTestDataBuilders.roleAssignment(
+            val groupMembership =
+                SecurityTestDataBuilders.groupMembership(
                     userId = userId,
+                    groupId = groupId,
+                )
+            val groupRoleAssignment =
+                SecurityTestDataBuilders.groupRoleAssignment(
+                    groupId = groupId,
                     roleId = roleId,
                 )
             val roleEntity = SecurityTestDataBuilders.role(id = roleId, name = "admin")
 
             whenever(
-                roleAssignmentRepository.findValidAssignmentsByUserId(any(), any()),
-            ).thenReturn(listOf(roleAssignment))
+                groupMembershipRepository.findActiveMembershipsByUserId(any(), any()),
+            ).thenReturn(listOf(groupMembership))
+            whenever(
+                groupRoleAssignmentRepository.findValidAssignmentsByGroupIds(any<List<UUID>>(), any()),
+            ).thenReturn(listOf(groupRoleAssignment))
             whenever(
                 permissionRepository.existsPermissionForRoles(permission, listOf(roleId)),
             ).thenReturn(true)
             whenever(roleRepository.findByIdIn(any())).thenReturn(listOf(roleEntity))
-            whenever(groupMembershipRepository.findActiveMembershipsByUserId(any(), any())).thenReturn(emptyList())
             whenever(
                 abacEvaluationService.evaluatePolicies(any(), anyOrNull(), anyOrNull()),
             ).thenReturn(

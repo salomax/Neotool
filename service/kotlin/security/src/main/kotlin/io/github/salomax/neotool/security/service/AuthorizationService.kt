@@ -5,7 +5,6 @@ import io.github.salomax.neotool.security.domain.rbac.Role
 import io.github.salomax.neotool.security.repo.GroupMembershipRepository
 import io.github.salomax.neotool.security.repo.GroupRoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.PermissionRepository
-import io.github.salomax.neotool.security.repo.RoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.service.exception.AuthorizationDeniedException
 import jakarta.inject.Singleton
@@ -17,13 +16,12 @@ import io.github.salomax.neotool.security.domain.audit.AuthorizationResult as Au
 /**
  * Service for authorization checks.
  * Supports both RBAC-only and hybrid RBAC+ABAC authorization.
- * Handles direct role assignments and group inheritance.
+ * Handles group-inherited role assignments.
  */
 @Singleton
 class AuthorizationService(
     private val roleRepository: RoleRepository,
     private val permissionRepository: PermissionRepository,
-    private val roleAssignmentRepository: RoleAssignmentRepository,
     private val groupMembershipRepository: GroupMembershipRepository,
     private val groupRoleAssignmentRepository: GroupRoleAssignmentRepository,
     private val abacEvaluationService: AbacEvaluationService,
@@ -33,7 +31,7 @@ class AuthorizationService(
 
     /**
      * Check if a user has a specific permission.
-     * Checks both direct role assignments and group-inherited roles.
+     * Checks group-inherited roles.
      * Also evaluates ABAC policies if they exist.
      *
      * @param userId The user ID
@@ -115,7 +113,7 @@ class AuthorizationService(
     }
 
     /**
-     * Get all permissions for a user, including direct and group-inherited permissions.
+     * Get all permissions for a user, including group-inherited permissions.
      * Optimized to use batch loading to avoid N+1 queries.
      *
      * @param userId The user ID
@@ -146,7 +144,7 @@ class AuthorizationService(
     }
 
     /**
-     * Batch get all permissions for multiple users, including direct and group-inherited permissions.
+     * Batch get all permissions for multiple users, including group-inherited permissions.
      * Optimized to avoid N+1 queries.
      *
      * @param userIds List of user IDs
@@ -208,7 +206,7 @@ class AuthorizationService(
     }
 
     /**
-     * Get all roles for a user, including direct and group-inherited roles.
+     * Get all roles for a user, including group-inherited roles.
      * Optimized to use batch loading and shared logic.
      *
      * @param userId The user ID
@@ -232,7 +230,7 @@ class AuthorizationService(
     }
 
     /**
-     * Batch get all roles for multiple users, including direct and group-inherited roles.
+     * Batch get all roles for multiple users, including group-inherited roles.
      * Optimized to avoid N+1 queries.
      *
      * @param userIds List of user IDs
@@ -246,9 +244,6 @@ class AuthorizationService(
         if (userIds.isEmpty()) {
             return emptyMap()
         }
-
-        // Batch load all direct role assignments for all users
-        val allDirectAssignments = roleAssignmentRepository.findValidAssignmentsByUserIds(userIds, now)
 
         // Batch load all group memberships for all users
         val allGroupMemberships = groupMembershipRepository.findActiveMembershipsByUserIds(userIds, now)
@@ -278,11 +273,6 @@ class AuthorizationService(
         val userRoleIdsMap = mutableMapOf<UUID, MutableSet<UUID>>()
         for (userId in userIds) {
             userRoleIdsMap[userId] = mutableSetOf()
-        }
-
-        // Add direct role assignments
-        for (assignment in allDirectAssignments) {
-            userRoleIdsMap[assignment.userId]?.add(assignment.roleId)
         }
 
         // Add group-inherited role assignments
@@ -317,7 +307,7 @@ class AuthorizationService(
     }
 
     /**
-     * Collect all role IDs for a user (direct and group-inherited).
+     * Collect all role IDs for a user (group-inherited).
      * This shared method eliminates code duplication between getUserPermissions and getUserRoles.
      * Optimized to use batch loading for group role assignments to avoid N+1 queries.
      *
@@ -330,10 +320,6 @@ class AuthorizationService(
         now: Instant,
     ): Set<UUID> {
         val roleIds = mutableSetOf<UUID>()
-
-        // Get direct role assignments
-        val directAssignments = roleAssignmentRepository.findValidAssignmentsByUserId(userId, now)
-        roleIds.addAll(directAssignments.map { it.roleId })
 
         // Get group memberships
         val groupMemberships = groupMembershipRepository.findActiveMembershipsByUserId(userId, now)

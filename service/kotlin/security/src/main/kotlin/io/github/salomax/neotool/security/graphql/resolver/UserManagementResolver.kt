@@ -183,54 +183,6 @@ class UserManagementResolver(
     }
 
     /**
-     * Assign a role to a user.
-     */
-    fun assignRoleToUser(
-        userId: String,
-        roleId: String,
-    ): UserDTO {
-        return try {
-            val command =
-                io.github.salomax.neotool.security.domain.UserManagement.AssignRoleToUserCommand(
-                    userId = mapper.toUserId(userId),
-                    roleId = mapper.toRoleId(roleId),
-                )
-            val user = userManagementService.assignRoleToUser(command)
-            mapper.toUserDTO(user)
-        } catch (e: IllegalArgumentException) {
-            logger.warn { "Invalid user ID or role ID: userId=$userId, roleId=$roleId" }
-            throw e
-        } catch (e: Exception) {
-            logger.error(e) { "Error assigning role to user: userId=$userId, roleId=$roleId" }
-            throw e
-        }
-    }
-
-    /**
-     * Remove a role from a user.
-     */
-    fun removeRoleFromUser(
-        userId: String,
-        roleId: String,
-    ): UserDTO {
-        return try {
-            val command =
-                io.github.salomax.neotool.security.domain.UserManagement.RemoveRoleFromUserCommand(
-                    userId = mapper.toUserId(userId),
-                    roleId = mapper.toRoleId(roleId),
-                )
-            val user = userManagementService.removeRoleFromUser(command)
-            mapper.toUserDTO(user)
-        } catch (e: IllegalArgumentException) {
-            logger.warn { "Invalid user ID or role ID: userId=$userId, roleId=$roleId" }
-            throw e
-        } catch (e: Exception) {
-            logger.error(e) { "Error removing role from user: userId=$userId, roleId=$roleId" }
-            throw e
-        }
-    }
-
-    /**
      * Assign a group to a user.
      */
     fun assignGroupToUser(

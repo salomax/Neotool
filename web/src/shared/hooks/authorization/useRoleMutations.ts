@@ -57,9 +57,7 @@ export interface UseRoleMutationsReturn {
   assignPermissionToRole: (roleId: string, permissionId: string) => Promise<void>;
   removePermissionFromRole: (roleId: string, permissionId: string) => Promise<void>;
   
-  // User and group management
-  assignRoleToUser: (userId: string, roleId: string) => Promise<void>;
-  removeRoleFromUser: (userId: string, roleId: string) => Promise<void>;
+  // Group management
   assignRoleToGroup: (groupId: string, roleId: string) => Promise<void>;
   removeRoleFromGroup: (groupId: string, roleId: string) => Promise<void>;
   
@@ -69,8 +67,6 @@ export interface UseRoleMutationsReturn {
   deleteLoading: boolean;
   assignPermissionLoading: boolean;
   removePermissionLoading: boolean;
-  assignRoleToUserLoading: boolean;
-  removeRoleFromUserLoading: boolean;
   assignRoleToGroupLoading: boolean;
   removeRoleFromGroupLoading: boolean;
 }
@@ -115,8 +111,6 @@ export function useRoleMutations(
   const [deleteRoleMutation, { loading: deleteLoading }] = useDeleteRoleMutation();
   const [assignPermissionMutation, { loading: assignPermissionLoading }] = useAssignPermissionToRoleMutation();
   const [removePermissionMutation, { loading: removePermissionLoading }] = useRemovePermissionFromRoleMutation();
-  const [assignRoleToUserMutation, { loading: assignRoleToUserLoading }] = useAssignRoleToUserMutation();
-  const [removeRoleFromUserMutation, { loading: removeRoleFromUserLoading }] = useRemoveRoleFromUserMutation();
   const [assignRoleToGroupMutation, { loading: assignRoleToGroupLoading }] = useAssignRoleToGroupMutation();
   const [removeRoleFromGroupMutation, { loading: removeRoleFromGroupLoading }] = useRemoveRoleFromGroupMutation();
 
@@ -211,29 +205,7 @@ export function useRoleMutations(
     [executeMutation, removePermissionMutation]
   );
 
-  // User and group management
-  const assignRoleToUser = useCallback(
-    async (userId: string, roleId: string) => {
-      await executeMutation(
-        assignRoleToUserMutation,
-        { userId, roleId },
-        `assign-role-${userId}-${roleId}`
-      );
-    },
-    [executeMutation, assignRoleToUserMutation]
-  );
-
-  const removeRoleFromUser = useCallback(
-    async (userId: string, roleId: string) => {
-      await executeMutation(
-        removeRoleFromUserMutation,
-        { userId, roleId },
-        `remove-role-${userId}-${roleId}`
-      );
-    },
-    [executeMutation, removeRoleFromUserMutation]
-  );
-
+  // Group management
   const assignRoleToGroup = useCallback(
     async (groupId: string, roleId: string) => {
       await executeMutation(
@@ -266,9 +238,7 @@ export function useRoleMutations(
     assignPermissionToRole,
     removePermissionFromRole,
     
-    // User and group management
-    assignRoleToUser,
-    removeRoleFromUser,
+    // Group management
     assignRoleToGroup,
     removeRoleFromGroup,
     
@@ -278,8 +248,6 @@ export function useRoleMutations(
     deleteLoading,
     assignPermissionLoading,
     removePermissionLoading,
-    assignRoleToUserLoading,
-    removeRoleFromUserLoading,
     assignRoleToGroupLoading,
     removeRoleFromGroupLoading,
   };

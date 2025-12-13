@@ -6,7 +6,6 @@ import io.github.salomax.neotool.common.graphql.pagination.OrderDirection
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import io.github.salomax.neotool.security.repo.GroupMembershipRepository
 import io.github.salomax.neotool.security.repo.GroupRepository
-import io.github.salomax.neotool.security.repo.RoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.repo.UserRepositoryCustom
@@ -32,7 +31,6 @@ import java.util.UUID
 class UserManagementServiceTest {
     private lateinit var userRepository: UserRepository
     private lateinit var userSearchRepository: UserRepositoryCustom
-    private lateinit var roleAssignmentRepository: RoleAssignmentRepository
     private lateinit var roleRepository: RoleRepository
     private lateinit var groupMembershipRepository: GroupMembershipRepository
     private lateinit var groupRepository: GroupRepository
@@ -42,7 +40,6 @@ class UserManagementServiceTest {
     fun setUp() {
         userRepository = mock()
         userSearchRepository = mock()
-        roleAssignmentRepository = mock()
         roleRepository = mock()
         groupMembershipRepository = mock()
         groupRepository = mock()
@@ -50,8 +47,6 @@ class UserManagementServiceTest {
             UserManagementService(
                 userRepository,
                 userSearchRepository,
-                roleAssignmentRepository,
-                roleRepository,
                 groupMembershipRepository,
                 groupRepository,
             )

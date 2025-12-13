@@ -371,30 +371,6 @@ object SecurityTestDataBuilders {
         )
 
     /**
-     * Create a test role assignment entity
-     */
-    fun roleAssignment(
-        id: UUID? = null,
-        userId: UUID = UUID.randomUUID(),
-        roleId: UUID = UUID.randomUUID(),
-        validFrom: Instant? = null,
-        validUntil: Instant? = null,
-        createdAt: Instant = Instant.now(),
-        updatedAt: Instant = Instant.now(),
-        version: Long = 0,
-    ): io.github.salomax.neotool.security.model.rbac.RoleAssignmentEntity =
-        io.github.salomax.neotool.security.model.rbac.RoleAssignmentEntity(
-            id = id ?: UUID.randomUUID(),
-            userId = userId,
-            roleId = roleId,
-            validFrom = validFrom,
-            validUntil = validUntil,
-            createdAt = createdAt,
-            updatedAt = updatedAt,
-            version = version,
-        )
-
-    /**
      * Create a test group entity
      */
     fun group(

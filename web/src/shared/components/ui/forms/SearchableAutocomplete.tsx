@@ -335,7 +335,6 @@ export function SearchableAutocomplete<
       renderInput={(params) => (
         <TextField
           {...params}
-          label={label}
           placeholder={placeholder}
           error={fieldError}
           helperText={helperText}

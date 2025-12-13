@@ -24,7 +24,9 @@ type Query {
   # Authorization management queries
   user(id: ID!): User
   users(first: Int, after: String, query: String, orderBy: [UserOrderByInput!]): UserConnection!
+  group(id: ID!): Group
   groups(first: Int, after: String, query: String, orderBy: [GroupOrderByInput!]): GroupConnection!
+  role(id: ID!): Role
   roles(first: Int, after: String, query: String, orderBy: [RoleOrderByInput!]): RoleConnection!
   permissions(first: Int, after: String, query: String): PermissionConnection!
 }
@@ -35,6 +37,7 @@ type Mutation {
   signIn(input: SignInInput!): SignInPayload!
   signInWithOAuth(input: SignInWithOAuthInput!): SignInPayload!
   signUp(input: SignUpInput!): SignUpPayload!
+  refreshAccessToken(input: RefreshAccessTokenInput!): SignInPayload!
   requestPasswordReset(input: RequestPasswordResetInput!): RequestPasswordResetPayload!
   resetPassword(input: ResetPasswordInput!): ResetPasswordPayload!
   
@@ -49,8 +52,6 @@ type Mutation {
   deleteRole(roleId: ID!): Boolean!
   assignPermissionToRole(roleId: ID!, permissionId: ID!): Role!
   removePermissionFromRole(roleId: ID!, permissionId: ID!): Role!
-  assignRoleToUser(userId: ID!, roleId: ID!): User!
-  removeRoleFromUser(userId: ID!, roleId: ID!): User!
   assignGroupToUser(userId: ID!, groupId: ID!): User!
   removeGroupFromUser(userId: ID!, groupId: ID!): User!
   assignRoleToGroup(groupId: ID!, roleId: ID!): Group!
@@ -98,6 +99,10 @@ input RequestPasswordResetInput {
 type RequestPasswordResetPayload {
   success: Boolean!
   message: String!
+}
+
+input RefreshAccessTokenInput {
+  refreshToken: String!
 }
 
 input ResetPasswordInput {
@@ -166,28 +171,24 @@ type PermissionEdge {
 
 type UserConnection {
   edges: [UserEdge!]!
-  nodes: [User!]!
   pageInfo: PageInfo!
   totalCount: Int
 }
 
 type GroupConnection {
   edges: [GroupEdge!]!
-  nodes: [Group!]!
   pageInfo: PageInfo!
   totalCount: Int
 }
 
 type RoleConnection {
   edges: [RoleEdge!]!
-  nodes: [Role!]!
   pageInfo: PageInfo!
   totalCount: Int
 }
 
 type PermissionConnection {
   edges: [PermissionEdge!]!
-  nodes: [Permission!]!
   pageInfo: PageInfo!
 }
 

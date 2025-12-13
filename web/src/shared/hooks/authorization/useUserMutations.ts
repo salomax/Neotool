@@ -6,8 +6,6 @@ import {
   useDisableUserMutation,
   useAssignGroupToUserMutation,
   useRemoveGroupFromUserMutation,
-  useAssignRoleToUserMutation,
-  useRemoveRoleFromUserMutation,
 } from '@/lib/graphql/operations/authorization-management/mutations.generated';
 import { useMutationWithRefetch } from '@/shared/hooks/mutations';
 import type { DocumentNode } from '@apollo/client';
@@ -42,17 +40,11 @@ export interface UseUserMutationsReturn {
   assignGroupToUser: (userId: string, groupId: string) => Promise<void>;
   removeGroupFromUser: (userId: string, groupId: string) => Promise<void>;
   
-  // Role management
-  assignRoleToUser: (userId: string, roleId: string) => Promise<void>;
-  removeRoleFromUser: (userId: string, roleId: string) => Promise<void>;
-  
   // Loading states
   enableLoading: boolean;
   disableLoading: boolean;
   assignGroupLoading: boolean;
   removeGroupLoading: boolean;
-  assignRoleLoading: boolean;
-  removeRoleLoading: boolean;
 }
 
 /**
@@ -92,8 +84,6 @@ export function useUserMutations(
   const [disableUserMutation, { loading: disableLoading }] = useDisableUserMutation();
   const [assignGroupToUserMutation, { loading: assignGroupLoading }] = useAssignGroupToUserMutation();
   const [removeGroupFromUserMutation, { loading: removeGroupLoading }] = useRemoveGroupFromUserMutation();
-  const [assignRoleToUserMutation, { loading: assignRoleLoading }] = useAssignRoleToUserMutation();
-  const [removeRoleFromUserMutation, { loading: removeRoleLoading }] = useRemoveRoleFromUserMutation();
 
   // Mutation hook with refetch
   const { executeMutation } = useMutationWithRefetch({
@@ -140,28 +130,6 @@ export function useUserMutations(
     [executeMutation, removeGroupFromUserMutation]
   );
 
-  const assignRoleToUser = useCallback(
-    async (userId: string, roleId: string) => {
-      await executeMutation(
-        assignRoleToUserMutation,
-        { userId, roleId },
-        `assign-role-${userId}-${roleId}`
-      );
-    },
-    [executeMutation, assignRoleToUserMutation]
-  );
-
-  const removeRoleFromUser = useCallback(
-    async (userId: string, roleId: string) => {
-      await executeMutation(
-        removeRoleFromUserMutation,
-        { userId, roleId },
-        `remove-role-${userId}-${roleId}`
-      );
-    },
-    [executeMutation, removeRoleFromUserMutation]
-  );
-
   return {
     // User status management
     enableUser,
@@ -171,17 +139,11 @@ export function useUserMutations(
     assignGroupToUser,
     removeGroupFromUser,
     
-    // Role management
-    assignRoleToUser,
-    removeRoleFromUser,
-    
     // Loading states
     enableLoading,
     disableLoading,
     assignGroupLoading,
     removeGroupLoading,
-    assignRoleLoading,
-    removeRoleLoading,
   };
 }
 

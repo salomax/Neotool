@@ -6,17 +6,17 @@ import {
   GetGroupsDocument,
   GetUserWithRelationshipsDocument,
   GetGroupsQueryVariables,
+  GetGroupsQuery,
 } from '@/lib/graphql/operations/authorization-management/queries.generated';
 import { GroupOrderByInput } from '@/lib/graphql/types/__generated__/graphql';
-import { GroupFieldsFragment } from '@/lib/graphql/fragments/common.generated';
 import { extractErrorMessage } from '@/shared/utils/error';
 import { useRelayPagination } from '@/shared/hooks/pagination';
 import { useDebouncedSearch } from '@/shared/hooks/search';
 import { useSorting } from '@/shared/hooks/sorting';
 import { useGroupMutations } from './useGroupMutations';
 
-// Use the fragment type which includes all fields from the query
-export type Group = GroupFieldsFragment;
+// Extract Group type from the query result - each query defines its own strict scope
+export type Group = GetGroupsQuery['groups']['edges'][number]['node'];
 
 export type GroupFormData = {
   name: string;

@@ -10,4 +10,3 @@ ALTER TABLE security.users ALTER COLUMN id SET DEFAULT uuidv7();
 
 -- Create index on enabled column for efficient filtering
 CREATE INDEX IF NOT EXISTS idx_users_enabled ON security.users(enabled);
-

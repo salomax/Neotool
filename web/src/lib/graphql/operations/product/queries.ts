@@ -1,22 +1,31 @@
 import { gql } from '@apollo/client';
-import { ProductFieldsFragmentDoc } from '../../fragments/common.generated';
 
 // Get all products
 export const GET_PRODUCTS = gql`
   query GetProducts {
     products {
-      ...ProductFields
+      id
+      name
+      sku
+      priceCents
+      stock
+      createdAt
+      updatedAt
     }
   }
-  ${ProductFieldsFragmentDoc}
 `;
 
 // Get single product by ID
 export const GET_PRODUCT = gql`
   query GetProduct($id: ID!) {
     product(id: $id) {
-      ...ProductFields
+      id
+      name
+      sku
+      priceCents
+      stock
+      createdAt
+      updatedAt
     }
   }
-  ${ProductFieldsFragmentDoc}
 `;

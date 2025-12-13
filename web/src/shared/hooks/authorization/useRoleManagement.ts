@@ -90,9 +90,7 @@ export type UseRoleManagementReturn = {
   assignPermissionToRole: (roleId: string, permissionId: string) => Promise<void>;
   removePermissionFromRole: (roleId: string, permissionId: string) => Promise<void>;
   
-  // User and group management
-  assignRoleToUser: (userId: string, roleId: string) => Promise<void>;
-  removeRoleFromUser: (userId: string, roleId: string) => Promise<void>;
+  // Group management
   assignRoleToGroup: (groupId: string, roleId: string) => Promise<void>;
   removeRoleFromGroup: (groupId: string, roleId: string) => Promise<void>;
   
@@ -103,8 +101,6 @@ export type UseRoleManagementReturn = {
   deleteLoading: boolean;
   assignPermissionLoading: boolean;
   removePermissionLoading: boolean;
-  assignRoleToUserLoading: boolean;
-  removeRoleFromUserLoading: boolean;
   assignRoleToGroupLoading: boolean;
   removeRoleFromGroupLoading: boolean;
   
@@ -240,8 +236,6 @@ export function useRoleManagement(options: UseRoleManagementOptions = {}): UseRo
     deleteRole: deleteRoleMutation,
     assignPermissionToRole,
     removePermissionFromRole,
-    assignRoleToUser,
-    removeRoleFromUser,
     assignRoleToGroup,
     removeRoleFromGroup,
     createLoading,
@@ -249,8 +243,6 @@ export function useRoleManagement(options: UseRoleManagementOptions = {}): UseRo
     deleteLoading,
     assignPermissionLoading,
     removePermissionLoading,
-    assignRoleToUserLoading,
-    removeRoleFromUserLoading,
     assignRoleToGroupLoading,
     removeRoleFromGroupLoading,
   } = useRoleMutations({
@@ -396,9 +388,7 @@ export function useRoleManagement(options: UseRoleManagementOptions = {}): UseRo
     assignPermissionToRole,
     removePermissionFromRole,
     
-    // User and group management
-    assignRoleToUser,
-    removeRoleFromUser,
+    // Group management
     assignRoleToGroup,
     removeRoleFromGroup,
     
@@ -409,8 +399,6 @@ export function useRoleManagement(options: UseRoleManagementOptions = {}): UseRo
     deleteLoading,
     assignPermissionLoading,
     removePermissionLoading,
-    assignRoleToUserLoading,
-    removeRoleFromUserLoading,
     assignRoleToGroupLoading,
     removeRoleFromGroupLoading,
     

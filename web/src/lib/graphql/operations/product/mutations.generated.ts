@@ -1,7 +1,6 @@
 import * as Types from '../../types/__generated__/graphql';
 
 import { gql } from '@apollo/client';
-import { ProductFieldsFragmentDoc } from '../../fragments/common.generated';
 import * as ApolloReactCommon from '@apollo/client/react';
 import * as ApolloReactHooks from '@apollo/client/react';
 const defaultOptions = {} as const;
@@ -31,10 +30,15 @@ export type DeleteProductMutation = { deleteProduct: boolean };
 export const CreateProductDocument = gql`
     mutation CreateProduct($input: ProductInput!) {
   createProduct(input: $input) {
-    ...ProductFields
+    id
+    name
+    sku
+    priceCents
+    stock
+    createdAt
+    updatedAt
   }
-}
-    ${ProductFieldsFragmentDoc}`;
+}`;
 
 /**
  * __useCreateProductMutation__
@@ -62,10 +66,15 @@ export type CreateProductMutationResult = ApolloReactCommon.MutationResult<Creat
 export const UpdateProductDocument = gql`
     mutation UpdateProduct($id: ID!, $input: ProductInput!) {
   updateProduct(id: $id, input: $input) {
-    ...ProductFields
+    id
+    name
+    sku
+    priceCents
+    stock
+    createdAt
+    updatedAt
   }
-}
-    ${ProductFieldsFragmentDoc}`;
+}`;
 
 /**
  * __useUpdateProductMutation__

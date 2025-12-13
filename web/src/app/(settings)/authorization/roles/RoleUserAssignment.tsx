@@ -33,6 +33,10 @@ export interface RoleUserAssignmentProps {
    * For edit mode with deferred mutations: callback when users change (updates local state only)
    */
   onChange?: (users: User[]) => void;
+  /**
+   * When true, displays users as readonly chips only (no editing capability)
+   */
+  readonly?: boolean;
 }
 
 type UserOption = {
@@ -46,6 +50,7 @@ type UserOption = {
 /**
  * RoleUserAssignment component for managing role user assignments
  * Uses a multi-select Autocomplete to assign and remove users
+ * When readonly, displays users as chips only (no editing capability)
  */
 export const RoleUserAssignment: React.FC<RoleUserAssignmentProps> = ({
   roleId,
@@ -57,6 +62,7 @@ export const RoleUserAssignment: React.FC<RoleUserAssignmentProps> = ({
   onUsersChange,
   active = true,
   onChange,
+  readonly = false,
 }) => {
   const { t } = useTranslation(authorizationManagementTranslations);
   const toast = useToast();
@@ -131,6 +137,32 @@ export const RoleUserAssignment: React.FC<RoleUserAssignmentProps> = ({
 
   if (!active) {
     return null;
+  }
+
+  // Readonly mode: just display users as chips
+  if (readonly) {
+    return (
+      <Box>
+        <Typography variant="subtitle1" gutterBottom>
+          {t("roleManagement.users.assigned")}
+        </Typography>
+        {selectedUsers.length === 0 ? (
+          <Typography variant="body2" color="text.secondary">
+            {t("roleManagement.users.noUsers")}
+          </Typography>
+        ) : (
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+            {selectedUsers.map((user) => (
+              <Chip
+                key={user.id}
+                variant="outlined"
+                label={user.label}
+              />
+            ))}
+          </Box>
+        )}
+      </Box>
+    );
   }
 
   return (
