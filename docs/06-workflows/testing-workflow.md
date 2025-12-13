@@ -11,6 +11,7 @@ related:
   - 05-standards/testing-standards/unit-test-standards.md
   - 04-patterns/backend-patterns/testing-pattern.md
   - 04-patterns/frontend-patterns/testing-pattern.md
+  - 04-patterns/frontend-patterns/e2e-testing-pattern.md
 ---
 
 # Testing Workflow
@@ -36,4 +37,5 @@ related:
 - [Testing Standards](../05-standards/testing-standards/unit-test-standards.md)
 - [Backend Testing Pattern](../04-patterns/backend-patterns/testing-pattern.md)
 - [Frontend Testing Pattern](../04-patterns/frontend-patterns/testing-pattern.md)
+- [E2E Testing Pattern](../04-patterns/frontend-patterns/e2e-testing-pattern.md)
 

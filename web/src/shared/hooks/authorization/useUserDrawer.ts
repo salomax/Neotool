@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { useGetUserWithRelationshipsQuery, GetUserWithRelationshipsDocument } from "@/lib/graphql/operations/authorization-management/queries.generated";
+import { useGetUserWithRelationshipsQuery, GetUserWithRelationshipsDocument, GetUsersDocument } from "@/lib/graphql/operations/authorization-management/queries.generated";
 import {
   useAssignGroupToUserMutation,
   useRemoveGroupFromUserMutation,
@@ -182,7 +182,8 @@ export function useUserDrawer(
         mutationPromises.push(
           assignGroupToUserMutation({
             variables: { userId, groupId },
-            refetchQueries: [GetUserWithRelationshipsDocument],
+            refetchQueries: [GetUserWithRelationshipsDocument, 'GetUsers'],
+            awaitRefetchQueries: true,
           })
         );
       }
@@ -191,7 +192,8 @@ export function useUserDrawer(
         mutationPromises.push(
           removeGroupFromUserMutation({
             variables: { userId, groupId },
-            refetchQueries: [GetUserWithRelationshipsDocument],
+            refetchQueries: [GetUserWithRelationshipsDocument, 'GetUsers'],
+            awaitRefetchQueries: true,
           })
         );
       }

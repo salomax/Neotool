@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useCallback, memo } from "react";
+import React, { useState, useMemo, useCallback, memo, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -9,6 +9,7 @@ import {
   FormControlLabel,
   Stack,
 } from "@mui/material";
+import { Lock, LockOpen } from "@mui/icons-material";
 import { ErrorAlert } from "@/shared/components/ui/feedback";
 import { usePermissionManagement, type Permission } from "@/shared/hooks/authorization/usePermissionManagement";
 import { PermissionSearch } from "../permissions/PermissionSearch";
@@ -62,7 +63,16 @@ const PermissionItem = memo<{
           disabled={disabled}
         />
       }
-      label={permission.name}
+      label={
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          {isAssigned ? (
+            <LockOpen sx={{ fontSize: 18, color: "text.secondary" }} />
+          ) : (
+            <Lock sx={{ fontSize: 18, color: "text.secondary" }} />
+          )}
+          <span>{permission.name}</span>
+        </Box>
+      }
     />
   );
 });
@@ -71,7 +81,7 @@ PermissionItem.displayName = "PermissionItem";
 
 // Permissions list component - handles filtering internally
 interface PermissionsListProps {
-  allPermissions: Permission[] | null | undefined;  // Changed from filteredPermissions
+  allPermissions: Permission[] | null | undefined;
   assignedPermissionIds: string[];
   disabled: boolean;
   onToggle: (permissionId: string, isChecked: boolean) => void;
@@ -81,7 +91,7 @@ interface PermissionsListProps {
 }
 
 const PermissionsList = memo<PermissionsListProps>(({ 
-  allPermissions,  // Changed from filteredPermissions
+  allPermissions,
   assignedPermissionIds, 
   disabled, 
   onToggle,
@@ -169,11 +179,12 @@ const RolePermissionAssignmentComponent: React.FC<RolePermissionAssignmentProps>
   // Separate input state (immediate) from filter state (debounced)
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [renderedPermissions, setRenderedPermissions] = useState<Permission[]>([]);
+  const [hasLoadedPermissions, setHasLoadedPermissions] = useState(false);
 
   // Fetch all available permissions
   const {
     permissions: allPermissions,
-    searchQuery: permissionSearchQuery,
     setSearchQuery: setPermissionSearchQuery,
     loading: permissionsLoading,
     error: permissionsError,
@@ -183,10 +194,24 @@ const RolePermissionAssignmentComponent: React.FC<RolePermissionAssignmentProps>
     skip: !active,
   });
 
+  useEffect(() => {
+    if (!active) {
+      setRenderedPermissions([]);
+      setHasLoadedPermissions(false);
+      return;
+    }
+
+    if (!permissionsLoading && !permissionsError) {
+      setRenderedPermissions(allPermissions || []);
+      setHasLoadedPermissions(true);
+    }
+  }, [active, permissionsLoading, permissionsError, allPermissions]);
+
   // Create a set of assigned permission IDs for quick lookup
-  const assignedPermissionIds = useMemo(() => {
-    return new Set(assignedPermissions.map((p) => p.id));
-  }, [assignedPermissions]);
+  const assignedPermissionIds = useMemo(
+    () => assignedPermissions.map((permission) => permission.id),
+    [assignedPermissions]
+  );
 
   const handlePermissionToggle = useCallback(
     async (permissionId: string, isChecked: boolean) => {
@@ -197,7 +222,7 @@ const RolePermissionAssignmentComponent: React.FC<RolePermissionAssignmentProps>
         
         if (isChecked) {
           // Add permission
-          const permission = allPermissions?.find((p) => p.id === permissionId);
+          const permission = renderedPermissions.find((p) => p.id === permissionId);
           if (permission && !currentPermissionIds.has(permissionId)) {
             newPermissions = [...assignedPermissions, { id: permission.id, name: permission.name }];
             onChange(newPermissions);
@@ -218,7 +243,7 @@ const RolePermissionAssignmentComponent: React.FC<RolePermissionAssignmentProps>
           await onAssignPermission(permissionId);
           // Only show toast in edit mode (when roleId exists)
           if (roleId) {
-            const permission = allPermissions?.find((p) => p.id === permissionId);
+            const permission = renderedPermissions.find((p) => p.id === permissionId);
             toast.success(
               t("roleManagement.permissions.permissionAssigned", {
                 permission: permission?.name || "",
@@ -255,7 +280,7 @@ const RolePermissionAssignmentComponent: React.FC<RolePermissionAssignmentProps>
       onChange,
       toast,
       t,
-      allPermissions,
+      renderedPermissions,
       assignedPermissions,
       onPermissionsChange,
     ]
@@ -275,11 +300,14 @@ const RolePermissionAssignmentComponent: React.FC<RolePermissionAssignmentProps>
     [setPermissionSearchQuery]
   );
 
+  const isInitialLoading = permissionsLoading && !hasLoadedPermissions;
+  const isRefreshing = permissionsLoading && hasLoadedPermissions;
+
   if (!active) {
     return null;
   }
 
-  if (permissionsLoading) {
+  if (isInitialLoading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
         <CircularProgress />
@@ -287,7 +315,7 @@ const RolePermissionAssignmentComponent: React.FC<RolePermissionAssignmentProps>
     );
   }
 
-  if (permissionsError) {
+  if (permissionsError && !hasLoadedPermissions) {
     return (
       <ErrorAlert
         error={permissionsError}
@@ -297,7 +325,6 @@ const RolePermissionAssignmentComponent: React.FC<RolePermissionAssignmentProps>
     );
   }
 
-  const totalPermissions = allPermissions?.length || 0;
   const assignedCount = assignedPermissions.length;
 
   return (
@@ -311,15 +338,45 @@ const RolePermissionAssignmentComponent: React.FC<RolePermissionAssignmentProps>
         onSearch={handleSearchChange}
         placeholder={t("roleManagement.permissions.searchPlaceholder")}
       />
-      <PermissionsList
-        allPermissions={allPermissions}  // Changed from filteredPermissions
-        assignedPermissionIds={assignedPermissionIds}
-        disabled={assignLoading || removeLoading || (!!roleId && !onChange && (!onAssignPermission || !onRemovePermission))}
-        onToggle={handlePermissionToggle}
-        searchQuery={searchQuery}
-        emptyMessageNoQuery={t("roleManagement.permissions.noPermissions")}
-        emptyMessageWithQuery={t("roleManagement.permissions.noAvailableMatching")}
-      />
+      {permissionsError && hasLoadedPermissions && (
+        <Box sx={{ mt: 2 }}>
+          <ErrorAlert
+            error={permissionsError}
+            onRetry={() => refetchPermissions()}
+            fallbackMessage={t("roleManagement.permissions.loadError")}
+          />
+        </Box>
+      )}
+      <Box sx={{ position: "relative" }}>
+        <PermissionsList
+          allPermissions={renderedPermissions}
+          assignedPermissionIds={assignedPermissionIds}
+          disabled={assignLoading || removeLoading || (!!roleId && !onChange && (!onAssignPermission || !onRemovePermission))}
+          onToggle={handlePermissionToggle}
+          searchQuery={searchQuery}
+          emptyMessageNoQuery={t("roleManagement.permissions.noPermissions")}
+          emptyMessageWithQuery={t("roleManagement.permissions.noAvailableMatching")}
+        />
+        {isRefreshing && (
+          <Box
+            sx={{
+              position: "absolute",
+              top: 12,
+              right: 12,
+              bgcolor: "background.paper",
+              borderRadius: 999,
+              boxShadow: 1,
+              p: 0.5,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              pointerEvents: "none",
+            }}
+          >
+            <CircularProgress size={16} thickness={5} />
+          </Box>
+        )}
+      </Box>
     </Box>
   );
 };

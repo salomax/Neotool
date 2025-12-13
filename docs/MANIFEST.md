@@ -97,6 +97,7 @@ This specification is organized into numbered directories (00-11) for clear hier
 | Styling Pattern | `04-patterns/frontend-patterns/styling-pattern.md` | pattern | frontend | styling, themes, design-tokens |
 | Toast Notification Pattern | `04-patterns/frontend-patterns/toast-notification-pattern.md` | pattern | frontend | toast, notification, feedback, user-experience |
 | Testing Pattern | `04-patterns/frontend-patterns/testing-pattern.md` | pattern | frontend | testing, frontend, react, react-hook-form, vitest, testing-library |
+| E2E Testing Pattern | `04-patterns/frontend-patterns/e2e-testing-pattern.md` | pattern | frontend | testing, e2e, playwright, end-to-end, browser-testing, integration-testing |
 
 ### API Patterns
 

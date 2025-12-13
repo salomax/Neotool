@@ -13,7 +13,8 @@ import { useForm, FormProvider } from "react-hook-form";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { CloseIcon } from "@/shared/ui/mui-imports";
 import { LoadingState, ErrorAlert } from "@/shared/components/ui/feedback";
-import { useGetRoleWithUsersAndGroupsQuery } from "@/lib/graphql/operations/authorization-management/queries.generated";
+import { useGetRoleWithUsersAndGroupsQuery, GetRolesDocument } from "@/lib/graphql/operations/authorization-management/queries.generated";
+import { useCreateRoleMutation, useUpdateRoleMutation } from "@/lib/graphql/operations/authorization-management/mutations.generated";
 import { useRoleMutations } from "@/shared/hooks/authorization/useRoleMutations";
 import { useRoleDrawer } from "@/shared/hooks/authorization/useRoleDrawer";
 import { useTranslation } from "@/shared/i18n";
@@ -133,15 +134,23 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
     }
   }, [role, selectedGroups, usersGroupsData, pendingGroups]);
 
-  // Use mutation hook directly - drawer doesn't need the query
+  // Use mutation directly for create and update to get refetchQueries
+  // Using query name as string to refetch all active queries regardless of variables
+  const [createRoleMutation, { loading: createLoading }] = useCreateRoleMutation({
+    refetchQueries: ['GetRoles'],
+    awaitRefetchQueries: true,
+  });
+
+  const [updateRoleMutation, { loading: updateLoading }] = useUpdateRoleMutation({
+    refetchQueries: ['GetRoles'],
+    awaitRefetchQueries: true,
+  });
+
+  // Use mutation hook for other operations
   const {
-    createRole,
-    updateRole,
     assignPermissionToRole,
     assignRoleToUser,
     assignRoleToGroup,
-    createLoading,
-    updateLoading,
   } = useRoleMutations({
     // No refetch needed - drawer manages its own queries
   });
@@ -206,8 +215,15 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
   const handleSubmit = async (data: RoleFormData) => {
     try {
       if (role) {
-        // Edit mode: update role name first, then save user/group/permission changes
-        await updateRole(role.id, data);
+        // Edit mode: update role name first using mutation directly
+        await updateRoleMutation({
+          variables: {
+            roleId: role.id,
+            input: {
+              name: data.name.trim(),
+            },
+          },
+        });
         
         // Save user, group, and permission changes if any
         if (hasUserGroupPermissionChanges) {
@@ -216,8 +232,24 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
         
         toast.success(t("roleManagement.toast.roleUpdated", { name: data.name }));
       } else {
-        // Create role first
-        const newRole = await createRole(data);
+        // Create role first using mutation directly
+        const result = await createRoleMutation({
+          variables: {
+            input: {
+              name: data.name.trim(),
+            },
+          },
+        });
+
+        const createdRole = result.data?.createRole;
+        if (!createdRole) {
+          throw new Error("Failed to create role: no data returned");
+        }
+
+        const newRole = {
+          id: createdRole.id,
+          name: createdRole.name,
+        };
         
         // Assign all pending selections
         try {

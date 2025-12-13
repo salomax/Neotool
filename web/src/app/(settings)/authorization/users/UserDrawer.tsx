@@ -61,7 +61,7 @@ export const UserDrawer: React.FC<UserDrawerProps> = ({
   // Footer with action buttons
   const footer = (
     <PermissionGate require="security:user:save">
-      <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, p: 2 }}>
+      <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, p: 2 }} data-testid="drawer-footer">
         <Button
           variant="outlined"
           onClick={() => {
@@ -69,6 +69,7 @@ export const UserDrawer: React.FC<UserDrawerProps> = ({
             onClose();
           }}
           disabled={saving}
+          data-testid="user-drawer-cancel-button"
         >
           {t("common.cancel")}
         </Button>
@@ -77,6 +78,7 @@ export const UserDrawer: React.FC<UserDrawerProps> = ({
           onClick={handleSave}
           disabled={saving || !hasChanges}
           color="primary"
+          data-testid="user-drawer-save-button"
         >
           {saving
             ? t("common.saving")
@@ -93,11 +95,12 @@ export const UserDrawer: React.FC<UserDrawerProps> = ({
       anchor="right"
       size="md"
       variant="temporary"
+      data-testid="user-drawer"
     >
-      <Drawer.Header>
+      <Drawer.Header data-testid="drawer-header">
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, flex: 1 }}>
           <PersonIcon sx={{ color: "text.secondary" }} />
-          <Typography variant="h6" component="h2" sx={{ flex: 1 }}>
+          <Typography variant="h6" component="h2" sx={{ flex: 1 }} data-testid="drawer-title">
             {t("userManagement.drawer.title")}
           </Typography>
         </Box>
@@ -105,11 +108,12 @@ export const UserDrawer: React.FC<UserDrawerProps> = ({
           onClick={onClose}
           size="small"
           aria-label={`Close ${t("userManagement.drawer.title")}`}
+          data-testid="drawer-close-button"
         >
           <CloseIcon />
         </IconButton>
       </Drawer.Header>
-      <Drawer.Body>
+      <Drawer.Body data-testid="drawer-body">
         <LoadingState isLoading={loading} />
 
         <ErrorAlert
@@ -175,6 +179,7 @@ export const UserDrawer: React.FC<UserDrawerProps> = ({
                   value={displayName}
                   onChange={(e) => updateDisplayName(e.target.value)}
                   placeholder={t("userManagement.drawer.displayNamePlaceholder")}
+                  data-testid="user-drawer-display-name-input"
                 />
               </Box>
 
@@ -189,12 +194,13 @@ export const UserDrawer: React.FC<UserDrawerProps> = ({
                   value={email}
                   placeholder={t("userManagement.drawer.emailPlaceholder")}
                   readOnly
+                  data-testid="user-drawer-email-input"
                 />
               </Box>
 
               {/* Groups */}
               <PermissionGate require="security:user:save">
-                <Box>
+                <Box data-testid="user-drawer-groups-section">
                   <Typography variant="body2" color="text.secondary" gutterBottom>
                     {t("userManagement.drawer.groups")}
                   </Typography>
@@ -207,7 +213,7 @@ export const UserDrawer: React.FC<UserDrawerProps> = ({
               </PermissionGate>
 
               {/* Roles - Readonly (roles are assigned through groups only) */}
-              <Box>
+              <Box data-testid="user-drawer-roles-section">
                 <Typography variant="body2" color="text.secondary" gutterBottom>
                   {t("userManagement.drawer.roles")}
                 </Typography>

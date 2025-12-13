@@ -196,6 +196,38 @@ git add .
 git commit -m "Merge NeoTool starter boilerplate"
 ```
 
+## Using NeoTool as an Upstream Base
+
+Once you start shipping products derived from NeoTool, treat this repo as the upstream foundation while keeping each product in its own repository. A typical workflow looks like this:
+
+1. **Clone your product repository** (or initialize it as usual) and keep it connected to its primary remote (`origin`).
+2. **Add NeoTool as an upstream remote** so you can pull foundational improvements over time:
+   ```bash
+   git remote add upstream git@github.com:salomax/neotool.git
+   git remote -v  # Confirm origin (product) and upstream (NeoTool) remotes
+   ```
+3. **Sync with upstream** whenever NeoTool ships updates:
+   ```bash
+   git fetch upstream
+   git checkout main
+   git merge upstream/main      # or: git rebase upstream/main
+   ```
+4. **Resolve conflicts, test, and push** the synchronized branch back to your product repo:
+   ```bash
+   # After resolving conflicts locally
+   git add .
+   git commit -m "Sync with NeoTool upstream"
+   git push origin main
+   ```
+   - If both repos changed the same file (e.g., a page inside `web/`), Git will stop during the merge/rebase and mark the conflicting file with conflict markers. Edit the file, decide which parts to keep or blend, then run `git add <file>` and continue (`git commit` for merges, `git rebase --continue` for rebases).
+5. **Use tags/releases when you prefer a stable baseline**:
+   ```bash
+   git fetch upstream --tags
+   git merge upstream/v1.4.0
+   ```
+
+By keeping changes that are universally useful inside this upstream and limiting product-specific customizations to your product repository, you minimize merge pain and keep all products aligned with NeoTool’s evolution.
+
 ### Customizing Your Project Name
 
 After cloning or integrating the starter, you'll want to customize the project name from "neotool" to your own project name. This includes updating package names, namespaces, database names, and all references throughout the codebase.

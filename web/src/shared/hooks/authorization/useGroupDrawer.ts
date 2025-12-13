@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { useGetGroupWithRelationshipsQuery, GetGroupWithRelationshipsDocument } from "@/lib/graphql/operations/authorization-management/queries.generated";
+import { useGetGroupWithRelationshipsQuery, GetGroupWithRelationshipsDocument, GetGroupsDocument } from "@/lib/graphql/operations/authorization-management/queries.generated";
 import {
   useAssignRoleToGroupMutation,
   useRemoveRoleFromGroupMutation,
@@ -188,7 +188,8 @@ export function useGroupDrawer(
         mutationPromises.push(
           assignRoleToGroupMutation({
             variables: { groupId, roleId },
-            refetchQueries: [GetGroupWithRelationshipsDocument],
+            refetchQueries: [GetGroupWithRelationshipsDocument, 'GetGroups'],
+            awaitRefetchQueries: true,
           })
         );
       }
@@ -197,7 +198,8 @@ export function useGroupDrawer(
         mutationPromises.push(
           removeRoleFromGroupMutation({
             variables: { groupId, roleId },
-            refetchQueries: [GetGroupWithRelationshipsDocument],
+            refetchQueries: [GetGroupWithRelationshipsDocument, 'GetGroups'],
+            awaitRefetchQueries: true,
           })
         );
       }
@@ -207,7 +209,8 @@ export function useGroupDrawer(
         mutationPromises.push(
           assignGroupToUserMutation({
             variables: { userId, groupId },
-            refetchQueries: [GetGroupWithRelationshipsDocument],
+            refetchQueries: [GetGroupWithRelationshipsDocument, 'GetGroups'],
+            awaitRefetchQueries: true,
           })
         );
       }
@@ -216,7 +219,8 @@ export function useGroupDrawer(
         mutationPromises.push(
           removeGroupFromUserMutation({
             variables: { userId, groupId },
-            refetchQueries: [GetGroupWithRelationshipsDocument],
+            refetchQueries: [GetGroupWithRelationshipsDocument, 'GetGroups'],
+            awaitRefetchQueries: true,
           })
         );
       }

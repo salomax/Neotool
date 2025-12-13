@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { signInAsValidUser, signOut } from './helpers/auth.js';
+import { signInAsValidUser, signOut } from './helpers/auth';
 
 test.describe('Authorization Layer', () => {
   test.beforeEach(async ({ page }) => {
