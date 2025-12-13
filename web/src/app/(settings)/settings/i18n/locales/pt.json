@@ -175,7 +175,7 @@
       }
     },
     "permissions": {
-      "assigned": "Permissões Atribuídas",
+      "assigned": "Permissões",
       "available": "Permissões Disponíveis",
       "assignedCount": "{{count}} permissão(ões) atribuída(s)",
       "noPermissions": "Nenhuma permissão atribuída a este perfil",
@@ -190,7 +190,7 @@
       "loadError": "Falha ao carregar permissões"
     },
     "users": {
-      "assigned": "Usuários Atribuídos",
+      "assigned": "Usuários",
       "available": "Usuários Disponíveis",
       "assignedCount": "{{count}} usuário(s) atribuído(s)",
       "noUsers": "Nenhum usuário atribuído a este perfil",
@@ -205,7 +205,7 @@
       "loadError": "Falha ao carregar usuários"
     },
     "groups": {
-      "assigned": "Grupos Atribuídos",
+      "assigned": "Grupos",
       "available": "Grupos Disponíveis",
       "assignedCount": "{{count}} grupo(s) atribuído(s)",
       "noGroups": "Nenhum grupo atribuído a este perfil",

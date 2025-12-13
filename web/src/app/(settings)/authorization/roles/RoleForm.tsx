@@ -3,7 +3,7 @@
 import React from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import { Stack } from "@mui/material";
-import { TextField } from "@/shared/components/ui/forms/form/TextField";
+import { TextField } from "@/shared/components/ui/primitives";
 import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
 

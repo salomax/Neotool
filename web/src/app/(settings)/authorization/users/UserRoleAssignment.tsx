@@ -6,9 +6,9 @@ import {
   Typography,
   CircularProgress,
   Autocomplete,
-  TextField,
   Chip,
 } from "@mui/material";
+import { TextField } from "@/shared/components/ui/primitives";
 import { ErrorAlert } from "@/shared/components/ui/feedback";
 import { useGetRolesQuery } from "@/lib/graphql/operations/authorization-management/queries.generated";
 import { useTranslation } from "@/shared/i18n";
@@ -153,6 +153,7 @@ export const UserRoleAssignment: React.FC<UserRoleAssignmentProps> = ({
               <Chip
                 key={key}
                 variant="outlined"
+                color="primary"
                 label={option.label}
                 onDelete={onDelete}
                 {...tagProps}
@@ -166,6 +167,20 @@ export const UserRoleAssignment: React.FC<UserRoleAssignmentProps> = ({
             label={t("userManagement.drawer.roles")}
             placeholder={t("userManagement.roles.searchPlaceholder")}
             fullWidth
+            variant="outlined"
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: 'primary.main',
+                },
+                '&:hover .MuiOutlinedInput-notchedOutline': {
+                  borderColor: 'primary.main',
+                },
+                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                  borderColor: 'primary.main',
+                },
+              },
+            }}
           />
         )}
       />

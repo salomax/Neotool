@@ -85,10 +85,11 @@ export const GroupUserAssignment: React.FC<GroupUserAssignmentProps> = ({
       getOptionId={(option) => option.id}
       getOptionLabel={(option) => option.label}
       isOptionEqualToValue={(option, value) => option.id === value.id}
-      multiple
-      placeholder={t("groupManagement.form.usersHelper")}
-      skip={!isAuthenticated}
-      errorMessage={t("groupManagement.form.errors.loadUsersFailed")}
+        multiple
+        placeholder={t("groupManagement.form.usersHelper")}
+        skip={!isAuthenticated}
+        errorMessage={t("groupManagement.form.errors.loadUsersFailed")}
+        variant="outlined"
       renderOption={(props, option) => {
         const { key, ...otherProps } = props;
         return (

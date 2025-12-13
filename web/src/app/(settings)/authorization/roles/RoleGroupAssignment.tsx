@@ -161,6 +161,7 @@ export const RoleGroupAssignment: React.FC<RoleGroupAssignmentProps> = ({
         loading={assignLoading || removeLoading}
         skip={!active}
         errorMessage={t("roleManagement.groups.loadError")}
+        variant="outlined"
         renderTags={(value, getTagProps) =>
           value.map((option, index) => {
             const { key, ...tagProps } = getTagProps({ index });
@@ -168,6 +169,7 @@ export const RoleGroupAssignment: React.FC<RoleGroupAssignmentProps> = ({
               <Chip
                 key={key || option.id}
                 variant="outlined"
+                color="primary"
                 label={option.label}
                 {...tagProps}
               />

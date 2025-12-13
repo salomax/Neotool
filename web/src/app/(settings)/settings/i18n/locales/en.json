@@ -175,7 +175,7 @@
       }
     },
     "permissions": {
-      "assigned": "Assigned Permissions",
+      "assigned": "Permissions",
       "available": "Available Permissions",
       "assignedCount": "{{count}} permission(s) assigned",
       "noPermissions": "No permissions assigned to this role",
@@ -190,7 +190,7 @@
       "loadError": "Failed to load permissions"
     },
     "users": {
-      "assigned": "Assigned Users",
+      "assigned": "Users",
       "available": "Available Users",
       "assignedCount": "{{count}} user(s) assigned",
       "noUsers": "No users assigned to this role",
@@ -205,7 +205,7 @@
       "loadError": "Failed to load users"
     },
     "groups": {
-      "assigned": "Assigned Groups",
+      "assigned": "Groups",
       "available": "Available Groups",
       "assignedCount": "{{count}} group(s) assigned",
       "noGroups": "No groups assigned to this role",

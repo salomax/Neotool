@@ -6,10 +6,10 @@ import {
   Typography,
   Chip,
   Stack,
-  TextField,
   Button,
   IconButton,
 } from "@mui/material";
+import { TextField } from "@/shared/components/ui/primitives";
 import PersonIcon from "@mui/icons-material/Person";
 import { WarningAlert, LoadingState, ErrorAlert } from "@/shared/components/ui/feedback";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
@@ -187,8 +187,8 @@ export const UserDrawer: React.FC<UserDrawerProps> = ({
                   fullWidth
                   type="email"
                   value={email}
-                  onChange={(e) => updateEmail(e.target.value)}
                   placeholder={t("userManagement.drawer.emailPlaceholder")}
+                  readOnly
                 />
               </Box>
 

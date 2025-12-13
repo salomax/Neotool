@@ -166,6 +166,8 @@ export const GroupRoleAssignment: React.FC<GroupRoleAssignmentProps> = ({
               <Chip
                 {...tagProps}
                 key={key || option.id}
+                variant="outlined"
+                color="primary"
                 label={option.label}
                 disabled={assignLoading || removeLoading}
               />
