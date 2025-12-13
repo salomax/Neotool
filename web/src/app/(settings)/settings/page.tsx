@@ -49,6 +49,7 @@ export default function SettingsPage() {
   return (
     <Container  
       id="settings-page"
+      data-testid="settings-page"
       fullHeight
       maxWidth="xl">
       <Box fullHeight>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { useGetRoleWithUsersAndGroupsQuery, useGetRolesWithPermissionsQuery } from "@/lib/graphql/operations/authorization-management/queries.generated";
+import { useGetRoleWithUsersAndGroupsQuery, useGetRolesWithPermissionsQuery, GetRolesDocument } from "@/lib/graphql/operations/authorization-management/queries.generated";
 import {
   useAssignRoleToGroupMutation,
   useRemoveRoleFromGroupMutation,
@@ -278,6 +278,8 @@ export function useRoleDrawer(
         mutationPromises.push(
           assignRoleToGroupMutation({
             variables: { groupId, roleId },
+            refetchQueries: ['GetRoles'],
+            awaitRefetchQueries: true,
           })
         );
       }
@@ -286,6 +288,8 @@ export function useRoleDrawer(
         mutationPromises.push(
           removeRoleFromGroupMutation({
             variables: { groupId, roleId },
+            refetchQueries: ['GetRoles'],
+            awaitRefetchQueries: true,
           })
         );
       }
@@ -295,6 +299,8 @@ export function useRoleDrawer(
         mutationPromises.push(
           assignPermissionToRoleMutation({
             variables: { roleId, permissionId },
+            refetchQueries: ['GetRoles'],
+            awaitRefetchQueries: true,
           })
         );
       }
@@ -303,6 +309,8 @@ export function useRoleDrawer(
         mutationPromises.push(
           removePermissionFromRoleMutation({
             variables: { roleId, permissionId },
+            refetchQueries: ['GetRoles'],
+            awaitRefetchQueries: true,
           })
         );
       }

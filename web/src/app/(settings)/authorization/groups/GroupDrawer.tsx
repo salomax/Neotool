@@ -78,7 +78,8 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
 
   // Use mutation directly for create to get the created group ID
   const [createGroupMutation, { loading: createLoading }] = useCreateGroupMutation({
-    refetchQueries: [{ query: GetGroupsDocument }],
+    refetchQueries: ['GetGroups'],
+    awaitRefetchQueries: true,
   });
 
   // Direct mutation for updating group name/description only (without userIds)
@@ -207,7 +208,8 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
                 // Don't include userIds - undefined means don't change memberships
               },
             },
-            refetchQueries: [GetGroupWithRelationshipsDocument],
+            refetchQueries: [GetGroupWithRelationshipsDocument, 'GetGroups'],
+            awaitRefetchQueries: true,
           });
         }
         

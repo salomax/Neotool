@@ -111,9 +111,9 @@ export const UserRoleAssignment: React.FC<UserRoleAssignmentProps> = ({
   // Readonly mode: just display roles as chips
   if (readonly) {
     return (
-      <Box>
+      <Box data-testid="user-role-assignment">
         {selectedRoles.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" color="text.secondary" data-testid="user-role-assignment-empty">
             {t("userManagement.roles.noRoles")}
           </Typography>
         ) : (
@@ -123,6 +123,7 @@ export const UserRoleAssignment: React.FC<UserRoleAssignmentProps> = ({
                 key={role.id}
                 variant="outlined"
                 label={role.label}
+                data-testid={`user-role-chip-${role.id}`}
               />
             ))}
           </Box>
@@ -132,7 +133,7 @@ export const UserRoleAssignment: React.FC<UserRoleAssignmentProps> = ({
   }
 
   return (
-    <Box>
+    <Box data-testid="user-role-assignment">
       <Autocomplete
         multiple
         options={roleOptions}
@@ -156,6 +157,7 @@ export const UserRoleAssignment: React.FC<UserRoleAssignmentProps> = ({
                 color="primary"
                 label={option.label}
                 onDelete={onDelete}
+                data-testid={`user-role-chip-${option.id}`}
                 {...tagProps}
               />
             );
@@ -168,6 +170,7 @@ export const UserRoleAssignment: React.FC<UserRoleAssignmentProps> = ({
             placeholder={t("userManagement.roles.searchPlaceholder")}
             fullWidth
             variant="outlined"
+            data-testid="user-role-assignment-input"
             sx={{
               '& .MuiOutlinedInput-root': {
                 '& .MuiOutlinedInput-notchedOutline': {

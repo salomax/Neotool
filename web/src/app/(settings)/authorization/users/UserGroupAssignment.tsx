@@ -111,7 +111,7 @@ export const UserGroupAssignment: React.FC<UserGroupAssignmentProps> = ({
   }
 
   return (
-    <Box>
+    <Box data-testid="user-group-assignment">
       <Autocomplete
         multiple
         options={groupOptions}
@@ -135,6 +135,7 @@ export const UserGroupAssignment: React.FC<UserGroupAssignmentProps> = ({
                 color="primary"
                 label={option.label}
                 onDelete={onDelete}
+                data-testid={`user-group-chip-${option.id}`}
                 {...tagProps}
               />
             );
@@ -146,6 +147,7 @@ export const UserGroupAssignment: React.FC<UserGroupAssignmentProps> = ({
             placeholder={t("userManagement.groups.searchPlaceholder")}
             fullWidth
             variant="outlined"
+            data-testid="user-group-assignment-input"
             sx={{
               '& .MuiOutlinedInput-root': {
                 '& .MuiOutlinedInput-notchedOutline': {
