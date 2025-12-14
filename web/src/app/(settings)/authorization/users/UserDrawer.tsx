@@ -95,7 +95,7 @@ export const UserDrawer: React.FC<UserDrawerProps> = ({
       anchor="right"
       size="md"
       variant="temporary"
-      data-testid="user-drawer"
+      data-testid="drawer"
     >
       <Drawer.Header data-testid="drawer-header">
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, flex: 1 }}>

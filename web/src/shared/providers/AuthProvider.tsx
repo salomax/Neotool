@@ -79,10 +79,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       logger.debug("Token refreshed successfully");
     };
 
-    window.addEventListener('auth:token-refreshed', handleTokenRefresh as EventListener);
+    window.addEventListener('auth:token-refreshed', handleTokenRefresh as (event: Event) => void);
     
     return () => {
-      window.removeEventListener('auth:token-refreshed', handleTokenRefresh as EventListener);
+      window.removeEventListener('auth:token-refreshed', handleTokenRefresh as (event: Event) => void);
     };
   }, []);
 

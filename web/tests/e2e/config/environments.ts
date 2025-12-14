@@ -27,28 +27,28 @@ export const ENVIRONMENTS: Record<TestEnvironment, EnvironmentConfig> = {
     graphqlEndpoint: process.env.GRAPHQL_ENDPOINT || 'http://localhost:4000/graphql',
     apiTimeout: 30000,
     retries: 0,
-    workers: 1,
+    workers: process.env.PLAYWRIGHT_WORKERS ? parseInt(process.env.PLAYWRIGHT_WORKERS) : 1,
   },
   development: {
     baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://localhost:3000',
     graphqlEndpoint: process.env.GRAPHQL_ENDPOINT || 'http://localhost:4000/graphql',
     apiTimeout: 30000,
     retries: 1,
-    workers: 2,
+    workers: process.env.PLAYWRIGHT_WORKERS ? parseInt(process.env.PLAYWRIGHT_WORKERS) : 2,
   },
   staging: {
     baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://staging.neotool.com',
     graphqlEndpoint: process.env.GRAPHQL_ENDPOINT || 'https://staging.neotool.com/graphql',
     apiTimeout: 60000,
     retries: 2,
-    workers: 1,
+    workers: process.env.PLAYWRIGHT_WORKERS ? parseInt(process.env.PLAYWRIGHT_WORKERS) : 2,
   },
   production: {
     baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://neotool.com',
     graphqlEndpoint: process.env.GRAPHQL_ENDPOINT || 'https://neotool.com/graphql',
     apiTimeout: 60000,
     retries: 2,
-    workers: 1,
+    workers: process.env.PLAYWRIGHT_WORKERS ? parseInt(process.env.PLAYWRIGHT_WORKERS) : 2,
   },
 };
 

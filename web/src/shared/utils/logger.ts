@@ -42,7 +42,6 @@ export const logger = {
   },
   debug: (...args: unknown[]) => {
     if (isDebugEnabled) {
-      // eslint-disable-next-line no-console
       console.debug(...args);
     }
   },

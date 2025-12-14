@@ -77,6 +77,7 @@ export const RelayPagination: React.FC<RelayPaginationProps> = ({
             onClick={onGoToFirst}
             disabled={!pageInfo.hasPreviousPage || loading}
             size="small"
+            data-testid="pagination-first-button"
           >
             {t("pagination.first")}
           </Button>
@@ -85,6 +86,7 @@ export const RelayPagination: React.FC<RelayPaginationProps> = ({
             onClick={onLoadPrevious}
             disabled={!resolvedCanLoadPrevious || loading}
             size="small"
+            data-testid="pagination-previous-button"
           >
             {t("pagination.previous")}
           </Button>
@@ -93,6 +95,7 @@ export const RelayPagination: React.FC<RelayPaginationProps> = ({
             onClick={onLoadNext}
             disabled={!pageInfo.hasNextPage || loading}
             size="small"
+            data-testid="pagination-next-button"
           >
             {t("pagination.next")}
           </Button>

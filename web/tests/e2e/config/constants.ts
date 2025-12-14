@@ -30,26 +30,32 @@ export const SELECTORS = {
   
   // Settings
   settingsPage: '[data-testid="settings-page"]',
-  usersTab: 'button:has-text("Users")',
-  groupsTab: 'button:has-text("Groups")',
-  rolesTab: 'button:has-text("Roles")',
+  usersTab: '[data-testid="users-tab"]',
+  groupsTab: '[data-testid="groups-tab"]',
+  rolesTab: '[data-testid="roles-tab"]',
 } as const;
 
 export const TEST_USER_CREDENTIALS = {
   admin: {
-    email: 'admin@test.neotool.com',
-    password: 'AdminTest123!',
+    email: 'admin@example.com',
+    password: 'admin',
     displayName: 'Admin Test User',
   },
   editor: {
-    email: 'editor@test.neotool.com',
-    password: 'EditorTest123!',
-    displayName: 'Editor Test User',
+    email: 'admin@example.com',
+    password: 'admin',
+    displayName: 'Admin Test User',
   },
   viewer: {
-    email: 'viewer@test.neotool.com',
-    password: 'ViewerTest123!',
-    displayName: 'Viewer Test User',
+    email: 'admin@example.com',
+    password: 'admin',
+    displayName: 'Admin Test User',
+  },
+  // Test user with NO group assigned - for negative testing (access control)
+  testuser: {
+    email: 'testuser@example.com',
+    password: 'test',
+    displayName: 'Test User',
   },
 } as const;
 

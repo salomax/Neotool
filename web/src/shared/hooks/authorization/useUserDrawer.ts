@@ -123,7 +123,7 @@ export function useUserDrawer(
     
     // Roles are readonly (assigned through groups only), so don't include in hasChanges
     return displayNameChanged || emailChanged || groupsChanged;
-  }, [user, displayName, email, selectedGroups, selectedRoles]);
+  }, [user, displayName, email, selectedGroups]);
 
   // Handlers for updating local state
   const updateDisplayName = useCallback((value: string) => {

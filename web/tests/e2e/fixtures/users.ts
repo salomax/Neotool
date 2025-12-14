@@ -7,8 +7,8 @@ import { TEST_USER_CREDENTIALS, TEST_DATA_IDS } from '../config/constants';
 
 export const TEST_USERS = {
   valid: {
-    email: 'test@example.com',
-    password: 'TestPassword123!',
+    email: 'admin@example.com',
+    password: 'admin',
     displayName: 'Test User',
   },
   invalid: {
@@ -18,6 +18,8 @@ export const TEST_USERS = {
   admin: TEST_USER_CREDENTIALS.admin,
   editor: TEST_USER_CREDENTIALS.editor,
   viewer: TEST_USER_CREDENTIALS.viewer,
+  // Test user with NO group assigned - for negative testing (access control)
+  testuser: TEST_USER_CREDENTIALS.testuser,
 } as const;
 
 export interface TestUserData {

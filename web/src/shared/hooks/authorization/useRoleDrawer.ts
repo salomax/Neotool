@@ -213,7 +213,7 @@ export function useRoleDrawer(
       originalPermissions.some(p => !currentPermissionIds.has(p.id));
     
     return groupsChanged || permissionsChanged;
-  }, [role, originalUsers, originalGroups, originalPermissions, selectedUsers, selectedGroups, selectedPermissions]);
+  }, [role, originalGroups, originalPermissions, selectedGroups, selectedPermissions]);
 
   // Handlers for updating local state
   const updateSelectedUsers = useCallback((users: User[]) => {

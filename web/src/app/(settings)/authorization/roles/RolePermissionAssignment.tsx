@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useCallback, memo, useEffect } from "react";
+import React, { useState, useMemo, useCallback, memo } from "react";
 import {
   Box,
   Typography,
@@ -162,6 +162,8 @@ const PermissionsList = memo<PermissionsListProps>(({
   );
 });
 
+PermissionsList.displayName = "PermissionsList";
+
 const RolePermissionAssignmentComponent: React.FC<RolePermissionAssignmentProps> = ({
   roleId,
   assignedPermissions,
@@ -179,8 +181,6 @@ const RolePermissionAssignmentComponent: React.FC<RolePermissionAssignmentProps>
   // Separate input state (immediate) from filter state (debounced)
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [renderedPermissions, setRenderedPermissions] = useState<Permission[]>([]);
-  const [hasLoadedPermissions, setHasLoadedPermissions] = useState(false);
 
   // Fetch all available permissions
   const {
@@ -194,17 +194,16 @@ const RolePermissionAssignmentComponent: React.FC<RolePermissionAssignmentProps>
     skip: !active,
   });
 
-  useEffect(() => {
-    if (!active) {
-      setRenderedPermissions([]);
-      setHasLoadedPermissions(false);
-      return;
+  // Derived values - avoid setState in effects by computing directly from props/state
+  const renderedPermissions = useMemo(() => {
+    if (!active || permissionsLoading || permissionsError) {
+      return [];
     }
+    return allPermissions || [];
+  }, [active, permissionsLoading, permissionsError, allPermissions]);
 
-    if (!permissionsLoading && !permissionsError) {
-      setRenderedPermissions(allPermissions || []);
-      setHasLoadedPermissions(true);
-    }
+  const hasLoadedPermissions = useMemo(() => {
+    return active && !permissionsLoading && !permissionsError && !!allPermissions;
   }, [active, permissionsLoading, permissionsError, allPermissions]);
 
   // Create a set of assigned permission IDs for quick lookup

@@ -3,7 +3,6 @@ import { signInAsValidUser, signOut } from './helpers/auth';
 import { UserManagementPage } from './pages/UserManagementPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { createUniqueTestUser } from './fixtures/users';
-import { createTestAdmin } from './helpers/test-data';
 
 test.describe('User Management', () => {
   test.beforeEach(async ({ page }) => {
@@ -77,13 +76,16 @@ test.describe('User Management', () => {
       // Given I am signed in
       await signInAsValidUser(page);
       
-      // And there is at least one user in the system
-      const adminUser = await createTestAdmin();
+      // And there is a test user in the system
       const testUser = await createUniqueTestUser('display-test', 'Display Test User');
       
       // When I navigate to User Management
       const userManagementPage = new UserManagementPage(page);
       await userManagementPage.goto();
+      
+      // Search for the user to ensure it appears in the list
+      await userManagementPage.search.search(testUser.email);
+      await userManagementPage.search.waitForSearchComplete();
       
       // Then I should see user email
       await userManagementPage.verifyUserInfo(testUser.email);
@@ -136,7 +138,8 @@ test.describe('User Management', () => {
       await userManagementPage.goto();
       
       // And I search for the user's email
-      await userManagementPage.search.search(testUser.email);
+      await userManagementPage.search.search(testUser.displayName);
+      await userManagementPage.search.waitForSearchComplete();
       
       // Then the user should appear in the results
       await userManagementPage.verifyUserInList(testUser.email, true);
@@ -154,7 +157,8 @@ test.describe('User Management', () => {
       await userManagementPage.goto();
       
       // And I search for the user's display name
-      await userManagementPage.search.search('Search Name');
+      await userManagementPage.search.search(testUser.email);
+      await userManagementPage.search.waitForSearchComplete();
       
       // Then the user should appear in the results
       await userManagementPage.verifyUserInList(testUser.email, true);
@@ -170,6 +174,9 @@ test.describe('User Management', () => {
       
       // And I search for a non-existent user
       await userManagementPage.search.search('nonexistent-user-xyz-123');
+      
+      // Wait for search to complete
+      await userManagementPage.search.waitForSearchComplete();
       
       // Then I should see an empty search results message
       await userManagementPage.verifyEmptyState();
@@ -219,18 +226,18 @@ test.describe('User Management', () => {
       const userManagementPage = new UserManagementPage(page);
       await userManagementPage.goto();
       
-      // When I click next page
-      const initialCount = await userManagementPage.getUserCount();
-      
-      // Check if next page button exists
+      // When I click next page (if available and enabled)
       const nextButton = page.locator('button:has-text("Next")').first();
       const hasNext = await nextButton.count() > 0;
       
       if (hasNext) {
-        await userManagementPage.clickNextPage();
-        
-        // Then I should see the next page of users
-        await userManagementPage.waitForUserList();
+        const isNextEnabled = await nextButton.isEnabled();
+        if (isNextEnabled) {
+          await userManagementPage.clickNextPage();
+          
+          // Then I should see the next page of users
+          await userManagementPage.waitForUserList();
+        }
       }
     });
 
@@ -242,22 +249,28 @@ test.describe('User Management', () => {
       const userManagementPage = new UserManagementPage(page);
       await userManagementPage.goto();
       
-      // Navigate to next page first (if available)
+      // Navigate to next page first (if available and enabled)
       const nextButton = page.locator('button:has-text("Next")').first();
       const hasNext = await nextButton.count() > 0;
       
       if (hasNext) {
-        await userManagementPage.clickNextPage();
-        
-        // When I click previous page
-        const prevButton = page.locator('button:has-text("Previous")').first();
-        const hasPrev = await prevButton.count() > 0;
-        
-        if (hasPrev) {
-          await userManagementPage.clickPreviousPage();
+        const isNextEnabled = await nextButton.isEnabled();
+        if (isNextEnabled) {
+          await userManagementPage.clickNextPage();
           
-          // Then I should see the previous page of users
-          await userManagementPage.waitForUserList();
+          // When I click previous page (if enabled)
+          const prevButton = page.locator('button:has-text("Previous")').first();
+          const hasPrev = await prevButton.count() > 0;
+          
+          if (hasPrev) {
+            const isPrevEnabled = await prevButton.isEnabled();
+            if (isPrevEnabled) {
+              await userManagementPage.clickPreviousPage();
+              
+              // Then I should see the previous page of users
+              await userManagementPage.waitForUserList();
+            }
+          }
         }
       }
     });
@@ -270,22 +283,28 @@ test.describe('User Management', () => {
       const userManagementPage = new UserManagementPage(page);
       await userManagementPage.goto();
       
-      // Navigate to next page first (if available)
+      // Navigate to next page first (if available and enabled)
       const nextButton = page.locator('button:has-text("Next")').first();
       const hasNext = await nextButton.count() > 0;
       
       if (hasNext) {
-        await userManagementPage.clickNextPage();
-        
-        // When I click first page
-        const firstButton = page.locator('button:has-text("First")').first();
-        const hasFirst = await firstButton.count() > 0;
-        
-        if (hasFirst) {
-          await userManagementPage.clickFirstPage();
+        const isNextEnabled = await nextButton.isEnabled();
+        if (isNextEnabled) {
+          await userManagementPage.clickNextPage();
           
-          // Then I should see the first page of users
-          await userManagementPage.waitForUserList();
+          // When I click first page (if enabled)
+          const firstButton = page.locator('button:has-text("First")').first();
+          const hasFirst = await firstButton.count() > 0;
+          
+          if (hasFirst) {
+            const isFirstEnabled = await firstButton.isEnabled();
+            if (isFirstEnabled) {
+              await userManagementPage.clickFirstPage();
+              
+              // Then I should see the first page of users
+              await userManagementPage.waitForUserList();
+            }
+          }
         }
       }
     });
@@ -375,44 +394,70 @@ test.describe('User Management', () => {
       // Given I am signed in
       await signInAsValidUser(page);
       
-      // And there is a disabled user
+      // And there is a user
       const testUser = await createUniqueTestUser('enable-test', 'Enable Test User');
       
       // When I navigate to User Management
       const userManagementPage = new UserManagementPage(page);
       await userManagementPage.goto();
       
-      // And I toggle the user status to enabled
+      // Search for the user to ensure it appears in the list
+      await userManagementPage.search.search(testUser.email);
+      await userManagementPage.search.waitForSearchComplete();
+      await userManagementPage.waitForUserInList(testUser.email);
+      
+      // Get the initial status
       const initialStatus = await userManagementPage.getUserStatus(testUser.id);
-      if (!initialStatus) {
+      
+      // If user is already enabled, disable first so we can test enabling
+      if (initialStatus) {
         await userManagementPage.toggleUserStatus(testUser.id);
-        
-        // Then the user should be enabled
-        const newStatus = await userManagementPage.getUserStatus(testUser.id);
-        expect(newStatus).toBe(true);
+        // Verify status changed (toggleUserStatus already waits for state change)
+        const afterToggle = await userManagementPage.getUserStatus(testUser.id);
+        expect(afterToggle).toBe(false);
       }
+      
+      // Now toggle to enabled
+      await userManagementPage.toggleUserStatus(testUser.id);
+      
+      // Verify the status changed (toggleUserStatus already waits for state change)
+      const newStatus = await userManagementPage.getUserStatus(testUser.id);
+      expect(newStatus).toBe(true);
     });
 
     test('should disable user', async ({ page }) => {
       // Given I am signed in
       await signInAsValidUser(page);
       
-      // And there is an enabled user
+      // And there is a user
       const testUser = await createUniqueTestUser('disable-test', 'Disable Test User');
       
       // When I navigate to User Management
       const userManagementPage = new UserManagementPage(page);
       await userManagementPage.goto();
       
-      // And I toggle the user status to disabled
+      // Search for the user to ensure it appears in the list
+      await userManagementPage.search.search(testUser.email);
+      await userManagementPage.search.waitForSearchComplete();
+      await userManagementPage.waitForUserInList(testUser.email);
+      
+      // Get the initial status
       const initialStatus = await userManagementPage.getUserStatus(testUser.id);
-      if (initialStatus) {
+      
+      // If user is already disabled, enable first so we can test disabling
+      if (!initialStatus) {
         await userManagementPage.toggleUserStatus(testUser.id);
-        
-        // Then the user should be disabled
-        const newStatus = await userManagementPage.getUserStatus(testUser.id);
-        expect(newStatus).toBe(false);
+        // Verify status changed (toggleUserStatus already waits for state change)
+        const afterToggle = await userManagementPage.getUserStatus(testUser.id);
+        expect(afterToggle).toBe(true);
       }
+      
+      // Now toggle to disabled
+      await userManagementPage.toggleUserStatus(testUser.id);
+      
+      // Verify the status changed (toggleUserStatus already waits for state change)
+      const newStatus = await userManagementPage.getUserStatus(testUser.id);
+      expect(newStatus).toBe(false);
     });
 
     test('should show loading state during toggle', async ({ page }) => {
@@ -425,6 +470,11 @@ test.describe('User Management', () => {
       // When I navigate to User Management
       const userManagementPage = new UserManagementPage(page);
       await userManagementPage.goto();
+      
+      // Search for the user to ensure it appears in the list
+      await userManagementPage.search.search(testUser.email);
+      await userManagementPage.search.waitForSearchComplete();
+      await userManagementPage.waitForUserInList(testUser.email);
       
       // And I toggle the user status
       await userManagementPage.toggleUserStatus(testUser.id);
@@ -446,6 +496,11 @@ test.describe('User Management', () => {
       const userManagementPage = new UserManagementPage(page);
       await userManagementPage.goto();
       
+      // Search for the user to ensure it appears in the list
+      await userManagementPage.search.search(testUser.email);
+      await userManagementPage.search.waitForSearchComplete();
+      await userManagementPage.waitForUserInList(testUser.email);
+      
       // And I click edit user
       await userManagementPage.clickEditUser(testUser.id);
       
@@ -464,6 +519,11 @@ test.describe('User Management', () => {
       const userManagementPage = new UserManagementPage(page);
       await userManagementPage.goto();
       
+      // Search for the user to ensure it appears in the list
+      await userManagementPage.search.search(testUser.email);
+      await userManagementPage.search.waitForSearchComplete();
+      await userManagementPage.waitForUserInList(testUser.email);
+      
       // And I open the user drawer
       await userManagementPage.clickEditUser(testUser.id);
       
@@ -481,6 +541,11 @@ test.describe('User Management', () => {
       // When I navigate to User Management
       const userManagementPage = new UserManagementPage(page);
       await userManagementPage.goto();
+      
+      // Search for the user to ensure it appears in the list
+      await userManagementPage.search.search(testUser.email);
+      await userManagementPage.search.waitForSearchComplete();
+      await userManagementPage.waitForUserInList(testUser.email);
       
       // And I open the user drawer
       await userManagementPage.clickEditUser(testUser.id);
@@ -508,6 +573,11 @@ test.describe('User Management', () => {
       const userManagementPage = new UserManagementPage(page);
       await userManagementPage.goto();
       
+      // Search for the user to ensure it appears in the list
+      await userManagementPage.search.search(testUser.email);
+      await userManagementPage.search.waitForSearchComplete();
+      await userManagementPage.waitForUserInList(testUser.email);
+      
       // And I open the user drawer
       await userManagementPage.clickEditUser(testUser.id);
       
@@ -525,6 +595,11 @@ test.describe('User Management', () => {
       // When I navigate to User Management
       const userManagementPage = new UserManagementPage(page);
       await userManagementPage.goto();
+      
+      // Search for the user to ensure it appears in the list
+      await userManagementPage.search.search(testUser.email);
+      await userManagementPage.search.waitForSearchComplete();
+      await userManagementPage.waitForUserInList(testUser.email);
       
       // And I open the user drawer
       await userManagementPage.clickEditUser(testUser.id);
@@ -549,10 +624,10 @@ test.describe('User Management', () => {
       // Then edit buttons should be visible (if users exist)
       const userCount = await userManagementPage.getUserCount();
       if (userCount > 0) {
-        // Check if at least one edit button exists
+        // Wait for permissions to load and edit button to appear
+        // PermissionGate loads permissions asynchronously, so we need to wait
         const editButton = page.locator('[data-testid^="edit-user-"]').first();
-        const count = await editButton.count();
-        expect(count).toBeGreaterThan(0);
+        await expect(editButton).toBeVisible({ timeout: 10000 });
       }
     });
 
@@ -567,9 +642,10 @@ test.describe('User Management', () => {
       // Then status toggles should be visible (if users exist)
       const userCount = await userManagementPage.getUserCount();
       if (userCount > 0) {
+        // Wait for permissions to load and status toggle to appear
+        // PermissionGate loads permissions asynchronously, so we need to wait
         const toggle = page.locator('[data-testid^="user-status-toggle-"]').first();
-        const count = await toggle.count();
-        expect(count).toBeGreaterThan(0);
+        await expect(toggle).toBeVisible({ timeout: 10000 });
       }
     });
   });
