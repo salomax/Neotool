@@ -51,6 +51,13 @@ search_keywords: [commands, cli, reference]
 ./neotool kafka --topic --docker                     # Force Docker execution
 ```
 
+### Upstream Merge Strategy Management
+```bash
+./neotool upstream add <file|pattern>                 # Add file/pattern to use "ours" merge strategy
+./neotool upstream list                              # List all configured files/patterns
+./neotool upstream remove <file|pattern>              # Remove file/pattern from merge strategy
+```
+
 **Kafka Options**:
 - `--bootstrap-server <server>`: Override default bootstrap server (default: `localhost:9092`)
 - `--docker`: Force using Docker exec (useful when Kafka tools aren't installed locally)
@@ -98,6 +105,26 @@ search_keywords: [commands, cli, reference]
 # Force Docker execution
 ./neotool kafka --topic --docker
 ```
+
+**Upstream Merge Strategy Examples**:
+```bash
+# Add specific files
+./neotool upstream add web/public/favicon.ico
+./neotool upstream add project.config.json
+./neotool upstream add web/src/config/branding.ts
+
+# Add directory patterns
+./neotool upstream add "web/src/app/product/**"
+./neotool upstream add "design/assets/logos/**"
+
+# List all configured files
+./neotool upstream list
+
+# Remove a file from auto-merge strategy
+./neotool upstream remove web/public/favicon.ico
+```
+
+**Note**: This command manages `.gitattributes` entries to automatically resolve merge conflicts by always keeping your version ("ours") of specified files when merging from upstream. This is useful for product-specific customizations like branding, config files, and product-specific code. The `.gitattributes` file is already configured with default entries (favicon and logos) when you clone NeoTool.
 
 ## Backend Commands
 

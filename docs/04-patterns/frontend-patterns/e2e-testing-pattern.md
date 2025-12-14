@@ -52,7 +52,12 @@ This command:
    pnpm exec playwright install --with-deps
    ```
 
-3. Ensure the application is running (or let Playwright start it automatically via `webServer` config)
+3. Build and start the application (required for optimal performance):
+   ```bash
+   pnpm build && pnpm start
+   ```
+   
+   **Important**: Always use the compiled version (`pnpm build && pnpm start`) for E2E tests to ensure better performance. See [Performance: Use Compiled Version](#performance-use-compiled-version) section for details.
 
 4. Run tests:
    ```bash
@@ -90,6 +95,22 @@ tests/e2e/
 ```
 
 ## Running Tests
+
+### Performance: Use Compiled Version
+
+**IMPORTANT**: For better performance, E2E tests must run against a compiled version of the application. Always build and start the application before running tests:
+
+```bash
+pnpm build && pnpm start
+```
+
+**Rationale**:
+- Compiled production builds are optimized and faster
+- Development mode includes additional overhead (hot reload, source maps, etc.)
+- E2E tests should run against production-like builds for accurate performance testing
+- Reduces test execution time and improves reliability
+
+**Note**: If using Playwright's `webServer` configuration, ensure it uses the compiled build, not the development server.
 
 ### Run all E2E tests
 
@@ -362,6 +383,156 @@ await page.waitForLoadState('networkidle');
 // ❌ Bad
 await page.goto('/');
 // Immediately checking something that might not be ready
+```
+
+## Component-Specific Interaction Patterns
+
+These patterns were discovered through practical E2E testing and should be followed to ensure reliable test interactions.
+
+### TextField Inputs
+
+**Rule**: Always target the `input` element inside TextField components using `data-testid`.
+
+**Rationale**: TextField components wrap the actual input element. Targeting the input directly ensures reliable interaction.
+
+```typescript
+// ✅ Good
+const emailInput = page.locator('[data-testid="textfield-email"] input');
+await emailInput.fill('test@example.com');
+
+// ❌ Bad
+const emailField = page.locator('[data-testid="textfield-email"]');
+await emailField.fill('test@example.com'); // May not work reliably
+```
+
+### Switch Components
+
+**Rule**: Check the `input[type="checkbox"]` element inside Switch components, not the Switch wrapper.
+
+**Rationale**: Switch components render a checkbox input internally. Checking the wrapper may not accurately reflect the actual state.
+
+```typescript
+// ✅ Good
+const switchInput = page.locator('[data-testid="switch-enabled"] input[type="checkbox"]');
+await expect(switchInput).toBeChecked();
+
+// ❌ Bad
+const switchComponent = page.locator('[data-testid="switch-enabled"]');
+await expect(switchComponent).toBeChecked(); // May not work correctly
+```
+
+### Empty States
+
+**Rule**: Add unique `data-testid` attributes to empty state elements and exclude them from counts.
+
+**Rationale**: Empty states are part of the UI but should not be counted as data items. Unique test IDs help distinguish them.
+
+```typescript
+// ✅ Good
+// Empty state has data-testid="empty-state-users"
+const emptyState = page.locator('[data-testid="empty-state-users"]');
+await expect(emptyState).toBeVisible();
+
+// Count only actual data items, excluding empty state
+const userRows = page.locator('[data-testid^="user-row-"]');
+const count = await userRows.count();
+expect(count).toBe(0);
+
+// ❌ Bad
+// Counting all elements including empty state
+const allElements = page.locator('[data-testid^="user-"]');
+const count = await allElements.count(); // May include empty state
+```
+
+### Data Creation Verification
+
+**Rule**: After creating data, search or wait for it to appear before asserting.
+
+**Rationale**: Data creation is asynchronous. The UI may not immediately reflect new data. Waiting or searching ensures the data is visible.
+
+```typescript
+// ✅ Good
+await createUser('test@example.com', 'Test User');
+// Wait for the user to appear in the list
+await page.waitForSelector('[data-testid="user-row-test@example.com"]', { 
+  state: 'visible',
+  timeout: 5000 
+});
+
+// Or search for the user
+await userManagementPage.search.search('test@example.com');
+await expect(page.locator('[data-testid="user-row-test@example.com"]')).toBeVisible();
+
+// ❌ Bad
+await createUser('test@example.com', 'Test User');
+// Immediately checking - may fail if data hasn't loaded yet
+await expect(page.locator('[data-testid="user-row-test@example.com"]')).toBeVisible();
+```
+
+### Button Interactions
+
+**Rule**: Check if a button is enabled before clicking it.
+
+**Rationale**: Buttons may be disabled during loading states or invalid form states. Checking `isEnabled()` prevents clicking disabled buttons and makes test failures more informative.
+
+```typescript
+// ✅ Good
+const submitButton = page.locator('[data-testid="button-submit"]');
+await expect(submitButton).toBeEnabled();
+await submitButton.click();
+
+// Or with explicit check
+if (await submitButton.isEnabled()) {
+  await submitButton.click();
+} else {
+  throw new Error('Submit button is disabled');
+}
+
+// ❌ Bad
+const submitButton = page.locator('[data-testid="button-submit"]');
+await submitButton.click(); // May fail silently or click disabled button
+```
+
+### Drawer Elements
+
+**Rule**: Use `page.locator()` directly for drawer elements, not `body.locator()`.
+
+**Rationale**: Drawers are rendered in the page context. Using `body.locator()` may not reliably find drawer elements, especially when drawers are portaled.
+
+```typescript
+// ✅ Good
+const drawer = page.locator('[data-testid="user-drawer"]');
+const drawerInput = drawer.locator('[data-testid="textfield-email"] input');
+await drawerInput.fill('test@example.com');
+
+// ❌ Bad
+const drawer = page.locator('body').locator('[data-testid="user-drawer"]');
+// May not find drawer elements reliably
+```
+
+### State Verification
+
+**Rule**: Get initial state, perform action, then verify the change.
+
+**Rationale**: Verifying state changes requires knowing the initial state. This pattern ensures tests are deterministic and can handle both initial states.
+
+```typescript
+// ✅ Good
+// Get initial state
+const switchInput = page.locator('[data-testid="switch-enabled"] input[type="checkbox"]');
+const initialChecked = await switchInput.isChecked();
+
+// Perform action
+await switchInput.click();
+
+// Verify change
+const newChecked = await switchInput.isChecked();
+expect(newChecked).toBe(!initialChecked);
+
+// ❌ Bad
+// Assuming initial state
+await switchInput.click();
+await expect(switchInput).toBeChecked(); // May fail if already checked
 ```
 
 ## Test Data Management

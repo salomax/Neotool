@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef, startTransition } from "react";
 import { useRelayPagination } from '@/shared/hooks/pagination';
 import { useDebouncedSearch } from '@/shared/hooks/search';
 import { useSorting } from '@/shared/hooks/sorting';
@@ -154,8 +154,8 @@ export function useRelayConnectionManagement<TData, TItem, TOrderField extends s
   const [first, setFirst] = useState(initialFirst);
   const [after, setAfter] = useState<string | null>(null);
 
-  // Ref to preserve previous data during loading to prevent flicker
-  const previousDataRef = useRef<TData | null>(null);
+  // State to preserve previous data during loading to prevent flicker
+  const [previousData, setPreviousData] = useState<TData | null>(null);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
@@ -172,18 +172,21 @@ export function useRelayConnectionManagement<TData, TItem, TOrderField extends s
     onSortChange: handleSortChange,
   });
 
-  // Update previous data ref when we have new data
+  // Update previous data state when we have new data
   // Set it whenever we have data (even if still loading) to prevent flicker
+  // Use startTransition to mark as non-urgent and avoid cascading renders
   useEffect(() => {
     if (data) {
-      previousDataRef.current = data;
+      startTransition(() => {
+        setPreviousData(data);
+      });
     }
   }, [data]);
 
   // Get current data (use previous data while loading to prevent flicker)
   const currentData = useMemo(() => {
-    return data || (loading ? previousDataRef.current : null);
-  }, [data, loading]);
+    return data || (loading ? previousData : null);
+  }, [data, loading, previousData]);
 
   // Extract connection from current data
   const connection = useMemo(() => {
@@ -191,17 +194,18 @@ export function useRelayConnectionManagement<TData, TItem, TOrderField extends s
     return getConnection(currentData);
   }, [currentData, getConnection]);
 
-  // Stable empty array reference
-  const emptyArrayRef = useRef(createEmptyArray());
+  // Stable empty array reference (memoized to prevent re-creation)
+  // createEmptyArray should be stable (typically a constant function)
+  const emptyArray = useMemo(() => createEmptyArray(), [createEmptyArray]);
 
   // Derived data - use previous data while loading to prevent flicker
   const items = useMemo(() => {
     const edges = connection?.edges;
     if (!edges || edges.length === 0) {
-      return emptyArrayRef.current;
+      return emptyArray;
     }
     return edges.map(e => e.node);
-  }, [connection]);
+  }, [connection, emptyArray]);
 
   const pageInfo = useMemo(() => {
     const info = connection?.pageInfo || null;

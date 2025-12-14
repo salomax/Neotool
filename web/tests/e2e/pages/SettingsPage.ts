@@ -13,7 +13,9 @@ export class SettingsPage {
    */
   async goto(): Promise<void> {
     await this.page.goto('/settings');
-    await this.page.waitForLoadState('networkidle');
+    // Wait for page to load and settings tab to be visible
+    await this.page.waitForLoadState('domcontentloaded');
+    await this.page.locator(SELECTORS.usersTab).waitFor({ state: 'visible', timeout: 10000 });
     await this.waitForPageLoad();
   }
 

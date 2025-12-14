@@ -7,7 +7,7 @@ import jakarta.persistence.Converter
 /**
  * JPA AttributeConverter for MembershipType enum.
  * Handles case-insensitive conversion between database strings (lowercase) and enum values (uppercase).
- * 
+ *
  * Database stores: "member", "admin", "owner" (lowercase)
  * Enum values: MEMBER, ADMIN, OWNER (uppercase)
  */
@@ -26,7 +26,8 @@ class MembershipTypeConverter : AttributeConverter<MembershipType, String> {
             MembershipType.valueOf(dbData.uppercase())
         } catch (e: IllegalArgumentException) {
             throw IllegalArgumentException(
-                "Invalid membership type: '$dbData'. Valid values are: ${MembershipType.values().joinToString { it.name.lowercase() }}",
+                "Invalid membership type: '$dbData'. Valid values are: " +
+                    "${MembershipType.values().joinToString { it.name.lowercase() }}",
                 e,
             )
         }

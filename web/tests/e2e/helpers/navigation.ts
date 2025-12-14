@@ -4,13 +4,16 @@
 
 import { Page } from '@playwright/test';
 import { currentConfig } from '../config/environments';
+import { SELECTORS } from '../config/constants';
 
 /**
  * Navigate to the settings page
  */
 export async function navigateToSettings(page: Page): Promise<void> {
   await page.goto('/settings');
-  await page.waitForLoadState('networkidle');
+  // Wait for page to load and settings tab to be visible
+  await page.waitForLoadState('domcontentloaded');
+  await page.locator(SELECTORS.usersTab).waitFor({ state: 'visible', timeout: 10000 });
 }
 
 /**
@@ -46,7 +49,7 @@ export async function navigateToRoleManagement(page: Page): Promise<void> {
  * Wait for page to be fully loaded
  */
 export async function waitForPageLoad(page: Page): Promise<void> {
-  await page.waitForLoadState('networkidle');
+  // Use domcontentloaded instead of networkidle to avoid timeout issues
   await page.waitForLoadState('domcontentloaded');
 }
 

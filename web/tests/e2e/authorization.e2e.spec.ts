@@ -49,13 +49,17 @@ test.describe('Authorization Layer', () => {
       // And I click on the Users tab
       await page.click('text=Users');
       
-      // Then the edit button should be visible (if user has permission)
-      // Note: This assumes there are users in the list
+      // Wait for the user list to load
+      await page.waitForSelector('[data-testid="user-list-table"]', { timeout: 10000 }).catch(() => {
+        // Table might not exist if empty
+      });
+      
+      // Then the edit button should be visible (if user has permission and users exist)
+      // PermissionGate loads permissions asynchronously, so we need to wait
       const editButton = page.locator('[data-testid^="edit-user-"]').first();
-      // Check if button exists - visibility depends on permissions
       const count = await editButton.count();
       if (count > 0) {
-        await expect(editButton).toBeVisible();
+        await expect(editButton).toBeVisible({ timeout: 10000 });
       }
     });
 
@@ -67,11 +71,17 @@ test.describe('Authorization Layer', () => {
       await page.goto('/settings');
       await page.click('text=Users');
       
-      // Then the status toggle should be visible (if user has permission)
+      // Wait for the user list to load
+      await page.waitForSelector('[data-testid="user-list-table"]', { timeout: 10000 }).catch(() => {
+        // Table might not exist if empty
+      });
+      
+      // Then the status toggle should be visible (if user has permission and users exist)
+      // PermissionGate loads permissions asynchronously, so we need to wait
       const statusToggle = page.locator('[data-testid^="user-status-toggle-"]').first();
       const count = await statusToggle.count();
       if (count > 0) {
-        await expect(statusToggle).toBeVisible();
+        await expect(statusToggle).toBeVisible({ timeout: 10000 });
       }
     });
   });

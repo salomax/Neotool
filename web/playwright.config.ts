@@ -49,8 +49,8 @@ export default defineConfig({
     /* Base URL to use in actions like `await page.goto('/')`. */
     baseURL: currentConfig.baseURL,
     
-    /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-    trace: process.env.CI ? 'on-first-retry' : 'retain-on-failure',
+    /* Collect trace for failures */
+    trace: 'retain-on-failure',
     
     /* Screenshot on failure */
     screenshot: 'only-on-failure',
@@ -104,7 +104,7 @@ export default defineConfig({
   webServer: {
     command: 'pnpm run dev',
     url: currentConfig.baseURL,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: true, // Always reuse existing server for grouped test runs
     timeout: 120 * 1000,
     stdout: 'ignore',
     stderr: 'pipe',

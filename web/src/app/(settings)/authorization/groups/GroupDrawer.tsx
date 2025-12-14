@@ -244,7 +244,6 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
     assignRoleToGroup,
     hasRoleOrUserChanges,
     handleSaveRolesAndUsers,
-    refetchGroup,
     group,
   ]);
 

@@ -57,15 +57,11 @@ export class UserDrawer {
    * Close drawer
    */
   async close(): Promise<void> {
-    // Look for close button (X icon)
-    const closeButton = this.page.locator('button[aria-label*="Close"], button[aria-label*="close"]').first();
-    const count = await closeButton.count();
-    if (count > 0) {
-      await closeButton.click();
-    } else {
-      // Fallback: click outside or press Escape
-      await this.page.keyboard.press('Escape');
-    }
+    // Use data-testid for the close button
+    const closeButton = this.page.locator('[data-testid="drawer-close-button"]');
+    await closeButton.waitFor({ state: 'visible', timeout: 10000 });
+    await expect(closeButton).toBeEnabled({ timeout: 5000 });
+    await closeButton.click();
     await this.waitForClose();
   }
 
@@ -73,7 +69,24 @@ export class UserDrawer {
    * Get display name input
    */
   private getDisplayNameInput() {
-    return this.getBody().locator('input[type="text"]').first();
+    // TextField renders data-testid on the wrapper, but we need to target the actual input element
+    const displayNameInputWrapper = this.page.locator('[data-testid="user-drawer-display-name-input"]');
+    return displayNameInputWrapper.locator('input');
+  }
+
+  /**
+   * Get email input
+   */
+  private async getEmailInput() {
+    // Wait for the email input wrapper to be visible (indicates data has loaded)
+    // TextField renders data-testid on the wrapper, but we need to target the actual input element
+    const emailInputWrapper = this.page.locator('[data-testid="user-drawer-email-input"]');
+    await emailInputWrapper.waitFor({ state: 'visible', timeout: 15000 });
+    
+    // Find the actual input element inside the TextField wrapper
+    const emailInput = emailInputWrapper.locator('input');
+    await emailInput.waitFor({ state: 'attached', timeout: 5000 });
+    return emailInput;
   }
 
   /**
@@ -98,7 +111,7 @@ export class UserDrawer {
    */
   async verifyEmailReadonly(): Promise<void> {
     // Email field should be readonly
-    const emailInput = this.getBody().locator('input[type="email"]').first();
+    const emailInput = await this.getEmailInput();
     const isReadonly = await emailInput.getAttribute('readonly');
     expect(isReadonly).not.toBeNull();
   }
@@ -141,25 +154,32 @@ export class UserDrawer {
    * Click save button
    */
   async save(): Promise<void> {
-    const saveButton = this.getBody()
-      .locator('button')
-      .filter({ hasText: /save|Save|Save Changes/i })
-      .first();
+    const saveButton = this.page.locator('[data-testid="user-drawer-save-button"]');
+    await saveButton.waitFor({ state: 'visible', timeout: 10000 });
+    await expect(saveButton).toBeEnabled({ timeout: 5000 });
     
+    // Click the save button
     await saveButton.click();
-    // Wait for save to complete
-    await this.page.waitForLoadState('networkidle');
+    
+    // Wait for save operation to complete
+    // The button is disabled and shows "Saving..." text while saving
+    // Wait for the button to be enabled again, which indicates save completed
+    await expect(saveButton).toBeEnabled({ timeout: 15000 });
+    
+    // Wait a moment for any UI updates, network requests, or animations to complete
+    await this.page.waitForTimeout(500);
+    
+    // Note: The drawer may or may not close automatically after save depending on implementation
+    // The test should verify the save succeeded by checking the data, not by expecting the drawer to close
   }
 
   /**
    * Click cancel button
    */
   async cancel(): Promise<void> {
-    const cancelButton = this.getBody()
-      .locator('button')
-      .filter({ hasText: /cancel|Cancel/i })
-      .first();
-    
+    const cancelButton = this.page.locator('[data-testid="user-drawer-cancel-button"]');
+    await cancelButton.waitFor({ state: 'visible', timeout: 10000 });
+    await expect(cancelButton).toBeEnabled({ timeout: 5000 });
     await cancelButton.click();
     await this.waitForClose();
   }
@@ -177,10 +197,44 @@ export class UserDrawer {
    */
   async verifyUserInfo(email: string, displayName?: string): Promise<void> {
     const body = this.getBody();
-    await expect(body).toContainText(email);
+    // Wait for loading to complete - check that loading indicator is gone
+    const loadingIndicator = body.locator('[role="progressbar"], [data-testid*="loading"]');
+    const loadingCount = await loadingIndicator.count();
+    if (loadingCount > 0) {
+      await expect(loadingIndicator).not.toBeVisible({ timeout: 15000 });
+    }
+    
+    const emailInput = await this.getEmailInput();
+    
+    // Wait a bit for the value to be populated
+    await this.page.waitForTimeout(500);
+    
+    // Verify email is in the input value
+    const emailValue = await emailInput.inputValue();
+    if (emailValue && emailValue.trim() !== '') {
+      expect(emailValue).toBe(email);
+    } else {
+      // Fallback: check body text
+      await expect(body).toContainText(email, { timeout: 5000 });
+    }
     
     if (displayName) {
-      await expect(body).toContainText(displayName);
+      // Wait for display name input wrapper
+      const displayNameInputWrapper = this.page.locator('[data-testid="user-drawer-display-name-input"]');
+      await displayNameInputWrapper.waitFor({ state: 'visible', timeout: 10000 });
+      
+      // Find the actual input element inside the TextField wrapper
+      const displayNameInput = displayNameInputWrapper.locator('input');
+      await displayNameInput.waitFor({ state: 'attached', timeout: 5000 });
+      
+      await this.page.waitForTimeout(500);
+      const displayNameValue = await displayNameInput.inputValue();
+      if (displayNameValue && displayNameValue.trim() !== '') {
+        expect(displayNameValue).toBe(displayName);
+      } else {
+        // Fallback: check body text
+        await expect(body).toContainText(displayName, { timeout: 5000 });
+      }
     }
   }
 
@@ -209,7 +263,8 @@ export class UserDrawer {
     
     if (count > 0) {
       await removeButton.click();
-      await this.page.waitForLoadState('networkidle');
+      // Wait for group chip to be removed from UI
+      await expect(groupChip).not.toBeVisible({ timeout: 5000 });
     }
   }
 }

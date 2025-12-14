@@ -154,7 +154,11 @@ export function useGroupManagement(options: UseGroupManagementOptions = {}): Use
 
   // Ref to track current first value for guard
   const firstRef = useRef(firstState);
-  firstRef.current = firstState;
+
+  // Update ref in effect to avoid updating during render
+  useEffect(() => {
+    firstRef.current = firstState;
+  }, [firstState]);
 
   // State to preserve previous data during loading to prevent flicker
   const [previousData, setPreviousData] = useState<any>(null);

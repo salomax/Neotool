@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:mobile="http://www.google.com/schemas/sitemap-mobile/1.0" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
+<url><loc>http://localhost:3000/signup</loc><lastmod>2025-12-14T00:18:05.923Z</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+<url><loc>http://localhost:3000/forgot-password</loc><lastmod>2025-12-14T00:18:05.924Z</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+<url><loc>http://localhost:3000/documentation/accessibility</loc><lastmod>2025-12-14T00:18:05.924Z</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+<url><loc>http://localhost:3000/documentation</loc><lastmod>2025-12-14T00:18:05.924Z</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+<url><loc>http://localhost:3000/documentation/performance</loc><lastmod>2025-12-14T00:18:05.924Z</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+<url><loc>http://localhost:3000/signin</loc><lastmod>2025-12-14T00:18:05.924Z</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+<url><loc>http://localhost:3000/documentation/routing</loc><lastmod>2025-12-14T00:18:05.924Z</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+<url><loc>http://localhost:3000/design-system</loc><lastmod>2025-12-14T00:18:05.924Z</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+<url><loc>http://localhost:3000/documentation/getting-started</loc><lastmod>2025-12-14T00:18:05.924Z</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+<url><loc>http://localhost:3000/documentation/testing</loc><lastmod>2025-12-14T00:18:05.924Z</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+<url><loc>http://localhost:3000/examples/advanced-i18n</loc><lastmod>2025-12-14T00:18:05.924Z</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+<url><loc>http://localhost:3000/documentation/security</loc><lastmod>2025-12-14T00:18:05.924Z</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+<url><loc>http://localhost:3000/examples/analytics</loc><lastmod>2025-12-14T00:18:05.924Z</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+<url><loc>http://localhost:3000/examples/api</loc><lastmod>2025-12-14T00:18:05.924Z</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+<url><loc>http://localhost:3000/examples/customers-smart</loc><lastmod>2025-12-14T00:18:05.924Z</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+<url><loc>http://localhost:3000/examples/events</loc><lastmod>2025-12-14T00:18:05.924Z</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+<url><loc>http://localhost:3000/examples/dashboard</loc><lastmod>2025-12-14T00:18:05.924Z</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+<url><loc>http://localhost:3000/examples/inventory</loc><lastmod>2025-12-14T00:18:05.924Z</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+<url><loc>http://localhost:3000/examples/multilang</loc><lastmod>2025-12-14T00:18:05.924Z</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+<url><loc>http://localhost:3000/documentation/state-management</loc><lastmod>2025-12-14T00:18:05.924Z</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+<url><loc>http://localhost:3000/examples/orders</loc><lastmod>2025-12-14T00:18:05.924Z</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+<url><loc>http://localhost:3000/reset-password</loc><lastmod>2025-12-14T00:18:05.924Z</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+<url><loc>http://localhost:3000/examples/graphql</loc><lastmod>2025-12-14T00:18:05.924Z</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+<url><loc>http://localhost:3000/examples/database</loc><lastmod>2025-12-14T00:18:05.924Z</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+<url><loc>http://localhost:3000/examples</loc><lastmod>2025-12-14T00:18:05.924Z</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+<url><loc>http://localhost:3000/documentation/deployment</loc><lastmod>2025-12-14T00:18:05.924Z</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+<url><loc>http://localhost:3000/examples/products</loc><lastmod>2025-12-14T00:18:05.924Z</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+<url><loc>http://localhost:3000</loc><lastmod>2025-12-14T00:18:05.924Z</lastmod><changefreq>weekly</changefreq><priority>1</priority></url>
+<url><loc>http://localhost:3000/documentation/components</loc><lastmod>2025-12-14T00:18:05.924Z</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+<url><loc>http://localhost:3000/design-system/components</loc><lastmod>2025-12-14T00:18:05.924Z</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+<url><loc>http://localhost:3000/documentation/themes</loc><lastmod>2025-12-14T00:18:05.924Z</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+<url><loc>http://localhost:3000/examples/customers</loc><lastmod>2025-12-14T00:18:05.924Z</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+<url><loc>http://localhost:3000/settings</loc><lastmod>2025-12-14T00:18:05.924Z</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+</urlset>

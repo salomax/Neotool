@@ -163,10 +163,14 @@ export function useRoleManagement(options: UseRoleManagementOptions = {}): UseRo
 
   // Ref to track current first value for guard
   const firstRef = useRef(firstState);
-  firstRef.current = firstState;
 
-  // Ref to preserve previous data during loading to prevent flicker
-  const previousDataRef = useRef<any>(null);
+  // Update ref in effect to avoid updating during render
+  useEffect(() => {
+    firstRef.current = firstState;
+  }, [firstState]);
+
+  // State to preserve previous data during loading to prevent flicker
+  const [previousData, setPreviousData] = useState<any>(null);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState(options.initialSearchQuery || "");
@@ -202,10 +206,12 @@ export function useRoleManagement(options: UseRoleManagementOptions = {}): UseRo
     notifyOnNetworkStatusChange: true, // Keep loading state accurate during transitions
   });
 
-  // Update previous data ref when we have new data
+  // Update previous data state when we have new data
   useEffect(() => {
     if (rolesData && !loading) {
-      previousDataRef.current = rolesData;
+      startTransition(() => {
+        setPreviousData(rolesData);
+      });
     }
   }, [rolesData, loading]);
 
@@ -269,13 +275,13 @@ export function useRoleManagement(options: UseRoleManagementOptions = {}): UseRo
   // Derived data - use previous data while loading to prevent flicker
   const roles = useMemo(() => {
     // Keep previous data visible while loading new data
-    const currentData = rolesData || (loading ? previousDataRef.current : null);
+    const currentData = rolesData || (loading ? previousData : null);
     return currentData?.roles?.edges?.map((e: { node: Role }) => e.node) || [];
-  }, [rolesData, loading]);
+  }, [rolesData, loading, previousData]);
 
   const pageInfo = useMemo(() => {
     // Use previous data if current is loading
-    const currentData = rolesData || (loading ? previousDataRef.current : null);
+    const currentData = rolesData || (loading ? previousData : null);
     const info = currentData?.roles?.pageInfo || null;
     if (!info) {
       return null;
@@ -284,16 +290,16 @@ export function useRoleManagement(options: UseRoleManagementOptions = {}): UseRo
       ...info,
       hasPreviousPage: info.hasPreviousPage || after !== null,
     };
-  }, [rolesData, loading, after]);
+  }, [rolesData, loading, after, previousData]);
 
   // totalCount is always calculated by the backend (never null)
   // When query is null/empty: totalCount = total count of all items
   // When query is provided: totalCount = total count of filtered items
   const totalCount = useMemo(() => {
     // Use previous data if current is loading
-    const currentData = rolesData || (loading ? previousDataRef.current : null);
+    const currentData = rolesData || (loading ? previousData : null);
     return currentData?.roles?.totalCount ?? null;
-  }, [rolesData, loading]);
+  }, [rolesData, loading, previousData]);
 
   // Use shared pagination hook
   const {

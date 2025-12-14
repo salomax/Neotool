@@ -1,3 +1,9 @@
+---
+title: NeoTool Project Rules
+description: Comprehensive project rules for NeoTool including specification knowledge base, technology stack, development guidelines, and architectural patterns
+alwaysApply: true
+---
+
 # NeoTool Project Rules for Cursor AI
 
 ## Specification Knowledge Base
@@ -209,4 +215,3 @@ When asked to create a new feature:
 ---
 
 **Remember**: The `docs/` folder is the source of truth. Always reference it when making decisions or implementing features.
-

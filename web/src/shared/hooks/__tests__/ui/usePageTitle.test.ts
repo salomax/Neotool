@@ -6,7 +6,7 @@ import { usePageTitle, usePageTitleValue, PageTitleProvider } from '@/shared/hoo
 // Helper to create a test wrapper with PageTitleProvider
 const createWrapper = () => {
   const Wrapper = ({ children }: { children: React.ReactNode }) => {
-    return <PageTitleProvider>{children}</PageTitleProvider>;
+    return React.createElement(PageTitleProvider, null, children);
   };
   
   Wrapper.displayName = 'TestWrapper';

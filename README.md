@@ -228,6 +228,27 @@ Once you start shipping products derived from NeoTool, treat this repo as the up
 
 By keeping changes that are universally useful inside this upstream and limiting product-specific customizations to your product repository, you minimize merge pain and keep all products aligned with NeoTool’s evolution.
 
+### Managing Merge Conflicts with Upstream
+
+To automatically resolve conflicts for product-specific files (like favicon, logos, or config files), use the `upstream` command to configure which files should always use "ours" merge strategy:
+
+```bash
+# Add specific files or patterns
+./neotool upstream add web/public/favicon.ico
+./neotool upstream add project.config.json
+./neotool upstream add "web/src/app/product/**"
+
+# List all configured files
+./neotool upstream list
+
+# Remove a file from auto-merge strategy
+./neotool upstream remove web/public/favicon.ico
+```
+
+Note: The `.gitattributes` file is already configured with default entries (favicon and logos) when you clone NeoTool. You can add more files as needed.
+
+This creates a `.gitattributes` file that tells Git to automatically keep your version of specified files during upstream merges, preventing conflicts for product-specific customizations.
+
 ### Customizing Your Project Name
 
 After cloning or integrating the starter, you'll want to customize the project name from "neotool" to your own project name. This includes updating package names, namespaces, database names, and all references throughout the codebase.
@@ -246,10 +267,6 @@ After cloning or integrating the starter, you'll want to customize the project n
    ```bash
    # Setup project (rename from neotool)
    ./neotool setup
-   
-   # Clean up examples (optional)
-   ./neotool clean --dry-run  # Preview changes
-   ./neotool clean             # Apply changes
    ```
 
 4. **Review and commit the changes:**
@@ -271,9 +288,6 @@ The project includes a CLI tool for common tasks:
 
 # Setup project (rename from neotool to your project name)
 ./neotool setup
-
-# Clean up example code
-./neotool clean [--dry-run]
 
 # GraphQL schema management
 ./neotool graphql sync      # Interactive schema sync

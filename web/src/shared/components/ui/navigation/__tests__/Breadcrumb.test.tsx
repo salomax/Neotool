@@ -57,7 +57,7 @@ describe("Breadcrumb", () => {
 
       renderBreadcrumb({ items });
 
-      const disabledLink = screen.getByText("Disabled").closest("a");
+      const disabledLink = screen.queryByRole("link", { name: "Disabled" });
       expect(disabledLink).not.toBeInTheDocument();
     });
   });
@@ -116,7 +116,7 @@ describe("Breadcrumb", () => {
       });
 
       expect(screen.getByText("Dashboard")).toBeInTheDocument();
-      const homeLink = screen.getByText("Dashboard").closest("a");
+      const homeLink = screen.getByRole("link", { name: "Dashboard" });
       expect(homeLink).toHaveAttribute("href", "/dashboard");
     });
   });
@@ -131,7 +131,7 @@ describe("Breadcrumb", () => {
 
       renderBreadcrumb({ items });
 
-      const currentLink = screen.getByText("Current").closest("a");
+      const currentLink = screen.queryByRole("link", { name: "Current" });
       expect(currentLink).not.toBeInTheDocument();
       expect(screen.getByText("Current")).toHaveAttribute("aria-current", "page");
     });
@@ -144,7 +144,7 @@ describe("Breadcrumb", () => {
 
       renderBreadcrumb({ items, currentPageClickable: true });
 
-      const currentLink = screen.getByText("Current").closest("a");
+      const currentLink = screen.getByRole("link", { name: "Current" });
       expect(currentLink).toBeInTheDocument();
       expect(currentLink).toHaveAttribute("href", "/current");
     });
@@ -258,24 +258,24 @@ describe("Breadcrumb", () => {
     it("applies default variant styles", () => {
       const items: BreadcrumbItem[] = [{ label: "Home", href: "/" }];
 
-      const { container } = renderBreadcrumb({ items, variant: "default" });
-      const breadcrumbs = container.querySelector(".MuiBreadcrumbs-root");
+      renderBreadcrumb({ items, variant: "default" });
+      const breadcrumbs = screen.getByLabelText("breadcrumb navigation");
       expect(breadcrumbs).toBeInTheDocument();
     });
 
     it("applies compact variant styles", () => {
       const items: BreadcrumbItem[] = [{ label: "Home", href: "/" }];
 
-      const { container } = renderBreadcrumb({ items, variant: "compact" });
-      const breadcrumbs = container.querySelector(".MuiBreadcrumbs-root");
+      renderBreadcrumb({ items, variant: "compact" });
+      const breadcrumbs = screen.getByLabelText("breadcrumb navigation");
       expect(breadcrumbs).toBeInTheDocument();
     });
 
     it("applies minimal variant styles", () => {
       const items: BreadcrumbItem[] = [{ label: "Home", href: "/" }];
 
-      const { container } = renderBreadcrumb({ items, variant: "minimal" });
-      const breadcrumbs = container.querySelector(".MuiBreadcrumbs-root");
+      renderBreadcrumb({ items, variant: "minimal" });
+      const breadcrumbs = screen.getByLabelText("breadcrumb navigation");
       expect(breadcrumbs).toBeInTheDocument();
     });
   });
@@ -350,24 +350,25 @@ describe("Breadcrumb", () => {
     it("generates test ID from name prop", () => {
       const items: BreadcrumbItem[] = [{ label: "Home", href: "/" }];
 
-      const { container } = renderBreadcrumb({ items, name: "main-nav" });
-      const breadcrumbs = container.querySelector('[data-testid="breadcrumb-main-nav"]');
+      renderBreadcrumb({ items, name: "main-nav" });
+      const breadcrumbs = screen.getByTestId("breadcrumb-main-nav");
       expect(breadcrumbs).toBeInTheDocument();
     });
 
     it("uses custom data-testid when provided", () => {
       const items: BreadcrumbItem[] = [{ label: "Home", href: "/" }];
 
-      const { container } = renderBreadcrumb({ items, "data-testid": "custom-id" });
-      const breadcrumbs = container.querySelector('[data-testid="custom-id"]');
+      renderBreadcrumb({ items, "data-testid": "custom-id" });
+      const breadcrumbs = screen.getByTestId("custom-id");
       expect(breadcrumbs).toBeInTheDocument();
     });
   });
 
   describe("Edge cases", () => {
     it("returns null when no items", () => {
-      const { container } = renderBreadcrumb({ items: [], autoGenerate: false });
-      expect(container.firstChild).toBeNull();
+      renderBreadcrumb({ items: [], autoGenerate: false });
+      const breadcrumbs = screen.queryByLabelText("breadcrumb navigation");
+      expect(breadcrumbs).not.toBeInTheDocument();
     });
 
     it("handles null pathname", () => {
