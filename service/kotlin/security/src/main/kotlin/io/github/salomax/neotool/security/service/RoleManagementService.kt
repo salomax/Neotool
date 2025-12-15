@@ -7,8 +7,10 @@ import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.OrderDirection
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import io.github.salomax.neotool.security.domain.RoleManagement
+import io.github.salomax.neotool.security.domain.rbac.Group
 import io.github.salomax.neotool.security.domain.rbac.Permission
 import io.github.salomax.neotool.security.domain.rbac.Role
+import io.github.salomax.neotool.security.repo.GroupRepository
 import io.github.salomax.neotool.security.repo.PermissionRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.RoleRepositoryCustom
@@ -28,6 +30,7 @@ open class RoleManagementService(
     private val roleRepository: RoleRepository,
     private val roleSearchRepository: RoleRepositoryCustom,
     private val permissionRepository: PermissionRepository,
+    private val groupRepository: GroupRepository,
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -225,6 +228,52 @@ open class RoleManagementService(
         val permissions = permissionRepository.findByRoleId(roleId)
 
         return permissions.map { it.toDomain() }
+    }
+
+    /**
+     * List all groups that have this role assigned.
+     *
+     * @param roleId The ID of the role
+     * @return List of groups that have the role (empty list if none)
+     */
+    fun listRoleGroups(roleId: UUID): List<Group> {
+        val groupIds = roleRepository.findGroupIdsByRoleId(roleId).distinct()
+        if (groupIds.isEmpty()) {
+            return emptyList()
+        }
+
+        return groupRepository.findByIdIn(groupIds).map { it.toDomain() }
+    }
+
+    /**
+     * Batch list groups for multiple roles.
+     *
+     * @param roleIds List of role IDs
+     * @return Map of role ID to list of groups
+     */
+    fun listRoleGroupsBatch(roleIds: List<UUID>): Map<UUID, List<Group>> {
+        if (roleIds.isEmpty()) {
+            return emptyMap()
+        }
+
+        // Collect all group ids for provided role ids
+        val allGroupIds = roleRepository.findGroupIdsByRoleIds(roleIds).distinct()
+        val groupsById =
+            if (allGroupIds.isNotEmpty()) {
+                groupRepository.findByIdIn(allGroupIds).associateBy { it.id!! }
+            } else {
+                emptyMap()
+            }
+
+        // For each role, map group ids to domain objects
+        val result = mutableMapOf<UUID, List<Group>>()
+        for (roleId in roleIds) {
+            val groupIdsForRole = roleRepository.findGroupIdsByRoleId(roleId)
+            val groups = groupIdsForRole.mapNotNull { groupsById[it]?.toDomain() }
+            result[roleId] = groups
+        }
+
+        return result
     }
 
     /**

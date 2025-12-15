@@ -32,6 +32,7 @@ class SecurityGraphQLMapperTest {
                     email = "test@example.com",
                     displayName = "Test User",
                     passwordHash = "hashed",
+                    avatarUrl = "https://example.com/avatar.png",
                     createdAt = Instant.now(),
                 )
 
@@ -43,6 +44,7 @@ class SecurityGraphQLMapperTest {
             assertThat(result.id).isEqualTo(userId.toString())
             assertThat(result.email).isEqualTo("test@example.com")
             assertThat(result.displayName).isEqualTo("Test User")
+            assertThat(result.avatarUrl).isEqualTo("https://example.com/avatar.png")
         }
 
         @Test
@@ -66,6 +68,7 @@ class SecurityGraphQLMapperTest {
             assertThat(result.id).isEqualTo(userId.toString())
             assertThat(result.email).isEqualTo("test@example.com")
             assertThat(result.displayName).isNull()
+            assertThat(result.avatarUrl).isNull()
         }
 
         @Test

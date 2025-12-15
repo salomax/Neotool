@@ -12,6 +12,7 @@ import io.github.salomax.neotool.security.domain.rbac.SecurityPermissions
 import io.github.salomax.neotool.security.graphql.dataloader.GroupMembersDataLoader
 import io.github.salomax.neotool.security.graphql.dataloader.GroupRolesDataLoader
 import io.github.salomax.neotool.security.graphql.dataloader.PermissionRolesDataLoader
+import io.github.salomax.neotool.security.graphql.dataloader.RoleGroupsDataLoader
 import io.github.salomax.neotool.security.graphql.dataloader.RolePermissionsDataLoader
 import io.github.salomax.neotool.security.graphql.dataloader.UserGroupsDataLoader
 import io.github.salomax.neotool.security.graphql.dataloader.UserPermissionsDataLoader
@@ -672,21 +673,30 @@ class SecurityWiringFactory(
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
                         val role = env.getSource<RoleDTO>()
                         if (role == null || role.id == null) {
-                            emptyList<io.github.salomax.neotool.security.graphql.dto.PermissionDTO>()
+                            emptyList<PermissionDTO>()
                         } else {
-                            // Get DataLoader from context to batch requests
                             val dataLoader =
-                                env.getDataLoader<
-                                    String,
-                                    List<io.github.salomax.neotool.security.graphql.dto.PermissionDTO>,
-                                >(
+                                env.getDataLoader<String, List<PermissionDTO>>(
                                     RolePermissionsDataLoader.KEY,
                                 )
-                            // Load permissions for this role (will be batched with other roles)
                             dataLoader?.load(role.id)
-                                ?: CompletableFuture.completedFuture(
-                                    emptyList<io.github.salomax.neotool.security.graphql.dto.PermissionDTO>(),
+                                ?: CompletableFuture.completedFuture(emptyList<PermissionDTO>())
+                        }
+                    },
+                )
+                type.dataFetcher(
+                    "groups",
+                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                        val role = env.getSource<RoleDTO>()
+                        if (role == null || role.id == null) {
+                            emptyList<GroupDTO>()
+                        } else {
+                            val dataLoader =
+                                env.getDataLoader<String, List<GroupDTO>>(
+                                    RoleGroupsDataLoader.KEY,
                                 )
+                            dataLoader?.load(role.id)
+                                ?: CompletableFuture.completedFuture(emptyList<GroupDTO>())
                         }
                     },
                 )

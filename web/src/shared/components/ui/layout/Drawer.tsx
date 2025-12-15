@@ -232,7 +232,6 @@ const Header: React.FC<DrawerHeaderProps> = ({
           p: 2,
           minHeight: 64,
           flexShrink: 0,
-          bgcolor: 'background.default',
         }}
       >
         {children}
@@ -254,7 +253,6 @@ const Header: React.FC<DrawerHeaderProps> = ({
         p: 2,
         minHeight: 64,
         flexShrink: 0,
-        bgcolor: 'background.default',
       }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>

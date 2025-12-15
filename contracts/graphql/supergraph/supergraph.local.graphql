@@ -81,6 +81,8 @@ type Group
   id: ID!
   name: String!
   description: String
+  createdAt: String!
+  updatedAt: String!
   roles: [Role!]!
   members: [User!]!
 }
@@ -236,8 +238,6 @@ type Query
   customer(id: ID!): Customer @join__field(graph: APP)
   currentUser: User @join__field(graph: SECURITY)
   checkPermission(userId: ID!, permission: String!, resourceId: ID): AuthorizationResult! @join__field(graph: SECURITY)
-  getUserPermissions(userId: ID!): [Permission!]! @join__field(graph: SECURITY)
-  getUserRoles(userId: ID!): [Role!]! @join__field(graph: SECURITY)
   user(id: ID!): User @join__field(graph: SECURITY)
   users(first: Int, after: String, query: String, orderBy: [UserOrderByInput!]): UserConnection! @join__field(graph: SECURITY)
   group(id: ID!): Group @join__field(graph: SECURITY)
@@ -286,6 +286,9 @@ type Role
 {
   id: ID!
   name: String!
+  createdAt: String!
+  updatedAt: String!
+  groups: [Group!]!
   permissions: [Permission!]!
 }
 
@@ -377,7 +380,10 @@ type User
   id: ID!
   email: String!
   displayName: String
+  avatarUrl: String
   enabled: Boolean!
+  createdAt: String!
+  updatedAt: String!
   roles: [Role!]!
   groups: [Group!]!
   permissions: [Permission!]!

@@ -28,7 +28,8 @@ export const GetProductsDocument = gql`
     createdAt
     updatedAt
   }
-}`;
+}
+    `;
 
 /**
  * __useGetProductsQuery__
@@ -72,7 +73,8 @@ export const GetProductDocument = gql`
     createdAt
     updatedAt
   }
-}`;
+}
+    `;
 
 /**
  * __useGetProductQuery__

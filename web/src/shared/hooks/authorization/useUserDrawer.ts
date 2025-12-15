@@ -16,6 +16,9 @@ type User = {
   email: string;
   displayName: string | null;
   enabled: boolean;
+  avatarUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
   groups: Array<{ id: string; name: string; description: string | null }>;
   roles: Array<{ id: string; name: string }>;
 };
@@ -67,6 +70,9 @@ export function useUserDrawer(
       email: data.user.email,
       displayName: data.user.displayName,
       enabled: data.user.enabled,
+      avatarUrl: data.user.avatarUrl,
+      createdAt: data.user.createdAt,
+      updatedAt: data.user.updatedAt,
       groups: data.user.groups.map(g => ({
         id: g.id,
         name: g.name,

@@ -22,6 +22,7 @@ export type User = {
   email: string;
   displayName: string | null;
   enabled: boolean;
+  avatarUrl?: string | null;
 };
 
 export type UseUserManagementOptions = {
@@ -82,8 +83,6 @@ export type UseUserManagementReturn = {
   disableLoading: boolean;
   assignGroupLoading: boolean;
   removeGroupLoading: boolean;
-  assignRoleLoading: boolean;
-  removeRoleLoading: boolean;
   
   // Error handling
   error: Error | undefined;

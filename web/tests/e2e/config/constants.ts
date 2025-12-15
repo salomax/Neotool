@@ -22,11 +22,22 @@ export const SELECTORS = {
   editUser: (userId: string) => `[data-testid="edit-user-${userId}"]`,
   userStatusToggle: (userId: string) => `[data-testid="user-status-toggle-${userId}"]`,
   
+  // Role Management
+  roleSearch: '[data-testid="role-search"]',
+  roleList: '[data-testid="role-list-table"]',
+  editRole: (roleId: string) => `[data-testid="edit-role-${roleId}"]`,
+  deleteRole: (roleId: string) => `[data-testid="delete-role-${roleId}"]`,
+  
+  // Group Management
+  groupSearch: '[data-testid="group-search"]',
+  groupList: '[data-testid="group-list-table"]',
+  editGroup: (groupId: string) => `[data-testid="edit-group-${groupId}"]`,
+  deleteGroup: (groupId: string) => `[data-testid="delete-group-${groupId}"]`,
+  
   // Drawer
-  drawer: '[data-testid="drawer"]',
-  drawerHeader: '[data-testid="drawer-header"]',
-  drawerBody: '[data-testid="drawer-body"]',
-  drawerFooter: '[data-testid="drawer-footer"]',
+  userDrawer: '[data-testid="user-drawer"]',
+  roleDrawer: '[data-testid="role-drawer"]',
+  groupDrawer: '[data-testid="group-drawer"]',
   
   // Settings
   settingsPage: '[data-testid="settings-page"]',
@@ -51,12 +62,7 @@ export const TEST_USER_CREDENTIALS = {
     password: 'admin',
     displayName: 'Admin Test User',
   },
-  // Test user with NO group assigned - for negative testing (access control)
-  testuser: {
-    email: 'testuser@example.com',
-    password: 'test',
-    displayName: 'Test User',
-  },
+
 } as const;
 
 export const TEST_DATA_IDS = {

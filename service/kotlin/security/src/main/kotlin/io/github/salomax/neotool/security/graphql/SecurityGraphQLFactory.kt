@@ -49,6 +49,8 @@ class SecurityGraphQLFactory(
                                                 email = it.email,
                                                 displayName = it.displayName,
                                                 enabled = it.enabled,
+                                                createdAt = it.createdAt.toString(),
+                                                updatedAt = it.updatedAt.toString(),
                                             )
                                         }
                                     }
@@ -66,6 +68,8 @@ class SecurityGraphQLFactory(
                                                         ?: throw IllegalArgumentException("Group must have an ID"),
                                                 name = groupDomain.name,
                                                 description = groupDomain.description,
+                                                createdAt = groupDomain.createdAt.toString(),
+                                                updatedAt = groupDomain.updatedAt.toString(),
                                             )
                                         }
                                     }
@@ -82,6 +86,8 @@ class SecurityGraphQLFactory(
                                                     roleDomain.id?.toString()
                                                         ?: throw IllegalArgumentException("Role must have an ID"),
                                                 name = roleDomain.name,
+                                                createdAt = roleDomain.createdAt.toString(),
+                                                updatedAt = roleDomain.updatedAt.toString(),
                                             )
                                         }
                                     }

@@ -27,7 +27,8 @@ export const GetCustomersDocument = gql`
     createdAt
     updatedAt
   }
-}`;
+}
+    `;
 
 /**
  * __useGetCustomersQuery__
@@ -70,7 +71,8 @@ export const GetCustomerDocument = gql`
     createdAt
     updatedAt
   }
-}`;
+}
+    `;
 
 /**
  * __useGetCustomerQuery__

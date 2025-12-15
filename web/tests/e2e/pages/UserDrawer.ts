@@ -12,21 +12,7 @@ export class UserDrawer {
    * Get drawer element
    */
   private getDrawer() {
-    return this.page.locator(SELECTORS.drawer);
-  }
-
-  /**
-   * Get drawer header
-   */
-  private getHeader() {
-    return this.page.locator(SELECTORS.drawerHeader);
-  }
-
-  /**
-   * Get drawer body
-   */
-  private getBody() {
-    return this.page.locator(SELECTORS.drawerBody);
+    return this.page.locator(SELECTORS.userDrawer);
   }
 
   /**
@@ -121,7 +107,7 @@ export class UserDrawer {
    */
   async getAssignedGroups(): Promise<string[]> {
     // Look for group chips or list items
-    const groups = this.getBody().locator('[data-testid*="group"], [data-testid*="Group"]');
+    const groups = this.getDrawer().locator('[data-testid*="group"], [data-testid*="Group"]');
     const count = await groups.count();
     const groupNames: string[] = [];
     
@@ -138,7 +124,7 @@ export class UserDrawer {
    */
   async getAssignedRoles(): Promise<string[]> {
     // Look for role chips or list items
-    const roles = this.getBody().locator('[data-testid*="role"], [data-testid*="Role"]');
+    const roles = this.getDrawer().locator('[data-testid*="role"], [data-testid*="Role"]');
     const count = await roles.count();
     const roleNames: string[] = [];
     
@@ -188,7 +174,7 @@ export class UserDrawer {
    * Verify drawer title
    */
   async verifyTitle(expectedTitle: string): Promise<void> {
-    const title = this.getHeader().locator('h2, h3, h4, h5, h6').first();
+    const title = this.getDrawer().locator('h2, h3, h4, h5, h6').first();
     await expect(title).toContainText(expectedTitle);
   }
 
@@ -196,12 +182,21 @@ export class UserDrawer {
    * Verify user information is displayed
    */
   async verifyUserInfo(email: string, displayName?: string): Promise<void> {
-    const body = this.getBody();
-    // Wait for loading to complete - check that loading indicator is gone
-    const loadingIndicator = body.locator('[role="progressbar"], [data-testid*="loading"]');
-    const loadingCount = await loadingIndicator.count();
-    if (loadingCount > 0) {
-      await expect(loadingIndicator).not.toBeVisible({ timeout: 15000 });
+    const drawer = this.getDrawer();
+    // Wait for loading to complete - check that all loading indicators are gone
+    // There may be multiple loading indicators: one for main drawer, one for groups, one for roles
+    const loadingIndicators = drawer.locator('[role="progressbar"], [data-testid*="loading"]');
+    const loadingCount = await loadingIndicators.count();
+    
+    // Wait for each loading indicator individually to disappear
+    // This handles cases where groups/roles fields may still be loading
+    for (let i = 0; i < loadingCount; i++) {
+      const indicator = loadingIndicators.nth(i);
+      // Check if this indicator is visible before waiting for it to disappear
+      const isVisible = await indicator.isVisible().catch(() => false);
+      if (isVisible) {
+        await expect(indicator).not.toBeVisible({ timeout: 15000 });
+      }
     }
     
     const emailInput = await this.getEmailInput();
@@ -214,8 +209,8 @@ export class UserDrawer {
     if (emailValue && emailValue.trim() !== '') {
       expect(emailValue).toBe(email);
     } else {
-      // Fallback: check body text
-      await expect(body).toContainText(email, { timeout: 5000 });
+      // Fallback: check drawer text
+      await expect(drawer).toContainText(email, { timeout: 5000 });
     }
     
     if (displayName) {
@@ -232,8 +227,8 @@ export class UserDrawer {
       if (displayNameValue && displayNameValue.trim() !== '') {
         expect(displayNameValue).toBe(displayName);
       } else {
-        // Fallback: check body text
-        await expect(body).toContainText(displayName, { timeout: 5000 });
+        // Fallback: check drawer text
+        await expect(drawer).toContainText(displayName, { timeout: 5000 });
       }
     }
   }
@@ -244,7 +239,7 @@ export class UserDrawer {
   async assignGroup(groupName: string): Promise<void> {
     // This will depend on the actual implementation of UserGroupAssignment
     // For now, this is a placeholder
-    const groupAssignment = this.getBody().locator('[data-testid*="group-assignment"]');
+    const groupAssignment = this.getDrawer().locator('[data-testid*="group-assignment"]');
     // Implementation would depend on the actual component structure
     console.log('Assigning group:', groupName);
   }
@@ -254,7 +249,7 @@ export class UserDrawer {
    */
   async removeGroup(groupName: string): Promise<void> {
     // Look for remove button on group chip
-    const groupChip = this.getBody()
+    const groupChip = this.getDrawer()
       .locator(`[data-testid*="group"]:has-text("${groupName}")`)
       .first();
     

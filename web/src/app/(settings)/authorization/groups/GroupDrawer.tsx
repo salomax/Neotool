@@ -11,6 +11,7 @@ import {
 } from "@mui/material";
 import GroupIcon from "@mui/icons-material/Group";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
+import { TextField } from "@/shared/components/ui/primitives";
 import { CloseIcon } from "@/shared/ui/mui-imports";
 import { LoadingState, ErrorAlert } from "@/shared/components/ui/feedback";
 import { useForm, FormProvider } from "react-hook-form";
@@ -25,7 +26,7 @@ import { useGroupMutations } from "@/shared/hooks/authorization/useGroupMutation
 import { useGroupManagement, type GroupFormData } from "@/shared/hooks/authorization/useGroupManagement";
 import { useGroupDrawer } from "@/shared/hooks/authorization/useGroupDrawer";
 import { GroupRoleAssignment } from "./GroupRoleAssignment";
-import { GroupUserAssignment } from "./GroupUserAssignment";
+import { GroupUserAssignment, type User as GroupUser } from "./GroupUserAssignment";
 import { GroupForm } from "./GroupForm";
 import { useToast } from "@/shared/providers";
 import { extractErrorMessage } from "@/shared/utils/error";
@@ -96,6 +97,8 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
 
   // Track selected roles for create mode (before group is created)
   const [pendingRoles, setPendingRoles] = useState<Array<{ id: string; name: string }>>([]);
+  // Track selected users for create mode (before group is created)
+  const [pendingUsers, setPendingUsers] = useState<GroupUser[]>([]);
   const [saving, setSaving] = useState(false);
 
   // Use group from hook in edit mode, or query directly in create mode
@@ -113,6 +116,7 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
         userIds: [],
       });
       setPendingRoles([]);
+      setPendingUsers([]);
     } else if (group) {
       // Initialize form with group data for edit mode
       methods.reset({
@@ -133,6 +137,7 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
         userIds: [],
       });
       setPendingRoles([]);
+      setPendingUsers([]);
     }
   }, [open, methods]);
 
@@ -145,7 +150,10 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
       const submitData: GroupFormData = {
         name: formData.name.trim(),
         description: formData.description?.trim() || null,
-        userIds: [], // Users are now managed by hook, not form
+        // In create mode, users are selected via pendingUsers state.
+        // In edit mode, users are managed by the useGroupDrawer hook and
+        // are not updated through this mutation.
+        userIds: isCreateMode ? pendingUsers.map((user) => user.id) : [],
       };
 
       if (isCreateMode) {
@@ -186,9 +194,6 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
         toast.success(t("groupManagement.toast.groupCreated", { name: submitData.name }));
         
         // Note: No need to refetch groups list - mutations update cache and parent will refetch when needed
-        
-        // Close drawer
-        onClose();
       } else {
         // Edit mode: update group (name, description) and handle users/roles via hook
         if (!groupId) return;
@@ -220,6 +225,9 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
         
         toast.success(t("groupManagement.toast.groupUpdated", { name: submitData.name }));
       }
+      
+      // After successful save in either create or edit mode, close the drawer
+      onClose();
     } catch (err) {
       const errorMessage = extractErrorMessage(
         err,
@@ -255,6 +263,7 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
         userIds: [],
       });
       setPendingRoles([]);
+      setPendingUsers([]);
     } else {
       // Reset form
       if (group) {
@@ -277,6 +286,8 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
 
   return (
     <Drawer
+      id="group-drawer"
+      data-testid="group-drawer"
       open={open}
       onClose={onClose}
       anchor="right"
@@ -337,10 +348,10 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
                     <GroupUserAssignment
                       assignedUsers={
                         isCreateMode
-                          ? []
+                          ? pendingUsers
                           : selectedUsers
                       }
-                      onChange={isCreateMode ? undefined : updateSelectedUsers}
+                      onChange={isCreateMode ? setPendingUsers : updateSelectedUsers}
                     />
                   </Box>
                 </PermissionGate>
@@ -368,6 +379,34 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
                     />
                   </Box>
                 </PermissionGate>
+
+                {/* Timestamps - only show in edit mode, at the bottom in 2 columns */}
+                {!isCreateMode && group?.createdAt && group?.updatedAt && (
+                  <Box sx={{ display: "flex", gap: 2 }}>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                        {t("groupManagement.drawer.createdAt")}
+                      </Typography>
+                      <TextField
+                        fullWidth
+                        value={new Date(group.createdAt).toLocaleString()}
+                        readOnly
+                        data-testid="group-drawer-created-at"
+                      />
+                    </Box>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                        {t("groupManagement.drawer.updatedAt")}
+                      </Typography>
+                      <TextField
+                        fullWidth
+                        value={new Date(group.updatedAt).toLocaleString()}
+                        readOnly
+                        data-testid="group-drawer-updated-at"
+                      />
+                    </Box>
+                  </Box>
+                )}
               </Stack>
             </Stack>
           )}

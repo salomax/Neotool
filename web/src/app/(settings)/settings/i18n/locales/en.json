@@ -36,7 +36,9 @@
       "saveSuccess": "User updated successfully",
       "saveError": "Failed to update user",
       "displayNamePlaceholder": "Enter display name",
-      "emailPlaceholder": "Enter email address"
+      "emailPlaceholder": "Enter email address",
+      "createdAt": "Created At",
+      "updatedAt": "Updated At"
     },
     "groups": {
       "assignError": "Failed to assign group",
@@ -48,7 +50,8 @@
       "assignError": "Failed to assign role",
       "removeError": "Failed to remove role",
       "searchPlaceholder": "Search roles...",
-      "loadError": "Failed to load roles"
+      "loadError": "Failed to load roles",
+      "noRoles": "No roles assigned"
     },
     "status": {
       "enabled": "Enabled",
@@ -101,7 +104,9 @@
       "saveSuccess": "Group updated successfully",
       "saveError": "Failed to update group",
       "namePlaceholder": "Enter group name",
-      "descriptionPlaceholder": "Enter group description"
+      "descriptionPlaceholder": "Enter group description",
+      "createdAt": "Created At",
+      "updatedAt": "Updated At"
     },
     "roles": {
       "assignError": "Failed to assign role",
@@ -157,7 +162,9 @@
     "newButton": "New",
     "drawerPlaceholder": "Role editing form will be implemented here",
     "drawer": {
-      "errorLoading": "Failed to load role details"
+      "errorLoading": "Failed to load role details",
+      "createdAt": "Created At",
+      "updatedAt": "Updated At"
     },
     "table": {
       "name": "Name",

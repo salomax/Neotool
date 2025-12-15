@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Autocomplete,
   TextField,
@@ -8,9 +8,8 @@ import {
   Box,
   Chip,
 } from "@mui/material";
-import { useDebouncedSearch } from "@/shared/hooks/search";
+import { useDebounce } from "@/shared/hooks/ui/useDebounce";
 import { ErrorAlert } from "@/shared/components/ui/feedback";
-import type { QueryResult } from "@apollo/client";
 
 /**
  * Props for SearchableAutocomplete component
@@ -24,14 +23,19 @@ export interface SearchableAutocompleteProps<
   /**
    * Query hook function (e.g., useGetUsersQuery) - component calls it internally
    */
-  useQuery: (
-    options?: {
-      variables?: TQueryVariables;
-      skip?: boolean;
-      fetchPolicy?: "cache-first" | "network-only" | "cache-only" | "no-cache" | "standby";
-      notifyOnNetworkStatusChange?: boolean;
-    }
-  ) => QueryResult<TQueryData, TQueryVariables>;
+  // Using 'any' for the return type avoids tight coupling to a specific GraphQL client
+  // while still enforcing the options shape at call sites.
+  useQuery: (options?: {
+    variables?: TQueryVariables;
+    skip?: boolean;
+    fetchPolicy?: "cache-first" | "network-only" | "cache-only" | "no-cache" | "standby";
+    notifyOnNetworkStatusChange?: boolean;
+  }) => {
+    data?: TQueryData;
+    loading: boolean;
+    error?: Error;
+    refetch: () => Promise<any>;
+  };
 
   /**
    * Factory function that returns query variables including search query
@@ -155,7 +159,7 @@ export interface SearchableAutocompleteProps<
  */
 export function SearchableAutocomplete<
   TOption extends { id: string },
-  TSelected extends { id: string },
+  TSelected extends TOption,
   TQueryData,
   TQueryVariables
 >({
@@ -186,16 +190,17 @@ export function SearchableAutocomplete<
   debounceMs = 300,
   variant = "outlined",
 }: SearchableAutocompleteProps<TOption, TSelected, TQueryData, TQueryVariables>) {
-  // Debounced search
-  const { inputValue, searchQuery, handleInputChange } = useDebouncedSearch({
-    initialValue: "",
-    debounceMs,
-  });
+  // Local input value (what the user is typing)
+  const [inputValue, setInputValue] = useState("");
+  // Debounced value used for querying
+  const debouncedSearch = useDebounce(inputValue, debounceMs);
+
+  const trimmedSearch = debouncedSearch.trim();
 
   // Query variables based on debounced search
   const queryVariables = useMemo(
-    () => getQueryVariables(searchQuery),
-    [searchQuery, getQueryVariables]
+    () => getQueryVariables(trimmedSearch),
+    [trimmedSearch, getQueryVariables]
   );
 
   // Execute query
@@ -206,7 +211,8 @@ export function SearchableAutocomplete<
     refetch,
   } = useQuery({
     variables: queryVariables,
-    skip: skip,
+    // Skip when search is empty or when caller explicitly requests skip
+    skip: skip || trimmedSearch.length === 0,
     fetchPolicy,
     notifyOnNetworkStatusChange,
   });
@@ -221,7 +227,7 @@ export function SearchableAutocomplete<
   // Merge selected items with search results
   // Selected items should always appear, even if not in search results
   // Priority: search results (full data) > selected items (may be placeholders)
-  const allOptions = useMemo(() => {
+  const allOptions: TOption[] = useMemo(() => {
     // Create a map of search results by ID (these have full data)
     const searchResultsMap = new Map<string, TOption>();
     for (const opt of transformedOptions) {
@@ -233,9 +239,10 @@ export function SearchableAutocomplete<
     
     // Find selected items that are NOT in search results (need to add them)
     // These are items that were selected but don't match current search
-    const missingSelected = selectedItems.filter((selected) =>
-      !searchResultIds.has(getOptionId(selected))
-    );
+    const missingSelected = selectedItems.filter((selected) => {
+      const id = getOptionId(selected);
+      return !searchResultIds.has(id);
+    });
     
     // Combine: search results first (they have full data), then missing selected items
     // Search results take priority because they're added first to the map
@@ -251,7 +258,7 @@ export function SearchableAutocomplete<
 
   // Get current value (selected items from allOptions to ensure full data)
   // IMPORTANT: This hook must be called before any conditional returns to follow Rules of Hooks
-  const currentValue = useMemo(() => {
+  const currentValue: TOption | TOption[] | null = useMemo(() => {
     if (multiple) {
       // Map selected items to their corresponding items in allOptions
       // This ensures we use items with full data (from search) when available
@@ -267,128 +274,184 @@ export function SearchableAutocomplete<
           return allOptions.some((opt) => getOptionId(opt) === getOptionId(item));
         }) as TSelected[];
     } else {
-      return selectedItems.length > 0
-        ? (allOptions.find(
-            (opt) => getOptionId(opt) === getOptionId(selectedItems[0])
-          ) as TSelected) || null
-        : null;
+      if (selectedItems.length === 0) {
+        return null;
+      }
+      const selected = selectedItems[0] as TSelected;
+      const found = allOptions.find(
+        (opt) => getOptionId(opt) === getOptionId(selected)
+      );
+      return found || selected;
     }
   }, [selectedItems, allOptions, getOptionId, multiple]);
 
   // Handle value change
   const handleChange = (
     _event: React.SyntheticEvent,
-    newValue: (TOption | TSelected) | (TOption | TSelected)[]
+    newValue: TOption | TOption[] | null,
+    reason: string
   ) => {
-    const values = multiple
-      ? (newValue as (TOption | TSelected)[])
-      : newValue
-      ? [newValue as TOption | TSelected]
-      : [];
+    // MULTIPLE MODE
+    if (multiple) {
+      // For removals/clear, trust MUI's newValue (it already reflects chips / clear button).
+      if (reason === "removeOption" || reason === "clear") {
+        const finalValues: TSelected[] = Array.isArray(newValue)
+          ? (newValue as TSelected[])
+          : [];
 
-    // Deduplicate by ID
-    const uniqueValues = Array.from(
-      new Map(values.map((item) => [getOptionId(item), item])).values()
-    ) as TSelected[];
+        // If nothing changed, do nothing
+        if (finalValues.length === selectedItems.length) {
+          return;
+        }
 
-    onChange(uniqueValues);
+        onChange(finalValues);
+
+        // Clear the search when user clicks the clear button
+        if (reason === "clear") {
+          setInputValue("");
+        }
+        return;
+      }
+
+      // For selecting options, only ADD new items; clicking an already-selected
+      // option should be a no-op (no toggle-off, no duplicates).
+      const currentById = new Map(
+        selectedItems.map((item) => [getOptionId(item), item as TSelected])
+      );
+
+      const incomingArray: TOption[] = Array.isArray(newValue)
+        ? (newValue as TOption[])
+        : newValue
+        ? [newValue as TOption]
+        : [];
+
+      for (const option of incomingArray) {
+        const id = getOptionId(option);
+        if (!currentById.has(id)) {
+          currentById.set(id, option as TSelected);
+        }
+      }
+
+      const finalValues = Array.from(currentById.values());
+
+      if (finalValues.length === selectedItems.length) {
+        // No new items were added (e.g. re-selected an already-selected option)
+        return;
+      }
+
+      onChange(finalValues);
+
+      if (finalValues.length > 0 && reason === "selectOption") {
+        setInputValue("");
+      }
+      return;
+    }
+
+    // SINGLE SELECTION MODE: behave like a normal select, but no-op if value didn't change.
+    const nextValue = newValue ? (newValue as TOption) : null;
+    const nextArray = nextValue ? [nextValue as TSelected] : [];
+
+    const prevId =
+      selectedItems.length > 0 && selectedItems[0]
+        ? getOptionId(selectedItems[0] as TSelected)
+        : null;
+    const nextId =
+      nextArray.length > 0 && nextArray[0]
+        ? getOptionId(nextArray[0] as TSelected)
+        : null;
+
+    if (prevId === nextId) {
+      return;
+    }
+
+    onChange(nextArray);
+    if (nextArray.length > 0 && reason === "selectOption") {
+      setInputValue("");
+    }
   };
 
   // Default option equality check
-  const defaultIsOptionEqualToValue = (
-    option: TOption | TSelected,
-    value: TSelected
-  ) => {
+  const defaultIsOptionEqualToValue = (option: TOption, value: TOption) => {
     if (isOptionEqualToValue) {
-      return isOptionEqualToValue(option as TOption, value);
+      return isOptionEqualToValue(option, value as unknown as TSelected);
     }
     return getOptionId(option) === getOptionId(value);
   };
-
-  // Show loading state (conditional return AFTER all hooks)
-  if (loading && !data) {
-    return (
-      <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
-        <CircularProgress size={24} />
-      </Box>
-    );
-  }
-
-  // Show error state (conditional return AFTER all hooks)
-  if (error) {
-    return (
-      <ErrorAlert
-        error={error}
-        onRetry={handleRetry}
-        fallbackMessage={errorMessage || "Failed to load options"}
-      />
-    );
-  }
 
   return (
     <Autocomplete
       multiple={multiple}
       options={allOptions}
-      value={currentValue}
+      value={currentValue as any}
       onChange={handleChange}
       inputValue={inputValue}
-      onInputChange={(_event, newInputValue) => {
-        handleInputChange(newInputValue);
+      onInputChange={(_event, newInputValue, reason) => {
+        // Preserve the current search text across option selection and other non-input changes.
+        // We only update when the user is actively typing or explicitly clearing the field.
+        if (reason === "input" || reason === "clear") {
+          setInputValue(newInputValue);
+        }
       }}
+      autoHighlight
+      // UX: hide dropdown arrow, users should search instead of opening a full list
+      popupIcon={null}
+      forcePopupIcon={false}
       getOptionLabel={getOptionLabel}
       isOptionEqualToValue={defaultIsOptionEqualToValue}
       loading={loading}
       disabled={disabled}
       renderInput={(params) => (
-        <TextField
-          {...params}
-          placeholder={placeholder}
-          error={fieldError}
-          helperText={helperText}
-          fullWidth
-          variant={variant}
-          sx={{
-            ...(variant === "outlined" && {
-              '& .MuiOutlinedInput-root': {
-                '& .MuiOutlinedInput-notchedOutline': {
-                  borderColor: 'primary.main',
-                },
-                '&:hover .MuiOutlinedInput-notchedOutline': {
-                  borderColor: 'primary.main',
-                },
-                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                  borderColor: 'primary.main',
-                },
-              },
-            }),
-          }}
-          InputProps={{
-            ...params.InputProps,
-            endAdornment: (
-              <>
-                {loading ? <CircularProgress size={16} /> : null}
-                {params.InputProps.endAdornment}
-              </>
-            ),
-          }}
-        />
+        <>
+          <TextField
+            {...params}
+            placeholder={placeholder}
+            error={fieldError || !!error}
+            helperText={error ? (errorMessage || "Failed to load options") : helperText}
+            fullWidth
+            variant={variant}
+            InputProps={{
+              ...params.InputProps,
+              endAdornment: (
+                <>
+                  {loading ? <CircularProgress size={16} /> : null}
+                  {params.InputProps.endAdornment}
+                </>
+              ),
+            }}
+          />
+          {error && (
+            <Box sx={{ mt: 1 }}>
+              <ErrorAlert
+                error={error}
+                onRetry={handleRetry}
+                fallbackMessage={errorMessage || "Failed to load options"}
+              />
+            </Box>
+          )}
+        </>
       )}
       renderOption={renderOption}
       renderTags={
-        renderTags ||
-        ((value: TSelected[], getTagProps) =>
-          value.map((option, index) => {
-            const { key, ...tagProps } = getTagProps({ index });
-            return (
-              <Chip
-                key={key || getOptionId(option)}
-                variant="outlined"
-                color="primary"
-                label={getOptionLabel(option)}
-                {...tagProps}
-              />
-            );
-          }))
+        renderTags
+          ? (value, getTagProps, _ownerState) =>
+              renderTags(
+                value as TSelected[],
+                // Adapt MUI's getTagProps signature to the simpler one expected by callers
+                ((params: { index: number }) => getTagProps(params)) as any
+              )
+          : (value, getTagProps) =>
+              (value as TSelected[]).map((option, index) => {
+                const { key, ...tagProps } = getTagProps({ index });
+                return (
+                  <Chip
+                    key={key || getOptionId(option)}
+                    variant="outlined"
+                    color="primary"
+                    label={getOptionLabel(option)}
+                    {...tagProps}
+                  />
+                );
+              })
       }
     />
   );

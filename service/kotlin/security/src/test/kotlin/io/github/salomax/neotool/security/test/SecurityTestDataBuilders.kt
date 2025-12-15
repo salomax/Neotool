@@ -18,6 +18,7 @@ object SecurityTestDataBuilders {
         displayName: String? = "Test User",
         passwordHash: String? = null,
         rememberMeToken: String? = null,
+        avatarUrl: String? = null,
         createdAt: Instant = Instant.now(),
     ): UserEntity =
         UserEntity(
@@ -26,6 +27,7 @@ object SecurityTestDataBuilders {
             displayName = displayName,
             passwordHash = passwordHash,
             rememberMeToken = rememberMeToken,
+            avatarUrl = avatarUrl,
             createdAt = createdAt,
         )
 
@@ -39,6 +41,7 @@ object SecurityTestDataBuilders {
         displayName: String? = "Test User",
         password: String = "TestPassword123!",
         rememberMeToken: String? = null,
+        avatarUrl: String? = null,
         createdAt: Instant = Instant.now(),
     ): UserEntity =
         UserEntity(
@@ -47,6 +50,7 @@ object SecurityTestDataBuilders {
             displayName = displayName,
             passwordHash = authenticationService.hashPassword(password),
             rememberMeToken = rememberMeToken,
+            avatarUrl = avatarUrl,
             createdAt = createdAt,
         )
 

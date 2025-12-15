@@ -8,12 +8,12 @@ import {
   Typography,
   IconButton,
 } from "@mui/material";
+import { TextField } from "@/shared/components/ui/primitives";
 import { ShieldCheckIcon } from "@/shared/components/ui/icons/ShieldCheckIcon";
 import { useForm, FormProvider } from "react-hook-form";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { CloseIcon } from "@/shared/ui/mui-imports";
 import { LoadingState, ErrorAlert } from "@/shared/components/ui/feedback";
-import { useGetRoleWithUsersAndGroupsQuery, GetRolesDocument } from "@/lib/graphql/operations/authorization-management/queries.generated";
 import { useCreateRoleMutation, useUpdateRoleMutation } from "@/lib/graphql/operations/authorization-management/mutations.generated";
 import { useRoleMutations } from "@/shared/hooks/authorization/useRoleMutations";
 import { useRoleDrawer } from "@/shared/hooks/authorization/useRoleDrawer";
@@ -23,7 +23,6 @@ import { useToast } from "@/shared/providers";
 import { extractErrorMessage } from "@/shared/utils/error";
 import { RoleForm, type RoleFormData } from "./RoleForm";
 import { RolePermissionAssignment } from "./RolePermissionAssignment";
-import { RoleUserAssignment, type User } from "./RoleUserAssignment";
 import { RoleGroupAssignment, type Group } from "./RoleGroupAssignment";
 import type { Permission } from "../permissions/PermissionList";
 import { PermissionGate } from "@/shared/components/authorization";
@@ -49,38 +48,23 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
 
   // State to track pending selections during role creation
   const [pendingPermissions, setPendingPermissions] = useState<string[]>([]);
-  const [pendingUsers, setPendingUsers] = useState<string[]>([]);
-  const [pendingGroups, setPendingGroups] = useState<string[]>([]);
+  const [pendingGroups, setPendingGroups] = useState<Group[]>([]);
   
   // Use role drawer hook for edit mode (handles users, groups, and permissions state and mutations)
   const {
     role: roleFromHook,
-    selectedUsers,
     selectedGroups,
     selectedPermissions,
     hasChanges: hasUserGroupPermissionChanges,
     saving: savingUserGroups,
-    updateSelectedUsers,
     updateSelectedGroups,
     updateSelectedPermissions,
     handleSave: handleSaveUserGroups,
     resetChanges: resetUserGroupChanges,
   } = useRoleDrawer(roleId, open && !isCreateMode);
 
-  // Query users and groups with their roles to find which users/groups have this role
-  // Always fetch when drawer is open (needed for both create and edit modes)
-  const { data: usersGroupsData, loading: usersGroupsLoading, error: usersGroupsError, refetch: refetchUsersGroups } = useGetRoleWithUsersAndGroupsQuery({
-    skip: !open, // Always fetch when drawer is open
-    fetchPolicy: 'network-only', // Always fetch fresh data when drawer opens
-    notifyOnNetworkStatusChange: true,
-  });
-
   // Use role from hook in edit mode, or null in create mode
   const role = isCreateMode ? null : roleFromHook;
-
-  // Only show loading spinner on initial load, not on refetches
-  const initialLoading = usersGroupsLoading && !usersGroupsData;
-  const queryError = usersGroupsError;
 
   // Extract permissions - use hook state for edit mode, pending state for create mode
   const assignedPermissions = useMemo(() => {
@@ -97,42 +81,16 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
     }
   }, [role, selectedPermissions, pendingPermissions]);
 
-  // Extract assigned users - use hook state for edit mode, pending state for create mode
-  const assignedUsers = useMemo(() => {
-    if (role) {
-      // Edit mode: use selectedUsers from hook
-      return selectedUsers;
-    } else {
-      // Create mode: fetch user data for pending user IDs
-      if (!usersGroupsData?.users?.edges) return [];
-      return usersGroupsData.users.edges.map(e => e.node)
-        .filter((user) => pendingUsers.includes(user.id))
-        .map((user) => ({
-          id: user.id,
-          email: user.email,
-          displayName: user.displayName,
-          enabled: user.enabled,
-        }));
-    }
-  }, [role, selectedUsers, usersGroupsData, pendingUsers]);
-
   // Extract assigned groups - use hook state for edit mode, pending state for create mode
   const assignedGroups = useMemo(() => {
     if (role) {
       // Edit mode: use selectedGroups from hook
       return selectedGroups;
     } else {
-      // Create mode: fetch group data for pending group IDs
-      if (!usersGroupsData?.groups?.edges) return [];
-      return usersGroupsData.groups.edges.map(e => e.node)
-        .filter((group) => pendingGroups.includes(group.id))
-        .map((group) => ({
-          id: group.id,
-          name: group.name,
-          description: group.description,
-        }));
+      // Create mode: use pending groups directly
+      return pendingGroups;
     }
-  }, [role, selectedGroups, usersGroupsData, pendingGroups]);
+  }, [role, selectedGroups, pendingGroups]);
 
   // Use mutation directly for create and update to get refetchQueries
   // Using query name as string to refetch all active queries regardless of variables
@@ -149,7 +107,6 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
   // Use mutation hook for other operations
   const {
     assignPermissionToRole,
-    assignRoleToUser,
     assignRoleToGroup,
   } = useRoleMutations({
     // No refetch needed - drawer manages its own queries
@@ -172,7 +129,6 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
       // Clear pending state when opening create drawer
       startTransition(() => {
         setPendingPermissions([]);
-        setPendingUsers([]);
         setPendingGroups([]);
       });
     } else if (role) {
@@ -183,7 +139,6 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
       // Clear pending state when editing existing role
       startTransition(() => {
         setPendingPermissions([]);
-        setPendingUsers([]);
         setPendingGroups([]);
       });
     }
@@ -197,20 +152,10 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
       });
       startTransition(() => {
         setPendingPermissions([]);
-        setPendingUsers([]);
         setPendingGroups([]);
       });
     }
   }, [open, methods]);
-
-  // Refetch when drawer opens to ensure fresh data
-  useEffect(() => {
-    if (open && roleId) {
-      refetchUsersGroups().catch(() => {
-        // Silently handle refetch failures - data will refresh on next interaction
-      });
-    }
-  }, [open, roleId, refetchUsersGroups]);
 
   const handleSubmit = async (data: RoleFormData) => {
     try {
@@ -257,15 +202,10 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
           for (const permissionId of pendingPermissions) {
             await assignPermissionToRole(newRole.id, permissionId);
           }
-          
-          // Assign users
-          for (const userId of pendingUsers) {
-            await assignRoleToUser(userId, newRole.id);
-          }
-          
+
           // Assign groups
-          for (const groupId of pendingGroups) {
-            await assignRoleToGroup(groupId, newRole.id);
+          for (const group of pendingGroups) {
+            await assignRoleToGroup(group.id, newRole.id);
           }
         } catch (assignErr) {
           // Role was created but assignments failed - show warning
@@ -281,7 +221,6 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
       // Note: No need to refetch roles list - mutations update cache and parent will refetch when needed
       // Clear pending state
       setPendingPermissions([]);
-      setPendingUsers([]);
       setPendingGroups([]);
       onClose();
     } catch (err) {
@@ -298,46 +237,23 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
   // Handle permission changes for create mode
   const handleCreateModePermissionChange = useCallback((permissions: Permission[]) => {
     if (isCreateMode) {
-      setPendingPermissions(permissions.map(p => p.id));
-    }
-  }, [isCreateMode]);
-  
-  // Handle permission changes for edit mode (handled by hook via onChange)
-  const handlePermissionsChange = useCallback(() => {
-    // No-op for edit mode (handled by hook)
-    // For create mode, this is handled by pendingPermissions state
-  }, []);
-
-  // Handle user changes for create mode
-  const handleCreateModeUserChange = useCallback((users: User[]) => {
-    if (isCreateMode) {
-      setPendingUsers(users.map(u => u.id));
+      setPendingPermissions(permissions.map((p) => p.id));
     }
   }, [isCreateMode]);
   
   // Handle group changes for create mode
   const handleCreateModeGroupChange = useCallback((groups: Group[]) => {
     if (isCreateMode) {
-      setPendingGroups(groups.map(g => g.id));
+      setPendingGroups(groups);
     }
   }, [isCreateMode]);
-  
-  // Handle user changes for create mode (edit mode handled by hook)
-  const handleUsersChange = useCallback(() => {
-    // No-op for edit mode (handled by hook)
-    // For create mode, this is handled by pendingUsers state
-  }, []);
-  
-  // Handle group changes for create mode (edit mode handled by hook)
-  const handleGroupsChange = useCallback(() => {
-    // No-op for edit mode (handled by hook)
-    // For create mode, this is handled by pendingGroups state
-  }, []);
 
   const drawerTitle = isCreateMode ? t("roleManagement.createRole") : t("roleManagement.editRole");
 
   return (
     <Drawer
+      id="role-drawer"
+      data-testid="role-drawer"
       open={open}
       onClose={onClose}
       anchor="right"
@@ -360,18 +276,7 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
         </IconButton>
       </Drawer.Header>
       <Drawer.Body>
-        <LoadingState isLoading={initialLoading} />
-
-        <ErrorAlert
-          error={queryError || undefined}
-          onRetry={() => {
-            refetchUsersGroups();
-          }}
-          fallbackMessage={t("roleManagement.drawer.errorLoading")}
-        />
-
-        {!initialLoading && !queryError && (
-          <FormProvider {...methods}>
+        <FormProvider {...methods}>
             <Box
               component="form"
               id="role-form"
@@ -396,21 +301,9 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
                     onRemoveGroup={undefined}
                     assignLoading={false}
                     removeLoading={false}
-                    onGroupsChange={handleGroupsChange}
+                    onGroupsChange={undefined}
                     active={open}
                     onChange={isCreateMode ? handleCreateModeGroupChange : updateSelectedGroups}
-                  />
-
-                  <RoleUserAssignment
-                    roleId={roleId}
-                    assignedUsers={assignedUsers}
-                    onAssignUser={undefined}
-                    onRemoveUser={undefined}
-                    assignLoading={false}
-                    removeLoading={false}
-                    onUsersChange={handleUsersChange}
-                    active={open}
-                    readonly={true}
                   />
 
                   <RolePermissionAssignment
@@ -420,18 +313,44 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
                     onRemovePermission={undefined}
                     assignLoading={false}
                     removeLoading={false}
-                    onPermissionsChange={handlePermissionsChange}
+                    onPermissionsChange={undefined}
                     active={open}
                     onChange={isCreateMode ? handleCreateModePermissionChange : updateSelectedPermissions}
                   />
                 </PermissionGate>
+
+                {/* Timestamps - only show in edit mode, at the bottom in 2 columns */}
+                {!isCreateMode && role?.createdAt && role?.updatedAt && (
+                  <Box sx={{ display: "flex", gap: 2 }}>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                        {t("roleManagement.drawer.createdAt")}
+                      </Typography>
+                      <TextField
+                        fullWidth
+                        value={new Date(role.createdAt).toLocaleString()}
+                        readOnly
+                        data-testid="role-drawer-created-at"
+                      />
+                    </Box>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                        {t("roleManagement.drawer.updatedAt")}
+                      </Typography>
+                      <TextField
+                        fullWidth
+                        value={new Date(role.updatedAt).toLocaleString()}
+                        readOnly
+                        data-testid="role-drawer-updated-at"
+                      />
+                    </Box>
+                  </Box>
+                )}
               </Stack>
             </Box>
           </FormProvider>
-        )}
       </Drawer.Body>
-      {!initialLoading && !queryError && (
-        <Drawer.Footer>
+      <Drawer.Footer>
           <PermissionGate require={isCreateMode ? "security:role:save" : "security:role:save"}>
             <Stack direction="row" spacing={2} justifyContent="flex-end">
               <Button
@@ -462,7 +381,6 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
             </Stack>
           </PermissionGate>
         </Drawer.Footer>
-      )}
     </Drawer>
   );
 };

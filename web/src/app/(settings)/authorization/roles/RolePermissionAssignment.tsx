@@ -54,6 +54,9 @@ const PermissionItem = memo<{
     [permission.id, onToggle]
   );
 
+  const iconColor = isAssigned ? "primary.main" : "text.secondary";
+  const labelColor = isAssigned ? "primary.main" : "text.primary";
+
   return (
     <FormControlLabel
       control={
@@ -66,11 +69,17 @@ const PermissionItem = memo<{
       label={
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           {isAssigned ? (
-            <LockOpen sx={{ fontSize: 18, color: "text.secondary" }} />
+            <LockOpen sx={{ fontSize: 18, color: iconColor }} />
           ) : (
-            <Lock sx={{ fontSize: 18, color: "text.secondary" }} />
+            <Lock sx={{ fontSize: 18, color: iconColor }} />
           )}
-          <span>{permission.name}</span>
+          <Typography
+            component="span"
+            variant="body2"
+            sx={{ color: labelColor }}
+          >
+            {permission.name}
+          </Typography>
         </Box>
       }
     />

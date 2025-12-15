@@ -381,6 +381,38 @@ When displaying both a search field and action button in the Header, use `alignI
 
 This ensures users can always cancel and close the drawer, providing a consistent and predictable user experience across all management drawers.
 
+### Drawer Save Button Pattern
+
+**Default Behavior**: The primary Save action in Drawer components (UserDrawer, GroupDrawer, RoleDrawer, etc.) MUST follow this pattern:
+
+1. **Auto-close on Success**: After a successful save operation (no thrown error and success toast shown), the drawer MUST close itself by calling the `onClose` callback.
+
+2. **Stay Open on Error**: If the save operation fails (GraphQL/network/business error), the drawer MUST remain open so the user can correct data and retry. Error handling (toasts, alerts) MUST be performed in the save logic, not in the button handler.
+
+3. **Implementation Pattern**:
+```typescript
+<Button
+  variant="contained"
+  onClick={async () => {
+    try {
+      await handleSave(); // performs mutations + toasts
+      onClose();          // only called if handleSave succeeds
+    } catch {
+      // Errors are already surfaced via toast/ErrorAlert inside handleSave
+      // Do NOT close the drawer here
+    }
+  }}
+  disabled={saving || !hasChanges}
+>
+  {saving ? t("common.saving") : t("common.save")}
+</Button>
+```
+
+**Key Points**:
+- Save handler (`handleSave`) is responsible for business logic, GraphQL calls, refetches, and toast notifications.
+- The Save button wrapper only orchestrates control-flow (awaits `handleSave` and closes the drawer on success).
+- Drawers used in management flows MUST auto-close on successful saves to provide a consistent, predictable UX across the app.
+
 ## Avoiding Duplicate Hook Instances
 
 ### Critical Rule: Never Call Complex Management Hooks in Child Components

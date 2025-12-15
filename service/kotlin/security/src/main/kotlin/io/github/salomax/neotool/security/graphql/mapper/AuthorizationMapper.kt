@@ -41,6 +41,8 @@ class AuthorizationMapper {
         return RoleDTO(
             id = role.id?.toString(),
             name = role.name,
+            createdAt = role.createdAt.toString(),
+            updatedAt = role.updatedAt.toString(),
         )
     }
 }

@@ -44,6 +44,33 @@ interface RoleRepository : JpaRepository<RoleEntity, UUID> {
     fun findPermissionIdsByRoleIds(roleIds: List<UUID>): List<UUID>
 
     /**
+     * Find group IDs assigned to a role via group_role_assignments.
+     * Uses native query because group_role_assignments is a join table without an entity.
+     */
+    @Query(
+        value = """
+        SELECT group_id FROM security.group_role_assignments
+        WHERE role_id = :roleId
+        """,
+        nativeQuery = true,
+    )
+    fun findGroupIdsByRoleId(roleId: UUID): List<UUID>
+
+    /**
+     * Find all unique group IDs for multiple roles via the group_role_assignments join table.
+     * Uses native query for batch loading to avoid N+1 queries.
+     * Returns distinct group IDs that belong to any of the given roles.
+     */
+    @Query(
+        value = """
+        SELECT DISTINCT group_id FROM security.group_role_assignments
+        WHERE role_id IN (:roleIds)
+        """,
+        nativeQuery = true,
+    )
+    fun findGroupIdsByRoleIds(roleIds: List<UUID>): List<UUID>
+
+    /**
      * Check if a role has any user assignments through groups.
      * Queries the group_role_assignments and group_memberships tables to determine if any users have this role assigned via groups.
      *

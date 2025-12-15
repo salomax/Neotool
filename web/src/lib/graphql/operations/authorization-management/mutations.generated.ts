@@ -119,7 +119,8 @@ export const EnableUserDocument = gql`
     displayName
     enabled
   }
-}`;
+}
+    `;
 
 /**
  * __useEnableUserMutation__
@@ -152,7 +153,8 @@ export const DisableUserDocument = gql`
     displayName
     enabled
   }
-}`;
+}
+    `;
 
 /**
  * __useDisableUserMutation__
@@ -190,7 +192,8 @@ export const CreateGroupDocument = gql`
       enabled
     }
   }
-}`;
+}
+    `;
 
 /**
  * __useCreateGroupMutation__
@@ -228,7 +231,8 @@ export const UpdateGroupDocument = gql`
       enabled
     }
   }
-}`;
+}
+    `;
 
 /**
  * __useUpdateGroupMutation__
@@ -289,7 +293,8 @@ export const CreateRoleDocument = gql`
     id
     name
   }
-}`;
+}
+    `;
 
 /**
  * __useCreateRoleMutation__
@@ -320,7 +325,8 @@ export const UpdateRoleDocument = gql`
     id
     name
   }
-}`;
+}
+    `;
 
 /**
  * __useUpdateRoleMutation__
@@ -381,7 +387,8 @@ export const AssignPermissionToRoleDocument = gql`
     id
     name
   }
-}`;
+}
+    `;
 
 /**
  * __useAssignPermissionToRoleMutation__
@@ -413,7 +420,8 @@ export const RemovePermissionFromRoleDocument = gql`
     id
     name
   }
-}`;
+}
+    `;
 
 /**
  * __useRemovePermissionFromRoleMutation__
@@ -447,7 +455,8 @@ export const AssignGroupToUserDocument = gql`
     displayName
     enabled
   }
-}`;
+}
+    `;
 
 /**
  * __useAssignGroupToUserMutation__
@@ -481,7 +490,8 @@ export const RemoveGroupFromUserDocument = gql`
     displayName
     enabled
   }
-}`;
+}
+    `;
 
 /**
  * __useRemoveGroupFromUserMutation__
@@ -520,7 +530,8 @@ export const AssignRoleToGroupDocument = gql`
       enabled
     }
   }
-}`;
+}
+    `;
 
 /**
  * __useAssignRoleToGroupMutation__
@@ -559,7 +570,8 @@ export const RemoveRoleFromGroupDocument = gql`
       enabled
     }
   }
-}`;
+}
+    `;
 
 /**
  * __useRemoveRoleFromGroupMutation__

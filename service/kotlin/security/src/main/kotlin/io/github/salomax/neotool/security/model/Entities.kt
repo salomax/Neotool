@@ -37,8 +37,18 @@ open class UserEntity(
     open var passwordResetUsedAt: Instant? = null,
     @Column(nullable = false)
     open var enabled: Boolean = true,
+    @Column(name = "avatar_url")
+    open var avatarUrl: String? = null,
+    @Column(name = "avatar_provider")
+    open var avatarProvider: String? = null,
+    @Column(name = "avatar_updated_at")
+    open var avatarUpdatedAt: Instant? = null,
     @Column(name = "created_at", nullable = false)
     open var createdAt: Instant = Instant.now(),
+    @Column(name = "updated_at", nullable = false)
+    open var updatedAt: Instant = Instant.now(),
+    @Version
+    open var version: Long = 0,
 ) : BaseEntity<UUID?>(id) {
     fun toDomain(): User {
         return User(
@@ -47,6 +57,9 @@ open class UserEntity(
             displayName = this.displayName,
             enabled = this.enabled,
             createdAt = this.createdAt,
+            updatedAt = this.updatedAt,
+            avatarUrl = this.avatarUrl,
+            version = this.version,
         )
     }
 }

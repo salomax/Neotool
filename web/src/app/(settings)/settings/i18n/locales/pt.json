@@ -36,7 +36,9 @@
       "saveSuccess": "Usuário atualizado com sucesso",
       "saveError": "Falha ao atualizar usuário",
       "displayNamePlaceholder": "Digite o nome de exibição",
-      "emailPlaceholder": "Digite o endereço de email"
+      "emailPlaceholder": "Digite o endereço de email",
+      "createdAt": "Criado Em",
+      "updatedAt": "Atualizado Em"
     },
     "groups": {
       "assignError": "Falha ao atribuir grupo",
@@ -48,7 +50,8 @@
       "assignError": "Falha ao atribuir perfil",
       "removeError": "Falha ao remover perfil",
       "searchPlaceholder": "Buscar perfis...",
-      "loadError": "Falha ao carregar perfis"
+      "loadError": "Falha ao carregar perfis",
+      "noRoles": "Nenhum perfil atribuído"
     },
     "status": {
       "enabled": "Habilitado",
@@ -101,7 +104,9 @@
       "saveSuccess": "Grupo atualizado com sucesso",
       "saveError": "Falha ao atualizar grupo",
       "namePlaceholder": "Digite o nome do grupo",
-      "descriptionPlaceholder": "Digite a descrição do grupo"
+      "descriptionPlaceholder": "Digite a descrição do grupo",
+      "createdAt": "Criado Em",
+      "updatedAt": "Atualizado Em"
     },
     "roles": {
       "assignError": "Falha ao atribuir perfil",
@@ -157,7 +162,9 @@
     "newButton": "Novo",
     "drawerPlaceholder": "Formulário de edição de perfil será implementado aqui",
     "drawer": {
-      "errorLoading": "Falha ao carregar detalhes do perfil"
+      "errorLoading": "Falha ao carregar detalhes do perfil",
+      "createdAt": "Criado Em",
+      "updatedAt": "Atualizado Em"
     },
     "table": {
       "name": "Nome",

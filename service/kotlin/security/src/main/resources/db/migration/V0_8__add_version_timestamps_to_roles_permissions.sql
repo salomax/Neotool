@@ -1,12 +1,3 @@
--- Set search path to security schema
-SET search_path TO security, public;
-
--- Add version, created_at, and updated_at columns to roles table
-ALTER TABLE security.roles ADD COLUMN IF NOT EXISTS created_at TIMESTAMP NOT NULL DEFAULT NOW();
-ALTER TABLE security.roles ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT NOW();
-ALTER TABLE security.roles ADD COLUMN IF NOT EXISTS version BIGINT NOT NULL DEFAULT 0;
-
--- Add version, created_at, and updated_at columns to permissions table
-ALTER TABLE security.permissions ADD COLUMN IF NOT EXISTS created_at TIMESTAMP NOT NULL DEFAULT NOW();
-ALTER TABLE security.permissions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT NOW();
-ALTER TABLE security.permissions ADD COLUMN IF NOT EXISTS version BIGINT NOT NULL DEFAULT 0;
+-- Migration no longer needed: roles and permissions now created
+-- with created_at, updated_at and version columns in V0_1__init.sql.
+-- Keeping this file as a no-op to preserve Flyway history.

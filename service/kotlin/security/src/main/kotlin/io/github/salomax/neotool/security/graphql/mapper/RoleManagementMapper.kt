@@ -3,9 +3,11 @@ package io.github.salomax.neotool.security.graphql.mapper
 import io.github.salomax.neotool.common.graphql.pagination.Connection
 import io.github.salomax.neotool.common.graphql.pagination.OrderDirection
 import io.github.salomax.neotool.security.domain.RoleManagement
+import io.github.salomax.neotool.security.domain.rbac.Group
 import io.github.salomax.neotool.security.domain.rbac.Permission
 import io.github.salomax.neotool.security.domain.rbac.Role
 import io.github.salomax.neotool.security.graphql.dto.CreateRoleInputDTO
+import io.github.salomax.neotool.security.graphql.dto.GroupDTO
 import io.github.salomax.neotool.security.graphql.dto.PageInfoDTO
 import io.github.salomax.neotool.security.graphql.dto.PermissionDTO
 import io.github.salomax.neotool.security.graphql.dto.RoleConnectionDTO
@@ -30,7 +32,26 @@ class RoleManagementMapper {
         return RoleDTO(
             id = role.id?.toString() ?: throw IllegalArgumentException("Role must have an ID"),
             name = role.name,
+            createdAt = role.createdAt.toString(),
+            updatedAt = role.updatedAt.toString(),
         )
+    }
+
+    /**
+     * Convert Group domain object to GroupDTO.
+     */
+    fun toGroupDTO(group: Group): GroupDTO {
+        return GroupDTO(
+            id = group.id?.toString() ?: throw IllegalArgumentException("Group must have an ID"),
+            name = group.name,
+            description = group.description,
+            createdAt = group.createdAt.toString(),
+            updatedAt = group.updatedAt.toString(),
+        )
+    }
+
+    fun toGroupDTOList(groups: List<Group>): List<GroupDTO> {
+        return groups.map { toGroupDTO(it) }
     }
 
     /**

@@ -183,8 +183,7 @@ export async function createRole(
     mutation,
     {
       input: {
-        name,
-        description,
+        name
       },
     },
     token

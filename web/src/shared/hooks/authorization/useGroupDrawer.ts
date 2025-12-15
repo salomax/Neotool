@@ -29,6 +29,8 @@ type Group = {
   id: string;
   name: string;
   description: string | null;
+  createdAt: string;
+  updatedAt: string;
   roles: Role[];
   members: Member[];
 };
@@ -75,6 +77,8 @@ export function useGroupDrawer(
       id: data.group.id,
       name: data.group.name,
       description: data.group.description,
+      createdAt: data.group.createdAt,
+      updatedAt: data.group.updatedAt,
       roles: (data.group.roles || []).map(r => ({
         id: r.id,
         name: r.name,

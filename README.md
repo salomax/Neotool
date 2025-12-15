@@ -593,14 +593,12 @@ pnpm run ci:unit
 ## 🧭 Roadmap
 
 ### Architecture/Infra
-- [ ] FE and BE coverage tests (metrics and validation)
-- [ ] Distriuted Cache for Security
-- [ ] CI/CD (mock deployment)
+- [ ] Entity version validation in order to prevent concurrency issues
+- [ ] CI/CD + K8S artifacts
 - [ ] Mobile with React Native and Expo
 - [ ] Logging (promtail, loki)
 - [ ] Purge after a period of time (logs and workflow ru on GH)
-- [ ] E2E tests with cypress (running on CI/CD and test the AuthN and AuthZ)
-- [ ] Visual regression testing (cypress-image-diff)
+- [ ] Visual regression testing
 - [ ] AI agents
 - [ ] BI service
 - [ ] File storage abstraction
@@ -634,9 +632,6 @@ pnpm run ci:unit
 - [ ] Guardrails and observability – Define TTLs, hit/miss metrics, and a fallback strategy (force bypass on critical actions) to ensure RBAC decisions remain accurate even if the cache is out-of-sync or unavailable.
 
 ### Examples / Built-in features
-- [ ] Batch job example (Scheduled tasks (cron-like))
-- [ ] Messaging example with Kafka
-- [ ] Redis cache
 - [ ] Webhook example
 - [ ] AI Chat
 

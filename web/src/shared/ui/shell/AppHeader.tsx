@@ -148,7 +148,10 @@ export function AppHeader() {
                   aria-haspopup="true"
                   aria-expanded={open ? "true" : undefined}
                 >
-                  <Avatar sx={{ width: 32, height: 32 }}>
+                  <Avatar
+                    sx={{ width: 32, height: 32 }}
+                    src={user?.avatarUrl || undefined}
+                  >
                     {user ? getInitials(user) : <PersonIcon />}
                   </Avatar>
                 </IconButton>

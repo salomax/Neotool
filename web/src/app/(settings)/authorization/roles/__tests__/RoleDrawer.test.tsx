@@ -48,6 +48,13 @@ vi.mock('@/shared/components/ui/layout/Drawer', () => ({
 const mockRole = {
   id: 'role-1',
   name: 'Admin Role',
+  groups: [
+    {
+      id: 'group-1',
+      name: 'Admin Group',
+      description: 'Administrators',
+    },
+  ],
   permissions: [
     { id: 'perm-1', name: 'security:user:view' },
   ],
@@ -72,23 +79,6 @@ const mockGroups = [
   },
 ];
 
-const mockUseGetRolesWithPermissionsQuery = vi.fn(() => ({
-  data: {
-    roles: {
-      edges: [{ node: mockRole }],
-    },
-  },
-  loading: false,
-  error: undefined,
-  refetch: vi.fn().mockResolvedValue({
-    data: {
-      roles: {
-        edges: [{ node: mockRole }],
-      },
-    },
-  }),
-}));
-
 const mockUseGetRoleWithUsersAndGroupsQuery = vi.fn(() => ({
   data: {
     users: {
@@ -112,9 +102,22 @@ const mockUseGetRoleWithUsersAndGroupsQuery = vi.fn(() => ({
   }),
 }));
 
+const mockUseGetRoleWithRelationshipsQuery = vi.fn(() => ({
+  data: {
+    role: mockRole,
+  },
+  loading: false,
+  error: undefined,
+  refetch: vi.fn().mockResolvedValue({
+    data: {
+      role: mockRole,
+    },
+  }),
+}));
+
 vi.mock('@/lib/graphql/operations/authorization-management/queries.generated', () => ({
-  useGetRolesWithPermissionsQuery: () => mockUseGetRolesWithPermissionsQuery(),
   useGetRoleWithUsersAndGroupsQuery: () => mockUseGetRoleWithUsersAndGroupsQuery(),
+  useGetRoleWithRelationshipsQuery: () => mockUseGetRoleWithRelationshipsQuery(),
 }));
 
 // Mock useRoleMutations hook
@@ -260,19 +263,15 @@ describe('RoleDrawer', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseGetRolesWithPermissionsQuery.mockReturnValue({
+    mockUseGetRoleWithRelationshipsQuery.mockReturnValue({
       data: {
-        roles: {
-          edges: [{ node: mockRole }],
-        },
+        role: mockRole,
       },
       loading: false,
       error: undefined,
       refetch: vi.fn().mockResolvedValue({
         data: {
-          roles: {
-            edges: [{ node: mockRole }],
-          },
+          role: mockRole,
         },
       }),
     });

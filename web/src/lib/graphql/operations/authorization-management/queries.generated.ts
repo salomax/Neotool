@@ -12,7 +12,7 @@ export type GetUsersQueryVariables = Types.Exact<{
 }>;
 
 
-export type GetUsersQuery = { users: { __typename: 'UserConnection', totalCount: number | null, edges: Array<{ __typename: 'UserEdge', cursor: string, node: { __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean } }>, pageInfo: { __typename: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null } } };
+export type GetUsersQuery = { users: { __typename: 'UserConnection', totalCount: number | null, edges: Array<{ __typename: 'UserEdge', cursor: string, node: { __typename: 'User', id: string, email: string, displayName: string | null, avatarUrl: string | null, enabled: boolean } }>, pageInfo: { __typename: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null } } };
 
 export type GetGroupsQueryVariables = Types.Exact<{
   first?: Types.InputMaybe<Types.Scalars['Int']['input']>;
@@ -48,14 +48,21 @@ export type GetUserWithRelationshipsQueryVariables = Types.Exact<{
 }>;
 
 
-export type GetUserWithRelationshipsQuery = { user: { __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean, groups: Array<{ __typename: 'Group', id: string, name: string, description: string | null, members: Array<{ __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean }> }>, roles: Array<{ __typename: 'Role', id: string, name: string }>, permissions: Array<{ __typename: 'Permission', id: string, name: string }> } | null };
+export type GetUserWithRelationshipsQuery = { user: { __typename: 'User', id: string, email: string, displayName: string | null, avatarUrl: string | null, enabled: boolean, createdAt: string, updatedAt: string, groups: Array<{ __typename: 'Group', id: string, name: string, description: string | null }>, roles: Array<{ __typename: 'Role', id: string, name: string }>, permissions: Array<{ __typename: 'Permission', id: string, name: string }> } | null };
+
+export type GetRoleWithRelationshipsQueryVariables = Types.Exact<{
+  id: Types.Scalars['ID']['input'];
+}>;
+
+
+export type GetRoleWithRelationshipsQuery = { role: { __typename: 'Role', id: string, name: string, createdAt: string, updatedAt: string, groups: Array<{ __typename: 'Group', id: string, name: string, description: string | null }>, permissions: Array<{ __typename: 'Permission', id: string, name: string }> } | null };
 
 export type GetGroupWithRelationshipsQueryVariables = Types.Exact<{
   id: Types.Scalars['ID']['input'];
 }>;
 
 
-export type GetGroupWithRelationshipsQuery = { group: { __typename: 'Group', id: string, name: string, description: string | null, roles: Array<{ __typename: 'Role', id: string, name: string }>, members: Array<{ __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean }> } | null };
+export type GetGroupWithRelationshipsQuery = { group: { __typename: 'Group', id: string, name: string, description: string | null, createdAt: string, updatedAt: string, members: Array<{ __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean }>, roles: Array<{ __typename: 'Role', id: string, name: string }> } | null };
 
 export type GetRolesWithPermissionsQueryVariables = Types.Exact<{ [key: string]: never; }>;
 
@@ -65,7 +72,7 @@ export type GetRolesWithPermissionsQuery = { roles: { __typename: 'RoleConnectio
 export type GetRoleWithUsersAndGroupsQueryVariables = Types.Exact<{ [key: string]: never; }>;
 
 
-export type GetRoleWithUsersAndGroupsQuery = { users: { __typename: 'UserConnection', edges: Array<{ __typename: 'UserEdge', node: { __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean, roles: Array<{ __typename: 'Role', id: string, name: string }> } }> }, groups: { __typename: 'GroupConnection', edges: Array<{ __typename: 'GroupEdge', node: { __typename: 'Group', id: string, name: string, description: string | null, roles: Array<{ __typename: 'Role', id: string, name: string }>, members: Array<{ __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean }> } }> } };
+export type GetRoleWithUsersAndGroupsQuery = { users: { __typename: 'UserConnection', edges: Array<{ __typename: 'UserEdge', node: { __typename: 'User', id: string, email: string, displayName: string | null, avatarUrl: string | null, enabled: boolean, roles: Array<{ __typename: 'Role', id: string, name: string }> } }> }, groups: { __typename: 'GroupConnection', edges: Array<{ __typename: 'GroupEdge', node: { __typename: 'Group', id: string, name: string, description: string | null, members: Array<{ __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean }>, roles: Array<{ __typename: 'Role', id: string, name: string }> } }> } };
 
 
 export const GetUsersDocument = gql`
@@ -76,6 +83,7 @@ export const GetUsersDocument = gql`
         id
         email
         displayName
+        avatarUrl
         enabled
       }
       cursor
@@ -88,7 +96,8 @@ export const GetUsersDocument = gql`
     }
     totalCount
   }
-}`;
+}
+    `;
 
 /**
  * __useGetUsersQuery__
@@ -150,7 +159,8 @@ export const GetGroupsDocument = gql`
     }
     totalCount
   }
-}`;
+}
+    `;
 
 /**
  * __useGetGroupsQuery__
@@ -205,7 +215,8 @@ export const GetRolesDocument = gql`
     }
     totalCount
   }
-}`;
+}
+    `;
 
 /**
  * __useGetRolesQuery__
@@ -259,7 +270,8 @@ export const GetPermissionsDocument = gql`
       endCursor
     }
   }
-}`;
+}
+    `;
 
 /**
  * __useGetPermissionsQuery__
@@ -301,17 +313,14 @@ export const GetUserWithRelationshipsDocument = gql`
     id
     email
     displayName
+    avatarUrl
     enabled
+    createdAt
+    updatedAt
     groups {
       id
       name
       description
-      members {
-        id
-        email
-        displayName
-        enabled
-      }
     }
     roles {
       id
@@ -322,7 +331,8 @@ export const GetUserWithRelationshipsDocument = gql`
       name
     }
   }
-}`;
+}
+    `;
 
 /**
  * __useGetUserWithRelationshipsQuery__
@@ -356,12 +366,66 @@ export type GetUserWithRelationshipsQueryHookResult = ReturnType<typeof useGetUs
 export type GetUserWithRelationshipsLazyQueryHookResult = ReturnType<typeof useGetUserWithRelationshipsLazyQuery>;
 export type GetUserWithRelationshipsSuspenseQueryHookResult = ReturnType<typeof useGetUserWithRelationshipsSuspenseQuery>;
 export type GetUserWithRelationshipsQueryResult = ApolloReactCommon.QueryResult<GetUserWithRelationshipsQuery, GetUserWithRelationshipsQueryVariables>;
+export const GetRoleWithRelationshipsDocument = gql`
+    query GetRoleWithRelationships($id: ID!) {
+  role(id: $id) {
+    id
+    name
+    createdAt
+    updatedAt
+    groups {
+      id
+      name
+      description
+    }
+    permissions {
+      id
+      name
+    }
+  }
+}
+    `;
+
+/**
+ * __useGetRoleWithRelationshipsQuery__
+ *
+ * To run a query within a React component, call `useGetRoleWithRelationshipsQuery` and pass it any options that fit your needs.
+ * When your component renders, `useGetRoleWithRelationshipsQuery` returns an object from Apollo Client that contains loading, error, and data properties
+ * you can use to render your UI.
+ *
+ * @param baseOptions options that will be passed into the query, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options;
+ *
+ * @example
+ * const { data, loading, error } = useGetRoleWithRelationshipsQuery({
+ *   variables: {
+ *      id: // value for 'id'
+ *   },
+ * });
+ */
+export function useGetRoleWithRelationshipsQuery(baseOptions: ApolloReactHooks.QueryHookOptions<GetRoleWithRelationshipsQuery, GetRoleWithRelationshipsQueryVariables> & ({ variables: GetRoleWithRelationshipsQueryVariables; skip?: boolean; } | { skip: boolean; }) ) {
+        const options = {...defaultOptions, ...baseOptions}
+        return ApolloReactHooks.useQuery<GetRoleWithRelationshipsQuery, GetRoleWithRelationshipsQueryVariables>(GetRoleWithRelationshipsDocument, options);
+      }
+export function useGetRoleWithRelationshipsLazyQuery(baseOptions?: ApolloReactHooks.LazyQueryHookOptions<GetRoleWithRelationshipsQuery, GetRoleWithRelationshipsQueryVariables>) {
+          const options = {...defaultOptions, ...baseOptions}
+          return ApolloReactHooks.useLazyQuery<GetRoleWithRelationshipsQuery, GetRoleWithRelationshipsQueryVariables>(GetRoleWithRelationshipsDocument, options);
+        }
+export function useGetRoleWithRelationshipsSuspenseQuery(baseOptions?: ApolloReactHooks.SkipToken | ApolloReactHooks.SuspenseQueryHookOptions<GetRoleWithRelationshipsQuery, GetRoleWithRelationshipsQueryVariables>) {
+          const options = baseOptions === ApolloReactHooks.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
+          return ApolloReactHooks.useSuspenseQuery<GetRoleWithRelationshipsQuery, GetRoleWithRelationshipsQueryVariables>(GetRoleWithRelationshipsDocument, options as ApolloReactHooks.SkipToken | ApolloReactHooks.useSuspenseQuery.Options<GetRoleWithRelationshipsQueryVariables>);
+        }
+export type GetRoleWithRelationshipsQueryHookResult = ReturnType<typeof useGetRoleWithRelationshipsQuery>;
+export type GetRoleWithRelationshipsLazyQueryHookResult = ReturnType<typeof useGetRoleWithRelationshipsLazyQuery>;
+export type GetRoleWithRelationshipsSuspenseQueryHookResult = ReturnType<typeof useGetRoleWithRelationshipsSuspenseQuery>;
+export type GetRoleWithRelationshipsQueryResult = ApolloReactCommon.QueryResult<GetRoleWithRelationshipsQuery, GetRoleWithRelationshipsQueryVariables>;
 export const GetGroupWithRelationshipsDocument = gql`
     query GetGroupWithRelationships($id: ID!) {
   group(id: $id) {
     id
     name
     description
+    createdAt
+    updatedAt
     members {
       id
       email
@@ -373,7 +437,8 @@ export const GetGroupWithRelationshipsDocument = gql`
       name
     }
   }
-}`;
+}
+    `;
 
 /**
  * __useGetGroupWithRelationshipsQuery__
@@ -421,7 +486,8 @@ export const GetRolesWithPermissionsDocument = gql`
       }
     }
   }
-}`;
+}
+    `;
 
 /**
  * __useGetRolesWithPermissionsQuery__
@@ -462,6 +528,7 @@ export const GetRoleWithUsersAndGroupsDocument = gql`
         id
         email
         displayName
+        avatarUrl
         enabled
         roles {
           id
@@ -489,7 +556,8 @@ export const GetRoleWithUsersAndGroupsDocument = gql`
       }
     }
   }
-}`;
+}
+    `;
 
 /**
  * __useGetRoleWithUsersAndGroupsQuery__

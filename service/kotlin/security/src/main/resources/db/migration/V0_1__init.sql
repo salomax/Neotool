@@ -7,19 +7,30 @@ SET search_path TO security, public;
 -- Create tables with schema qualification
 CREATE TABLE IF NOT EXISTS security.roles (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
-    name VARCHAR(64) UNIQUE NOT NULL
+    name VARCHAR(64) UNIQUE NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    version BIGINT NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS security.permissions (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
-    name VARCHAR(128) UNIQUE NOT NULL
+    name VARCHAR(128) UNIQUE NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    version BIGINT NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS security.users (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
     email VARCHAR(255) UNIQUE NOT NULL,
     display_name VARCHAR(255),
-    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    version BIGINT NOT NULL DEFAULT 0,
+    avatar_url TEXT,
+    avatar_provider TEXT,
+    avatar_updated_at TIMESTAMPTZ
 );
 
 CREATE TABLE IF NOT EXISTS security.role_permissions (

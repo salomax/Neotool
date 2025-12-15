@@ -38,7 +38,8 @@ export const CreateProductDocument = gql`
     createdAt
     updatedAt
   }
-}`;
+}
+    `;
 
 /**
  * __useCreateProductMutation__
@@ -74,7 +75,8 @@ export const UpdateProductDocument = gql`
     createdAt
     updatedAt
   }
-}`;
+}
+    `;
 
 /**
  * __useUpdateProductMutation__
