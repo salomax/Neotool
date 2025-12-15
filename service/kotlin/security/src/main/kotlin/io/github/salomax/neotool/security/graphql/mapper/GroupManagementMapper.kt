@@ -29,6 +29,8 @@ class GroupManagementMapper {
             id = group.id?.toString() ?: throw IllegalArgumentException("Group must have an ID"),
             name = group.name,
             description = group.description,
+            createdAt = group.createdAt.toString(),
+            updatedAt = group.updatedAt.toString(),
         )
     }
 

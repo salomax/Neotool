@@ -26,7 +26,10 @@ class UserManagementMapper {
             id = user.id?.toString() ?: throw IllegalArgumentException("User must have an ID"),
             email = user.email,
             displayName = user.displayName,
+            avatarUrl = user.avatarUrl,
             enabled = user.enabled,
+            createdAt = user.createdAt.toString(),
+            updatedAt = user.updatedAt.toString(),
         )
     }
 

@@ -9,6 +9,7 @@ export const GET_USERS = gql`
           id
           email
           displayName
+          avatarUrl
           enabled
         }
         cursor
@@ -103,21 +104,39 @@ export const GET_USER_WITH_RELATIONSHIPS = gql`
       id
       email
       displayName
+      avatarUrl
       enabled
+      createdAt
+      updatedAt
       groups {
         id
         name
         description
-        members {
-          id
-          email
-          displayName
-          enabled
-        }
       }
       roles {
         id
         name
+      }
+      permissions {
+        id
+        name
+      }
+    }
+  }
+`;
+
+// Get role with permissions by id
+export const GET_ROLE_WITH_RELATIONSHIPS = gql`
+  query GetRoleWithRelationships($id: ID!) {
+    role(id: $id) {
+      id
+      name
+      createdAt
+      updatedAt
+      groups {
+        id
+        name
+        description
       }
       permissions {
         id
@@ -134,6 +153,8 @@ export const GET_GROUP_WITH_RELATIONSHIPS = gql`
       id
       name
       description
+      createdAt
+      updatedAt
       members {
         id
         email
@@ -148,9 +169,6 @@ export const GET_GROUP_WITH_RELATIONSHIPS = gql`
   }
 `;
 
-// Get roles with permissions
-// Note: Since there's no role(id: ID!) query in the schema, we query roles
-// and filter client-side by the provided roleId
 export const GET_ROLES_WITH_PERMISSIONS = gql`
   query GetRolesWithPermissions {
     roles(first: 100) {
@@ -169,8 +187,6 @@ export const GET_ROLES_WITH_PERMISSIONS = gql`
 `;
 
 // Get users and groups with their roles
-// Note: Since there's no role(id: ID!) query in the schema, we query users and groups
-// with their roles and filter client-side to find which users/groups have the specific role
 // Note: Using first: 100 (API maximum). If there are more than 100 users/groups,
 // pagination would need to be implemented to fetch all items.
 export const GET_ROLE_WITH_USERS_AND_GROUPS = gql`
@@ -181,6 +197,7 @@ export const GET_ROLE_WITH_USERS_AND_GROUPS = gql`
           id
           email
           displayName
+          avatarUrl
           enabled
           roles {
             id

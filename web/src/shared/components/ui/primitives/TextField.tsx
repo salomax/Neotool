@@ -45,19 +45,22 @@ export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(
     const readOnlySx = readOnly
       ? {
           "& .MuiInputBase-root": {
-            backgroundColor: "action.disabledBackground",
+            backgroundColor: "background.default",
             "& .MuiInputBase-input": {
               cursor: "default",
               WebkitTextFillColor: "text.primary",
             },
+            "& .MuiOutlinedInput-notchedOutline": {
+              border: "none",
+            },
             "&:hover": {
               "& .MuiOutlinedInput-notchedOutline": {
-                borderColor: "divider",
+                border: "none",
               },
             },
             "&.Mui-focused": {
               "& .MuiOutlinedInput-notchedOutline": {
-                borderColor: "primary.main",
+                border: "none",
               },
             },
           },

@@ -51,7 +51,12 @@ export class SettingsPage {
    * Click on Roles tab
    */
   async clickRolesTab(): Promise<void> {
-    await this.page.click(SELECTORS.rolesTab);
+    const rolesTab = this.page.locator(SELECTORS.rolesTab);
+    await rolesTab.waitFor({ state: 'visible', timeout: 10000 });
+    await expect(rolesTab).toBeEnabled({ timeout: 5000 });
+    await rolesTab.click();
+    // Wait for the roles tab content to load
+    await this.page.waitForTimeout(300);
   }
 
   /**
@@ -72,7 +77,9 @@ export class SettingsPage {
    * Verify Roles tab is visible
    */
   async verifyRolesTabVisible(): Promise<void> {
-    await expect(this.page.locator(SELECTORS.rolesTab)).toBeVisible();
+    const rolesTab = this.page.locator(SELECTORS.rolesTab);
+    await rolesTab.waitFor({ state: 'visible', timeout: 10000 });
+    await expect(rolesTab).toBeVisible({ timeout: 5000 });
   }
 
   /**

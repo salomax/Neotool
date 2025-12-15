@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { useGetRoleWithUsersAndGroupsQuery, useGetRolesWithPermissionsQuery, GetRolesDocument } from "@/lib/graphql/operations/authorization-management/queries.generated";
+import { useGetRoleWithRelationshipsQuery } from "@/lib/graphql/operations/authorization-management/queries.generated";
 import {
   useAssignRoleToGroupMutation,
   useRemoveRoleFromGroupMutation,
@@ -12,13 +12,6 @@ import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
 import { useToast } from "@/shared/providers";
 import { extractErrorMessage } from "@/shared/utils/error";
-
-type User = {
-  id: string;
-  email: string;
-  displayName: string | null;
-  enabled: boolean;
-};
 
 type Group = {
   id: string;
@@ -34,6 +27,8 @@ type Permission = {
 type Role = {
   id: string;
   name: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export interface UseRoleDrawerReturn {
@@ -43,14 +38,12 @@ export interface UseRoleDrawerReturn {
   error: Error | undefined;
   
   // Form state
-  selectedUsers: User[];
   selectedGroups: Group[];
   selectedPermissions: Permission[];
   hasChanges: boolean;
   saving: boolean;
   
   // Handlers
-  updateSelectedUsers: (users: User[]) => void;
   updateSelectedGroups: (groups: Group[]) => void;
   updateSelectedPermissions: (permissions: Permission[]) => void;
   handleSave: () => Promise<void>;
@@ -65,102 +58,44 @@ export function useRoleDrawer(
   const { t } = useTranslation(authorizationManagementTranslations);
   const toast = useToast();
 
-  // Query users and groups with their roles to find which users/groups have this role
-  const { data, loading, error, refetch } = useGetRoleWithUsersAndGroupsQuery({
-    skip: !open,
-    fetchPolicy: 'network-only',
-    notifyOnNetworkStatusChange: true,
-  });
-
-  // Query roles with permissions to get current role's permissions
-  const { data: permissionsData, loading: permissionsLoading, refetch: refetchPermissions } = useGetRolesWithPermissionsQuery({
+  // Query role with groups and permissions by id (used for edit mode)
+  const { data: roleData, loading: roleLoading, error: roleError, refetch: refetchRole } = useGetRoleWithRelationshipsQuery({
     skip: !open || !roleId,
+    variables: roleId ? { id: roleId } : undefined as any,
     fetchPolicy: 'network-only',
     notifyOnNetworkStatusChange: true,
   });
 
-  // Extract role from roleId by finding it in the users/groups data
-  // The role name can be found in any user or group that has this role
+  // Extract role from roleId using role query
   const role = useMemo(() => {
-    if (!roleId) return null;
-    
-    // Try to find role name from users
-    const userWithRole = data?.users?.edges
-      ?.map(e => e.node)
-      .find((user) => user.roles.some((r) => r.id === roleId));
-    
-    if (userWithRole) {
-      const roleData = userWithRole.roles.find((r) => r.id === roleId);
-      if (roleData) {
-        return {
-          id: roleId,
-          name: roleData.name,
-        };
-      }
-    }
-    
-    // Try to find role name from groups
-    const groupWithRole = data?.groups?.edges
-      ?.map(e => e.node)
-      .find((group) => group.roles.some((r) => r.id === roleId));
-    
-    if (groupWithRole) {
-      const roleData = groupWithRole.roles.find((r) => r.id === roleId);
-      if (roleData) {
-        return {
-          id: roleId,
-          name: roleData.name,
-        };
-      }
-    }
-    
-    // Fallback: return role with empty name (shouldn't happen in normal flow)
+    if (!roleId || !roleData?.role) return null;
     return {
-      id: roleId,
-      name: "",
+      id: roleData.role.id,
+      name: roleData.role.name,
+      createdAt: roleData.role.createdAt,
+      updatedAt: roleData.role.updatedAt,
     };
-  }, [roleId, data]);
-
-  // Extract original users and groups that have this role
-  const originalUsers = useMemo(() => {
-    if (!role || !data?.users?.edges) return [];
-    return data.users.edges
-      .map(e => e.node)
-      .filter((user) => user.roles.some((r) => r.id === role.id))
-      .map((user) => ({
-        id: user.id,
-        email: user.email,
-        displayName: user.displayName,
-        enabled: user.enabled,
-      }));
-  }, [data?.users, role]);
+  }, [roleId, roleData?.role]);
 
   const originalGroups = useMemo(() => {
-    if (!role || !data?.groups?.edges) return [];
-    return data.groups.edges
-      .map(e => e.node)
-      .filter((group) => group.roles.some((r) => r.id === role.id))
-      .map((group) => ({
-        id: group.id,
-        name: group.name,
-        description: group.description,
-      }));
-  }, [data?.groups, role]);
+    if (!role || !roleData?.role?.groups) return [];
+    return roleData.role.groups.map((group) => ({
+      id: group.id,
+      name: group.name,
+      description: group.description,
+    }));
+  }, [role, roleData?.role?.groups]);
 
   // Extract original permissions for this role
   const originalPermissions = useMemo(() => {
-    if (!role || !permissionsData?.roles?.edges) return [];
-    const roleWithPermissions = permissionsData.roles.edges
-      .map(e => e.node)
-      .find((r) => r.id === role.id);
-    return (roleWithPermissions?.permissions || []).map((p) => ({
+    if (!role || !roleData?.role?.permissions) return [];
+    return roleData.role.permissions.map((p) => ({
       id: p.id,
       name: p.name,
     }));
-  }, [role, permissionsData]);
+  }, [role, roleData?.role?.permissions]);
 
   // Local form state
-  const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
   const [selectedGroups, setSelectedGroups] = useState<Group[]>([]);
   const [selectedPermissions, setSelectedPermissions] = useState<Permission[]>([]);
   const [saving, setSaving] = useState(false);
@@ -174,12 +109,6 @@ export function useRoleDrawer(
   // Initialize form state when role data loads
   useEffect(() => {
     if (role) {
-      setSelectedUsers(originalUsers.map(u => ({
-        id: u.id,
-        email: u.email,
-        displayName: u.displayName,
-        enabled: u.enabled,
-      })));
       setSelectedGroups(originalGroups.map(g => ({
         id: g.id,
         name: g.name,
@@ -190,7 +119,7 @@ export function useRoleDrawer(
         name: p.name,
       })));
     }
-  }, [role, originalUsers, originalGroups, originalPermissions]);
+  }, [role, originalGroups, originalPermissions]);
 
   // Calculate hasChanges
   const hasChanges = useMemo(() => {
@@ -216,10 +145,6 @@ export function useRoleDrawer(
   }, [role, originalGroups, originalPermissions, selectedGroups, selectedPermissions]);
 
   // Handlers for updating local state
-  const updateSelectedUsers = useCallback((users: User[]) => {
-    setSelectedUsers(users);
-  }, []);
-
   const updateSelectedGroups = useCallback((groups: Group[]) => {
     setSelectedGroups(groups);
   }, []);
@@ -231,12 +156,6 @@ export function useRoleDrawer(
   // Reset changes to original state
   const resetChanges = useCallback(() => {
     if (role) {
-      setSelectedUsers(originalUsers.map(u => ({
-        id: u.id,
-        email: u.email,
-        displayName: u.displayName,
-        enabled: u.enabled,
-      })));
       setSelectedGroups(originalGroups.map(g => ({
         id: g.id,
         name: g.name,
@@ -247,7 +166,13 @@ export function useRoleDrawer(
         name: p.name,
       })));
     }
-  }, [role, originalUsers, originalGroups, originalPermissions]);
+  }, [role, originalGroups, originalPermissions]);
+
+  const refetchAll = useCallback(async () => {
+    if (refetchRole) {
+      await refetchRole();
+    }
+  }, [refetchRole]);
 
   // Handle save - calculate differences and execute mutations
   const handleSave = useCallback(async () => {
@@ -321,7 +246,7 @@ export function useRoleDrawer(
       }
 
       // Refetch to get updated data
-      await Promise.all([refetch(), refetchPermissions()]);
+      await refetchAll();
       
       // Show success message
       toast.success(t("roleManagement.toast.roleUpdated", { name: role.name || roleId }));
@@ -347,8 +272,7 @@ export function useRoleDrawer(
     removeRoleFromGroupMutation,
     assignPermissionToRoleMutation,
     removePermissionFromRoleMutation,
-    refetch,
-    refetchPermissions,
+    refetchAll,
     toast,
     t,
   ]);
@@ -356,22 +280,20 @@ export function useRoleDrawer(
   return {
     // Data
     role,
-    loading: loading || permissionsLoading,
-    error,
+    loading: roleLoading,
+    error: roleError ? new Error(extractErrorMessage(roleError)) : undefined,
     
     // Form state
-    selectedUsers,
     selectedGroups,
     selectedPermissions,
     hasChanges,
     saving,
     
     // Handlers
-    updateSelectedUsers,
     updateSelectedGroups,
     updateSelectedPermissions,
     handleSave,
     resetChanges,
-    refetch,
+    refetch: refetchAll,
   };
 }

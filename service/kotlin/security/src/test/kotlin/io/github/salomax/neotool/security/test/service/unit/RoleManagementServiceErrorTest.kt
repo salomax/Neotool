@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.security.test.service.unit
 
 import io.github.salomax.neotool.security.domain.RoleManagement
+import io.github.salomax.neotool.security.repo.GroupRepository
 import io.github.salomax.neotool.security.repo.PermissionRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.RoleRepositoryCustom
@@ -24,6 +25,7 @@ class RoleManagementServiceErrorTest {
     private lateinit var roleRepository: RoleRepository
     private lateinit var roleSearchRepository: RoleRepositoryCustom
     private lateinit var permissionRepository: PermissionRepository
+    private lateinit var groupRepository: GroupRepository
     private lateinit var roleManagementService: RoleManagementService
 
     @BeforeEach
@@ -31,11 +33,13 @@ class RoleManagementServiceErrorTest {
         roleRepository = mock()
         roleSearchRepository = mock()
         permissionRepository = mock()
+        groupRepository = mock()
         roleManagementService =
             RoleManagementService(
                 roleRepository,
                 roleSearchRepository,
                 permissionRepository,
+                groupRepository,
             )
     }
 

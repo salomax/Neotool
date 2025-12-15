@@ -3,6 +3,7 @@ package io.github.salomax.neotool.security.test.graphql.dataloader
 import io.github.salomax.neotool.security.graphql.dataloader.GroupMembersDataLoader
 import io.github.salomax.neotool.security.graphql.dataloader.GroupRolesDataLoader
 import io.github.salomax.neotool.security.graphql.dataloader.PermissionRolesDataLoader
+import io.github.salomax.neotool.security.graphql.dataloader.RoleGroupsDataLoader
 import io.github.salomax.neotool.security.graphql.dataloader.RolePermissionsDataLoader
 import io.github.salomax.neotool.security.graphql.dataloader.SecurityDataLoaderRegistryFactory
 import io.github.salomax.neotool.security.graphql.dataloader.UserGroupsDataLoader
@@ -47,12 +48,13 @@ class SecurityDataLoaderRegistryFactoryTest {
         val registry = factory.createDataLoaderRegistry()
 
         // Assert
-        assertThat(registry.keys).hasSize(7)
+        assertThat(registry.keys).hasSize(8)
         assertThat(registry.getDataLoader<String, Any?>(GroupMembersDataLoader.KEY)).isNotNull
         assertThat(registry.getDataLoader<String, Any?>(UserRolesDataLoader.KEY)).isNotNull
         assertThat(registry.getDataLoader<String, Any?>(UserGroupsDataLoader.KEY)).isNotNull
         assertThat(registry.getDataLoader<String, Any?>(UserPermissionsDataLoader.KEY)).isNotNull
         assertThat(registry.getDataLoader<String, Any?>(RolePermissionsDataLoader.KEY)).isNotNull
+        assertThat(registry.getDataLoader<String, Any?>(RoleGroupsDataLoader.KEY)).isNotNull
         assertThat(registry.getDataLoader<String, Any?>(GroupRolesDataLoader.KEY)).isNotNull
         assertThat(registry.getDataLoader<String, Any?>(PermissionRolesDataLoader.KEY)).isNotNull
     }
@@ -68,6 +70,7 @@ class SecurityDataLoaderRegistryFactoryTest {
         assertThat(registry.getDataLoader<String, Any?>(UserGroupsDataLoader.KEY)).isNotNull
         assertThat(registry.getDataLoader<String, Any?>(UserPermissionsDataLoader.KEY)).isNotNull
         assertThat(registry.getDataLoader<String, Any?>(RolePermissionsDataLoader.KEY)).isNotNull
+        assertThat(registry.getDataLoader<String, Any?>(RoleGroupsDataLoader.KEY)).isNotNull
         assertThat(registry.getDataLoader<String, Any?>(GroupRolesDataLoader.KEY)).isNotNull
         assertThat(registry.getDataLoader<String, Any?>(PermissionRolesDataLoader.KEY)).isNotNull
     }
@@ -83,6 +86,7 @@ class SecurityDataLoaderRegistryFactoryTest {
         assertThat(registry.keys).contains(UserGroupsDataLoader.KEY)
         assertThat(registry.keys).contains(UserPermissionsDataLoader.KEY)
         assertThat(registry.keys).contains(RolePermissionsDataLoader.KEY)
+        assertThat(registry.keys).contains(RoleGroupsDataLoader.KEY)
         assertThat(registry.keys).contains(GroupRolesDataLoader.KEY)
         assertThat(registry.keys).contains(PermissionRolesDataLoader.KEY)
     }

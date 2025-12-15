@@ -75,7 +75,14 @@ export const UserDrawer: React.FC<UserDrawerProps> = ({
         </Button>
         <Button
           variant="contained"
-          onClick={handleSave}
+          onClick={async () => {
+            try {
+              await handleSave();
+              onClose();
+            } catch {
+              // Error handling (toast) is already performed in handleSave
+            }
+          }}
           disabled={saving || !hasChanges}
           color="primary"
           data-testid="user-drawer-save-button"
@@ -90,14 +97,15 @@ export const UserDrawer: React.FC<UserDrawerProps> = ({
 
   return (
     <Drawer
+      id="user-drawer"
+      data-testid="user-drawer"
       open={open}
       onClose={onClose}
       anchor="right"
       size="md"
       variant="temporary"
-      data-testid="drawer"
     >
-      <Drawer.Header data-testid="drawer-header">
+      <Drawer.Header>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, flex: 1 }}>
           <PersonIcon sx={{ color: "text.secondary" }} />
           <Typography variant="h6" component="h2" sx={{ flex: 1 }} data-testid="drawer-title">
@@ -135,6 +143,7 @@ export const UserDrawer: React.FC<UserDrawerProps> = ({
             >
               <Avatar
                 name={user.displayName || user.email}
+                src={user.avatarUrl || undefined}
                 size="large"
                 sx={{
                   width: 80,
@@ -183,21 +192,6 @@ export const UserDrawer: React.FC<UserDrawerProps> = ({
                 />
               </Box>
 
-              {/* Email */}
-              <Box>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  {t("userManagement.drawer.email")}
-                </Typography>
-                <TextField
-                  fullWidth
-                  type="email"
-                  value={email}
-                  placeholder={t("userManagement.drawer.emailPlaceholder")}
-                  readOnly
-                  data-testid="user-drawer-email-input"
-                />
-              </Box>
-
               {/* Groups */}
               <PermissionGate require="security:user:save">
                 <Box data-testid="user-drawer-groups-section">
@@ -223,6 +217,34 @@ export const UserDrawer: React.FC<UserDrawerProps> = ({
                   readonly={true}
                 />
               </Box>
+
+              {/* Timestamps - at the bottom in 2 columns */}
+              {user.createdAt && user.updatedAt && (
+                <Box sx={{ display: "flex", gap: 2 }}>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      {t("userManagement.drawer.createdAt")}
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      value={new Date(user.createdAt).toLocaleString()}
+                      readOnly
+                      data-testid="user-drawer-created-at"
+                    />
+                  </Box>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      {t("userManagement.drawer.updatedAt")}
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      value={new Date(user.updatedAt).toLocaleString()}
+                      readOnly
+                      data-testid="user-drawer-updated-at"
+                    />
+                  </Box>
+                </Box>
+              )}
             </Stack>
           </Stack>
         )}

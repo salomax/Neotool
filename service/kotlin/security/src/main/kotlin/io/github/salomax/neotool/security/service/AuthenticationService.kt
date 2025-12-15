@@ -526,9 +526,23 @@ open class AuthenticationService(
         val existingUser = userRepository.findByEmail(claims.email)
 
         if (existingUser != null) {
+            var needsUpdate = false
+
             // Update display name if it's not set or if OAuth provides a name
             if (existingUser.displayName.isNullOrBlank() && !claims.name.isNullOrBlank()) {
                 existingUser.displayName = claims.name
+                needsUpdate = true
+            }
+
+            // Update avatar metadata if OAuth provides a picture
+            if (!claims.picture.isNullOrBlank() && claims.picture != existingUser.avatarUrl) {
+                existingUser.avatarUrl = claims.picture
+                existingUser.avatarProvider = provider
+                existingUser.avatarUpdatedAt = Instant.now()
+                needsUpdate = true
+            }
+
+            if (needsUpdate) {
                 userRepository.save(existingUser)
             }
 
@@ -543,6 +557,9 @@ open class AuthenticationService(
                 email = claims.email,
                 displayName = claims.name,
                 passwordHash = null,
+                avatarUrl = claims.picture,
+                avatarProvider = provider,
+                avatarUpdatedAt = Instant.now(),
             )
 
         val savedUser = userRepository.save(newUser)

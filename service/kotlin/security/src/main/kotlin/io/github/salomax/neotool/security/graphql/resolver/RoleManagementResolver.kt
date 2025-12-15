@@ -213,6 +213,27 @@ class RoleManagementResolver(
     }
 
     /**
+     * Resolve Role.groups relationship.
+     * Returns all groups that have this role assigned.
+     *
+     * @param roleId The role ID
+     * @return List of GroupDTO
+     * @throws IllegalArgumentException if role ID is invalid
+     * @throws Exception if service fails (propagated as GraphQL error)
+     */
+    fun resolveRoleGroups(roleId: String): List<io.github.salomax.neotool.security.graphql.dto.GroupDTO> {
+        val roleIdUuid =
+            try {
+                mapper.toRoleId(roleId)
+            } catch (e: IllegalArgumentException) {
+                throw IllegalArgumentException("Invalid role ID format: $roleId", e)
+            }
+
+        val groups = roleManagementService.listRoleGroups(roleIdUuid)
+        return mapper.toGroupDTOList(groups)
+    }
+
+    /**
      * Batch resolve Role.permissions relationship for multiple roles.
      * Returns a map of role ID to list of permissions assigned to that role.
      * Optimized to avoid N+1 queries.
@@ -264,6 +285,49 @@ class RoleManagementResolver(
                 result[roleIdStr] = permissionDTOs
             }
             // Invalid IDs are filtered out - not included in result
+        }
+
+        return result
+    }
+
+    /**
+     * Batch resolve Role.groups relationship for multiple roles.
+     * Returns a map of role ID to list of groups that have that role.
+     */
+    fun resolveRoleGroupsBatch(
+        roleIds: List<String>,
+    ): Map<String, List<io.github.salomax.neotool.security.graphql.dto.GroupDTO>> {
+        if (roleIds.isEmpty()) {
+            return emptyMap()
+        }
+
+        val validRoleIdMap = mutableMapOf<String, UUID>()
+        val roleIdUuids =
+            roleIds.mapNotNull { roleIdStr ->
+                try {
+                    val roleIdUuid = mapper.toRoleId(roleIdStr)
+                    validRoleIdMap[roleIdStr] = roleIdUuid
+                    roleIdUuid
+                } catch (e: IllegalArgumentException) {
+                    logger.warn { "Invalid role ID in batch request: $roleIdStr" }
+                    null
+                }
+            }
+
+        val roleGroupsMap =
+            if (roleIdUuids.isNotEmpty()) {
+                roleManagementService.listRoleGroupsBatch(roleIdUuids)
+            } else {
+                emptyMap()
+            }
+
+        val result = linkedMapOf<String, List<io.github.salomax.neotool.security.graphql.dto.GroupDTO>>()
+        for (roleIdStr in roleIds) {
+            val roleIdUuid = validRoleIdMap[roleIdStr]
+            if (roleIdUuid != null) {
+                val groups = roleGroupsMap[roleIdUuid] ?: emptyList()
+                result[roleIdStr] = mapper.toGroupDTOList(groups)
+            }
         }
 
         return result

@@ -5,6 +5,7 @@ import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.OrderDirection
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import io.github.salomax.neotool.security.domain.RoleManagement
+import io.github.salomax.neotool.security.repo.GroupRepository
 import io.github.salomax.neotool.security.repo.PermissionRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.RoleRepositoryCustom
@@ -31,6 +32,7 @@ class RoleManagementServiceTest {
     private lateinit var roleRepository: RoleRepository
     private lateinit var roleSearchRepository: RoleRepositoryCustom
     private lateinit var permissionRepository: PermissionRepository
+    private lateinit var groupRepository: GroupRepository
     private lateinit var roleManagementService: RoleManagementService
 
     @BeforeEach
@@ -38,7 +40,9 @@ class RoleManagementServiceTest {
         roleRepository = mock()
         roleSearchRepository = mock()
         permissionRepository = mock()
-        roleManagementService = RoleManagementService(roleRepository, roleSearchRepository, permissionRepository)
+        groupRepository = mock()
+        roleManagementService =
+            RoleManagementService(roleRepository, roleSearchRepository, permissionRepository, groupRepository)
     }
 
     @Nested
@@ -776,6 +780,54 @@ class RoleManagementServiceTest {
             assertThat(
                 result[roleId]!!.map { it.name },
             ).containsExactlyInAnyOrder("transaction:read", "transaction:write")
+        }
+    }
+
+    @Nested
+    @DisplayName("Role Groups Tests")
+    inner class RoleGroupsTests {
+        @Test
+        fun `listRoleGroups should return groups assigned to role`() {
+            val roleId = UUID.randomUUID()
+            val groupId = UUID.randomUUID()
+            val groupEntity =
+                SecurityTestDataBuilders.group(
+                    id = groupId,
+                    name = "Admins",
+                    description = "Admin group",
+                )
+
+            whenever(roleRepository.findGroupIdsByRoleId(roleId)).thenReturn(listOf(groupId))
+            whenever(groupRepository.findByIdIn(listOf(groupId))).thenReturn(listOf(groupEntity))
+
+            val result = roleManagementService.listRoleGroups(roleId)
+
+            assertThat(result).hasSize(1)
+            assertThat(result.first().id).isEqualTo(groupId)
+            assertThat(result.first().name).isEqualTo("Admins")
+        }
+
+        @Test
+        fun `listRoleGroupsBatch should return groups for multiple roles`() {
+            val roleId1 = UUID.randomUUID()
+            val roleId2 = UUID.randomUUID()
+            val groupId1 = UUID.randomUUID()
+            val groupId2 = UUID.randomUUID()
+
+            val group1 = SecurityTestDataBuilders.group(id = groupId1, name = "Admins")
+            val group2 = SecurityTestDataBuilders.group(id = groupId2, name = "Editors")
+
+            whenever(roleRepository.findGroupIdsByRoleIds(listOf(roleId1, roleId2)))
+                .thenReturn(listOf(groupId1, groupId2))
+            whenever(roleRepository.findGroupIdsByRoleId(roleId1)).thenReturn(listOf(groupId1))
+            whenever(roleRepository.findGroupIdsByRoleId(roleId2)).thenReturn(listOf(groupId2))
+            whenever(groupRepository.findByIdIn(any<List<UUID>>())).thenReturn(listOf(group1, group2))
+
+            val result = roleManagementService.listRoleGroupsBatch(listOf(roleId1, roleId2))
+
+            assertThat(result).hasSize(2)
+            assertThat(result[roleId1]).extracting("id").containsExactly(groupId1)
+            assertThat(result[roleId2]).extracting("id").containsExactly(groupId2)
         }
     }
 }

@@ -37,7 +37,8 @@ export const CreateCustomerDocument = gql`
     createdAt
     updatedAt
   }
-}`;
+}
+    `;
 
 /**
  * __useCreateCustomerMutation__
@@ -72,7 +73,8 @@ export const UpdateCustomerDocument = gql`
     createdAt
     updatedAt
   }
-}`;
+}
+    `;
 
 /**
  * __useUpdateCustomerMutation__
