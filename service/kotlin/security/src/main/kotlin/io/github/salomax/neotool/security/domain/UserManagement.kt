@@ -52,9 +52,6 @@ object UserManagement {
             require(displayName == null || displayName.isNotBlank()) {
                 "Display name cannot be blank if provided"
             }
-            require(displayName != null) {
-                "Display name must be provided for update"
-            }
         }
     }
 

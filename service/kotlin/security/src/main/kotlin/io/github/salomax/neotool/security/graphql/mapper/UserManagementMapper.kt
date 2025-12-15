@@ -2,8 +2,8 @@ package io.github.salomax.neotool.security.graphql.mapper
 
 import io.github.salomax.neotool.common.graphql.pagination.Connection
 import io.github.salomax.neotool.common.graphql.pagination.OrderDirection
-import io.github.salomax.neotool.security.domain.rbac.User
 import io.github.salomax.neotool.security.domain.UserManagement
+import io.github.salomax.neotool.security.domain.rbac.User
 import io.github.salomax.neotool.security.graphql.dto.PageInfoDTO
 import io.github.salomax.neotool.security.graphql.dto.UpdateUserInputDTO
 import io.github.salomax.neotool.security.graphql.dto.UserConnectionDTO
@@ -127,7 +127,10 @@ class UserManagementMapper {
     /**
      * Convert UpdateUserInputDTO and userId to UpdateUserCommand.
      */
-    fun toUpdateUserCommand(userId: String, input: UpdateUserInputDTO): UserManagement.UpdateUserCommand {
+    fun toUpdateUserCommand(
+        userId: String,
+        input: UpdateUserInputDTO,
+    ): UserManagement.UpdateUserCommand {
         val userIdUuid = toUserId(userId)
         return UserManagement.UpdateUserCommand(
             userId = userIdUuid,

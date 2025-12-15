@@ -13,22 +13,22 @@ plugins {
 allprojects {
     group = "io.github.salomax.neotool"
 
-    repositories { 
+    repositories {
         mavenCentral()
     }
 
     plugins.withId("io.micronaut.application") {
-      the<io.micronaut.gradle.MicronautExtension>().processing {
-        incremental(true)
-        annotations("io.github.salomax.neotool.*")
-      }
+        the<io.micronaut.gradle.MicronautExtension>().processing {
+            incremental(true)
+            annotations("io.github.salomax.neotool.*")
+        }
     }
 
     plugins.withId("io.micronaut.library") {
-      the<io.micronaut.gradle.MicronautExtension>().processing {
-        incremental(true)
-        annotations("io.github.salomax.neotool.*")
-      }
+        the<io.micronaut.gradle.MicronautExtension>().processing {
+            incremental(true)
+            annotations("io.github.salomax.neotool.*")
+        }
     }
 
     // Configure Kotlin compilation
@@ -37,13 +37,13 @@ allprojects {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
         }
     }
-    
+
     // Configure Java compilation
     tasks.withType<JavaCompile> {
         sourceCompatibility = "21"
         targetCompatibility = "21"
     }
-    
+
     // Configure test tasks
     tasks.withType<Test> {
         useJUnitPlatform()
@@ -60,11 +60,11 @@ apply(plugin = "org.jetbrains.kotlinx.kover")
 subprojects {
     apply(plugin = "org.jetbrains.kotlinx.kover")
     apply(plugin = "org.jlleitschuh.gradle.ktlint")
-    
+
     // Configure Kover at subproject level
     // Note: Verification rules with specific thresholds need to be configured
     // via koverVerify task or kover extension block after plugin evaluation
-    
+
     // Configure ktlint
     configure<org.jlleitschuh.gradle.ktlint.KtlintExtension> {
         version.set("1.1.1")
@@ -81,25 +81,25 @@ subprojects {
             exclude("**/.gradle/**")
         }
     }
-    
+
     // Configure ktlint tasks and check dependencies after plugin evaluation
     afterEvaluate {
         tasks.named("ktlintCheck") {
             group = "verification"
             description = "Check Kotlin code style with ktlint"
         }
-        
+
         tasks.named("ktlintFormat") {
             group = "formatting"
             description = "Format Kotlin code with ktlint"
         }
-        
+
         // Make check task depend on ktlintCheck (if check task exists)
         tasks.matching { it.name == "check" }.configureEach {
             dependsOn(tasks.named("ktlintCheck"))
         }
     }
-    
+
     // Mark Kover HTML report tasks as incompatible with configuration cache
     // Use tasks.all to catch tasks as they're created (before afterEvaluate)
     tasks.all {
@@ -107,7 +107,7 @@ subprojects {
             notCompatibleWithConfigurationCache("Kover HTML report tasks are not compatible with configuration cache")
         }
     }
-    
+
     // Configure Kover after plugin is applied
     afterEvaluate {
         // Configure Kover to exclude Micronaut internals and generated classes
@@ -126,16 +126,17 @@ subprojects {
                             "*Builder*",
                             "*Entity",
                             "*Helper*",
+                            "*Mapper*",
                             "*Utils*",
                             "*Test",
                             "*DTO",
                             "*Config*",
                             "*domain.*",
-                            "*mapper.*"
+                            "*mapper.*",
                         )
                     }
                 }
-                
+
                 // Coverage thresholds based on industry standards:
                 verify {
                     // Overall minimum coverage threshold (applies to all counter types)
@@ -151,7 +152,8 @@ subprojects {
         // This prevents all tests from running when running a single test
         tasks.named("koverXmlReport") {
             group = "verification"
-            description = "Generates XML coverage report (run explicitly: ./gradlew test testIntegration koverXmlReport)"
+            description =
+                "Generates XML coverage report (run explicitly: ./gradlew test testIntegration koverXmlReport)"
             // Include testIntegration if it exists to merge coverage from integration tests
             tasks.findByName("testIntegration")?.let {
                 dependsOn(it)
@@ -159,19 +161,21 @@ subprojects {
         }
         tasks.named("koverHtmlReport") {
             group = "verification"
-            description = "Generates HTML coverage report (run explicitly: ./gradlew test testIntegration koverHtmlReport)"
+            description =
+                "Generates HTML coverage report (run explicitly: ./gradlew test testIntegration koverHtmlReport)"
             // Include testIntegration if it exists to merge coverage from integration tests
             tasks.findByName("testIntegration")?.let {
                 dependsOn(it)
             }
         }
-        
+
         // Configure koverVerify task
         // Verification is only run when explicitly requested on the command line
         // This prevents all tests from running when running a single test
         tasks.named("koverVerify") {
             group = "verification"
-            description = "Verifies that code coverage meets the minimum thresholds (run explicitly: ./gradlew test testIntegration koverVerify)"
+            description =
+                "Verifies that code coverage meets the minimum thresholds (run explicitly: ./gradlew test testIntegration koverVerify)"
             // Ensure both test and testIntegration run before verification
             // This merges coverage from both unit and integration tests
             dependsOn(tasks.named("test"))
@@ -180,27 +184,27 @@ subprojects {
                 dependsOn(it)
             }
         }
-                
+
         // Incremental coverage check for PRs (only checks changed lines)
         tasks.register<Exec>("koverIncrementalCoverageCheck") {
             group = "verification"
             description = "Checks coverage only for lines changed in PR (incremental coverage)"
-            
+
             dependsOn(tasks.named("koverXmlReport"))
-            
+
             val moduleName = project.name
             val scriptPath = rootProject.file("scripts/check-incremental-coverage.sh")
             val baseBranch = project.findProperty("coverage.baseBranch") as String? ?: "main"
             val threshold = project.findProperty("coverage.incrementalThreshold") as String? ?: "80"
-            
+
             commandLine("bash", scriptPath.absolutePath, moduleName, baseBranch)
-            
+
             environment("COVERAGE_THRESHOLD", threshold)
             environment("BASE_BRANCH", baseBranch)
-            
+
             // Only fail if script fails (non-zero exit code)
             isIgnoreExitValue = false
-            
+
             doFirst {
                 if (!scriptPath.exists()) {
                     throw GradleException("Incremental coverage script not found at: ${scriptPath.absolutePath}")
@@ -210,7 +214,6 @@ subprojects {
                 }
             }
         }
-        
     }
 }
 
@@ -222,7 +225,7 @@ gradle.projectsEvaluated {
         // Use findByName for safety in case a subproject doesn't have Kover tasks
         dependsOn(subprojects.mapNotNull { it.tasks.findByName("koverXmlReport") })
         dependsOn(subprojects.mapNotNull { it.tasks.findByName("koverHtmlReport") })
-        
+
         // Print report path after generation
         doLast {
             println("\n" + "=".repeat(80))
@@ -235,18 +238,17 @@ gradle.projectsEvaluated {
             println("=".repeat(80) + "\n")
         }
     }
-    
+
     // Root-level ktlint tasks that run across all subprojects
     tasks.register("ktlintCheck") {
         group = "verification"
         description = "Run ktlint check on all subprojects"
         dependsOn(subprojects.mapNotNull { it.tasks.findByName("ktlintCheck") })
     }
-    
+
     tasks.register("ktlintFormat") {
         group = "formatting"
         description = "Format Kotlin code with ktlint on all subprojects"
         dependsOn(subprojects.mapNotNull { it.tasks.findByName("ktlintFormat") })
     }
 }
-
