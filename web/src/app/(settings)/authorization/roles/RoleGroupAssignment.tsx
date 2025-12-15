@@ -140,7 +140,7 @@ export const RoleGroupAssignment: React.FC<RoleGroupAssignmentProps> = ({
       >
         useQuery={useGetGroupsQuery}
         getQueryVariables={(searchQuery) => ({
-          first: 100,
+          first: 5,
           query: searchQuery || undefined,
         })}
         extractData={(data) => data?.groups?.edges?.map((e) => e.node) || []}
@@ -162,6 +162,7 @@ export const RoleGroupAssignment: React.FC<RoleGroupAssignmentProps> = ({
         skip={!active}
         errorMessage={t("roleManagement.groups.loadError")}
         variant="outlined"
+        loadMode="eager"
         renderTags={(value, getTagProps) =>
           value.map((option, index) => {
             const { key, ...tagProps } = getTagProps({ index });

@@ -37,6 +37,7 @@ import io.github.salomax.neotool.security.graphql.dto.UserDTO
 import io.github.salomax.neotool.security.graphql.dto.UserEdgeDTO
 import io.github.salomax.neotool.security.graphql.mapper.GroupManagementMapper
 import io.github.salomax.neotool.security.graphql.mapper.RoleManagementMapper
+import io.github.salomax.neotool.security.graphql.mapper.UserManagementMapper
 import io.github.salomax.neotool.security.graphql.resolver.GroupManagementResolver
 import io.github.salomax.neotool.security.graphql.resolver.PermissionManagementResolver
 import io.github.salomax.neotool.security.graphql.resolver.RoleManagementResolver
@@ -59,6 +60,7 @@ class SecurityWiringFactory(
     private val permissionManagementResolver: PermissionManagementResolver,
     private val groupManagementMapper: GroupManagementMapper,
     private val roleManagementMapper: RoleManagementMapper,
+    private val userManagementMapper: UserManagementMapper,
     private val requestPrincipalProvider: RequestPrincipalProvider,
     private val authorizationManager: AuthorizationManager,
     resolverRegistry: GraphQLResolverRegistry,
@@ -410,6 +412,18 @@ class SecurityWiringFactory(
                         val userId = getRequiredString(env, "userId")
                         val groupId = getRequiredString(env, "groupId")
                         userManagementResolver.removeGroupFromUser(userId, groupId)
+                    }
+                },
+            ).dataFetcher(
+                "updateUser",
+                createValidatedDataFetcher { env ->
+                    withPermission(env, SecurityPermissions.SECURITY_USER_SAVE) {
+                        val userId = getRequiredString(env, "userId")
+                        val inputMap =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        val dto = userManagementMapper.mapToUpdateUserInputDTO(inputMap)
+                        userManagementResolver.updateUser(userId, dto)
                     }
                 },
             ).dataFetcher(

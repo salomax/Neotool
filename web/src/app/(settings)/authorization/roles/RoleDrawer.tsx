@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useEffect, useState, useCallback, startTransition } from "react";
+import React, { useMemo, useEffect, useState, useCallback, startTransition, useRef } from "react";
 import {
   Box,
   Button,
@@ -26,6 +26,7 @@ import { RolePermissionAssignment } from "./RolePermissionAssignment";
 import { RoleGroupAssignment, type Group } from "./RoleGroupAssignment";
 import type { Permission } from "../permissions/PermissionList";
 import { PermissionGate } from "@/shared/components/authorization";
+import { useKeyboardFormSubmit } from "@/shared/hooks/forms";
 
 export interface RoleDrawerProps {
   open: boolean;
@@ -250,6 +251,26 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
 
   const drawerTitle = isCreateMode ? t("roleManagement.createRole") : t("roleManagement.editRole");
 
+  // Ref for drawer body to scope keyboard handling
+  const bodyRef = useRef<HTMLDivElement>(null);
+  // Ref for form element
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // Enable keyboard form submission
+  // Uses native form.requestSubmit() since this drawer uses a native form element with react-hook-form
+  useKeyboardFormSubmit({
+    onSubmit: () => {
+      formRef.current?.requestSubmit();
+    },
+    isSubmitEnabled: () =>
+      !createLoading &&
+      !updateLoading &&
+      !savingUserGroups &&
+      (isCreateMode || hasUserGroupPermissionChanges || methods.formState.isDirty),
+    containerRef: bodyRef,
+    enabled: open,
+  });
+
   return (
     <Drawer
       id="role-drawer"
@@ -275,9 +296,10 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
           <CloseIcon />
         </IconButton>
       </Drawer.Header>
-      <Drawer.Body>
+      <Drawer.Body ref={bodyRef}>
         <FormProvider {...methods}>
             <Box
+              ref={formRef}
               component="form"
               id="role-form"
               onSubmit={methods.handleSubmit(handleSubmit)}

@@ -290,13 +290,17 @@ const Header: React.FC<DrawerHeaderProps> = ({
 /**
  * Body subcomponent - Scrollable content area with padding
  */
-const Body: React.FC<DrawerBodyProps> = ({ children }) => {
-  return (
-    <Box sx={{ flex: 1, overflow: 'auto', p: 3 }}>
-      {children}
-    </Box>
-  );
-};
+const Body = React.forwardRef<HTMLDivElement, DrawerBodyProps>(
+  ({ children }, ref) => {
+    return (
+      <Box ref={ref} sx={{ flex: 1, overflow: 'auto', p: 3 }}>
+        {children}
+      </Box>
+    );
+  }
+);
+
+Body.displayName = 'DrawerBody';
 
 /**
  * Footer subcomponent - Footer area with consistent padding

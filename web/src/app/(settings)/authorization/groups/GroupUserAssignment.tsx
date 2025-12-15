@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { ListItem } from "@mui/material";
+import { ListItem, Typography, Box } from "@mui/material";
 import { useGetUsersQuery, type GetUsersQuery, type GetUsersQueryVariables } from "@/lib/graphql/operations/authorization-management/queries.generated";
 import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
@@ -70,7 +70,7 @@ export const GroupUserAssignment: React.FC<GroupUserAssignmentProps> = ({
     >
       useQuery={useGetUsersQuery}
       getQueryVariables={(searchQuery) => ({
-        first: 100,
+        first: 5,
         query: searchQuery || undefined,
       })}
       extractData={(data) => data?.users?.edges?.map((e) => e.node) || []}
@@ -90,11 +90,25 @@ export const GroupUserAssignment: React.FC<GroupUserAssignmentProps> = ({
         skip={!isAuthenticated}
         errorMessage={t("groupManagement.form.errors.loadUsersFailed")}
         variant="outlined"
+        loadMode="eager"
       renderOption={(props, option) => {
         const { key, ...otherProps } = props;
         return (
           <ListItem {...otherProps} key={option.id}>
-            {option.label}
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, width: "100%" }}>
+              <Typography component="span">
+                {option.displayName || option.email}
+              </Typography>
+              {option.displayName && (
+                <Typography
+                  component="span"
+                  variant="body2"
+                  sx={{ color: "text.secondary" }}
+                >
+                  {option.email}
+                </Typography>
+              )}
+            </Box>
           </ListItem>
         );
       }}

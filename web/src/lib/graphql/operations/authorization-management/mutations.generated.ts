@@ -94,6 +94,14 @@ export type RemoveGroupFromUserMutationVariables = Types.Exact<{
 
 export type RemoveGroupFromUserMutation = { removeGroupFromUser: { __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean } };
 
+export type UpdateUserMutationVariables = Types.Exact<{
+  userId: Types.Scalars['ID']['input'];
+  input: Types.UpdateUserInput;
+}>;
+
+
+export type UpdateUserMutation = { updateUser: { __typename: 'User', id: string, email: string, displayName: string | null, enabled: boolean } };
+
 export type AssignRoleToGroupMutationVariables = Types.Exact<{
   groupId: Types.Scalars['ID']['input'];
   roleId: Types.Scalars['ID']['input'];
@@ -517,6 +525,41 @@ export function useRemoveGroupFromUserMutation(baseOptions?: ApolloReactHooks.Mu
       }
 export type RemoveGroupFromUserMutationHookResult = ReturnType<typeof useRemoveGroupFromUserMutation>;
 export type RemoveGroupFromUserMutationResult = ApolloReactCommon.MutationResult<RemoveGroupFromUserMutation>;
+export const UpdateUserDocument = gql`
+    mutation UpdateUser($userId: ID!, $input: UpdateUserInput!) {
+  updateUser(userId: $userId, input: $input) {
+    id
+    email
+    displayName
+    enabled
+  }
+}
+    `;
+
+/**
+ * __useUpdateUserMutation__
+ *
+ * To run a mutation, you first call `useUpdateUserMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useUpdateUserMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [updateUserMutation, { data, loading, error }] = useUpdateUserMutation({
+ *   variables: {
+ *      userId: // value for 'userId'
+ *      input: // value for 'input'
+ *   },
+ * });
+ */
+export function useUpdateUserMutation(baseOptions?: ApolloReactHooks.MutationHookOptions<UpdateUserMutation, UpdateUserMutationVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return ApolloReactHooks.useMutation<UpdateUserMutation, UpdateUserMutationVariables>(UpdateUserDocument, options);
+      }
+export type UpdateUserMutationHookResult = ReturnType<typeof useUpdateUserMutation>;
+export type UpdateUserMutationResult = ApolloReactCommon.MutationResult<UpdateUserMutation>;
 export const AssignRoleToGroupDocument = gql`
     mutation AssignRoleToGroup($groupId: ID!, $roleId: ID!) {
   assignRoleToGroup(groupId: $groupId, roleId: $roleId) {

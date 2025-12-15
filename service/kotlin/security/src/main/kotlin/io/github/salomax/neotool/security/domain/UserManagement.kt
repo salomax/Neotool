@@ -41,6 +41,24 @@ object UserManagement {
     )
 
     /**
+     * Command to update basic user profile fields.
+     * Currently only supports updating displayName; email is immutable.
+     */
+    data class UpdateUserCommand(
+        val userId: UUID,
+        val displayName: String?,
+    ) {
+        init {
+            require(displayName == null || displayName.isNotBlank()) {
+                "Display name cannot be blank if provided"
+            }
+            require(displayName != null) {
+                "Display name must be provided for update"
+            }
+        }
+    }
+
+    /**
      * Search criteria for finding users.
      * Used as query parameters for repository search methods.
      * Actual filtering is done at the database level via SQL queries.

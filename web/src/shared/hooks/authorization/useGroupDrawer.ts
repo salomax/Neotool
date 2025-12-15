@@ -67,7 +67,7 @@ export function useGroupDrawer(
     skip: !open || !groupId,
     variables: { id: groupId! },
     fetchPolicy: 'network-only',
-    notifyOnNetworkStatusChange: true,
+    notifyOnNetworkStatusChange: false, // Prevent loading state during refetches to avoid drawer blink
   });
 
   // Extract group from query result
@@ -192,7 +192,9 @@ export function useGroupDrawer(
         mutationPromises.push(
           assignRoleToGroupMutation({
             variables: { groupId, roleId },
-            refetchQueries: [GetGroupWithRelationshipsDocument, 'GetGroups'],
+            // Only refetch list query - drawer query will be refetched when drawer reopens
+            // Removing drawer query from refetchQueries prevents drawer blink during save
+            refetchQueries: ['GetGroups'],
             awaitRefetchQueries: true,
           })
         );
@@ -202,7 +204,9 @@ export function useGroupDrawer(
         mutationPromises.push(
           removeRoleFromGroupMutation({
             variables: { groupId, roleId },
-            refetchQueries: [GetGroupWithRelationshipsDocument, 'GetGroups'],
+            // Only refetch list query - drawer query will be refetched when drawer reopens
+            // Removing drawer query from refetchQueries prevents drawer blink during save
+            refetchQueries: ['GetGroups'],
             awaitRefetchQueries: true,
           })
         );
@@ -213,7 +217,9 @@ export function useGroupDrawer(
         mutationPromises.push(
           assignGroupToUserMutation({
             variables: { userId, groupId },
-            refetchQueries: [GetGroupWithRelationshipsDocument, 'GetGroups'],
+            // Only refetch list query - drawer query will be refetched when drawer reopens
+            // Removing drawer query from refetchQueries prevents drawer blink during save
+            refetchQueries: ['GetGroups'],
             awaitRefetchQueries: true,
           })
         );
@@ -223,7 +229,9 @@ export function useGroupDrawer(
         mutationPromises.push(
           removeGroupFromUserMutation({
             variables: { userId, groupId },
-            refetchQueries: [GetGroupWithRelationshipsDocument, 'GetGroups'],
+            // Only refetch list query - drawer query will be refetched when drawer reopens
+            // Removing drawer query from refetchQueries prevents drawer blink during save
+            refetchQueries: ['GetGroups'],
             awaitRefetchQueries: true,
           })
         );
@@ -234,8 +242,8 @@ export function useGroupDrawer(
         await Promise.all(mutationPromises);
       }
 
-      // Refetch to get updated data
-      await refetch();
+      // Mutations already refetch queries via refetchQueries with awaitRefetchQueries: true
+      // No need for additional refetch call that causes drawer to blink
       
       // Show success message
       toast.success(t("groupManagement.toast.groupUpdated", { name: group.name }));
@@ -259,7 +267,6 @@ export function useGroupDrawer(
     removeRoleFromGroupMutation,
     assignGroupToUserMutation,
     removeGroupFromUserMutation,
-    refetch,
     toast,
     t,
   ]);

@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useRef } from "react";
 import {
   Box,
   Typography,
@@ -21,6 +21,7 @@ import { UserRoleAssignment } from "./UserRoleAssignment";
 import { useUserDrawer } from "@/shared/hooks/authorization/useUserDrawer";
 import { PermissionGate } from "@/shared/components/authorization";
 import { CloseIcon } from "@/shared/ui/mui-imports";
+import { useKeyboardFormSubmit } from "@/shared/hooks/forms";
 
 export interface UserDrawerProps {
   open: boolean;
@@ -57,6 +58,25 @@ export const UserDrawer: React.FC<UserDrawerProps> = ({
     resetChanges,
     refetch,
   } = useUserDrawer(userId, open);
+
+  // Ref for drawer body to scope keyboard handling
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  // Enable keyboard form submission
+  // Uses custom hook's handleSave directly since this drawer doesn't use react-hook-form
+  useKeyboardFormSubmit({
+    onSubmit: async () => {
+      try {
+        await handleSave();
+        onClose();
+      } catch {
+        // Error handling (toast) is already performed in handleSave
+      }
+    },
+    isSubmitEnabled: () => !saving && hasChanges,
+    containerRef: bodyRef,
+    enabled: open,
+  });
 
   // Footer with action buttons
   const footer = (
@@ -121,7 +141,7 @@ export const UserDrawer: React.FC<UserDrawerProps> = ({
           <CloseIcon />
         </IconButton>
       </Drawer.Header>
-      <Drawer.Body data-testid="drawer-body">
+      <Drawer.Body ref={bodyRef} data-testid="drawer-body">
         <LoadingState isLoading={loading} />
 
         <ErrorAlert

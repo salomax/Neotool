@@ -5,6 +5,7 @@ import { useGetUserWithRelationshipsQuery, GetUserWithRelationshipsDocument, Get
 import {
   useAssignGroupToUserMutation,
   useRemoveGroupFromUserMutation,
+  useUpdateUserMutation,
 } from "@/lib/graphql/operations/authorization-management/mutations.generated";
 import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
@@ -59,7 +60,7 @@ export function useUserDrawer(
     skip: !open || !userId,
     variables: { id: userId! },
     fetchPolicy: 'network-only',
-    notifyOnNetworkStatusChange: true,
+    notifyOnNetworkStatusChange: false, // Prevent loading state during refetches to avoid drawer blink
   });
 
   // Extract user from query result
@@ -95,6 +96,7 @@ export function useUserDrawer(
   // Mutation hooks
   const [assignGroupToUserMutation] = useAssignGroupToUserMutation();
   const [removeGroupFromUserMutation] = useRemoveGroupFromUserMutation();
+  const [updateUserMutation] = useUpdateUserMutation();
 
   // Initialize form state when user data loads
   useEffect(() => {
@@ -118,7 +120,7 @@ export function useUserDrawer(
     if (!user) return false;
     
     const displayNameChanged = displayName !== (user.displayName || "");
-    const emailChanged = email !== user.email;
+    // Email is immutable, so don't check for email changes
     
     const originalGroupIds = new Set(user.groups.map(g => g.id));
     const currentGroupIds = new Set(selectedGroups.map(g => g.id));
@@ -128,8 +130,8 @@ export function useUserDrawer(
       user.groups.some(g => !currentGroupIds.has(g.id));
     
     // Roles are readonly (assigned through groups only), so don't include in hasChanges
-    return displayNameChanged || emailChanged || groupsChanged;
-  }, [user, displayName, email, selectedGroups]);
+    return displayNameChanged || groupsChanged;
+  }, [user, displayName, selectedGroups]);
 
   // Handlers for updating local state
   const updateDisplayName = useCallback((value: string) => {
@@ -188,7 +190,9 @@ export function useUserDrawer(
         mutationPromises.push(
           assignGroupToUserMutation({
             variables: { userId, groupId },
-            refetchQueries: [GetUserWithRelationshipsDocument, 'GetUsers'],
+            // Only refetch list query - drawer query will be refetched when drawer reopens
+            // Removing drawer query from refetchQueries prevents drawer blink during save
+            refetchQueries: ['GetUsers'],
             awaitRefetchQueries: true,
           })
         );
@@ -198,7 +202,29 @@ export function useUserDrawer(
         mutationPromises.push(
           removeGroupFromUserMutation({
             variables: { userId, groupId },
-            refetchQueries: [GetUserWithRelationshipsDocument, 'GetUsers'],
+            // Only refetch list query - drawer query will be refetched when drawer reopens
+            // Removing drawer query from refetchQueries prevents drawer blink during save
+            refetchQueries: ['GetUsers'],
+            awaitRefetchQueries: true,
+          })
+        );
+      }
+
+      // Check if displayName changed (email is immutable)
+      const displayNameChanged = displayName !== (user.displayName || "");
+      
+      if (displayNameChanged) {
+        mutationPromises.push(
+          updateUserMutation({
+            variables: {
+              userId,
+              input: {
+                displayName: displayName,
+              },
+            },
+            // Only refetch list query - drawer query will be refetched when drawer reopens
+            // Removing drawer query from refetchQueries prevents drawer blink during save
+            refetchQueries: ['GetUsers'],
             awaitRefetchQueries: true,
           })
         );
@@ -209,11 +235,8 @@ export function useUserDrawer(
         await Promise.all(mutationPromises);
       }
 
-      // TODO: Add update user mutation for displayName and email when available
-      // For now, we only handle groups and roles
-
-      // Refetch to get updated data
-      await refetch();
+      // Mutations already refetch queries via refetchQueries with awaitRefetchQueries: true
+      // No need for additional refetch call that causes drawer to blink
       
       // Show success message
       toast.success(t("userManagement.drawer.saveSuccess"));
@@ -230,11 +253,12 @@ export function useUserDrawer(
   }, [
     user,
     userId,
+    displayName,
     selectedGroups,
     saving,
     assignGroupToUserMutation,
     removeGroupFromUserMutation,
-    refetch,
+    updateUserMutation,
     toast,
     t,
   ]);
