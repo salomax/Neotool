@@ -4,11 +4,11 @@ import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.OrderDirection
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
+import io.github.salomax.neotool.security.domain.UserManagement
+import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.repo.GroupMembershipRepository
 import io.github.salomax.neotool.security.repo.GroupRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
-import io.github.salomax.neotool.security.domain.UserManagement
-import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.repo.UserRepositoryCustom
 import io.github.salomax.neotool.security.service.UserManagementService
@@ -983,19 +983,21 @@ class UserManagementServiceTest {
         fun `should update user displayName`() {
             // Arrange
             val userId = UUID.randomUUID()
-            val existingUser = SecurityTestDataBuilders.user(
-                id = userId,
-                email = "test@example.com",
-                displayName = "Old Name"
-            )
+            val existingUser =
+                SecurityTestDataBuilders.user(
+                    id = userId,
+                    email = "test@example.com",
+                    displayName = "Old Name",
+                )
             whenever(userRepository.findById(userId)).thenReturn(Optional.of(existingUser))
             whenever(userRepository.update(any())).thenAnswer { it.arguments[0] as UserEntity }
 
             // Act
-            val command = UserManagement.UpdateUserCommand(
-                userId = userId,
-                displayName = "New Name"
-            )
+            val command =
+                UserManagement.UpdateUserCommand(
+                    userId = userId,
+                    displayName = "New Name",
+                )
             val result = userManagementService.updateUser(command)
 
             // Assert
@@ -1010,19 +1012,21 @@ class UserManagementServiceTest {
         fun `should update displayName to null`() {
             // Arrange
             val userId = UUID.randomUUID()
-            val existingUser = SecurityTestDataBuilders.user(
-                id = userId,
-                email = "test@example.com",
-                displayName = "Old Name"
-            )
+            val existingUser =
+                SecurityTestDataBuilders.user(
+                    id = userId,
+                    email = "test@example.com",
+                    displayName = "Old Name",
+                )
             whenever(userRepository.findById(userId)).thenReturn(Optional.of(existingUser))
             whenever(userRepository.update(any())).thenAnswer { it.arguments[0] as UserEntity }
 
             // Act
-            val command = UserManagement.UpdateUserCommand(
-                userId = userId,
-                displayName = null
-            )
+            val command =
+                UserManagement.UpdateUserCommand(
+                    userId = userId,
+                    displayName = null,
+                )
             val result = userManagementService.updateUser(command)
 
             // Assert
@@ -1040,10 +1044,11 @@ class UserManagementServiceTest {
 
             // Act & Assert
             assertThrows<IllegalArgumentException> {
-                val command = UserManagement.UpdateUserCommand(
-                    userId = userId,
-                    displayName = "New Name"
-                )
+                val command =
+                    UserManagement.UpdateUserCommand(
+                        userId = userId,
+                        displayName = "New Name",
+                    )
                 userManagementService.updateUser(command)
             }
                 .also { exception ->
@@ -1062,28 +1067,12 @@ class UserManagementServiceTest {
             assertThrows<IllegalArgumentException> {
                 UserManagement.UpdateUserCommand(
                     userId = userId,
-                    displayName = "   " // blank string
+                    // blank string
+                    displayName = "   ",
                 )
             }
                 .also { exception ->
                     assertThat(exception.message).contains("cannot be blank")
-                }
-        }
-
-        @Test
-        fun `should throw IllegalArgumentException when displayName is null`() {
-            // Arrange
-            val userId = UUID.randomUUID()
-
-            // Act & Assert
-            assertThrows<IllegalArgumentException> {
-                UserManagement.UpdateUserCommand(
-                    userId = userId,
-                    displayName = null
-                )
-            }
-                .also { exception ->
-                    assertThat(exception.message).contains("must be provided")
                 }
         }
     }

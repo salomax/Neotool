@@ -1,2 +1,0 @@
-Password: test
-Hash: $argon2id$v=19$m=65536,t=3,p=1$BTRtB05fagUYBY6YmQaMkQ$bA4FQ8J8+GKJ9IkXxDUYRrGfURSo95rK+YOG4xa0NcU
