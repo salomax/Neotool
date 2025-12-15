@@ -128,6 +128,14 @@ export interface SearchableAutocompleteProps<
    * @default "outlined"
    */
   variant?: "outlined" | "filled" | "standard";
+
+  /**
+   * Load mode for the query
+   * - "lazy": Only run query when user searches (default)
+   * - "eager": Run query on mount with empty search term, enable dropdown arrow
+   * @default "lazy"
+   */
+  loadMode?: "lazy" | "eager";
 }
 
 /**
@@ -189,6 +197,7 @@ export function SearchableAutocomplete<
   notifyOnNetworkStatusChange = true,
   debounceMs = 300,
   variant = "outlined",
+  loadMode = "lazy",
 }: SearchableAutocompleteProps<TOption, TSelected, TQueryData, TQueryVariables>) {
   // Local input value (what the user is typing)
   const [inputValue, setInputValue] = useState("");
@@ -203,6 +212,16 @@ export function SearchableAutocomplete<
     [trimmedSearch, getQueryVariables]
   );
 
+  // Determine if we should skip the query
+  // In lazy mode: skip when search is empty
+  // In eager mode: only skip when explicitly requested
+  const shouldSkip = useMemo(() => {
+    if (skip) return true;
+    if (loadMode === "eager") return false;
+    // lazy mode: skip when search is empty
+    return trimmedSearch.length === 0;
+  }, [skip, loadMode, trimmedSearch.length]);
+
   // Execute query
   const {
     data,
@@ -211,8 +230,7 @@ export function SearchableAutocomplete<
     refetch,
   } = useQuery({
     variables: queryVariables,
-    // Skip when search is empty or when caller explicitly requests skip
-    skip: skip || trimmedSearch.length === 0,
+    skip: shouldSkip,
     fetchPolicy,
     notifyOnNetworkStatusChange,
   });
@@ -393,9 +411,9 @@ export function SearchableAutocomplete<
         }
       }}
       autoHighlight
-      // UX: hide dropdown arrow, users should search instead of opening a full list
-      popupIcon={null}
-      forcePopupIcon={false}
+      // UX: show dropdown arrow in eager mode, hide in lazy mode
+      popupIcon={loadMode === "eager" ? undefined : null}
+      forcePopupIcon={loadMode === "eager"}
       getOptionLabel={getOptionLabel}
       isOptionEqualToValue={defaultIsOptionEqualToValue}
       loading={loading}

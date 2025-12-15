@@ -69,7 +69,7 @@ export const UserGroupAssignment: React.FC<UserGroupAssignmentProps> = ({
         multiple
         useQuery={useGetGroupsQuery}
         getQueryVariables={(search) => ({
-          first: 100,
+          first: 5,
           query: search || undefined,
         })}
         extractData={(queryData) => queryData?.groups?.edges?.map((e) => e.node) || []}
@@ -104,6 +104,7 @@ export const UserGroupAssignment: React.FC<UserGroupAssignmentProps> = ({
         fetchPolicy="network-only"
         notifyOnNetworkStatusChange
         skip={!userId}
+        loadMode="eager"
       />
     </Box>
   );
