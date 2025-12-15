@@ -3,10 +3,10 @@ title: Management Pattern
 type: pattern
 category: frontend
 status: current
-version: 1.4.0
+version: 1.5.0
 tags: [management, hooks, components, reusable, pattern, frontend]
 ai_optimized: true
-search_keywords: [management, useManagementBase, useDebouncedSearch, useSorting, ManagementTable, ManagementList, AssignmentComponent, ErrorAlert, DeleteConfirmationDialog, useToggleStatus, ManagementLayout, reusable, hooks, components, duplicate hooks, child components, drawer, modal, table, columns, pagination, Header, Content]
+search_keywords: [management, useManagementBase, useDebouncedSearch, useSorting, ManagementTable, ManagementList, AssignmentComponent, ErrorAlert, DeleteConfirmationDialog, useToggleStatus, ManagementLayout, reusable, hooks, components, duplicate hooks, child components, drawer, modal, table, columns, pagination, Header, Content, keyboard, form submission, useKeyboardFormSubmit]
 related:
   - 04-patterns/frontend-patterns/graphql-mutation-pattern.md
   - 04-patterns/frontend-patterns/toast-notification-pattern.md
@@ -412,6 +412,123 @@ This ensures users can always cancel and close the drawer, providing a consisten
 - Save handler (`handleSave`) is responsible for business logic, GraphQL calls, refetches, and toast notifications.
 - The Save button wrapper only orchestrates control-flow (awaits `handleSave` and closes the drawer on success).
 - Drawers used in management flows MUST auto-close on successful saves to provide a consistent, predictable UX across the app.
+
+### Drawer Keyboard Form Submission Pattern
+
+**Default Behavior**: All drawer components with forms SHOULD enable keyboard form submission using the `useKeyboardFormSubmit` hook. This allows users to submit forms by pressing Enter when focus is in any form input and the Save button is enabled.
+
+**Implementation Pattern**:
+```typescript
+import { useKeyboardFormSubmit } from "@/shared/hooks/forms";
+import { useRef } from "react";
+
+export const GroupDrawer: React.FC<GroupDrawerProps> = ({
+  open,
+  onClose,
+  groupId,
+}) => {
+  // ... existing code ...
+  
+  // Ref for drawer body to scope keyboard handling
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  // Enable keyboard form submission
+  // Uses react-hook-form's handleSubmit since this drawer uses FormProvider without a native form element
+  useKeyboardFormSubmit({
+    onSubmit: () => methods.handleSubmit(handleSave)(),
+    isSubmitEnabled: () =>
+      !saving &&
+      !createLoading &&
+      !updateLoading &&
+      !savingRoles &&
+      (isCreateMode || hasRoleOrUserChanges || methods.formState.isDirty),
+    containerRef: bodyRef,
+    enabled: open,
+  });
+
+  return (
+    <Drawer open={open} onClose={onClose}>
+      {/* ... header ... */}
+      <Drawer.Body ref={bodyRef}>
+        {/* ... form content ... */}
+      </Drawer.Body>
+      {/* ... footer ... */}
+    </Drawer>
+  );
+};
+```
+
+**Alternative Patterns for Different Form Types**:
+
+1. **React Hook Form without Native Form Element** (GroupDrawer pattern):
+```typescript
+useKeyboardFormSubmit({
+  onSubmit: () => methods.handleSubmit(handleSave)(),
+  isSubmitEnabled: () => !saving && hasChanges,
+  containerRef: bodyRef,
+  enabled: open,
+});
+```
+
+2. **Native Form Element with React Hook Form** (RoleDrawer pattern):
+```typescript
+const formRef = useRef<HTMLFormElement>(null);
+
+useKeyboardFormSubmit({
+  onSubmit: () => {
+    formRef.current?.requestSubmit();
+  },
+  isSubmitEnabled: () => !saving && hasChanges,
+  containerRef: bodyRef,
+  enabled: open,
+});
+
+// In JSX:
+<Box ref={formRef} component="form" id="role-form" onSubmit={methods.handleSubmit(handleSubmit)}>
+  {/* form content */}
+</Box>
+```
+
+3. **Custom Hook Pattern** (UserDrawer pattern):
+```typescript
+useKeyboardFormSubmit({
+  onSubmit: async () => {
+    try {
+      await handleSave();
+      onClose();
+    } catch {
+      // Error handling (toast) is already performed in handleSave
+    }
+  },
+  isSubmitEnabled: () => !saving && hasChanges,
+  containerRef: bodyRef,
+  enabled: open,
+});
+```
+
+**Key Points**:
+- **Container Scoping**: Always use a ref to the `Drawer.Body` to scope keyboard handling to the drawer only
+- **Enabled State**: Pass `enabled: open` to only activate when drawer is open
+- **Submit Enabled Check**: The `isSubmitEnabled` function should match the Save button's disabled logic exactly
+- **Form Type Compatibility**: Works with react-hook-form (with or without native form elements) and custom form handlers
+- **Automatic Behavior**: 
+  - Only triggers on Enter key (not Shift+Enter)
+  - Respects disabled and readonly inputs
+  - Skips submission when dropdowns/autocompletes are open
+  - Doesn't intercept button presses
+  - Handles nested forms correctly
+- **Error Handling**: Errors are automatically caught and logged; form submission errors should be handled by the `onSubmit` function
+
+**Benefits**:
+- Improved UX: Users can quickly submit forms without clicking the Save button
+- Accessibility: Standard keyboard navigation pattern
+- Consistent: Works the same way across all drawers
+- Safe: Only submits when Save button would be enabled
+
+**Requirements**:
+- Drawer Body component MUST accept a ref (already implemented via `React.forwardRef`)
+- `isSubmitEnabled` function MUST match the Save button's disabled condition
+- Container ref MUST be attached to `Drawer.Body` element
 
 ## Avoiding Duplicate Hook Instances
 
@@ -970,6 +1087,9 @@ When implementing a new management module, verify:
 - [ ] Cancel button closes the drawer by calling `onClose()`
 - [ ] Cancel button may reset form state before closing (optional but recommended)
 - [ ] Save button is disabled when there are no changes or during save operations
+- [ ] Keyboard form submission enabled using `useKeyboardFormSubmit` hook
+- [ ] Container ref attached to `Drawer.Body` for keyboard scoping
+- [ ] `isSubmitEnabled` function matches Save button's disabled logic
 
 ### Critical Rules
 - [ ] **Child components (drawers/modals) use direct mutation hooks, NOT the full management hook**

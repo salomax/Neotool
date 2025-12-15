@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useEffect, useState, useCallback } from "react";
+import React, { useMemo, useEffect, useState, useCallback, useRef } from "react";
 import {
   Box,
   Typography,
@@ -32,6 +32,7 @@ import { useToast } from "@/shared/providers";
 import { extractErrorMessage } from "@/shared/utils/error";
 import { GetGroupsDocument } from "@/lib/graphql/operations/authorization-management/queries.generated";
 import { PermissionGate } from "@/shared/components/authorization";
+import { useKeyboardFormSubmit } from "@/shared/hooks/forms";
 
 export interface GroupDrawerProps {
   open: boolean;
@@ -284,6 +285,23 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
     ? t("groupManagement.createGroup")
     : t("groupManagement.drawer.title");
 
+  // Ref for drawer body to scope keyboard handling
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  // Enable keyboard form submission
+  // Uses react-hook-form's handleSubmit since this drawer uses FormProvider without a native form element
+  useKeyboardFormSubmit({
+    onSubmit: () => methods.handleSubmit(handleSave)(),
+    isSubmitEnabled: () =>
+      !saving &&
+      !createLoading &&
+      !updateLoading &&
+      !savingRoles &&
+      (isCreateMode || hasRoleOrUserChanges || methods.formState.isDirty),
+    containerRef: bodyRef,
+    enabled: open,
+  });
+
   return (
     <Drawer
       id="group-drawer"
@@ -309,7 +327,7 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
           <CloseIcon />
         </IconButton>
       </Drawer.Header>
-      <Drawer.Body>
+      <Drawer.Body ref={bodyRef}>
         <FormProvider {...methods}>
           {/* Loading state for edit mode */}
           <LoadingState isLoading={!isCreateMode && loading} />

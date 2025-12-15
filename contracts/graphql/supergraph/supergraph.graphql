@@ -154,6 +154,7 @@ type Mutation
   resetPassword(input: ResetPasswordInput!): ResetPasswordPayload! @join__field(graph: SECURITY)
   enableUser(userId: ID!): User! @join__field(graph: SECURITY)
   disableUser(userId: ID!): User! @join__field(graph: SECURITY)
+  updateUser(userId: ID!, input: UpdateUserInput!): User! @join__field(graph: SECURITY)
   createGroup(input: CreateGroupInput!): Group! @join__field(graph: SECURITY)
   updateGroup(groupId: ID!, input: UpdateGroupInput!): Group! @join__field(graph: SECURITY)
   deleteGroup(groupId: ID!): Boolean! @join__field(graph: SECURITY)
@@ -372,6 +373,12 @@ input UpdateRoleInput
   @join__type(graph: SECURITY)
 {
   name: String!
+}
+
+input UpdateUserInput
+  @join__type(graph: SECURITY)
+{
+  displayName: String
 }
 
 type User

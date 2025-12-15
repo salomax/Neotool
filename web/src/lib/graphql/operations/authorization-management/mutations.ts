@@ -136,6 +136,18 @@ export const REMOVE_GROUP_FROM_USER = gql`
   }
 `;
 
+// Update user
+export const UPDATE_USER = gql`
+  mutation UpdateUser($userId: ID!, $input: UpdateUserInput!) {
+    updateUser(userId: $userId, input: $input) {
+      id
+      email
+      displayName
+      enabled
+    }
+  }
+`;
+
 // Assign role to group
 export const ASSIGN_ROLE_TO_GROUP = gql`
   mutation AssignRoleToGroup($groupId: ID!, $roleId: ID!) {

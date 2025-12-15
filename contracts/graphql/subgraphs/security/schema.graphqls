@@ -45,6 +45,7 @@ type Mutation {
   # Authorization management mutations
   enableUser(userId: ID!): User!
   disableUser(userId: ID!): User!
+  updateUser(userId: ID!, input: UpdateUserInput!): User!
   createGroup(input: CreateGroupInput!): Group!
   updateGroup(groupId: ID!, input: UpdateGroupInput!): Group!
   deleteGroup(groupId: ID!): Boolean!
@@ -217,6 +218,10 @@ input CreateRoleInput {
 
 input UpdateRoleInput {
   name: String!
+}
+
+input UpdateUserInput {
+  displayName: String
 }
 
 # Sorting enums and input types

@@ -120,6 +120,7 @@ export type Mutation = {
   updateGroup: Group;
   updateProduct: Product;
   updateRole: Role;
+  updateUser: User;
 };
 
 
@@ -260,6 +261,12 @@ export type MutationUpdateProductArgs = {
 export type MutationUpdateRoleArgs = {
   input: UpdateRoleInput;
   roleId: Scalars['ID']['input'];
+};
+
+
+export type MutationUpdateUserArgs = {
+  input: UpdateUserInput;
+  userId: Scalars['ID']['input'];
 };
 
 export enum OrderDirection {
@@ -491,6 +498,10 @@ export type UpdateGroupInput = {
 
 export type UpdateRoleInput = {
   name: Scalars['String']['input'];
+};
+
+export type UpdateUserInput = {
+  displayName?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type User = {

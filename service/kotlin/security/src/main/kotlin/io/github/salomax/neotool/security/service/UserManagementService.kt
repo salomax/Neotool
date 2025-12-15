@@ -228,6 +228,35 @@ open class UserManagementService(
     }
 
     /**
+     * Update basic user profile fields.
+     *
+     * Currently only supports updating displayName; email is immutable.
+     *
+     * @param command Update user command with userId and new displayName
+     * @return The updated user
+     * @throws IllegalArgumentException if user not found
+     */
+    @Transactional
+    open fun updateUser(command: UserManagement.UpdateUserCommand): User {
+        val entity =
+            userRepository
+                .findById(command.userId)
+                .orElseThrow {
+                    IllegalArgumentException("User not found with ID: ${command.userId}")
+                }
+
+        // Update displayName (email is immutable)
+        entity.displayName = command.displayName
+        entity.updatedAt = Instant.now()
+
+        val saved = userRepository.update(entity)
+
+        logger.info { "User updated: ${saved.email} (ID: ${saved.id}), displayName: ${saved.displayName}" }
+
+        return saved.toDomain()
+    }
+
+    /**
      * Assign a group to a user.
      *
      * @param command Assign group command with userId and groupId

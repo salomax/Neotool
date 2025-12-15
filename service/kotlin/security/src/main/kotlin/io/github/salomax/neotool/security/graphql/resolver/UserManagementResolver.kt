@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.security.graphql.resolver
 
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
+import io.github.salomax.neotool.security.graphql.dto.UpdateUserInputDTO
 import io.github.salomax.neotool.security.graphql.dto.UserConnectionDTO
 import io.github.salomax.neotool.security.graphql.dto.UserDTO
 import io.github.salomax.neotool.security.graphql.mapper.UserManagementMapper
@@ -226,6 +227,27 @@ class UserManagementResolver(
             throw e
         } catch (e: Exception) {
             logger.error(e) { "Error removing group from user: userId=$userId, groupId=$groupId" }
+            throw e
+        }
+    }
+
+    /**
+     * Update a user's profile fields.
+     * Currently only supports updating displayName; email is immutable.
+     */
+    fun updateUser(
+        userId: String,
+        input: UpdateUserInputDTO,
+    ): UserDTO {
+        return try {
+            val command = mapper.toUpdateUserCommand(userId, input)
+            val user = userManagementService.updateUser(command)
+            mapper.toUserDTO(user)
+        } catch (e: IllegalArgumentException) {
+            logger.warn { "Invalid user ID or user not found: $userId" }
+            throw e
+        } catch (e: Exception) {
+            logger.error(e) { "Error updating user: $userId" }
             throw e
         }
     }

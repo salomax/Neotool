@@ -63,7 +63,7 @@ export function useRoleDrawer(
     skip: !open || !roleId,
     variables: roleId ? { id: roleId } : undefined as any,
     fetchPolicy: 'network-only',
-    notifyOnNetworkStatusChange: true,
+    notifyOnNetworkStatusChange: false, // Prevent loading state during refetches to avoid drawer blink
   });
 
   // Extract role from roleId using role query
@@ -245,8 +245,8 @@ export function useRoleDrawer(
         await Promise.all(mutationPromises);
       }
 
-      // Refetch to get updated data
-      await refetchAll();
+      // Mutations already refetch queries via refetchQueries with awaitRefetchQueries: true
+      // No need for additional refetch call that causes drawer to blink
       
       // Show success message
       toast.success(t("roleManagement.toast.roleUpdated", { name: role.name || roleId }));
@@ -272,7 +272,6 @@ export function useRoleDrawer(
     removeRoleFromGroupMutation,
     assignPermissionToRoleMutation,
     removePermissionFromRoleMutation,
-    refetchAll,
     toast,
     t,
   ]);

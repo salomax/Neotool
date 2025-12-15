@@ -159,6 +159,12 @@ data class UpdateRoleInputDTO(
     var name: String = "",
 ) : BaseInputDTO()
 
+@Introspected
+@Serdeable
+data class UpdateUserInputDTO(
+    var displayName: String? = null,
+) : BaseInputDTO()
+
 // Relay pagination DTOs
 @Introspected
 @Serdeable
