@@ -26,7 +26,7 @@ import { RolePermissionAssignment } from "./RolePermissionAssignment";
 import { RoleGroupAssignment, type Group } from "./RoleGroupAssignment";
 import type { Permission } from "../permissions/PermissionList";
 import { PermissionGate } from "@/shared/components/authorization";
-import { useKeyboardFormSubmit } from "@/shared/hooks/forms";
+import { useKeyboardFormSubmit, useDrawerAutoFocus } from "@/shared/hooks/forms";
 
 export interface RoleDrawerProps {
   open: boolean;
@@ -255,6 +255,13 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
   const bodyRef = useRef<HTMLDivElement>(null);
   // Ref for form element
   const formRef = useRef<HTMLFormElement>(null);
+
+  // Auto-focus first input when drawer opens
+  useDrawerAutoFocus({
+    containerRef: bodyRef,
+    open: open,
+    enabled: true,
+  });
 
   // Enable keyboard form submission
   // Uses native form.requestSubmit() since this drawer uses a native form element with react-hook-form

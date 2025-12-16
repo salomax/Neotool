@@ -11,6 +11,7 @@ import type { UserSortState, UserOrderField } from "@/shared/utils/sorting";
 import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
 import { PermissionGate } from "@/shared/components/authorization";
+import { Avatar } from "@/shared/components/ui/primitives/Avatar";
 
 export interface UserListProps {
   users: User[];
@@ -108,9 +109,22 @@ export const UserList: React.FC<UserListProps> = ({
         id: "name",
         label: t("userManagement.table.name"),
         accessor: (user) => (
-          <Typography variant="body2" fontWeight="medium">
-            {user.displayName || user.email}
-          </Typography>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1.5,
+            }}
+          >
+            <Avatar
+              name={user.displayName || user.email}
+              src={user.avatarUrl || undefined}
+              size="medium"
+            />
+            <Typography variant="body2" fontWeight="medium">
+              {user.displayName || user.email}
+            </Typography>
+          </Box>
         ),
         sortable: !!onSortChange,
         sortField: "DISPLAY_NAME",

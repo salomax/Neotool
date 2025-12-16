@@ -530,6 +530,155 @@ useKeyboardFormSubmit({
 - `isSubmitEnabled` function MUST match the Save button's disabled condition
 - Container ref MUST be attached to `Drawer.Body` element
 
+### Drawer Auto-Focus Pattern
+
+**Default Behavior**: All drawer components with form inputs MUST automatically focus the first focusable input when the drawer opens. This improves user experience by allowing immediate typing without requiring a click.
+
+**Implementation Pattern**:
+```typescript
+import { useDrawerAutoFocus, useKeyboardFormSubmit } from "@/shared/hooks/forms";
+import { useRef } from "react";
+
+export const UserDrawer: React.FC<UserDrawerProps> = ({
+  open,
+  onClose,
+  userId,
+}) => {
+  // ... existing code ...
+  
+  // Ref for drawer body to scope keyboard handling and auto-focus
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  // Auto-focus first input when drawer opens
+  useDrawerAutoFocus({
+    containerRef: bodyRef,
+    open: open,
+    enabled: true,
+  });
+
+  // Enable keyboard form submission
+  useKeyboardFormSubmit({
+    onSubmit: async () => {
+      try {
+        await handleSave();
+        onClose();
+      } catch {
+        // Error handling (toast) is already performed in handleSave
+      }
+    },
+    isSubmitEnabled: () => !saving && hasChanges,
+    containerRef: bodyRef,
+    enabled: open,
+  });
+
+  return (
+    <Drawer open={open} onClose={onClose}>
+      {/* ... header ... */}
+      <Drawer.Body ref={bodyRef}>
+        <TextField
+          label="Display Name"
+          value={displayName}
+          onChange={(e) => updateDisplayName(e.target.value)}
+        />
+        {/* ... other form fields ... */}
+      </Drawer.Body>
+      {/* ... footer ... */}
+    </Drawer>
+  );
+};
+```
+
+**Key Points**:
+- **Automatic Detection**: The hook automatically finds the first focusable input within the drawer body
+- **Focusable Inputs**: Supports native form elements (`<input>`, `<textarea>`, `<select>`) and MUI TextField components
+- **Smart Filtering**: Skips disabled, readonly, and hidden inputs
+- **Timing**: Uses a small delay (default 100ms) to allow drawer animation and content rendering
+- **One-Time Focus**: Only focuses when drawer transitions from closed to open (not on every render)
+- **Container Scoping**: Only searches within the specified container ref (typically `Drawer.Body`)
+
+**What Gets Focused**:
+- First visible, enabled, non-readonly input field
+- First visible, enabled, non-readonly textarea
+- First visible, enabled select element
+- MUI TextField components (automatically finds the nested input element)
+
+**What Gets Skipped**:
+- Disabled inputs (`disabled` attribute)
+- Readonly inputs (`readOnly` attribute)
+- Hidden inputs (`type="hidden"` or `display: none`)
+- Elements with zero dimensions
+- Elements outside the container scope
+
+**Configuration Options**:
+```typescript
+useDrawerAutoFocus({
+  containerRef: bodyRef,  // Required: ref to drawer body
+  open: open,              // Required: drawer open state
+  enabled: true,           // Optional: enable/disable auto-focus (default: true)
+  delayMs: 100,            // Optional: delay before focusing (default: 100ms)
+});
+```
+
+**When to Disable**:
+- Set `enabled: false` if the drawer has conditional inputs that may not be ready when the drawer opens
+- Set `enabled: false` if the drawer has async content loading that might change the input order
+- Increase `delayMs` if the drawer has complex animations or slow content rendering
+
+**Best Practices**:
+- Always use `useDrawerAutoFocus` in combination with `useKeyboardFormSubmit` for optimal UX
+- Attach the container ref to `Drawer.Body` component (not the Drawer itself)
+- If a specific input should always be focused (regardless of order), use the `autoFocus` prop on that input instead
+- The hook works seamlessly with react-hook-form, custom form handlers, and MUI components
+
+**Benefits**:
+- Improved UX: Users can start typing immediately when the drawer opens
+- Accessibility: Follows standard form interaction patterns
+- Consistent: Works the same way across all drawers
+- Non-intrusive: Only focuses when appropriate (drawer opening, input available)
+
+**Requirements**:
+- Drawer Body component MUST accept a ref (already implemented via `React.forwardRef`)
+- Container ref MUST be attached to `Drawer.Body` element
+- Drawer MUST have at least one focusable input for the hook to be effective
+
+**Example: Complete Drawer with Auto-Focus**:
+```typescript
+export const GroupDrawer: React.FC<GroupDrawerProps> = ({
+  open,
+  onClose,
+  groupId,
+}) => {
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const methods = useForm<GroupFormData>();
+
+  // Auto-focus first input when drawer opens
+  useDrawerAutoFocus({
+    containerRef: bodyRef,
+    open: open,
+  });
+
+  // Enable keyboard form submission
+  useKeyboardFormSubmit({
+    onSubmit: () => methods.handleSubmit(handleSave)(),
+    isSubmitEnabled: () => !saving && methods.formState.isDirty,
+    containerRef: bodyRef,
+    enabled: open,
+  });
+
+  return (
+    <Drawer open={open} onClose={onClose}>
+      <Drawer.Header>...</Drawer.Header>
+      <Drawer.Body ref={bodyRef}>
+        <FormProvider {...methods}>
+          <GroupForm /> {/* First input will be auto-focused */}
+        </FormProvider>
+      </Drawer.Body>
+      <Drawer.Footer>...</Drawer.Footer>
+    </Drawer>
+  );
+};
+```
+
 ## Avoiding Duplicate Hook Instances
 
 ### Critical Rule: Never Call Complex Management Hooks in Child Components

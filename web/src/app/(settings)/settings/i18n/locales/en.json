@@ -57,7 +57,9 @@
       "enabled": "Enabled",
       "disabled": "Disabled",
       "enable": "Enable user",
-      "disable": "Disable user"
+      "disable": "Disable user",
+      "enabling": "Enabling user...",
+      "disabling": "Disabling user..."
     },
     "table": {
       "name": "Name",
