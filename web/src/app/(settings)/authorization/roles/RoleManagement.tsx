@@ -148,6 +148,7 @@ const RoleManagementContent: React.FC<{
               onChange={handleInputChange}
               onSearch={handleSearch}
               placeholder={t("roleManagement.searchPlaceholder")}
+              autoFocus
             />
           </Box>
           <Box sx={{ mb: 2 }}>

@@ -151,6 +151,7 @@ const GroupManagementContent: React.FC<{
               onChange={handleInputChange}
               onSearch={handleSearch}
               placeholder={t("groupManagement.searchPlaceholder")}
+              autoFocus
             />
           </Box>
           <Box sx={{ mb: 2 }}>

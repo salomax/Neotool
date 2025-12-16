@@ -44,6 +44,67 @@ Generic UI components organized by purpose:
 - **`primitives/`** - Basic UI primitives (Button, Avatar, etc.)
 - **`patterns/`** - Reusable UI patterns
 
+### Avatar Component
+
+Enhanced Avatar component with automatic error handling and fallback to initials.
+
+**Location**: `web/src/shared/components/ui/primitives/Avatar.tsx`
+
+**Usage**:
+```typescript
+import { Avatar } from "@/shared/components/ui/primitives/Avatar";
+
+// With image URL (automatically falls back to initials on error)
+<Avatar
+  name="John Doe"
+  src="https://example.com/avatar.jpg"
+  size="small"
+/>
+
+// Without image (shows initials)
+<Avatar name="John Doe" size="medium" />
+
+// Custom children
+<Avatar name="John Doe">
+  <CustomIcon />
+</Avatar>
+```
+
+**Props**:
+- `name?: string` - User name for generating initials fallback
+- `src?: string` - Image URL (optional)
+- `size?: 'small' | 'medium' | 'large'` - Avatar size (default: 'medium')
+- `children?: React.ReactNode` - Custom content (overrides initials)
+- `'data-testid'?: string` - Custom test ID
+- All Material-UI Avatar props
+
+**Features**:
+- Automatic error handling: Falls back to initials when image fails to load
+- Handles `NS_BINDING_ABORTED` and other network errors gracefully
+- Generates initials from name (first + last initial)
+- Size variants: small (24px), medium (40px), large (56px)
+- Automatic test ID generation from name prop
+- Resets error state when `src` changes to allow retry
+
+**Image Error Handling**:
+The Avatar component automatically handles image loading errors:
+- When an image fails to load (network errors, CORS issues, 404s, etc.), it automatically falls back to showing initials
+- The error state resets when the `src` prop changes, allowing retry attempts
+- No broken image icons are shown to users - always falls back to initials
+
+**Note on `NS_BINDING_ABORTED` Errors**:
+You may see `NS_BINDING_ABORTED` errors in the browser console, especially in development mode with React Strict Mode. These are harmless and occur when:
+- React Strict Mode causes double renders (development only)
+- Component unmounts before image finishes loading
+- Navigation happens during image load
+
+These errors don't affect functionality - the component handles them gracefully by falling back to initials. The Avatar component includes cleanup logic to minimize these errors, but they may still appear in console logs. This is expected browser behavior and doesn't indicate a problem with the component.
+
+**Best Practices**:
+- Always provide a `name` prop for fallback initials
+- Use appropriate size for context (small for lists, medium for cards, large for profiles)
+- The component handles all error cases internally - no need for external error handling
+
 ### Management Components (`web/src/shared/components/management/`)
 
 Components specific to management interfaces:
@@ -446,6 +507,69 @@ function UserProfilePage() {
 
 **See also**: [Breadcrumb Pattern](./breadcrumb-pattern.md) - Detailed breadcrumb usage patterns
 
+## UI Primitives
+
+### Avatar
+
+Enhanced Avatar component with automatic error handling and fallback to initials.
+
+**Location**: `web/src/shared/components/ui/primitives/Avatar.tsx`
+
+**Usage**:
+```typescript
+import { Avatar } from "@/shared/components/ui/primitives/Avatar";
+
+// With image URL (automatically falls back to initials on error)
+<Avatar
+  name="John Doe"
+  src="https://example.com/avatar.jpg"
+  size="small"
+/>
+
+// Without image (shows initials)
+<Avatar name="John Doe" size="medium" />
+
+// Custom children
+<Avatar name="John Doe">
+  <CustomIcon />
+</Avatar>
+```
+
+**Props**:
+- `name?: string` - User name for generating initials fallback
+- `src?: string` - Image URL (optional)
+- `size?: 'small' | 'medium' | 'large'` - Avatar size (default: 'medium')
+- `children?: React.ReactNode` - Custom content (overrides initials)
+- `'data-testid'?: string` - Custom test ID
+- All Material-UI Avatar props
+
+**Features**:
+- Automatic error handling: Falls back to initials when image fails to load
+- Handles `NS_BINDING_ABORTED` and other network errors gracefully
+- Generates initials from name (first + last initial)
+- Size variants: small (24px), medium (40px), large (56px)
+- Automatic test ID generation from name prop
+- Resets error state when `src` changes to allow retry
+
+**Image Error Handling**:
+The Avatar component automatically handles image loading errors:
+- When an image fails to load (network errors, CORS issues, 404s, etc.), it automatically falls back to showing initials
+- The error state resets when the `src` prop changes, allowing retry attempts
+- No broken image icons are shown to users - always falls back to initials
+
+**Note on `NS_BINDING_ABORTED` Errors**:
+You may see `NS_BINDING_ABORTED` errors in the browser console, especially in development mode with React Strict Mode. These are harmless and occur when:
+- React Strict Mode causes double renders (development only)
+- Component unmounts before image finishes loading
+- Navigation happens during image load
+
+These errors don't affect functionality - the component handles them gracefully by falling back to initials. The Avatar component includes cleanup logic to minimize these errors, but they may still appear in console logs. This is expected browser behavior and doesn't indicate a problem with the component.
+
+**Best Practices**:
+- Always provide a `name` prop for fallback initials
+- Use appropriate size for context (small for lists, medium for cards, large for profiles)
+- The component handles all error cases internally - no need for external error handling
+
 ### Link
 
 Enhanced Link component that integrates Next.js Link with Material-UI Link.
@@ -607,6 +731,69 @@ Components should be well-documented:
 - Document all props with TypeScript types
 - Provide usage examples
 - Document any special behavior
+
+### 6. Image Loading Error Handling
+
+Components that display images from external sources must handle loading errors gracefully:
+
+**Common Issues**:
+- `NS_BINDING_ABORTED`: Network requests aborted during component lifecycle (unmount, re-render, navigation). **These are often unavoidable with native img tags, especially in React Strict Mode (development). They are harmless and don't affect functionality.**
+- CORS errors: Cross-origin requests blocked by browser security policies
+- 404 errors: Image URLs that no longer exist
+- Network timeouts: Slow or failed network connections
+
+**Best Practices**:
+1. **Always provide fallback content**: Use initials, placeholder icons, or default images
+2. **Handle `onError` events**: Implement error handlers that gracefully degrade the UI
+3. **Reset error state on prop changes**: Allow retry when image source changes
+4. **Use memoized error handlers**: Prevent unnecessary re-renders with `useCallback`
+5. **Don't show broken image icons**: Remove `src` attribute when error occurs to trigger fallback
+
+**Example Pattern** (as implemented in Avatar component):
+```typescript
+const [imgError, setImgError] = React.useState(false);
+const isMountedRef = React.useRef(true);
+
+// Reset error state when src changes
+React.useEffect(() => {
+  setImgError(false);
+}, [src]);
+
+// Cleanup on unmount
+React.useEffect(() => {
+  isMountedRef.current = true;
+  return () => {
+    isMountedRef.current = false;
+  };
+}, []);
+
+// Handle image load errors gracefully
+const handleImageError = React.useCallback(() => {
+  if (isMountedRef.current) {
+    setImgError(true);
+  }
+}, []);
+
+// Only use src if it's provided and hasn't errored
+const imageSrc = src && !imgError ? src : undefined;
+const imageSrc = src && !imgError ? src : undefined;
+
+return (
+  <img 
+    src={imageSrc}
+    onError={handleImageError}
+    // Fallback content shown when src is undefined
+  >
+    {fallbackContent}
+  </img>
+);
+```
+
+**Preventing Future Issues**:
+- When creating new components that display images, always implement error handling
+- Use the Avatar component as a reference implementation
+- Test with invalid URLs, network failures, and CORS-blocked images
+- Ensure fallback content is always visible and accessible
 
 ## Export Pattern
 

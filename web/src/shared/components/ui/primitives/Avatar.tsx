@@ -36,15 +36,43 @@ export const Avatar: React.FC<AvatarProps> = ({
   sx,
   ...rest
 }) => {
+  // Track image load errors to fall back to initials
+  const [imgError, setImgError] = React.useState(false);
+  const isMountedRef = React.useRef(true);
+  
+  // Reset error state when src changes to allow retry
+  React.useEffect(() => {
+    setImgError(false);
+  }, [src]);
+  
+  // Cleanup on unmount
+  React.useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+  
+  // Handle image load errors gracefully
+  const handleImageError = React.useCallback(() => {
+    if (isMountedRef.current) {
+      setImgError(true);
+    }
+  }, []);
+  
   // Generate data-testid from component name and optional name prop
   const testIdProps = getTestIdProps('Avatar', name, dataTestId);
   
   // Get size styles
   const sizeStyles = sizeMap[size];
   
+  // Only use src if it's provided and hasn't errored
+  const imageSrc = src && !imgError ? src : undefined;
+  
   return (
     <MAvatar 
-      {...(src && { src })} 
+      src={imageSrc}
+      onError={handleImageError}
       {...testIdProps} 
       sx={{
         ...sizeStyles,

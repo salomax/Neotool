@@ -10,6 +10,7 @@ export interface RoleSearchProps {
   onSearch?: (value: string) => void; // Optional debounced search callback
   placeholder?: string;
   maxWidth?: ContainerProps["maxWidth"];
+  autoFocus?: boolean;
 }
 
 /**
@@ -21,6 +22,7 @@ export const RoleSearch: React.FC<RoleSearchProps> = ({
   onSearch,
   placeholder,
   maxWidth,
+  autoFocus,
 }) => {
   const theme = useTheme();
   
@@ -47,6 +49,7 @@ export const RoleSearch: React.FC<RoleSearchProps> = ({
         debounceMs={300}
         name="role-search"
         data-testid="role-search"
+        autoFocus={autoFocus}
       />
     </Box>
   );

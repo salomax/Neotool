@@ -21,7 +21,7 @@ import { UserRoleAssignment } from "./UserRoleAssignment";
 import { useUserDrawer } from "@/shared/hooks/authorization/useUserDrawer";
 import { PermissionGate } from "@/shared/components/authorization";
 import { CloseIcon } from "@/shared/ui/mui-imports";
-import { useKeyboardFormSubmit } from "@/shared/hooks/forms";
+import { useKeyboardFormSubmit, useDrawerAutoFocus } from "@/shared/hooks/forms";
 
 export interface UserDrawerProps {
   open: boolean;
@@ -61,6 +61,13 @@ export const UserDrawer: React.FC<UserDrawerProps> = ({
 
   // Ref for drawer body to scope keyboard handling
   const bodyRef = useRef<HTMLDivElement>(null);
+
+  // Auto-focus first input when drawer opens
+  useDrawerAutoFocus({
+    containerRef: bodyRef,
+    open: open,
+    enabled: true,
+  });
 
   // Enable keyboard form submission
   // Uses custom hook's handleSave directly since this drawer doesn't use react-hook-form

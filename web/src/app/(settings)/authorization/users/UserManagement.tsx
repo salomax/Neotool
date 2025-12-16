@@ -117,6 +117,7 @@ const UserManagementContent: React.FC<{
           onSearch={handleSearch}
           placeholder={t("userManagement.searchPlaceholder")}
           maxWidth="sm"
+          autoFocus
         />
       </ManagementLayout.Header>
       <ManagementLayout.Content>

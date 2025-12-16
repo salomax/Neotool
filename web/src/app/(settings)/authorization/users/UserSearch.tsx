@@ -10,6 +10,7 @@ export interface UserSearchProps {
   onSearch?: (value: string) => void; // Optional debounced search callback
   placeholder?: string;
   maxWidth?: ContainerProps["maxWidth"];
+  autoFocus?: boolean;
 }
 
 /**
@@ -21,6 +22,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({
   onSearch,
   placeholder,
   maxWidth,
+  autoFocus,
 }) => {
   const theme = useTheme();
   
@@ -47,6 +49,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({
         debounceMs={300}
         name="user-search"
         data-testid="user-search"
+        autoFocus={autoFocus}
       />
     </Box>
   );

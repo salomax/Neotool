@@ -32,7 +32,7 @@ import { useToast } from "@/shared/providers";
 import { extractErrorMessage } from "@/shared/utils/error";
 import { GetGroupsDocument } from "@/lib/graphql/operations/authorization-management/queries.generated";
 import { PermissionGate } from "@/shared/components/authorization";
-import { useKeyboardFormSubmit } from "@/shared/hooks/forms";
+import { useKeyboardFormSubmit, useDrawerAutoFocus } from "@/shared/hooks/forms";
 
 export interface GroupDrawerProps {
   open: boolean;
@@ -287,6 +287,13 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
 
   // Ref for drawer body to scope keyboard handling
   const bodyRef = useRef<HTMLDivElement>(null);
+
+  // Auto-focus first input when drawer opens
+  useDrawerAutoFocus({
+    containerRef: bodyRef,
+    open: open,
+    enabled: true,
+  });
 
   // Enable keyboard form submission
   // Uses react-hook-form's handleSubmit since this drawer uses FormProvider without a native form element
