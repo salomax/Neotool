@@ -96,6 +96,11 @@ open class AuthenticationService(
             return null
         }
 
+        // Check if user is enabled
+        if (!user.enabled) {
+            return null
+        }
+
         logger.info { "User authenticated successfully: $email" }
         return user
     }
@@ -174,7 +179,14 @@ open class AuthenticationService(
         }
 
         // Fetch user from database
-        return userRepository.findById(userId).orElse(null)
+        val user = userRepository.findById(userId).orElse(null) ?: return null
+
+        // Check if user is enabled
+        if (!user.enabled) {
+            return null
+        }
+
+        return user
     }
 
     /**
@@ -206,6 +218,11 @@ open class AuthenticationService(
         // In a production system, you might want to store token hashes instead
         if (user.rememberMeToken != token) {
             logger.debug { "Refresh token does not match stored token for user: ${user.email}" }
+            return null
+        }
+
+        // Check if user is enabled
+        if (!user.enabled) {
             return null
         }
 
@@ -544,6 +561,11 @@ open class AuthenticationService(
 
             if (needsUpdate) {
                 userRepository.save(existingUser)
+            }
+
+            // Check if user is enabled
+            if (!existingUser.enabled) {
+                return null
             }
 
             logger.info { "OAuth user signed in: ${claims.email} (existing user)" }
