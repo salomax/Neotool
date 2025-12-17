@@ -36,7 +36,9 @@
       "saveSuccess": "User updated successfully",
       "saveError": "Failed to update user",
       "displayNamePlaceholder": "Enter display name",
-      "emailPlaceholder": "Enter email address"
+      "emailPlaceholder": "Enter email address",
+      "createdAt": "Created At",
+      "updatedAt": "Updated At"
     },
     "groups": {
       "assignError": "Failed to assign group",
@@ -48,13 +50,16 @@
       "assignError": "Failed to assign role",
       "removeError": "Failed to remove role",
       "searchPlaceholder": "Search roles...",
-      "loadError": "Failed to load roles"
+      "loadError": "Failed to load roles",
+      "noRoles": "No roles assigned"
     },
     "status": {
       "enabled": "Enabled",
       "disabled": "Disabled",
       "enable": "Enable user",
-      "disable": "Disable user"
+      "disable": "Disable user",
+      "enabling": "Enabling user...",
+      "disabling": "Disabling user..."
     },
     "table": {
       "name": "Name",
@@ -101,7 +106,9 @@
       "saveSuccess": "Group updated successfully",
       "saveError": "Failed to update group",
       "namePlaceholder": "Enter group name",
-      "descriptionPlaceholder": "Enter group description"
+      "descriptionPlaceholder": "Enter group description",
+      "createdAt": "Created At",
+      "updatedAt": "Updated At"
     },
     "roles": {
       "assignError": "Failed to assign role",
@@ -157,7 +164,9 @@
     "newButton": "New",
     "drawerPlaceholder": "Role editing form will be implemented here",
     "drawer": {
-      "errorLoading": "Failed to load role details"
+      "errorLoading": "Failed to load role details",
+      "createdAt": "Created At",
+      "updatedAt": "Updated At"
     },
     "table": {
       "name": "Name",
@@ -175,7 +184,7 @@
       }
     },
     "permissions": {
-      "assigned": "Assigned Permissions",
+      "assigned": "Permissions",
       "available": "Available Permissions",
       "assignedCount": "{{count}} permission(s) assigned",
       "noPermissions": "No permissions assigned to this role",
@@ -190,7 +199,7 @@
       "loadError": "Failed to load permissions"
     },
     "users": {
-      "assigned": "Assigned Users",
+      "assigned": "Users",
       "available": "Available Users",
       "assignedCount": "{{count}} user(s) assigned",
       "noUsers": "No users assigned to this role",
@@ -205,7 +214,7 @@
       "loadError": "Failed to load users"
     },
     "groups": {
-      "assigned": "Assigned Groups",
+      "assigned": "Groups",
       "available": "Available Groups",
       "assignedCount": "{{count}} group(s) assigned",
       "noGroups": "No groups assigned to this role",

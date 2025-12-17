@@ -89,3 +89,25 @@ export const RESET_PASSWORD = gql`
   }
 `;
 
+// Refresh access token mutation
+export const REFRESH_ACCESS_TOKEN = gql`
+  mutation RefreshAccessToken($input: RefreshAccessTokenInput!) {
+    refreshAccessToken(input: $input) {
+      token
+      user {
+        id
+        email
+        displayName
+        roles {
+          id
+          name
+        }
+        permissions {
+          id
+          name
+        }
+      }
+    }
+  }
+`;
+

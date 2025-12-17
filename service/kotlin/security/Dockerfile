@@ -38,7 +38,7 @@ RUN --mount=type=cache,target=/home/gradle/.gradle/caches \
 
 # Use a minimal JRE (Java Runtime Environment) image based on Eclipse Temurin with JDK 21.
 # This image is much smaller than the full JDK image used for building.
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:21-jre-alpine
 
 # Set the working directory for the application inside the final image.
 WORKDIR /security

@@ -15,6 +15,7 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.time.Instant
+import java.util.UUID
 
 @DisplayName("RoleManagementResolver Batch Methods Tests")
 class RoleManagementResolverTest {
@@ -35,25 +36,25 @@ class RoleManagementResolverTest {
         @Test
         fun `should return permissions for multiple roles`() {
             // Arrange
-            val roleId1 = 1
-            val roleId2 = 2
+            val roleId1 = UUID.randomUUID()
+            val roleId2 = UUID.randomUUID()
             val permission1 =
                 Permission(
-                    id = 10,
+                    id = UUID.randomUUID(),
                     name = "transaction:read",
                     createdAt = Instant.now(),
                     updatedAt = Instant.now(),
                 )
             val permission2 =
                 Permission(
-                    id = 20,
+                    id = UUID.randomUUID(),
                     name = "transaction:write",
                     createdAt = Instant.now(),
                     updatedAt = Instant.now(),
                 )
             whenever(mapper.toRoleId(roleId1.toString())).thenReturn(roleId1)
             whenever(mapper.toRoleId(roleId2.toString())).thenReturn(roleId2)
-            whenever(roleManagementService.listRolePermissionsBatch(any<List<Int>>()))
+            whenever(roleManagementService.listRolePermissionsBatch(any<List<UUID>>()))
                 .thenReturn(
                     mapOf(
                         roleId1 to listOf(permission1),
@@ -80,7 +81,7 @@ class RoleManagementResolverTest {
             assertThat(result[roleId1.toString()]!![0].name).isEqualTo("transaction:read")
             assertThat(result[roleId2.toString()]).hasSize(1)
             assertThat(result[roleId2.toString()]!![0].name).isEqualTo("transaction:write")
-            verify(roleManagementService).listRolePermissionsBatch(any<List<Int>>())
+            verify(roleManagementService).listRolePermissionsBatch(any<List<UUID>>())
         }
 
         @Test
@@ -95,18 +96,18 @@ class RoleManagementResolverTest {
         @Test
         fun `should filter out invalid role IDs`() {
             // Arrange
-            val roleId1 = 1
-            val invalidId = "not-a-number"
+            val roleId1 = UUID.randomUUID()
+            val invalidId = "not-a-uuid"
             val permission1 =
                 Permission(
-                    id = 10,
+                    id = UUID.randomUUID(),
                     name = "transaction:read",
                     createdAt = Instant.now(),
                     updatedAt = Instant.now(),
                 )
             whenever(mapper.toRoleId(roleId1.toString())).thenReturn(roleId1)
             whenever(mapper.toRoleId(invalidId)).thenThrow(IllegalArgumentException("Invalid role ID"))
-            whenever(roleManagementService.listRolePermissionsBatch(any<List<Int>>()))
+            whenever(roleManagementService.listRolePermissionsBatch(any<List<UUID>>()))
                 .thenReturn(mapOf(roleId1 to listOf(permission1)))
             whenever(mapper.toPermissionDTOList(any<List<Permission>>())).thenAnswer { invocation ->
                 val permissions = invocation.getArgument<List<Permission>>(0)
@@ -125,12 +126,12 @@ class RoleManagementResolverTest {
         @Test
         fun `should preserve order of requested role IDs`() {
             // Arrange
-            val roleId1 = 1
-            val roleId2 = 2
-            val roleId3 = 3
+            val roleId1 = UUID.randomUUID()
+            val roleId2 = UUID.randomUUID()
+            val roleId3 = UUID.randomUUID()
             val permission1 =
                 Permission(
-                    id = 10,
+                    id = UUID.randomUUID(),
                     name = "transaction:read",
                     createdAt = Instant.now(),
                     updatedAt = Instant.now(),
@@ -138,7 +139,7 @@ class RoleManagementResolverTest {
             whenever(mapper.toRoleId(roleId1.toString())).thenReturn(roleId1)
             whenever(mapper.toRoleId(roleId2.toString())).thenReturn(roleId2)
             whenever(mapper.toRoleId(roleId3.toString())).thenReturn(roleId3)
-            whenever(roleManagementService.listRolePermissionsBatch(any<List<Int>>()))
+            whenever(roleManagementService.listRolePermissionsBatch(any<List<UUID>>()))
                 .thenReturn(
                     mapOf(
                         roleId1 to listOf(permission1),

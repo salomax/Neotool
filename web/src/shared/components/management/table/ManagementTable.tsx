@@ -342,7 +342,7 @@ export function ManagementTable<T, F extends string = string>({
         recalculationKey={recalculationKey}
         onTableResize={onTableResize}
       >
-        <Table stickyHeader id={tableId}>
+        <Table stickyHeader id={tableId} data-testid={tableId}>
           <TableHead>
             <TableRow>
               {allColumns.map((column) => (
@@ -423,7 +423,7 @@ export function ManagementTable<T, F extends string = string>({
                 ))
               )
             ) : showEmptyState ? (
-              <TableRow>
+              <TableRow data-testid="table-empty-state-row">
                 <TableCell
                   colSpan={allColumns.length}
                   align="center"

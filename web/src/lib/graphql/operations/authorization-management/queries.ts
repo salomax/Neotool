@@ -1,5 +1,4 @@
 import { gql } from '@apollo/client';
-import { UserFieldsFragmentDoc, GroupFieldsFragmentDoc, RoleFieldsFragmentDoc, PermissionFieldsFragmentDoc } from '../../fragments/common.generated';
 
 // Get users with pagination
 export const GET_USERS = gql`
@@ -7,7 +6,11 @@ export const GET_USERS = gql`
     users(first: $first, after: $after, query: $query, orderBy: $orderBy) {
       edges {
         node {
-          ...UserFields
+          id
+          email
+          displayName
+          avatarUrl
+          enabled
         }
         cursor
       }
@@ -20,7 +23,6 @@ export const GET_USERS = gql`
       totalCount
     }
   }
-  ${UserFieldsFragmentDoc}
 `;
 
 // Get groups with pagination
@@ -29,7 +31,15 @@ export const GET_GROUPS = gql`
     groups(first: $first, after: $after, query: $query, orderBy: $orderBy) {
       edges {
         node {
-          ...GroupFields
+          id
+          name
+          description
+          members {
+            id
+            email
+            displayName
+            enabled
+          }
         }
         cursor
       }
@@ -42,8 +52,6 @@ export const GET_GROUPS = gql`
       totalCount
     }
   }
-  ${UserFieldsFragmentDoc}
-  ${GroupFieldsFragmentDoc}
 `;
 
 // Get roles with pagination
@@ -52,7 +60,8 @@ export const GET_ROLES = gql`
     roles(first: $first, after: $after, query: $query, orderBy: $orderBy) {
       edges {
         node {
-          ...RoleFields
+          id
+          name
         }
         cursor
       }
@@ -65,7 +74,6 @@ export const GET_ROLES = gql`
       totalCount
     }
   }
-  ${RoleFieldsFragmentDoc}
 `;
 
 // Get permissions with pagination
@@ -74,7 +82,8 @@ export const GET_PERMISSIONS = gql`
     permissions(first: $first, after: $after, query: $query) {
       edges {
         node {
-          ...PermissionFields
+          id
+          name
         }
         cursor
       }
@@ -86,92 +95,135 @@ export const GET_PERMISSIONS = gql`
       }
     }
   }
-  ${PermissionFieldsFragmentDoc}
 `;
 
 // Get user with relationships (groups, roles, permissions)
 export const GET_USER_WITH_RELATIONSHIPS = gql`
   query GetUserWithRelationships($id: ID!) {
     user(id: $id) {
-      ...UserFields
+      id
+      email
+      displayName
+      avatarUrl
+      enabled
+      createdAt
+      updatedAt
       groups {
-        ...GroupFields
+        id
+        name
+        description
       }
       roles {
-        ...RoleFields
+        id
+        name
       }
       permissions {
-        ...PermissionFields
+        id
+        name
       }
     }
   }
-  ${UserFieldsFragmentDoc}
-  ${GroupFieldsFragmentDoc}
-  ${RoleFieldsFragmentDoc}
-  ${PermissionFieldsFragmentDoc}
+`;
+
+// Get role with permissions by id
+export const GET_ROLE_WITH_RELATIONSHIPS = gql`
+  query GetRoleWithRelationships($id: ID!) {
+    role(id: $id) {
+      id
+      name
+      createdAt
+      updatedAt
+      groups {
+        id
+        name
+        description
+      }
+      permissions {
+        id
+        name
+      }
+    }
+  }
 `;
 
 // Get group with relationships (members, roles)
 export const GET_GROUP_WITH_RELATIONSHIPS = gql`
   query GetGroupWithRelationships($id: ID!) {
     group(id: $id) {
-      ...GroupFields
+      id
+      name
+      description
+      createdAt
+      updatedAt
+      members {
+        id
+        email
+        displayName
+        enabled
+      }
       roles {
-        ...RoleFields
+        id
+        name
       }
     }
   }
-  ${GroupFieldsFragmentDoc}
-  ${RoleFieldsFragmentDoc}
 `;
 
-// Get roles with permissions
-// Note: Since there's no role(id: ID!) query in the schema, we query roles
-// and filter client-side by the provided roleId
 export const GET_ROLES_WITH_PERMISSIONS = gql`
   query GetRolesWithPermissions {
-    roles(first: 1000) {
+    roles(first: 100) {
       edges {
         node {
-          ...RoleFields
+          id
+          name
           permissions {
-            ...PermissionFields
+            id
+            name
           }
         }
       }
     }
   }
-  ${RoleFieldsFragmentDoc}
-  ${PermissionFieldsFragmentDoc}
 `;
 
 // Get users and groups with their roles
-// Note: Since there's no role(id: ID!) query in the schema, we query users and groups
-// with their roles and filter client-side to find which users/groups have the specific role
+// Note: Using first: 100 (API maximum). If there are more than 100 users/groups,
+// pagination would need to be implemented to fetch all items.
 export const GET_ROLE_WITH_USERS_AND_GROUPS = gql`
   query GetRoleWithUsersAndGroups {
-    users(first: 1000) {
+    users(first: 100) {
       edges {
         node {
-          ...UserFields
+          id
+          email
+          displayName
+          avatarUrl
+          enabled
           roles {
-            ...RoleFields
+            id
+            name
           }
         }
       }
     }
-    groups(first: 1000) {
+    groups(first: 100) {
       edges {
         node {
-          ...GroupFields
+          id
+          name
+          description
+          members {
+            id
+            email
+            displayName
+            enabled
+          }
           roles {
-            ...RoleFields
+            id
+            name
           }
         }
       }
     }
   }
-  ${UserFieldsFragmentDoc}
-  ${GroupFieldsFragmentDoc}
-  ${RoleFieldsFragmentDoc}
 `;

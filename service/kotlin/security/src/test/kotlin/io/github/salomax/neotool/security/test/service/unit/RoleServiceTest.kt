@@ -17,6 +17,7 @@ import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.time.Instant
 import java.util.Optional
+import java.util.UUID
 
 @DisplayName("RoleService Unit Tests")
 class RoleServiceTest {
@@ -35,7 +36,7 @@ class RoleServiceTest {
         @Test
         fun `should find role by id`() {
             // Arrange
-            val roleId = 1
+            val roleId = UUID.randomUUID()
             val roleEntity = SecurityTestDataBuilders.role(id = roleId, name = "admin")
             whenever(roleRepository.findById(roleId)).thenReturn(Optional.of(roleEntity))
 
@@ -52,7 +53,7 @@ class RoleServiceTest {
         @Test
         fun `should return null when role not found by id`() {
             // Arrange
-            val roleId = 999
+            val roleId = UUID.randomUUID()
             whenever(roleRepository.findById(roleId)).thenReturn(Optional.empty())
 
             // Act
@@ -67,7 +68,7 @@ class RoleServiceTest {
         fun `should find role by name`() {
             // Arrange
             val roleName = "admin"
-            val roleEntity = SecurityTestDataBuilders.role(id = 1, name = roleName)
+            val roleEntity = SecurityTestDataBuilders.role(id = UUID.randomUUID(), name = roleName)
             whenever(roleRepository.findByName(roleName)).thenReturn(Optional.of(roleEntity))
 
             // Act
@@ -96,8 +97,8 @@ class RoleServiceTest {
         @Test
         fun `should find all roles`() {
             // Arrange
-            val role1 = SecurityTestDataBuilders.role(id = 1, name = "admin")
-            val role2 = SecurityTestDataBuilders.role(id = 2, name = "user")
+            val role1 = SecurityTestDataBuilders.role(id = UUID.randomUUID(), name = "admin")
+            val role2 = SecurityTestDataBuilders.role(id = UUID.randomUUID(), name = "user")
             whenever(roleRepository.findAll()).thenReturn(listOf(role1, role2))
 
             // Act
@@ -135,7 +136,7 @@ class RoleServiceTest {
                     createdAt = Instant.now(),
                     updatedAt = Instant.now(),
                 )
-            val savedEntity = SecurityTestDataBuilders.role(id = 1, name = "admin")
+            val savedEntity = SecurityTestDataBuilders.role(id = UUID.randomUUID(), name = "admin")
             whenever(roleRepository.save(any())).thenReturn(savedEntity)
 
             // Act
@@ -154,7 +155,7 @@ class RoleServiceTest {
         @Test
         fun `should update role successfully`() {
             // Arrange
-            val roleId = 1
+            val roleId = UUID.randomUUID()
             val existingEntity = SecurityTestDataBuilders.role(id = roleId, name = "old-name")
             val updatedRole =
                 Role(
@@ -201,7 +202,7 @@ class RoleServiceTest {
         @Test
         fun `should throw exception when updating non-existent role`() {
             // Arrange
-            val roleId = 999
+            val roleId = UUID.randomUUID()
             val role =
                 Role(
                     id = roleId,
@@ -228,7 +229,7 @@ class RoleServiceTest {
         @Test
         fun `should delete role successfully`() {
             // Arrange
-            val roleId = 1
+            val roleId = UUID.randomUUID()
 
             // Act
             roleService.delete(roleId)

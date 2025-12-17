@@ -81,6 +81,8 @@ type Group
   id: ID!
   name: String!
   description: String
+  createdAt: String!
+  updatedAt: String!
   roles: [Role!]!
   members: [User!]!
 }
@@ -152,6 +154,7 @@ type Mutation
   resetPassword(input: ResetPasswordInput!): ResetPasswordPayload! @join__field(graph: SECURITY)
   enableUser(userId: ID!): User! @join__field(graph: SECURITY)
   disableUser(userId: ID!): User! @join__field(graph: SECURITY)
+  updateUser(userId: ID!, input: UpdateUserInput!): User! @join__field(graph: SECURITY)
   createGroup(input: CreateGroupInput!): Group! @join__field(graph: SECURITY)
   updateGroup(groupId: ID!, input: UpdateGroupInput!): Group! @join__field(graph: SECURITY)
   deleteGroup(groupId: ID!): Boolean! @join__field(graph: SECURITY)
@@ -160,8 +163,6 @@ type Mutation
   deleteRole(roleId: ID!): Boolean! @join__field(graph: SECURITY)
   assignPermissionToRole(roleId: ID!, permissionId: ID!): Role! @join__field(graph: SECURITY)
   removePermissionFromRole(roleId: ID!, permissionId: ID!): Role! @join__field(graph: SECURITY)
-  assignRoleToUser(userId: ID!, roleId: ID!): User! @join__field(graph: SECURITY)
-  removeRoleFromUser(userId: ID!, roleId: ID!): User! @join__field(graph: SECURITY)
   assignGroupToUser(userId: ID!, groupId: ID!): User! @join__field(graph: SECURITY)
   removeGroupFromUser(userId: ID!, groupId: ID!): User! @join__field(graph: SECURITY)
   assignRoleToGroup(groupId: ID!, roleId: ID!): Group! @join__field(graph: SECURITY)
@@ -238,8 +239,6 @@ type Query
   customer(id: ID!): Customer @join__field(graph: APP)
   currentUser: User @join__field(graph: SECURITY)
   checkPermission(userId: ID!, permission: String!, resourceId: ID): AuthorizationResult! @join__field(graph: SECURITY)
-  getUserPermissions(userId: ID!): [Permission!]! @join__field(graph: SECURITY)
-  getUserRoles(userId: ID!): [Role!]! @join__field(graph: SECURITY)
   user(id: ID!): User @join__field(graph: SECURITY)
   users(first: Int, after: String, query: String, orderBy: [UserOrderByInput!]): UserConnection! @join__field(graph: SECURITY)
   group(id: ID!): Group @join__field(graph: SECURITY)
@@ -288,6 +287,9 @@ type Role
 {
   id: ID!
   name: String!
+  createdAt: String!
+  updatedAt: String!
+  groups: [Group!]!
   permissions: [Permission!]!
 }
 
@@ -373,13 +375,22 @@ input UpdateRoleInput
   name: String!
 }
 
+input UpdateUserInput
+  @join__type(graph: SECURITY)
+{
+  displayName: String
+}
+
 type User
   @join__type(graph: SECURITY, key: "id")
 {
   id: ID!
   email: String!
   displayName: String
+  avatarUrl: String
   enabled: Boolean!
+  createdAt: String!
+  updatedAt: String!
   roles: [Role!]!
   groups: [Group!]!
   permissions: [Permission!]!

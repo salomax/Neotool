@@ -5,6 +5,7 @@ import io.github.salomax.neotool.security.repo.RoleRepository
 import jakarta.inject.Singleton
 import jakarta.transaction.Transactional
 import mu.KotlinLogging
+import java.util.UUID
 
 @Singleton
 open class RoleService(
@@ -12,7 +13,7 @@ open class RoleService(
 ) {
     private val logger = KotlinLogging.logger {}
 
-    fun findById(id: Int): Role? {
+    fun findById(id: UUID): Role? {
         return roleRepository.findById(id).orElse(null)?.toDomain()
     }
 
@@ -47,7 +48,7 @@ open class RoleService(
     }
 
     @Transactional
-    open fun delete(id: Int) {
+    open fun delete(id: UUID) {
         roleRepository.deleteById(id)
         logger.info { "Role deleted: ID $id" }
     }

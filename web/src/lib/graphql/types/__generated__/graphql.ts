@@ -61,11 +61,13 @@ export enum CustomerStatus {
 
 export type Group = {
   __typename: 'Group';
+  createdAt: Scalars['String']['output'];
   description: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
   members: Array<User>;
   name: Scalars['String']['output'];
   roles: Array<Role>;
+  updatedAt: Scalars['String']['output'];
 };
 
 export type GroupConnection = {
@@ -95,7 +97,6 @@ export type Mutation = {
   assignGroupToUser: User;
   assignPermissionToRole: Role;
   assignRoleToGroup: Group;
-  assignRoleToUser: User;
   createCustomer: Customer;
   createGroup: Group;
   createProduct: Product;
@@ -110,7 +111,6 @@ export type Mutation = {
   removeGroupFromUser: User;
   removePermissionFromRole: Role;
   removeRoleFromGroup: Group;
-  removeRoleFromUser: User;
   requestPasswordReset: RequestPasswordResetPayload;
   resetPassword: ResetPasswordPayload;
   signIn: SignInPayload;
@@ -120,6 +120,7 @@ export type Mutation = {
   updateGroup: Group;
   updateProduct: Product;
   updateRole: Role;
+  updateUser: User;
 };
 
 
@@ -138,12 +139,6 @@ export type MutationAssignPermissionToRoleArgs = {
 export type MutationAssignRoleToGroupArgs = {
   groupId: Scalars['ID']['input'];
   roleId: Scalars['ID']['input'];
-};
-
-
-export type MutationAssignRoleToUserArgs = {
-  roleId: Scalars['ID']['input'];
-  userId: Scalars['ID']['input'];
 };
 
 
@@ -220,12 +215,6 @@ export type MutationRemoveRoleFromGroupArgs = {
 };
 
 
-export type MutationRemoveRoleFromUserArgs = {
-  roleId: Scalars['ID']['input'];
-  userId: Scalars['ID']['input'];
-};
-
-
 export type MutationRequestPasswordResetArgs = {
   input: RequestPasswordResetInput;
 };
@@ -272,6 +261,12 @@ export type MutationUpdateProductArgs = {
 export type MutationUpdateRoleArgs = {
   input: UpdateRoleInput;
   roleId: Scalars['ID']['input'];
+};
+
+
+export type MutationUpdateUserArgs = {
+  input: UpdateUserInput;
+  userId: Scalars['ID']['input'];
 };
 
 export enum OrderDirection {
@@ -331,8 +326,6 @@ export type Query = {
   currentUser: Maybe<User>;
   customer: Maybe<Customer>;
   customers: Array<Customer>;
-  getUserPermissions: Array<Permission>;
-  getUserRoles: Array<Role>;
   group: Maybe<Group>;
   groups: GroupConnection;
   permissions: PermissionConnection;
@@ -354,16 +347,6 @@ export type QueryCheckPermissionArgs = {
 
 export type QueryCustomerArgs = {
   id: Scalars['ID']['input'];
-};
-
-
-export type QueryGetUserPermissionsArgs = {
-  userId: Scalars['ID']['input'];
-};
-
-
-export type QueryGetUserRolesArgs = {
-  userId: Scalars['ID']['input'];
 };
 
 
@@ -445,9 +428,12 @@ export type ResetPasswordPayload = {
 
 export type Role = {
   __typename: 'Role';
+  createdAt: Scalars['String']['output'];
+  groups: Array<Group>;
   id: Scalars['ID']['output'];
   name: Scalars['String']['output'];
   permissions: Array<Permission>;
+  updatedAt: Scalars['String']['output'];
 };
 
 export type RoleConnection = {
@@ -514,8 +500,14 @@ export type UpdateRoleInput = {
   name: Scalars['String']['input'];
 };
 
+export type UpdateUserInput = {
+  displayName?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type User = {
   __typename: 'User';
+  avatarUrl: Maybe<Scalars['String']['output']>;
+  createdAt: Scalars['String']['output'];
   displayName: Maybe<Scalars['String']['output']>;
   email: Scalars['String']['output'];
   enabled: Scalars['Boolean']['output'];
@@ -523,6 +515,7 @@ export type User = {
   id: Scalars['ID']['output'];
   permissions: Array<Permission>;
   roles: Array<Role>;
+  updatedAt: Scalars['String']['output'];
 };
 
 export type UserConnection = {

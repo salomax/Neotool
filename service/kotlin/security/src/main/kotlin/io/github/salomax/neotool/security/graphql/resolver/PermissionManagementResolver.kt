@@ -6,6 +6,7 @@ import io.github.salomax.neotool.security.graphql.mapper.PermissionManagementMap
 import io.github.salomax.neotool.security.service.PermissionManagementService
 import jakarta.inject.Singleton
 import mu.KotlinLogging
+import java.util.UUID
 
 /**
  * GraphQL resolver for permission management operations.
@@ -68,24 +69,39 @@ class PermissionManagementResolver(
      * @throws Exception if service fails (propagated as GraphQL error)
      */
     fun resolvePermissionRoles(permissionId: String): List<io.github.salomax.neotool.security.graphql.dto.RoleDTO> {
-        // Validate and convert permission ID - throw IllegalArgumentException for invalid input
-        val permissionIdInt =
+        // Validate and convert permission ID - return empty list for invalid input instead of throwing
+        val permissionIdUuid =
             try {
                 mapper.toPermissionId(permissionId)
             } catch (e: IllegalArgumentException) {
-                throw IllegalArgumentException("Invalid permission ID format: $permissionId", e)
+                logger.warn { "Invalid permission ID format: $permissionId" }
+                return emptyList()
             }
 
         // Use service layer instead of direct repository access
-        val roles = permissionManagementService.getPermissionRoles(permissionIdInt)
+        val roles =
+            try {
+                permissionManagementService.getPermissionRoles(permissionIdUuid)
+            } catch (e: Exception) {
+                logger.warn(e) { "Error loading roles for permission: $permissionId" }
+                return emptyList()
+            }
 
         // Convert domain objects to DTOs
-        return roles.map { role ->
-            io.github.salomax.neotool.security.graphql.dto.RoleDTO(
-                id = role.id?.toString() ?: throw IllegalArgumentException("Role must have an ID"),
-                name = role.name,
-            )
-        }
+        // Filter out roles with null IDs (shouldn't happen, but be defensive)
+        return roles
+            .filter { it.id != null }
+            .mapNotNull { role ->
+                try {
+                    io.github.salomax.neotool.security.graphql.dto.RoleDTO(
+                        id = role.id!!.toString(),
+                        name = role.name,
+                    )
+                } catch (e: Exception) {
+                    logger.warn(e) { "Error converting role to DTO: ${role.name}" }
+                    null
+                }
+            }
     }
 
     /**
@@ -105,25 +121,30 @@ class PermissionManagementResolver(
             return emptyMap()
         }
 
-        // Parse valid permission IDs while preserving order and mapping original string to int
-        // Invalid IDs are logged but included in result with empty list
-        val validPermissionIdMap = mutableMapOf<String, Int>()
-        val permissionIdInts =
-            permissionIds.mapNotNull { permissionId ->
+        // Parse valid permission IDs while preserving order and mapping original string to UUID
+        // Invalid IDs are logged and filtered out (not included in result)
+        val validPermissionIdMap = mutableMapOf<String, UUID>()
+        val permissionIdUuids =
+            permissionIds.mapNotNull { permissionIdStr ->
                 try {
-                    val permissionIdInt = mapper.toPermissionId(permissionId)
-                    validPermissionIdMap[permissionId] = permissionIdInt
-                    permissionIdInt
+                    val permissionIdUuid = mapper.toPermissionId(permissionIdStr)
+                    validPermissionIdMap[permissionIdStr] = permissionIdUuid
+                    permissionIdUuid
                 } catch (e: IllegalArgumentException) {
-                    logger.warn { "Invalid permission ID in batch request: $permissionId" }
+                    logger.warn { "Invalid permission ID in batch request: $permissionIdStr" }
                     null
                 }
             }
 
         // Use service layer to batch load permission roles (only for valid IDs)
         val permissionRolesMap =
-            if (permissionIdInts.isNotEmpty()) {
-                permissionManagementService.getPermissionRolesBatch(permissionIdInts)
+            if (permissionIdUuids.isNotEmpty()) {
+                try {
+                    permissionManagementService.getPermissionRolesBatch(permissionIdUuids)
+                } catch (e: Exception) {
+                    logger.warn(e) { "Error batch loading permission roles" }
+                    emptyMap()
+                }
             } else {
                 emptyMap()
             }
@@ -132,20 +153,27 @@ class PermissionManagementResolver(
         // Filter out invalid IDs - only include valid IDs in the result
         val result =
             linkedMapOf<String, List<io.github.salomax.neotool.security.graphql.dto.RoleDTO>>()
-        for (permissionId in permissionIds) {
-            val permissionIdInt = validPermissionIdMap[permissionId]
-            if (permissionIdInt != null) {
-                val roles = permissionRolesMap[permissionIdInt] ?: emptyList()
+        for (permissionIdStr in permissionIds) {
+            val permissionIdUuid = validPermissionIdMap[permissionIdStr]
+            if (permissionIdUuid != null) {
+                val roles = permissionRolesMap[permissionIdUuid] ?: emptyList()
                 val roleDTOs =
-                    roles.map { role ->
-                        io.github.salomax.neotool.security.graphql.dto.RoleDTO(
-                            id = role.id?.toString() ?: throw IllegalArgumentException("Role must have an ID"),
-                            name = role.name,
-                        )
-                    }
-                result[permissionId] = roleDTOs
+                    roles
+                        .filter { it.id != null }
+                        .mapNotNull { role ->
+                            try {
+                                io.github.salomax.neotool.security.graphql.dto.RoleDTO(
+                                    id = role.id!!.toString(),
+                                    name = role.name,
+                                )
+                            } catch (e: Exception) {
+                                logger.warn(e) { "Error converting role to DTO: ${role.name}" }
+                                null
+                            }
+                        }
+                result[permissionIdStr] = roleDTOs
             }
-            // Invalid IDs are filtered out - not included in result
+            // Invalid IDs are filtered out (not added to result)
         }
 
         return result

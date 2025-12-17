@@ -1,24 +1,33 @@
 import { gql } from '@apollo/client';
-import { ProductFieldsFragmentDoc } from '../../fragments/common.generated';
 
 // Create new product
 export const CREATE_PRODUCT = gql`
   mutation CreateProduct($input: ProductInput!) {
     createProduct(input: $input) {
-      ...ProductFields
+      id
+      name
+      sku
+      priceCents
+      stock
+      createdAt
+      updatedAt
     }
   }
-  ${ProductFieldsFragmentDoc}
 `;
 
 // Update existing product
 export const UPDATE_PRODUCT = gql`
   mutation UpdateProduct($id: ID!, $input: ProductInput!) {
     updateProduct(id: $id, input: $input) {
-      ...ProductFields
+      id
+      name
+      sku
+      priceCents
+      stock
+      createdAt
+      updatedAt
     }
   }
-  ${ProductFieldsFragmentDoc}
 `;
 
 // Delete product

@@ -17,11 +17,14 @@ object GraphQLPayloadDataFetcher {
     fun <T> createPayloadDataFetcher(
         operation: String,
         block: (DataFetchingEnvironment) -> GraphQLPayload<T>,
-    ): DataFetcher<T?> {
-        return DataFetcher { env ->
+    ): DataFetcher<T?> =
+        DataFetcher { env ->
             val payload = block(env)
             when (payload) {
-                is SuccessPayload -> payload.data
+                is SuccessPayload -> {
+                    payload.data
+                }
+
                 else -> {
                     // For error payloads, we let GraphQL handle the error
                     // by throwing an exception that will be caught by the error handler
@@ -29,7 +32,6 @@ object GraphQLPayloadDataFetcher {
                 }
             }
         }
-    }
 
     /**
      * Creates a data fetcher that returns the full payload
@@ -38,11 +40,10 @@ object GraphQLPayloadDataFetcher {
     fun <T> createFullPayloadDataFetcher(
         operation: String,
         block: (DataFetchingEnvironment) -> GraphQLPayload<T>,
-    ): DataFetcher<GraphQLPayload<T>> {
-        return DataFetcher { env ->
+    ): DataFetcher<GraphQLPayload<T>> =
+        DataFetcher { env ->
             block(env)
         }
-    }
 
     /**
      * Creates a mutation data fetcher with automatic payload handling
@@ -50,8 +51,8 @@ object GraphQLPayloadDataFetcher {
     fun <T> createMutationDataFetcher(
         operation: String,
         block: (Map<String, Any?>) -> GraphQLPayload<T>,
-    ): DataFetcher<T?> {
-        return DataFetcher { env ->
+    ): DataFetcher<T?> =
+        DataFetcher { env ->
             val input =
                 env.getArgument<Map<String, Any?>>("input")
                     ?: throw IllegalArgumentException("Input is required")
@@ -61,7 +62,6 @@ object GraphQLPayloadDataFetcher {
                 else -> throw GraphQLPayloadException(payload.errors)
             }
         }
-    }
 
     /**
      * Creates an update mutation data fetcher with automatic payload handling
@@ -69,8 +69,8 @@ object GraphQLPayloadDataFetcher {
     fun <T> createUpdateMutationDataFetcher(
         operation: String,
         block: (String, Map<String, Any?>) -> GraphQLPayload<T>,
-    ): DataFetcher<T?> {
-        return DataFetcher { env ->
+    ): DataFetcher<T?> =
+        DataFetcher { env ->
             val id =
                 env.getArgument<String>("id")
                     ?: throw IllegalArgumentException("ID is required")
@@ -83,7 +83,6 @@ object GraphQLPayloadDataFetcher {
                 else -> throw GraphQLPayloadException(payload.errors)
             }
         }
-    }
 
     /**
      * Creates a CRUD data fetcher with automatic payload handling
@@ -91,8 +90,8 @@ object GraphQLPayloadDataFetcher {
     fun <T> createCrudDataFetcher(
         operation: String,
         block: (String) -> GraphQLPayload<T>,
-    ): DataFetcher<T?> {
-        return DataFetcher { env ->
+    ): DataFetcher<T?> =
+        DataFetcher { env ->
             val id =
                 env.getArgument<String>("id")
                     ?: throw IllegalArgumentException("ID is required")
@@ -102,7 +101,6 @@ object GraphQLPayloadDataFetcher {
                 else -> throw GraphQLPayloadException(payload.errors)
             }
         }
-    }
 }
 
 /**

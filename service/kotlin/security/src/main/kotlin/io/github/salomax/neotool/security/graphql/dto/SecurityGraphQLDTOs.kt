@@ -54,7 +54,10 @@ data class UserDTO(
     val id: String,
     val email: String,
     val displayName: String? = null,
+    val avatarUrl: String? = null,
     val enabled: Boolean? = null,
+    val createdAt: String? = null,
+    val updatedAt: String? = null,
 )
 
 @Introspected
@@ -109,6 +112,8 @@ data class PermissionDTO(
 data class RoleDTO(
     val id: String?,
     val name: String,
+    val createdAt: String? = null,
+    val updatedAt: String? = null,
 )
 
 @Introspected
@@ -117,6 +122,8 @@ data class GroupDTO(
     val id: String,
     val name: String,
     val description: String? = null,
+    val createdAt: String? = null,
+    val updatedAt: String? = null,
 )
 
 // Input DTOs for mutations
@@ -150,6 +157,12 @@ data class CreateRoleInputDTO(
 data class UpdateRoleInputDTO(
     @field:NotBlank(message = "Name is required")
     var name: String = "",
+) : BaseInputDTO()
+
+@Introspected
+@Serdeable
+data class UpdateUserInputDTO(
+    var displayName: String? = null,
 ) : BaseInputDTO()
 
 // Relay pagination DTOs

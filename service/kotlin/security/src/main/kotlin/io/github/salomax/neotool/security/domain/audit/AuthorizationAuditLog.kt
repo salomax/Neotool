@@ -16,7 +16,7 @@ data class AuthorizationAuditLog(
     // list of group IDs
     val groups: List<UUID>? = null,
     // list of role IDs
-    val roles: List<Int>? = null,
+    val roles: List<UUID>? = null,
     val requestedAction: String,
     val resourceType: String? = null,
     val resourceId: UUID? = null,

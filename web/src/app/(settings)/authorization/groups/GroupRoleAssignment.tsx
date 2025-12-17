@@ -1,20 +1,13 @@
 "use client";
 
 import React, { useMemo, useCallback } from "react";
-import {
-  Box,
-  Typography,
-  CircularProgress,
-  Autocomplete,
-  TextField,
-  Chip,
-} from "@mui/material";
-import { ErrorAlert } from "@/shared/components/ui/feedback";
-import { useGetRolesQuery } from "@/lib/graphql/operations/authorization-management/queries.generated";
+import { Box, Typography, Chip } from "@mui/material";
+import { useGetRolesQuery, type GetRolesQuery, type GetRolesQueryVariables } from "@/lib/graphql/operations/authorization-management/queries.generated";
 import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
 import { useToast } from "@/shared/providers";
 import { extractErrorMessage } from "@/shared/utils/error";
+import { SearchableAutocomplete } from "@/shared/components/ui/forms/SearchableAutocomplete";
 
 export interface Role {
   id: string;
@@ -31,6 +24,8 @@ export interface GroupRoleAssignmentProps {
   onRolesChange?: () => void;
   // For create mode: callback when roles are selected (before group is created)
   onPendingRolesChange?: (roles: Role[]) => void;
+  // For edit mode with deferred mutations: callback when roles change (updates local state only)
+  onChange?: (roles: Role[]) => void;
 }
 
 type RoleOption = {
@@ -52,50 +47,41 @@ export const GroupRoleAssignment: React.FC<GroupRoleAssignmentProps> = ({
   removeLoading = false,
   onRolesChange,
   onPendingRolesChange,
+  onChange,
 }) => {
   const { t } = useTranslation(authorizationManagementTranslations);
   const toast = useToast();
 
-  // Query all available roles
-  const { data, loading, error, refetch } = useGetRolesQuery({
-    variables: { first: 1000 },
-  });
-
-  // Get available roles
-  const availableRoles = useMemo(() => {
-    return data?.roles?.edges?.map(e => e.node) || [];
-  }, [data?.roles?.edges]);
-
-  // Create role options for Autocomplete
-  const roleOptions: RoleOption[] = useMemo(() => {
-    return availableRoles.map((role) => ({
+  // Map assigned roles to option format
+  const selectedRoles = useMemo(() => {
+    return assignedRoles.map((role) => ({
       id: role.id,
       label: role.name,
       name: role.name,
     }));
-  }, [availableRoles]);
-
-  // Get currently selected roles
-  const selectedRoles = useMemo(() => {
-    return roleOptions.filter((option) =>
-      assignedRoles.some((assigned) => assigned.id === option.id)
-    );
-  }, [roleOptions, assignedRoles]);
+  }, [assignedRoles]);
 
   // Handle role selection changes
   const handleRoleChange = useCallback(
-    async (_event: React.SyntheticEvent, newValue: RoleOption[]) => {
+    async (newValue: RoleOption[]) => {
+      const newRoles: Role[] = newValue.map((option) => ({
+        id: option.id,
+        name: option.name,
+      }));
+
       // If in create mode (no groupId), just update pending roles
       if (!groupId) {
-        const pendingRoles: Role[] = newValue.map((option) => ({
-          id: option.id,
-          name: option.name,
-        }));
-        onPendingRolesChange?.(pendingRoles);
+        onPendingRolesChange?.(newRoles);
         return;
       }
 
-      // Edit mode: assign/remove roles via mutations
+      // Edit mode with deferred mutations: use onChange callback to update local state
+      if (onChange) {
+        onChange(newRoles);
+        return;
+      }
+
+      // Legacy edit mode: assign/remove roles via immediate mutations
       if (!onAssignRole || !onRemoveRole) return;
 
       const currentRoleIds = new Set(assignedRoles.map((r) => r.id));
@@ -138,57 +124,57 @@ export const GroupRoleAssignment: React.FC<GroupRoleAssignmentProps> = ({
       onRemoveRole,
       onRolesChange,
       onPendingRolesChange,
+      onChange,
       toast,
       t,
     ]
   );
 
-  if (loading) {
-    return (
-      <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
-        <CircularProgress size={24} />
-      </Box>
-    );
-  }
-
-  if (error) {
-    return (
-      <ErrorAlert
-        error={error}
-        onRetry={() => refetch()}
-        fallbackMessage={t("groupManagement.roles.loadError")}
-      />
-    );
-  }
-
   return (
     <Box>
-      <Autocomplete
-        multiple
-        options={roleOptions}
-        value={selectedRoles}
+      <SearchableAutocomplete<
+        RoleOption,
+        RoleOption,
+        GetRolesQuery,
+        GetRolesQueryVariables
+      >
+        useQuery={useGetRolesQuery}
+        getQueryVariables={(searchQuery) => ({
+          first: 5,
+          query: searchQuery || undefined,
+        })}
+        extractData={(data) => data?.roles?.edges?.map((e) => e.node) || []}
+        transformOption={(role) => ({
+          id: role.id,
+          label: role.name,
+          name: role.name,
+        })}
+        selectedItems={selectedRoles}
         onChange={handleRoleChange}
+        getOptionId={(option) => option.id}
         getOptionLabel={(option) => option.label}
         isOptionEqualToValue={(option, value) => option.id === value.id}
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            placeholder={t("groupManagement.roles.selectRoles")}
-            disabled={assignLoading || removeLoading}
-          />
-        )}
+        multiple
+        placeholder={t("groupManagement.roles.selectRoles")}
+        disabled={assignLoading || removeLoading || (!!groupId && !onChange && (!onAssignRole || !onRemoveRole))}
+        loading={assignLoading || removeLoading}
+        errorMessage={t("groupManagement.roles.loadError")}
+        loadMode="eager"
         renderTags={(value, getTagProps) =>
-          value.map((option, index) => (
-            <Chip
-              {...getTagProps({ index })}
-              key={option.id}
-              label={option.label}
-              disabled={assignLoading || removeLoading}
-            />
-          ))
+          value.map((option, index) => {
+            const { key, ...tagProps } = getTagProps({ index });
+            return (
+              <Chip
+                {...tagProps}
+                key={key || option.id}
+                variant="outlined"
+                color="primary"
+                label={option.label}
+                disabled={assignLoading || removeLoading}
+              />
+            );
+          })
         }
-        disabled={assignLoading || removeLoading || (!!groupId && (!onAssignRole || !onRemoveRole))}
-        loading={loading}
       />
       {selectedRoles.length === 0 && (
         <Typography

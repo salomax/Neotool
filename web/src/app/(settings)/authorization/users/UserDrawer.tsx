@@ -1,14 +1,16 @@
 "use client";
 
-import React from "react";
+import React, { useRef } from "react";
 import {
   Box,
   Typography,
   Chip,
   Stack,
-  TextField,
   Button,
+  IconButton,
 } from "@mui/material";
+import { TextField } from "@/shared/components/ui/primitives";
+import PersonIcon from "@mui/icons-material/Person";
 import { WarningAlert, LoadingState, ErrorAlert } from "@/shared/components/ui/feedback";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { Avatar } from "@/shared/components/ui/primitives/Avatar";
@@ -18,6 +20,8 @@ import { UserGroupAssignment } from "./UserGroupAssignment";
 import { UserRoleAssignment } from "./UserRoleAssignment";
 import { useUserDrawer } from "@/shared/hooks/authorization/useUserDrawer";
 import { PermissionGate } from "@/shared/components/authorization";
+import { CloseIcon } from "@/shared/ui/mui-imports";
+import { useKeyboardFormSubmit, useDrawerAutoFocus } from "@/shared/hooks/forms";
 
 export interface UserDrawerProps {
   open: boolean;
@@ -55,22 +59,60 @@ export const UserDrawer: React.FC<UserDrawerProps> = ({
     refetch,
   } = useUserDrawer(userId, open);
 
+  // Ref for drawer body to scope keyboard handling
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  // Auto-focus first input when drawer opens
+  useDrawerAutoFocus({
+    containerRef: bodyRef,
+    open: open,
+    enabled: true,
+  });
+
+  // Enable keyboard form submission
+  // Uses custom hook's handleSave directly since this drawer doesn't use react-hook-form
+  useKeyboardFormSubmit({
+    onSubmit: async () => {
+      try {
+        await handleSave();
+        onClose();
+      } catch {
+        // Error handling (toast) is already performed in handleSave
+      }
+    },
+    isSubmitEnabled: () => !saving && hasChanges,
+    containerRef: bodyRef,
+    enabled: open,
+  });
+
   // Footer with action buttons
   const footer = (
     <PermissionGate require="security:user:save">
-      <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, p: 2 }}>
+      <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, p: 2 }} data-testid="drawer-footer">
         <Button
           variant="outlined"
-          onClick={resetChanges}
-          disabled={saving || !hasChanges}
+          onClick={() => {
+            resetChanges();
+            onClose();
+          }}
+          disabled={saving}
+          data-testid="user-drawer-cancel-button"
         >
           {t("common.cancel")}
         </Button>
         <Button
           variant="contained"
-          onClick={handleSave}
+          onClick={async () => {
+            try {
+              await handleSave();
+              onClose();
+            } catch {
+              // Error handling (toast) is already performed in handleSave
+            }
+          }}
           disabled={saving || !hasChanges}
           color="primary"
+          data-testid="user-drawer-save-button"
         >
           {saving
             ? t("common.saving")
@@ -82,14 +124,31 @@ export const UserDrawer: React.FC<UserDrawerProps> = ({
 
   return (
     <Drawer
+      id="user-drawer"
+      data-testid="user-drawer"
       open={open}
       onClose={onClose}
       anchor="right"
       size="md"
       variant="temporary"
     >
-      <Drawer.Header title={t("userManagement.drawer.title")} />
-      <Drawer.Body>
+      <Drawer.Header>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flex: 1 }}>
+          <PersonIcon sx={{ color: "text.secondary" }} />
+          <Typography variant="h6" component="h2" sx={{ flex: 1 }} data-testid="drawer-title">
+            {t("userManagement.drawer.title")}
+          </Typography>
+        </Box>
+        <IconButton
+          onClick={onClose}
+          size="small"
+          aria-label={`Close ${t("userManagement.drawer.title")}`}
+          data-testid="drawer-close-button"
+        >
+          <CloseIcon />
+        </IconButton>
+      </Drawer.Header>
+      <Drawer.Body ref={bodyRef} data-testid="drawer-body">
         <LoadingState isLoading={loading} />
 
         <ErrorAlert
@@ -111,6 +170,7 @@ export const UserDrawer: React.FC<UserDrawerProps> = ({
             >
               <Avatar
                 name={user.displayName || user.email}
+                src={user.avatarUrl || undefined}
                 size="large"
                 sx={{
                   width: 80,
@@ -155,26 +215,26 @@ export const UserDrawer: React.FC<UserDrawerProps> = ({
                   value={displayName}
                   onChange={(e) => updateDisplayName(e.target.value)}
                   placeholder={t("userManagement.drawer.displayNamePlaceholder")}
+                  data-testid="user-drawer-display-name-input"
                 />
               </Box>
 
-              {/* Email */}
+              {/* Email - Readonly */}
               <Box>
                 <Typography variant="body2" color="text.secondary" gutterBottom>
                   {t("userManagement.drawer.email")}
                 </Typography>
                 <TextField
                   fullWidth
-                  type="email"
                   value={email}
-                  onChange={(e) => updateEmail(e.target.value)}
-                  placeholder={t("userManagement.drawer.emailPlaceholder")}
+                  readOnly
+                  data-testid="user-drawer-email-input"
                 />
               </Box>
 
               {/* Groups */}
               <PermissionGate require="security:user:save">
-                <Box>
+                <Box data-testid="user-drawer-groups-section">
                   <Typography variant="body2" color="text.secondary" gutterBottom>
                     {t("userManagement.drawer.groups")}
                   </Typography>
@@ -186,19 +246,45 @@ export const UserDrawer: React.FC<UserDrawerProps> = ({
                 </Box>
               </PermissionGate>
 
-              {/* Roles */}
-              <PermissionGate require="security:user:save">
-                <Box>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    {t("userManagement.drawer.roles")}
-                  </Typography>
-                  <UserRoleAssignment
-                    userId={userId}
-                    assignedRoles={selectedRoles}
-                    onChange={updateSelectedRoles}
-                  />
+              {/* Roles - Readonly (roles are assigned through groups only) */}
+              <Box data-testid="user-drawer-roles-section">
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  {t("userManagement.drawer.roles")}
+                </Typography>
+                <UserRoleAssignment
+                  userId={userId}
+                  assignedRoles={selectedRoles}
+                  readonly={true}
+                />
+              </Box>
+
+              {/* Timestamps - at the bottom in 2 columns */}
+              {user.createdAt && user.updatedAt && (
+                <Box sx={{ display: "flex", gap: 2 }}>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      {t("userManagement.drawer.createdAt")}
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      value={new Date(user.createdAt).toLocaleString()}
+                      readOnly
+                      data-testid="user-drawer-created-at"
+                    />
+                  </Box>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      {t("userManagement.drawer.updatedAt")}
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      value={new Date(user.updatedAt).toLocaleString()}
+                      readOnly
+                      data-testid="user-drawer-updated-at"
+                    />
+                  </Box>
                 </Box>
-              </PermissionGate>
+              )}
             </Stack>
           </Stack>
         )}

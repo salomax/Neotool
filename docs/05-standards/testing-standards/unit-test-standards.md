@@ -296,6 +296,31 @@ val name = TestDataBuilders.uniqueName("Product")
 val code = "TEST-001" // May conflict with other tests
 ```
 
+### Rule: Deterministic UUID Usage
+
+**Rule**: Default to fixed UUIDs or builder-provided defaults for tests; use `UUID.randomUUID()` only when the value is not asserted and uniqueness alone matters.
+
+**Rationale**:
+- Keeps unit tests deterministic and repeatable
+- Simplifies debugging by avoiding run-to-run data drift
+- Aligns with builder pattern for maintainable test data
+
+**Guidelines**:
+- Use fixed UUIDs when asserting values or modeling relationships:
+  ```kotlin
+  val id = UUID.fromString("550e8400-e29b-41d4-a716-446655440000")
+  val role = SecurityTestDataBuilders.role(id = id, name = "admin")
+  ```
+- Use builder defaults (no explicit ID) when the value is irrelevant:
+  ```kotlin
+  val role = SecurityTestDataBuilders.role(name = "admin") // builder assigns UUID
+  ```
+- Use `UUID.randomUUID()` only for "non-existent" IDs or uniqueness checks where the value is never asserted:
+  ```kotlin
+  val missingId = UUID.randomUUID()
+  assertThat(service.findById(missingId)).isNull()
+  ```
+
 ### Rule: Transaction Handling in Integration Tests
 
 **Rule**: When setting up test data that needs to be visible to services running in separate transactions, use `EntityManager.runTransaction` instead of `entityManager.flush()`.

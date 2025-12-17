@@ -3,9 +3,11 @@ package io.github.salomax.neotool.security.graphql.mapper
 import io.github.salomax.neotool.common.graphql.pagination.Connection
 import io.github.salomax.neotool.common.graphql.pagination.OrderDirection
 import io.github.salomax.neotool.security.domain.RoleManagement
+import io.github.salomax.neotool.security.domain.rbac.Group
 import io.github.salomax.neotool.security.domain.rbac.Permission
 import io.github.salomax.neotool.security.domain.rbac.Role
 import io.github.salomax.neotool.security.graphql.dto.CreateRoleInputDTO
+import io.github.salomax.neotool.security.graphql.dto.GroupDTO
 import io.github.salomax.neotool.security.graphql.dto.PageInfoDTO
 import io.github.salomax.neotool.security.graphql.dto.PermissionDTO
 import io.github.salomax.neotool.security.graphql.dto.RoleConnectionDTO
@@ -15,6 +17,7 @@ import io.github.salomax.neotool.security.graphql.dto.UpdateRoleInputDTO
 import io.github.salomax.neotool.security.service.RoleOrderBy
 import io.github.salomax.neotool.security.service.RoleOrderField
 import jakarta.inject.Singleton
+import java.util.UUID
 
 /**
  * Mapper for converting between role management domain objects and GraphQL DTOs.
@@ -29,7 +32,26 @@ class RoleManagementMapper {
         return RoleDTO(
             id = role.id?.toString() ?: throw IllegalArgumentException("Role must have an ID"),
             name = role.name,
+            createdAt = role.createdAt.toString(),
+            updatedAt = role.updatedAt.toString(),
         )
+    }
+
+    /**
+     * Convert Group domain object to GroupDTO.
+     */
+    fun toGroupDTO(group: Group): GroupDTO {
+        return GroupDTO(
+            id = group.id?.toString() ?: throw IllegalArgumentException("Group must have an ID"),
+            name = group.name,
+            description = group.description,
+            createdAt = group.createdAt.toString(),
+            updatedAt = group.updatedAt.toString(),
+        )
+    }
+
+    fun toGroupDTOList(groups: List<Group>): List<GroupDTO> {
+        return groups.map { toGroupDTO(it) }
     }
 
     /**
@@ -95,23 +117,23 @@ class RoleManagementMapper {
         input: UpdateRoleInputDTO,
     ): RoleManagement.UpdateRoleCommand {
         return RoleManagement.UpdateRoleCommand(
-            roleId = roleId.toInt(),
+            roleId = UUID.fromString(roleId),
             name = input.name,
         )
     }
 
     /**
-     * Convert String ID to Int.
+     * Convert String ID to UUID.
      */
-    fun toRoleId(id: String): Int {
-        return id.toInt()
+    fun toRoleId(id: String): UUID {
+        return UUID.fromString(id)
     }
 
     /**
-     * Convert String ID to Int for permission ID.
+     * Convert String ID to UUID for permission ID.
      */
-    fun toPermissionId(id: String): Int {
-        return id.toInt()
+    fun toPermissionId(id: String): UUID {
+        return UUID.fromString(id)
     }
 
     /**

@@ -41,7 +41,7 @@ const mockUseGetUsersQuery = vi.fn(() => ({
 }));
 
 vi.mock('@/lib/graphql/operations/authorization-management/queries.generated', () => ({
-  useGetUsersQuery: () => mockUseGetUsersQuery(),
+  useGetUsersQuery: (options: any) => mockUseGetUsersQuery(options),
 }));
 
 // Mock translations
@@ -135,6 +135,15 @@ describe('RoleUserAssignment', () => {
       });
 
       expect(screen.getByText('user3@example.com')).toBeInTheDocument();
+    });
+
+    it('should skip fetching and render nothing when inactive', () => {
+      renderRoleUserAssignment({ active: false });
+
+      expect(screen.queryByText('Assigned Users')).not.toBeInTheDocument();
+      expect(mockUseGetUsersQuery).toHaveBeenCalledWith(
+        expect.objectContaining({ skip: true })
+      );
     });
   });
 

@@ -13,7 +13,6 @@ abstract class BaseSchemaRegistryFactory {
     /**
      * Load the base GraphQL schema from resources
      */
-    @Singleton
     open fun typeRegistry(): TypeDefinitionRegistry {
         val baseRegistry = loadBaseSchema()
         val moduleRegistry = loadModuleSchemas()
@@ -29,22 +28,26 @@ abstract class BaseSchemaRegistryFactory {
     /**
      * Load the core/base schema - override in concrete implementations
      */
-    protected open fun loadBaseSchema(): TypeDefinitionRegistry {
-        return loadSchemaFromResource("graphql/schema.graphqls")
-    }
+    protected open fun loadBaseSchema(): TypeDefinitionRegistry = loadSchemaFromResource("graphql/schema.graphqls")
 
     /**
      * Load additional schemas from modules - override to add module-specific types
      */
-    protected open fun loadModuleSchemas(): List<TypeDefinitionRegistry> {
-        return emptyList()
-    }
+    protected open fun loadModuleSchemas(): List<TypeDefinitionRegistry> = emptyList()
 
     /**
      * Utility method to load schema from classpath resource
      */
     protected fun loadSchemaFromResource(resourcePath: String): TypeDefinitionRegistry {
-        return javaClass.classLoader.getResourceAsStream(resourcePath)
+        // Use the context classloader or the concrete subclass's classloader
+        // to ensure resources are loaded from the correct module
+        val classLoader =
+            Thread.currentThread().contextClassLoader
+                ?: this::class.java.classLoader
+                ?: javaClass.classLoader
+
+        return classLoader
+            .getResourceAsStream(resourcePath)
             ?.use { SchemaParser().parse(InputStreamReader(it)) }
             ?: error("GraphQL schema not found at: $resourcePath")
     }

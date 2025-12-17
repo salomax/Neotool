@@ -1,9 +1,7 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { Typography, IconButton, Tooltip, Box } from "@mui/material";
-import EditIcon from "@mui/icons-material/Edit";
-import DeleteIcon from "@mui/icons-material/Delete";
+import { Typography, Box } from "@mui/material";
 import type { Role } from "@/shared/hooks/authorization/useRoleManagement";
 import { ManagementTable, type Column } from "@/shared/components/management";
 import type { PageInfo, PaginationRangeData } from "@/shared/components/ui/pagination";
@@ -11,6 +9,10 @@ import type { RoleSortState, RoleOrderField } from "@/shared/utils/sorting";
 import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
 import { PermissionGate } from "@/shared/components/authorization";
+import {
+  EditActionButton,
+  DeleteActionButton,
+} from "@/shared/components/ui/primitives";
 
 export interface RoleListProps {
   roles: Role[];
@@ -120,31 +122,23 @@ export const RoleList: React.FC<RoleListProps> = ({
         return (
           <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
             <PermissionGate require="security:role:view">
-              <Tooltip title={t("roleManagement.editRole", "Edit role")}>
-                <IconButton
-                  color="primary"
-                  onClick={() => onEdit(role)}
-                  size="small"
-                  aria-label={`${t("roleManagement.editRole", "Edit role")} ${role.name}`}
-                  data-testid={`edit-role-${role.id}`}
-                >
-                  <EditIcon />
-                </IconButton>
-              </Tooltip>
+              <EditActionButton
+                onClick={() => onEdit(role)}
+                tooltipTitle={t("roleManagement.editRole", "Edit role")}
+                ariaLabel={`${t("roleManagement.editRole", "Edit role")} ${role.name}`}
+                data-testid={`edit-role-${role.id}`}
+                size="small"
+              />
             </PermissionGate>
             {onDelete && (
               <PermissionGate require="security:role:delete">
-                <Tooltip title={t("roleManagement.deleteRole", "Delete role")}>
-                  <IconButton
-                    color="error"
-                    onClick={() => onDelete(role)}
-                    size="small"
-                    aria-label={`${t("roleManagement.deleteRole", "Delete role")} ${role.name}`}
-                    data-testid={`delete-role-${role.id}`}
-                  >
-                    <DeleteIcon />
-                  </IconButton>
-                </Tooltip>
+                <DeleteActionButton
+                  onClick={() => onDelete(role)}
+                  tooltipTitle={t("roleManagement.deleteRole", "Delete role")}
+                  ariaLabel={`${t("roleManagement.deleteRole", "Delete role")} ${role.name}`}
+                  data-testid={`delete-role-${role.id}`}
+                  size="small"
+                />
               </PermissionGate>
             )}
           </Box>

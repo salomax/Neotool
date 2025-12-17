@@ -1,0 +1,3 @@
+-- Migration no longer needed: roles and permissions now created
+-- with created_at, updated_at and version columns in V0_1__init.sql.
+-- Keeping this file as a no-op to preserve Flyway history.

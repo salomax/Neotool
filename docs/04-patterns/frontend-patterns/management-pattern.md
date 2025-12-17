@@ -3,10 +3,10 @@ title: Management Pattern
 type: pattern
 category: frontend
 status: current
-version: 1.4.0
+version: 1.5.0
 tags: [management, hooks, components, reusable, pattern, frontend]
 ai_optimized: true
-search_keywords: [management, useManagementBase, useDebouncedSearch, useSorting, ManagementTable, ManagementList, AssignmentComponent, ErrorAlert, DeleteConfirmationDialog, useToggleStatus, ManagementLayout, reusable, hooks, components, duplicate hooks, child components, drawer, modal, table, columns, pagination, Header, Content]
+search_keywords: [management, useManagementBase, useDebouncedSearch, useSorting, ManagementTable, ManagementList, AssignmentComponent, ErrorAlert, DeleteConfirmationDialog, useToggleStatus, ManagementLayout, reusable, hooks, components, duplicate hooks, child components, drawer, modal, table, columns, pagination, Header, Content, keyboard, form submission, useKeyboardFormSubmit]
 related:
   - 04-patterns/frontend-patterns/graphql-mutation-pattern.md
   - 04-patterns/frontend-patterns/toast-notification-pattern.md
@@ -348,6 +348,336 @@ When displaying both a search field and action button in the Header, use `alignI
 - Search components (like `UserSearch`, `GroupSearch`, `RoleSearch`) have `mb: 2` margin
 - Action buttons should be wrapped in `<Box sx={{ mb: 2 }}>` to match
 - Use `alignItems: "flex-end"` instead of `alignItems: "center"` for bottom-edge alignment
+
+### Drawer Cancel Button Pattern
+
+**Default Behavior**: The Cancel button in Drawer components (UserDrawer, GroupDrawer, RoleDrawer, etc.) MUST follow this pattern:
+
+1. **Always Enabled**: The Cancel button should remain enabled regardless of form changes. It should only be disabled during loading/saving operations to prevent interruption.
+
+2. **Closes Drawer**: When clicked, the Cancel button MUST close the drawer by calling the `onClose` callback. Any form reset logic should be executed before closing.
+
+3. **Implementation Pattern**:
+```typescript
+<Button
+  variant="outlined"
+  onClick={() => {
+    // Reset form state if needed
+    resetChanges();
+    // Always close the drawer
+    onClose();
+  }}
+  disabled={saving || createLoading || updateLoading} // Only disable during operations
+>
+  {t("common.cancel")}
+</Button>
+```
+
+**Key Points**:
+- Cancel button is NOT disabled based on `hasChanges` or form state
+- Cancel button MUST call `onClose()` to close the drawer
+- Cancel button MAY reset form state before closing (optional, but recommended)
+- Cancel button SHOULD be disabled only during active save/load operations
+
+This ensures users can always cancel and close the drawer, providing a consistent and predictable user experience across all management drawers.
+
+### Drawer Save Button Pattern
+
+**Default Behavior**: The primary Save action in Drawer components (UserDrawer, GroupDrawer, RoleDrawer, etc.) MUST follow this pattern:
+
+1. **Auto-close on Success**: After a successful save operation (no thrown error and success toast shown), the drawer MUST close itself by calling the `onClose` callback.
+
+2. **Stay Open on Error**: If the save operation fails (GraphQL/network/business error), the drawer MUST remain open so the user can correct data and retry. Error handling (toasts, alerts) MUST be performed in the save logic, not in the button handler.
+
+3. **Implementation Pattern**:
+```typescript
+<Button
+  variant="contained"
+  onClick={async () => {
+    try {
+      await handleSave(); // performs mutations + toasts
+      onClose();          // only called if handleSave succeeds
+    } catch {
+      // Errors are already surfaced via toast/ErrorAlert inside handleSave
+      // Do NOT close the drawer here
+    }
+  }}
+  disabled={saving || !hasChanges}
+>
+  {saving ? t("common.saving") : t("common.save")}
+</Button>
+```
+
+**Key Points**:
+- Save handler (`handleSave`) is responsible for business logic, GraphQL calls, refetches, and toast notifications.
+- The Save button wrapper only orchestrates control-flow (awaits `handleSave` and closes the drawer on success).
+- Drawers used in management flows MUST auto-close on successful saves to provide a consistent, predictable UX across the app.
+
+### Drawer Keyboard Form Submission Pattern
+
+**Default Behavior**: All drawer components with forms SHOULD enable keyboard form submission using the `useKeyboardFormSubmit` hook. This allows users to submit forms by pressing Enter when focus is in any form input and the Save button is enabled.
+
+**Implementation Pattern**:
+```typescript
+import { useKeyboardFormSubmit } from "@/shared/hooks/forms";
+import { useRef } from "react";
+
+export const GroupDrawer: React.FC<GroupDrawerProps> = ({
+  open,
+  onClose,
+  groupId,
+}) => {
+  // ... existing code ...
+  
+  // Ref for drawer body to scope keyboard handling
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  // Enable keyboard form submission
+  // Uses react-hook-form's handleSubmit since this drawer uses FormProvider without a native form element
+  useKeyboardFormSubmit({
+    onSubmit: () => methods.handleSubmit(handleSave)(),
+    isSubmitEnabled: () =>
+      !saving &&
+      !createLoading &&
+      !updateLoading &&
+      !savingRoles &&
+      (isCreateMode || hasRoleOrUserChanges || methods.formState.isDirty),
+    containerRef: bodyRef,
+    enabled: open,
+  });
+
+  return (
+    <Drawer open={open} onClose={onClose}>
+      {/* ... header ... */}
+      <Drawer.Body ref={bodyRef}>
+        {/* ... form content ... */}
+      </Drawer.Body>
+      {/* ... footer ... */}
+    </Drawer>
+  );
+};
+```
+
+**Alternative Patterns for Different Form Types**:
+
+1. **React Hook Form without Native Form Element** (GroupDrawer pattern):
+```typescript
+useKeyboardFormSubmit({
+  onSubmit: () => methods.handleSubmit(handleSave)(),
+  isSubmitEnabled: () => !saving && hasChanges,
+  containerRef: bodyRef,
+  enabled: open,
+});
+```
+
+2. **Native Form Element with React Hook Form** (RoleDrawer pattern):
+```typescript
+const formRef = useRef<HTMLFormElement>(null);
+
+useKeyboardFormSubmit({
+  onSubmit: () => {
+    formRef.current?.requestSubmit();
+  },
+  isSubmitEnabled: () => !saving && hasChanges,
+  containerRef: bodyRef,
+  enabled: open,
+});
+
+// In JSX:
+<Box ref={formRef} component="form" id="role-form" onSubmit={methods.handleSubmit(handleSubmit)}>
+  {/* form content */}
+</Box>
+```
+
+3. **Custom Hook Pattern** (UserDrawer pattern):
+```typescript
+useKeyboardFormSubmit({
+  onSubmit: async () => {
+    try {
+      await handleSave();
+      onClose();
+    } catch {
+      // Error handling (toast) is already performed in handleSave
+    }
+  },
+  isSubmitEnabled: () => !saving && hasChanges,
+  containerRef: bodyRef,
+  enabled: open,
+});
+```
+
+**Key Points**:
+- **Container Scoping**: Always use a ref to the `Drawer.Body` to scope keyboard handling to the drawer only
+- **Enabled State**: Pass `enabled: open` to only activate when drawer is open
+- **Submit Enabled Check**: The `isSubmitEnabled` function should match the Save button's disabled logic exactly
+- **Form Type Compatibility**: Works with react-hook-form (with or without native form elements) and custom form handlers
+- **Automatic Behavior**: 
+  - Only triggers on Enter key (not Shift+Enter)
+  - Respects disabled and readonly inputs
+  - Skips submission when dropdowns/autocompletes are open
+  - Doesn't intercept button presses
+  - Handles nested forms correctly
+- **Error Handling**: Errors are automatically caught and logged; form submission errors should be handled by the `onSubmit` function
+
+**Benefits**:
+- Improved UX: Users can quickly submit forms without clicking the Save button
+- Accessibility: Standard keyboard navigation pattern
+- Consistent: Works the same way across all drawers
+- Safe: Only submits when Save button would be enabled
+
+**Requirements**:
+- Drawer Body component MUST accept a ref (already implemented via `React.forwardRef`)
+- `isSubmitEnabled` function MUST match the Save button's disabled condition
+- Container ref MUST be attached to `Drawer.Body` element
+
+### Drawer Auto-Focus Pattern
+
+**Default Behavior**: All drawer components with form inputs MUST automatically focus the first focusable input when the drawer opens. This improves user experience by allowing immediate typing without requiring a click.
+
+**Implementation Pattern**:
+```typescript
+import { useDrawerAutoFocus, useKeyboardFormSubmit } from "@/shared/hooks/forms";
+import { useRef } from "react";
+
+export const UserDrawer: React.FC<UserDrawerProps> = ({
+  open,
+  onClose,
+  userId,
+}) => {
+  // ... existing code ...
+  
+  // Ref for drawer body to scope keyboard handling and auto-focus
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  // Auto-focus first input when drawer opens
+  useDrawerAutoFocus({
+    containerRef: bodyRef,
+    open: open,
+    enabled: true,
+  });
+
+  // Enable keyboard form submission
+  useKeyboardFormSubmit({
+    onSubmit: async () => {
+      try {
+        await handleSave();
+        onClose();
+      } catch {
+        // Error handling (toast) is already performed in handleSave
+      }
+    },
+    isSubmitEnabled: () => !saving && hasChanges,
+    containerRef: bodyRef,
+    enabled: open,
+  });
+
+  return (
+    <Drawer open={open} onClose={onClose}>
+      {/* ... header ... */}
+      <Drawer.Body ref={bodyRef}>
+        <TextField
+          label="Display Name"
+          value={displayName}
+          onChange={(e) => updateDisplayName(e.target.value)}
+        />
+        {/* ... other form fields ... */}
+      </Drawer.Body>
+      {/* ... footer ... */}
+    </Drawer>
+  );
+};
+```
+
+**Key Points**:
+- **Automatic Detection**: The hook automatically finds the first focusable input within the drawer body
+- **Focusable Inputs**: Supports native form elements (`<input>`, `<textarea>`, `<select>`) and MUI TextField components
+- **Smart Filtering**: Skips disabled, readonly, and hidden inputs
+- **Timing**: Uses a small delay (default 100ms) to allow drawer animation and content rendering
+- **One-Time Focus**: Only focuses when drawer transitions from closed to open (not on every render)
+- **Container Scoping**: Only searches within the specified container ref (typically `Drawer.Body`)
+
+**What Gets Focused**:
+- First visible, enabled, non-readonly input field
+- First visible, enabled, non-readonly textarea
+- First visible, enabled select element
+- MUI TextField components (automatically finds the nested input element)
+
+**What Gets Skipped**:
+- Disabled inputs (`disabled` attribute)
+- Readonly inputs (`readOnly` attribute)
+- Hidden inputs (`type="hidden"` or `display: none`)
+- Elements with zero dimensions
+- Elements outside the container scope
+
+**Configuration Options**:
+```typescript
+useDrawerAutoFocus({
+  containerRef: bodyRef,  // Required: ref to drawer body
+  open: open,              // Required: drawer open state
+  enabled: true,           // Optional: enable/disable auto-focus (default: true)
+  delayMs: 100,            // Optional: delay before focusing (default: 100ms)
+});
+```
+
+**When to Disable**:
+- Set `enabled: false` if the drawer has conditional inputs that may not be ready when the drawer opens
+- Set `enabled: false` if the drawer has async content loading that might change the input order
+- Increase `delayMs` if the drawer has complex animations or slow content rendering
+
+**Best Practices**:
+- Always use `useDrawerAutoFocus` in combination with `useKeyboardFormSubmit` for optimal UX
+- Attach the container ref to `Drawer.Body` component (not the Drawer itself)
+- If a specific input should always be focused (regardless of order), use the `autoFocus` prop on that input instead
+- The hook works seamlessly with react-hook-form, custom form handlers, and MUI components
+
+**Benefits**:
+- Improved UX: Users can start typing immediately when the drawer opens
+- Accessibility: Follows standard form interaction patterns
+- Consistent: Works the same way across all drawers
+- Non-intrusive: Only focuses when appropriate (drawer opening, input available)
+
+**Requirements**:
+- Drawer Body component MUST accept a ref (already implemented via `React.forwardRef`)
+- Container ref MUST be attached to `Drawer.Body` element
+- Drawer MUST have at least one focusable input for the hook to be effective
+
+**Example: Complete Drawer with Auto-Focus**:
+```typescript
+export const GroupDrawer: React.FC<GroupDrawerProps> = ({
+  open,
+  onClose,
+  groupId,
+}) => {
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const methods = useForm<GroupFormData>();
+
+  // Auto-focus first input when drawer opens
+  useDrawerAutoFocus({
+    containerRef: bodyRef,
+    open: open,
+  });
+
+  // Enable keyboard form submission
+  useKeyboardFormSubmit({
+    onSubmit: () => methods.handleSubmit(handleSave)(),
+    isSubmitEnabled: () => !saving && methods.formState.isDirty,
+    containerRef: bodyRef,
+    enabled: open,
+  });
+
+  return (
+    <Drawer open={open} onClose={onClose}>
+      <Drawer.Header>...</Drawer.Header>
+      <Drawer.Body ref={bodyRef}>
+        <FormProvider {...methods}>
+          <GroupForm /> {/* First input will be auto-focused */}
+        </FormProvider>
+      </Drawer.Body>
+      <Drawer.Footer>...</Drawer.Footer>
+    </Drawer>
+  );
+};
+```
 
 ## Avoiding Duplicate Hook Instances
 
@@ -900,6 +1230,15 @@ When implementing a new management module, verify:
 - [ ] All table labels use i18n translation keys
 - [ ] Row actions support single or multiple actions via `renderActions`
 - [ ] Assignment components use generic `AssignmentComponent` when possible (future)
+
+### Drawer Patterns
+- [ ] Cancel button is always enabled (only disabled during save/load operations)
+- [ ] Cancel button closes the drawer by calling `onClose()`
+- [ ] Cancel button may reset form state before closing (optional but recommended)
+- [ ] Save button is disabled when there are no changes or during save operations
+- [ ] Keyboard form submission enabled using `useKeyboardFormSubmit` hook
+- [ ] Container ref attached to `Drawer.Body` for keyboard scoping
+- [ ] `isSubmitEnabled` function matches Save button's disabled logic
 
 ### Critical Rules
 - [ ] **Child components (drawers/modals) use direct mutation hooks, NOT the full management hook**

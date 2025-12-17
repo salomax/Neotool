@@ -8,28 +8,25 @@ vi.mock('@/lib/graphql/operations/authorization-management/queries.generated', (
   GetUsersDocument: {}, // Mock document for refetch
 }));
 
-vi.mock('@/lib/graphql/operations/authorization-management/mutations.generated', () => ({
-  useEnableUserMutation: vi.fn(),
-  useDisableUserMutation: vi.fn(),
-  useAssignGroupToUserMutation: vi.fn(),
-  useRemoveGroupFromUserMutation: vi.fn(),
-  useAssignRoleToUserMutation: vi.fn(),
-  useRemoveRoleFromUserMutation: vi.fn(),
+vi.mock('@/shared/hooks/authorization/useUserMutations', () => ({
+  useUserMutations: vi.fn(),
 }));
 
 vi.mock('@/shared/hooks/pagination', () => ({
   useRelayPagination: vi.fn(),
 }));
 
+vi.mock('@/shared/providers/AuthProvider', () => ({
+  useAuth: vi.fn(() => ({ isAuthenticated: true })),
+}));
+
+vi.mock('@/shared/utils/auth', () => ({
+  hasAuthToken: vi.fn(() => true),
+  isAuthenticationError: vi.fn(() => false),
+}));
+
 import { useGetUsersQuery } from '@/lib/graphql/operations/authorization-management/queries.generated';
-import {
-  useEnableUserMutation,
-  useDisableUserMutation,
-  useAssignGroupToUserMutation,
-  useRemoveGroupFromUserMutation,
-  useAssignRoleToUserMutation,
-  useRemoveRoleFromUserMutation,
-} from '@/lib/graphql/operations/authorization-management/mutations.generated';
+import { useUserMutations } from '@/shared/hooks/authorization/useUserMutations';
 import { useRelayPagination } from '@/shared/hooks/pagination';
 
 describe('useUserManagement', () => {
@@ -74,35 +71,21 @@ describe('useUserManagement', () => {
       refetch: mockRefetch,
     });
 
-    (useEnableUserMutation as any).mockReturnValue([
-      vi.fn(),
-      { loading: false },
-    ]);
-
-    (useDisableUserMutation as any).mockReturnValue([
-      vi.fn(),
-      { loading: false },
-    ]);
-
-    (useAssignGroupToUserMutation as any).mockReturnValue([
-      vi.fn(),
-      { loading: false },
-    ]);
-
-    (useRemoveGroupFromUserMutation as any).mockReturnValue([
-      vi.fn(),
-      { loading: false },
-    ]);
-
-    (useAssignRoleToUserMutation as any).mockReturnValue([
-      vi.fn(),
-      { loading: false },
-    ]);
-
-    (useRemoveRoleFromUserMutation as any).mockReturnValue([
-      vi.fn(),
-      { loading: false },
-    ]);
+    // Mock useUserMutations
+    (useUserMutations as any).mockReturnValue({
+      enableUser: vi.fn(),
+      disableUser: vi.fn(),
+      assignGroupToUser: vi.fn(),
+      removeGroupFromUser: vi.fn(),
+      assignRoleToUser: vi.fn(),
+      removeRoleFromUser: vi.fn(),
+      enableLoading: false,
+      disableLoading: false,
+      assignGroupLoading: false,
+      removeGroupLoading: false,
+      assignRoleLoading: false,
+      removeRoleLoading: false,
+    });
 
     (useRelayPagination as any).mockReturnValue({
       loadNextPage: vi.fn(),
@@ -289,4 +272,3 @@ describe('useUserManagement', () => {
     });
   });
 });
-

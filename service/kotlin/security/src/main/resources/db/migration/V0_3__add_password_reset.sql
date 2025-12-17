@@ -23,4 +23,3 @@ CREATE INDEX IF NOT EXISTS idx_password_reset_attempts_email_window ON security.
 
 -- Add index on created_at for cleanup queries
 CREATE INDEX IF NOT EXISTS idx_password_reset_attempts_created_at ON security.password_reset_attempts(created_at);
-

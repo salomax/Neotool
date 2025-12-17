@@ -10,6 +10,7 @@ export interface GroupSearchProps {
   onSearch?: (value: string) => void; // Optional debounced search callback
   placeholder?: string;
   maxWidth?: ContainerProps["maxWidth"];
+  autoFocus?: boolean;
 }
 
 /**
@@ -21,6 +22,7 @@ export const GroupSearch: React.FC<GroupSearchProps> = ({
   onSearch,
   placeholder,
   maxWidth,
+  autoFocus,
 }) => {
   const theme = useTheme();
   
@@ -47,6 +49,7 @@ export const GroupSearch: React.FC<GroupSearchProps> = ({
         debounceMs={300}
         name="group-search"
         data-testid="group-search"
+        autoFocus={autoFocus}
       />
     </Box>
   );

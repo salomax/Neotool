@@ -77,7 +77,9 @@ const Switch: React.FC<SwitchProps> = ({
   name
 }) => {
   // Generate data-testid from component name and optional name prop
-  const testIdProps = getTestIdProps('Switch', name, dataTestId);
+  // Only use testIdProps for FormControl if no explicit dataTestId is provided
+  // (when dataTestId is provided, it goes on MuiSwitch, not FormControl)
+  const testIdProps = dataTestId ? {} : getTestIdProps('Switch', name);
   
   const [internalChecked, setInternalChecked] = useState(defaultChecked);
   
@@ -216,6 +218,7 @@ const Switch: React.FC<SwitchProps> = ({
       onChange={handleChange}
       inputProps={{ 'aria-label': label || 'switch' }}
       sx={largeSx}
+      {...(dataTestId && { 'data-testid': dataTestId })}
     />
   );
 

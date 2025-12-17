@@ -196,6 +196,59 @@ git add .
 git commit -m "Merge NeoTool starter boilerplate"
 ```
 
+## Using NeoTool as an Upstream Base
+
+Once you start shipping products derived from NeoTool, treat this repo as the upstream foundation while keeping each product in its own repository. A typical workflow looks like this:
+
+1. **Clone your product repository** (or initialize it as usual) and keep it connected to its primary remote (`origin`).
+2. **Add NeoTool as an upstream remote** so you can pull foundational improvements over time:
+   ```bash
+   git remote add upstream git@github.com:salomax/neotool.git
+   git remote -v  # Confirm origin (product) and upstream (NeoTool) remotes
+   ```
+3. **Sync with upstream** whenever NeoTool ships updates:
+   ```bash
+   git fetch upstream
+   git checkout main
+   git merge upstream/main      # or: git rebase upstream/main
+   ```
+4. **Resolve conflicts, test, and push** the synchronized branch back to your product repo:
+   ```bash
+   # After resolving conflicts locally
+   git add .
+   git commit -m "Sync with NeoTool upstream"
+   git push origin main
+   ```
+   - If both repos changed the same file (e.g., a page inside `web/`), Git will stop during the merge/rebase and mark the conflicting file with conflict markers. Edit the file, decide which parts to keep or blend, then run `git add <file>` and continue (`git commit` for merges, `git rebase --continue` for rebases).
+5. **Use tags/releases when you prefer a stable baseline**:
+   ```bash
+   git fetch upstream --tags
+   git merge upstream/v1.4.0
+   ```
+
+By keeping changes that are universally useful inside this upstream and limiting product-specific customizations to your product repository, you minimize merge pain and keep all products aligned with NeoTool’s evolution.
+
+### Managing Merge Conflicts with Upstream
+
+To automatically resolve conflicts for product-specific files (like favicon, logos, or config files), use the `upstream` command to configure which files should always use "ours" merge strategy:
+
+```bash
+# Add specific files or patterns
+./neotool upstream add web/public/favicon.ico
+./neotool upstream add project.config.json
+./neotool upstream add "web/src/app/product/**"
+
+# List all configured files
+./neotool upstream list
+
+# Remove a file from auto-merge strategy
+./neotool upstream remove web/public/favicon.ico
+```
+
+Note: The `.gitattributes` file is already configured with default entries (favicon and logos) when you clone NeoTool. You can add more files as needed.
+
+This creates a `.gitattributes` file that tells Git to automatically keep your version of specified files during upstream merges, preventing conflicts for product-specific customizations.
+
 ### Customizing Your Project Name
 
 After cloning or integrating the starter, you'll want to customize the project name from "neotool" to your own project name. This includes updating package names, namespaces, database names, and all references throughout the codebase.
@@ -214,10 +267,6 @@ After cloning or integrating the starter, you'll want to customize the project n
    ```bash
    # Setup project (rename from neotool)
    ./neotool setup
-   
-   # Clean up examples (optional)
-   ./neotool clean --dry-run  # Preview changes
-   ./neotool clean             # Apply changes
    ```
 
 4. **Review and commit the changes:**
@@ -240,11 +289,25 @@ The project includes a CLI tool for common tasks:
 # Setup project (rename from neotool to your project name)
 ./neotool setup
 
-# Clean up example code
-./neotool clean [--dry-run]
+# GraphQL schema management
+./neotool graphql sync      # Interactive schema sync
+./neotool graphql validate  # Validate schema consistency
+./neotool graphql generate  # Generate supergraph schema
+
+# Validation
+./neotool validate                    # Run all validations
+./neotool validate --web              # Frontend only
+./neotool validate --service          # Backend only
+
+# Kafka management
+./neotool kafka --topic                              # List topics
+./neotool kafka --topic <name>                       # Describe topic
+./neotool kafka --consumer-group                     # List consumer groups
+./neotool kafka --consumer-group <name>              # Describe consumer group
 
 # Show help
 ./neotool help
+./neotool <command> --help  # Command-specific help
 ```
 
 All commands can also be accessed via `scripts/cli/cli` if you prefer.
@@ -530,14 +593,12 @@ pnpm run ci:unit
 ## 🧭 Roadmap
 
 ### Architecture/Infra
-- [ ] FE and BE coverage tests (metrics and validation)
-- [ ] Distriuted Cache for Security
-- [ ] CI/CD (mock deployment)
+- [ ] Entity version validation in order to prevent concurrency issues
+- [ ] CI/CD + K8S artifacts
 - [ ] Mobile with React Native and Expo
 - [ ] Logging (promtail, loki)
 - [ ] Purge after a period of time (logs and workflow ru on GH)
-- [ ] E2E tests with cypress (running on CI/CD and test the AuthN and AuthZ)
-- [ ] Visual regression testing (cypress-image-diff)
+- [ ] Visual regression testing
 - [ ] AI agents
 - [ ] BI service
 - [ ] File storage abstraction
@@ -550,10 +611,16 @@ pnpm run ci:unit
 - [ ] Metrics tracker / Google Analytics
 - [ ] CDN integration
 
+### Prefect
+
+- [ ] Setup multi-env (local and container)
 
 ### Security
-- [ ] Security part 2 (User Managment and Oauth2/JWT/API])
-- [ ] Security part 3 (Permission management: RBAC and ABAC)
+
+- [ ] Refresh token rotation: Implement a mechanism to track used Refresh Tokens (RTs). When an RT is used to get a new pair, it must be IMMEDIATELY invalidated. When a valid, un-replayed Refresh Token is received, the server MUST generate a brand new Access Token and a brand new Refresh Token.
+
+- [ ] Implement Idle Timeout: Define a period of inactivity (e.g., 30 days). If the Refresh Token has not been used within this period, it MUST be revoked. This cleans up unused sessions and forces re-login after long periods of absence.
+
 - [ ] Audit trail
 
 ### Authorization
@@ -565,9 +632,6 @@ pnpm run ci:unit
 - [ ] Guardrails and observability – Define TTLs, hit/miss metrics, and a fallback strategy (force bypass on critical actions) to ensure RBAC decisions remain accurate even if the cache is out-of-sync or unavailable.
 
 ### Examples / Built-in features
-- [ ] Batch job example (Scheduled tasks (cron-like))
-- [ ] Messaging example with Kafka
-- [ ] Redis cache
 - [ ] Webhook example
 - [ ] AI Chat
 

@@ -12,8 +12,10 @@ import io.github.salomax.neotool.common.test.transaction.runTransaction
 import io.github.salomax.neotool.security.model.PermissionEntity
 import io.github.salomax.neotool.security.model.RoleEntity
 import io.github.salomax.neotool.security.model.UserEntity
+import io.github.salomax.neotool.security.repo.GroupMembershipRepository
+import io.github.salomax.neotool.security.repo.GroupRepository
+import io.github.salomax.neotool.security.repo.GroupRoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.PermissionRepository
-import io.github.salomax.neotool.security.repo.RoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.AuthContextFactory
@@ -35,6 +37,7 @@ import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.time.Instant
+import java.util.UUID
 
 @MicronautTest(startApplication = true)
 @DisplayName("AuthContext Integration Tests")
@@ -62,7 +65,13 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
     lateinit var permissionRepository: PermissionRepository
 
     @Inject
-    lateinit var roleAssignmentRepository: RoleAssignmentRepository
+    lateinit var groupRepository: GroupRepository
+
+    @Inject
+    lateinit var groupMembershipRepository: GroupMembershipRepository
+
+    @Inject
+    lateinit var groupRoleAssignmentRepository: GroupRoleAssignmentRepository
 
     @Inject
     lateinit var entityManager: EntityManager
@@ -91,7 +100,8 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
         try {
             // Clean up role_permissions join table (no entity, so use native query)
             entityManager.createNativeQuery("DELETE FROM security.role_permissions").executeUpdate()
-            roleAssignmentRepository.deleteAll()
+            groupRoleAssignmentRepository.deleteAll()
+            groupMembershipRepository.deleteAll()
             userRepository.deleteAll()
             roleRepository.deleteAll()
             permissionRepository.deleteAll()
@@ -123,15 +133,25 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
                 )
             saveUser(user)
 
-            // Assign role to user
+            // Create group and assign role to group, then add user to group
             val userId = requireNotNull(user.id)
             entityManager.runTransaction {
-                val roleAssignment =
-                    SecurityTestDataBuilders.roleAssignment(
-                        userId = userId,
+                val group = SecurityTestDataBuilders.group(name = "test-group-${UUID.randomUUID().toString().take(8)}")
+                val savedGroup = groupRepository.save(group)
+
+                val groupRoleAssignment =
+                    SecurityTestDataBuilders.groupRoleAssignment(
+                        groupId = savedGroup.id,
                         roleId = testRole.id!!,
                     )
-                roleAssignmentRepository.save(roleAssignment)
+                groupRoleAssignmentRepository.save(groupRoleAssignment)
+
+                val groupMembership =
+                    SecurityTestDataBuilders.groupMembership(
+                        userId = userId,
+                        groupId = savedGroup.id,
+                    )
+                groupMembershipRepository.save(groupMembership)
             }
 
             val mutation =
@@ -282,14 +302,24 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
             val user = UserEntity(email = email, displayName = "OAuth User", passwordHash = null)
             saveUser(user)
 
-            // Assign role to user
+            // Create group and assign role to group, then add user to group
             val userId = requireNotNull(user.id)
-            val roleAssignment =
-                SecurityTestDataBuilders.roleAssignment(
-                    userId = userId,
+            val group = SecurityTestDataBuilders.group(name = "test-group-${UUID.randomUUID().toString().take(8)}")
+            val savedGroup = groupRepository.save(group)
+
+            val groupRoleAssignment =
+                SecurityTestDataBuilders.groupRoleAssignment(
+                    groupId = savedGroup.id,
                     roleId = testRole.id!!,
                 )
-            roleAssignmentRepository.save(roleAssignment)
+            groupRoleAssignmentRepository.save(groupRoleAssignment)
+
+            val groupMembership =
+                SecurityTestDataBuilders.groupMembership(
+                    userId = userId,
+                    groupId = savedGroup.id,
+                )
+            groupMembershipRepository.save(groupMembership)
 
             // Note: This test would need actual OAuth token validation setup
             // For now, we verify the factory is called by checking the JWT structure
@@ -318,15 +348,25 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
                 )
             saveUser(passwordUser)
 
-            // Assign role to user
+            // Create group and assign role to group, then add user to group
             val userId = requireNotNull(passwordUser.id)
             entityManager.runTransaction {
-                val roleAssignment =
-                    SecurityTestDataBuilders.roleAssignment(
-                        userId = userId,
+                val group = SecurityTestDataBuilders.group(name = "test-group-${UUID.randomUUID().toString().take(8)}")
+                val savedGroup = groupRepository.save(group)
+
+                val groupRoleAssignment =
+                    SecurityTestDataBuilders.groupRoleAssignment(
+                        groupId = savedGroup.id,
                         roleId = testRole.id!!,
                     )
-                roleAssignmentRepository.save(roleAssignment)
+                groupRoleAssignmentRepository.save(groupRoleAssignment)
+
+                val groupMembership =
+                    SecurityTestDataBuilders.groupMembership(
+                        userId = userId,
+                        groupId = savedGroup.id,
+                    )
+                groupMembershipRepository.save(groupMembership)
             }
 
             // Sign in via password
@@ -372,15 +412,25 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
             val user = UserEntity(email = email, displayName = "Multi-Provider User", passwordHash = null)
             saveUser(user)
 
-            // Assign role to user
+            // Create group and assign role to group, then add user to group
             val userId = requireNotNull(user.id)
             entityManager.runTransaction {
-                val roleAssignment =
-                    SecurityTestDataBuilders.roleAssignment(
-                        userId = userId,
+                val group = SecurityTestDataBuilders.group(name = "test-group-${UUID.randomUUID().toString().take(8)}")
+                val savedGroup = groupRepository.save(group)
+
+                val groupRoleAssignment =
+                    SecurityTestDataBuilders.groupRoleAssignment(
+                        groupId = savedGroup.id,
                         roleId = testRole.id!!,
                     )
-                roleAssignmentRepository.save(roleAssignment)
+                groupRoleAssignmentRepository.save(groupRoleAssignment)
+
+                val groupMembership =
+                    SecurityTestDataBuilders.groupMembership(
+                        userId = userId,
+                        groupId = savedGroup.id,
+                    )
+                groupMembershipRepository.save(groupMembership)
             }
 
             // Build auth context (simulating Google OAuth)
@@ -519,15 +569,25 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
                 )
             saveUser(user)
 
-            // Assign role to user
+            // Create group and assign role to group, then add user to group
             val userId = requireNotNull(user.id)
             entityManager.runTransaction {
-                val roleAssignment =
-                    SecurityTestDataBuilders.roleAssignment(
-                        userId = userId,
+                val group = SecurityTestDataBuilders.group(name = "test-group-${UUID.randomUUID().toString().take(8)}")
+                val savedGroup = groupRepository.save(group)
+
+                val groupRoleAssignment =
+                    SecurityTestDataBuilders.groupRoleAssignment(
+                        groupId = savedGroup.id,
                         roleId = testRole.id!!,
                     )
-                roleAssignmentRepository.save(roleAssignment)
+                groupRoleAssignmentRepository.save(groupRoleAssignment)
+
+                val groupMembership =
+                    SecurityTestDataBuilders.groupMembership(
+                        userId = userId,
+                        groupId = savedGroup.id,
+                    )
+                groupMembershipRepository.save(groupMembership)
             }
 
             // Sign in to get refresh token
@@ -629,14 +689,24 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
             val initialPermissions = jwtService.getPermissionsFromToken(initialToken)
             assertThat(initialPermissions).isEmpty()
 
-            // Assign role to user (simulating permission change)
+            // Create group and assign role to group, then add user to group (simulating permission change)
             entityManager.runTransaction {
-                val roleAssignment =
-                    SecurityTestDataBuilders.roleAssignment(
-                        userId = userId,
+                val group = SecurityTestDataBuilders.group(name = "test-group-${UUID.randomUUID().toString().take(8)}")
+                val savedGroup = groupRepository.save(group)
+
+                val groupRoleAssignment =
+                    SecurityTestDataBuilders.groupRoleAssignment(
+                        groupId = savedGroup.id,
                         roleId = testRole.id!!,
                     )
-                roleAssignmentRepository.save(roleAssignment)
+                groupRoleAssignmentRepository.save(groupRoleAssignment)
+
+                val groupMembership =
+                    SecurityTestDataBuilders.groupMembership(
+                        userId = userId,
+                        groupId = savedGroup.id,
+                    )
+                groupMembershipRepository.save(groupMembership)
             }
 
             // Refresh access token - should now include permissions
@@ -693,14 +763,24 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
 
             val userId = requireNotNull(user.id)
 
-            // Assign role to user
+            // Create group and assign role to group, then add user to group
             entityManager.runTransaction {
-                val roleAssignment =
-                    SecurityTestDataBuilders.roleAssignment(
-                        userId = userId,
+                val group = SecurityTestDataBuilders.group(name = "test-group-${UUID.randomUUID().toString().take(8)}")
+                val savedGroup = groupRepository.save(group)
+
+                val groupRoleAssignment =
+                    SecurityTestDataBuilders.groupRoleAssignment(
+                        groupId = savedGroup.id,
                         roleId = testRole.id!!,
                     )
-                roleAssignmentRepository.save(roleAssignment)
+                groupRoleAssignmentRepository.save(groupRoleAssignment)
+
+                val groupMembership =
+                    SecurityTestDataBuilders.groupMembership(
+                        userId = userId,
+                        groupId = savedGroup.id,
+                    )
+                groupMembershipRepository.save(groupMembership)
             }
 
             // Sign in via password to get refresh token
@@ -779,12 +859,22 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
             saveUser(user)
 
             val userId = requireNotNull(user.id)
-            val roleAssignment =
-                SecurityTestDataBuilders.roleAssignment(
-                    userId = userId,
+            val group = SecurityTestDataBuilders.group(name = "test-group-${UUID.randomUUID().toString().take(8)}")
+            val savedGroup = groupRepository.save(group)
+
+            val groupRoleAssignment =
+                SecurityTestDataBuilders.groupRoleAssignment(
+                    groupId = savedGroup.id,
                     roleId = testRole.id!!,
                 )
-            roleAssignmentRepository.save(roleAssignment)
+            groupRoleAssignmentRepository.save(groupRoleAssignment)
+
+            val groupMembership =
+                SecurityTestDataBuilders.groupMembership(
+                    userId = userId,
+                    groupId = savedGroup.id,
+                )
+            groupMembershipRepository.save(groupMembership)
 
             // Act
             val authContext = authContextFactory.build(user)
@@ -826,12 +916,22 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
             saveUser(user)
 
             val userId = requireNotNull(user.id)
-            val roleAssignment =
-                SecurityTestDataBuilders.roleAssignment(
-                    userId = userId,
+            val group = SecurityTestDataBuilders.group(name = "test-group-${UUID.randomUUID().toString().take(8)}")
+            val savedGroup = groupRepository.save(group)
+
+            val groupRoleAssignment =
+                SecurityTestDataBuilders.groupRoleAssignment(
+                    groupId = savedGroup.id,
                     roleId = testRole.id!!,
                 )
-            roleAssignmentRepository.save(roleAssignment)
+            groupRoleAssignmentRepository.save(groupRoleAssignment)
+
+            val groupMembership =
+                SecurityTestDataBuilders.groupMembership(
+                    userId = userId,
+                    groupId = savedGroup.id,
+                )
+            groupMembershipRepository.save(groupMembership)
 
             // Act
             val authContext = authContextFactory.build(user)

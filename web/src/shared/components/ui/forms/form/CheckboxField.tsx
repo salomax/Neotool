@@ -8,12 +8,14 @@ export interface CheckboxFieldProps {
   name: string;
   label: string;
   color?: CheckboxProps['color'];
+  'data-testid'?: string;
 }
 
 export const CheckboxField: React.FC<CheckboxFieldProps> = ({
   name,
   label,
   color,
+  'data-testid': dataTestId,
 }) => {
   const { control } = useFormContext();
   return (
@@ -27,6 +29,7 @@ export const CheckboxField: React.FC<CheckboxFieldProps> = ({
               checked={!!field.value}
               onChange={(e, v) => field.onChange(v)}
               color={color}
+              data-testid={dataTestId}
             />
           }
           label={label}

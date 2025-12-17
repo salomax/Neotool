@@ -2,8 +2,10 @@ package io.github.salomax.neotool.security.graphql.mapper
 
 import io.github.salomax.neotool.common.graphql.pagination.Connection
 import io.github.salomax.neotool.common.graphql.pagination.OrderDirection
+import io.github.salomax.neotool.security.domain.UserManagement
 import io.github.salomax.neotool.security.domain.rbac.User
 import io.github.salomax.neotool.security.graphql.dto.PageInfoDTO
+import io.github.salomax.neotool.security.graphql.dto.UpdateUserInputDTO
 import io.github.salomax.neotool.security.graphql.dto.UserConnectionDTO
 import io.github.salomax.neotool.security.graphql.dto.UserDTO
 import io.github.salomax.neotool.security.graphql.dto.UserEdgeDTO
@@ -26,7 +28,10 @@ class UserManagementMapper {
             id = user.id?.toString() ?: throw IllegalArgumentException("User must have an ID"),
             email = user.email,
             displayName = user.displayName,
+            avatarUrl = user.avatarUrl,
             enabled = user.enabled,
+            createdAt = user.createdAt.toString(),
+            updatedAt = user.updatedAt.toString(),
         )
     }
 
@@ -67,10 +72,10 @@ class UserManagementMapper {
     }
 
     /**
-     * Convert String ID to Int for role ID.
+     * Convert String ID to UUID for role ID.
      */
-    fun toRoleId(id: String): Int {
-        return id.toInt()
+    fun toRoleId(id: String): UUID {
+        return UUID.fromString(id)
     }
 
     /**
@@ -117,5 +122,41 @@ class UserManagementMapper {
 
             UserOrderBy(field, direction)
         }
+    }
+
+    /**
+     * Convert UpdateUserInputDTO and userId to UpdateUserCommand.
+     */
+    fun toUpdateUserCommand(
+        userId: String,
+        input: UpdateUserInputDTO,
+    ): UserManagement.UpdateUserCommand {
+        val userIdUuid = toUserId(userId)
+        return UserManagement.UpdateUserCommand(
+            userId = userIdUuid,
+            displayName = input.displayName?.takeIf { it.isNotBlank() },
+        )
+    }
+
+    /**
+     * Map GraphQL input map to UpdateUserInputDTO.
+     */
+    fun mapToUpdateUserInputDTO(input: Map<String, Any?>): UpdateUserInputDTO {
+        return UpdateUserInputDTO(
+            displayName = extractField<String?>(input, "displayName", null),
+        )
+    }
+
+    /**
+     * Extract field with type safety and default values.
+     */
+    private inline fun <reified T> extractField(
+        input: Map<String, Any?>,
+        name: String,
+        defaultValue: T? = null,
+    ): T {
+        val value = input[name]
+        if (value == null) return defaultValue ?: throw IllegalArgumentException("Field '$name' is required")
+        return if (value is T) value else defaultValue ?: throw IllegalArgumentException("Field '$name' is required")
     }
 }

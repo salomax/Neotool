@@ -48,6 +48,13 @@ vi.mock('@/shared/components/ui/layout/Drawer', () => ({
 const mockRole = {
   id: 'role-1',
   name: 'Admin Role',
+  groups: [
+    {
+      id: 'group-1',
+      name: 'Admin Group',
+      description: 'Administrators',
+    },
+  ],
   permissions: [
     { id: 'perm-1', name: 'security:user:view' },
   ],
@@ -72,23 +79,6 @@ const mockGroups = [
   },
 ];
 
-const mockUseGetRolesWithPermissionsQuery = vi.fn(() => ({
-  data: {
-    roles: {
-      edges: [{ node: mockRole }],
-    },
-  },
-  loading: false,
-  error: undefined,
-  refetch: vi.fn().mockResolvedValue({
-    data: {
-      roles: {
-        edges: [{ node: mockRole }],
-      },
-    },
-  }),
-}));
-
 const mockUseGetRoleWithUsersAndGroupsQuery = vi.fn(() => ({
   data: {
     users: {
@@ -112,13 +102,26 @@ const mockUseGetRoleWithUsersAndGroupsQuery = vi.fn(() => ({
   }),
 }));
 
-vi.mock('@/lib/graphql/operations/authorization-management/queries.generated', () => ({
-  useGetRolesWithPermissionsQuery: () => mockUseGetRolesWithPermissionsQuery(),
-  useGetRoleWithUsersAndGroupsQuery: () => mockUseGetRoleWithUsersAndGroupsQuery(),
+const mockUseGetRoleWithRelationshipsQuery = vi.fn(() => ({
+  data: {
+    role: mockRole,
+  },
+  loading: false,
+  error: undefined,
+  refetch: vi.fn().mockResolvedValue({
+    data: {
+      role: mockRole,
+    },
+  }),
 }));
 
-// Mock useRoleManagement hook
-const mockUseRoleManagement = vi.fn(() => ({
+vi.mock('@/lib/graphql/operations/authorization-management/queries.generated', () => ({
+  useGetRoleWithUsersAndGroupsQuery: () => mockUseGetRoleWithUsersAndGroupsQuery(),
+  useGetRoleWithRelationshipsQuery: () => mockUseGetRoleWithRelationshipsQuery(),
+}));
+
+// Mock useRoleMutations hook
+const mockUseRoleMutations = vi.fn(() => ({
   createRole: vi.fn().mockResolvedValue({ id: 'role-2', name: 'New Role' }),
   updateRole: vi.fn().mockResolvedValue(undefined),
   assignPermissionToRole: vi.fn().mockResolvedValue(undefined),
@@ -135,11 +138,34 @@ const mockUseRoleManagement = vi.fn(() => ({
   removeRoleFromUserLoading: false,
   assignRoleToGroupLoading: false,
   removeRoleFromGroupLoading: false,
-  refetch: vi.fn(),
 }));
 
-vi.mock('@/shared/hooks/authorization/useRoleManagement', () => ({
-  useRoleManagement: () => mockUseRoleManagement(),
+vi.mock('@/shared/hooks/authorization/useRoleMutations', () => ({
+  useRoleMutations: () => mockUseRoleMutations(),
+}));
+
+// Mock useRoleDrawer hook
+const mockUseRoleDrawer = vi.fn((roleId: string | null) => ({
+  role: roleId ? mockRole : null,
+  loading: false,
+  error: undefined,
+  selectedGroups: roleId ? mockGroups : [],
+  selectedPermissions: roleId ? mockRole.permissions : [],
+  hasChanges: false,
+  saving: false,
+  updateSelectedGroups: vi.fn(),
+  updateSelectedPermissions: vi.fn(),
+  handleSave: vi.fn().mockResolvedValue(undefined),
+  resetChanges: vi.fn(),
+  refetch: vi.fn().mockResolvedValue({
+    data: {
+      role: roleId ? mockRole : null,
+    },
+  }),
+}));
+
+vi.mock('@/shared/hooks/authorization/useRoleDrawer', () => ({
+  useRoleDrawer: (roleId: string | null, open: boolean) => mockUseRoleDrawer(roleId, open),
 }));
 
 // Mock usePermissionManagement hook
@@ -151,7 +177,7 @@ const mockUsePermissionManagement = vi.fn(() => ({
 }));
 
 vi.mock('@/shared/hooks/authorization/usePermissionManagement', () => ({
-  usePermissionManagement: () => mockUsePermissionManagement(),
+  usePermissionManagement: (options: any) => mockUsePermissionManagement(options),
 }));
 
 // Mock translations
@@ -261,19 +287,15 @@ describe('RoleDrawer', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseGetRolesWithPermissionsQuery.mockReturnValue({
+    mockUseGetRoleWithRelationshipsQuery.mockReturnValue({
       data: {
-        roles: {
-          edges: [{ node: mockRole }],
-        },
+        role: mockRole,
       },
       loading: false,
       error: undefined,
       refetch: vi.fn().mockResolvedValue({
         data: {
-          roles: {
-            edges: [{ node: mockRole }],
-          },
+          role: mockRole,
         },
       }),
     });
@@ -299,7 +321,7 @@ describe('RoleDrawer', () => {
         },
       }),
     });
-    mockUseRoleManagement.mockReturnValue({
+    mockUseRoleMutations.mockReturnValue({
       createRole: vi.fn().mockResolvedValue({ id: 'role-2', name: 'New Role' }),
       updateRole: vi.fn().mockResolvedValue(undefined),
       assignPermissionToRole: vi.fn().mockResolvedValue(undefined),
@@ -318,6 +340,24 @@ describe('RoleDrawer', () => {
       removeRoleFromGroupLoading: false,
       refetch: vi.fn(),
     });
+    mockUseRoleDrawer.mockReturnValue({
+      role: mockRole,
+      loading: false,
+      error: undefined,
+      selectedGroups: mockGroups,
+      selectedPermissions: mockRole.permissions,
+      hasChanges: false,
+      saving: false,
+      updateSelectedGroups: vi.fn(),
+      updateSelectedPermissions: vi.fn(),
+      handleSave: vi.fn().mockResolvedValue(undefined),
+      resetChanges: vi.fn(),
+      refetch: vi.fn().mockResolvedValue({
+        data: {
+          role: mockRole,
+        },
+      }),
+    });
   });
 
   describe('Create mode (roleId === null)', () => {
@@ -332,11 +372,10 @@ describe('RoleDrawer', () => {
       renderRoleDrawer({ roleId: null });
 
       // In create mode, the drawer should render without role data
-      // The query is skipped when roleId is null, so we verify the drawer renders
-      // in create mode (showing "Create Role" title)
+      // The hook is called with null roleId and open=false (since !isCreateMode = false)
       expect(screen.getByText('Create Role')).toBeInTheDocument();
-      // The query should have been called (even if skipped)
-      expect(mockUseGetRolesWithPermissionsQuery).toHaveBeenCalled();
+      // useRoleDrawer should be called with null roleId and open=false
+      expect(mockUseRoleDrawer).toHaveBeenCalledWith(null, false);
     });
 
     it('should show create button', () => {
@@ -357,25 +396,30 @@ describe('RoleDrawer', () => {
       renderRoleDrawer({ roleId: 'role-1' });
 
       // In edit mode, the drawer should render with role data
-      // The query is not skipped when roleId is provided
+      // The hook is called with roleId and open=true
       expect(screen.getByText('Edit Role')).toBeInTheDocument();
-      // The query should have been called
-      expect(mockUseGetRolesWithPermissionsQuery).toHaveBeenCalled();
+      // useRoleDrawer should be called with roleId
+      expect(mockUseRoleDrawer).toHaveBeenCalledWith('role-1', true);
     });
 
     it('should show loading state while fetching role', () => {
-      const mockRefetch = vi.fn().mockResolvedValue({
-        data: {
-          roles: {
-            edges: [{ node: mockRole }],
-          },
-        },
-      });
-      mockUseGetRolesWithPermissionsQuery.mockReturnValue({
-        data: undefined as any,
+      mockUseRoleDrawer.mockReturnValue({
+        role: null,
         loading: true,
         error: undefined,
-        refetch: mockRefetch,
+        selectedGroups: [],
+        selectedPermissions: [],
+        hasChanges: false,
+        saving: false,
+        updateSelectedGroups: vi.fn(),
+        updateSelectedPermissions: vi.fn(),
+        handleSave: vi.fn().mockResolvedValue(undefined),
+        resetChanges: vi.fn(),
+        refetch: vi.fn().mockResolvedValue({
+          data: {
+            role: mockRole,
+          },
+        }),
       });
 
       renderRoleDrawer({ roleId: 'role-1' });
@@ -384,18 +428,23 @@ describe('RoleDrawer', () => {
     });
 
     it('should show error state when query fails', () => {
-      const mockRefetch = vi.fn().mockResolvedValue({
-        data: {
-          roles: {
-            edges: [{ node: mockRole }],
-          },
-        },
-      });
-      mockUseGetRolesWithPermissionsQuery.mockReturnValue({
-        data: undefined as any,
+      mockUseRoleDrawer.mockReturnValue({
+        role: null,
         loading: false,
-        error: new Error('Failed to load') as any,
-        refetch: mockRefetch,
+        error: new Error('Failed to load'),
+        selectedGroups: [],
+        selectedPermissions: [],
+        hasChanges: false,
+        saving: false,
+        updateSelectedGroups: vi.fn(),
+        updateSelectedPermissions: vi.fn(),
+        handleSave: vi.fn().mockResolvedValue(undefined),
+        resetChanges: vi.fn(),
+        refetch: vi.fn().mockResolvedValue({
+          data: {
+            role: mockRole,
+          },
+        }),
       });
 
       renderRoleDrawer({ roleId: 'role-1' });
@@ -438,8 +487,8 @@ describe('RoleDrawer', () => {
     });
 
     it('should disable buttons when saving', () => {
-      mockUseRoleManagement.mockReturnValue({
-        ...mockUseRoleManagement(),
+      mockUseRoleMutations.mockReturnValue({
+        ...mockUseRoleMutations(),
         createLoading: true,
       });
 

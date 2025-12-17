@@ -9,7 +9,6 @@ import io.github.salomax.neotool.security.repo.GroupMembershipRepository
 import io.github.salomax.neotool.security.repo.GroupRepository
 import io.github.salomax.neotool.security.repo.GroupRoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.PermissionRepository
-import io.github.salomax.neotool.security.repo.RoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.AuthenticationService
@@ -46,9 +45,6 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
 
     @Inject
     lateinit var permissionRepository: PermissionRepository
-
-    @Inject
-    lateinit var roleAssignmentRepository: RoleAssignmentRepository
 
     @Inject
     lateinit var groupRepository: GroupRepository
@@ -99,7 +95,6 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
             // Clean up in reverse order of dependencies
             groupRoleAssignmentRepository.deleteAll()
             groupMembershipRepository.deleteAll()
-            roleAssignmentRepository.deleteAll()
             // Note: role_permissions is a join table, handled by JPA
             permissionRepository.deleteAll()
             roleRepository.deleteAll()
@@ -112,12 +107,12 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
     }
 
     @Nested
-    @DisplayName("Direct Role Assignment - Happy Path")
-    inner class DirectRoleAssignmentTests {
+    @DisplayName("Group-Based Role Assignment - Happy Path")
+    inner class GroupBasedRoleAssignmentTests {
         @Test
-        fun `should allow access when user has direct role with permission`() {
+        fun `should allow access when user has role through group membership`() {
             // Arrange
-            val user = createTestUser() // Create user before role assignment
+            val user = createTestUser() // Create user before group membership
 
             val role = SecurityTestDataBuilders.role(name = "admin")
             val savedRole = roleRepository.save(role)
@@ -136,12 +131,24 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
                 .setParameter("permissionId", savedPermission.id)
                 .executeUpdate()
 
-            val roleAssignment =
-                SecurityTestDataBuilders.roleAssignment(
-                    userId = user.id!!,
+            // Create group and assign role to group
+            val group = SecurityTestDataBuilders.group(name = "admins")
+            val savedGroup = groupRepository.save(group)
+
+            val groupRoleAssignment =
+                SecurityTestDataBuilders.groupRoleAssignment(
+                    groupId = savedGroup.id,
                     roleId = savedRole.id!!,
                 )
-            roleAssignmentRepository.save(roleAssignment)
+            groupRoleAssignmentRepository.save(groupRoleAssignment)
+
+            // Add user to group
+            val groupMembership =
+                SecurityTestDataBuilders.groupMembership(
+                    userId = user.id!!,
+                    groupId = savedGroup.id,
+                )
+            groupMembershipRepository.save(groupMembership)
             entityManager.flush()
 
             // Act
@@ -224,9 +231,9 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
     @DisplayName("Temporary Access Validity")
     inner class TemporaryAccessValidityTests {
         @Test
-        fun `should allow access when role assignment is within valid date range`() {
+        fun `should allow access when group role assignment is within valid date range`() {
             // Arrange
-            val user = createTestUser() // Create user before role assignment
+            val user = createTestUser() // Create user before group membership
             val userId = user.id!!
 
             val role = SecurityTestDataBuilders.role(name = "temp-access")
@@ -246,17 +253,29 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
                 .setParameter("permissionId", savedPermission.id)
                 .executeUpdate()
 
+            // Create group and assign role to group with temporal validity
+            val group = SecurityTestDataBuilders.group(name = "temp-group")
+            val savedGroup = groupRepository.save(group)
+
             val now = Instant.now()
-            val roleAssignment =
-                SecurityTestDataBuilders.roleAssignment(
-                    userId = userId,
+            val groupRoleAssignment =
+                SecurityTestDataBuilders.groupRoleAssignment(
+                    groupId = savedGroup.id,
                     roleId = savedRole.id!!,
                     // Started 1 hour ago
                     validFrom = now.minusSeconds(3600),
                     // Expires in 1 hour
                     validUntil = now.plusSeconds(3600),
                 )
-            roleAssignmentRepository.save(roleAssignment)
+            groupRoleAssignmentRepository.save(groupRoleAssignment)
+
+            // Add user to group
+            val groupMembership =
+                SecurityTestDataBuilders.groupMembership(
+                    userId = userId,
+                    groupId = savedGroup.id,
+                )
+            groupMembershipRepository.save(groupMembership)
             entityManager.flush()
 
             // Act
@@ -267,9 +286,9 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
         }
 
         @Test
-        fun `should deny access when role assignment has expired`() {
+        fun `should deny access when group role assignment has expired`() {
             // Arrange
-            val user = createTestUser() // Create user before role assignment
+            val user = createTestUser() // Create user before group membership
             val userId = user.id!!
 
             val role = SecurityTestDataBuilders.role(name = "expired-role")
@@ -289,24 +308,36 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
                 .setParameter("permissionId", savedPermission.id)
                 .executeUpdate()
 
+            // Create group and assign role to group with expired validity
+            val group = SecurityTestDataBuilders.group(name = "expired-group")
+            val savedGroup = groupRepository.save(group)
+
             val now = Instant.now()
-            val roleAssignment =
-                SecurityTestDataBuilders.roleAssignment(
-                    userId = userId,
+            val groupRoleAssignment =
+                SecurityTestDataBuilders.groupRoleAssignment(
+                    groupId = savedGroup.id,
                     roleId = savedRole.id!!,
                     // Started 2 hours ago
                     validFrom = now.minusSeconds(7200),
                     // Expired 1 hour ago
                     validUntil = now.minusSeconds(3600),
                 )
-            roleAssignmentRepository.save(roleAssignment)
+            groupRoleAssignmentRepository.save(groupRoleAssignment)
+
+            // Add user to group
+            val groupMembership =
+                SecurityTestDataBuilders.groupMembership(
+                    userId = userId,
+                    groupId = savedGroup.id,
+                )
+            groupMembershipRepository.save(groupMembership)
             entityManager.flush()
 
             // Act
             val result = authorizationService.checkPermission(userId, "transaction:read")
 
             // Assert
-            // Expired assignments should not be returned by findValidAssignmentsByUserId
+            // Expired assignments should not be returned by findValidAssignmentsByGroupIds
             assertThat(result.allowed).isFalse()
         }
     }
@@ -315,9 +346,9 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
     @DisplayName("Get User Permissions")
     inner class GetUserPermissionsTests {
         @Test
-        fun `should return permissions from direct and group-inherited roles`() {
+        fun `should return permissions from multiple group-inherited roles`() {
             // Arrange
-            val user = createTestUser() // Create user before role assignments and group memberships
+            val user = createTestUser() // Create user before group memberships
             val userId = user.id!!
 
             val role1 = SecurityTestDataBuilders.role(name = "admin")
@@ -353,31 +384,41 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
                 .setParameter("permissionId", savedPermission2.id)
                 .executeUpdate()
 
-            // Direct role assignment
-            val roleAssignment =
-                SecurityTestDataBuilders.roleAssignment(
-                    userId = userId,
-                    roleId = savedRole1.id!!,
-                )
-            roleAssignmentRepository.save(roleAssignment)
+            // Group 1 with role 1
+            val group1 = SecurityTestDataBuilders.group(name = "admins")
+            val savedGroup1 = groupRepository.save(group1)
 
-            // Group role assignment
-            val group = SecurityTestDataBuilders.group(name = "editors")
-            val savedGroup = groupRepository.save(group)
-
-            val groupMembership =
+            val groupMembership1 =
                 SecurityTestDataBuilders.groupMembership(
                     userId = userId,
-                    groupId = savedGroup.id,
+                    groupId = savedGroup1.id,
                 )
-            groupMembershipRepository.save(groupMembership)
+            groupMembershipRepository.save(groupMembership1)
 
-            val groupRoleAssignment =
+            val groupRoleAssignment1 =
                 SecurityTestDataBuilders.groupRoleAssignment(
-                    groupId = savedGroup.id,
+                    groupId = savedGroup1.id,
+                    roleId = savedRole1.id!!,
+                )
+            groupRoleAssignmentRepository.save(groupRoleAssignment1)
+
+            // Group 2 with role 2
+            val group2 = SecurityTestDataBuilders.group(name = "editors")
+            val savedGroup2 = groupRepository.save(group2)
+
+            val groupMembership2 =
+                SecurityTestDataBuilders.groupMembership(
+                    userId = userId,
+                    groupId = savedGroup2.id,
+                )
+            groupMembershipRepository.save(groupMembership2)
+
+            val groupRoleAssignment2 =
+                SecurityTestDataBuilders.groupRoleAssignment(
+                    groupId = savedGroup2.id,
                     roleId = savedRole2.id!!,
                 )
-            groupRoleAssignmentRepository.save(groupRoleAssignment)
+            groupRoleAssignmentRepository.save(groupRoleAssignment2)
             entityManager.flush()
 
             // Act
@@ -393,9 +434,9 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
     @DisplayName("Get User Roles")
     inner class GetUserRolesTests {
         @Test
-        fun `should return roles from direct and group-inherited assignments`() {
+        fun `should return roles from multiple group-inherited assignments`() {
             // Arrange
-            val user = createTestUser() // Create user before role assignments and group memberships
+            val user = createTestUser() // Create user before group memberships
             val userId = user.id!!
 
             val role1 = SecurityTestDataBuilders.role(name = "admin")
@@ -404,31 +445,41 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
             val role2 = SecurityTestDataBuilders.role(name = "editor")
             val savedRole2 = roleRepository.save(role2)
 
-            // Direct role assignment
-            val roleAssignment =
-                SecurityTestDataBuilders.roleAssignment(
-                    userId = userId,
-                    roleId = savedRole1.id!!,
-                )
-            roleAssignmentRepository.save(roleAssignment)
+            // Group 1 with role 1
+            val group1 = SecurityTestDataBuilders.group(name = "admins")
+            val savedGroup1 = groupRepository.save(group1)
 
-            // Group role assignment
-            val group = SecurityTestDataBuilders.group(name = "editors")
-            val savedGroup = groupRepository.save(group)
-
-            val groupMembership =
+            val groupMembership1 =
                 SecurityTestDataBuilders.groupMembership(
                     userId = userId,
-                    groupId = savedGroup.id,
+                    groupId = savedGroup1.id,
                 )
-            groupMembershipRepository.save(groupMembership)
+            groupMembershipRepository.save(groupMembership1)
 
-            val groupRoleAssignment =
+            val groupRoleAssignment1 =
                 SecurityTestDataBuilders.groupRoleAssignment(
-                    groupId = savedGroup.id,
+                    groupId = savedGroup1.id,
+                    roleId = savedRole1.id!!,
+                )
+            groupRoleAssignmentRepository.save(groupRoleAssignment1)
+
+            // Group 2 with role 2
+            val group2 = SecurityTestDataBuilders.group(name = "editors")
+            val savedGroup2 = groupRepository.save(group2)
+
+            val groupMembership2 =
+                SecurityTestDataBuilders.groupMembership(
+                    userId = userId,
+                    groupId = savedGroup2.id,
+                )
+            groupMembershipRepository.save(groupMembership2)
+
+            val groupRoleAssignment2 =
+                SecurityTestDataBuilders.groupRoleAssignment(
+                    groupId = savedGroup2.id,
                     roleId = savedRole2.id!!,
                 )
-            groupRoleAssignmentRepository.save(groupRoleAssignment)
+            groupRoleAssignmentRepository.save(groupRoleAssignment2)
             entityManager.flush()
 
             // Act
@@ -485,7 +536,7 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
             // Setup test data in a committed transaction so it's visible to the service
             val userId =
                 entityManager.runTransaction {
-                    // Create user before role assignment
+                    // Create user before group membership
                     val user = createTestUser()
                     val userId = user.id!!
 
@@ -506,12 +557,24 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
                         .setParameter("permissionId", savedPermission.id)
                         .executeUpdate()
 
-                    val roleAssignment =
-                        SecurityTestDataBuilders.roleAssignment(
-                            userId = userId,
+                    // Create group and assign role to group
+                    val group = SecurityTestDataBuilders.group(name = "admins")
+                    val savedGroup = groupRepository.save(group)
+
+                    val groupRoleAssignment =
+                        SecurityTestDataBuilders.groupRoleAssignment(
+                            groupId = savedGroup.id,
                             roleId = savedRole.id!!,
                         )
-                    roleAssignmentRepository.save(roleAssignment)
+                    groupRoleAssignmentRepository.save(groupRoleAssignment)
+
+                    // Add user to group
+                    val groupMembership =
+                        SecurityTestDataBuilders.groupMembership(
+                            userId = userId,
+                            groupId = savedGroup.id,
+                        )
+                    groupMembershipRepository.save(groupMembership)
 
                     // ABAC policy that allows - use explicit UUID string format
                     val userIdString = userId.toString()
@@ -551,7 +614,7 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
             // Setup test data in a committed transaction so it's visible to the service
             val userId =
                 entityManager.runTransaction {
-                    // Create user before role assignment
+                    // Create user before group membership
                     val user = createTestUser()
                     val userId = user.id!!
 
@@ -572,12 +635,24 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
                         .setParameter("permissionId", savedPermission.id)
                         .executeUpdate()
 
-                    val roleAssignment =
-                        SecurityTestDataBuilders.roleAssignment(
-                            userId = userId,
+                    // Create group and assign role to group
+                    val group = SecurityTestDataBuilders.group(name = "admins")
+                    val savedGroup = groupRepository.save(group)
+
+                    val groupRoleAssignment =
+                        SecurityTestDataBuilders.groupRoleAssignment(
+                            groupId = savedGroup.id,
                             roleId = savedRole.id!!,
                         )
-                    roleAssignmentRepository.save(roleAssignment)
+                    groupRoleAssignmentRepository.save(groupRoleAssignment)
+
+                    // Add user to group
+                    val groupMembership =
+                        SecurityTestDataBuilders.groupMembership(
+                            userId = userId,
+                            groupId = savedGroup.id,
+                        )
+                    groupMembershipRepository.save(groupMembership)
 
                     // ABAC policy that explicitly denies - use explicit UUID string format
                     val userIdString = userId.toString()

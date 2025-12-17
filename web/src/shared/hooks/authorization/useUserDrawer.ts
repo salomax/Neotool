@@ -1,12 +1,11 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { useGetUserWithRelationshipsQuery, GetUserWithRelationshipsDocument } from "@/lib/graphql/operations/authorization-management/queries.generated";
+import { useGetUserWithRelationshipsQuery, GetUserWithRelationshipsDocument, GetUsersDocument } from "@/lib/graphql/operations/authorization-management/queries.generated";
 import {
   useAssignGroupToUserMutation,
   useRemoveGroupFromUserMutation,
-  useAssignRoleToUserMutation,
-  useRemoveRoleFromUserMutation,
+  useUpdateUserMutation,
 } from "@/lib/graphql/operations/authorization-management/mutations.generated";
 import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
@@ -18,6 +17,9 @@ type User = {
   email: string;
   displayName: string | null;
   enabled: boolean;
+  avatarUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
   groups: Array<{ id: string; name: string; description: string | null }>;
   roles: Array<{ id: string; name: string }>;
 };
@@ -58,7 +60,7 @@ export function useUserDrawer(
     skip: !open || !userId,
     variables: { id: userId! },
     fetchPolicy: 'network-only',
-    notifyOnNetworkStatusChange: true,
+    notifyOnNetworkStatusChange: false, // Prevent loading state during refetches to avoid drawer blink
   });
 
   // Extract user from query result
@@ -69,6 +71,9 @@ export function useUserDrawer(
       email: data.user.email,
       displayName: data.user.displayName,
       enabled: data.user.enabled,
+      avatarUrl: data.user.avatarUrl,
+      createdAt: data.user.createdAt,
+      updatedAt: data.user.updatedAt,
       groups: data.user.groups.map(g => ({
         id: g.id,
         name: g.name,
@@ -91,8 +96,7 @@ export function useUserDrawer(
   // Mutation hooks
   const [assignGroupToUserMutation] = useAssignGroupToUserMutation();
   const [removeGroupFromUserMutation] = useRemoveGroupFromUserMutation();
-  const [assignRoleToUserMutation] = useAssignRoleToUserMutation();
-  const [removeRoleFromUserMutation] = useRemoveRoleFromUserMutation();
+  const [updateUserMutation] = useUpdateUserMutation();
 
   // Initialize form state when user data loads
   useEffect(() => {
@@ -116,7 +120,7 @@ export function useUserDrawer(
     if (!user) return false;
     
     const displayNameChanged = displayName !== (user.displayName || "");
-    const emailChanged = email !== user.email;
+    // Email is immutable, so don't check for email changes
     
     const originalGroupIds = new Set(user.groups.map(g => g.id));
     const currentGroupIds = new Set(selectedGroups.map(g => g.id));
@@ -125,15 +129,9 @@ export function useUserDrawer(
       selectedGroups.some(g => !originalGroupIds.has(g.id)) ||
       user.groups.some(g => !currentGroupIds.has(g.id));
     
-    const originalRoleIds = new Set(user.roles.map(r => r.id));
-    const currentRoleIds = new Set(selectedRoles.map(r => r.id));
-    const rolesChanged = 
-      selectedRoles.length !== user.roles.length ||
-      selectedRoles.some(r => !originalRoleIds.has(r.id)) ||
-      user.roles.some(r => !currentRoleIds.has(r.id));
-    
-    return displayNameChanged || emailChanged || groupsChanged || rolesChanged;
-  }, [user, displayName, email, selectedGroups, selectedRoles]);
+    // Roles are readonly (assigned through groups only), so don't include in hasChanges
+    return displayNameChanged || groupsChanged;
+  }, [user, displayName, selectedGroups]);
 
   // Handlers for updating local state
   const updateDisplayName = useCallback((value: string) => {
@@ -182,11 +180,7 @@ export function useUserDrawer(
       const groupsToAdd = selectedGroups.filter(g => !originalGroupIds.has(g.id)).map(g => g.id);
       const groupsToRemove = Array.from(originalGroupIds).filter(id => !currentGroupIds.has(id));
 
-      // Calculate differences for roles
-      const originalRoleIds = new Set(user.roles.map(r => r.id));
-      const currentRoleIds = new Set(selectedRoles.map(r => r.id));
-      const rolesToAdd = selectedRoles.filter(r => !originalRoleIds.has(r.id)).map(r => r.id);
-      const rolesToRemove = Array.from(originalRoleIds).filter(id => !currentRoleIds.has(id));
+      // Roles are readonly (assigned through groups only), so no role mutations
 
       // Execute all mutations in parallel
       const mutationPromises: Promise<any>[] = [];
@@ -196,7 +190,10 @@ export function useUserDrawer(
         mutationPromises.push(
           assignGroupToUserMutation({
             variables: { userId, groupId },
-            refetchQueries: [GetUserWithRelationshipsDocument],
+            // Only refetch list query - drawer query will be refetched when drawer reopens
+            // Removing drawer query from refetchQueries prevents drawer blink during save
+            refetchQueries: ['GetUsers'],
+            awaitRefetchQueries: true,
           })
         );
       }
@@ -205,26 +202,30 @@ export function useUserDrawer(
         mutationPromises.push(
           removeGroupFromUserMutation({
             variables: { userId, groupId },
-            refetchQueries: [GetUserWithRelationshipsDocument],
+            // Only refetch list query - drawer query will be refetched when drawer reopens
+            // Removing drawer query from refetchQueries prevents drawer blink during save
+            refetchQueries: ['GetUsers'],
+            awaitRefetchQueries: true,
           })
         );
       }
 
-      // Role mutations
-      for (const roleId of rolesToAdd) {
-        mutationPromises.push(
-          assignRoleToUserMutation({
-            variables: { userId, roleId },
-            refetchQueries: [GetUserWithRelationshipsDocument],
-          })
-        );
-      }
+      // Check if displayName changed (email is immutable)
+      const displayNameChanged = displayName !== (user.displayName || "");
       
-      for (const roleId of rolesToRemove) {
+      if (displayNameChanged) {
         mutationPromises.push(
-          removeRoleFromUserMutation({
-            variables: { userId, roleId },
-            refetchQueries: [GetUserWithRelationshipsDocument],
+          updateUserMutation({
+            variables: {
+              userId,
+              input: {
+                displayName: displayName,
+              },
+            },
+            // Only refetch list query - drawer query will be refetched when drawer reopens
+            // Removing drawer query from refetchQueries prevents drawer blink during save
+            refetchQueries: ['GetUsers'],
+            awaitRefetchQueries: true,
           })
         );
       }
@@ -234,11 +235,8 @@ export function useUserDrawer(
         await Promise.all(mutationPromises);
       }
 
-      // TODO: Add update user mutation for displayName and email when available
-      // For now, we only handle groups and roles
-
-      // Refetch to get updated data
-      await refetch();
+      // Mutations already refetch queries via refetchQueries with awaitRefetchQueries: true
+      // No need for additional refetch call that causes drawer to blink
       
       // Show success message
       toast.success(t("userManagement.drawer.saveSuccess"));
@@ -255,14 +253,12 @@ export function useUserDrawer(
   }, [
     user,
     userId,
+    displayName,
     selectedGroups,
-    selectedRoles,
     saving,
     assignGroupToUserMutation,
     removeGroupFromUserMutation,
-    assignRoleToUserMutation,
-    removeRoleFromUserMutation,
-    refetch,
+    updateUserMutation,
     toast,
     t,
   ]);

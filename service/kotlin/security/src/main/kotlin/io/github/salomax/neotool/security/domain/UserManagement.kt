@@ -25,22 +25,6 @@ object UserManagement {
     )
 
     /**
-     * Command to assign a role to a user.
-     */
-    data class AssignRoleToUserCommand(
-        val userId: UUID,
-        val roleId: Int,
-    )
-
-    /**
-     * Command to remove a role from a user.
-     */
-    data class RemoveRoleFromUserCommand(
-        val userId: UUID,
-        val roleId: Int,
-    )
-
-    /**
      * Command to assign a group to a user.
      */
     data class AssignGroupToUserCommand(
@@ -55,6 +39,21 @@ object UserManagement {
         val userId: UUID,
         val groupId: UUID,
     )
+
+    /**
+     * Command to update basic user profile fields.
+     * Currently only supports updating displayName; email is immutable.
+     */
+    data class UpdateUserCommand(
+        val userId: UUID,
+        val displayName: String?,
+    ) {
+        init {
+            require(displayName == null || displayName.isNotBlank()) {
+                "Display name cannot be blank if provided"
+            }
+        }
+    }
 
     /**
      * Search criteria for finding users.
