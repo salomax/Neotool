@@ -18,6 +18,10 @@ out/
 *.log
 *.hprof
 
+# Kotlin compiler session files
+.kotlin/
+*.salive
+
 __pycache__/
 
 .expo/

@@ -267,9 +267,29 @@ export class GroupManagementPage {
       // Wait for search element to be visible (indicates page is ready)
       // This is more reliable than networkidle which can timeout
       await this.page.waitForSelector(SELECTORS.groupSearch, { timeout: 10000 });
-      // Just verify that the table is empty or shows empty message
-      const rows = await this.getGroupCount();
-      expect(rows).toBe(0);
+      // Wait for search to complete and list to update
+      await this.page.waitForTimeout(1000);
+      
+      // Check for empty state row first (more reliable than counting rows)
+      const emptyStateRow = this.page.locator('[data-testid="table-empty-state-row"]');
+      const emptyStateCount = await emptyStateRow.count();
+      
+      if (emptyStateCount > 0) {
+        // Empty state row exists, verify it's visible
+        await expect(emptyStateRow).toBeVisible({ timeout: 10000 });
+      } else {
+        // No empty state row, verify that the table is empty
+        // Wait a bit more and check again - sometimes the empty state takes time to appear
+        await this.page.waitForTimeout(500);
+        const finalEmptyStateCount = await emptyStateRow.count();
+        if (finalEmptyStateCount > 0) {
+          await expect(emptyStateRow).toBeVisible({ timeout: 5000 });
+        } else {
+          // Verify that there are no group rows (excluding empty state)
+          const rows = await this.getGroupCount();
+          expect(rows).toBe(0);
+        }
+      }
     }
   }
 

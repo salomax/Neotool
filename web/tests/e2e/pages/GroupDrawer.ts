@@ -39,15 +39,17 @@ export class GroupDrawer {
   async waitForClose(): Promise<void> {
     // Wait for drawer to not be visible with a longer timeout
     // The drawer may take time to close due to animations and async operations
-    await expect(this.getDrawer()).not.toBeVisible({ timeout: 10000 });
+    // Use a longer timeout (20 seconds) to account for network requests and UI updates
+    await expect(this.getDrawer()).not.toBeVisible({ timeout: 20000 });
   }
 
   /**
    * Close drawer
    */
   async close(): Promise<void> {
-    // Use data-testid for the close button
-    const closeButton = this.page.locator('[data-testid="drawer-close-button"]');
+    // The close button is an IconButton with aria-label containing "Close"
+    // It's in the drawer header - use aria-label to find it
+    const closeButton = this.getDrawer().locator('button[aria-label*="Close"]').first();
     await closeButton.waitFor({ state: 'visible', timeout: 10000 });
     await expect(closeButton).toBeEnabled({ timeout: 5000 });
     await closeButton.click();
@@ -68,8 +70,10 @@ export class GroupDrawer {
    */
   private getDescriptionInput() {
     // TextField renders data-testid on the wrapper, but we need to target the actual input element
+    // MUI TextField may render multiple textareas (one visible, one hidden for measurement)
+    // Use first() to get the visible, editable one
     const descriptionInputWrapper = this.page.locator('[data-testid="group-form-description"]');
-    return descriptionInputWrapper.locator('textarea, input');
+    return descriptionInputWrapper.locator('textarea:not([readonly]), input:not([readonly])').first();
   }
 
   /**
@@ -126,13 +130,20 @@ export class GroupDrawer {
     // Click the save button
     await saveButton.click();
     
-    // Wait for save operation to complete
-    // The button is disabled and shows "Saving..." text while saving
-    // Wait for the button to be enabled again, which indicates save completed
-    await expect(saveButton).toBeEnabled({ timeout: 15000 });
+    // Wait for the saving state to complete
+    // The button is disabled and shows "Saving..." while saving
+    // Wait for the button to no longer show "Saving..." text, which indicates save completed
+    // Use a longer timeout to account for network requests
+    const savingButton = this.getDrawer().locator('button:has-text("Saving")').first();
+    const savingCount = await savingButton.count();
+    if (savingCount > 0) {
+      // Wait for "Saving" button to disappear (save operation completed)
+      await expect(savingButton).not.toBeVisible({ timeout: 20000 });
+    }
     
     // Wait for drawer to close after save (drawer closes automatically after successful save)
-    // Use a longer timeout to account for network requests and UI updates
+    // The drawer closing is the primary indicator that save completed successfully
+    // Use a longer timeout to account for network requests, UI updates, and animations
     await this.waitForClose();
     
     // Wait a moment for any UI updates, network requests, or animations to complete

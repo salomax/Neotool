@@ -8,20 +8,34 @@ alwaysApply: true
 
 ## Specification Knowledge Base
 
-This project uses a comprehensive specification located in the `docs/` directory. **ALWAYS** reference the specification when:
-- Creating new features
-- Making architectural decisions
-- Writing code that follows project patterns
-- Understanding the technology stack
-- Following coding conventions
+This project uses a comprehensive specification located in the `docs/` directory. **The specification is the source of truth for ALL questions and implementations.**
+
+### Core Principle: Spec-Driven Development (SDD)
+
+**ALWAYS reference the specification for:**
+- **Any question** about the project, architecture, patterns, or conventions
+- **Any implementation** - features, bug fixes, refactoring, or code changes
+- **Any architectural decision** - check ADRs and architecture docs first
+- **Any code pattern** - use documented patterns from `docs/04-patterns/`
+- **Any coding standard** - follow standards from `docs/05-standards/`
+- **Any workflow** - follow workflows from `docs/06-workflows/`
+
+**Before answering any question or implementing anything:**
+1. **Check the specification first** - Start with `docs/MANIFEST.md` to find relevant documents
+2. **Load appropriate context** - Use `docs/06-workflows/spec-context-strategy.md` for context loading guidance
+3. **Reference spec documents** - Quote or reference specific spec sections in your responses
+4. **Follow spec patterns** - Use documented patterns, don't invent new approaches
+5. **Validate against spec** - Ensure answers and implementations comply with specification
 
 ### Key Specification Documents
 
 1. **Start Here**: `docs/MANIFEST.md` - Complete index of all specification documents
 2. **Architecture**: `docs/00-overview/architecture-overview.md` - System architecture and technology stack
-3. **Quick Reference**: `docs/10-reference/` - Common patterns, commands, and conventions
-4. **Glossary**: `docs/02-domain/glossary.md` - Terminology and definitions
-5. **Project Setup**: `docs/00-overview/quick-start.md` - Setup and configuration guide
+3. **Context Strategy**: `docs/06-workflows/spec-context-strategy.md` - **CRITICAL**: How to efficiently use the spec for questions and implementations
+4. **Quick Reference**: `docs/10-reference/` - Common patterns, commands, and conventions
+5. **Glossary**: `docs/02-domain/glossary.md` - Terminology and definitions
+6. **Project Setup**: `docs/00-overview/quick-start.md` - Setup and configuration guide
+7. **Workflows**: `docs/06-workflows/` - Development workflows (feature dev, code review, testing, deployment)
 
 ### Architecture Decision Records (ADRs)
 
@@ -75,15 +89,59 @@ All major technical decisions are documented in `docs/09-adr/`:
 
 ## Development Guidelines
 
+### When Answering Questions
+
+**ALWAYS follow this process:**
+
+1. **Check Specification First**:
+   - Start with `docs/MANIFEST.md` to locate relevant documents
+   - Use `docs/06-workflows/spec-context-strategy.md` for context loading guidance
+   - Load essential context: MANIFEST, architecture overview, glossary
+
+2. **Find Relevant Spec Documents**:
+   - Search `docs/` for relevant patterns, standards, or workflows
+   - Use cross-references (`related:` in frontmatter) to find related docs
+   - Reference specific spec sections in your answer
+
+3. **Provide Spec-Based Answers**:
+   - Quote or reference specific spec documents
+   - Include spec paths in your response
+   - Follow spec patterns and standards in your guidance
+
+4. **Validate Against Spec**:
+   - Ensure your answer aligns with specification
+   - Reference relevant patterns, standards, or workflows
+   - If spec doesn't cover the question, note that and suggest checking ADRs
+
 ### When Creating New Features
 
+**Follow Spec-Driven Development workflow** (`docs/06-workflows/feature-development.md`):
+
 1. **Reference the Specification**: Always check relevant spec documents before implementing
+   - Use `docs/06-workflows/spec-context-strategy.md` for context loading
+   - Follow phase-based context loading strategy
+   - Load feature context: feature file, memory file, task breakdown
+
 2. **Follow Architecture Patterns**: Use patterns documented in ADRs and architecture docs
-3. **Maintain Type Safety**: Ensure end-to-end type safety from database to UI
-4. **Follow Directory Structure**: Adhere to structure defined in `docs/00-overview/project-structure.md` (frontend) and service docs (backend)
-5. **Use GraphQL Patterns**: Follow GraphQL patterns in `docs/04-patterns/api-patterns/graphql-query-pattern.md` (backend) and `docs/04-patterns/frontend-patterns/graphql-query-pattern.md` (frontend)
-6. **Follow Component Patterns**: Use component system from `docs/04-patterns/frontend-patterns/shared-components-pattern.md` and `docs/04-patterns/frontend-patterns/management-pattern.md`
-7. **Apply Testing Patterns**: Follow testing patterns from `docs/04-patterns/frontend-patterns/testing-pattern.md`
+   - Reference `docs/04-patterns/` for implementation patterns
+   - Follow `docs/09-adr/` for architectural decisions
+
+3. **Follow Workflows**: Use documented workflows from `docs/06-workflows/`
+   - Feature Development: `docs/06-workflows/feature-development.md`
+   - Code Review: `docs/06-workflows/code-review.md`
+   - Testing: `docs/06-workflows/testing-workflow.md`
+   - Deployment: `docs/06-workflows/deployment-workflow.md`
+
+4. **Maintain Type Safety**: Ensure end-to-end type safety from database to UI
+   - Follow type safety patterns from `docs/04-patterns/`
+
+5. **Follow Directory Structure**: Adhere to structure defined in `docs/00-overview/project-structure.md`
+
+6. **Use GraphQL Patterns**: Follow GraphQL patterns in `docs/04-patterns/api-patterns/graphql-query-pattern.md` (backend) and `docs/04-patterns/frontend-patterns/graphql-query-pattern.md` (frontend)
+
+7. **Follow Component Patterns**: Use component system from `docs/04-patterns/frontend-patterns/shared-components-pattern.md` and `docs/04-patterns/frontend-patterns/management-pattern.md`
+
+8. **Apply Testing Patterns**: Follow testing patterns from `docs/04-patterns/frontend-patterns/testing-pattern.md`
 
 ### Code Generation Rules
 
@@ -166,13 +224,64 @@ neotool/
 
 ## When Suggesting Solutions
 
-1. **Always reference the spec**: Check `docs/` folder for relevant documentation
-2. **Follow established patterns**: Use patterns from ADRs and architecture docs
-3. **Maintain consistency**: Follow existing code structure and conventions
-4. **Ensure type safety**: Maintain end-to-end type safety
-5. **Consider architecture**: Respect the layered architecture and boundaries
-6. **Use design system**: Apply components and themes from the design system
-7. **Follow GraphQL patterns**: Use federation patterns for API development
+**ALWAYS follow Spec-Driven Development approach:**
+
+1. **Always reference the spec first**: 
+   - Check `docs/MANIFEST.md` to locate relevant documents
+   - Use `docs/06-workflows/spec-context-strategy.md` for efficient context loading
+   - Load phase-specific context as needed
+
+2. **Follow established patterns**: 
+   - Use patterns from `docs/04-patterns/`
+   - Reference ADRs from `docs/09-adr/` for architectural decisions
+   - Follow workflows from `docs/06-workflows/`
+
+3. **Maintain consistency**: 
+   - Follow existing code structure and conventions from spec
+   - Reference `docs/05-standards/` for coding standards
+   - Use templates from `docs/08-templates/`
+
+4. **Ensure type safety**: 
+   - Maintain end-to-end type safety as documented in patterns
+   - Follow type safety patterns from `docs/04-patterns/`
+
+5. **Consider architecture**: 
+   - Respect the layered architecture from `docs/00-overview/architecture-overview.md`
+   - Follow architecture standards from `docs/05-standards/architecture-standards/`
+
+6. **Use design system**: 
+   - Apply components and themes from the design system
+   - Follow component patterns from `docs/04-patterns/frontend-patterns/`
+
+7. **Follow GraphQL patterns**: 
+   - Use federation patterns from `docs/04-patterns/api-patterns/graphql-federation.md`
+   - Follow query/mutation patterns from `docs/04-patterns/frontend-patterns/`
+
+8. **Validate against spec**: 
+   - Use checklists from `docs/11-validation/`
+   - Ensure compliance with all relevant spec documents
+
+## Context Loading Strategy
+
+**For efficient spec usage, follow `docs/06-workflows/spec-context-strategy.md`:**
+
+### Essential Context (Always Load)
+- `docs/MANIFEST.md` - Document index for navigation
+- `docs/00-overview/architecture-overview.md` - System understanding
+- `docs/02-domain/glossary.md` - Terminology
+
+### Phase-Specific Context (Load as Needed)
+- **For Questions**: Load relevant spec sections based on question topic
+- **For Implementation**: Load phase-specific specs (domain, backend, frontend, testing)
+- **For Code Review**: Load feature context + relevant pattern docs
+
+### Context Optimization
+- Start narrow, expand as needed
+- Reference spec paths, don't copy full content
+- Use cross-references (`related:` in frontmatter)
+- Load patterns, reference examples
+
+See `docs/06-workflows/spec-context-strategy.md` for detailed implementation flow and context management.
 
 ## RAG Integration
 
@@ -185,33 +294,73 @@ The specification is optimized for RAG indexing with:
 
 When searching for information:
 1. Start with `docs/MANIFEST.md` for document discovery
-2. Use `docs/00-overview/architecture-overview.md` for system understanding
-3. Reference `docs/02-domain/glossary.md` for terminology
-4. Follow cross-references in documents for related context
-5. Use category tags to find related documents
+2. Use `docs/06-workflows/spec-context-strategy.md` for context loading strategy
+3. Use `docs/00-overview/architecture-overview.md` for system understanding
+4. Reference `docs/02-domain/glossary.md` for terminology
+5. Follow cross-references in documents for related context
+6. Use category tags to find related documents
+
+## Example: Answering Questions
+
+When asked any question about the project:
+
+1. **Load Essential Context**: 
+   - `docs/MANIFEST.md` - Find relevant documents
+   - `docs/00-overview/architecture-overview.md` - System understanding
+   - `docs/02-domain/glossary.md` - Terminology
+
+2. **Search Specification**: 
+   - Use MANIFEST.md to locate relevant spec documents
+   - Search `docs/` for patterns, standards, or workflows related to the question
+   - Use cross-references to find related documents
+
+3. **Load Relevant Specs**: 
+   - Load only relevant spec sections (see `docs/06-workflows/spec-context-strategy.md`)
+   - Reference specific spec documents in your answer
+   - Quote relevant spec sections when appropriate
+
+4. **Provide Spec-Based Answer**: 
+   - Reference specific spec documents with paths
+   - Follow spec patterns and standards in your guidance
+   - Ensure answer aligns with specification
 
 ## Example: Creating a New Feature
 
-When asked to create a new feature:
+When asked to create a new feature, follow the complete Spec-Driven Development workflow:
 
-1. **Understand Requirements**: Review the feature request
-2. **Check Specification**: Search `docs/` for relevant patterns and guidelines
-3. **Follow Architecture**: Use patterns from architecture docs and ADRs
-4. **Implement Backend** (if needed):
-   - Create GraphQL schema in appropriate subgraph
-   - Implement resolver following federation patterns
-   - Create service layer following clean architecture
-   - Add repository and entity following JPA patterns
-   - Add database migration if needed
-5. **Implement Frontend** (if needed):
-   - Create components using design system
-   - Use theme tokens for styling
-   - Implement GraphQL operations
-   - Add i18n support
-   - Follow directory structure
-6. **Ensure Type Safety**: Generate types and maintain end-to-end type safety
-7. **Follow Testing Patterns**: Add appropriate tests
+1. **Load Context Strategy**: 
+   - Reference `docs/06-workflows/spec-context-strategy.md` for context loading
+   - Follow the implementation flow diagram
+
+2. **Feature Specification Phase**:
+   - Use `/request` command or follow `docs/08-templates/feature-templates/feature-creation/workflow.md`
+   - Create feature file, memory file, and task breakdown
+   - Load feature context: feature file, memory file, task breakdown
+
+3. **Implementation Phase** (follow `docs/06-workflows/feature-development.md`):
+   - **Domain Phase**: Load domain specs, implement migrations and domain objects
+   - **Backend Phase**: Load backend specs, implement entities, repositories, services, resolvers
+   - **Frontend Phase**: Load frontend specs, implement components, hooks, GraphQL operations
+   - **Testing Phase**: Load testing specs, implement unit, integration, E2E tests
+   - **QA Phase**: Load QA specs, run linting, complete checklists
+
+4. **Follow Patterns**: 
+   - Use patterns from `docs/04-patterns/`
+   - Follow standards from `docs/05-standards/`
+   - Use workflows from `docs/06-workflows/`
+
+5. **Validate**: 
+   - Use checklists from `docs/11-validation/`
+   - Ensure spec compliance at each phase
 
 ---
 
-**Remember**: The `docs/` folder is the source of truth. Always reference it when making decisions or implementing features.
+## Critical Rules
+
+1. **The `docs/` folder is the source of truth for EVERYTHING**
+2. **ALWAYS check the spec before answering any question**
+3. **ALWAYS reference the spec when implementing anything**
+4. **Use `docs/06-workflows/spec-context-strategy.md` for efficient context loading**
+5. **Follow Spec-Driven Development (SDD) principles in all work**
+6. **Reference specific spec documents with paths in all responses**
+7. **Never invent patterns or approaches - use documented patterns from the spec**

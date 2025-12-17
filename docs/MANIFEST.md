@@ -124,10 +124,11 @@ This specification is organized into numbered directories (00-11) for clear hier
 
 | Document | Path | Type | Category | Keywords |
 |----------|------|------|----------|----------|
-| Feature Development | `06-workflows/feature-development.md` | workflow | development | feature-development, workflow |
-| Code Review | `06-workflows/code-review.md` | workflow | review | code-review, workflow |
-| Testing Workflow | `06-workflows/testing-workflow.md` | workflow | testing | testing, workflow |
-| Deployment Workflow | `06-workflows/deployment-workflow.md` | workflow | deployment | deployment, workflow |
+| Feature Development | `06-workflows/feature-development.md` | workflow | development | feature-development, workflow, spec-driven, sdd |
+| Code Review | `06-workflows/code-review.md` | workflow | review | code-review, workflow, spec-compliance |
+| Testing Workflow | `06-workflows/testing-workflow.md` | workflow | testing | testing, workflow, spec-driven, coverage |
+| Deployment Workflow | `06-workflows/deployment-workflow.md` | workflow | deployment | deployment, workflow, ci-cd |
+| Spec Context Strategy | `06-workflows/spec-context-strategy.md` | workflow | development | context, ai, optimization, spec, navigation, rag |
 
 ## Examples (07-examples)
 

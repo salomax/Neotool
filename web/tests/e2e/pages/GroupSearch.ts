@@ -92,5 +92,7 @@ export class GroupSearch {
     await this.page.waitForSelector(SELECTORS.groupList, { timeout: 10000 }).catch(() => {
       // Table might not exist if empty, so just wait for search to be visible
     });
+    // Additional wait for list to stabilize after search (especially important on mobile browsers)
+    await this.page.waitForTimeout(300);
   }
 }
