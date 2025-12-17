@@ -250,6 +250,7 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
     t,
     onClose,
     pendingRoles,
+    pendingUsers,
     assignRoleToGroup,
     hasRoleOrUserChanges,
     handleSaveRolesAndUsers,

@@ -138,7 +138,7 @@ test.describe('User Management', () => {
       await userManagementPage.goto();
       
       // And I search for the user's email
-      await userManagementPage.search.search(testUser.displayName);
+      await userManagementPage.search.search(testUser.email);
       await userManagementPage.search.waitForSearchComplete();
       
       // Then the user should appear in the results
@@ -157,7 +157,7 @@ test.describe('User Management', () => {
       await userManagementPage.goto();
       
       // And I search for the user's display name
-      await userManagementPage.search.search(testUser.email);
+      await userManagementPage.search.search(testUser.displayName);
       await userManagementPage.search.waitForSearchComplete();
       
       // Then the user should appear in the results
