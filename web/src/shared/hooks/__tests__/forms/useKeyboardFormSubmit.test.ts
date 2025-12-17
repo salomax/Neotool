@@ -861,6 +861,7 @@ describe('useKeyboardFormSubmit', () => {
   describe('edge cases', () => {
     it('should handle when activeElement is null', () => {
       // Simulate no active element
+      // eslint-disable-next-line testing-library/no-node-access
       const originalActiveElement = document.activeElement;
       Object.defineProperty(document, 'activeElement', {
         value: null,
@@ -883,6 +884,7 @@ describe('useKeyboardFormSubmit', () => {
       expect(mockOnSubmit).not.toHaveBeenCalled();
 
       // Restore
+      // eslint-disable-next-line testing-library/no-node-access
       Object.defineProperty(document, 'activeElement', {
         value: originalActiveElement,
         writable: true,

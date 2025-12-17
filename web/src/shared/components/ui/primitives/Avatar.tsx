@@ -23,7 +23,7 @@ function initials(name: string | undefined) {
 
 const sizeMap: Record<AvatarSize, { width: number; height: number; fontSize: string }> = {
   small: { width: 24, height: 24, fontSize: '0.75rem' },
-  medium: { width: 40, height: 40, fontSize: '1rem' },
+  medium: { width: 34, height: 34, fontSize: '1rem' },
   large: { width: 56, height: 56, fontSize: '1.25rem' },
 };
 

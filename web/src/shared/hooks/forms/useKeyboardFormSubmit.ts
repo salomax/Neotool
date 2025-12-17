@@ -208,5 +208,5 @@ export function useKeyboardFormSubmit({
     return () => {
       container.removeEventListener("keydown", handleKeyDown);
     };
-  }, [enabled, containerRef?.current]);
+  }, [enabled, containerRef]);
 }

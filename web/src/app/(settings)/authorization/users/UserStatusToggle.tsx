@@ -68,7 +68,9 @@ export const UserStatusToggle: React.FC<UserStatusToggleProps> = ({
         alignItems: "center",
         justifyContent: "center",
         gap: 1,
-        minHeight: 40, // Prevent layout shift when spinner appears/disappears
+        height: "34px",
+        maxHeight: "34px",
+        lineHeight: 1,
       }}
     >
       <Tooltip title={tooltipTitle} placement="top">
