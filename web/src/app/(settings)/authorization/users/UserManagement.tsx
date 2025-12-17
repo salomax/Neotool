@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import { useUserManagement, type User } from "@/shared/hooks/authorization/useUserManagement";
 import { UserSearch } from "./UserSearch";
 import { UserList } from "./UserList";
@@ -15,12 +15,35 @@ export interface UserManagementProps {
 }
 
 /**
- * UserManagement component - Main orchestrator for user management
- * Displays list of users with search, pagination, and edit functionality
+ * UserManagement component orchestrates measurement + content rendering.
  */
 export const UserManagement: React.FC<UserManagementProps> = ({
   initialSearchQuery = "",
 }) => {
+  const [initialPageSize, setInitialPageSize] = useState<number | null>(null);
+
+  const handleMeasurement = useCallback((size: number) => {
+    if (size > 0) {
+      setInitialPageSize((prev) => (prev ?? size));
+    }
+  }, []);
+
+  if (initialPageSize === null) {
+    return <UserManagementSizer onMeasured={handleMeasurement} />;
+  }
+
+  return (
+    <UserManagementContent
+      initialPageSize={initialPageSize}
+      initialSearchQuery={initialSearchQuery}
+    />
+  );
+};
+
+const UserManagementContent: React.FC<{
+  initialPageSize: number;
+  initialSearchQuery: string;
+}> = ({ initialPageSize, initialSearchQuery }) => {
   const { t } = useTranslation(authorizationManagementTranslations);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -49,7 +72,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     handleSort,
   } = useUserManagement({
     initialSearchQuery,
-    initialFirst: 10, // Default initial value, will be updated by DynamicTableBox
+    initialFirst: initialPageSize,
   });
 
   const handleTableResize = useCallback(
@@ -81,7 +104,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     t,
   });
 
-
   return (
     <ManagementLayout
       error={error}
@@ -95,6 +117,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
           onSearch={handleSearch}
           placeholder={t("userManagement.searchPlaceholder")}
           maxWidth="sm"
+          autoFocus
         />
       </ManagementLayout.Header>
       <ManagementLayout.Content>
@@ -128,6 +151,55 @@ export const UserManagement: React.FC<UserManagementProps> = ({
           userId={editingUser?.id || null}
         />
       </ManagementLayout.Drawer>
+    </ManagementLayout>
+  );
+};
+
+const UserManagementSizer: React.FC<{ onMeasured: (size: number) => void }> = ({
+  onMeasured,
+}) => {
+  const { t } = useTranslation(authorizationManagementTranslations);
+  const hasReported = useRef(false);
+
+  const handleTableResize = useCallback(
+    (size: number) => {
+      if (size > 0 && !hasReported.current) {
+        hasReported.current = true;
+        onMeasured(size);
+      }
+    },
+    [onMeasured]
+  );
+
+  return (
+    <ManagementLayout
+      error={undefined}
+      onErrorRetry={undefined}
+      errorFallbackMessage={t("errors.loadFailed")}
+    >
+      <ManagementLayout.Header>
+        <UserSearch
+          value=""
+          onChange={() => {}}
+          onSearch={() => {}}
+          placeholder={t("userManagement.searchPlaceholder")}
+          maxWidth="sm"
+        />
+      </ManagementLayout.Header>
+      <ManagementLayout.Content>
+        <UserList
+          users={[]}
+          loading
+          onEdit={() => {}}
+          onToggleStatus={async () => {}}
+          toggleLoading
+          emptyMessage={t("userManagement.emptyList")}
+          pageInfo={null}
+          paginationRange={undefined}
+          onTableResize={handleTableResize}
+          recalculationKey="user-measurement"
+        />
+      </ManagementLayout.Content>
     </ManagementLayout>
   );
 };

@@ -8,11 +8,11 @@ import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.getRequired
 import io.github.salomax.neotool.common.graphql.GraphQLPayloadDataFetcher.createMutationDataFetcher
 import io.github.salomax.neotool.common.graphql.GraphQLResolverRegistry
 import io.github.salomax.neotool.common.graphql.GraphQLWiringFactory
-import io.github.salomax.neotool.common.graphql.payload.GraphQLPayloadFactory
 import io.github.salomax.neotool.security.domain.rbac.SecurityPermissions
 import io.github.salomax.neotool.security.graphql.dataloader.GroupMembersDataLoader
 import io.github.salomax.neotool.security.graphql.dataloader.GroupRolesDataLoader
 import io.github.salomax.neotool.security.graphql.dataloader.PermissionRolesDataLoader
+import io.github.salomax.neotool.security.graphql.dataloader.RoleGroupsDataLoader
 import io.github.salomax.neotool.security.graphql.dataloader.RolePermissionsDataLoader
 import io.github.salomax.neotool.security.graphql.dataloader.UserGroupsDataLoader
 import io.github.salomax.neotool.security.graphql.dataloader.UserPermissionsDataLoader
@@ -37,6 +37,7 @@ import io.github.salomax.neotool.security.graphql.dto.UserDTO
 import io.github.salomax.neotool.security.graphql.dto.UserEdgeDTO
 import io.github.salomax.neotool.security.graphql.mapper.GroupManagementMapper
 import io.github.salomax.neotool.security.graphql.mapper.RoleManagementMapper
+import io.github.salomax.neotool.security.graphql.mapper.UserManagementMapper
 import io.github.salomax.neotool.security.graphql.resolver.GroupManagementResolver
 import io.github.salomax.neotool.security.graphql.resolver.PermissionManagementResolver
 import io.github.salomax.neotool.security.graphql.resolver.RoleManagementResolver
@@ -44,6 +45,7 @@ import io.github.salomax.neotool.security.graphql.resolver.UserManagementResolve
 import io.github.salomax.neotool.security.service.AuthorizationManager
 import io.github.salomax.neotool.security.service.RequestPrincipalProvider
 import jakarta.inject.Singleton
+import java.util.concurrent.CompletableFuture
 
 /**
  * Security module wiring factory for GraphQL resolvers
@@ -58,6 +60,7 @@ class SecurityWiringFactory(
     private val permissionManagementResolver: PermissionManagementResolver,
     private val groupManagementMapper: GroupManagementMapper,
     private val roleManagementMapper: RoleManagementMapper,
+    private val userManagementMapper: UserManagementMapper,
     private val requestPrincipalProvider: RequestPrincipalProvider,
     private val authorizationManager: AuthorizationManager,
     resolverRegistry: GraphQLResolverRegistry,
@@ -103,8 +106,59 @@ class SecurityWiringFactory(
         return block()
     }
 
-    override fun registerQueryResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder {
-        return type
+    /**
+     * Helper function to allow users to view their own data (roles, permissions, groups)
+     * without requiring SECURITY_USER_VIEW permission.
+     * If the user is viewing their own data, access is granted. Otherwise, the permission is required.
+     *
+     * This is secure because:
+     * - Users need to know their own permissions to use the system
+     * - The permissions are already in the JWT token
+     * - This follows standard RBAC patterns (users can view their own data)
+     * - SECURITY_USER_VIEW is still required for viewing other users' data
+     *
+     * @param env The GraphQL DataFetchingEnvironment
+     * @param action The permission/action to check (e.g., SecurityPermissions.SECURITY_USER_VIEW)
+     * @param userId The ID of the user whose data is being accessed
+     * @param block The block to execute if authorization succeeds
+     * @return The result of executing the block
+     */
+    private fun <T> withPermissionOrOwnData(
+        env: DataFetchingEnvironment,
+        action: String,
+        userId: String,
+        block: () -> T,
+    ): T {
+        // Try to get the current user's principal
+        val principal =
+            try {
+                requestPrincipalProvider.fromGraphQl(env)
+            } catch (e: Exception) {
+                // If no principal (e.g., during sign-in mutation),
+                // check if we can extract user ID from the source UserDTO
+                // For sign-in, the user in the payload is the authenticated user
+                return block() // During sign-in, the user is viewing their own data
+            }
+
+        // Check if the user is viewing their own data
+        val isOwnData =
+            try {
+                val currentUserId = principal.userId.toString()
+                currentUserId == userId
+            } catch (e: Exception) {
+                false
+            }
+
+        // If viewing own data, allow access; otherwise require permission
+        return if (isOwnData) {
+            block()
+        } else {
+            withPermission(env, action, block)
+        }
+    }
+
+    override fun registerQueryResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder =
+        type
             .dataFetcher(
                 "currentUser",
                 createValidatedDataFetcher { env ->
@@ -117,31 +171,33 @@ class SecurityWiringFactory(
                         }
                     authResolver.getCurrentUser(token)
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "checkPermission",
                 createValidatedDataFetcher { env ->
-                    val userId = getRequiredString(env, "userId")
-                    val permission = getRequiredString(env, "permission")
-                    val resourceId = env.getArgument<String?>("resourceId")
-                    authorizationResolver.checkPermission(userId, permission, resourceId)
+                    withPermission(env, SecurityPermissions.SECURITY_USER_VIEW) {
+                        val userId = getRequiredString(env, "userId")
+                        val permission = getRequiredString(env, "permission")
+                        val resourceId = env.getArgument<String?>("resourceId")
+                        authorizationResolver.checkPermission(userId, permission, resourceId)
+                    }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "getUserPermissions",
                 createValidatedDataFetcher { env ->
-                    val userId = getRequiredString(env, "userId")
-                    authorizationResolver.getUserPermissions(userId)
+                    withPermission(env, SecurityPermissions.SECURITY_USER_VIEW) {
+                        val userId = getRequiredString(env, "userId")
+                        authorizationResolver.getUserPermissions(userId)
+                    }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "getUserRoles",
                 createValidatedDataFetcher { env ->
-                    val userId = getRequiredString(env, "userId")
-                    authorizationResolver.getUserRoles(userId)
+                    withPermission(env, SecurityPermissions.SECURITY_USER_VIEW) {
+                        val userId = getRequiredString(env, "userId")
+                        authorizationResolver.getUserRoles(userId)
+                    }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "user",
                 createValidatedDataFetcher { env ->
                     withPermission(env, SecurityPermissions.SECURITY_USER_VIEW) {
@@ -149,8 +205,7 @@ class SecurityWiringFactory(
                         userManagementResolver.user(id)
                     }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "users",
                 createValidatedDataFetcher { env ->
                     withPermission(env, SecurityPermissions.SECURITY_USER_VIEW) {
@@ -161,91 +216,89 @@ class SecurityWiringFactory(
                         userManagementResolver.users(first, after, query, orderBy)
                     }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "group",
                 createValidatedDataFetcher { env ->
-                    val id = getRequiredString(env, "id")
-                    groupManagementResolver.group(id)
+                    withPermission(env, SecurityPermissions.SECURITY_GROUP_VIEW) {
+                        val id = getRequiredString(env, "id")
+                        groupManagementResolver.group(id)
+                    }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "groups",
                 createValidatedDataFetcher { env ->
-                    val first = env.getArgument<Int?>("first")
-                    val after = env.getArgument<String?>("after")
-                    val query = env.getArgument<String?>("query")
-                    val orderBy = env.getArgument<List<Map<String, Any?>>>("orderBy")
-                    groupManagementResolver.groups(first, after, query, orderBy)
+                    withPermission(env, SecurityPermissions.SECURITY_GROUP_VIEW) {
+                        val first = env.getArgument<Int?>("first")
+                        val after = env.getArgument<String?>("after")
+                        val query = env.getArgument<String?>("query")
+                        val orderBy = env.getArgument<List<Map<String, Any?>>>("orderBy")
+                        groupManagementResolver.groups(first, after, query, orderBy)
+                    }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "role",
                 createValidatedDataFetcher { env ->
-                    val id = getRequiredString(env, "id")
-                    roleManagementResolver.role(id)
+                    withPermission(env, SecurityPermissions.SECURITY_ROLE_VIEW) {
+                        val id = getRequiredString(env, "id")
+                        roleManagementResolver.role(id)
+                    }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "roles",
                 createValidatedDataFetcher { env ->
-                    val first = env.getArgument<Int?>("first")
-                    val after = env.getArgument<String?>("after")
-                    val query = env.getArgument<String?>("query")
-                    val orderBy = env.getArgument<List<Map<String, Any?>>>("orderBy")
-                    roleManagementResolver.roles(first, after, query, orderBy)
+                    withPermission(env, SecurityPermissions.SECURITY_ROLE_VIEW) {
+                        val first = env.getArgument<Int?>("first")
+                        val after = env.getArgument<String?>("after")
+                        val query = env.getArgument<String?>("query")
+                        val orderBy = env.getArgument<List<Map<String, Any?>>>("orderBy")
+                        roleManagementResolver.roles(first, after, query, orderBy)
+                    }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "permissions",
                 createValidatedDataFetcher { env ->
-                    val first = env.getArgument<Int?>("first")
-                    val after = env.getArgument<String?>("after")
-                    val query = env.getArgument<String?>("query")
-                    permissionManagementResolver.permissions(first, after, query)
+                    withPermission(env, SecurityPermissions.SECURITY_ROLE_VIEW) {
+                        val first = env.getArgument<Int?>("first")
+                        val after = env.getArgument<String?>("after")
+                        val query = env.getArgument<String?>("query")
+                        permissionManagementResolver.permissions(first, after, query)
+                    }
                 },
             )
-    }
 
-    override fun registerMutationResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder {
-        return type
+    override fun registerMutationResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder =
+        type
             .dataFetcher(
                 "signIn",
                 createMutationDataFetcher<SignInPayloadDTO>("signIn") { input ->
                     authResolver.signIn(input)
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "signInWithOAuth",
                 createMutationDataFetcher<SignInPayloadDTO>("signInWithOAuth") { input ->
                     authResolver.signInWithOAuth(input)
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "signUp",
                 createMutationDataFetcher<SignUpPayloadDTO>("signUp") { input ->
                     authResolver.signUp(input)
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "refreshAccessToken",
                 createMutationDataFetcher<SignInPayloadDTO>("refreshAccessToken") { input ->
                     authResolver.refreshAccessToken(input)
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "requestPasswordReset",
                 createMutationDataFetcher<RequestPasswordResetPayloadDTO>("requestPasswordReset") { input ->
                     authResolver.requestPasswordReset(input)
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "resetPassword",
                 createMutationDataFetcher<ResetPasswordPayloadDTO>("resetPassword") { input ->
                     authResolver.resetPassword(input)
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "enableUser",
                 createValidatedDataFetcher { env ->
                     withPermission(env, SecurityPermissions.SECURITY_USER_SAVE) {
@@ -253,8 +306,7 @@ class SecurityWiringFactory(
                         userManagementResolver.enableUser(userId)
                     }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "disableUser",
                 createValidatedDataFetcher { env ->
                     withPermission(env, SecurityPermissions.SECURITY_USER_SAVE) {
@@ -262,104 +314,89 @@ class SecurityWiringFactory(
                         userManagementResolver.disableUser(userId)
                     }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "createGroup",
-                createMutationDataFetcher<GroupDTO>("createGroup") { input ->
-                    try {
+                createValidatedDataFetcher { env ->
+                    withPermission(env, SecurityPermissions.SECURITY_GROUP_SAVE) {
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
                         val dto = groupManagementMapper.mapToCreateGroupInputDTO(input)
                         val result = groupManagementResolver.createGroup(dto)
-                        GraphQLPayloadFactory.success(result)
-                    } catch (e: Exception) {
-                        GraphQLPayloadFactory.error(e)
+                        result
                     }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "updateGroup",
                 createValidatedDataFetcher { env ->
-                    val groupId = getRequiredString(env, "groupId")
-                    val inputMap =
-                        env.getArgument<Map<String, Any?>>("input")
-                            ?: throw IllegalArgumentException("input is required")
-                    val dto = groupManagementMapper.mapToUpdateGroupInputDTO(inputMap)
-                    groupManagementResolver.updateGroup(groupId, dto)
+                    withPermission(env, SecurityPermissions.SECURITY_GROUP_SAVE) {
+                        val groupId = getRequiredString(env, "groupId")
+                        val inputMap =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        val dto = groupManagementMapper.mapToUpdateGroupInputDTO(inputMap)
+                        groupManagementResolver.updateGroup(groupId, dto)
+                    }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "deleteGroup",
                 createValidatedDataFetcher { env ->
-                    val groupId = getRequiredString(env, "groupId")
-                    groupManagementResolver.deleteGroup(groupId)
+                    withPermission(env, SecurityPermissions.SECURITY_GROUP_DELETE) {
+                        val groupId = getRequiredString(env, "groupId")
+                        groupManagementResolver.deleteGroup(groupId)
+                    }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "createRole",
-                createMutationDataFetcher<RoleDTO>("createRole") { input ->
-                    try {
+                createValidatedDataFetcher { env ->
+                    withPermission(env, SecurityPermissions.SECURITY_ROLE_SAVE) {
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
                         val dto = roleManagementMapper.mapToCreateRoleInputDTO(input)
                         val result = roleManagementResolver.createRole(dto)
-                        GraphQLPayloadFactory.success(result)
-                    } catch (e: Exception) {
-                        GraphQLPayloadFactory.error(e)
+                        result
                     }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "updateRole",
                 createValidatedDataFetcher { env ->
-                    val roleId = getRequiredString(env, "roleId")
-                    val inputMap =
-                        env.getArgument<Map<String, Any?>>("input")
-                            ?: throw IllegalArgumentException("input is required")
-                    val dto = roleManagementMapper.mapToUpdateRoleInputDTO(inputMap)
-                    roleManagementResolver.updateRole(roleId, dto)
+                    withPermission(env, SecurityPermissions.SECURITY_ROLE_SAVE) {
+                        val roleId = getRequiredString(env, "roleId")
+                        val inputMap =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        val dto = roleManagementMapper.mapToUpdateRoleInputDTO(inputMap)
+                        roleManagementResolver.updateRole(roleId, dto)
+                    }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "deleteRole",
                 createValidatedDataFetcher { env ->
-                    val roleId = getRequiredString(env, "roleId")
-                    roleManagementResolver.deleteRole(roleId)
+                    withPermission(env, SecurityPermissions.SECURITY_ROLE_DELETE) {
+                        val roleId = getRequiredString(env, "roleId")
+                        roleManagementResolver.deleteRole(roleId)
+                    }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "assignPermissionToRole",
                 createValidatedDataFetcher { env ->
-                    val roleId = getRequiredString(env, "roleId")
-                    val permissionId = getRequiredString(env, "permissionId")
-                    roleManagementResolver.assignPermissionToRole(roleId, permissionId)
+                    withPermission(env, SecurityPermissions.SECURITY_ROLE_SAVE) {
+                        val roleId = getRequiredString(env, "roleId")
+                        val permissionId = getRequiredString(env, "permissionId")
+                        roleManagementResolver.assignPermissionToRole(roleId, permissionId)
+                    }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "removePermissionFromRole",
                 createValidatedDataFetcher { env ->
-                    val roleId = getRequiredString(env, "roleId")
-                    val permissionId = getRequiredString(env, "permissionId")
-                    roleManagementResolver.removePermissionFromRole(roleId, permissionId)
-                },
-            )
-            .dataFetcher(
-                "assignRoleToUser",
-                createValidatedDataFetcher { env ->
-                    withPermission(env, SecurityPermissions.SECURITY_USER_SAVE) {
-                        val userId = getRequiredString(env, "userId")
+                    withPermission(env, SecurityPermissions.SECURITY_ROLE_SAVE) {
                         val roleId = getRequiredString(env, "roleId")
-                        userManagementResolver.assignRoleToUser(userId, roleId)
+                        val permissionId = getRequiredString(env, "permissionId")
+                        roleManagementResolver.removePermissionFromRole(roleId, permissionId)
                     }
                 },
-            )
-            .dataFetcher(
-                "removeRoleFromUser",
-                createValidatedDataFetcher { env ->
-                    withPermission(env, SecurityPermissions.SECURITY_USER_SAVE) {
-                        val userId = getRequiredString(env, "userId")
-                        val roleId = getRequiredString(env, "roleId")
-                        userManagementResolver.removeRoleFromUser(userId, roleId)
-                    }
-                },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "assignGroupToUser",
                 createValidatedDataFetcher { env ->
                     withPermission(env, SecurityPermissions.SECURITY_USER_SAVE) {
@@ -368,8 +405,7 @@ class SecurityWiringFactory(
                         userManagementResolver.assignGroupToUser(userId, groupId)
                     }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "removeGroupFromUser",
                 createValidatedDataFetcher { env ->
                     withPermission(env, SecurityPermissions.SECURITY_USER_SAVE) {
@@ -378,31 +414,42 @@ class SecurityWiringFactory(
                         userManagementResolver.removeGroupFromUser(userId, groupId)
                     }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
+                "updateUser",
+                createValidatedDataFetcher { env ->
+                    withPermission(env, SecurityPermissions.SECURITY_USER_SAVE) {
+                        val userId = getRequiredString(env, "userId")
+                        val inputMap =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        val dto = userManagementMapper.mapToUpdateUserInputDTO(inputMap)
+                        userManagementResolver.updateUser(userId, dto)
+                    }
+                },
+            ).dataFetcher(
                 "assignRoleToGroup",
                 createValidatedDataFetcher { env ->
-                    val groupId = getRequiredString(env, "groupId")
-                    val roleId = getRequiredString(env, "roleId")
-                    groupManagementResolver.assignRoleToGroup(groupId, roleId)
+                    withPermission(env, SecurityPermissions.SECURITY_GROUP_SAVE) {
+                        val groupId = getRequiredString(env, "groupId")
+                        val roleId = getRequiredString(env, "roleId")
+                        groupManagementResolver.assignRoleToGroup(groupId, roleId)
+                    }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "removeRoleFromGroup",
                 createValidatedDataFetcher { env ->
-                    val groupId = getRequiredString(env, "groupId")
-                    val roleId = getRequiredString(env, "roleId")
-                    groupManagementResolver.removeRoleFromGroup(groupId, roleId)
+                    withPermission(env, SecurityPermissions.SECURITY_GROUP_SAVE) {
+                        val groupId = getRequiredString(env, "groupId")
+                        val roleId = getRequiredString(env, "roleId")
+                        groupManagementResolver.removeRoleFromGroup(groupId, roleId)
+                    }
                 },
             )
-    }
 
-    override fun registerSubscriptionResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder {
-        return type
-    }
+    override fun registerSubscriptionResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder = type
 
-    override fun registerCustomTypeResolvers(builder: RuntimeWiring.Builder): RuntimeWiring.Builder {
-        return builder
+    override fun registerCustomTypeResolvers(builder: RuntimeWiring.Builder): RuntimeWiring.Builder =
+        builder
             .type("User") { type ->
                 type.dataFetcher(
                     "id",
@@ -435,12 +482,14 @@ class SecurityWiringFactory(
                 type.dataFetcher(
                     "roles",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        // Defense in depth: require permission to view user roles
-                        withPermission(env, SecurityPermissions.SECURITY_USER_VIEW) {
-                            val user = env.getSource<UserDTO>()
-                            if (user == null) {
-                                emptyList<io.github.salomax.neotool.security.graphql.dto.RoleDTO>()
-                            } else {
+                        val user = env.getSource<UserDTO>()
+                        if (user == null) {
+                            CompletableFuture.completedFuture(
+                                emptyList<io.github.salomax.neotool.security.graphql.dto.RoleDTO>(),
+                            )
+                        } else {
+                            // Allow users to view their own roles without permission
+                            withPermissionOrOwnData(env, SecurityPermissions.SECURITY_USER_VIEW, user.id) {
                                 // Get DataLoader from context to batch requests
                                 val dataLoader =
                                     env.getDataLoader<
@@ -451,6 +500,9 @@ class SecurityWiringFactory(
                                     )
                                 // Load roles for this user (will be batched with other users)
                                 dataLoader?.load(user.id)
+                                    ?: CompletableFuture.completedFuture(
+                                        emptyList<io.github.salomax.neotool.security.graphql.dto.RoleDTO>(),
+                                    )
                             }
                         }
                     },
@@ -458,12 +510,14 @@ class SecurityWiringFactory(
                 type.dataFetcher(
                     "groups",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        // Defense in depth: require permission to view user groups
-                        withPermission(env, SecurityPermissions.SECURITY_USER_VIEW) {
-                            val user = env.getSource<UserDTO>()
-                            if (user == null) {
-                                emptyList<io.github.salomax.neotool.security.graphql.dto.GroupDTO>()
-                            } else {
+                        val user = env.getSource<UserDTO>()
+                        if (user == null) {
+                            CompletableFuture.completedFuture(
+                                emptyList<io.github.salomax.neotool.security.graphql.dto.GroupDTO>(),
+                            )
+                        } else {
+                            // Allow users to view their own groups without permission
+                            withPermissionOrOwnData(env, SecurityPermissions.SECURITY_USER_VIEW, user.id) {
                                 // Get DataLoader from context to batch requests
                                 val dataLoader =
                                     env.getDataLoader<
@@ -474,6 +528,9 @@ class SecurityWiringFactory(
                                     )
                                 // Load groups for this user (will be batched with other users)
                                 dataLoader?.load(user.id)
+                                    ?: CompletableFuture.completedFuture(
+                                        emptyList<io.github.salomax.neotool.security.graphql.dto.GroupDTO>(),
+                                    )
                             }
                         }
                     },
@@ -481,12 +538,14 @@ class SecurityWiringFactory(
                 type.dataFetcher(
                     "permissions",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        // Defense in depth: require permission to view user permissions
-                        withPermission(env, SecurityPermissions.SECURITY_USER_VIEW) {
-                            val user = env.getSource<UserDTO>()
-                            if (user == null) {
-                                emptyList<io.github.salomax.neotool.security.graphql.dto.PermissionDTO>()
-                            } else {
+                        val user = env.getSource<UserDTO>()
+                        if (user == null) {
+                            CompletableFuture.completedFuture(
+                                emptyList<io.github.salomax.neotool.security.graphql.dto.PermissionDTO>(),
+                            )
+                        } else {
+                            // Allow users to view their own permissions without permission
+                            withPermissionOrOwnData(env, SecurityPermissions.SECURITY_USER_VIEW, user.id) {
                                 // Get DataLoader from context to batch requests
                                 val dataLoader =
                                     env.getDataLoader<
@@ -497,12 +556,14 @@ class SecurityWiringFactory(
                                     )
                                 // Load permissions for this user (will be batched with other users)
                                 dataLoader?.load(user.id)
+                                    ?: CompletableFuture.completedFuture(
+                                        emptyList<io.github.salomax.neotool.security.graphql.dto.PermissionDTO>(),
+                                    )
                             }
                         }
                     },
                 )
-            }
-            .type("SignInPayload") { type ->
+            }.type("SignInPayload") { type ->
                 type.dataFetcher(
                     "token",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -524,8 +585,7 @@ class SecurityWiringFactory(
                         payload?.user
                     },
                 )
-            }
-            .type("SignUpPayload") { type ->
+            }.type("SignUpPayload") { type ->
                 type.dataFetcher(
                     "token",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -547,8 +607,7 @@ class SecurityWiringFactory(
                         payload?.user
                     },
                 )
-            }
-            .type("RequestPasswordResetPayload") { type ->
+            }.type("RequestPasswordResetPayload") { type ->
                 type.dataFetcher(
                     "success",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -563,8 +622,7 @@ class SecurityWiringFactory(
                         payload?.message
                     },
                 )
-            }
-            .type("ResetPasswordPayload") { type ->
+            }.type("ResetPasswordPayload") { type ->
                 type.dataFetcher(
                     "success",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -579,8 +637,7 @@ class SecurityWiringFactory(
                         payload?.message
                     },
                 )
-            }
-            .type("AuthorizationResult") { type ->
+            }.type("AuthorizationResult") { type ->
                 type.dataFetcher(
                     "allowed",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -595,8 +652,7 @@ class SecurityWiringFactory(
                         result?.reason
                     },
                 )
-            }
-            .type("Permission") { type ->
+            }.type("Permission") { type ->
                 type.dataFetcher(
                     "id",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -611,8 +667,7 @@ class SecurityWiringFactory(
                         permission?.name
                     },
                 )
-            }
-            .type("Role") { type ->
+            }.type("Role") { type ->
                 type.dataFetcher(
                     "id",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -632,23 +687,34 @@ class SecurityWiringFactory(
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
                         val role = env.getSource<RoleDTO>()
                         if (role == null || role.id == null) {
-                            emptyList<io.github.salomax.neotool.security.graphql.dto.PermissionDTO>()
+                            emptyList<PermissionDTO>()
                         } else {
-                            // Get DataLoader from context to batch requests
                             val dataLoader =
-                                env.getDataLoader<
-                                    String,
-                                    List<io.github.salomax.neotool.security.graphql.dto.PermissionDTO>,
-                                >(
+                                env.getDataLoader<String, List<PermissionDTO>>(
                                     RolePermissionsDataLoader.KEY,
                                 )
-                            // Load permissions for this role (will be batched with other roles)
                             dataLoader?.load(role.id)
+                                ?: CompletableFuture.completedFuture(emptyList<PermissionDTO>())
                         }
                     },
                 )
-            }
-            .type("Group") { type ->
+                type.dataFetcher(
+                    "groups",
+                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                        val role = env.getSource<RoleDTO>()
+                        if (role == null || role.id == null) {
+                            emptyList<GroupDTO>()
+                        } else {
+                            val dataLoader =
+                                env.getDataLoader<String, List<GroupDTO>>(
+                                    RoleGroupsDataLoader.KEY,
+                                )
+                            dataLoader?.load(role.id)
+                                ?: CompletableFuture.completedFuture(emptyList<GroupDTO>())
+                        }
+                    },
+                )
+            }.type("Group") { type ->
                 type.dataFetcher(
                     "id",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -684,6 +750,9 @@ class SecurityWiringFactory(
                                 )
                             // Load roles for this group (will be batched with other groups)
                             dataLoader?.load(group.id)
+                                ?: CompletableFuture.completedFuture(
+                                    emptyList<io.github.salomax.neotool.security.graphql.dto.RoleDTO>(),
+                                )
                         }
                     },
                 )
@@ -701,17 +770,21 @@ class SecurityWiringFactory(
                                 )
                             // Load members for this group (will be batched with other groups)
                             dataLoader?.load(group.id)
+                                ?: CompletableFuture.completedFuture(
+                                    emptyList<io.github.salomax.neotool.security.graphql.dto.UserDTO>(),
+                                )
                         }
                     },
                 )
-            }
-            .type("Permission") { type ->
+            }.type("Permission") { type ->
                 type.dataFetcher(
                     "roles",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
                         val permission = env.getSource<PermissionDTO>()
                         if (permission == null || permission.id == null) {
-                            emptyList<io.github.salomax.neotool.security.graphql.dto.RoleDTO>()
+                            CompletableFuture.completedFuture(
+                                emptyList<io.github.salomax.neotool.security.graphql.dto.RoleDTO>(),
+                            )
                         } else {
                             // Get DataLoader from context to batch requests
                             val dataLoader =
@@ -720,6 +793,9 @@ class SecurityWiringFactory(
                                 )
                             // Load roles for this permission (will be batched with other permissions)
                             dataLoader?.load(permission.id)
+                                ?: CompletableFuture.completedFuture(
+                                    emptyList<io.github.salomax.neotool.security.graphql.dto.RoleDTO>(),
+                                )
                         }
                     },
                 )
@@ -754,8 +830,7 @@ class SecurityWiringFactory(
                         pageInfo?.endCursor
                     },
                 )
-            }
-            .type("UserEdge") { type ->
+            }.type("UserEdge") { type ->
                 type.dataFetcher(
                     "node",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -770,8 +845,7 @@ class SecurityWiringFactory(
                         edge?.cursor
                     },
                 )
-            }
-            .type("GroupEdge") { type ->
+            }.type("GroupEdge") { type ->
                 type.dataFetcher(
                     "node",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -786,8 +860,7 @@ class SecurityWiringFactory(
                         edge?.cursor
                     },
                 )
-            }
-            .type("RoleEdge") { type ->
+            }.type("RoleEdge") { type ->
                 type.dataFetcher(
                     "node",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -802,8 +875,7 @@ class SecurityWiringFactory(
                         edge?.cursor
                     },
                 )
-            }
-            .type("PermissionEdge") { type ->
+            }.type("PermissionEdge") { type ->
                 type.dataFetcher(
                     "node",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -818,8 +890,7 @@ class SecurityWiringFactory(
                         edge?.cursor
                     },
                 )
-            }
-            .type("UserConnection") { type ->
+            }.type("UserConnection") { type ->
                 type.dataFetcher(
                     "edges",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -834,8 +905,7 @@ class SecurityWiringFactory(
                         connection?.pageInfo
                     },
                 )
-            }
-            .type("GroupConnection") { type ->
+            }.type("GroupConnection") { type ->
                 type.dataFetcher(
                     "edges",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -850,8 +920,7 @@ class SecurityWiringFactory(
                         connection?.pageInfo
                     },
                 )
-            }
-            .type("RoleConnection") { type ->
+            }.type("RoleConnection") { type ->
                 type.dataFetcher(
                     "edges",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -866,8 +935,7 @@ class SecurityWiringFactory(
                         connection?.pageInfo
                     },
                 )
-            }
-            .type("PermissionConnection") { type ->
+            }.type("PermissionConnection") { type ->
                 type.dataFetcher(
                     "edges",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -883,5 +951,4 @@ class SecurityWiringFactory(
                     },
                 )
             }
-    }
 }

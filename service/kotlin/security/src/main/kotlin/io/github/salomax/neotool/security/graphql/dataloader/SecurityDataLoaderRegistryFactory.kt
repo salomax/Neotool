@@ -44,6 +44,10 @@ class SecurityDataLoaderRegistryFactory(
             RolePermissionsDataLoader.create(roleManagementResolver),
         )
         registry.register(
+            RoleGroupsDataLoader.KEY,
+            RoleGroupsDataLoader.create(roleManagementResolver),
+        )
+        registry.register(
             GroupRolesDataLoader.KEY,
             GroupRolesDataLoader.create(groupManagementResolver),
         )

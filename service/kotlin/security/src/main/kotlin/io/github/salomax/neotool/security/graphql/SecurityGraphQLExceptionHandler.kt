@@ -5,11 +5,13 @@ import graphql.execution.DataFetcherExceptionHandler
 import graphql.execution.DataFetcherExceptionHandlerParameters
 import graphql.execution.DataFetcherExceptionHandlerResult
 import io.github.salomax.neotool.common.exception.GraphQLOptimisticLockExceptionHandler
+import io.github.salomax.neotool.common.graphql.GraphQLPayloadException
 import io.github.salomax.neotool.security.service.exception.AuthenticationRequiredException
 import io.github.salomax.neotool.security.service.exception.AuthorizationDeniedException
 import org.slf4j.LoggerFactory
 import java.util.concurrent.CompletableFuture
 import java.util.regex.Pattern
+import io.github.salomax.neotool.common.graphql.payload.GraphQLError as PayloadGraphQLError
 
 /**
  * GraphQL-specific exception handler for security-related exceptions.
@@ -36,17 +38,34 @@ class SecurityGraphQLExceptionHandler : DataFetcherExceptionHandler {
             is AuthenticationRequiredException -> {
                 logger.debug("GraphQL authentication required: ${exception.message}")
 
-                val error =
-                    GraphQLError.newError()
+                val errorBuilder =
+                    GraphQLError
+                        .newError()
                         .message("Authentication required")
+
+                // Only set path and location if they're not null to avoid NPE
+                // when GraphQL tries to derive them from DataFetchingEnvironment
+                // Note: sourceLocation access can throw NPE if field is null, so we wrap it in try-catch
+                handlerParameters.path?.let { errorBuilder.path(it) }
+                try {
+                    handlerParameters.sourceLocation?.let { errorBuilder.location(it) }
+                } catch (e: NullPointerException) {
+                    // sourceLocation can throw NPE if field is null, ignore it
+                }
+
+                val error =
+                    errorBuilder
+                        .extensions(buildExtensions("UNAUTHENTICATED"))
                         .build()
 
                 CompletableFuture.completedFuture(
-                    DataFetcherExceptionHandlerResult.newResult()
+                    DataFetcherExceptionHandlerResult
+                        .newResult()
                         .error(error)
                         .build(),
                 )
             }
+
             is AuthorizationDeniedException -> {
                 logger.debug("GraphQL authorization denied: ${exception.message}")
 
@@ -59,17 +78,80 @@ class SecurityGraphQLExceptionHandler : DataFetcherExceptionHandler {
                         "Permission denied"
                     }
 
-                val error =
-                    GraphQLError.newError()
+                val errorBuilder =
+                    GraphQLError
+                        .newError()
                         .message(errorMessage)
+
+                // Only set path and location if they're not null to avoid NPE
+                // Note: sourceLocation access can throw NPE if field is null, so we wrap it in try-catch
+                handlerParameters.path?.let { errorBuilder.path(it) }
+                try {
+                    handlerParameters.sourceLocation?.let { errorBuilder.location(it) }
+                } catch (e: NullPointerException) {
+                    // sourceLocation can throw NPE if field is null, ignore it
+                }
+
+                val error =
+                    errorBuilder
+                        .extensions(buildExtensions("FORBIDDEN", action))
                         .build()
 
                 CompletableFuture.completedFuture(
-                    DataFetcherExceptionHandlerResult.newResult()
+                    DataFetcherExceptionHandlerResult
+                        .newResult()
                         .error(error)
                         .build(),
                 )
             }
+
+            is GraphQLPayloadException -> {
+                logger.debug("GraphQL payload exception: ${exception.message}")
+                val payloadErrors =
+                    exception.errors.ifEmpty {
+                        listOf(
+                            PayloadGraphQLError(
+                                field = listOf("general"),
+                                message = exception.message ?: "Operation failed",
+                                code = "GRAPHQL_PAYLOAD_ERROR",
+                            ),
+                        )
+                    }
+
+                val errors =
+                    payloadErrors.map { payloadError ->
+                        val errorBuilder =
+                            GraphQLError
+                                .newError()
+                                .message(payloadError.message)
+
+                        // Only set path and location if they're not null to avoid NPE
+                        // Note: sourceLocation access can throw NPE if field is null, so we wrap it in try-catch
+                        handlerParameters.path?.let { errorBuilder.path(it) }
+                        try {
+                            handlerParameters.sourceLocation?.let { errorBuilder.location(it) }
+                        } catch (e: NullPointerException) {
+                            // sourceLocation can throw NPE if field is null, ignore it
+                        }
+
+                        errorBuilder
+                            .extensions(
+                                buildExtensions(
+                                    payloadError.code ?: "GRAPHQL_PAYLOAD_ERROR",
+                                    null,
+                                    payloadError.field,
+                                ),
+                            ).build()
+                    }
+
+                CompletableFuture.completedFuture(
+                    DataFetcherExceptionHandlerResult
+                        .newResult()
+                        .errors(errors)
+                        .build(),
+                )
+            }
+
             else -> {
                 // Delegate to next handler (GraphQLOptimisticLockExceptionHandler)
                 // which will handle optimistic locking exceptions or delegate to default handler
@@ -93,5 +175,24 @@ class SecurityGraphQLExceptionHandler : DataFetcherExceptionHandler {
         } else {
             null
         }
+    }
+
+    private fun buildExtensions(
+        code: String,
+        action: String? = null,
+        field: List<String>? = null,
+    ): Map<String, Any?> {
+        val extensions =
+            mutableMapOf<String, Any?>(
+                "code" to code,
+                "service" to "security",
+            )
+        if (!action.isNullOrBlank()) {
+            extensions["action"] = action
+        }
+        if (!field.isNullOrEmpty()) {
+            extensions["field"] = field
+        }
+        return extensions
     }
 }

@@ -2,9 +2,8 @@ package io.github.salomax.neotool.security.model.rbac
 import io.github.salomax.neotool.common.entity.BaseEntity
 import io.github.salomax.neotool.security.domain.rbac.MembershipType
 import jakarta.persistence.Column
+import jakarta.persistence.Convert
 import jakarta.persistence.Entity
-import jakarta.persistence.EnumType
-import jakarta.persistence.Enumerated
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 import jakarta.persistence.Version
@@ -22,7 +21,7 @@ open class GroupMembershipEntity(
     open var userId: UUID,
     @Column(name = "group_id", nullable = false, columnDefinition = "uuid")
     open var groupId: UUID,
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = MembershipTypeConverter::class)
     @Column(name = "membership_type", nullable = false, length = 32)
     open var membershipType: MembershipType = MembershipType.MEMBER,
     @Column(name = "valid_until")

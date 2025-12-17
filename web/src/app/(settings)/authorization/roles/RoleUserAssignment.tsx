@@ -1,20 +1,14 @@
 "use client";
 
-import React, { useMemo, useCallback, useEffect } from "react";
-import {
-  Box,
-  Typography,
-  CircularProgress,
-  Autocomplete,
-  TextField,
-  Chip,
-} from "@mui/material";
-import { ErrorAlert } from "@/shared/components/ui/feedback";
-import { useGetUsersQuery } from "@/lib/graphql/operations/authorization-management/queries.generated";
+import React, { useMemo, useCallback } from "react";
+import { Box, Typography, Chip } from "@mui/material";
+import { useGetUsersQuery, type GetUsersQuery, type GetUsersQueryVariables } from "@/lib/graphql/operations/authorization-management/queries.generated";
 import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
 import { useToast } from "@/shared/providers";
 import { extractErrorMessage } from "@/shared/utils/error";
+import { useAuth } from "@/shared/providers/AuthProvider";
+import { SearchableAutocomplete } from "@/shared/components/ui/forms/SearchableAutocomplete";
 
 export interface User {
   id: string;
@@ -26,11 +20,23 @@ export interface User {
 export interface RoleUserAssignmentProps {
   roleId: string | null;
   assignedUsers: User[];
-  onAssignUser: (userId: string) => Promise<void>;
-  onRemoveUser: (userId: string) => Promise<void>;
+  onAssignUser?: (userId: string) => Promise<void>;
+  onRemoveUser?: (userId: string) => Promise<void>;
   assignLoading?: boolean;
   removeLoading?: boolean;
   onUsersChange?: () => void;
+  /**
+   * When false, skips loading user options and renders nothing.
+   */
+  active?: boolean;
+  /**
+   * For edit mode with deferred mutations: callback when users change (updates local state only)
+   */
+  onChange?: (users: User[]) => void;
+  /**
+   * When true, displays users as readonly chips only (no editing capability)
+   */
+  readonly?: boolean;
 }
 
 type UserOption = {
@@ -44,6 +50,7 @@ type UserOption = {
 /**
  * RoleUserAssignment component for managing role user assignments
  * Uses a multi-select Autocomplete to assign and remove users
+ * When readonly, displays users as chips only (no editing capability)
  */
 export const RoleUserAssignment: React.FC<RoleUserAssignmentProps> = ({
   roleId,
@@ -53,29 +60,13 @@ export const RoleUserAssignment: React.FC<RoleUserAssignmentProps> = ({
   assignLoading = false,
   removeLoading = false,
   onUsersChange,
+  active = true,
+  onChange,
+  readonly = false,
 }) => {
   const { t } = useTranslation(authorizationManagementTranslations);
   const toast = useToast();
-
-  // Fetch all users for selection
-  const { data, loading: usersLoading, error: usersError, refetch } = useGetUsersQuery({
-    variables: {
-      first: 1000, // Fetch a large number of users for selection
-      query: undefined,
-    },
-    skip: false,
-  });
-
-  // Transform users data for Autocomplete
-  const userOptions = useMemo(() => {
-    return (data?.users?.edges?.map(e => e.node) || []).map((user) => ({
-      id: user.id,
-      label: user.displayName || user.email,
-      email: user.email,
-      displayName: user.displayName,
-      enabled: user.enabled,
-    }));
-  }, [data?.users?.edges]);
+  const { isAuthenticated } = useAuth();
 
   // Map assigned users to option format
   const selectedUsers = useMemo(() => {
@@ -89,12 +80,28 @@ export const RoleUserAssignment: React.FC<RoleUserAssignmentProps> = ({
   }, [assignedUsers]);
 
   const handleChange = useCallback(
-    async (_event: any, newValue: UserOption[]) => {
+    async (newValue: UserOption[]) => {
       // Prevent duplicates - filter out any duplicates in newValue
       // Autocomplete should handle this, but we ensure uniqueness
       const uniqueNewValue = Array.from(
         new Map(newValue.map((user) => [user.id, user])).values()
       );
+
+      const newUsers: User[] = uniqueNewValue.map((user) => ({
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+        enabled: user.enabled,
+      }));
+
+      // If onChange is provided (edit mode with deferred mutations), use it
+      if (onChange) {
+        onChange(newUsers);
+        return;
+      }
+
+      // Legacy mode: immediate mutations
+      if (!onAssignUser || !onRemoveUser) return;
 
       const currentIds = new Set(assignedUsers.map((u) => u.id));
       const newIds = new Set(uniqueNewValue.map((u) => u.id));
@@ -125,24 +132,36 @@ export const RoleUserAssignment: React.FC<RoleUserAssignmentProps> = ({
         toast.error(errorMessage);
       }
     },
-    [assignedUsers, onAssignUser, onRemoveUser, toast, t, onUsersChange]
+    [assignedUsers, onAssignUser, onRemoveUser, onChange, toast, t, onUsersChange]
   );
 
-  if (usersLoading) {
-    return (
-      <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
-        <CircularProgress size={24} />
-      </Box>
-    );
+  if (!active) {
+    return null;
   }
 
-  if (usersError) {
+  // Readonly mode: just display users as chips
+  if (readonly) {
     return (
-      <ErrorAlert
-        error={usersError}
-        onRetry={() => refetch()}
-        fallbackMessage={t("roleManagement.users.loadError")}
-      />
+      <Box>
+        <Typography variant="subtitle1" gutterBottom>
+          {t("roleManagement.users.assigned")}
+        </Typography>
+        {selectedUsers.length === 0 ? (
+          <Typography variant="body2" color="text.secondary">
+            {t("roleManagement.users.noUsers")}
+          </Typography>
+        ) : (
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+            {selectedUsers.map((user) => (
+              <Chip
+                key={user.id}
+                variant="outlined"
+                label={user.label}
+              />
+            ))}
+          </Box>
+        )}
+      </Box>
     );
   }
 
@@ -151,46 +170,53 @@ export const RoleUserAssignment: React.FC<RoleUserAssignmentProps> = ({
       <Typography variant="subtitle1" gutterBottom>
         {t("roleManagement.users.assigned")}
       </Typography>
-      <Autocomplete
-        multiple
-        options={userOptions}
-        getOptionLabel={(option) => option.label}
-        value={selectedUsers}
+      <SearchableAutocomplete<
+        UserOption,
+        UserOption,
+        GetUsersQuery,
+        GetUsersQueryVariables
+      >
+        useQuery={useGetUsersQuery}
+        getQueryVariables={(searchQuery) => ({
+          first: 100,
+          query: searchQuery || undefined,
+        })}
+        extractData={(data) => data?.users?.edges?.map((e) => e.node) || []}
+        transformOption={(user) => ({
+          id: user.id,
+          label: user.displayName || user.email,
+          email: user.email,
+          displayName: user.displayName,
+          enabled: user.enabled,
+        })}
+        selectedItems={selectedUsers}
         onChange={handleChange}
-        loading={assignLoading || removeLoading}
-        disabled={assignLoading || removeLoading}
+        getOptionId={(option) => option.id}
+        getOptionLabel={(option) => option.label}
         isOptionEqualToValue={(option, value) => option.id === value.id}
-        filterOptions={(options, { inputValue }) => {
-          const searchLower = inputValue.toLowerCase();
-          return options.filter(
-            (option) =>
-              option.email.toLowerCase().includes(searchLower) ||
-              option.label.toLowerCase().includes(searchLower)
-          );
-        }}
-        renderTags={(value: UserOption[], getTagProps) =>
+        multiple
+        label={t("roleManagement.users.assigned")}
+        placeholder={t("roleManagement.users.searchPlaceholder")}
+        disabled={assignLoading || removeLoading || (!!roleId && !onChange && (!onAssignUser || !onRemoveUser))}
+        loading={assignLoading || removeLoading}
+        skip={!active || !isAuthenticated}
+        errorMessage={t("roleManagement.users.loadError")}
+        variant="outlined"
+        renderTags={(value, getTagProps) =>
           value.map((option, index) => {
             const { key, ...tagProps } = getTagProps({ index });
             return (
               <Chip
-                key={key}
+                key={key || option.id}
                 variant="outlined"
+                color="primary"
                 label={option.label}
                 {...tagProps}
               />
             );
           })
         }
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            label={t("roleManagement.users.assigned")}
-            placeholder={t("roleManagement.users.searchPlaceholder")}
-            fullWidth
-          />
-        )}
       />
     </Box>
   );
 };
-

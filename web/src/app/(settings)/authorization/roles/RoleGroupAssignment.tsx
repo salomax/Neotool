@@ -1,20 +1,13 @@
 "use client";
 
 import React, { useMemo, useCallback } from "react";
-import {
-  Box,
-  Typography,
-  CircularProgress,
-  Autocomplete,
-  TextField,
-  Chip,
-} from "@mui/material";
-import { ErrorAlert } from "@/shared/components/ui/feedback";
-import { useGetGroupsQuery } from "@/lib/graphql/operations/authorization-management/queries.generated";
+import { Box, Typography, Chip } from "@mui/material";
+import { useGetGroupsQuery, type GetGroupsQuery, type GetGroupsQueryVariables } from "@/lib/graphql/operations/authorization-management/queries.generated";
 import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
 import { useToast } from "@/shared/providers";
 import { extractErrorMessage } from "@/shared/utils/error";
+import { SearchableAutocomplete } from "@/shared/components/ui/forms/SearchableAutocomplete";
 
 export interface Group {
   id: string;
@@ -25,11 +18,19 @@ export interface Group {
 export interface RoleGroupAssignmentProps {
   roleId: string | null;
   assignedGroups: Group[];
-  onAssignGroup: (groupId: string) => Promise<void>;
-  onRemoveGroup: (groupId: string) => Promise<void>;
+  onAssignGroup?: (groupId: string) => Promise<void>;
+  onRemoveGroup?: (groupId: string) => Promise<void>;
   assignLoading?: boolean;
   removeLoading?: boolean;
   onGroupsChange?: () => void;
+  /**
+   * When false, skips loading group options and renders nothing.
+   */
+  active?: boolean;
+  /**
+   * For edit mode with deferred mutations: callback when groups change (updates local state only)
+   */
+  onChange?: (groups: Group[]) => void;
 }
 
 type GroupOption = {
@@ -51,28 +52,11 @@ export const RoleGroupAssignment: React.FC<RoleGroupAssignmentProps> = ({
   assignLoading = false,
   removeLoading = false,
   onGroupsChange,
+  active = true,
+  onChange,
 }) => {
   const { t } = useTranslation(authorizationManagementTranslations);
   const toast = useToast();
-
-  // Fetch all groups for selection
-  const { data, loading: groupsLoading, error: groupsError, refetch } = useGetGroupsQuery({
-    variables: {
-      first: 1000, // Fetch a large number of groups for selection
-      query: undefined,
-    },
-    skip: false,
-  });
-
-  // Transform groups data for Autocomplete
-  const groupOptions = useMemo(() => {
-    return (data?.groups?.edges?.map(e => e.node) || []).map((group) => ({
-      id: group.id,
-      label: group.name,
-      name: group.name,
-      description: group.description,
-    }));
-  }, [data?.groups?.edges]);
 
   // Map assigned groups to option format
   const selectedGroups = useMemo(() => {
@@ -85,12 +69,27 @@ export const RoleGroupAssignment: React.FC<RoleGroupAssignmentProps> = ({
   }, [assignedGroups]);
 
   const handleChange = useCallback(
-    async (_event: any, newValue: GroupOption[]) => {
+    async (newValue: GroupOption[]) => {
       // Prevent duplicates - filter out any duplicates in newValue
       // Autocomplete should handle this, but we ensure uniqueness
       const uniqueNewValue = Array.from(
         new Map(newValue.map((group) => [group.id, group])).values()
       );
+
+      const newGroups: Group[] = uniqueNewValue.map((group) => ({
+        id: group.id,
+        name: group.name,
+        description: group.description,
+      }));
+
+      // If onChange is provided (edit mode with deferred mutations), use it
+      if (onChange) {
+        onChange(newGroups);
+        return;
+      }
+
+      // Legacy mode: immediate mutations
+      if (!onAssignGroup || !onRemoveGroup) return;
 
       const currentIds = new Set(assignedGroups.map((g) => g.id));
       const newIds = new Set(uniqueNewValue.map((g) => g.id));
@@ -121,25 +120,11 @@ export const RoleGroupAssignment: React.FC<RoleGroupAssignmentProps> = ({
         toast.error(errorMessage);
       }
     },
-    [assignedGroups, onAssignGroup, onRemoveGroup, toast, t, onGroupsChange]
+    [assignedGroups, onAssignGroup, onRemoveGroup, onChange, toast, t, onGroupsChange]
   );
 
-  if (groupsLoading) {
-    return (
-      <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
-        <CircularProgress size={24} />
-      </Box>
-    );
-  }
-
-  if (groupsError) {
-    return (
-      <ErrorAlert
-        error={groupsError}
-        onRetry={() => refetch()}
-        fallbackMessage={t("roleManagement.groups.loadError")}
-      />
-    );
+  if (!active) {
+    return null;
   }
 
   return (
@@ -147,44 +132,52 @@ export const RoleGroupAssignment: React.FC<RoleGroupAssignmentProps> = ({
       <Typography variant="subtitle1" gutterBottom>
         {t("roleManagement.groups.assigned")}
       </Typography>
-      <Autocomplete
-        multiple
-        options={groupOptions}
-        getOptionLabel={(option) => option.label}
-        value={selectedGroups}
+      <SearchableAutocomplete<
+        GroupOption,
+        GroupOption,
+        GetGroupsQuery,
+        GetGroupsQueryVariables
+      >
+        useQuery={useGetGroupsQuery}
+        getQueryVariables={(searchQuery) => ({
+          first: 5,
+          query: searchQuery || undefined,
+        })}
+        extractData={(data) => data?.groups?.edges?.map((e) => e.node) || []}
+        transformOption={(group) => ({
+          id: group.id,
+          label: group.name,
+          name: group.name,
+          description: group.description,
+        })}
+        selectedItems={selectedGroups}
         onChange={handleChange}
-        loading={assignLoading || removeLoading}
-        disabled={assignLoading || removeLoading}
+        getOptionId={(option) => option.id}
+        getOptionLabel={(option) => option.label}
         isOptionEqualToValue={(option, value) => option.id === value.id}
-        filterOptions={(options, { inputValue }) => {
-          const searchLower = inputValue.toLowerCase();
-          return options.filter((option) =>
-            option.name.toLowerCase().includes(searchLower)
-          );
-        }}
-        renderTags={(value: GroupOption[], getTagProps) =>
+        multiple
+        placeholder={t("roleManagement.groups.searchPlaceholder")}
+        disabled={assignLoading || removeLoading || (!!roleId && !onChange && (!onAssignGroup || !onRemoveGroup))}
+        loading={assignLoading || removeLoading}
+        skip={!active}
+        errorMessage={t("roleManagement.groups.loadError")}
+        variant="outlined"
+        loadMode="eager"
+        renderTags={(value, getTagProps) =>
           value.map((option, index) => {
             const { key, ...tagProps } = getTagProps({ index });
             return (
               <Chip
-                key={key}
+                key={key || option.id}
                 variant="outlined"
+                color="primary"
                 label={option.label}
                 {...tagProps}
               />
             );
           })
         }
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            label={t("roleManagement.groups.assigned")}
-            placeholder={t("roleManagement.groups.searchPlaceholder")}
-            fullWidth
-          />
-        )}
       />
     </Box>
   );
 };
-

@@ -36,5 +36,12 @@
     "create": "Criar",
     "update": "Atualizar",
     "loading": "Carregando..."
+  },
+  "errors": {
+    "connectionError": "Não foi possível conectar ao servidor. Por favor, verifique sua conexão com a internet ou aguarde alguns instantes.",
+    "connectionTimeout": "A solicitação demorou muito para ser concluída. Por favor, verifique sua conexão e tente novamente.",
+    "serviceUnavailable": "O serviço está temporariamente indisponível. Por favor, tente novamente em alguns instantes.",
+    "gatewayTimeout": "O servidor está demorando muito para responder. Por favor, tente novamente mais tarde.",
+    "default": "Ocorreu um erro"
   }
 }

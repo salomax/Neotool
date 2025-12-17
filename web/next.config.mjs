@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Enable standalone output for Docker optimization
-  output: 'standalone',
+  // Enable standalone output for Docker optimization (production only)
+  ...(process.env.NODE_ENV === 'production' && { output: 'standalone' }),
   // Ensure proper workspace root detection
   outputFileTracingRoot: process.cwd(),
   // Disable strict mode for development to avoid double rendering issues

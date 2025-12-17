@@ -207,6 +207,27 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
         }
 
         @Test
+        fun `should return null for disabled user during authentication`() {
+            // Arrange
+            val email = uniqueEmail()
+            val password = "TestPassword123!"
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
+            user.enabled = false
+            userRepository.save(user)
+
+            // Act
+            val authenticatedUser = authenticationService.authenticate(email, password)
+
+            // Assert
+            assertThat(authenticatedUser).isNull()
+        }
+
+        @Test
         fun `should authenticate multiple users independently`() {
             // Arrange
             val email1 = uniqueEmail()
@@ -571,6 +592,58 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
             authenticationService.clearRememberMeToken(savedUser.id!!)
 
             // Act - Try to validate revoked token
+            val validatedUser = authenticationService.validateRefreshToken(refreshToken)
+
+            // Assert
+            assertThat(validatedUser).isNull()
+        }
+
+        @Test
+        fun `should reject access token for disabled user`() {
+            // Arrange
+            val email = uniqueEmail()
+            val password = "TestPassword123!"
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
+            val savedUser = userRepository.save(user)
+            val authContext = authContextFactory.build(savedUser)
+            val accessToken = authenticationService.generateAccessToken(authContext)
+
+            // Act - Disable user
+            savedUser.enabled = false
+            userRepository.save(savedUser)
+
+            // Act - Try to validate access token
+            val validatedUser = authenticationService.validateAccessToken(accessToken)
+
+            // Assert
+            assertThat(validatedUser).isNull()
+        }
+
+        @Test
+        fun `should reject refresh token for disabled user`() {
+            // Arrange
+            val email = uniqueEmail()
+            val password = "TestPassword123!"
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
+            val savedUser = userRepository.save(user)
+            val refreshToken = authenticationService.generateRefreshToken(savedUser)
+            authenticationService.saveRememberMeToken(savedUser.id!!, refreshToken)
+
+            // Act - Disable user
+            savedUser.enabled = false
+            userRepository.save(savedUser)
+
+            // Act - Try to validate refresh token
             val validatedUser = authenticationService.validateRefreshToken(refreshToken)
 
             // Assert

@@ -24,7 +24,7 @@ const mockUsePermissionManagement = vi.fn(() => ({
 }));
 
 vi.mock('@/shared/hooks/authorization/usePermissionManagement', () => ({
-  usePermissionManagement: () => mockUsePermissionManagement(),
+  usePermissionManagement: (options: any) => mockUsePermissionManagement(options),
 }));
 
 // Mock PermissionSearch component
@@ -139,6 +139,15 @@ describe('RolePermissionAssignment', () => {
       renderRolePermissionAssignment();
 
       expect(screen.getByTestId('permission-search')).toBeInTheDocument();
+    });
+
+    it('should skip fetching and rendering when inactive', () => {
+      renderRolePermissionAssignment({ active: false });
+
+      expect(screen.queryByText('Assigned Permissions')).not.toBeInTheDocument();
+      expect(mockUsePermissionManagement).toHaveBeenCalledWith(
+        expect.objectContaining({ skip: true })
+      );
     });
   });
 

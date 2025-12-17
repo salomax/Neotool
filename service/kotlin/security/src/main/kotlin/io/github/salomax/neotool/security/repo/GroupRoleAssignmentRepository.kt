@@ -36,7 +36,7 @@ interface GroupRoleAssignmentRepository : JpaRepository<GroupRoleAssignmentEntit
     /**
      * Find role assignments by role ID.
      */
-    fun findByRoleId(roleId: Int): List<GroupRoleAssignmentEntity>
+    fun findByRoleId(roleId: UUID): List<GroupRoleAssignmentEntity>
 
     /**
      * Find all valid role assignments for multiple groups (batch loading).

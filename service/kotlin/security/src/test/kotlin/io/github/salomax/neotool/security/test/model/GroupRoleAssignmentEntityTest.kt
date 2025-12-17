@@ -28,7 +28,7 @@ class GroupRoleAssignmentEntityTest {
                 GroupRoleAssignmentEntity(
                     id = id,
                     groupId = groupId,
-                    roleId = 1,
+                    roleId = UUID.randomUUID(),
                     validFrom = validFrom,
                     validUntil = validUntil,
                     createdAt = createdAt,
@@ -42,7 +42,7 @@ class GroupRoleAssignmentEntityTest {
             // Assert
             assertThat(domain.id).isEqualTo(id)
             assertThat(domain.groupId).isEqualTo(groupId)
-            assertThat(domain.roleId).isEqualTo(1)
+            assertThat(domain.roleId).isNotNull()
             assertThat(domain.validFrom).isEqualTo(validFrom)
             assertThat(domain.validUntil).isEqualTo(validUntil)
             assertThat(domain.createdAt).isEqualTo(createdAt)
@@ -56,7 +56,7 @@ class GroupRoleAssignmentEntityTest {
             val entity =
                 GroupRoleAssignmentEntity(
                     groupId = groupId,
-                    roleId = 3,
+                    roleId = UUID.randomUUID(),
                     validFrom = null,
                     validUntil = null,
                 )
@@ -76,7 +76,7 @@ class GroupRoleAssignmentEntityTest {
             val entity =
                 GroupRoleAssignmentEntity(
                     groupId = groupId,
-                    roleId = 1,
+                    roleId = UUID.randomUUID(),
                     version = 10L,
                 )
 

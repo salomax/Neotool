@@ -1,18 +1,15 @@
 "use client";
 
 import React, { useMemo, useCallback } from "react";
+import { Box, Typography, Chip } from "@mui/material";
 import {
-  Box,
-  Typography,
-  CircularProgress,
-  Autocomplete,
-  TextField,
-  Chip,
-} from "@mui/material";
-import { ErrorAlert } from "@/shared/components/ui/feedback";
-import { useGetGroupsQuery } from "@/lib/graphql/operations/authorization-management/queries.generated";
+  useGetGroupsQuery,
+  type GetGroupsQuery,
+  type GetGroupsQueryVariables,
+} from "@/lib/graphql/operations/authorization-management/queries.generated";
 import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
+import { SearchableAutocomplete } from "@/shared/components/ui/forms/SearchableAutocomplete";
 
 export interface Group {
   id: string;
@@ -28,9 +25,9 @@ export interface UserGroupAssignmentProps {
 
 type GroupOption = {
   id: string;
-  label: string;
   name: string;
   description: string | null;
+  label: string;
 };
 
 /**
@@ -44,27 +41,8 @@ export const UserGroupAssignment: React.FC<UserGroupAssignmentProps> = ({
 }) => {
   const { t } = useTranslation(authorizationManagementTranslations);
 
-  // Fetch all groups for selection
-  const { data, loading: groupsLoading, error: groupsError, refetch } = useGetGroupsQuery({
-    variables: {
-      first: 1000, // Fetch a large number of groups for selection
-      query: undefined,
-    },
-    skip: false,
-  });
-
-  // Transform groups data for Autocomplete
-  const groupOptions = useMemo(() => {
-    return (data?.groups?.edges?.map(e => e.node) || []).map((group) => ({
-      id: group.id,
-      label: group.name,
-      name: group.name,
-      description: group.description,
-    }));
-  }, [data?.groups?.edges]);
-
   // Map assigned groups to option format
-  const selectedGroups = useMemo(() => {
+  const selectedGroups = useMemo<GroupOption[]>(() => {
     return assignedGroups.map((group) => ({
       id: group.id,
       label: group.name,
@@ -74,15 +52,8 @@ export const UserGroupAssignment: React.FC<UserGroupAssignmentProps> = ({
   }, [assignedGroups]);
 
   const handleChange = useCallback(
-    (_event: any, newValue: GroupOption[]) => {
-      // Prevent duplicates - filter out any duplicates in newValue
-      // Autocomplete should handle this, but we ensure uniqueness
-      const uniqueNewValue = Array.from(
-        new Map(newValue.map((group) => [group.id, group])).values()
-      );
-
-      // Convert to Group format and notify parent
-      const selectedGroups: Group[] = uniqueNewValue.map((option) => ({
+    (selectedOptions: GroupOption[]) => {
+      const selectedGroups: Group[] = selectedOptions.map((option) => ({
         id: option.id,
         name: option.name,
         description: option.description,
@@ -92,61 +63,48 @@ export const UserGroupAssignment: React.FC<UserGroupAssignmentProps> = ({
     [onChange]
   );
 
-  if (groupsLoading) {
-    return (
-      <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
-        <CircularProgress size={24} />
-      </Box>
-    );
-  }
-
-  if (groupsError) {
-    return (
-      <ErrorAlert
-        error={groupsError}
-        onRetry={() => refetch()}
-        fallbackMessage={t("userManagement.groups.loadError")}
-      />
-    );
-  }
-
   return (
-    <Box>
-      <Autocomplete
+    <Box data-testid="user-group-assignment">
+      <SearchableAutocomplete<GroupOption, GroupOption, GetGroupsQuery, GetGroupsQueryVariables>
         multiple
-        options={groupOptions}
-        getOptionLabel={(option) => option.label}
-        value={selectedGroups}
+        useQuery={useGetGroupsQuery}
+        getQueryVariables={(search) => ({
+          first: 5,
+          query: search || undefined,
+        })}
+        extractData={(queryData) => queryData?.groups?.edges?.map((e) => e.node) || []}
+        transformOption={(group) => ({
+          id: group.id,
+          name: group.name,
+          description: group.description,
+          label: group.name,
+        })}
+        selectedItems={selectedGroups}
         onChange={handleChange}
+        getOptionId={(option) => option.id}
+        getOptionLabel={(option) => option.label}
         isOptionEqualToValue={(option, value) => option.id === value.id}
-        filterOptions={(options, { inputValue }) => {
-          const searchLower = inputValue.toLowerCase();
-          return options.filter((option) =>
-            option.name.toLowerCase().includes(searchLower)
-          );
-        }}
+        placeholder={t("userManagement.groups.searchPlaceholder")}
+        errorMessage={t("userManagement.groups.loadError")}
         renderTags={(value: GroupOption[], getTagProps) =>
           value.map((option, index) => {
-            const { key, onDelete, ...tagProps } = getTagProps({ index });
+            const { key, ...tagProps } = getTagProps({ index });
             return (
               <Chip
-                key={key}
+                key={key || option.id}
                 variant="outlined"
+                color="primary"
                 label={option.label}
-                onDelete={onDelete}
+                data-testid={`user-group-chip-${option.id}`}
                 {...tagProps}
               />
             );
           })
         }
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            label={t("userManagement.drawer.groups")}
-            placeholder={t("userManagement.groups.searchPlaceholder")}
-            fullWidth
-          />
-        )}
+        fetchPolicy="network-only"
+        notifyOnNetworkStatusChange
+        skip={!userId}
+        loadMode="eager"
       />
     </Box>
   );

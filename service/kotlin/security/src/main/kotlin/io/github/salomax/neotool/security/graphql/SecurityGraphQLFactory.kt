@@ -49,6 +49,8 @@ class SecurityGraphQLFactory(
                                                 email = it.email,
                                                 displayName = it.displayName,
                                                 enabled = it.enabled,
+                                                createdAt = it.createdAt.toString(),
+                                                updatedAt = it.updatedAt.toString(),
                                             )
                                         }
                                     }
@@ -66,13 +68,15 @@ class SecurityGraphQLFactory(
                                                         ?: throw IllegalArgumentException("Group must have an ID"),
                                                 name = groupDomain.name,
                                                 description = groupDomain.description,
+                                                createdAt = groupDomain.createdAt.toString(),
+                                                updatedAt = groupDomain.updatedAt.toString(),
                                             )
                                         }
                                     }
                                     "Role" -> {
                                         val role =
                                             roleRepository.findById(
-                                                id.toString().toInt(),
+                                                UUID.fromString(id.toString()),
                                             )
                                                 .orElse(null)
                                         role?.let {
@@ -82,12 +86,14 @@ class SecurityGraphQLFactory(
                                                     roleDomain.id?.toString()
                                                         ?: throw IllegalArgumentException("Role must have an ID"),
                                                 name = roleDomain.name,
+                                                createdAt = roleDomain.createdAt.toString(),
+                                                updatedAt = roleDomain.updatedAt.toString(),
                                             )
                                         }
                                     }
                                     "Permission" -> {
                                         val permission =
-                                            permissionRepository.findById(id.toString().toInt())
+                                            permissionRepository.findById(UUID.fromString(id.toString()))
                                                 .orElse(null)
                                         permission?.let {
                                             val permissionDomain = it.toDomain()

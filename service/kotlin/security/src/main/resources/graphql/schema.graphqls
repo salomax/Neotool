@@ -5,7 +5,10 @@ type User @key(fields: "id") {
   id: ID!
   email: String!
   displayName: String
+  avatarUrl: String
   enabled: Boolean!
+  createdAt: String!
+  updatedAt: String!
   roles: [Role!]!
   groups: [Group!]!
   permissions: [Permission!]!
@@ -18,8 +21,6 @@ type Query {
   
   # Authorization queries
   checkPermission(userId: ID!, permission: String!, resourceId: ID): AuthorizationResult!
-  getUserPermissions(userId: ID!): [Permission!]!
-  getUserRoles(userId: ID!): [Role!]!
   
   # Authorization management queries
   user(id: ID!): User
@@ -44,6 +45,7 @@ type Mutation {
   # Authorization management mutations
   enableUser(userId: ID!): User!
   disableUser(userId: ID!): User!
+  updateUser(userId: ID!, input: UpdateUserInput!): User!
   createGroup(input: CreateGroupInput!): Group!
   updateGroup(groupId: ID!, input: UpdateGroupInput!): Group!
   deleteGroup(groupId: ID!): Boolean!
@@ -52,8 +54,6 @@ type Mutation {
   deleteRole(roleId: ID!): Boolean!
   assignPermissionToRole(roleId: ID!, permissionId: ID!): Role!
   removePermissionFromRole(roleId: ID!, permissionId: ID!): Role!
-  assignRoleToUser(userId: ID!, roleId: ID!): User!
-  removeRoleFromUser(userId: ID!, roleId: ID!): User!
   assignGroupToUser(userId: ID!, groupId: ID!): User!
   removeGroupFromUser(userId: ID!, groupId: ID!): User!
   assignRoleToGroup(groupId: ID!, roleId: ID!): Group!
@@ -132,6 +132,9 @@ type Permission @key(fields: "id") {
 type Role @key(fields: "id") {
   id: ID!
   name: String!
+  createdAt: String!
+  updatedAt: String!
+  groups: [Group!]!
   permissions: [Permission!]!
 }
 
@@ -139,6 +142,8 @@ type Group @key(fields: "id") {
   id: ID!
   name: String!
   description: String
+  createdAt: String!
+  updatedAt: String!
   roles: [Role!]!
   members: [User!]!
 }
@@ -213,6 +218,10 @@ input CreateRoleInput {
 
 input UpdateRoleInput {
   name: String!
+}
+
+input UpdateUserInput {
+  displayName: String
 }
 
 # Sorting enums and input types

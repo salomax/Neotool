@@ -349,5 +349,6 @@ const renderForm = (initialValues?: Partial<FormData>) => {
 
 ## Related Documentation
 
-- [Testing Standards](../05-standards/testing-standards/unit-test-standards.md)
-- [Testing Workflow](../../06-workflows/testing-workflow.md)
+- [E2E Testing Pattern](./e2e-testing-pattern.md) - End-to-end testing patterns with Playwright
+- [Testing Standards](../../05-standards/testing-standards/unit-test-standards.md) - Testing standards and rules
+- [Testing Workflow](../../06-workflows/testing-workflow.md) - Testing workflow and process

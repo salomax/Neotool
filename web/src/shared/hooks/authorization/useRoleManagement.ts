@@ -1,27 +1,17 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef, startTransition } from "react";
 import {
   useGetRolesQuery,
   GetRolesDocument,
+  GetRolesQueryVariables,
 } from '@/lib/graphql/operations/authorization-management/queries.generated';
-import {
-  useCreateRoleMutation,
-  useUpdateRoleMutation,
-  useDeleteRoleMutation,
-  useAssignPermissionToRoleMutation,
-  useRemovePermissionFromRoleMutation,
-  useAssignRoleToUserMutation,
-  useRemoveRoleFromUserMutation,
-  useAssignRoleToGroupMutation,
-  useRemoveRoleFromGroupMutation,
-} from '@/lib/graphql/operations/authorization-management/mutations.generated';
-import { CreateRoleInput, UpdateRoleInput, RoleOrderByInput } from '@/lib/graphql/types/__generated__/graphql';
+import { RoleOrderByInput } from '@/lib/graphql/types/__generated__/graphql';
 import { extractErrorMessage } from '@/shared/utils/error';
 import { useRelayPagination } from '@/shared/hooks/pagination';
 import { useDebouncedSearch } from '@/shared/hooks/search';
 import { useSorting } from '@/shared/hooks/sorting';
-import { useMutationWithRefetch } from '@/shared/hooks/mutations';
+import { useRoleMutations } from './useRoleMutations';
 import type { RoleSortState, RoleOrderField } from '@/shared/utils/sorting';
 
 export type Role = {
@@ -39,6 +29,10 @@ export type RoleFormData = {
 export type UseRoleManagementOptions = {
   initialSearchQuery?: string;
   initialFirst?: number;
+  /**
+   * When true, skips executing the query (useful while waiting for dynamic sizing).
+   */
+  skip?: boolean;
 };
 
 export type UseRoleManagementReturn = {
@@ -96,9 +90,7 @@ export type UseRoleManagementReturn = {
   assignPermissionToRole: (roleId: string, permissionId: string) => Promise<void>;
   removePermissionFromRole: (roleId: string, permissionId: string) => Promise<void>;
   
-  // User and group management
-  assignRoleToUser: (userId: string, roleId: string) => Promise<void>;
-  removeRoleFromUser: (userId: string, roleId: string) => Promise<void>;
+  // Group management
   assignRoleToGroup: (groupId: string, roleId: string) => Promise<void>;
   removeRoleFromGroup: (groupId: string, roleId: string) => Promise<void>;
   
@@ -109,8 +101,6 @@ export type UseRoleManagementReturn = {
   deleteLoading: boolean;
   assignPermissionLoading: boolean;
   removePermissionLoading: boolean;
-  assignRoleToUserLoading: boolean;
-  removeRoleFromUserLoading: boolean;
   assignRoleToGroupLoading: boolean;
   removeRoleFromGroupLoading: boolean;
   
@@ -165,12 +155,22 @@ export type UseRoleManagementReturn = {
  * ```
  */
 export function useRoleManagement(options: UseRoleManagementOptions = {}): UseRoleManagementReturn {
+  const waitingForPageSize = options.skip ?? false;
+
   // Local state
-  const [first, setFirst] = useState(options.initialFirst || 10);
+  const [firstState, setFirstState] = useState(options.initialFirst || 10);
   const [after, setAfter] = useState<string | null>(null);
 
-  // Ref to preserve previous data during loading to prevent flicker
-  const previousDataRef = useRef<typeof rolesData | null>(null);
+  // Ref to track current first value for guard
+  const firstRef = useRef(firstState);
+
+  // Update ref in effect to avoid updating during render
+  useEffect(() => {
+    firstRef.current = firstState;
+  }, [firstState]);
+
+  // State to preserve previous data during loading to prevent flicker
+  const [previousData, setPreviousData] = useState<any>(null);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState(options.initialSearchQuery || "");
@@ -179,67 +179,109 @@ export function useRoleManagement(options: UseRoleManagementOptions = {}): UseRo
   const { orderBy, graphQLOrderBy, setOrderBy, handleSort } = useSorting<RoleOrderField>({
     initialSort: null,
     onSortChange: () => {
-      // Reset cursor when sorting changes
+      // Reset cursor when sorting changes (non-urgent update)
       if (after !== null) {
-        setAfter(null);
+        startTransition(() => {
+          setAfter(null);
+        });
       }
     },
   });
 
+  // Memoize query variables to prevent unnecessary re-renders
+  const queryVariables = useMemo<GetRolesQueryVariables>(() => {
+    const vars: GetRolesQueryVariables = {
+      first: firstState,
+      ...(after && { after }),
+      ...(searchQuery && { query: searchQuery }),
+      ...(graphQLOrderBy && graphQLOrderBy.length > 0 && { orderBy: graphQLOrderBy as RoleOrderByInput[] }),
+    };
+    return vars;
+  }, [firstState, after, searchQuery, graphQLOrderBy]);
+
   // GraphQL hooks
   const { data: rolesData, loading, error, refetch } = useGetRolesQuery({
-    variables: {
-      first,
-      after: after || undefined,
-      query: searchQuery || undefined,
-      // Cast to GraphQL type - the utility function returns compatible structure
-      // but TypeScript sees them as different types due to separate type definitions
-      orderBy: (graphQLOrderBy as RoleOrderByInput[] | undefined) || undefined,
-    } as any, // Type assertion needed until GraphQL types are regenerated with orderBy
-    skip: false,
+    variables: queryVariables,
+    skip: waitingForPageSize,
     notifyOnNetworkStatusChange: true, // Keep loading state accurate during transitions
   });
 
-  // Update previous data ref when we have new data
+  // Update previous data state when we have new data
   useEffect(() => {
     if (rolesData && !loading) {
-      previousDataRef.current = rolesData;
+      startTransition(() => {
+        setPreviousData(rolesData);
+      });
     }
   }, [rolesData, loading]);
 
-  const [createRoleMutation, { loading: createLoading }] = useCreateRoleMutation();
-  const [updateRoleMutation, { loading: updateLoading }] = useUpdateRoleMutation();
-  const [deleteRoleMutation, { loading: deleteLoading }] = useDeleteRoleMutation();
-  const [assignPermissionMutation, { loading: assignPermissionLoading }] = useAssignPermissionToRoleMutation();
-  const [removePermissionMutation, { loading: removePermissionLoading }] = useRemovePermissionFromRoleMutation();
-  const [assignRoleToUserMutation, { loading: assignRoleToUserLoading }] = useAssignRoleToUserMutation();
-  const [removeRoleFromUserMutation, { loading: removeRoleFromUserLoading }] = useRemoveRoleFromUserMutation();
-  const [assignRoleToGroupMutation, { loading: assignRoleToGroupLoading }] = useAssignRoleToGroupMutation();
-  const [removeRoleFromGroupMutation, { loading: removeRoleFromGroupLoading }] = useRemoveRoleFromGroupMutation();
+  // Dialog management (kept for backward compatibility, but not used in new pattern)
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingRole, setEditingRole] = useState<Role | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<Role | null>(null);
 
-  // Mutation hook with refetch
-  const { executeMutation } = useMutationWithRefetch({
+  const openCreateDialog = useCallback(() => {
+    setEditingRole(null);
+    setDialogOpen(true);
+  }, []);
+
+  const openEditDialog = useCallback((role: Role) => {
+    setEditingRole(role);
+    setDialogOpen(true);
+  }, []);
+
+  const closeDialog = useCallback(() => {
+    setDialogOpen(false);
+    setEditingRole(null);
+  }, []);
+
+  // Use mutation hook internally
+  const {
+    createRole: createRoleMutation,
+    updateRole: updateRoleMutation,
+    deleteRole: deleteRoleMutation,
+    assignPermissionToRole,
+    removePermissionFromRole,
+    assignRoleToGroup,
+    removeRoleFromGroup,
+    createLoading,
+    updateLoading,
+    deleteLoading,
+    assignPermissionLoading,
+    removePermissionLoading,
+    assignRoleToGroupLoading,
+    removeRoleFromGroupLoading,
+  } = useRoleMutations({
     refetchQuery: GetRolesDocument,
-    refetchVariables: {
-      first,
-      after: after || undefined,
-      query: searchQuery || undefined,
-      orderBy: (graphQLOrderBy as RoleOrderByInput[] | undefined) || undefined,
-    },
+    refetchVariables: queryVariables,
     onRefetch: refetch,
-    errorMessage: 'Failed to update role',
+    onRoleSaved: closeDialog,
+    onRoleDeleted: () => setDeleteConfirm(null),
   });
+
+  // Guard setFirst to only update if value actually changed
+  const setFirst = useCallback((newFirst: number) => {
+    if (firstRef.current === newFirst) {
+      return; // No change, prevent unnecessary state update and query
+    }
+    startTransition(() => {
+      setFirstState(newFirst);
+    });
+  }, []);
+
+  // Use the state value
+  const first = firstState;
 
   // Derived data - use previous data while loading to prevent flicker
   const roles = useMemo(() => {
     // Keep previous data visible while loading new data
-    const currentData = rolesData || (loading ? previousDataRef.current : null);
-    return currentData?.roles?.edges?.map(e => e.node) || [];
-  }, [rolesData, loading]);
+    const currentData = rolesData || (loading ? previousData : null);
+    return currentData?.roles?.edges?.map((e: { node: Role }) => e.node) || [];
+  }, [rolesData, loading, previousData]);
 
   const pageInfo = useMemo(() => {
     // Use previous data if current is loading
-    const currentData = rolesData || (loading ? previousDataRef.current : null);
+    const currentData = rolesData || (loading ? previousData : null);
     const info = currentData?.roles?.pageInfo || null;
     if (!info) {
       return null;
@@ -248,16 +290,16 @@ export function useRoleManagement(options: UseRoleManagementOptions = {}): UseRo
       ...info,
       hasPreviousPage: info.hasPreviousPage || after !== null,
     };
-  }, [rolesData, loading, after]);
+  }, [rolesData, loading, after, previousData]);
 
   // totalCount is always calculated by the backend (never null)
   // When query is null/empty: totalCount = total count of all items
   // When query is provided: totalCount = total count of filtered items
   const totalCount = useMemo(() => {
     // Use previous data if current is loading
-    const currentData = rolesData || (loading ? previousDataRef.current : null);
+    const currentData = rolesData || (loading ? previousData : null);
     return currentData?.roles?.totalCount ?? null;
-  }, [rolesData, loading]);
+  }, [rolesData, loading, previousData]);
 
   // Use shared pagination hook
   const {
@@ -287,158 +329,24 @@ export function useRoleManagement(options: UseRoleManagementOptions = {}): UseRo
   } = useDebouncedSearch({
     initialValue: searchQuery,
     debounceMs: 300,
-    onSearchChange: goToFirstPage,
     setSearchQuery,
     searchQuery,
   });
 
-  // Dialog management (kept for backward compatibility, but not used in new pattern)
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingRole, setEditingRole] = useState<Role | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<Role | null>(null);
+  const effectiveLoading = waitingForPageSize || loading;
 
-  const openCreateDialog = useCallback(() => {
-    setEditingRole(null);
-    setDialogOpen(true);
-  }, []);
-
-  const openEditDialog = useCallback((role: Role) => {
-    setEditingRole(role);
-    setDialogOpen(true);
-  }, []);
-
-  const closeDialog = useCallback(() => {
-    setDialogOpen(false);
-    setEditingRole(null);
-  }, []);
-
-  // CRUD operations
+  // Wrap mutation functions to handle dialog state
   const createRole = useCallback(async (data: RoleFormData): Promise<Role> => {
-    try {
-      const input: CreateRoleInput = {
-        name: data.name.trim(),
-      };
-
-      const result = await executeMutation(
-        createRoleMutation,
-        { input },
-        'create-role'
-      );
-
-      if (result.data?.createRole) {
-        const createdRole: Role = {
-          id: result.data.createRole.id,
-          name: result.data.createRole.name,
-        };
-        closeDialog();
-        return createdRole;
-      }
-      throw new Error('Failed to create role: no data returned');
-    } catch (err) {
-      const errorMessage = extractErrorMessage(err, 'Failed to create role');
-      throw new Error(errorMessage);
-    }
-  }, [executeMutation, createRoleMutation, closeDialog]);
+    return createRoleMutation(data);
+  }, [createRoleMutation]);
 
   const updateRole = useCallback(async (roleId: string, data: RoleFormData) => {
-    try {
-      const input: UpdateRoleInput = {
-        name: data.name.trim(),
-      };
-
-      await executeMutation(
-        updateRoleMutation,
-        { roleId, input },
-        `update-role-${roleId}`
-      );
-      closeDialog();
-    } catch (err) {
-      const errorMessage = extractErrorMessage(err, 'Failed to update role');
-      throw new Error(errorMessage);
-    }
-  }, [executeMutation, updateRoleMutation, closeDialog]);
+    return updateRoleMutation(roleId, data);
+  }, [updateRoleMutation]);
 
   const deleteRole = useCallback(async (roleId: string) => {
-    try {
-      await executeMutation(
-        deleteRoleMutation,
-        { roleId },
-        `delete-role-${roleId}`
-      );
-      setDeleteConfirm(null);
-    } catch (err) {
-      const errorMessage = extractErrorMessage(err, 'Failed to delete role');
-      throw new Error(errorMessage);
-    }
-  }, [executeMutation, deleteRoleMutation]);
-
-  // Permission management
-  const assignPermissionToRole = useCallback(
-    async (roleId: string, permissionId: string) => {
-      await executeMutation(
-        assignPermissionMutation,
-        { roleId, permissionId },
-        `assign-permission-${roleId}-${permissionId}`
-      );
-    },
-    [executeMutation, assignPermissionMutation]
-  );
-
-  const removePermissionFromRole = useCallback(
-    async (roleId: string, permissionId: string) => {
-      await executeMutation(
-        removePermissionMutation,
-        { roleId, permissionId },
-        `remove-permission-${roleId}-${permissionId}`
-      );
-    },
-    [executeMutation, removePermissionMutation]
-  );
-
-  // User and group management
-  const assignRoleToUser = useCallback(
-    async (userId: string, roleId: string) => {
-      await executeMutation(
-        assignRoleToUserMutation,
-        { userId, roleId },
-        `assign-role-${userId}-${roleId}`
-      );
-    },
-    [executeMutation, assignRoleToUserMutation]
-  );
-
-  const removeRoleFromUser = useCallback(
-    async (userId: string, roleId: string) => {
-      await executeMutation(
-        removeRoleFromUserMutation,
-        { userId, roleId },
-        `remove-role-${userId}-${roleId}`
-      );
-    },
-    [executeMutation, removeRoleFromUserMutation]
-  );
-
-  const assignRoleToGroup = useCallback(
-    async (groupId: string, roleId: string) => {
-      await executeMutation(
-        assignRoleToGroupMutation,
-        { groupId, roleId },
-        `assign-role-${groupId}-${roleId}`
-      );
-    },
-    [executeMutation, assignRoleToGroupMutation]
-  );
-
-  const removeRoleFromGroup = useCallback(
-    async (groupId: string, roleId: string) => {
-      await executeMutation(
-        removeRoleFromGroupMutation,
-        { groupId, roleId },
-        `remove-role-${groupId}-${roleId}`
-      );
-    },
-    [executeMutation, removeRoleFromGroupMutation]
-  );
+    return deleteRoleMutation(roleId);
+  }, [deleteRoleMutation]);
 
   return {
     // Data
@@ -486,26 +394,22 @@ export function useRoleManagement(options: UseRoleManagementOptions = {}): UseRo
     assignPermissionToRole,
     removePermissionFromRole,
     
-    // User and group management
-    assignRoleToUser,
-    removeRoleFromUser,
+    // Group management
     assignRoleToGroup,
     removeRoleFromGroup,
     
     // Loading states
-    loading,
+    loading: effectiveLoading,
     createLoading,
     updateLoading,
     deleteLoading,
     assignPermissionLoading,
     removePermissionLoading,
-    assignRoleToUserLoading,
-    removeRoleFromUserLoading,
     assignRoleToGroupLoading,
     removeRoleFromGroupLoading,
     
     // Error handling
-    error: error ? new Error(extractErrorMessage(error)) : undefined,
+    error: waitingForPageSize ? undefined : error ? new Error(extractErrorMessage(error)) : undefined,
     
     // Utilities
     refetch,

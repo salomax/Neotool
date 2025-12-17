@@ -390,6 +390,7 @@ const Tabs: React.FC<TabsProps> = ({
               value={tab.id}
               label={renderTabLabel(tab)}
               disabled={tab.disabled || false}
+              data-testid={`${tab.id}-tab`}
               sx={{
                 minHeight: orientation === 'vertical' ? 48 : 48,
                 minWidth: orientation === 'vertical' ? 120 : shouldScroll ? 120 : 'auto',

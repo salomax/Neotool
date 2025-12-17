@@ -7,7 +7,7 @@ const defaultOptions = {} as const;
 export type CurrentUserQueryVariables = Types.Exact<{ [key: string]: never; }>;
 
 
-export type CurrentUserQuery = { currentUser: { __typename: 'User', id: string, email: string, displayName: string | null, roles: Array<{ __typename: 'Role', id: string, name: string }>, permissions: Array<{ __typename: 'Permission', id: string, name: string }> } | null };
+export type CurrentUserQuery = { currentUser: { __typename: 'User', id: string, email: string, displayName: string | null, avatarUrl: string | null, roles: Array<{ __typename: 'Role', id: string, name: string }>, permissions: Array<{ __typename: 'Permission', id: string, name: string }> } | null };
 
 
 export const CurrentUserDocument = gql`
@@ -16,6 +16,7 @@ export const CurrentUserDocument = gql`
     id
     email
     displayName
+    avatarUrl
     roles {
       id
       name

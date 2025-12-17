@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor, within, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { RoleManagement } from '../RoleManagement';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
@@ -21,7 +21,9 @@ const mockRoles: Role[] = [
   { id: '2', name: 'User Role' },
 ];
 
-const mockUseRoleManagement = vi.fn(() => ({
+const DEFAULT_PAGE_SIZE = 13;
+
+const buildRoleManagementHookReturn = (overrides: Record<string, any> = {}) => ({
   roles: mockRoles,
   searchQuery: '',
   inputValue: '',
@@ -50,7 +52,10 @@ const mockUseRoleManagement = vi.fn(() => ({
   orderBy: null,
   handleSort: vi.fn(),
   setFirst: vi.fn(),
-}));
+  ...overrides,
+});
+
+const mockUseRoleManagement = vi.fn();
 
 vi.mock('@/shared/hooks/authorization/useRoleManagement', () => ({
   useRoleManagement: () => mockUseRoleManagement(),
@@ -99,29 +104,33 @@ vi.mock('../RoleSearch', () => ({
 }));
 
 vi.mock('../RoleList', () => ({
-  RoleList: ({ roles, onEdit, onDelete, emptyMessage, loading }: any) => (
-    <div data-testid="role-list">
-      {loading && <div data-testid="list-loading">Loading...</div>}
-      {!loading && roles.length === 0 && <div>{emptyMessage}</div>}
-      {!loading && roles.length > 0 && (
-        <div>
-          {roles.map((role: Role) => (
-            <div key={role.id} data-testid={`role-${role.id}`}>
-              {role.name}
-              <button onClick={() => onEdit(role)} data-testid={`edit-${role.id}`}>
-                Edit
-              </button>
-              {onDelete && (
-                <button onClick={() => onDelete(role)} data-testid={`delete-${role.id}`}>
-                  Delete
+  RoleList: (props: any) => {
+    (window as any).__roleListProps = props;
+    const { roles, onEdit, onDelete, emptyMessage, loading } = props;
+    return (
+      <div data-testid="role-list">
+        {loading && <div data-testid="list-loading">Loading...</div>}
+        {!loading && roles.length === 0 && <div>{emptyMessage}</div>}
+        {!loading && roles.length > 0 && (
+          <div>
+            {roles.map((role: Role) => (
+              <div key={role.id} data-testid={`role-${role.id}`}>
+                {role.name}
+                <button onClick={() => onEdit(role)} data-testid={`edit-${role.id}`}>
+                  Edit
                 </button>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  ),
+                {onDelete && (
+                  <button onClick={() => onDelete(role)} data-testid={`delete-${role.id}`}>
+                    Delete
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  },
 }));
 
 vi.mock('../RoleDrawer', () => ({
@@ -188,17 +197,37 @@ vi.mock('@/shared/components/ui/layout', () => ({
   ),
 }));
 
-const renderRoleManagement = (props = {}) => {
+const renderRoleManagement = (
+  props = {},
+  options: { skipMeasurement?: boolean; pageSize?: number } = {}
+) => {
+  const { skipMeasurement = false, pageSize = DEFAULT_PAGE_SIZE } = options;
   const defaultProps = {
     initialSearchQuery: '',
     ...props,
   };
 
-  return render(
+  const utils = render(
     <AppThemeProvider>
       <RoleManagement {...defaultProps} />
     </AppThemeProvider>
   );
+
+  const measureTable = (size = pageSize) => {
+    const roleListProps = (window as any).__roleListProps;
+    if (!roleListProps?.onTableResize) {
+      throw new Error("RoleList measurement props are not available");
+    }
+    act(() => {
+      roleListProps.onTableResize(size);
+    });
+  };
+
+  if (!skipMeasurement) {
+    measureTable(pageSize);
+  }
+
+  return { ...utils, measureTable };
 };
 
 describe('RoleManagement', () => {
@@ -206,36 +235,8 @@ describe('RoleManagement', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseRoleManagement.mockReturnValue({
-      roles: mockRoles,
-      searchQuery: '',
-      inputValue: '',
-      handleInputChange: vi.fn(),
-      handleSearch: vi.fn(),
-      pageInfo: {
-        hasNextPage: false,
-        hasPreviousPage: false,
-        startCursor: null,
-        endCursor: null,
-      },
-      paginationRange: {
-        start: 1,
-        end: 2,
-        total: 2,
-      },
-      canLoadPreviousPage: false,
-      loadNextPage: vi.fn(),
-      loadPreviousPage: vi.fn(),
-      goToFirstPage: vi.fn(),
-      loading: false,
-      error: undefined,
-      refetch: vi.fn(),
-      deleteRole: vi.fn().mockResolvedValue(undefined),
-      deleteLoading: false,
-      orderBy: null,
-      handleSort: vi.fn(),
-      setFirst: vi.fn(),
-    });
+    (window as any).__roleListProps = undefined;
+    mockUseRoleManagement.mockImplementation(() => buildRoleManagementHookReturn());
   });
 
   describe('Rendering', () => {
@@ -269,6 +270,15 @@ describe('RoleManagement', () => {
       expect(screen.getByTestId('role-1')).toBeInTheDocument();
       expect(screen.getByText('Admin Role')).toBeInTheDocument();
       expect(screen.getByText('User Role')).toBeInTheDocument();
+    });
+
+    it('should pass initialSearchQuery and measured page size to hook', () => {
+      renderRoleManagement({ initialSearchQuery: 'admin' }, { pageSize: 19 });
+
+      expect(mockUseRoleManagement).toHaveBeenCalledWith({
+        initialSearchQuery: 'admin',
+        initialFirst: 19,
+      });
     });
   });
 
@@ -308,10 +318,11 @@ describe('RoleManagement', () => {
 
     it('should call deleteRole when confirmed', async () => {
       const deleteRole = vi.fn().mockResolvedValue(undefined);
-      mockUseRoleManagement.mockReturnValue({
-        ...mockUseRoleManagement(),
-        deleteRole,
-      });
+      mockUseRoleManagement.mockImplementation(() =>
+        buildRoleManagementHookReturn({
+          deleteRole,
+        })
+      );
 
       renderRoleManagement();
 
@@ -329,10 +340,11 @@ describe('RoleManagement', () => {
 
     it('should show success toast when role is deleted', async () => {
       const deleteRole = vi.fn().mockResolvedValue(undefined);
-      mockUseRoleManagement.mockReturnValue({
-        ...mockUseRoleManagement(),
-        deleteRole,
-      });
+      mockUseRoleManagement.mockImplementation(() =>
+        buildRoleManagementHookReturn({
+          deleteRole,
+        })
+      );
 
       renderRoleManagement();
 
@@ -350,10 +362,11 @@ describe('RoleManagement', () => {
 
     it('should show error toast when delete fails', async () => {
       const deleteRole = vi.fn().mockRejectedValue(new Error('Delete failed'));
-      mockUseRoleManagement.mockReturnValue({
-        ...mockUseRoleManagement(),
-        deleteRole,
-      });
+      mockUseRoleManagement.mockImplementation(() =>
+        buildRoleManagementHookReturn({
+          deleteRole,
+        })
+      );
 
       renderRoleManagement();
 
@@ -384,11 +397,12 @@ describe('RoleManagement', () => {
 
   describe('Empty states', () => {
     it('should show empty search results message when search has no results', () => {
-      mockUseRoleManagement.mockReturnValue({
-        ...mockUseRoleManagement(),
-        roles: [],
-        searchQuery: 'nonexistent',
-      });
+      mockUseRoleManagement.mockImplementation(() =>
+        buildRoleManagementHookReturn({
+          roles: [],
+          searchQuery: 'nonexistent',
+        })
+      );
 
       renderRoleManagement();
 
@@ -396,11 +410,12 @@ describe('RoleManagement', () => {
     });
 
     it('should show empty list message when no roles exist', () => {
-      mockUseRoleManagement.mockReturnValue({
-        ...mockUseRoleManagement(),
-        roles: [],
-        searchQuery: '',
-      });
+      mockUseRoleManagement.mockImplementation(() =>
+        buildRoleManagementHookReturn({
+          roles: [],
+          searchQuery: '',
+        })
+      );
 
       renderRoleManagement();
 
@@ -410,10 +425,11 @@ describe('RoleManagement', () => {
 
   describe('Loading state', () => {
     it('should show loading state', () => {
-      mockUseRoleManagement.mockReturnValue({
-        ...mockUseRoleManagement(),
-        loading: true,
-      });
+      mockUseRoleManagement.mockImplementation(() =>
+        buildRoleManagementHookReturn({
+          loading: true,
+        })
+      );
 
       renderRoleManagement();
 
@@ -423,10 +439,11 @@ describe('RoleManagement', () => {
 
   describe('Error handling', () => {
     it('should show error in layout when error occurs', () => {
-      mockUseRoleManagement.mockReturnValue({
-        ...mockUseRoleManagement(),
-        error: new Error('Failed to load') as any,
-      });
+      mockUseRoleManagement.mockImplementation(() =>
+        buildRoleManagementHookReturn({
+          error: new Error('Failed to load') as any,
+        })
+      );
 
       renderRoleManagement();
 
@@ -435,11 +452,12 @@ describe('RoleManagement', () => {
 
     it('should call refetch when retry is clicked', async () => {
       const refetch = vi.fn();
-      mockUseRoleManagement.mockReturnValue({
-        ...mockUseRoleManagement(),
-        error: new Error('Failed to load') as any,
-        refetch,
-      });
+      mockUseRoleManagement.mockImplementation(() =>
+        buildRoleManagementHookReturn({
+          error: new Error('Failed to load') as any,
+          refetch,
+        })
+      );
 
       renderRoleManagement();
 

@@ -1,13 +1,17 @@
 package io.github.salomax.neotool.common.test.integration
 
+import org.apache.kafka.common.serialization.StringSerializer
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.containers.wait.strategy.Wait
+import org.testcontainers.kafka.KafkaContainer
 import org.testcontainers.utility.DockerImageName
 import java.time.Duration
 
 interface PostgresIntegrationTest
+
+interface KafkaIntegrationTest
+
 // TODO implement the other containers:
-// interface KafkantegrationTest
 // interface RedisntegrationTest
 
 interface MicronautPropsTestContainer {
@@ -52,5 +56,30 @@ object PostgresTestContainer : MicronautPropsTestContainer {
             "flyway.datasources.default.enabled" to flywayEnabled.toString(),
             "flyway.datasources.default.baseline-on-migrate" to "true",
             "flyway.datasources.default.baseline-version" to "0",
+        )
+}
+
+object KafkaTestContainer : MicronautPropsTestContainer {
+    private val image = TestConfig.str("test.kafka.image", "confluentinc/cp-kafka:7.6.1")
+    private val reusable = TestConfig.bool("test.kafka.reuse", true)
+
+    val container: KafkaContainer by lazy {
+        KafkaContainer(DockerImageName.parse(image))
+            .withReuse(reusable)
+            .waitingFor(
+                Wait.forListeningPort()
+                    .withStartupTimeout(Duration.ofSeconds(60)),
+            )
+            .withStartupAttempts(3)
+            .apply { start() }
+    }
+
+    override fun micronautProps(): Map<String, String> =
+        mapOf(
+            "kafka.enabled" to "true",
+            "kafka.bootstrap.servers" to container.bootstrapServers,
+            "kafka.producers.default.bootstrap.servers" to container.bootstrapServers,
+            "kafka.producers.default.key-serializer" to StringSerializer::class.java.name,
+            "kafka.producers.default.value-serializer" to "io.micronaut.serde.kafka.KafkaSerdeSerializer",
         )
 }

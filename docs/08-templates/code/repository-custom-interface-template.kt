@@ -29,3 +29,8 @@ interface {EntityName}RepositoryCustom {
 
 
 
+
+
+
+
+

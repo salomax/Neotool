@@ -37,7 +37,7 @@ open class AuthorizationAuditService(
     open fun logAuthorizationDecision(
         userId: UUID,
         groups: List<UUID>? = null,
-        roles: List<Int>? = null,
+        roles: List<UUID>? = null,
         requestedAction: String,
         resourceType: String? = null,
         resourceId: UUID? = null,

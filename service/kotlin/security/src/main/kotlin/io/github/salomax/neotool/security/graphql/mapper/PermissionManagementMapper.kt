@@ -7,6 +7,7 @@ import io.github.salomax.neotool.security.graphql.dto.PermissionConnectionDTO
 import io.github.salomax.neotool.security.graphql.dto.PermissionDTO
 import io.github.salomax.neotool.security.graphql.dto.PermissionEdgeDTO
 import jakarta.inject.Singleton
+import java.util.UUID
 
 /**
  * Mapper for converting between permission management domain objects and GraphQL DTOs.
@@ -53,9 +54,9 @@ class PermissionManagementMapper {
     }
 
     /**
-     * Convert String ID to Int.
+     * Convert String ID to UUID.
      */
-    fun toPermissionId(id: String): Int {
-        return id.toInt()
+    fun toPermissionId(id: String): UUID {
+        return UUID.fromString(id)
     }
 }

@@ -8,6 +8,7 @@ type User = {
   id: string;
   email: string;
   displayName?: string | null;
+  avatarUrl?: string | null;
 };
 
 type AuthContextType = {
@@ -66,6 +67,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
       setIsLoading(false);
     }
+  }, []);
+
+  // Listen for token refresh events from Apollo Client
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleTokenRefresh = (event: CustomEvent) => {
+      const { token: newToken, user: newUser } = event.detail;
+      setToken(newToken);
+      setUser(newUser);
+      logger.debug("Token refreshed successfully");
+    };
+
+    window.addEventListener('auth:token-refreshed', handleTokenRefresh as (event: Event) => void);
+    
+    return () => {
+      window.removeEventListener('auth:token-refreshed', handleTokenRefresh as (event: Event) => void);
+    };
   }, []);
 
   const signIn = React.useCallback(async (email: string, password: string, rememberMe = false) => {

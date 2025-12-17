@@ -127,7 +127,7 @@ fun decodeCursor(cursor: String): Int {
 @Query(
     value = """
     SELECT * FROM {schema}.{table}
-    WHERE (:after IS NULL OR id > CAST(:after AS {ID_TYPE}))
+    WHERE (CAST(:after AS {ID_TYPE}) IS NULL OR id > CAST(:after AS {ID_TYPE}))
     ORDER BY {sort_field} ASC, id ASC
     LIMIT :first
     """,
@@ -138,32 +138,36 @@ fun findAll(first: Int, after: {ID_TYPE}?): List<{Entity}>
 
 **Key Points**:
 - Use `id > CAST(:after AS {ID_TYPE})` for forward pagination (exclusive)
-- **CRITICAL**: Always cast nullable cursor parameters to their type (UUID or INTEGER)
+- **CRITICAL**: Always cast nullable cursor parameters to their type (UUID or INTEGER) BEFORE the IS NULL check
 - Always include `id` as secondary sort for consistent ordering
 - Use `LIMIT :first` to control page size
 - Use native queries (JPQL doesn't support LIMIT)
 
 ### PostgreSQL Type Inference Requirement
 
-**IMPORTANT**: When using nullable parameters in SQL comparisons, PostgreSQL requires explicit type casting.
+**IMPORTANT**: When using nullable parameters in SQL comparisons, PostgreSQL requires explicit type casting BEFORE the IS NULL check.
 
 **Problem**: PostgreSQL cannot determine the data type of a parameter when it's NULL. If you use `WHERE (:after IS NULL OR id > :after)` without casting, PostgreSQL will fail with:
 ```
 ERROR: could not determine data type of parameter $1
 ```
 
-**Solution**: Always cast nullable cursor parameters to their explicit type:
-- For UUID: `CAST(:after AS UUID)`
-- For Integer: `CAST(:after AS INTEGER)`
+Even casting only in the comparison (`WHERE (:after IS NULL OR id > CAST(:after AS UUID))`) is insufficient because PostgreSQL needs to know the parameter type BEFORE evaluating the IS NULL check.
+
+**Solution**: Always cast nullable cursor parameters to their explicit type BEFORE the IS NULL check:
+- For UUID: `CAST(:after AS UUID) IS NULL`
+- For Integer: `CAST(:after AS INTEGER) IS NULL`
 
 **Correct Pattern**:
 ```kotlin
 // For UUID entities
-WHERE (:after IS NULL OR id > CAST(:after AS UUID))
+WHERE (CAST(:after AS UUID) IS NULL OR id > CAST(:after AS UUID))
 
 // For Integer entities
-WHERE (:after IS NULL OR id > CAST(:after AS INTEGER))
+WHERE (CAST(:after AS INTEGER) IS NULL OR id > CAST(:after AS INTEGER))
 ```
+
+**Why This Works**: By casting the parameter first (`CAST(:after AS UUID)`), PostgreSQL knows the parameter type even when the value is NULL. This allows the `IS NULL` check to work correctly, and the comparison (`id > CAST(:after AS UUID)`) also works because the type is already established.
 
 **Why Tests Don't Catch This**: Unit tests that mock repositories never execute actual SQL, so they won't catch PostgreSQL compilation errors. Integration tests with a real database are required to catch SQL-level issues.
 
@@ -173,7 +177,7 @@ WHERE (:after IS NULL OR id > CAST(:after AS INTEGER))
 @Query(
     value = """
     SELECT * FROM security.users
-    WHERE (:after IS NULL OR id > CAST(:after AS UUID))
+    WHERE (CAST(:after AS UUID) IS NULL OR id > CAST(:after AS UUID))
     ORDER BY COALESCE(display_name, email) ASC, id ASC
     LIMIT :first
     """,
@@ -190,7 +194,7 @@ fun findAll(first: Int, after: UUID?): List<UserEntity>
     SELECT * FROM security.users
     WHERE (LOWER(COALESCE(display_name, '')) LIKE LOWER(CONCAT('%', :query, '%'))
         OR LOWER(email) LIKE LOWER(CONCAT('%', :query, '%')))
-    AND (:after IS NULL OR id > CAST(:after AS UUID))
+    AND (CAST(:after AS UUID) IS NULL OR id > CAST(:after AS UUID))
     ORDER BY COALESCE(display_name, email) ASC, id ASC
     LIMIT :first
     """,
@@ -205,7 +209,7 @@ fun searchByNameOrEmail(query: String, first: Int, after: UUID?): List<UserEntit
 @Query(
     value = """
     SELECT * FROM security.roles
-    WHERE (:after IS NULL OR id > CAST(:after AS INTEGER))
+    WHERE (CAST(:after AS INTEGER) IS NULL OR id > CAST(:after AS INTEGER))
     ORDER BY name ASC, id ASC
     LIMIT :first
     """,

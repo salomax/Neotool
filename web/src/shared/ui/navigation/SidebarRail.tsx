@@ -44,11 +44,12 @@ export function SidebarRail() {
     { href: '/design-system', label: 'Design System', icon: DesignServicesRoundedIcon },
     { href: '/examples', label: t('routes.examples'), icon: CodeRoundedIcon },
     { href: '/documentation', label: 'Documentation', icon: MenuBookRoundedIcon },
-    // Only show Settings if user has authorization permissions
-    ...(hasAuthorizationAccess
-      ? [{ href: '/settings', label: t('routes.settings'), icon: SettingsRoundedIcon }]
-      : []),
   ];
+
+  // Only show Settings if user has authorization permissions
+  const NAV_BOTTOM: NavItem[] = hasAuthorizationAccess
+    ? [{ href: '/settings', label: t('routes.settings'), icon: SettingsRoundedIcon }]
+    : [];
 
   return (
     <Box
@@ -98,7 +99,7 @@ export function SidebarRail() {
 
       <Divider sx={{ my: 2, width: '56%', borderColor: alpha(theme.palette.primary.contrastText, 0.25) }} />
 
-      {/* Navegação principal */}
+      {/* Top navigation items */}
       <Stack spacing={{ xs: 1.2, sm: 1.6 }} sx={{ mt: 0.5 }}>
         {NAV_TOP.map((item) => {
           const Icon = item.icon as any;
@@ -142,7 +143,54 @@ export function SidebarRail() {
         })}
       </Stack>
 
+      {/* Spacer to push bottom items down */}
       <Box sx={{ flexGrow: 1 }} />
+
+      {/* Bottom navigation items */}
+      {NAV_BOTTOM.length > 0 && (
+        <Stack spacing={{ xs: 1.2, sm: 1.6 }}>
+          {NAV_BOTTOM.map((item) => {
+            const Icon = item.icon as any;
+            const active =
+              pathname === item.href ||
+              ((pathname ?? '').startsWith(item.href) && item.href !== '/');
+
+            return (
+              <Tooltip key={item.href} title={item.label} placement="right">
+                <IconButton
+                  LinkComponent={Link}
+                  href={item.href}
+                  aria-label={item.label}
+                  size="large"
+                  sx={{
+                    position: 'relative',
+                    color: theme.palette.primary.contrastText,
+                    opacity: active ? 1 : 0.85,
+                    '&:hover': { bgcolor: alpha(theme.palette.common.black, 0.18), opacity: 1 },
+                    bgcolor: active ? alpha(theme.palette.common.black, 0.15) : 'transparent',
+                    width: 48,
+                    height: 48,
+                  }}
+                >
+                  {active && (
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        right: -((RAIL_W - 48) / 2) + 2,
+                        width: 3,
+                        height: 22,
+                        borderRadius: 8,
+                        bgcolor: theme.palette.primary.contrastText,
+                      }}
+                    />
+                  )}
+                  <Icon fontSize="medium" />
+                </IconButton>
+              </Tooltip>
+            );
+          })}
+        </Stack>
+      )}
     </Box>
   );
 }

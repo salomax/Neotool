@@ -492,8 +492,9 @@ class AuthorizationResolverTest {
         fun `should trim whitespace from userId in getUserPermissions`() {
             // Arrange
             val userId = "  ${UUID.randomUUID()}  "
-            val permissions = listOf(Permission(id = 1, name = "transaction:read"))
-            val dtos = listOf(PermissionDTO(id = "1", name = "transaction:read"))
+            val permissionId = UUID.randomUUID()
+            val permissions = listOf(Permission(id = permissionId, name = "transaction:read"))
+            val dtos = listOf(PermissionDTO(id = permissionId.toString(), name = "transaction:read"))
 
             whenever(
                 authorizationService.getUserPermissions(
@@ -532,8 +533,9 @@ class AuthorizationResolverTest {
         fun `should trim whitespace from userId in getUserRoles`() {
             // Arrange
             val userId = "  ${UUID.randomUUID()}  "
-            val roles = listOf(Role(id = 1, name = "admin"))
-            val dtos = listOf(RoleDTO(id = "1", name = "admin"))
+            val roleId = UUID.randomUUID()
+            val roles = listOf(Role(id = roleId, name = "admin"))
+            val dtos = listOf(RoleDTO(id = roleId.toString(), name = "admin"))
 
             whenever(
                 authorizationService.getUserRoles(

@@ -10,6 +10,7 @@ import io.github.salomax.neotool.security.repo.PermissionRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import jakarta.inject.Singleton
 import mu.KotlinLogging
+import java.util.UUID
 
 /**
  * Service for managing permissions.
@@ -26,7 +27,7 @@ class PermissionManagementService(
      * List all permissions with cursor-based pagination.
      *
      * @param first Maximum number of results to return (default: 20, max: 100)
-     * @param after Cursor string for pagination (base64-encoded Int)
+     * @param after Cursor string for pagination (base64-encoded UUID)
      * @return Connection containing paginated permissions
      */
     fun listPermissions(
@@ -38,7 +39,7 @@ class PermissionManagementService(
 
         val afterCursor =
             try {
-                after?.let { CursorEncoder.decodeCursorToInt(it) }
+                after?.let { CursorEncoder.decodeCursorToUuid(it) }
             } catch (e: Exception) {
                 throw IllegalArgumentException("Invalid cursor: $after", e)
             }
@@ -54,7 +55,7 @@ class PermissionManagementService(
                 .take(pageSize)
                 .map { it.toDomain() }
 
-        return ConnectionBuilder.buildConnectionWithInt(
+        return ConnectionBuilder.buildConnectionWithUuid(
             items = permissions,
             hasMore = hasMore,
             getId = { it.id },
@@ -66,7 +67,7 @@ class PermissionManagementService(
      *
      * @param query Search query (partial match, case-insensitive)
      * @param first Maximum number of results to return (default: 20, max: 100)
-     * @param after Cursor string for pagination (base64-encoded Int)
+     * @param after Cursor string for pagination (base64-encoded UUID)
      * @return Connection containing paginated matching permissions
      */
     fun searchPermissions(
@@ -79,7 +80,7 @@ class PermissionManagementService(
 
         val afterCursor =
             try {
-                after?.let { CursorEncoder.decodeCursorToInt(it) }
+                after?.let { CursorEncoder.decodeCursorToUuid(it) }
             } catch (e: Exception) {
                 throw IllegalArgumentException("Invalid cursor: $after", e)
             }
@@ -95,7 +96,7 @@ class PermissionManagementService(
                 .take(pageSize)
                 .map { it.toDomain() }
 
-        return ConnectionBuilder.buildConnectionWithInt(
+        return ConnectionBuilder.buildConnectionWithUuid(
             items = permissions,
             hasMore = hasMore,
             getId = { it.id },
@@ -108,7 +109,7 @@ class PermissionManagementService(
      * @param permissionId The ID of the permission
      * @return List of Role domain objects that have this permission assigned
      */
-    fun getPermissionRoles(permissionId: Int): List<Role> {
+    fun getPermissionRoles(permissionId: UUID): List<Role> {
         val roleIds = roleRepository.findRoleIdsByPermissionId(permissionId)
 
         if (roleIds.isEmpty()) {
@@ -127,14 +128,14 @@ class PermissionManagementService(
      * @param permissionIds List of permission IDs
      * @return Map of permission ID to list of roles
      */
-    fun getPermissionRolesBatch(permissionIds: List<Int>): Map<Int, List<Role>> {
+    fun getPermissionRolesBatch(permissionIds: List<UUID>): Map<UUID, List<Role>> {
         if (permissionIds.isEmpty()) {
             return emptyMap()
         }
 
         // For each permission, get its role IDs
         // Note: We query each permission individually, but at least we batch load the roles
-        val permissionRoleIdsMap = mutableMapOf<Int, List<Int>>()
+        val permissionRoleIdsMap = mutableMapOf<UUID, List<UUID>>()
         for (permissionId in permissionIds) {
             val roleIds = roleRepository.findRoleIdsByPermissionId(permissionId)
             permissionRoleIdsMap[permissionId] = roleIds
@@ -154,7 +155,7 @@ class PermissionManagementService(
             }
 
         // Build result map
-        val result = mutableMapOf<Int, List<Role>>()
+        val result = mutableMapOf<UUID, List<Role>>()
         for (permissionId in permissionIds) {
             val roleIds = permissionRoleIdsMap[permissionId] ?: emptyList()
             val roles = roleIds.mapNotNull { roleId -> allRoles[roleId] }

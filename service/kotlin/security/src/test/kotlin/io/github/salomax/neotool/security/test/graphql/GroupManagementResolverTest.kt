@@ -46,8 +46,20 @@ class GroupManagementResolverTest {
             // Arrange
             val groupId1 = UUID.randomUUID()
             val groupId2 = UUID.randomUUID()
-            val role1 = Role(id = 1, name = "admin", createdAt = Instant.now(), updatedAt = Instant.now())
-            val role2 = Role(id = 2, name = "editor", createdAt = Instant.now(), updatedAt = Instant.now())
+            val role1 =
+                Role(
+                    id = UUID.randomUUID(),
+                    name = "admin",
+                    createdAt = Instant.now(),
+                    updatedAt = Instant.now(),
+                )
+            val role2 =
+                Role(
+                    id = UUID.randomUUID(),
+                    name = "editor",
+                    createdAt = Instant.now(),
+                    updatedAt = Instant.now(),
+                )
             whenever(groupManagementService.getGroupRolesBatch(any(), anyOrNull()))
                 .thenReturn(
                     mapOf(
@@ -88,7 +100,13 @@ class GroupManagementResolverTest {
             // Arrange
             val groupId1 = UUID.randomUUID()
             val invalidId = "not-a-uuid"
-            val role1 = Role(id = 1, name = "admin", createdAt = Instant.now(), updatedAt = Instant.now())
+            val role1 =
+                Role(
+                    id = UUID.randomUUID(),
+                    name = "admin",
+                    createdAt = Instant.now(),
+                    updatedAt = Instant.now(),
+                )
             whenever(groupManagementService.getGroupRolesBatch(any(), anyOrNull()))
                 .thenReturn(mapOf(groupId1 to listOf(role1)))
 
@@ -107,7 +125,13 @@ class GroupManagementResolverTest {
             val groupId1 = UUID.randomUUID()
             val groupId2 = UUID.randomUUID()
             val groupId3 = UUID.randomUUID()
-            val role1 = Role(id = 1, name = "admin", createdAt = Instant.now(), updatedAt = Instant.now())
+            val role1 =
+                Role(
+                    id = UUID.randomUUID(),
+                    name = "admin",
+                    createdAt = Instant.now(),
+                    updatedAt = Instant.now(),
+                )
             whenever(groupManagementService.getGroupRolesBatch(any(), anyOrNull()))
                 .thenReturn(
                     mapOf(

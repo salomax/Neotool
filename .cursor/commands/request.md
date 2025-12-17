@@ -1,8 +1,17 @@
-# Plan a Feature Resquest or Change
+# Plan a Feature Request or Change
 
 You are a **Product Manager + Product Designer + QA Analyst**, not a developer in this step.
 
 Your job is to help the user create or update a feature specification using **Spec-Driven Development (SDD)**.
+
+## Specification Reference
+
+**IMPORTANT**: This command follows Spec-Driven Development principles. For context loading strategies and workflow guidance, reference:
+- **Spec Context Strategy**: `docs/06-workflows/spec-context-strategy.md` - Context loading and management
+- **Feature Development Workflow**: `docs/06-workflows/feature-development.md` - Complete development workflow
+- **Specification Index**: `docs/MANIFEST.md` - Complete index of all specification documents
+
+**Do NOT duplicate specification content here** - reference the spec documents instead.
 
 ## 1. User input
 
@@ -87,116 +96,78 @@ any other data that's relevant across the development pipeline
 
 ## 6. Implementation Plan
 
-Create a feature implementation plan breakdown file to manage context limits:
+Create a feature implementation plan breakdown file following the Spec-Driven Development workflow:
 
 **File location**: `docs/03-features/<module>/<feature_slug>/<feature_slug>.tasks.yml`
 
 This file breaks down the feature implementation into small, manageable tasks organized by phase.
 
-IMPORTANT: It's possible to skip some phase in case that's not required, i.e.: create a backend batch job or change some backend behavior.
+**CRITICAL**: **DO NOT duplicate the implementation plan here.** Instead, **MUST use the implementation plan described in `docs/06-workflows/spec-context-strategy.md`**.
 
-**Implementation plan**:
+### Required Reference
 
-- [ ] Business Documentation
-    - [ ] Feature file (Gherkin scenarios with @happy-path, @validation, @edge-case tags)
-    - [ ] Memory file (business rules, validations, implementation notes)
-    - [ ] Tasks file (this breakdown)
-- [ ] Domain
-    - [ ] Implement database migration tables, indexes, constraints
-    - [ ] Test database migrations (up/down, rollback scenarios)
-    - [ ] Implement domain objects (DDD patterns, nullable IDs, toEntity() methods)
-    - [ ] Review domain code until no issues (lint, type safety, patterns)
-- [ ] Backend Repository    
-    - [ ] Implement JPA entities based on database schema (follow entity-pattern.md)
-    - [ ] Implement entity-to-domain conversion (toDomain() methods)
-    - [ ] Implement Repository layer (Micronaut Data, extends JpaRepository)
-    - [ ] Review repository code until no issues (lint, type safety, patterns)
-- [ ] Backend Service
-    - [ ] Implement Service layer (clean architecture, domain objects, dependency injection)
-    - [ ] Implement security/authorization checks (if applicable)
-    - [ ] Implement input validation at service boundaries
-    - [ ] Review service code until no issues (lint, type safety, patterns)
-- [ ] Backend GraphQL
-    - [ ] Define GraphQL schema (follow federation patterns)
-    - [ ] Implement Resolver layer (follow resolver-pattern.md)
-    - [ ] Implement mapper layer (domain ↔ GraphQL types)
-    - [ ] Implement GraphQL configuration (Factory, wiring, federation)
-    - [ ] Review GraphQL code until no issues (lint, type safety, patterns)
-- [ ] Backend Tests
-    - [ ] Implement unit tests (90%+ coverage, all branches)
-    - [ ] Implement integration tests (80%+ coverage, database interactions)
-    - [ ] Test domain-entity conversions (null ID handling, UUID generation)
-    - [ ] Test security/authorization scenarios
-    - [ ] Run tests until success (loop)
-- [ ] Quality Assurance Backend code
-    - [ ] Run code coverage (meet requirements: 90%+ unit, 80%+ integration)
-    - [ ] Run linter and fix issues (loop)
-    - [ ] Complete code review checklist (docs/11-validation/code-review-checklist.md)
-    - [ ] Verify all branches tested (if/when/switch/guard clauses)
-- [ ] Contract
-    - [ ] Sync GraphQL schema to contracts (`./neotool graphql sync`)
-    - [ ] Generate supergraph (`./neotool graphql generate`)
-    - [ ] Run web codegen (generate TypeScript types)
-    - [ ] Verify contract changes don't break existing consumers
-- [ ] Front End
-    - [ ] Implement GraphQL operations (queries, mutations, subscriptions)
-    - [ ] Implement hooks and Providers (follow hook-pattern.md)
-    - [ ] Implement UI components (follow component-pattern.md)
-    - [ ] Apply design system components and theme tokens
-    - [ ] Implement i18n support (translation keys, locales)
-    - [ ] Implement error handling and loading states
-    - [ ] Review frontend code until no issues (lint, type safety, patterns)
-- [ ] Front End tests
-    - [ ] Implement unit tests for components with business logic
-    - [ ] Implement component tests (React Testing Library)
-    - [ ] Implement E2E tests (Playwright, critical user flows)
-    - [ ] Run tests until success (loop)
-- [ ] Quality Assurance Frontend code
-    - [ ] Run code coverage (meet requirements with exclusions)
-    - [ ] Run linter and fix issues (loop)
-    - [ ] Verify TypeScript types generated and used (no `any` types)
-    - [ ] Verify i18n coverage
-- [ ] Observability
-    - [ ] Configure Prometheus metrics endpoint (`/prometheus`)
-    - [ ] Configure Micrometer Prometheus exporter in `application.yml`
-    - [ ] Register service in Prometheus scrape config (`infra/observability/prometheus/prometheus.yml`)
-    - [ ] Configure Loki appender in `logback-production.xml`
-    - [ ] Enable structured JSON logging with required fields
-    - [ ] Configure service name and environment labels in logs
-    - [ ] Create or update Grafana dashboard (`infra/observability/grafana/dashboards/{service}-metrics.json`)
-    - [ ] Dashboard includes required metric categories (JVM, HTTP, Database, Environment)
-    - [ ] Verify metrics visible in Prometheus UI
-    - [ ] Verify logs visible in Loki and queryable by service name
-    - [ ] Verify dashboard panels display data correctly in Grafana
-- [ ] Documentation
-    - [ ] Document GraphQL schema (descriptions, examples)
-    - [ ] Document API changes and breaking changes (if any)
-    - [ ] Update README if needed
-    - [ ] Document migration guide (if database changes)
-- [ ] Validation & Pre-deployment
-    - [ ] All pre-commit hooks pass
-    - [ ] CI checks pass
-    - [ ] Manual testing completed (happy paths, edge cases)
-    - [ ] Feature checklist completed (docs/11-validation/feature-checklist.md)
-    - [ ] Code review checklist completed (docs/11-validation/code-review-checklist.md)
-    - [ ] PR checklist completed (docs/11-validation/pr-checklist.md)
+**You MUST reference and follow the implementation plan from:**
+- **Primary Source**: `docs/06-workflows/spec-context-strategy.md` - Contains the complete LLM Feature Implementation Flow with detailed task breakdown per phase
+- **Supporting Workflow**: `docs/06-workflows/feature-development.md` - Complete development workflow guidance
 
-**Guidelines for task breakdown:**
-- Break each phase into small
+### Implementation Plan Structure
+
+The tasks.yml file should follow the phase structure from `docs/06-workflows/spec-context-strategy.md`:
+
+**Phases to include** (skip phases not applicable to the feature):
+1. **Domain Phase**: Database migrations, domain objects (see spec-context-strategy.md for detailed tasks)
+2. **Backend Repository Phase**: JPA entities, repositories, conversions
+3. **Backend Service Phase**: Business logic, security, validation
+4. **Backend GraphQL Phase**: Schema, resolvers, mappers, federation
+5. **Contract Phase**: Sync schema, generate types
+6. **Frontend Phase**: GraphQL operations, hooks, components, design system
+7. **Testing Phase**: Unit, integration, E2E tests
+8. **Quality Assurance Phase**: Linting, checklists, spec compliance
+9. **Observability Phase**: Metrics, logging, dashboards
+10. **Documentation Phase**: API docs, breaking changes
+
+**For each phase, reference the detailed task breakdown from `docs/06-workflows/spec-context-strategy.md`** which includes:
+- Specific tasks per phase (e.g., "1. Implement JPA Entities", "2. Implement toDomain Methods")
+- Context loading requirements (which specs to load)
+- Validation gates
+- Spec references for patterns and standards
+
+### Guidelines for task breakdown:
+
+- **Reference, don't duplicate**: Use the task breakdown from `docs/06-workflows/spec-context-strategy.md` as the source of truth
+- Break each phase into small, manageable tasks based on the spec
 - Each task should be completable in a single focused session
 - Specify dependencies between tasks
 - List expected files to create/modify
 - Keep task descriptions specific and actionable
+- **Include spec document references** for each task (patterns, standards, workflows)
+- Follow phase-based context loading strategy from `docs/06-workflows/spec-context-strategy.md`
+
+**IMPORTANT**: It's possible to skip some phases if not required (e.g., backend-only batch job or frontend-only UI change). Always reference the spec-context-strategy.md to determine which phases are needed.
 
 ## 7. Notify the user
 
 After creating or updating the feature specification files, inform the user:
 
 1. **List the files that were created/updated:**
+   - Feature file: `docs/03-features/<module>/<feature_slug>/<feature_slug>.feature`
+   - Memory file: `docs/03-features/<module>/<feature_slug>/<feature_slug>.memory.yml`
+   - Task breakdown: `docs/03-features/<module>/<feature_slug>/<feature_slug>.tasks.yml`
 
 2. **Explain how to proceed with implementation:**
    
-   To work on specific tasks:
+   **For implementation, follow the Spec-Driven Development workflow:**
+   - Reference: `docs/06-workflows/feature-development.md` - Complete development workflow
+   - Reference: `docs/06-workflows/spec-context-strategy.md` - Context loading strategy
+   
+   **To work on specific phases:**
    - Open a new chat (Cmd/Ctrl + L)
-   - Type `/implement` <phase> from <task file> using <memory file>
+   - Type `/implement <phase> from <task file> using <memory file>`
+   - Example: `/implement domain from docs/03-features/security/auth/auth.tasks.yml using docs/03-features/security/auth/auth.memory.yml`
+   
+   **Context loading guidance:**
+   - Load essential context first: MANIFEST.md, architecture-overview.md, glossary.md
+   - Load feature context: feature file, memory file, task breakdown
+   - Load phase-specific specs as needed (see `docs/06-workflows/spec-context-strategy.md`)
+   - Unload specs when phase complete to free context for next phase
 

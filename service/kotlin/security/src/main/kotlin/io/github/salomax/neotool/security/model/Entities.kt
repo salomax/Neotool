@@ -37,8 +37,18 @@ open class UserEntity(
     open var passwordResetUsedAt: Instant? = null,
     @Column(nullable = false)
     open var enabled: Boolean = true,
+    @Column(name = "avatar_url")
+    open var avatarUrl: String? = null,
+    @Column(name = "avatar_provider")
+    open var avatarProvider: String? = null,
+    @Column(name = "avatar_updated_at")
+    open var avatarUpdatedAt: Instant? = null,
     @Column(name = "created_at", nullable = false)
     open var createdAt: Instant = Instant.now(),
+    @Column(name = "updated_at", nullable = false)
+    open var updatedAt: Instant = Instant.now(),
+    @Version
+    open var version: Long = 0,
 ) : BaseEntity<UUID?>(id) {
     fun toDomain(): User {
         return User(
@@ -47,6 +57,9 @@ open class UserEntity(
             displayName = this.displayName,
             enabled = this.enabled,
             createdAt = this.createdAt,
+            updatedAt = this.updatedAt,
+            avatarUrl = this.avatarUrl,
+            version = this.version,
         )
     }
 }
@@ -56,7 +69,8 @@ open class UserEntity(
 open class RoleEntity(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    override val id: Int? = null,
+    @Column(columnDefinition = "uuid")
+    override val id: UUID? = null,
     @Column(nullable = false, unique = true)
     open var name: String,
     @Column(name = "created_at", nullable = false)
@@ -65,7 +79,7 @@ open class RoleEntity(
     open var updatedAt: Instant = Instant.now(),
     @Version
     open var version: Long = 0,
-) : BaseEntity<Int?>(id) {
+) : BaseEntity<UUID?>(id) {
     fun toDomain(): Role {
         return Role(
             id = this.id,
@@ -82,7 +96,8 @@ open class RoleEntity(
 open class PermissionEntity(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    override val id: Int? = null,
+    @Column(columnDefinition = "uuid")
+    override val id: UUID? = null,
     @Column(nullable = false, unique = true)
     open var name: String,
     @Column(name = "created_at", nullable = false)
@@ -91,7 +106,7 @@ open class PermissionEntity(
     open var updatedAt: Instant = Instant.now(),
     @Version
     open var version: Long = 0,
-) : BaseEntity<Int?>(id) {
+) : BaseEntity<UUID?>(id) {
     fun toDomain(): Permission {
         return Permission(
             id = this.id,

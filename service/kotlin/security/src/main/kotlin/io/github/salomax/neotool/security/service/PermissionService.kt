@@ -5,6 +5,7 @@ import io.github.salomax.neotool.security.repo.PermissionRepository
 import jakarta.inject.Singleton
 import jakarta.transaction.Transactional
 import mu.KotlinLogging
+import java.util.UUID
 
 @Singleton
 open class PermissionService(
@@ -12,7 +13,7 @@ open class PermissionService(
 ) {
     private val logger = KotlinLogging.logger {}
 
-    fun findById(id: Int): Permission? {
+    fun findById(id: UUID): Permission? {
         return permissionRepository.findById(id).orElse(null)?.toDomain()
     }
 
@@ -49,7 +50,7 @@ open class PermissionService(
     }
 
     @Transactional
-    open fun delete(id: Int) {
+    open fun delete(id: UUID) {
         permissionRepository.deleteById(id)
         logger.info { "Permission deleted: ID $id" }
     }

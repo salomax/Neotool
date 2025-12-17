@@ -103,6 +103,68 @@ cache: new InMemoryCache(), // Will show cache warnings for connections
 
 ## GraphQL Query Structure
 
+### Rule: No GraphQL Fragments
+
+**Rule**: GraphQL fragments MUST NOT be used. Each query and mutation MUST specify only the fields it needs inline.
+
+**Rationale**:
+- Fragments create unnecessary dependencies and complexity
+- Inline fields make queries explicit and easier to understand
+- Each query should request only the data it actually needs (strict scope)
+- Reduces coupling between queries and shared fragment definitions
+- Simplifies code generation and maintenance
+
+**Example**:
+
+```graphql
+// ✅ CORRECT: Inline fields, strict scope
+query GetUsers($first: Int, $after: String, $query: String) {
+  users(first: $first, after: $after, query: $query) {
+    edges {
+      node {
+        id
+        email
+        displayName
+        enabled
+      }
+      cursor
+    }
+    pageInfo {
+      hasNextPage
+      hasPreviousPage
+      startCursor
+      endCursor
+    }
+    totalCount
+  }
+}
+
+// ❌ INCORRECT: Using fragments
+query GetUsers($first: Int, $after: String, $query: String) {
+  users(first: $first, after: $after, query: $query) {
+    edges {
+      node {
+        ...UserFields  # ❌ Fragment usage not allowed
+      }
+      cursor
+    }
+    pageInfo {
+      hasNextPage
+      hasPreviousPage
+      startCursor
+      endCursor
+    }
+    totalCount
+  }
+}
+```
+
+**Guidelines**:
+- Each query should request only the fields needed for its specific use case
+- Avoid requesting unnecessary fields "just in case"
+- If a query needs different fields, create a separate query rather than using fragments
+- This ensures each query has a clear, explicit scope
+
 ### Relay Connection Pattern
 
 All paginated queries follow the Relay connection pattern:

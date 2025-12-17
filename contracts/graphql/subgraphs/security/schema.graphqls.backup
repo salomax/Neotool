@@ -5,7 +5,10 @@ type User @key(fields: "id") {
   id: ID!
   email: String!
   displayName: String
+  avatarUrl: String
   enabled: Boolean!
+  createdAt: String!
+  updatedAt: String!
   roles: [Role!]!
   groups: [Group!]!
   permissions: [Permission!]!
@@ -18,13 +21,13 @@ type Query {
   
   # Authorization queries
   checkPermission(userId: ID!, permission: String!, resourceId: ID): AuthorizationResult!
-  getUserPermissions(userId: ID!): [Permission!]!
-  getUserRoles(userId: ID!): [Role!]!
   
   # Authorization management queries
   user(id: ID!): User
   users(first: Int, after: String, query: String, orderBy: [UserOrderByInput!]): UserConnection!
+  group(id: ID!): Group
   groups(first: Int, after: String, query: String, orderBy: [GroupOrderByInput!]): GroupConnection!
+  role(id: ID!): Role
   roles(first: Int, after: String, query: String, orderBy: [RoleOrderByInput!]): RoleConnection!
   permissions(first: Int, after: String, query: String): PermissionConnection!
 }
@@ -35,12 +38,14 @@ type Mutation {
   signIn(input: SignInInput!): SignInPayload!
   signInWithOAuth(input: SignInWithOAuthInput!): SignInPayload!
   signUp(input: SignUpInput!): SignUpPayload!
+  refreshAccessToken(input: RefreshAccessTokenInput!): SignInPayload!
   requestPasswordReset(input: RequestPasswordResetInput!): RequestPasswordResetPayload!
   resetPassword(input: ResetPasswordInput!): ResetPasswordPayload!
   
   # Authorization management mutations
   enableUser(userId: ID!): User!
   disableUser(userId: ID!): User!
+  updateUser(userId: ID!, input: UpdateUserInput!): User!
   createGroup(input: CreateGroupInput!): Group!
   updateGroup(groupId: ID!, input: UpdateGroupInput!): Group!
   deleteGroup(groupId: ID!): Boolean!
@@ -49,8 +54,6 @@ type Mutation {
   deleteRole(roleId: ID!): Boolean!
   assignPermissionToRole(roleId: ID!, permissionId: ID!): Role!
   removePermissionFromRole(roleId: ID!, permissionId: ID!): Role!
-  assignRoleToUser(userId: ID!, roleId: ID!): User!
-  removeRoleFromUser(userId: ID!, roleId: ID!): User!
   assignGroupToUser(userId: ID!, groupId: ID!): User!
   removeGroupFromUser(userId: ID!, groupId: ID!): User!
   assignRoleToGroup(groupId: ID!, roleId: ID!): Group!
@@ -100,6 +103,10 @@ type RequestPasswordResetPayload {
   message: String!
 }
 
+input RefreshAccessTokenInput {
+  refreshToken: String!
+}
+
 input ResetPasswordInput {
   token: String!
   newPassword: String!
@@ -125,6 +132,9 @@ type Permission @key(fields: "id") {
 type Role @key(fields: "id") {
   id: ID!
   name: String!
+  createdAt: String!
+  updatedAt: String!
+  groups: [Group!]!
   permissions: [Permission!]!
 }
 
@@ -132,6 +142,8 @@ type Group @key(fields: "id") {
   id: ID!
   name: String!
   description: String
+  createdAt: String!
+  updatedAt: String!
   roles: [Role!]!
   members: [User!]!
 }
@@ -166,28 +178,24 @@ type PermissionEdge {
 
 type UserConnection {
   edges: [UserEdge!]!
-  nodes: [User!]!
   pageInfo: PageInfo!
   totalCount: Int
 }
 
 type GroupConnection {
   edges: [GroupEdge!]!
-  nodes: [Group!]!
   pageInfo: PageInfo!
   totalCount: Int
 }
 
 type RoleConnection {
   edges: [RoleEdge!]!
-  nodes: [Role!]!
   pageInfo: PageInfo!
   totalCount: Int
 }
 
 type PermissionConnection {
   edges: [PermissionEdge!]!
-  nodes: [Permission!]!
   pageInfo: PageInfo!
 }
 
@@ -210,6 +218,10 @@ input CreateRoleInput {
 
 input UpdateRoleInput {
   name: String!
+}
+
+input UpdateUserInput {
+  displayName: String
 }
 
 # Sorting enums and input types

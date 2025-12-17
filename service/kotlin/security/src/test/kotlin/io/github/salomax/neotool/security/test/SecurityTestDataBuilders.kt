@@ -18,6 +18,7 @@ object SecurityTestDataBuilders {
         displayName: String? = "Test User",
         passwordHash: String? = null,
         rememberMeToken: String? = null,
+        avatarUrl: String? = null,
         createdAt: Instant = Instant.now(),
     ): UserEntity =
         UserEntity(
@@ -26,6 +27,7 @@ object SecurityTestDataBuilders {
             displayName = displayName,
             passwordHash = passwordHash,
             rememberMeToken = rememberMeToken,
+            avatarUrl = avatarUrl,
             createdAt = createdAt,
         )
 
@@ -39,6 +41,7 @@ object SecurityTestDataBuilders {
         displayName: String? = "Test User",
         password: String = "TestPassword123!",
         rememberMeToken: String? = null,
+        avatarUrl: String? = null,
         createdAt: Instant = Instant.now(),
     ): UserEntity =
         UserEntity(
@@ -47,6 +50,7 @@ object SecurityTestDataBuilders {
             displayName = displayName,
             passwordHash = authenticationService.hashPassword(password),
             rememberMeToken = rememberMeToken,
+            avatarUrl = avatarUrl,
             createdAt = createdAt,
         )
 
@@ -338,7 +342,7 @@ object SecurityTestDataBuilders {
      * Create a test role entity
      */
     fun role(
-        id: Int? = null,
+        id: UUID? = null,
         name: String = "test-role",
         createdAt: Instant = Instant.now(),
         updatedAt: Instant = Instant.now(),
@@ -356,7 +360,7 @@ object SecurityTestDataBuilders {
      * Create a test permission entity
      */
     fun permission(
-        id: Int? = null,
+        id: UUID? = null,
         name: String = "resource:action",
         createdAt: Instant = Instant.now(),
         updatedAt: Instant = Instant.now(),
@@ -365,30 +369,6 @@ object SecurityTestDataBuilders {
         io.github.salomax.neotool.security.model.PermissionEntity(
             id = id,
             name = name,
-            createdAt = createdAt,
-            updatedAt = updatedAt,
-            version = version,
-        )
-
-    /**
-     * Create a test role assignment entity
-     */
-    fun roleAssignment(
-        id: UUID? = null,
-        userId: UUID = UUID.randomUUID(),
-        roleId: Int = 1,
-        validFrom: Instant? = null,
-        validUntil: Instant? = null,
-        createdAt: Instant = Instant.now(),
-        updatedAt: Instant = Instant.now(),
-        version: Long = 0,
-    ): io.github.salomax.neotool.security.model.rbac.RoleAssignmentEntity =
-        io.github.salomax.neotool.security.model.rbac.RoleAssignmentEntity(
-            id = id ?: UUID.randomUUID(),
-            userId = userId,
-            roleId = roleId,
-            validFrom = validFrom,
-            validUntil = validUntil,
             createdAt = createdAt,
             updatedAt = updatedAt,
             version = version,
@@ -445,7 +425,7 @@ object SecurityTestDataBuilders {
     fun groupRoleAssignment(
         id: UUID? = null,
         groupId: UUID = UUID.randomUUID(),
-        roleId: Int = 1,
+        roleId: UUID = UUID.randomUUID(),
         validFrom: Instant? = null,
         validUntil: Instant? = null,
         createdAt: Instant = Instant.now(),

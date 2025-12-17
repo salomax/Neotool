@@ -100,7 +100,7 @@ class GroupManagementServiceErrorTest {
         fun `should throw exception when assigning role to non-existent group`() {
             // Arrange
             val nonExistentGroupId = UUID.randomUUID()
-            val roleId = 1
+            val roleId = UUID.randomUUID()
             val command = GroupManagement.AssignRoleToGroupCommand(nonExistentGroupId, roleId)
             whenever(groupRepository.findById(nonExistentGroupId)).thenReturn(Optional.empty())
 
@@ -119,7 +119,7 @@ class GroupManagementServiceErrorTest {
         fun `should throw exception when assigning non-existent role to group`() {
             // Arrange
             val groupId = UUID.randomUUID()
-            val nonExistentRoleId = 999
+            val nonExistentRoleId = UUID.randomUUID()
             val command = GroupManagement.AssignRoleToGroupCommand(groupId, nonExistentRoleId)
             val groupEntity = io.github.salomax.neotool.security.test.SecurityTestDataBuilders.group(id = groupId)
             whenever(groupRepository.findById(groupId)).thenReturn(Optional.of(groupEntity))
@@ -144,7 +144,7 @@ class GroupManagementServiceErrorTest {
         fun `should throw exception when removing role from non-existent group`() {
             // Arrange
             val nonExistentGroupId = UUID.randomUUID()
-            val roleId = 1
+            val roleId = UUID.randomUUID()
             val command = GroupManagement.RemoveRoleFromGroupCommand(nonExistentGroupId, roleId)
             whenever(groupRepository.findById(nonExistentGroupId)).thenReturn(Optional.empty())
 
@@ -163,7 +163,7 @@ class GroupManagementServiceErrorTest {
         fun `should throw exception when removing non-existent role from group`() {
             // Arrange
             val groupId = UUID.randomUUID()
-            val nonExistentRoleId = 999
+            val nonExistentRoleId = UUID.randomUUID()
             val command = GroupManagement.RemoveRoleFromGroupCommand(groupId, nonExistentRoleId)
             val groupEntity = io.github.salomax.neotool.security.test.SecurityTestDataBuilders.group(id = groupId)
             whenever(groupRepository.findById(groupId)).thenReturn(Optional.of(groupEntity))

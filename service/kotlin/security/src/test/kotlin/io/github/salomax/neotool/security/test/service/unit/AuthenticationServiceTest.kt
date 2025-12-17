@@ -229,6 +229,26 @@ class AuthenticationServiceTest {
             assertThat(result).isNull()
             verify(userRepository, never()).findByEmail(email)
         }
+
+        @Test
+        fun `should return null for disabled user`() {
+            val email = "test@example.com"
+            val password = "TestPassword123!"
+            val user =
+                SecurityTestDataBuilders.userWithPassword(
+                    authenticationService = authenticationService,
+                    email = email,
+                    password = password,
+                )
+            user.enabled = false
+
+            whenever(userRepository.findByEmail(email)).thenReturn(user)
+
+            val result = authenticationService.authenticate(email, password)
+
+            assertThat(result).isNull()
+            verify(userRepository).findByEmail(email)
+        }
     }
 
     @Nested
@@ -477,6 +497,26 @@ class AuthenticationServiceTest {
             assertThat(result).isNull()
             verify(userRepository).findById(userId)
         }
+
+        @Test
+        fun `should return null for disabled user when validating access token`() {
+            val userId = UUID.randomUUID()
+            val email = "test@example.com"
+            val user =
+                SecurityTestDataBuilders.user(
+                    id = userId,
+                    email = email,
+                )
+            user.enabled = false
+
+            val token = authenticationService.generateAccessToken(user)
+            whenever(userRepository.findById(userId)).thenReturn(Optional.of(user))
+
+            val result = authenticationService.validateAccessToken(token)
+
+            assertThat(result).isNull()
+            verify(userRepository).findById(userId)
+        }
     }
 
     @Nested
@@ -581,6 +621,27 @@ class AuthenticationServiceTest {
 
             val refreshToken = authenticationService.generateRefreshToken(user)
             whenever(userRepository.findById(userId)).thenReturn(Optional.empty())
+
+            val result = authenticationService.validateRefreshToken(refreshToken)
+
+            assertThat(result).isNull()
+            verify(userRepository).findById(userId)
+        }
+
+        @Test
+        fun `should return null for disabled user when validating refresh token`() {
+            val userId = UUID.randomUUID()
+            val email = "test@example.com"
+            val user =
+                SecurityTestDataBuilders.user(
+                    id = userId,
+                    email = email,
+                )
+            user.enabled = false
+
+            val refreshToken = authenticationService.generateRefreshToken(user)
+            user.rememberMeToken = refreshToken
+            whenever(userRepository.findById(userId)).thenReturn(Optional.of(user))
 
             val result = authenticationService.validateRefreshToken(refreshToken)
 
@@ -915,6 +976,33 @@ class AuthenticationServiceTest {
             assertThat(result?.displayName).isEqualTo(name)
 
             verify(userRepository).save(any())
+        }
+
+        @Test
+        fun `should return null for disabled OAuth user`() {
+            val provider = "google"
+            val idToken = "valid-google-id-token"
+            val email = "existing@example.com"
+            val name = "Existing User"
+            val claims =
+                OAuthUserClaims(
+                    email = email,
+                    name = name,
+                    picture = null,
+                    emailVerified = true,
+                )
+            val existingUser = SecurityTestDataBuilders.user(email = email, displayName = "Old Name")
+            existingUser.enabled = false
+
+            whenever(oauthProvider.validateAndExtractClaims(idToken)).thenReturn(claims)
+            whenever(userRepository.findByEmail(email)).thenReturn(existingUser)
+
+            val result = authenticationService.authenticateWithOAuth(provider, idToken)
+
+            assertThat(result).isNull()
+            verify(oauthProvider).validateAndExtractClaims(idToken)
+            verify(userRepository).findByEmail(email)
+            verify(userRepository, never()).save(any())
         }
     }
 }

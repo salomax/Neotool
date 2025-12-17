@@ -70,6 +70,7 @@ export const createAppTheme = (mode: Mode) => {
       palette: {
         inputBorder: t.palette.inputBorder,
         tabBorder: t.palette.tabBorder,
+        errorLightBg: t.palette.errorLightBg,
       },
     },
   } as ThemeOptions & { custom?: { layout: typeof t.layout } };

@@ -33,6 +33,7 @@ type User = {
   id: string;
   email: string;
   displayName?: string | null;
+  avatarUrl?: string | null;
 };
 
 type AuthContextType = {
@@ -83,6 +84,12 @@ vi.mock('@/shared/components/ui/primitives/Button', () => ({
   ),
 }));
 
+// Mock page title hook
+const mockUsePageTitleValue = vi.fn<[], string | null>(() => null);
+vi.mock('@/shared/hooks/ui/usePageTitle', () => ({
+  usePageTitleValue: () => mockUsePageTitleValue(),
+}));
+
 const renderAppHeader = () => {
   return render(
     <AppThemeProvider>
@@ -108,6 +115,7 @@ describe('AppHeader', () => {
       signUp: mockSignUp,
       isLoading: false,
     });
+    mockUsePageTitleValue.mockReturnValue(null);
   });
 
   describe('Rendering', () => {
@@ -632,6 +640,122 @@ describe('AppHeader', () => {
       await waitFor(() => {
         expect(screen.queryByRole('menu')).not.toBeInTheDocument();
       });
+    });
+  });
+
+  describe('Page title display', () => {
+    it('should display title when set', () => {
+      mockUsePageTitleValue.mockReturnValue('Instituições Financeiras');
+      
+      renderAppHeader();
+      
+      const title = screen.getByText('Instituições Financeiras');
+      expect(title).toBeInTheDocument();
+      expect(title.tagName).toBe('H1');
+    });
+
+    it('should not display title when null', () => {
+      mockUsePageTitleValue.mockReturnValue(null);
+      
+      renderAppHeader();
+      
+      const titles = screen.queryAllByRole('heading', { level: 1 });
+      // Should not have any h1 elements (title is conditionally rendered)
+      expect(titles.length).toBe(0);
+    });
+
+    it('should not display title when empty string', () => {
+      mockUsePageTitleValue.mockReturnValue('');
+      
+      renderAppHeader();
+      
+      // Empty string is falsy, so title should not render
+      const titles = screen.queryAllByRole('heading', { level: 1 });
+      expect(titles.length).toBe(0);
+    });
+
+    it('should display title with correct styling', () => {
+      mockUsePageTitleValue.mockReturnValue('Test Title');
+      
+      renderAppHeader();
+      
+      const title = screen.getByText('Test Title');
+      expect(title).toBeInTheDocument();
+      
+      // Check it's an h1 element
+      expect(title.tagName).toBe('H1');
+    });
+
+    it('should handle long titles with truncation', () => {
+      const longTitle = 'This is a very long title that should be truncated when displayed in the header';
+      mockUsePageTitleValue.mockReturnValue(longTitle);
+      
+      renderAppHeader();
+      
+      const title = screen.getByText(longTitle);
+      expect(title).toBeInTheDocument();
+      
+      // Title should have truncation styles applied via sx prop
+      // We can't easily test sx styles, but we can verify the element exists
+      expect(title).toBeInTheDocument();
+    });
+
+    it('should maintain layout with title present', () => {
+      mockUsePageTitleValue.mockReturnValue('Page Title');
+      
+      renderAppHeader();
+      
+      // Header should render with title
+      const header = screen.getByRole('banner');
+      expect(header).toBeInTheDocument();
+      
+      // Title should be present
+      expect(screen.getByText('Page Title')).toBeInTheDocument();
+      
+      // Actions should still be present
+      const themeButton = screen.getByLabelText('toggle theme');
+      expect(themeButton).toBeInTheDocument();
+    });
+
+    it('should maintain layout without title', () => {
+      mockUsePageTitleValue.mockReturnValue(null);
+      
+      renderAppHeader();
+      
+      // Header should render without title
+      const header = screen.getByRole('banner');
+      expect(header).toBeInTheDocument();
+      
+      // Actions should still be present
+      const themeButton = screen.getByLabelText('toggle theme');
+      expect(themeButton).toBeInTheDocument();
+    });
+
+    it('should update title when pageTitle changes', () => {
+      const { rerender } = renderAppHeader();
+      
+      // Initially no title
+      expect(screen.queryAllByRole('heading', { level: 1 }).length).toBe(0);
+      
+      // Update to show title
+      mockUsePageTitleValue.mockReturnValue('New Title');
+      rerender(
+        <AppThemeProvider>
+          <AppHeader />
+        </AppThemeProvider>
+      );
+      
+      expect(screen.getByText('New Title')).toBeInTheDocument();
+      
+      // Update to remove title
+      mockUsePageTitleValue.mockReturnValue(null);
+      rerender(
+        <AppThemeProvider>
+          <AppHeader />
+        </AppThemeProvider>
+      );
+      
+      expect(screen.queryAllByRole('heading', { level: 1 }).length).toBe(0);
     });
   });
 });

@@ -29,6 +29,8 @@ class GroupManagementMapper {
             id = group.id?.toString() ?: throw IllegalArgumentException("Group must have an ID"),
             name = group.name,
             description = group.description,
+            createdAt = group.createdAt.toString(),
+            updatedAt = group.updatedAt.toString(),
         )
     }
 
@@ -82,7 +84,7 @@ class GroupManagementMapper {
 
         return GroupManagement.CreateGroupCommand(
             name = input.name,
-            description = input.description,
+            description = input.description?.takeIf { it.isNotBlank() },
             userIds = userIds,
         )
     }
@@ -130,7 +132,7 @@ class GroupManagementMapper {
         return GroupManagement.UpdateGroupCommand(
             groupId = groupIdUuid,
             name = input.name,
-            description = input.description,
+            description = input.description?.takeIf { it.isNotBlank() },
             userIds = userIds,
         )
     }
@@ -147,10 +149,10 @@ class GroupManagementMapper {
     }
 
     /**
-     * Convert String ID to Int for role ID.
+     * Convert String ID to UUID for role ID.
      */
-    fun toRoleId(id: String): Int {
-        return id.toInt()
+    fun toRoleId(id: String): UUID {
+        return UUID.fromString(id)
     }
 
     /**
@@ -197,9 +199,12 @@ class GroupManagementMapper {
                 else -> null
             }
 
+        // Normalize description: empty strings become null, missing field is null
+        val description = (input["description"] as? String)?.trim()?.takeIf { it.isNotBlank() }
+
         return CreateGroupInputDTO(
             name = extractField<String>(input, "name"),
-            description = extractField<String?>(input, "description", null),
+            description = description,
             userIds = userIds,
         )
     }
@@ -231,9 +236,12 @@ class GroupManagementMapper {
                 else -> null
             }
 
+        // Normalize description: empty strings become null, missing field is null
+        val description = (input["description"] as? String)?.trim()?.takeIf { it.isNotBlank() }
+
         return UpdateGroupInputDTO(
             name = extractField<String>(input, "name"),
-            description = extractField<String?>(input, "description", null),
+            description = description,
             userIds = userIds,
         )
     }

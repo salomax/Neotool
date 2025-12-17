@@ -6,6 +6,29 @@ import { UserStatusToggle } from '../UserStatusToggle';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
 import type { User } from '@/shared/hooks/authorization/useUserManagement';
 
+// Mock useOptimisticUpdate hook
+const mockExecuteUpdate = vi.fn();
+const mockUseOptimisticUpdate = vi.fn();
+
+vi.mock('@/shared/hooks/mutations', () => ({
+  useOptimisticUpdate: (options: { value: boolean }) => mockUseOptimisticUpdate(options),
+}));
+
+// Mock i18n
+vi.mock('@/shared/i18n', () => ({
+  useTranslation: vi.fn(() => ({
+    t: (key: string) => {
+      const translations: Record<string, string> = {
+        'userManagement.status.enable': 'Enable user',
+        'userManagement.status.disable': 'Disable user',
+        'userManagement.status.enabling': 'Enabling user...',
+        'userManagement.status.disabling': 'Disabling user...',
+      };
+      return translations[key] || key;
+    },
+  })),
+}));
+
 // Mock Switch component
 vi.mock('@/shared/components/ui/primitives/Switch', () => ({
   Switch: ({ checked, onChange, disabled, size, showStatus, name, 'data-testid': dataTestId }: any) => {
@@ -75,6 +98,17 @@ describe('UserStatusToggle', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (window as any).__switchProps = undefined;
+    
+    // Setup default mock behavior for useOptimisticUpdate
+    mockExecuteUpdate.mockImplementation(async (newValue: boolean, updateFn: () => Promise<void>) => {
+      await updateFn();
+    });
+    
+    mockUseOptimisticUpdate.mockImplementation(({ value }: { value: boolean }) => ({
+      optimisticValue: value,
+      isUpdating: false,
+      executeUpdate: mockExecuteUpdate,
+    }));
   });
 
   describe('Props forwarding to Switch', () => {
@@ -93,11 +127,12 @@ describe('UserStatusToggle', () => {
       expect(typeof props.onChange).toBe('function');
     });
 
-    it('should pass disabled state (isToggling || loading)', () => {
-      renderUserStatusToggle({ loading: true });
+    it('should pass disabled state based on isToggling', () => {
+      renderUserStatusToggle();
 
       const props = (window as any).__switchProps;
-      expect(props.disabled).toBe(true);
+      // Initially not disabled (not toggling)
+      expect(props.disabled).toBe(false);
     });
 
     it('should pass size="small"', () => {
@@ -179,17 +214,14 @@ describe('UserStatusToggle', () => {
       });
     });
 
-    it('should prevent toggle when loading is true', async () => {
+    it('should not be disabled when loading prop is provided (deprecated)', () => {
+      // The loading prop is deprecated and no longer affects the disabled state
       const onToggle = vi.fn();
       renderUserStatusToggle({ loading: true, onToggle });
 
       const switchButton = screen.getByTestId('user-status-toggle-user-1');
-      expect(switchButton).toBeDisabled();
-
-      // Try to click (should not work)
-      await user.click(switchButton);
-
-      expect(onToggle).not.toHaveBeenCalled();
+      // Should not be disabled since loading prop is no longer used
+      expect(switchButton).not.toBeDisabled();
     });
 
     it('should prevent toggle when isToggling is true', async () => {
@@ -241,6 +273,32 @@ describe('UserStatusToggle', () => {
 
       const tooltip = screen.getByTestId('tooltip');
       expect(tooltip).toHaveAttribute('data-title', 'Enable user');
+    });
+
+    it('should show "Disabling user..." tooltip when toggling from enabled', async () => {
+      const onToggle = vi.fn(() => new Promise((resolve) => setTimeout(resolve, 100)));
+      renderUserStatusToggle({ enabled: true, onToggle });
+
+      const switchButton = screen.getByTestId('user-status-toggle-user-1');
+      await user.click(switchButton);
+
+      await waitFor(() => {
+        const tooltip = screen.getByTestId('tooltip');
+        expect(tooltip).toHaveAttribute('data-title', 'Disabling user...');
+      });
+    });
+
+    it('should show "Enabling user..." tooltip when toggling from disabled', async () => {
+      const onToggle = vi.fn(() => new Promise((resolve) => setTimeout(resolve, 100)));
+      renderUserStatusToggle({ enabled: false, onToggle });
+
+      const switchButton = screen.getByTestId('user-status-toggle-user-1');
+      await user.click(switchButton);
+
+      await waitFor(() => {
+        const tooltip = screen.getByTestId('tooltip');
+        expect(tooltip).toHaveAttribute('data-title', 'Enabling user...');
+      });
     });
   });
 

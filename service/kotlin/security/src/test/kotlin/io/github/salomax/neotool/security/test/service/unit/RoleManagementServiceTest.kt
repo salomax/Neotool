@@ -5,6 +5,7 @@ import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.OrderDirection
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import io.github.salomax.neotool.security.domain.RoleManagement
+import io.github.salomax.neotool.security.repo.GroupRepository
 import io.github.salomax.neotool.security.repo.PermissionRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.RoleRepositoryCustom
@@ -24,12 +25,14 @@ import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.util.Optional
+import java.util.UUID
 
 @DisplayName("RoleManagementService Unit Tests")
 class RoleManagementServiceTest {
     private lateinit var roleRepository: RoleRepository
     private lateinit var roleSearchRepository: RoleRepositoryCustom
     private lateinit var permissionRepository: PermissionRepository
+    private lateinit var groupRepository: GroupRepository
     private lateinit var roleManagementService: RoleManagementService
 
     @BeforeEach
@@ -37,7 +40,9 @@ class RoleManagementServiceTest {
         roleRepository = mock()
         roleSearchRepository = mock()
         permissionRepository = mock()
-        roleManagementService = RoleManagementService(roleRepository, roleSearchRepository, permissionRepository)
+        groupRepository = mock()
+        roleManagementService =
+            RoleManagementService(roleRepository, roleSearchRepository, permissionRepository, groupRepository)
     }
 
     @Nested
@@ -46,8 +51,8 @@ class RoleManagementServiceTest {
         @Test
         fun `should list roles with default page size`() {
             // Arrange
-            val role1 = SecurityTestDataBuilders.role(id = 1, name = "Role One")
-            val role2 = SecurityTestDataBuilders.role(id = 2, name = "Role Two")
+            val role1 = SecurityTestDataBuilders.role(id = UUID.randomUUID(), name = "Role One")
+            val role2 = SecurityTestDataBuilders.role(id = UUID.randomUUID(), name = "Role Two")
             val defaultOrderBy =
                 listOf(
                     RoleOrderBy(RoleOrderField.NAME, OrderDirection.ASC),
@@ -81,7 +86,7 @@ class RoleManagementServiceTest {
         fun `should list roles with custom page size`() {
             // Arrange
             val first = 10
-            val role1 = SecurityTestDataBuilders.role(id = 1, name = "Role One")
+            val role1 = SecurityTestDataBuilders.role(id = UUID.randomUUID(), name = "Role One")
             val defaultOrderBy =
                 listOf(
                     RoleOrderBy(RoleOrderField.NAME, OrderDirection.ASC),
@@ -138,9 +143,9 @@ class RoleManagementServiceTest {
         @Test
         fun `should list roles with cursor pagination using legacy Int cursor`() {
             // Arrange
-            val afterId = 5
+            val afterId = UUID.randomUUID()
             val afterCursor = CursorEncoder.encodeCursor(afterId)
-            val role1 = SecurityTestDataBuilders.role(id = 6, name = "Role One")
+            val role1 = SecurityTestDataBuilders.role(id = UUID.randomUUID(), name = "Role One")
             val defaultOrderBy =
                 listOf(
                     RoleOrderBy(RoleOrderField.NAME, OrderDirection.ASC),
@@ -176,7 +181,7 @@ class RoleManagementServiceTest {
             val roles =
                 (1..21).map {
                     SecurityTestDataBuilders.role(
-                        id = it,
+                        id = UUID.randomUUID(),
                         name = "Role $it",
                     )
                 }
@@ -251,8 +256,8 @@ class RoleManagementServiceTest {
         @Test
         fun `should use default sort when orderBy is null`() {
             // Arrange
-            val role1 = SecurityTestDataBuilders.role(id = 1, name = "Alpha")
-            val role2 = SecurityTestDataBuilders.role(id = 2, name = "Beta")
+            val role1 = SecurityTestDataBuilders.role(id = UUID.randomUUID(), name = "Alpha")
+            val role2 = SecurityTestDataBuilders.role(id = UUID.randomUUID(), name = "Beta")
             val defaultOrderBy =
                 listOf(
                     RoleOrderBy(RoleOrderField.NAME, OrderDirection.ASC),
@@ -284,8 +289,8 @@ class RoleManagementServiceTest {
         @Test
         fun `should sort by NAME DESC when specified`() {
             // Arrange
-            val role1 = SecurityTestDataBuilders.role(id = 1, name = "Zeta")
-            val role2 = SecurityTestDataBuilders.role(id = 2, name = "Alpha")
+            val role1 = SecurityTestDataBuilders.role(id = UUID.randomUUID(), name = "Zeta")
+            val role2 = SecurityTestDataBuilders.role(id = UUID.randomUUID(), name = "Alpha")
             val orderBy =
                 listOf(
                     RoleOrderBy(RoleOrderField.NAME, OrderDirection.DESC),
@@ -318,7 +323,7 @@ class RoleManagementServiceTest {
         fun `should search roles by name`() {
             // Arrange
             val query = "admin"
-            val role1 = SecurityTestDataBuilders.role(id = 1, name = "Admin Role")
+            val role1 = SecurityTestDataBuilders.role(id = UUID.randomUUID(), name = "Admin Role")
             val defaultOrderBy =
                 listOf(
                     RoleOrderBy(RoleOrderField.NAME, OrderDirection.ASC),
@@ -354,9 +359,9 @@ class RoleManagementServiceTest {
         fun `should search roles with pagination`() {
             // Arrange
             val query = "test"
-            val afterId = 5
+            val afterId = UUID.randomUUID()
             val afterCursor = CursorEncoder.encodeCursor(afterId)
-            val role1 = SecurityTestDataBuilders.role(id = 6, name = "Test Role")
+            val role1 = SecurityTestDataBuilders.role(id = UUID.randomUUID(), name = "Test Role")
             val defaultOrderBy =
                 listOf(
                     RoleOrderBy(RoleOrderField.NAME, OrderDirection.ASC),
@@ -441,7 +446,7 @@ class RoleManagementServiceTest {
         fun `should create role successfully`() {
             // Arrange
             val command = RoleManagement.CreateRoleCommand(name = "New Role")
-            val savedEntity = SecurityTestDataBuilders.role(id = 1, name = "New Role")
+            val savedEntity = SecurityTestDataBuilders.role(id = UUID.randomUUID(), name = "New Role")
             whenever(roleRepository.save(any())).thenReturn(savedEntity)
 
             // Act
@@ -460,7 +465,7 @@ class RoleManagementServiceTest {
         @Test
         fun `should update role successfully`() {
             // Arrange
-            val roleId = 1
+            val roleId = UUID.randomUUID()
             val existingEntity = SecurityTestDataBuilders.role(id = roleId, name = "Old Name")
             val command = RoleManagement.UpdateRoleCommand(roleId = roleId, name = "New Name")
             val updatedEntity = SecurityTestDataBuilders.role(id = roleId, name = "New Name")
@@ -481,7 +486,7 @@ class RoleManagementServiceTest {
         @Test
         fun `should throw exception when role not found`() {
             // Arrange
-            val roleId = 999
+            val roleId = UUID.randomUUID()
             val command = RoleManagement.UpdateRoleCommand(roleId = roleId, name = "New Name")
             whenever(roleRepository.findById(roleId)).thenReturn(Optional.empty())
 
@@ -502,7 +507,7 @@ class RoleManagementServiceTest {
         @Test
         fun `should delete role successfully`() {
             // Arrange
-            val roleId = 1
+            val roleId = UUID.randomUUID()
 
             // Act
             roleManagementService.deleteRole(roleId)
@@ -518,9 +523,9 @@ class RoleManagementServiceTest {
         @Test
         fun `should list permissions for role`() {
             // Arrange
-            val roleId = 1
-            val permission1 = SecurityTestDataBuilders.permission(id = 1, name = "permission:read")
-            val permission2 = SecurityTestDataBuilders.permission(id = 2, name = "permission:write")
+            val roleId = UUID.randomUUID()
+            val permission1 = SecurityTestDataBuilders.permission(id = UUID.randomUUID(), name = "permission:read")
+            val permission2 = SecurityTestDataBuilders.permission(id = UUID.randomUUID(), name = "permission:write")
             whenever(permissionRepository.findByRoleId(roleId))
                 .thenReturn(listOf(permission1, permission2))
 
@@ -537,7 +542,7 @@ class RoleManagementServiceTest {
         @Test
         fun `should return empty list when role has no permissions`() {
             // Arrange
-            val roleId = 1
+            val roleId = UUID.randomUUID()
             whenever(permissionRepository.findByRoleId(roleId))
                 .thenReturn(emptyList())
 
@@ -557,8 +562,8 @@ class RoleManagementServiceTest {
         @Test
         fun `should assign permission to role successfully`() {
             // Arrange
-            val roleId = 1
-            val permissionId = 2
+            val roleId = UUID.randomUUID()
+            val permissionId = UUID.randomUUID()
             val command = RoleManagement.AssignPermissionCommand(roleId = roleId, permissionId = permissionId)
             val roleEntity = SecurityTestDataBuilders.role(id = roleId, name = "Admin Role")
             val permissionEntity = SecurityTestDataBuilders.permission(id = permissionId, name = "permission:read")
@@ -579,8 +584,8 @@ class RoleManagementServiceTest {
         @Test
         fun `should throw exception when role not found`() {
             // Arrange
-            val roleId = 999
-            val permissionId = 1
+            val roleId = UUID.randomUUID()
+            val permissionId = UUID.randomUUID()
             val command = RoleManagement.AssignPermissionCommand(roleId = roleId, permissionId = permissionId)
             whenever(roleRepository.findById(roleId)).thenReturn(Optional.empty())
 
@@ -597,8 +602,8 @@ class RoleManagementServiceTest {
         @Test
         fun `should throw exception when permission not found`() {
             // Arrange
-            val roleId = 1
-            val permissionId = 999
+            val roleId = UUID.randomUUID()
+            val permissionId = UUID.randomUUID()
             val command = RoleManagement.AssignPermissionCommand(roleId = roleId, permissionId = permissionId)
             val roleEntity = SecurityTestDataBuilders.role(id = roleId, name = "Admin Role")
             whenever(roleRepository.findById(roleId)).thenReturn(Optional.of(roleEntity))
@@ -622,8 +627,8 @@ class RoleManagementServiceTest {
         @Test
         fun `should remove permission from role successfully`() {
             // Arrange
-            val roleId = 1
-            val permissionId = 2
+            val roleId = UUID.randomUUID()
+            val permissionId = UUID.randomUUID()
             val command = RoleManagement.RemovePermissionCommand(roleId = roleId, permissionId = permissionId)
             val roleEntity = SecurityTestDataBuilders.role(id = roleId, name = "Admin Role")
             val permissionEntity = SecurityTestDataBuilders.permission(id = permissionId, name = "permission:read")
@@ -644,8 +649,8 @@ class RoleManagementServiceTest {
         @Test
         fun `should throw exception when role not found`() {
             // Arrange
-            val roleId = 999
-            val permissionId = 1
+            val roleId = UUID.randomUUID()
+            val permissionId = UUID.randomUUID()
             val command = RoleManagement.RemovePermissionCommand(roleId = roleId, permissionId = permissionId)
             whenever(roleRepository.findById(roleId)).thenReturn(Optional.empty())
 
@@ -662,8 +667,8 @@ class RoleManagementServiceTest {
         @Test
         fun `should throw exception when permission not found`() {
             // Arrange
-            val roleId = 1
-            val permissionId = 999
+            val roleId = UUID.randomUUID()
+            val permissionId = UUID.randomUUID()
             val command = RoleManagement.RemovePermissionCommand(roleId = roleId, permissionId = permissionId)
             val roleEntity = SecurityTestDataBuilders.role(id = roleId, name = "Admin Role")
             whenever(roleRepository.findById(roleId)).thenReturn(Optional.of(roleEntity))
@@ -687,10 +692,10 @@ class RoleManagementServiceTest {
         @Test
         fun `listRolePermissionsBatch should return permissions for multiple roles`() {
             // Arrange
-            val roleId1 = 1
-            val roleId2 = 2
-            val permissionId1 = 10
-            val permissionId2 = 20
+            val roleId1 = UUID.randomUUID()
+            val roleId2 = UUID.randomUUID()
+            val permissionId1 = UUID.randomUUID()
+            val permissionId2 = UUID.randomUUID()
             val permission1 =
                 SecurityTestDataBuilders.permission(
                     id = permissionId1,
@@ -702,11 +707,11 @@ class RoleManagementServiceTest {
                     name = "transaction:write",
                 )
 
-            whenever(roleRepository.findPermissionIdsByRoleIds(any<List<Int>>()))
+            whenever(roleRepository.findPermissionIdsByRoleIds(any<List<UUID>>()))
                 .thenReturn(listOf(permissionId1, permissionId2))
             whenever(roleRepository.findPermissionIdsByRoleId(roleId1)).thenReturn(listOf(permissionId1))
             whenever(roleRepository.findPermissionIdsByRoleId(roleId2)).thenReturn(listOf(permissionId2))
-            whenever(permissionRepository.findByIdIn(any<List<Int>>())).thenReturn(listOf(permission1, permission2))
+            whenever(permissionRepository.findByIdIn(any<List<UUID>>())).thenReturn(listOf(permission1, permission2))
 
             // Act
             val result = roleManagementService.listRolePermissionsBatch(listOf(roleId1, roleId2))
@@ -717,7 +722,7 @@ class RoleManagementServiceTest {
             assertThat(result[roleId1]!![0].name).isEqualTo("transaction:read")
             assertThat(result[roleId2]).hasSize(1)
             assertThat(result[roleId2]!![0].name).isEqualTo("transaction:write")
-            verify(roleRepository).findPermissionIdsByRoleIds(any<List<Int>>())
+            verify(roleRepository).findPermissionIdsByRoleIds(any<List<UUID>>())
         }
 
         @Test
@@ -732,8 +737,8 @@ class RoleManagementServiceTest {
         @Test
         fun `listRolePermissionsBatch should return empty lists for roles with no permissions`() {
             // Arrange
-            val roleId = 1
-            whenever(roleRepository.findPermissionIdsByRoleIds(any<List<Int>>())).thenReturn(emptyList())
+            val roleId = UUID.randomUUID()
+            whenever(roleRepository.findPermissionIdsByRoleIds(any<List<UUID>>())).thenReturn(emptyList())
             whenever(roleRepository.findPermissionIdsByRoleId(roleId)).thenReturn(emptyList())
 
             // Act
@@ -747,9 +752,9 @@ class RoleManagementServiceTest {
         @Test
         fun `listRolePermissionsBatch should handle roles with multiple permissions`() {
             // Arrange
-            val roleId = 1
-            val permissionId1 = 10
-            val permissionId2 = 20
+            val roleId = UUID.randomUUID()
+            val permissionId1 = UUID.randomUUID()
+            val permissionId2 = UUID.randomUUID()
             val permission1 =
                 SecurityTestDataBuilders.permission(
                     id = permissionId1,
@@ -761,10 +766,10 @@ class RoleManagementServiceTest {
                     name = "transaction:write",
                 )
 
-            whenever(roleRepository.findPermissionIdsByRoleIds(any<List<Int>>()))
+            whenever(roleRepository.findPermissionIdsByRoleIds(any<List<UUID>>()))
                 .thenReturn(listOf(permissionId1, permissionId2))
             whenever(roleRepository.findPermissionIdsByRoleId(roleId)).thenReturn(listOf(permissionId1, permissionId2))
-            whenever(permissionRepository.findByIdIn(any<List<Int>>())).thenReturn(listOf(permission1, permission2))
+            whenever(permissionRepository.findByIdIn(any<List<UUID>>())).thenReturn(listOf(permission1, permission2))
 
             // Act
             val result = roleManagementService.listRolePermissionsBatch(listOf(roleId))
@@ -775,6 +780,54 @@ class RoleManagementServiceTest {
             assertThat(
                 result[roleId]!!.map { it.name },
             ).containsExactlyInAnyOrder("transaction:read", "transaction:write")
+        }
+    }
+
+    @Nested
+    @DisplayName("Role Groups Tests")
+    inner class RoleGroupsTests {
+        @Test
+        fun `listRoleGroups should return groups assigned to role`() {
+            val roleId = UUID.randomUUID()
+            val groupId = UUID.randomUUID()
+            val groupEntity =
+                SecurityTestDataBuilders.group(
+                    id = groupId,
+                    name = "Admins",
+                    description = "Admin group",
+                )
+
+            whenever(roleRepository.findGroupIdsByRoleId(roleId)).thenReturn(listOf(groupId))
+            whenever(groupRepository.findByIdIn(listOf(groupId))).thenReturn(listOf(groupEntity))
+
+            val result = roleManagementService.listRoleGroups(roleId)
+
+            assertThat(result).hasSize(1)
+            assertThat(result.first().id).isEqualTo(groupId)
+            assertThat(result.first().name).isEqualTo("Admins")
+        }
+
+        @Test
+        fun `listRoleGroupsBatch should return groups for multiple roles`() {
+            val roleId1 = UUID.randomUUID()
+            val roleId2 = UUID.randomUUID()
+            val groupId1 = UUID.randomUUID()
+            val groupId2 = UUID.randomUUID()
+
+            val group1 = SecurityTestDataBuilders.group(id = groupId1, name = "Admins")
+            val group2 = SecurityTestDataBuilders.group(id = groupId2, name = "Editors")
+
+            whenever(roleRepository.findGroupIdsByRoleIds(listOf(roleId1, roleId2)))
+                .thenReturn(listOf(groupId1, groupId2))
+            whenever(roleRepository.findGroupIdsByRoleId(roleId1)).thenReturn(listOf(groupId1))
+            whenever(roleRepository.findGroupIdsByRoleId(roleId2)).thenReturn(listOf(groupId2))
+            whenever(groupRepository.findByIdIn(any<List<UUID>>())).thenReturn(listOf(group1, group2))
+
+            val result = roleManagementService.listRoleGroupsBatch(listOf(roleId1, roleId2))
+
+            assertThat(result).hasSize(2)
+            assertThat(result[roleId1]).extracting("id").containsExactly(groupId1)
+            assertThat(result[roleId2]).extracting("id").containsExactly(groupId2)
         }
     }
 }

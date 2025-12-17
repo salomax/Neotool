@@ -96,6 +96,11 @@ open class AuthenticationService(
             return null
         }
 
+        // Check if user is enabled
+        if (!user.enabled) {
+            return null
+        }
+
         logger.info { "User authenticated successfully: $email" }
         return user
     }
@@ -174,7 +179,14 @@ open class AuthenticationService(
         }
 
         // Fetch user from database
-        return userRepository.findById(userId).orElse(null)
+        val user = userRepository.findById(userId).orElse(null) ?: return null
+
+        // Check if user is enabled
+        if (!user.enabled) {
+            return null
+        }
+
+        return user
     }
 
     /**
@@ -206,6 +218,11 @@ open class AuthenticationService(
         // In a production system, you might want to store token hashes instead
         if (user.rememberMeToken != token) {
             logger.debug { "Refresh token does not match stored token for user: ${user.email}" }
+            return null
+        }
+
+        // Check if user is enabled
+        if (!user.enabled) {
             return null
         }
 
@@ -526,10 +543,29 @@ open class AuthenticationService(
         val existingUser = userRepository.findByEmail(claims.email)
 
         if (existingUser != null) {
+            var needsUpdate = false
+
             // Update display name if it's not set or if OAuth provides a name
             if (existingUser.displayName.isNullOrBlank() && !claims.name.isNullOrBlank()) {
                 existingUser.displayName = claims.name
+                needsUpdate = true
+            }
+
+            // Update avatar metadata if OAuth provides a picture
+            if (!claims.picture.isNullOrBlank() && claims.picture != existingUser.avatarUrl) {
+                existingUser.avatarUrl = claims.picture
+                existingUser.avatarProvider = provider
+                existingUser.avatarUpdatedAt = Instant.now()
+                needsUpdate = true
+            }
+
+            if (needsUpdate) {
                 userRepository.save(existingUser)
+            }
+
+            // Check if user is enabled
+            if (!existingUser.enabled) {
+                return null
             }
 
             logger.info { "OAuth user signed in: ${claims.email} (existing user)" }
@@ -543,6 +579,9 @@ open class AuthenticationService(
                 email = claims.email,
                 displayName = claims.name,
                 passwordHash = null,
+                avatarUrl = claims.picture,
+                avatarProvider = provider,
+                avatarUpdatedAt = Instant.now(),
             )
 
         val savedUser = userRepository.save(newUser)

@@ -7,8 +7,10 @@ import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.OrderDirection
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import io.github.salomax.neotool.security.domain.RoleManagement
+import io.github.salomax.neotool.security.domain.rbac.Group
 import io.github.salomax.neotool.security.domain.rbac.Permission
 import io.github.salomax.neotool.security.domain.rbac.Role
+import io.github.salomax.neotool.security.repo.GroupRepository
 import io.github.salomax.neotool.security.repo.PermissionRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.RoleRepositoryCustom
@@ -16,6 +18,7 @@ import jakarta.inject.Singleton
 import jakarta.transaction.Transactional
 import mu.KotlinLogging
 import java.time.Instant
+import java.util.UUID
 
 /**
  * Service for managing roles.
@@ -27,6 +30,7 @@ open class RoleManagementService(
     private val roleRepository: RoleRepository,
     private val roleSearchRepository: RoleRepositoryCustom,
     private val permissionRepository: PermissionRepository,
+    private val groupRepository: GroupRepository,
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -36,7 +40,7 @@ open class RoleManagementService(
      * @param roleId The ID of the role
      * @return The role domain object, or null if not found
      */
-    fun getRoleById(roleId: Int): Role? {
+    fun getRoleById(roleId: UUID): Role? {
         return roleRepository.findById(roleId)
             .map { it.toDomain() }
             .orElse(null)
@@ -79,19 +83,19 @@ open class RoleManagementService(
                 }
             }
 
-        // Decode cursor - try composite first, fallback to Int for backward compatibility
+        // Decode cursor - try composite UUID first, fallback to UUID for backward compatibility
         val afterCompositeCursor: CompositeCursor? =
             after?.let {
                 try {
-                    CursorEncoder.decodeCompositeCursorToInt(it)
+                    CursorEncoder.decodeCompositeCursorToUuid(it)
                 } catch (e: Exception) {
-                    // Try legacy Int cursor for backward compatibility
+                    // Try legacy UUID cursor for backward compatibility
                     try {
-                        val intId = CursorEncoder.decodeCursorToInt(it)
+                        val uuidId = CursorEncoder.decodeCursorToUuid(it)
                         // Convert legacy cursor to composite cursor with id only
                         CompositeCursor(
                             fieldValues = emptyMap(),
-                            id = intId.toString(),
+                            id = uuidId.toString(),
                         )
                     } catch (e2: Exception) {
                         throw IllegalArgumentException("Invalid cursor: $after", e2)
@@ -207,7 +211,7 @@ open class RoleManagementService(
      * @throws DataAccessException if role has dependencies (database foreign key constraint)
      */
     @Transactional
-    open fun deleteRole(roleId: Int) {
+    open fun deleteRole(roleId: UUID) {
         roleRepository.deleteById(roleId)
 
         logger.info { "Role deleted (ID: $roleId)" }
@@ -219,11 +223,57 @@ open class RoleManagementService(
      * @param roleId The ID of the role
      * @return List of permissions assigned to the role (empty list if role doesn't exist or has no permissions)
      */
-    fun listRolePermissions(roleId: Int): List<Permission> {
+    fun listRolePermissions(roleId: UUID): List<Permission> {
         // Load permissions for the role in a single query
         val permissions = permissionRepository.findByRoleId(roleId)
 
         return permissions.map { it.toDomain() }
+    }
+
+    /**
+     * List all groups that have this role assigned.
+     *
+     * @param roleId The ID of the role
+     * @return List of groups that have the role (empty list if none)
+     */
+    fun listRoleGroups(roleId: UUID): List<Group> {
+        val groupIds = roleRepository.findGroupIdsByRoleId(roleId).distinct()
+        if (groupIds.isEmpty()) {
+            return emptyList()
+        }
+
+        return groupRepository.findByIdIn(groupIds).map { it.toDomain() }
+    }
+
+    /**
+     * Batch list groups for multiple roles.
+     *
+     * @param roleIds List of role IDs
+     * @return Map of role ID to list of groups
+     */
+    fun listRoleGroupsBatch(roleIds: List<UUID>): Map<UUID, List<Group>> {
+        if (roleIds.isEmpty()) {
+            return emptyMap()
+        }
+
+        // Collect all group ids for provided role ids
+        val allGroupIds = roleRepository.findGroupIdsByRoleIds(roleIds).distinct()
+        val groupsById =
+            if (allGroupIds.isNotEmpty()) {
+                groupRepository.findByIdIn(allGroupIds).associateBy { it.id!! }
+            } else {
+                emptyMap()
+            }
+
+        // For each role, map group ids to domain objects
+        val result = mutableMapOf<UUID, List<Group>>()
+        for (roleId in roleIds) {
+            val groupIdsForRole = roleRepository.findGroupIdsByRoleId(roleId)
+            val groups = groupIdsForRole.mapNotNull { groupsById[it]?.toDomain() }
+            result[roleId] = groups
+        }
+
+        return result
     }
 
     /**
@@ -233,7 +283,7 @@ open class RoleManagementService(
      * @param roleIds List of role IDs
      * @return Map of role ID to list of permissions
      */
-    fun listRolePermissionsBatch(roleIds: List<Int>): Map<Int, List<Permission>> {
+    fun listRolePermissionsBatch(roleIds: List<UUID>): Map<UUID, List<Permission>> {
         if (roleIds.isEmpty()) {
             return emptyMap()
         }
@@ -251,7 +301,7 @@ open class RoleManagementService(
             }
 
         // For each role, get its permission IDs and map to Permission objects
-        val result = mutableMapOf<Int, List<Permission>>()
+        val result = mutableMapOf<UUID, List<Permission>>()
         for (roleId in roleIds) {
             val permissionIds = roleRepository.findPermissionIdsByRoleId(roleId)
             val permissions = permissionIds.mapNotNull { permissionId -> allPermissions[permissionId] }

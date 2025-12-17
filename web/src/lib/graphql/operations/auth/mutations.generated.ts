@@ -39,6 +39,13 @@ export type ResetPasswordMutationVariables = Types.Exact<{
 
 export type ResetPasswordMutation = { resetPassword: { __typename: 'ResetPasswordPayload', success: boolean, message: string } };
 
+export type RefreshAccessTokenMutationVariables = Types.Exact<{
+  input: Types.RefreshAccessTokenInput;
+}>;
+
+
+export type RefreshAccessTokenMutation = { refreshAccessToken: { __typename: 'SignInPayload', token: string, user: { __typename: 'User', id: string, email: string, displayName: string | null, roles: Array<{ __typename: 'Role', id: string, name: string }>, permissions: Array<{ __typename: 'Permission', id: string, name: string }> } } };
+
 
 export const SignInDocument = gql`
     mutation SignIn($input: SignInInput!) {
@@ -239,3 +246,47 @@ export function useResetPasswordMutation(baseOptions?: ApolloReactHooks.Mutation
       }
 export type ResetPasswordMutationHookResult = ReturnType<typeof useResetPasswordMutation>;
 export type ResetPasswordMutationResult = ApolloReactCommon.MutationResult<ResetPasswordMutation>;
+export const RefreshAccessTokenDocument = gql`
+    mutation RefreshAccessToken($input: RefreshAccessTokenInput!) {
+  refreshAccessToken(input: $input) {
+    token
+    user {
+      id
+      email
+      displayName
+      roles {
+        id
+        name
+      }
+      permissions {
+        id
+        name
+      }
+    }
+  }
+}
+    `;
+
+/**
+ * __useRefreshAccessTokenMutation__
+ *
+ * To run a mutation, you first call `useRefreshAccessTokenMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useRefreshAccessTokenMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [refreshAccessTokenMutation, { data, loading, error }] = useRefreshAccessTokenMutation({
+ *   variables: {
+ *      input: // value for 'input'
+ *   },
+ * });
+ */
+export function useRefreshAccessTokenMutation(baseOptions?: ApolloReactHooks.MutationHookOptions<RefreshAccessTokenMutation, RefreshAccessTokenMutationVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return ApolloReactHooks.useMutation<RefreshAccessTokenMutation, RefreshAccessTokenMutationVariables>(RefreshAccessTokenDocument, options);
+      }
+export type RefreshAccessTokenMutationHookResult = ReturnType<typeof useRefreshAccessTokenMutation>;
+export type RefreshAccessTokenMutationResult = ApolloReactCommon.MutationResult<RefreshAccessTokenMutation>;

@@ -17,8 +17,8 @@ open class GroupRoleAssignmentEntity(
     override val id: UUID = UUID.randomUUID(),
     @Column(name = "group_id", nullable = false, columnDefinition = "uuid")
     open var groupId: UUID,
-    @Column(name = "role_id", nullable = false)
-    open var roleId: Int,
+    @Column(name = "role_id", nullable = false, columnDefinition = "uuid")
+    open var roleId: UUID,
     @Column(name = "valid_from")
     open var validFrom: Instant? = null,
     @Column(name = "valid_until")

@@ -264,6 +264,37 @@ For quick validation of both frontend and backend:
 
 **Solution**: Run `./gradlew ktlintFormat` to auto-fix most issues.
 
+**Import Ordering Pattern**:
+
+ktlint requires imports to be ordered in lexicographic (alphabetical) order with special handling for standard library imports. The correct order is:
+
+1. **Project imports** (e.g., `io.github.salomax.neotool.*`)
+2. **Third-party imports** (e.g., `io.micronaut.*`, `org.apache.*`, `org.junit.*`)
+3. **Standard library imports at the end**: `java.*`, `javax.*`, `kotlin.*` (in that order)
+4. **Import aliases** (if any) at the very end
+
+**Example - Correct Import Ordering**:
+```kotlin
+// ✅ Correct - java.* imports at the end
+import io.github.salomax.neotool.app.batch.swapi.PeopleMessage
+import io.micronaut.configuration.kafka.annotation.KafkaClient
+import org.apache.kafka.common.serialization.StringDeserializer
+import org.junit.jupiter.api.Test
+import java.time.Instant
+import java.util.concurrent.ConcurrentLinkedQueue
+```
+
+**Example - Incorrect Import Ordering**:
+```kotlin
+// ❌ Incorrect - java.* imports in the middle
+import io.github.salomax.neotool.app.batch.swapi.PeopleMessage
+import java.time.Instant  // ❌ Should be at the end
+import org.apache.kafka.common.serialization.StringDeserializer
+import org.junit.jupiter.api.Test
+```
+
+**Rule**: Standard library imports (`java.*`, `javax.*`, `kotlin.*`) must always come after all other imports, in that order.
+
 **Note**: Some issues cannot be auto-fixed and must be manually corrected:
 - Comments in value argument lists must be placed on separate lines above the argument
 - Multiline expressions must start on a new line

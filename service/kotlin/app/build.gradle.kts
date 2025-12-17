@@ -44,6 +44,10 @@ dependencies {
     implementation("io.jsonwebtoken:jjwt-api:0.12.5")
     implementation("io.jsonwebtoken:jjwt-impl:0.12.5")
     implementation("io.jsonwebtoken:jjwt-jackson:0.12.5")
+
+    // Testcontainers Kafka for integration tests
+    testImplementation("org.testcontainers:kafka:1.20.6")
+    testImplementation("org.testcontainers:testcontainers:1.20.6")
 }
 
 application {
@@ -52,6 +56,23 @@ application {
 
 // Configure test task to disable Ryuk
 tasks.test {
+    systemProperty("ryuk.disabled", "true")
+    environment("TESTCONTAINERS_RYUK_DISABLED", "true")
+}
+
+// Task to run unit tests only (excludes integration tests)
+tasks.register<Test>("testUnit") {
+    group = "verification"
+    description = "Runs unit tests only (excludes integration tests)"
+
+    useJUnitPlatform {
+        excludeTags("integration")
+    }
+
+    testLogging {
+        events("passed", "skipped", "failed")
+    }
+
     systemProperty("ryuk.disabled", "true")
     environment("TESTCONTAINERS_RYUK_DISABLED", "true")
 }
