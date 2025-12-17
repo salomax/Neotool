@@ -60,6 +60,23 @@ tasks.test {
     environment("TESTCONTAINERS_RYUK_DISABLED", "true")
 }
 
+// Task to run unit tests only (excludes integration tests)
+tasks.register<Test>("testUnit") {
+    group = "verification"
+    description = "Runs unit tests only (excludes integration tests)"
+
+    useJUnitPlatform {
+        excludeTags("integration")
+    }
+
+    testLogging {
+        events("passed", "skipped", "failed")
+    }
+
+    systemProperty("ryuk.disabled", "true")
+    environment("TESTCONTAINERS_RYUK_DISABLED", "true")
+}
+
 // Enable ZIP64 support for all JAR tasks to handle more than 65535 entries
 tasks.withType<Jar> {
     isZip64 = true

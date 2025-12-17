@@ -178,7 +178,9 @@ subprojects {
                 "Verifies that code coverage meets the minimum thresholds (run explicitly: ./gradlew test testIntegration koverVerify)"
             // Ensure both test and testIntegration run before verification
             // This merges coverage from both unit and integration tests
-            dependsOn(tasks.named("test"))
+            tasks.findByName("test")?.let {
+                dependsOn(it)
+            }
             // Include testIntegration if it exists to merge coverage from integration tests
             tasks.findByName("testIntegration")?.let {
                 dependsOn(it)

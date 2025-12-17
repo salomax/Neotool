@@ -36,9 +36,9 @@ RUN --mount=type=cache,target=/home/gradle/.gradle/caches \
     --mount=type=cache,target=/home/gradle/.gradle/wrapper \
     ./gradlew :assistant:shadowJar -x test --build-cache --parallel
 
-# Use a minimal JRE (Java Runtime Environment) image based on Eclipse Temurin with JDK 21.
-# This image is much smaller than the full JDK image used for building.
-FROM eclipse-temurin:21-jre
+# Use Alpine-based JRE (Java Runtime Environment) image - much smaller than standard JRE (~100MB vs ~200MB).
+# Alpine Linux uses musl libc instead of glibc, resulting in a significantly smaller base image.
+FROM eclipse-temurin:21-jre-alpine
 
 # Set the working directory for the application inside the final image.
 WORKDIR /app

@@ -219,6 +219,19 @@ export const UserDrawer: React.FC<UserDrawerProps> = ({
                 />
               </Box>
 
+              {/* Email - Readonly */}
+              <Box>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  {t("userManagement.drawer.email")}
+                </Typography>
+                <TextField
+                  fullWidth
+                  value={email}
+                  readOnly
+                  data-testid="user-drawer-email-input"
+                />
+              </Box>
+
               {/* Groups */}
               <PermissionGate require="security:user:save">
                 <Box data-testid="user-drawer-groups-section">
