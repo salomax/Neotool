@@ -147,23 +147,23 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
     setSaving(true);
     try {
       const formData = methods.getValues();
-
-      const submitData: GroupFormData = {
-        name: formData.name.trim(),
-        description: formData.description?.trim() || null,
-        // In create mode, users are selected via pendingUsers state.
-        // In edit mode, users are managed by the useGroupDrawer hook and
-        // are not updated through this mutation.
-        userIds: isCreateMode ? pendingUsers.map((user) => user.id) : [],
-      };
+      const trimmedDescription = formData.description?.trim();
 
       if (isCreateMode) {
         // Create mode: create group first, then assign roles
-        const input = {
-          name: submitData.name,
-          description: submitData.description,
-          userIds: submitData.userIds ?? [],
+        const input: {
+          name: string;
+          description?: string;
+          userIds: string[];
+        } = {
+          name: formData.name.trim(),
+          userIds: pendingUsers.map((user) => user.id),
         };
+        
+        // Only include description if it has a value (omit for optional GraphQL field)
+        if (trimmedDescription) {
+          input.description = trimmedDescription;
+        }
 
         const result = await createGroupMutation({
           variables: { input },
@@ -192,7 +192,7 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
           }
         }
 
-        toast.success(t("groupManagement.toast.groupCreated", { name: submitData.name }));
+        toast.success(t("groupManagement.toast.groupCreated", { name: formData.name.trim() }));
         
         // Note: No need to refetch groups list - mutations update cache and parent will refetch when needed
       } else {
@@ -200,19 +200,27 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
         if (!groupId) return;
         
         // Check if name or description changed
-        const nameChanged = submitData.name.trim() !== (group?.name || "").trim();
-        const descriptionChanged = submitData.description?.trim() !== (group?.description || "").trim();
+        const nameChanged = formData.name.trim() !== (group?.name || "").trim();
+        const descriptionChanged = trimmedDescription !== (group?.description || null);
         
         // Only update group if name or description changed
         if (nameChanged || descriptionChanged) {
+          const updateInput: {
+            name: string;
+            description?: string;
+          } = {
+            name: formData.name.trim(),
+          };
+          
+          // Only include description if it has a value (omit for optional GraphQL field)
+          if (trimmedDescription) {
+            updateInput.description = trimmedDescription;
+          }
+          
           await updateGroupMutation({
             variables: {
               groupId,
-              input: {
-                name: submitData.name.trim(),
-                description: submitData.description?.trim() || null,
-                // Don't include userIds - undefined means don't change memberships
-              },
+              input: updateInput,
             },
             refetchQueries: [GetGroupWithRelationshipsDocument, 'GetGroups'],
             awaitRefetchQueries: true,
@@ -224,7 +232,7 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
           await handleSaveRolesAndUsers();
         }
         
-        toast.success(t("groupManagement.toast.groupUpdated", { name: submitData.name }));
+        toast.success(t("groupManagement.toast.groupUpdated", { name: formData.name.trim() }));
       }
       
       // After successful save in either create or edit mode, close the drawer
@@ -246,6 +254,7 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
     createGroupMutation,
     updateGroupMutation,
     groupId,
+    group,
     toast,
     t,
     onClose,
@@ -254,7 +263,6 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
     assignRoleToGroup,
     hasRoleOrUserChanges,
     handleSaveRolesAndUsers,
-    group,
   ]);
 
   const handleCancel = useCallback(() => {

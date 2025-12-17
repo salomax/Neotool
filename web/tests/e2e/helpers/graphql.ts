@@ -220,7 +220,8 @@ export async function createGroup(
     {
       input: {
         name,
-        description,
+        // GraphQL API requires description field, so convert null to empty string
+        description: description ?? '',
       },
     },
     token

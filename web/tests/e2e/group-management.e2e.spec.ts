@@ -91,6 +91,9 @@ test.describe('Group Management', () => {
       const groupManagementPage = new GroupManagementPage(page);
       await groupManagementPage.goto();
       
+      // Wait a moment for the newly created group to be available in search
+      await page.waitForTimeout(500);
+      
       // Search for the group to ensure it appears in the list
       await groupManagementPage.search.search(testGroup.name);
       await groupManagementPage.search.waitForSearchComplete();
@@ -140,11 +143,14 @@ test.describe('Group Management', () => {
       
       // And there are groups in the system
       const adminToken = await signIn(TEST_USERS.valid.email, TEST_USERS.valid.password);
-      const testGroup = await createUniqueTestGroup('search-name', null, adminToken);
+      const testGroup = await createUniqueTestGroup('search-name', '', adminToken);
       
       // When I navigate to Group Management
       const groupManagementPage = new GroupManagementPage(page);
       await groupManagementPage.goto();
+      
+      // Wait a moment for the newly created group to be available in search
+      await page.waitForTimeout(500);
       
       // And I search for the group's name
       await groupManagementPage.search.search(testGroup.name);
@@ -390,11 +396,14 @@ test.describe('Group Management', () => {
       
       // And there is a group
       const adminToken = await signIn(TEST_USERS.valid.email, TEST_USERS.valid.password);
-      const testGroup = await createUniqueTestGroup('drawer-test', null, adminToken);
+      const testGroup = await createUniqueTestGroup('drawer-test', '', adminToken);
       
       // When I navigate to Group Management
       const groupManagementPage = new GroupManagementPage(page);
       await groupManagementPage.goto();
+      
+      // Wait a moment for the newly created group to be available in search
+      await page.waitForTimeout(500);
       
       // Search for the group to ensure it appears in the list
       await groupManagementPage.search.search(testGroup.name);
@@ -442,11 +451,14 @@ test.describe('Group Management', () => {
       
       // And there is a group
       const adminToken = await signIn(TEST_USERS.valid.email, TEST_USERS.valid.password);
-      const testGroup = await createUniqueTestGroup('update-test', null, adminToken);
+      const testGroup = await createUniqueTestGroup('update-test', '', adminToken);
       
       // When I navigate to Group Management
       const groupManagementPage = new GroupManagementPage(page);
       await groupManagementPage.goto();
+      
+      // Wait a moment for the newly created group to be available in search
+      await page.waitForTimeout(500);
       
       // Search for the group to ensure it appears in the list
       await groupManagementPage.search.search(testGroup.name);
@@ -466,6 +478,13 @@ test.describe('Group Management', () => {
       // Wait for group list to refresh after save
       await groupManagementPage.waitForGroupList();
       
+      // Clear any existing search to ensure we see all groups
+      await groupManagementPage.search.clear();
+      await groupManagementPage.search.waitForSearchComplete();
+      
+      // Wait a moment for the list to refresh
+      await page.waitForTimeout(500);
+      
       // Verify by searching for the new name
       await groupManagementPage.search.search(newName);
       await groupManagementPage.search.waitForSearchComplete();
@@ -479,6 +498,9 @@ test.describe('Group Management', () => {
       // And there is a group
       const adminToken = await signIn(TEST_USERS.valid.email, TEST_USERS.valid.password);
       const testGroup = await createUniqueTestGroup('update-desc-test', 'Original Description', adminToken);
+      
+      // Wait a moment for the newly created group to be available
+      await page.waitForTimeout(500);
       
       // When I navigate to Group Management
       const groupManagementPage = new GroupManagementPage(page);
@@ -502,9 +524,15 @@ test.describe('Group Management', () => {
       // Wait for group list to refresh after save
       await groupManagementPage.waitForGroupList();
       
+      // Clear any existing search to ensure we see all groups
+      await groupManagementPage.search.clear();
+      await groupManagementPage.search.waitForSearchComplete();
+      await page.waitForTimeout(500);
+      
       // Verify by reopening drawer and checking description
       await groupManagementPage.search.search(testGroup.name);
       await groupManagementPage.search.waitForSearchComplete();
+      await groupManagementPage.waitForGroupInList(testGroup.name);
       await groupManagementPage.clickEditGroup(testGroup.id);
       await page.waitForTimeout(500);
       
@@ -521,11 +549,14 @@ test.describe('Group Management', () => {
       
       // And there is a group
       const adminToken = await signIn(TEST_USERS.valid.email, TEST_USERS.valid.password);
-      const testGroup = await createUniqueTestGroup('close-test', null, adminToken);
+      const testGroup = await createUniqueTestGroup('close-test', '', adminToken);
       
       // When I navigate to Group Management
       const groupManagementPage = new GroupManagementPage(page);
       await groupManagementPage.goto();
+      
+      // Wait a moment for the newly created group to be available in search
+      await page.waitForTimeout(500);
       
       // Search for the group to ensure it appears in the list
       await groupManagementPage.search.search(testGroup.name);
@@ -553,11 +584,14 @@ test.describe('Group Management', () => {
       
       // And there is a group
       const adminToken = await signIn(TEST_USERS.valid.email, TEST_USERS.valid.password);
-      const testGroup = await createUniqueTestGroup('delete-test', null, adminToken);
+      const testGroup = await createUniqueTestGroup('delete-test', '', adminToken);
       
       // When I navigate to Group Management
       const groupManagementPage = new GroupManagementPage(page);
       await groupManagementPage.goto();
+      
+      // Wait a moment for the newly created group to be available in search
+      await page.waitForTimeout(500);
       
       // Search for the group to ensure it appears in the list
       await groupManagementPage.search.search(testGroup.name);

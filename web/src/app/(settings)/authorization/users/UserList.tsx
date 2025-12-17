@@ -1,8 +1,7 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { Typography, IconButton, Tooltip, Box } from "@mui/material";
-import EditIcon from "@mui/icons-material/Edit";
+import { Typography, Box } from "@mui/material";
 import type { User } from "@/shared/hooks/authorization/useUserManagement";
 import { UserStatusToggle } from "./UserStatusToggle";
 import { ManagementTable, type Column } from "@/shared/components/management";
@@ -12,6 +11,7 @@ import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
 import { PermissionGate } from "@/shared/components/authorization";
 import { Avatar } from "@/shared/components/ui/primitives/Avatar";
+import { EditActionButton } from "@/shared/components/ui/primitives";
 
 export interface UserListProps {
   users: User[];
@@ -175,17 +175,13 @@ export const UserList: React.FC<UserListProps> = ({
       function UserActionsRenderer(user: User) {
         return (
           <PermissionGate require="security:user:view">
-            <Tooltip title={t("userManagement.editUser")}>
-              <IconButton
-                color="primary"
-                onClick={() => onEdit(user)}
-                size="small"
-                aria-label={`${t("userManagement.editUser")} ${user.email}`}
-                data-testid={`edit-user-${user.id}`}
-              >
-                <EditIcon />
-              </IconButton>
-            </Tooltip>
+            <EditActionButton
+              onClick={() => onEdit(user)}
+              tooltipTitle={t("userManagement.editUser")}
+              ariaLabel={`${t("userManagement.editUser")} ${user.email}`}
+              data-testid={`edit-user-${user.id}`}
+              size="small"
+            />
           </PermissionGate>
         );
       }

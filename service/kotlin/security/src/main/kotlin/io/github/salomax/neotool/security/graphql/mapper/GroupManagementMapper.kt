@@ -84,7 +84,7 @@ class GroupManagementMapper {
 
         return GroupManagement.CreateGroupCommand(
             name = input.name,
-            description = input.description,
+            description = input.description?.takeIf { it.isNotBlank() },
             userIds = userIds,
         )
     }
@@ -132,7 +132,7 @@ class GroupManagementMapper {
         return GroupManagement.UpdateGroupCommand(
             groupId = groupIdUuid,
             name = input.name,
-            description = input.description,
+            description = input.description?.takeIf { it.isNotBlank() },
             userIds = userIds,
         )
     }
@@ -199,9 +199,12 @@ class GroupManagementMapper {
                 else -> null
             }
 
+        // Normalize description: empty strings become null, missing field is null
+        val description = (input["description"] as? String)?.trim()?.takeIf { it.isNotBlank() }
+
         return CreateGroupInputDTO(
             name = extractField<String>(input, "name"),
-            description = extractField<String?>(input, "description", null),
+            description = description,
             userIds = userIds,
         )
     }
@@ -233,9 +236,12 @@ class GroupManagementMapper {
                 else -> null
             }
 
+        // Normalize description: empty strings become null, missing field is null
+        val description = (input["description"] as? String)?.trim()?.takeIf { it.isNotBlank() }
+
         return UpdateGroupInputDTO(
             name = extractField<String>(input, "name"),
-            description = extractField<String?>(input, "description", null),
+            description = description,
             userIds = userIds,
         )
     }

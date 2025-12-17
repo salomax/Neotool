@@ -17,3 +17,9 @@ export { LoadingSpinner } from './LoadingSpinner';
 export { Skeleton } from './Skeleton';
 export { PageSkeleton } from './PageSkeleton';
 export { ErrorBoundary } from './ErrorBoundary';
+export {
+  EditActionButton,
+  DeleteActionButton,
+  type EditActionButtonProps,
+  type DeleteActionButtonProps,
+} from './TableActionButton';
