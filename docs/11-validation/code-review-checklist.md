@@ -60,7 +60,7 @@ related:
 
 - [ ] GraphQL schema is in `src/main/resources/graphql/schema.graphqls`
 - [ ] Entities use `@key(fields: "id")` directive for federation
-- [ ] Schema follows federation patterns (see `docs/01-architecture/api-architecture/graphql-federation.md`)
+- [ ] Schema follows federation rules (see `docs/05-standards/api-standards/graphql-standards.md`)
 - [ ] Schema uses appropriate GraphQL types (ID!, String!, Int!, etc.)
 - [ ] Schema includes proper nullability (`!` for required fields)
 - [ ] Schema is documented with descriptions
@@ -179,16 +179,16 @@ related:
 
 ### Components
 
-- [ ] Components follow structure (see `docs/04-patterns/frontend-patterns/component-pattern.md`)
+- [ ] Components follow structure (see `docs/04-patterns/frontend-patterns/shared-components-pattern.md`)
 - [ ] Components use design system components
 - [ ] Components apply theme tokens (not hardcoded colors/sizes)
 - [ ] Components are properly typed (TypeScript)
 - [ ] Components follow atomic design principles (atoms, molecules, organisms)
-- [ ] Components are in correct directory structure (see `docs/01-architecture/frontend-architecture/nextjs-structure.md`)
+- [ ] Components are in correct directory structure (see `docs/00-overview/project-structure.md`)
 
 ### GraphQL Operations
 
-- [ ] GraphQL operations follow patterns (see `docs/04-patterns/frontend-patterns/graphql-pattern.md`)
+- [ ] GraphQL operations follow patterns (see `docs/04-patterns/frontend-patterns/graphql-query-pattern.md` and `docs/04-patterns/frontend-patterns/graphql-mutation-pattern.md`)
 - [ ] GraphQL operations use generated TypeScript types
 - [ ] GraphQL operations have proper error handling
 - [ ] GraphQL operations use Apollo Client correctly

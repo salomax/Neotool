@@ -4,7 +4,7 @@ category: frontend
 tags: [hooks, components, optimistic-updates, mutations]
 related:
   - ../frontend-patterns/graphql-mutation-pattern.md
-  - ../../04-patterns/frontend-patterns/hook-pattern.md
+  - ../../04-patterns/frontend-patterns/management-pattern.md
 ---
 
 # Optimistic Toggle Pattern
@@ -137,6 +137,6 @@ const handleToggle = async (checked: boolean) => {
 ## Related Patterns
 
 - [GraphQL Mutation Pattern](../04-patterns/frontend-patterns/graphql-mutation-pattern.md)
-- [Hook Pattern](../04-patterns/frontend-patterns/hook-pattern.md)
+- [Management Pattern](../04-patterns/frontend-patterns/management-pattern.md)
 - [Management Pattern](../04-patterns/frontend-patterns/management-pattern.md)
 
