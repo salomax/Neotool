@@ -8,8 +8,8 @@ tags: [api, graphql, rules, federation]
 ai_optimized: true
 search_keywords: [api, graphql, federation, rules, schema]
 related:
-  - 03-patterns/shared/graphql-federation.md
-  - 03-patterns/backend/resolver-pattern.md
+  - 04-patterns/api-patterns/graphql-query-pattern.md
+  - 04-patterns/backend-patterns/resolver-pattern.md
 ---
 
 # API Rules
@@ -231,6 +231,6 @@ class ProductDataLoaderRegistryFactory(...) : DataLoaderRegistryFactory {
 
 ## Related Documentation
 
-- [GraphQL Federation Pattern](../03-patterns/shared/graphql-federation.md)
-- [Resolver Pattern](../03-patterns/backend/resolver-pattern.md)
+- [GraphQL Query Pattern](../../04-patterns/api-patterns/graphql-query-pattern.md)
+- [Resolver Pattern](../../04-patterns/backend-patterns/resolver-pattern.md)
 

@@ -17,7 +17,7 @@ related:
   - 09-adr/0003-kotlin-micronaut-backend.md
   - 09-adr/0004-typescript-nextjs-frontend.md
   - 09-adr/0005-postgresql-database.md
-  - 04-patterns/api-patterns/graphql-federation.md
+  - 05-standards/api-standards/graphql-standards.md
 ---
 
 # NeoTool Architecture Overview
@@ -127,7 +127,7 @@ neotool/
 ### 1. GraphQL Federation
 - **Pattern**: Apollo Federation for distributed GraphQL
 - **Benefit**: Decentralized schema development, type composition
-- **See**: [GraphQL Federation Pattern](../04-patterns/api-patterns/graphql-federation.md)
+- **See**: [GraphQL Standards](../05-standards/api-standards/graphql-standards.md)
 - **ADR**: [ADR-0003: Kotlin Backend](../09-adr/0003-kotlin-micronaut-backend.md)
 
 ### 2. Domain-Driven Design
@@ -145,7 +145,7 @@ neotool/
 ### 4. Component-Driven Development
 - **Pattern**: Atomic design system (atoms, molecules, organisms)
 - **Benefit**: Reusable UI components, design consistency
-- **See**: [Component Pattern](../04-patterns/frontend-patterns/component-pattern.md)
+- **See**: [Shared Components Pattern](../04-patterns/frontend-patterns/shared-components-pattern.md)
 - **ADR**: [ADR-0004: TypeScript Frontend](../09-adr/0004-typescript-nextjs-frontend.md)
 
 ## Data Flow
@@ -242,7 +242,7 @@ See [Feature Development Workflow](../06-workflows/feature-development.md) for d
 - [ADR-0005: PostgreSQL Database](../09-adr/0005-postgresql-database.md)
 
 ### Patterns
-- [GraphQL Federation](../04-patterns/api-patterns/graphql-federation.md)
+- [GraphQL Query Pattern](../04-patterns/api-patterns/graphql-query-pattern.md)
 - [Backend Patterns](../04-patterns/backend-patterns/)
 - [Frontend Patterns](../04-patterns/frontend-patterns/)
 

@@ -62,10 +62,10 @@ This workflow guides feature development using **Spec-Driven Development (SDD)**
   - `docs/04-patterns/backend-patterns/repository-pattern.md`
   - `docs/05-standards/coding-standards/kotlin-standards.md`
 - **Frontend Phase**:
-  - `docs/04-patterns/frontend-patterns/component-pattern.md`
+  - `docs/04-patterns/frontend-patterns/shared-components-pattern.md`
   - `docs/04-patterns/frontend-patterns/graphql-query-pattern.md`
   - `docs/04-patterns/frontend-patterns/graphql-mutation-pattern.md`
-  - `docs/04-patterns/frontend-patterns/hook-pattern.md`
+  - `docs/04-patterns/frontend-patterns/management-pattern.md`
 
 **Context Strategy**: See [Spec Context Strategy](./spec-context-strategy.md) for detailed guidance.
 
@@ -108,7 +108,7 @@ This workflow guides feature development using **Spec-Driven Development (SDD)**
   - Implement components
   - Apply design system
   - Add i18n support
-- **Validation**: Follow [Component Pattern](../04-patterns/frontend-patterns/component-pattern.md)
+- **Validation**: Follow [Shared Components Pattern](../04-patterns/frontend-patterns/shared-components-pattern.md)
 
 ### Phase 3: Testing
 

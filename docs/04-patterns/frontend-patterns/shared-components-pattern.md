@@ -10,7 +10,7 @@ search_keywords: [shared components, reusable components, ui components, feedbac
 related:
   - 04-patterns/frontend-patterns/management-pattern.md
   - 04-patterns/frontend-patterns/toast-notification-pattern.md
-  - 04-patterns/frontend-patterns/component-pattern.md
+  - 04-patterns/frontend-patterns/styling-pattern.md
 ---
 
 # Shared Components Pattern
@@ -838,4 +838,4 @@ Don't create a shared component when:
 - [Breadcrumb Pattern](./breadcrumb-pattern.md) - Detailed breadcrumb navigation patterns
 - [Management Pattern](./management-pattern.md) - How to use shared components in management pages
 - [Toast Notification Pattern](./toast-notification-pattern.md) - User feedback patterns
-- [Component Pattern](./component-pattern.md) - General component patterns
+- [Styling Pattern](./styling-pattern.md) - Styling rules and theme token usage

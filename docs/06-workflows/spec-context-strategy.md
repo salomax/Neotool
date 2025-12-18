@@ -57,48 +57,65 @@ NeoTool's specification is comprehensive and RAG-optimized. This document provid
 
 **When**: Entering a specific implementation phase
 
-#### Domain Phase
+#### Backend Base (Load Once for Backend Work)
 **Load**:
+- `docs/05-standards/architecture-standards/layer-rules.md`
+- `docs/05-standards/coding-standards/kotlin-standards.md`
+- `docs/04-patterns/backend-patterns/domain-model-pattern.md`
+
+#### Backend Add-ons (Load Per Sub-Phase)
+
+**Domain add-on** (schema/migrations/IDs):
 - `docs/05-standards/database-standards/schema-standards.md`
-- `docs/04-patterns/backend-patterns/entity-pattern.md`
 - `docs/04-patterns/backend-patterns/uuid-v7-pattern.md`
 - `docs/09-adr/0005-postgresql-database.md`
 
-#### Backend Repository Phase
-**Load**:
+**Repository add-on** (entities/repositories/domain conversion):
 - `docs/04-patterns/backend-patterns/entity-pattern.md`
 - `docs/04-patterns/backend-patterns/repository-pattern.md`
 - `docs/04-patterns/backend-patterns/domain-entity-conversion.md`
 
-#### Backend Service Phase
-**Load**:
+**Service add-on** (business logic):
 - `docs/04-patterns/backend-patterns/service-pattern.md`
-- `docs/05-standards/architecture-standards/layer-rules.md`
-- `docs/05-standards/coding-standards/kotlin-standards.md`
 
-**Context Size**: ~6-10K tokens
-
-#### Backend GraphQL Phase
-**Load**:
+**GraphQL add-on** (schema/resolvers/mapping/federation):
 - `docs/04-patterns/backend-patterns/resolver-pattern.md`
 - `docs/04-patterns/backend-patterns/mapper-pattern.md`
-- `docs/04-patterns/api-patterns/graphql-federation.md`
+- `docs/04-patterns/api-patterns/graphql-query-pattern.md`
 - `docs/05-standards/api-standards/graphql-standards.md`
 
-#### Frontend Phase
+**Pagination add-on** (lists/Relay connections):
+- `docs/04-patterns/backend-patterns/pagination-pattern.md`
+
+#### Frontend Base (Load Once for Frontend Work)
 **Load**:
-- `docs/04-patterns/frontend-patterns/component-pattern.md`
+- `docs/09-adr/0004-typescript-nextjs-frontend.md`
+- `docs/04-patterns/frontend-patterns/styling-pattern.md`
+- `docs/04-patterns/frontend-patterns/shared-components-pattern.md`
+- `docs/04-patterns/frontend-patterns/management-pattern.md`
+
+#### Frontend Add-ons (Load When Needed)
+
+**GraphQL add-on** (operations, cache updates, mutations):
 - `docs/04-patterns/frontend-patterns/graphql-query-pattern.md`
 - `docs/04-patterns/frontend-patterns/graphql-mutation-pattern.md`
-- `docs/04-patterns/frontend-patterns/hook-pattern.md`
-- `docs/04-patterns/frontend-patterns/shared-components-pattern.md`
+- `docs/04-patterns/frontend-patterns/mutation-pattern.md`
 
-#### Testing Phase
+**UX add-ons** (navigation/feedback):
+- `docs/04-patterns/frontend-patterns/toast-notification-pattern.md`
+- `docs/04-patterns/frontend-patterns/breadcrumb-pattern.md`
+
+#### Testing Base + Add-ons
 **Load**:
 - `docs/05-standards/testing-standards/unit-test-standards.md`
 - `docs/04-patterns/backend-patterns/testing-pattern.md` (if backend)
 - `docs/04-patterns/frontend-patterns/testing-pattern.md` (if frontend)
 - `docs/04-patterns/frontend-patterns/e2e-testing-pattern.md` (if E2E)
+
+#### Common Conditional Standards (Load When Needed)
+- **Security/authentication/authorization**: `docs/05-standards/security-standards/authentication-standards.md`
+- **Linting / quality checks**: `docs/05-standards/coding-standards/linting-standards.md`
+- **Observability work**: `docs/05-standards/observability-standards.md`
 
 ### Strategy 4: Standards Context (Load When Needed)
 

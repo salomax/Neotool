@@ -10,7 +10,7 @@ search_keywords: [pagination, relay, graphql, cursor, connection, pageinfo, edge
 related:
   - 04-patterns/backend-patterns/repository-pattern.md
   - 04-patterns/backend-patterns/service-pattern.md
-  - 04-patterns/api-patterns/graphql-federation.md
+  - 05-standards/api-standards/graphql-standards.md
 ---
 
 # Pagination Pattern
@@ -617,5 +617,6 @@ fun searchUsers(
 
 - [Repository Pattern](./repository-pattern.md) - Repository layer patterns
 - [Service Pattern](./service-pattern.md) - Service layer patterns
-- [GraphQL Federation](../api-patterns/graphql-federation.md) - GraphQL API patterns
+- [GraphQL Standards](../../05-standards/api-standards/graphql-standards.md) - GraphQL API rules (including federation directives)
+- [GraphQL Query Pattern](../api-patterns/graphql-query-pattern.md) - GraphQL query resolver conventions
 

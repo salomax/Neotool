@@ -165,6 +165,6 @@ The `SidebarRail` component filters navigation items based on permissions:
 - Test fixtures for users with/without permissions
 
 ## References
-- [GraphQL Federation Patterns](../../01-architecture/api-architecture/graphql-federation.md)
-- [Frontend Component Patterns](../../04-patterns/frontend-patterns/component-pattern.md)
-- [Authorization Management Feature](../../03-features/security/authorization/authorization-management.md)
+- [GraphQL Standards](../../05-standards/api-standards/graphql-standards.md)
+- [Shared Components Pattern](../../04-patterns/frontend-patterns/shared-components-pattern.md)
+- [Authorization Management Feature](../../03-features/security/authorization/authorization-management.feature)
