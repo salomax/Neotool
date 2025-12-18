@@ -976,3 +976,8 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
         }
     }
 }
+
+        }
+    }
+}
+

@@ -689,3 +689,5 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
 }
 
 }
+
+
