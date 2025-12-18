@@ -8,8 +8,8 @@ tags: [reference, graphql, schema]
 ai_optimized: true
 search_keywords: [graphql, schema, reference]
 related:
-  - 04-patterns/shared/graphql-federation.md
-  - 01-rules/api-rules.md
+  - 04-patterns/api-patterns/graphql-query-pattern.md
+  - 05-standards/api-standards/graphql-standards.md
 ---
 
 # GraphQL Schema Reference
@@ -32,6 +32,6 @@ Use `@key` directive for federated entities.
 
 ## Related Documentation
 
-- [GraphQL Federation Pattern](../04-patterns/shared/graphql-federation.md)
-- [API Rules](../01-rules/api-rules.md)
+- [GraphQL Query Pattern](../04-patterns/api-patterns/graphql-query-pattern.md)
+- [GraphQL Standards](../05-standards/api-standards/graphql-standards.md)
 

@@ -79,9 +79,9 @@ Build the complete feature implementation for NeoTool following the approved imp
    - Follow resolver-pattern.md for resolvers (docs/04-patterns/backend-patterns/resolver-pattern.md)
    - Use code templates from docs/08-templates/code/ as starting points
    - Reference backend-quick-reference.md for common patterns and imports (docs/10-reference/backend-quick-reference.md)
-   - Follow database-rules.md for migrations
-   - Follow api-rules.md for GraphQL schema
-   - Follow testing-pattern.md and testing-rules.md for tests
+   - Follow schema-standards.md for migrations (docs/05-standards/database-standards/schema-standards.md)
+   - Follow graphql-standards.md for GraphQL schema (docs/05-standards/api-standards/graphql-standards.md)
+   - Follow testing-pattern.md and unit-test-standards.md for tests (docs/04-patterns/backend-patterns/testing-pattern.md, docs/05-standards/testing-standards/unit-test-standards.md)
    
    **Backend Error Prevention Checklist**:
    - [ ] All entities have `@Entity`, `@Table`, `@Id`, `@Version` annotations
@@ -115,10 +115,9 @@ Build the complete feature implementation for NeoTool following the approved imp
    - [ ] Reference `docs/05-standards/coding-standards/linting-standards.md` for all patterns
 
 4. Frontend Implementation (if applicable):
-   - Follow component-pattern.md for components
-   - Follow page-pattern.md for pages
-   - Follow hook-pattern.md for hooks
-   - Follow graphql-pattern.md for GraphQL operations
+   - Follow shared-components-pattern.md for components
+   - Follow management-pattern.md for management pages/screens
+   - Follow graphql-query-pattern.md and graphql-mutation-pattern.md for GraphQL operations
    - Follow styling-pattern.md for styling
    - Add i18n support
    - Follow testing patterns for tests

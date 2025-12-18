@@ -85,9 +85,6 @@ This specification is organized into numbered directories (00-11) for clear hier
 
 | Document | Path | Type | Category | Keywords |
 |----------|------|------|----------|----------|
-| Component Pattern | `04-patterns/frontend-patterns/component-pattern.md` | pattern | frontend | component, react, ui |
-| Page Pattern | `04-patterns/frontend-patterns/page-pattern.md` | pattern | frontend | page, route, nextjs |
-| Hook Pattern | `04-patterns/frontend-patterns/hook-pattern.md` | pattern | frontend | hooks, react, custom-hooks |
 | GraphQL Query Pattern | `04-patterns/frontend-patterns/graphql-query-pattern.md` | pattern | frontend | graphql, query, apollo, cache, pagination, relay, relayStylePagination |
 | GraphQL Mutation Pattern | `04-patterns/frontend-patterns/graphql-mutation-pattern.md` | pattern | frontend | graphql, mutation, apollo, cache, refetch, list, table |
 | Mutation Pattern | `04-patterns/frontend-patterns/mutation-pattern.md` | pattern | frontend | mutation, hooks, refetch, race-condition, apollo, graphql |
@@ -103,8 +100,7 @@ This specification is organized into numbered directories (00-11) for clear hier
 
 | Document | Path | Type | Category | Keywords |
 |----------|------|------|----------|----------|
-| GraphQL Federation | `04-patterns/api-patterns/graphql-federation.md` | pattern | api | graphql, federation, apollo |
-| Error Handling | `04-patterns/api-patterns/error-handling-pattern.md` | pattern | api | error-handling, exceptions |
+| GraphQL Query Pattern | `04-patterns/api-patterns/graphql-query-pattern.md` | pattern | api | graphql, query, resolver, api |
 
 ## Standards (05-standards)
 

@@ -8,8 +8,8 @@ tags: [testing, rules, unit-tests, integration-tests, coverage]
 ai_optimized: true
 search_keywords: [testing, unit-tests, integration-tests, coverage, test-rules]
 related:
-  - 03-patterns/backend/testing-pattern.md
-  - 01-rules/coding-standards.md
+  - 04-patterns/backend-patterns/testing-pattern.md
+  - 05-standards/coding-standards/kotlin-standards.md
 ---
 
 # Testing Rules
@@ -496,6 +496,6 @@ assertThat(result.exceptionType).isEqualTo("StaleObjectStateException")
 
 ## Related Documentation
 
-- [Testing Pattern](../03-patterns/backend/testing-pattern.md)
-- [Coding Standards](./coding-standards.md)
+- [Testing Pattern](../../04-patterns/backend-patterns/testing-pattern.md)
+- [Kotlin Standards](../coding-standards/kotlin-standards.md)
 

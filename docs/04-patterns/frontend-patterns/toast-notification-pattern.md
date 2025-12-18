@@ -8,7 +8,7 @@ tags: [toast, notification, feedback, user-experience, pattern]
 ai_optimized: true
 search_keywords: [toast, notification, feedback, useToast, success, error, user-feedback]
 related:
-  - 04-patterns/frontend-patterns/component-pattern.md
+  - 04-patterns/frontend-patterns/shared-components-pattern.md
   - 11-validation/feature-checklist.md
 ---
 
@@ -389,7 +389,7 @@ When implementing mutations, verify:
 
 ## Related Documentation
 
-- [Component Pattern](./component-pattern.md) - Component structure
+- [Shared Components Pattern](./shared-components-pattern.md) - Component structure
 - [Feature Checklist](../11-validation/feature-checklist.md) - Feature completion requirements
 - [Error Handling Utilities](../../web/src/shared/utils/error.ts) - Error extraction utilities
 

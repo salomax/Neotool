@@ -53,17 +53,18 @@ Validate the feature implementation against all NeoTool rules and checklists.
    - Check all validation items
 
 2. Validate against all rules (spec/05-standards/):
-   - Coding Standards: spec/05-standards/coding-standards.md
-   - Architecture Rules: spec/05-standards/architecture-rules.md
-   - API Rules: spec/05-standards/api-rules.md
-   - Database Rules: spec/05-standards/database-rules.md
-   - Testing Rules: spec/05-standards/testing-rules.md
-   - Security Rules: spec/05-standards/security-rules.md
+   - Kotlin Standards: spec/05-standards/coding-standards/kotlin-standards.md
+   - Linting Standards: spec/05-standards/coding-standards/linting-standards.md
+   - Architecture Standards: spec/05-standards/architecture-standards/layer-rules.md
+   - GraphQL Standards: spec/05-standards/api-standards/graphql-standards.md
+   - Database Standards: spec/05-standards/database-standards/schema-standards.md
+   - Testing Standards: spec/05-standards/testing-standards/unit-test-standards.md
+   - Security Standards: spec/05-standards/security-standards/authentication-standards.md
 
 3. Validate against patterns (spec/04-patterns/):
    - Backend patterns (entity, repository, service, resolver, testing)
-   - Frontend patterns (component, page, hook, GraphQL, styling)
-   - Shared patterns (GraphQL federation, error handling)
+   - Frontend patterns (management, shared-components, GraphQL, styling, testing)
+   - API patterns (GraphQL query pattern)
 
 4. Verify implementation matches feature file:
    - All scenarios from feature file are implemented

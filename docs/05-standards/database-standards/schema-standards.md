@@ -429,7 +429,7 @@ CREATE INDEX idx_orders_customer_id ON app.orders(customer_id);
 
 ## Related Documentation
 
-- [Entity Pattern](../03-patterns/backend/entity-pattern.md)
-- [Repository Pattern](../03-patterns/backend/repository-pattern.md)
-- [Coding Standards](./coding-standards.md)
+- [Entity Pattern](../../04-patterns/backend-patterns/entity-pattern.md)
+- [Repository Pattern](../../04-patterns/backend-patterns/repository-pattern.md)
+- [Kotlin Standards](../coding-standards/kotlin-standards.md)
 
