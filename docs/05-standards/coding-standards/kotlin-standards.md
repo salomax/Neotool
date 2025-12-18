@@ -8,7 +8,7 @@ tags: [coding, standards, style, naming, conventions]
 ai_optimized: true
 search_keywords: [coding, standards, style, naming, conventions, formatting]
 related:
-  - 01-rules/architecture-rules.md
+  - 05-standards/architecture-standards/layer-rules.md
 ---
 
 # Coding Standards
@@ -170,6 +170,6 @@ class CustomerService { ... }
 ## Related Documentation
 
 - [Linting Standards](./linting-standards.md)
-- [Architecture Rules](./architecture-rules.md)
+- [Architecture Standards](../architecture-standards/layer-rules.md)
 - [Domain-Entity Conversion Pattern](../../04-patterns/backend-patterns/domain-entity-conversion.md)
 

@@ -96,3 +96,4 @@ export class GroupSearch {
     await this.page.waitForTimeout(300);
   }
 }
+

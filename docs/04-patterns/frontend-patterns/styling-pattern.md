@@ -224,7 +224,7 @@ When reviewing styling code:
 ## Related Patterns
 
 - [Shared Components Pattern](./shared-components-pattern.md) - Component styling guidelines
-- [Component Pattern](./component-pattern.md) - Component structure and styling
+- [Management Pattern](./management-pattern.md) - How pages/components are structured in management UI
 
 ## References
 

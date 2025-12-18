@@ -155,16 +155,16 @@ Code review in NeoTool is **Spec-Driven**, meaning every review validates agains
 - [ ] Database schema follows [Schema Standards](../05-standards/database-standards/schema-standards.md)
 
 ### Frontend Review
-- [ ] Components follow [Component Pattern](../04-patterns/frontend-patterns/component-pattern.md)
+- [ ] Components follow [Shared Components Pattern](../04-patterns/frontend-patterns/shared-components-pattern.md)
 - [ ] GraphQL queries follow [Query Pattern](../04-patterns/frontend-patterns/graphql-query-pattern.md)
 - [ ] GraphQL mutations follow [Mutation Pattern](../04-patterns/frontend-patterns/graphql-mutation-pattern.md)
-- [ ] Hooks follow [Hook Pattern](../04-patterns/frontend-patterns/hook-pattern.md)
+- [ ] Hooks follow [Management Pattern](../04-patterns/frontend-patterns/management-pattern.md)
 - [ ] Uses design system components
 - [ ] i18n support added
 
 ### API Review
-- [ ] GraphQL schema follows [Federation Pattern](../04-patterns/api-patterns/graphql-federation.md)
-- [ ] Error handling follows [Error Handling Pattern](../04-patterns/api-patterns/error-handling-pattern.md)
+- [ ] GraphQL schema follows [GraphQL Standards](../05-standards/api-standards/graphql-standards.md)
+- [ ] Query resolver naming follows [GraphQL Query Pattern](../04-patterns/api-patterns/graphql-query-pattern.md)
 - [ ] Schema synced to contracts
 - [ ] No breaking changes (or documented)
 

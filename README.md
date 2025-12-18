@@ -18,7 +18,7 @@ NeoTool is a **modular full‑stack boilerplate** designed to **accelerate new a
 
 Think of it as a **foundation framework** that helps you spin up new services or apps (backend, frontend, infra, and design system), all wired together and ready to evolve.
 
- spec-driven development
+NeoTool follows **Spec‑Driven Development (SDD)**: the `docs/` specification (features, patterns, standards, and validation checklists) drives implementation and review, not the other way around.
 
 ---
 

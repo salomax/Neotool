@@ -22,5 +22,5 @@ See [GraphQL Schema Reference](./graphql-schema.md) for GraphQL patterns.
 ## Related Documentation
 
 - [GraphQL Schema Reference](./graphql-schema.md)
-- [API Rules](../01-rules/api-rules.md)
+- [GraphQL Standards](../05-standards/api-standards/graphql-standards.md)
 

@@ -572,3 +572,4 @@ Feature: Authorization Access Checks (RBAC and ABAC)
       Then the query should be denied
       And an AuthorizationDeniedException should be thrown
       And the GraphQL error should indicate missing permission
+
