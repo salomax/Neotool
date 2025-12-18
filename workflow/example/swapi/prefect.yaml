@@ -1,0 +1,19 @@
+name: swapi-people-etl
+prefect-version: 3.6.0
+
+deployments:
+  - name: swapi-people-etl-deployment
+    entrypoint: flows/swapi_people_etl.py:swapi_people_etl_flow
+    description: Daily ETL job to fetch SWAPI people data and publish to Kafka
+    work_pool:
+      name: default
+      work_queue_name: swapi-etl
+    schedule:
+      cron: "0 2 * * *"
+      timezone: UTC
+    tags:
+      - etl
+      - swapi
+      - people
+      - daily
+    parameters: {}

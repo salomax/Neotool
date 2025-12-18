@@ -1,0 +1,25 @@
+test:
+  postgres:
+    image: postgres:18rc1-alpine
+    db: neotool_db
+    user: neotool
+    pass: neotool
+    reuse: true
+    flyway: true
+
+  redis:
+    image: redis:7-alpine
+    port: 6379
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+
+
+#flyway:
+#  enabled: true
+#  datasources:
+#    default:
+#      enabled: true
+#      locations: classpath:db/migration
+#      baseline-on-migrate: true
+#      baseline-version: 0

@@ -1,0 +1,9 @@
+{
+  "title": "Demostración Multi-Idioma",
+  "welcome": "¡Bienvenido a nuestra aplicación!",
+  "description": "Esta página demuestra soporte dinámico de idiomas",
+  "language": "Idioma",
+  "selectLanguage": "Seleccionar Idioma",
+  "currentLanguage": "Idioma Actual",
+  "supportedLanguages": "Idiomas Soportados"
+}

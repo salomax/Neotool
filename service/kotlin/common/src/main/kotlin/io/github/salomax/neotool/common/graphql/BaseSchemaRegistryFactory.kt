@@ -1,0 +1,54 @@
+package io.github.salomax.neotool.common.graphql
+
+import graphql.schema.idl.SchemaParser
+import graphql.schema.idl.TypeDefinitionRegistry
+import jakarta.inject.Singleton
+import java.io.InputStreamReader
+
+/**
+ * Base schema registry factory that loads core GraphQL schema.
+ * Modules can extend this to add their own types.
+ */
+abstract class BaseSchemaRegistryFactory {
+    /**
+     * Load the base GraphQL schema from resources
+     */
+    open fun typeRegistry(): TypeDefinitionRegistry {
+        val baseRegistry = loadBaseSchema()
+        val moduleRegistry = loadModuleSchemas()
+
+        // Merge all registries
+        val mergedRegistry = TypeDefinitionRegistry()
+        mergedRegistry.merge(baseRegistry)
+        moduleRegistry.forEach { mergedRegistry.merge(it) }
+
+        return mergedRegistry
+    }
+
+    /**
+     * Load the core/base schema - override in concrete implementations
+     */
+    protected open fun loadBaseSchema(): TypeDefinitionRegistry = loadSchemaFromResource("graphql/schema.graphqls")
+
+    /**
+     * Load additional schemas from modules - override to add module-specific types
+     */
+    protected open fun loadModuleSchemas(): List<TypeDefinitionRegistry> = emptyList()
+
+    /**
+     * Utility method to load schema from classpath resource
+     */
+    protected fun loadSchemaFromResource(resourcePath: String): TypeDefinitionRegistry {
+        // Use the context classloader or the concrete subclass's classloader
+        // to ensure resources are loaded from the correct module
+        val classLoader =
+            Thread.currentThread().contextClassLoader
+                ?: this::class.java.classLoader
+                ?: javaClass.classLoader
+
+        return classLoader
+            .getResourceAsStream(resourcePath)
+            ?.use { SchemaParser().parse(InputStreamReader(it)) }
+            ?: error("GraphQL schema not found at: $resourcePath")
+    }
+}
