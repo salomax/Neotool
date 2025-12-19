@@ -263,13 +263,7 @@ After cloning or integrating the starter, you'll want to customize the project n
 
 2. **Edit `project.config.json`** with your project details
 
-3. **Run setup commands:**
-   ```bash
-   # Setup project (rename from neotool)
-   ./neotool setup
-   ```
-
-4. **Review and commit the changes:**
+3. **Review and commit the changes:**
    ```bash
    git diff
    git add .
@@ -285,9 +279,6 @@ The project includes a CLI tool for common tasks:
 ```bash
 # Check system requirements (Node.js, Docker, JVM)
 ./neotool --version
-
-# Setup project (rename from neotool to your project name)
-./neotool setup
 
 # GraphQL schema management
 ./neotool graphql sync      # Interactive schema sync

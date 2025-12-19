@@ -15,11 +15,9 @@ search_keywords: [commands, cli, reference]
 
 ## NeoTool CLI
 
-### Project Setup
+### Project Management
 ```bash
 ./neotool --version        # Check system requirements
-./neotool setup            # Setup project (rename from neotool)
-./neotool clean [--dry-run] # Clean up example code
 ```
 
 ### GraphQL Schema Management
