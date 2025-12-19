@@ -1,0 +1,247 @@
+meta:
+  module: financial_data
+  feature_name: BACEN IFData Ingestion
+  feature_slug: bacen-ifdata-ingestion
+
+summary: |
+  The BACEN IFData Ingestion feature is a batch-oriented, pull-based ingestion pipeline
+  that ingests regulatory financial data published by the Brazilian Central Bank (BACEN)
+  via IFData OData APIs. It stages raw data safely in PostgreSQL and enables downstream
+  processing and synchronization through Kafka events.
+  
+  This feature acts as the entry point for all BACEN IFData datasets inside Invistus,
+  designed with strong idempotency guarantees, explicit execution control, full auditability,
+  and safe reprocessing capabilities.
+  
+  The implementation uses Python with Prefect 3.x for workflow orchestration and pyway
+  for database migrations. The pipeline favors correctness and traceability over speed.
+
+business_rules:
+  execution_schedule:
+    frequency: "Daily execution"
+    historical_start_date: "201603"  # March 2016, first quarter available
+    quarterly_months: [03, 06, 09, 12]  # Only these months have quarterly data
+    
+  publication_windows:
+    march_june_september: "60 days after quarter end"
+    december: "90 days after quarter end"
+    rule: "Job waits for data availability within publication window before advancing"
+    
+  target_quarter_determination:
+    - "Read last extracted quarter from ifdata_load_control (max ano_mes_ref)"
+    - "If none exists, fall back to historical start (201603) for backfill"
+    - "Compute next quarter candidate after last extracted"
+    - "Check if today falls within publication window for next candidate"
+    - "If data not available and window passed, advance to next candidate and keep waiting"
+    - "If data available, proceed with extraction"
+    
+  registry_requirement:
+    - "Registry must exist for target quarter before extraction can proceed"
+    - "If registry missing after refresh attempt, skip the day"
+    - "Registry ingestion triggers Kafka events for NEW/CHANGED institutions only"
+    
+  idempotency_rules:
+    task_level:
+      - "Each extract task has unique natural key: (AnoMes, TipoInstituicao, NomeRelatorio, NumeroRelatorio, page_skip)"
+      - "Task status lifecycle: PENDING -> RUNNING -> SUCCESS | EMPTY | ERROR"
+      - "EMPTY is terminal state (end of pagination), not an error"
+      - "Retries maintain idempotency via task status tracking"
+      
+    raw_purge:
+      - "Never purge globally"
+      - "Purge once per scope only when reloading: (AnoMes, NomeRelatorio, NumeroRelatorio, TipoInstituicao)"
+      - "Purge only when page_skip = 0 (first page of scope)"
+      - "Do not purge per page (preserves pagination safety)"
+      
+    hot_tables:
+      - "Use UPSERT operations for bank_report table"
+      - "Promotion is idempotent (can be re-run safely)"
+      
+  active_institution_filtering:
+    - "During promotion, include only institutions with situacao = 'A'"
+    - "Do NOT use 'Atividade' field as proxy for active/inactive"
+    - "Filter applied during raw -> hot promotion step"
+    
+  change_detection:
+    technique: "Hash-based change detection using source_hash"
+    hash_inputs:
+      - bacen_cod_inst
+      - nome_instituicao
+      - nome_reduzido
+      - situacao
+      - segmento_tb
+      - atividade
+      - tipo_controle
+      - uf
+      - municipio
+      - cod_conglomerado_financeiro
+      - cod_conglomerado_prudencial
+      - cnpj_instituicao_lider
+    normalization:
+      - "Trim strings"
+      - "Convert empty strings to NULL"
+      - "Serialize as JSON with sorted keys"
+      - "Compute SHA-256 hex => source_hash"
+    upsert_rules:
+      - "NEW: bacen_cod_inst not found -> INSERT -> publish Kafka event (CREATED)"
+      - "CHANGED: found AND hash differs -> UPDATE -> publish Kafka event (UPDATED)"
+      - "UNCHANGED: found AND hash equal -> no-op -> no Kafka event"
+      
+  pagination:
+    page_size: 1000
+    format: "CSV for performance (except small catalogs)"
+    termination: "When page returns zero rows, mark task as EMPTY (terminal state)"
+    continuation: "If rows > 0, create next task with page_skip += 1000"
+    
+  institution_types:
+    - "Process all types: TipoInstituicao = 1..4"
+    - "1: Individual Institutions"
+    - "2: Prudential Conglomerates"
+    - "3: Financial Conglomerates"
+    - "4: Institutions with Foreign Exchange Operations"
+    - "Do NOT filter by individual institution in standard ingestion"
+    
+  manual_operations:
+    manual_trigger:
+      - "Allow CLI/flag to force specific AnoMes (even if earlier)"
+      - "Runs same steps: refresh registry, extract values, transform, upsert hot"
+      - "Bypasses publication window checks"
+      
+    reprocessing:
+      - "Re-run transform + load against existing raw for AnoMes"
+      - "Idempotent UPSERT into bank_report"
+      - "If re-extraction required, purge raw only for specific scope being reloaded"
+      
+    raw_purge_policy:
+      - "Prefer NOT to purge globally"
+      - "If storage concern, purge only older-than-N quarters after successful promotions"
+      - "Safeguards: keep last 2-4 quarters"
+      - "Never purge in-flight/most recent quarter"
+
+implementation_notes:
+  technology_stack:
+    workflow_orchestration: "Prefect 3.x (work pools and work queues)"
+    database_migrations: "pyway (Python migration tool)"
+    database: "PostgreSQL 15+"
+    schema: "financial_data"
+    kafka: "Kafka for event publishing"
+    language: "Python 3.11+"
+    
+  migration_strategy:
+    tool: "pyway"
+    location: "workflow/financial_data/migrations/"
+    pattern: "Follow SQL migration patterns from docs/04-patterns/backend-patterns/domain-model-pattern.md"
+    idempotency: "Use IF NOT EXISTS, IF EXISTS for idempotent SQL"
+    schema_creation: "Create financial_data schema if not exists"
+    
+  prefect_workflow:
+    structure: "Follow SWAPI ETL example structure (docs/07-examples/batch-workflows/swapi-etl-workflow.md)"
+    version: "Prefect 3.6.5+"
+    deployment: "Use prefect.yaml configuration"
+    work_pools: "Use work pools and work queues (not older deployment model)"
+    retry_logic: "Task-level retries with exponential backoff"
+    observability: "Structured logs, Prefect artifacts, metrics"
+    
+  database_tables:
+    control_tables:
+      - "ifdata_extract_task: Request-level task control and audit"
+      - "ifdata_load_control: Coarse-grained load tracking (AnoMes, NomeRelatorio)"
+    staging_tables:
+      - "ifdata_raw: Tall/raw staging table (as-is CSV rows)"
+    hot_tables:
+      - "bank_report: Product-facing layer (JSONB, one row per CodInst+AnoMes+NomeRelatorio+NumeroRelatorio)"
+      - "institution: Current-state BACEN registry with change detection"
+      
+  kafka_integration:
+    topic: "financial-data.institution.upserted"
+    dlq_topic: "financial-data.institution.upserted.dlq"
+    message_key: "bacen_cod_inst"
+    producer_settings:
+      - "acks=all"
+      - "enable.idempotence=true"
+      - "compression.type=zstd|snappy"
+      - "linger.ms<=10"
+      - "retries>=5"
+    payload_requirements:
+      - "schema_version"
+      - "event_id"
+      - "occurred_at"
+      - "source='BACEN'"
+      - "bacen_cod_inst"
+      - "change_type: CREATED | UPDATED"
+      - "institution fields Banking needs"
+      - "optional: source_hash, ano_mes_ref"
+      
+  api_integration:
+    base_url: "https://olinda.bcb.gov.br/olinda/servico/IFDATA/versao/v1/odata/"
+    endpoints:
+      registry: "IfDataCadastro(AnoMes=@AnoMes)?@AnoMes=YYYYMM"
+      catalog: "ListaDeRelatorio()"
+      values: "IfDataValores(AnoMes=@AnoMes,TipoInstituicao=@TipoInstituicao,Relatorio=@Relatorio)"
+    format_preferences:
+      - "CSV for registry and values (performance)"
+      - "JSON for catalog (small payload, easier to inspect)"
+    query_parameters:
+      - "Use $top=1000 for pagination"
+      - "Use $skip for pagination offset"
+      - "Use $format=text/csv for CSV"
+      - "Use $filter=Situacao eq 'A' for registry (active only)"
+      - "Use $select to reduce payload when possible"
+      
+  error_handling:
+    retry_strategy:
+      extract: "≥3 attempts, 1-5 min backoff"
+      transform: "≥2 attempts, 30-60 sec backoff"
+      publish: "≥5 attempts, 30 sec backoff"
+    task_tracking:
+      - "attempt_count: Track retry attempts"
+      - "last_error: Store error details"
+      - "last_http_status: Store HTTP status code"
+    fallback:
+      - "Persist payload to durable storage (S3, GCS, disk) with metadata"
+      - "Notify responsible channel (Slack/PagerDuty/email)"
+      - "Optionally trigger compensating run (manual or automated)"
+      
+  observability:
+    logging:
+      - "Structured logs with batch_id, task_name, records_processed"
+      - "Prefect events for task lifecycle"
+    metrics:
+      - "Total records extracted"
+      - "Total records promoted"
+      - "Kafka events published"
+      - "Task execution duration"
+      - "Error counts"
+      - "Consumer lag (if applicable)"
+    artifacts:
+      - "Prefect Artifacts for aggregate stats (counts, failure reasons)"
+    dashboards:
+      - "Grafana dashboards for monitoring"
+      - "Prometheus metrics integration"
+      
+  testing_strategy:
+    unit_tests:
+      - "Mock OData API responses"
+      - "Test task functions in isolation"
+      - "Test idempotency logic"
+      - "Test change detection hash computation"
+    integration_tests:
+      - "Use Testcontainers for PostgreSQL and Kafka"
+      - "End-to-end flow testing"
+      - "Test pagination logic"
+      - "Test promotion filtering"
+    smoke_tests:
+      - "Test entire flow locally using Prefect CLI against docker-compose stack"
+      
+  deployment:
+    configuration:
+      - "Store in prefect.yaml"
+      - "Use environment variables for secrets"
+      - "Document required env vars in runbook"
+    scheduling:
+      - "Cron schedule: Daily execution (UTC)"
+      - "Use Prefect CronSchedule"
+      - "Avoid overlaps with other critical jobs"
+    concurrency:
+      - "Set Prefect concurrency limits (tags or concurrency key)"
+      - "Prevent overlapping runs per environment"
