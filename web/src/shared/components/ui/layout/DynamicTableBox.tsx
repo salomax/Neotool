@@ -57,8 +57,8 @@ export interface TableSizeConfig {
  */
 export const TABLE_SIZE_CONFIGS: Record<TableSize, TableSizeConfig> = {
   small: {
-    rowHeight: 53, // MUI TableRow small size
-    headerHeight: 48, // Compact header
+    rowHeight: 46, // MUI TableRow small size
+    headerHeight: 28, // Compact header
     footerHeight: 52, // Compact pagination footer
   },
   medium: {
@@ -154,14 +154,19 @@ export const DynamicTableBox = React.forwardRef<HTMLDivElement, DynamicTableBoxP
   ) {
     const internalRef = useRef<HTMLDivElement | null>(null);
 
-    // Merge default pageSizeOptions with user-provided options
-    const mergedPageSizeOptions: UseDynamicPageSizeOptions = {
-      ...defaultPageSizeOptions,
-      ...pageSizeOptions,
-      recalculationKey,
-    };
+    // Only set up dynamic page size calculation if onTableResize is provided
+    const mergedPageSizeOptions: UseDynamicPageSizeOptions | undefined = onTableResize
+      ? {
+          ...defaultPageSizeOptions,
+          ...pageSizeOptions,
+          recalculationKey,
+        }
+      : undefined;
 
-    const dynamicPageSize = useDynamicPageSize(internalRef, mergedPageSizeOptions);
+    const dynamicPageSize = useDynamicPageSize(
+      internalRef, 
+      mergedPageSizeOptions ?? { minRows: 0, maxRows: 0, rowHeight: 0 }
+    );
     const stabilityTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const pendingSizeRef = useRef<number>(0);
     const lastCommittedSizeRef = useRef<number>(0);
