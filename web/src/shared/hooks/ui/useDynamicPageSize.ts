@@ -29,13 +29,24 @@ export interface UseDynamicPageSizeOptions {
    */
   headerSelector?: string;
   /**
-   * When true, attempts to measure the height of the first matching row (tbody tr) instead of using a fixed rowHeight.
+   * Fallback header height to use when autoDetectHeaderHeight is enabled but measurement fails or returns 0.
+   * Defaults to 56px (typical MUI TableHead height).
    */
-  autoDetectRowHeight?: boolean;
+  fallbackHeaderHeight?: number;
   /**
-   * CSS selector used to find rows when autoDetectRowHeight is enabled. Defaults to "tbody tr".
+   * When true, automatically subtracts the measured footer height (e.g., pagination) from the available space.
    */
-  rowSelector?: string;
+  autoDetectFooterHeight?: boolean;
+  /**
+   * CSS selector used to locate the footer element when autoDetectFooterHeight is enabled.
+   * Defaults to "[data-pagination-footer]".
+   */
+  footerSelector?: string;
+  /**
+   * Fallback footer height to use when autoDetectFooterHeight is enabled but element doesn't exist or measurement returns 0.
+   * Defaults to 60px (PAGINATION_FOOTER_MIN_HEIGHT).
+   */
+  fallbackFooterHeight?: number;
   /**
    * Optional key that, when changed, forces the hook to recalculate even if the container size remains the same.
    * Useful to re-evaluate measurements when the table content changes (e.g., loading state resolved).
@@ -75,12 +86,40 @@ export function useDynamicPageSize(
     reservedHeight = 0,
     autoDetectHeaderHeight = false,
     headerSelector = "thead",
-    autoDetectRowHeight = false,
-    rowSelector = "tbody tr",
+    fallbackHeaderHeight = 56, // Typical MUI TableHead height
+    autoDetectFooterHeight = false,
+    footerSelector = "[data-pagination-footer]",
+    fallbackFooterHeight = 60, // PAGINATION_FOOTER_MIN_HEIGHT
     recalculationKey,
   } = options;
 
   const [pageSize, setPageSize] = useState(minRows);
+
+  /**
+   * Safely measures an element's height, returning 0 if measurement fails.
+   * Uses fallback value if element doesn't exist or measurement returns 0.
+   */
+  const measureElementHeight = useCallback(
+    (selector: string, fallback: number): number => {
+      if (!containerRef.current) {
+        return fallback;
+      }
+
+      try {
+        const element = containerRef.current.querySelector(selector) as HTMLElement | null;
+        if (!element) {
+          return fallback;
+        }
+
+        const height = element.getBoundingClientRect().height;
+        return height > 0 ? height : fallback;
+      } catch (error) {
+        // Silently fall back if measurement fails (e.g., element not in DOM)
+        return fallback;
+      }
+    },
+    [containerRef]
+  );
 
   const calculatePageSize = useCallback(() => {
     if (!containerRef.current) {
@@ -91,31 +130,28 @@ export function useDynamicPageSize(
     }
 
     const containerHeight = containerRef.current.clientHeight;
+    if (containerHeight <= 0) {
+      startTransition(() => {
+        setPageSize(minRows);
+      });
+      return;
+    }
+
     let effectiveReservedHeight = reservedHeight;
 
+    // Measure or use fallback for header
     if (autoDetectHeaderHeight) {
-      const headerElement = containerRef.current.querySelector(headerSelector) as HTMLElement | null;
-      if (headerElement) {
-        const headerHeight = headerElement.getBoundingClientRect().height;
-        if (headerHeight > 0) {
-          effectiveReservedHeight += headerHeight;
-        }
-      }
+      effectiveReservedHeight += measureElementHeight(headerSelector, fallbackHeaderHeight);
     }
 
-    let effectiveRowHeight = rowHeight;
-    if (autoDetectRowHeight) {
-      const rowElement = containerRef.current.querySelector(rowSelector) as HTMLElement | null;
-      if (rowElement) {
-        const measuredRowHeight = rowElement.getBoundingClientRect().height;
-        if (measuredRowHeight > 0) {
-          effectiveRowHeight = measuredRowHeight;
-        }
-      }
+    // Measure or use fallback for footer
+    if (autoDetectFooterHeight) {
+      effectiveReservedHeight += measureElementHeight(footerSelector, fallbackFooterHeight);
     }
 
+    const effectiveRowHeight = rowHeight;
     const availableHeight = containerHeight - effectiveReservedHeight;
-    
+
     if (availableHeight <= 0 || effectiveRowHeight <= 0) {
       startTransition(() => {
         setPageSize(minRows);
@@ -125,10 +161,10 @@ export function useDynamicPageSize(
 
     // Calculate how many rows fit
     const calculatedRows = Math.floor(availableHeight / effectiveRowHeight);
-    
+
     // Clamp between min and max
     const clampedRows = Math.max(minRows, Math.min(maxRows, calculatedRows));
-    
+
     startTransition(() => {
       setPageSize(clampedRows);
     });
@@ -140,8 +176,11 @@ export function useDynamicPageSize(
     reservedHeight,
     autoDetectHeaderHeight,
     headerSelector,
-    autoDetectRowHeight,
-    rowSelector,
+    fallbackHeaderHeight,
+    autoDetectFooterHeight,
+    footerSelector,
+    fallbackFooterHeight,
+    measureElementHeight,
   ]);
 
   useEffect(() => {
