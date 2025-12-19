@@ -11,7 +11,7 @@ venv
 
 *.code-workspace
 .idea
-
+.vscode/
 .gradle/
 **/build/
 out/
