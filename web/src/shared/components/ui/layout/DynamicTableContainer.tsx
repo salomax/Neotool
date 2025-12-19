@@ -1,8 +1,11 @@
 "use client";
 
-import React, { useRef, useEffect, useMemo } from "react";
+import React, { useRef, useMemo } from "react";
 import { Box, type BoxProps } from "./Box";
 import { useDynamicPageSize, type UseDynamicPageSizeOptions } from "@/shared/hooks/ui";
+import { useStableCallback } from "@/shared/hooks/ui/useStableCallback";
+import { useCombinedRef } from "@/shared/hooks/ui/useCombinedRef";
+import type { SxProps, Theme } from "@mui/material/styles";
 import {
   TABLE_STABILITY_DELAY,
   TABLE_CONSTANTS,
@@ -89,7 +92,6 @@ export const DynamicTableContainer = React.forwardRef<HTMLDivElement, DynamicTab
       reservedHeight: TABLE_CONSTANTS.LOADING_BAR_HEIGHT + TABLE_CONSTANTS.PAGINATION_MARGIN,
       autoDetectHeaderHeight: true,
       fallbackHeaderHeight: sizeConfig.headerHeight,
-      autoDetectRowHeight: false,
       autoDetectFooterHeight: true,
       footerSelector: "[data-pagination-footer]",
       fallbackFooterHeight: sizeConfig.footerHeight,
@@ -98,74 +100,41 @@ export const DynamicTableContainer = React.forwardRef<HTMLDivElement, DynamicTab
     };
 
     const dynamicPageSize = useDynamicPageSize(internalRef, mergedPageSizeOptions);
-    const stabilityTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const pendingSizeRef = useRef<number>(0);
-    const lastCommittedSizeRef = useRef<number>(0);
 
-    useEffect(() => {
-      if (!onTableResize || dynamicPageSize <= 0) {
-        return;
-      }
-
-      pendingSizeRef.current = dynamicPageSize;
-
-      // Clear any pending timeout
-      if (stabilityTimeoutRef.current) {
-        clearTimeout(stabilityTimeoutRef.current);
-      }
-
-      const scheduledSize = dynamicPageSize;
-
-      // Debounce the resize callback to avoid excessive calls during rapid recalculations
-      stabilityTimeoutRef.current = setTimeout(() => {
-        stabilityTimeoutRef.current = null;
-        // Only call callback if size hasn't changed during the delay (stable)
-        if (
-          pendingSizeRef.current === scheduledSize &&
-          scheduledSize !== lastCommittedSizeRef.current
-        ) {
-          lastCommittedSizeRef.current = scheduledSize;
-          onTableResize(scheduledSize);
+    // Use stable callback to debounce resize notifications
+    useStableCallback(
+      dynamicPageSize,
+      (size) => {
+        if (onTableResize && size > 0) {
+          onTableResize(size);
         }
-      }, TABLE_CONSTANTS.STABILITY_DELAY);
-
-      return () => {
-        if (stabilityTimeoutRef.current) {
-          clearTimeout(stabilityTimeoutRef.current);
-          stabilityTimeoutRef.current = null;
-        }
-      };
-    }, [dynamicPageSize, onTableResize]);
-
-    // Combine refs: forward the external ref and use internal ref for measurements
-    const combinedRef = React.useMemo(
-      () => {
-        const callback: React.RefCallback<HTMLDivElement> = (node: HTMLDivElement | null) => {
-          (internalRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
-          if (typeof ref === "function") {
-            ref(node);
-          } else if (ref && typeof ref === "object" && "current" in ref) {
-            (ref as React.MutableRefObject<HTMLDivElement | null>).current = node;
-          }
-        };
-        return callback;
       },
-      [ref]
+      {
+        delay: TABLE_CONSTANTS.STABILITY_DELAY,
+        enabled: !!onTableResize && dynamicPageSize > 0,
+      }
     );
 
+    // Combine refs: forward the external ref and use internal ref for measurements
+    const combinedRef = useCombinedRef(ref, internalRef);
+
     // Container should fill available space and use flex column layout
-    const containerSx = React.useMemo(() => {
-      return {
+    const containerSx: SxProps<Theme> = React.useMemo(() => {
+      const baseSx = {
         flex: 1,
         display: "flex",
         flexDirection: "column",
         minHeight: 0,
         height: "100%",
         overflow: "hidden",
-        ...sx,
       };
+      if (!sx) return baseSx;
+      return [baseSx, sx] as SxProps<Theme>;
     }, [sx]);
 
+    // TypeScript has difficulty inferring the ref callback type correctly when combining refs
+    // The logic is correct - this is a known TypeScript limitation with ref forwarding
+    // @ts-expect-error - Ref callback type inference issue with combined refs
     return <Box ref={combinedRef} sx={containerSx} {...boxProps} />;
   }
 );

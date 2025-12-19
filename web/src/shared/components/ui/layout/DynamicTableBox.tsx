@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useRef, useEffect } from "react";
+import React, { useRef } from "react";
 import { Box, type BoxProps } from "./Box";
 import { useDynamicPageSize, type UseDynamicPageSizeOptions } from "@/shared/hooks/ui";
+import { useStableCallback } from "@/shared/hooks/ui/useStableCallback";
+import { useCombinedRef } from "@/shared/hooks/ui/useCombinedRef";
 import type { SxProps, Theme } from "@mui/material/styles";
 
 export interface DynamicTableBoxProps extends BoxProps {
@@ -107,7 +109,6 @@ const defaultPageSizeOptions: UseDynamicPageSizeOptions = {
   rowHeight: MANAGEMENT_TABLE_ROW_HEIGHT, // Fixed row height to keep calculations predictable across screens
   reservedHeight: 0,
   autoDetectHeaderHeight: true,
-  autoDetectRowHeight: false,
 };
 
 /**
@@ -167,57 +168,23 @@ export const DynamicTableBox = React.forwardRef<HTMLDivElement, DynamicTableBoxP
       internalRef, 
       mergedPageSizeOptions ?? { minRows: 0, maxRows: 0, rowHeight: 0 }
     );
-    const stabilityTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const pendingSizeRef = useRef<number>(0);
-    const lastCommittedSizeRef = useRef<number>(0);
 
-    useEffect(() => {
-      if (!onTableResize || dynamicPageSize <= 0) {
-        return;
-      }
-
-      pendingSizeRef.current = dynamicPageSize;
-
-      if (stabilityTimeoutRef.current) {
-        clearTimeout(stabilityTimeoutRef.current);
-      }
-
-      const scheduledSize = dynamicPageSize;
-
-      stabilityTimeoutRef.current = setTimeout(() => {
-        stabilityTimeoutRef.current = null;
-        if (
-          pendingSizeRef.current === scheduledSize &&
-          scheduledSize !== lastCommittedSizeRef.current
-        ) {
-          lastCommittedSizeRef.current = scheduledSize;
-          onTableResize(scheduledSize);
+    // Use stable callback to debounce resize notifications
+    useStableCallback(
+      dynamicPageSize,
+      (size) => {
+        if (onTableResize && size > 0) {
+          onTableResize(size);
         }
-      }, TABLE_STABILITY_DELAY);
-
-      return () => {
-        if (stabilityTimeoutRef.current) {
-          clearTimeout(stabilityTimeoutRef.current);
-          stabilityTimeoutRef.current = null;
-        }
-      };
-    }, [dynamicPageSize, onTableResize]);
+      },
+      {
+        delay: TABLE_STABILITY_DELAY,
+        enabled: !!onTableResize && dynamicPageSize > 0,
+      }
+    );
 
     // Combine refs: forward the external ref and use internal ref for measurements
-    const combinedRef = React.useMemo(
-      () => {
-        const callback: React.RefCallback<HTMLDivElement> = (node: HTMLDivElement | null) => {
-          (internalRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
-          if (typeof ref === "function") {
-            ref(node);
-          } else if (ref && typeof ref === "object" && "current" in ref) {
-            (ref as React.MutableRefObject<HTMLDivElement | null>).current = node;
-          }
-        };
-        return callback;
-      },
-      [ref]
-    );
+    const combinedRef = useCombinedRef(ref, internalRef);
 
     // Merge default sx with user-provided sx
     // MUI's sx prop supports arrays, so we can simply combine them
@@ -229,7 +196,7 @@ export const DynamicTableBox = React.forwardRef<HTMLDivElement, DynamicTableBoxP
     // TypeScript has difficulty inferring the ref callback type correctly when combining refs
     // The logic is correct - this is a known TypeScript limitation with ref forwarding
     // @ts-expect-error - Ref callback type inference issue with combined refs
-    return <Box id="dynamic-table-box" ref={combinedRef} sx={mergedSx} {...boxProps} />;
+    return <Box ref={combinedRef} sx={mergedSx} {...boxProps} />;
   }
 );
 
