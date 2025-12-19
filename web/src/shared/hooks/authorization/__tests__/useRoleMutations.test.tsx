@@ -25,8 +25,6 @@ import {
   useDeleteRoleMutation,
   useAssignPermissionToRoleMutation,
   useRemovePermissionFromRoleMutation,
-  useAssignRoleToUserMutation,
-  useRemoveRoleFromUserMutation,
   useAssignRoleToGroupMutation,
   useRemoveRoleFromGroupMutation,
 } from '@/lib/graphql/operations/authorization-management/mutations.generated';
@@ -67,15 +65,6 @@ describe('useRoleMutations', () => {
       { loading: false },
     ]);
 
-    (useAssignRoleToUserMutation as any).mockReturnValue([
-      vi.fn(),
-      { loading: false },
-    ]);
-
-    (useRemoveRoleFromUserMutation as any).mockReturnValue([
-      vi.fn(),
-      { loading: false },
-    ]);
 
     (useAssignRoleToGroupMutation as any).mockReturnValue([
       vi.fn(),
@@ -101,8 +90,6 @@ describe('useRoleMutations', () => {
     expect(result.current.deleteRole).toBeDefined();
     expect(result.current.assignPermissionToRole).toBeDefined();
     expect(result.current.removePermissionFromRole).toBeDefined();
-    expect(result.current.assignRoleToUser).toBeDefined();
-    expect(result.current.removeRoleFromUser).toBeDefined();
     expect(result.current.assignRoleToGroup).toBeDefined();
     expect(result.current.removeRoleFromGroup).toBeDefined();
 

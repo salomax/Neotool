@@ -56,13 +56,13 @@ vi.mock('@/shared/components/ui/feedback', () => ({
     ) : null,
 }));
 
-const renderGroupUserAssignment = (initialUserIds?: string[]) => {
+const renderGroupUserAssignment = (assignedUsers: Array<{ id: string; email: string; displayName: string | null; enabled: boolean }> = []) => {
   const Wrapper = ({ children }: { children: React.ReactNode }) => {
     const methods = useForm<GroupFormData>({
       defaultValues: {
         name: '',
         description: '',
-        userIds: initialUserIds || [],
+        userIds: assignedUsers.map(u => u.id),
       },
     });
 
@@ -75,7 +75,7 @@ const renderGroupUserAssignment = (initialUserIds?: string[]) => {
 
   return render(
     <Wrapper>
-      <GroupUserAssignment initialUserIds={initialUserIds} />
+      <GroupUserAssignment assignedUsers={assignedUsers} />
     </Wrapper>
   );
 };
@@ -140,21 +140,18 @@ describe('GroupUserAssignment', () => {
   });
 
   describe('Initial values', () => {
-    it('should pre-select users from initialUserIds', () => {
-      renderGroupUserAssignment(['1', '2']);
+    it('should pre-select users from assignedUsers', () => {
+      renderGroupUserAssignment([
+        { id: '1', email: 'user1@example.com', displayName: 'User One', enabled: true },
+        { id: '2', email: 'user2@example.com', displayName: 'User Two', enabled: true },
+      ]);
 
       // Users should be selected
       expect(screen.getByLabelText('Users')).toBeInTheDocument();
     });
 
-    it('should handle empty initialUserIds', () => {
+    it('should handle empty assignedUsers', () => {
       renderGroupUserAssignment([]);
-
-      expect(screen.getByLabelText('Users')).toBeInTheDocument();
-    });
-
-    it('should handle undefined initialUserIds', () => {
-      renderGroupUserAssignment(undefined);
 
       expect(screen.getByLabelText('Users')).toBeInTheDocument();
     });
@@ -170,7 +167,7 @@ describe('GroupUserAssignment', () => {
         return (
           <AppThemeProvider>
             <FormProvider {...methods}>
-              <GroupUserAssignment />
+              <GroupUserAssignment assignedUsers={[]} />
               <div data-testid="form-values">
                 {/* eslint-disable-next-line react-hooks/incompatible-library */}
                 {JSON.stringify(methods.watch('userIds'))}
@@ -187,7 +184,10 @@ describe('GroupUserAssignment', () => {
     });
 
     it('should handle user deselection', () => {
-      renderGroupUserAssignment(['1', '2']);
+      renderGroupUserAssignment([
+        { id: '1', email: 'user1@example.com', displayName: 'User One', enabled: true },
+        { id: '2', email: 'user2@example.com', displayName: 'User Two', enabled: true },
+      ]);
 
       // Component should handle deselection
       expect(screen.getByLabelText('Users')).toBeInTheDocument();
@@ -197,7 +197,11 @@ describe('GroupUserAssignment', () => {
   describe('Deduplication', () => {
     it('should deduplicate users by ID', () => {
       // The component should handle deduplication internally
-      renderGroupUserAssignment(['1', '1', '2']);
+      renderGroupUserAssignment([
+        { id: '1', email: 'user1@example.com', displayName: 'User One', enabled: true },
+        { id: '1', email: 'user1@example.com', displayName: 'User One', enabled: true },
+        { id: '2', email: 'user2@example.com', displayName: 'User Two', enabled: true },
+      ]);
 
       expect(screen.getByLabelText('Users')).toBeInTheDocument();
     });
@@ -233,7 +237,7 @@ describe('GroupUserAssignment', () => {
         return (
           <AppThemeProvider>
             <FormProvider {...methods}>
-              <GroupUserAssignment />
+              <GroupUserAssignment assignedUsers={[{ id: '1', email: 'user1@example.com', displayName: 'User One', enabled: true }]} />
             </FormProvider>
           </AppThemeProvider>
         );
@@ -257,7 +261,7 @@ describe('GroupUserAssignment', () => {
         return (
           <AppThemeProvider>
             <FormProvider {...methods}>
-              <GroupUserAssignment />
+              <GroupUserAssignment assignedUsers={[]} />
             </FormProvider>
           </AppThemeProvider>
         );

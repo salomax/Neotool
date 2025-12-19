@@ -21,8 +21,6 @@ import {
   useDisableUserMutation,
   useAssignGroupToUserMutation,
   useRemoveGroupFromUserMutation,
-  useAssignRoleToUserMutation,
-  useRemoveRoleFromUserMutation,
 } from '@/lib/graphql/operations/authorization-management/mutations.generated';
 import { useMutationWithRefetch } from '@/shared/hooks/mutations';
 
@@ -54,15 +52,6 @@ describe('useUserMutations', () => {
       { loading: false },
     ]);
 
-    (useAssignRoleToUserMutation as any).mockReturnValue([
-      vi.fn(),
-      { loading: false },
-    ]);
-
-    (useRemoveRoleFromUserMutation as any).mockReturnValue([
-      vi.fn(),
-      { loading: false },
-    ]);
 
     (useMutationWithRefetch as any).mockReturnValue({
       executeMutation: mockExecuteMutation,
@@ -77,15 +66,11 @@ describe('useUserMutations', () => {
     expect(result.current.disableUser).toBeDefined();
     expect(result.current.assignGroupToUser).toBeDefined();
     expect(result.current.removeGroupFromUser).toBeDefined();
-    expect(result.current.assignRoleToUser).toBeDefined();
-    expect(result.current.removeRoleFromUser).toBeDefined();
 
     expect(result.current.enableLoading).toBe(false);
     expect(result.current.disableLoading).toBe(false);
     expect(result.current.assignGroupLoading).toBe(false);
     expect(result.current.removeGroupLoading).toBe(false);
-    expect(result.current.assignRoleLoading).toBe(false);
-    expect(result.current.removeRoleLoading).toBe(false);
   });
 
   it('should enable user successfully', async () => {
@@ -169,34 +154,6 @@ describe('useUserMutations', () => {
       mockAssignGroupMutation,
       { userId: 'user-1', groupId: 'group-1' },
       'assign-group-user-1-group-1'
-    );
-  });
-
-  it('should assign role to user', async () => {
-    const mockAssignRoleMutation = vi.fn();
-    (useAssignRoleToUserMutation as any).mockReturnValue([
-      mockAssignRoleMutation,
-      { loading: false },
-    ]);
-
-    mockExecuteMutation.mockResolvedValue({
-      data: {
-        assignRoleToUser: {
-          id: 'user-1',
-        },
-      },
-    });
-
-    const { result } = renderHook(() => useUserMutations());
-
-    await act(async () => {
-      await result.current.assignRoleToUser('user-1', 'role-1');
-    });
-
-    expect(mockExecuteMutation).toHaveBeenCalledWith(
-      mockAssignRoleMutation,
-      { userId: 'user-1', roleId: 'role-1' },
-      'assign-role-user-1-role-1'
     );
   });
 

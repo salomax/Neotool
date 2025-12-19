@@ -124,18 +124,16 @@ vi.mock('@/lib/graphql/operations/authorization-management/queries.generated', (
 const mockUseRoleMutations = vi.fn(() => ({
   createRole: vi.fn().mockResolvedValue({ id: 'role-2', name: 'New Role' }),
   updateRole: vi.fn().mockResolvedValue(undefined),
+  deleteRole: vi.fn().mockResolvedValue(undefined),
   assignPermissionToRole: vi.fn().mockResolvedValue(undefined),
   removePermissionFromRole: vi.fn().mockResolvedValue(undefined),
-  assignRoleToUser: vi.fn().mockResolvedValue(undefined),
-  removeRoleFromUser: vi.fn().mockResolvedValue(undefined),
   assignRoleToGroup: vi.fn().mockResolvedValue(undefined),
   removeRoleFromGroup: vi.fn().mockResolvedValue(undefined),
   createLoading: false,
   updateLoading: false,
+  deleteLoading: false,
   assignPermissionLoading: false,
   removePermissionLoading: false,
-  assignRoleToUserLoading: false,
-  removeRoleFromUserLoading: false,
   assignRoleToGroupLoading: false,
   removeRoleFromGroupLoading: false,
 }));
@@ -165,7 +163,7 @@ const mockUseRoleDrawer = vi.fn((roleId: string | null) => ({
 }));
 
 vi.mock('@/shared/hooks/authorization/useRoleDrawer', () => ({
-  useRoleDrawer: (roleId: string | null, open: boolean) => mockUseRoleDrawer(roleId, open),
+  useRoleDrawer: (roleId: string | null, open: boolean) => mockUseRoleDrawer(roleId),
 }));
 
 // Mock usePermissionManagement hook
@@ -177,7 +175,7 @@ const mockUsePermissionManagement = vi.fn(() => ({
 }));
 
 vi.mock('@/shared/hooks/authorization/usePermissionManagement', () => ({
-  usePermissionManagement: (options: any) => mockUsePermissionManagement(options),
+  usePermissionManagement: () => mockUsePermissionManagement(),
 }));
 
 // Mock translations
@@ -324,21 +322,18 @@ describe('RoleDrawer', () => {
     mockUseRoleMutations.mockReturnValue({
       createRole: vi.fn().mockResolvedValue({ id: 'role-2', name: 'New Role' }),
       updateRole: vi.fn().mockResolvedValue(undefined),
+      deleteRole: vi.fn().mockResolvedValue(undefined),
       assignPermissionToRole: vi.fn().mockResolvedValue(undefined),
       removePermissionFromRole: vi.fn().mockResolvedValue(undefined),
-      assignRoleToUser: vi.fn().mockResolvedValue(undefined),
-      removeRoleFromUser: vi.fn().mockResolvedValue(undefined),
       assignRoleToGroup: vi.fn().mockResolvedValue(undefined),
       removeRoleFromGroup: vi.fn().mockResolvedValue(undefined),
       createLoading: false,
       updateLoading: false,
+      deleteLoading: false,
       assignPermissionLoading: false,
       removePermissionLoading: false,
-      assignRoleToUserLoading: false,
-      removeRoleFromUserLoading: false,
       assignRoleToGroupLoading: false,
       removeRoleFromGroupLoading: false,
-      refetch: vi.fn(),
     });
     mockUseRoleDrawer.mockReturnValue({
       role: mockRole,
@@ -431,7 +426,7 @@ describe('RoleDrawer', () => {
       mockUseRoleDrawer.mockReturnValue({
         role: null,
         loading: false,
-        error: new Error('Failed to load'),
+        error: undefined,
         selectedGroups: [],
         selectedPermissions: [],
         hasChanges: false,

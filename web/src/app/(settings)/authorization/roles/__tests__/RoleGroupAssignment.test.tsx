@@ -38,7 +38,7 @@ const mockUseGetGroupsQuery = vi.fn(() => ({
 }));
 
 vi.mock('@/lib/graphql/operations/authorization-management/queries.generated', () => ({
-  useGetGroupsQuery: (options: any) => mockUseGetGroupsQuery(options),
+  useGetGroupsQuery: () => mockUseGetGroupsQuery(),
 }));
 
 // Mock translations

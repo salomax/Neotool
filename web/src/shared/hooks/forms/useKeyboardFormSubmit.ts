@@ -96,13 +96,12 @@ function isFormInput(element: Element | null): element is HTMLInputElement | HTM
  */
 function isInputDisabledOrReadonly(
   element: Element
-): element is HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement {
-  if (
-    element instanceof HTMLInputElement ||
-    element instanceof HTMLTextAreaElement ||
-    element instanceof HTMLSelectElement
-  ) {
+): boolean {
+  if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
     return element.disabled || element.readOnly;
+  }
+  if (element instanceof HTMLSelectElement) {
+    return element.disabled;
   }
   return false;
 }
@@ -178,7 +177,7 @@ export function useKeyboardFormSubmit({
       // Edge case: Handle nested forms
       // If the element is inside a form, we ensure we're submitting the correct form context
       // Note: Some drawers use react-hook-form without native form elements, so we don't require a form
-      const containingForm = activeElement.closest("form");
+      const containingForm = activeElement instanceof Element ? activeElement.closest("form") : null;
       // If there's a form and it's not within our container, don't submit
       if (containingForm && !container.contains(containingForm)) {
         return;
