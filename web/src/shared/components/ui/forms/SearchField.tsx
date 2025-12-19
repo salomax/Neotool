@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { TextField, InputAdornment, IconButton, SxProps, Theme } from "@mui/material";
+import { TextField, InputAdornment, IconButton, SxProps, Theme, useTheme } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import ClearIcon from "@mui/icons-material/Clear";
 import { getTestIdProps } from '@/shared/utils/testid';
@@ -35,31 +35,6 @@ const SVG_STROKE_STYLES_UNFOCUSED = {
   strokeLinejoin: "miter" as const,
 };
 
-const searchFieldStyles: SxProps<Theme> = {
-  "& .MuiOutlinedInput-root": {
-    // Default and hover states: 1px border
-    "& fieldset, &:hover fieldset": {
-      borderWidth: BORDER_WIDTH_UNFOCUSED,
-    },
-    // Focused state: 2px border
-    "&.Mui-focused fieldset": {
-      borderWidth: BORDER_WIDTH_FOCUSED,
-    },
-    // Default and hover notched outline: 1px border
-    "& .MuiOutlinedInput-notchedOutline": {
-      borderWidth: BORDER_WIDTH_UNFOCUSED,
-      top: "-1px",
-      "& path, & > path": SVG_STROKE_STYLES_UNFOCUSED,
-    },
-    // Focused notched outline: 2px border
-    "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-      borderWidth: BORDER_WIDTH_FOCUSED,
-      top: "-1px",
-      "& path, & > path": SVG_STROKE_STYLES_FOCUSED,
-    },
-  },
-};
-
 export function SearchField({
   value,
   onChange,
@@ -72,7 +47,47 @@ export function SearchField({
   name,
   'data-testid': dataTestId,
 }: SearchFieldProps) {
+  const theme = useTheme();
   const testIdProps = getTestIdProps('SearchField', name, dataTestId);
+  
+  // Get border widths from theme tokens
+  const borderWidthUnfocused = `${(theme as any).custom?.border?.default ?? 1}px`;
+  const borderWidthFocused = `${(theme as any).custom?.border?.focused ?? 2}px`;
+  
+  const searchFieldStyles: SxProps<Theme> = {
+    "& .MuiOutlinedInput-root": {
+      // Default and hover states: use theme token for unfocused border
+      "& fieldset, &:hover fieldset": {
+        borderWidth: borderWidthUnfocused,
+      },
+      // Focused state: use theme token for focused border
+      "&.Mui-focused fieldset": {
+        borderWidth: borderWidthFocused,
+      },
+      // Default and hover notched outline: use theme token
+      "& .MuiOutlinedInput-notchedOutline": {
+        borderWidth: borderWidthUnfocused,
+        top: "-1px",
+        "& path, & > path": {
+          strokeWidth: borderWidthUnfocused,
+          vectorEffect: "non-scaling-stroke" as const,
+          strokeLinecap: "square" as const,
+          strokeLinejoin: "miter" as const,
+        },
+      },
+      // Focused notched outline: use theme token
+      "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+        borderWidth: borderWidthFocused,
+        top: "-1px",
+        "& path, & > path": {
+          strokeWidth: borderWidthFocused,
+          vectorEffect: "non-scaling-stroke" as const,
+          strokeLinecap: "square" as const,
+          strokeLinejoin: "miter" as const,
+        },
+      },
+    },
+  };
   
   const [inputValue, setInputValue] = useState(value);
   const inputRef = useRef<HTMLInputElement | null>(null);
