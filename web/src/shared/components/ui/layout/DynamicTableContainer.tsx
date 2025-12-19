@@ -1,18 +1,21 @@
 "use client";
 
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useMemo } from "react";
 import { Box, type BoxProps } from "./Box";
 import { useDynamicPageSize, type UseDynamicPageSizeOptions } from "@/shared/hooks/ui";
 import {
-  MANAGEMENT_TABLE_ROW_HEIGHT,
   TABLE_STABILITY_DELAY,
-  PAGINATION_FOOTER_MIN_HEIGHT,
-  TABLE_HEADER_FALLBACK_HEIGHT,
-  LOADING_BAR_HEIGHT,
-  TABLE_PAGINATION_MARGIN,
+  TABLE_CONSTANTS,
+  type TableSize,
+  getTableSizeConfig,
 } from "./DynamicTableBox";
 
 export interface DynamicTableContainerProps extends BoxProps {
+  /**
+   * Table size affecting row height, header height, and pagination footer height.
+   * @default "medium"
+   */
+  size?: TableSize;
   /**
    * Configuration options for dynamic page size calculation
    */
@@ -28,20 +31,6 @@ export interface DynamicTableContainerProps extends BoxProps {
    */
   recalculationKey?: string | number | boolean;
 }
-
-// Default page size options for container (measures outer Box including pagination)
-const defaultPageSizeOptions: UseDynamicPageSizeOptions = {
-  minRows: 5,
-  maxRows: 50,
-  rowHeight: MANAGEMENT_TABLE_ROW_HEIGHT, // Fixed row height to keep calculations predictable across screens
-  reservedHeight: LOADING_BAR_HEIGHT + TABLE_PAGINATION_MARGIN, // Account for fixed elements
-  autoDetectHeaderHeight: true,
-  fallbackHeaderHeight: TABLE_HEADER_FALLBACK_HEIGHT, // Use fallback if header measurement fails
-  autoDetectRowHeight: false,
-  autoDetectFooterHeight: true, // Automatically detect and subtract pagination footer
-  footerSelector: "[data-pagination-footer]",
-  fallbackFooterHeight: PAGINATION_FOOTER_MIN_HEIGHT, // Use fallback if footer doesn't exist yet
-};
 
 /**
  * DynamicTableContainer component - A container that automatically calculates and reports optimal page size
@@ -74,6 +63,7 @@ const defaultPageSizeOptions: UseDynamicPageSizeOptions = {
 export const DynamicTableContainer = React.forwardRef<HTMLDivElement, DynamicTableContainerProps>(
   function DynamicTableContainer(
     {
+      size = "medium",
       pageSizeOptions,
       onTableResize,
       recalculationKey,
@@ -83,12 +73,28 @@ export const DynamicTableContainer = React.forwardRef<HTMLDivElement, DynamicTab
     ref: React.ForwardedRef<HTMLDivElement>
   ) {
     const internalRef = useRef<HTMLDivElement | null>(null);
+    const sizeConfig = getTableSizeConfig(size);
 
-    // Merge default pageSizeOptions with user-provided options
+    // Combine size with recalculationKey to trigger recalculation when size changes
+    const combinedRecalculationKey = useMemo(
+      () => (recalculationKey ? `${size}-${recalculationKey}` : size),
+      [size, recalculationKey]
+    );
+
+    // Merge default pageSizeOptions with user-provided options and size-based heights
     const mergedPageSizeOptions: UseDynamicPageSizeOptions = {
-      ...defaultPageSizeOptions,
+      minRows: 5,
+      maxRows: 50,
+      rowHeight: sizeConfig.rowHeight,
+      reservedHeight: TABLE_CONSTANTS.LOADING_BAR_HEIGHT + TABLE_CONSTANTS.PAGINATION_MARGIN,
+      autoDetectHeaderHeight: true,
+      fallbackHeaderHeight: sizeConfig.headerHeight,
+      autoDetectRowHeight: false,
+      autoDetectFooterHeight: true,
+      footerSelector: "[data-pagination-footer]",
+      fallbackFooterHeight: sizeConfig.footerHeight,
       ...pageSizeOptions,
-      recalculationKey,
+      recalculationKey: combinedRecalculationKey,
     };
 
     const dynamicPageSize = useDynamicPageSize(internalRef, mergedPageSizeOptions);
@@ -121,7 +127,7 @@ export const DynamicTableContainer = React.forwardRef<HTMLDivElement, DynamicTab
           lastCommittedSizeRef.current = scheduledSize;
           onTableResize(scheduledSize);
         }
-      }, TABLE_STABILITY_DELAY);
+      }, TABLE_CONSTANTS.STABILITY_DELAY);
 
       return () => {
         if (stabilityTimeoutRef.current) {

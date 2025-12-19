@@ -12,7 +12,14 @@ import {
   TableSortLabel,
   Skeleton,
 } from "@mui/material";
-import { Box, DynamicTableBox, DynamicTableContainer, PAGINATION_FOOTER_MIN_HEIGHT } from "@/shared/components/ui/layout";
+import {
+  Box,
+  DynamicTableBox,
+  DynamicTableContainer,
+  TABLE_CONSTANTS,
+  getTableSizeConfig,
+  type TableSize,
+} from "@/shared/components/ui/layout";
 import { Table } from "@/shared/components/ui/data-display";
 import { RelayPagination, type PageInfo, type PaginationRangeData } from "@/shared/components/ui/pagination";
 import type { SortState } from "@/shared/hooks/sorting";
@@ -196,6 +203,12 @@ export interface ManagementTableProps<T, F extends string = string> {
    * If not provided, uses the row index.
    */
   getRowId?: (row: T) => string | number;
+  /**
+   * Table size affecting row height, header height, and pagination footer height.
+   * Passed to MUI Table component and used for dynamic page size calculations.
+   * @default "medium"
+   */
+  size?: TableSize;
 }
 
 /**
@@ -272,10 +285,12 @@ export function ManagementTable<T, F extends string = string>({
   tableId,
   skeletonRowCount = 5,
   getRowId,
+  size = "medium",
 }: ManagementTableProps<T, F>) {
   const isInitialLoading = loading && data.length === 0;
   const showEmptyState = !loading && data.length === 0;
   const showSkeletons = loading && data.length > 0; // Show spinner when loading with existing data
+  const sizeConfig = getTableSizeConfig(size);
 
   // Add actions column if renderActions is provided
   const allColumns = React.useMemo(() => {
@@ -318,6 +333,7 @@ export function ManagementTable<T, F extends string = string>({
 
   return (
     <DynamicTableContainer
+      size={size}
       recalculationKey={recalculationKey}
       onTableResize={onTableResize}
     >
@@ -346,7 +362,7 @@ export function ManagementTable<T, F extends string = string>({
           )}
         </Box>
         <DynamicTableBox>
-          <Table stickyHeader id={tableId} data-testid={tableId}>
+          <Table stickyHeader id={tableId} data-testid={tableId} size={size}>
           <TableHead>
             <TableRow>
               {allColumns.map((column) => (
@@ -492,7 +508,7 @@ export function ManagementTable<T, F extends string = string>({
               data-pagination-footer
               sx={{
                 px: 2,
-                minHeight: PAGINATION_FOOTER_MIN_HEIGHT,
+                minHeight: sizeConfig.footerHeight,
                 flexShrink: 0,
               }}
             >
