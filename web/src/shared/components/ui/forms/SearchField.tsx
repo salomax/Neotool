@@ -20,9 +20,16 @@ export interface SearchFieldProps {
 }
 
 // Extract border styling to constant to reduce duplication
-const BORDER_WIDTH = "2px !important";
-const SVG_STROKE_STYLES = {
-  strokeWidth: BORDER_WIDTH,
+const BORDER_WIDTH_FOCUSED = "2px !important";
+const BORDER_WIDTH_UNFOCUSED = "1px !important";
+const SVG_STROKE_STYLES_FOCUSED = {
+  strokeWidth: BORDER_WIDTH_FOCUSED,
+  vectorEffect: "non-scaling-stroke" as const,
+  strokeLinecap: "square" as const,
+  strokeLinejoin: "miter" as const,
+};
+const SVG_STROKE_STYLES_UNFOCUSED = {
+  strokeWidth: BORDER_WIDTH_UNFOCUSED,
   vectorEffect: "non-scaling-stroke" as const,
   strokeLinecap: "square" as const,
   strokeLinejoin: "miter" as const,
@@ -30,13 +37,25 @@ const SVG_STROKE_STYLES = {
 
 const searchFieldStyles: SxProps<Theme> = {
   "& .MuiOutlinedInput-root": {
-    "& fieldset, &:hover fieldset, &.Mui-focused fieldset": {
-      borderWidth: BORDER_WIDTH,
+    // Default and hover states: 1px border
+    "& fieldset, &:hover fieldset": {
+      borderWidth: BORDER_WIDTH_UNFOCUSED,
     },
-    "& .MuiOutlinedInput-notchedOutline, &.Mui-focused .MuiOutlinedInput-notchedOutline": {
-      borderWidth: BORDER_WIDTH,
+    // Focused state: 2px border
+    "&.Mui-focused fieldset": {
+      borderWidth: BORDER_WIDTH_FOCUSED,
+    },
+    // Default and hover notched outline: 1px border
+    "& .MuiOutlinedInput-notchedOutline": {
+      borderWidth: BORDER_WIDTH_UNFOCUSED,
       top: "-1px",
-      "& path, & > path": SVG_STROKE_STYLES,
+      "& path, & > path": SVG_STROKE_STYLES_UNFOCUSED,
+    },
+    // Focused notched outline: 2px border
+    "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+      borderWidth: BORDER_WIDTH_FOCUSED,
+      top: "-1px",
+      "& path, & > path": SVG_STROKE_STYLES_FOCUSED,
     },
   },
 };
