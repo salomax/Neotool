@@ -12,7 +12,7 @@ import {
   TableSortLabel,
   Skeleton,
 } from "@mui/material";
-import { Box, DynamicTableBox } from "@/shared/components/ui/layout";
+import { Box, DynamicTableBox, DynamicTableContainer, PAGINATION_FOOTER_MIN_HEIGHT } from "@/shared/components/ui/layout";
 import { Table } from "@/shared/components/ui/data-display";
 import { RelayPagination, type PageInfo, type PaginationRangeData } from "@/shared/components/ui/pagination";
 import type { SortState } from "@/shared/hooks/sorting";
@@ -317,32 +317,36 @@ export function ManagementTable<T, F extends string = string>({
   };
 
   return (
-    <Box fullHeight>
-      {/* Always reserve space for loading bar to prevent layout shift */}
-      <Box
-        sx={{
-          height: 4, // Fixed height for LinearProgress (default MUI height)
-          position: "relative",
-          flexShrink: 0,
-        }}
-      >
-        {loading && data.length > 0 && (
-          <LinearProgress
-            sx={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              width: "100%",
-            }}
-          />
-        )}
-      </Box>
-      <DynamicTableBox
-        recalculationKey={recalculationKey}
-        onTableResize={onTableResize}
-      >
-        <Table stickyHeader id={tableId} data-testid={tableId}>
+    <DynamicTableContainer
+      recalculationKey={recalculationKey}
+      onTableResize={onTableResize}
+    >
+      <Box 
+      id="management-table-container"
+      fullHeight>
+        {/* Always reserve space for loading bar to prevent layout shift */}
+        <Box
+          id="management-table-loading-bar"
+          sx={{
+            height: 4, // Fixed height for LinearProgress (default MUI height)
+            position: "relative",
+            flexShrink: 0,
+          }}
+        >
+          {loading && data.length > 0 && (
+            <LinearProgress
+              sx={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                width: "100%",
+              }}
+            />
+          )}
+        </Box>
+        <DynamicTableBox>
+          <Table stickyHeader id={tableId} data-testid={tableId}>
           <TableHead>
             <TableRow>
               {allColumns.map((column) => (
@@ -477,25 +481,33 @@ export function ManagementTable<T, F extends string = string>({
             )}
           </TableBody>
         </Table>
-      </DynamicTableBox>
-      {pagination &&
-        pagination.pageInfo &&
-        pagination.paginationRange &&
-        pagination.onLoadNext &&
-        pagination.onLoadPrevious &&
-        pagination.onGoToFirst && (
-          <Box sx={{ px: 2 }}>
-            <RelayPagination
-              pageInfo={pagination.pageInfo}
-              paginationRange={pagination.paginationRange}
-              loading={loading}
-              onLoadNext={pagination.onLoadNext}
-              onLoadPrevious={pagination.onLoadPrevious}
-              onGoToFirst={pagination.onGoToFirst}
-              canLoadPreviousPage={pagination.canLoadPreviousPage}
-            />
-          </Box>
-        )}
-    </Box>
+        </DynamicTableBox>
+        {pagination &&
+          pagination.pageInfo &&
+          pagination.paginationRange &&
+          pagination.onLoadNext &&
+          pagination.onLoadPrevious &&
+          pagination.onGoToFirst && (
+            <Box
+              data-pagination-footer
+              sx={{
+                px: 2,
+                minHeight: PAGINATION_FOOTER_MIN_HEIGHT,
+                flexShrink: 0,
+              }}
+            >
+              <RelayPagination
+                pageInfo={pagination.pageInfo}
+                paginationRange={pagination.paginationRange}
+                loading={loading}
+                onLoadNext={pagination.onLoadNext}
+                onLoadPrevious={pagination.onLoadPrevious}
+                onGoToFirst={pagination.onGoToFirst}
+                canLoadPreviousPage={pagination.canLoadPreviousPage}
+              />
+            </Box>
+          )}
+      </Box>
+    </DynamicTableContainer>
   );
 }

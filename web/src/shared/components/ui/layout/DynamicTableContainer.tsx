@@ -3,9 +3,16 @@
 import React, { useRef, useEffect } from "react";
 import { Box, type BoxProps } from "./Box";
 import { useDynamicPageSize, type UseDynamicPageSizeOptions } from "@/shared/hooks/ui";
-import type { SxProps, Theme } from "@mui/material/styles";
+import {
+  MANAGEMENT_TABLE_ROW_HEIGHT,
+  TABLE_STABILITY_DELAY,
+  PAGINATION_FOOTER_MIN_HEIGHT,
+  TABLE_HEADER_FALLBACK_HEIGHT,
+  LOADING_BAR_HEIGHT,
+  TABLE_PAGINATION_MARGIN,
+} from "./DynamicTableBox";
 
-export interface DynamicTableBoxProps extends BoxProps {
+export interface DynamicTableContainerProps extends BoxProps {
   /**
    * Configuration options for dynamic page size calculation
    */
@@ -22,76 +29,57 @@ export interface DynamicTableBoxProps extends BoxProps {
   recalculationKey?: string | number | boolean;
 }
 
-// Default sx styles for DynamicTableBox
-const defaultSx: SxProps<Theme> = {
-  flex: '0 1 auto', // Don't grow unnecessarily, but can shrink if needed
-  overflow: "auto",
-  maxHeight: '100%', // Prevent overflow of parent container
-  mb: 2, // Add spacing between table and pagination
-  // Hide scrollbar while maintaining scroll functionality
-  scrollbarWidth: 'none', // Firefox
-  '&::-webkit-scrollbar': {
-    display: 'none', // Chrome, Safari, Edge
-  },
-};
-
-export const MANAGEMENT_TABLE_ROW_HEIGHT = 66;
-export const TABLE_STABILITY_DELAY = 75;
-export const PAGINATION_FOOTER_MIN_HEIGHT = 60; // Minimum height for pagination footer (buttons + padding + margin)
-export const TABLE_HEADER_FALLBACK_HEIGHT = 56; // Typical MUI TableHead height (TableRow + TableCell padding)
-export const LOADING_BAR_HEIGHT = 4; // Fixed height for LinearProgress container
-export const TABLE_PAGINATION_MARGIN = 16; // mb: 2 = 16px margin between table and pagination
-
-// Default page size options
+// Default page size options for container (measures outer Box including pagination)
 const defaultPageSizeOptions: UseDynamicPageSizeOptions = {
   minRows: 5,
   maxRows: 50,
   rowHeight: MANAGEMENT_TABLE_ROW_HEIGHT, // Fixed row height to keep calculations predictable across screens
-  reservedHeight: 0,
+  reservedHeight: LOADING_BAR_HEIGHT + TABLE_PAGINATION_MARGIN, // Account for fixed elements
   autoDetectHeaderHeight: true,
+  fallbackHeaderHeight: TABLE_HEADER_FALLBACK_HEIGHT, // Use fallback if header measurement fails
   autoDetectRowHeight: false,
+  autoDetectFooterHeight: true, // Automatically detect and subtract pagination footer
+  footerSelector: "[data-pagination-footer]",
+  fallbackFooterHeight: PAGINATION_FOOTER_MIN_HEIGHT, // Use fallback if footer doesn't exist yet
 };
 
 /**
- * DynamicTableBox component - A Box that automatically calculates and reports optimal page size
+ * DynamicTableContainer component - A container that automatically calculates and reports optimal page size
  * 
- * This component wraps a Box and uses ResizeObserver to monitor its size, calculating
- * how many table rows can fit within it. It calls onTableResize whenever the calculated
- * page size changes.
+ * This component wraps the entire table structure (including pagination) and measures the outer
+ * container Box to calculate how many table rows can fit, accounting for header and footer heights.
+ * It calls onTableResize whenever the calculated page size changes.
  * 
- * @example
- * ```tsx
- * // Basic usage with defaults (sx and pageSizeOptions are applied automatically)
- * <DynamicTableBox
- *   recalculationKey={`${users.length}-${loading ? "loading" : "ready"}`}
- *   onTableResize={(pageSize) => setFirst(pageSize)}
- * >
- *   <Table>...</Table>
- * </DynamicTableBox>
- * ```
+ * Unlike DynamicTableBox which measures only the table container, this component measures the
+ * outer container and automatically subtracts pagination footer height when present.
  * 
  * @example
  * ```tsx
- * // Override defaults if needed
- * <DynamicTableBox
- *   sx={{ flex: 1, overflow: "auto", minHeight: 0, customStyle: "value" }}
- *   pageSizeOptions={{ minRows: 10, maxRows: 100 }}
+ * // Basic usage with defaults
+ * <DynamicTableContainer
  *   recalculationKey={`${users.length}-${loading ? "loading" : "ready"}`}
  *   onTableResize={(pageSize) => setFirst(pageSize)}
  * >
- *   <Table>...</Table>
- * </DynamicTableBox>
+ *   <Box fullHeight>
+ *     <DynamicTableBox>
+ *       <Table>...</Table>
+ *     </DynamicTableBox>
+ *     <Box data-pagination-footer>
+ *       <RelayPagination />
+ *     </Box>
+ *   </Box>
+ * </DynamicTableContainer>
  * ```
  */
-export const DynamicTableBox = React.forwardRef<HTMLDivElement, DynamicTableBoxProps>(
-  function DynamicTableBox(
+export const DynamicTableContainer = React.forwardRef<HTMLDivElement, DynamicTableContainerProps>(
+  function DynamicTableContainer(
     {
       pageSizeOptions,
       onTableResize,
       recalculationKey,
       sx,
       ...boxProps
-    }: DynamicTableBoxProps,
+    }: DynamicTableContainerProps,
     ref: React.ForwardedRef<HTMLDivElement>
   ) {
     const internalRef = useRef<HTMLDivElement | null>(null);
@@ -115,14 +103,17 @@ export const DynamicTableBox = React.forwardRef<HTMLDivElement, DynamicTableBoxP
 
       pendingSizeRef.current = dynamicPageSize;
 
+      // Clear any pending timeout
       if (stabilityTimeoutRef.current) {
         clearTimeout(stabilityTimeoutRef.current);
       }
 
       const scheduledSize = dynamicPageSize;
 
+      // Debounce the resize callback to avoid excessive calls during rapid recalculations
       stabilityTimeoutRef.current = setTimeout(() => {
         stabilityTimeoutRef.current = null;
+        // Only call callback if size hasn't changed during the delay (stable)
         if (
           pendingSizeRef.current === scheduledSize &&
           scheduledSize !== lastCommittedSizeRef.current
@@ -156,18 +147,21 @@ export const DynamicTableBox = React.forwardRef<HTMLDivElement, DynamicTableBoxP
       [ref]
     );
 
-    // Merge default sx with user-provided sx
-    // MUI's sx prop supports arrays, so we can simply combine them
-    const mergedSx: SxProps<Theme> = React.useMemo(() => {
-      if (!sx) return defaultSx;
-      return [defaultSx, sx] as SxProps<Theme>;
+    // Container should fill available space and use flex column layout
+    const containerSx = React.useMemo(() => {
+      return {
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        minHeight: 0,
+        height: "100%",
+        overflow: "hidden",
+        ...sx,
+      };
     }, [sx]);
 
-    // TypeScript has difficulty inferring the ref callback type correctly when combining refs
-    // The logic is correct - this is a known TypeScript limitation with ref forwarding
-    // @ts-expect-error - Ref callback type inference issue with combined refs
-    return <Box id="dynamic-table-box" ref={combinedRef} sx={mergedSx} {...boxProps} />;
+    return <Box ref={combinedRef} sx={containerSx} {...boxProps} />;
   }
 );
 
-export default DynamicTableBox;
+export default DynamicTableContainer;

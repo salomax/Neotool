@@ -204,7 +204,6 @@ POSTGRES_PASSWORD=neotool
 POSTGRES_DB=neotool_db
 POSTGRES_HOST=postgres
 POSTGRES_PORT=5432
-DATABASE_URL=jdbc:postgresql://postgres:5432/neotool_db
 
 # --- Grafana ---
 GF_SECURITY_ADMIN_USER=admin
