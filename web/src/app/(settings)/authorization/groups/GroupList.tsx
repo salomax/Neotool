@@ -190,6 +190,7 @@ export const GroupList: React.FC<GroupListProps> = ({
 
   return (
     <ManagementTable<Group, GroupOrderField>
+      size="small"
       columns={columns}
       data={groups}
       loading={loading}

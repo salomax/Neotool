@@ -67,6 +67,7 @@ export const createAppTheme = (mode: Mode) => {
     custom: {
       layout: t.layout,
       radius: t.radius,
+      border: t.border,
       palette: {
         inputBorder: t.palette.inputBorder,
         tabBorder: t.palette.tabBorder,
