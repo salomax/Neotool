@@ -17,6 +17,10 @@ export interface DesignTokens {
     xl: number;
     table: number;
   };
+  border: {
+    default: number; // 1px for default/unfocused state
+    focused: number;  // 2px for focused state
+  };
   layout: {
     paper: {
       padding: number;
@@ -67,6 +71,10 @@ export const tokens: Record<Mode, DesignTokens> = {
   light: {
     spacing: { xs: 4, sm: 8, md: 12, lg: 16, xl: 24 },
     radius: { sm: 4, md: 8, lg: 12, xl: 16, table: 8 },
+    border: {
+      default: 1,
+      focused: 2,
+    },
     layout: {
       paper: {
         padding: 2,
@@ -115,6 +123,10 @@ export const tokens: Record<Mode, DesignTokens> = {
   dark: {
     spacing: { xs: 4, sm: 8, md: 12, lg: 16, xl: 24 },
     radius: { sm: 4, md: 8, lg: 12, xl: 16, table: 8 },
+    border: {
+      default: 1,
+      focused: 2,
+    },
     layout: {
       paper: {
         padding: 2,
