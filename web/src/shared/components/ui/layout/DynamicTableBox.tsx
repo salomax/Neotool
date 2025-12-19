@@ -24,9 +24,10 @@ export interface DynamicTableBoxProps extends BoxProps {
 
 // Default sx styles for DynamicTableBox
 const defaultSx: SxProps<Theme> = {
-  flex: 1,
+  flex: '0 1 auto', // Don't grow unnecessarily, but can shrink if needed
   overflow: "auto",
-  minHeight: 0,
+  maxHeight: '100%', // Prevent overflow of parent container
+  mb: 2, // Add spacing between table and pagination
   // Hide scrollbar while maintaining scroll functionality
   scrollbarWidth: 'none', // Firefox
   '&::-webkit-scrollbar': {
@@ -36,6 +37,10 @@ const defaultSx: SxProps<Theme> = {
 
 export const MANAGEMENT_TABLE_ROW_HEIGHT = 66;
 export const TABLE_STABILITY_DELAY = 75;
+export const PAGINATION_FOOTER_MIN_HEIGHT = 60; // Minimum height for pagination footer (buttons + padding + margin)
+export const TABLE_HEADER_FALLBACK_HEIGHT = 56; // Typical MUI TableHead height (TableRow + TableCell padding)
+export const LOADING_BAR_HEIGHT = 4; // Fixed height for LinearProgress container
+export const TABLE_PAGINATION_MARGIN = 16; // mb: 2 = 16px margin between table and pagination
 
 // Default page size options
 const defaultPageSizeOptions: UseDynamicPageSizeOptions = {
@@ -161,7 +166,7 @@ export const DynamicTableBox = React.forwardRef<HTMLDivElement, DynamicTableBoxP
     // TypeScript has difficulty inferring the ref callback type correctly when combining refs
     // The logic is correct - this is a known TypeScript limitation with ref forwarding
     // @ts-expect-error - Ref callback type inference issue with combined refs
-    return <Box ref={combinedRef} sx={mergedSx} {...boxProps} />;
+    return <Box id="dynamic-table-box" ref={combinedRef} sx={mergedSx} {...boxProps} />;
   }
 );
 
