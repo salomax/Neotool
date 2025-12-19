@@ -24,7 +24,7 @@ const mockUsePermissionManagement = vi.fn(() => ({
 }));
 
 vi.mock('@/shared/hooks/authorization/usePermissionManagement', () => ({
-  usePermissionManagement: (options: any) => mockUsePermissionManagement(options),
+  usePermissionManagement: () => mockUsePermissionManagement(),
 }));
 
 // Mock PermissionSearch component

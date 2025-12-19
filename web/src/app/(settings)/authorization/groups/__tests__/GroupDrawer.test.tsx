@@ -233,7 +233,6 @@ describe('GroupDrawer', () => {
       updateLoading: false,
       assignRoleLoading: false,
       removeRoleLoading: false,
-      refetch: vi.fn(),
     });
   });
 
@@ -399,7 +398,6 @@ describe('GroupDrawer', () => {
 
     it('should handle role assignment in edit mode', async () => {
       const assignRoleToGroup = vi.fn().mockResolvedValue(undefined);
-      const refetch = vi.fn().mockResolvedValue({ data: { group: mockGroup } });
       mockUseGroupMutations.mockReturnValue({
         assignRoleToGroup,
         removeRoleFromGroup: vi.fn(),
@@ -407,7 +405,6 @@ describe('GroupDrawer', () => {
         updateLoading: false,
         assignRoleLoading: false,
         removeRoleLoading: false,
-        refetch,
       });
 
       renderGroupDrawer({ groupId: '1' });

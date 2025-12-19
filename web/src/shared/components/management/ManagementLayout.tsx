@@ -15,7 +15,7 @@ export interface ManagementLayoutBaseProps {
   /**
    * Callback invoked when user clicks retry on error alert
    */
-  onErrorRetry: () => void;
+  onErrorRetry?: () => void;
   /**
    * Fallback message for error alert if error.message is not available
    */
@@ -81,7 +81,7 @@ const ManagementLayoutComponent: React.FC<ManagementLayoutBaseProps> = ({
     <Box fullHeight>
       <ErrorAlert 
         error={error} 
-        onRetry={onErrorRetry}
+        onRetry={onErrorRetry || (() => {})}
         fallbackMessage={errorFallbackMessage}
       />
       {children}

@@ -2,7 +2,6 @@ package io.github.salomax.neotool.common.graphql
 
 import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.TypeDefinitionRegistry
-import jakarta.inject.Singleton
 import java.io.InputStreamReader
 
 /**

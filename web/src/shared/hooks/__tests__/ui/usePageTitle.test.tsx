@@ -123,20 +123,20 @@ describe('usePageTitle', () => {
         ({ title }: { title: string | null }) => usePageTitle(title),
         {
           wrapper,
-          initialProps: { title: 'Title 1' },
+          initialProps: { title: 'Title 1' as string | null },
         }
       );
       
       expect(titleResult.current).toBe('Title 1');
       
       act(() => {
-        rerender({ title: 'Title 2' });
+        rerender({ title: 'Title 2' as string | null });
       });
       
       expect(titleResult.current).toBe('Title 2');
       
       act(() => {
-        rerender({ title: null });
+        rerender({ title: null as string | null });
       });
       
       expect(titleResult.current).toBeNull();

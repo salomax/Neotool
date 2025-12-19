@@ -265,16 +265,22 @@ describe('Query Deduplication', () => {
 
       const { result, rerender } = renderHook(() => useRoleManagement({ initialFirst: 10 }));
 
-      const firstCallVariables = mockQuery.mock.calls[0][0].variables;
+      // Ensure mock was called
+      expect(mockQuery.mock.calls.length).toBeGreaterThan(0);
+      const firstCall = mockQuery.mock.calls[0] as any;
+      const firstCallVariables = firstCall?.[0]?.variables;
 
       // Rerender without changing anything
       rerender();
 
-      const secondCallVariables = mockQuery.mock.calls[mockQuery.mock.calls.length - 1]?.[0]?.variables;
+      // Ensure mock was called again
+      expect(mockQuery.mock.calls.length).toBeGreaterThan(0);
+      const lastCall = mockQuery.mock.calls[mockQuery.mock.calls.length - 1] as any;
+      const secondCallVariables = lastCall?.[0]?.variables;
 
       // Variables object should be the same reference (memoized)
       // Note: Apollo might call it multiple times during render, but variables should be stable
-      if (secondCallVariables) {
+      if (firstCallVariables && secondCallVariables) {
         expect(secondCallVariables.first).toBe(firstCallVariables.first);
         expect(secondCallVariables.after).toBe(firstCallVariables.after);
         expect(secondCallVariables.query).toBe(firstCallVariables.query);
