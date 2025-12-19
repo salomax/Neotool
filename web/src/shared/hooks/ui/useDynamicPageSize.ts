@@ -34,14 +34,6 @@ export interface UseDynamicPageSizeOptions {
    */
   fallbackHeaderHeight?: number;
   /**
-   * When true, attempts to measure the height of the first matching row (tbody tr) instead of using a fixed rowHeight.
-   */
-  autoDetectRowHeight?: boolean;
-  /**
-   * CSS selector used to find rows when autoDetectRowHeight is enabled. Defaults to "tbody tr".
-   */
-  rowSelector?: string;
-  /**
    * When true, automatically subtracts the measured footer height (e.g., pagination) from the available space.
    */
   autoDetectFooterHeight?: boolean;
@@ -95,8 +87,6 @@ export function useDynamicPageSize(
     autoDetectHeaderHeight = false,
     headerSelector = "thead",
     fallbackHeaderHeight = 56, // Typical MUI TableHead height
-    autoDetectRowHeight = false,
-    rowSelector = "tbody tr",
     autoDetectFooterHeight = false,
     footerSelector = "[data-pagination-footer]",
     fallbackFooterHeight = 60, // PAGINATION_FOOTER_MIN_HEIGHT
@@ -159,15 +149,7 @@ export function useDynamicPageSize(
       effectiveReservedHeight += measureElementHeight(footerSelector, fallbackFooterHeight);
     }
 
-    // Measure or use default for row height
-    let effectiveRowHeight = rowHeight;
-    if (autoDetectRowHeight) {
-      const measuredHeight = measureElementHeight(rowSelector, rowHeight);
-      if (measuredHeight > 0) {
-        effectiveRowHeight = measuredHeight;
-      }
-    }
-
+    const effectiveRowHeight = rowHeight;
     const availableHeight = containerHeight - effectiveReservedHeight;
 
     if (availableHeight <= 0 || effectiveRowHeight <= 0) {
@@ -195,8 +177,6 @@ export function useDynamicPageSize(
     autoDetectHeaderHeight,
     headerSelector,
     fallbackHeaderHeight,
-    autoDetectRowHeight,
-    rowSelector,
     autoDetectFooterHeight,
     footerSelector,
     fallbackFooterHeight,
