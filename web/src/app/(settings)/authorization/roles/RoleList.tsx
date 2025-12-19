@@ -179,6 +179,7 @@ export const RoleList: React.FC<RoleListProps> = ({
 
   return (
     <ManagementTable<Role, RoleOrderField>
+      size="small"
       columns={columns}
       data={roles}
       loading={loading}

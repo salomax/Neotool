@@ -35,12 +35,70 @@ const defaultSx: SxProps<Theme> = {
   },
 };
 
-export const MANAGEMENT_TABLE_ROW_HEIGHT = 66;
-export const TABLE_STABILITY_DELAY = 75;
-export const PAGINATION_FOOTER_MIN_HEIGHT = 60; // Minimum height for pagination footer (buttons + padding + margin)
-export const TABLE_HEADER_FALLBACK_HEIGHT = 56; // Typical MUI TableHead height (TableRow + TableCell padding)
-export const LOADING_BAR_HEIGHT = 4; // Fixed height for LinearProgress container
-export const TABLE_PAGINATION_MARGIN = 16; // mb: 2 = 16px margin between table and pagination
+/**
+ * Table size options matching MUI Table size prop
+ */
+export type TableSize = "small" | "medium";
+
+/**
+ * Table size configuration with heights for rows, header, and pagination footer
+ */
+export interface TableSizeConfig {
+  rowHeight: number;
+  headerHeight: number;
+  footerHeight: number;
+}
+
+/**
+ * Size presets for table dimensions
+ * Based on MUI Table size prop behavior:
+ * - small: Compact rows (53px), smaller header (48px), compact footer (52px)
+ * - medium: Standard rows (66px), standard header (56px), standard footer (60px)
+ */
+export const TABLE_SIZE_CONFIGS: Record<TableSize, TableSizeConfig> = {
+  small: {
+    rowHeight: 53, // MUI TableRow small size
+    headerHeight: 48, // Compact header
+    footerHeight: 52, // Compact pagination footer
+  },
+  medium: {
+    rowHeight: 66, // Standard row height
+    headerHeight: 56, // Standard header height
+    footerHeight: 60, // Standard pagination footer height
+  },
+};
+
+/**
+ * Gets the table size configuration for a given size.
+ * Defaults to "medium" if size is not provided.
+ */
+export function getTableSizeConfig(size?: TableSize): TableSizeConfig {
+  return TABLE_SIZE_CONFIGS[size ?? "medium"];
+}
+
+// Table constants grouped for cleaner imports
+export const TABLE_CONSTANTS = {
+  // Size configurations
+  SIZE_CONFIGS: TABLE_SIZE_CONFIGS,
+  
+  // Timing
+  STABILITY_DELAY: 75, // Debounce delay for page size calculations (ms)
+  
+  // Fixed heights (medium size defaults for backward compatibility)
+  ROW_HEIGHT: TABLE_SIZE_CONFIGS.medium.rowHeight,
+  HEADER_HEIGHT: TABLE_SIZE_CONFIGS.medium.headerHeight,
+  FOOTER_HEIGHT: TABLE_SIZE_CONFIGS.medium.footerHeight,
+  LOADING_BAR_HEIGHT: 4, // Fixed height for LinearProgress container
+  PAGINATION_MARGIN: 16, // mb: 2 = 16px margin between table and pagination
+} as const;
+
+// Individual exports for backward compatibility
+export const MANAGEMENT_TABLE_ROW_HEIGHT = TABLE_CONSTANTS.ROW_HEIGHT;
+export const TABLE_STABILITY_DELAY = TABLE_CONSTANTS.STABILITY_DELAY;
+export const PAGINATION_FOOTER_MIN_HEIGHT = TABLE_CONSTANTS.FOOTER_HEIGHT;
+export const TABLE_HEADER_FALLBACK_HEIGHT = TABLE_CONSTANTS.HEADER_HEIGHT;
+export const LOADING_BAR_HEIGHT = TABLE_CONSTANTS.LOADING_BAR_HEIGHT;
+export const TABLE_PAGINATION_MARGIN = TABLE_CONSTANTS.PAGINATION_MARGIN;
 
 // Default page size options
 const defaultPageSizeOptions: UseDynamicPageSizeOptions = {
