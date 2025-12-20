@@ -418,25 +418,39 @@ export function SearchableAutocomplete<
       isOptionEqualToValue={defaultIsOptionEqualToValue}
       loading={loading}
       disabled={disabled}
-      renderInput={(params) => (
-        <>
-          <TextField
-            {...params}
-            placeholder={placeholder}
-            error={fieldError || !!error}
-            helperText={error ? (errorMessage || "Failed to load options") : helperText}
-            fullWidth
-            variant={variant}
-            InputProps={{
-              ...params.InputProps,
-              endAdornment: (
-                <>
-                  {loading ? <CircularProgress size={16} /> : null}
-                  {params.InputProps.endAdornment}
-                </>
-              ),
-            }}
-          />
+      renderInput={(params) => {
+        // MUI Autocomplete's renderInput params should not include error/helperText
+        // but we extract them just in case to prevent any prop leakage
+        const { error: _paramsError, helperText: _paramsHelperText, ...textFieldParams } = params;
+        
+        // Only pass error prop when it's true, don't pass false
+        const hasError = fieldError || !!error;
+        const errorProp = hasError ? true : undefined;
+        
+        // Only pass helperText when it has a value
+        const helperTextValue = error 
+          ? (errorMessage || "Failed to load options") 
+          : helperText;
+        
+        return (
+          <>
+            <TextField
+              {...textFieldParams}
+              placeholder={placeholder}
+              {...(errorProp && { error: true })}
+              {...(helperTextValue && { helperText: helperTextValue })}
+              fullWidth
+              variant={variant}
+              InputProps={{
+                ...params.InputProps,
+                endAdornment: (
+                  <>
+                    {loading ? <CircularProgress size={16} /> : null}
+                    {params.InputProps?.endAdornment}
+                  </>
+                ),
+              }}
+            />
           {error && (
             <Box sx={{ mt: 1 }}>
               <ErrorAlert
@@ -447,7 +461,8 @@ export function SearchableAutocomplete<
             </Box>
           )}
         </>
-      )}
+        );
+      }}
       renderOption={renderOption}
       renderTags={
         renderTags

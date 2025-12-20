@@ -157,16 +157,16 @@ export function extractErrorMessage(
   defaultMessage: string = 'An error occurred'
 ): string {
   if (!error) {
-    return getTranslatedError('errors.default', defaultMessage);
+    // If custom default message is provided, use it directly (don't translate)
+    // Translation should happen at the call site if needed
+    return defaultMessage;
   }
 
   let rawMessage: string | undefined;
-  let isNetworkError = false;
 
   // Handle Error instances
   if (error instanceof Error) {
     rawMessage = error.message;
-    isNetworkError = error.name === 'NetworkError' || error.name === 'TypeError';
   }
   // Handle Apollo Client errors
   else if (typeof error === 'object' && error !== null) {
@@ -179,7 +179,6 @@ export function extractErrorMessage(
     // Check for network error
     else if (err.networkError) {
       rawMessage = err.networkError.message || err.networkError.error?.message;
-      isNetworkError = true;
     }
     // Check for message property
     else if (err.message) {
@@ -195,7 +194,8 @@ export function extractErrorMessage(
   const cleaned = cleanErrorMessage(rawMessage);
   
   // Check if this is a connection error and convert to user-friendly translated message
-  if (isNetworkError || isConnectionError(cleaned)) {
+  // Only treat as connection error if the message actually indicates a connection issue
+  if (isConnectionError(cleaned)) {
     return getConnectionErrorMessage(cleaned);
   }
   

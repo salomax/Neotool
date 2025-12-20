@@ -32,7 +32,7 @@ export default defineConfig({
     globals: true,
     css: true,
     restoreMocks: true,
-    bail: 1, // Stop after first failure
+    // bail: 5, // Stop after 0 failures
     // Performance optimizations - enable parallel execution
     pool: "threads",
     poolOptions: {

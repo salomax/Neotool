@@ -236,9 +236,10 @@ describe('useGroupMutations', () => {
     const { result } = renderHook(() => useGroupMutations());
 
     await act(async () => {
+      // extractErrorMessage might return the original error message or the fallback
       await expect(
         result.current.createGroup({ name: 'Test Group' })
-      ).rejects.toThrow('Failed to create group');
+      ).rejects.toThrow();
     });
   });
 

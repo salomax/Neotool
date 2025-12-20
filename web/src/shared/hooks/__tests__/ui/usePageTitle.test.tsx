@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act, render, screen } from '@testing-library/react';
+import { renderHook, act, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { usePageTitle, usePageTitleValue, PageTitleProvider } from '@/shared/hooks/ui';
 
@@ -16,7 +16,7 @@ const createWrapper = () => {
 
 describe('usePageTitle', () => {
   describe('usePageTitle hook', () => {
-    it('should set title when called', () => {
+    it('should set title when called', async () => {
       const wrapper = createWrapper();
       const { result: titleResult } = renderHook(() => usePageTitleValue(), { wrapper });
       
@@ -26,26 +26,32 @@ describe('usePageTitle', () => {
       // Set title
       renderHook(() => usePageTitle('Test Title'), { wrapper });
       
-      // Title should be set
-      expect(titleResult.current).toBe('Test Title');
+      // Wait for effect to run
+      await waitFor(() => {
+        expect(titleResult.current).toBe('Test Title');
+      });
     });
 
-    it('should clear title on unmount', () => {
+    it('should clear title on unmount', async () => {
       const wrapper = createWrapper();
       const { result: titleResult } = renderHook(() => usePageTitleValue(), { wrapper });
       
       // Set title
       const { unmount } = renderHook(() => usePageTitle('Test Title'), { wrapper });
       
-      expect(titleResult.current).toBe('Test Title');
+      await waitFor(() => {
+        expect(titleResult.current).toBe('Test Title');
+      });
       
       // Unmount should clear title
       unmount();
       
-      expect(titleResult.current).toBeNull();
+      await waitFor(() => {
+        expect(titleResult.current).toBeNull();
+      });
     });
 
-    it('should update title when title prop changes', () => {
+    it('should update title when title prop changes', async () => {
       const wrapper = createWrapper();
       const { result: titleResult } = renderHook(() => usePageTitleValue(), { wrapper });
       
@@ -57,30 +63,38 @@ describe('usePageTitle', () => {
         }
       );
       
-      expect(titleResult.current).toBe('Initial Title');
+      await waitFor(() => {
+        expect(titleResult.current).toBe('Initial Title');
+      });
       
       // Change title
       rerender({ title: 'Updated Title' });
       
-      expect(titleResult.current).toBe('Updated Title');
+      await waitFor(() => {
+        expect(titleResult.current).toBe('Updated Title');
+      });
     });
 
-    it('should handle null title', () => {
+    it('should handle null title', async () => {
       const wrapper = createWrapper();
       const { result: titleResult } = renderHook(() => usePageTitleValue(), { wrapper });
       
       renderHook(() => usePageTitle(null), { wrapper });
       
-      expect(titleResult.current).toBeNull();
+      await waitFor(() => {
+        expect(titleResult.current).toBeNull();
+      });
     });
 
-    it('should handle empty string title', () => {
+    it('should handle empty string title', async () => {
       const wrapper = createWrapper();
       const { result: titleResult } = renderHook(() => usePageTitleValue(), { wrapper });
       
       renderHook(() => usePageTitle(''), { wrapper });
       
-      expect(titleResult.current).toBe('');
+      await waitFor(() => {
+        expect(titleResult.current).toBe('');
+      });
     });
 
     it('should throw error when used outside provider', () => {
@@ -94,28 +108,36 @@ describe('usePageTitle', () => {
       consoleSpy.mockRestore();
     });
 
-    it('should handle multiple components setting title (last one wins)', () => {
+    it('should handle multiple components setting title (last one wins)', async () => {
       const wrapper = createWrapper();
       const { result: titleResult } = renderHook(() => usePageTitleValue(), { wrapper });
       
       // First component sets title
       const { unmount: unmount1 } = renderHook(() => usePageTitle('Title 1'), { wrapper });
-      expect(titleResult.current).toBe('Title 1');
+      await waitFor(() => {
+        expect(titleResult.current).toBe('Title 1');
+      });
       
       // Second component sets different title
       const { unmount: unmount2 } = renderHook(() => usePageTitle('Title 2'), { wrapper });
-      expect(titleResult.current).toBe('Title 2');
+      await waitFor(() => {
+        expect(titleResult.current).toBe('Title 2');
+      });
       
       // Unmount second component - should clear to null (cleanup)
       unmount2();
-      expect(titleResult.current).toBeNull();
+      await waitFor(() => {
+        expect(titleResult.current).toBeNull();
+      });
       
       // Unmount first component - should still be null
       unmount1();
-      expect(titleResult.current).toBeNull();
+      await waitFor(() => {
+        expect(titleResult.current).toBeNull();
+      });
     });
 
-    it('should handle dynamic title changes', () => {
+    it('should handle dynamic title changes', async () => {
       const wrapper = createWrapper();
       const { result: titleResult } = renderHook(() => usePageTitleValue(), { wrapper });
       
@@ -127,19 +149,21 @@ describe('usePageTitle', () => {
         }
       );
       
-      expect(titleResult.current).toBe('Title 1');
-      
-      act(() => {
-        rerender({ title: 'Title 2' as string | null });
+      await waitFor(() => {
+        expect(titleResult.current).toBe('Title 1');
       });
       
-      expect(titleResult.current).toBe('Title 2');
+      rerender({ title: 'Title 2' as string | null });
       
-      act(() => {
-        rerender({ title: null as string | null });
+      await waitFor(() => {
+        expect(titleResult.current).toBe('Title 2');
       });
       
-      expect(titleResult.current).toBeNull();
+      rerender({ title: null as string | null });
+      
+      await waitFor(() => {
+        expect(titleResult.current).toBeNull();
+      });
     });
   });
 
@@ -151,16 +175,18 @@ describe('usePageTitle', () => {
       expect(result.current).toBeNull();
     });
 
-    it('should return current title', () => {
+    it('should return current title', async () => {
       const wrapper = createWrapper();
       const { result } = renderHook(() => usePageTitleValue(), { wrapper });
       
       renderHook(() => usePageTitle('Test Title'), { wrapper });
       
-      expect(result.current).toBe('Test Title');
+      await waitFor(() => {
+        expect(result.current).toBe('Test Title');
+      });
     });
 
-    it('should update when title changes', () => {
+    it('should update when title changes', async () => {
       const wrapper = createWrapper();
       const { result } = renderHook(() => usePageTitleValue(), { wrapper });
       const { rerender } = renderHook(
@@ -171,13 +197,15 @@ describe('usePageTitle', () => {
         }
       );
       
-      expect(result.current).toBe('Initial');
-      
-      act(() => {
-        rerender({ title: 'Updated' });
+      await waitFor(() => {
+        expect(result.current).toBe('Initial');
       });
       
-      expect(result.current).toBe('Updated');
+      rerender({ title: 'Updated' });
+      
+      await waitFor(() => {
+        expect(result.current).toBe('Updated');
+      });
     });
 
     it('should throw error when used outside provider', () => {

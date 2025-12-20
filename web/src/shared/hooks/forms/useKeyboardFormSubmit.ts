@@ -72,7 +72,7 @@ export interface UseKeyboardFormSubmitOptions {
  * @param element - The element to check
  * @returns True if the element is a form input
  */
-function isFormInput(element: Element | null): element is HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement {
+function isFormInput(element: Element | null): boolean {
   if (!element) return false;
   
   const tagName = element.tagName;
@@ -168,8 +168,12 @@ export function useKeyboardFormSubmit({
       // Check if it's a form input element
       if (!isFormInput(activeElement)) return;
 
-      // Check if input is disabled or readonly
-      if (isInputDisabledOrReadonly(activeElement)) return;
+      // Check if input is disabled or readonly (only for native form elements)
+      if (activeElement instanceof HTMLInputElement || 
+          activeElement instanceof HTMLTextAreaElement || 
+          activeElement instanceof HTMLSelectElement) {
+        if (isInputDisabledOrReadonly(activeElement)) return;
+      }
 
       // Check if dropdown/autocomplete is open
       if (isDropdownOpen(activeElement)) return;

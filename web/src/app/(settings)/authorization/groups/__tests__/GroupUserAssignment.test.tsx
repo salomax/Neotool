@@ -56,6 +56,14 @@ vi.mock('@/shared/components/ui/feedback', () => ({
     ) : null,
 }));
 
+// Mock useAuth
+vi.mock('@/shared/providers/AuthProvider', () => ({
+  useAuth: () => ({
+    isAuthenticated: true,
+    user: { id: '1', email: 'test@example.com' },
+  }),
+}));
+
 const renderGroupUserAssignment = (assignedUsers: Array<{ id: string; email: string; displayName: string | null; enabled: boolean }> = []) => {
   const Wrapper = ({ children }: { children: React.ReactNode }) => {
     const methods = useForm<GroupFormData>({
@@ -103,7 +111,8 @@ describe('GroupUserAssignment', () => {
     it('should render autocomplete for user selection', () => {
       renderGroupUserAssignment();
 
-      expect(screen.getByLabelText('Users')).toBeInTheDocument();
+      // SearchableAutocomplete renders a TextField, find it by helper text or check it exists
+      expect(screen.getByText('Select users to assign to this group')).toBeInTheDocument();
     });
 
     it('should show loading state', () => {
@@ -146,14 +155,15 @@ describe('GroupUserAssignment', () => {
         { id: '2', email: 'user2@example.com', displayName: 'User Two', enabled: true },
       ]);
 
-      // Users should be selected
-      expect(screen.getByLabelText('Users')).toBeInTheDocument();
+      // Users should be selected - check for helper text to verify component rendered
+      expect(screen.getByText('Select users to assign to this group')).toBeInTheDocument();
     });
 
     it('should handle empty assignedUsers', () => {
       renderGroupUserAssignment([]);
 
-      expect(screen.getByLabelText('Users')).toBeInTheDocument();
+      // Component should render even with empty assignedUsers
+      expect(screen.getByText('Select users to assign to this group')).toBeInTheDocument();
     });
   });
 
@@ -189,8 +199,8 @@ describe('GroupUserAssignment', () => {
         { id: '2', email: 'user2@example.com', displayName: 'User Two', enabled: true },
       ]);
 
-      // Component should handle deselection
-      expect(screen.getByLabelText('Users')).toBeInTheDocument();
+      // Component should handle deselection - verify it renders
+      expect(screen.getByText('Select users to assign to this group')).toBeInTheDocument();
     });
   });
 
@@ -203,7 +213,8 @@ describe('GroupUserAssignment', () => {
         { id: '2', email: 'user2@example.com', displayName: 'User Two', enabled: true },
       ]);
 
-      expect(screen.getByLabelText('Users')).toBeInTheDocument();
+      // Verify component renders - deduplication is handled internally
+      expect(screen.getByText('Select users to assign to this group')).toBeInTheDocument();
     });
   });
 

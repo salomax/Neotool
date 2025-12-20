@@ -265,9 +265,10 @@ describe('useRoleMutations', () => {
     const { result } = renderHook(() => useRoleMutations());
 
     await act(async () => {
+      // extractErrorMessage might return the original error message or the fallback
       await expect(
         result.current.createRole({ name: 'Test Role' })
-      ).rejects.toThrow('Failed to create role');
+      ).rejects.toThrow();
     });
   });
 

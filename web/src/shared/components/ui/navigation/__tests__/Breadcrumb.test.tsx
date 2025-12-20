@@ -19,8 +19,55 @@ const renderBreadcrumb = (props?: React.ComponentProps<typeof Breadcrumb>) => {
 };
 
 describe("Breadcrumb", () => {
+  // Store original matchMedia before any tests run
+  const originalMatchMedia = typeof window !== 'undefined' ? window.matchMedia : undefined;
+  
   beforeEach(() => {
     mockPathname.mockReturnValue("/");
+    // Always set up matchMedia mock before each test to ensure it's available
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      configurable: true,
+      value: vi.fn((query: string) => ({
+        matches: false, // Default to desktop
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
+  });
+
+  afterEach(() => {
+    // Always restore matchMedia to ensure test isolation
+    vi.restoreAllMocks();
+    // Restore original matchMedia or ensure it's a function
+    if (originalMatchMedia) {
+      Object.defineProperty(window, "matchMedia", {
+        writable: true,
+        configurable: true,
+        value: originalMatchMedia,
+      });
+    } else {
+      // Ensure it's always a function, even if original didn't exist
+      Object.defineProperty(window, "matchMedia", {
+        writable: true,
+        configurable: true,
+        value: vi.fn((query: string) => ({
+          matches: false,
+          media: query,
+          onchange: null,
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          dispatchEvent: vi.fn(),
+        })),
+      });
+    }
   });
 
   describe("Manual items", () => {
@@ -133,7 +180,10 @@ describe("Breadcrumb", () => {
 
       const currentLink = screen.queryByRole("link", { name: "Current" });
       expect(currentLink).not.toBeInTheDocument();
-      expect(screen.getByText("Current")).toHaveAttribute("aria-current", "page");
+      // Find the element with aria-current attribute (the Box wrapper)
+      const currentElement = screen.getByText("Current").closest('[aria-current="page"]');
+      expect(currentElement).toBeInTheDocument();
+      expect(currentElement).toHaveAttribute("aria-current", "page");
     });
 
     it("makes last item clickable when currentPageClickable is true", () => {
@@ -177,28 +227,41 @@ describe("Breadcrumb", () => {
 
   describe("Responsive behavior", () => {
     it("collapses on mobile when responsive is true", () => {
-      // Mock mobile viewport
+      // Mock matchMedia to return true for mobile queries (MUI uses max-width:599.95px for sm breakpoint)
+      const originalMatchMedia = window.matchMedia;
+      const mockMatchMedia = vi.fn((query: string) => ({
+        matches: query.includes("max-width") && (query.includes("599.95") || query.includes("600") || query.includes("599")),
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }));
+      
       Object.defineProperty(window, "matchMedia", {
         writable: true,
-        value: vi.fn().mockImplementation((query) => ({
-          matches: query === "(max-width:600px)",
-          media: query,
-          onchange: null,
-          addListener: vi.fn(),
-          removeListener: vi.fn(),
-          addEventListener: vi.fn(),
-          removeEventListener: vi.fn(),
-          dispatchEvent: vi.fn(),
-        })),
+        configurable: true,
+        value: mockMatchMedia,
       });
 
-      mockPathname.mockReturnValue("/a/b/c/d");
+      try {
+        mockPathname.mockReturnValue("/a/b/c/d");
 
-      renderBreadcrumb({ autoGenerate: true, responsive: true });
+        renderBreadcrumb({ autoGenerate: true, responsive: true });
 
-      // On mobile, should show only last 2 items
-      const items = screen.getAllByRole("listitem");
-      expect(items.length).toBeLessThanOrEqual(2);
+        // On mobile, should show only last 2 items
+        const items = screen.getAllByRole("listitem");
+        expect(items.length).toBeLessThanOrEqual(2);
+      } finally {
+        // Always restore original
+        Object.defineProperty(window, "matchMedia", {
+          writable: true,
+          configurable: true,
+          value: originalMatchMedia,
+        });
+      }
     });
 
     it("shows all items when responsive is false", () => {
@@ -342,7 +405,10 @@ describe("Breadcrumb", () => {
 
       renderBreadcrumb({ items });
 
-      expect(screen.getByText("Current")).toHaveAttribute("aria-current", "page");
+      // Find the element with aria-current attribute (the Box wrapper)
+      const currentElement = screen.getByText("Current").closest('[aria-current="page"]');
+      expect(currentElement).toBeInTheDocument();
+      expect(currentElement).toHaveAttribute("aria-current", "page");
     });
   });
 
@@ -557,6 +623,22 @@ describe("Breadcrumb", () => {
     });
 
     it("handles items with all properties set", () => {
+      // Ensure matchMedia is set up for this specific test
+      Object.defineProperty(window, "matchMedia", {
+        writable: true,
+        configurable: true,
+        value: vi.fn((query: string) => ({
+          matches: false,
+          media: query,
+          onchange: null,
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          dispatchEvent: vi.fn(),
+        })),
+      });
+
       const items: BreadcrumbItem[] = [
         {
           label: "Home",
@@ -589,6 +671,22 @@ describe("Breadcrumb", () => {
 
   describe("Manual vs auto-generation priority", () => {
     it("uses manual items when both manual and autoGenerate are provided", () => {
+      // Ensure matchMedia is set up for this specific test
+      Object.defineProperty(window, "matchMedia", {
+        writable: true,
+        configurable: true,
+        value: vi.fn((query: string) => ({
+          matches: false,
+          media: query,
+          onchange: null,
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          dispatchEvent: vi.fn(),
+        })),
+      });
+
       mockPathname.mockReturnValue("/auto/path");
 
       const items: BreadcrumbItem[] = [
@@ -605,6 +703,22 @@ describe("Breadcrumb", () => {
     });
 
     it("uses auto-generation when manual items are not provided", () => {
+      // Ensure matchMedia is set up for this specific test
+      Object.defineProperty(window, "matchMedia", {
+        writable: true,
+        configurable: true,
+        value: vi.fn((query: string) => ({
+          matches: false,
+          media: query,
+          onchange: null,
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          dispatchEvent: vi.fn(),
+        })),
+      });
+
       mockPathname.mockReturnValue("/auto/path");
 
       renderBreadcrumb({ autoGenerate: true });
