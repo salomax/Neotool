@@ -86,6 +86,7 @@ export const UserStatusToggle: React.FC<UserStatusToggleProps> = ({
           {isToggling && (
             <CircularProgress
               size={16}
+              data-testid="circular-progress"
               sx={{
                 color: "text.secondary",
               }}

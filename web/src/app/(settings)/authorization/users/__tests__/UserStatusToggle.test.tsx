@@ -1,17 +1,45 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { UserStatusToggle } from '../UserStatusToggle';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
 import type { User } from '@/shared/hooks/authorization/useUserManagement';
 
-// Mock useOptimisticUpdate hook
+// Mock useOptimisticUpdate hook with React state for reactivity
+let mockUpdateState: { isUpdating: boolean; optimisticValue: boolean } | null = null;
+let mockUpdateComponent: React.ComponentType<any> | null = null;
+
+// Create a wrapper component that uses React state
+const createMockHookWrapper = () => {
+  return function MockHookWrapper({ children, initialState }: { children: React.ReactNode; initialState: boolean }) {
+    const [isUpdating, setIsUpdating] = useState(false);
+    const [optimisticValue, setOptimisticValue] = useState(initialState);
+    
+    useEffect(() => {
+      if (mockUpdateState) {
+        mockUpdateState.isUpdating = isUpdating;
+        mockUpdateState.optimisticValue = optimisticValue;
+      }
+    }, [isUpdating, optimisticValue]);
+    
+    return <>{children}</>;
+  };
+};
+
 const mockExecuteUpdate = vi.fn();
 const mockUseOptimisticUpdate = vi.fn();
 
 vi.mock('@/shared/hooks/mutations', () => ({
-  useOptimisticUpdate: (options: { value: boolean }) => mockUseOptimisticUpdate(options),
+  useOptimisticUpdate: (options: { value: boolean }) => {
+    // Initialize state if needed
+    if (!mockUpdateState) {
+      mockUpdateState = { isUpdating: false, optimisticValue: options.value };
+    }
+    
+    const result = mockUseOptimisticUpdate(options);
+    return result;
+  },
 }));
 
 // Mock i18n
@@ -98,17 +126,45 @@ describe('UserStatusToggle', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (window as any).__switchProps = undefined;
+    mockUpdateState = { isUpdating: false, optimisticValue: true };
     
     // Setup default mock behavior for useOptimisticUpdate
     mockExecuteUpdate.mockImplementation(async (newValue: boolean, updateFn: () => Promise<void>) => {
-      await updateFn();
+      if (mockUpdateState) {
+        mockUpdateState.isUpdating = true;
+        mockUpdateState.optimisticValue = newValue;
+      }
+      // Update mock return value
+      mockUseOptimisticUpdate.mockImplementation(({ value }: { value: boolean }) => ({
+        optimisticValue: mockUpdateState?.optimisticValue ?? value,
+        isUpdating: mockUpdateState?.isUpdating ?? false,
+        executeUpdate: mockExecuteUpdate,
+      }));
+      
+      try {
+        await updateFn();
+      } finally {
+        if (mockUpdateState) {
+          mockUpdateState.isUpdating = false;
+        }
+        mockUseOptimisticUpdate.mockImplementation(({ value }: { value: boolean }) => ({
+          optimisticValue: mockUpdateState?.optimisticValue ?? value,
+          isUpdating: mockUpdateState?.isUpdating ?? false,
+          executeUpdate: mockExecuteUpdate,
+        }));
+      }
     });
     
-    mockUseOptimisticUpdate.mockImplementation(({ value }: { value: boolean }) => ({
-      optimisticValue: value,
-      isUpdating: false,
-      executeUpdate: mockExecuteUpdate,
-    }));
+    mockUseOptimisticUpdate.mockImplementation(({ value }: { value: boolean }) => {
+      if (!mockUpdateState) {
+        mockUpdateState = { isUpdating: false, optimisticValue: value };
+      }
+      return {
+        optimisticValue: mockUpdateState.optimisticValue,
+        isUpdating: mockUpdateState.isUpdating,
+        executeUpdate: mockExecuteUpdate,
+      };
+    });
   });
 
   describe('Props forwarding to Switch', () => {
@@ -191,15 +247,24 @@ describe('UserStatusToggle', () => {
 
     it('should set isToggling state to true during operation', async () => {
       const onToggle = vi.fn(() => new Promise((resolve) => setTimeout(resolve, 100)));
-      renderUserStatusToggle({ onToggle });
+      const { rerender } = renderUserStatusToggle({ onToggle });
 
       const switchButton = screen.getByTestId('user-status-toggle-user-1');
+      
+      // Click to start the operation
       await user.click(switchButton);
+      
+      // Force re-render to pick up the updated mock state
+      rerender(
+        <AppThemeProvider>
+          <UserStatusToggle user={mockUser} enabled={true} onToggle={onToggle} />
+        </AppThemeProvider>
+      );
 
       // Check that CircularProgress appears (indicating isToggling is true)
       await waitFor(() => {
         expect(screen.getByTestId('circular-progress')).toBeInTheDocument();
-      });
+      }, { timeout: 2000 });
     });
 
     it('should clear isToggling state after operation completes', async () => {

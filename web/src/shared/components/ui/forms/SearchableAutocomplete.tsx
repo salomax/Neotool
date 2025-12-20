@@ -436,6 +436,7 @@ export function SearchableAutocomplete<
           <>
             <TextField
               {...textFieldParams}
+              {...(label && { label })}
               placeholder={placeholder}
               {...(errorProp && { error: true })}
               {...(helperTextValue && { helperText: helperTextValue })}

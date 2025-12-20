@@ -76,9 +76,19 @@ describe('useRoleMutations', () => {
       { loading: false },
     ]);
 
-    (useMutationWithRefetch as any).mockReturnValue({
-      executeMutation: mockExecuteMutation,
-      isMutationInFlight: vi.fn(() => false),
+    (useMutationWithRefetch as any).mockImplementation((options: any) => {
+      const executeMutation = async (...args: any[]) => {
+        const result = await mockExecuteMutation(...args);
+        // Call onRefetch if provided and result has data (matching real implementation)
+        if (result?.data && options?.onRefetch) {
+          options.onRefetch();
+        }
+        return result;
+      };
+      return {
+        executeMutation,
+        isMutationInFlight: vi.fn(() => false),
+      };
     });
   });
 

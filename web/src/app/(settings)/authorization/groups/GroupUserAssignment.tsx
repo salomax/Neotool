@@ -7,6 +7,7 @@ import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
 import { useAuth } from "@/shared/providers/AuthProvider";
 import { SearchableAutocomplete } from "@/shared/components/ui/forms/SearchableAutocomplete";
+import { useFormContext } from "react-hook-form";
 
 export type User = {
   id: string;
@@ -18,6 +19,10 @@ export type User = {
 export interface GroupUserAssignmentProps {
   assignedUsers: User[];
   onChange?: (users: User[]) => void;
+  /**
+   * Optional field name for react-hook-form integration
+   */
+  name?: string;
 }
 
 type UserOption = {
@@ -34,9 +39,24 @@ type UserOption = {
 export const GroupUserAssignment: React.FC<GroupUserAssignmentProps> = ({
   assignedUsers,
   onChange,
+  name = "userIds",
 }) => {
   const { t } = useTranslation(authorizationManagementTranslations);
   const { isAuthenticated } = useAuth();
+  
+  // Optional react-hook-form integration
+  let formContext: ReturnType<typeof useFormContext> | null = null;
+  try {
+    formContext = useFormContext();
+  } catch {
+    // Not in a form context, that's okay
+  }
+  
+  const fieldState = formContext?.formState.errors[name];
+  const fieldError = !!fieldState;
+  const fieldHelperText = fieldState?.message as string | undefined;
+  
+  // Use fieldError and fieldHelperText in SearchableAutocomplete
 
   // Map assigned users to option format
   const selectedUsers = useMemo(() => {
@@ -85,12 +105,15 @@ export const GroupUserAssignment: React.FC<GroupUserAssignmentProps> = ({
       getOptionId={(option) => option.id}
       getOptionLabel={(option) => option.label}
       isOptionEqualToValue={(option, value) => option.id === value.id}
-        multiple
-        placeholder={t("groupManagement.form.usersHelper")}
-        skip={!isAuthenticated}
-        errorMessage={t("groupManagement.form.errors.loadUsersFailed")}
-        variant="outlined"
-        loadMode="eager"
+      multiple
+      label={t("groupManagement.form.users")}
+      placeholder={t("groupManagement.form.usersHelper")}
+      helperText={fieldHelperText || t("groupManagement.form.usersHelper")}
+      fieldError={fieldError}
+      skip={!isAuthenticated}
+      errorMessage={t("groupManagement.form.errors.loadUsersFailed")}
+      variant="outlined"
+      loadMode="eager"
       renderOption={(props, option) => {
         const { key, ...otherProps } = props;
         return (
