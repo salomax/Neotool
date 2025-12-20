@@ -58,7 +58,10 @@ const buildRoleManagementHookReturn = (overrides: Record<string, any> = {}) => (
 const mockUseRoleManagement = vi.fn();
 
 vi.mock('@/shared/hooks/authorization/useRoleManagement', () => ({
-  useRoleManagement: () => mockUseRoleManagement(),
+  useRoleManagement: (args?: any) => {
+    mockUseRoleManagement(args);
+    return mockUseRoleManagement();
+  },
 }));
 
 // Mock ManagementLayout

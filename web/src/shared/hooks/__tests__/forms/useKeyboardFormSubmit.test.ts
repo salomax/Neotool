@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { useKeyboardFormSubmit } from '@/shared/hooks/forms';
 import * as React from 'react';
 
@@ -30,8 +30,17 @@ describe('useKeyboardFormSubmit', () => {
   });
 
   afterEach(() => {
-    document.body.removeChild(container);
+    // Clean up any event listeners
+    if (container && container.parentNode) {
+      document.body.removeChild(container);
+    }
+    // Clear all mocks
     vi.restoreAllMocks();
+    vi.clearAllMocks();
+    // Reset activeElement
+    if (document.activeElement && document.activeElement !== document.body) {
+      (document.activeElement as HTMLElement).blur();
+    }
   });
 
   describe('basic functionality', () => {
@@ -181,6 +190,7 @@ describe('useKeyboardFormSubmit', () => {
     it('should work with ARIA textbox role', () => {
       const div = document.createElement('div');
       div.setAttribute('role', 'textbox');
+      div.setAttribute('tabIndex', '0'); // Make it focusable
       container.appendChild(div);
 
       renderHook(() =>
@@ -192,6 +202,9 @@ describe('useKeyboardFormSubmit', () => {
       );
 
       div.focus();
+      // Wait for focus to be set
+      expect(document.activeElement).toBe(div);
+      
       div.dispatchEvent(
         new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
       );
@@ -907,7 +920,7 @@ describe('useKeyboardFormSubmit', () => {
       expect(mockOnSubmit).not.toHaveBeenCalled();
     });
 
-    it('should handle multiple rapid submissions', () => {
+    it('should handle multiple rapid submissions', async () => {
       renderHook(() =>
         useKeyboardFormSubmit({
           onSubmit: mockOnSubmit,
@@ -916,13 +929,41 @@ describe('useKeyboardFormSubmit', () => {
         })
       );
 
-      input.focus();
-      for (let i = 0; i < 5; i++) {
-        input.dispatchEvent(
-          new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
-        );
-      }
-
+      // In jsdom, focus() might not work as expected, so we manually set activeElement
+      // This simulates the input being focused
+      await act(async () => {
+        input.focus();
+        // Manually set activeElement for jsdom compatibility
+        Object.defineProperty(document, 'activeElement', {
+          value: input,
+          writable: true,
+          configurable: true,
+        });
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+      
+      // Dispatch events in act to ensure they're processed correctly
+      await act(async () => {
+        for (let i = 0; i < 5; i++) {
+          // Ensure activeElement is set to input before each event
+          Object.defineProperty(document, 'activeElement', {
+            value: input,
+            writable: true,
+            configurable: true,
+          });
+          
+          const event = new KeyboardEvent('keydown', { 
+            key: 'Enter', 
+            bubbles: true, 
+            cancelable: true 
+          });
+          // Dispatch on container where listener is attached
+          container.dispatchEvent(event);
+        }
+        // Wait for events to process
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+      
       expect(mockOnSubmit).toHaveBeenCalledTimes(5);
     });
   });

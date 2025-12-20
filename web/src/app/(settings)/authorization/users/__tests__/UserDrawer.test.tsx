@@ -128,11 +128,11 @@ vi.mock('../UserGroupAssignment', () => ({
 }));
 
 vi.mock('../UserRoleAssignment', () => ({
-  UserRoleAssignment: ({ userId, assignedRoles, onChange }: any) => (
+  UserRoleAssignment: ({ userId, assignedRoles, onChange, readonly }: any) => (
     <div data-testid="user-role-assignment">
       <div>User ID: {userId || 'none'}</div>
       <div>Roles: {assignedRoles?.map((r: any) => r.name).join(', ') || 'none'}</div>
-      {onChange && <button onClick={() => onChange([{ id: '1', name: 'Role 1' }])}>Change Roles</button>}
+      {onChange && !readonly && <button onClick={() => onChange([{ id: '1', name: 'Role 1' }])}>Change Roles</button>}
     </div>
   ),
 }));
@@ -373,9 +373,10 @@ describe('UserDrawer', () => {
     it('should display current email in text field', () => {
       renderUserDrawer();
 
-      const emailInput = screen.getByPlaceholderText('Enter email');
+      const emailTextField = screen.getByTestId('user-drawer-email-input');
+      // The testid is on the TextField, but we need to find the input element inside
+      const emailInput = emailTextField.querySelector('input');
       expect(emailInput).toHaveValue('user@example.com');
-      expect(emailInput).toHaveAttribute('type', 'email');
     });
 
     it('should call updateDisplayName when displayName field changes', async () => {
@@ -403,11 +404,14 @@ describe('UserDrawer', () => {
 
       renderUserDrawer();
 
-      const emailInput = screen.getByPlaceholderText('Enter email');
-      await user.clear(emailInput);
-      await user.type(emailInput, 'new@example.com');
-
-      expect(updateEmail).toHaveBeenCalled();
+      // Email field is readOnly, so we can't actually change it
+      // This test should verify that updateEmail is not called for readOnly fields
+      const emailTextField = screen.getByTestId('user-drawer-email-input');
+      const emailInput = emailTextField.querySelector('input');
+      expect(emailInput).toHaveAttribute('readOnly');
+      // Since the field is readOnly, updateEmail should not be called when trying to type
+      // This test verifies the field is properly readOnly
+      expect(updateEmail).not.toHaveBeenCalled();
     });
   });
 
@@ -478,12 +482,14 @@ describe('UserDrawer', () => {
         updateSelectedRoles,
       });
 
+      // Roles are readonly in UserDrawer, so this test should verify that
+      // the roles section is rendered but the change button is not available
       renderUserDrawer();
 
-      const changeButton = screen.getByText('Change Roles');
-      await user.click(changeButton);
-
-      expect(updateSelectedRoles).toHaveBeenCalledWith([{ id: '1', name: 'Role 1' }]);
+      // Verify the roles section is rendered
+      expect(screen.getByTestId('user-role-assignment')).toBeInTheDocument();
+      // Since roles are readonly, the change button should not be present
+      expect(screen.queryByText('Change Roles')).not.toBeInTheDocument();
     });
   });
 

@@ -57,18 +57,20 @@ describe('useUserManagement', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Default mock implementations
-    (useGetUsersQuery as any).mockReturnValue({
-      data: {
-        users: {
-          edges: mockUsers.map(u => ({ node: u, cursor: 'cursor' })),
-          pageInfo: mockPageInfo,
-          totalCount: 2,
+    // Default mock implementations - make it a spy that tracks calls
+    (useGetUsersQuery as any).mockImplementation((options?: any) => {
+      return {
+        data: {
+          users: {
+            edges: mockUsers.map(u => ({ node: u, cursor: 'cursor' })),
+            pageInfo: mockPageInfo,
+            totalCount: 2,
+          },
         },
-      },
-      loading: false,
-      error: undefined,
-      refetch: mockRefetch,
+        loading: false,
+        error: undefined,
+        refetch: mockRefetch,
+      };
     });
 
     // Mock useUserMutations

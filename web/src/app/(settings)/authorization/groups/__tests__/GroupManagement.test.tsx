@@ -57,7 +57,10 @@ const buildGroupManagementHookReturn = (overrides: Record<string, any> = {}) => 
 const mockUseGroupManagement = vi.fn();
 
 vi.mock('@/shared/hooks/authorization/useGroupManagement', () => ({
-  useGroupManagement: () => mockUseGroupManagement(),
+  useGroupManagement: (args?: any) => {
+    mockUseGroupManagement(args);
+    return mockUseGroupManagement();
+  },
 }));
 
 // Mock translations
