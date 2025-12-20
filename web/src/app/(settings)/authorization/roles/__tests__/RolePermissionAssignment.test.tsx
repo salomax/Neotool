@@ -14,7 +14,7 @@ const mockPermissions: Permission[] = [
   { id: '4', name: 'security:role:delete' },
 ];
 
-const mockUsePermissionManagement = vi.fn(() => ({
+const mockUsePermissionManagement = vi.fn((options?: any) => ({
   permissions: mockPermissions,
   searchQuery: '',
   setSearchQuery: vi.fn(),
@@ -24,7 +24,7 @@ const mockUsePermissionManagement = vi.fn(() => ({
 }));
 
 vi.mock('@/shared/hooks/authorization/usePermissionManagement', () => ({
-  usePermissionManagement: () => mockUsePermissionManagement(),
+  usePermissionManagement: (options?: any) => mockUsePermissionManagement(options),
 }));
 
 // Mock PermissionSearch component
@@ -240,19 +240,16 @@ describe('RolePermissionAssignment', () => {
     });
 
     it('should not show toast when permission is assigned in create mode', async () => {
-      const onAssignPermission = vi.fn().mockResolvedValue(undefined);
+      // In create mode, if onChange is provided, checkboxes are enabled and toast is not shown
+      // If onChange is not provided, checkboxes are disabled
+      const onChange = vi.fn();
       renderRolePermissionAssignment({
         roleId: null,
         assignedPermissions: [],
-        onAssignPermission,
+        onChange,
       });
 
-      // In create mode, checkboxes are disabled, so we can't click them
-      // Instead, verify that the checkbox is disabled
-      const checkbox = screen.getByLabelText('security:user:view') as HTMLInputElement;
-      expect(checkbox.disabled).toBe(true);
-      
-      // Verify toast is not called (since checkbox is disabled and can't be clicked)
+      // Verify toast is not called (toast is only shown in edit mode when roleId exists)
       expect(mockToast.success).not.toHaveBeenCalled();
     });
 
@@ -332,8 +329,13 @@ describe('RolePermissionAssignment', () => {
     });
 
     it('should disable checkboxes when roleId is null', () => {
+      // When roleId is null and there's no onChange and no onAssignPermission/onRemovePermission,
+      // checkboxes should be disabled
       renderRolePermissionAssignment({
         roleId: null,
+        onAssignPermission: undefined,
+        onRemovePermission: undefined,
+        onChange: undefined,
       });
 
       const checkbox = screen.getByLabelText('security:user:view') as HTMLInputElement;

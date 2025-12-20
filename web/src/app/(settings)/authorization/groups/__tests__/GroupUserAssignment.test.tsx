@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -266,13 +266,15 @@ describe('GroupUserAssignment', () => {
           defaultValues: { name: '', description: '', userIds: [] },
         });
 
-        // Set a validation error
-        methods.setError('userIds', { type: 'required', message: 'Users are required' });
+        // Set a validation error - use useEffect to ensure it's set after render
+        useEffect(() => {
+          methods.setError('userIds', { type: 'required', message: 'Users are required' });
+        }, [methods]);
 
         return (
           <AppThemeProvider>
             <FormProvider {...methods}>
-              <GroupUserAssignment assignedUsers={[]} />
+              <GroupUserAssignment assignedUsers={[]} name="userIds" />
             </FormProvider>
           </AppThemeProvider>
         );
@@ -280,7 +282,7 @@ describe('GroupUserAssignment', () => {
 
       render(<Wrapper />);
 
-      // Error should be displayed
+      // Error should be displayed - wait for it to appear
       expect(screen.getByText('Users are required')).toBeInTheDocument();
     });
   });

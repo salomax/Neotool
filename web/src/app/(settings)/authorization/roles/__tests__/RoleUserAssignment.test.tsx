@@ -115,7 +115,8 @@ describe('RoleUserAssignment', () => {
       renderRoleUserAssignment();
 
       // The component renders a Typography heading with "Assigned Users"
-      expect(screen.getByText('Assigned Users')).toBeInTheDocument();
+      // Now also renders as label in SearchableAutocomplete, so use getAllByText
+      expect(screen.getAllByText('Assigned Users').length).toBeGreaterThan(0);
     });
 
     it('should render autocomplete for user selection', () => {

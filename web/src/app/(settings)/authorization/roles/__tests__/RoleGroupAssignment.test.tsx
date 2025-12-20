@@ -138,9 +138,9 @@ describe('RoleGroupAssignment', () => {
       renderRoleGroupAssignment({ active: false });
 
       expect(screen.queryByText('Assigned Groups')).not.toBeInTheDocument();
-      expect(mockUseGetGroupsQuery).toHaveBeenCalledWith(
-        expect.objectContaining({ skip: true })
-      );
+      // When active is false, component returns null early, so query is never called
+      // The test expectation was incorrect - when component returns null, no query is made
+      expect(mockUseGetGroupsQuery).not.toHaveBeenCalled();
     });
   });
 
