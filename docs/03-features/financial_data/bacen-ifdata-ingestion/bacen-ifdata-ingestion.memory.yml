@@ -245,3 +245,139 @@ implementation_notes:
     concurrency:
       - "Set Prefect concurrency limits (tags or concurrency key)"
       - "Prevent overlapping runs per environment"
+
+worklog:
+  - date: "2024-12-19"
+    phase: "domain"
+    summary: "Set up pyway migration structure for BACEN IFData ingestion"
+    tasks_completed:
+      - "domain-001"
+    files_created:
+      - "workflow/financial_data/migrations/.gitkeep"
+    files_modified:
+      - "workflow/financial_data/pyway.conf (already existed, verified configuration)"
+    key_decisions:
+      - "Verified pyway.conf configuration follows schema standards"
+      - "Migration naming convention documented: V{version}__{description}.sql"
+      - "Migration directory structure established at workflow/financial_data/migrations/"
+      - "Pyway tracking table configured as public.pyway_schema_history_financial_data following naming convention pattern"
+    issues_resolved:
+      - "Created .gitkeep file to ensure migrations directory is tracked in git"
+    next_steps:
+      - "Proceed with domain-002: Create financial_data schema migration"
+  - date: "2024-12-19"
+    phase: "domain"
+    summary: "Created financial_data schema migration and documented pyway usage"
+    tasks_completed:
+      - "domain-002"
+    files_created:
+      - "workflow/financial_data/migrations/V1_1__create_financial_data_schema.sql"
+    files_modified:
+      - "workflow/financial_data/bacen_ifdata/README.md (added pyway migration instructions)"
+      - "docs/05-standards/workflow-standards/batch-workflow-standard.md (added database migrations section)"
+    key_decisions:
+      - "Used IF NOT EXISTS for idempotency following schema standards"
+      - "Set search_path to financial_data, public for proper schema resolution"
+      - "Migration follows naming convention: V1_1__create_financial_data_schema.sql"
+      - "Pyway must be run from workflow/financial_data/ directory with -c pyway.conf flag"
+      - "Schema bootstrap required: schema must exist before pyway can create tracking table"
+    issues_resolved:
+      - "Resolved pyway config file not found error by using -c flag and running from correct directory"
+      - "Resolved schema bootstrap chicken-and-egg: schema must be created manually first time, then migrations work normally"
+      - "Documented proper pyway usage in README and batch workflow standard"
+    next_steps:
+      - "Proceed with domain-003: Create institution table migration"
+  - date: "2024-12-20"
+    phase: "domain"
+    summary: "Created institution table migration with change detection support"
+    tasks_completed:
+      - "domain-003"
+    files_created:
+      - "workflow/financial_data/migrations/V1_2__create_institution_table.sql"
+    key_decisions:
+      - "Used TEXT for bacen_cod_inst primary key to preserve leading zeros in institution codes"
+      - "Implemented CHAR(64) for source_hash to support SHA-256 hex hash for change detection"
+      - "Added indexes on ano_mes_ref, situacao, and source_hash for common query patterns"
+      - "Used TIMESTAMPTZ for audit timestamps (created_at, updated_at) with DEFAULT now()"
+      - "Natural key design: bacen_cod_inst as PRIMARY KEY (not UUID v7) following BACEN data model"
+      - "All nullable fields properly marked for optional institution attributes"
+    issues_resolved:
+      - "No issues encountered - migration follows all schema standards and domain model patterns"
+    next_steps:
+      - "Proceed with domain-004: Create ifdata_extract_task table migration"
+  - date: "2024-12-21"
+    phase: "domain"
+    summary: "Created ifdata_extract_task table migration for extraction task control and audit"
+    tasks_completed:
+      - "domain-004"
+    files_created:
+      - "workflow/financial_data/migrations/V1_3__create_ifdata_extract_task_table.sql"
+    key_decisions:
+      - "Used composite primary key on natural key (ano_mes, tipo_instituicao, nome_relatorio, numero_relatorio, page_skip) for request-level idempotency"
+      - "Implemented CHECK constraint for status enum values: PENDING, RUNNING, SUCCESS, EMPTY, ERROR"
+      - "EMPTY status is terminal state (end of pagination), not an error, as per specification"
+      - "Added default values: page_top=1000, attempt_count=0, status='PENDING' for new tasks"
+      - "Created indexes on status (for worker queue queries), (ano_mes, nome_relatorio) for load control, and created_at for audit"
+      - "Nullable timestamps (started_at, finished_at) only set when task executes"
+      - "Used TIMESTAMPTZ for all timestamp columns with DEFAULT now() for created_at and updated_at"
+    issues_resolved:
+      - "No issues encountered - migration follows all schema standards and domain model patterns"
+    next_steps:
+      - "Proceed with domain-005: Create ifdata_load_control table migration"
+  - date: "2024-12-22"
+    phase: "domain"
+    summary: "Created ifdata_load_control table migration for coarse-grained load tracking"
+    tasks_completed:
+      - "domain-005"
+    files_created:
+      - "workflow/financial_data/migrations/V1_4__create_ifdata_load_control_table.sql"
+    key_decisions:
+      - "Used composite primary key on natural key (ano_mes, nome_relatorio) for coarse-grained tracking"
+      - "Implemented boolean flags (extracted, promoted, completed) with corresponding timestamps (extracted_at, promoted_at, completed_at) for status tracking and audit trail"
+      - "Boolean flags default to FALSE, timestamps are nullable and set when each stage completes"
+      - "Created indexes on ano_mes (for quarter queries), extracted/promoted/completed flags (for status queries), and created_at (for audit queries)"
+      - "Table enables safe reprocessing of entire quarter+report and decouples extract completion from promotion completion"
+      - "Used TIMESTAMPTZ for all timestamp columns with DEFAULT now() for created_at and updated_at"
+    issues_resolved:
+      - "No issues encountered - migration follows all schema standards and domain model patterns"
+    next_steps:
+      - "Proceed with domain-006: Create ifdata_raw table migration"
+  - date: "2024-12-23"
+    phase: "domain"
+    summary: "Created ifdata_raw table migration for raw CSV row staging"
+    tasks_completed:
+      - "domain-006"
+    files_created:
+      - "workflow/financial_data/migrations/V1_5__create_ifdata_raw_table.sql"
+    key_decisions:
+      - "Used UUID v7 primary key (uuidv7()) for uniqueness since no natural unique key exists for raw CSV rows"
+      - "PostgreSQL 18+ has uuidv7() built-in, no extension needed (updated spec documents to reflect this)"
+      - "Implemented TEXT for raw_data column to store entire CSV row as-is, preserving original values"
+      - "Created composite index on scope dimensions (ano_mes, nome_relatorio, numero_relatorio, tipo_instituicao) for promotion queries and purge operations"
+      - "Created partial index on cod_inst (WHERE cod_inst IS NOT NULL) for efficient institution filtering during promotion"
+      - "Added index on created_at for audit queries and ordering"
+      - "All dimension columns (ano_mes, tipo_instituicao, nome_relatorio, numero_relatorio) are NOT NULL for proper scoping"
+      - "cod_inst is nullable as some CSV rows may not have institution code"
+    issues_resolved:
+      - "Initially attempted to use pg_uuidv7 extension, but PostgreSQL 18+ has uuidv7() built-in"
+      - "Updated specification documents (uuid-v7-pattern.md, schema-standards.md, domain-model-pattern.md, code-review-checklist.md) to clarify PostgreSQL 18+ built-in uuidv7() support"
+    next_steps:
+      - "Proceed with domain-007: Create bank_report table migration"
+  - date: "2024-12-23"
+    phase: "domain"
+    summary: "Created bank_report table migration for hot table with tipo_instituicao in primary key"
+    tasks_completed:
+      - "domain-007"
+    files_created:
+      - "workflow/financial_data/migrations/V1_6__create_bank_report_table.sql"
+    key_decisions:
+      - "Added tipo_instituicao to composite primary key: (cod_inst, ano_mes, nome_relatorio, numero_relatorio, tipo_instituicao) to preserve different consolidation perspectives (1-4)"
+      - "Includes tipo_instituicao INTEGER NOT NULL column to match the extraction scope pattern from ifdata_raw table"
+      - "Implemented JSONB report_data column for flexible schema and efficient querying of aggregated/normalized report data"
+      - "Created composite index on scope dimensions (ano_mes, nome_relatorio, numero_relatorio, tipo_instituicao) matching ifdata_raw pattern for promotion queries"
+      - "Created indexes on cod_inst, ano_mes, and created_at for common query patterns"
+      - "UPSERT operations are idempotent (can be re-run safely)"
+    issues_resolved:
+      - "Initially designed without tipo_instituicao, but updated to include it in primary key to preserve all consolidation perspectives and prevent data loss during promotion"
+    next_steps:
+      - "Proceed with domain-008: Test migrations"

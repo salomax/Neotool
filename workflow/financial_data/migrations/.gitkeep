@@ -1,0 +1,4 @@
+# This file ensures the migrations directory is tracked in git
+# Migration files will be added here following the naming convention:
+# V{version}__{description}.sql
+# Example: V1_1__create_financial_data_schema.sql

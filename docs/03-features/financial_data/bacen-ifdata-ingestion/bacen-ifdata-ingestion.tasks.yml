@@ -28,7 +28,7 @@ phases:
           - workflow/financial_data/pyway.conf (or pyway.yaml)
         spec_references:
           - docs/05-standards/database-standards/schema-standards.md
-        status: pending
+        status: completed
         
       - id: domain-002
         name: Create financial_data schema migration
@@ -41,7 +41,7 @@ phases:
           - workflow/financial_data/migrations/V1_1__create_financial_data_schema.sql
         spec_references:
           - docs/04-patterns/backend-patterns/domain-model-pattern.md
-        status: pending
+        status: completed
         
       - id: domain-003
         name: Create institution table migration
@@ -57,7 +57,7 @@ phases:
         spec_references:
           - docs/04-patterns/backend-patterns/domain-model-pattern.md
           - docs/05-standards/database-standards/schema-standards.md
-        status: pending
+        status: completed
         
       - id: domain-004
         name: Create ifdata_extract_task table migration
@@ -73,7 +73,7 @@ phases:
           - workflow/financial_data/migrations/V1_3__create_ifdata_extract_task_table.sql
         spec_references:
           - docs/04-patterns/backend-patterns/domain-model-pattern.md
-        status: pending
+        status: completed
         
       - id: domain-005
         name: Create ifdata_load_control table migration
@@ -88,7 +88,7 @@ phases:
           - workflow/financial_data/migrations/V1_4__create_ifdata_load_control_table.sql
         spec_references:
           - docs/04-patterns/backend-patterns/domain-model-pattern.md
-        status: pending
+        status: completed
         
       - id: domain-006
         name: Create ifdata_raw table migration
@@ -102,14 +102,15 @@ phases:
           - workflow/financial_data/migrations/V1_5__create_ifdata_raw_table.sql
         spec_references:
           - docs/04-patterns/backend-patterns/domain-model-pattern.md
-        status: pending
+        status: completed
         
       - id: domain-007
         name: Create bank_report table migration
         description: |
           Create migration for financial_data.bank_report hot table:
           - V1_6__create_bank_report_table.sql
-          - Natural key: (cod_inst, ano_mes, nome_relatorio, numero_relatorio)
+          - Natural key: (cod_inst, ano_mes, nome_relatorio, numero_relatorio, tipo_instituicao)
+          - Includes tipo_instituicao to preserve different consolidation perspectives (1-4)
           - report_data JSONB column for aggregated data
           - Timestamps: created_at, updated_at
           - Create unique constraint on natural key
@@ -118,7 +119,7 @@ phases:
           - workflow/financial_data/migrations/V1_6__create_bank_report_table.sql
         spec_references:
           - docs/04-patterns/backend-patterns/domain-model-pattern.md
-        status: pending
+        status: completed
         
       - id: domain-008
         name: Test migrations
@@ -130,10 +131,10 @@ phases:
           - Test idempotency (run migrations twice)
           - Verify constraints and indexes
         files:
-          - workflow/financial_data/tests/test_migrations.py (optional)
+          - workflow/financial_data/bacen_ifdata/tests/test_migrations.py
         spec_references:
           - docs/05-standards/database-standards/schema-standards.md
-        status: pending
+        status: completed
 
   workflow:
     name: Workflow Phase (Prefect Flow)
@@ -175,7 +176,7 @@ phases:
           - workflow/financial_data/bacen_ifdata/README.md
         spec_references:
           - docs/07-examples/batch-workflows/swapi-etl-workflow.md
-        status: pending
+        status: completed
         
       - id: workflow-001
         name: Set up Prefect project structure
@@ -194,21 +195,24 @@ phases:
           - workflow/financial_data/bacen_ifdata/prefect.yaml
         spec_references:
           - docs/07-examples/batch-workflows/swapi-etl-workflow.md
-        status: pending
+        status: completed
         
       - id: workflow-002
         name: Implement target quarter determination task
         description: |
           Create Prefect task to determine target quarter:
-          - Read last extracted quarter from ifdata_load_control
+          - Read last processed quarter from ifdata_load_control
+          - Prioritize by completion status: completed > promoted > extracted
+          - This ensures incomplete quarters are not skipped
           - Compute next quarter candidate
           - Check publication window logic
           - Return target_ano_mes or None if should wait
+          - Create test for the task
         files:
           - workflow/financial_data/bacen_ifdata/tasks/quarter_determination.py
         spec_references:
           - docs/05-standards/workflow-standards/batch-workflow-standard.md
-        status: pending
+        status: completed
         
       - id: workflow-003
         name: Implement registry ingestion task
@@ -220,6 +224,7 @@ phases:
           - Upsert into financial_data.institution
           - Detect NEW/CHANGED/UNCHANGED
           - Return list of institutions that need Kafka events
+          - Create test for the task
         files:
           - workflow/financial_data/bacen_ifdata/tasks/registry_ingestion.py
         spec_references:
@@ -379,12 +384,15 @@ phases:
           - Test publication window logic
           - Test next quarter computation
           - Test historical start fallback
+          - Test prioritization: completed > promoted > extracted
+          - Test that incomplete quarters are not skipped
           - Mock database queries
+          - Integration tests with real database
         files:
           - workflow/financial_data/bacen_ifdata/tests/test_quarter_determination.py
         spec_references:
           - docs/05-standards/testing-standards/unit-test-standards.md
-        status: pending
+        status: completed
         
       - id: testing-002
         name: Write unit tests for registry ingestion

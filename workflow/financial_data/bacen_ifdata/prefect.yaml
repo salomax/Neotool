@@ -1,0 +1,20 @@
+name: bacen-ifdata-ingestion
+prefect-version: 3.6.5
+
+deployments:
+  - name: bacen-ifdata-ingestion-deployment
+    entrypoint: flows/bacen_ifdata_ingestion.py:bacen_ifdata_ingestion_flow
+    description: Daily ETL job to ingest BACEN IFData regulatory financial data
+    work_pool:
+      name: default
+      work_queue_name: bacen-ifdata
+    schedule:
+      cron: "0 2 * * *"
+      timezone: UTC
+    tags:
+      - etl
+      - bacen
+      - ifdata
+      - financial-data
+      - daily
+    parameters: {}

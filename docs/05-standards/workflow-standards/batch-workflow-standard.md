@@ -53,6 +53,35 @@ This standard applies to every job that runs under `workflow/` or `pipelines/` a
 ### 2.3 Concurrency Controls
 - **Rule**: Set Prefect concurrency limits (tags or concurrency key) to prevent overlapping runs per environment.
 
+### 2.4 Database Migrations (Python Workflows)
+- **Rule**: Python-based workflows using pyway for database migrations MUST follow these requirements:
+  - **Migration Tool**: Use `pyway` (Python migration tool) for database schema management
+  - **Config File**: Place `pyway.conf` or `pyway.yaml` in the workflow root directory (e.g., `workflow/{domain}/`)
+  - **Migration Directory**: Store migrations in `workflow/{domain}/migrations/` directory
+  - **Naming Convention**: Follow format `V{version}__{description}.sql` (e.g., `V1_1__create_schema.sql`)
+  - **Running Migrations**: 
+    - Always run pyway from the directory containing `pyway.conf` (workflow root)
+    - Use `-c pyway.conf` flag to explicitly specify config file: `pyway -c pyway.conf migrate`
+    - Check status with: `pyway -c pyway.conf info`
+  - **History Table Naming**: Pyway history tables MUST follow the pattern `pyway_schema_history_{domain}` (e.g., `pyway_schema_history_financial_data`). This distinguishes them from Flyway history tables which use `flyway_schema_history_{service}` (e.g., `flyway_schema_history_app`). The table should be in the `public` schema: `public.pyway_schema_history_{domain}`
+  - **Schema Bootstrap**: If pyway's tracking table is configured in a custom schema (e.g., `financial_data.pyway`), the schema MUST exist before running migrations. For first-time setup:
+    - Create the schema manually first (one-time bootstrap)
+    - Then run migrations normally
+    - Migrations themselves use `IF NOT EXISTS` for idempotency
+    - **Note**: Using `public.pyway_schema_history_{domain}` for the tracking table eliminates the need for schema bootstrap, as the `public` schema always exists in PostgreSQL
+  - **Idempotency**: All migrations MUST use `IF NOT EXISTS` / `IF EXISTS` clauses to be safely re-runnable
+  - **Schema Organization**: Follow [Database Schema Standards](../database-standards/schema-standards.md) - all tables must be in named schemas, never in `public`
+  - **Example Structure**:
+    ```
+    workflow/{domain}/
+    ├── pyway.conf              # Pyway configuration
+    ├── migrations/              # Migration files
+    │   ├── V1_1__create_schema.sql
+    │   └── V1_2__create_table.sql
+    └── {workflow_name}/         # Python workflow code
+    ```
+- **Rationale**: Ensures consistent database setup across environments and prevents migration execution errors.
+
 ## 3. Task Design
 
 ### 3.1 Observability
