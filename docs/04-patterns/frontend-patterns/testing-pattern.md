@@ -347,6 +347,53 @@ const renderForm = (initialValues?: Partial<FormData>) => {
 };
 ```
 
+## Memory Configuration
+
+### Heap Size Configuration
+
+**Issue**: Large test suites may encounter "JavaScript heap out of memory" errors when running tests.
+
+**Solution**: Test scripts in `package.json` are configured with `NODE_OPTIONS=--max-old-space-size=4096` to allocate 4GB of heap memory for test execution.
+
+**Configuration**:
+- All test commands (`test`, `test:watch`, `test:coverage`, etc.) include the memory limit
+- This matches the memory configuration used in the Dockerfile for builds
+- The Vitest thread pool is automatically configured based on available CPU cores to balance performance and memory usage
+
+**If you still encounter memory issues**:
+1. Reduce the number of test threads in `vitest.config.mts` (`maxThreads` option)
+2. Increase the heap size further: `NODE_OPTIONS=--max-old-space-size=6144` (6GB)
+3. Run tests in smaller batches or specific test files
+4. Disable coverage collection if not needed: `pnpm vitest run` (without `--coverage`)
+
+## Running Tests During Development
+
+### Running Specific Test Files
+
+When developing or debugging, you often want to run only specific test files:
+
+```bash
+# Run tests matching a pattern (recommended)
+pnpm test usePageTitle                    # Matches any file containing "usePageTitle"
+pnpm test UserDrawer                      # Matches any test file with "UserDrawer" in path
+
+# Full path pattern
+pnpm test "**/usePageTitle.test.tsx"
+
+# Direct Vitest command (alternative)
+pnpm vitest run usePageTitle
+```
+
+**Important**: Pass the file pattern directly without the `--` separator. Using `pnpm run test -- <pattern>` does not work correctly with Vitest's file filtering.
+
+### Watch Mode
+
+Run tests in watch mode to automatically re-run tests when files change:
+
+```bash
+pnpm test:watch
+```
+
 ## Related Documentation
 
 - [E2E Testing Pattern](./e2e-testing-pattern.md) - End-to-end testing patterns with Playwright

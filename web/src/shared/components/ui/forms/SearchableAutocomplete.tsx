@@ -247,6 +247,7 @@ export function SearchableAutocomplete<
   // Priority: search results (full data) > selected items (may be placeholders)
   const allOptions: TOption[] = useMemo(() => {
     // Create a map of search results by ID (these have full data)
+    // This also deduplicates any duplicate options from the query
     const searchResultsMap = new Map<string, TOption>();
     for (const opt of transformedOptions) {
       searchResultsMap.set(getOptionId(opt), opt);
@@ -262,9 +263,10 @@ export function SearchableAutocomplete<
       return !searchResultIds.has(id);
     });
     
-    // Combine: search results first (they have full data), then missing selected items
+    // Combine: deduplicated search results first (they have full data), then missing selected items
     // Search results take priority because they're added first to the map
-    return [...transformedOptions, ...missingSelected];
+    // Use Array.from(searchResultsMap.values()) to ensure deduplication
+    return [...Array.from(searchResultsMap.values()), ...missingSelected];
   }, [transformedOptions, selectedItems, getOptionId]);
 
   // Loading state
@@ -280,17 +282,22 @@ export function SearchableAutocomplete<
     if (multiple) {
       // Map selected items to their corresponding items in allOptions
       // This ensures we use items with full data (from search) when available
-      return selectedItems
-        .map((selected) => {
+      // Deduplicate by ID to prevent duplicate chips
+      const valueMap = new Map<string, TSelected>();
+      for (const selected of selectedItems) {
+        const id = getOptionId(selected);
+        if (!valueMap.has(id)) {
           const found = allOptions.find(
-            (opt) => getOptionId(opt) === getOptionId(selected)
+            (opt) => getOptionId(opt) === id
           );
-          return found || selected;
-        })
-        .filter((item) => {
+          const item = (found || selected) as TSelected;
           // Only include if it exists in allOptions
-          return allOptions.some((opt) => getOptionId(opt) === getOptionId(item));
-        }) as TSelected[];
+          if (allOptions.some((opt) => getOptionId(opt) === getOptionId(item))) {
+            valueMap.set(id, item);
+          }
+        }
+      }
+      return Array.from(valueMap.values());
     } else {
       if (selectedItems.length === 0) {
         return null;
@@ -427,10 +434,13 @@ export function SearchableAutocomplete<
         const hasError = fieldError || !!error;
         const errorProp = hasError ? true : undefined;
         
+        // Priority: field error message > query error message > helper text
         // Only pass helperText when it has a value
-        const helperTextValue = error 
-          ? (errorMessage || "Failed to load options") 
-          : helperText;
+        const helperTextValue = fieldError && helperText
+          ? helperText  // Field validation error takes priority
+          : error 
+          ? (errorMessage || "Failed to load options")  // Query error
+          : helperText;  // Normal helper text
         
         return (
           <>
@@ -473,19 +483,31 @@ export function SearchableAutocomplete<
                 // Adapt MUI's getTagProps signature to the simpler one expected by callers
                 ((params: { index: number }) => getTagProps(params)) as any
               )
-          : (value, getTagProps) =>
-              (value as TSelected[]).map((option, index) => {
-                const { key, ...tagProps } = getTagProps({ index });
-                return (
-                  <Chip
-                    key={key || getOptionId(option)}
-                    variant="outlined"
-                    color="primary"
-                    label={getOptionLabel(option)}
-                    {...tagProps}
-                  />
-                );
-              })
+          : (value, getTagProps) => {
+              // Deduplicate by ID to ensure unique keys
+              const seenIds = new Set<string>();
+              return (value as TSelected[])
+                .filter((option) => {
+                  const id = getOptionId(option);
+                  if (seenIds.has(id)) {
+                    return false;
+                  }
+                  seenIds.add(id);
+                  return true;
+                })
+                .map((option, index) => {
+                  const { key: _key, ...tagProps } = getTagProps({ index });
+                  return (
+                    <Chip
+                      key={getOptionId(option)}
+                      variant="outlined"
+                      color="primary"
+                      label={getOptionLabel(option)}
+                      {...tagProps}
+                    />
+                  );
+                });
+            }
       }
     />
   );

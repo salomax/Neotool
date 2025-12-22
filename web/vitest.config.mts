@@ -32,27 +32,29 @@ export default defineConfig({
     globals: true,
     css: true,
     restoreMocks: true,
-    // bail: 5, // Stop after 0 failures
-    // Performance optimizations - enable parallel execution
+    // Performance optimizations
+    // Use thread pool for parallel test execution with memory-conscious settings
+    // Reduced to 1 thread for better memory isolation and to prevent "JS heap out of memory" errors
     pool: "threads",
     poolOptions: {
       threads: {
         minThreads: 1,
-        // Use CPU cores minus 1 (leave one for system), but at least 2 and at most 8
-        maxThreads: Math.max(2, Math.min(os.cpus().length - 1, 8)),
+        // Use single thread for better memory isolation
+        // This prevents memory leaks from singleton instances shared across worker threads
+        // Tests will still run in parallel within the single thread via maxConcurrency
+        maxThreads: 1,
         isolate: true,
-        // Use singleThreaded: false to allow tests within files to run in parallel
-        singleThreaded: false,
       },
     },
     // Timeouts 
     testTimeout: 30000,
     hookTimeout: 30000,
     teardownTimeout: 10000,
-    // Enable file parallelism - allows multiple test files to run simultaneously
-    fileParallelism: true,
-    // Allow concurrent tests within files (should match or exceed maxThreads)
-    maxConcurrency: Math.max(5, Math.min(os.cpus().length, 10)),
+    // Disable file parallelism to reduce memory usage
+    fileParallelism: false,
+    // Limit concurrent tests to prevent memory exhaustion
+    // With maxThreads: 1, this controls parallel execution within the single thread
+    maxConcurrency: 2,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'json'],

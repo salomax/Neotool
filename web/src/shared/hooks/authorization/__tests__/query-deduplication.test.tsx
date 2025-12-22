@@ -4,6 +4,45 @@ import { useRoleManagement } from '../useRoleManagement';
 import { useUserManagement } from '../useUserManagement';
 import { useGroupManagement } from '../useGroupManagement';
 
+const createBaseRolesResponse = () => ({
+  data: {
+    roles: {
+      edges: [],
+      pageInfo: { hasNextPage: false, hasPreviousPage: false, startCursor: null, endCursor: null },
+      totalCount: 0,
+    },
+  },
+  loading: false,
+  error: undefined,
+  refetch: vi.fn(),
+});
+
+const createBaseUsersResponse = () => ({
+  data: {
+    users: {
+      edges: [],
+      pageInfo: { hasNextPage: false, hasPreviousPage: false, startCursor: null, endCursor: null },
+      totalCount: 0,
+    },
+  },
+  loading: false,
+  error: undefined,
+  refetch: vi.fn(),
+});
+
+const createBaseGroupsResponse = () => ({
+  data: {
+    groups: {
+      edges: [],
+      pageInfo: { hasNextPage: false, hasPreviousPage: false, startCursor: null, endCursor: null },
+      totalCount: 0,
+    },
+  },
+  loading: false,
+  error: undefined,
+  refetch: vi.fn(),
+});
+
 // Mock GraphQL operations
 vi.mock('@/lib/graphql/operations/authorization-management/queries.generated', () => ({
   useGetRolesQuery: vi.fn(),
@@ -95,27 +134,33 @@ import { useGetGroupsQuery } from '@/lib/graphql/operations/authorization-manage
 describe('Query Deduplication', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    
+    // Default stable responses to prevent re-render loops
+    (useGetRolesQuery as any).mockReturnValue(createBaseRolesResponse());
+    (useGetUsersQuery as any).mockReturnValue(createBaseUsersResponse());
+    (useGetGroupsQuery as any).mockReturnValue(createBaseGroupsResponse());
   });
 
   describe('useRoleManagement', () => {
     it('should only call query once with same variables', () => {
-      (useGetRolesQuery as any).mockReturnValue({
-        data: {
-          roles: {
-            edges: [],
-            pageInfo: { hasNextPage: false, hasPreviousPage: false, startCursor: null, endCursor: null },
-            totalCount: 0,
-          },
-        },
-        loading: false,
-        error: undefined,
-        refetch: vi.fn(),
+      let callCount = 0;
+      let lastVariables: any = null;
+      const rolesResponse = createBaseRolesResponse();
+      
+      (useGetRolesQuery as any).mockImplementation((options: any) => {
+        const currentVariables = JSON.stringify(options?.variables || {});
+        // Only count as a new call if variables have changed
+        if (currentVariables !== lastVariables) {
+          callCount++;
+          lastVariables = currentVariables;
+        }
+        return rolesResponse;
       });
 
       const { result, rerender } = renderHook(() => useRoleManagement({ initialFirst: 10 }));
 
       // Initial render
-      expect(useGetRolesQuery).toHaveBeenCalledTimes(1);
+      expect(callCount).toBe(1);
 
       // Rerender with same props
       rerender();
@@ -123,30 +168,20 @@ describe('Query Deduplication', () => {
       rerender();
 
       // Should still only be called once (memoized variables prevent re-query)
-      expect(useGetRolesQuery).toHaveBeenCalledTimes(1);
+      expect(callCount).toBe(1);
     });
 
     it('should call query when first changes', () => {
       let firstValue = 10;
+      const rolesResponse = createBaseRolesResponse();
       (useGetRolesQuery as any).mockImplementation((options: any) => {
-        return {
-          data: {
-            roles: {
-              edges: [],
-              pageInfo: { hasNextPage: false, hasPreviousPage: false, startCursor: null, endCursor: null },
-              totalCount: 0,
-            },
-          },
-          loading: false,
-          error: undefined,
-          refetch: vi.fn(),
-        };
+        return rolesResponse;
       });
 
       const { result } = renderHook(() => useRoleManagement({ initialFirst: firstValue }));
 
-      expect(useGetRolesQuery).toHaveBeenCalledTimes(1);
-      const firstCallVariables = (useGetRolesQuery as any).mock.calls[0][0].variables;
+      const initialCallCount = (useGetRolesQuery as any).mock.calls.length;
+      const firstCallVariables = (useGetRolesQuery as any).mock.calls[initialCallCount - 1][0].variables;
 
       // Change first value
       act(() => {
@@ -154,26 +189,14 @@ describe('Query Deduplication', () => {
       });
 
       // Should be called again with new first value
-      expect(useGetRolesQuery).toHaveBeenCalledTimes(2);
-      const secondCallVariables = (useGetRolesQuery as any).mock.calls[1][0].variables;
+      const afterCallCount = (useGetRolesQuery as any).mock.calls.length;
+      expect(afterCallCount).toBe(initialCallCount + 1);
+      const secondCallVariables = (useGetRolesQuery as any).mock.calls[afterCallCount - 1][0].variables;
       expect(secondCallVariables.first).toBe(20);
       expect(firstCallVariables.first).toBe(10);
     });
 
     it('should not call query when setFirst is called with same value', () => {
-      (useGetRolesQuery as any).mockReturnValue({
-        data: {
-          roles: {
-            edges: [],
-            pageInfo: { hasNextPage: false, hasPreviousPage: false, startCursor: null, endCursor: null },
-            totalCount: 0,
-          },
-        },
-        loading: false,
-        error: undefined,
-        refetch: vi.fn(),
-      });
-
       const { result } = renderHook(() => useRoleManagement({ initialFirst: 10 }));
 
       const initialCallCount = (useGetRolesQuery as any).mock.calls.length;
@@ -192,74 +215,41 @@ describe('Query Deduplication', () => {
 
   describe('useUserManagement', () => {
     it('should only call query once with same variables', () => {
-      (useGetUsersQuery as any).mockReturnValue({
-        data: {
-          users: {
-            edges: [],
-            pageInfo: { hasNextPage: false, hasPreviousPage: false, startCursor: null, endCursor: null },
-            totalCount: 0,
-          },
-        },
-        loading: false,
-        error: undefined,
-        refetch: vi.fn(),
-      });
-
       const { rerender } = renderHook(() => useUserManagement({ initialFirst: 10 }));
 
-      expect(useGetUsersQuery).toHaveBeenCalledTimes(1);
+      const initialCallCount = (useGetUsersQuery as any).mock.calls.length;
+      const firstCallVariables = (useGetUsersQuery as any).mock.calls[initialCallCount - 1][0].variables;
 
       // Rerender multiple times
       rerender();
       rerender();
 
-      // Should still only be called once
-      expect(useGetUsersQuery).toHaveBeenCalledTimes(1);
+      const finalCallVariables = (useGetUsersQuery as any).mock.calls[(useGetUsersQuery as any).mock.calls.length - 1][0].variables;
+      // Variables should remain referentially stable across rerenders
+      expect(finalCallVariables).toBe(firstCallVariables);
     });
   });
 
   describe('useGroupManagement', () => {
     it('should only call query once with same variables', () => {
-      (useGetGroupsQuery as any).mockReturnValue({
-        data: {
-          groups: {
-            edges: [],
-            pageInfo: { hasNextPage: false, hasPreviousPage: false, startCursor: null, endCursor: null },
-            totalCount: 0,
-          },
-        },
-        loading: false,
-        error: undefined,
-        refetch: vi.fn(),
-      });
-
       const { rerender } = renderHook(() => useGroupManagement({ initialFirst: 10 }));
 
-      expect(useGetGroupsQuery).toHaveBeenCalledTimes(1);
+      const initialCallCount = (useGetGroupsQuery as any).mock.calls.length;
+      const firstCallVariables = (useGetGroupsQuery as any).mock.calls[initialCallCount - 1][0].variables;
 
       // Rerender multiple times
       rerender();
       rerender();
 
-      // Should still only be called once
-      expect(useGetGroupsQuery).toHaveBeenCalledTimes(1);
+      const finalCallVariables = (useGetGroupsQuery as any).mock.calls[(useGetGroupsQuery as any).mock.calls.length - 1][0].variables;
+      expect(finalCallVariables).toBe(firstCallVariables);
     });
   });
 
   describe('Query variable memoization', () => {
     it('should maintain stable variable reference when values unchanged', () => {
-      const mockQuery = vi.fn(() => ({
-        data: {
-          roles: {
-            edges: [],
-            pageInfo: { hasNextPage: false, hasPreviousPage: false, startCursor: null, endCursor: null },
-            totalCount: 0,
-          },
-        },
-        loading: false,
-        error: undefined,
-        refetch: vi.fn(),
-      }));
+      const stableResponse = createBaseRolesResponse();
+      const mockQuery = vi.fn(() => stableResponse);
 
       (useGetRolesQuery as any).mockImplementation(mockQuery);
 

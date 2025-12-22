@@ -141,9 +141,25 @@ search_keywords: [commands, cli, reference]
 npm install                # Install dependencies
 npm run dev                # Start development server
 npm run build              # Build for production
-npm test                   # Run tests
-npm run codegen            # Run GraphQL codegen + fragment fixer
+pnpm test                  # Run all tests
+pnpm test <pattern>        # Run specific test file(s) by pattern
+pnpm test:watch            # Run tests in watch mode
+pnpm test:coverage         # Run tests with coverage report
+pnpm run codegen           # Run GraphQL codegen + fragment fixer
 ```
+
+**Running Specific Test Files**:
+```bash
+# Run tests matching a pattern (without -- separator)
+pnpm test usePageTitle                    # Matches any file containing "usePageTitle"
+pnpm test UserDrawer                      # Matches any test file with "UserDrawer" in path
+pnpm test "**/usePageTitle.test.tsx"      # Full path pattern with glob
+
+# Direct Vitest command (alternative)
+pnpm vitest run usePageTitle
+```
+
+**Note**: When using `pnpm test`, pass the file pattern directly without the `--` separator. Using `pnpm run test -- <pattern>` does not work correctly with Vitest's file filtering.
 
 > `npm run codegen` (or `pnpm run codegen`) executes `graphql-codegen --config codegen.ts` and then `node scripts/fix-generated-types.mjs`, which regenerates shared fragments from `common.graphql` and normalizes Apollo imports in every `.generated.ts` file.
 

@@ -1,31 +1,12 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useDataTableQuery, type PageResult } from '@/shared/hooks/data';
+import { createTestQueryWrapper } from '@/__tests__/helpers/test-utils';
 
-// Helper to create a test wrapper with QueryClient
-const createWrapper = () => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-      },
-    },
-  });
-
-  const Wrapper = ({ children }: { children: React.ReactNode }) => {
-    return (
-      <QueryClientProvider client={queryClient}>
-        {children}
-      </QueryClientProvider>
-    );
-  };
-  
-  Wrapper.displayName = 'TestWrapper';
-  
-  return Wrapper;
-};
+// Use test utility that automatically clears QueryClient cache after each test
+// This prevents memory leaks from cache accumulation
+const createWrapper = createTestQueryWrapper;
 
 describe('useDataTableQuery', () => {
   it('should initialize with default values', () => {

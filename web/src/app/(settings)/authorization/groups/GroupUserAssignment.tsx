@@ -45,6 +45,7 @@ export const GroupUserAssignment: React.FC<GroupUserAssignmentProps> = ({
   const { isAuthenticated } = useAuth();
   
   // Optional react-hook-form integration
+  // Access formState from useFormContext - it's reactive and triggers re-renders
   let formContext: ReturnType<typeof useFormContext> | null = null;
   try {
     formContext = useFormContext();
@@ -52,20 +53,26 @@ export const GroupUserAssignment: React.FC<GroupUserAssignmentProps> = ({
     // Not in a form context, that's okay
   }
   
-  const fieldState = formContext?.formState.errors[name];
+  // formState from useFormContext is reactive and will trigger re-renders when errors change
+  const formState = formContext?.formState;
+  const fieldState = formState?.errors[name];
   const fieldError = !!fieldState;
   const fieldHelperText = fieldState?.message as string | undefined;
-  
-  // Use fieldError and fieldHelperText in SearchableAutocomplete
 
-  // Map assigned users to option format
+  // Map assigned users to option format, deduplicating by ID
   const selectedUsers = useMemo(() => {
-    return assignedUsers.map((user) => ({
-      id: user.id,
-      label: user.displayName || user.email,
-      email: user.email,
-      displayName: user.displayName,
-    }));
+    const userMap = new Map<string, UserOption>();
+    for (const user of assignedUsers) {
+      if (!userMap.has(user.id)) {
+        userMap.set(user.id, {
+          id: user.id,
+          label: user.displayName || user.email,
+          email: user.email,
+          displayName: user.displayName,
+        });
+      }
+    }
+    return Array.from(userMap.values());
   }, [assignedUsers]);
 
   const handleChange = (newSelected: UserOption[]) => {
@@ -115,9 +122,8 @@ export const GroupUserAssignment: React.FC<GroupUserAssignmentProps> = ({
       variant="outlined"
       loadMode="eager"
       renderOption={(props, option) => {
-        const { key, ...otherProps } = props;
         return (
-          <ListItem {...otherProps} key={option.id}>
+          <ListItem {...props}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, width: "100%" }}>
               <Typography component="span">
                 {option.displayName || option.email}

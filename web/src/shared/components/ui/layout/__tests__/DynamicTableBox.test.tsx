@@ -4,32 +4,39 @@ import { render, act } from '@testing-library/react';
 import { DynamicTableBox, TABLE_STABILITY_DELAY } from '../DynamicTableBox';
 
 // Mock useDynamicPageSize
-// Use a ref to track value so React sees it as changing
+// Use a ref to track value - React will see changes when component re-renders
 const mockValueRef = { current: 0 };
-const mockUseDynamicPageSize = vi.fn(() => {
-  // Call the mock function to track calls
-  mockUseDynamicPageSize();
-  return mockValueRef.current;
-});
 
 // Track render count to simulate value changes
 let renderKey = 0;
-vi.mock('@/shared/hooks/ui', () => ({
-  useDynamicPageSize: () => {
-    // Return value based on current ref value
-    // The key prop will force React to see this as a new render
-    return mockValueRef.current;
-  },
-}));
+
+// Define the mock function inside the factory to avoid hoisting issues
+vi.mock('@/shared/hooks/ui', () => {
+  return {
+    useDynamicPageSize: vi.fn(() => {
+      // Always read the current value from the ref
+      // This ensures that when the component re-renders, it gets the updated value
+      return mockValueRef.current;
+    }),
+  };
+});
+
+// Import the module to ensure the mock is initialized
+import * as uiHooks from '@/shared/hooks/ui';
 
 describe('DynamicTableBox', () => {
   const mockOnTableResize = vi.fn();
 
   beforeEach(() => {
-    vi.clearAllMocks();
     vi.useFakeTimers();
-    mockValueRef.current = 0; // Reset value for each test
-    renderKey = 0; // Reset render key for each test
+    // Start with 0, but tests should set a non-zero value before rendering
+    // to ensure enabled is true
+    mockValueRef.current = 0;
+    renderKey = 0;
+    // Clear call history but keep the implementation (which reads from mockValueRef)
+    // The mock implementation reads from mockValueRef.current, so we don't need to reset it
+    vi.mocked(uiHooks.useDynamicPageSize).mockClear();
+    mockOnTableResize.mockClear();
   });
 
   afterEach(() => {
@@ -38,36 +45,38 @@ describe('DynamicTableBox', () => {
   });
 
   it('should call onTableResize after stability delay when page size changes', () => {
-    const { rerender } = render(
-      <DynamicTableBox key={renderKey++} onTableResize={mockOnTableResize}>
-        <div>Test</div>
-      </DynamicTableBox>
-    );
-
-    // Trigger a re-render to change value from 0 to 10
-    mockValueRef.current = 10;
-    act(() => {
-      rerender(
-        <DynamicTableBox key={renderKey++} onTableResize={mockOnTableResize}>
+    // Start with 0, then change to 10 to trigger the callback
+    // useStableCallback only fires when the value changes, not on initial render
+    mockValueRef.current = 0;
+    const TestComponent = ({ value }: { value: number }) => {
+      return (
+        <DynamicTableBox onTableResize={mockOnTableResize}>
           <div>Test</div>
         </DynamicTableBox>
       );
+    };
+    
+    // Render with 0 first (callback won't fire because enabled is false when value is 0)
+    const { rerender } = render(<TestComponent value={0} />);
+    
+    // Update the ref before rerendering so the mock returns the new value
+    mockValueRef.current = 10;
+    // Now change to 10 - this should trigger the callback
+    act(() => {
+      rerender(<TestComponent value={10} />);
     });
 
-    // Wait for the change from 0 to 10 to stabilize
+    // Wait for the value change to stabilize
     act(() => {
       vi.advanceTimersByTime(TABLE_STABILITY_DELAY);
     });
     expect(mockOnTableResize).toHaveBeenCalledTimes(1);
     expect(mockOnTableResize).toHaveBeenCalledWith(10);
 
+    // Now change to 20 - update the ref before rerendering
     mockValueRef.current = 20;
     act(() => {
-      rerender(
-        <DynamicTableBox key={renderKey++} onTableResize={mockOnTableResize}>
-          <div>Test</div>
-        </DynamicTableBox>
-      );
+      rerender(<TestComponent value={20} />);
     });
 
     act(() => {
@@ -75,6 +84,7 @@ describe('DynamicTableBox', () => {
     });
     expect(mockOnTableResize).toHaveBeenCalledTimes(2);
     expect(mockOnTableResize).toHaveBeenLastCalledWith(20);
+
   });
 
   it('should not call onTableResize when page size is 0', () => {
@@ -92,50 +102,47 @@ describe('DynamicTableBox', () => {
   });
 
   it('should debounce rapid page size changes', () => {
-    const { rerender } = render(
-      <DynamicTableBox onTableResize={mockOnTableResize}>
-        <div>Test</div>
-      </DynamicTableBox>
-    );
-
-    // Trigger initial change from 0 to 10
-    mockValueRef.current = 10;
-    act(() => {
-      rerender(
+    // Start with 0, then change to 10 to trigger initial callback
+    mockValueRef.current = 0;
+    const TestComponent = ({ value }: { value: number }) => {
+      return (
         <DynamicTableBox onTableResize={mockOnTableResize}>
           <div>Test</div>
         </DynamicTableBox>
       );
+    };
+    
+    // Render with 0 first
+    const { rerender } = render(<TestComponent value={0} />);
+    
+    // Update the ref before rerendering
+    mockValueRef.current = 10;
+    // Change to 10 to trigger initial callback
+    act(() => {
+      rerender(<TestComponent value={10} />);
+    });
+
+    // Wait for initial value change to stabilize
+    act(() => {
       vi.advanceTimersByTime(TABLE_STABILITY_DELAY);
     });
     expect(mockOnTableResize).toHaveBeenCalledTimes(1);
     expect(mockOnTableResize).toHaveBeenCalledWith(10);
 
+    // Rapidly change values
     mockValueRef.current = 11;
     act(() => {
-      rerender(
-        <DynamicTableBox key={renderKey++} onTableResize={mockOnTableResize}>
-          <div>Test</div>
-        </DynamicTableBox>
-      );
+      rerender(<TestComponent value={11} />);
     });
 
     mockValueRef.current = 12;
     act(() => {
-      rerender(
-        <DynamicTableBox key={renderKey++} onTableResize={mockOnTableResize}>
-          <div>Test</div>
-        </DynamicTableBox>
-      );
+      rerender(<TestComponent value={12} />);
     });
 
     mockValueRef.current = 13;
     act(() => {
-      rerender(
-        <DynamicTableBox key={renderKey++} onTableResize={mockOnTableResize}>
-          <div>Test</div>
-        </DynamicTableBox>
-      );
+      rerender(<TestComponent value={13} />);
     });
 
     act(() => {
@@ -150,33 +157,37 @@ describe('DynamicTableBox', () => {
   });
 
   it('should not call onTableResize when value does not change', () => {
-    const { rerender } = render(
-      <DynamicTableBox onTableResize={mockOnTableResize}>
-        <div>Test</div>
-      </DynamicTableBox>
-    );
-
-    // Trigger initial change from 0 to 10
-    mockValueRef.current = 10;
-    act(() => {
-      rerender(
-        <DynamicTableBox key={renderKey++} onTableResize={mockOnTableResize}>
+    // Start with 0, then change to 10 to trigger initial callback
+    mockValueRef.current = 0;
+    const TestComponent = ({ value }: { value: number }) => {
+      return (
+        <DynamicTableBox onTableResize={mockOnTableResize}>
           <div>Test</div>
         </DynamicTableBox>
       );
+    };
+    
+    // Render with 0 first
+    const { rerender } = render(<TestComponent value={0} />);
+    
+    // Update the ref before rerendering
+    mockValueRef.current = 10;
+    // Change to 10 to trigger initial callback
+    act(() => {
+      rerender(<TestComponent value={10} />);
+    });
+
+    // Wait for initial value change to stabilize
+    act(() => {
       vi.advanceTimersByTime(TABLE_STABILITY_DELAY);
     });
     expect(mockOnTableResize).toHaveBeenCalledTimes(1);
     expect(mockOnTableResize).toHaveBeenCalledWith(10);
 
     // Value stays at 10, so callback should not be called again
-    mockValueRef.current = 10;
+    // Even though we rerender, the value is the same, so useStableCallback won't trigger
     act(() => {
-      rerender(
-        <DynamicTableBox key={renderKey++} onTableResize={mockOnTableResize}>
-          <div>Test</div>
-        </DynamicTableBox>
-      );
+      rerender(<TestComponent value={10} />);
       vi.advanceTimersByTime(TABLE_STABILITY_DELAY);
     });
     expect(mockOnTableResize).toHaveBeenCalledTimes(1);
