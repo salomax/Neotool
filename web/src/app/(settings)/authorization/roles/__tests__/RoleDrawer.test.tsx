@@ -4,28 +4,78 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { RoleDrawer } from '../RoleDrawer';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
-import {
-  useCreateRoleMutation,
-  useUpdateRoleMutation,
-} from '@/lib/graphql/operations/authorization-management/mutations.generated';
+
+// Use vi.hoisted() to define all variables that need to be available in mock factories
+const {
+  mockPush,
+  mockReplace,
+  mockUseCreateRoleMutation,
+  mockUseUpdateRoleMutation,
+  mockUseGetRoleWithUsersAndGroupsQuery,
+  mockUseGetRoleWithRelationshipsQuery,
+  mockUseRoleMutations,
+  mockUseRoleDrawer,
+  mockUsePermissionManagement,
+  mockToast,
+} = vi.hoisted(() => {
+  const mockPush = vi.fn();
+  const mockReplace = vi.fn();
+  const mockUseCreateRoleMutation = vi.fn();
+  const mockUseUpdateRoleMutation = vi.fn();
+  
+  // Mock query functions
+  const mockUseGetRoleWithUsersAndGroupsQuery = vi.fn();
+  const mockUseGetRoleWithRelationshipsQuery = vi.fn();
+  
+  // Mock hook functions
+  const mockUseRoleMutations = vi.fn();
+  const mockUseRoleDrawer = vi.fn();
+  const mockUsePermissionManagement = vi.fn();
+  
+  // Mock toast
+  const mockToast = {
+    error: vi.fn(),
+    success: vi.fn(),
+    warning: vi.fn(),
+  };
+  
+  return {
+    mockPush,
+    mockReplace,
+    mockUseCreateRoleMutation,
+    mockUseUpdateRoleMutation,
+    mockUseGetRoleWithUsersAndGroupsQuery,
+    mockUseGetRoleWithRelationshipsQuery,
+    mockUseRoleMutations,
+    mockUseRoleDrawer,
+    mockUsePermissionManagement,
+    mockToast,
+  };
+});
 
 // Mock Next.js navigation
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
-    push: vi.fn(),
-    replace: vi.fn(),
+    push: mockPush,
+    replace: mockReplace,
   }),
 }));
 
 // Mock GraphQL mutations
 vi.mock('@/lib/graphql/operations/authorization-management/mutations.generated', () => ({
-  useCreateRoleMutation: vi.fn(),
-  useUpdateRoleMutation: vi.fn(),
+  useCreateRoleMutation: mockUseCreateRoleMutation,
+  useUpdateRoleMutation: mockUseUpdateRoleMutation,
 }));
 
+// Import after mocks to avoid hoisting issues
+import {
+  useCreateRoleMutation,
+  useUpdateRoleMutation,
+} from '@/lib/graphql/operations/authorization-management/mutations.generated';
+
 // Mock Drawer component
-const { DrawerComponent } = vi.hoisted(() => {
-  const Component = ({ open, children, onClose }: any) =>
+vi.mock('@/shared/components/ui/layout/Drawer', () => {
+  const DrawerComponent = ({ open, children, onClose }: any) =>
     open ? (
       <div data-testid="drawer">
         <div data-testid="drawer-header">Drawer Header</div>
@@ -37,22 +87,22 @@ const { DrawerComponent } = vi.hoisted(() => {
   
   const Header = ({ children }: any) => <div data-testid="drawer-header-content">{children}</div>;
   Header.displayName = 'Drawer.Header';
-  Component.Header = Header;
+  DrawerComponent.Header = Header;
   
-  const Body = ({ children }: any) => <div data-testid="drawer-body-content">{children}</div>;
+  const Body = React.forwardRef<HTMLDivElement, { children: React.ReactNode }>(
+    ({ children }, ref) => <div ref={ref} data-testid="drawer-body-content">{children}</div>
+  );
   Body.displayName = 'Drawer.Body';
-  Component.Body = Body;
+  DrawerComponent.Body = Body;
   
   const Footer = ({ children }: any) => <div data-testid="drawer-footer-content">{children}</div>;
   Footer.displayName = 'Drawer.Footer';
-  Component.Footer = Footer;
+  DrawerComponent.Footer = Footer;
   
-  return { DrawerComponent: Component };
+  return {
+    Drawer: DrawerComponent,
+  };
 });
-
-vi.mock('@/shared/components/ui/layout/Drawer', () => ({
-  Drawer: DrawerComponent,
-}));
 
 // Mock GraphQL queries
 const mockRole = {
@@ -89,7 +139,8 @@ const mockGroups = [
   },
 ];
 
-const mockUseGetRoleWithUsersAndGroupsQuery = vi.fn(() => ({
+// Initialize hoisted mock functions with default implementations
+mockUseGetRoleWithUsersAndGroupsQuery.mockReturnValue({
   data: {
     users: {
       edges: mockUsers.map((u) => ({ node: u })),
@@ -110,9 +161,9 @@ const mockUseGetRoleWithUsersAndGroupsQuery = vi.fn(() => ({
       },
     },
   }),
-}));
+});
 
-const mockUseGetRoleWithRelationshipsQuery = vi.fn(() => ({
+mockUseGetRoleWithRelationshipsQuery.mockReturnValue({
   data: {
     role: mockRole,
   },
@@ -123,15 +174,9 @@ const mockUseGetRoleWithRelationshipsQuery = vi.fn(() => ({
       role: mockRole,
     },
   }),
-}));
+});
 
-vi.mock('@/lib/graphql/operations/authorization-management/queries.generated', () => ({
-  useGetRoleWithUsersAndGroupsQuery: () => mockUseGetRoleWithUsersAndGroupsQuery(),
-  useGetRoleWithRelationshipsQuery: () => mockUseGetRoleWithRelationshipsQuery(),
-}));
-
-// Mock useRoleMutations hook
-const mockUseRoleMutations = vi.fn(() => ({
+mockUseRoleMutations.mockReturnValue({
   createRole: vi.fn().mockResolvedValue({ id: 'role-2', name: 'New Role' }),
   updateRole: vi.fn().mockResolvedValue(undefined),
   deleteRole: vi.fn().mockResolvedValue(undefined),
@@ -146,14 +191,9 @@ const mockUseRoleMutations = vi.fn(() => ({
   removePermissionLoading: false,
   assignRoleToGroupLoading: false,
   removeRoleFromGroupLoading: false,
-}));
+});
 
-vi.mock('@/shared/hooks/authorization/useRoleMutations', () => ({
-  useRoleMutations: () => mockUseRoleMutations(),
-}));
-
-// Mock useRoleDrawer hook
-const mockUseRoleDrawer = vi.fn((roleId: string | null, open: boolean) => ({
+mockUseRoleDrawer.mockImplementation((roleId: string | null) => ({
   role: roleId ? mockRole : null,
   loading: false,
   error: undefined,
@@ -172,17 +212,31 @@ const mockUseRoleDrawer = vi.fn((roleId: string | null, open: boolean) => ({
   }),
 }));
 
-vi.mock('@/shared/hooks/authorization/useRoleDrawer', () => ({
-  useRoleDrawer: (roleId: string | null, open: boolean) => mockUseRoleDrawer(roleId, open),
-}));
-
-// Mock usePermissionManagement hook
-const mockUsePermissionManagement = vi.fn(() => ({
+mockUsePermissionManagement.mockReturnValue({
   permissions: [
     { id: 'perm-1', name: 'security:user:view' },
     { id: 'perm-2', name: 'security:user:save' },
   ],
+});
+
+vi.mock('@/lib/graphql/operations/authorization-management/queries.generated', () => ({
+  useGetRoleWithUsersAndGroupsQuery: () => mockUseGetRoleWithUsersAndGroupsQuery(),
+  useGetRoleWithRelationshipsQuery: () => mockUseGetRoleWithRelationshipsQuery(),
 }));
+
+// Mock useRoleMutations hook (function is hoisted above)
+
+vi.mock('@/shared/hooks/authorization/useRoleMutations', () => ({
+  useRoleMutations: () => mockUseRoleMutations(),
+}));
+
+// Mock useRoleDrawer hook (function is hoisted above)
+
+vi.mock('@/shared/hooks/authorization/useRoleDrawer', () => ({
+  useRoleDrawer: (roleId: string | null, open: boolean) => mockUseRoleDrawer(roleId, open),
+}));
+
+// Mock usePermissionManagement hook (function is hoisted above)
 
 vi.mock('@/shared/hooks/authorization/usePermissionManagement', () => ({
   usePermissionManagement: () => mockUsePermissionManagement(),
@@ -210,12 +264,7 @@ vi.mock('@/shared/i18n', () => ({
   }),
 }));
 
-// Mock toast
-const mockToast = {
-  error: vi.fn(),
-  success: vi.fn(),
-  warning: vi.fn(),
-};
+// Mock toast (object is hoisted above)
 
 vi.mock('@/shared/providers', () => ({
   useToast: () => mockToast,
@@ -523,15 +572,9 @@ describe('RoleDrawer', () => {
       expect(screen.getByTestId('role-permission-assignment')).toBeInTheDocument();
     });
 
-    it('should render RoleUserAssignment component', () => {
-      // Note: RoleDrawer doesn't render RoleUserAssignment - it only renders
-      // RoleGroupAssignment and RolePermissionAssignment
-      // This test is kept for potential future implementation
-      renderRoleDrawer({ roleId: 'role-1' });
-
-      // Component doesn't render RoleUserAssignment, so this test is skipped
-      expect(true).toBe(true);
-    });
+    // Note: RoleDrawer doesn't render RoleUserAssignment - it only renders
+    // RoleGroupAssignment and RolePermissionAssignment
+    // Test removed as component doesn't implement this feature
 
     it('should render RoleGroupAssignment component', () => {
       renderRoleDrawer({ roleId: 'role-1' });
@@ -545,15 +588,9 @@ describe('RoleDrawer', () => {
       expect(screen.getByText('Permissions: security:user:view')).toBeInTheDocument();
     });
 
-    it('should pass assigned users to RoleUserAssignment', () => {
-      // Note: RoleDrawer doesn't render RoleUserAssignment - it only renders
-      // RoleGroupAssignment and RolePermissionAssignment
-      // This test is kept for potential future implementation
-      renderRoleDrawer({ roleId: 'role-1' });
-
-      // Component doesn't render RoleUserAssignment, so this test is skipped
-      expect(true).toBe(true);
-    });
+    // Note: RoleDrawer doesn't render RoleUserAssignment - it only renders
+    // RoleGroupAssignment and RolePermissionAssignment
+    // Test removed as component doesn't implement this feature
 
     it('should pass assigned groups to RoleGroupAssignment', () => {
       renderRoleDrawer({ roleId: 'role-1' });

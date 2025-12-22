@@ -28,9 +28,12 @@ vi.mock('@/shared/components/ui/layout/Drawer', () => {
   const DrawerHeader = ({ title, children }: any) => (
     <div data-testid="drawer-header">{title || children}</div>
   );
-  const DrawerBody = ({ children }: any) => (
-    <div data-testid="drawer-body">{children}</div>
+  const DrawerBody = React.forwardRef<HTMLDivElement, { children: React.ReactNode }>(
+    ({ children }, ref) => (
+      <div ref={ref} data-testid="drawer-body">{children}</div>
+    )
   );
+  DrawerBody.displayName = 'DrawerBody';
   const DrawerFooter = ({ children }: any) => (
     <div data-testid="drawer-footer">{children}</div>
   );

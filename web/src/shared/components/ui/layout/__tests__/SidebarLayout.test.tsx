@@ -1,3 +1,4 @@
+import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import { SidebarLayout } from '../SidebarLayout';
@@ -60,7 +61,7 @@ describe('SidebarLayout', () => {
       );
 
       // Check flex direction is row-reverse for right side
-      const outerBox = screen.getByTestId('SidebarLayout');
+      const outerBox = screen.getByTestId('sidebarlayout');
       expect(outerBox).toHaveStyle({ flexDirection: 'row-reverse' });
     });
 
@@ -71,7 +72,7 @@ describe('SidebarLayout', () => {
         </SidebarLayout>
       );
 
-      const outerBox = screen.getByTestId('SidebarLayout');
+      const outerBox = screen.getByTestId('sidebarlayout');
       expect(outerBox).toHaveStyle({ flexDirection: 'row' });
     });
   });
@@ -84,7 +85,7 @@ describe('SidebarLayout', () => {
         </SidebarLayout>
       );
 
-      const sidebar = screen.getByTestId('SidebarLayout-sidebar');
+      const sidebar = screen.getByTestId('sidebarlayout-sidebar');
       expect(sidebar).toHaveStyle({ width: '400px' });
     });
 
@@ -95,7 +96,7 @@ describe('SidebarLayout', () => {
         </SidebarLayout>
       );
 
-      const sidebar = screen.getByTestId('SidebarLayout-sidebar');
+      const sidebar = screen.getByTestId('sidebarlayout-sidebar');
       expect(sidebar).toHaveStyle({ width: '600px' });
     });
 
@@ -106,7 +107,7 @@ describe('SidebarLayout', () => {
         </SidebarLayout>
       );
 
-      const sidebar = screen.getByTestId('SidebarLayout-sidebar');
+      const sidebar = screen.getByTestId('sidebarlayout-sidebar');
       expect(sidebar).toHaveStyle({ width: '800px' });
     });
 
@@ -117,7 +118,7 @@ describe('SidebarLayout', () => {
         </SidebarLayout>
       );
 
-      const sidebar = screen.getByTestId('SidebarLayout-sidebar');
+      const sidebar = screen.getByTestId('sidebarlayout-sidebar');
       expect(sidebar).toHaveStyle({ width: `calc(100% - ${RAIL_W}px)` });
     });
 
@@ -128,7 +129,7 @@ describe('SidebarLayout', () => {
         </SidebarLayout>
       );
 
-      const sidebar = screen.getByTestId('SidebarLayout-sidebar');
+      const sidebar = screen.getByTestId('sidebarlayout-sidebar');
       expect(sidebar).toHaveStyle({ width: '600px' });
     });
   });
@@ -141,7 +142,7 @@ describe('SidebarLayout', () => {
         </SidebarLayout>
       );
 
-      const outerBox = screen.getByTestId('SidebarLayout');
+      const outerBox = screen.getByTestId('sidebarlayout');
       expect(outerBox).toHaveAttribute('data-fullheight', 'true');
     });
 
@@ -152,7 +153,7 @@ describe('SidebarLayout', () => {
         </SidebarLayout>
       );
 
-      const mainContainer = screen.getByTestId('SidebarLayout-content');
+      const mainContainer = screen.getByTestId('sidebarlayout-content');
       expect(mainContainer).toHaveAttribute('data-fullheight', 'true');
     });
 
@@ -164,7 +165,7 @@ describe('SidebarLayout', () => {
       );
 
       // When fullHeight is true, children should be wrapped in a Box with overflow: auto
-      const mainContainer = screen.getByTestId('SidebarLayout-content');
+      const mainContainer = screen.getByTestId('sidebarlayout-content');
       const contentText = within(mainContainer).getByText('Main Content');
       
       // Verify the content is present and the container structure is correct
@@ -178,7 +179,8 @@ describe('SidebarLayout', () => {
       // Verify the container has the expected structure by checking computed styles
       // The inner Box with overflow: auto is verified through the component's behavior
       const containerStyles = window.getComputedStyle(mainContainer);
-      expect(containerStyles.flex).toBe('1');
+      // flex: 1 gets expanded to '1 1 0%' in computed styles
+      expect(containerStyles.flex).toBe('1 1 0%');
     });
 
     it('does not render inner scrollable Box when fullHeight={false}', () => {
@@ -189,7 +191,7 @@ describe('SidebarLayout', () => {
       );
 
       // When fullHeight is false, children should be rendered directly
-      const mainContainer = screen.getByTestId('SidebarLayout-content');
+      const mainContainer = screen.getByTestId('sidebarlayout-content');
       expect(mainContainer).toHaveTextContent('Main Content');
     });
 
@@ -200,7 +202,7 @@ describe('SidebarLayout', () => {
         </SidebarLayout>
       );
 
-      const sidebar = screen.getByTestId('SidebarLayout-sidebar');
+      const sidebar = screen.getByTestId('sidebarlayout-sidebar');
       expect(sidebar).toHaveStyle({ overflow: 'auto' });
       expect(sidebar).toHaveStyle({ height: '100%' });
     });
@@ -214,7 +216,7 @@ describe('SidebarLayout', () => {
         </SidebarLayout>
       );
 
-      const mainContainer = screen.getByTestId('SidebarLayout-content');
+      const mainContainer = screen.getByTestId('sidebarlayout-content');
       expect(mainContainer).toBeInTheDocument();
       expect(mainContainer).toHaveAttribute('data-disablegutters', 'true');
     });
@@ -239,7 +241,7 @@ describe('SidebarLayout', () => {
         </SidebarLayout>
       );
 
-      const outerBox = screen.getByTestId('SidebarLayout-test-layout');
+      const outerBox = screen.getByTestId('sidebarlayout-test-layout');
       expect(outerBox).toBeInTheDocument();
     });
 
@@ -274,7 +276,7 @@ describe('SidebarLayout', () => {
         </SidebarLayout>
       );
 
-      const outerBox = screen.getByTestId('SidebarLayout');
+      const outerBox = screen.getByTestId('sidebarlayout');
       expect(outerBox).toHaveClass('custom-class');
     });
 
@@ -286,8 +288,10 @@ describe('SidebarLayout', () => {
         </SidebarLayout>
       );
 
-      const outerBox = screen.getByTestId('SidebarLayout');
-      expect(outerBox).toHaveStyle({ backgroundColor: 'red' });
+      const outerBox = screen.getByTestId('sidebarlayout');
+      // Check the style attribute directly since toHaveStyle might not work with inline styles in jsdom
+      const styleAttr = outerBox.getAttribute('style');
+      expect(styleAttr).toContain('background-color: red');
     });
 
     it('applies flex layout styles correctly', () => {
@@ -297,7 +301,7 @@ describe('SidebarLayout', () => {
         </SidebarLayout>
       );
 
-      const outerBox = screen.getByTestId('SidebarLayout');
+      const outerBox = screen.getByTestId('sidebarlayout');
       expect(outerBox).toHaveStyle({ display: 'flex' });
       expect(outerBox).toHaveStyle({ width: '100%' });
     });
@@ -309,7 +313,7 @@ describe('SidebarLayout', () => {
         </SidebarLayout>
       );
 
-      const mainContainer = screen.getByTestId('SidebarLayout-content');
+      const mainContainer = screen.getByTestId('sidebarlayout-content');
       expect(mainContainer).toHaveStyle({ minWidth: '0' });
       expect(mainContainer).toHaveStyle({ flex: '1' });
     });
@@ -330,7 +334,7 @@ describe('SidebarLayout', () => {
 
       // These props should be passed to the outer Box
       // The actual behavior depends on Box implementation
-      const outerBox = screen.getByTestId('SidebarLayout');
+      const outerBox = screen.getByTestId('sidebarlayout');
       expect(outerBox).toBeInTheDocument();
     });
   });

@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { FormProvider, useForm } from 'react-hook-form';
 import { GroupUserAssignment } from '../GroupUserAssignment';
@@ -260,16 +260,14 @@ describe('GroupUserAssignment', () => {
       expect(screen.getByLabelText('Users')).toBeInTheDocument();
     });
 
-    it('should handle form validation errors', () => {
+    it('should handle form validation errors', async () => {
+      let formMethods: ReturnType<typeof useForm<GroupFormData>> | null = null;
+      
       const Wrapper = () => {
         const methods = useForm<GroupFormData>({
           defaultValues: { name: '', description: '', userIds: [] },
         });
-
-        // Set a validation error - use useEffect to ensure it's set after render
-        useEffect(() => {
-          methods.setError('userIds', { type: 'required', message: 'Users are required' });
-        }, [methods]);
+        formMethods = methods;
 
         return (
           <AppThemeProvider>
@@ -280,10 +278,26 @@ describe('GroupUserAssignment', () => {
         );
       };
 
-      render(<Wrapper />);
+      const { rerender } = render(<Wrapper />);
+      
+      // Set error after initial render using act
+      await act(async () => {
+        formMethods?.setError('userIds', { type: 'required', message: 'Users are required' });
+      });
+      
+      // Force re-render to pick up the error
+      rerender(
+        <AppThemeProvider>
+          <FormProvider {...formMethods!}>
+            <GroupUserAssignment assignedUsers={[]} name="userIds" />
+          </FormProvider>
+        </AppThemeProvider>
+      );
 
-      // Error should be displayed - wait for it to appear
-      expect(screen.getByText('Users are required')).toBeInTheDocument();
+      // Error should be displayed
+      await waitFor(() => {
+        expect(screen.getByText('Users are required')).toBeInTheDocument();
+      }, { timeout: 2000 });
     });
   });
 });

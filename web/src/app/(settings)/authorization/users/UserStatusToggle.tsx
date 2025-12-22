@@ -55,8 +55,8 @@ export const UserStatusToggle: React.FC<UserStatusToggleProps> = ({
 
   const tooltipTitle = isToggling
     ? optimisticEnabled
-      ? t("userManagement.status.disabling")
-      : t("userManagement.status.enabling")
+      ? t("userManagement.status.enabling")
+      : t("userManagement.status.disabling")
     : optimisticEnabled
     ? t("userManagement.status.disable")
     : t("userManagement.status.enable");

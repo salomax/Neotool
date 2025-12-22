@@ -52,13 +52,19 @@ export const GroupRoleAssignment: React.FC<GroupRoleAssignmentProps> = ({
   const { t } = useTranslation(authorizationManagementTranslations);
   const toast = useToast();
 
-  // Map assigned roles to option format
+  // Map assigned roles to option format, deduplicating by ID
   const selectedRoles = useMemo(() => {
-    return assignedRoles.map((role) => ({
-      id: role.id,
-      label: role.name,
-      name: role.name,
-    }));
+    const roleMap = new Map<string, RoleOption>();
+    for (const role of assignedRoles) {
+      if (!roleMap.has(role.id)) {
+        roleMap.set(role.id, {
+          id: role.id,
+          label: role.name,
+          name: role.name,
+        });
+      }
+    }
+    return Array.from(roleMap.values());
   }, [assignedRoles]);
 
   // Handle role selection changes
@@ -160,21 +166,32 @@ export const GroupRoleAssignment: React.FC<GroupRoleAssignmentProps> = ({
         loading={assignLoading || removeLoading}
         errorMessage={t("groupManagement.roles.loadError")}
         loadMode="eager"
-        renderTags={(value, getTagProps) =>
-          value.map((option, index) => {
-            const { key, ...tagProps } = getTagProps({ index });
-            return (
-              <Chip
-                {...tagProps}
-                key={key || option.id}
-                variant="outlined"
-                color="primary"
-                label={option.label}
-                disabled={assignLoading || removeLoading}
-              />
-            );
-          })
-        }
+        renderTags={(value, getTagProps) => {
+          // Deduplicate by ID to ensure unique keys
+          const seenIds = new Set<string>();
+          return value
+            .filter((option) => {
+              const id = option.id;
+              if (seenIds.has(id)) {
+                return false;
+              }
+              seenIds.add(id);
+              return true;
+            })
+            .map((option, index) => {
+              const { key: _key, ...tagProps } = getTagProps({ index });
+              return (
+                <Chip
+                  {...tagProps}
+                  key={option.id}
+                  variant="outlined"
+                  color="primary"
+                  label={option.label}
+                  disabled={assignLoading || removeLoading}
+                />
+              );
+            });
+        }}
       />
       {selectedRoles.length === 0 && (
         <Typography

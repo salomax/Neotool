@@ -1,4 +1,55 @@
 import '@testing-library/jest-dom';
+import { afterEach, vi } from 'vitest';
+import { cleanup } from '@testing-library/react';
+
+// Automatically cleanup after each test to prevent memory leaks
+// This is especially important when running tests in parallel
+afterEach(async () => {
+  // Cleanup React Testing Library rendered components
+  cleanup();
+  
+  // Clear Apollo Client cache if it exists
+  // This prevents cache accumulation across tests which causes memory leaks
+  try {
+    const { getApolloClient } = await import('@/lib/graphql/client');
+    const apolloClient = getApolloClient();
+    if (apolloClient) {
+      // clearStore() removes all data from the cache
+      // This is async and returns a Promise
+      await apolloClient.clearStore();
+    }
+  } catch (error) {
+    // Ignore errors if client doesn't exist or isn't initialized
+    // This is expected in some test environments
+  }
+  
+  // Note: React Query cache cleanup is handled by test utilities
+  // Tests that use React Query should use createTestQueryWrapper() from test-utils
+  // which automatically clears the cache after each test
+  // The AppQueryProvider's singleton client is not used in tests, so we don't need to clear it
+  
+  // Clear localStorage and sessionStorage
+  // Tests may modify storage which can leak between tests
+  if (typeof localStorage !== 'undefined') {
+    localStorage.clear();
+  }
+  if (typeof sessionStorage !== 'undefined') {
+    sessionStorage.clear();
+  }
+  
+  // Clear all timers (setTimeout, setInterval, etc.)
+  // Prevents timer accumulation across tests
+  vi.clearAllTimers();
+  
+  // Clear all mocks
+  // Prevents mock state from persisting between tests
+  vi.clearAllMocks();
+  
+  // Encourage GC between tests when --expose-gc is enabled
+  if (typeof global !== 'undefined' && typeof (global as any).gc === 'function') {
+    (global as any).gc();
+  }
+});
 
 // Extend Window interface to include getCurrentEventPriority
 declare global {
