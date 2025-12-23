@@ -494,6 +494,85 @@ assertThat(result.status).isEqualTo(HttpStatus.CONFLICT)
 assertThat(result.exceptionType).isEqualTo("StaleObjectStateException")
 ```
 
+## Python/Pytest Configuration Rules
+
+### Rule: Warning Suppression Location
+
+**Rule**: All warning suppression for pytest tests MUST be configured in `tests/conftest.py` using `pytest_configure()` hook. Do NOT add warning filters to `pytest.ini`.
+
+**Rationale**: 
+- Centralizes all test configuration in one place (`conftest.py`)
+- Keeps warning suppression logic together with other test setup
+- Easier to maintain and understand
+- Allows for programmatic filtering logic when needed
+- `pytest.ini` should only contain basic pytest configuration (paths, markers, etc.)
+
+**Example**:
+```python
+# ✅ Correct: Warning suppression in conftest.py
+# tests/conftest.py
+import warnings
+import logging
+
+def pytest_configure():
+    """Configure pytest to suppress known warnings from third-party libraries."""
+    # Suppress testcontainers deprecation warnings
+    warnings.filterwarnings(
+        "ignore",
+        message="The @wait_container_is_ready decorator is deprecated.*",
+        category=DeprecationWarning,
+    )
+    # Suppress coolname library deprecation warnings
+    warnings.filterwarnings(
+        "ignore",
+        message="codecs.open\\(\\) is deprecated.*",
+        category=DeprecationWarning,
+    )
+    # Suppress Prefect logging errors during teardown
+    prefect_logger = logging.getLogger("prefect.logging.handlers")
+    prefect_logger.setLevel(logging.CRITICAL)
+    prefect_logger.propagate = False
+```
+
+```ini
+# ✅ Correct: pytest.ini only contains basic configuration
+# pytest.ini
+[pytest]
+pythonpath = .
+testpaths = tests
+markers =
+    integration: marks tests as integration tests (requires Docker)
+```
+
+```ini
+# ❌ Incorrect: Warning suppression in pytest.ini
+# pytest.ini
+[pytest]
+pythonpath = .
+testpaths = tests
+filterwarnings =  # ❌ Do NOT add warning filters here
+    ignore::DeprecationWarning:coolname.loader
+```
+
+**What to Suppress**:
+- **Third-party library deprecation warnings**: Warnings from dependencies (e.g., `coolname`, `testcontainers`) that we cannot fix
+- **Known library issues**: Logging errors from libraries during teardown (e.g., Prefect logging handlers)
+- **Framework warnings**: Deprecation warnings from testing frameworks when upgrading
+
+**What NOT to Suppress**:
+- **Our own code warnings**: Never suppress warnings from our own codebase
+- **Critical warnings**: Never suppress warnings that indicate actual problems
+- **Type warnings**: Never suppress type checking warnings (use proper type hints instead)
+
+**Implementation**:
+1. Add warning filters in `tests/conftest.py` using `warnings.filterwarnings()` in `pytest_configure()`
+2. Use regex patterns for message matching when needed
+3. Document why each warning is suppressed with comments
+4. Group related suppressions together
+5. Keep `pytest.ini` minimal (only paths, markers, basic config)
+
+**Exception**: None. All warning suppression must be in `conftest.py`.
+
 ## Related Documentation
 
 - [Testing Pattern](../../04-patterns/backend-patterns/testing-pattern.md)

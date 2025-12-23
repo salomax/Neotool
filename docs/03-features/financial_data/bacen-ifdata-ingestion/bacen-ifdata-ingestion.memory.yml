@@ -1,0 +1,634 @@
+meta:
+  module: financial_data
+  feature_name: BACEN IFData Ingestion
+  feature_slug: bacen-ifdata-ingestion
+
+summary: |
+  The BACEN IFData Ingestion feature is a batch-oriented, pull-based ingestion pipeline
+  that ingests regulatory financial data published by the Brazilian Central Bank (BACEN)
+  via IFData OData APIs. It stages raw data safely in PostgreSQL and enables downstream
+  processing and synchronization through Kafka events.
+  
+  This feature acts as the entry point for all BACEN IFData datasets inside Invistus,
+  designed with strong idempotency guarantees, explicit execution control, full auditability,
+  and safe reprocessing capabilities.
+  
+  The implementation uses Python with Prefect 3.x for workflow orchestration and pyway
+  for database migrations. The pipeline favors correctness and traceability over speed.
+
+business_rules:
+  execution_schedule:
+    frequency: "Daily execution"
+    historical_start_date: "201603"  # March 2016, first quarter available
+    quarterly_months: [03, 06, 09, 12]  # Only these months have quarterly data
+    
+  publication_windows:
+    march_june_september: "60 days after quarter end"
+    december: "90 days after quarter end"
+    rule: "Job waits for data availability within publication window before advancing"
+    
+  target_quarter_determination:
+    - "Read last extracted quarter from ifdata_load_control (max ano_mes_ref)"
+    - "If none exists, fall back to historical start (201603) for backfill"
+    - "Compute next quarter candidate after last extracted"
+    - "Check if today falls within publication window for next candidate"
+    - "If data not available and window passed, advance to next candidate and keep waiting"
+    - "If data available, proceed with extraction"
+    
+  registry_requirement:
+    - "Registry must exist for target quarter before extraction can proceed"
+    - "If registry missing after refresh attempt, skip the day"
+    - "Registry ingestion triggers Kafka events for NEW/CHANGED institutions only"
+    
+  idempotency_rules:
+    task_level:
+      - "Each extract task has unique natural key: (AnoMes, TipoInstituicao, NomeRelatorio, NumeroRelatorio, page_skip)"
+      - "Task status lifecycle: PENDING -> RUNNING -> SUCCESS | EMPTY | ERROR"
+      - "EMPTY is terminal state (end of pagination), not an error"
+      - "Retries maintain idempotency via task status tracking"
+      
+    raw_purge:
+      - "Never purge globally"
+      - "Purge once per scope only when reloading: (AnoMes, NomeRelatorio, NumeroRelatorio, TipoInstituicao)"
+      - "Purge only when page_skip = 0 (first page of scope)"
+      - "Do not purge per page (preserves pagination safety)"
+      
+    hot_tables:
+      - "Use UPSERT operations for bank_report table"
+      - "Promotion is idempotent (can be re-run safely)"
+      
+  active_institution_filtering:
+    - "During promotion, include only institutions with situacao = 'A'"
+    - "Do NOT use 'Atividade' field as proxy for active/inactive"
+    - "Filter applied during raw -> hot promotion step"
+    
+  change_detection:
+    technique: "Hash-based change detection using source_hash"
+    hash_inputs:
+      - bacen_cod_inst
+      - nome_instituicao
+      - nome_reduzido
+      - situacao
+      - segmento_tb
+      - atividade
+      - tipo_controle
+      - uf
+      - municipio
+      - cod_conglomerado_financeiro
+      - cod_conglomerado_prudencial
+      - cnpj_instituicao_lider
+    normalization:
+      - "Trim strings"
+      - "Convert empty strings to NULL"
+      - "Serialize as JSON with sorted keys"
+      - "Compute SHA-256 hex => source_hash"
+    upsert_rules:
+      - "NEW: bacen_cod_inst not found -> INSERT -> publish Kafka event (CREATED)"
+      - "CHANGED: found AND hash differs -> UPDATE -> publish Kafka event (UPDATED)"
+      - "UNCHANGED: found AND hash equal -> no-op -> no Kafka event"
+      
+  pagination:
+    page_size: 1000
+    format: "CSV for performance (except small catalogs)"
+    termination: "When page returns zero rows, mark task as EMPTY (terminal state)"
+    continuation: "If rows > 0, create next task with page_skip += 1000"
+    
+  institution_types:
+    - "Process all types: TipoInstituicao = 1..4"
+    - "1: Individual Institutions"
+    - "2: Prudential Conglomerates"
+    - "3: Financial Conglomerates"
+    - "4: Institutions with Foreign Exchange Operations"
+    - "Do NOT filter by individual institution in standard ingestion"
+    
+  manual_operations:
+    manual_trigger:
+      - "Allow CLI/flag to force specific AnoMes (even if earlier)"
+      - "Runs same steps: refresh registry, extract values, transform, upsert hot"
+      - "Bypasses publication window checks"
+      
+    reprocessing:
+      - "Re-run transform + load against existing raw for AnoMes"
+      - "Idempotent UPSERT into bank_report"
+      - "If re-extraction required, purge raw only for specific scope being reloaded"
+      
+    raw_purge_policy:
+      - "Prefer NOT to purge globally"
+      - "If storage concern, purge only older-than-N quarters after successful promotions"
+      - "Safeguards: keep last 2-4 quarters"
+      - "Never purge in-flight/most recent quarter"
+
+implementation_notes:
+  technology_stack:
+    workflow_orchestration: "Prefect 3.x (work pools and work queues)"
+    database_migrations: "pyway (Python migration tool)"
+    database: "PostgreSQL 15+"
+    schema: "financial_data"
+    kafka: "Kafka for event publishing"
+    language: "Python 3.11+"
+    
+  migration_strategy:
+    tool: "pyway"
+    location: "workflow/financial_data/migrations/"
+    pattern: "Follow SQL migration patterns from docs/04-patterns/backend-patterns/domain-model-pattern.md"
+    idempotency: "Use IF NOT EXISTS, IF EXISTS for idempotent SQL"
+    schema_creation: "Create financial_data schema if not exists"
+    
+  prefect_workflow:
+    structure: "Follow SWAPI ETL example structure (docs/07-examples/batch-workflows/swapi-etl-workflow.md)"
+    version: "Prefect 3.6.5+"
+    deployment: "Use prefect.yaml configuration"
+    work_pools: "Use work pools and work queues (not older deployment model)"
+    retry_logic: "Task-level retries with exponential backoff"
+    observability: "Structured logs, Prefect artifacts, metrics"
+    
+  database_tables:
+    control_tables:
+      - "ifdata_extract_task: Request-level task control and audit"
+      - "ifdata_load_control: Coarse-grained load tracking (AnoMes, NomeRelatorio)"
+    staging_tables:
+      - "ifdata_raw: Tall/raw staging table (as-is CSV rows)"
+    hot_tables:
+      - "bank_report: Product-facing layer (JSONB, one row per CodInst+AnoMes+NomeRelatorio+NumeroRelatorio)"
+      - "institution: Current-state BACEN registry with change detection"
+      
+  kafka_integration:
+    topic: "financial-data.institution.upserted"
+    dlq_topic: "financial-data.institution.upserted.dlq"
+    message_key: "bacen_cod_inst"
+    producer_settings:
+      - "acks=all"
+      - "enable.idempotence=true"
+      - "compression.type=zstd|snappy"
+      - "linger.ms<=10"
+      - "retries>=5"
+    payload_requirements:
+      - "schema_version"
+      - "event_id"
+      - "occurred_at"
+      - "source='BACEN'"
+      - "bacen_cod_inst"
+      - "change_type: CREATED | UPDATED"
+      - "institution fields Banking needs"
+      - "optional: source_hash, ano_mes_ref"
+      
+  api_integration:
+    base_url: "https://olinda.bcb.gov.br/olinda/servico/IFDATA/versao/v1/odata/"
+    endpoints:
+      registry: "IfDataCadastro(AnoMes=@AnoMes)?@AnoMes=YYYYMM"
+      catalog: "ListaDeRelatorio()"
+      values: "IfDataValores(AnoMes=@AnoMes,TipoInstituicao=@TipoInstituicao,Relatorio=@Relatorio)"
+    format_preferences:
+      - "CSV for all endpoints (registry, catalog, values) for consistency"
+      - "CSV format: BACEN/Olinda CSV responses use comma (,) as column delimiter"
+    query_parameters:
+      - "Use $top=1000 for pagination"
+      - "Use $skip for pagination offset"
+      - "Use $format=text/csv for CSV"
+      - "Use $filter=Situacao eq 'A' for registry (active only)"
+      - "Use $select to reduce payload when possible"
+      
+  error_handling:
+    retry_strategy:
+      extract: "≥3 attempts, 1-5 min backoff"
+      transform: "≥2 attempts, 30-60 sec backoff"
+      publish: "≥5 attempts, 30 sec backoff"
+    task_tracking:
+      - "attempt_count: Track retry attempts"
+      - "last_error: Store error details"
+      - "last_http_status: Store HTTP status code"
+    fallback:
+      - "Persist payload to durable storage (S3, GCS, disk) with metadata"
+      - "Notify responsible channel (Slack/PagerDuty/email)"
+      - "Optionally trigger compensating run (manual or automated)"
+      
+  observability:
+    logging:
+      - "Structured logs with batch_id, task_name, records_processed"
+      - "Prefect events for task lifecycle"
+    metrics:
+      - "Total records extracted"
+      - "Total records promoted"
+      - "Kafka events published"
+      - "Task execution duration"
+      - "Error counts"
+      - "Consumer lag (if applicable)"
+    artifacts:
+      - "Prefect Artifacts for aggregate stats (counts, failure reasons)"
+    dashboards:
+      - "Grafana dashboards for monitoring"
+      - "Prometheus metrics integration"
+      
+  testing_strategy:
+    unit_tests:
+      - "Mock OData API responses"
+      - "Test task functions in isolation"
+      - "Test idempotency logic"
+      - "Test change detection hash computation"
+    integration_tests:
+      - "Use Testcontainers for PostgreSQL and Kafka"
+      - "End-to-end flow testing"
+      - "Test pagination logic"
+      - "Test promotion filtering"
+    smoke_tests:
+      - "Test entire flow locally using Prefect CLI against docker-compose stack"
+      
+  deployment:
+    configuration:
+      - "Store in prefect.yaml"
+      - "Use environment variables for secrets"
+      - "Document required env vars in runbook"
+    scheduling:
+      - "Cron schedule: Daily execution (UTC)"
+      - "Use Prefect CronSchedule"
+      - "Avoid overlaps with other critical jobs"
+    concurrency:
+      - "Set Prefect concurrency limits (tags or concurrency key)"
+      - "Prevent overlapping runs per environment"
+
+worklog:
+  - date: "2024-12-19"
+    phase: "domain"
+    summary: "Set up pyway migration structure for BACEN IFData ingestion"
+    tasks_completed:
+      - "domain-001"
+    files_created:
+      - "workflow/financial_data/migrations/.gitkeep"
+    files_modified:
+      - "workflow/financial_data/pyway.conf (already existed, verified configuration)"
+    key_decisions:
+      - "Verified pyway.conf configuration follows schema standards"
+      - "Migration naming convention documented: V{version}__{description}.sql"
+      - "Migration directory structure established at workflow/financial_data/migrations/"
+      - "Pyway tracking table configured as public.pyway_schema_history_financial_data following naming convention pattern"
+    issues_resolved:
+      - "Created .gitkeep file to ensure migrations directory is tracked in git"
+    next_steps:
+      - "Proceed with domain-002: Create financial_data schema migration"
+  - date: "2024-12-19"
+    phase: "domain"
+    summary: "Created financial_data schema migration and documented pyway usage"
+    tasks_completed:
+      - "domain-002"
+    files_created:
+      - "workflow/financial_data/migrations/V1_1__create_financial_data_schema.sql"
+    files_modified:
+      - "workflow/financial_data/bacen_ifdata/README.md (added pyway migration instructions)"
+      - "docs/05-standards/workflow-standards/batch-workflow-standard.md (added database migrations section)"
+    key_decisions:
+      - "Used IF NOT EXISTS for idempotency following schema standards"
+      - "Set search_path to financial_data, public for proper schema resolution"
+      - "Migration follows naming convention: V1_1__create_financial_data_schema.sql"
+      - "Pyway must be run from workflow/financial_data/ directory with -c pyway.conf flag"
+      - "Schema bootstrap required: schema must exist before pyway can create tracking table"
+    issues_resolved:
+      - "Resolved pyway config file not found error by using -c flag and running from correct directory"
+      - "Resolved schema bootstrap chicken-and-egg: schema must be created manually first time, then migrations work normally"
+      - "Documented proper pyway usage in README and batch workflow standard"
+    next_steps:
+      - "Proceed with domain-003: Create institution table migration"
+  - date: "2024-12-20"
+    phase: "domain"
+    summary: "Created institution table migration with change detection support"
+    tasks_completed:
+      - "domain-003"
+    files_created:
+      - "workflow/financial_data/migrations/V1_2__create_institution_table.sql"
+    key_decisions:
+      - "Used TEXT for bacen_cod_inst primary key to preserve leading zeros in institution codes"
+      - "Implemented CHAR(64) for source_hash to support SHA-256 hex hash for change detection"
+      - "Added indexes on ano_mes_ref, situacao, and source_hash for common query patterns"
+      - "Used TIMESTAMPTZ for audit timestamps (created_at, updated_at) with DEFAULT now()"
+      - "Natural key design: bacen_cod_inst as PRIMARY KEY (not UUID v7) following BACEN data model"
+      - "All nullable fields properly marked for optional institution attributes"
+    issues_resolved:
+      - "No issues encountered - migration follows all schema standards and domain model patterns"
+    next_steps:
+      - "Proceed with domain-004: Create ifdata_extract_task table migration"
+  - date: "2024-12-21"
+    phase: "domain"
+    summary: "Created ifdata_extract_task table migration for extraction task control and audit"
+    tasks_completed:
+      - "domain-004"
+    files_created:
+      - "workflow/financial_data/migrations/V1_3__create_ifdata_extract_task_table.sql"
+    key_decisions:
+      - "Used composite primary key on natural key (ano_mes, tipo_instituicao, nome_relatorio, numero_relatorio, page_skip) for request-level idempotency"
+      - "Implemented CHECK constraint for status enum values: PENDING, RUNNING, SUCCESS, EMPTY, ERROR"
+      - "EMPTY status is terminal state (end of pagination), not an error, as per specification"
+      - "Added default values: page_top=1000, attempt_count=0, status='PENDING' for new tasks"
+      - "Created indexes on status (for worker queue queries), (ano_mes, nome_relatorio) for load control, and created_at for audit"
+      - "Nullable timestamps (started_at, finished_at) only set when task executes"
+      - "Used TIMESTAMPTZ for all timestamp columns with DEFAULT now() for created_at and updated_at"
+    issues_resolved:
+      - "No issues encountered - migration follows all schema standards and domain model patterns"
+    next_steps:
+      - "Proceed with domain-005: Create ifdata_load_control table migration"
+  - date: "2024-12-22"
+    phase: "domain"
+    summary: "Created ifdata_load_control table migration for coarse-grained load tracking"
+    tasks_completed:
+      - "domain-005"
+    files_created:
+      - "workflow/financial_data/migrations/V1_4__create_ifdata_load_control_table.sql"
+    key_decisions:
+      - "Used composite primary key on natural key (ano_mes, nome_relatorio) for coarse-grained tracking"
+      - "Implemented boolean flags (extracted, promoted, completed) with corresponding timestamps (extracted_at, promoted_at, completed_at) for status tracking and audit trail"
+      - "Boolean flags default to FALSE, timestamps are nullable and set when each stage completes"
+      - "Created indexes on ano_mes (for quarter queries), extracted/promoted/completed flags (for status queries), and created_at (for audit queries)"
+      - "Table enables safe reprocessing of entire quarter+report and decouples extract completion from promotion completion"
+      - "Used TIMESTAMPTZ for all timestamp columns with DEFAULT now() for created_at and updated_at"
+    issues_resolved:
+      - "No issues encountered - migration follows all schema standards and domain model patterns"
+    next_steps:
+      - "Proceed with domain-006: Create ifdata_raw table migration"
+  - date: "2024-12-23"
+    phase: "domain"
+    summary: "Created ifdata_raw table migration for raw CSV row staging"
+    tasks_completed:
+      - "domain-006"
+    files_created:
+      - "workflow/financial_data/migrations/V1_5__create_ifdata_raw_table.sql"
+    key_decisions:
+      - "Used UUID v7 primary key (uuidv7()) for uniqueness since no natural unique key exists for raw CSV rows"
+      - "PostgreSQL 18+ has uuidv7() built-in, no extension needed (updated spec documents to reflect this)"
+      - "Implemented TEXT for raw_data column to store entire CSV row as-is, preserving original values"
+      - "Created composite index on scope dimensions (ano_mes, nome_relatorio, numero_relatorio, tipo_instituicao) for promotion queries and purge operations"
+      - "Created partial index on cod_inst (WHERE cod_inst IS NOT NULL) for efficient institution filtering during promotion"
+      - "Added index on created_at for audit queries and ordering"
+      - "All dimension columns (ano_mes, tipo_instituicao, nome_relatorio, numero_relatorio) are NOT NULL for proper scoping"
+      - "cod_inst is nullable as some CSV rows may not have institution code"
+    issues_resolved:
+      - "Initially attempted to use pg_uuidv7 extension, but PostgreSQL 18+ has uuidv7() built-in"
+      - "Updated specification documents (uuid-v7-pattern.md, schema-standards.md, domain-model-pattern.md, code-review-checklist.md) to clarify PostgreSQL 18+ built-in uuidv7() support"
+    next_steps:
+      - "Proceed with domain-007: Create bank_report table migration"
+  - date: "2024-12-23"
+    phase: "domain"
+    summary: "Created bank_report table migration for hot table with tipo_instituicao in primary key"
+    tasks_completed:
+      - "domain-007"
+    files_created:
+      - "workflow/financial_data/migrations/V1_6__create_bank_report_table.sql"
+    key_decisions:
+      - "Added tipo_instituicao to composite primary key: (cod_inst, ano_mes, nome_relatorio, numero_relatorio, tipo_instituicao) to preserve different consolidation perspectives (1-4)"
+      - "Includes tipo_instituicao INTEGER NOT NULL column to match the extraction scope pattern from ifdata_raw table"
+      - "Implemented JSONB report_data column for flexible schema and efficient querying of aggregated/normalized report data"
+      - "Created composite index on scope dimensions (ano_mes, nome_relatorio, numero_relatorio, tipo_instituicao) matching ifdata_raw pattern for promotion queries"
+      - "Created indexes on cod_inst, ano_mes, and created_at for common query patterns"
+      - "UPSERT operations are idempotent (can be re-run safely)"
+    issues_resolved:
+      - "Initially designed without tipo_instituicao, but updated to include it in primary key to preserve all consolidation perspectives and prevent data loss during promotion"
+    next_steps:
+      - "Proceed with domain-008: Test migrations"
+  - date: "2024-12-23"
+    phase: "workflow"
+    summary: "Implemented registry ingestion task with comprehensive features and improvements"
+    tasks_completed:
+      - "workflow-003"
+      - "testing-002"
+    files_created:
+      - "workflow/financial_data/bacen_ifdata/tasks/registry_ingestion.py"
+      - "workflow/financial_data/bacen_ifdata/tests/test_registry_ingestion.py"
+    files_modified:
+      - "workflow/financial_data/bacen_ifdata/tasks/__init__.py"
+    key_decisions:
+      - "Implemented pagination support for BACEN API to handle large registries (>1000 institutions)"
+      - "Used comma (,) delimiter for CSV parsing (BACEN/Olinda standard format)"
+      - "Implemented single transaction for batch upserts to ensure atomicity and improve performance"
+      - "Added requests.Session with retry/backoff (5 retries, exponential backoff) for network robustness"
+      - "Set User-Agent header for proper API client identification"
+      - "Implemented skip rate monitoring (10% threshold) to detect upstream schema shifts and data quality issues"
+      - "Added comprehensive logging for skipped rows with row numbers, available columns, and row data"
+      - "Hash-based change detection using SHA-256 of all relevant institution fields"
+      - "Returns only NEW/CHANGED institutions for Kafka event publishing (UNCHANGED filtered out)"
+    issues_resolved:
+      - "Fixed pagination to fetch all pages, not just first 1000 rows"
+      - "Fixed CSV delimiter from semicolon to comma based on actual BACEN API format"
+      - "Refactored from per-row commits to single transaction for atomicity and performance"
+      - "Added network retry/backoff to handle transient BACEN API hiccups"
+      - "Added observability for malformed data with skip rate monitoring"
+    next_steps:
+      - "Proceed with workflow-004: Implement report catalog fetching task"
+  - date: "2024-12-23"
+    phase: "workflow"
+    summary: "Implemented report catalog fetching task with comprehensive CSV parsing and error handling"
+    tasks_completed:
+      - "workflow-004"
+    files_created:
+      - "workflow/financial_data/bacen_ifdata/tasks/report_catalog_fetch.py"
+      - "workflow/financial_data/bacen_ifdata/tests/test_report_catalog_fetch.py"
+    files_modified:
+      - "workflow/financial_data/bacen_ifdata/tasks/__init__.py"
+    key_decisions:
+      - "Implemented fetch_report_catalog() Prefect task with retries=3, retry_delay_seconds=60, timeout_seconds=120"
+      - "Used comma (,) delimiter for CSV parsing (BACEN/Olinda standard format)"
+      - "Reused get_bacen_session() from registry_ingestion for consistent retry/backoff behavior"
+      - "Implemented parse_csv_to_reports() with case-insensitive column matching and BOM handling"
+      - "Added deduplication by natural key (nome_relatorio, numero_relatorio) to ensure deterministic extraction plan"
+      - "Implemented comprehensive error handling with proper logging for HTTP errors, invalid CSV format, and unexpected errors"
+      - "Added skip logic for rows with missing required fields with warning logging"
+      - "File named report_catalog_fetch.py (more descriptive than catalog_fetch.py)"
+    issues_resolved:
+      - "No issues encountered - implementation follows all patterns and standards"
+    next_steps:
+      - "Proceed with workflow-005: Implement extract task creation"
+  - date: "2024-12-23"
+    phase: "workflow"
+    summary: "Implemented extract task creation with comprehensive idempotency, error handling, and testing"
+    tasks_completed:
+      - "workflow-005"
+    files_created:
+      - "workflow/financial_data/bacen_ifdata/tasks/extract_task_creation.py"
+      - "workflow/financial_data/bacen_ifdata/tests/test_extract_task_creation.py"
+    files_modified:
+      - "workflow/financial_data/bacen_ifdata/tasks/__init__.py"
+    key_decisions:
+      - "Implemented create_extract_tasks() Prefect task with retries=2, retry_delay_seconds=30, timeout_seconds=120"
+      - "Used INSERT ... ON CONFLICT DO NOTHING for idempotency via PostgreSQL composite primary key"
+      - "Implemented rowcount-based detection to distinguish created vs existing tasks for accurate statistics"
+      - "Moved get_db_connection() inside try block to properly catch and log connection errors"
+      - "Added safe rollback and close operations with null checks to handle connection failures gracefully"
+      - "Returns statistics dictionary with created, existing, and total counts for observability"
+      - "Comprehensive error handling with detailed logging including ano_mes and reports_count context"
+      - "Created extensive test suite covering unit tests, integration tests, idempotency, and error scenarios"
+    issues_resolved:
+      - "Fixed test_idempotency_on_retry by using separate mock connections for each call to properly simulate rowcount behavior"
+      - "Improved error handling to catch connection errors and log them appropriately"
+      - "Added proper transaction rollback for both database errors and unexpected errors"
+    next_steps:
+      - "Proceed with workflow-006: Implement paginated extraction task"
+  - date: "2024-12-23"
+    phase: "workflow"
+    summary: "Implemented paginated extraction task with comprehensive retry logic, error handling, and testing"
+    tasks_completed:
+      - "workflow-006"
+    files_created:
+      - "workflow/financial_data/bacen_ifdata/tasks/paginated_extraction.py"
+      - "workflow/financial_data/bacen_ifdata/tests/test_paginated_extraction.py"
+    files_modified:
+      - "workflow/financial_data/bacen_ifdata/tasks/__init__.py"
+    key_decisions:
+      - "Implemented execute_paginated_extraction() Prefect task with retries=3, retry_delay_seconds=60, timeout_seconds=300 per batch workflow standard"
+      - "Added RetryablePaginatedExtractionError exception for Prefect retry mechanism when attempts remain"
+      - "Implemented handle_task_failure() function to manage retry vs terminal error logic (MAX_ATTEMPTS=3)"
+      - "Task picking uses FOR UPDATE SKIP LOCKED for row-level locking to prevent multiple workers from picking same task"
+      - "Raw purge logic: only purges when page_skip=0 AND raw data exists (reloading scenario), ensuring pagination safety"
+      - "CSV parsing preserves original row format by reconstructing from parsed dict to handle quoted fields with newlines correctly"
+      - "Batch insert into ifdata_raw using executemany for performance"
+      - "Next page task creation only when rows > 0, with idempotency via ON CONFLICT DO NOTHING"
+      - "Error handling: HTTP errors and CSV parsing errors retry up to MAX_ATTEMPTS, then mark as ERROR terminal state"
+      - "Status lifecycle: PENDING -> RUNNING -> SUCCESS/EMPTY/ERROR with proper timestamp tracking (started_at, finished_at)"
+      - "Added DEFAULT_PAGE_TOP=1000 constant and handling for null page_top values in pick_pending_task"
+      - "Comprehensive test suite covering unit tests for all helper functions, integration tests for main task, and edge cases"
+    issues_resolved:
+      - "Fixed URL encoding test assertion to accept both encoded (text%2Fcsv) and unencoded (text/csv) formats"
+      - "Fixed exception handling: removed rollback for RetryablePaginatedExtractionError since status update is already committed"
+      - "Fixed HTTP error handling to check hasattr(e, 'response') before accessing response.status_code"
+    next_steps:
+      - "Proceed with workflow-007: Implement extract completion check task"
+  - date: "2024-12-23"
+    phase: "workflow"
+    summary: "Implemented extract completion check task with comprehensive completion status tracking and idempotent marking"
+    tasks_completed:
+      - "workflow-007"
+    files_created:
+      - "workflow/financial_data/bacen_ifdata/tasks/extract_completion.py"
+      - "workflow/financial_data/bacen_ifdata/tests/test_extract_completion.py"
+    files_modified:
+      - "workflow/financial_data/bacen_ifdata/tasks/__init__.py"
+    key_decisions:
+      - "Implemented check_extract_completion_task() Prefect task with retries=2, retry_delay_seconds=30, timeout_seconds=120"
+      - "Terminal statuses defined as ('SUCCESS', 'EMPTY') - both indicate task completion (EMPTY is not an error)"
+      - "Completion check queries all tasks for quarter+report and verifies all have terminal status"
+      - "Uses INSERT ... ON CONFLICT UPDATE for idempotent marking of ifdata_load_control as extracted"
+      - "Preserves extracted_at timestamp on subsequent calls (only sets on first extraction completion)"
+      - "Returns comprehensive statistics: is_complete, total_tasks, terminal_tasks, non_terminal_tasks, status_breakdown, marked_extracted"
+      - "Handles edge cases: no tasks (not complete), all terminal (complete), mixed statuses (not complete)"
+      - "Comprehensive test suite covering unit tests for helper functions, Prefect task tests with mocked database, and integration tests with real database"
+    issues_resolved:
+      - "No issues encountered - implementation follows all patterns and standards"
+    next_steps:
+      - "Proceed with workflow-008: Implement promotion task (raw to hot)"
+  - date: "2024-12-23"
+    phase: "workflow"
+    summary: "Verified promotion task implementation - already complete with comprehensive features and testing"
+    tasks_completed:
+      - "workflow-008"
+    files_created:
+      - "workflow/financial_data/bacen_ifdata/tasks/promotion.py (already existed)"
+      - "workflow/financial_data/bacen_ifdata/tests/test_promotion.py (already existed)"
+    files_modified:
+      - "workflow/financial_data/bacen_ifdata/tasks/__init__.py (already exports promote_raw_to_hot)"
+    key_decisions:
+      - "Promotion task already implemented with promote_raw_to_hot() Prefect task (retries=2, retry_delay_seconds=30, timeout_seconds=120)"
+      - "Fetches raw data from ifdata_raw with active institution filter (situacao='A') via INNER JOIN with institution table"
+      - "Parses CSV rows from raw_data column using comma delimiter (BACEN standard format)"
+      - "Aggregates tall rows into JSONB documents grouped by natural key (cod_inst, ano_mes, nome_relatorio, numero_relatorio, tipo_instituicao)"
+      - "Handles multiple rows per group: fields appearing multiple times are collected in arrays"
+      - "Uses INSERT ... ON CONFLICT UPDATE for idempotent UPSERT into bank_report table"
+      - "Marks ifdata_load_control as promoted and completed with timestamp preservation (idempotent)"
+      - "Comprehensive test suite: unit tests for helper functions, Prefect task tests with mocked database, integration tests with testcontainers"
+      - "Tests cover: CSV parsing, row aggregation, active institution filtering, UPSERT operations, idempotency, edge cases (no data, inactive institutions)"
+    issues_resolved:
+      - "No issues - implementation was already complete and follows all patterns and standards"
+    next_steps:
+      - "Proceed with workflow-009: Implement Kafka publishing task"
+  - date: "2024-12-23"
+    phase: "workflow"
+    summary: "Implemented Kafka publishing task with comprehensive message building, DLQ handling, and testing"
+    tasks_completed:
+      - "workflow-009"
+    files_created:
+      - "workflow/financial_data/bacen_ifdata/tasks/kafka_publish.py"
+      - "workflow/financial_data/bacen_ifdata/schemas/institution_upserted.json"
+      - "workflow/financial_data/bacen_ifdata/tests/test_kafka_publish.py"
+    files_modified:
+      - "workflow/financial_data/bacen_ifdata/tasks/__init__.py"
+    key_decisions:
+      - "Implemented publish_institution_events() Prefect task with retries=5, retry_delay_seconds=30, timeout_seconds=300 per batch workflow standard"
+      - "Message structure includes all required fields: schema_version, event_id (UUID v4), occurred_at (ISO 8601), source='BACEN', bacen_cod_inst, change_type, and all institution fields"
+      - "Uses bacen_cod_inst as Kafka message key for proper partitioning"
+      - "Kafka producer configured with acks='all', enable_idempotence=True, compression_type='gzip' (configurable via env), linger_ms=10, retries=5"
+      - "DLQ handling: failed messages published to financial-data.institution.upserted.dlq topic with original message, error type, error message, and failed_at timestamp"
+      - "Returns comprehensive statistics: total, published, failed, dlq_published counts"
+      - "Comprehensive test suite: unit tests for message building, producer configuration, DLQ publishing, Prefect task tests with mocked Kafka producer, error handling, and edge cases"
+      - "Tests cover: message structure validation, change_type values (CREATED/UPDATED), UUID generation, ISO 8601 timestamps, successful publishing, Kafka errors, DLQ publishing, missing fields, invalid data, producer cleanup"
+    issues_resolved:
+      - "Fixed test failures: patched module constants for compression type test, corrected call args structure for DLQ test, added get_run_logger mocks for Prefect context, fixed ValueError DLQ test to allow second build_kafka_message call to succeed"
+    next_steps:
+      - "Proceed with workflow-010: Implement fallback handling task"
+  - date: "2024-12-23"
+    phase: "workflow"
+    summary: "Implemented fallback handling task with comprehensive fixes for metadata tracking, config reading, JSON serialization, and test coverage"
+    tasks_completed:
+      - "workflow-010"
+    files_created:
+      - "workflow/financial_data/bacen_ifdata/tasks/fallback.py"
+      - "workflow/financial_data/bacen_ifdata/tests/test_fallback.py"
+    files_modified:
+      - "workflow/financial_data/bacen_ifdata/tasks/fallback.py"
+      - "workflow/financial_data/bacen_ifdata/tests/test_fallback.py"
+    key_decisions:
+      - "Implemented handle_fallback() Prefect task with retries=0 (last resort), timeout_seconds=60, log_prints=True"
+      - "Fixed notification_sent metadata tracking: added update_metadata_notification_status() function to update persisted JSON file after notification completes"
+      - "Fixed config reading timing: added runtime helper functions (get_storage_type(), get_storage_path(), get_notification_type()) that read env vars at call time to support per-run overrides (e.g., Prefect env vars)"
+      - "Fixed JSON serialization: added default=str to all json.dump() calls to handle non-serializable payloads (bytes, Decimal, Path objects) and added logging of original payload representation"
+      - "Metadata update runs after notification completes, using stats['notified'] to ensure correct status even if notification raises exception"
+      - "Comprehensive test suite: unit tests for metadata building, storage persistence, notification sending, Prefect task integration, and integration tests"
+      - "Added tests for notification_sent flag updates, non-serializable payloads (bytes, Decimal, Path), non-dict payloads, and metadata update after notification"
+    issues_resolved:
+      - "Fixed metadata notification_sent flag: metadata was built before notification ran and never updated, causing stored files to falsely claim notifications weren't sent"
+      - "Fixed config reading: storage/notification config was read from env only at import time, ignoring per-run overrides (e.g., Prefect env vars set just before flow)"
+      - "Fixed JSON serialization: json.dump would fail for non-JSON-serializable payloads (bytes/Decimal/Path), causing fallback to return None and lose payload"
+      - "Added missing test coverage: notification_sent flag updates, non-serializable payloads, non-dict payloads, and removed unused MagicMock import"
+    next_steps:
+      - "Proceed with workflow-011: Implement main Prefect flow"
+  - date: "2024-12-23"
+    phase: "workflow"
+    summary: "Implemented main Prefect flow orchestrating all tasks with comprehensive observability and error handling"
+    tasks_completed:
+      - "workflow-011"
+    files_created:
+      - "workflow/financial_data/bacen_ifdata/flows/bacen_ifdata_ingestion.py"
+    files_modified:
+      - "workflow/financial_data/bacen_ifdata/flows/__init__.py"
+      - "workflow/financial_data/bacen_ifdata/README.md"
+    key_decisions:
+      - "Implemented main flow with all orchestration steps: target quarter determination, registry ingestion, report catalog fetching, extract task creation, paginated extraction loop, extract completion checking, promotion, and Kafka publishing"
+      - "Added check_registry_exists() helper task to verify registry before proceeding with extraction"
+      - "Added get_reports_for_quarter() helper task to identify reports that need processing"
+      - "Implemented extraction loop with safety limit (EXTRACTION_LOOP_MAX_ITERATIONS) to prevent infinite loops"
+      - "Flow supports manual target_ano_mes parameter for manual runs and bypasses publication window checks when provided"
+      - "Flow supports force_registry_refresh parameter to force registry ingestion even if it exists"
+      - "Comprehensive error handling: all exceptions caught, logged, and passed to fallback handler"
+      - "Created markdown artifact with detailed execution summary including all statistics"
+      - "Flow returns comprehensive status dictionary with all execution statistics for programmatic access"
+      - "Added extensive observability documentation to README covering logs, metrics, artifacts, and troubleshooting"
+    issues_resolved:
+      - "Removed unused task_inputs import from prefect.tasks"
+      - "No linting errors - code follows all Python standards"
+    next_steps:
+      - "Proceed with workflow-012: Configure Prefect deployment"
+  - date: "2024-12-23"
+    phase: "workflow"
+    summary: "Configured Prefect deployment with comprehensive settings for environment variables, concurrency limits, and deployment configuration"
+    tasks_completed:
+      - "workflow-012"
+    files_modified:
+      - "workflow/financial_data/bacen_ifdata/prefect.yaml"
+    key_decisions:
+      - "Configured cron schedule: daily execution at 2:00 AM UTC (0 2 * * *)"
+      - "Set work pool (default) and work queue (bacen-ifdata) for Prefect 3.x deployment model"
+      - "Added comprehensive environment variables configuration with defaults for local development (process work pools)"
+      - "Documented environment variable setup for production (docker/kubernetes work pools) using job_variables.env"
+      - "Configured concurrency limit: limit=1, collision_strategy=ENQUEUE, grace_period_seconds=300 to prevent overlapping runs"
+      - "Documented all required and optional environment variables with descriptions and default values"
+      - "Environment variables include: DATABASE_URL/POSTGRES_*, KAFKA_BROKERS, KAFKA_COMPRESSION_TYPE, MAX_EXTRACTION_WORKERS, EXTRACTION_LOOP_MAX_ITERATIONS, FALLBACK_STORAGE_*, NOTIFICATION_TYPE"
+      - "Noted that retry policies are configured at flow/task level in Python code (not in prefect.yaml)"
+      - "Added comments explaining sensitive values should use Prefect secrets"
+    issues_resolved:
+      - "Verified Prefect 3.x deployment configuration syntax for environment variables and concurrency limits"
+      - "Ensured configuration supports both local development (process work pools) and production (docker/kubernetes work pools)"
+    next_steps:
+      - "Proceed with testing phase: Write unit tests for remaining tasks"

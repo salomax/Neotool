@@ -1,14 +1,14 @@
 {
-  "displayName": "Neotool",
-  "packageName": "neotool",
-  "packageNamespace": "io.github.salomax.neotool",
-  "databaseName": "neotool_db",
-  "databaseUser": "neotool",
-  "serviceName": "neotool-service",
-  "webPackageName": "neotool-web",
-  "dockerImagePrefix": "neotool",
-  "routeGroup": "neotool",
-  "gitRepo": "salomax/neotool",
-  "apiDomain": "api.neotool.com",
-  "logoName": "neotool-logo"
+  "displayName": "Invistus",
+  "packageName": "invistus",
+  "packageNamespace": "io.github.salomax.invistus",
+  "databaseName": "invistus_db",
+  "databaseUser": "invistus",
+  "serviceName": "invistus-service",
+  "webPackageName": "invistus-web",
+  "dockerImagePrefix": "invistus",
+  "routeGroup": "invistus",
+  "gitRepo": "invistus/invistus",
+  "apiDomain": "api.invistus.com",
+  "logoName": "invistus-logo"
 }

@@ -300,16 +300,30 @@ override val id: UUID?
 - Consistent UUID format across the system
 
 **Requirements**:
-- Migration must install `pg_uuidv7` extension
+- **PostgreSQL 18+**: `uuidv7()` is built-in, no extension needed
+- **PostgreSQL < 18**: Migration must install `pg_uuidv7` extension
 - Table must use `DEFAULT uuidv7()` for UUID primary keys
 - Entity must use nullable `UUID?` with `@GeneratedValue(strategy = GenerationType.IDENTITY)`
 - Entity ID default must be `null` (not `UUID.randomUUID()`)
 - Domain objects must pass `null` for new entities
 
-**Example**:
+**Example (PostgreSQL 18+)**:
 ```sql
--- ✅ Correct - Migration
-CREATE EXTENSION IF NOT EXISTS pg_uuidv7;
+-- ✅ Correct - PostgreSQL 18+ (no extension needed)
+SET search_path TO app, public;
+
+CREATE TABLE IF NOT EXISTS app.users (
+    id UUID PRIMARY KEY DEFAULT uuidv7(),  -- Built-in in PostgreSQL 18+
+    -- other columns
+);
+```
+
+**Example (PostgreSQL < 18)**:
+```sql
+-- ✅ Correct - PostgreSQL < 18 (extension required)
+SET search_path TO app, public;
+
+CREATE EXTENSION IF NOT EXISTS pg_uuidv7;  -- Required for PostgreSQL < 18
 CREATE TABLE IF NOT EXISTS app.users (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
     -- other columns
