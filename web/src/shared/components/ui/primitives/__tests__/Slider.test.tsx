@@ -1,6 +1,6 @@
 import React from 'react';
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Slider } from '../Slider';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
@@ -13,7 +13,11 @@ const renderSlider = (props = {}) => {
   );
 };
 
-describe('Slider', () => {
+describe.sequential('Slider', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   describe('Rendering', () => {
     it('renders slider component', () => {
       renderSlider();
@@ -265,4 +269,3 @@ describe('Slider', () => {
     });
   });
 });
-

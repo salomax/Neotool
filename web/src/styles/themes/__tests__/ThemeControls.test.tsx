@@ -1,9 +1,11 @@
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, afterEach } from "vitest";
+import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { AppThemeProvider } from "@/styles/themes/AppThemeProvider";
 import { ThemeControls } from "@/styles/themes/ThemeControls";
 
-describe("ThemeControls", () => {
+// Run sequentially to avoid concurrent renders leaking between tests
+describe.sequential("ThemeControls", () => {
   it("should render light and dark mode toggle buttons", () => {
     render(
       <AppThemeProvider>
@@ -92,6 +94,10 @@ describe("ThemeControls", () => {
     // After rerender, dark mode should be restored from localStorage
     const darkButtonAfterRerender = screen.getByRole("button", { name: /dark/i });
     expect(darkButtonAfterRerender).toHaveAttribute("aria-pressed", "true");
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 });
 

@@ -1,13 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, cleanup } from '@testing-library/react';
 import { useAutoSave } from '@/shared/hooks/forms';
 
-describe('useAutoSave', () => {
+// Run sequentially to avoid concurrent renders leaking between tests
+describe.sequential('useAutoSave', () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
 
   afterEach(() => {
+    cleanup();
     vi.useRealTimers();
     vi.clearAllMocks();
   });

@@ -250,22 +250,45 @@ See [Spec Context Strategy](./spec-context-strategy.md) for detailed guidance.
 # Backend coverage
 ./gradlew test jacocoTestReport
 
-# Frontend unit tests
-npm test
+# Frontend unit tests (all tests)
+pnpm test
+
+# Frontend unit tests (specific file by pattern)
+pnpm test usePageTitle                    # Matches any file containing "usePageTitle"
+pnpm test "**/usePageTitle.test.tsx"      # Full path pattern
+pnpm vitest run usePageTitle              # Direct Vitest command
 
 # Frontend component tests
 npm run test:component
 
 # Frontend E2E tests
-npm run test:e2e
+pnpm run test:e2e
 
 # Frontend coverage
-npm test -- --coverage
+pnpm test -- --coverage
 
 # Watch mode
-npm test -- --watch
+pnpm test:watch
 ./gradlew test --continuous
 ```
+
+### Running Specific Test Files
+
+**Frontend (Vitest)**:
+- Use file patterns without `--` separator: `pnpm test <pattern>`
+- Patterns match any file path containing the pattern
+- Examples:
+  - `pnpm test usePageTitle` - Matches `src/shared/hooks/__tests__/ui/usePageTitle.test.tsx`
+  - `pnpm test UserDrawer` - Matches any test file with "UserDrawer" in the path
+  - `pnpm test "**/usePageTitle.test.tsx"` - Full path pattern with glob
+
+**Note**: Using `pnpm run test -- <pattern>` does not work correctly. Pass the pattern directly without `--` separator.
+
+**Backend (Gradle)**:
+- Use `--tests` flag with class name pattern: `./gradlew test --tests "*TestClass"`
+- Examples:
+  - `./gradlew test --tests "*UserServiceTest"` - Matches any test class ending with "UserServiceTest"
+  - `./gradlew test --tests "com.example.UserServiceTest"` - Full class name
 
 ## Related Documentation
 

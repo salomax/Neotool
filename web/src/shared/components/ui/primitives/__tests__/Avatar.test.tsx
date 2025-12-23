@@ -1,6 +1,6 @@
 import React from 'react';
-import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, afterEach } from 'vitest';
+import { render, screen, cleanup } from '@testing-library/react';
 import { Avatar } from '../Avatar';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
 
@@ -12,7 +12,11 @@ const renderAvatar = (props = {}) => {
   );
 };
 
-describe('Avatar', () => {
+describe.sequential('Avatar', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   describe('Initials generation', () => {
     it('renders initials from full name', () => {
       renderAvatar({ name: 'John Doe' });
@@ -115,4 +119,3 @@ describe('Avatar', () => {
     });
   });
 });
-

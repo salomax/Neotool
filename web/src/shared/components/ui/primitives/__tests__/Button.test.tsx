@@ -1,6 +1,6 @@
 import React from 'react';
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Button } from '../Button';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
@@ -13,7 +13,8 @@ const renderButton = (props = {}) => {
   );
 };
 
-describe('Button', () => {
+// Run sequentially to avoid concurrent renders leaking between tests
+describe.sequential('Button', () => {
   it('renders button with children', () => {
     renderButton();
     expect(screen.getByText('Test Button')).toBeInTheDocument();
@@ -123,6 +124,10 @@ describe('Button', () => {
     const StartIcon = () => <span data-testid="start-icon">Icon</span>;
     renderButton({ startIcon: <StartIcon />, loading: true });
     expect(screen.queryByTestId('start-icon')).not.toBeInTheDocument();
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 });
 

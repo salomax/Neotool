@@ -83,7 +83,7 @@ export function PageTitleProvider({ children }: { children: React.ReactNode }) {
       title,
       setTitle,
     }),
-    [title]
+    [title, setTitle]
   );
 
   return (

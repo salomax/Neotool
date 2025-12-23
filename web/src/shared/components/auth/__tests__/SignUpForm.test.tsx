@@ -49,7 +49,8 @@ const renderSignUpForm = (props = {}) => {
   );
 };
 
-describe('SignUpForm', () => {
+// Run sequentially to avoid multiple rendered forms across parallel threads
+describe.sequential('SignUpForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSignUp.mockResolvedValue(undefined);
@@ -292,4 +293,3 @@ describe('SignUpForm', () => {
     }, { timeout: 3000 });
   });
 });
-

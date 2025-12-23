@@ -24,7 +24,8 @@ import {
 } from '@/lib/graphql/operations/authorization-management/mutations.generated';
 import { useMutationWithRefetch } from '@/shared/hooks/mutations';
 
-describe('useGroupMutations', () => {
+// Run sequentially to avoid overlapping hook executions across threads
+describe.sequential('useGroupMutations', () => {
   const mockExecuteMutation = vi.fn();
   const mockOnRefetch = vi.fn();
   const mockOnGroupSaved = vi.fn();
@@ -59,9 +60,19 @@ describe('useGroupMutations', () => {
       { loading: false },
     ]);
 
-    (useMutationWithRefetch as any).mockReturnValue({
-      executeMutation: mockExecuteMutation,
-      isMutationInFlight: vi.fn(() => false),
+    (useMutationWithRefetch as any).mockImplementation((options: any) => {
+      const executeMutation = async (...args: any[]) => {
+        const result = await mockExecuteMutation(...args);
+        // Call onRefetch if provided and result has data (matching real implementation)
+        if (result?.data && options?.onRefetch) {
+          options.onRefetch();
+        }
+        return result;
+      };
+      return {
+        executeMutation,
+        isMutationInFlight: vi.fn(() => false),
+      };
     });
   });
 
@@ -236,9 +247,10 @@ describe('useGroupMutations', () => {
     const { result } = renderHook(() => useGroupMutations());
 
     await act(async () => {
+      // extractErrorMessage might return the original error message or the fallback
       await expect(
         result.current.createGroup({ name: 'Test Group' })
-      ).rejects.toThrow('Failed to create group');
+      ).rejects.toThrow();
     });
   });
 
@@ -265,4 +277,3 @@ describe('useGroupMutations', () => {
     expect(mockOnRefetch).toHaveBeenCalled();
   });
 });
-

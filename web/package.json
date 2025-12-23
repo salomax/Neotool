@@ -16,6 +16,7 @@
     "format": "prettier --write .",
     "msw:init": "msw init public --save",
     "test": "vitest run -c vitest.config.mts",
+    "test:file": "vitest run -c vitest.config.mts",
     "test:watch": "vitest -c vitest.config.mts",
     "test:coverage": "vitest run --coverage -c vitest.config.mts",
     "ci:unit": "pnpm run typecheck && pnpm run lint && pnpm run test",

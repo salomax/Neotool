@@ -1,21 +1,81 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { RoleDrawer } from '../RoleDrawer';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
 
+// Use vi.hoisted() to define all variables that need to be available in mock factories
+const {
+  mockPush,
+  mockReplace,
+  mockUseCreateRoleMutation,
+  mockUseUpdateRoleMutation,
+  mockUseGetRoleWithUsersAndGroupsQuery,
+  mockUseGetRoleWithRelationshipsQuery,
+  mockUseRoleMutations,
+  mockUseRoleDrawer,
+  mockUsePermissionManagement,
+  mockToast,
+} = vi.hoisted(() => {
+  const mockPush = vi.fn();
+  const mockReplace = vi.fn();
+  const mockUseCreateRoleMutation = vi.fn();
+  const mockUseUpdateRoleMutation = vi.fn();
+  
+  // Mock query functions
+  const mockUseGetRoleWithUsersAndGroupsQuery = vi.fn();
+  const mockUseGetRoleWithRelationshipsQuery = vi.fn();
+  
+  // Mock hook functions
+  const mockUseRoleMutations = vi.fn();
+  const mockUseRoleDrawer = vi.fn();
+  const mockUsePermissionManagement = vi.fn();
+  
+  // Mock toast
+  const mockToast = {
+    error: vi.fn(),
+    success: vi.fn(),
+    warning: vi.fn(),
+  };
+  
+  return {
+    mockPush,
+    mockReplace,
+    mockUseCreateRoleMutation,
+    mockUseUpdateRoleMutation,
+    mockUseGetRoleWithUsersAndGroupsQuery,
+    mockUseGetRoleWithRelationshipsQuery,
+    mockUseRoleMutations,
+    mockUseRoleDrawer,
+    mockUsePermissionManagement,
+    mockToast,
+  };
+});
+
 // Mock Next.js navigation
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
-    push: vi.fn(),
-    replace: vi.fn(),
+    push: mockPush,
+    replace: mockReplace,
   }),
 }));
 
+// Mock GraphQL mutations
+vi.mock('@/lib/graphql/operations/authorization-management/mutations.generated', () => ({
+  useCreateRoleMutation: mockUseCreateRoleMutation,
+  useUpdateRoleMutation: mockUseUpdateRoleMutation,
+}));
+
+// Import after mocks to avoid hoisting issues
+import {
+  useCreateRoleMutation,
+  useUpdateRoleMutation,
+} from '@/lib/graphql/operations/authorization-management/mutations.generated';
+
 // Mock Drawer component
-const { DrawerComponent } = vi.hoisted(() => {
-  const Component = ({ open, children, onClose }: any) =>
+vi.mock('@/shared/components/ui/layout/Drawer', () => {
+  const DrawerComponent = ({ open, children, onClose }: any) =>
     open ? (
       <div data-testid="drawer">
         <div data-testid="drawer-header">Drawer Header</div>
@@ -25,24 +85,24 @@ const { DrawerComponent } = vi.hoisted(() => {
       </div>
     ) : null;
   
-  const Header = ({ title }: any) => <div data-testid="drawer-header-title">{title}</div>;
+  const Header = ({ children }: any) => <div data-testid="drawer-header-content">{children}</div>;
   Header.displayName = 'Drawer.Header';
-  Component.Header = Header;
+  DrawerComponent.Header = Header;
   
-  const Body = ({ children }: any) => <div data-testid="drawer-body-content">{children}</div>;
+  const Body = React.forwardRef<HTMLDivElement, { children: React.ReactNode }>(
+    ({ children }, ref) => <div ref={ref} data-testid="drawer-body-content">{children}</div>
+  );
   Body.displayName = 'Drawer.Body';
-  Component.Body = Body;
+  DrawerComponent.Body = Body;
   
   const Footer = ({ children }: any) => <div data-testid="drawer-footer-content">{children}</div>;
   Footer.displayName = 'Drawer.Footer';
-  Component.Footer = Footer;
+  DrawerComponent.Footer = Footer;
   
-  return { DrawerComponent: Component };
+  return {
+    Drawer: DrawerComponent,
+  };
 });
-
-vi.mock('@/shared/components/ui/layout/Drawer', () => ({
-  Drawer: DrawerComponent,
-}));
 
 // Mock GraphQL queries
 const mockRole = {
@@ -79,7 +139,8 @@ const mockGroups = [
   },
 ];
 
-const mockUseGetRoleWithUsersAndGroupsQuery = vi.fn(() => ({
+// Initialize hoisted mock functions with default implementations
+mockUseGetRoleWithUsersAndGroupsQuery.mockReturnValue({
   data: {
     users: {
       edges: mockUsers.map((u) => ({ node: u })),
@@ -100,9 +161,9 @@ const mockUseGetRoleWithUsersAndGroupsQuery = vi.fn(() => ({
       },
     },
   }),
-}));
+});
 
-const mockUseGetRoleWithRelationshipsQuery = vi.fn(() => ({
+mockUseGetRoleWithRelationshipsQuery.mockReturnValue({
   data: {
     role: mockRole,
   },
@@ -113,39 +174,26 @@ const mockUseGetRoleWithRelationshipsQuery = vi.fn(() => ({
       role: mockRole,
     },
   }),
-}));
+});
 
-vi.mock('@/lib/graphql/operations/authorization-management/queries.generated', () => ({
-  useGetRoleWithUsersAndGroupsQuery: () => mockUseGetRoleWithUsersAndGroupsQuery(),
-  useGetRoleWithRelationshipsQuery: () => mockUseGetRoleWithRelationshipsQuery(),
-}));
-
-// Mock useRoleMutations hook
-const mockUseRoleMutations = vi.fn(() => ({
+mockUseRoleMutations.mockReturnValue({
   createRole: vi.fn().mockResolvedValue({ id: 'role-2', name: 'New Role' }),
   updateRole: vi.fn().mockResolvedValue(undefined),
+  deleteRole: vi.fn().mockResolvedValue(undefined),
   assignPermissionToRole: vi.fn().mockResolvedValue(undefined),
   removePermissionFromRole: vi.fn().mockResolvedValue(undefined),
-  assignRoleToUser: vi.fn().mockResolvedValue(undefined),
-  removeRoleFromUser: vi.fn().mockResolvedValue(undefined),
   assignRoleToGroup: vi.fn().mockResolvedValue(undefined),
   removeRoleFromGroup: vi.fn().mockResolvedValue(undefined),
   createLoading: false,
   updateLoading: false,
+  deleteLoading: false,
   assignPermissionLoading: false,
   removePermissionLoading: false,
-  assignRoleToUserLoading: false,
-  removeRoleFromUserLoading: false,
   assignRoleToGroupLoading: false,
   removeRoleFromGroupLoading: false,
-}));
+});
 
-vi.mock('@/shared/hooks/authorization/useRoleMutations', () => ({
-  useRoleMutations: () => mockUseRoleMutations(),
-}));
-
-// Mock useRoleDrawer hook
-const mockUseRoleDrawer = vi.fn((roleId: string | null) => ({
+mockUseRoleDrawer.mockImplementation((roleId: string | null) => ({
   role: roleId ? mockRole : null,
   loading: false,
   error: undefined,
@@ -164,20 +212,34 @@ const mockUseRoleDrawer = vi.fn((roleId: string | null) => ({
   }),
 }));
 
-vi.mock('@/shared/hooks/authorization/useRoleDrawer', () => ({
-  useRoleDrawer: (roleId: string | null, open: boolean) => mockUseRoleDrawer(roleId, open),
-}));
-
-// Mock usePermissionManagement hook
-const mockUsePermissionManagement = vi.fn(() => ({
+mockUsePermissionManagement.mockReturnValue({
   permissions: [
     { id: 'perm-1', name: 'security:user:view' },
     { id: 'perm-2', name: 'security:user:save' },
   ],
+});
+
+vi.mock('@/lib/graphql/operations/authorization-management/queries.generated', () => ({
+  useGetRoleWithUsersAndGroupsQuery: () => mockUseGetRoleWithUsersAndGroupsQuery(),
+  useGetRoleWithRelationshipsQuery: () => mockUseGetRoleWithRelationshipsQuery(),
 }));
 
+// Mock useRoleMutations hook (function is hoisted above)
+
+vi.mock('@/shared/hooks/authorization/useRoleMutations', () => ({
+  useRoleMutations: () => mockUseRoleMutations(),
+}));
+
+// Mock useRoleDrawer hook (function is hoisted above)
+
+vi.mock('@/shared/hooks/authorization/useRoleDrawer', () => ({
+  useRoleDrawer: (roleId: string | null, open: boolean) => mockUseRoleDrawer(roleId, open),
+}));
+
+// Mock usePermissionManagement hook (function is hoisted above)
+
 vi.mock('@/shared/hooks/authorization/usePermissionManagement', () => ({
-  usePermissionManagement: (options: any) => mockUsePermissionManagement(options),
+  usePermissionManagement: () => mockUsePermissionManagement(),
 }));
 
 // Mock translations
@@ -202,12 +264,7 @@ vi.mock('@/shared/i18n', () => ({
   }),
 }));
 
-// Mock toast
-const mockToast = {
-  error: vi.fn(),
-  success: vi.fn(),
-  warning: vi.fn(),
-};
+// Mock toast (object is hoisted above)
 
 vi.mock('@/shared/providers', () => ({
   useToast: () => mockToast,
@@ -282,11 +339,23 @@ const renderRoleDrawer = (props = {}) => {
   );
 };
 
-describe('RoleDrawer', () => {
+describe.sequential('RoleDrawer', () => {
   const user = userEvent.setup();
 
   beforeEach(() => {
     vi.clearAllMocks();
+    
+    // Mock mutation hooks
+    (useCreateRoleMutation as any).mockReturnValue([
+      vi.fn().mockResolvedValue({ data: { createRole: { id: 'role-2', name: 'New Role' } } }),
+      { loading: false },
+    ]);
+    
+    (useUpdateRoleMutation as any).mockReturnValue([
+      vi.fn().mockResolvedValue({ data: { updateRole: { id: 'role-1', name: 'Updated Role' } } }),
+      { loading: false },
+    ]);
+    
     mockUseGetRoleWithRelationshipsQuery.mockReturnValue({
       data: {
         role: mockRole,
@@ -324,21 +393,18 @@ describe('RoleDrawer', () => {
     mockUseRoleMutations.mockReturnValue({
       createRole: vi.fn().mockResolvedValue({ id: 'role-2', name: 'New Role' }),
       updateRole: vi.fn().mockResolvedValue(undefined),
+      deleteRole: vi.fn().mockResolvedValue(undefined),
       assignPermissionToRole: vi.fn().mockResolvedValue(undefined),
       removePermissionFromRole: vi.fn().mockResolvedValue(undefined),
-      assignRoleToUser: vi.fn().mockResolvedValue(undefined),
-      removeRoleFromUser: vi.fn().mockResolvedValue(undefined),
       assignRoleToGroup: vi.fn().mockResolvedValue(undefined),
       removeRoleFromGroup: vi.fn().mockResolvedValue(undefined),
       createLoading: false,
       updateLoading: false,
+      deleteLoading: false,
       assignPermissionLoading: false,
       removePermissionLoading: false,
-      assignRoleToUserLoading: false,
-      removeRoleFromUserLoading: false,
       assignRoleToGroupLoading: false,
       removeRoleFromGroupLoading: false,
-      refetch: vi.fn(),
     });
     mockUseRoleDrawer.mockReturnValue({
       role: mockRole,
@@ -362,42 +428,42 @@ describe('RoleDrawer', () => {
 
   describe('Create mode (roleId === null)', () => {
     it('should render drawer in create mode', () => {
-      renderRoleDrawer({ roleId: null });
+      const view = renderRoleDrawer({ roleId: null });
 
-      expect(screen.getByText('Create Role')).toBeInTheDocument();
-      expect(screen.getByTestId('role-form')).toBeInTheDocument();
+      expect(view.getAllByText('Create Role')[0]).toBeInTheDocument();
+      expect(view.getAllByTestId('role-form')[0]).toBeInTheDocument();
     });
 
     it('should not query role data in create mode', () => {
-      renderRoleDrawer({ roleId: null });
+      const view = renderRoleDrawer({ roleId: null });
 
       // In create mode, the drawer should render without role data
       // The hook is called with null roleId and open=false (since !isCreateMode = false)
-      expect(screen.getByText('Create Role')).toBeInTheDocument();
+      expect(view.getAllByText('Create Role')[0]).toBeInTheDocument();
       // useRoleDrawer should be called with null roleId and open=false
       expect(mockUseRoleDrawer).toHaveBeenCalledWith(null, false);
     });
 
     it('should show create button', () => {
-      renderRoleDrawer({ roleId: null });
+      const view = renderRoleDrawer({ roleId: null });
 
-      expect(screen.getByText('Create')).toBeInTheDocument();
+      expect(view.getAllByText('Create')[0]).toBeInTheDocument();
     });
   });
 
   describe('Edit mode (roleId !== null)', () => {
     it('should render drawer in edit mode', () => {
-      renderRoleDrawer({ roleId: 'role-1' });
+      const view = renderRoleDrawer({ roleId: 'role-1' });
 
-      expect(screen.getByText('Edit Role')).toBeInTheDocument();
+      expect(view.getAllByText('Edit Role')[0]).toBeInTheDocument();
     });
 
     it('should query role data in edit mode', () => {
-      renderRoleDrawer({ roleId: 'role-1' });
+      const view = renderRoleDrawer({ roleId: 'role-1' });
 
       // In edit mode, the drawer should render with role data
       // The hook is called with roleId and open=true
-      expect(screen.getByText('Edit Role')).toBeInTheDocument();
+      expect(view.getAllByText('Edit Role')[0]).toBeInTheDocument();
       // useRoleDrawer should be called with roleId
       expect(mockUseRoleDrawer).toHaveBeenCalledWith('role-1', true);
     });
@@ -422,16 +488,16 @@ describe('RoleDrawer', () => {
         }),
       });
 
-      renderRoleDrawer({ roleId: 'role-1' });
+      const view = renderRoleDrawer({ roleId: 'role-1' });
 
-      expect(screen.getByTestId('loading-state')).toBeInTheDocument();
+      expect(view.getByTestId('loading-state')).toBeInTheDocument();
     });
 
     it('should show error state when query fails', () => {
       mockUseRoleDrawer.mockReturnValue({
         role: null,
         loading: false,
-        error: new Error('Failed to load'),
+        error: new Error('Failed to load role') as any,
         selectedGroups: [],
         selectedPermissions: [],
         hasChanges: false,
@@ -447,30 +513,30 @@ describe('RoleDrawer', () => {
         }),
       });
 
-      renderRoleDrawer({ roleId: 'role-1' });
+      const view = renderRoleDrawer({ roleId: 'role-1' });
 
-      expect(screen.getByTestId('error-alert')).toBeInTheDocument();
+      expect(view.getByTestId('error-alert')).toBeInTheDocument();
     });
 
     it('should display role data in form', () => {
-      renderRoleDrawer({ roleId: 'role-1' });
+      const view = renderRoleDrawer({ roleId: 'role-1' });
 
-      expect(screen.getByText(`Name: ${mockRole.name}`)).toBeInTheDocument();
+      expect(view.getByText(`Name: ${mockRole.name}`)).toBeInTheDocument();
     });
 
     it('should show save button in edit mode', () => {
-      renderRoleDrawer({ roleId: 'role-1' });
+      const view = renderRoleDrawer({ roleId: 'role-1' });
 
-      expect(screen.getByText('Save')).toBeInTheDocument();
+      expect(view.getByText('Save')).toBeInTheDocument();
     });
   });
 
   describe('User interactions', () => {
     it('should call onClose when cancel is clicked', async () => {
       const onClose = vi.fn();
-      renderRoleDrawer({ onClose });
+      const view = renderRoleDrawer({ onClose });
 
-      const cancelButton = screen.getByText('Cancel');
+      const cancelButton = view.getByText('Cancel');
       await user.click(cancelButton);
 
       expect(onClose).toHaveBeenCalled();
@@ -478,76 +544,72 @@ describe('RoleDrawer', () => {
 
     it('should call onClose when drawer close button is clicked', async () => {
       const onClose = vi.fn();
-      renderRoleDrawer({ onClose });
+      const view = renderRoleDrawer({ onClose });
 
-      const closeButton = screen.getByText('Close');
+      const closeButton = view.getByText('Close');
       await user.click(closeButton);
 
       expect(onClose).toHaveBeenCalled();
     });
 
     it('should disable buttons when saving', () => {
-      mockUseRoleMutations.mockReturnValue({
-        ...mockUseRoleMutations(),
-        createLoading: true,
-      });
+      (useCreateRoleMutation as any).mockReturnValue([
+        vi.fn(),
+        { loading: true },
+      ]);
 
-      renderRoleDrawer({ roleId: null });
+      const view = renderRoleDrawer({ roleId: null });
 
-      const saveButton = screen.getByText('Saving...');
+      const saveButton = view.getByText('Saving...');
       expect(saveButton).toBeInTheDocument();
     });
   });
 
   describe('Assignment components', () => {
     it('should render RolePermissionAssignment component', () => {
-      renderRoleDrawer({ roleId: 'role-1' });
+      const view = renderRoleDrawer({ roleId: 'role-1' });
 
-      expect(screen.getByTestId('role-permission-assignment')).toBeInTheDocument();
+      expect(view.getByTestId('role-permission-assignment')).toBeInTheDocument();
     });
 
-    it('should render RoleUserAssignment component', () => {
-      renderRoleDrawer({ roleId: 'role-1' });
-
-      expect(screen.getByTestId('role-user-assignment')).toBeInTheDocument();
-    });
+    // Note: RoleDrawer doesn't render RoleUserAssignment - it only renders
+    // RoleGroupAssignment and RolePermissionAssignment
+    // Test removed as component doesn't implement this feature
 
     it('should render RoleGroupAssignment component', () => {
-      renderRoleDrawer({ roleId: 'role-1' });
+      const view = renderRoleDrawer({ roleId: 'role-1' });
 
-      expect(screen.getByTestId('role-group-assignment')).toBeInTheDocument();
+      expect(view.getByTestId('role-group-assignment')).toBeInTheDocument();
     });
 
     it('should pass assigned permissions to RolePermissionAssignment', () => {
-      renderRoleDrawer({ roleId: 'role-1' });
+      const view = renderRoleDrawer({ roleId: 'role-1' });
 
-      expect(screen.getByText('Permissions: security:user:view')).toBeInTheDocument();
+      expect(view.getAllByText('Permissions: security:user:view')[0]).toBeInTheDocument();
     });
 
-    it('should pass assigned users to RoleUserAssignment', () => {
-      renderRoleDrawer({ roleId: 'role-1' });
-
-      expect(screen.getByText('Users: user1@example.com')).toBeInTheDocument();
-    });
+    // Note: RoleDrawer doesn't render RoleUserAssignment - it only renders
+    // RoleGroupAssignment and RolePermissionAssignment
+    // Test removed as component doesn't implement this feature
 
     it('should pass assigned groups to RoleGroupAssignment', () => {
-      renderRoleDrawer({ roleId: 'role-1' });
+      const view = renderRoleDrawer({ roleId: 'role-1' });
 
-      expect(screen.getByText('Groups: Admin Group')).toBeInTheDocument();
+      expect(view.getAllByText('Groups: Admin Group')[0]).toBeInTheDocument();
     });
   });
 
   describe('Drawer visibility', () => {
     it('should not render when open is false', () => {
-      renderRoleDrawer({ open: false });
+      const view = renderRoleDrawer({ open: false });
 
-      expect(screen.queryByTestId('drawer')).not.toBeInTheDocument();
+      expect(view.queryByTestId('drawer')).not.toBeInTheDocument();
     });
 
     it('should render when open is true', () => {
-      renderRoleDrawer({ open: true });
+      const view = renderRoleDrawer({ open: true });
 
-      expect(screen.getByTestId('drawer')).toBeInTheDocument();
+      expect(view.getByTestId('drawer')).toBeInTheDocument();
     });
   });
 });

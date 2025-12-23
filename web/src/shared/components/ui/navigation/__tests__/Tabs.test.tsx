@@ -1,6 +1,6 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Tabs, { TabItem } from '../Tabs';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
@@ -46,7 +46,8 @@ const renderTabs = (props?: Partial<React.ComponentProps<typeof Tabs>>) => {
   );
 };
 
-describe('Tabs', () => {
+// Run sequentially to avoid concurrent renders leaking between tests
+describe.sequential('Tabs', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -386,6 +387,10 @@ describe('Tabs', () => {
       expect(screen.getByText('New Tab')).toBeInTheDocument();
       expect(screen.queryByText('Tab 1')).not.toBeInTheDocument();
     });
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 });
 

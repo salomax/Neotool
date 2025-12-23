@@ -1,6 +1,6 @@
 import React from 'react';
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Rating } from '../Rating';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
@@ -13,7 +13,8 @@ const renderRating = (props = {}) => {
   );
 };
 
-describe('Rating', () => {
+// Run sequentially to avoid concurrent renders leaking between tests
+describe.sequential('Rating', () => {
   describe('Rendering', () => {
     it('renders rating component with default 5 stars', () => {
       renderRating();
@@ -327,6 +328,10 @@ describe('Rating', () => {
 
       expect(handleChange).toHaveBeenCalledWith(1);
     });
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 });
 

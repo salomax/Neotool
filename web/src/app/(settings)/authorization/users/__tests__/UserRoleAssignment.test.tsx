@@ -1,6 +1,6 @@
 import React from "react";
-import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { render, screen, cleanup } from "@testing-library/react";
 import { UserRoleAssignment } from "../UserRoleAssignment";
 import { AppThemeProvider } from "@/styles/themes/AppThemeProvider";
 
@@ -41,7 +41,11 @@ const renderUserRoleAssignment = (props = {}) => {
   );
 };
 
-describe("UserRoleAssignment", () => {
+describe.sequential("UserRoleAssignment", () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   it("shows empty state when no roles are assigned", () => {
     renderUserRoleAssignment({ assignedRoles: [] });
 

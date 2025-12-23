@@ -58,7 +58,8 @@ const renderForgotPasswordForm = (props = {}) => {
   );
 };
 
-describe('ForgotPasswordForm', () => {
+// Run sequentially to avoid multiple rendered forms across parallel threads
+describe.sequential('ForgotPasswordForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockRequestPasswordReset.mockResolvedValue({
@@ -268,4 +269,3 @@ describe('ForgotPasswordForm', () => {
     });
   });
 });
-

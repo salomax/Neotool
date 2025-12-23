@@ -7,6 +7,7 @@ import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
 import { useAuth } from "@/shared/providers/AuthProvider";
 import { SearchableAutocomplete } from "@/shared/components/ui/forms/SearchableAutocomplete";
+import { useFormContext } from "react-hook-form";
 
 export type User = {
   id: string;
@@ -18,6 +19,10 @@ export type User = {
 export interface GroupUserAssignmentProps {
   assignedUsers: User[];
   onChange?: (users: User[]) => void;
+  /**
+   * Optional field name for react-hook-form integration
+   */
+  name?: string;
 }
 
 type UserOption = {
@@ -34,18 +39,42 @@ type UserOption = {
 export const GroupUserAssignment: React.FC<GroupUserAssignmentProps> = ({
   assignedUsers,
   onChange,
+  name = "userIds",
 }) => {
   const { t } = useTranslation(authorizationManagementTranslations);
   const { isAuthenticated } = useAuth();
+  
+  // Optional react-hook-form integration
+  // Access formState from useFormContext - it's reactive and triggers re-renders
+  // Call hook unconditionally, but handle the case where it's not in a form context
+  let formContext: ReturnType<typeof useFormContext> | null = null;
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    formContext = useFormContext();
+  } catch {
+    // Not in a form context, that's okay
+  }
+  
+  // formState from useFormContext is reactive and will trigger re-renders when errors change
+  const formState = formContext?.formState;
+  const fieldState = formState?.errors[name];
+  const fieldError = !!fieldState;
+  const fieldHelperText = fieldState?.message as string | undefined;
 
-  // Map assigned users to option format
+  // Map assigned users to option format, deduplicating by ID
   const selectedUsers = useMemo(() => {
-    return assignedUsers.map((user) => ({
-      id: user.id,
-      label: user.displayName || user.email,
-      email: user.email,
-      displayName: user.displayName,
-    }));
+    const userMap = new Map<string, UserOption>();
+    for (const user of assignedUsers) {
+      if (!userMap.has(user.id)) {
+        userMap.set(user.id, {
+          id: user.id,
+          label: user.displayName || user.email,
+          email: user.email,
+          displayName: user.displayName,
+        });
+      }
+    }
+    return Array.from(userMap.values());
   }, [assignedUsers]);
 
   const handleChange = (newSelected: UserOption[]) => {
@@ -85,16 +114,18 @@ export const GroupUserAssignment: React.FC<GroupUserAssignmentProps> = ({
       getOptionId={(option) => option.id}
       getOptionLabel={(option) => option.label}
       isOptionEqualToValue={(option, value) => option.id === value.id}
-        multiple
-        placeholder={t("groupManagement.form.usersHelper")}
-        skip={!isAuthenticated}
-        errorMessage={t("groupManagement.form.errors.loadUsersFailed")}
-        variant="outlined"
-        loadMode="eager"
+      multiple
+      label={t("groupManagement.form.users")}
+      placeholder={t("groupManagement.form.usersHelper")}
+      helperText={fieldHelperText || t("groupManagement.form.usersHelper")}
+      fieldError={fieldError}
+      skip={!isAuthenticated}
+      errorMessage={t("groupManagement.form.errors.loadUsersFailed")}
+      variant="outlined"
+      loadMode="eager"
       renderOption={(props, option) => {
-        const { key, ...otherProps } = props;
         return (
-          <ListItem {...otherProps} key={option.id}>
+          <ListItem {...props}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, width: "100%" }}>
               <Typography component="span">
                 {option.displayName || option.email}

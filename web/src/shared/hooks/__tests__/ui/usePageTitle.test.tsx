@@ -1,86 +1,95 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act, render, screen } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, renderHook, waitFor } from '@testing-library/react';
 import React from 'react';
 import { usePageTitle, usePageTitleValue, PageTitleProvider } from '@/shared/hooks/ui';
 
-// Helper to create a test wrapper with PageTitleProvider
-const createWrapper = () => {
-  const Wrapper = ({ children }: { children: React.ReactNode }) => {
-    return React.createElement(PageTitleProvider, null, children);
-  };
-  
-  Wrapper.displayName = 'TestWrapper';
-  
-  return Wrapper;
+const TitleSetter = ({ title }: { title: string | null }) => {
+  usePageTitle(title);
+  return null;
 };
 
-describe('usePageTitle', () => {
+const TitleReader = () => {
+  const title = usePageTitleValue();
+  return <div data-testid="title">{title ?? ''}</div>;
+};
+
+const renderWithProvider = (ui: React.ReactNode) =>
+  render(<PageTitleProvider>{ui}</PageTitleProvider>);
+
+// Run sequentially to avoid shared provider state across threads
+describe.sequential('usePageTitle', () => {
   describe('usePageTitle hook', () => {
     it('should set title when called', () => {
-      const wrapper = createWrapper();
-      const { result: titleResult } = renderHook(() => usePageTitleValue(), { wrapper });
-      
-      // Initially null
-      expect(titleResult.current).toBeNull();
-      
-      // Set title
-      renderHook(() => usePageTitle('Test Title'), { wrapper });
-      
-      // Title should be set
-      expect(titleResult.current).toBe('Test Title');
+      renderWithProvider(
+        <>
+          <TitleSetter title="Test Title" />
+          <TitleReader />
+        </>
+      );
+
+      expect(screen.getByTestId('title')).toHaveTextContent('Test Title');
     });
 
     it('should clear title on unmount', () => {
-      const wrapper = createWrapper();
-      const { result: titleResult } = renderHook(() => usePageTitleValue(), { wrapper });
-      
-      // Set title
-      const { unmount } = renderHook(() => usePageTitle('Test Title'), { wrapper });
-      
-      expect(titleResult.current).toBe('Test Title');
-      
-      // Unmount should clear title
-      unmount();
-      
-      expect(titleResult.current).toBeNull();
+      const { rerender } = renderWithProvider(
+        <>
+          <TitleSetter title="Test Title" />
+          <TitleReader />
+        </>
+      );
+
+      expect(screen.getByTestId('title')).toHaveTextContent('Test Title');
+
+      // Remove setter to trigger cleanup
+      rerender(
+        <PageTitleProvider>
+          <TitleReader />
+        </PageTitleProvider>
+      );
+
+      expect(screen.getByTestId('title')).toHaveTextContent('');
     });
 
     it('should update title when title prop changes', () => {
-      const wrapper = createWrapper();
-      const { result: titleResult } = renderHook(() => usePageTitleValue(), { wrapper });
-      
-      const { rerender } = renderHook(
-        ({ title }: { title: string | null }) => usePageTitle(title),
-        {
-          wrapper,
-          initialProps: { title: 'Initial Title' },
-        }
+      const { rerender } = renderWithProvider(
+        <>
+          <TitleSetter title="Initial Title" />
+          <TitleReader />
+        </>
       );
-      
-      expect(titleResult.current).toBe('Initial Title');
-      
-      // Change title
-      rerender({ title: 'Updated Title' });
-      
-      expect(titleResult.current).toBe('Updated Title');
+
+      expect(screen.getByTestId('title')).toHaveTextContent('Initial Title');
+
+      rerender(
+        <PageTitleProvider>
+          <TitleSetter title="Updated Title" />
+          <TitleReader />
+        </PageTitleProvider>
+      );
+
+      expect(screen.getByTestId('title')).toHaveTextContent('Updated Title');
     });
 
     it('should handle null title', () => {
-      const wrapper = createWrapper();
-      const { result: titleResult } = renderHook(() => usePageTitleValue(), { wrapper });
-      
-      renderHook(() => usePageTitle(null), { wrapper });
-      
-      expect(titleResult.current).toBeNull();
+      renderWithProvider(
+        <>
+          <TitleSetter title={null} />
+          <TitleReader />
+        </>
+      );
+
+      expect(screen.getByTestId('title')).toHaveTextContent('');
     });
 
     it('should handle empty string title', () => {
-      const wrapper = createWrapper();
-      const { result: titleResult } = renderHook(() => usePageTitleValue(), { wrapper });
-      
-      renderHook(() => usePageTitle(''), { wrapper });
-      
-      expect(titleResult.current).toBe('');
+      renderWithProvider(
+        <>
+          <TitleSetter title="" />
+          <TitleReader />
+        </>
+      );
+
+      expect(screen.getByTestId('title')).toHaveTextContent('');
     });
 
     it('should throw error when used outside provider', () => {
@@ -94,90 +103,96 @@ describe('usePageTitle', () => {
       consoleSpy.mockRestore();
     });
 
-    it('should handle multiple components setting title (last one wins)', () => {
-      const wrapper = createWrapper();
-      const { result: titleResult } = renderHook(() => usePageTitleValue(), { wrapper });
-      
-      // First component sets title
-      const { unmount: unmount1 } = renderHook(() => usePageTitle('Title 1'), { wrapper });
-      expect(titleResult.current).toBe('Title 1');
-      
-      // Second component sets different title
-      const { unmount: unmount2 } = renderHook(() => usePageTitle('Title 2'), { wrapper });
-      expect(titleResult.current).toBe('Title 2');
-      
-      // Unmount second component - should clear to null (cleanup)
-      unmount2();
-      expect(titleResult.current).toBeNull();
-      
-      // Unmount first component - should still be null
-      unmount1();
-      expect(titleResult.current).toBeNull();
+    it('should handle multiple components setting title (last one wins)', async () => {
+      const MultiSetter = ({ first, second }: { first: string | null; second?: string | null }) => (
+        <PageTitleProvider>
+          <TitleSetter title={first} />
+          {second !== undefined && <TitleSetter title={second} />}
+          <TitleReader />
+        </PageTitleProvider>
+      );
+
+      const { rerender } = render(<MultiSetter first="Title 1" second="Title 2" />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('title')).toHaveTextContent('Title 2');
+      });
+
+      rerender(<MultiSetter first="Title 1" />);
+
+      await waitFor(() => {
+        // Removing the second setter clears the title because the remaining setter
+        // doesn't rerun its effect when its value is unchanged.
+        expect(screen.getByTestId('title')).toHaveTextContent('');
+      });
     });
 
     it('should handle dynamic title changes', () => {
-      const wrapper = createWrapper();
-      const { result: titleResult } = renderHook(() => usePageTitleValue(), { wrapper });
-      
-      const { rerender } = renderHook(
-        ({ title }: { title: string | null }) => usePageTitle(title),
-        {
-          wrapper,
-          initialProps: { title: 'Title 1' },
-        }
+      const { rerender } = renderWithProvider(
+        <>
+          <TitleSetter title="Title 1" />
+          <TitleReader />
+        </>
       );
-      
-      expect(titleResult.current).toBe('Title 1');
-      
-      act(() => {
-        rerender({ title: 'Title 2' });
-      });
-      
-      expect(titleResult.current).toBe('Title 2');
-      
-      act(() => {
-        rerender({ title: null });
-      });
-      
-      expect(titleResult.current).toBeNull();
+
+      expect(screen.getByTestId('title')).toHaveTextContent('Title 1');
+
+      rerender(
+        <PageTitleProvider>
+          <TitleSetter title="Title 2" />
+          <TitleReader />
+        </PageTitleProvider>
+      );
+
+      expect(screen.getByTestId('title')).toHaveTextContent('Title 2');
+
+      rerender(
+        <PageTitleProvider>
+          <TitleSetter title={null} />
+          <TitleReader />
+        </PageTitleProvider>
+      );
+
+      expect(screen.getByTestId('title')).toHaveTextContent('');
     });
   });
 
   describe('usePageTitleValue hook', () => {
     it('should return null initially', () => {
-      const wrapper = createWrapper();
-      const { result } = renderHook(() => usePageTitleValue(), { wrapper });
-      
-      expect(result.current).toBeNull();
+      renderWithProvider(<TitleReader />);
+
+      expect(screen.getByTestId('title')).toHaveTextContent('');
     });
 
     it('should return current title', () => {
-      const wrapper = createWrapper();
-      const { result } = renderHook(() => usePageTitleValue(), { wrapper });
-      
-      renderHook(() => usePageTitle('Test Title'), { wrapper });
-      
-      expect(result.current).toBe('Test Title');
+      renderWithProvider(
+        <>
+          <TitleSetter title="Test Title" />
+          <TitleReader />
+        </>
+      );
+
+      expect(screen.getByTestId('title')).toHaveTextContent('Test Title');
     });
 
     it('should update when title changes', () => {
-      const wrapper = createWrapper();
-      const { result } = renderHook(() => usePageTitleValue(), { wrapper });
-      const { rerender } = renderHook(
-        ({ title }: { title: string | null }) => usePageTitle(title),
-        {
-          wrapper,
-          initialProps: { title: 'Initial' },
-        }
+      const { rerender } = renderWithProvider(
+        <>
+          <TitleSetter title="Initial" />
+          <TitleReader />
+        </>
       );
-      
-      expect(result.current).toBe('Initial');
-      
-      act(() => {
-        rerender({ title: 'Updated' });
-      });
-      
-      expect(result.current).toBe('Updated');
+
+      expect(screen.getByTestId('title')).toHaveTextContent('Initial');
+
+      rerender(
+        <PageTitleProvider>
+          <TitleSetter title="Updated" />
+          <TitleReader />
+        </PageTitleProvider>
+      );
+
+      expect(screen.getByTestId('title')).toHaveTextContent('Updated');
     });
 
     it('should throw error when used outside provider', () => {

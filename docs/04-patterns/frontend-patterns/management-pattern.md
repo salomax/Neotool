@@ -1116,6 +1116,8 @@ function UserList({ users, loading, onEdit, onToggleStatus, orderBy, onSortChang
       recalculationKey={props.recalculationKey}
       tableId="user-list-table"
       getRowId={(user) => user.id}
+      size="medium"
+      skeletonRowCount={5}
     />
   );
 }
@@ -1149,12 +1151,16 @@ const renderActions = useMemo(
 ### Features
 
 - **Declarative Column Definition**: Define columns with `id`, `label`, `accessor`/`render`, `align`, `width`, `sortable`, `sortField`
-- **Loading States**: Automatic skeleton rows, loading bar, and spinner
-- **Empty State**: Customizable empty message or custom renderer
+- **Loading States**: Automatic skeleton rows (configurable count), loading bar for incremental loading, and spinner
+- **Empty State**: Customizable empty message or custom renderer via `renderEmptyState`
+- **Custom Loading State**: Override default skeleton rows with `renderLoadingState`
 - **Sorting**: Integrated with `useSorting` hook via `sortState` and `onSortChange`
 - **Pagination**: Relay pagination support via `pagination` prop
 - **Row Actions**: Single or multiple actions per row via `renderActions`
-- **Responsive**: Uses `DynamicTableBox` for automatic page size calculation
+- **Responsive**: Uses `DynamicTableContainer` for automatic page size calculation based on container height
+- **Table Size**: Configurable table size (`small` | `medium`) affecting row height, header height, and footer height
+- **Dynamic Resizing**: Automatic page size recalculation when container resizes or content changes via `recalculationKey`
+- **Row Identification**: Custom row ID extraction via `getRowId` for stable React keys
 - **i18n Support**: All labels should use translation keys
 - **Type Safety**: Fully typed with generics `<T, F extends string>`
 
@@ -1174,6 +1180,95 @@ interface Column<T, F extends string> {
 ```
 
 **Note**: Use either `accessor` or `render`, not both. `accessor` is simpler for basic values, `render` gives full control for complex cells.
+
+### ManagementTable Props
+
+```typescript
+interface ManagementTableProps<T, F extends string = string> {
+  columns: Column<T, F>[];                    // Column definitions
+  data: T[];                                  // Array of data rows
+  loading?: boolean;                          // Loading state (default: false)
+  emptyMessage?: string;                      // Empty state message (default: "No items found")
+  renderEmptyState?: () => React.ReactNode;   // Custom empty state renderer
+  renderLoadingState?: () => React.ReactNode; // Custom loading state renderer
+  sortState?: SortState<F>;                   // Current sort state
+  onSortChange?: (field: F) => void;          // Sort change callback
+  renderActions?: (row: T) => React.ReactNode; // Row actions renderer
+  actionsLabel?: string;                      // Actions column label (default: "Actions")
+  pagination?: ManagementTablePagination;     // Pagination configuration
+  onTableResize?: (pageSize: number) => void; // Callback when page size changes
+  recalculationKey?: string | number | boolean; // Force recalculation key
+  tableId?: string;                           // HTML id for table element
+  skeletonRowCount?: number;                   // Number of skeleton rows (default: 5)
+  getRowId?: (row: T) => string | number;     // Extract unique row identifier
+  size?: TableSize;                           // Table size: "small" | "medium" (default: "medium")
+}
+```
+
+### Dynamic Table Components
+
+The `ManagementTable` component uses two layout components for responsive table sizing:
+
+#### DynamicTableContainer
+
+Wraps the entire table structure (including pagination) and measures the outer container to calculate optimal page size. Automatically accounts for header, footer, and loading bar heights.
+
+**Location**: `web/src/shared/components/ui/layout/DynamicTableContainer.tsx`
+
+**Key Features**:
+- Measures outer container (including pagination footer)
+- Automatically detects and subtracts pagination footer height
+- Supports table size configuration (`small` | `medium`)
+- Debounced resize notifications via `onTableResize` callback
+- Force recalculation via `recalculationKey` prop
+
+**Usage** (internal to ManagementTable):
+```typescript
+<DynamicTableContainer
+  size="medium"
+  recalculationKey={recalculationKey}
+  onTableResize={onTableResize}
+>
+  <Box fullHeight>
+    <LoadingBar show={isLoadingMore} />
+    <DynamicTableBox>
+      <Table>...</Table>
+    </DynamicTableBox>
+    <Box data-pagination-footer>
+      <RelayPagination />
+    </Box>
+  </Box>
+</DynamicTableContainer>
+```
+
+#### DynamicTableBox
+
+Wraps the table element itself and provides scrollable container with hidden scrollbars. Used internally by `ManagementTable` within `DynamicTableContainer`.
+
+**Location**: `web/src/shared/components/ui/layout/DynamicTableBox.tsx`
+
+**Key Features**:
+- Scrollable table container with hidden scrollbars
+- Automatic page size calculation for table-only measurements
+- Exports table size configuration utilities (`getTableSizeConfig`, `TABLE_CONSTANTS`)
+- Supports `TableSize` type and `TableSizeConfig` interface
+
+**Table Size Configuration**:
+```typescript
+type TableSize = "small" | "medium";
+
+interface TableSizeConfig {
+  rowHeight: number;      // Row height in pixels
+  headerHeight: number;   // Header height in pixels
+  footerHeight: number;   // Pagination footer height in pixels
+}
+
+// Size presets:
+// small:  rowHeight: 46, headerHeight: 28, footerHeight: 52
+// medium: rowHeight: 66, headerHeight: 56, footerHeight: 60
+```
+
+**Note**: `ManagementTable` automatically uses `DynamicTableContainer` internally. You don't need to manually wrap it unless you're building a custom table component.
 
 ## Component Pattern: AssignmentComponent
 

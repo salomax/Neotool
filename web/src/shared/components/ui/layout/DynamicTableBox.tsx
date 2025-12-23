@@ -170,13 +170,19 @@ export const DynamicTableBox = React.forwardRef<HTMLDivElement, DynamicTableBoxP
     );
 
     // Use stable callback to debounce resize notifications
-    useStableCallback(
-      dynamicPageSize,
-      (size) => {
+    // Memoize the callback to prevent unnecessary effect re-runs
+    const handleResize = React.useCallback(
+      (size: number) => {
         if (onTableResize && size > 0) {
           onTableResize(size);
         }
       },
+      [onTableResize]
+    );
+
+    useStableCallback(
+      dynamicPageSize,
+      handleResize,
       {
         delay: TABLE_STABILITY_DELAY,
         enabled: !!onTableResize && dynamicPageSize > 0,

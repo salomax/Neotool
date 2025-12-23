@@ -31,7 +31,8 @@ const renderPermissionSearch = (props = {}) => {
   );
 };
 
-describe('PermissionSearch', () => {
+// Run sequentially to avoid duplicate renders across parallel threads
+describe.sequential('PermissionSearch', () => {
   const user = userEvent.setup();
 
   beforeEach(() => {

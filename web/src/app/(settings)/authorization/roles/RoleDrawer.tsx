@@ -54,6 +54,8 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
   // Use role drawer hook for edit mode (handles users, groups, and permissions state and mutations)
   const {
     role: roleFromHook,
+    loading: drawerLoading,
+    error: drawerError,
     selectedGroups,
     selectedPermissions,
     hasChanges: hasUserGroupPermissionChanges,
@@ -66,6 +68,8 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
 
   // Use role from hook in edit mode, or null in create mode
   const role = isCreateMode ? null : roleFromHook;
+  const loading = isCreateMode ? false : drawerLoading;
+  const error = isCreateMode ? undefined : drawerError;
 
   // Extract permissions - use hook state for edit mode, pending state for create mode
   const assignedPermissions = useMemo(() => {
@@ -305,6 +309,22 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
       </Drawer.Header>
       <Drawer.Body ref={bodyRef}>
         <FormProvider {...methods}>
+          {/* Loading state for edit mode */}
+          <LoadingState isLoading={!isCreateMode && loading} />
+
+          {/* Error state for edit mode */}
+          {!isCreateMode && (
+            <ErrorAlert
+              error={error || undefined}
+              onRetry={() => {
+                // Refetch is handled by useRoleDrawer hook
+              }}
+              fallbackMessage={t("roleManagement.drawer.errorLoading")}
+            />
+          )}
+
+          {/* Form content - shown in both create and edit modes */}
+          {(!loading || isCreateMode) && !error && (
             <Box
               ref={formRef}
               component="form"
@@ -377,6 +397,7 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
                 )}
               </Stack>
             </Box>
+          )}
           </FormProvider>
       </Drawer.Body>
       <Drawer.Footer>

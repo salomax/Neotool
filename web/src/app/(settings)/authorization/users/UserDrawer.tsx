@@ -95,7 +95,7 @@ export const UserDrawer: React.FC<UserDrawerProps> = ({
             resetChanges();
             onClose();
           }}
-          disabled={saving}
+          disabled={saving || !hasChanges}
           data-testid="user-drawer-cancel-button"
         >
           {t("common.cancel")}
