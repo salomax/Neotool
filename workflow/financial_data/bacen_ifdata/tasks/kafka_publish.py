@@ -25,11 +25,12 @@ SOURCE = "BACEN"
 
 # Institution fields to include in Kafka message
 INSTITUTION_FIELDS = [
-    "nome_reduzido",
     "nome_instituicao",
     "situacao",
     "segmento_tb",
     "atividade",
+    "tipo_consolidado_bancario",
+    "tipo_consolidacao",
     "tipo_controle",
     "uf",
     "municipio",

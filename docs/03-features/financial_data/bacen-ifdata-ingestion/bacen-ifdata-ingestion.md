@@ -334,16 +334,17 @@ This section explains **how** the pipeline detects that a BACEN institution is *
 - Detect NEW vs CHANGED deterministically (idempotent)
 - Publish Kafka events for Banking BC synchronization
 
-### Recommended columns (v1)
+### Recommended columns (v1.7)
 
 - `bacen_cod_inst` (TEXT, PK) — store as text to preserve leading zeros
 - `ano_mes_ref` (CHAR(6), NOT NULL) — last snapshot quarter that updated this row
 - `nome_instituicao` (TEXT)
-- `nome_reduzido` (TEXT)
 - `situacao` (CHAR(1))
 - `segmento_tb` (TEXT, nullable)
 - `atividade` (TEXT, nullable)
-- `tipo_controle` (TEXT, nullable)
+- `tipo_consolidado_bancario` (TEXT, nullable) — Banking consolidated type (TCB): b1=Commercial bank/Caixas, B2=Multiple/Investment, B3S=Singular cooperative, B3C=Central cooperative, b4=Development, N1=Non-bank credit, n2=Non-bank capital markets, N4=Payment institutions
+- `tipo_consolidacao` (CHAR(1), nullable) — Consolidation type (TD): I=Independent institution, C=Conglomerate
+- `tipo_controle` (TEXT, nullable) — Control type (TC): 1=Public, 2=Private national, 3=Private foreign control
 - `uf` (CHAR(2), nullable)
 - `municipio` (TEXT, nullable)
 - `cod_conglomerado_financeiro` (TEXT, nullable)
@@ -360,10 +361,11 @@ We compute a **stable `source_hash`** from the fields that Banking cares about.
 Recommended hash inputs:
 - `bacen_cod_inst`
 - `nome_instituicao`
-- `nome_reduzido`
 - `situacao`
 - `segmento_tb`
 - `atividade`
+- `tipo_consolidado_bancario`
+- `tipo_consolidacao`
 - `tipo_controle`
 - `uf`
 - `municipio`

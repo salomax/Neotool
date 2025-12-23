@@ -47,11 +47,12 @@ RETRY_STRATEGY = Retry(
 BACEN_COLUMN_MAPPING = {
     "CodInst": "bacen_cod_inst",
     "NomeInstituicao": "nome_instituicao",
-    "NomeReduzido": "nome_reduzido",
     "Situacao": "situacao",
     "SegmentoTB": "segmento_tb",
     "Atividade": "atividade",
-    "TipoControle": "tipo_controle",
+    "TCB": "tipo_consolidado_bancario",  # Tipo de Consolidado Bancário
+    "TD": "tipo_consolidacao",  # Tipo de Consolidação
+    "TC": "tipo_controle",  # Tipo de Controle
     "UF": "uf",
     "Municipio": "municipio",
     "CodConglomeradoFinanceiro": "cod_conglomerado_financeiro",
@@ -63,10 +64,11 @@ BACEN_COLUMN_MAPPING = {
 HASH_FIELDS = [
     "bacen_cod_inst",
     "nome_instituicao",
-    "nome_reduzido",
     "situacao",
     "segmento_tb",
     "atividade",
+    "tipo_consolidado_bancario",
+    "tipo_consolidacao",
     "tipo_controle",
     "uf",
     "municipio",
@@ -407,13 +409,14 @@ def compute_source_hash(inst: dict) -> str:
     """
     Compute SHA-256 hex hash for change detection.
 
-    Hash inputs (from memory file):
+    Hash inputs (from HASH_FIELDS):
     - bacen_cod_inst
     - nome_instituicao
-    - nome_reduzido
     - situacao
     - segmento_tb
     - atividade
+    - tipo_consolidado_bancario
+    - tipo_consolidacao
     - tipo_controle
     - uf
     - municipio
@@ -489,22 +492,24 @@ def upsert_institution(_conn, cur, inst: dict, ano_mes: str) -> str | None:
         cur.execute(
             """
             INSERT INTO financial_data.institution (
-                bacen_cod_inst, ano_mes_ref, nome_instituicao, nome_reduzido,
-                situacao, segmento_tb, atividade, tipo_controle,
+                bacen_cod_inst, ano_mes_ref, nome_instituicao,
+                situacao, segmento_tb, atividade,
+                tipo_consolidado_bancario, tipo_consolidacao, tipo_controle,
                 uf, municipio, cod_conglomerado_financeiro,
                 cod_conglomerado_prudencial, cnpj_instituicao_lider, source_hash
             ) VALUES (
-                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
             )
         """,
             (
                 inst.get("bacen_cod_inst"),
                 ano_mes,
                 inst.get("nome_instituicao"),
-                inst.get("nome_reduzido"),
                 inst.get("situacao"),
                 inst.get("segmento_tb"),
                 inst.get("atividade"),
+                inst.get("tipo_consolidado_bancario"),
+                inst.get("tipo_consolidacao"),
                 inst.get("tipo_controle"),
                 inst.get("uf"),
                 inst.get("municipio"),
@@ -523,10 +528,11 @@ def upsert_institution(_conn, cur, inst: dict, ano_mes: str) -> str | None:
             UPDATE financial_data.institution
             SET ano_mes_ref = %s,
                 nome_instituicao = %s,
-                nome_reduzido = %s,
                 situacao = %s,
                 segmento_tb = %s,
                 atividade = %s,
+                tipo_consolidado_bancario = %s,
+                tipo_consolidacao = %s,
                 tipo_controle = %s,
                 uf = %s,
                 municipio = %s,
@@ -540,10 +546,11 @@ def upsert_institution(_conn, cur, inst: dict, ano_mes: str) -> str | None:
             (
                 ano_mes,
                 inst.get("nome_instituicao"),
-                inst.get("nome_reduzido"),
                 inst.get("situacao"),
                 inst.get("segmento_tb"),
                 inst.get("atividade"),
+                inst.get("tipo_consolidado_bancario"),
+                inst.get("tipo_consolidacao"),
                 inst.get("tipo_controle"),
                 inst.get("uf"),
                 inst.get("municipio"),

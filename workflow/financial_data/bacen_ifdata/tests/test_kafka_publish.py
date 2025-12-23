@@ -42,7 +42,7 @@ class TestBuildKafkaMessage:
             "change_type": "CREATED",
             "institution_data": {
                 "bacen_cod_inst": "001",
-                "nome_reduzido": "Test Bank",
+                "nome_instituicao": "Test Bank",
                 "situacao": "A",
             },
         }
@@ -69,10 +69,12 @@ class TestBuildKafkaMessage:
             "change_type": "CREATED",
             "institution_data": {
                 "bacen_cod_inst": "001",
-                "nome_reduzido": "Test Bank",
                 "nome_instituicao": "Test Bank S.A.",
                 "situacao": "A",
                 "segmento_tb": "Commercial Bank",
+                "tipo_consolidado_bancario": "b1",
+                "tipo_consolidacao": "C",
+                "tipo_controle": "1",
                 "uf": "SP",
                 "municipio": "São Paulo",
             },
@@ -80,10 +82,12 @@ class TestBuildKafkaMessage:
 
         message = build_kafka_message(institution, "CREATED")
 
-        assert message["nome_reduzido"] == "Test Bank"
         assert message["nome_instituicao"] == "Test Bank S.A."
         assert message["situacao"] == "A"
         assert message["segmento_tb"] == "Commercial Bank"
+        assert message["tipo_consolidado_bancario"] == "b1"
+        assert message["tipo_consolidacao"] == "C"
+        assert message["tipo_controle"] == "1"
         assert message["uf"] == "SP"
         assert message["municipio"] == "São Paulo"
 
@@ -94,7 +98,7 @@ class TestBuildKafkaMessage:
             "change_type": "UPDATED",
             "institution_data": {
                 "bacen_cod_inst": "001",
-                "nome_reduzido": "Test Bank",
+                "nome_instituicao": "Test Bank",
                 "source_hash": "abc123" * 10,  # 64 char hash
                 "ano_mes_ref": "202403",
             },
@@ -112,7 +116,7 @@ class TestBuildKafkaMessage:
             "change_type": "CREATED",
             "institution_data": {
                 "bacen_cod_inst": "001",
-                "nome_reduzido": "Test Bank",
+                "nome_instituicao": "Test Bank",
             },
         }
 
@@ -130,7 +134,7 @@ class TestBuildKafkaMessage:
             "change_type": "CREATED",
             "institution_data": {
                 "bacen_cod_inst": "001",
-                "nome_reduzido": None,
+                "nome_instituicao": None,
                 "situacao": "A",
                 "uf": None,
             },
@@ -138,7 +142,7 @@ class TestBuildKafkaMessage:
 
         message = build_kafka_message(institution, "CREATED")
 
-        assert message["nome_reduzido"] is None
+        assert message["nome_instituicao"] is None
         assert message["situacao"] == "A"
         assert message["uf"] is None
 
@@ -148,7 +152,7 @@ class TestBuildKafkaMessage:
             "bacen_cod_inst": "001",
             "change_type": "CREATED",
             "institution_data": {
-                "nome_reduzido": "Test Bank",
+                "nome_instituicao": "Test Bank",
             },
         }
 
@@ -162,7 +166,7 @@ class TestBuildKafkaMessage:
             "change_type": "CREATED",
             "institution_data": {
                 "bacen_cod_inst": "001",
-                "nome_reduzido": "Test Bank",
+                "nome_instituicao": "Test Bank",
             },
         }
 
@@ -175,7 +179,7 @@ class TestBuildKafkaMessage:
         institution = {
             "change_type": "CREATED",
             "institution_data": {
-                "nome_reduzido": "Test Bank",
+                "nome_instituicao": "Test Bank",
             },
         }
 
@@ -188,7 +192,7 @@ class TestBuildKafkaMessage:
             "bacen_cod_inst": "001",
             "institution_data": {
                 "bacen_cod_inst": "001",
-                "nome_reduzido": "Test Bank",
+                "nome_instituicao": "Test Bank",
             },
         }
 
@@ -330,7 +334,7 @@ class TestPublishInstitutionEvents:
                 "change_type": "CREATED",
                 "institution_data": {
                     "bacen_cod_inst": "001",
-                    "nome_reduzido": "Test Bank",
+                    "nome_instituicao": "Test Bank",
                     "situacao": "A",
                 },
             },
@@ -339,7 +343,7 @@ class TestPublishInstitutionEvents:
                 "change_type": "UPDATED",
                 "institution_data": {
                     "bacen_cod_inst": "002",
-                    "nome_reduzido": "Another Bank",
+                    "nome_instituicao": "Another Bank",
                     "situacao": "A",
                 },
             },
@@ -388,7 +392,7 @@ class TestPublishInstitutionEvents:
                 "change_type": "CREATED",
                 "institution_data": {
                     "bacen_cod_inst": "001",
-                    "nome_reduzido": "Test Bank",
+                    "nome_instituicao": "Test Bank",
                 },
             },
         ]
@@ -424,7 +428,7 @@ class TestPublishInstitutionEvents:
                 "change_type": "CREATED",
                 "institution_data": {
                     "bacen_cod_inst": "001",
-                    "nome_reduzido": "Test Bank",
+                    "nome_instituicao": "Test Bank",
                 },
             },
         ]
@@ -448,7 +452,7 @@ class TestPublishInstitutionEvents:
             {
                 "change_type": "CREATED",
                 "institution_data": {
-                    "nome_reduzido": "Test Bank",
+                    "nome_instituicao": "Test Bank",
                 },
             },
         ]
@@ -477,7 +481,7 @@ class TestPublishInstitutionEvents:
                 "change_type": "INVALID",
                 "institution_data": {
                     "bacen_cod_inst": "001",
-                    "nome_reduzido": "Test Bank",
+                    "nome_instituicao": "Test Bank",
                 },
             },
         ]
@@ -550,7 +554,7 @@ class TestPublishInstitutionEvents:
                 "change_type": "CREATED",
                 "institution_data": {
                     "bacen_cod_inst": "001",
-                    "nome_reduzido": "Test Bank",
+                    "nome_instituicao": "Test Bank",
                 },
             },
         ]
@@ -579,7 +583,7 @@ class TestPublishInstitutionEvents:
                 "change_type": "CREATED",
                 "institution_data": {
                     "bacen_cod_inst": "001",
-                    "nome_reduzido": "Test Bank",
+                    "nome_instituicao": "Test Bank",
                 },
             },
         ]
@@ -609,7 +613,7 @@ class TestPublishInstitutionEvents:
                 "change_type": "CREATED" if i % 2 == 0 else "UPDATED",
                 "institution_data": {
                     "bacen_cod_inst": f"{i:03d}",
-                    "nome_reduzido": f"Bank {i}",
+                    "nome_instituicao": f"Bank {i}",
                 },
             }
             for i in range(100)

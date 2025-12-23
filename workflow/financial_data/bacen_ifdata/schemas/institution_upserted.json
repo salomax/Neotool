@@ -41,10 +41,6 @@
       "description": "Type of change that triggered this event",
       "enum": ["CREATED", "UPDATED"]
     },
-    "nome_reduzido": {
-      "type": ["string", "null"],
-      "description": "Short name of the institution"
-    },
     "nome_instituicao": {
       "type": ["string", "null"],
       "description": "Full name of the institution"
@@ -61,9 +57,18 @@
       "type": ["string", "null"],
       "description": "Activity classification"
     },
+    "tipo_consolidado_bancario": {
+      "type": ["string", "null"],
+      "description": "Banking consolidated type (TCB): b1=Commercial bank/Caixas, B2=Multiple/Investment, B3S=Singular cooperative, B3C=Central cooperative, b4=Development, N1=Non-bank credit, n2=Non-bank capital markets, N4=Payment institutions"
+    },
+    "tipo_consolidacao": {
+      "type": ["string", "null"],
+      "description": "Consolidation type (TD): I=Independent institution, C=Conglomerate",
+      "pattern": "^[IC]$"
+    },
     "tipo_controle": {
       "type": ["string", "null"],
-      "description": "Control type classification"
+      "description": "Control type (TC): 1=Public, 2=Private national, 3=Private foreign control"
     },
     "uf": {
       "type": ["string", "null"],

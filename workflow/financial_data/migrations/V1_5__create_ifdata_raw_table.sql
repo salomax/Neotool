@@ -54,3 +54,4 @@ CREATE INDEX IF NOT EXISTS idx_ifdata_raw_cod_inst
 CREATE INDEX IF NOT EXISTS idx_ifdata_raw_created_at 
     ON financial_data.ifdata_raw(created_at);
 
+

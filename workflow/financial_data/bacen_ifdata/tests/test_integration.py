@@ -77,10 +77,10 @@ def kafka_bootstrap_servers(kafka_container):
 @pytest.fixture
 def mock_registry_csv():
     """Mock CSV data for registry ingestion."""
-    return """BacenCodInst,NomeInstituicao,NomeReduzido,Situacao
-001,Test Bank 1,Test1,A
-002,Test Bank 2,Test2,A
-003,Test Bank 3,Test3,I"""
+    return """CodInst,NomeInstituicao,TCB,TD,TC,Situacao
+001,Test Bank 1,b1,C,1,A
+002,Test Bank 2,B2,I,2,A
+003,Test Bank 3,B3S,C,3,I"""
 
 
 @pytest.fixture
@@ -565,4 +565,5 @@ class TestErrorRecovery:
         # Verify error was tracked
         if result.get("status") == "failed":
             assert len(result.get("errors", [])) > 0
+
 

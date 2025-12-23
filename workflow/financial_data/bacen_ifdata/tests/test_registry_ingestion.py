@@ -49,13 +49,13 @@ class TestNormalizeInstitutionFields:
         inst = {
             "bacen_cod_inst": "001",
             "nome_instituicao": "",
-            "nome_reduzido": "   ",  # Only whitespace
+            "tipo_consolidado_bancario": "   ",  # Only whitespace
             "situacao": "A",
         }
         normalized = normalize_institution_fields(inst)
         assert normalized["bacen_cod_inst"] == "001"
         assert normalized["nome_instituicao"] is None
-        assert normalized["nome_reduzido"] is None
+        assert normalized["tipo_consolidado_bancario"] is None
         assert normalized["situacao"] == "A"
 
     def test_literal_null_string_to_none(self):
@@ -142,11 +142,12 @@ class TestComputeSourceHash:
         inst = {
             "bacen_cod_inst": "001",
             "nome_instituicao": "Test Bank",
-            "nome_reduzido": "TB",
             "situacao": "A",
             "segmento_tb": "Segment",
             "atividade": "Activity",
-            "tipo_controle": "Control",
+            "tipo_consolidado_bancario": "b1",
+            "tipo_consolidacao": "C",
+            "tipo_controle": "1",
             "uf": "SP",
             "municipio": "São Paulo",
             "cod_conglomerado_financeiro": "CF001",
@@ -251,9 +252,9 @@ class TestParseCsvToInstitutions:
 
     def test_parse_valid_csv(self):
         """Test parsing valid CSV with headers."""
-        csv_content = """CodInst,NomeInstituicao,NomeReduzido,Situacao
-001,Test Bank,TB,A
-002,Another Bank,AB,A"""
+        csv_content = """CodInst,NomeInstituicao,TCB,TD,TC,Situacao
+001,Test Bank,b1,C,1,A
+002,Another Bank,B2,I,2,A"""
 
         institutions, skipped_count = parse_csv_to_institutions(csv_content)
 
@@ -261,7 +262,9 @@ class TestParseCsvToInstitutions:
         assert skipped_count == 0
         assert institutions[0]["bacen_cod_inst"] == "001"
         assert institutions[0]["nome_instituicao"] == "Test Bank"
-        assert institutions[0]["nome_reduzido"] == "TB"
+        assert institutions[0]["tipo_consolidado_bancario"] == "b1"
+        assert institutions[0]["tipo_consolidacao"] == "C"
+        assert institutions[0]["tipo_controle"] == "1"
         assert institutions[0]["situacao"] == "A"
 
     def test_parse_csv_with_missing_columns(self):
@@ -275,20 +278,22 @@ class TestParseCsvToInstitutions:
         assert skipped_count == 0
         assert institutions[0]["bacen_cod_inst"] == "001"
         assert institutions[0]["nome_instituicao"] == "Test Bank"
-        assert institutions[0].get("nome_reduzido") is None  # Missing column
+        assert institutions[0].get("tipo_consolidado_bancario") is None  # Missing column
+        assert institutions[0].get("tipo_consolidacao") is None  # Missing column
+        assert institutions[0].get("tipo_controle") is None  # Missing column
 
     def test_parse_csv_with_empty_values(self):
         """Test parsing CSV with empty values."""
-        csv_content = """CodInst,NomeInstituicao,NomeReduzido,Situacao
+        csv_content = """CodInst,NomeInstituicao,TCB,Situacao
 001,Test Bank,,A
-002,,Another Bank,A"""
+002,,,A"""
 
         institutions, skipped_count = parse_csv_to_institutions(csv_content)
 
         assert len(institutions) == 2
         assert skipped_count == 0
         assert (
-            institutions[0]["nome_reduzido"] == ""
+            institutions[0]["tipo_consolidado_bancario"] == ""
         )  # Empty string (will be normalized later)
         assert institutions[1]["nome_instituicao"] == ""  # Empty string
 
@@ -671,9 +676,9 @@ class TestIngestRegistry:
         mock_logger.return_value = MagicMock()
 
         # Mock CSV fetch
-        csv_content = """CodInst,NomeInstituicao,NomeReduzido,Situacao
-001,Test Bank,TB,A
-002,Another Bank,AB,A"""
+        csv_content = """CodInst,NomeInstituicao,TCB,TD,TC,Situacao
+001,Test Bank,b1,C,1,A
+002,Another Bank,B2,I,2,A"""
         mock_fetch.return_value = csv_content
 
         # Mock database connection
