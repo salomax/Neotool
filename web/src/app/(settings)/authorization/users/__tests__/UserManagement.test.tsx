@@ -1,6 +1,6 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, act, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { UserManagement } from '../UserManagement';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
@@ -247,7 +247,8 @@ const renderUserManagement = (
   return { ...utils, measureTable };
 };
 
-describe('UserManagement', () => {
+// Run sequentially to avoid concurrent renders leaking between tests
+describe.sequential('UserManagement', () => {
   const user = userEvent.setup();
 
   beforeEach(() => {
@@ -643,5 +644,9 @@ describe('UserManagement', () => {
       expect(screen.getByTestId('user-list')).toBeInTheDocument();
       expect(screen.getByTestId('user-search')).toBeInTheDocument();
     });
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 });

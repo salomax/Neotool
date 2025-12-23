@@ -1,6 +1,6 @@
 import React from 'react';
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Switch } from '../Switch';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
@@ -13,7 +13,8 @@ const renderSwitch = (props = {}) => {
   );
 };
 
-describe('Switch', () => {
+// Run sequentially to avoid concurrent renders leaking between tests
+describe.sequential('Switch', () => {
   describe('Rendering', () => {
     it('renders switch component', () => {
       renderSwitch();
@@ -227,6 +228,10 @@ describe('Switch', () => {
       renderSwitch({ name: 'toggle' });
       expect(screen.getByTestId('switch-toggle')).toBeInTheDocument();
     });
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 });
 

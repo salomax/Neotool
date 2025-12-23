@@ -1,6 +1,6 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { RoleSearch } from '../RoleSearch';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
@@ -32,11 +32,15 @@ const renderRoleSearch = (props = {}) => {
   );
 };
 
-describe('RoleSearch', () => {
+describe.sequential('RoleSearch', () => {
   const user = userEvent.setup();
 
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   describe('Rendering', () => {

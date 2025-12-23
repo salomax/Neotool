@@ -1,6 +1,6 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, within, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { UserDrawer } from '../UserDrawer';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
@@ -186,7 +186,8 @@ const renderUserDrawer = (props = {}) => {
   );
 };
 
-describe('UserDrawer', () => {
+// Run sequentially to avoid concurrent renders leaking between tests
+describe.sequential('UserDrawer', () => {
   const user = userEvent.setup();
 
   beforeEach(() => {
@@ -214,6 +215,10 @@ describe('UserDrawer', () => {
         },
       }),
     });
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   describe('Drawer visibility', () => {
@@ -334,9 +339,10 @@ describe('UserDrawer', () => {
     });
 
     it('should display enabled status chip', () => {
-      renderUserDrawer();
+      const { container } = renderUserDrawer();
 
-      expect(screen.getByText('Enabled')).toBeInTheDocument();
+      // Use within to scope query to avoid multiple elements
+      expect(within(container).getByText('Enabled')).toBeInTheDocument();
     });
 
     it('should display disabled status chip when user is disabled', () => {
@@ -345,9 +351,10 @@ describe('UserDrawer', () => {
         user: { ...mockUser, enabled: false },
       });
 
-      renderUserDrawer();
+      const { container } = renderUserDrawer();
 
-      expect(screen.getByText('Disabled')).toBeInTheDocument();
+      // Use within to scope query to avoid multiple elements
+      expect(within(container).getByText('Disabled')).toBeInTheDocument();
     });
 
     it('should show user not found message when user is null but userId exists', () => {
@@ -376,9 +383,8 @@ describe('UserDrawer', () => {
     it('should display current email in text field', () => {
       renderUserDrawer();
 
-      const emailTextField = screen.getByTestId('user-drawer-email-input');
-      // The testid is on the TextField, but we need to find the input element inside
-      const emailInput = emailTextField.querySelector('input');
+      const emailField = screen.getByTestId('user-drawer-email-input');
+      const emailInput = within(emailField).getByRole('textbox');
       expect(emailInput).toHaveValue('user@example.com');
     });
 
@@ -409,8 +415,8 @@ describe('UserDrawer', () => {
 
       // Email field is readOnly, so we can't actually change it
       // This test should verify that updateEmail is not called for readOnly fields
-      const emailTextField = screen.getByTestId('user-drawer-email-input');
-      const emailInput = emailTextField.querySelector('input');
+      const emailField = screen.getByTestId('user-drawer-email-input');
+      const emailInput = within(emailField).getByRole('textbox');
       expect(emailInput).toHaveAttribute('readOnly');
       // Since the field is readOnly, updateEmail should not be called when trying to type
       // This test verifies the field is properly readOnly
@@ -507,7 +513,9 @@ describe('UserDrawer', () => {
 
       renderUserDrawer();
 
-      const saveButton = screen.getByText('Save Changes');
+      // Use data-testid for more reliable selection
+      const saveButton = screen.getByTestId('user-drawer-save-button');
+      expect(saveButton).not.toBeDisabled(); // Ensure button is enabled
       await user.click(saveButton);
 
       expect(handleSave).toHaveBeenCalled();
@@ -523,7 +531,16 @@ describe('UserDrawer', () => {
 
       renderUserDrawer();
 
-      const cancelButton = screen.getByText('Cancel');
+      // Get all cancel buttons and select the enabled one (or the last one if multiple)
+      const cancelButtons = screen.getAllByTestId('user-drawer-cancel-button');
+      const cancelButton = cancelButtons.find(btn => {
+        const button = btn as HTMLButtonElement;
+        return !button.disabled && !button.hasAttribute('disabled');
+      }) || cancelButtons[cancelButtons.length - 1];
+      expect(cancelButton).not.toBeDisabled(); // Ensure button is enabled
+      if (!cancelButton) {
+        throw new Error('Cancel button not found');
+      }
       await user.click(cancelButton);
 
       expect(resetChanges).toHaveBeenCalled();
@@ -561,9 +578,10 @@ describe('UserDrawer', () => {
         hasChanges: true,
       });
 
-      renderUserDrawer();
+      const { container } = renderUserDrawer();
 
-      const cancelButton = screen.getByText('Cancel');
+      // Use within to scope query to the rendered container
+      const cancelButton = within(container).getByRole('button', { name: 'Cancel' });
       expect(cancelButton).toBeDisabled();
     });
 
@@ -573,9 +591,10 @@ describe('UserDrawer', () => {
         hasChanges: false,
       });
 
-      renderUserDrawer();
+      const { container } = renderUserDrawer();
 
-      const cancelButton = screen.getByText('Cancel');
+      // Use within to scope query to the rendered container
+      const cancelButton = within(container).getByRole('button', { name: 'Cancel' });
       expect(cancelButton).toBeDisabled();
     });
 
@@ -594,11 +613,12 @@ describe('UserDrawer', () => {
 
   describe('Permission gates', () => {
     it('should wrap footer buttons with PermissionGate requiring security:user:save', () => {
-      renderUserDrawer();
+      const { container } = renderUserDrawer();
 
       // Footer buttons should be visible (PermissionGate allows by default in mock)
-      expect(screen.getByText('Cancel')).toBeInTheDocument();
-      expect(screen.getByText('Save Changes')).toBeInTheDocument();
+      // Use within to scope query to the rendered container
+      expect(within(container).getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
+      expect(within(container).getByRole('button', { name: 'Save Changes' })).toBeInTheDocument();
     });
 
     it('should wrap group assignment section with PermissionGate requiring security:user:save', () => {

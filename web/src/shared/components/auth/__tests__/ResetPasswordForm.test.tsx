@@ -58,7 +58,8 @@ const renderResetPasswordForm = (props = {}) => {
   );
 };
 
-describe('ResetPasswordForm', () => {
+// Run sequentially to avoid multiple rendered forms across parallel threads
+describe.sequential('ResetPasswordForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockResetPassword.mockResolvedValue({
@@ -269,4 +270,3 @@ describe('ResetPasswordForm', () => {
     }, { timeout: 3000 });
   });
 });
-

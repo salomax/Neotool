@@ -24,7 +24,8 @@ import {
 } from '@/lib/graphql/operations/authorization-management/mutations.generated';
 import { useMutationWithRefetch } from '@/shared/hooks/mutations';
 
-describe('useUserMutations', () => {
+// Run sequentially to avoid overlapping hook executions across threads
+describe.sequential('useUserMutations', () => {
   const mockExecuteMutation = vi.fn();
   const mockOnRefetch = vi.fn();
 
@@ -189,4 +190,3 @@ describe('useUserMutations', () => {
     expect(mockOnRefetch).toHaveBeenCalled();
   });
 });
-

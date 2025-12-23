@@ -1,6 +1,6 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { RolePermissionAssignment } from '../RolePermissionAssignment';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
@@ -85,7 +85,8 @@ const renderRolePermissionAssignment = (props = {}) => {
   );
 };
 
-describe('RolePermissionAssignment', () => {
+// Run sequentially to avoid concurrent renders leaking between tests
+describe.sequential('RolePermissionAssignment', () => {
   const user = userEvent.setup();
 
   beforeEach(() => {
@@ -341,5 +342,9 @@ describe('RolePermissionAssignment', () => {
       const checkbox = screen.getByLabelText('security:user:view') as HTMLInputElement;
       expect(checkbox.disabled).toBe(true);
     });
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 });

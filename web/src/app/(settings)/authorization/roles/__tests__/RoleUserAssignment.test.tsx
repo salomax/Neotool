@@ -1,6 +1,6 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { RoleUserAssignment, type User } from '../RoleUserAssignment';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
@@ -93,7 +93,7 @@ const renderRoleUserAssignment = (props = {}) => {
   );
 };
 
-describe('RoleUserAssignment', () => {
+describe.sequential('RoleUserAssignment', () => {
   const user = userEvent.setup();
 
   beforeEach(() => {
@@ -108,6 +108,10 @@ describe('RoleUserAssignment', () => {
       error: undefined,
       refetch: vi.fn(),
     });
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   describe('Rendering', () => {

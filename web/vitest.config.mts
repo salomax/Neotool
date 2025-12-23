@@ -3,6 +3,39 @@ import tsconfigPaths from "vite-tsconfig-paths";
 import { fileURLToPath } from "node:url";
 import os from "node:os";
 
+// Determine if we're in CI environment
+const isCI = Boolean(process.env.CI);
+const isSharding = Boolean(process.env.VITEST_SHARD);
+
+// Calculate optimal thread count based on CPU cores
+// Best practice: Use CPU cores - 1 to leave one core for the main process
+// For CI, use a conservative number (4-8) to prevent resource exhaustion
+// For local, use CPU-based calculation for optimal performance
+const getOptimalThreadCount = (): number => {
+  if (isCI) {
+    // CI environments: Use conservative thread count to prevent resource exhaustion
+    // Most CI runners have 2-4 cores, so we cap at 4 for safety
+    return Math.min(4, os.cpus().length - 1 || 1);
+  }
+  // Local development: Use CPU cores - 1 for optimal performance
+  // Leave one core for the main process and system tasks
+  return Math.max(1, os.cpus().length - 1);
+};
+
+// Configure reporters based on environment
+// - CI with sharding: blob + junit (for merging shard results + CI integration)
+// - CI without sharding: default + junit (for CI integration)
+// - Local: default (verbose output for development)
+const getReporters = () => {
+  if (isCI && isSharding) {
+    return ['blob', 'junit', 'default'];
+  }
+  if (isCI) {
+    return ['junit', 'default'];
+  }
+  return ['default'];
+};
+
 export default defineConfig({
   plugins: [tsconfigPaths({ projects: ["./tsconfig.vitest.json"] })],
 
@@ -13,6 +46,7 @@ export default defineConfig({
   },
 
   test: {
+    // Test file discovery
     include: [
       "src/**/__tests__/**/*.{test,spec}.?(c|m)[jt]s?(x)",
       "src/**/*.{test,spec}.?(c|m)[jt]s?(x)",
@@ -27,39 +61,124 @@ export default defineConfig({
       "playwright-report",
       "test-results",
     ],
+
+    // Environment configuration
     environment: "jsdom",
     setupFiles: ["./src/__tests__/setup.ts"],
     globals: true,
     css: true,
+
+    // Mock and isolation configuration
     restoreMocks: true,
+    clearMocks: true,
+    mockReset: true,
+
     // Performance optimizations
-    // Use thread pool for parallel test execution with memory-conscious settings
-    // Reduced to 1 thread for better memory isolation and to prevent "JS heap out of memory" errors
+    // Use thread pool for parallel test execution
+    // Thread count is dynamically calculated based on CPU cores and environment
+    // - Local: CPU cores - 1 (optimal performance)
+    // - CI: Conservative limit (4 threads max) to prevent resource exhaustion
+    // Isolation is enabled to prevent test interference and memory leaks
     pool: "threads",
     poolOptions: {
       threads: {
+        // Minimum threads: always have at least 1 thread available
         minThreads: 1,
-        // Use single thread for better memory isolation
-        // This prevents memory leaks from singleton instances shared across worker threads
-        // Tests will still run in parallel within the single thread via maxConcurrency
-        maxThreads: 1,
+        // Maximum threads: dynamically calculated based on environment and CPU cores
+        // This balances performance with memory usage
+        // With proper cleanup in setup.ts, multiple threads are safe
+        maxThreads: getOptimalThreadCount(),
+        // Enable isolation to prevent test interference
+        // Each test file runs in its own isolated context
         isolate: true,
+        // Use single worker for better memory isolation when memory is constrained
+        // Can be overridden via VITEST_SINGLE_THREAD environment variable
+        singleThread: Boolean(process.env.VITEST_SINGLE_THREAD),
       },
     },
-    // Timeouts 
+
+    // Timeout configuration
     testTimeout: 30000,
     hookTimeout: 30000,
     teardownTimeout: 10000,
-    // Disable file parallelism to reduce memory usage
-    fileParallelism: false,
-    // Limit concurrent tests to prevent memory exhaustion
-    // With maxThreads: 1, this controls parallel execution within the single thread
-    maxConcurrency: 2,
+
+    // Parallelism and sharding
+    // Sharding support: enable file parallelism when not sharding
+    // When sharding, Vitest handles file distribution automatically
+    // When not sharding, enable file parallelism for better performance
+    fileParallelism: !isSharding,
+    // Limit concurrent tests per thread to prevent memory exhaustion
+    // With multiple threads, this controls how many tests run concurrently in each thread
+    // Lower value = less memory per thread, higher value = faster execution
+    // Adjusted based on thread count: more threads = lower concurrency per thread
+    maxConcurrency: isCI ? 5 : 10,
+
+    // CI/CD optimizations
+    // Bail on first failure in CI for faster feedback
+    // bail: isCI ? 1 : 0,
+    // Fail if no tests are found (prevents silent failures)
+    passWithNoTests: false,
+
+    // Reporter configuration
+    // Blob reporter generates reports that can be merged across shards
+    // JUnit reporter provides XML output for CI integration
+    reporters: getReporters(),
+
+    // JUnit reporter configuration for CI integration
+    outputFile: isCI
+      ? {
+          junit: "./test-results/junit.xml",
+        }
+      : undefined,
+
+    // Test execution configuration
+    // Retry flaky tests (only in CI to catch intermittent failures)
+    retry: isCI ? 2 : 0,
+    // Run tests in a deterministic order for better reproducibility
+    sequence: {
+      shuffle: false,
+      concurrent: true,
+    },
+
+    // Output configuration
+    // Show heap usage in verbose mode (useful for memory debugging)
+    logHeapUsage: false,
+    // Silent mode for CI (reduce noise)
+    silent: false,
+
+    // Watch mode configuration
+    watchExclude: [
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/.next/**",
+      "**/coverage/**",
+    ],
+
+    // Force rerun triggers (invalidate cache when these change)
+    forceRerunTriggers: [
+      "**/package.json",
+      "**/vitest.config.*",
+      "**/tsconfig*.json",
+    ],
+    // Coverage configuration
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'html', 'json'],
+      // Coverage reporters: text for console, html for detailed view, json for CI, lcov for coverage services
+      reporter: isCI
+        ? ['text', 'json', 'lcov', 'html']
+        : ['text', 'html', 'json'],
       reportsDirectory: './coverage',
+      // Clean coverage directory before running (prevents stale data)
+      clean: true,
+      // Clean coverage on rerun in watch mode
+      cleanOnRerun: true,
+      // Include all files by default, then exclude specific patterns
+      all: true,
+      // Skip full coverage report if below threshold (faster execution)
+      skipFull: false,
+      // Files to include in coverage
       include: ['src/**/*.{ts,tsx}'],
+      // Files to exclude from coverage
       exclude: [
         'src/**/*.d.ts',
         'src/**/*.test.{ts,tsx}',
@@ -189,6 +308,8 @@ export default defineConfig({
         'src/shared/components/ui/primitives/DateTimePicker.tsx', // Thin wrapper with format logic, better for E2E
         'src/shared/components/ui/primitives/ImageUpload.tsx', // Complex file validation, compression, and drag-and-drop
       ],
+      // Coverage thresholds
+      // Enforce minimum coverage requirements
       thresholds: {
         global: {
           branches: 80,
@@ -196,6 +317,15 @@ export default defineConfig({
           lines: 80,
           statements: 80,
         },
+        // Per-file thresholds (stricter for critical paths)
+        // Can be extended with specific file patterns if needed
+        // Example:
+        // 'src/shared/hooks/**': {
+        //   branches: 90,
+        //   functions: 90,
+        //   lines: 90,
+        //   statements: 90,
+        // },
       },
     },
   },

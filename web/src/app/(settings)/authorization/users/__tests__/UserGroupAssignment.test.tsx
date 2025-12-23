@@ -1,6 +1,6 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, within, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { UserGroupAssignment } from '../UserGroupAssignment';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
@@ -198,7 +198,8 @@ const renderUserGroupAssignment = (props = {}) => {
   );
 };
 
-describe('UserGroupAssignment', () => {
+// Run sequentially to avoid concurrent renders leaking between tests
+describe.sequential('UserGroupAssignment', () => {
   const user = userEvent.setup();
 
   beforeEach(() => {
@@ -535,5 +536,9 @@ describe('UserGroupAssignment', () => {
       const props = (window as any).__autocompleteProps;
       expect(props.value).toEqual([]);
     });
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 });

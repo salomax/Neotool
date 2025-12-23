@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as googleModule from '../google';
 import { signInWithGoogle, loadGoogleIdentityServices } from '../google';
 
-describe('Google OAuth', () => {
+// Run sequentially to avoid shared window/document mutations across threads
+describe.sequential('Google OAuth', () => {
   let loadGoogleIdentityServicesSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
@@ -161,4 +162,3 @@ describe('Google OAuth', () => {
     });
   });
 });
-

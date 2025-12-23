@@ -1,11 +1,12 @@
 import React from 'react';
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ICellRendererParams } from 'ag-grid-community';
 import { actionsColumn } from '../actions';
 
-describe('actionsColumn', () => {
+// Run sequentially to avoid concurrent renders leaking between tests
+describe.sequential('actionsColumn', () => {
   it('should create column definition with default values', () => {
     const colDef = actionsColumn({});
 
@@ -60,9 +61,14 @@ describe('actionsColumn', () => {
     expect((colDef as any).__onEdit).toBe(onEdit);
     expect((colDef as any).__onDelete).toBe(onDelete);
   });
+
+  afterEach(() => {
+    cleanup();
+  });
 });
 
-describe('ActionsCell', () => {
+// Run sequentially to avoid concurrent renders leaking between tests
+describe.sequential('ActionsCell', () => {
   const createMockParams = (overrides?: Partial<ICellRendererParams>): ICellRendererParams => ({
     data: { id: 1, name: 'Test' },
     value: null,
@@ -194,6 +200,10 @@ describe('ActionsCell', () => {
     expect(onEdit).toHaveBeenCalledWith(rowData);
     expect(onDelete).toHaveBeenCalledTimes(1);
     expect(onDelete).toHaveBeenCalledWith(rowData);
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 });
 

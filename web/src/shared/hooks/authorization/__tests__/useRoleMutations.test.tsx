@@ -30,7 +30,8 @@ import {
 } from '@/lib/graphql/operations/authorization-management/mutations.generated';
 import { useMutationWithRefetch } from '@/shared/hooks/mutations';
 
-describe('useRoleMutations', () => {
+// Run sequentially to avoid overlapping hook executions across threads
+describe.sequential('useRoleMutations', () => {
   const mockExecuteMutation = vi.fn();
   const mockOnRefetch = vi.fn();
   const mockOnRoleSaved = vi.fn();
@@ -316,4 +317,3 @@ describe('useRoleMutations', () => {
     expect(result.current.createLoading).toBe(true);
   });
 });
-
