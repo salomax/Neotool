@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useForm, FormProvider } from "react-hook-form";
 import { AppThemeProvider } from "@/styles/themes/AppThemeProvider";
@@ -26,29 +26,29 @@ const renderPercentField = (
   );
 };
 
-describe("PercentField", () => {
+describe.sequential("PercentField", () => {
   it("renders percent field", () => {
-    renderPercentField();
-    expect(screen.getByLabelText("Percentage")).toBeInTheDocument();
+    const { getByLabelText } = renderPercentField();
+    expect(getByLabelText("Percentage")).toBeInTheDocument();
   });
 
   it("renders with default label", () => {
-    renderPercentField({ label: "Discount" });
-    expect(screen.getByLabelText("Discount")).toBeInTheDocument();
+    const { getByLabelText } = renderPercentField({ label: "Discount" });
+    expect(getByLabelText("Discount")).toBeInTheDocument();
   });
 
   it("displays percentage suffix", () => {
-    renderPercentField();
-    const input = screen.getByLabelText("Percentage") as HTMLInputElement;
+    const { getByLabelText } = renderPercentField();
+    const input = getByLabelText("Percentage") as HTMLInputElement;
     // The NumericFormat component should add % suffix
     expect(input).toBeInTheDocument();
   });
 
   it("handles text input", async () => {
     const user = userEvent.setup();
-    renderPercentField({}, { percentage: null });
+    const { getByLabelText } = renderPercentField({}, { percentage: null });
 
-    const input = screen.getByLabelText("Percentage") as HTMLInputElement;
+    const input = getByLabelText("Percentage") as HTMLInputElement;
     await user.type(input, "50");
 
     await waitFor(() => {
@@ -82,14 +82,14 @@ describe("PercentField", () => {
       );
     };
 
-    render(
+    const view = render(
       <AppThemeProvider>
         <Wrapper />
       </AppThemeProvider>
     );
 
     await waitFor(() => {
-      const valueDisplay = screen.getByTestId("value");
+      const valueDisplay = view.getByTestId("value");
       // Value should be stored as 50 (percentage mode)
       expect(valueDisplay.textContent).toBe("50");
     });
@@ -106,20 +106,20 @@ describe("PercentField", () => {
       );
     };
 
-    render(
+    const view = render(
       <AppThemeProvider>
         <Wrapper />
       </AppThemeProvider>
     );
 
-    const input = screen.getByLabelText("Percentage");
+    const input = view.getByLabelText("Percentage");
     // When ratio mode is enabled and value is 0.5, it should display as 50%
     expect(input).toBeInTheDocument();
   });
 
   it("displays value as percentage when in ratio mode", async () => {
-    renderPercentField({ ratio: true }, { percentage: 0.5 });
-    const input = screen.getByLabelText("Percentage") as HTMLInputElement;
+    const { getByLabelText } = renderPercentField({ ratio: true }, { percentage: 0.5 });
+    const input = getByLabelText("Percentage") as HTMLInputElement;
     // Should display as 50% (0.5 * 100)
     await waitFor(() => {
       expect(input.value).toBeTruthy();
@@ -128,9 +128,9 @@ describe("PercentField", () => {
 
   it("respects min value constraint", async () => {
     const user = userEvent.setup();
-    renderPercentField({ min: 10 }, { percentage: null });
+    const { getByLabelText } = renderPercentField({ min: 10 }, { percentage: null });
 
-    const input = screen.getByLabelText("Percentage") as HTMLInputElement;
+    const input = getByLabelText("Percentage") as HTMLInputElement;
     await user.type(input, "5");
 
     // The component should clamp to min value
@@ -141,9 +141,9 @@ describe("PercentField", () => {
 
   it("respects max value constraint", async () => {
     const user = userEvent.setup();
-    renderPercentField({ max: 90 }, { percentage: null });
+    const { getByLabelText } = renderPercentField({ max: 90 }, { percentage: null });
 
-    const input = screen.getByLabelText("Percentage") as HTMLInputElement;
+    const input = getByLabelText("Percentage") as HTMLInputElement;
     await user.type(input, "95");
 
     // The component should clamp to max value
@@ -153,22 +153,22 @@ describe("PercentField", () => {
   });
 
   it("uses default min of 0", () => {
-    renderPercentField();
-    const input = screen.getByLabelText("Percentage");
+    const { getByLabelText } = renderPercentField();
+    const input = getByLabelText("Percentage");
     expect(input).toBeInTheDocument();
   });
 
   it("uses default max of 100", () => {
-    renderPercentField();
-    const input = screen.getByLabelText("Percentage");
+    const { getByLabelText } = renderPercentField();
+    const input = getByLabelText("Percentage");
     expect(input).toBeInTheDocument();
   });
 
   it("allows negative values when min is negative", async () => {
     const user = userEvent.setup();
-    renderPercentField({ min: -10 }, { percentage: null });
+    const { getByLabelText } = renderPercentField({ min: -10 }, { percentage: null });
 
-    const input = screen.getByLabelText("Percentage") as HTMLInputElement;
+    const input = getByLabelText("Percentage") as HTMLInputElement;
     await user.type(input, "-5");
 
     await waitFor(() => {
@@ -177,26 +177,26 @@ describe("PercentField", () => {
   });
 
   it("uses custom fraction digits when provided", () => {
-    renderPercentField({ fractionDigits: 2 });
-    const input = screen.getByLabelText("Percentage");
+    const { getByLabelText } = renderPercentField({ fractionDigits: 2 });
+    const input = getByLabelText("Percentage");
     expect(input).toBeInTheDocument();
   });
 
   it("uses default step when fractionDigits provided", () => {
-    renderPercentField({ fractionDigits: 2 });
-    const input = screen.getByLabelText("Percentage");
+    const { getByLabelText } = renderPercentField({ fractionDigits: 2 });
+    const input = getByLabelText("Percentage");
     expect(input).toBeInTheDocument();
   });
 
   it("uses custom step when provided", () => {
-    renderPercentField({ step: 0.5 });
-    const input = screen.getByLabelText("Percentage");
+    const { getByLabelText } = renderPercentField({ step: 0.5 });
+    const input = getByLabelText("Percentage");
     expect(input).toBeInTheDocument();
   });
 
   it("handles different locales", () => {
-    renderPercentField({ locale: "pt-BR" });
-    const input = screen.getByLabelText("Percentage");
+    const { getByLabelText } = renderPercentField({ locale: "pt-BR" });
+    const input = getByLabelText("Percentage");
     expect(input).toBeInTheDocument();
   });
 
@@ -216,25 +216,25 @@ describe("PercentField", () => {
       );
     };
 
-    render(
+    const view = render(
       <AppThemeProvider>
         <Wrapper />
       </AppThemeProvider>
     );
 
-    expect(screen.getByText("Required")).toBeInTheDocument();
+    expect(view.getByText("Required")).toBeInTheDocument();
   });
 
   it("displays helper text when no error", () => {
-    renderPercentField({ helperText: "Enter percentage" });
-    expect(screen.getByText("Enter percentage")).toBeInTheDocument();
+    const { getByText } = renderPercentField({ helperText: "Enter percentage" });
+    expect(getByText("Enter percentage")).toBeInTheDocument();
   });
 
   it("handles empty value", async () => {
     const user = userEvent.setup();
-    renderPercentField({}, { percentage: 50 });
+    const { getByLabelText } = renderPercentField({}, { percentage: 50 });
 
-    const input = screen.getByLabelText("Percentage") as HTMLInputElement;
+    const input = getByLabelText("Percentage") as HTMLInputElement;
     await user.clear(input);
 
     await waitFor(() => {
@@ -243,32 +243,32 @@ describe("PercentField", () => {
   });
 
   it("handles null value", () => {
-    renderPercentField({}, { percentage: null });
-    const input = screen.getByLabelText("Percentage");
+    const { getByLabelText } = renderPercentField({}, { percentage: null });
+    const input = getByLabelText("Percentage");
     expect(input).toBeInTheDocument();
   });
 
   it("handles undefined value", () => {
-    renderPercentField({}, { percentage: undefined });
-    const input = screen.getByLabelText("Percentage");
+    const { getByLabelText } = renderPercentField({}, { percentage: undefined });
+    const input = getByLabelText("Percentage");
     expect(input).toBeInTheDocument();
   });
 
   it("handles empty string value", () => {
-    renderPercentField({}, { percentage: "" });
-    const input = screen.getByLabelText("Percentage");
+    const { getByLabelText } = renderPercentField({}, { percentage: "" });
+    const input = getByLabelText("Percentage");
     expect(input).toBeInTheDocument();
   });
 
   it("handles fullWidth prop", () => {
-    renderPercentField({ fullWidth: false });
-    const input = screen.getByLabelText("Percentage");
+    const { getByLabelText } = renderPercentField({ fullWidth: false });
+    const input = getByLabelText("Percentage");
     expect(input).toBeInTheDocument();
   });
 
   it("converts ratio to percentage for display", async () => {
-    renderPercentField({ ratio: true }, { percentage: 0.25 });
-    const input = screen.getByLabelText("Percentage") as HTMLInputElement;
+    const { getByLabelText } = renderPercentField({ ratio: true }, { percentage: 0.25 });
+    const input = getByLabelText("Percentage") as HTMLInputElement;
     // Should display as 25% (0.25 * 100)
     await waitFor(() => {
       expect(input.value).toBeTruthy();
@@ -287,22 +287,22 @@ describe("PercentField", () => {
       );
     };
 
-    render(
+    const view = render(
       <AppThemeProvider>
         <Wrapper />
       </AppThemeProvider>
     );
 
-    const input = screen.getByLabelText("Percentage");
+    const input = view.getByLabelText("Percentage");
     // When ratio mode is enabled and value is 0.25, it should display as 25%
     expect(input).toBeInTheDocument();
   });
 
   it("handles decimal input in percentage mode", async () => {
     const user = userEvent.setup();
-    renderPercentField({}, { percentage: null });
+    const { getByLabelText } = renderPercentField({}, { percentage: null });
 
-    const input = screen.getByLabelText("Percentage") as HTMLInputElement;
+    const input = getByLabelText("Percentage") as HTMLInputElement;
     await user.type(input, "12.5");
 
     await waitFor(() => {
@@ -321,15 +321,14 @@ describe("PercentField", () => {
       );
     };
 
-    render(
+    const view = render(
       <AppThemeProvider>
         <Wrapper />
       </AppThemeProvider>
     );
 
-    const input = screen.getByLabelText("Percentage");
+    const input = view.getByLabelText("Percentage");
     // When ratio mode is enabled and value is 0.125, it should display as 12.5%
     expect(input).toBeInTheDocument();
   });
 });
-

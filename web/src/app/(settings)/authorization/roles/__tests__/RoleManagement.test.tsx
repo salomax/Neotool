@@ -1,6 +1,6 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, within, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, within, act, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { RoleManagement } from '../RoleManagement';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
@@ -233,7 +233,8 @@ const renderRoleManagement = (
   return { ...utils, measureTable };
 };
 
-describe('RoleManagement', () => {
+// Run sequentially to avoid concurrent renders leaking between tests
+describe.sequential('RoleManagement', () => {
   const user = userEvent.setup();
 
   beforeEach(() => {
@@ -483,5 +484,9 @@ describe('RoleManagement', () => {
 
       expect(screen.queryByTestId('role-drawer')).not.toBeInTheDocument();
     });
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 });

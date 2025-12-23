@@ -1,5 +1,6 @@
 import React from "react";
-import { render, screen, waitFor, act } from "@testing-library/react";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { render, screen, waitFor, act, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AppThemeProvider, useThemeMode } from "@/styles/themes/AppThemeProvider";
 import { ThemeToggle } from "@/styles/themes/ThemeToggle";
@@ -10,7 +11,8 @@ const ThemeModeIndicator: React.FC = () => {
   return <div data-testid="theme-mode">{mode}</div>;
 };
 
-describe("ThemeToggle", () => {
+// Run sequentially to avoid concurrent renders leaking between tests
+describe.sequential("ThemeToggle", () => {
   beforeEach(() => {
     localStorage.clear();
   });
@@ -200,5 +202,9 @@ describe("ThemeToggle", () => {
     await waitFor(() => {
       expect(localStorage.getItem("app:theme-mode")).toBe("dark");
     });
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 });

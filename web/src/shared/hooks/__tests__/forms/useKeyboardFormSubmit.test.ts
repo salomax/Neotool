@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor, cleanup } from '@testing-library/react';
 import { useKeyboardFormSubmit } from '@/shared/hooks/forms';
 import * as React from 'react';
 
-describe('useKeyboardFormSubmit', () => {
+describe.sequential('useKeyboardFormSubmit', () => {
   let container: HTMLDivElement;
   let input: HTMLInputElement;
   let mockOnSubmit: ReturnType<typeof vi.fn>;
@@ -30,15 +30,20 @@ describe('useKeyboardFormSubmit', () => {
   });
 
   afterEach(() => {
+    // Unmount any rendered hooks to remove listeners
+    cleanup();
     // Clean up any event listeners
+    // eslint-disable-next-line testing-library/no-node-access
     if (container && container.parentNode) {
       document.body.removeChild(container);
     }
     // Clear all mocks
     vi.restoreAllMocks();
     vi.clearAllMocks();
-    // Reset activeElement
+    // Reset activeElement (necessary for focus testing)
+    // eslint-disable-next-line testing-library/no-node-access
     if (document.activeElement && document.activeElement !== document.body) {
+      // eslint-disable-next-line testing-library/no-node-access
       (document.activeElement as HTMLElement).blur();
     }
   });
@@ -203,6 +208,7 @@ describe('useKeyboardFormSubmit', () => {
 
       div.focus();
       // Wait for focus to be set
+      // eslint-disable-next-line testing-library/no-node-access
       expect(document.activeElement).toBe(div);
       
       div.dispatchEvent(
@@ -708,47 +714,83 @@ describe('useKeyboardFormSubmit', () => {
     });
 
     it('should handle async errors', async () => {
+      // Clear all mocks to ensure clean state
+      vi.clearAllMocks();
+      (console.error as ReturnType<typeof vi.fn>).mockClear();
+      
       const error = new Error('Async submission failed');
-      mockOnSubmit.mockRejectedValue(error);
+      // Create a fresh mock to avoid interference
+      const asyncErrorMock = vi.fn().mockRejectedValue(error);
 
       renderHook(() =>
         useKeyboardFormSubmit({
-          onSubmit: mockOnSubmit,
+          onSubmit: asyncErrorMock,
           isSubmitEnabled: mockIsSubmitEnabled,
           containerRef,
         })
       );
 
-      input.focus();
-      input.dispatchEvent(
-        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
-      );
+      // Wait for the effect to set up the event listener
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
 
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await act(async () => {
+        input.focus();
+        const event = new KeyboardEvent('keydown', {
+          key: 'Enter',
+          bubbles: true,
+          cancelable: true,
+        });
+        input.dispatchEvent(event);
+      });
 
-      expect(mockOnSubmit).toHaveBeenCalled();
+      // Wait for the promise to reject and the catch handler to run
+      await waitFor(() => {
+        expect(asyncErrorMock).toHaveBeenCalled();
+      }, { timeout: 500 });
+
       expect(console.error).toHaveBeenCalledWith('Form submission error:', error);
     });
 
     it('should handle successful async submission', async () => {
-      mockOnSubmit.mockResolvedValue(undefined);
+      // Clear all mocks and wait a bit to ensure previous test's promises are settled
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      vi.clearAllMocks();
+      (console.error as ReturnType<typeof vi.fn>).mockClear();
+      
+      // Create a fresh mock for successful resolution
+      const asyncSuccessMock = vi.fn().mockResolvedValue(undefined);
 
       renderHook(() =>
         useKeyboardFormSubmit({
-          onSubmit: mockOnSubmit,
+          onSubmit: asyncSuccessMock,
           isSubmitEnabled: mockIsSubmitEnabled,
           containerRef,
         })
       );
 
-      input.focus();
-      input.dispatchEvent(
-        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
-      );
+      // Wait for the effect to set up the event listener
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
 
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await act(async () => {
+        input.focus();
+        const event = new KeyboardEvent('keydown', {
+          key: 'Enter',
+          bubbles: true,
+          cancelable: true,
+        });
+        input.dispatchEvent(event);
+      });
 
-      expect(mockOnSubmit).toHaveBeenCalled();
+      // Wait for the promise to resolve
+      await waitFor(() => {
+        expect(asyncSuccessMock).toHaveBeenCalled();
+      }, { timeout: 500 });
+
+      // console.error should not be called for successful async submissions
       expect(console.error).not.toHaveBeenCalled();
     });
   });
@@ -897,7 +939,6 @@ describe('useKeyboardFormSubmit', () => {
       expect(mockOnSubmit).not.toHaveBeenCalled();
 
       // Restore
-      // eslint-disable-next-line testing-library/no-node-access
       Object.defineProperty(document, 'activeElement', {
         value: originalActiveElement,
         writable: true,

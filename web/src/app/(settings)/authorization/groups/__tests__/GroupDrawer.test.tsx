@@ -1,6 +1,6 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { GroupDrawer } from '../GroupDrawer';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
@@ -244,7 +244,8 @@ const renderGroupDrawer = (props = {}) => {
   );
 };
 
-describe('GroupDrawer', () => {
+// Run sequentially to avoid concurrent renders leaking between tests
+describe.sequential('GroupDrawer', () => {
   const user = userEvent.setup();
 
   beforeEach(() => {
@@ -562,5 +563,9 @@ describe('GroupDrawer', () => {
 
       expect(screen.getByTestId('drawer')).toBeInTheDocument();
     });
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 });

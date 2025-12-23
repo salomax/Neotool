@@ -70,6 +70,7 @@ describe('focusFirstError', () => {
   it('should return early when no errors', () => {
     const errors: FieldErrors = {};
 
+    mockQuerySelector.mockClear();
     focusFirstError(errors, mockDocument);
 
     expect(mockQuerySelector).not.toHaveBeenCalled();
@@ -81,6 +82,8 @@ describe('focusFirstError', () => {
       email: { message: 'Email is required', type: 'required' },
     };
 
+    mockQuerySelector.mockClear();
+    (mockElement.focus as any).mockClear?.();
     focusFirstError(errors, mockDocument);
 
     expect(mockQuerySelector).toHaveBeenCalled();
@@ -273,4 +276,3 @@ describe('useFormPersist', () => {
     expect(localStorage.getItem(key2)).toBeTruthy();
   });
 });
-

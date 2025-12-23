@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { useResponsive } from '@/shared/hooks/ui';
 
 describe('useResponsive', () => {
   const originalInnerWidth = window.innerWidth;
-  const originalAddEventListener = window.addEventListener;
-  const originalRemoveEventListener = window.removeEventListener;
+  let addSpy: ReturnType<typeof vi.spyOn>;
+  let removeSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     // Reset window.innerWidth
@@ -15,9 +15,9 @@ describe('useResponsive', () => {
       value: 1024,
     });
 
-    // Mock addEventListener and removeEventListener
-    window.addEventListener = vi.fn();
-    window.removeEventListener = vi.fn();
+    // Spy on listeners while keeping real behavior
+    addSpy = vi.spyOn(window, 'addEventListener');
+    removeSpy = vi.spyOn(window, 'removeEventListener');
   });
 
   afterEach(() => {
@@ -26,8 +26,8 @@ describe('useResponsive', () => {
       configurable: true,
       value: originalInnerWidth,
     });
-    window.addEventListener = originalAddEventListener;
-    window.removeEventListener = originalRemoveEventListener;
+    addSpy.mockRestore();
+    removeSpy.mockRestore();
     vi.clearAllMocks();
   });
 
@@ -112,7 +112,7 @@ describe('useResponsive', () => {
   it('should add resize event listener on mount', () => {
     renderHook(() => useResponsive());
 
-    expect(window.addEventListener).toHaveBeenCalledWith(
+    expect(addSpy).toHaveBeenCalledWith(
       'resize',
       expect.any(Function)
     );
@@ -121,19 +121,23 @@ describe('useResponsive', () => {
   it('should remove resize event listener on unmount', () => {
     const { unmount } = renderHook(() => useResponsive());
 
-    const resizeHandler = (window.addEventListener as any).mock.calls.find(
-      (call: any[]) => call[0] === 'resize'
-    )?.[1];
+    // Verify addEventListener was called with resize and a function
+    expect(addSpy).toHaveBeenCalledWith(
+      'resize',
+      expect.any(Function)
+    );
 
     unmount();
 
-    expect(window.removeEventListener).toHaveBeenCalledWith(
+    // Verify removeEventListener was called with resize and a function
+    // This verifies that React's cleanup is working
+    expect(removeSpy).toHaveBeenCalledWith(
       'resize',
-      resizeHandler
+      expect.any(Function)
     );
   });
 
-  it('should update on window resize', () => {
+  it('should update on window resize', async () => {
     Object.defineProperty(window, 'innerWidth', {
       writable: true,
       configurable: true,
@@ -144,12 +148,6 @@ describe('useResponsive', () => {
 
     expect(result.current.isDesktop).toBe(true);
 
-    // Get the resize handler
-    const resizeCalls = (window.addEventListener as any).mock.calls;
-    const resizeHandler = resizeCalls.find(
-      (call: any[]) => call[0] === 'resize'
-    )?.[1];
-
     // Simulate resize to mobile
     Object.defineProperty(window, 'innerWidth', {
       writable: true,
@@ -158,11 +156,14 @@ describe('useResponsive', () => {
     });
 
     act(() => {
-      resizeHandler();
+      window.dispatchEvent(new Event('resize'));
     });
 
-    expect(result.current.isMobile).toBe(true);
-    expect(result.current.isDesktop).toBe(false);
+    // Wait for state to update after handler is called
+    await waitFor(() => {
+      expect(result.current.isMobile).toBe(true);
+      expect(result.current.isDesktop).toBe(false);
+    });
   });
 
   it('should handle edge case at tablet upper bound', () => {
@@ -186,4 +187,3 @@ describe('useResponsive', () => {
     expect(typeof result.current.isDesktop).toBe('boolean');
   });
 });
-

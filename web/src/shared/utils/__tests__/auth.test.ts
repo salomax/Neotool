@@ -6,6 +6,7 @@ import {
   isAuthenticationError,
   handleAuthError,
 } from '../auth';
+import { setupStorageMocks } from '@/__tests__/helpers';
 
 // Mock window.location
 const mockLocation = {
@@ -20,11 +21,17 @@ Object.defineProperty(window, 'location', {
   writable: true,
 });
 
-describe('auth utilities', () => {
+describe.sequential('auth utilities', () => {
+  let localStorageMock: ReturnType<typeof import('@/__tests__/helpers/storage-helpers').createMockStorage>;
+  let sessionStorageMock: ReturnType<typeof import('@/__tests__/helpers/storage-helpers').createMockStorage>;
+
   beforeEach(() => {
-    // Clear all storage before each test
-    localStorage.clear();
-    sessionStorage.clear();
+    // Fresh storage mocks for isolation
+    const storageMocks = setupStorageMocks();
+    localStorageMock = storageMocks.localStorageMock;
+    sessionStorageMock = storageMocks.sessionStorageMock;
+    localStorageMock.clear();
+    sessionStorageMock.clear();
     // Reset location mock
     mockLocation.href = '';
     vi.clearAllMocks();
@@ -264,12 +271,14 @@ describe('auth utilities', () => {
 
     it('should clear storage before redirecting', () => {
       localStorage.setItem('auth_token', 'token');
-      const clearSpy = vi.spyOn(Storage.prototype, 'removeItem');
+      const clearSpy = vi.spyOn(localStorageMock, 'removeItem');
+      const sessionClearSpy = vi.spyOn(sessionStorageMock, 'removeItem');
 
       handleAuthError();
 
       // Verify storage was cleared
       expect(clearSpy).toHaveBeenCalled();
+      expect(sessionClearSpy).toHaveBeenCalled();
       expect(localStorage.getItem('auth_token')).toBeNull();
       // Verify redirect happened
       expect(mockLocation.href).toBe('/signin');

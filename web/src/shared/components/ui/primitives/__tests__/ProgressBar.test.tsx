@@ -1,6 +1,6 @@
 import React from 'react';
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ProgressBar } from '../ProgressBar';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
@@ -13,7 +13,8 @@ const renderProgressBar = (props = {}) => {
   );
 };
 
-describe('ProgressBar', () => {
+// Run sequentially to avoid concurrent renders leaking between tests
+describe.sequential('ProgressBar', () => {
   describe('Linear variant', () => {
     it('renders linear progress bar', () => {
       renderProgressBar({ variant: 'linear', value: 50 });
@@ -256,6 +257,10 @@ describe('ProgressBar', () => {
       renderProgressBar({ variant: 'linear', value: 50, 'data-testid': 'custom-progress' });
       expect(screen.getByTestId('custom-progress')).toBeInTheDocument();
     });
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 });
 

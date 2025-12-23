@@ -426,9 +426,9 @@ export function SearchableAutocomplete<
       loading={loading}
       disabled={disabled}
       renderInput={(params) => {
-        // MUI Autocomplete's renderInput params should not include error/helperText
-        // but we extract them just in case to prevent any prop leakage
-        const { error: _paramsError, helperText: _paramsHelperText, ...textFieldParams } = params;
+        // MUI Autocomplete's renderInput params don't include error/helperText
+        // We handle error/helperText separately below
+        const textFieldParams = params;
         
         // Only pass error prop when it's true, don't pass false
         const hasError = fieldError || !!error;

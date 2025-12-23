@@ -1,6 +1,6 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, act, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { GroupManagement } from '../GroupManagement';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
@@ -249,7 +249,8 @@ const renderGroupManagement = (
   return { ...utils, measureTable };
 };
 
-describe('GroupManagement', () => {
+// Run sequentially to avoid concurrent renders leaking between tests
+describe.sequential('GroupManagement', () => {
   const user = userEvent.setup();
 
   beforeEach(() => {
@@ -548,5 +549,9 @@ describe('GroupManagement', () => {
         expect(screen.queryByTestId('group-drawer')).not.toBeInTheDocument();
       });
     });
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 });

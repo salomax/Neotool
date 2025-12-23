@@ -91,7 +91,8 @@ export async function createTestProvidersWrapper(options?: {
     // Try to use MockedProvider if mocks are provided
     if (options?.apolloClientMocks) {
       const testingModule = await import('@apollo/client/testing');
-      MockedProvider = testingModule.MockedProvider;
+      // MockedProvider may be a named export or on default
+      MockedProvider = (testingModule as any).MockedProvider || (testingModule as any).default?.MockedProvider;
     } else {
       // Use real Apollo Client
       const { getApolloClient } = await import('@/lib/graphql/client');

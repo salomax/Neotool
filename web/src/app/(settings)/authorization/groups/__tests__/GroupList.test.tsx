@@ -113,7 +113,8 @@ const renderGroupList = (props = {}) => {
   );
 };
 
-describe('GroupList', () => {
+// Run sequentially to avoid concurrent renders leaking between tests
+describe.sequential('GroupList', () => {
   const user = userEvent.setup();
 
   beforeEach(() => {

@@ -1,6 +1,6 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SidebarRail } from '../SidebarRail';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
@@ -91,7 +91,8 @@ const renderSidebarRail = () => {
   );
 };
 
-describe('SidebarRail', () => {
+// Run sequentially to avoid concurrent renders leaking between tests
+describe.sequential('SidebarRail', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockPathname.mockReturnValue('/');
@@ -265,6 +266,10 @@ describe('SidebarRail', () => {
       const sidebar = screen.getByRole('complementary');
       expect(sidebar).toHaveStyle({ position: 'fixed' });
     });
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 });
 

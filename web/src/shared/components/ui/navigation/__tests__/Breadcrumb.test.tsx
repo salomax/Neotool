@@ -1,6 +1,6 @@
 import React from "react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, within, cleanup } from "@testing-library/react";
 import { Breadcrumb, BreadcrumbItem, RouteConfig } from "../Breadcrumb";
 import { AppThemeProvider } from "@/styles/themes/AppThemeProvider";
 
@@ -18,7 +18,8 @@ const renderBreadcrumb = (props?: React.ComponentProps<typeof Breadcrumb>) => {
   );
 };
 
-describe("Breadcrumb", () => {
+// Run sequentially to avoid concurrent renders leaking between tests
+describe.sequential("Breadcrumb", () => {
   // Store original matchMedia before any tests run
   const originalMatchMedia = typeof window !== 'undefined' ? window.matchMedia : undefined;
   
@@ -42,6 +43,7 @@ describe("Breadcrumb", () => {
   });
 
   afterEach(() => {
+    cleanup();
     // Always restore matchMedia to ensure test isolation
     vi.restoreAllMocks();
     // Restore original matchMedia or ensure it's a function
@@ -78,11 +80,12 @@ describe("Breadcrumb", () => {
         { label: "Details" },
       ];
 
-      renderBreadcrumb({ items });
+      const { container } = renderBreadcrumb({ items });
 
-      expect(screen.getByText("Home")).toBeInTheDocument();
-      expect(screen.getByText("Products")).toBeInTheDocument();
-      expect(screen.getByText("Details")).toBeInTheDocument();
+      const { getByText } = within(container);
+      expect(getByText("Home")).toBeInTheDocument();
+      expect(getByText("Products")).toBeInTheDocument();
+      expect(getByText("Details")).toBeInTheDocument();
     });
 
     it("renders items with icons", () => {
@@ -113,12 +116,13 @@ describe("Breadcrumb", () => {
     it("auto-generates breadcrumbs from pathname", () => {
       mockPathname.mockReturnValue("/products/electronics/123");
 
-      renderBreadcrumb({ autoGenerate: true });
+      const { container } = renderBreadcrumb({ autoGenerate: true });
 
-      expect(screen.getByText("Home")).toBeInTheDocument();
-      expect(screen.getByText("Products")).toBeInTheDocument();
-      expect(screen.getByText("Electronics")).toBeInTheDocument();
-      expect(screen.getByText("123")).toBeInTheDocument();
+      const { getByText } = within(container);
+      expect(getByText("Home")).toBeInTheDocument();
+      expect(getByText("Products")).toBeInTheDocument();
+      expect(getByText("Electronics")).toBeInTheDocument();
+      expect(getByText("123")).toBeInTheDocument();
     });
 
     it("handles root pathname", () => {
@@ -132,10 +136,11 @@ describe("Breadcrumb", () => {
     it("does not show home when showHome is false", () => {
       mockPathname.mockReturnValue("/products");
 
-      renderBreadcrumb({ autoGenerate: true, showHome: false });
+      const { container } = renderBreadcrumb({ autoGenerate: true, showHome: false });
 
-      expect(screen.queryByText("Home")).not.toBeInTheDocument();
-      expect(screen.getByText("Products")).toBeInTheDocument();
+      const { queryByText, getByText } = within(container);
+      expect(queryByText("Home")).not.toBeInTheDocument();
+      expect(getByText("Products")).toBeInTheDocument();
     });
 
     it("uses route config for labels", () => {
@@ -146,24 +151,26 @@ describe("Breadcrumb", () => {
         { path: "/users/[id]", label: (params) => `User ${params.id}` },
       ];
 
-      renderBreadcrumb({ autoGenerate: true, routeConfig });
+      const { container } = renderBreadcrumb({ autoGenerate: true, routeConfig });
 
-      expect(screen.getByText("Home")).toBeInTheDocument();
-      expect(screen.getByText("Users")).toBeInTheDocument();
-      expect(screen.getByText("User 123")).toBeInTheDocument();
+      const { getByText } = within(container);
+      expect(getByText("Home")).toBeInTheDocument();
+      expect(getByText("Users")).toBeInTheDocument();
+      expect(getByText("User 123")).toBeInTheDocument();
     });
 
     it("handles custom home label and href", () => {
       mockPathname.mockReturnValue("/products");
 
-      renderBreadcrumb({
+      const { container } = renderBreadcrumb({
         autoGenerate: true,
         homeLabel: "Dashboard",
         homeHref: "/dashboard",
       });
 
-      expect(screen.getByText("Dashboard")).toBeInTheDocument();
-      const homeLink = screen.getByRole("link", { name: "Dashboard" });
+      const { getByText, getByRole } = within(container);
+      expect(getByText("Dashboard")).toBeInTheDocument();
+      const homeLink = getByRole("link", { name: "Dashboard" });
       expect(homeLink).toHaveAttribute("href", "/dashboard");
     });
   });
@@ -176,14 +183,21 @@ describe("Breadcrumb", () => {
         { label: "Current" },
       ];
 
-      renderBreadcrumb({ items });
+      const { container } = renderBreadcrumb({ items });
 
-      const currentLink = screen.queryByRole("link", { name: "Current" });
+      const { queryByRole, getByText, getByRole } = within(container);
+      const currentLink = queryByRole("link", { name: "Current" });
       expect(currentLink).not.toBeInTheDocument();
-      // Find the element with aria-current attribute (the Box wrapper)
-      const currentElement = screen.getByText("Current").closest('[aria-current="page"]');
+      // Verify the current page text is displayed
+      const currentElement = getByText("Current");
       expect(currentElement).toBeInTheDocument();
-      expect(currentElement).toHaveAttribute("aria-current", "page");
+      // Verify there's an element with aria-current="page" on the page
+      // (The Box wrapper around the text has the aria-current attribute)
+      const navigationElement = getByRole("navigation", { name: "breadcrumb navigation" });
+      // eslint-disable-next-line testing-library/no-node-access
+      const elementWithAriaCurrent = navigationElement.querySelector('[aria-current="page"]');
+      expect(elementWithAriaCurrent).toBeInTheDocument();
+      expect(elementWithAriaCurrent).toHaveAttribute("aria-current", "page");
     });
 
     it("makes last item clickable when currentPageClickable is true", () => {
@@ -204,24 +218,26 @@ describe("Breadcrumb", () => {
     it("truncates items when exceeding maxItems", () => {
       mockPathname.mockReturnValue("/a/b/c/d/e/f/g");
 
-      renderBreadcrumb({ autoGenerate: true, maxItems: 3 });
+      const { container } = renderBreadcrumb({ autoGenerate: true, maxItems: 3 });
 
       // Should show Home, and last 2 items
-      expect(screen.getByText("Home")).toBeInTheDocument();
+      const { getByText, getAllByRole } = within(container);
+      expect(getByText("Home")).toBeInTheDocument();
       // The last items should be visible
-      const items = screen.getAllByRole("listitem");
+      const items = getAllByRole("listitem");
       expect(items.length).toBeLessThanOrEqual(3);
     });
 
     it("does not truncate when items are within maxItems", () => {
       mockPathname.mockReturnValue("/a/b/c");
 
-      renderBreadcrumb({ autoGenerate: true, maxItems: 5 });
+      const { container } = renderBreadcrumb({ autoGenerate: true, maxItems: 5 });
 
-      expect(screen.getByText("Home")).toBeInTheDocument();
-      expect(screen.getByText("A")).toBeInTheDocument();
-      expect(screen.getByText("B")).toBeInTheDocument();
-      expect(screen.getByText("C")).toBeInTheDocument();
+      const { getByText } = within(container);
+      expect(getByText("Home")).toBeInTheDocument();
+      expect(getByText("A")).toBeInTheDocument();
+      expect(getByText("B")).toBeInTheDocument();
+      expect(getByText("C")).toBeInTheDocument();
     });
   });
 
@@ -249,10 +265,11 @@ describe("Breadcrumb", () => {
       try {
         mockPathname.mockReturnValue("/a/b/c/d");
 
-        renderBreadcrumb({ autoGenerate: true, responsive: true });
+        const { container } = renderBreadcrumb({ autoGenerate: true, responsive: true });
 
         // On mobile, should show only last 2 items
-        const items = screen.getAllByRole("listitem");
+        const { getAllByRole } = within(container);
+        const items = getAllByRole("listitem");
         expect(items.length).toBeLessThanOrEqual(2);
       } finally {
         // Always restore original
@@ -267,12 +284,13 @@ describe("Breadcrumb", () => {
     it("shows all items when responsive is false", () => {
       mockPathname.mockReturnValue("/a/b/c");
 
-      renderBreadcrumb({ autoGenerate: true, responsive: false });
+      const { container } = renderBreadcrumb({ autoGenerate: true, responsive: false });
 
-      expect(screen.getByText("Home")).toBeInTheDocument();
-      expect(screen.getByText("A")).toBeInTheDocument();
-      expect(screen.getByText("B")).toBeInTheDocument();
-      expect(screen.getByText("C")).toBeInTheDocument();
+      const { getByText } = within(container);
+      expect(getByText("Home")).toBeInTheDocument();
+      expect(getByText("A")).toBeInTheDocument();
+      expect(getByText("B")).toBeInTheDocument();
+      expect(getByText("C")).toBeInTheDocument();
     });
   });
 
@@ -296,10 +314,11 @@ describe("Breadcrumb", () => {
         { label: "Products" },
       ];
 
-      renderBreadcrumb({ items, separator: ">" });
+      const { container } = renderBreadcrumb({ items, separator: ">" });
 
       // Custom separator should be present
-      expect(screen.getByText(">")).toBeInTheDocument();
+      const { getByText } = within(container);
+      expect(getByText(">")).toBeInTheDocument();
     });
 
     it("uses custom renderSeparator", () => {
@@ -347,22 +366,25 @@ describe("Breadcrumb", () => {
     it("applies small size", () => {
       const items: BreadcrumbItem[] = [{ label: "Home", href: "/" }];
 
-      renderBreadcrumb({ items, size: "small" });
-      expect(screen.getByText("Home")).toBeInTheDocument();
+      const { container } = renderBreadcrumb({ items, size: "small" });
+      const { getByText } = within(container);
+      expect(getByText("Home")).toBeInTheDocument();
     });
 
     it("applies medium size", () => {
       const items: BreadcrumbItem[] = [{ label: "Home", href: "/" }];
 
-      renderBreadcrumb({ items, size: "medium" });
-      expect(screen.getByText("Home")).toBeInTheDocument();
+      const { container } = renderBreadcrumb({ items, size: "medium" });
+      const { getByText } = within(container);
+      expect(getByText("Home")).toBeInTheDocument();
     });
 
     it("applies large size", () => {
       const items: BreadcrumbItem[] = [{ label: "Home", href: "/" }];
 
-      renderBreadcrumb({ items, size: "large" });
-      expect(screen.getByText("Home")).toBeInTheDocument();
+      const { container } = renderBreadcrumb({ items, size: "large" });
+      const { getByText } = within(container);
+      expect(getByText("Home")).toBeInTheDocument();
     });
   });
 
@@ -403,12 +425,19 @@ describe("Breadcrumb", () => {
         { label: "Current" },
       ];
 
-      renderBreadcrumb({ items });
+      const { container } = renderBreadcrumb({ items });
 
-      // Find the element with aria-current attribute (the Box wrapper)
-      const currentElement = screen.getByText("Current").closest('[aria-current="page"]');
+      // Verify the current page text is displayed
+      const { getByText, getByRole } = within(container);
+      const currentElement = getByText("Current");
       expect(currentElement).toBeInTheDocument();
-      expect(currentElement).toHaveAttribute("aria-current", "page");
+      // Verify there's an element with aria-current="page" on the page
+      // (The Box wrapper around the text has the aria-current attribute)
+      const navigationElement = getByRole("navigation", { name: "breadcrumb navigation" });
+      // eslint-disable-next-line testing-library/no-node-access
+      const elementWithAriaCurrent = navigationElement.querySelector('[aria-current="page"]');
+      expect(elementWithAriaCurrent).toBeInTheDocument();
+      expect(elementWithAriaCurrent).toHaveAttribute("aria-current", "page");
     });
   });
 
@@ -440,46 +469,51 @@ describe("Breadcrumb", () => {
     it("handles null pathname", () => {
       mockPathname.mockReturnValue(null);
 
-      renderBreadcrumb({ autoGenerate: true, showHome: true });
+      const { container } = renderBreadcrumb({ autoGenerate: true, showHome: true });
 
-      expect(screen.getByText("Home")).toBeInTheDocument();
+      const { getByText } = within(container);
+      expect(getByText("Home")).toBeInTheDocument();
     });
 
     it("handles empty pathname", () => {
       mockPathname.mockReturnValue("");
 
-      renderBreadcrumb({ autoGenerate: true, showHome: true });
+      const { container } = renderBreadcrumb({ autoGenerate: true, showHome: true });
 
-      expect(screen.getByText("Home")).toBeInTheDocument();
+      const { getByText } = within(container);
+      expect(getByText("Home")).toBeInTheDocument();
     });
 
     it("handles pathname with trailing slash", () => {
       mockPathname.mockReturnValue("/products/");
 
-      renderBreadcrumb({ autoGenerate: true });
+      const { container } = renderBreadcrumb({ autoGenerate: true });
 
-      expect(screen.getByText("Home")).toBeInTheDocument();
-      expect(screen.getByText("Products")).toBeInTheDocument();
+      const { getByText } = within(container);
+      expect(getByText("Home")).toBeInTheDocument();
+      expect(getByText("Products")).toBeInTheDocument();
     });
 
     it("handles pathname with multiple consecutive slashes", () => {
       mockPathname.mockReturnValue("//products///electronics");
 
-      renderBreadcrumb({ autoGenerate: true });
+      const { container } = renderBreadcrumb({ autoGenerate: true });
 
-      expect(screen.getByText("Home")).toBeInTheDocument();
-      expect(screen.getByText("Products")).toBeInTheDocument();
-      expect(screen.getByText("Electronics")).toBeInTheDocument();
+      const { getByText } = within(container);
+      expect(getByText("Home")).toBeInTheDocument();
+      expect(getByText("Products")).toBeInTheDocument();
+      expect(getByText("Electronics")).toBeInTheDocument();
     });
 
     it("handles special characters in pathname segments", () => {
       mockPathname.mockReturnValue("/products/my-product-123");
 
-      renderBreadcrumb({ autoGenerate: true });
+      const { container } = renderBreadcrumb({ autoGenerate: true });
 
-      expect(screen.getByText("Home")).toBeInTheDocument();
-      expect(screen.getByText("Products")).toBeInTheDocument();
-      expect(screen.getByText("My Product 123")).toBeInTheDocument();
+      const { getByText } = within(container);
+      expect(getByText("Home")).toBeInTheDocument();
+      expect(getByText("Products")).toBeInTheDocument();
+      expect(getByText("My Product 123")).toBeInTheDocument();
     });
 
     it("handles maxItems of 0 (no limit)", () => {
@@ -500,10 +534,12 @@ describe("Breadcrumb", () => {
     it("handles maxItems of 1", () => {
       mockPathname.mockReturnValue("/a/b/c");
 
-      renderBreadcrumb({ autoGenerate: true, maxItems: 1 });
+      const { container } = renderBreadcrumb({ autoGenerate: true, maxItems: 1 });
 
       // Should show only last item (or home if only one item)
-      const items = screen.getAllByRole("listitem");
+      // Scope query to container to avoid finding items from other tests
+      const { getAllByRole } = within(container);
+      const items = getAllByRole("listitem");
       expect(items.length).toBeLessThanOrEqual(2); // Home + last item
     });
 

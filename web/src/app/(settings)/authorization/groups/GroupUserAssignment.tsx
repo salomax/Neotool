@@ -46,8 +46,10 @@ export const GroupUserAssignment: React.FC<GroupUserAssignmentProps> = ({
   
   // Optional react-hook-form integration
   // Access formState from useFormContext - it's reactive and triggers re-renders
+  // Call hook unconditionally, but handle the case where it's not in a form context
   let formContext: ReturnType<typeof useFormContext> | null = null;
   try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     formContext = useFormContext();
   } catch {
     // Not in a form context, that's okay

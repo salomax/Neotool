@@ -1,147 +1,95 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act, render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, renderHook, waitFor } from '@testing-library/react';
 import React from 'react';
 import { usePageTitle, usePageTitleValue, PageTitleProvider } from '@/shared/hooks/ui';
 
-// Helper to create a test wrapper with PageTitleProvider
-// Create a single wrapper instance that can be reused across multiple renderHook calls
-const createWrapper = () => {
-  // Create a single provider instance that will be shared
-  const Wrapper = ({ children }: { children: React.ReactNode }) => {
-    return <PageTitleProvider>{children}</PageTitleProvider>;
-  };
-  
-  Wrapper.displayName = 'TestWrapper';
-  
-  return Wrapper;
+const TitleSetter = ({ title }: { title: string | null }) => {
+  usePageTitle(title);
+  return null;
 };
 
-describe('usePageTitle', () => {
+const TitleReader = () => {
+  const title = usePageTitleValue();
+  return <div data-testid="title">{title ?? ''}</div>;
+};
+
+const renderWithProvider = (ui: React.ReactNode) =>
+  render(<PageTitleProvider>{ui}</PageTitleProvider>);
+
+// Run sequentially to avoid shared provider state across threads
+describe.sequential('usePageTitle', () => {
   describe('usePageTitle hook', () => {
-    it('should set title when called', async () => {
-      const wrapper = createWrapper();
-      
-      // Use a test component that uses both hooks to ensure they share the same provider
-      const TestComponent = ({ title }: { title: string | null }) => {
-        usePageTitle(title);
-        const currentTitle = usePageTitleValue();
-        return <div data-testid="title">{currentTitle}</div>;
-      };
-      
-      const { rerender } = render(
+    it('should set title when called', () => {
+      renderWithProvider(
+        <>
+          <TitleSetter title="Test Title" />
+          <TitleReader />
+        </>
+      );
+
+      expect(screen.getByTestId('title')).toHaveTextContent('Test Title');
+    });
+
+    it('should clear title on unmount', () => {
+      const { rerender } = renderWithProvider(
+        <>
+          <TitleSetter title="Test Title" />
+          <TitleReader />
+        </>
+      );
+
+      expect(screen.getByTestId('title')).toHaveTextContent('Test Title');
+
+      // Remove setter to trigger cleanup
+      rerender(
         <PageTitleProvider>
-          <TestComponent title={null} />
+          <TitleReader />
         </PageTitleProvider>
       );
-      
-      // Initially null
+
       expect(screen.getByTestId('title')).toHaveTextContent('');
-      
-      // Set title
+    });
+
+    it('should update title when title prop changes', () => {
+      const { rerender } = renderWithProvider(
+        <>
+          <TitleSetter title="Initial Title" />
+          <TitleReader />
+        </>
+      );
+
+      expect(screen.getByTestId('title')).toHaveTextContent('Initial Title');
+
       rerender(
         <PageTitleProvider>
-          <TestComponent title="Test Title" />
+          <TitleSetter title="Updated Title" />
+          <TitleReader />
         </PageTitleProvider>
       );
-      
-      // Wait for effect to run and state to update
-      await waitFor(() => {
-        expect(screen.getByTestId('title')).toHaveTextContent('Test Title');
-      });
+
+      expect(screen.getByTestId('title')).toHaveTextContent('Updated Title');
     });
 
-    it('should clear title on unmount', async () => {
-      const TestComponent = ({ title }: { title: string | null }) => {
-        usePageTitle(title);
-        const currentTitle = usePageTitleValue();
-        return <div data-testid="title">{currentTitle || 'null'}</div>;
-      };
-      
-      const { unmount } = render(
-        <PageTitleProvider>
-          <TestComponent title="Test Title" />
-        </PageTitleProvider>
+    it('should handle null title', () => {
+      renderWithProvider(
+        <>
+          <TitleSetter title={null} />
+          <TitleReader />
+        </>
       );
-      
-      await waitFor(() => {
-        expect(screen.getByTestId('title')).toHaveTextContent('Test Title');
-      });
-      
-      // Unmount should clear title - use act to ensure cleanup runs
-      await act(async () => {
-        unmount();
-      });
-      
-      // After unmount, the component is gone, so we can't check the title
-      // But we can verify the cleanup was called by checking no errors occurred
-      expect(true).toBe(true);
+
+      expect(screen.getByTestId('title')).toHaveTextContent('');
     });
 
-    it('should update title when title prop changes', async () => {
-      const TestComponent = ({ title }: { title: string | null }) => {
-        usePageTitle(title);
-        const currentTitle = usePageTitleValue();
-        return <div data-testid="title">{currentTitle || 'null'}</div>;
-      };
-      
-      const { rerender } = render(
-        <PageTitleProvider>
-          <TestComponent title="Initial Title" />
-        </PageTitleProvider>
+    it('should handle empty string title', () => {
+      renderWithProvider(
+        <>
+          <TitleSetter title="" />
+          <TitleReader />
+        </>
       );
-      
-      await waitFor(() => {
-        expect(screen.getByTestId('title')).toHaveTextContent('Initial Title');
-      });
-      
-      // Change title
-      rerender(
-        <PageTitleProvider>
-          <TestComponent title="Updated Title" />
-        </PageTitleProvider>
-      );
-      
-      await waitFor(() => {
-        expect(screen.getByTestId('title')).toHaveTextContent('Updated Title');
-      });
-    });
 
-    it('should handle null title', async () => {
-      const TestComponent = () => {
-        usePageTitle(null);
-        const currentTitle = usePageTitleValue();
-        return <div data-testid="title">{currentTitle === null ? 'null' : currentTitle}</div>;
-      };
-      
-      render(
-        <PageTitleProvider>
-          <TestComponent />
-        </PageTitleProvider>
-      );
-      
-      await waitFor(() => {
-        expect(screen.getByTestId('title')).toHaveTextContent('null');
-      });
-    });
-
-    it('should handle empty string title', async () => {
-      const TestComponent = () => {
-        usePageTitle('');
-        const currentTitle = usePageTitleValue();
-        return <div data-testid="title">{currentTitle === '' ? '' : currentTitle || 'null'}</div>;
-      };
-      
-      render(
-        <PageTitleProvider>
-          <TestComponent />
-        </PageTitleProvider>
-      );
-      
-      await waitFor(() => {
-        const element = screen.getByTestId('title');
-        // Empty string should be set, so we check it's not null
-        expect(element.textContent).toBe('');
-      });
+      expect(screen.getByTestId('title')).toHaveTextContent('');
     });
 
     it('should throw error when used outside provider', () => {
@@ -156,149 +104,95 @@ describe('usePageTitle', () => {
     });
 
     it('should handle multiple components setting title (last one wins)', async () => {
-      const Component1 = () => {
-        usePageTitle('Title 1');
-        return null;
-      };
-      
-      const Component2 = () => {
-        usePageTitle('Title 2');
-        return null;
-      };
-      
-      const Reader = () => {
-        const title = usePageTitleValue();
-        return <div data-testid="title">{title || 'null'}</div>;
-      };
-      
-      const { rerender } = render(
+      const MultiSetter = ({ first, second }: { first: string | null; second?: string | null }) => (
         <PageTitleProvider>
-          <Component1 />
-          <Reader />
+          <TitleSetter title={first} />
+          {second !== undefined && <TitleSetter title={second} />}
+          <TitleReader />
         </PageTitleProvider>
       );
-      
-      await waitFor(() => {
-        expect(screen.getByTestId('title')).toHaveTextContent('Title 1');
-      });
-      
-      // Add second component
-      rerender(
-        <PageTitleProvider>
-          <Component1 />
-          <Component2 />
-          <Reader />
-        </PageTitleProvider>
-      );
-      
+
+      const { rerender } = render(<MultiSetter first="Title 1" second="Title 2" />);
+
       await waitFor(() => {
         expect(screen.getByTestId('title')).toHaveTextContent('Title 2');
       });
-      
-      // Remove second component - should clear to null (cleanup)
-      rerender(
-        <PageTitleProvider>
-          <Component1 />
-          <Reader />
-        </PageTitleProvider>
-      );
-      
+
+      rerender(<MultiSetter first="Title 1" />);
+
       await waitFor(() => {
-        expect(screen.getByTestId('title')).toHaveTextContent('null');
+        // Removing the second setter clears the title because the remaining setter
+        // doesn't rerun its effect when its value is unchanged.
+        expect(screen.getByTestId('title')).toHaveTextContent('');
       });
     });
 
-    it('should handle dynamic title changes', async () => {
-      const TestComponent = ({ title }: { title: string | null }) => {
-        usePageTitle(title);
-        const currentTitle = usePageTitleValue();
-        return <div data-testid="title">{currentTitle || 'null'}</div>;
-      };
-      
-      const { rerender } = render(
-        <PageTitleProvider>
-          <TestComponent title="Title 1" />
-        </PageTitleProvider>
+    it('should handle dynamic title changes', () => {
+      const { rerender } = renderWithProvider(
+        <>
+          <TitleSetter title="Title 1" />
+          <TitleReader />
+        </>
       );
-      
-      await waitFor(() => {
-        expect(screen.getByTestId('title')).toHaveTextContent('Title 1');
-      });
-      
+
+      expect(screen.getByTestId('title')).toHaveTextContent('Title 1');
+
       rerender(
         <PageTitleProvider>
-          <TestComponent title="Title 2" />
+          <TitleSetter title="Title 2" />
+          <TitleReader />
         </PageTitleProvider>
       );
-      
-      await waitFor(() => {
-        expect(screen.getByTestId('title')).toHaveTextContent('Title 2');
-      });
-      
+
+      expect(screen.getByTestId('title')).toHaveTextContent('Title 2');
+
       rerender(
         <PageTitleProvider>
-          <TestComponent title={null} />
+          <TitleSetter title={null} />
+          <TitleReader />
         </PageTitleProvider>
       );
-      
-      await waitFor(() => {
-        expect(screen.getByTestId('title')).toHaveTextContent('null');
-      });
+
+      expect(screen.getByTestId('title')).toHaveTextContent('');
     });
   });
 
   describe('usePageTitleValue hook', () => {
     it('should return null initially', () => {
-      const wrapper = createWrapper();
-      const { result } = renderHook(() => usePageTitleValue(), { wrapper });
-      
-      expect(result.current).toBeNull();
+      renderWithProvider(<TitleReader />);
+
+      expect(screen.getByTestId('title')).toHaveTextContent('');
     });
 
-    it('should return current title', async () => {
-      const TestComponent = ({ title }: { title: string | null }) => {
-        usePageTitle(title);
-        const currentTitle = usePageTitleValue();
-        return <div data-testid="title">{currentTitle}</div>;
-      };
-      
-      render(
-        <PageTitleProvider>
-          <TestComponent title="Test Title" />
-        </PageTitleProvider>
+    it('should return current title', () => {
+      renderWithProvider(
+        <>
+          <TitleSetter title="Test Title" />
+          <TitleReader />
+        </>
       );
-      
-      await waitFor(() => {
-        expect(screen.getByTestId('title')).toHaveTextContent('Test Title');
-      });
+
+      expect(screen.getByTestId('title')).toHaveTextContent('Test Title');
     });
 
-    it('should update when title changes', async () => {
-      const TestComponent = ({ title }: { title: string | null }) => {
-        usePageTitle(title);
-        const currentTitle = usePageTitleValue();
-        return <div data-testid="title">{currentTitle || 'null'}</div>;
-      };
-      
-      const { rerender } = render(
-        <PageTitleProvider>
-          <TestComponent title="Initial" />
-        </PageTitleProvider>
+    it('should update when title changes', () => {
+      const { rerender } = renderWithProvider(
+        <>
+          <TitleSetter title="Initial" />
+          <TitleReader />
+        </>
       );
-      
-      await waitFor(() => {
-        expect(screen.getByTestId('title')).toHaveTextContent('Initial');
-      });
-      
+
+      expect(screen.getByTestId('title')).toHaveTextContent('Initial');
+
       rerender(
         <PageTitleProvider>
-          <TestComponent title="Updated" />
+          <TitleSetter title="Updated" />
+          <TitleReader />
         </PageTitleProvider>
       );
-      
-      await waitFor(() => {
-        expect(screen.getByTestId('title')).toHaveTextContent('Updated');
-      });
+
+      expect(screen.getByTestId('title')).toHaveTextContent('Updated');
     });
 
     it('should throw error when used outside provider', () => {

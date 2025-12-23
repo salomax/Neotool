@@ -1,6 +1,6 @@
 import React from 'react';
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, within, cleanup } from '@testing-library/react';
 import { SidebarLayout } from '../SidebarLayout';
 import { RAIL_W } from '@/shared/ui/navigation/SidebarRail';
 
@@ -37,7 +37,8 @@ vi.mock('../Box', () => ({
   },
 }));
 
-describe('SidebarLayout', () => {
+// Run sequentially to avoid concurrent renders leaking between tests
+describe.sequential('SidebarLayout', () => {
   const mockSidebar = <div data-testid="sidebar-content">Sidebar Content</div>;
   const mockChildren = <div data-testid="main-content">Main Content</div>;
 
@@ -337,5 +338,9 @@ describe('SidebarLayout', () => {
       const outerBox = screen.getByTestId('sidebarlayout');
       expect(outerBox).toBeInTheDocument();
     });
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 });

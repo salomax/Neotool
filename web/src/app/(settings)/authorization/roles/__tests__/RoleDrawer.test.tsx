@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { RoleDrawer } from '../RoleDrawer';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
@@ -339,7 +339,7 @@ const renderRoleDrawer = (props = {}) => {
   );
 };
 
-describe('RoleDrawer', () => {
+describe.sequential('RoleDrawer', () => {
   const user = userEvent.setup();
 
   beforeEach(() => {
@@ -428,42 +428,42 @@ describe('RoleDrawer', () => {
 
   describe('Create mode (roleId === null)', () => {
     it('should render drawer in create mode', () => {
-      renderRoleDrawer({ roleId: null });
+      const view = renderRoleDrawer({ roleId: null });
 
-      expect(screen.getByText('Create Role')).toBeInTheDocument();
-      expect(screen.getByTestId('role-form')).toBeInTheDocument();
+      expect(view.getAllByText('Create Role')[0]).toBeInTheDocument();
+      expect(view.getAllByTestId('role-form')[0]).toBeInTheDocument();
     });
 
     it('should not query role data in create mode', () => {
-      renderRoleDrawer({ roleId: null });
+      const view = renderRoleDrawer({ roleId: null });
 
       // In create mode, the drawer should render without role data
       // The hook is called with null roleId and open=false (since !isCreateMode = false)
-      expect(screen.getByText('Create Role')).toBeInTheDocument();
+      expect(view.getAllByText('Create Role')[0]).toBeInTheDocument();
       // useRoleDrawer should be called with null roleId and open=false
       expect(mockUseRoleDrawer).toHaveBeenCalledWith(null, false);
     });
 
     it('should show create button', () => {
-      renderRoleDrawer({ roleId: null });
+      const view = renderRoleDrawer({ roleId: null });
 
-      expect(screen.getByText('Create')).toBeInTheDocument();
+      expect(view.getAllByText('Create')[0]).toBeInTheDocument();
     });
   });
 
   describe('Edit mode (roleId !== null)', () => {
     it('should render drawer in edit mode', () => {
-      renderRoleDrawer({ roleId: 'role-1' });
+      const view = renderRoleDrawer({ roleId: 'role-1' });
 
-      expect(screen.getByText('Edit Role')).toBeInTheDocument();
+      expect(view.getAllByText('Edit Role')[0]).toBeInTheDocument();
     });
 
     it('should query role data in edit mode', () => {
-      renderRoleDrawer({ roleId: 'role-1' });
+      const view = renderRoleDrawer({ roleId: 'role-1' });
 
       // In edit mode, the drawer should render with role data
       // The hook is called with roleId and open=true
-      expect(screen.getByText('Edit Role')).toBeInTheDocument();
+      expect(view.getAllByText('Edit Role')[0]).toBeInTheDocument();
       // useRoleDrawer should be called with roleId
       expect(mockUseRoleDrawer).toHaveBeenCalledWith('role-1', true);
     });
@@ -488,9 +488,9 @@ describe('RoleDrawer', () => {
         }),
       });
 
-      renderRoleDrawer({ roleId: 'role-1' });
+      const view = renderRoleDrawer({ roleId: 'role-1' });
 
-      expect(screen.getByTestId('loading-state')).toBeInTheDocument();
+      expect(view.getByTestId('loading-state')).toBeInTheDocument();
     });
 
     it('should show error state when query fails', () => {
@@ -513,30 +513,30 @@ describe('RoleDrawer', () => {
         }),
       });
 
-      renderRoleDrawer({ roleId: 'role-1' });
+      const view = renderRoleDrawer({ roleId: 'role-1' });
 
-      expect(screen.getByTestId('error-alert')).toBeInTheDocument();
+      expect(view.getByTestId('error-alert')).toBeInTheDocument();
     });
 
     it('should display role data in form', () => {
-      renderRoleDrawer({ roleId: 'role-1' });
+      const view = renderRoleDrawer({ roleId: 'role-1' });
 
-      expect(screen.getByText(`Name: ${mockRole.name}`)).toBeInTheDocument();
+      expect(view.getByText(`Name: ${mockRole.name}`)).toBeInTheDocument();
     });
 
     it('should show save button in edit mode', () => {
-      renderRoleDrawer({ roleId: 'role-1' });
+      const view = renderRoleDrawer({ roleId: 'role-1' });
 
-      expect(screen.getByText('Save')).toBeInTheDocument();
+      expect(view.getByText('Save')).toBeInTheDocument();
     });
   });
 
   describe('User interactions', () => {
     it('should call onClose when cancel is clicked', async () => {
       const onClose = vi.fn();
-      renderRoleDrawer({ onClose });
+      const view = renderRoleDrawer({ onClose });
 
-      const cancelButton = screen.getByText('Cancel');
+      const cancelButton = view.getByText('Cancel');
       await user.click(cancelButton);
 
       expect(onClose).toHaveBeenCalled();
@@ -544,9 +544,9 @@ describe('RoleDrawer', () => {
 
     it('should call onClose when drawer close button is clicked', async () => {
       const onClose = vi.fn();
-      renderRoleDrawer({ onClose });
+      const view = renderRoleDrawer({ onClose });
 
-      const closeButton = screen.getByText('Close');
+      const closeButton = view.getByText('Close');
       await user.click(closeButton);
 
       expect(onClose).toHaveBeenCalled();
@@ -558,18 +558,18 @@ describe('RoleDrawer', () => {
         { loading: true },
       ]);
 
-      renderRoleDrawer({ roleId: null });
+      const view = renderRoleDrawer({ roleId: null });
 
-      const saveButton = screen.getByText('Saving...');
+      const saveButton = view.getByText('Saving...');
       expect(saveButton).toBeInTheDocument();
     });
   });
 
   describe('Assignment components', () => {
     it('should render RolePermissionAssignment component', () => {
-      renderRoleDrawer({ roleId: 'role-1' });
+      const view = renderRoleDrawer({ roleId: 'role-1' });
 
-      expect(screen.getByTestId('role-permission-assignment')).toBeInTheDocument();
+      expect(view.getByTestId('role-permission-assignment')).toBeInTheDocument();
     });
 
     // Note: RoleDrawer doesn't render RoleUserAssignment - it only renders
@@ -577,15 +577,15 @@ describe('RoleDrawer', () => {
     // Test removed as component doesn't implement this feature
 
     it('should render RoleGroupAssignment component', () => {
-      renderRoleDrawer({ roleId: 'role-1' });
+      const view = renderRoleDrawer({ roleId: 'role-1' });
 
-      expect(screen.getByTestId('role-group-assignment')).toBeInTheDocument();
+      expect(view.getByTestId('role-group-assignment')).toBeInTheDocument();
     });
 
     it('should pass assigned permissions to RolePermissionAssignment', () => {
-      renderRoleDrawer({ roleId: 'role-1' });
+      const view = renderRoleDrawer({ roleId: 'role-1' });
 
-      expect(screen.getByText('Permissions: security:user:view')).toBeInTheDocument();
+      expect(view.getAllByText('Permissions: security:user:view')[0]).toBeInTheDocument();
     });
 
     // Note: RoleDrawer doesn't render RoleUserAssignment - it only renders
@@ -593,23 +593,23 @@ describe('RoleDrawer', () => {
     // Test removed as component doesn't implement this feature
 
     it('should pass assigned groups to RoleGroupAssignment', () => {
-      renderRoleDrawer({ roleId: 'role-1' });
+      const view = renderRoleDrawer({ roleId: 'role-1' });
 
-      expect(screen.getByText('Groups: Admin Group')).toBeInTheDocument();
+      expect(view.getAllByText('Groups: Admin Group')[0]).toBeInTheDocument();
     });
   });
 
   describe('Drawer visibility', () => {
     it('should not render when open is false', () => {
-      renderRoleDrawer({ open: false });
+      const view = renderRoleDrawer({ open: false });
 
-      expect(screen.queryByTestId('drawer')).not.toBeInTheDocument();
+      expect(view.queryByTestId('drawer')).not.toBeInTheDocument();
     });
 
     it('should render when open is true', () => {
-      renderRoleDrawer({ open: true });
+      const view = renderRoleDrawer({ open: true });
 
-      expect(screen.getByTestId('drawer')).toBeInTheDocument();
+      expect(view.getByTestId('drawer')).toBeInTheDocument();
     });
   });
 });

@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useForm, FormProvider } from "react-hook-form";
 import { AppThemeProvider } from "@/styles/themes/AppThemeProvider";
@@ -26,45 +26,45 @@ const renderCurrencyField = (
   );
 };
 
-describe("CurrencyField", () => {
+describe.sequential("CurrencyField", () => {
   it("renders currency field", () => {
-    renderCurrencyField();
-    expect(screen.getByLabelText("Amount")).toBeInTheDocument();
+    const { getByLabelText } = renderCurrencyField();
+    expect(getByLabelText("Amount")).toBeInTheDocument();
   });
 
   it("renders with default currency USD", () => {
-    renderCurrencyField();
-    const input = screen.getByLabelText("Amount");
+    const { getByLabelText } = renderCurrencyField();
+    const input = getByLabelText("Amount");
     expect(input).toBeInTheDocument();
   });
 
   it("renders with custom currency", () => {
-    renderCurrencyField({ currency: "BRL" });
-    const input = screen.getByLabelText("Amount");
+    const { getByLabelText } = renderCurrencyField({ currency: "BRL" });
+    const input = getByLabelText("Amount");
     expect(input).toBeInTheDocument();
   });
 
   it("renders currency selector when currencyChoices provided", () => {
-    renderCurrencyField({ currencyChoices: ["USD", "EUR", "BRL"] });
-    expect(screen.getByRole("combobox")).toBeInTheDocument();
+    const { getByRole } = renderCurrencyField({ currencyChoices: ["USD", "EUR", "BRL"] });
+    expect(getByRole("combobox")).toBeInTheDocument();
   });
 
   it("does not render currency selector when currencyChoices not provided", () => {
-    renderCurrencyField();
-    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    const { queryByRole } = renderCurrencyField();
+    expect(queryByRole("combobox")).not.toBeInTheDocument();
   });
 
   it("handles currency selection change", async () => {
     const user = userEvent.setup();
     const onCurrencyChange = vi.fn();
-    renderCurrencyField({
+    const { getByRole, getByText } = renderCurrencyField({
       currencyChoices: ["USD", "EUR", "BRL"],
       onCurrencyChange,
     });
 
-    const select = screen.getByRole("combobox");
+    const select = getByRole("combobox");
     await user.click(select);
-    const eurOption = screen.getByText("EUR");
+    const eurOption = getByText("EUR");
     await user.click(eurOption);
 
     expect(onCurrencyChange).toHaveBeenCalledWith("EUR");
@@ -72,9 +72,9 @@ describe("CurrencyField", () => {
 
   it("handles text input and formats currency", async () => {
     const user = userEvent.setup();
-    renderCurrencyField({}, { amount: null });
+    const { getByLabelText } = renderCurrencyField({}, { amount: null });
 
-    const input = screen.getByLabelText("Amount") as HTMLInputElement;
+    const input = getByLabelText("Amount") as HTMLInputElement;
     await user.type(input, "1234.56");
 
     // Wait for the value to be set
@@ -86,9 +86,9 @@ describe("CurrencyField", () => {
   it("respects min value constraint", async () => {
     const user = userEvent.setup();
     const formDefaults = { amount: null };
-    renderCurrencyField({ min: 10 }, formDefaults);
+    const { getByLabelText } = renderCurrencyField({ min: 10 }, formDefaults);
 
-    const input = screen.getByLabelText("Amount") as HTMLInputElement;
+    const input = getByLabelText("Amount") as HTMLInputElement;
     await user.type(input, "5");
 
     // The component should clamp to min value
@@ -100,9 +100,9 @@ describe("CurrencyField", () => {
 
   it("respects max value constraint", async () => {
     const user = userEvent.setup();
-    renderCurrencyField({ max: 100 }, { amount: null });
+    const { getByLabelText } = renderCurrencyField({ max: 100 }, { amount: null });
 
-    const input = screen.getByLabelText("Amount") as HTMLInputElement;
+    const input = getByLabelText("Amount") as HTMLInputElement;
     await user.type(input, "200");
 
     // The component should clamp to max value
@@ -113,9 +113,9 @@ describe("CurrencyField", () => {
 
   it("allows negative values by default", async () => {
     const user = userEvent.setup();
-    renderCurrencyField({}, { amount: null });
+    const { getByLabelText } = renderCurrencyField({}, { amount: null });
 
-    const input = screen.getByLabelText("Amount") as HTMLInputElement;
+    const input = getByLabelText("Amount") as HTMLInputElement;
     await user.type(input, "-100");
 
     await waitFor(() => {
@@ -125,9 +125,9 @@ describe("CurrencyField", () => {
 
   it("prevents negative values when allowNegative is false", async () => {
     const user = userEvent.setup();
-    renderCurrencyField({ allowNegative: false }, { amount: null });
+    const { getByLabelText } = renderCurrencyField({ allowNegative: false }, { amount: null });
 
-    const input = screen.getByLabelText("Amount") as HTMLInputElement;
+    const input = getByLabelText("Amount") as HTMLInputElement;
     await user.type(input, "-100");
 
     // Should clamp to 0
@@ -137,20 +137,20 @@ describe("CurrencyField", () => {
   });
 
   it("uses custom fraction digits when provided", () => {
-    renderCurrencyField({ fractionDigits: 0 });
-    const input = screen.getByLabelText("Amount");
+    const { getByLabelText } = renderCurrencyField({ fractionDigits: 0 });
+    const input = getByLabelText("Amount");
     expect(input).toBeInTheDocument();
   });
 
   it("uses default fraction digits from currency when fractionDigits not provided", () => {
-    renderCurrencyField({ currency: "USD", locale: "en-US" });
-    const input = screen.getByLabelText("Amount");
+    const { getByLabelText } = renderCurrencyField({ currency: "USD", locale: "en-US" });
+    const input = getByLabelText("Amount");
     expect(input).toBeInTheDocument();
   });
 
   it("handles different locales", () => {
-    renderCurrencyField({ locale: "pt-BR", currency: "BRL" });
-    const input = screen.getByLabelText("Amount");
+    const { getByLabelText } = renderCurrencyField({ locale: "pt-BR", currency: "BRL" });
+    const input = getByLabelText("Amount");
     expect(input).toBeInTheDocument();
   });
 
@@ -170,25 +170,25 @@ describe("CurrencyField", () => {
       );
     };
 
-    render(
+    const view = render(
       <AppThemeProvider>
         <Wrapper />
       </AppThemeProvider>
     );
 
-    expect(screen.getByText("Required")).toBeInTheDocument();
+    expect(view.getByText("Required")).toBeInTheDocument();
   });
 
   it("displays helper text when no error", () => {
-    renderCurrencyField({ helperText: "Enter amount" });
-    expect(screen.getByText("Enter amount")).toBeInTheDocument();
+    const { getByText } = renderCurrencyField({ helperText: "Enter amount" });
+    expect(getByText("Enter amount")).toBeInTheDocument();
   });
 
   it("handles empty value", async () => {
     const user = userEvent.setup();
-    renderCurrencyField({}, { amount: 100 });
+    const { getByLabelText } = renderCurrencyField({}, { amount: 100 });
 
-    const input = screen.getByLabelText("Amount") as HTMLInputElement;
+    const input = getByLabelText("Amount") as HTMLInputElement;
     await user.clear(input);
 
     await waitFor(() => {
@@ -197,7 +197,7 @@ describe("CurrencyField", () => {
   });
 
   it("updates currency when currency prop changes", () => {
-    const { rerender } = renderCurrencyField({ currency: "USD" });
+    const view = renderCurrencyField({ currency: "USD" });
     
     const Wrapper = ({ currency }: { currency: string }) => {
       const methods = useForm({ defaultValues: { amount: null } });
@@ -208,26 +208,24 @@ describe("CurrencyField", () => {
       );
     };
 
-    rerender(
+    view.rerender(
       <AppThemeProvider>
         <Wrapper currency="EUR" />
       </AppThemeProvider>
     );
 
-    const input = screen.getByLabelText("Amount");
-    expect(input).toBeInTheDocument();
+    expect(view.getByLabelText("Amount")).toBeInTheDocument();
   });
 
   it("handles custom step value", () => {
-    renderCurrencyField({ step: 0.01 });
-    const input = screen.getByLabelText("Amount");
+    const { getByLabelText } = renderCurrencyField({ step: 0.01 });
+    const input = getByLabelText("Amount");
     expect(input).toBeInTheDocument();
   });
 
   it("handles fullWidth prop", () => {
-    renderCurrencyField({ fullWidth: false });
-    const input = screen.getByLabelText("Amount");
+    const { getByLabelText } = renderCurrencyField({ fullWidth: false });
+    const input = getByLabelText("Amount");
     expect(input).toBeInTheDocument();
   });
 });
-

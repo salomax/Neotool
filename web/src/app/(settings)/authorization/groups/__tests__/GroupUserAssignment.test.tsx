@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import React, { useEffect, useRef } from 'react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, act, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { FormProvider, useForm } from 'react-hook-form';
 import { GroupUserAssignment } from '../GroupUserAssignment';
@@ -88,7 +88,7 @@ const renderGroupUserAssignment = (assignedUsers: Array<{ id: string; email: str
   );
 };
 
-describe('GroupUserAssignment', () => {
+describe.sequential('GroupUserAssignment', () => {
   const user = userEvent.setup();
 
   beforeEach(() => {
@@ -105,6 +105,10 @@ describe('GroupUserAssignment', () => {
       error: undefined,
       refetch: vi.fn(),
     });
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   describe('Rendering', () => {
@@ -261,13 +265,16 @@ describe('GroupUserAssignment', () => {
     });
 
     it('should handle form validation errors', async () => {
-      let formMethods: ReturnType<typeof useForm<GroupFormData>> | null = null;
+      const formMethodsRef = { current: null as ReturnType<typeof useForm<GroupFormData>> | null };
       
       const Wrapper = () => {
         const methods = useForm<GroupFormData>({
           defaultValues: { name: '', description: '', userIds: [] },
         });
-        formMethods = methods;
+        // Store methods in ref for external access (only on first render)
+        useEffect(() => {
+          formMethodsRef.current = methods;
+        }, [methods]);
 
         return (
           <AppThemeProvider>
@@ -282,13 +289,13 @@ describe('GroupUserAssignment', () => {
       
       // Set error after initial render using act
       await act(async () => {
-        formMethods?.setError('userIds', { type: 'required', message: 'Users are required' });
+        formMethodsRef.current?.setError('userIds', { type: 'required', message: 'Users are required' });
       });
       
       // Force re-render to pick up the error
       rerender(
         <AppThemeProvider>
-          <FormProvider {...formMethods!}>
+          <FormProvider {...formMethodsRef.current!}>
             <GroupUserAssignment assignedUsers={[]} name="userIds" />
           </FormProvider>
         </AppThemeProvider>
