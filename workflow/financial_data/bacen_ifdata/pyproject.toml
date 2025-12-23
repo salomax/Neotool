@@ -1,0 +1,145 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bacen-ifdata-ingestion"
+version = "0.1.0"
+description = "BACEN IFData Ingestion Pipeline"
+requires-python = ">=3.14"
+readme = "README.md"
+license = {text = "Proprietary"}
+
+# Black configuration
+[tool.black]
+line-length = 88
+target-version = ["py314"]
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.git
+  | \.venv
+  | venv
+  | build
+  | dist
+  | __pycache__
+  | \.pytest_cache
+  | \.mypy_cache
+)/
+'''
+
+# mypy configuration
+[tool.mypy]
+python_version = "3.14"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = true
+disallow_untyped_decorators = false
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+show_error_codes = true
+show_error_context = true
+pretty = true
+no_implicit_reexport = false
+
+# Per-module options
+[[tool.mypy.overrides]]
+module = [
+    "testcontainers.*",
+    "kafka.*",
+    "psycopg2.*",
+    "docker.*",
+    "requests.*",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+# Ruff configuration (also in .ruff.toml, but can be here too)
+[tool.ruff]
+line-length = 88
+target-version = "py314"
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "W",
+    "F",
+    "I",
+    "B",
+    "C4",
+    "UP",
+    "ARG",
+    "SIM",
+    "TCH",
+    "PTH",
+    "ERA",
+    "PD",
+    "PGH",
+    "PL",
+    "TRY",
+    "RUF",
+]
+ignore = [
+    "E501",
+    "PLR0913",
+    "PLR0912",
+    "PLR0915",
+    "PLR2004",
+    "TRY003",
+    "TRY401",
+    "B008",
+    "ARG001",
+    "ARG002",
+    "ARG003",
+    "ARG004",
+    "ARG005",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "ARG",
+    "S101",
+    "PLR2004",
+    "PLC0415",
+]
+"scripts/**/*.py" = [
+    "E402",
+    "PLC0415",
+]
+"flows/**/*.py" = [
+    "PLC0415",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["prefect", "psycopg2", "requests", "kafka"]
+force-sort-within-sections = true
+split-on-trailing-comma = true
+
+# pytest configuration
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--tb=short",
+]
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests",
+    "smoke: Smoke tests",
+]
+

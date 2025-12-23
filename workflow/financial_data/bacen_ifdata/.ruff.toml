@@ -1,0 +1,113 @@
+# Ruff configuration for BACEN IFData Ingestion
+# See https://docs.astral.sh/ruff/configuration/ for full documentation
+
+# Target Python version
+target-version = "py314"
+
+# Line length (matches black default)
+line-length = 88
+
+# Exclude patterns
+exclude = [
+    ".git",
+    "__pycache__",
+    ".venv",
+    "venv",
+    "build",
+    "dist",
+    "*.egg-info",
+    ".pytest_cache",
+    ".mypy_cache",
+    "*.pyc",
+]
+
+# Enable rule sets
+[lint]
+# Enable all rule categories
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+    "ARG", # flake8-unused-arguments
+    "SIM", # flake8-simplify
+    "TCH", # flake8-type-checking
+    "PTH", # flake8-use-pathlib
+    "ERA", # eradicate (commented-out code)
+    "PD",  # pandas-vet
+    "PGH", # pygrep-hooks
+    "PL",  # Pylint
+    "TRY", # tryceratops
+    "RUF", # Ruff-specific rules
+]
+
+# Ignore specific rules (minimal set for AAA quality)
+ignore = [
+    "E501",  # Line too long (handled by black)
+    "TRY003", # Avoid specifying long messages outside the exception class (acceptable for now)
+]
+
+# Allow autofix for safe rules
+fixable = ["ALL"]
+unfixable = []
+
+# Per-file ignores (scoped to specific contexts)
+[lint.per-file-ignores]
+"tests/**/*.py" = [
+    "ARG",  # Allow unused arguments in tests (fixtures, mocks)
+    "S101", # Allow assert statements in tests
+    "PLR2004", # Allow magic values in tests (test data)
+    "PLC0415", # Allow imports inside functions for testing/mocking
+    "E402", # Allow imports after dotenv.load_dotenv() (intentional pattern)
+    "SIM117", # Allow nested with statements in tests
+    "B017", # Allow assert Exception in tests
+    "PTH109", # Allow os.getcwd() in tests
+    "PTH110", # Allow os.path.exists() in tests
+    "PTH111", # Allow os.path.expanduser() in tests
+    "PTH123", # Allow open() in tests
+    "TRY300", # Allow return after try/except in tests
+    "PLR0915", # Allow complex test functions (integration tests)
+]
+
+"scripts/**/*.py" = [
+    "E402", # Allow imports after dotenv.load_dotenv() (intentional pattern)
+    "PLC0415", # Allow imports inside functions for conditional loading
+    "TRY300", # Allow return after try/except in scripts
+    "PLR2004", # Allow magic values in CLI scripts (sys.argv indices, display limits)
+]
+
+"flows/**/*.py" = [
+    "PLC0415", # Allow imports inside functions for conditional loading
+    "TRY300", # Allow return after try/except in flows
+    "PLR2004", # Allow magic values in flows (sys.argv indices for CLI)
+]
+
+"tasks/**/*.py" = [
+    "TRY300", # Allow return after try/except in tasks
+    "TRY301", # Allow raise in except blocks
+]
+
+"tasks/quarter_determination.py" = [
+    "ERA001", # False positive: comment explaining priority logic, not commented code
+]
+
+"tasks/registry_ingestion.py" = [
+    "ERA001", # False positive: comment explaining logic, not commented code
+]
+
+# isort configuration (import sorting)
+[lint.isort]
+known-first-party = ["prefect", "psycopg2", "requests", "kafka"]
+force-sort-within-sections = true
+split-on-trailing-comma = true
+
+# pyupgrade configuration
+[lint.pyupgrade]
+keep-runtime-typing = false
+
+# flake8-type-checking configuration
+[lint.flake8-type-checking]
+strict = false

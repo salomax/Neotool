@@ -3,13 +3,14 @@
 -- Description: Create financial_data.bank_report hot table for BACEN IFData aggregated report data
 -- 
 -- This migration creates the bank_report table that stores aggregated/normalized report data
--- as JSONB documents. This is the product-facing layer optimized for reads, analytics, and
--- downstream services. One row per (CodInst, AnoMes, NomeRelatorio, NumeroRelatorio, TipoInstituicao).
+-- in a normalized relational structure. This is the product-facing layer optimized for reads, 
+-- analytics, and downstream services. One row per (CodInst, AnoMes, NomeRelatorio, NumeroRelatorio, TipoInstituicao).
 -- 
 -- Key features:
--- - Composite primary key: (cod_inst, ano_mes, nome_relatorio, numero_relatorio, tipo_instituicao)
+-- - UUID v7 primary key (uuidv7() built-in in PostgreSQL 18+)
+-- - Unique constraint on natural key: (cod_inst, ano_mes, nome_relatorio, numero_relatorio, tipo_instituicao)
 -- - Includes tipo_instituicao to preserve different consolidation perspectives (1-4)
--- - JSONB report_data column for flexible schema and efficient querying
+-- - Related data stored in bank_report_data table (1:N relationship)
 -- - Audit trail: created_at, updated_at timestamps
 -- - Indexes for common query patterns (institution lookups, quarter queries, promotion operations)
 -- - UPSERT operations are idempotent (can be re-run safely)
@@ -18,25 +19,30 @@ SET search_path TO financial_data, public;
 
 -- Create bank_report table
 CREATE TABLE IF NOT EXISTS financial_data.bank_report (
-    -- Natural key (composite primary key)
+    -- UUID v7 primary key (PostgreSQL 18+ has uuidv7() built-in)
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
+    
+    -- Natural key (unique constraint)
     cod_inst TEXT NOT NULL,
     ano_mes CHAR(6) NOT NULL,
     nome_relatorio TEXT NOT NULL,
     numero_relatorio TEXT NOT NULL,
     tipo_instituicao INTEGER NOT NULL,
     
-    -- Aggregated/normalized report data stored as JSONB document
-    report_data JSONB NOT NULL,
-    
     -- Audit timestamps
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     
-    -- Composite primary key on natural key (includes tipo_instituicao to preserve consolidation perspectives)
-    PRIMARY KEY (cod_inst, ano_mes, nome_relatorio, numero_relatorio, tipo_instituicao)
+    -- Unique constraint on natural key (includes tipo_instituicao to preserve consolidation perspectives)
+    CONSTRAINT bank_report_natural_key_unique 
+        UNIQUE (cod_inst, ano_mes, nome_relatorio, numero_relatorio, tipo_instituicao)
 );
 
 -- Create indexes for common query patterns
+
+-- Index on id for foreign key lookups
+CREATE INDEX IF NOT EXISTS idx_bank_report_id 
+    ON financial_data.bank_report(id);
 
 -- Index on cod_inst for querying by institution
 CREATE INDEX IF NOT EXISTS idx_bank_report_cod_inst 
@@ -56,3 +62,40 @@ CREATE INDEX IF NOT EXISTS idx_bank_report_scope
 -- Index on created_at for audit queries and ordering
 CREATE INDEX IF NOT EXISTS idx_bank_report_created_at 
     ON financial_data.bank_report(created_at);
+
+-- Create bank_report_data table for normalized report data rows
+-- This table stores individual data rows from CSV reports in a normalized structure
+CREATE TABLE IF NOT EXISTS financial_data.bank_report_data (
+    -- UUID v7 primary key (PostgreSQL 18+ has uuidv7() built-in)
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
+    
+    -- Foreign key to bank_report
+    bank_report_id UUID NOT NULL,
+    
+    -- CSV row fields (mapped from field_5+)
+    grupo TEXT,
+    conta TEXT,
+    nome_coluna TEXT,
+    descricao_coluna TEXT,
+    saldo NUMERIC,  -- Nullable, can be currency or percentage
+    
+    -- Audit timestamps
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    
+    -- Foreign key constraint with CASCADE delete
+    CONSTRAINT fk_bank_report_data_bank_report 
+        FOREIGN KEY (bank_report_id) 
+        REFERENCES financial_data.bank_report(id) 
+        ON DELETE CASCADE
+);
+
+-- Create indexes for bank_report_data table
+
+-- Index on foreign key for efficient joins and deletes
+CREATE INDEX IF NOT EXISTS idx_bank_report_data_bank_report_id 
+    ON financial_data.bank_report_data(bank_report_id);
+
+-- Composite index for common query patterns
+CREATE INDEX IF NOT EXISTS idx_bank_report_data_lookup 
+    ON financial_data.bank_report_data(bank_report_id, conta, nome_coluna);

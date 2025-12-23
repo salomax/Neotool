@@ -8,6 +8,11 @@ deployments:
     work_pool:
       name: default
       work_queue_name: bacen-ifdata
+      # For docker/kubernetes work pools, set environment variables here:
+      # job_variables:
+      #   env:
+      #     DATABASE_URL: "{{ DATABASE_URL }}"
+      #     KAFKA_BROKERS: "{{ KAFKA_BROKERS }}"
     schedule:
       cron: "0 2 * * *"
       timezone: UTC
@@ -18,3 +23,44 @@ deployments:
       - financial-data
       - daily
     parameters: {}
+    # Environment variables (for process work pools - local development)
+    # Note: Sensitive values (passwords, tokens) should be set via Prefect secrets
+    # For production (docker/kubernetes), move these to work_pool.job_variables.env
+    # These are defaults/placeholders - override via Prefect secrets or deployment env vars
+    env:
+      # Database connection (required)
+      # Can use DATABASE_URL or individual POSTGRES_* variables
+      # DATABASE_URL: "postgresql://user:password@localhost:5432/neotool_db"
+      # POSTGRES_HOST: "localhost"
+      # POSTGRES_PORT: "5432"
+      # POSTGRES_DB: "neotool_db"
+      # POSTGRES_USER: "neotool"
+      # POSTGRES_PASSWORD: "neotool"
+      
+      # Kafka configuration (required)
+      KAFKA_BROKERS: "localhost:9092"
+      KAFKA_COMPRESSION_TYPE: "gzip"  # Options: gzip, snappy, zstd, lz4, none
+      
+      # BACEN API configuration (optional, has defaults)
+      # BACEN_BASE_URL: "https://olinda.bcb.gov.br/olinda/servico/IFDATA/versao/v1/odata/"
+      
+      # Flow execution configuration (optional, has defaults)
+      MAX_EXTRACTION_WORKERS: "5"  # Parallel extraction workers
+      EXTRACTION_LOOP_MAX_ITERATIONS: "1000"  # Safety limit for extraction loop
+      
+      # Fallback configuration (optional, has defaults)
+      FALLBACK_STORAGE_TYPE: "local"  # Options: local, s3, gcs
+      FALLBACK_STORAGE_PATH: "./fallback_storage"
+      NOTIFICATION_TYPE: "mock"  # Options: mock, slack, pagerduty, email
+      
+      # Prefect API URL (optional, for Prefect client operations)
+      # PREFECT_API_URL: "http://localhost:4200/api"
+    # Concurrency limit: prevent overlapping runs
+    # Ensures only one flow run executes at a time to avoid conflicts
+    concurrency_limit:
+      limit: 1  # Only one flow run at a time
+      collision_strategy: "ENQUEUE"  # New runs wait in queue if limit reached
+      grace_period_seconds: 300  # 5 minutes grace period for infrastructure startup
+    # Note: Retry policies are configured at the flow level in the Python code
+    # Flow-level retries handle flow run failures (e.g., infrastructure issues)
+    # Task-level retries are configured in individual @task decorators

@@ -1,12 +1,13 @@
 """Test script to verify Python environment, database connections, and Prefect setup."""
 
 import os
-import sys
 from pathlib import Path
+import sys
 
-import pytest
-import psycopg2
 from dotenv import load_dotenv
+import pytest
+
+import psycopg2
 
 # Load environment variables
 load_dotenv()
@@ -15,8 +16,12 @@ load_dotenv()
 def test_python_version():
     """Test that Python version is 3.14+."""
     version = sys.version_info
-    assert version.major == 3, f"Expected Python 3.x, got {version.major}.{version.minor}"
-    assert version.minor >= 14, f"Expected Python 3.14+, got {version.major}.{version.minor}"
+    assert (
+        version.major == 3
+    ), f"Expected Python 3.x, got {version.major}.{version.minor}"
+    assert (
+        version.minor >= 14
+    ), f"Expected Python 3.14+, got {version.major}.{version.minor}"
     print(f"✓ Python version: {version.major}.{version.minor}.{version.micro}")
 
 
@@ -31,7 +36,7 @@ def test_required_packages():
         "pyway": "pyway",
         "python-dotenv": "dotenv",  # python-dotenv imports as 'dotenv'
     }
-    
+
     missing = []
     for package_name, import_name in package_imports.items():
         try:
@@ -40,7 +45,7 @@ def test_required_packages():
         except ImportError:
             missing.append(package_name)
             print(f"✗ Package missing: {package_name}")
-    
+
     assert not missing, f"Missing required packages: {missing}"
 
 
@@ -52,7 +57,7 @@ def test_database_connection():
     database = os.getenv("POSTGRES_DB", "neotool_db")
     user = os.getenv("POSTGRES_USER", "neotool")
     password = os.getenv("POSTGRES_PASSWORD", "neotool")
-    
+
     try:
         conn = psycopg2.connect(
             host=host,
@@ -62,26 +67,26 @@ def test_database_connection():
             password=password,
             connect_timeout=5,
         )
-        
+
         with conn.cursor() as cur:
             # Test basic query
             cur.execute("SELECT version();")
             version = cur.fetchone()[0]
-            print(f"✓ Database connection successful")
+            print("✓ Database connection successful")
             print(f"  PostgreSQL version: {version.split(',')[0]}")
-            
+
             # Test that we can query
             cur.execute("SELECT current_database(), current_user;")
             db_name, db_user = cur.fetchone()
             print(f"  Connected to database: {db_name}")
             print(f"  Connected as user: {db_user}")
-            
+
             # Test pgbouncer connection (if using pgbouncer)
             if port == 6432:
-                print(f"  Connected via pgbouncer (port 6432)")
-        
+                print("  Connected via pgbouncer (port 6432)")
+
         conn.close()
-        
+
     except psycopg2.OperationalError as e:
         pytest.fail(f"Database connection failed: {e}")
     except Exception as e:
@@ -96,17 +101,21 @@ def test_pyway_config():
     test_dir = Path(__file__).parent
     project_root = test_dir.parent.parent  # workflow/financial_data/
     pyway_conf = project_root / "pyway.conf"
-    
+
     assert pyway_conf.exists(), f"pyway.conf not found at {pyway_conf}"
     print(f"✓ pyway.conf found at {pyway_conf}")
-    
+
     # Read and verify basic structure
-    with open(pyway_conf) as f:
+    with Path(pyway_conf).open() as f:
         content = f.read()
         assert "database_type: postgres" in content, "pyway.conf missing database_type"
-        assert "database_port: 6432" in content, "pyway.conf should use pgbouncer port 6432"
-        assert "database_migration_dir: migrations" in content, "pyway.conf missing migration_dir"
-        print(f"✓ pyway.conf configuration valid")
+        assert (
+            "database_port: 6432" in content
+        ), "pyway.conf should use pgbouncer port 6432"
+        assert (
+            "database_migration_dir: migrations" in content
+        ), "pyway.conf missing migration_dir"
+        print("✓ pyway.conf configuration valid")
 
 
 def test_migrations_directory():
@@ -117,8 +126,10 @@ def test_migrations_directory():
     test_dir = Path(__file__).parent
     project_root = test_dir.parent.parent  # workflow/financial_data/
     migrations_dir = project_root / "migrations"
-    
-    assert migrations_dir.exists(), f"migrations directory not found at {migrations_dir}"
+
+    assert (
+        migrations_dir.exists()
+    ), f"migrations directory not found at {migrations_dir}"
     assert migrations_dir.is_dir(), f"{migrations_dir} is not a directory"
     print(f"✓ migrations directory exists at {migrations_dir}")
 
@@ -127,23 +138,25 @@ def test_prefect_connection():
     """Test Prefect API connection."""
     try:
         from prefect import get_client
-        
+
         api_url = os.getenv("PREFECT_API_URL", "http://localhost:4200/api")
-        
+
         # Try to connect to Prefect API
         # Note: This requires Prefect server to be running
-        client = get_client()
-        
+        get_client()
+
         # Try a simple API call
         # This will fail if Prefect server is not running, which is OK for setup test
         try:
             # Just verify we can create a client
             print(f"✓ Prefect client created (API: {api_url})")
-            print(f"  Note: Prefect server must be running for full functionality")
+            print("  Note: Prefect server must be running for full functionality")
         except Exception as e:
             print(f"⚠ Prefect server may not be running: {e}")
-            print(f"  Start with: docker-compose -f ../../../infra/docker/docker-compose.local.yml --profile prefect up -d")
-            
+            print(
+                "  Start with: docker-compose -f ../../../infra/docker/docker-compose.local.yml --profile prefect up -d"
+            )
+
     except ImportError:
         pytest.fail("Prefect package not installed")
     except Exception as e:
@@ -158,9 +171,11 @@ def test_environment_variables():
         "POSTGRES_PORT": os.getenv("POSTGRES_PORT", "6432 (default, pgbouncer)"),
         "POSTGRES_DB": os.getenv("POSTGRES_DB", "neotool_db (default)"),
         "POSTGRES_USER": os.getenv("POSTGRES_USER", "neotool (default)"),
-        "PREFECT_API_URL": os.getenv("PREFECT_API_URL", "http://localhost:4200/api (default)"),
+        "PREFECT_API_URL": os.getenv(
+            "PREFECT_API_URL", "http://localhost:4200/api (default)"
+        ),
     }
-    
+
     print("\nEnvironment variables:")
     for var, value in env_vars.items():
         print(f"  {var}={value}")
@@ -172,7 +187,7 @@ if __name__ == "__main__":
     print("BACEN IFData Ingestion - Setup Verification")
     print("=" * 60)
     print()
-    
+
     tests = [
         ("Python Version", test_python_version),
         ("Required Packages", test_required_packages),
@@ -182,7 +197,7 @@ if __name__ == "__main__":
         ("Prefect Connection", test_prefect_connection),
         ("Environment Variables", test_environment_variables),
     ]
-    
+
     results = []
     for name, test_func in tests:
         print(f"\n[{name}]")
@@ -195,25 +210,23 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"✗ Error: {e}")
             results.append((name, False, str(e)))
-    
+
     print("\n" + "=" * 60)
     print("Summary")
     print("=" * 60)
-    
+
     passed = sum(1 for _, success, _ in results if success)
     total = len(results)
-    
+
     for name, success, error in results:
         status = "✓ PASS" if success else "✗ FAIL"
         print(f"{status}: {name}")
         if error:
             print(f"      {error}")
-    
+
     print(f"\n{passed}/{total} tests passed")
-    
+
     if passed < total:
         sys.exit(1)
-    else:
-        print("\n✓ All setup checks passed!")
-        sys.exit(0)
-
+    print("\n✓ All setup checks passed!")
+    sys.exit(0)

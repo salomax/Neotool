@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS financial_data.ifdata_extract_task (
     page_skip INTEGER NOT NULL,
     
     -- Pagination control
-    page_top INTEGER NOT NULL DEFAULT 1000,
+    page_top INTEGER NOT NULL DEFAULT 5000,
     
     -- Status: PENDING -> RUNNING -> SUCCESS | EMPTY | ERROR
     -- EMPTY is terminal (end of pagination), not an error

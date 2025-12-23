@@ -108,6 +108,7 @@ IfDataCadastro(AnoMes=@AnoMes)?@AnoMes=YYYYMM
 Rules:
 - Quarterly snapshots only (months: **03, 06, 09, 12**).
 - Use **CSV** for performance: `$format=text/csv`.
+- **CSV format**: BACEN/Olinda CSV responses use **comma (`,`)** as the column delimiter.
 - Use `$top=1000` to reduce the number of requests.
 - Filter only active institutions: `$filter=Situacao eq 'A'`.
 
@@ -128,14 +129,15 @@ ListaDeRelatorio()
 ```
 
 Rules:
-- Use **JSON** (small payload, easier to inspect).
+- Use **CSV** for consistency with other endpoints: `$format=text/csv`.
+- **CSV format**: BACEN/Olinda CSV responses use **comma (`,`)** as the column delimiter.
 - Select only needed columns: `NomeRelatorio, NumeroRelatorio`.
 - Natural key: **(NomeRelatorio, NumeroRelatorio)**.
 
 Example:
 
 ```
-.../ListaDeRelatorio()?$top=100&$format=json&$select=NomeRelatorio,NumeroRelatorio
+.../ListaDeRelatorio()?$top=100&$format=text/csv&$select=NomeRelatorio,NumeroRelatorio
 ```
 
 ---
@@ -151,6 +153,7 @@ IfDataValores(AnoMes=@AnoMes,TipoInstituicao=@TipoInstituicao,Relatorio=@Relator
 Rules:
 - Loop `TipoInstituicao` from **1 to 4**.
 - Use **CSV**: `$format=text/csv`.
+- **CSV format**: BACEN/Olinda CSV responses use **comma (`,`)** as the column delimiter.
 - Use pagination: `$top=1000` and `$skip`.
 - **Do NOT filter by institution** in standard ingestion.
 
@@ -259,7 +262,7 @@ Purpose:
 - One row per:
 
 ```
-(CodInst, AnoMes, NomeRelatorio, NumeroRelatorio)
+(CodInst, AnoMes, NomeRelatorio, NumeroRelatorio, TipoInstituicao)
 ```
 
 - Stores aggregated/normalized report data as JSONB.
@@ -270,6 +273,52 @@ Promotion filter rule (active institutions):
 - During promotion, include only institutions that are active in the registry:
   - `financial_data.institution.situacao = 'A'`
 - Do **not** use `Atividade` as a proxy for active/inactive (it is a classification field, not the status).
+
+#### JSONB Structure Rules
+
+The `report_data` JSONB column stores data as a **row-based array of objects**, where each object represents one CSV row from the raw data.
+
+**Structure:**
+```json
+[
+  {
+    "Grupo": null,
+    "Conta": "78182",
+    "NomeColuna": "Ativo Total",
+    "DescricaoColuna": "[10000007]+[20000004]",
+    "Saldo": "11506786910.93"
+  },
+  {
+    "Grupo": "Arrendamento Mercantil",
+    "Conta": "78194",
+    "NomeColuna": "Arrendamento Mercantil a Receber",
+    "DescricaoColuna": "[17000000]-[17900007]",
+    "Saldo": "0"
+  }
+]
+```
+
+**Field Mapping:**
+- Positional CSV fields (`field_0`, `field_1`, etc.) are mapped to meaningful names:
+  - `field_5` → `Grupo`
+  - `field_6` → `Conta`
+  - `field_7` → `NomeColuna`
+  - `field_8` → `DescricaoColuna`
+  - `field_9` → `Saldo`
+- Fields beyond `field_9` are preserved as-is for flexibility
+
+**Natural Key Exclusion:**
+The following fields are **excluded** from the JSONB because they are already stored as separate table columns:
+- `TipoInstituicao` (stored in `tipo_instituicao` column)
+- `CodInst` (stored in `cod_inst` column)
+- `AnoMes` (stored in `ano_mes` column)
+- `NomeRelatorio` (stored in `nome_relatorio` column)
+- `NumeroRelatorio` (stored in `numero_relatorio` column)
+
+This reduces JSONB size and eliminates redundancy.
+
+**Null Handling:**
+- String values `"null"` and empty strings (`""`) are converted to JSON `null` in the JSONB structure.
 
 ---
 
@@ -403,11 +452,77 @@ A message is published when (and only when) the registry changes:
 
 ### Step F — Promote Raw -> Hot
 
-13. Transform: pivot tall `ifdata_raw` rows into one JSONB document per:
-    - `(CodInst, AnoMes, NomeRelatorio, NumeroRelatorio)`
+13. Transform: aggregate tall `ifdata_raw` rows into row-based JSONB arrays per:
+    - `(CodInst, AnoMes, NomeRelatorio, NumeroRelatorio, TipoInstituicao)`
+    - Each JSONB document is an array of row objects with mapped field names
+    - Natural key fields are excluded from JSONB (already in table columns)
 14. Promotion filter: only include institutions with `financial_data.institution.situacao = 'A'`.
 15. Load: UPSERT into `financial_data.bank_report`.
 16. Mark `ifdata_load_control` as completed.
+
+---
+
+## Standalone Execution and Re-Promotion
+
+### Running Full Ingestion Standalone
+
+The ingestion workflow can be run standalone for a specific `AnoMes` using the `run_full_ingestion.py` script:
+
+```bash
+# Run for a specific AnoMes (continues from existing statuses)
+python3 scripts/run_full_ingestion.py 202403
+
+# Purge existing data and re-ingest from scratch
+python3 scripts/run_full_ingestion.py 202403 --purge
+
+# Verbose output
+python3 scripts/run_full_ingestion.py 202403 --verbose
+```
+
+**Behavior:**
+- If run with only `AnoMes` (no additional args), the script processes existing `PENDING` tasks, skips `SUCCESS`/`EMPTY` tasks, and creates missing tasks.
+- The `--purge` flag removes all rows from `ifdata_extract_task`, `ifdata_raw`, and `bank_report` for the specified `AnoMes` before ingestion.
+- The script is idempotent and safe to run multiple times.
+
+### Promoting Data
+
+Data can be promoted from `ifdata_raw` to `bank_report` using the `promote_data.py` script. This script works for both initial promotion and re-promotion of existing data, since UPSERT operations are idempotent:
+
+```bash
+# Promote all available data from ifdata_raw
+python3 scripts/promote_data.py
+
+# Promote specific AnoMes
+python3 scripts/promote_data.py --ano-mes 202403
+
+# Promote specific AnoMes and report
+python3 scripts/promote_data.py --ano-mes 202403 --report "Ativo"
+
+# Verbose output
+python3 scripts/promote_data.py --ano-mes 202403 --verbose
+```
+
+**What it does:**
+1. Finds all unique `(AnoMes, NomeRelatorio)` combinations that exist in `ifdata_raw` (the source of truth)
+2. For each combination, runs the promotion process:
+   - Fetches raw data from `ifdata_raw`
+   - Applies the current promotion logic
+   - UPSERTs into `bank_report` and `bank_report_data` tables
+   - Marks load control as completed
+
+**Key features:**
+- Works for both initial promotion and re-promotion (idempotent)
+- Queries `ifdata_raw` to find available data, regardless of promotion status
+- Safe to run multiple times - UPSERT operations prevent duplicates
+- Can filter by `ano_mes` and/or `nome_relatorio`
+
+**Use cases:**
+- Initial promotion of extracted data
+- Re-promoting data after structure changes (e.g., migrating from columnar to row-based format)
+- Fixing data quality issues in promoted data
+- Re-applying promotion logic after code changes
+
+**Note:** The script reads from `ifdata_raw`, so the raw data must still exist. If raw data was purged, you'll need to re-extract first using the full ingestion script.
 
 ---
 

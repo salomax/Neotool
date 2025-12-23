@@ -1,0 +1,100 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Institution Upserted Message",
+  "description": "Kafka message schema for BACEN institution registry changes",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "event_id",
+    "occurred_at",
+    "source",
+    "bacen_cod_inst",
+    "change_type"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "description": "Schema version for message format",
+      "pattern": "^\\d+\\.\\d+$"
+    },
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identifier for this event"
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when the event occurred"
+    },
+    "source": {
+      "type": "string",
+      "description": "Source system identifier",
+      "enum": ["BACEN"]
+    },
+    "bacen_cod_inst": {
+      "type": "string",
+      "description": "BACEN institution code (primary identifier)"
+    },
+    "change_type": {
+      "type": "string",
+      "description": "Type of change that triggered this event",
+      "enum": ["CREATED", "UPDATED"]
+    },
+    "nome_reduzido": {
+      "type": ["string", "null"],
+      "description": "Short name of the institution"
+    },
+    "nome_instituicao": {
+      "type": ["string", "null"],
+      "description": "Full name of the institution"
+    },
+    "situacao": {
+      "type": ["string", "null"],
+      "description": "Institution status (e.g., 'A' for active)"
+    },
+    "segmento_tb": {
+      "type": ["string", "null"],
+      "description": "Banking segment classification"
+    },
+    "atividade": {
+      "type": ["string", "null"],
+      "description": "Activity classification"
+    },
+    "tipo_controle": {
+      "type": ["string", "null"],
+      "description": "Control type classification"
+    },
+    "uf": {
+      "type": ["string", "null"],
+      "description": "State code (2 characters)",
+      "pattern": "^[A-Z]{2}$"
+    },
+    "municipio": {
+      "type": ["string", "null"],
+      "description": "City/municipality name"
+    },
+    "cod_conglomerado_financeiro": {
+      "type": ["string", "null"],
+      "description": "Financial conglomerate code"
+    },
+    "cod_conglomerado_prudencial": {
+      "type": ["string", "null"],
+      "description": "Prudential conglomerate code"
+    },
+    "cnpj_instituicao_lider": {
+      "type": ["string", "null"],
+      "description": "CNPJ of the leading institution"
+    },
+    "source_hash": {
+      "type": ["string", "null"],
+      "description": "SHA-256 hash of institution fields for change detection",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "ano_mes_ref": {
+      "type": ["string", "null"],
+      "description": "Reference quarter in YYYYMM format",
+      "pattern": "^\\d{6}$"
+    }
+  }
+}
