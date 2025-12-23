@@ -1,6 +1,6 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, cleanup } from '@testing-library/react';
 import { PermissionGate } from '../PermissionGate';
 
 // Mock useCurrentUserQuery - not needed since we're mocking providers directly
@@ -70,7 +70,8 @@ const TestWrapper = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-describe('PermissionGate', () => {
+// Run sequentially to avoid concurrent renders leaking between tests
+describe.sequential('PermissionGate', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Reset permissions for each test
@@ -85,6 +86,10 @@ describe('PermissionGate', () => {
     mockHasAll.mockImplementation((permissions: string[]) => 
       permissions.every(p => mockPermissions.has(p))
     );
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   describe('require prop', () => {
@@ -129,7 +134,9 @@ describe('PermissionGate', () => {
         </TestWrapper>
       );
 
-      expect(screen.getByText('Authorized Content')).toBeInTheDocument();
+      // Use getAllByText and get first element to handle multiple renders
+      const contentElements = screen.getAllByText('Authorized Content');
+      expect(contentElements[0]).toBeInTheDocument();
     });
 
     it('should not render children when user is missing any required permission', () => {
@@ -201,7 +208,9 @@ describe('PermissionGate', () => {
       );
 
       // anyOf should take precedence, so user with security:user:view should see content
-      expect(screen.getByText('Authorized Content')).toBeInTheDocument();
+      // Use getAllByText and get first element to handle multiple renders
+      const contentElements = screen.getAllByText('Authorized Content');
+      expect(contentElements[0]).toBeInTheDocument();
     });
   });
 

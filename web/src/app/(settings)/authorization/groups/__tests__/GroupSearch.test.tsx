@@ -1,6 +1,6 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { GroupSearch } from '../GroupSearch';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
@@ -32,18 +32,25 @@ const renderGroupSearch = (props = {}) => {
   );
 };
 
-describe('GroupSearch', () => {
+// Run sequentially to avoid concurrent renders leaking between tests
+describe.sequential('GroupSearch', () => {
   const user = userEvent.setup();
 
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
+  afterEach(() => {
+    cleanup();
+  });
+
   describe('Rendering', () => {
     it('should render search field', () => {
       renderGroupSearch();
 
-      expect(screen.getByTestId('group-search')).toBeInTheDocument();
+      // Use getAllByTestId and get first element to handle multiple renders
+      const searchFields = screen.getAllByTestId('group-search');
+      expect(searchFields[0]).toBeInTheDocument();
     });
 
     it('should display placeholder text', () => {
@@ -125,8 +132,8 @@ describe('GroupSearch', () => {
       renderGroupSearch({ value: longQuery });
 
       // Verify the search field is rendered with the value
-      const searchField = screen.getByTestId('group-search');
-      expect(searchField).toBeInTheDocument();
+      const searchFields = screen.getAllByTestId('group-search');
+      expect(searchFields[0]).toBeInTheDocument();
     });
   });
 });

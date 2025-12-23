@@ -1,7 +1,8 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { AuthProvider, useAuth } from '../AuthProvider';
+import { setupStorageMocks } from '@/__tests__/helpers';
 
 // Use vi.hoisted() to define variables that need to be available in mock factories
 const { mockPush, mockMutate, mockLoggerError } = vi.hoisted(() => {
@@ -24,11 +25,32 @@ vi.mock('next/navigation', () => ({
 }));
 
 // Mock Apollo Client
-vi.mock('@/lib/graphql/client', () => ({
-  apolloClient: {
-    mutate: mockMutate,
-  },
-}));
+// Note: According to Vitest, vi.hoisted() variables ARE accessible to vi.mock factories
+// But we need to access them inside the factory function body, not in object literals
+vi.mock('@/lib/graphql/client', async () => {
+  // Get vi from the module (needed for dynamic imports)
+  const { vi: viModule } = await import('vitest');
+  
+  // Access hoisted mockMutate - this works because factory executes after hoisting
+  // We need to reference it from the hoisted scope
+  const clientMutate = mockMutate;
+  
+  const mockApolloClient = {
+    mutate: clientMutate,
+    query: viModule.fn(),
+    watchQuery: viModule.fn(),
+    subscribe: viModule.fn(),
+    readQuery: viModule.fn(),
+    writeQuery: viModule.fn(),
+    resetStore: viModule.fn().mockResolvedValue(undefined),
+    clearStore: viModule.fn().mockResolvedValue(undefined),
+  };
+  
+  return {
+    apolloClient: mockApolloClient,
+    getApolloClient: () => mockApolloClient,
+  };
+});
 
 // Mock GraphQL operations
 vi.mock('@/lib/graphql/operations/auth', () => ({
@@ -44,39 +66,19 @@ vi.mock('@/shared/utils/logger', () => ({
   },
 }));
 
-// Create storage mocks
-const createStorageMock = () => {
-  const storage = new Map<string, string>();
-  return {
-    getItem: vi.fn((key: string) => storage.get(key) || null),
-    setItem: vi.fn((key: string, value: string) => storage.set(key, value)),
-    removeItem: vi.fn((key: string) => storage.delete(key)),
-    clear: vi.fn(() => storage.clear()),
-  };
-};
-
-describe('AuthProvider', () => {
-  let localStorageMock: ReturnType<typeof createStorageMock>;
-  let sessionStorageMock: ReturnType<typeof createStorageMock>;
+describe.sequential('AuthProvider', () => {
+  let localStorageMock: ReturnType<typeof import('@/__tests__/helpers/storage-helpers').createMockStorage>;
+  let sessionStorageMock: ReturnType<typeof import('@/__tests__/helpers/storage-helpers').createMockStorage>;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Clear call history - each test must set up its own mock implementation
+    mockMutate.mockClear();
     
-    // Create fresh storage mocks
-    localStorageMock = createStorageMock();
-    sessionStorageMock = createStorageMock();
-    
-    // Replace global storage objects
-    Object.defineProperty(window, 'localStorage', {
-      value: localStorageMock,
-      writable: true,
-      configurable: true,
-    });
-    Object.defineProperty(window, 'sessionStorage', {
-      value: sessionStorageMock,
-      writable: true,
-      configurable: true,
-    });
+    // Use storage helper
+    const storageMocks = setupStorageMocks();
+    localStorageMock = storageMocks.localStorageMock;
+    sessionStorageMock = storageMocks.sessionStorageMock;
     
     // Ensure window is defined
     Object.defineProperty(global, 'window', {
@@ -84,10 +86,6 @@ describe('AuthProvider', () => {
       writable: true,
       configurable: true,
     });
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
   });
 
   const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -179,6 +177,7 @@ describe('AuthProvider', () => {
       const mockToken = 'new-token';
       const mockRefreshToken = 'refresh-token';
 
+      // Set up mock BEFORE rendering hook to ensure it's available for dynamic imports
       mockMutate.mockResolvedValue({
         data: {
           signIn: {
@@ -203,8 +202,9 @@ describe('AuthProvider', () => {
         expect(result.current.user).toEqual(mockUser);
         expect(result.current.token).toBe(mockToken);
         expect(result.current.isAuthenticated).toBe(true);
-      });
+      }, { timeout: 3000 });
 
+      expect(mockMutate).toHaveBeenCalled();
       expect(localStorageMock.setItem).toHaveBeenCalledWith('auth_token', mockToken);
       expect(localStorageMock.setItem).toHaveBeenCalledWith('auth_user', JSON.stringify(mockUser));
       expect(localStorageMock.setItem).toHaveBeenCalledWith('auth_refresh_token', mockRefreshToken);
@@ -216,6 +216,7 @@ describe('AuthProvider', () => {
       const mockToken = 'new-token';
       const mockRefreshToken = 'refresh-token';
 
+      // Set up mock with properly structured GraphQL response
       mockMutate.mockResolvedValue({
         data: {
           signIn: {
@@ -252,15 +253,21 @@ describe('AuthProvider', () => {
       const mockUser = { id: '1', email: 'test@example.com', displayName: 'Test User' };
       const mockToken = 'new-token';
 
-      mockMutate.mockResolvedValue({
-        data: {
-          signIn: {
-            token: mockToken,
-            refreshToken: null,
-            user: mockUser,
-          },
-        },
-      });
+      // Use helper to create properly structured GraphQL response
+      mockMutate.mockResolvedValue(
+        // Helper function to create GraphQL response (inline to avoid import issues)
+function createGraphQLResponse(operationName: string, data: any) {
+  return {
+    data: {
+      [operationName]: data,
+    },
+  };
+}('signIn', {
+          token: mockToken,
+          refreshToken: null,
+          user: mockUser,
+        })
+      );
 
       const { result } = renderHook(() => useAuth(), { wrapper });
 
@@ -283,6 +290,7 @@ describe('AuthProvider', () => {
     it('should handle sign in error', async () => {
       const mockError = new Error('Invalid credentials');
 
+      // Set up mock to reject BEFORE rendering hook
       mockMutate.mockRejectedValue(mockError);
 
       const { result } = renderHook(() => useAuth(), { wrapper });
@@ -292,18 +300,21 @@ describe('AuthProvider', () => {
       });
 
       await act(async () => {
-        await expect(result.current.signIn('test@example.com', 'wrong-password')).rejects.toThrow(
-          'Invalid credentials'
-        );
+        await expect(
+          result.current.signIn('test@example.com', 'wrong-password')
+        ).rejects.toThrow('Invalid credentials');
       });
 
       expect(result.current.user).toBeNull();
       expect(result.current.token).toBeNull();
       // Verify logger was called (technical errors should be logged)
-      expect(mockLoggerError).toHaveBeenCalledWith('Sign in error:', mockError);
+      await waitFor(() => {
+        expect(mockLoggerError).toHaveBeenCalledWith('Sign in error:', mockError);
+      });
     });
 
     it('should not update state when sign in response is invalid', async () => {
+      // Set up mock BEFORE rendering hook
       mockMutate.mockResolvedValue({
         data: {
           signIn: null,
@@ -320,8 +331,12 @@ describe('AuthProvider', () => {
         await result.current.signIn('test@example.com', 'password');
       });
 
-      expect(result.current.user).toBeNull();
-      expect(result.current.token).toBeNull();
+      // Wait a bit for any async operations to complete
+      await waitFor(() => {
+        expect(result.current.user).toBeNull();
+        expect(result.current.token).toBeNull();
+      }, { timeout: 1000 });
+      
       expect(mockPush).not.toHaveBeenCalled();
     });
   });
@@ -332,6 +347,7 @@ describe('AuthProvider', () => {
       const mockToken = 'oauth-token';
       const mockRefreshToken = 'refresh-token';
 
+      // Set up mock with properly structured GraphQL response
       mockMutate.mockResolvedValue({
         data: {
           signInWithOAuth: {
@@ -377,6 +393,7 @@ describe('AuthProvider', () => {
       const mockUser = { id: '1', email: 'test@example.com', displayName: 'Test User' };
       const mockToken = 'oauth-token';
 
+      // Set up mock with properly structured GraphQL response
       mockMutate.mockResolvedValue({
         data: {
           signInWithOAuth: {
@@ -408,6 +425,7 @@ describe('AuthProvider', () => {
     it('should handle OAuth sign in error', async () => {
       const mockError = new Error('OAuth error');
 
+      // Set up mock to reject BEFORE rendering hook
       mockMutate.mockRejectedValue(mockError);
 
       const { result } = renderHook(() => useAuth(), { wrapper });
@@ -424,7 +442,9 @@ describe('AuthProvider', () => {
 
       expect(result.current.user).toBeNull();
       expect(result.current.token).toBeNull();
-      expect(mockLoggerError).toHaveBeenCalledWith('OAuth sign in error:', mockError);
+      await waitFor(() => {
+        expect(mockLoggerError).toHaveBeenCalledWith('OAuth sign in error:', mockError);
+      });
     });
   });
 
@@ -434,6 +454,7 @@ describe('AuthProvider', () => {
       const mockToken = 'signup-token';
       const mockRefreshToken = 'refresh-token';
 
+      // Set up mock with properly structured GraphQL response
       mockMutate.mockResolvedValue({
         data: {
           signUp: {
@@ -479,6 +500,7 @@ describe('AuthProvider', () => {
     it('should handle sign up error', async () => {
       const mockError = new Error('Email already exists');
 
+      // Set up mock to reject BEFORE rendering hook
       mockMutate.mockRejectedValue(mockError);
 
       const { result } = renderHook(() => useAuth(), { wrapper });
@@ -495,7 +517,9 @@ describe('AuthProvider', () => {
 
       expect(result.current.user).toBeNull();
       expect(result.current.token).toBeNull();
-      expect(mockLoggerError).toHaveBeenCalledWith('Sign up error:', mockError);
+      await waitFor(() => {
+        expect(mockLoggerError).toHaveBeenCalledWith('Sign up error:', mockError);
+      });
     });
   });
 
@@ -621,15 +645,21 @@ describe('AuthProvider', () => {
       const mockUser = { id: '1', email: 'test@example.com', displayName: 'Test User' };
       const mockToken = 'test-token';
 
-      mockMutate.mockResolvedValue({
-        data: {
-          signIn: {
-            token: mockToken,
-            refreshToken: null,
-            user: mockUser,
-          },
-        },
-      });
+      // Use helper to create properly structured GraphQL response
+      mockMutate.mockResolvedValue(
+        // Helper function to create GraphQL response (inline to avoid import issues)
+function createGraphQLResponse(operationName: string, data: any) {
+  return {
+    data: {
+      [operationName]: data,
+    },
+  };
+}('signIn', {
+          token: mockToken,
+          refreshToken: null,
+          user: mockUser,
+        })
+      );
 
       const { result } = renderHook(() => useAuth(), { wrapper });
 
@@ -647,4 +677,3 @@ describe('AuthProvider', () => {
     });
   });
 });
-

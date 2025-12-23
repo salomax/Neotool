@@ -1,6 +1,6 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PermissionList, type Permission } from '../PermissionList';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
@@ -38,11 +38,15 @@ const renderPermissionList = (props = {}) => {
   );
 };
 
-describe('PermissionList', () => {
+describe.sequential('PermissionList', () => {
   const user = userEvent.setup();
 
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   describe('Rendering', () => {
@@ -112,15 +116,23 @@ describe('PermissionList', () => {
       renderPermissionList({ showRemoveButton: true, onRemove });
 
       // MUI Chip with onDelete renders a delete icon as an IconButton
-      // Find the chip and use within to scope queries to it
+      // Find all icon buttons (delete icons) - they should be accessible
+      const allButtons = screen.getAllByRole('button');
+      // The delete icon buttons are typically IconButtons, find the one for "Read Users"
+      // Since we can't easily identify which button belongs to which chip,
+      // we'll find the chip and look for the delete icon within it
       const chip = screen.getByLabelText('Remove permission Read Users');
       
-      // Use within to find buttons within the chip
-      const chipContainer = within(chip);
-      const buttons = chipContainer.queryAllByRole('button');
-      const deleteButton = buttons.find(
-        (btn) => btn.getAttribute('aria-label')?.includes('Delete')
-      ) || buttons[0];
+      // MUI Chip's delete icon is rendered as an IconButton inside
+      // Try to find it by looking for buttons within the chip
+      /* eslint-disable testing-library/no-node-access */
+      // Need to access delete icon button within MUI Chip component
+      const deleteButton = Array.from(chip.querySelectorAll('button')).find(
+        (btn) => btn !== chip && btn.getAttribute('aria-label')?.includes('Delete')
+      ) || Array.from(chip.querySelectorAll('button')).find(
+        (btn) => btn !== chip
+      );
+      /* eslint-enable testing-library/no-node-access */
       
       if (deleteButton) {
         await user.click(deleteButton);
@@ -139,11 +151,13 @@ describe('PermissionList', () => {
 
       // Find the chip and its delete button
       const chip = screen.getByLabelText('Remove permission Write Users');
-      const chipContainer = within(chip);
-      const buttons = chipContainer.queryAllByRole('button');
-      const deleteButton = buttons.find(
-        (btn) => btn.getAttribute('aria-label')?.includes('Delete')
-      ) || buttons[0];
+      // eslint-disable-next-line testing-library/no-node-access -- Need to access delete icon within chip
+      const buttons = chip.querySelectorAll('button');
+      const deleteButton = Array.from(buttons).find(
+        (btn) => btn !== chip && btn.getAttribute('aria-label')?.includes('Delete')
+      ) || Array.from(buttons).find(
+        (btn) => btn !== chip
+      );
       
       if (deleteButton) {
         await user.click(deleteButton);

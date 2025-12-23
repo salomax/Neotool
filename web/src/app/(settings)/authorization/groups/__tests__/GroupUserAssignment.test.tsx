@@ -1,6 +1,6 @@
-import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import React, { useEffect, useRef } from 'react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, act, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { FormProvider, useForm } from 'react-hook-form';
 import { GroupUserAssignment } from '../GroupUserAssignment';
@@ -56,13 +56,21 @@ vi.mock('@/shared/components/ui/feedback', () => ({
     ) : null,
 }));
 
-const renderGroupUserAssignment = (initialUserIds?: string[]) => {
+// Mock useAuth
+vi.mock('@/shared/providers/AuthProvider', () => ({
+  useAuth: () => ({
+    isAuthenticated: true,
+    user: { id: '1', email: 'test@example.com' },
+  }),
+}));
+
+const renderGroupUserAssignment = (assignedUsers: Array<{ id: string; email: string; displayName: string | null; enabled: boolean }> = []) => {
   const Wrapper = ({ children }: { children: React.ReactNode }) => {
     const methods = useForm<GroupFormData>({
       defaultValues: {
         name: '',
         description: '',
-        userIds: initialUserIds || [],
+        userIds: assignedUsers.map(u => u.id),
       },
     });
 
@@ -75,12 +83,12 @@ const renderGroupUserAssignment = (initialUserIds?: string[]) => {
 
   return render(
     <Wrapper>
-      <GroupUserAssignment initialUserIds={initialUserIds} />
+      <GroupUserAssignment assignedUsers={assignedUsers} />
     </Wrapper>
   );
 };
 
-describe('GroupUserAssignment', () => {
+describe.sequential('GroupUserAssignment', () => {
   const user = userEvent.setup();
 
   beforeEach(() => {
@@ -99,11 +107,16 @@ describe('GroupUserAssignment', () => {
     });
   });
 
+  afterEach(() => {
+    cleanup();
+  });
+
   describe('Rendering', () => {
     it('should render autocomplete for user selection', () => {
       renderGroupUserAssignment();
 
-      expect(screen.getByLabelText('Users')).toBeInTheDocument();
+      // SearchableAutocomplete renders a TextField, find it by helper text or check it exists
+      expect(screen.getByText('Select users to assign to this group')).toBeInTheDocument();
     });
 
     it('should show loading state', () => {
@@ -140,23 +153,21 @@ describe('GroupUserAssignment', () => {
   });
 
   describe('Initial values', () => {
-    it('should pre-select users from initialUserIds', () => {
-      renderGroupUserAssignment(['1', '2']);
+    it('should pre-select users from assignedUsers', () => {
+      renderGroupUserAssignment([
+        { id: '1', email: 'user1@example.com', displayName: 'User One', enabled: true },
+        { id: '2', email: 'user2@example.com', displayName: 'User Two', enabled: true },
+      ]);
 
-      // Users should be selected
-      expect(screen.getByLabelText('Users')).toBeInTheDocument();
+      // Users should be selected - check for helper text to verify component rendered
+      expect(screen.getByText('Select users to assign to this group')).toBeInTheDocument();
     });
 
-    it('should handle empty initialUserIds', () => {
+    it('should handle empty assignedUsers', () => {
       renderGroupUserAssignment([]);
 
-      expect(screen.getByLabelText('Users')).toBeInTheDocument();
-    });
-
-    it('should handle undefined initialUserIds', () => {
-      renderGroupUserAssignment(undefined);
-
-      expect(screen.getByLabelText('Users')).toBeInTheDocument();
+      // Component should render even with empty assignedUsers
+      expect(screen.getByText('Select users to assign to this group')).toBeInTheDocument();
     });
   });
 
@@ -170,7 +181,7 @@ describe('GroupUserAssignment', () => {
         return (
           <AppThemeProvider>
             <FormProvider {...methods}>
-              <GroupUserAssignment />
+              <GroupUserAssignment assignedUsers={[]} />
               <div data-testid="form-values">
                 {/* eslint-disable-next-line react-hooks/incompatible-library */}
                 {JSON.stringify(methods.watch('userIds'))}
@@ -187,19 +198,27 @@ describe('GroupUserAssignment', () => {
     });
 
     it('should handle user deselection', () => {
-      renderGroupUserAssignment(['1', '2']);
+      renderGroupUserAssignment([
+        { id: '1', email: 'user1@example.com', displayName: 'User One', enabled: true },
+        { id: '2', email: 'user2@example.com', displayName: 'User Two', enabled: true },
+      ]);
 
-      // Component should handle deselection
-      expect(screen.getByLabelText('Users')).toBeInTheDocument();
+      // Component should handle deselection - verify it renders
+      expect(screen.getByText('Select users to assign to this group')).toBeInTheDocument();
     });
   });
 
   describe('Deduplication', () => {
     it('should deduplicate users by ID', () => {
       // The component should handle deduplication internally
-      renderGroupUserAssignment(['1', '1', '2']);
+      renderGroupUserAssignment([
+        { id: '1', email: 'user1@example.com', displayName: 'User One', enabled: true },
+        { id: '1', email: 'user1@example.com', displayName: 'User One', enabled: true },
+        { id: '2', email: 'user2@example.com', displayName: 'User Two', enabled: true },
+      ]);
 
-      expect(screen.getByLabelText('Users')).toBeInTheDocument();
+      // Verify component renders - deduplication is handled internally
+      expect(screen.getByText('Select users to assign to this group')).toBeInTheDocument();
     });
   });
 
@@ -233,7 +252,7 @@ describe('GroupUserAssignment', () => {
         return (
           <AppThemeProvider>
             <FormProvider {...methods}>
-              <GroupUserAssignment />
+              <GroupUserAssignment assignedUsers={[{ id: '1', email: 'user1@example.com', displayName: 'User One', enabled: true }]} />
             </FormProvider>
           </AppThemeProvider>
         );
@@ -245,28 +264,47 @@ describe('GroupUserAssignment', () => {
       expect(screen.getByLabelText('Users')).toBeInTheDocument();
     });
 
-    it('should handle form validation errors', () => {
+    it('should handle form validation errors', async () => {
+      const formMethodsRef = { current: null as ReturnType<typeof useForm<GroupFormData>> | null };
+      
       const Wrapper = () => {
         const methods = useForm<GroupFormData>({
           defaultValues: { name: '', description: '', userIds: [] },
         });
-
-        // Set a validation error
-        methods.setError('userIds', { type: 'required', message: 'Users are required' });
+        // Store methods in ref for external access (only on first render)
+        useEffect(() => {
+          formMethodsRef.current = methods;
+        }, [methods]);
 
         return (
           <AppThemeProvider>
             <FormProvider {...methods}>
-              <GroupUserAssignment />
+              <GroupUserAssignment assignedUsers={[]} name="userIds" />
             </FormProvider>
           </AppThemeProvider>
         );
       };
 
-      render(<Wrapper />);
+      const { rerender } = render(<Wrapper />);
+      
+      // Set error after initial render using act
+      await act(async () => {
+        formMethodsRef.current?.setError('userIds', { type: 'required', message: 'Users are required' });
+      });
+      
+      // Force re-render to pick up the error
+      rerender(
+        <AppThemeProvider>
+          <FormProvider {...formMethodsRef.current!}>
+            <GroupUserAssignment assignedUsers={[]} name="userIds" />
+          </FormProvider>
+        </AppThemeProvider>
+      );
 
       // Error should be displayed
-      expect(screen.getByText('Users are required')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('Users are required')).toBeInTheDocument();
+      }, { timeout: 2000 });
     });
   });
 });

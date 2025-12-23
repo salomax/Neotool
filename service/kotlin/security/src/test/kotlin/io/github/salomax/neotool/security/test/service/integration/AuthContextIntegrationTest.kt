@@ -971,18 +971,3 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
         }
     }
 }
-
-            assertThat(tokenPermissions).isEmpty()
-        }
-    }
-}
-
-        }
-    }
-}
-
-
-    }
-}
-
-

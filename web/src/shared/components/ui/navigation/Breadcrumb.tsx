@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import { usePathname } from "next/navigation";
-import { useMediaQuery, useTheme, SxProps, Theme } from "@mui/material/styles";
+import { useTheme, SxProps, Theme } from "@mui/material/styles";
+import { useMediaQuery } from "@mui/material";
 import { Breadcrumbs as MuiBreadcrumbs, Typography, Box } from "@/shared/ui/mui-imports";
 import HomeIcon from "@mui/icons-material/Home";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
@@ -70,7 +71,7 @@ function generateBreadcrumbsFromPathname(
   pathname: string | null,
   routeConfig?: RouteConfig[],
   homeLabel: string = "Home",
-  homeHref: string = "/",
+  homeHref?: string,
   homeIcon?: React.ReactNode
 ): BreadcrumbItem[] {
   if (!pathname || pathname === "/") {
@@ -80,7 +81,7 @@ function generateBreadcrumbsFromPathname(
   const segments = pathname.split("/").filter(Boolean);
   const items: BreadcrumbItem[] = [];
 
-  // Add home item
+  // Add home item only if homeHref is provided
   if (homeHref) {
     items.push({ label: homeLabel, href: homeHref, icon: homeIcon });
   }

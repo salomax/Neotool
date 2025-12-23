@@ -154,7 +154,13 @@ const renderUserList = (props = {}) => {
   );
 };
 
-describe('UserList', () => {
+const renderUserListWithTable = (props = {}) => {
+  const view = renderUserList(props);
+  const table = view.getByTestId('management-table');
+  return { view, table };
+};
+
+describe.sequential('UserList', () => {
   // Reuse userEvent instance across tests for better performance
   const user = userEvent.setup();
 
@@ -683,4 +689,3 @@ describe('UserList', () => {
     });
   });
 });
-

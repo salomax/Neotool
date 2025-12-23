@@ -1,6 +1,6 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { GroupRoleAssignment, type Role } from '../GroupRoleAssignment';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
@@ -77,7 +77,7 @@ const renderGroupRoleAssignment = (props = {}) => {
   );
 };
 
-describe('GroupRoleAssignment', () => {
+describe.sequential('GroupRoleAssignment', () => {
   const user = userEvent.setup();
 
   beforeEach(() => {
@@ -94,6 +94,10 @@ describe('GroupRoleAssignment', () => {
       error: undefined,
       refetch: vi.fn(),
     });
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   describe('Rendering', () => {

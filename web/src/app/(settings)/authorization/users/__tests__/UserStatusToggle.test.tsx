@@ -1,17 +1,41 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, act, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { UserStatusToggle } from '../UserStatusToggle';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
 import type { User } from '@/shared/hooks/authorization/useUserManagement';
 
-// Mock useOptimisticUpdate hook
 const mockExecuteUpdate = vi.fn();
-const mockUseOptimisticUpdate = vi.fn();
 
 vi.mock('@/shared/hooks/mutations', () => ({
-  useOptimisticUpdate: (options: { value: boolean }) => mockUseOptimisticUpdate(options),
+  useOptimisticUpdate: ({ value }: { value: boolean }) => {
+    const [optimisticValue, setOptimisticValue] = React.useState(value);
+    const [isUpdating, setIsUpdating] = React.useState(false);
+    const previousValueRef = React.useRef(value);
+
+    React.useEffect(() => {
+      if (!isUpdating) {
+        previousValueRef.current = value;
+        setOptimisticValue(value);
+      }
+    }, [value, isUpdating]);
+
+    const executeUpdate = async (newValue: boolean, updateFn: () => Promise<void>) => {
+      previousValueRef.current = optimisticValue;
+      setIsUpdating(true);
+      setOptimisticValue(newValue);
+      try {
+        await mockExecuteUpdate(newValue, updateFn);
+      } catch (error) {
+        setOptimisticValue(previousValueRef.current);
+      } finally {
+        setIsUpdating(false);
+      }
+    };
+
+    return { optimisticValue, isUpdating, executeUpdate };
+  },
 }));
 
 // Mock i18n
@@ -92,23 +116,17 @@ const renderUserStatusToggle = (props = {}) => {
   );
 };
 
-describe('UserStatusToggle', () => {
+// Run sequentially to avoid concurrent renders interfering with shared mocks
+describe.sequential('UserStatusToggle', () => {
   const user = userEvent.setup();
 
   beforeEach(() => {
     vi.clearAllMocks();
     (window as any).__switchProps = undefined;
     
-    // Setup default mock behavior for useOptimisticUpdate
-    mockExecuteUpdate.mockImplementation(async (newValue: boolean, updateFn: () => Promise<void>) => {
+    mockExecuteUpdate.mockImplementation(async (_newValue: boolean, updateFn: () => Promise<void>) => {
       await updateFn();
     });
-    
-    mockUseOptimisticUpdate.mockImplementation(({ value }: { value: boolean }) => ({
-      optimisticValue: value,
-      isUpdating: false,
-      executeUpdate: mockExecuteUpdate,
-    }));
   });
 
   describe('Props forwarding to Switch', () => {
@@ -190,16 +208,25 @@ describe('UserStatusToggle', () => {
     });
 
     it('should set isToggling state to true during operation', async () => {
-      const onToggle = vi.fn(() => new Promise((resolve) => setTimeout(resolve, 100)));
-      renderUserStatusToggle({ onToggle });
+      const onToggle = vi.fn<[string, boolean], Promise<void>>(() => new Promise<void>((resolve) => setTimeout(resolve, 100)));
+      const { rerender } = renderUserStatusToggle({ onToggle });
 
       const switchButton = screen.getByTestId('user-status-toggle-user-1');
+      
+      // Click to start the operation
       await user.click(switchButton);
+      
+      // Force re-render to pick up the updated mock state
+      rerender(
+        <AppThemeProvider>
+          <UserStatusToggle user={mockUser} enabled={true} onToggle={onToggle} />
+        </AppThemeProvider>
+      );
 
       // Check that CircularProgress appears (indicating isToggling is true)
       await waitFor(() => {
         expect(screen.getByTestId('circular-progress')).toBeInTheDocument();
-      });
+      }, { timeout: 2000 });
     });
 
     it('should clear isToggling state after operation completes', async () => {
@@ -225,13 +252,20 @@ describe('UserStatusToggle', () => {
     });
 
     it('should prevent toggle when isToggling is true', async () => {
-      const onToggle = vi.fn(() => new Promise((resolve) => setTimeout(resolve, 100)));
-      renderUserStatusToggle({ onToggle });
+      const onToggle = vi.fn<[string, boolean], Promise<void>>(() => new Promise<void>((resolve) => setTimeout(resolve, 100)));
+      const { rerender } = renderUserStatusToggle({ onToggle });
 
       const switchButton = screen.getByTestId('user-status-toggle-user-1');
       
       // Click once to start toggle
       await user.click(switchButton);
+      
+      // Force re-render to pick up the updated mock state
+      rerender(
+        <AppThemeProvider>
+          <UserStatusToggle user={mockUser} enabled={true} onToggle={onToggle} />
+        </AppThemeProvider>
+      );
 
       // Try to click again while toggling (should be disabled)
       await waitFor(() => {
@@ -242,11 +276,18 @@ describe('UserStatusToggle', () => {
 
   describe('Loading state display', () => {
     it('should show CircularProgress when isToggling is true', async () => {
-      const onToggle = vi.fn(() => new Promise((resolve) => setTimeout(resolve, 100)));
-      renderUserStatusToggle({ onToggle });
+      const onToggle = vi.fn<[string, boolean], Promise<void>>(() => new Promise<void>((resolve) => setTimeout(resolve, 100)));
+      const { rerender } = renderUserStatusToggle({ onToggle });
 
       const switchButton = screen.getByTestId('user-status-toggle-user-1');
       await user.click(switchButton);
+      
+      // Force re-render to pick up the updated mock state
+      rerender(
+        <AppThemeProvider>
+          <UserStatusToggle user={mockUser} enabled={true} onToggle={onToggle} />
+        </AppThemeProvider>
+      );
 
       await waitFor(() => {
         expect(screen.getByTestId('circular-progress')).toBeInTheDocument();
@@ -276,59 +317,102 @@ describe('UserStatusToggle', () => {
     });
 
     it('should show "Disabling user..." tooltip when toggling from enabled', async () => {
-      const onToggle = vi.fn(() => new Promise((resolve) => setTimeout(resolve, 100)));
-      renderUserStatusToggle({ enabled: true, onToggle });
+      const onToggle = vi.fn<[string, boolean], Promise<void>>(() => new Promise<void>((resolve) => setTimeout(resolve, 100)));
+      const { rerender } = renderUserStatusToggle({ enabled: true, onToggle });
 
       const switchButton = screen.getByTestId('user-status-toggle-user-1');
-      await user.click(switchButton);
-
+      
+      // Click the button to start the toggle - this should trigger executeUpdate
+      // which sets isUpdating=true and optimisticValue=false
+      const clickPromise = user.click(switchButton);
+      
+      // Force re-render so the component picks up updated mock state
+      rerender(
+        <AppThemeProvider>
+          <UserStatusToggle user={mockUser} enabled={true} onToggle={onToggle} />
+        </AppThemeProvider>
+      );
+      
+      // Check the tooltip while the async operation is in progress
       await waitFor(() => {
         const tooltip = screen.getByTestId('tooltip');
         expect(tooltip).toHaveAttribute('data-title', 'Disabling user...');
-      });
+      }, { timeout: 200 });
+      
+      await clickPromise;
     });
 
     it('should show "Enabling user..." tooltip when toggling from disabled', async () => {
-      const onToggle = vi.fn(() => new Promise((resolve) => setTimeout(resolve, 100)));
-      renderUserStatusToggle({ enabled: false, onToggle });
+      const onToggle = vi.fn<[string, boolean], Promise<void>>(() => new Promise<void>((resolve) => setTimeout(resolve, 100)));
+      const { rerender } = renderUserStatusToggle({ enabled: false, onToggle });
 
       const switchButton = screen.getByTestId('user-status-toggle-user-1');
-      await user.click(switchButton);
-
+      
+      // Click the button to start the toggle - this should trigger executeUpdate
+      // which sets isUpdating=true and optimisticValue=true
+      const clickPromise = user.click(switchButton);
+      
+      // Force re-render so the component picks up updated mock state
+      rerender(
+        <AppThemeProvider>
+          <UserStatusToggle user={mockUser} enabled={false} onToggle={onToggle} />
+        </AppThemeProvider>
+      );
+      
+      // Check the tooltip while the async operation is in progress
       await waitFor(() => {
         const tooltip = screen.getByTestId('tooltip');
         expect(tooltip).toHaveAttribute('data-title', 'Enabling user...');
-      });
+      }, { timeout: 200 });
+      
+      await clickPromise;
     });
   });
 
   describe('Error handling', () => {
     it('should handle errors gracefully without crashing', async () => {
       const onToggle = vi.fn().mockRejectedValue(new Error('Toggle failed'));
+
       renderUserStatusToggle({ onToggle });
 
       const switchButton = screen.getByTestId('user-status-toggle-user-1');
       
-      // Should not throw
-      await user.click(switchButton);
+      await act(async () => {
+        await user.click(switchButton);
+      });
 
       await waitFor(() => {
-        // Component should still be rendered
         expect(screen.getByTestId('user-status-toggle-user-1')).toBeInTheDocument();
-      });
+      }, { timeout: 1000 });
+      
+      expect(onToggle).toHaveBeenCalled();
     });
 
     it('should clear isToggling state even if error occurs', async () => {
       const onToggle = vi.fn().mockRejectedValue(new Error('Toggle failed'));
-      renderUserStatusToggle({ onToggle });
+      
+      const { rerender } = renderUserStatusToggle({ onToggle });
 
       const switchButton = screen.getByTestId('user-status-toggle-user-1');
-      await user.click(switchButton);
+      
+      await act(async () => {
+        await user.click(switchButton);
+      });
+      
+      rerender(
+        <AppThemeProvider>
+          <UserStatusToggle user={mockUser} enabled={true} onToggle={onToggle} />
+        </AppThemeProvider>
+      );
 
       await waitFor(() => {
         // isToggling should be cleared (no CircularProgress)
         expect(screen.queryByTestId('circular-progress')).not.toBeInTheDocument();
-      });
+      }, { timeout: 1000 });
     });
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 });

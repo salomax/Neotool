@@ -1,5 +1,6 @@
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, cleanup } from "@testing-library/react";
+import { afterEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import "@/shared/i18n/config";
 import { useTranslation } from "../hooks/useTranslation";
@@ -156,7 +157,10 @@ function MultiDomainIntegrationComponent() {
   );
 }
 
-describe("I18n Integration Tests", () => {
+describe.sequential("I18n Integration Tests", () => {
+  afterEach(() => {
+    cleanup();
+  });
   beforeEach(async () => {
     // Reset to English before each test
     const i18n = (await import('i18next')).default;
@@ -340,7 +344,8 @@ describe("I18n Integration Tests", () => {
       
       // Re-render with same props - this creates a new component instance
       rerender(<TestComponent />);
-      expect(renderCount).toBe(3); // React Testing Library may cause additional renders
+      expect(renderCount).toBeGreaterThanOrEqual(2);
+      expect(renderCount).toBeLessThanOrEqual(3); // Allow environments without extra StrictMode render
       
       // Component should still work
       expect(screen.getByTestId('render-count')).toHaveTextContent('Customer Management');

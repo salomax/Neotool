@@ -176,16 +176,6 @@ After cloning or integrating the starter, customize the project name from "neoto
 
 2. **Edit `project.config.json`** with your project details
 
-3. **Run setup commands:**
-   ```bash
-   # Setup project (rename from neotool)
-   ./neotool setup
-   
-   # Clean up examples (optional)
-   ./neotool clean --dry-run  # Preview changes
-   ./neotool clean             # Apply changes
-   ```
-
 ## Configuration
 
 ### Environment Variables for Infrastructure
@@ -204,7 +194,6 @@ POSTGRES_PASSWORD=neotool
 POSTGRES_DB=neotool_db
 POSTGRES_HOST=postgres
 POSTGRES_PORT=5432
-DATABASE_URL=jdbc:postgresql://postgres:5432/neotool_db
 
 # --- Grafana ---
 GF_SECURITY_ADMIN_USER=admin

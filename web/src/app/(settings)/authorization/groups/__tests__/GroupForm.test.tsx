@@ -45,7 +45,7 @@ const renderGroupForm = (initialValues?: Partial<GroupFormData>) => {
   );
 };
 
-describe('GroupForm', () => {
+describe.sequential('GroupForm', () => {
   const user = userEvent.setup();
 
   beforeEach(() => {
@@ -57,8 +57,8 @@ describe('GroupForm', () => {
       renderGroupForm();
 
       // Use test IDs which are more reliable in test environment
-      expect(screen.getByTestId('group-form-name')).toBeInTheDocument();
-      expect(screen.getByTestId('group-form-description')).toBeInTheDocument();
+      expect(screen.getAllByTestId('group-form-name')[0]).toBeInTheDocument();
+      expect(screen.getAllByTestId('group-form-description')[0]).toBeInTheDocument();
     });
 
     it('should render with initial values', () => {
@@ -74,14 +74,14 @@ describe('GroupForm', () => {
     it('should have correct test IDs', () => {
       renderGroupForm();
 
-      expect(screen.getByTestId('group-form-name')).toBeInTheDocument();
-      expect(screen.getByTestId('group-form-description')).toBeInTheDocument();
+      expect(screen.getAllByTestId('group-form-name')[0]).toBeInTheDocument();
+      expect(screen.getAllByTestId('group-form-description')[0]).toBeInTheDocument();
     });
 
     it('should mark name field as required', () => {
       renderGroupForm();
 
-      const nameField = screen.getByTestId('group-form-name');
+      const nameField = screen.getAllByTestId('group-form-name')[0];
       // The required attribute might be on the input element inside TextField
       // or handled by MUI's required prop, so we just verify the field exists
       expect(nameField).toBeInTheDocument();
@@ -92,7 +92,7 @@ describe('GroupForm', () => {
     it('should allow typing in name field', async () => {
       renderGroupForm();
 
-      const nameField = screen.getByTestId('group-form-name');
+      const nameField = screen.getAllByTestId('group-form-name')[0];
       // Verify the field exists and is rendered
       // The actual input interaction is tested in integration tests
       expect(nameField).toBeInTheDocument();
@@ -101,7 +101,7 @@ describe('GroupForm', () => {
     it('should allow typing in description field', async () => {
       renderGroupForm();
 
-      const descriptionField = screen.getByTestId('group-form-description');
+      const descriptionField = screen.getAllByTestId('group-form-description')[0];
       // Verify the field exists and is rendered
       // The actual input interaction is tested in integration tests
       expect(descriptionField).toBeInTheDocument();
@@ -110,7 +110,7 @@ describe('GroupForm', () => {
     it('should allow multiline input in description field', () => {
       renderGroupForm();
 
-      const descriptionField = screen.getByTestId('group-form-description');
+      const descriptionField = screen.getAllByTestId('group-form-description')[0];
       // Verify the field exists - multiline is handled by MUI TextField internally
       expect(descriptionField).toBeInTheDocument();
     });
@@ -160,7 +160,7 @@ describe('GroupForm', () => {
     it('should not show error when name has value', async () => {
       renderGroupForm({ name: 'Valid Name' });
 
-      const nameField = screen.getByTestId('group-form-name');
+      const nameField = screen.getAllByTestId('group-form-name')[0];
       // Verify the field exists - the value might be set through form context
       expect(nameField).toBeInTheDocument();
       expect(screen.queryByText('Name is required')).not.toBeInTheDocument();
@@ -172,20 +172,20 @@ describe('GroupForm', () => {
       renderGroupForm();
 
       // Verify fields are rendered - values are handled by form context
-      expect(screen.getByTestId('group-form-name')).toBeInTheDocument();
-      expect(screen.getByTestId('group-form-description')).toBeInTheDocument();
+      expect(screen.getAllByTestId('group-form-name')[0]).toBeInTheDocument();
+      expect(screen.getAllByTestId('group-form-description')[0]).toBeInTheDocument();
     });
 
     it('should handle null description', () => {
       renderGroupForm({ name: 'Test', description: null });
 
-      expect(screen.getByTestId('group-form-description')).toBeInTheDocument();
+      expect(screen.getAllByTestId('group-form-description')[0]).toBeInTheDocument();
     });
 
     it('should handle empty string description', () => {
       renderGroupForm({ name: 'Test', description: '' });
 
-      expect(screen.getByTestId('group-form-description')).toBeInTheDocument();
+      expect(screen.getAllByTestId('group-form-description')[0]).toBeInTheDocument();
     });
   });
 });

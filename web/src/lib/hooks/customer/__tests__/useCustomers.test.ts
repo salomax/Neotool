@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, waitFor, act } from '@testing-library/react';
 import { useCustomers } from '../useCustomers';
 import { MockedProvider } from '@apollo/client/testing';
 import { CUSTOMER_STATUSES } from '@/app/(neotool)/examples/customers/constants';
@@ -167,7 +167,9 @@ describe('useCustomers', () => {
 
     const { result } = renderHook(() => useCustomers());
 
-    result.current.setSearchTerm('John');
+    act(() => {
+      result.current.setSearchTerm('John');
+    });
 
     await waitFor(() => {
       expect(result.current.filteredCustomers).toHaveLength(1);
@@ -200,7 +202,9 @@ describe('useCustomers', () => {
 
     const { result } = renderHook(() => useCustomers());
 
-    result.current.setStatusFilter(CUSTOMER_STATUSES.ACTIVE);
+    act(() => {
+      result.current.setStatusFilter(CUSTOMER_STATUSES.ACTIVE);
+    });
 
     await waitFor(() => {
       expect(result.current.filteredCustomers).toHaveLength(1);
@@ -235,7 +239,9 @@ describe('useCustomers', () => {
 
     const { result } = renderHook(() => useCustomers());
 
-    result.current.openCreateDialog();
+    act(() => {
+      result.current.openCreateDialog();
+    });
 
     await waitFor(() => {
       expect(result.current.dialogOpen).toBe(true);
@@ -268,7 +274,9 @@ describe('useCustomers', () => {
 
     const { result } = renderHook(() => useCustomers());
 
-    result.current.openEditDialog(mockCustomers[0]!);
+    act(() => {
+      result.current.openEditDialog(mockCustomers[0]!);
+    });
 
     await waitFor(() => {
       expect(result.current.dialogOpen).toBe(true);
@@ -301,8 +309,12 @@ describe('useCustomers', () => {
 
     const { result } = renderHook(() => useCustomers());
 
-    result.current.openCreateDialog();
-    result.current.closeDialog();
+    act(() => {
+      result.current.openCreateDialog();
+    });
+    act(() => {
+      result.current.closeDialog();
+    });
 
     expect(result.current.dialogOpen).toBe(false);
     expect(result.current.editingCustomer).toBe(null);
@@ -374,4 +386,3 @@ describe('useCustomers', () => {
     expect(result.current.createLoading).toBe(true);
   });
 });
-

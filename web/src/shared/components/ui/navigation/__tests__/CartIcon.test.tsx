@@ -1,6 +1,6 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CartIcon } from '../CartIcon';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
@@ -22,9 +22,13 @@ const renderCartIcon = (props?: React.ComponentProps<typeof CartIcon>) => {
   );
 };
 
-describe('CartIcon', () => {
+describe.sequential('CartIcon', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   it('renders cart icon', () => {
@@ -160,4 +164,3 @@ describe('CartIcon', () => {
     expect(button).toBeDisabled();
   });
 });
-

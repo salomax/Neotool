@@ -220,6 +220,7 @@ export const UserList: React.FC<UserListProps> = ({
 
   return (
     <ManagementTable<User, UserOrderField>
+      size="small"
       columns={columns}
       data={users}
       loading={loading}

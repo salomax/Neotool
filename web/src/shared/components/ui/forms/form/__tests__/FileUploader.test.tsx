@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useForm, FormProvider } from "react-hook-form";
 import { AppThemeProvider } from "@/styles/themes/AppThemeProvider";
@@ -18,6 +18,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  cleanup();
   vi.clearAllMocks();
 });
 
@@ -50,7 +51,8 @@ const renderFileUploader = (
   );
 };
 
-describe("FileUploader", () => {
+// Run sequentially to avoid concurrent renders leaking between tests
+describe.sequential("FileUploader", () => {
   it("renders file uploader", () => {
     renderFileUploader();
     expect(screen.getByText("Upload files")).toBeInTheDocument();

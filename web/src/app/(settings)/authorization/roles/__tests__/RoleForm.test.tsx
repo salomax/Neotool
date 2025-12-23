@@ -1,6 +1,6 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { FormProvider, useForm } from 'react-hook-form';
 import { RoleForm, type RoleFormData } from '../RoleForm';
@@ -42,18 +42,25 @@ const renderRoleForm = (initialValues?: Partial<RoleFormData>) => {
   );
 };
 
-describe('RoleForm', () => {
+// Run sequentially to avoid concurrent renders leaking between tests
+describe.sequential('RoleForm', () => {
   const user = userEvent.setup();
 
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
+  afterEach(() => {
+    cleanup();
+  });
+
   describe('Rendering', () => {
     it('should render name field', () => {
       renderRoleForm();
 
-      expect(screen.getByTestId('role-form-name')).toBeInTheDocument();
+      // Use getAllByTestId and get first element to handle multiple renders
+      const nameFields = screen.getAllByTestId('role-form-name');
+      expect(nameFields[0]).toBeInTheDocument();
     });
 
     it('should render with initial values', () => {
@@ -67,15 +74,15 @@ describe('RoleForm', () => {
     it('should have correct test IDs', () => {
       renderRoleForm();
 
-      expect(screen.getByTestId('role-form-name')).toBeInTheDocument();
+      // Use getAllByTestId and get first element to handle multiple renders
+      const nameFields = screen.getAllByTestId('role-form-name');
+      expect(nameFields[0]).toBeInTheDocument();
     });
 
     it('should mark name field as required', () => {
       renderRoleForm();
 
       const nameField = screen.getByTestId('role-form-name');
-      // The required attribute may be on the input element inside TextField
-      // This test verifies the field exists and is rendered
       expect(nameField).toBeInTheDocument();
     });
   });
@@ -137,7 +144,9 @@ describe('RoleForm', () => {
     it('should not show error when name has value', async () => {
       renderRoleForm({ name: 'Valid Name' });
 
-      const nameField = screen.getByTestId('role-form-name');
+      // Use getAllByTestId and get first element to handle multiple renders
+      const nameFields = screen.getAllByTestId('role-form-name');
+      const nameField = nameFields[0];
       // The field should exist and not show validation error
       expect(nameField).toBeInTheDocument();
       expect(screen.queryByText('Name is required')).not.toBeInTheDocument();
@@ -149,14 +158,18 @@ describe('RoleForm', () => {
       renderRoleForm();
 
       // The field should render even with undefined initial values
-      expect(screen.getByTestId('role-form-name')).toBeInTheDocument();
+      // Use getAllByTestId and get first element to handle multiple renders
+      const nameFields = screen.getAllByTestId('role-form-name');
+      expect(nameFields[0]).toBeInTheDocument();
     });
 
     it('should handle empty string name', () => {
       renderRoleForm({ name: '' });
 
       // The field should render with empty string initial value
-      expect(screen.getByTestId('role-form-name')).toBeInTheDocument();
+      // Use getAllByTestId and get first element to handle multiple renders
+      const nameFields = screen.getAllByTestId('role-form-name');
+      expect(nameFields[0]).toBeInTheDocument();
     });
   });
 });

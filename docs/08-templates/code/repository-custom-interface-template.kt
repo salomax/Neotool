@@ -37,3 +37,6 @@ interface {EntityName}RepositoryCustom {
 
 
 
+
+
+
