@@ -128,8 +128,14 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
   // Initialize cart from localStorage on mount
   React.useEffect(() => {
-    const loadedItems = loadCartFromStorage();
-    setItems(loadedItems);
+    // Avoid overwriting any items that might have been added before
+    // initialization completes (e.g. fast interactions in tests)
+    setItems((currentItems) => {
+      if (currentItems.length > 0) {
+        return currentItems;
+      }
+      return loadCartFromStorage();
+    });
     setIsInitialized(true);
   }, []);
 
@@ -238,4 +244,3 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 };
-

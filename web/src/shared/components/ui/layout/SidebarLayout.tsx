@@ -90,6 +90,7 @@ export function SidebarLayout({
 }: SidebarLayoutProps) {
   // Generate data-testid from component name and optional name prop
   const testIdProps = getTestIdProps('SidebarLayout', name, dataTestId);
+  const generatedTestId = testIdProps['data-testid'];
   
   // Calculate sidebar width
   const sidebarWidth = getSidebarWidth(size);
@@ -132,7 +133,7 @@ export function SidebarLayout({
       {/* Fixed sidebar column */}
       <Box
         style={sidebarStyles}
-        data-testid={dataTestId ? `${dataTestId}-sidebar` : undefined}
+        data-testid={generatedTestId ? `${generatedTestId}-sidebar` : undefined}
       >
         {sidebar}
       </Box>
@@ -142,7 +143,7 @@ export function SidebarLayout({
         fullHeight={fullHeight}
         disableGutters
         sx={mainContentContainerStyles}
-        data-testid={dataTestId ? `${dataTestId}-content` : undefined}
+        data-testid={generatedTestId ? `${generatedTestId}-content` : undefined}
       >
         {/* Inner Box with overflow: auto for scrolling when content overflows */}
         {fullHeight ? (

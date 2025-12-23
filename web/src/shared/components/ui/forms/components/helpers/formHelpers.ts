@@ -8,6 +8,7 @@ export function focusFirstError(
   errors: FieldErrors,
   root: Document | HTMLElement = document,
 ) {
+  if (!errors || Object.keys(errors).length === 0) return;
   const firstKey = findFirstErrorPath(errors);
   if (!firstKey) return;
   const name = firstKey;

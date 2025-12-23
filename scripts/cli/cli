@@ -24,15 +24,6 @@ $(log "Neotool CLI" "$BRIGHT")
 Usage: $0 <command> [options]
 
 Commands:
-  $(log "setup" "$GREEN")
-    Setup the project by renaming from neotool to your project name.
-    Reads configuration from project.config.json.
-
-  $(log "clean" "$GREEN") [--dry-run]
-    Remove all neotool references, (neotool) route group, and generated lib files.
-    Options:
-      --dry-run    Show what would be deleted/modified without making changes
-
   $(log "graphql" "$GREEN") <subcommand>
     Manage GraphQL schema synchronization and supergraph generation.
     Subcommands: sync, validate, generate, all
@@ -58,8 +49,6 @@ Options:
   -v, --version    Check system requirements (Node.js, Docker, JVM)
 
 Examples:
-  $0 setup
-  $0 clean --dry-run
   $0 graphql sync
   $0 graphql generate
   $0 validate
@@ -128,7 +117,7 @@ main() {
     fi
     
     case "$command" in
-        setup|clean|version|validate)
+        version|validate)
             execute_command "$command" "$@"
             ;;
         help|--help|-h|"")

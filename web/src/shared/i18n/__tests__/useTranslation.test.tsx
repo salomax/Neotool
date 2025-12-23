@@ -1,5 +1,6 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { render, screen, cleanup } from "@testing-library/react";
 import { act } from "@testing-library/react";
 import "@/shared/i18n/config";
 import { useTranslation } from "../hooks/useTranslation";
@@ -75,7 +76,8 @@ function MultipleDomainsTestComponent() {
   );
 }
 
-describe("useTranslation Hook", () => {
+// Run sequentially to avoid concurrent renders leaking between tests
+describe.sequential("useTranslation Hook", () => {
   beforeEach(async () => {
     // Reset i18n to English before each test
     const i18n = (await import('i18next')).default;
@@ -260,5 +262,9 @@ describe("useTranslation Hook", () => {
       // Translation function should be memoized (same reference)
       // This is tested implicitly through the fact that the component works correctly
     });
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 });

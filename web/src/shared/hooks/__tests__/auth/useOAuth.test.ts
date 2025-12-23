@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, waitFor, act } from '@testing-library/react';
+import { renderHook, waitFor, act, cleanup } from '@testing-library/react';
 import { useOAuth } from '@/shared/hooks/auth';
 
 // Mock the Google OAuth module
@@ -8,7 +8,8 @@ vi.mock('@/lib/auth/oauth/google', () => ({
   loadGoogleIdentityServices: vi.fn(() => Promise.resolve()),
 }));
 
-describe('useOAuth', () => {
+// Run sequentially to avoid concurrent renders leaking between tests
+describe.sequential('useOAuth', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Set up environment variable
@@ -16,6 +17,7 @@ describe('useOAuth', () => {
   });
 
   afterEach(() => {
+    cleanup();
     delete process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
   });
 

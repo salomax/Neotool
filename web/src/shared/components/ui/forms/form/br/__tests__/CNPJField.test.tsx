@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useForm, FormProvider } from "react-hook-form";
 import { AppThemeProvider } from "@/styles/themes/AppThemeProvider";
@@ -26,46 +26,52 @@ const renderCNPJField = (
   );
 };
 
-describe("CNPJField", () => {
+describe.sequential("CNPJField", () => {
   it("renders CNPJ field", () => {
-    renderCNPJField();
-    expect(screen.getByLabelText("CNPJ")).toBeInTheDocument();
+    const { container } = renderCNPJField();
+    const input = within(container).getByLabelText("CNPJ");
+    expect(input).toBeInTheDocument();
   });
 
   it("applies correct CNPJ mask (99.999.999/9999-99)", async () => {
     const user = userEvent.setup();
     renderCNPJField({}, { cnpj: "" });
 
-    const input = screen.getByLabelText("CNPJ") as HTMLInputElement;
+    const input = await screen.findByLabelText("CNPJ") as HTMLInputElement;
     await user.type(input, "12345678000190");
 
     // CNPJ mask should format as 12.345.678/0001-90
-    await waitFor(() => {
-      expect(input.value).toBe("12.345.678/0001-90");
-    });
+    // Wait for the masked value to appear in the input
+    // IMaskInput may need a moment to process and update the display value
+    await waitFor(
+      () => {
+        expect(input.value).toBe("12.345.678/0001-90");
+      },
+      { timeout: 3000, interval: 100 }
+    );
   });
 
   it("uses default placeholder when not provided", () => {
-    renderCNPJField();
-    const input = screen.getByLabelText("CNPJ");
+    const { container } = renderCNPJField();
+    const input = within(container).getByLabelText("CNPJ");
     expect(input).toHaveAttribute("placeholder", "00.000.000/0000-00");
   });
 
   it("uses custom placeholder when provided", () => {
-    renderCNPJField({ placeholder: "Enter CNPJ" });
-    const input = screen.getByLabelText("CNPJ");
+    const { container } = renderCNPJField({ placeholder: "Enter CNPJ" });
+    const input = within(container).getByLabelText("CNPJ");
     expect(input).toHaveAttribute("placeholder", "Enter CNPJ");
   });
 
   it("handles disabled state", () => {
-    renderCNPJField({ disabled: true });
-    const input = screen.getByLabelText("CNPJ");
+    const { container } = renderCNPJField({ disabled: true });
+    const input = within(container).getByLabelText("CNPJ");
     expect(input).toBeDisabled();
   });
 
   it("handles custom label", () => {
-    renderCNPJField({ label: "Company ID" });
-    expect(screen.getByLabelText("Company ID")).toBeInTheDocument();
+    const { container } = renderCNPJField({ label: "Company ID" });
+    const input = within(container).getByLabelText("Company ID");
+    expect(input).toBeInTheDocument();
   });
 });
-

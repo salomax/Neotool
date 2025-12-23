@@ -1,6 +1,6 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, fireEvent, act, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SignInForm } from '../SignInForm';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
@@ -62,7 +62,8 @@ const renderSignInForm = (props = {}) => {
   );
 };
 
-describe('SignInForm', () => {
+// Run sequentially to avoid concurrent renders leaking between tests
+describe.sequential('SignInForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSignIn.mockResolvedValue(undefined);
@@ -394,6 +395,10 @@ describe('SignInForm', () => {
       resolveSignIn!();
       await signInPromise;
     });
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 });
 

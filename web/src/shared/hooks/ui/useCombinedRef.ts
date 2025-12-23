@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, type RefObject } from "react";
+import React, { useMemo, type RefObject } from "react";
 
 /**
  * Hook that combines an external ref (from forwardRef) with an internal ref.
@@ -28,12 +28,14 @@ export function useCombinedRef<T extends HTMLElement>(
   return useMemo(() => {
     return (node: T | null) => {
       // Update internal ref
+      // eslint-disable-next-line react-hooks/immutability
       (internalRef as React.MutableRefObject<T | null>).current = node;
       
       // Update external ref
       if (typeof externalRef === "function") {
         externalRef(node);
       } else if (externalRef && typeof externalRef === "object" && "current" in externalRef) {
+        // eslint-disable-next-line react-hooks/immutability
         (externalRef as React.MutableRefObject<T | null>).current = node;
       }
     };

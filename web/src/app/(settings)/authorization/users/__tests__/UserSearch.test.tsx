@@ -71,7 +71,8 @@ const renderUserSearch = (props = {}) => {
   );
 };
 
-describe('UserSearch', () => {
+// Run sequentially to avoid duplicate renders across parallel threads
+describe.sequential('UserSearch', () => {
   const user = userEvent.setup();
 
   beforeEach(() => {

@@ -1,7 +1,9 @@
 /**
  * Playwright test fixtures for E2E tests
+ * Note: These are Playwright fixtures, not React hooks, despite the naming similarity
  */
 
+/* eslint-disable react-hooks/rules-of-hooks */
 import { test as base, Page } from '@playwright/test';
 import { signInAsValidUser } from '../helpers/auth';
 import { createTestUserWithAuth, TestUser } from '../helpers/test-data';
@@ -28,6 +30,7 @@ export const test = base.extend<TestFixtures>({
   /**
    * Admin user fixture - provides an admin user with token
    */
+  // eslint-disable-next-line no-empty-pattern
   adminUser: async ({}, use) => {
     const admin = await createTestUserWithAuth(
       TEST_USER_CREDENTIALS.admin.email,
@@ -40,6 +43,7 @@ export const test = base.extend<TestFixtures>({
   /**
    * Test user fixture - provides a regular test user
    */
+  // eslint-disable-next-line no-empty-pattern
   testUser: async ({}, use) => {
     const user = await createTestUserWithAuth(
       `test-${Date.now()}@test.neotool.com`,

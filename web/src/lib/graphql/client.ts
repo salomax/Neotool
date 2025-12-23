@@ -1,5 +1,5 @@
 // Apollo Client imports for GraphQL operations
-import { ApolloClient, InMemoryCache, HttpLink, ApolloLink, Observable, type Operation, type NextLink, type FetchResult } from '@apollo/client';
+import { ApolloClient, InMemoryCache, HttpLink, ApolloLink, Observable, type Operation, type FetchResult, type FetchPolicy } from '@apollo/client';
 import { SetContextLink } from '@apollo/client/link/context';
 import { ErrorLink } from '@apollo/client/link/error';
 import { CombinedGraphQLErrors, CombinedProtocolErrors } from '@apollo/client/errors';
@@ -55,7 +55,7 @@ async function refreshAccessToken(): Promise<string | null> {
         ssrMode: typeof window === 'undefined',
       });
 
-      const result = await tempClient.mutate({
+      const result = await tempClient.mutate<{ refreshAccessToken: { token: string; user: any } }>({
         mutation: REFRESH_ACCESS_TOKEN,
         variables: {
           input: {
@@ -101,12 +101,12 @@ async function refreshAccessToken(): Promise<string | null> {
 }
 
 // Link to convert GraphQL errors in successful responses into actual errors
-const responseErrorLink = new ApolloLink((operation: Operation, forward: NextLink) => {
+const responseErrorLink = new ApolloLink((operation: Operation, forward: (operation: Operation) => Observable<FetchResult>) => {
   return new Observable<FetchResult>((observer) => {
     const subscription = forward(operation).subscribe({
-      next: (result) => {
+      next: (result: FetchResult) => {
         if (result.errors && result.errors.length > 0) {
-          const error = new Error(result.errors.map((e) => e.message).join(', '));
+          const error = new Error(result.errors.map((e: { message: string }) => e.message).join(', '));
           (error as any).graphQLErrors = result.errors;
           (error as any).response = {
             data: result.data,
@@ -117,7 +117,7 @@ const responseErrorLink = new ApolloLink((operation: Operation, forward: NextLin
         }
         observer.next(result);
       },
-      error: (err) => observer.error(err),
+      error: (err: Error) => observer.error(err),
       complete: () => observer.complete(),
     });
     return () => subscription.unsubscribe();
@@ -141,9 +141,9 @@ const errorLink = new ErrorLink(({ error, operation, forward }) => {
   let networkError: Error | null = null;
 
   if (CombinedGraphQLErrors.is(error)) {
-    graphQLErrors = error.errors;
+    graphQLErrors = [...error.errors];
   } else if (CombinedProtocolErrors.is(error)) {
-    protocolErrors = error.errors;
+    protocolErrors = [...error.errors];
   } else if (error instanceof Error) {
     networkError = error;
   }
@@ -284,11 +284,11 @@ function createApolloClient() {
       // Use cache-and-network for better deduplication while still getting fresh data
       // This allows Apollo to deduplicate identical queries while still fetching from network
       watchQuery: {
-        fetchPolicy: 'cache-and-network', // Check cache first, then fetch from network
+        fetchPolicy: 'cache-and-network' as FetchPolicy, // Check cache first, then fetch from network
         errorPolicy: 'none', // Treat GraphQL errors as errors so global handlers can react
       },
       query: {
-        fetchPolicy: 'cache-and-network', // Check cache first, then fetch from network
+        fetchPolicy: 'cache-and-network' as FetchPolicy, // Check cache first, then fetch from network
         errorPolicy: 'none', // Prevent silent failures when backend returns errors
       },
     },

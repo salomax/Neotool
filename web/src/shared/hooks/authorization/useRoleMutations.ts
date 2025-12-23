@@ -7,8 +7,6 @@ import {
   useDeleteRoleMutation,
   useAssignPermissionToRoleMutation,
   useRemovePermissionFromRoleMutation,
-  useAssignRoleToUserMutation,
-  useRemoveRoleFromUserMutation,
   useAssignRoleToGroupMutation,
   useRemoveRoleFromGroupMutation,
 } from '@/lib/graphql/operations/authorization-management/mutations.generated';

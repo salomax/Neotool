@@ -359,7 +359,7 @@ const RolePermissionAssignmentComponent: React.FC<RolePermissionAssignmentProps>
         <PermissionsList
           allPermissions={renderedPermissions}
           assignedPermissionIds={assignedPermissionIds}
-          disabled={assignLoading || removeLoading || (!!roleId && !onChange && (!onAssignPermission || !onRemovePermission))}
+          disabled={assignLoading || removeLoading || (!roleId && !onChange && (!onAssignPermission || !onRemovePermission)) || (!!roleId && !onChange && (!onAssignPermission || !onRemovePermission))}
           onToggle={handlePermissionToggle}
           searchQuery={searchQuery}
           emptyMessageNoQuery={t("roleManagement.permissions.noPermissions")}

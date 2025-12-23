@@ -72,7 +72,7 @@ export interface UseKeyboardFormSubmitOptions {
  * @param element - The element to check
  * @returns True if the element is a form input
  */
-function isFormInput(element: Element | null): element is HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement {
+function isFormInput(element: Element | null): boolean {
   if (!element) return false;
   
   const tagName = element.tagName;
@@ -96,13 +96,12 @@ function isFormInput(element: Element | null): element is HTMLInputElement | HTM
  */
 function isInputDisabledOrReadonly(
   element: Element
-): element is HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement {
-  if (
-    element instanceof HTMLInputElement ||
-    element instanceof HTMLTextAreaElement ||
-    element instanceof HTMLSelectElement
-  ) {
+): boolean {
+  if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
     return element.disabled || element.readOnly;
+  }
+  if (element instanceof HTMLSelectElement) {
+    return element.disabled;
   }
   return false;
 }
@@ -169,8 +168,12 @@ export function useKeyboardFormSubmit({
       // Check if it's a form input element
       if (!isFormInput(activeElement)) return;
 
-      // Check if input is disabled or readonly
-      if (isInputDisabledOrReadonly(activeElement)) return;
+      // Check if input is disabled or readonly (only for native form elements)
+      if (activeElement instanceof HTMLInputElement || 
+          activeElement instanceof HTMLTextAreaElement || 
+          activeElement instanceof HTMLSelectElement) {
+        if (isInputDisabledOrReadonly(activeElement)) return;
+      }
 
       // Check if dropdown/autocomplete is open
       if (isDropdownOpen(activeElement)) return;
@@ -178,7 +181,7 @@ export function useKeyboardFormSubmit({
       // Edge case: Handle nested forms
       // If the element is inside a form, we ensure we're submitting the correct form context
       // Note: Some drawers use react-hook-form without native form elements, so we don't require a form
-      const containingForm = activeElement.closest("form");
+      const containingForm = activeElement instanceof Element ? activeElement.closest("form") : null;
       // If there's a form and it's not within our container, don't submit
       if (containingForm && !container.contains(containingForm)) {
         return;
