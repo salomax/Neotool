@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useCallback, useRef } from "react";
-import { Button } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import { useRoleManagement, type Role } from "@/shared/hooks/authorization/useRoleManagement";
 import { RoleSearch } from "./RoleSearch";
@@ -13,6 +12,10 @@ import { useToast } from "@/shared/providers";
 import { extractErrorMessage } from "@/shared/utils/error";
 import { DeleteConfirmationDialog } from "@/shared/components/ui/feedback";
 import { ManagementLayout } from "@/shared/components/management/ManagementLayout";
+import {
+  ManagementHeaderActions,
+  ManagementHeaderActionButton,
+} from "@/shared/components/management/ManagementHeaderActions";
 import { Box } from "@/shared/components/ui/layout";
 import { PermissionGate } from "@/shared/components/authorization";
 
@@ -141,29 +144,26 @@ const RoleManagementContent: React.FC<{
       errorFallbackMessage={t("errors.loadFailed")}
     >
       <ManagementLayout.Header>
-        <Box sx={{ display: "flex", gap: 2, alignItems: "flex-end" }}>
+        <ManagementHeaderActions>
           <Box sx={{ flexGrow: 1 }} maxWidth="sm">
             <RoleSearch
               value={inputValue}
               onChange={handleInputChange}
               onSearch={handleSearch}
               placeholder={t("roleManagement.searchPlaceholder")}
-              autoFocus
             />
           </Box>
-          <Box sx={{ mb: 2 }}>
-            <PermissionGate require="security:role:save">
-              <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                onClick={handleCreate}
-                data-testid="create-role-button"
-              >
-                {t("roleManagement.newButton")}
-              </Button>
-            </PermissionGate>
-          </Box>
-        </Box>
+          <PermissionGate require="security:role:save">
+            <ManagementHeaderActionButton
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={handleCreate}
+              data-testid="create-role-button"
+            >
+              {t("roleManagement.newButton")}
+            </ManagementHeaderActionButton>
+          </PermissionGate>
+        </ManagementHeaderActions>
       </ManagementLayout.Header>
       <ManagementLayout.Content>
         <RoleList
@@ -235,7 +235,7 @@ const RoleManagementSizer: React.FC<{ onMeasured: (size: number) => void }> = ({
       errorFallbackMessage={t("errors.loadFailed")}
     >
       <ManagementLayout.Header>
-        <Box sx={{ display: "flex", gap: 2, alignItems: "flex-end" }}>
+        <ManagementHeaderActions>
           <Box sx={{ flexGrow: 1 }} maxWidth="sm">
             <RoleSearch
               value=""
@@ -244,19 +244,17 @@ const RoleManagementSizer: React.FC<{ onMeasured: (size: number) => void }> = ({
               placeholder={t("roleManagement.searchPlaceholder")}
             />
           </Box>
-          <Box sx={{ mb: 2 }}>
-            <PermissionGate require="security:role:save">
-              <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                disabled
-                data-testid="create-role-button"
-              >
-                {t("roleManagement.newButton")}
-              </Button>
-            </PermissionGate>
-          </Box>
-        </Box>
+          <PermissionGate require="security:role:save">
+            <ManagementHeaderActionButton
+              variant="contained"
+              startIcon={<AddIcon />}
+              disabled
+              data-testid="create-role-button"
+            >
+              {t("roleManagement.newButton")}
+            </ManagementHeaderActionButton>
+          </PermissionGate>
+        </ManagementHeaderActions>
       </ManagementLayout.Header>
       <ManagementLayout.Content>
         <RoleList

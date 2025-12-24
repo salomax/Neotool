@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useCallback, useRef } from "react";
-import { Button } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import { useGroupManagement, type Group } from "@/shared/hooks/authorization/useGroupManagement";
 import { GroupSearch } from "./GroupSearch";
@@ -13,6 +12,10 @@ import { useToast } from "@/shared/providers";
 import { extractErrorMessage } from "@/shared/utils/error";
 import { DeleteConfirmationDialog } from "@/shared/components/ui/feedback";
 import { ManagementLayout } from "@/shared/components/management/ManagementLayout";
+import {
+  ManagementHeaderActions,
+  ManagementHeaderActionButton,
+} from "@/shared/components/management/ManagementHeaderActions";
 import { Box } from "@/shared/components/ui/layout";
 import { PermissionGate } from "@/shared/components/authorization";
 
@@ -144,29 +147,26 @@ const GroupManagementContent: React.FC<{
       errorFallbackMessage={t("errors.loadFailed")}
     >
       <ManagementLayout.Header>
-        <Box sx={{ display: "flex", gap: 2, alignItems: "flex-end" }}>
+        <ManagementHeaderActions>
           <Box sx={{ flexGrow: 1 }} maxWidth="sm">
             <GroupSearch
               value={inputValue}
               onChange={handleInputChange}
               onSearch={handleSearch}
               placeholder={t("groupManagement.searchPlaceholder")}
-              autoFocus
             />
           </Box>
-          <Box sx={{ mb: 2 }}>
-            <PermissionGate require="security:group:save">
-              <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                onClick={handleCreate}
-                data-testid="create-group-button"
-              >
-                {t("groupManagement.newButton")}
-              </Button>
-            </PermissionGate>
-          </Box>
-        </Box>
+          <PermissionGate require="security:group:save">
+            <ManagementHeaderActionButton
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={handleCreate}
+              data-testid="create-group-button"
+            >
+              {t("groupManagement.newButton")}
+            </ManagementHeaderActionButton>
+          </PermissionGate>
+        </ManagementHeaderActions>
       </ManagementLayout.Header>
       <ManagementLayout.Content>
         <GroupList
@@ -238,7 +238,7 @@ const GroupManagementSizer: React.FC<{ onMeasured: (size: number) => void }> = (
       errorFallbackMessage={t("errors.loadFailed")}
     >
       <ManagementLayout.Header>
-        <Box sx={{ display: "flex", gap: 2, alignItems: "flex-end" }}>
+        <ManagementHeaderActions>
           <Box sx={{ flexGrow: 1 }} maxWidth="sm">
             <GroupSearch
               value=""
@@ -247,19 +247,17 @@ const GroupManagementSizer: React.FC<{ onMeasured: (size: number) => void }> = (
               placeholder={t("groupManagement.searchPlaceholder")}
             />
           </Box>
-          <Box sx={{ mb: 2 }}>
-            <PermissionGate require="security:group:save">
-              <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                disabled
-                data-testid="create-group-button"
-              >
-                {t("groupManagement.newButton")}
-              </Button>
-            </PermissionGate>
-          </Box>
-        </Box>
+          <PermissionGate require="security:group:save">
+            <ManagementHeaderActionButton
+              variant="contained"
+              startIcon={<AddIcon />}
+              disabled
+              data-testid="create-group-button"
+            >
+              {t("groupManagement.newButton")}
+            </ManagementHeaderActionButton>
+          </PermissionGate>
+        </ManagementHeaderActions>
       </ManagementLayout.Header>
       <ManagementLayout.Content>
         <GroupList
@@ -277,4 +275,3 @@ const GroupManagementSizer: React.FC<{ onMeasured: (size: number) => void }> = (
     </ManagementLayout>
   );
 };
-

@@ -62,6 +62,8 @@ This specification is organized into numbered directories (00-11) for clear hier
 | Sign In | `03-features/authentication/signin/feature.feature` | feature | authentication | signin, authentication, login |
 | Sign Up | `03-features/authentication/signup/feature.feature` | feature | authentication | signup, registration, authentication |
 | Forgot Password | `03-features/authentication/forgot-password/feature.feature` | feature | authentication | password, reset, authentication |
+| Assets Service - Specification | `03-features/assets/asset-service/README.md` | feature | assets | assets, upload, cdn, storage, cloudflare-r2, s3 |
+| Assets Service - Decisions | `03-features/assets/asset-service/DECISIONS.md` | feature | assets | assets, adr, decisions, trade-offs |
 
 ## Patterns (04-patterns)
 
@@ -155,6 +157,8 @@ This specification is organized into numbered directories (00-11) for clear hier
 | ADR-0003: Kotlin Backend | `09-adr/0003-kotlin-micronaut-backend.md` | adr | backend | kotlin, micronaut, backend |
 | ADR-0004: TypeScript Frontend | `09-adr/0004-typescript-nextjs-frontend.md` | adr | frontend | typescript, nextjs, frontend |
 | ADR-0005: PostgreSQL | `09-adr/0005-postgresql-database.md` | adr | database | postgresql, database |
+| ADR-0006: Frontend Authorization | `09-adr/0006-frontend-authorization-layer.md` | adr | frontend | authorization, rbac, permissions |
+| ADR-0007: Asset Service with R2 | `09-adr/0007-asset-service-cloudflare-r2.md` | adr | backend | assets, storage, cdn, cloudflare-r2, s3 |
 
 ## Reference (10-reference)
 
