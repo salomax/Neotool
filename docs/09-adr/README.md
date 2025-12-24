@@ -15,11 +15,13 @@ search_keywords: [adr, architecture, decisions, index]
 
 ## ADRs
 
-- [ADR-0001: Monorepo Architecture](./0001-monorepo.md)
-- [ADR-0002: Containerized Architecture](./0002-containers.md)
-- [ADR-0003: Kotlin/Micronaut Backend](./0003-kotlin-backend.md)
-- [ADR-0004: TypeScript/Next.js Frontend](./0004-typescript-frontend.md)
-- [ADR-0005: PostgreSQL Database](./0005-postgresql.md)
+- [ADR-0001: Monorepo Architecture](./0001-monorepo-architecture.md)
+- [ADR-0002: Containerized Architecture](./0002-containerized-architecture.md)
+- [ADR-0003: Kotlin/Micronaut Backend](./0003-kotlin-micronaut-backend.md)
+- [ADR-0004: TypeScript/Next.js Frontend](./0004-typescript-nextjs-frontend.md)
+- [ADR-0005: PostgreSQL Database](./0005-postgresql-database.md)
+- [ADR-0006: Frontend Authorization Layer](./0006-frontend-authorization-layer.md)
+- [ADR-0007: Asset Service with Cloudflare R2](./0007-asset-service-cloudflare-r2.md)
 
 ## Related Documentation
 
