@@ -343,11 +343,42 @@ function UserManagement() {
 - Generic slot names allow for flexible content (not just search/lists)
 - Delete dialogs belong within the Content component, not as a separate slot
 
-**Header Alignment Pattern:**
-When displaying both a search field and action button in the Header, use `alignItems: "flex-end"` to align their bottom edges, and wrap the button in a `Box` with `mb: 2` to match the search component's margin. This ensures proper visual alignment:
-- Search components (like `UserSearch`, `GroupSearch`, `RoleSearch`) have `mb: 2` margin
-- Action buttons should be wrapped in `<Box sx={{ mb: 2 }}>` to match
-- Use `alignItems: "flex-end"` instead of `alignItems: "center"` for bottom-edge alignment
+**Header Alignment Pattern (Search + Actions):**
+Use the shared wrappers to keep headers visually consistent across management pages:
+
+```tsx
+import {
+  ManagementHeaderActions,
+  ManagementHeaderActionButton,
+} from "@/shared/components/management/ManagementHeaderActions";
+
+<ManagementLayout.Header>
+  <ManagementHeaderActions>
+    <Box sx={{ flexGrow: 1 }} maxWidth="sm">
+      <UserSearch
+        value={inputValue}
+        onChange={handleInputChange}
+        onSearch={handleSearch}
+        placeholder={t("userManagement.searchPlaceholder")}
+      />
+    </Box>
+    <PermissionGate require="security:user:save">
+      <ManagementHeaderActionButton
+        variant="contained"
+        startIcon={<AddIcon />}
+        onClick={handleCreate}
+        data-testid="create-user-button"
+      >
+        {t("userManagement.newButton")}
+      </ManagementHeaderActionButton>
+    </PermissionGate>
+  </ManagementHeaderActions>
+</ManagementLayout.Header>
+```
+
+- `ManagementHeaderActions` sets `display: flex`, default `gap: 1.5`, and `alignItems: "flex-end"` so search fields and buttons line up on the bottom edge.
+- `ManagementHeaderActionButton` applies the shared height and uses the theme radius token rendered as px to avoid MUI’s border-radius multiplier (currently `8px` from `theme.custom.radius.md`), keeping it aligned with the TextField outline.
+- Avoid ad-hoc `mb` wrappers or per-screen button sizing; prefer these shared wrappers for all management headers.
 
 ### Drawer Cancel Button Pattern
 
@@ -1345,4 +1376,3 @@ When implementing a new management module, verify:
 - [GraphQL Mutation Pattern](./graphql-mutation-pattern.md) - Mutation patterns with refetch
 - [Toast Notification Pattern](./toast-notification-pattern.md) - User feedback for mutations
 - [Mutation Pattern](./mutation-pattern.md) - Mutation hook patterns
-

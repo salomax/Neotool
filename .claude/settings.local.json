@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./gradlew :assets:build:*)",
+      "Bash(./gradlew:*)",
+      "Bash(service/kotlin/gradlew -p service/kotlin :assets:build -x test -x koverVerify)",
+      "Bash(./service/kotlin/gradlew:*)",
+      "Bash(xargs cat:*)",
+      "Bash(cat:*)"
+    ]
+  }
+}
