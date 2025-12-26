@@ -1,0 +1,65 @@
+micronaut:
+  application:
+    name: neotool-assets-service
+  server:
+    port: 8083
+    cors:
+      enabled: true
+
+datasources:
+  default:
+    url: jdbc:postgresql://localhost:6432/neotool
+    driverClassName: org.postgresql.Driver
+    username: ${DB_USER:neotool}
+    password: ${DB_PASSWORD:neotool}
+    schema-generate: NONE
+    dialect: POSTGRES
+
+jpa:
+  default:
+    properties:
+      hibernate:
+        hbm2ddl:
+          auto: none
+        show_sql: false
+        format_sql: true
+
+flyway:
+  datasources:
+    default:
+      enabled: true
+      locations: classpath:db/migration
+      baseline-on-migrate: true
+
+graphql:
+  enabled: true
+  graphiql:
+    enabled: true
+    path: /graphiql
+
+# Asset Service Configuration
+asset:
+  storage:
+    hostname: ${STORAGE_HOSTNAME:localhost}
+    port: ${STORAGE_PORT:9000}
+    useHttps: ${STORAGE_USE_HTTPS:false}
+    region: ${STORAGE_REGION:us-east-1}
+    bucket: ${STORAGE_BUCKET:neotool-assets}
+    accessKey: ${STORAGE_ACCESS_KEY:minioadmin}
+    secretKey: ${STORAGE_SECRET:minioadmin}
+    publicBasePath: ${STORAGE_PUBLIC_BASE_PATH:neotool-assets}
+    forcePathStyle: ${STORAGE_FORCE_PATH_STYLE:true}
+    uploadTtlSeconds: ${STORAGE_UPLOAD_TTL_SECONDS:900}
+
+  validation:
+    maxUploadBytes: ${STORAGE_MAX_UPLOAD_BYTES:10485760}
+    allowedMimeTypes: ${ASSET_ALLOWED_MIME_TYPES:image/jpeg,image/png,image/webp,image/gif}
+
+  rateLimit:
+    requestsPerHour: ${ASSET_RATE_LIMIT_REQUESTS_PER_HOUR:100}
+    bytesPerHour: ${ASSET_RATE_LIMIT_BYTES_PER_HOUR:1073741824}
+    burst: ${ASSET_RATE_LIMIT_BURST:10}
+
+  cleanup:
+    failedPendingHours: ${ASSET_CLEANUP_FAILED_PENDING_HOURS:24}
+    purgeDeletedDays: ${ASSET_PURGE_DELETED_DAYS:90}
