@@ -17,3 +17,4 @@ class AssetSchemaRegistryFactory : BaseSchemaRegistryFactory() {
     }
 }
 
+

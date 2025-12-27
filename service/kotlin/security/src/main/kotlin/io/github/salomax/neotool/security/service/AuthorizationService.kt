@@ -5,6 +5,9 @@ import io.github.salomax.neotool.security.domain.rbac.Role
 import io.github.salomax.neotool.security.repo.GroupMembershipRepository
 import io.github.salomax.neotool.security.repo.GroupRoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.PermissionRepository
+import io.github.salomax.neotool.security.repo.PrincipalPermissionRepository
+import io.github.salomax.neotool.security.repo.PrincipalPermissionRepositoryCustom
+import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.service.exception.AuthorizationDeniedException
 import jakarta.inject.Singleton
@@ -24,6 +27,9 @@ class AuthorizationService(
     private val permissionRepository: PermissionRepository,
     private val groupMembershipRepository: GroupMembershipRepository,
     private val groupRoleAssignmentRepository: GroupRoleAssignmentRepository,
+    private val principalRepository: PrincipalRepository,
+    private val principalPermissionRepository: PrincipalPermissionRepository,
+    private val principalPermissionRepositoryCustom: PrincipalPermissionRepositoryCustom,
     private val abacEvaluationService: AbacEvaluationService,
     private val auditService: AuthorizationAuditService,
 ) {
@@ -460,6 +466,186 @@ class AuthorizationService(
                     "Access denied: ABAC policy explicitly denies access"
                 },
         )
+    }
+
+    /**
+     * Check if a service has a specific permission.
+     * Queries the principal_permissions table for service principal permissions.
+     *
+     * @param serviceId The service ID
+     * @param permission The permission name (e.g., "assets:upload")
+     * @param resourcePattern Optional resource pattern for resource-specific permissions
+     * @return AuthorizationResult with decision and reason
+     */
+    fun checkServicePermission(
+        serviceId: UUID,
+        permission: String,
+        resourcePattern: String? = null,
+    ): AuthorizationResult {
+        // Find the service principal by external_id (service ID)
+        val principal =
+            principalRepository.findByPrincipalTypeAndExternalId(
+                PrincipalType.SERVICE,
+                serviceId.toString(),
+            ).orElse(null)
+                ?: return AuthorizationResult(
+                    allowed = false,
+                    reason = "Service principal not found for service ID: $serviceId",
+                )
+
+        // Check if principal is enabled
+        if (!principal.enabled) {
+            return AuthorizationResult(
+                allowed = false,
+                reason = "Service principal is disabled for service ID: $serviceId",
+            )
+        }
+
+        // Find the permission by name
+        val permissionEntity =
+            permissionRepository.findByName(permission).orElse(null)
+                ?: return AuthorizationResult(
+                    allowed = false,
+                    reason = "Permission not found: $permission",
+                )
+
+        // Check if principal has the permission
+        val hasPermission =
+            principalPermissionRepositoryCustom.existsByPrincipalIdAndPermissionIdAndResourcePattern(
+                principal.id!!,
+                permissionEntity.id!!,
+                resourcePattern,
+            )
+
+        val result =
+            if (hasPermission) {
+                AuthorizationResult(
+                    allowed = true,
+                    reason = "Service has permission '$permission'",
+                )
+            } else {
+                AuthorizationResult(
+                    allowed = false,
+                    reason = "Service does not have permission '$permission'",
+                )
+            }
+
+        // Log audit entry for service permission check
+        val auditResult = toAuditAuthorizationResult(result.allowed)
+        auditService.logAuthorizationDecision(
+            // Use serviceId as userId for audit log (audit table requires userId)
+            userId = serviceId,
+            groups = null,
+            roles = null,
+            requestedAction = permission,
+            resourceType = null,
+            resourceId = null,
+            rbacResult = auditResult,
+            abacResult = null,
+            finalDecision = auditResult,
+            metadata =
+                mapOf(
+                    "principalType" to "service",
+                    "serviceId" to serviceId.toString(),
+                    "resourcePattern" to (resourcePattern ?: ""),
+                    "reason" to result.reason,
+                ),
+        )
+
+        return result
+    }
+
+    /**
+     * Check permission for a request principal.
+     * Routes to service permission check or user permission check based on principal type.
+     * When both service and user context are present, both must have the required permission.
+     *
+     * @param principal The request principal (user or service)
+     * @param permission The permission name
+     * @param resourceType Optional resource type
+     * @param resourceId Optional resource ID
+     * @param resourcePattern Optional resource pattern (for service permissions)
+     * @param subjectAttributes Optional additional subject attributes for ABAC
+     * @param resourceAttributes Optional additional resource attributes for ABAC
+     * @param contextAttributes Optional additional context attributes for ABAC
+     * @return AuthorizationResult with decision and reason
+     */
+    fun checkPermission(
+        principal: RequestPrincipal,
+        permission: String,
+        resourceType: String? = null,
+        resourceId: UUID? = null,
+        resourcePattern: String? = null,
+        subjectAttributes: Map<String, Any>? = null,
+        resourceAttributes: Map<String, Any>? = null,
+        contextAttributes: Map<String, Any>? = null,
+    ): AuthorizationResult {
+        return when (principal.principalType) {
+            PrincipalType.SERVICE -> {
+                // Check service permission
+                val serviceResult =
+                    checkServicePermission(
+                        serviceId =
+                            principal.serviceId ?: return AuthorizationResult(
+                                allowed = false,
+                                reason = "Service ID is required for service principal",
+                            ),
+                        permission = permission,
+                        resourcePattern = resourcePattern,
+                    )
+
+                // If service token has user context, also check user permission
+                if (principal.userId != null && principal.userPermissions != null) {
+                    val userResult =
+                        checkPermission(
+                            userId = principal.userId,
+                            permission = permission,
+                            resourceType = resourceType,
+                            resourceId = resourceId,
+                            subjectAttributes = subjectAttributes,
+                            resourceAttributes = resourceAttributes,
+                            contextAttributes = contextAttributes,
+                        )
+
+                    // Both service and user must have permission
+                    if (!serviceResult.allowed) {
+                        return AuthorizationResult(
+                            allowed = false,
+                            reason = "Service permission denied: ${serviceResult.reason}",
+                        )
+                    }
+                    if (!userResult.allowed) {
+                        return AuthorizationResult(
+                            allowed = false,
+                            reason = "User permission denied: ${userResult.reason}",
+                        )
+                    }
+
+                    return AuthorizationResult(
+                        allowed = true,
+                        reason = "Both service and user have permission '$permission'",
+                    )
+                } else {
+                    serviceResult
+                }
+            }
+            PrincipalType.USER -> {
+                // Use existing user permission check
+                checkPermission(
+                    userId =
+                        principal.userId ?: return AuthorizationResult(
+                            allowed = false,
+                            reason = "User ID is required for user principal",
+                        ),
+                    permission = permission,
+                    resourceType = resourceType,
+                    resourceId = resourceId,
+                    subjectAttributes = subjectAttributes,
+                    resourceAttributes = resourceAttributes,
+                    contextAttributes = contextAttributes,
+                )
+            }
+        }
     }
 
     /**

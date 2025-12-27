@@ -45,54 +45,52 @@ After the user answers:
 
 Use this file layout:
 
-- Gherkin feature file:
-  `docs/03-features/<module>/<feature_slug>/<feature_slug>.feature`
+- Feature guide (Markdown):
+  `docs/03-features/<module>/<feature_slug>/<feature_slug>.md`
 
-- Memory file (YAML):
-  `docs/03-features/<module>/<feature_slug>/<feature_slug>.memory.yml`
+- Task breakdown (YAML):
+  `docs/03-features/<module>/<feature_slug>/<feature_slug>.tasks.yml`
 
 If the files already exist, **update them in-place** instead of replacing everything blindly:
-- Keep any manually added comments that are still valid
-- Merge new scenarios and rules with existing ones
+- Keep any manually added content that is still valid
+- Merge new scenarios, rules, and requirements with existing ones
 
-## 4. Generate / update the Gherkin feature file
+## 4. Generate / update the feature guide
 
-When the user confirms, create or update the `.feature` file.
+When the user confirms, create or update the feature guide markdown file using the [Feature Guide Template](../../docs/08-templates/feature-templates/feature-guide-template.md).
+
+**IMPORTANT**: 
+- **DO NOT include code** in the feature guide - only reference code files and locations
+- **Remove sections that don't apply** (e.g., Migration Guide if there's no migration)
+- **Reference architectural standards** instead of duplicating them (performance, reliability, usability, maintainability)
 
 Guidelines:
 
-- Use **Gherkin (Given/When/Then)** in English
+- Use the feature guide template structure
 - Include:
-  - One clear `Feature` with a short description
-  - Optional `Background` when useful
-  - Tag scenarios: `@happy-path`, `@validation`, `@edge-case`, `@non-functional`
+  - Overview with problem context, goals, target users, success criteria
+  - Functional requirements with core functionality, user flows, scenarios (as topics, not Gherkin)
+  - Business rules and validations
+  - Non-functional requirements (only feature-specific: security permissions, observability KPIs)
+  - Definitions (domain terms, data models, API contracts)
+  - Implementation details (dependencies, data requirements, integration points)
+  - Testing strategy (feature-specific test requirements)
+  - Runbooks (deployment with `/infra` requirements, operational, rollback)
+  - Code references (file paths, not embedded code)
+- Scenarios should be described as topics with:
+  - Type (Happy Path, Validation, Edge Case, Error Handling, Non-Functional)
+  - Goal
+  - Context
+  - Actions
+  - Expected Behavior
+  - Validation Points
 - Cover:
   - Happy-path flows
   - Edge cases (errors, timeouts, missing data, conflicts)
   - Validations (field-level, business rules, access control)
-  - Non-functional aspects when relevant (performance, observability, security)
-
-Also:
-- Prefer small, focused scenarios over huge ones
-- Use clear, user-centric language in steps (what the user sees and does)
-
-## 5. Generate / update the memory YAML file
-
-Then create or update `docs/03-features/<module>/<feature_slug>/<feature_slug>.memory.yml`.
-
-Structure it like this (adapt to the feature):
-
-```yaml
-meta:
-  module: <module>
-  feature_name: <feature_name>
-  feature_slug: <feature_slug>
-
-summary:
-business rules:
-implementation plan:
-any other data that's relevant across the development pipeline
-```
+  - Security permissions to create in security module
+  - Observability KPIs and metrics
+  - Infrastructure requirements in `/infra` folder
 
 ## 6. Implementation Plan
 
@@ -150,8 +148,7 @@ The tasks.yml file should follow the phase structure from `docs/06-workflows/spe
 After creating or updating the feature specification files, inform the user:
 
 1. **List the files that were created/updated:**
-   - Feature file: `docs/03-features/<module>/<feature_slug>/<feature_slug>.feature`
-   - Memory file: `docs/03-features/<module>/<feature_slug>/<feature_slug>.memory.yml`
+   - Feature guide: `docs/03-features/<module>/<feature_slug>/<feature_slug>.md`
    - Task breakdown: `docs/03-features/<module>/<feature_slug>/<feature_slug>.tasks.yml`
 
 2. **Explain how to proceed with implementation:**
@@ -162,12 +159,12 @@ After creating or updating the feature specification files, inform the user:
    
    **To work on specific phases:**
    - Open a new chat (Cmd/Ctrl + L)
-   - Type `/implement <phase> from <task file> using <memory file>`
-   - Example: `/implement domain from docs/03-features/security/auth/auth.tasks.yml using docs/03-features/security/auth/auth.memory.yml`
+   - Type `/implement <phase> from <task file> using <feature guide>`
+   - Example: `/implement domain from docs/03-features/security/auth/auth.tasks.yml using docs/03-features/security/auth/auth.md`
    
    **Context loading guidance:**
    - Load essential context first: MANIFEST.md, architecture-overview.md, glossary.md
-   - Load feature context: feature file, memory file, task breakdown
+   - Load feature context: feature guide (`.md`), task breakdown
    - Load phase-specific specs as needed (see `docs/06-workflows/spec-context-strategy.md`)
    - Unload specs when phase complete to free context for next phase
 

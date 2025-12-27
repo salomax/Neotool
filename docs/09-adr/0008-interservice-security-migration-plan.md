@@ -105,6 +105,33 @@ Purpose: implement the ADR-0008 baseline (JWT over TLS with service principals) 
   - None now (deferred).
 - Frontend impact: none.
 
+### mTLS Integration Plan (Future)
+
+When a service mesh (e.g., Istio with SPIFFE/SPIRE) is introduced, the following mapping strategy should be used:
+
+1. **Mesh Identity to Service Principal Mapping**:
+   - Extract SPIFFE ID from mTLS certificate (e.g., `spiffe://example.com/ns/prod/sa/my-service`)
+   - Parse service identifier from SPIFFE ID (e.g., `my-service` from the service account)
+   - Look up service principal in `security.principals` table by `external_id` matching the service identifier
+   - If principal exists, use it for authorization; if not, create a new service principal or deny access
+
+2. **Dual Authentication**:
+   - mTLS provides transport-level authentication (proves the workload identity)
+   - JWT provides application-level authorization (proves permissions)
+   - Both should be validated: mTLS cert must match service principal, JWT must be valid and have required permissions
+
+3. **Non-Prod Pilot**:
+   - Deploy mesh mTLS in staging environment first
+   - Validate mapping logic and performance impact
+   - Test service-to-service communication with both mTLS and JWT
+   - Monitor for any issues before production rollout
+
+4. **Implementation Notes**:
+   - Create a `MeshIdentityProvider` that extracts SPIFFE ID from mTLS context
+   - Update `RequestPrincipalProvider` to support mesh identity extraction
+   - Add configuration to enable/disable mTLS validation per environment
+   - Ensure backward compatibility: JWT-only mode should still work
+
 ## Schema overview (Mermaid)
 
 ```mermaid
@@ -184,3 +211,63 @@ erDiagram
 
     abac_policies ||--o{ abac_policy_versions : versions
 ```
+
+## Token Issuer (REST) Implementation Plan
+
+T1: Endpoint contract  
+- Goal: Define a REST token endpoint for service principals (client credentials).  
+- Do: Specify `POST /oauth/token` (or `/service-token`) accepting `client_id`, `client_secret`, `audience`; response `{access_token, token_type=bearer, expires_in}`. Document required headers (Basic auth optional), rate limits, and error codes (400 invalid request, 401 invalid creds, 403 disabled principal/audience not allowed).  
+- Tests: Contract/unit tests for DTOs or controller stubs.
+
+T2: Service principal lookup & validation  
+- Goal: Validate service credentials and status.  
+- Do: In issuer service, fetch principal by `service_id`/`client_id` from `principals` where `principal_type=service`; verify `enabled`; verify secret hash (Argon2id); optionally check allowed audiences list if modeled.  
+- Tests: Unit tests for valid/invalid secret, disabled principal, missing principal, disallowed audience.
+
+T3: Permission load for services  
+- Goal: Populate token claims with the correct permissions.  
+- Do: Load permissions via `principal_permissions` (shared permission keys). No caller-supplied permissions. Handle empty set gracefully.  
+- Tests: Unit tests ensuring correct permission list returned for a given principal.
+
+T4: JWT minting  
+- Goal: Issue signed JWTs per ADR profile.  
+- Do: Create token with `type=service`, `sub=<service_id>`, `aud=<audience>`, `iss=<security-service>`, `permissions=[...]`, `iat/nbf/exp` (short TTL 15–60 min). Use existing signing keys and JWKS exposure.  
+- Tests: Unit tests validating claims, TTL bounds, and signature using local JWKS.
+
+T5: Controller/handler  
+- Goal: Wire REST handler to validation + issuance.  
+- Do: Implement controller to parse request, call validation (T2), load permissions (T3), mint token (T4), and return response. Add rate limiting and audit logging hooks (success/failure).  
+- Tests: Integration tests hitting the endpoint with valid/invalid creds, disabled principal, wrong audience.
+
+T6: Audit and metrics  
+- Goal: Observe issuance attempts and failures.  
+- Do: Emit audit log entries (service_id, outcome, reason) and metrics counters for successes/failures, auth errors, rate-limit hits.  
+- Tests: Unit/integration where applicable; otherwise manual verification via logs/metrics in test runs.
+
+T7: Consumer validation update  
+- Goal: Ensure services validate service tokens.  
+- Do: Update token validation code to accept `type=service`, enforce `aud`, check `permissions`, and verify signature/exp/nbf/iss. Reject if type/audience mismatch.  
+- Tests: Unit tests on validation logic; integration tests calling a protected endpoint with/without correct permissions.
+
+T8: Documentation  
+- Goal: Publish how to obtain and use service tokens.  
+- Do: Add docs with request/response examples, required claims, expected audiences, TTLs, and validation rules. Include rate limits and error responses.  
+- Tests: Doc review; optionally doc lint if used.
+
+T9: Frontend impact check  
+- Goal: Confirm no frontend changes needed.  
+- Do: Note that frontend is unaffected (backend-only flow).  
+- Tests: None.
+
+T10: Rollout plan  
+- Goal: Deploy safely.  
+- Do: Enable endpoint in non-prod first, seed a test service principal, validate end-to-end with a target service; then promote to prod. Ensure secrets are provisioned securely.  
+- Tests: Non-prod E2E scenario.
+
+## Service Credential Provisioning (Admin) Plan
+
+T11: Admin endpoint/CLI for service credentials  
+- Goal: Allow creation/rotation of service credentials securely.  
+- Do: Add an admin-only REST endpoint (or CLI) to create/rotate credentials for `principal_type=service`. Require admin auth (existing security roles), rate limit, and audit. Inputs: `service_id` (client_id), optional allowed audiences. Outputs: one-time clear `client_secret` plus metadata; store only Argon2id hash. Support enable/disable and rotation.  
+- Tests: Integration tests for admin issuance (happy path, disabled principal, rotation) and that clear secret is only returned at creation.  
+- Notes: Keep this internal-only; log/audit all operations; never expose stored secrets; enforce audience allowlist if modeled.

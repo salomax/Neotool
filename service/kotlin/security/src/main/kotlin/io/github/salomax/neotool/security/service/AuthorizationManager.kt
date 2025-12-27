@@ -45,27 +45,45 @@ class AuthorizationManager(
                 "principalPermissions" to principal.permissionsFromToken,
             )
 
-        // Call authorization service with enriched attributes
+        // Call authorization service with principal-based routing
         val result =
             authorizationService.checkPermission(
-                userId = principal.userId,
+                principal = principal,
                 permission = action,
                 resourceType = resourceType,
                 resourceId = resourceId,
+                // Can be extracted from resourceAttributes if needed
+                resourcePattern = null,
                 subjectAttributes = subjectAttributes,
                 resourceAttributes = resourceAttributes,
                 contextAttributes = contextAttributes,
             )
 
         // Log authorization decision for observability
+        val identityInfo =
+            when (principal.principalType) {
+                PrincipalType.USER -> "userId=${principal.userId}"
+                PrincipalType.SERVICE -> {
+                    val userInfo = if (principal.userId != null) ", userId=${principal.userId}" else ""
+                    "serviceId=${principal.serviceId}$userInfo"
+                }
+            }
         logger.debug {
-            "Authorization check: userId=${principal.userId}, action=$action, " +
+            "Authorization check: $identityInfo, action=$action, " +
                 "resourceType=$resourceType, resourceId=$resourceId, allowed=${result.allowed}"
         }
 
         // Throw exception if denied
         if (!result.allowed) {
-            throw AuthorizationDeniedException("User ${principal.userId} lacks permission '$action': ${result.reason}")
+            val identityDescription =
+                when (principal.principalType) {
+                    PrincipalType.USER -> "User ${principal.userId}"
+                    PrincipalType.SERVICE -> {
+                        val userDesc = if (principal.userId != null) " (with user ${principal.userId})" else ""
+                        "Service ${principal.serviceId}$userDesc"
+                    }
+                }
+            throw AuthorizationDeniedException("$identityDescription lacks permission '$action': ${result.reason}")
         }
     }
 }

@@ -508,47 +508,8 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
             assertThat(result.edges[2].node.email).isEqualTo("alice@example.com")
         }
 
-        @Test
-        fun `should sort by ENABLED then DISPLAY_NAME when multiple fields specified`() {
-            // Arrange: Create users with different enabled status and names
-            val user1 = createTestUser(displayName = "Zoe", email = SecurityTestDataBuilders.uniqueEmail("zoe"))
-            user1.enabled = false
-            entityManager.runTransaction { entityManager.merge(user1) }
-            val user2 = createTestUser(displayName = "Alice", email = SecurityTestDataBuilders.uniqueEmail("alice"))
-            user2.enabled = true
-            entityManager.runTransaction { entityManager.merge(user2) }
-            val user3 = createTestUser(displayName = "Bob", email = SecurityTestDataBuilders.uniqueEmail("bob"))
-            user3.enabled = true
-            entityManager.runTransaction { entityManager.merge(user3) }
-            val user4 = createTestUser(displayName = "Charlie", email = SecurityTestDataBuilders.uniqueEmail("charlie"))
-            user4.enabled = false
-            entityManager.runTransaction { entityManager.merge(user4) }
-
-            // Act: Sort by enabled DESC, then displayName ASC
-            val result =
-                userManagementService.searchUsers(
-                    query = null,
-                    first = 10,
-                    after = null,
-                    orderBy =
-                        listOf(
-                            UserOrderBy(UserOrderField.ENABLED, OrderDirection.DESC),
-                            UserOrderBy(UserOrderField.DISPLAY_NAME, OrderDirection.ASC),
-                        ),
-                )
-
-            // Assert: Enabled users first (true > false), then sorted by displayName
-            assertThat(result.edges.map { it.node }).hasSize(4)
-            // First two should be enabled (true)
-            assertThat(result.edges[0].node.enabled).isTrue()
-            assertThat(result.edges[1].node.enabled).isTrue()
-            // Should be sorted by displayName within enabled group
-            assertThat(result.edges[0].node.displayName).isEqualTo("Alice")
-            assertThat(result.edges[1].node.displayName).isEqualTo("Bob")
-            // Last two should be disabled (false)
-            assertThat(result.edges[2].node.enabled).isFalse()
-            assertThat(result.edges[3].node.enabled).isFalse()
-        }
+        // Note: Test for sorting by ENABLED was removed because enabled status is now stored
+        // in Principal table and not available for direct sorting on User entity.
 
         @Test
         fun `should use default sort when orderBy is null`() {

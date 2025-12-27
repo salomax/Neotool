@@ -9,6 +9,8 @@ import io.github.salomax.neotool.security.graphql.dto.UpdateUserInputDTO
 import io.github.salomax.neotool.security.graphql.dto.UserConnectionDTO
 import io.github.salomax.neotool.security.graphql.dto.UserDTO
 import io.github.salomax.neotool.security.graphql.dto.UserEdgeDTO
+import io.github.salomax.neotool.security.repo.PrincipalRepository
+import io.github.salomax.neotool.security.service.PrincipalType
 import io.github.salomax.neotool.security.service.UserOrderBy
 import io.github.salomax.neotool.security.service.UserOrderField
 import jakarta.inject.Singleton
@@ -19,32 +21,54 @@ import java.util.UUID
  * Handles User domain objects and Relay pagination connections.
  */
 @Singleton
-class UserManagementMapper {
+class UserManagementMapper(
+    private val principalRepository: PrincipalRepository,
+) {
     /**
      * Convert User domain object to UserDTO.
+     * Fetches enabled status from Principal.
      */
     fun toUserDTO(user: User): UserDTO {
+        val userId = user.id ?: throw IllegalArgumentException("User must have an ID")
+        val enabled = getPrincipalEnabled(userId)
+
         return UserDTO(
-            id = user.id?.toString() ?: throw IllegalArgumentException("User must have an ID"),
+            id = userId.toString(),
             email = user.email,
             displayName = user.displayName,
             avatarUrl = user.avatarUrl,
-            enabled = user.enabled,
+            enabled = enabled,
             createdAt = user.createdAt.toString(),
             updatedAt = user.updatedAt.toString(),
         )
     }
 
     /**
+     * Get enabled status from Principal for a user ID.
+     * Returns true if no principal exists (default enabled).
+     */
+    private fun getPrincipalEnabled(userId: UUID): Boolean {
+        return principalRepository
+            .findByPrincipalTypeAndExternalId(PrincipalType.USER, userId.toString())
+            .map { it.enabled }
+            .orElse(true) // Default to enabled if no principal exists
+    }
+
+    /**
      * Convert Connection<User> to UserConnectionDTO for Relay pagination.
+     * Uses batch fetching to avoid N+1 queries for Principal.enabled.
      */
     fun toUserConnectionDTO(connection: Connection<User>): UserConnectionDTO {
+        // Batch fetch all principals for the users in this connection
+        val userIds = connection.edges.mapNotNull { it.node.id }
+        val principalsMap = batchFetchPrincipals(userIds)
+
         val edges =
             connection
                 .edges
                 .map { edge ->
                     UserEdgeDTO(
-                        node = toUserDTO(edge.node),
+                        node = toUserDTO(edge.node, principalsMap),
                         cursor = edge.cursor,
                     )
                 }
@@ -62,6 +86,43 @@ class UserManagementMapper {
             pageInfo = pageInfo,
             totalCount = connection.totalCount?.toInt(),
         )
+    }
+
+    /**
+     * Convert User domain object to UserDTO using pre-fetched principals map.
+     * Used for batch operations to avoid N+1 queries.
+     */
+    private fun toUserDTO(
+        user: User,
+        principalsMap: Map<String, Boolean>,
+    ): UserDTO {
+        val userId = user.id ?: throw IllegalArgumentException("User must have an ID")
+        val enabled = principalsMap[userId.toString()] ?: true // Default to enabled if not found
+
+        return UserDTO(
+            id = userId.toString(),
+            email = user.email,
+            displayName = user.displayName,
+            avatarUrl = user.avatarUrl,
+            enabled = enabled,
+            createdAt = user.createdAt.toString(),
+            updatedAt = user.updatedAt.toString(),
+        )
+    }
+
+    /**
+     * Batch fetch principals for multiple user IDs.
+     * Returns a map of external ID (user UUID string) to enabled status.
+     */
+    private fun batchFetchPrincipals(userIds: List<UUID>): Map<String, Boolean> {
+        if (userIds.isEmpty()) {
+            return emptyMap()
+        }
+
+        val externalIds = userIds.map { it.toString() }
+        return principalRepository
+            .findByPrincipalTypeAndExternalIdIn(PrincipalType.USER, externalIds)
+            .associate { it.externalId to it.enabled }
     }
 
     /**
@@ -106,10 +167,9 @@ class UserManagementMapper {
                 when (fieldStr) {
                     "DISPLAY_NAME" -> UserOrderField.DISPLAY_NAME
                     "EMAIL" -> UserOrderField.EMAIL
-                    "ENABLED" -> UserOrderField.ENABLED
                     else ->
                         throw IllegalArgumentException(
-                            "Invalid UserOrderField: $fieldStr. Allowed: DISPLAY_NAME, EMAIL, ENABLED",
+                            "Invalid UserOrderField: $fieldStr. Allowed: DISPLAY_NAME, EMAIL",
                         )
                 }
 
@@ -149,6 +209,7 @@ class UserManagementMapper {
 
     /**
      * Extract field with type safety and default values.
+     * Throws IllegalArgumentException if field is missing (when no default) or has wrong type.
      */
     private inline fun <reified T> extractField(
         input: Map<String, Any?>,
@@ -156,7 +217,14 @@ class UserManagementMapper {
         defaultValue: T? = null,
     ): T {
         val value = input[name]
-        if (value == null) return defaultValue ?: throw IllegalArgumentException("Field '$name' is required")
-        return if (value is T) value else defaultValue ?: throw IllegalArgumentException("Field '$name' is required")
+        if (value == null) {
+            return defaultValue ?: throw IllegalArgumentException("Field '$name' is required")
+        }
+        if (value !is T) {
+            throw IllegalArgumentException(
+                "Field '$name' has invalid type. Expected ${T::class.simpleName}, got ${value::class.simpleName}",
+            )
+        }
+        return value
     }
 }

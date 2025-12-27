@@ -3,7 +3,7 @@ title: Spec Context Strategy
 type: workflow
 category: development
 status: current
-version: 2.1.0
+version: 2.2.0
 tags: [workflow, context, ai-optimization, spec-driven]
 ai_optimized: true
 search_keywords: [context, ai, optimization, spec, navigation, rag, implementation-flow]
@@ -47,11 +47,12 @@ NeoTool's specification is comprehensive and RAG-optimized. This document provid
 **When**: Working on a specific feature
 
 **Load**:
-- Feature file: `docs/03-features/<module>/<feature>/<feature>.feature`
-- Memory file: `docs/03-features/<module>/<feature>/<feature>.memory.yml`
+- Feature guide: `docs/03-features/<module>/<feature>/<feature>.md`
 - Task breakdown: `docs/03-features/<module>/<feature>/<feature>.tasks.yml`
 
 **Purpose**: Understand feature requirements and implementation plan
+
+> **Note**: Feature guides are markdown files containing requirements, scenarios, business rules, runbooks, and implementation details. They replace the previous Gherkin `.feature` format. See [Feature Guide Template](../../08-templates/feature-templates/feature-guide-template.md) for structure.
 
 ### Strategy 3: Phase-Specific Context (Load Per Phase)
 
@@ -222,9 +223,9 @@ The following flowchart illustrates how an LLM should implement a feature, break
 flowchart TD
     Start([Start: Feature Request]) --> LoadEssential[Load Essential Context<br/>MANIFEST.md<br/>Architecture Overview<br/>Glossary]
     
-    LoadEssential --> LoadFeature[Load Feature Context<br/>Feature File .feature<br/>Memory File .memory.yml<br/>Task Breakdown .tasks.yml]
+    LoadEssential --> LoadFeature[Load Feature Context<br/>Feature Guide .md<br/>Task Breakdown .tasks.yml]
     
-    LoadFeature --> Analyze[Analyze Requirements<br/>Parse Gherkin Scenarios<br/>Extract Business Rules<br/>Identify Phases]
+    LoadFeature --> Analyze[Analyze Requirements<br/>Extract Scenarios & Rules<br/>Identify Business Rules<br/>Identify Phases]
     
     Analyze --> CheckPhase{Which Phase?}
     
@@ -277,7 +278,7 @@ flowchart TD
     %% Testing Phase
     CheckPhase -->|Testing| TestingPhase[Testing Phase]
     TestingPhase --> LoadTesting[Load Testing Specs<br/>Testing Standards<br/>Backend/Frontend Testing Patterns<br/>E2E Testing Pattern]
-    LoadTesting --> TestTasks[Testing Tasks<br/>1. Map Scenarios to Tests<br/>2. Write Unit Tests 90%+<br/>3. Write Integration Tests 80%+<br/>4. Write E2E Tests<br/>5. Verify Coverage]
+    LoadTesting --> TestTasks[Testing Tasks<br/>1. Map Feature Scenarios to Tests<br/>2. Write Unit Tests 90%+<br/>3. Write Integration Tests 80%+<br/>4. Write E2E Tests<br/>5. Verify Coverage]
     TestTasks --> TestValidate{All Tests Pass<br/>Coverage Met?}
     TestValidate -->|No| TestTasks
     TestValidate -->|Yes| UnloadTesting[Unload Testing Specs]
@@ -329,8 +330,8 @@ flowchart TD
 
 **Initialization**:
 1. **Load Essential Context**: Start with minimal context (MANIFEST, architecture, glossary)
-2. **Load Feature Context**: Load feature specification files
-3. **Analyze Requirements**: Parse scenarios and extract business rules
+2. **Load Feature Context**: Load feature guide markdown file and task breakdown
+3. **Analyze Requirements**: Extract scenarios, business rules, and requirements from feature guide
 
 **Phase-Based Implementation**:
 - Each phase follows the pattern: **Load Specs → Execute Tasks → Validate → Unload Specs**
@@ -352,7 +353,7 @@ flowchart TD
 **Context Management**:
 - Load phase-specific specs only when entering phase
 - Unload specs when phase complete to free context
-- Keep feature context (feature file, memory, tasks) throughout
+- Keep feature context (feature guide, tasks) throughout
 - Manage context efficiently by loading only what's needed per phase
 
 **Validation Gates**:
@@ -368,8 +369,7 @@ flowchart TD
 - MANIFEST.md
 - Architecture overview
 - Glossary
-- Feature file
-- Memory file
+- Feature guide (`.md`)
 - Task breakdown
 
 **Step 2: Domain Phase**
@@ -391,8 +391,7 @@ flowchart TD
 ### Workflow 2: Code Review
 
 **Step 1: Review Context**
-- Feature file
-- Memory file
+- Feature guide (`.md`)
 - Changed files (from PR)
 - Relevant pattern docs (based on changes)
 
@@ -430,14 +429,14 @@ flowchart TD
 2. **Don't copy full examples**: Reference example paths instead
 3. **Don't ignore MANIFEST**: It's optimized for quick lookup
 4. **Don't load unrelated specs**: Only load what's needed
-5. **Don't skip feature context**: Always load feature file and memory
+5. **Don't skip feature context**: Always load feature guide and task breakdown
 
 ## Context Loading Guidelines
 
 | Context Type | When to Load | Notes |
 |-------------|--------------|-------|
 | Essential | Always | MANIFEST, architecture, glossary |
-| Feature | Feature work | Feature file, memory, task breakdown |
+| Feature | Feature work | Feature guide (`.md`), task breakdown |
 | Domain Phase | Domain implementation | Schema, entity, UUID patterns |
 | Backend Phase | Backend implementation | Repository, service, resolver patterns |
 | Frontend Phase | Frontend implementation | Component, query, mutation patterns |
@@ -467,6 +466,7 @@ The specification is optimized for RAG systems:
 
 - [Feature Development Workflow](./feature-development.md) - Development process
 - [Code Review Workflow](./code-review.md) - Review process
+- [Feature Guide Template](../08-templates/feature-templates/feature-guide-template.md) - Feature specification template
 - [MANIFEST.md](../MANIFEST.md) - Specification index
 - [Architecture Overview](../00-overview/architecture-overview.md) - System architecture
 - [Core Principles](../00-overview/principles.md) - Design principles

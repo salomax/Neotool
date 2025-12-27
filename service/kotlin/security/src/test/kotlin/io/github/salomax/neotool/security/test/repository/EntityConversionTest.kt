@@ -25,7 +25,6 @@ class EntityConversionTest {
                     id = null,
                     email = "test@example.com",
                     displayName = "Test User",
-                    enabled = true,
                     createdAt = Instant.now(),
                 )
 
@@ -36,7 +35,6 @@ class EntityConversionTest {
             assertThat(entity.id).isNull()
             assertThat(entity.email).isEqualTo("test@example.com")
             assertThat(entity.displayName).isEqualTo("Test User")
-            assertThat(entity.enabled).isTrue()
         }
 
         @Test
@@ -48,7 +46,6 @@ class EntityConversionTest {
                     id = existingId,
                     email = "test@example.com",
                     displayName = "Test User",
-                    enabled = true,
                     createdAt = Instant.now(),
                 )
 
@@ -69,7 +66,6 @@ class EntityConversionTest {
                     email = "test@example.com",
                     displayName = "Test User",
                 )
-            entity.enabled = true
 
             // Act
             val domain = entity.toDomain()
@@ -78,8 +74,8 @@ class EntityConversionTest {
             assertThat(domain.id).isEqualTo(entity.id)
             assertThat(domain.email).isEqualTo(entity.email)
             assertThat(domain.displayName).isEqualTo(entity.displayName)
-            assertThat(domain.enabled).isEqualTo(entity.enabled)
             assertThat(domain.createdAt).isEqualTo(entity.createdAt)
+            // Note: enabled is now stored in Principal, not User
         }
     }
 

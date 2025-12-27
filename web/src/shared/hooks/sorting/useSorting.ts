@@ -72,14 +72,14 @@ export interface UseSortingReturn<F extends string> {
  * 
  * @example
  * ```tsx
- * type UserOrderField = 'DISPLAY_NAME' | 'EMAIL' | 'ENABLED';
- * 
+ * type UserOrderField = 'DISPLAY_NAME' | 'EMAIL';
+ *
  * function UserList() {
  *   const { orderBy, graphQLOrderBy, handleSort } = useSorting<UserOrderField>({
  *     initialSort: null,
  *     onSortChange: () => goToFirstPage(),
  *   });
- * 
+ *
  *   return (
  *     <TableSortLabel
  *       active={orderBy?.field === 'DISPLAY_NAME'}

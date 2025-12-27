@@ -233,7 +233,6 @@ enum OrderDirection {
 enum UserOrderField {
   DISPLAY_NAME
   EMAIL
-  ENABLED
 }
 
 enum GroupOrderField {
