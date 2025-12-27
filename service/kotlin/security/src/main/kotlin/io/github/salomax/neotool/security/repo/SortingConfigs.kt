@@ -16,6 +16,7 @@ import java.util.UUID
 object SortingConfigs {
     /**
      * Configuration for User entity sorting.
+     * Note: ENABLED ordering was removed because enabled status is now stored in Principal table.
      */
     val USER_CONFIG =
         SortingConfig<UserOrderField, UserOrderBy>(
@@ -23,7 +24,6 @@ object SortingConfigs {
                 when (field) {
                     UserOrderField.DISPLAY_NAME -> "displayName"
                     UserOrderField.EMAIL -> "email"
-                    UserOrderField.ENABLED -> "enabled"
                     UserOrderField.ID -> "id"
                 }
             },
@@ -36,7 +36,6 @@ object SortingConfigs {
                         criteriaBuilder.coalesce(displayNamePath, emailPath)
                     }
                     UserOrderField.EMAIL -> root.get<String>("email")
-                    UserOrderField.ENABLED -> root.get<Boolean>("enabled")
                     UserOrderField.ID -> root.get<UUID>("id")
                 }
             },
@@ -66,18 +65,9 @@ object SortingConfigs {
                             else -> value.toString()
                         }
                     }
-                    UserOrderField.ENABLED -> {
-                        val value = cursor.fieldValues[fieldName]
-                        when (value) {
-                            is Boolean -> value
-                            is String -> value.toBoolean() // Handle string "true"/"false"
-                            null -> null
-                            else -> throw IllegalArgumentException("Invalid boolean value in cursor: $value")
-                        }
-                    }
                 }
             },
-            allowedColumns = setOf("displayName", "email", "enabled", "id"),
+            allowedColumns = setOf("displayName", "email", "id"),
         )
 
     /**

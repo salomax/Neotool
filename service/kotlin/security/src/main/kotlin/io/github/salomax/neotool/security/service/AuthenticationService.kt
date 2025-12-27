@@ -1,7 +1,9 @@
 package io.github.salomax.neotool.security.service
 
 import com.password4j.Password
+import io.github.salomax.neotool.security.model.PrincipalEntity
 import io.github.salomax.neotool.security.model.UserEntity
+import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import jakarta.inject.Singleton
 import jakarta.transaction.Transactional
@@ -20,6 +22,7 @@ import java.util.UUID
 @Singleton
 open class AuthenticationService(
     private val userRepository: UserRepository,
+    private val principalRepository: PrincipalRepository,
     private val jwtService: JwtService,
     private val emailService: EmailService,
     private val rateLimitService: RateLimitService,
@@ -96,8 +99,10 @@ open class AuthenticationService(
             return null
         }
 
-        // Check if user is enabled
-        if (!user.enabled) {
+        // Check if user principal is enabled (source of truth)
+        val userId = requireNotNull(user.id) { "User ID is required" }
+        if (!isUserPrincipalEnabled(userId)) {
+            logger.debug { "User principal is disabled: $email" }
             return null
         }
 
@@ -181,8 +186,9 @@ open class AuthenticationService(
         // Fetch user from database
         val user = userRepository.findById(userId).orElse(null) ?: return null
 
-        // Check if user is enabled
-        if (!user.enabled) {
+        // Check if user principal is enabled (source of truth)
+        if (!isUserPrincipalEnabled(userId)) {
+            logger.debug { "User principal is disabled for user ID: $userId" }
             return null
         }
 
@@ -221,12 +227,47 @@ open class AuthenticationService(
             return null
         }
 
-        // Check if user is enabled
-        if (!user.enabled) {
+        // Check if user principal is enabled (source of truth)
+        if (!isUserPrincipalEnabled(userId)) {
+            logger.debug { "User principal is disabled for user ID: $userId" }
             return null
         }
 
         return user
+    }
+
+    /**
+     * Check if a user principal is enabled.
+     * This is the single source of truth for user enable/disable status.
+     * If no principal exists, creates one with enabled=true (backward compatibility).
+     *
+     * @param userId The user ID
+     * @return true if principal exists and is enabled, false otherwise
+     */
+    @Transactional
+    open fun isUserPrincipalEnabled(userId: UUID): Boolean {
+        val principal =
+            principalRepository.findByPrincipalTypeAndExternalId(
+                PrincipalType.USER,
+                userId.toString(),
+            ).orElse(null)
+
+        // If principal doesn't exist, create it with enabled=true (backward compatibility)
+        // This handles existing users that don't have principal records yet
+        if (principal == null) {
+            val newPrincipal =
+                PrincipalEntity(
+                    id = null,
+                    principalType = PrincipalType.USER,
+                    externalId = userId.toString(),
+                    // Default to enabled for existing users
+                    enabled = true,
+                )
+            principalRepository.save(newPrincipal)
+            return true
+        }
+
+        return principal.enabled
     }
 
     /**
@@ -359,6 +400,10 @@ open class AuthenticationService(
 
         // Save user
         val savedUser = userRepository.save(user)
+
+        // Create principal for new user (enabled by default)
+        val userId = requireNotNull(savedUser.id) { "User ID is required after save" }
+        ensureUserPrincipalExists(userId, enabled = true)
 
         logger.info { "User registered successfully: $email" }
         return savedUser
@@ -563,8 +608,10 @@ open class AuthenticationService(
                 userRepository.save(existingUser)
             }
 
-            // Check if user is enabled
-            if (!existingUser.enabled) {
+            // Check if user principal is enabled (source of truth)
+            val userId = requireNotNull(existingUser.id) { "User ID is required" }
+            if (!isUserPrincipalEnabled(userId)) {
+                logger.debug { "User principal is disabled: ${claims.email}" }
                 return null
             }
 
@@ -586,7 +633,41 @@ open class AuthenticationService(
 
         val savedUser = userRepository.save(newUser)
 
+        // Create principal for new user (enabled by default)
+        val userId = requireNotNull(savedUser.id) { "User ID is required after save" }
+        ensureUserPrincipalExists(userId, enabled = true)
+
         logger.info { "OAuth user created and signed in: ${claims.email} (new user)" }
         return savedUser
+    }
+
+    /**
+     * Ensure a user principal exists, creating it if necessary.
+     * Used when creating new users to ensure they have a principal record.
+     *
+     * @param userId The user ID
+     * @param enabled Whether the principal should be enabled (default: true)
+     */
+    @Transactional
+    open fun ensureUserPrincipalExists(
+        userId: UUID,
+        enabled: Boolean = true,
+    ) {
+        val existing =
+            principalRepository.findByPrincipalTypeAndExternalId(
+                PrincipalType.USER,
+                userId.toString(),
+            )
+        if (existing.isEmpty) {
+            val principal =
+                PrincipalEntity(
+                    id = null,
+                    principalType = PrincipalType.USER,
+                    externalId = userId.toString(),
+                    enabled = enabled,
+                )
+            principalRepository.save(principal)
+            logger.debug { "Created principal for user ID: $userId" }
+        }
     }
 }

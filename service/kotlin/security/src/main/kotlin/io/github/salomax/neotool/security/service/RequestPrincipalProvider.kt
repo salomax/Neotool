@@ -66,18 +66,43 @@ class RequestPrincipalProvider(
 
     /**
      * Extract and validate request principal from a JWT token.
+     * Supports both user access tokens and service tokens with optional user context.
      * This method is public for future REST/gRPC integration.
      *
      * @param token The JWT token string
-     * @return RequestPrincipal with user ID, token, and permissions
-     * @throws AuthenticationRequiredException if token is missing, invalid, or not an access token
+     * @return RequestPrincipal with principal type, identity, token, and permissions
+     * @throws AuthenticationRequiredException if token is missing, invalid, or not a valid token
      */
     fun fromToken(token: String): RequestPrincipal {
         if (token.isBlank()) {
             throw AuthenticationRequiredException("Access token is required")
         }
 
-        // Validate token is an access token
+        // Check if token is a service token
+        if (jwtService.isServiceToken(token)) {
+            // Extract service ID
+            val serviceId =
+                jwtService.getServiceIdFromToken(token)
+                    ?: throw AuthenticationRequiredException("Invalid service token: missing service ID")
+
+            // Extract service permissions
+            val servicePermissions = jwtService.getPermissionsFromToken(token) ?: emptyList()
+
+            // Extract user context if present (user context is computed by issuer, not caller)
+            val userId = jwtService.getUserIdFromServiceToken(token)
+            val userPermissions = jwtService.getUserPermissionsFromServiceToken(token)
+
+            return RequestPrincipal(
+                principalType = PrincipalType.SERVICE,
+                userId = userId,
+                serviceId = serviceId,
+                token = token,
+                permissionsFromToken = servicePermissions,
+                userPermissions = userPermissions,
+            )
+        }
+
+        // Handle user access token (existing flow)
         if (!jwtService.isAccessToken(token)) {
             throw AuthenticationRequiredException("Invalid or expired access token")
         }
@@ -91,9 +116,12 @@ class RequestPrincipalProvider(
         val permissions = jwtService.getPermissionsFromToken(token) ?: emptyList()
 
         return RequestPrincipal(
+            principalType = PrincipalType.USER,
             userId = userId,
+            serviceId = null,
             token = token,
             permissionsFromToken = permissions,
+            userPermissions = null,
         )
     }
 }

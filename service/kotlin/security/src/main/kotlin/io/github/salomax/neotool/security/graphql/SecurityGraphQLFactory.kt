@@ -8,10 +8,14 @@ import io.github.salomax.neotool.security.graphql.dto.GroupDTO
 import io.github.salomax.neotool.security.graphql.dto.PermissionDTO
 import io.github.salomax.neotool.security.graphql.dto.RoleDTO
 import io.github.salomax.neotool.security.graphql.dto.UserDTO
+import io.github.salomax.neotool.security.model.PrincipalEntity
+import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.repo.GroupRepository
 import io.github.salomax.neotool.security.repo.PermissionRepository
+import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.UserRepository
+import io.github.salomax.neotool.security.service.PrincipalType
 import io.micronaut.context.annotation.Factory
 import jakarta.inject.Singleton
 import java.util.UUID
@@ -24,6 +28,7 @@ class SecurityGraphQLFactory(
     private val groupRepository: GroupRepository,
     private val roleRepository: RoleRepository,
     private val permissionRepository: PermissionRepository,
+    private val principalRepository: PrincipalRepository,
 ) {
     @Singleton
     fun graphQL(): graphql.GraphQL {
@@ -43,14 +48,26 @@ class SecurityGraphQLFactory(
                                 when (rep["__typename"]) {
                                     "User" -> {
                                         val user = userRepository.findById(UUID.fromString(id.toString())).orElse(null)
-                                        user?.let {
+                                        user?.let { userEntity: UserEntity ->
+                                            val userId =
+                                                userEntity.id ?: throw IllegalArgumentException(
+                                                    "User must have an ID",
+                                                )
+                                            val enabled =
+                                                principalRepository
+                                                    .findByPrincipalTypeAndExternalId(
+                                                        PrincipalType.USER,
+                                                        userId.toString(),
+                                                    )
+                                                    .map { principal: PrincipalEntity -> principal.enabled }
+                                                    .orElse(true)
                                             UserDTO(
-                                                id = it.id.toString(),
-                                                email = it.email,
-                                                displayName = it.displayName,
-                                                enabled = it.enabled,
-                                                createdAt = it.createdAt.toString(),
-                                                updatedAt = it.updatedAt.toString(),
+                                                id = userId.toString(),
+                                                email = userEntity.email,
+                                                displayName = userEntity.displayName,
+                                                enabled = enabled,
+                                                createdAt = userEntity.createdAt.toString(),
+                                                updatedAt = userEntity.updatedAt.toString(),
                                             )
                                         }
                                     }

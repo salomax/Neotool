@@ -382,7 +382,41 @@ graph TD
 
 ## Backend
 
-#TODO
+### Security Module
+
+NeoTool includes a comprehensive security module that handles authentication, authorization, and user management out of the box. Built with security best practices and production-ready patterns, it provides a solid foundation for enterprise applications.
+
+**Key Features:**
+
+- **Authentication (AuthN)**
+  - Password-based authentication with Argon2id hashing
+  - OAuth 2.0 integration (Google, extensible to other providers)
+  - JWT tokens (Access + Refresh token flow)
+  - Remember Me functionality
+  - Password reset with rate limiting
+
+- **Authorization (AuthZ)**
+  - Role-Based Access Control (RBAC)
+  - Attribute-Based Access Control (ABAC)
+  - Permission-based authorization
+  - Resource-level access control
+  - Service-to-service authentication
+  - GraphQL field-level authorization
+
+- **User Management**
+  - User registration and profile management
+  - User enable/disable functionality
+  - Role and group assignment
+  - GraphQL API with Relay cursor pagination
+  - Batch operations for N+1 query prevention
+
+- **Security Infrastructure**
+  - Interservice authentication with mTLS support
+  - Principal-based access control (users and services)
+  - Audit logging for security events
+  - Comprehensive test coverage (100% for critical services)
+
+For detailed security documentation, see [Security Feature Documentation](./docs/03-features/security/).
 
 ### APIs (GraphQL and REST)
 

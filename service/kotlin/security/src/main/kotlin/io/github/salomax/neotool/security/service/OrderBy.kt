@@ -14,11 +14,11 @@ data class UserOrderBy(
 
 /**
  * Order by field for user queries.
+ * Note: ENABLED ordering was removed because enabled status is now stored in Principal table.
  */
 enum class UserOrderField : OrderFieldEnum {
     DISPLAY_NAME,
     EMAIL,
-    ENABLED,
     ID, // Always included as final sort for deterministic ordering
     ;
 

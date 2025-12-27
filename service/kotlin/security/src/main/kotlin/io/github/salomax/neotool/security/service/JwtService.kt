@@ -175,14 +175,169 @@ class JwtService(
     }
 
     /**
+     * Generate a JWT service token for service-to-service communication.
+     *
+     * Service tokens are used for interservice authentication and authorization.
+     * They include the service identity and permissions.
+     *
+     * @param serviceId The service ID to include in the token subject claim
+     * @param targetAudience The target service identifier (aud claim)
+     * @param permissions List of permission names for the service
+     * @return A signed JWT token string
+     */
+    fun generateServiceToken(
+        serviceId: UUID,
+        targetAudience: String,
+        permissions: List<String>,
+    ): String {
+        val now = Instant.now()
+        val expiration = now.plusSeconds(jwtConfig.accessTokenExpirationSeconds)
+
+        return Jwts.builder()
+            .subject(serviceId.toString())
+            .claim("type", "service")
+            .claim("aud", targetAudience)
+            .claim("permissions", permissions)
+            .issuedAt(Date.from(now))
+            .expiration(Date.from(expiration))
+            .signWith(secretKey)
+            .compact()
+    }
+
+    /**
+     * Generate a JWT service token with propagated user context.
+     *
+     * This token includes both the service identity and the user context.
+     * The user permissions are computed by the issuer (not provided by the caller).
+     *
+     * @param serviceId The service ID to include in the token subject claim
+     * @param targetAudience The target service identifier (aud claim)
+     * @param permissions List of permission names for the service
+     * @param userId The user ID being propagated
+     * @param userPermissions List of permission names for the user (computed by issuer)
+     * @return A signed JWT token string
+     */
+    fun generateServiceTokenWithUserContext(
+        serviceId: UUID,
+        targetAudience: String,
+        permissions: List<String>,
+        userId: UUID,
+        userPermissions: List<String>,
+    ): String {
+        val now = Instant.now()
+        val expiration = now.plusSeconds(jwtConfig.accessTokenExpirationSeconds)
+
+        return Jwts.builder()
+            .subject(serviceId.toString())
+            .claim("type", "service")
+            .claim("aud", targetAudience)
+            .claim("permissions", permissions)
+            .claim("user_id", userId.toString())
+            .claim("user_permissions", userPermissions)
+            .issuedAt(Date.from(now))
+            .expiration(Date.from(expiration))
+            .signWith(secretKey)
+            .compact()
+    }
+
+    /**
+     * Check if a token is a service token.
+     *
+     * @param token The JWT token string
+     * @return true if token is a valid service token, false otherwise
+     */
+    fun isServiceToken(token: String): Boolean {
+        val claims = validateToken(token) ?: return false
+        return claims["type"] == "service"
+    }
+
+    /**
+     * Extract service ID from a validated service JWT token.
+     *
+     * @param token The JWT token string
+     * @return Service ID if token is valid and is a service token, null otherwise
+     */
+    fun getServiceIdFromToken(token: String): UUID? {
+        val claims = validateToken(token) ?: return null
+        if (claims["type"] != "service") {
+            return null
+        }
+        return try {
+            UUID.fromString(claims.subject)
+        } catch (e: Exception) {
+            logger.warn { "Invalid service ID in token subject: ${e.message}" }
+            null
+        }
+    }
+
+    /**
+     * Extract audience from a validated JWT token.
+     *
+     * @param token The JWT token string
+     * @return Audience if token is valid and contains aud claim, null otherwise
+     */
+    fun getAudienceFromToken(token: String): String? {
+        val claims = validateToken(token) ?: return null
+        return claims.audience?.firstOrNull() ?: claims["aud"]?.toString()
+    }
+
+    /**
+     * Extract user ID from a service token with user context.
+     *
+     * @param token The JWT token string
+     * @return User ID if token is valid, is a service token, and contains user_id claim, null otherwise
+     */
+    fun getUserIdFromServiceToken(token: String): UUID? {
+        val claims = validateToken(token) ?: return null
+        if (claims["type"] != "service") {
+            return null
+        }
+        val userIdClaim = claims["user_id"] ?: return null
+        return try {
+            UUID.fromString(userIdClaim.toString())
+        } catch (e: Exception) {
+            logger.warn { "Invalid user ID in service token: ${e.message}" }
+            null
+        }
+    }
+
+    /**
+     * Extract user permissions from a service token with user context.
+     *
+     * @param token The JWT token string
+     * @return List of user permission names if token is valid and contains user_permissions claim, null otherwise
+     */
+    fun getUserPermissionsFromServiceToken(token: String): List<String>? {
+        val claims = validateToken(token) ?: return null
+        if (claims["type"] != "service") {
+            return null
+        }
+        val userPermissionsClaim = claims["user_permissions"] ?: return null
+        return try {
+            @Suppress("UNCHECKED_CAST")
+            when (val permissions = userPermissionsClaim) {
+                is List<*> -> permissions.mapNotNull { it?.toString() }
+                else -> {
+                    logger.warn { "Invalid user_permissions claim type in token: ${permissions.javaClass.name}" }
+                    null
+                }
+            }
+        } catch (e: Exception) {
+            logger.warn { "Error extracting user permissions from service token: ${e.message}" }
+            null
+        }
+    }
+
+    /**
      * Check if a token is an access token.
      *
      * @param token The JWT token string
-     * @return true if token is a valid access token, false otherwise
+     * @return true if token is a valid access token (type="access" and not a service token), false otherwise
      */
     fun isAccessToken(token: String): Boolean {
         val claims = validateToken(token) ?: return false
-        return claims["type"] == "access"
+        val type = claims["type"]?.toString()
+        return type == "access"
     }
 
     /**

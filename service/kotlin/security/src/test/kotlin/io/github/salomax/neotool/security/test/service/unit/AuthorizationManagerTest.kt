@@ -28,6 +28,78 @@ class AuthorizationManagerTest {
         authorizationManager = AuthorizationManager(authorizationService)
     }
 
+    /**
+     * Helper method to mock successful authorization check.
+     * Reduces duplication across tests.
+     */
+    private fun mockSuccessfulAuthorization() {
+        whenever(
+            authorizationService.checkPermission(
+                principal = any(),
+                permission = any(),
+                resourceType = anyOrNull(),
+                resourceId = anyOrNull(),
+                resourcePattern = anyOrNull(),
+                subjectAttributes = any(),
+                resourceAttributes = anyOrNull(),
+                contextAttributes = anyOrNull(),
+            ),
+        ).thenReturn(
+            AuthorizationResult(
+                allowed = true,
+                reason = "User has permission",
+            ),
+        )
+    }
+
+    /**
+     * Helper method to mock failed authorization check.
+     * Reduces duplication across tests.
+     */
+    private fun mockFailedAuthorization(reason: String = "User does not have permission") {
+        whenever(
+            authorizationService.checkPermission(
+                principal = any(),
+                permission = any(),
+                resourceType = anyOrNull(),
+                resourceId = anyOrNull(),
+                resourcePattern = anyOrNull(),
+                subjectAttributes = any(),
+                resourceAttributes = anyOrNull(),
+                contextAttributes = anyOrNull(),
+            ),
+        ).thenReturn(
+            AuthorizationResult(
+                allowed = false,
+                reason = reason,
+            ),
+        )
+    }
+
+    /**
+     * Helper method to verify checkPermission was called with expected arguments.
+     * Reduces duplication across tests.
+     */
+    private fun verifyCheckPermissionCalled(
+        principal: RequestPrincipal,
+        permission: String,
+        resourceType: String? = null,
+        resourceId: UUID? = null,
+        resourceAttributes: Map<String, Any>? = null,
+        contextAttributes: Map<String, Any>? = null,
+    ) {
+        verify(authorizationService).checkPermission(
+            principal = principal,
+            permission = permission,
+            resourceType = resourceType,
+            resourceId = resourceId,
+            resourcePattern = null,
+            subjectAttributes = mapOf("principalPermissions" to principal.permissionsFromToken),
+            resourceAttributes = resourceAttributes,
+            contextAttributes = contextAttributes,
+        )
+    }
+
     @Nested
     @DisplayName("require")
     inner class RequireTests {
@@ -43,35 +115,15 @@ class AuthorizationManagerTest {
                 )
             val action = "security:user:view"
 
-            whenever(
-                authorizationService.checkPermission(
-                    userId = any(),
-                    permission = any(),
-                    resourceType = anyOrNull(),
-                    resourceId = anyOrNull(),
-                    subjectAttributes = anyOrNull(),
-                    resourceAttributes = anyOrNull(),
-                    contextAttributes = anyOrNull(),
-                ),
-            ).thenReturn(
-                AuthorizationResult(
-                    allowed = true,
-                    reason = "User has permission",
-                ),
-            )
+            mockSuccessfulAuthorization()
 
             // Act & Assert - should not throw
             authorizationManager.require(principal, action)
 
             // Verify that subjectAttributes were enriched with permissions from token
-            verify(authorizationService).checkPermission(
-                userId = userId,
+            verifyCheckPermissionCalled(
+                principal = principal,
                 permission = action,
-                resourceType = null,
-                resourceId = null,
-                subjectAttributes = mapOf("principalPermissions" to principal.permissionsFromToken),
-                resourceAttributes = null,
-                contextAttributes = null,
             )
         }
 
@@ -88,22 +140,7 @@ class AuthorizationManagerTest {
             val action = "security:user:view"
             val reason = "User does not have permission"
 
-            whenever(
-                authorizationService.checkPermission(
-                    userId = any(),
-                    permission = any(),
-                    resourceType = anyOrNull(),
-                    resourceId = anyOrNull(),
-                    subjectAttributes = anyOrNull(),
-                    resourceAttributes = anyOrNull(),
-                    contextAttributes = anyOrNull(),
-                ),
-            ).thenReturn(
-                AuthorizationResult(
-                    allowed = false,
-                    reason = reason,
-                ),
-            )
+            mockFailedAuthorization(reason)
 
             // Act & Assert
             assertThatThrownBy { authorizationManager.require(principal, action) }
@@ -126,22 +163,7 @@ class AuthorizationManagerTest {
             val action = "security:user:view"
             val resourceType = "user"
 
-            whenever(
-                authorizationService.checkPermission(
-                    userId = any(),
-                    permission = any(),
-                    resourceType = anyOrNull(),
-                    resourceId = anyOrNull(),
-                    subjectAttributes = anyOrNull(),
-                    resourceAttributes = anyOrNull(),
-                    contextAttributes = anyOrNull(),
-                ),
-            ).thenReturn(
-                AuthorizationResult(
-                    allowed = true,
-                    reason = "User has permission",
-                ),
-            )
+            mockSuccessfulAuthorization()
 
             // Act
             authorizationManager.require(
@@ -152,14 +174,11 @@ class AuthorizationManagerTest {
             )
 
             // Assert
-            verify(authorizationService).checkPermission(
-                userId = userId,
+            verifyCheckPermissionCalled(
+                principal = principal,
                 permission = action,
                 resourceType = resourceType,
                 resourceId = resourceId,
-                subjectAttributes = mapOf("principalPermissions" to principal.permissionsFromToken),
-                resourceAttributes = null,
-                contextAttributes = null,
             )
         }
 
@@ -177,22 +196,7 @@ class AuthorizationManagerTest {
             val resourceAttributes = mapOf("status" to "active")
             val contextAttributes = mapOf("ip" to "127.0.0.1")
 
-            whenever(
-                authorizationService.checkPermission(
-                    userId = any(),
-                    permission = any(),
-                    resourceType = anyOrNull(),
-                    resourceId = anyOrNull(),
-                    subjectAttributes = anyOrNull(),
-                    resourceAttributes = anyOrNull(),
-                    contextAttributes = anyOrNull(),
-                ),
-            ).thenReturn(
-                AuthorizationResult(
-                    allowed = true,
-                    reason = "User has permission",
-                ),
-            )
+            mockSuccessfulAuthorization()
 
             // Act
             authorizationManager.require(
@@ -203,12 +207,9 @@ class AuthorizationManagerTest {
             )
 
             // Assert
-            verify(authorizationService).checkPermission(
-                userId = userId,
+            verifyCheckPermissionCalled(
+                principal = principal,
                 permission = action,
-                resourceType = null,
-                resourceId = null,
-                subjectAttributes = mapOf("principalPermissions" to principal.permissionsFromToken),
                 resourceAttributes = resourceAttributes,
                 contextAttributes = contextAttributes,
             )

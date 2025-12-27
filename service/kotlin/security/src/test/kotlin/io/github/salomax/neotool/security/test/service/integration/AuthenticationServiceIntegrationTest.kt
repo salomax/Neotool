@@ -2,10 +2,13 @@ package io.github.salomax.neotool.security.test.service.integration
 
 import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
+import io.github.salomax.neotool.security.model.PrincipalEntity
+import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.AuthContextFactory
 import io.github.salomax.neotool.security.service.AuthenticationService
 import io.github.salomax.neotool.security.service.JwtService
+import io.github.salomax.neotool.security.service.PrincipalType
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject
@@ -30,6 +33,9 @@ import org.junit.jupiter.api.assertThrows
 class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTest {
     @Inject
     lateinit var userRepository: UserRepository
+
+    @Inject
+    lateinit var principalRepository: PrincipalRepository
 
     @Inject
     lateinit var authenticationService: AuthenticationService
@@ -217,8 +223,17 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
                     email = email,
                     password = password,
                 )
-            user.enabled = false
-            userRepository.save(user)
+            val savedUser = userRepository.save(user)
+            val userId = savedUser.id!!
+
+            // Create and save disabled principal
+            val disabledPrincipal =
+                PrincipalEntity(
+                    principalType = PrincipalType.USER,
+                    externalId = userId.toString(),
+                    enabled = false,
+                )
+            principalRepository.save(disabledPrincipal)
 
             // Act
             val authenticatedUser = authenticationService.authenticate(email, password)
@@ -610,12 +625,18 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
                     password = password,
                 )
             val savedUser = userRepository.save(user)
+            val userId = savedUser.id!!
             val authContext = authContextFactory.build(savedUser)
             val accessToken = authenticationService.generateAccessToken(authContext)
 
-            // Act - Disable user
-            savedUser.enabled = false
-            userRepository.save(savedUser)
+            // Act - Disable user by creating disabled principal
+            val disabledPrincipal =
+                PrincipalEntity(
+                    principalType = PrincipalType.USER,
+                    externalId = userId.toString(),
+                    enabled = false,
+                )
+            principalRepository.save(disabledPrincipal)
 
             // Act - Try to validate access token
             val validatedUser = authenticationService.validateAccessToken(accessToken)
@@ -636,12 +657,18 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
                     password = password,
                 )
             val savedUser = userRepository.save(user)
+            val userId = savedUser.id!!
             val refreshToken = authenticationService.generateRefreshToken(savedUser)
-            authenticationService.saveRememberMeToken(savedUser.id!!, refreshToken)
+            authenticationService.saveRememberMeToken(userId, refreshToken)
 
-            // Act - Disable user
-            savedUser.enabled = false
-            userRepository.save(savedUser)
+            // Act - Disable user by creating disabled principal
+            val disabledPrincipal =
+                PrincipalEntity(
+                    principalType = PrincipalType.USER,
+                    externalId = userId.toString(),
+                    enabled = false,
+                )
+            principalRepository.save(disabledPrincipal)
 
             // Act - Try to validate refresh token
             val validatedUser = authenticationService.validateRefreshToken(refreshToken)

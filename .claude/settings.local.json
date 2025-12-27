@@ -6,7 +6,12 @@
       "Bash(service/kotlin/gradlew -p service/kotlin :assets:build -x test -x koverVerify)",
       "Bash(./service/kotlin/gradlew:*)",
       "Bash(xargs cat:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(tree:*)",
+      "Bash(pnpm run test:*)",
+      "Bash(pnpm run typecheck:*)"
     ]
   }
 }

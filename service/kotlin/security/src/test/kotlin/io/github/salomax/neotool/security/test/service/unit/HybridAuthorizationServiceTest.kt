@@ -5,6 +5,9 @@ import io.github.salomax.neotool.security.domain.rbac.Role
 import io.github.salomax.neotool.security.repo.GroupMembershipRepository
 import io.github.salomax.neotool.security.repo.GroupRoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.PermissionRepository
+import io.github.salomax.neotool.security.repo.PrincipalPermissionRepository
+import io.github.salomax.neotool.security.repo.PrincipalPermissionRepositoryCustom
+import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.service.AbacEvaluationResult
 import io.github.salomax.neotool.security.service.AbacEvaluationService
@@ -44,12 +47,18 @@ class HybridAuthorizationServiceTest {
         groupRoleAssignmentRepository = mock()
         abacEvaluationService = mock()
         auditService = mock()
+        val principalRepository: PrincipalRepository = mock()
+        val principalPermissionRepository: PrincipalPermissionRepository = mock()
+        val principalPermissionRepositoryCustom: PrincipalPermissionRepositoryCustom = mock()
         authorizationService =
             AuthorizationService(
                 roleRepository = roleRepository,
                 permissionRepository = permissionRepository,
                 groupMembershipRepository = groupMembershipRepository,
                 groupRoleAssignmentRepository = groupRoleAssignmentRepository,
+                principalRepository = principalRepository,
+                principalPermissionRepository = principalPermissionRepository,
+                principalPermissionRepositoryCustom = principalPermissionRepositoryCustom,
                 abacEvaluationService = abacEvaluationService,
                 auditService = auditService,
             )

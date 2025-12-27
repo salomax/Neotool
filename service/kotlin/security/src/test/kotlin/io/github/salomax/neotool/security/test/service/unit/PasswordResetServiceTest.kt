@@ -3,6 +3,7 @@ package io.github.salomax.neotool.security.test.service.unit
 import io.github.salomax.neotool.security.config.JwtConfig
 import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.repo.PasswordResetAttemptRepository
+import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.AuthenticationService
 import io.github.salomax.neotool.security.service.EmailService
@@ -57,9 +58,11 @@ class PasswordResetServiceTest {
         whenever(oauthProvider.getProviderName()).thenReturn("google")
         val oauthProviderRegistry = OAuthProviderRegistry(listOf(oauthProvider))
 
+        val principalRepository: PrincipalRepository = mock()
         authenticationService =
             AuthenticationService(
                 userRepository,
+                principalRepository,
                 jwtService,
                 emailService,
                 rateLimitService,

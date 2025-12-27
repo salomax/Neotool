@@ -10,8 +10,10 @@ import io.github.salomax.neotool.security.domain.UserManagement
 import io.github.salomax.neotool.security.domain.rbac.GroupMembership
 import io.github.salomax.neotool.security.domain.rbac.MembershipType
 import io.github.salomax.neotool.security.domain.rbac.User
+import io.github.salomax.neotool.security.model.PrincipalEntity
 import io.github.salomax.neotool.security.repo.GroupMembershipRepository
 import io.github.salomax.neotool.security.repo.GroupRepository
+import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.repo.UserRepositoryCustom
 import jakarta.inject.Singleton
@@ -30,6 +32,7 @@ open class UserManagementService(
     private val userSearchRepository: UserRepositoryCustom,
     private val groupMembershipRepository: GroupMembershipRepository,
     private val groupRepository: GroupRepository,
+    private val principalRepository: PrincipalRepository,
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -139,7 +142,6 @@ open class UserManagementService(
                                 when (orderBy.field) {
                                     UserOrderField.DISPLAY_NAME -> "displayName"
                                     UserOrderField.EMAIL -> "email"
-                                    UserOrderField.ENABLED -> "enabled"
                                     UserOrderField.ID -> throw IllegalStateException("ID should not be in fieldValues")
                                 }
                             val fieldValue: Any? =
@@ -150,13 +152,10 @@ open class UserManagementService(
                                         user.displayName ?: user.email
                                     }
                                     UserOrderField.EMAIL -> user.email
-                                    UserOrderField.ENABLED -> user.enabled
                                     UserOrderField.ID -> throw IllegalStateException("ID should not be in fieldValues")
                                 }
                             // Only include non-null field values in cursor
-                            // Note: Boolean values (ENABLED) are never null, so they're always included
                             when {
-                                fieldValue is Boolean -> fieldName to fieldValue
                                 fieldValue != null -> fieldName to fieldValue
                                 else -> null
                             }
@@ -185,18 +184,18 @@ open class UserManagementService(
                     IllegalArgumentException("User not found with ID: $userId")
                 }
 
-        val user = entity.toDomain()
+        // Get or create principal
+        val principal = getOrCreatePrincipal(userId)
 
         // Validate domain state
-        UserManagement.Validator.validateUserNotAlreadyEnabled(user)
+        UserManagement.Validator.validatePrincipalNotAlreadyEnabled(principal)
 
-        // Update entity
-        entity.enabled = true
-        val saved = userRepository.update(entity)
+        // Update principal (source of truth for auth)
+        syncUserPrincipalEnabled(userId, enabled = true)
 
-        logger.info { "User enabled: ${saved.email} (ID: ${saved.id})" }
+        logger.info { "User enabled: ${entity.email} (ID: ${entity.id})" }
 
-        return saved.toDomain()
+        return entity.toDomain()
     }
 
     /**
@@ -213,18 +212,84 @@ open class UserManagementService(
             userRepository.findById(userId)
                 .orElseThrow { IllegalArgumentException("User not found with ID: $userId") }
 
-        val user = entity.toDomain()
+        // Get or create principal
+        val principal = getOrCreatePrincipal(userId)
 
         // Validate domain state
-        UserManagement.Validator.validateUserNotAlreadyDisabled(user)
+        UserManagement.Validator.validatePrincipalNotAlreadyDisabled(principal)
 
-        // Update entity
-        entity.enabled = false
-        val saved = userRepository.update(entity)
+        // Update principal (source of truth for auth)
+        syncUserPrincipalEnabled(userId, enabled = false)
 
-        logger.info { "User disabled: ${saved.email} (ID: ${saved.id})" }
+        logger.info { "User disabled: ${entity.email} (ID: ${entity.id})" }
 
-        return saved.toDomain()
+        return entity.toDomain()
+    }
+
+    /**
+     * Get or create a principal for the given user ID.
+     *
+     * @param userId The user ID
+     * @return The principal domain object
+     */
+    private fun getOrCreatePrincipal(userId: UUID): io.github.salomax.neotool.security.model.Principal {
+        val principalEntity =
+            principalRepository.findByPrincipalTypeAndExternalId(
+                PrincipalType.USER,
+                userId.toString(),
+            ).orElseGet {
+                // Create principal if it doesn't exist
+                val newPrincipal =
+                    PrincipalEntity(
+                        id = null,
+                        principalType = PrincipalType.USER,
+                        externalId = userId.toString(),
+                        enabled = true,
+                    )
+                principalRepository.save(newPrincipal)
+                logger.debug { "Created principal for user ID: $userId" }
+                newPrincipal
+            }
+        return principalEntity.toDomain()
+    }
+
+    /**
+     * Sync user.enabled to principal.enabled.
+     * Principals.enabled is the source of truth for authentication/authorization.
+     * This method ensures the principal's enabled flag matches the user's enabled flag.
+     * Note: This method should be called from within a transaction.
+     *
+     * @param userId The user ID
+     * @param enabled Whether the principal should be enabled
+     */
+    private fun syncUserPrincipalEnabled(
+        userId: UUID,
+        enabled: Boolean,
+    ) {
+        val principal =
+            principalRepository.findByPrincipalTypeAndExternalId(
+                PrincipalType.USER,
+                userId.toString(),
+            ).orElse(null)
+
+        if (principal != null) {
+            // Update existing principal
+            principal.enabled = enabled
+            principal.updatedAt = Instant.now()
+            principalRepository.update(principal)
+            logger.debug { "Synced principal enabled status for user ID: $userId to $enabled" }
+        } else {
+            // Create principal if it doesn't exist (shouldn't happen, but handle gracefully)
+            val newPrincipal =
+                PrincipalEntity(
+                    id = null,
+                    principalType = PrincipalType.USER,
+                    externalId = userId.toString(),
+                    enabled = enabled,
+                )
+            principalRepository.save(newPrincipal)
+            logger.debug { "Created principal for user ID: $userId with enabled=$enabled" }
+        }
     }
 
     /**
