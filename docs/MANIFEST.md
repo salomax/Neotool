@@ -134,6 +134,7 @@ This specification is organized into numbered directories (00-11) for clear hier
 | CRUD Example | `07-examples/backend/crud-example/README.md` | example | backend | crud, complete, flow, entity, repository, service, resolver |
 | SWAPI ETL Workflow | `07-examples/batch-workflows/swapi-etl-workflow.md` | example | workflow | swapi, etl, batch, prefect, kafka, workflow |
 | SWAPI ETL Runbook | `07-examples/batch-workflows/swapi-etl-runbook.md` | runbook | operations | swapi, etl, runbook, operations, troubleshooting |
+| BACEN IFData Ingestion Runbook | `07-examples/batch-workflows/bacen-ifdata-ingestion-runbook.md` | runbook | operations | bacen, ifdata, runbook, operations, troubleshooting, financial-data |
 
 ## Templates (08-templates)
 

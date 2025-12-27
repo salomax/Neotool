@@ -22,10 +22,9 @@ from psycopg2.extras import RealDictCursor
 import requests
 from requests.adapters import HTTPAdapter
 
-from .constants import ANO_MES_LENGTH
+from .constants import ANO_MES_LENGTH, BACEN_BASE_URL
 
 # Configuration constants
-BACEN_BASE_URL = "https://olinda.bcb.gov.br/olinda/servico/IFDATA/versao/v1/odata/"
 REGISTRY_ENDPOINT = "IfDataCadastro(AnoMes=@AnoMes)"
 PAGE_SIZE = 1000
 USER_AGENT = (

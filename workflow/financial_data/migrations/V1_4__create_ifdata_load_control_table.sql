@@ -63,3 +63,4 @@ CREATE INDEX IF NOT EXISTS idx_ifdata_load_control_created_at
     ON financial_data.ifdata_load_control(created_at);
 
 
+

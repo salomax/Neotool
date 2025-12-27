@@ -109,7 +109,8 @@ Rules:
 - Quarterly snapshots only (months: **03, 06, 09, 12**).
 - Use **CSV** for performance: `$format=text/csv`.
 - **CSV format**: BACEN/Olinda CSV responses use **comma (`,`)** as the column delimiter.
-- Use `$top=1000` to reduce the number of requests.
+- Use `$top=1000` for pagination (page size).
+- **Pagination**: The implementation automatically handles pagination by fetching all pages until no more data is available. All pages are combined into a single dataset.
 - Filter only active institutions: `$filter=Situacao eq 'A'`.
 
 Example:
@@ -154,14 +155,15 @@ Rules:
 - Loop `TipoInstituicao` from **1 to 4**.
 - Use **CSV**: `$format=text/csv`.
 - **CSV format**: BACEN/Olinda CSV responses use **comma (`,`)** as the column delimiter.
-- Use pagination: `$top=1000` and `$skip`.
+- Use pagination: `$top=5000` (default page size) and `$skip`.
+- **Note**: The default page size for financial values extraction is **5000** (different from registry which uses 1000).
 - **Do NOT filter by institution** in standard ingestion.
 
 Example:
 
 ```
 .../IfDataValores(AnoMes=@AnoMes,TipoInstituicao=@TipoInstituicao,Relatorio=@Relatorio)
-?@AnoMes=202403&@TipoInstituicao=1&@Relatorio='1'&$top=1000&$format=text/csv
+?@AnoMes=202403&@TipoInstituicao=1&@Relatorio='1'&$top=5000&$format=text/csv
 ```
 
 ---
@@ -256,69 +258,67 @@ Raw purge and idempotency rules (pagination-safe):
 
 ### Hot / Product-Facing Layer
 
-**Table:** `financial_data.bank_report`
+**Tables:** `financial_data.bank_report` and `financial_data.bank_report_data`
 
 Purpose:
-- One row per:
-
-```
-(CodInst, AnoMes, NomeRelatorio, NumeroRelatorio, TipoInstituicao)
-```
-
-- Stores aggregated/normalized report data as JSONB.
+- **Normalized relational structure** optimized for reads, analytics, and downstream services.
+- `bank_report`: One row per natural key combination
+- `bank_report_data`: Individual CSV row data linked to `bank_report` via foreign key
 - Built by promoting from `ifdata_raw`.
-- Optimized for reads, analytics, and downstream services.
+- Uses UPSERT operations for idempotency.
 
-Promotion filter rule (active institutions):
+**Table Structure:**
+
+`bank_report` (parent table):
+- Natural key: `(cod_inst, ano_mes, nome_relatorio, numero_relatorio, tipo_instituicao)`
+- Primary key: `id` (UUID v7)
+- Audit fields: `created_at`, `updated_at`
+
+`bank_report_data` (child table):
+- Foreign key: `bank_report_id` → `bank_report.id`
+- CSV row fields:
+  - `grupo` (TEXT, nullable)
+  - `conta` (TEXT, nullable)
+  - `nome_coluna` (TEXT, nullable)
+  - `descricao_coluna` (TEXT, nullable)
+  - `saldo` (NUMERIC, nullable) — converted from string to numeric, handles Brazilian decimal format
+- Audit fields: `created_at`, `updated_at`
+
+**Promotion filter rule (active institutions):**
 - During promotion, include only institutions that are active in the registry:
   - `financial_data.institution.situacao = 'A'`
 - Do **not** use `Atividade` as a proxy for active/inactive (it is a classification field, not the status).
 
-#### JSONB Structure Rules
+#### Field Mapping Rules
 
-The `report_data` JSONB column stores data as a **row-based array of objects**, where each object represents one CSV row from the raw data.
+Positional CSV fields (`field_0`, `field_1`, etc.) are mapped to meaningful column names:
 
-**Structure:**
-```json
-[
-  {
-    "Grupo": null,
-    "Conta": "78182",
-    "NomeColuna": "Ativo Total",
-    "DescricaoColuna": "[10000007]+[20000004]",
-    "Saldo": "11506786910.93"
-  },
-  {
-    "Grupo": "Arrendamento Mercantil",
-    "Conta": "78194",
-    "NomeColuna": "Arrendamento Mercantil a Receber",
-    "DescricaoColuna": "[17000000]-[17900007]",
-    "Saldo": "0"
-  }
-]
-```
-
-**Field Mapping:**
-- Positional CSV fields (`field_0`, `field_1`, etc.) are mapped to meaningful names:
-  - `field_5` → `Grupo`
-  - `field_6` → `Conta`
-  - `field_7` → `NomeColuna`
-  - `field_8` → `DescricaoColuna`
-  - `field_9` → `Saldo`
-- Fields beyond `field_9` are preserved as-is for flexibility
+- `field_5` → `grupo` (TEXT)
+- `field_6` → `conta` (TEXT)
+- `field_7` → `nome_coluna` (TEXT)
+- `field_8` → `descricao_coluna` (TEXT)
+- `field_9` → `saldo` (NUMERIC)
 
 **Natural Key Exclusion:**
-The following fields are **excluded** from the JSONB because they are already stored as separate table columns:
-- `TipoInstituicao` (stored in `tipo_instituicao` column)
-- `CodInst` (stored in `cod_inst` column)
-- `AnoMes` (stored in `ano_mes` column)
-- `NomeRelatorio` (stored in `nome_relatorio` column)
-- `NumeroRelatorio` (stored in `numero_relatorio` column)
+The following fields are **excluded** from `bank_report_data` because they are already stored as separate columns in `bank_report`:
+- `TipoInstituicao` (stored in `bank_report.tipo_instituicao` column)
+- `CodInst` (stored in `bank_report.cod_inst` column)
+- `AnoMes` (stored in `bank_report.ano_mes` column)
+- `NomeRelatorio` (stored in `bank_report.nome_relatorio` column)
+- `NumeroRelatorio` (stored in `bank_report.numero_relatorio` column)
 
-This reduces JSONB size and eliminates redundancy.
+This eliminates redundancy and enables efficient querying.
+
+**Saldo Conversion:**
+- String values `"null"` and empty strings (`""`) → SQL NULL
+- String `"0"` or `"0.0"` → NUMERIC `0`
+- Brazilian format (comma as decimal separator, e.g., `"590878586,18"`) → converted to NUMERIC `590878586.18`
+- Other numeric strings → converted to NUMERIC
+- Invalid values → SQL NULL
 
 **Null Handling:**
-- String values `"null"` and empty strings (`""`) are converted to JSON `null` in the JSONB structure.
+- String values `"null"` and empty strings (`""`) are converted to SQL NULL for text fields.
+- For `saldo`, see conversion rules above.
 
 ---
 
@@ -454,12 +454,14 @@ A message is published when (and only when) the registry changes:
 
 ### Step F — Promote Raw -> Hot
 
-13. Transform: aggregate tall `ifdata_raw` rows into row-based JSONB arrays per:
+13. Transform: aggregate tall `ifdata_raw` rows into normalized relational structure per:
     - `(CodInst, AnoMes, NomeRelatorio, NumeroRelatorio, TipoInstituicao)`
-    - Each JSONB document is an array of row objects with mapped field names
-    - Natural key fields are excluded from JSONB (already in table columns)
+    - Parse CSV rows from `raw_data` column
+    - Map positional fields to named columns (`grupo`, `conta`, `nome_coluna`, `descricao_coluna`, `saldo`)
+    - Convert `saldo` from string to NUMERIC (handles Brazilian decimal format)
+    - Natural key fields are stored in `bank_report` table columns (not in `bank_report_data`)
 14. Promotion filter: only include institutions with `financial_data.institution.situacao = 'A'`.
-15. Load: UPSERT into `financial_data.bank_report`.
+15. Load: UPSERT into `financial_data.bank_report` and `financial_data.bank_report_data` tables (normalized structure).
 16. Mark `ifdata_load_control` as completed.
 
 ---
@@ -509,7 +511,7 @@ python3 scripts/promote_data.py --ano-mes 202403 --verbose
 2. For each combination, runs the promotion process:
    - Fetches raw data from `ifdata_raw`
    - Applies the current promotion logic
-   - UPSERTs into `bank_report` and `bank_report_data` tables
+   - UPSERTs into `bank_report` and `bank_report_data` tables (normalized structure)
    - Marks load control as completed
 
 **Key features:**
@@ -518,9 +520,16 @@ python3 scripts/promote_data.py --ano-mes 202403 --verbose
 - Safe to run multiple times - UPSERT operations prevent duplicates
 - Can filter by `ano_mes` and/or `nome_relatorio`
 
+**Return values:**
+The script returns statistics with the following fields:
+- `rows_fetched`: Number of raw rows fetched from `ifdata_raw`
+- `documents_created`: Number of report groups created (unique natural key combinations)
+- `rows_upserted`: Number of rows upserted into `bank_report` table
+- `marked_completed`: Boolean indicating if load control was marked as completed
+
 **Use cases:**
 - Initial promotion of extracted data
-- Re-promoting data after structure changes (e.g., migrating from columnar to row-based format)
+- Re-promoting data after structure changes (e.g., migrating from columnar to normalized format)
 - Fixing data quality issues in promoted data
 - Re-applying promotion logic after code changes
 
@@ -542,6 +551,25 @@ python3 scripts/promote_data.py --ano-mes 202403 --verbose
   - purge-once-per-scope for raw reloads (pagination-safe)
   - UPSERT on hot tables
 - Consider an outbox pattern for Kafka in a future iteration if stronger delivery guarantees are needed.
+
+### Database Connection Configuration
+
+The implementation supports two approaches for database connection:
+
+1. **Unified connection string** (recommended for Prefect flows):
+   - Environment variable: `DATABASE_URL`
+   - Format: `postgresql://user:password@host:port/database`
+   - Used by: Flow-level tasks (`check_registry_exists`, `get_reports_for_quarter`)
+
+2. **Individual connection parameters** (used by task-level functions):
+   - `POSTGRES_HOST` (default: `localhost`)
+   - `POSTGRES_PORT` (default: `6432` for pgbouncer)
+   - `POSTGRES_DB` (default: `neotool_db`)
+   - `POSTGRES_USER` (default: `neotool`)
+   - `POSTGRES_PASSWORD` (default: `neotool`)
+   - Used by: Task-level database functions (e.g., `get_db_connection()`)
+
+**Recommendation**: For consistency, prefer `DATABASE_URL` when available. Individual parameters are used as fallback defaults for development environments.
 
 ---
 
@@ -573,8 +601,8 @@ flowchart TD
     S --> T{All tasks for quarter+report done?}
     T -->|No| I
     T -->|Yes| U[Mark ifdata_load_control Extracted]
-    U --> V[Promote raw -> bank_report JSONB<br/>filter institution.situacao='A']
-    V --> W[UPSERT bank_report]
+    U --> V[Promote raw -> bank_report normalized<br/>filter institution.situacao='A']
+    V --> W[UPSERT bank_report and bank_report_data]
     W --> X[Mark ifdata_load_control Completed]
     X --> Y[End]
 ```

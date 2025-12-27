@@ -60,17 +60,26 @@ def pytest_configure(config):
     """Configure pytest to suppress known warnings from third-party libraries."""
     # Ignore testcontainers legacy wait decorator warnings triggered at import time
     # (Also filtered at module level, but keeping here for redundancy)
+    # All warning filters must be in conftest.py per testing standards (not in pytest.ini)
     config.addinivalue_line(
         "filterwarnings",
         "ignore::DeprecationWarning:testcontainers.core.waiting_utils",
     )
     config.addinivalue_line(
         "filterwarnings",
-        "ignore:The @wait_container_is_ready decorator is deprecated:DeprecationWarning",
+        "ignore::DeprecationWarning:testcontainers.core",
     )
     config.addinivalue_line(
         "filterwarnings",
-        "ignore:The wait_for function is deprecated:DeprecationWarning",
+        "ignore::DeprecationWarning:testcontainers",
+    )
+    config.addinivalue_line(
+        "filterwarnings",
+        "ignore:The @wait_container_is_ready decorator is deprecated:DeprecationWarning:testcontainers.core.waiting_utils",
+    )
+    config.addinivalue_line(
+        "filterwarnings",
+        "ignore:The wait_for function is deprecated:DeprecationWarning:testcontainers.core.waiting_utils",
     )
     # Also use warnings module for runtime filtering
     warnings.filterwarnings(

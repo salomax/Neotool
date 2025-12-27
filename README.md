@@ -597,6 +597,7 @@ pnpm run ci:unit
 - [ ] Vault service (HashiCorp)
 - [ ] Enable K8s deploy via GitOps  
 - [ ] K8S Autoscaling
+- [ ] KEDA-based consumer autoscaling (scale-to-zero for Kafka consumers to optimize resource usage)
 - [ ] Error tracker / Update Frontend / see Sentry (self-hosted or cloud)
 - [ ] Metrics tracker / Google Analytics
 - [ ] CDN integration

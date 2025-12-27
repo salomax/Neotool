@@ -8,18 +8,19 @@ error handling and retry logic.
 
 import csv
 from io import StringIO
+from typing import Any
 
 from prefect import get_run_logger, task
 import psycopg2
+from psycopg2.extensions import connection, cursor
 import requests
 
+from .constants import BACEN_BASE_URL, DEFAULT_PAGE_TOP
 from .quarter_determination import get_db_connection
 from .registry_ingestion import build_bacen_query_string, get_bacen_session
 
 # Configuration constants
-BACEN_BASE_URL = "https://olinda.bcb.gov.br/olinda/servico/IFDATA/versao/v1/odata/"
 VALUES_ENDPOINT = "IfDataValores(AnoMes=@AnoMes,TipoInstituicao=@TipoInstituicao,Relatorio=@Relatorio)"
-DEFAULT_PAGE_TOP = 5000
 MAX_ATTEMPTS = 3  # Extract: ≥3 attempts per batch workflow standard
 
 
@@ -27,7 +28,7 @@ class RetryablePaginatedExtractionError(Exception):
     """Signal handled errors that should trigger Prefect retry."""
 
 
-def pick_pending_task(_conn, cur) -> dict | None:
+def pick_pending_task(_conn: connection, cur: cursor) -> dict[str, Any] | None:
     """
     Pick a PENDING extract task from the queue with row-level locking.
 
@@ -76,13 +77,13 @@ def pick_pending_task(_conn, cur) -> dict | None:
 
 
 def update_task_status(
-    _conn,
-    cur,
-    task_key: dict[str, any],
+    _conn: connection,
+    cur: cursor,
+    task_key: dict[str, Any],
     status: str,
     error: str | None = None,
     http_status: int | None = None,
-    logger=None,
+    logger: Any = None,
     set_finished: bool = False,
 ) -> None:
     """
@@ -158,7 +159,7 @@ def update_task_status(
         )
 
 
-def should_purge_raw(_conn, cur, scope: dict[str, any], page_skip: int) -> bool:
+def should_purge_raw(_conn: connection, cur: cursor, scope: dict[str, Any], page_skip: int) -> bool:
     """
     Determine if raw data should be purged for the given scope.
 
@@ -201,7 +202,7 @@ def should_purge_raw(_conn, cur, scope: dict[str, any], page_skip: int) -> bool:
     return count > 0
 
 
-def purge_raw_for_scope(_conn, cur, scope: dict[str, any], logger=None) -> int:
+def purge_raw_for_scope(_conn: connection, cur: cursor, scope: dict[str, Any], logger: Any = None) -> int:
     """
     Purge raw data for the given scope.
 
@@ -291,7 +292,7 @@ def build_bacen_url(
     return full_url
 
 
-def fetch_bacen_data(session: requests.Session, url: str, logger=None) -> str:
+def fetch_bacen_data(session: requests.Session, url: str, logger: Any = None) -> str:
     """
     Fetch data from BACEN API.
 
@@ -315,7 +316,7 @@ def fetch_bacen_data(session: requests.Session, url: str, logger=None) -> str:
     return response.text
 
 
-def parse_csv_rows(csv_text: str, scope: dict[str, any]) -> list[dict[str, any]]:
+def parse_csv_rows(csv_text: str, scope: dict[str, Any]) -> list[dict[str, Any]]:
     """
     Parse CSV content into list of row dictionaries.
 
@@ -380,7 +381,7 @@ def parse_csv_rows(csv_text: str, scope: dict[str, any]) -> list[dict[str, any]]
     return rows
 
 
-def insert_raw_rows(_conn, cur, rows: list[dict[str, any]], logger=None) -> int:
+def insert_raw_rows(_conn: connection, cur: cursor, rows: list[dict[str, Any]], logger: Any = None) -> int:
     """
     Batch insert rows into ifdata_raw table.
 
@@ -428,7 +429,7 @@ def insert_raw_rows(_conn, cur, rows: list[dict[str, any]], logger=None) -> int:
 
 
 def create_next_page_task(
-    _conn, cur, current_task: dict[str, any], page_top: int, logger=None
+    _conn: connection, cur: cursor, current_task: dict[str, Any], page_top: int, logger: Any = None
 ) -> bool:
     """
     Create next page task for pagination continuation.
@@ -487,12 +488,12 @@ def create_next_page_task(
 
 
 def handle_task_failure(
-    conn,
-    cur,
-    task: dict[str, any],
-    task_key: dict[str, any],
+    conn: connection,
+    cur: cursor,
+    task: dict[str, Any],
+    task_key: dict[str, Any],
     error_msg: str,
-    logger,
+    logger: Any,
     http_status: int | None = None,
 ) -> bool:
     """
@@ -539,7 +540,7 @@ def handle_task_failure(
     log_prints=True,
     tags=["extract", "pagination"],
 )
-def execute_paginated_extraction() -> dict[str, any]:
+def execute_paginated_extraction() -> dict[str, Any]:
     """
     Pick a PENDING extract task, execute it, and manage lifecycle.
 

@@ -9,13 +9,12 @@ record with page_skip=0 to kick off paginated extraction.
 from prefect import get_run_logger, task
 import psycopg2
 
-from .constants import ANO_MES_LENGTH
+from .constants import ANO_MES_LENGTH, DEFAULT_PAGE_TOP
 from .quarter_determination import get_db_connection
 
 # Configuration constants
 TIPO_INSTITUICAO_MIN = 1
 TIPO_INSTITUICAO_MAX = 4
-DEFAULT_PAGE_TOP = 5000
 DEFAULT_PAGE_SKIP = 0
 DEFAULT_STATUS = "PENDING"
 

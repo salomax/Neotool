@@ -194,6 +194,27 @@ Run tests with coverage:
 pytest tests/ --cov=. --cov-report=html
 ```
 
+### Coverage Requirements
+
+This project follows testing standards that require:
+- **Unit tests**: 90%+ line coverage and 85%+ branch coverage
+- **Integration tests**: 80%+ line coverage and 75%+ branch coverage
+
+**Check Coverage**:
+```bash
+# Generate HTML coverage report
+pytest tests/ --cov=. --cov-report=html
+
+# View coverage report
+open htmlcov/index.html
+
+# Check coverage summary in terminal
+pytest tests/ --cov=. --cov-report=term-missing
+```
+
+**Coverage Configuration**:
+Coverage is configured via pytest-cov. To add coverage thresholds, update `pyproject.toml` or add a `.coveragerc` file.
+
 ## Environment Variables
 
 | Variable | Description | Required | Default |

@@ -33,3 +33,9 @@ HTTP_OK = 200
 MIN_YEAR = 2000
 MAX_YEAR = 2100
 
+# BACEN API configuration
+BACEN_BASE_URL = "https://olinda.bcb.gov.br/olinda/servico/IFDATA/versao/v1/odata/"
+
+# Pagination configuration
+DEFAULT_PAGE_TOP = 5000  # Default page size for BACEN API pagination
+

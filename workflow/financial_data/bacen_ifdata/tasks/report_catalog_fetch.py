@@ -11,10 +11,10 @@ from io import StringIO
 from prefect import get_run_logger, task
 import requests
 
+from .constants import BACEN_BASE_URL
 from .registry_ingestion import build_bacen_query_string, get_bacen_session
 
 # Configuration constants
-BACEN_BASE_URL = "https://olinda.bcb.gov.br/olinda/servico/IFDATA/versao/v1/odata/"
 CATALOG_ENDPOINT = "ListaDeRelatorio()"
 MAX_REPORTS = 100  # Safety limit, though catalog is small
 

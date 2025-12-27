@@ -12,6 +12,7 @@ import os
 
 from prefect import get_run_logger, task
 import psycopg2
+from psycopg2.extensions import connection
 from psycopg2.extras import RealDictCursor
 
 from .constants import (
@@ -189,7 +190,7 @@ def is_within_publication_window(ano_mes: str, today: date | None = None) -> boo
     return today >= deadline
 
 
-def get_db_connection():
+def get_db_connection() -> connection:
     """
     Get PostgreSQL database connection using environment variables.
 
