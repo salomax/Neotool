@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional
 
 import psycopg2
 import requests
+import cloudscraper
 from bs4 import BeautifulSoup
 from psycopg2.extras import Json
 
@@ -207,7 +208,7 @@ def extract_website_from_receita_data(receita_data: Dict[str, Any], domain: Opti
     if not domain and alias:
         trade_name_normalized = alias.lower().strip().replace(" ", "")
         if trade_name_normalized:
-            return f"https://{trade_name_normalized}"
+            return f"https://{trade_name_normalized}.com.br"
 
     return None
 
@@ -242,6 +243,8 @@ def validate_website_reachable(website: Optional[str]) -> bool:
     """
     Validate that a website URL is reachable.
     
+    Uses cloudscraper to handle Cloudflare protection and other anti-bot measures.
+    
     Args:
         website: Website URL to validate
         
@@ -252,23 +255,53 @@ def validate_website_reachable(website: Optional[str]) -> bool:
         return False
     
     try:
+        # Use cloudscraper to bypass Cloudflare protection
+        scraper = cloudscraper.create_scraper(
+            browser={
+                'browser': 'chrome',
+                'platform': 'windows',
+                'desktop': True
+            }
+        )
+        
         headers = {
             "User-Agent": DEFAULT_USER_AGENT,
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9,pt-BR;q=0.8",
         }
         
         # Use HEAD request first (faster, less bandwidth)
         # If HEAD is not supported, fall back to GET
         try:
-            response = requests.head(website, headers=headers, timeout=5, allow_redirects=True)
+            response = scraper.head(website, headers=headers, timeout=10, allow_redirects=True)
             # If HEAD returns 405 (Method Not Allowed), try GET
             if response.status_code == 405:
-                response = requests.get(website, headers=headers, timeout=5, allow_redirects=True)
+                response = scraper.get(website, headers=headers, timeout=10, allow_redirects=True)
         except requests.exceptions.RequestException:
             # If HEAD fails, try GET
-            response = requests.get(website, headers=headers, timeout=5, allow_redirects=True)
+            response = scraper.get(website, headers=headers, timeout=10, allow_redirects=True)
         
         # Consider 2xx and 3xx as reachable
-        is_reachable = 200 <= response.status_code < 400
+        # Also check if we got a Cloudflare challenge page (403 with specific content)
+        status_code = response.status_code
+        is_reachable = 200 <= status_code < 400
+        
+        # If we got 403, check if it's a Cloudflare challenge page
+        if status_code == 403:
+            content = response.text.lower()
+            # Cloudflare challenge pages often contain these indicators
+            if 'cloudflare' in content or 'checking your browser' in content:
+                logger.warning(
+                    f"Cloudflare challenge detected for {website}, "
+                    f"but cloudscraper should handle it. Status: {status_code}"
+                )
+                # Try one more time with GET to see if cloudscraper can solve it
+                try:
+                    response = scraper.get(website, headers=headers, timeout=15, allow_redirects=True)
+                    is_reachable = 200 <= response.status_code < 400
+                except Exception:
+                    pass
+        
         if not is_reachable:
             logger.warning(
                 f"Website not reachable: {website} (status: {response.status_code})"
@@ -289,6 +322,8 @@ def validate_website_reachable(website: Optional[str]) -> bool:
 def scrape_social_networks(website: Optional[str]) -> Optional[Dict[str, str]]:
     """
     Scrape social network links from website.
+    
+    Uses cloudscraper to handle Cloudflare protection and other anti-bot measures.
 
     Args:
         website: Website URL to scrape
@@ -300,14 +335,23 @@ def scrape_social_networks(website: Optional[str]) -> Optional[Dict[str, str]]:
         return None
 
     try:
+        # Use cloudscraper to bypass Cloudflare protection
+        scraper = cloudscraper.create_scraper(
+            browser={
+                'browser': 'chrome',
+                'platform': 'windows',
+                'desktop': True
+            }
+        )
+        
         # Add timeout and proper headers to avoid being blocked
         headers = {
             "User-Agent": DEFAULT_USER_AGENT,
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.5",
+            "Accept-Language": "en-US,en;q=0.9,pt-BR;q=0.8",
         }
 
-        response = requests.get(website, headers=headers, timeout=10, allow_redirects=True)
+        response = scraper.get(website, headers=headers, timeout=15, allow_redirects=True)
         response.raise_for_status()
 
         soup = BeautifulSoup(response.content, "html.parser")
