@@ -45,15 +45,17 @@ DOMAIN_BLACKLIST = {
     "uai.com.br",
 }
 
-# Default User-Agent for HTTP requests
-DEFAULT_USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/91.0.4472.124 Safari/537.36"
-)
-
 # Field names that might contain website URL in API response
 WEBSITE_FIELD_NAMES = ["website", "site", "url", "homepage", "web"]
+
+# Special rules: keywords mapped to their websites (checked in priority order)
+# These websites are trusted and don't need validation
+SPECIAL_WEBSITES = {
+    "sicoob": "https://www.sicoob.com.br",
+    "cresol": "https://cresol.com.br",
+    "sicredi": "https://sicredi.com.br",
+    "unicred": "https://www.unicred.com.br/",
+}
 
 
 def extract_domain_from_emails(emails: List[Dict[str, Any]]) -> Optional[str]:
@@ -170,14 +172,6 @@ def extract_website_from_receita_data(receita_data: Dict[str, Any], domain: Opti
     if not receita_data:
         return None
 
-    # Special rules: keywords mapped to their websites (checked in priority order)
-    SPECIAL_WEBSITES = {
-        "sicoob": "https://www.sicoob.com.br",
-        "cresol": "https://cresol.com.br",
-        "sicredi": "https://sicredi.com.br",
-        "unicred": "https://www.unicred.com.br/",
-    }
-
     alias = receita_data.get("alias", "") or ""
     company_name = receita_data.get("company", {}).get("name", "") or ""
     
@@ -244,6 +238,7 @@ def validate_website_reachable(website: Optional[str]) -> bool:
     Validate that a website URL is reachable.
     
     Uses cloudscraper to handle Cloudflare protection and other anti-bot measures.
+    Trusted websites (from SPECIAL_WEBSITES) are skipped from validation.
     
     Args:
         website: Website URL to validate
@@ -254,8 +249,15 @@ def validate_website_reachable(website: Optional[str]) -> bool:
     if not website:
         return False
     
+    # Skip validation for trusted websites (manually set from SPECIAL_WEBSITES)
+    trusted_websites = set(SPECIAL_WEBSITES.values())
+    if website in trusted_websites:
+        logger.info(f"Skipping validation for trusted website: {website}")
+        return True
+    
     try:
         # Use cloudscraper to bypass Cloudflare protection
+        # Let cloudscraper set its own User-Agent and headers for better compatibility
         scraper = cloudscraper.create_scraper(
             browser={
                 'browser': 'chrome',
@@ -264,43 +266,11 @@ def validate_website_reachable(website: Optional[str]) -> bool:
             }
         )
         
-        headers = {
-            "User-Agent": DEFAULT_USER_AGENT,
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.9,pt-BR;q=0.8",
-        }
-        
-        # Use HEAD request first (faster, less bandwidth)
-        # If HEAD is not supported, fall back to GET
-        try:
-            response = scraper.head(website, headers=headers, timeout=10, allow_redirects=True)
-            # If HEAD returns 405 (Method Not Allowed), try GET
-            if response.status_code == 405:
-                response = scraper.get(website, headers=headers, timeout=10, allow_redirects=True)
-        except requests.exceptions.RequestException:
-            # If HEAD fails, try GET
-            response = scraper.get(website, headers=headers, timeout=10, allow_redirects=True)
+        # Give cloudscraper enough time to solve challenges (up to 20 seconds)
+        response = scraper.get(website, timeout=20, allow_redirects=True)
         
         # Consider 2xx and 3xx as reachable
-        # Also check if we got a Cloudflare challenge page (403 with specific content)
-        status_code = response.status_code
-        is_reachable = 200 <= status_code < 400
-        
-        # If we got 403, check if it's a Cloudflare challenge page
-        if status_code == 403:
-            content = response.text.lower()
-            # Cloudflare challenge pages often contain these indicators
-            if 'cloudflare' in content or 'checking your browser' in content:
-                logger.warning(
-                    f"Cloudflare challenge detected for {website}, "
-                    f"but cloudscraper should handle it. Status: {status_code}"
-                )
-                # Try one more time with GET to see if cloudscraper can solve it
-                try:
-                    response = scraper.get(website, headers=headers, timeout=15, allow_redirects=True)
-                    is_reachable = 200 <= response.status_code < 400
-                except Exception:
-                    pass
+        is_reachable = 200 <= response.status_code < 400
         
         if not is_reachable:
             logger.warning(
@@ -336,6 +306,7 @@ def scrape_social_networks(website: Optional[str]) -> Optional[Dict[str, str]]:
 
     try:
         # Use cloudscraper to bypass Cloudflare protection
+        # Let cloudscraper set its own headers for better compatibility
         scraper = cloudscraper.create_scraper(
             browser={
                 'browser': 'chrome',
@@ -343,15 +314,8 @@ def scrape_social_networks(website: Optional[str]) -> Optional[Dict[str, str]]:
                 'desktop': True
             }
         )
-        
-        # Add timeout and proper headers to avoid being blocked
-        headers = {
-            "User-Agent": DEFAULT_USER_AGENT,
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.9,pt-BR;q=0.8",
-        }
 
-        response = scraper.get(website, headers=headers, timeout=15, allow_redirects=True)
+        response = scraper.get(website, timeout=20, allow_redirects=True)
         response.raise_for_status()
 
         soup = BeautifulSoup(response.content, "html.parser")
