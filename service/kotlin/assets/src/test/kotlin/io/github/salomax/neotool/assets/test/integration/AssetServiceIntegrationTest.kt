@@ -12,6 +12,7 @@ import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.common.test.transaction.runTransaction
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
+import io.micronaut.test.support.TestPropertyProvider
 import jakarta.inject.Inject
 import jakarta.inject.Named
 import jakarta.persistence.EntityManager
@@ -30,13 +31,15 @@ import java.util.UUID
  * Integration tests for AssetService.
  * Tests service layer with real database and mocked storage.
  */
-@MicronautTest(startApplication = true)
+@MicronautTest(
+    startApplication = true
+)
 @DisplayName("Asset Service Integration Tests")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Tag("integration")
 @Tag("service")
 @Tag("assets")
-open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTest {
+open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTest, TestPropertyProvider {
     @Inject
     lateinit var assetService: AssetService
 
@@ -51,6 +54,14 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
     lateinit var mockStorageClient: MockStorageClient
 
     private val testUserId = "test-user-${UUID.randomUUID()}"
+
+    // Override properties to use MockStorageClient for this test
+    override fun getProperties(): MutableMap<String, String> {
+        val props = super.getProperties()
+        // Enable mock storage client instead of real S3/MinIO
+        props["test.use-mock-storage"] = "true"
+        return props
+    }
 
     @BeforeEach
     override fun setUp() {

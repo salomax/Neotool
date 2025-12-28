@@ -76,8 +76,6 @@ open class AssetService(
         // Validate MIME type and file size
         validationService.validate(namespace, mimeType, sizeBytes, resourceType)
 
-        // Check rate limits
-        rateLimitService.checkRateLimits(ownerId, sizeBytes)
 
         // Generate storage key
         val storageKey = Asset.generateStorageKey(namespace, resourceType, resourceId, UUID.randomUUID())

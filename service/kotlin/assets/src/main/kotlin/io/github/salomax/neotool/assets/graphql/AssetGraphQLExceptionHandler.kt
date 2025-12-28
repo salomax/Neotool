@@ -4,6 +4,7 @@ import graphql.GraphQLError
 import graphql.execution.DataFetcherExceptionHandler
 import graphql.execution.DataFetcherExceptionHandlerParameters
 import graphql.execution.DataFetcherExceptionHandlerResult
+import io.github.salomax.neotool.assets.exception.StorageUnavailableException
 import io.github.salomax.neotool.common.exception.GraphQLOptimisticLockExceptionHandler
 import org.slf4j.LoggerFactory
 import java.util.concurrent.CompletableFuture
@@ -75,6 +76,35 @@ class AssetGraphQLExceptionHandler : DataFetcherExceptionHandler {
                 val error =
                     errorBuilder
                         .extensions(buildExtensions("STATE_ERROR"))
+                        .build()
+
+                CompletableFuture.completedFuture(
+                    DataFetcherExceptionHandlerResult
+                        .newResult()
+                        .error(error)
+                        .build(),
+                )
+            }
+
+            is StorageUnavailableException -> {
+                logger.warn("Storage service unavailable: ${exception.message}", exception.cause)
+
+                val errorBuilder =
+                    GraphQLError
+                        .newError()
+                        .message(exception.message ?: "Storage service is currently unavailable. Please try again later.")
+
+                // Only set path and location if they're not null to avoid NPE
+                handlerParameters.path?.let { errorBuilder.path(it) }
+                try {
+                    handlerParameters.sourceLocation?.let { errorBuilder.location(it) }
+                } catch (e: NullPointerException) {
+                    // sourceLocation can throw NPE if field is null, ignore it
+                }
+
+                val error =
+                    errorBuilder
+                        .extensions(buildExtensions("STORAGE_UNAVAILABLE"))
                         .build()
 
                 CompletableFuture.completedFuture(
