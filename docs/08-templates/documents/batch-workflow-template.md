@@ -76,6 +76,27 @@ Describe cache/idempotency rules per task.
   - Local development: Answer "n" to remote storage (uses filesystem)
   - Production: Use remote storage block (GitHub, S3, GCS, etc.)
 
+## Docker Deployment (Kafka Consumers)
+
+For Kafka consumers (Python batch processors), containerize using Docker:
+
+- **Dockerfile Location**: `workflow/<domain>/<feature>/Dockerfile`
+- **Base Image**: `python:3.14-alpine`
+- **Build Context**: `workflow/` directory (to include `common/` module)
+- **Build Command**:
+  ```bash
+  docker build -f workflow/<domain>/<feature>/Dockerfile -t <consumer-name> workflow/
+  ```
+- **Docker Compose Service**: Add to `infra/docker/docker-compose.yml` or `docker-compose.local.yml`
+- **Health Check**: Expose health endpoint on port 8080 (configurable)
+- **Security**: Run as non-root user (UID 1000)
+- **Dependencies**: 
+  - Install `postgresql-libs` via `apk` for `psycopg2-binary`
+  - Copy `workflow/common/` module (required for `consumer_base.py`)
+  - Copy consumer-specific code from `workflow/<domain>/<feature>/`
+
+See [Kafka Consumer Pattern](../../04-patterns/backend-patterns/kafka-consumer-pattern.md#docker-deployment) for complete Dockerfile template and best practices.
+
 ## Kafka Contracts
 
 | Topic | Direction | Key | Schema Link | Retention | DLQ |

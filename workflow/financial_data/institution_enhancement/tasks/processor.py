@@ -13,6 +13,14 @@ import requests
 import cloudscraper
 from bs4 import BeautifulSoup
 from psycopg2.extras import Json
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_incrementing,
+    before_sleep_log,
+    after_log,
+)
 
 from tasks.cnpj_utils import construct_cnpj, validate_cnpj_format
 from tasks.cnpja_client import query_cnpja
@@ -233,12 +241,61 @@ def extract_legal_name(receita_data: Dict[str, Any]) -> Optional[str]:
     return _extract_string_field(receita_data, ["company", "name"])
 
 
+@retry(
+    retry=retry_if_exception_type((requests.exceptions.Timeout, requests.exceptions.ConnectionError)),
+    stop=stop_after_attempt(3),
+    wait=wait_incrementing(start=40, increment=20, max=80),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
+    after=after_log(logger, logging.INFO),
+    reraise=True,  # Re-raise to let retry mechanism work, then catch in outer try/except
+)
+def _validate_website_reachable_attempt(website: str) -> bool:
+    """
+    Single attempt to validate that a website URL is reachable.
+    
+    This is the inner function that performs the actual HTTP request.
+    The retry logic is handled by the decorator.
+    
+    Args:
+        website: Website URL to validate
+        
+    Returns:
+        True if website is reachable (returns 2xx or 3xx status), False otherwise
+        
+    Raises:
+        requests.exceptions.Timeout: If request times out
+        requests.exceptions.ConnectionError: If connection fails
+    """
+    # Use cloudscraper to bypass Cloudflare protection
+    # Let cloudscraper set its own User-Agent and headers for better compatibility
+    scraper = cloudscraper.create_scraper(
+        browser={
+            'browser': 'chrome',
+            'platform': 'windows',
+            'desktop': True
+        }
+    )
+    
+    # Give cloudscraper enough time to solve challenges (up to 20 seconds)
+    response = scraper.get(website, timeout=20, allow_redirects=True)
+    
+    # Consider 2xx and 3xx as reachable
+    is_reachable = 200 <= response.status_code < 400
+    
+    if not is_reachable:
+        logger.warning(
+            f"Website not reachable: {website} (status: {response.status_code})"
+        )
+    return is_reachable
+
+
 def validate_website_reachable(website: Optional[str]) -> bool:
     """
     Validate that a website URL is reachable.
     
     Uses cloudscraper to handle Cloudflare protection and other anti-bot measures.
     Trusted websites (from SPECIAL_WEBSITES) are skipped from validation.
+    Retries up to 3 times with backoff delays of 40s, 60s, and 80s for timeout/connection errors.
     
     Args:
         website: Website URL to validate
@@ -256,30 +313,9 @@ def validate_website_reachable(website: Optional[str]) -> bool:
         return True
     
     try:
-        # Use cloudscraper to bypass Cloudflare protection
-        # Let cloudscraper set its own User-Agent and headers for better compatibility
-        scraper = cloudscraper.create_scraper(
-            browser={
-                'browser': 'chrome',
-                'platform': 'windows',
-                'desktop': True
-            }
-        )
-        
-        # Give cloudscraper enough time to solve challenges (up to 20 seconds)
-        response = scraper.get(website, timeout=20, allow_redirects=True)
-        
-        # Consider 2xx and 3xx as reachable
-        is_reachable = 200 <= response.status_code < 400
-        
-        if not is_reachable:
-            logger.warning(
-                f"Website not reachable: {website} (status: {response.status_code})"
-            )
-        return is_reachable
-        
+        return _validate_website_reachable_attempt(website)
     except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
-        logger.warning(f"Network error validating website {website}: {e}")
+        logger.warning(f"Network error validating website {website} after retries: {e}")
         return False
     except requests.exceptions.RequestException as e:
         logger.warning(f"Failed to validate website {website}: {e}")
@@ -289,11 +325,83 @@ def validate_website_reachable(website: Optional[str]) -> bool:
         return False
 
 
+@retry(
+    retry=retry_if_exception_type((requests.exceptions.Timeout, requests.exceptions.ConnectionError)),
+    stop=stop_after_attempt(3),
+    wait=wait_incrementing(start=40, increment=20, max=80),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
+    after=after_log(logger, logging.INFO),
+    reraise=True,  # Re-raise to let retry mechanism work, then catch in outer try/except
+)
+def _scrape_social_networks_attempt(website: str) -> Dict[str, str]:
+    """
+    Single attempt to scrape social network links from website.
+    
+    This is the inner function that performs the actual HTTP request and parsing.
+    The retry logic is handled by the decorator.
+    
+    Args:
+        website: Website URL to scrape
+        
+    Returns:
+        Dictionary with social network links
+        
+    Raises:
+        requests.exceptions.Timeout: If request times out
+        requests.exceptions.ConnectionError: If connection fails
+        requests.exceptions.HTTPError: If HTTP error occurs
+    """
+    # Use cloudscraper to bypass Cloudflare protection
+    # Let cloudscraper set its own headers for better compatibility
+    scraper = cloudscraper.create_scraper(
+        browser={
+            'browser': 'chrome',
+            'platform': 'windows',
+            'desktop': True
+        }
+    )
+
+    response = scraper.get(website, timeout=20, allow_redirects=True)
+    response.raise_for_status()
+
+    soup = BeautifulSoup(response.content, "html.parser")
+    social_networks = {}
+
+    # Common social network patterns
+    social_patterns = {
+        "facebook": ["facebook.com", "fb.com"],
+        "instagram": ["instagram.com"],
+        "linkedin": ["linkedin.com"],
+        "twitter": ["twitter.com", "x.com"],
+        "youtube": ["youtube.com", "youtu.be"],
+        "whatsapp": ["whatsapp.com", "wa.me"],
+    }
+
+    # Find all links
+    for link in soup.find_all("a", href=True):
+        href = link.get("href", "").strip()
+        if not href:
+            continue
+
+        href_lower = href.lower()
+
+        # Check for social network URLs
+        for platform, patterns in social_patterns.items():
+            if platform not in social_networks:  # Only take first match per platform
+                for pattern in patterns:
+                    if pattern in href_lower:
+                        social_networks[platform] = _normalize_social_url(href, website)
+                        break
+
+    return social_networks
+
+
 def scrape_social_networks(website: Optional[str]) -> Optional[Dict[str, str]]:
     """
     Scrape social network links from website.
     
     Uses cloudscraper to handle Cloudflare protection and other anti-bot measures.
+    Retries up to 3 times with backoff delays of 40s, 60s, and 80s for timeout/connection errors.
 
     Args:
         website: Website URL to scrape
@@ -305,52 +413,10 @@ def scrape_social_networks(website: Optional[str]) -> Optional[Dict[str, str]]:
         return None
 
     try:
-        # Use cloudscraper to bypass Cloudflare protection
-        # Let cloudscraper set its own headers for better compatibility
-        scraper = cloudscraper.create_scraper(
-            browser={
-                'browser': 'chrome',
-                'platform': 'windows',
-                'desktop': True
-            }
-        )
-
-        response = scraper.get(website, timeout=20, allow_redirects=True)
-        response.raise_for_status()
-
-        soup = BeautifulSoup(response.content, "html.parser")
-        social_networks = {}
-
-        # Common social network patterns
-        social_patterns = {
-            "facebook": ["facebook.com", "fb.com"],
-            "instagram": ["instagram.com"],
-            "linkedin": ["linkedin.com"],
-            "twitter": ["twitter.com", "x.com"],
-            "youtube": ["youtube.com", "youtu.be"],
-            "whatsapp": ["whatsapp.com", "wa.me"],
-        }
-
-        # Find all links
-        for link in soup.find_all("a", href=True):
-            href = link.get("href", "").strip()
-            if not href:
-                continue
-
-            href_lower = href.lower()
-
-            # Check for social network URLs
-            for platform, patterns in social_patterns.items():
-                if platform not in social_networks:  # Only take first match per platform
-                    for pattern in patterns:
-                        if pattern in href_lower:
-                            social_networks[platform] = _normalize_social_url(href, website)
-                            break
-
+        social_networks = _scrape_social_networks_attempt(website)
         return social_networks if social_networks else None
-
-    except requests.exceptions.Timeout:
-        logger.warning(f"Timeout scraping social networks from {website}")
+    except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+        logger.warning(f"Network error scraping social networks from {website} after retries: {e}")
         return None
     except requests.exceptions.RequestException as e:
         logger.warning(f"Failed to scrape social networks from {website}: {e}")
@@ -433,6 +499,9 @@ def process_message(message: InstitutionUpsertedMessage) -> Dict[str, Any]:
         - success: bool
         - parent_cnpj: str
         - domain: Optional[str]
+        - legal_name: Optional[str]
+        - trade_name: Optional[str]
+        - website: Optional[str]
         - error: Optional[str]
 
     Raises:
@@ -463,6 +532,9 @@ def process_message(message: InstitutionUpsertedMessage) -> Dict[str, Any]:
             "success": False,
             "parent_cnpj": parent_cnpj,
             "domain": None,
+            "legal_name": None,
+            "trade_name": None,
+            "website": None,
             "error": error_msg,
         }
 
@@ -566,5 +638,8 @@ def process_message(message: InstitutionUpsertedMessage) -> Dict[str, Any]:
         "success": True,
         "parent_cnpj": parent_cnpj,
         "domain": domain,
+        "legal_name": legal_name,
+        "trade_name": trade_name,
+        "website": website,
         "error": None,
     }

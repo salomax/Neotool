@@ -308,6 +308,8 @@ max_poll_interval_ms >= (max_retries * max_retry_delay_ms) + processing_time + b
 
 **Configuration examples and implementation details**: See [Kafka Consumer Pattern](../../04-patterns/backend-patterns/kafka-consumer-pattern.md).
 
+**Docker Deployment**: Python consumers should be containerized using Docker. See [Kafka Consumer Pattern - Docker Deployment](../../04-patterns/backend-patterns/kafka-consumer-pattern.md#docker-deployment) for Dockerfile template and deployment best practices.
+
 ## 8. Testing Requirements
 
 ### 8.1 Unit Tests

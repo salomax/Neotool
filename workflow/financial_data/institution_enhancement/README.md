@@ -62,6 +62,49 @@ The consumer will:
 - Store enhancement data in database
 - Publish failed messages to DLQ topic: `financial-data.institution.upserted.enhancement.dlq`
 
+## Standalone CLI
+
+A standalone command-line script is available to process institution enhancement for a single CNPJ parent without requiring Kafka.
+
+### Usage
+
+```bash
+python flows/standalone.py <cnpj_parent>
+```
+
+**Example:**
+```bash
+python flows/standalone.py 12345678000190
+```
+
+### Output
+
+The script outputs the processing results:
+- **Success**: Displays trade name, legal name, website, and domain (if available)
+- **Failure**: Displays error message
+
+**Example output:**
+```
+Successfully processed CNPJ: 12345678000190
+  Trade Name: Example Trade Name
+  Legal Name: Example Legal Name
+  Website: https://example.com
+  Domain: example.com
+```
+
+### Features
+
+- **Same validation**: Uses the same `process_message` function as the consumer, including website reachability validation
+- **Database integration**: Stores enhancement data in the same `financial_data.institution_enhancement` table
+- **Rate limiting**: Respects the same CNPJá API rate limits (15 seconds between requests)
+- **Error handling**: Validates CNPJ format and handles processing errors gracefully
+
+### Environment Variables
+
+The standalone script uses the same environment variables as the consumer, except Kafka-related variables are not required:
+- Database configuration (required)
+- CNPJá API configuration (optional, uses defaults if not set)
+
 ## Rate Limiting
 
 The consumer enforces a 15-second minimum between CNPJá API queries to respect the API rate limits (approximately 5 requests per minute). Sequential processing per partition ensures this limit is maintained.
@@ -84,6 +127,7 @@ For multi-process or multi-instance deployments (e.g., multiple Kubernetes pods)
 ## Architecture
 
 - **Consumer**: `flows/consumer.py` - Main Kafka consumer loop
+- **Standalone CLI**: `flows/standalone.py` - Command-line script for single CNPJ processing
 - **Processor**: `tasks/processor.py` - Business logic for processing messages
 - **CNPJá Client**: `tasks/cnpja_client.py` - HTTP client with rate limiting
 - **CNPJ Utils**: `tasks/cnpj_utils.py` - CNPJ construction utilities

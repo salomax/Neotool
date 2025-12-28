@@ -89,8 +89,8 @@ services:
   # -------------------------------------------------------------
   institution-enhancement-consumer:
     build:
-      context: ../../workflow/financial_data/institution_enhancement
-      dockerfile: Dockerfile
+      context: ../../workflow
+      dockerfile: financial_data/institution_enhancement/Dockerfile
     container_name: neotool-institution-enhancement-consumer
     env_file: ../.env.local
     environment:

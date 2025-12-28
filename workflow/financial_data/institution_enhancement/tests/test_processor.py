@@ -24,6 +24,8 @@ from tasks.processor import (
     extract_website_from_receita_data,
     get_parent_cnpj,
     process_message,
+    validate_website_reachable,
+    scrape_social_networks,
 )
 from tasks.db_connection import return_db_connection
 
@@ -1174,8 +1176,10 @@ class TestProcessMessage:
 
     @patch("tasks.processor.get_db_connection")
     @patch("tasks.processor.query_cnpja")
+    @patch("tasks.processor.validate_website_reachable")
+    @patch("tasks.processor.scrape_social_networks")
     def test_successful_processing_with_domain_extraction(
-        self, mock_query_cnpja, mock_get_db_connection
+        self, mock_scrape_social_networks, mock_validate_website_reachable, mock_query_cnpja, mock_get_db_connection
     ):
         """Test successful processing with domain extraction."""
         # Arrange
@@ -1198,6 +1202,10 @@ class TestProcessMessage:
                 "emails": [{"domain": "example.com"}],
             },
         }
+
+        # Mock website validation and social network scraping
+        mock_validate_website_reachable.return_value = True
+        mock_scrape_social_networks.return_value = None
 
         # Mock database
         mock_conn = MagicMock()
@@ -1223,6 +1231,9 @@ class TestProcessMessage:
 
         # Verify CNPJá API was called
         mock_query_cnpja.assert_called_once()
+        
+        # Verify website validation was called (website would be constructed from domain)
+        mock_validate_website_reachable.assert_called_once()
 
     @patch("tasks.processor.get_db_connection")
     @patch("tasks.processor.query_cnpja")
@@ -1401,8 +1412,10 @@ class TestProcessMessage:
 
     @patch("tasks.processor.get_db_connection")
     @patch("tasks.processor.query_cnpja")
+    @patch("tasks.processor.validate_website_reachable")
+    @patch("tasks.processor.scrape_social_networks")
     def test_idempotency_on_conflict_updates_existing_record(
-        self, mock_query_cnpja, mock_get_db_connection
+        self, mock_scrape_social_networks, mock_validate_website_reachable, mock_query_cnpja, mock_get_db_connection
     ):
         """Test that ON CONFLICT updates existing record (idempotency)."""
         # Arrange
@@ -1423,6 +1436,10 @@ class TestProcessMessage:
                 "emails": [{"domain": "example.com"}],
             },
         }
+
+        # Mock website validation and social network scraping
+        mock_validate_website_reachable.return_value = True
+        mock_scrape_social_networks.return_value = None
 
         # Mock database
         mock_conn = MagicMock()
@@ -1445,8 +1462,10 @@ class TestProcessMessage:
 
     @patch("tasks.processor.get_db_connection")
     @patch("tasks.processor.query_cnpja")
+    @patch("tasks.processor.validate_website_reachable")
+    @patch("tasks.processor.scrape_social_networks")
     def test_receita_data_stored_as_jsonb(
-        self, mock_query_cnpja, mock_get_db_connection
+        self, mock_scrape_social_networks, mock_validate_website_reachable, mock_query_cnpja, mock_get_db_connection
     ):
         """Test that receita_data is stored as JSONB."""
         # Arrange
@@ -1474,6 +1493,10 @@ class TestProcessMessage:
             "error": None,
             "data": receita_data,
         }
+
+        # Mock website validation and social network scraping
+        mock_validate_website_reachable.return_value = True
+        mock_scrape_social_networks.return_value = None
 
         # Mock database
         mock_conn = MagicMock()
@@ -1540,8 +1563,10 @@ class TestProcessMessage:
     @patch("tasks.processor.get_db_connection")
     @patch("tasks.processor.query_cnpja")
     @patch("tasks.processor.return_db_connection")
+    @patch("tasks.processor.validate_website_reachable")
+    @patch("tasks.processor.scrape_social_networks")
     def test_database_close_called_in_finally_block(
-        self, mock_return_db_connection, mock_query_cnpja, mock_get_db_connection
+        self, mock_scrape_social_networks, mock_validate_website_reachable, mock_return_db_connection, mock_query_cnpja, mock_get_db_connection
     ):
         """Test that database connection is returned to pool in finally block."""
         # Arrange
@@ -1561,6 +1586,10 @@ class TestProcessMessage:
             "data": {"emails": [{"domain": "example.com"}]},
         }
 
+        # Mock website validation and social network scraping
+        mock_validate_website_reachable.return_value = True
+        mock_scrape_social_networks.return_value = None
+
         # Mock database
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
@@ -1577,8 +1606,10 @@ class TestProcessMessage:
 
     @patch("tasks.processor.get_db_connection")
     @patch("tasks.processor.query_cnpja")
+    @patch("tasks.processor.validate_website_reachable")
+    @patch("tasks.processor.scrape_social_networks")
     def test_legal_name_and_trade_name_extraction(
-        self, mock_query_cnpja, mock_get_db_connection
+        self, mock_scrape_social_networks, mock_validate_website_reachable, mock_query_cnpja, mock_get_db_connection
     ):
         """Test that legal_name and trade_name are extracted and stored."""
         # Arrange
@@ -1603,6 +1634,10 @@ class TestProcessMessage:
                 "company": {"name": "Legal Name Example LTDA"},
             },
         }
+
+        # Mock website validation and social network scraping
+        mock_validate_website_reachable.return_value = True
+        mock_scrape_social_networks.return_value = None
 
         # Mock database
         mock_conn = MagicMock()
@@ -1630,8 +1665,10 @@ class TestProcessMessage:
 
     @patch("tasks.processor.get_db_connection")
     @patch("tasks.processor.query_cnpja")
+    @patch("tasks.processor.validate_website_reachable")
+    @patch("tasks.processor.scrape_social_networks")
     def test_legal_name_and_trade_name_missing_fields(
-        self, mock_query_cnpja, mock_get_db_connection
+        self, mock_scrape_social_networks, mock_validate_website_reachable, mock_query_cnpja, mock_get_db_connection
     ):
         """Test that missing legal_name and trade_name fields are handled as None."""
         # Arrange
@@ -1655,6 +1692,10 @@ class TestProcessMessage:
             },
         }
 
+        # Mock website validation and social network scraping
+        mock_validate_website_reachable.return_value = True
+        mock_scrape_social_networks.return_value = None
+
         # Mock database
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
@@ -1676,4 +1717,135 @@ class TestProcessMessage:
         # Check that legal_name and trade_name are None
         assert execute_call_args[6] is None  # legal_name
         assert execute_call_args[7] is None  # trade_name
+
+
+# ============================================================================
+# Unit Tests - validate_website_reachable (with retry logic)
+# ============================================================================
+
+
+class TestValidateWebsiteReachable:
+    """Test validate_website_reachable function with retry logic."""
+
+    @patch("tasks.processor._validate_website_reachable_attempt")
+    def test_validate_website_reachable_success_on_first_attempt(self, mock_attempt):
+        """Test that validation succeeds on first attempt."""
+        mock_attempt.return_value = True
+        
+        result = validate_website_reachable("https://example.com")
+        
+        assert result is True
+        mock_attempt.assert_called_once_with("https://example.com")
+
+    @patch("tasks.processor._validate_website_reachable_attempt")
+    def test_validate_website_reachable_retries_on_timeout(self, mock_attempt):
+        """Test that validation retries on timeout with backoff delays."""
+        import requests
+        
+        # First two attempts timeout, third succeeds
+        mock_attempt.side_effect = [
+            requests.exceptions.Timeout("Request timeout"),
+            requests.exceptions.Timeout("Request timeout"),
+            True,
+        ]
+        
+        result = validate_website_reachable("https://example.com")
+        
+        assert result is True
+        # Should have been called 3 times (2 failures + 1 success)
+        assert mock_attempt.call_count == 3
+
+    @patch("tasks.processor._validate_website_reachable_attempt")
+    def test_validate_website_reachable_retries_on_connection_error(self, mock_attempt):
+        """Test that validation retries on connection error."""
+        import requests
+        
+        # First attempt fails with connection error, second succeeds
+        mock_attempt.side_effect = [
+            requests.exceptions.ConnectionError("Connection failed"),
+            True,
+        ]
+        
+        result = validate_website_reachable("https://example.com")
+        
+        assert result is True
+        assert mock_attempt.call_count == 2
+
+    @patch("tasks.processor._validate_website_reachable_attempt")
+    def test_validate_website_reachable_returns_false_after_all_retries_fail(self, mock_attempt):
+        """Test that validation returns False after all retries are exhausted."""
+        import requests
+        
+        # All 3 attempts fail with timeout
+        mock_attempt.side_effect = requests.exceptions.Timeout("Request timeout")
+        
+        result = validate_website_reachable("https://example.com")
+        
+        assert result is False
+        # Should have been called 3 times (all retries exhausted)
+        assert mock_attempt.call_count == 3
+
+    def test_validate_website_reachable_returns_false_for_none(self):
+        """Test that validation returns False for None input."""
+        result = validate_website_reachable(None)
+        assert result is False
+
+    def test_validate_website_reachable_skips_trusted_websites(self):
+        """Test that trusted websites are skipped from validation."""
+        result = validate_website_reachable("https://www.sicoob.com.br")
+        assert result is True
+
+
+# ============================================================================
+# Unit Tests - scrape_social_networks (with retry logic)
+# ============================================================================
+
+
+class TestScrapeSocialNetworks:
+    """Test scrape_social_networks function with retry logic."""
+
+    @patch("tasks.processor._scrape_social_networks_attempt")
+    def test_scrape_social_networks_success_on_first_attempt(self, mock_attempt):
+        """Test that scraping succeeds on first attempt."""
+        mock_attempt.return_value = {"facebook": "https://facebook.com/example"}
+        
+        result = scrape_social_networks("https://example.com")
+        
+        assert result == {"facebook": "https://facebook.com/example"}
+        mock_attempt.assert_called_once_with("https://example.com")
+
+    @patch("tasks.processor._scrape_social_networks_attempt")
+    def test_scrape_social_networks_retries_on_timeout(self, mock_attempt):
+        """Test that scraping retries on timeout."""
+        import requests
+        
+        # First attempt times out, second succeeds
+        mock_attempt.side_effect = [
+            requests.exceptions.Timeout("Request timeout"),
+            {"instagram": "https://instagram.com/example"},
+        ]
+        
+        result = scrape_social_networks("https://example.com")
+        
+        assert result == {"instagram": "https://instagram.com/example"}
+        assert mock_attempt.call_count == 2
+
+    @patch("tasks.processor._scrape_social_networks_attempt")
+    def test_scrape_social_networks_returns_none_after_all_retries_fail(self, mock_attempt):
+        """Test that scraping returns None after all retries are exhausted."""
+        import requests
+        
+        # All 3 attempts fail with connection error
+        mock_attempt.side_effect = requests.exceptions.ConnectionError("Connection failed")
+        
+        result = scrape_social_networks("https://example.com")
+        
+        assert result is None
+        # Should have been called 3 times (all retries exhausted)
+        assert mock_attempt.call_count == 3
+
+    def test_scrape_social_networks_returns_none_for_none_input(self):
+        """Test that scraping returns None for None input."""
+        result = scrape_social_networks(None)
+        assert result is None
 

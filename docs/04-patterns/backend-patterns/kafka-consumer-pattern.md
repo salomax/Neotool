@@ -212,6 +212,157 @@ batch:
 
 See [Kafka Consumer Standard](../../05-standards/workflow-standards/kafka-consumer-standard.md) for required parameters and defaults.
 
+## Docker Deployment
+
+Python Kafka consumers should be containerized using Docker for consistent deployments. The following Dockerfile pattern should be used for all Python consumers.
+
+### Dockerfile Structure
+
+**Base Image**: Use `python:3.14-alpine` for a minimal, secure image.
+
+**Key Requirements**:
+1. Install system dependencies using `apk` (Alpine package manager)
+2. Create non-root user for security
+3. Copy workflow common module (required for `consumer_base.py`)
+4. Copy consumer-specific code
+5. Configure health check endpoint
+6. Use proper layer caching for dependencies
+
+**Example Dockerfile**:
+
+```dockerfile
+# Stage 1: Builder (if needed for compilation)
+FROM python:3.14-alpine AS builder
+
+# Stage 2: Runtime
+FROM python:3.14-alpine
+
+# Install system dependencies (psycopg2-binary needs libpq)
+RUN apk add --no-cache \
+    postgresql-libs
+
+# Create non-root user and group
+RUN addgroup --system --gid 1000 consumer && \
+    adduser --system --uid 1000 --ingroup consumer consumer && \
+    mkdir -p /app && \
+    chown -R consumer:consumer /app
+
+WORKDIR /app
+
+# Copy requirements first for better layer caching
+COPY --chown=consumer:consumer <domain>/<feature>/requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Copy workflow common module (needed for consumer_base)
+COPY --chown=consumer:consumer common/ ./workflow/common/
+
+# Copy application code
+COPY --chown=consumer:consumer <domain>/<feature>/ .
+
+# Switch to non-root user
+USER consumer
+
+# Expose health check port
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"
+
+# Entry point
+ENTRYPOINT ["python", "flows/consumer.py"]
+```
+
+### Build Context
+
+**Important**: The Docker build context must be the `workflow/` directory (or project root) to properly copy both the consumer code and the `common/` module.
+
+**Build Command**:
+```bash
+# From workflow/ directory
+docker build -f <domain>/<feature>/Dockerfile -t <consumer-name> .
+
+# Or from project root
+docker build -f workflow/<domain>/<feature>/Dockerfile -t <consumer-name> workflow/
+```
+
+### Docker Compose Integration
+
+Consumers should be defined in `docker-compose.yml` or `docker-compose.local.yml`:
+
+```yaml
+services:
+  <consumer-name>:
+    build:
+      context: ./workflow
+      dockerfile: <domain>/<feature>/Dockerfile
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: neotool_db
+      POSTGRES_USER: neotool
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_INPUT_TOPIC: <domain>.<entity>.v1
+      KAFKA_CONSUMER_GROUP: <domain>-<feature>-consumer-group
+      HEALTH_CHECK_PORT: 8080
+      HEALTH_CHECK_ENABLED: "true"
+    depends_on:
+      - postgres
+      - kafka
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+```
+
+### Alpine Linux Considerations
+
+**Package Manager**: Alpine uses `apk`, not `apt-get`. Always use:
+```dockerfile
+RUN apk add --no-cache <package-name>
+```
+
+**User Creation**: Alpine uses `addgroup` and `adduser`, not `useradd`:
+```dockerfile
+RUN addgroup --system --gid 1000 consumer && \
+    adduser --system --uid 1000 --ingroup consumer consumer
+```
+
+**PostgreSQL Libraries**: Use `postgresql-libs` (not `libpq5`) for `psycopg2-binary`:
+```dockerfile
+RUN apk add --no-cache postgresql-libs
+```
+
+### Health Check Configuration
+
+All consumers should expose a health check endpoint on port 8080 (configurable via `HEALTH_CHECK_PORT`). The Dockerfile includes a `HEALTHCHECK` instruction that validates the consumer is running.
+
+**Health Check Requirements**:
+- Endpoint: `http://localhost:8080/health`
+- Should return HTTP 200 when consumer is healthy
+- Should be implemented using the shared health check module (see `flows/health.py` examples)
+
+### Security Best Practices
+
+1. **Non-Root User**: Always run as non-root user (UID 1000)
+2. **Minimal Base Image**: Use Alpine Linux for smaller attack surface
+3. **No Cache in Production**: Use `--no-cache-dir` for pip installs
+4. **Layer Caching**: Copy requirements.txt before application code for better caching
+5. **Minimal Dependencies**: Only install required system packages
+
+### Build Optimization
+
+1. **Multi-Stage Builds**: Use multi-stage builds if compilation is needed
+2. **Layer Ordering**: Copy dependencies first, then application code
+3. **Common Module**: Copy `common/` module separately for better caching across consumers
+4. **Requirements Caching**: Copy `requirements.txt` separately to cache dependency installation
+
 ## Retry Strategy
 
 **All consumers MUST implement retry logic according to the [Kafka Consumer Standard](../../05-standards/workflow-standards/kafka-consumer-standard.md).**
