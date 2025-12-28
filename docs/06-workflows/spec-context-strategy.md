@@ -114,7 +114,7 @@ NeoTool's specification is comprehensive and RAG-optimized. This document provid
 
 #### Kafka Consumer add-on (Kafka consumers/batch processing):
 - `docs/04-patterns/backend-patterns/kafka-consumer-pattern.md` (Kotlin consumers)
-- `docs/05-standards/workflow-standards/kafka-consumer-retry-standard.md` (MANDATORY for all consumers)
+- `docs/05-standards/workflow-standards/kafka-consumer-standard.md` (MANDATORY for all consumers)
 - `docs/05-standards/workflow-standards/batch-workflow-standard.md` (batch workflows)
 
 #### Common Conditional Standards (Load When Needed)

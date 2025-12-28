@@ -127,6 +127,7 @@ This standard applies to every job that runs under `workflow/` or `pipelines/` a
 - Manual commits only after successful processing.
 - Implement retry-withbackoff inside consumer (Resilience4j or manual).
 - Hard failures (poison messages) go to DLQ topic and raise alerts.
+- **All consumer implementations MUST comply with the [Kafka Consumer Standard](./kafka-consumer-standard.md).**
 
 ## 5. Testing & Validation
 

@@ -9,279 +9,319 @@ ai_optimized: true
 search_keywords: [kafka, consumer, pattern, batch, retry, dlq]
 related:
   - 05-standards/workflow-standards/batch-workflow-standard.md
+  - 05-standards/workflow-standards/kafka-consumer-standard.md
   - 07-examples/batch-workflows/swapi-etl-workflow.md
-  - 08-templates/code/kafka-consumer-template.kt
+  - 08-templates/code/kafka-consumer-template.py
 ---
 
 # Kafka Consumer Pattern
 
-> **Purpose**: Standard pattern for implementing Kafka consumers in Kotlin/Micronaut for batch processing workflows.
+> **Purpose**: Implementation guide for Kafka consumers in Python for batch processing workflows. Shows **how to implement** consumers that comply with the [Kafka Consumer Standard](../../05-standards/workflow-standards/kafka-consumer-standard.md).
 
 ## Overview
 
 This pattern defines the structure and best practices for implementing Kafka consumers that process messages from batch ETL jobs. It includes retry logic, DLQ handling, metrics, and observability.
 
+**Relationship with Standards**:
+- This pattern shows **how to implement** Kafka consumers
+- The [Kafka Consumer Standard](../../05-standards/workflow-standards/kafka-consumer-standard.md) defines **what rules must be followed** (mandatory requirements, parameters, error classification rules, consumer group management, etc.)
+- Use this pattern for implementation guidance and code examples
+- Refer to the standard for mandatory rules and compliance requirements
+
+**Implementation Language:**
+- Python (workflow/batch processing)
+
+For complete code templates, see [Kafka Consumer Template](../../08-templates/code/kafka-consumer-template.py).
+
 ## Architecture
 
-```
-┌─────────────┐
-│   Kafka     │
-│   Topic     │
-└──────┬──────┘
-       │
-       ▼
-┌─────────────────┐
-│  Consumer       │
-│  (@KafkaListener)│
-└──────┬──────────┘
-       │ submits work
-       ▼
-┌─────────────────────┐
-│  Virtual Thread Pool│
-│  (ProcessingExecutor)│
-└──────┬──────────────┘
-       │
-       ▼
-┌─────────────────┐
-│ Retry + DLQ     │
-│ (blocking code  │
-│  on virtual     │
-│  threads)       │
-└──────┬──────────┘
-       │
-       ├─── Success ───► Processor ───► Pending Commit Queue ──► Commit Offset (listener thread)
-       │
-       └─── Failure ───► DLQ Publisher ───► Pending Commit Queue ──► Commit Offset
+```mermaid
+flowchart TD
+    A[Kafka Topic] --> B[Consumer<br/>Python Loop]
+    B --> C[Retry + DLQ<br/>blocking code]
+    C -->|Success| D[Processor]
+    C -->|Failure| E[DLQ Publisher]
+    D --> F[Commit Offset]
+    E --> F
 ```
 
 **Key Design Principles:**
-- Uses virtual threads (Project Loom) to run business logic outside the Kafka listener thread
-- Listener hands work to `ProcessingExecutor` immediately and returns to polling, keeping heartbeats healthy
-- Sequential processing per partition enforced by per-partition locks before dispatching to the executor
-- Retry logic remains simple blocking code (`Thread.sleep`) because it now runs on virtual threads
-- Commits still occur on the listener thread via a pending-commit queue to keep the Kafka consumer thread-safe
-- DLQ publishing and metrics happen inside the worker tasks; results are marshalled back to the listener
+- Sequential processing per partition (enforced by `max_poll_records=1` for rate limiting)
+- Retry logic implemented directly in consumer loop using `time.sleep()`
+- Manual commit after successful processing or DLQ publish
+- DLQ publishing with comprehensive error metadata
+- Graceful shutdown with signal handlers
 
 ## Implementation Structure
 
 ### Package Organization
 
 ```
-service/kotlin/<module>/batch/<domain>/
-├── <Domain>Consumer.kt          # Main consumer with @KafkaListener
-├── <Domain>Message.kt           # Data classes matching Kafka schema
-├── <Domain>Processor.kt          # Business logic processor
-├── DlqPublisher.kt               # DLQ message publisher
-├── metrics/
-│   └── <Domain>Metrics.kt       # Micrometer metrics
-└── config/
-    └── KafkaConsumerConfig.kt    # Consumer configuration
+workflow/<domain>/<feature>/
+├── flows/
+│   └── consumer.py              # Main consumer loop
+├── tasks/
+│   ├── message.py               # Message data classes
+│   ├── processor.py             # Business logic processor
+│   ├── dlq_publisher.py        # DLQ message publisher
+│   ├── error_classification.py  # Error classification logic
+│   ├── retry_utils.py           # Retry backoff calculation
+│   ├── db_connection.py         # Database connection pooling
+│   └── config.py                # Configuration management
+└── tests/
+    └── test_*.py                # Unit and integration tests
 ```
 
 ### Key Components
 
-1. **Consumer** (`<Domain>Consumer.kt`):
-   - `@KafkaListener` annotation
-   - Extends `AbstractKafkaConsumer` which hands work to the shared `ProcessingExecutor`
-   - Regular `fun receive()` that submits work to the executor and immediately returns to Kafka
-   - Manual commit after successful processing via the pending-commit queue
-   - Retry logic with exponential backoff using `Thread.sleep()` (virtual threads park efficiently)
-   - DLQ publishing for poison messages
+1. **Consumer** (`flows/consumer.py`):
+   - Main consumer loop using `kafka-python` library
+   - Manual commit after successful processing or DLQ publish
+   - Retry logic with exponential backoff using `time.sleep()`
+   - Sequential processing per partition (enforced by `max_poll_records=1`)
+   - Graceful shutdown with signal handlers
    - Error handling and logging
-   - Sequential processing per partition
-   - Graceful shutdown waits for executor tasks to complete before closing
 
-2. **Message Models** (`<Domain>Message.kt`):
-   - Data classes matching Kafka schema
+2. **Message Models** (`tasks/message.py`):
+   - Dataclasses matching Kafka schema
    - JSON serialization/deserialization
    - Validation helpers
 
-3. **Processor** (`<Domain>Processor.kt`):
+3. **Processor** (`tasks/processor.py`):
    - Business logic implementation
    - Validation
    - Error handling
-   - Metrics recording
+   - Returns success/error dictionary
 
-4. **DLQ Publisher** (`DlqPublisher.kt`):
+4. **DLQ Publisher** (`tasks/dlq_publisher.py`):
    - Publishes failed messages to DLQ topic
    - Includes original message + error metadata
    - Error handling for DLQ publishing itself
 
-5. **Metrics** (`metrics/<Domain>Metrics.kt`):
-   - Processed count
-   - Processing duration
-   - DLQ count
-   - Retry count
-   - Error count
-6. **Processing Executor** (`ProcessingExecutor.kt`):
-   - Singleton virtual-thread executor
-   - Provides `submit` method that returns `CompletableFuture`
-   - Shut down gracefully during application stop to drain in-flight work
+5. **Error Classification** (`tasks/error_classification.py`):
+   - Classifies errors as retryable vs non-retryable
+   - Implements [Kafka Consumer Standard](../../05-standards/workflow-standards/kafka-consumer-standard.md)
+
+6. **Retry Utilities** (`tasks/retry_utils.py`):
+   - Exponential backoff calculation with jitter
+   - Respects rate limits
+
+7. **Database Connection Pooling** (`tasks/db_connection.py`):
+   - PostgreSQL connection pooling
+   - Graceful connection lifecycle management
 
 ## Code Pattern
 
+For complete implementation templates, see [Kafka Consumer Template](../../08-templates/code/kafka-consumer-template.py).
+
 ### Consumer Implementation
 
-Consumers should extend `AbstractKafkaConsumer` which provides virtual thread-based processing with retry logic, DLQ handling, and metrics. The base class handles all the complexity:
+The consumer implements retry logic directly in the consumer loop:
 
-```kotlin
-@Singleton
-@KafkaListener(
-    groupId = "<domain>-consumer-group",
-    offsetReset = OffsetReset.EARLIEST,
-    properties = [
-        Property(name = "enable.auto.commit", value = "false"),
-        Property(name = "max.poll.records", value = "100"),
-        Property(name = "session.timeout.ms", value = "30000"),
-        Property(name = "heartbeat.interval.ms", value = "10000")
-    ]
-)
-class DomainConsumer(
-    @Inject processor: DomainProcessor,
-    @Inject dlqPublisher: DomainDlqPublisher,
-    @Inject metrics: DomainMetrics,
-    @Inject config: ConsumerConfig
-) : AbstractKafkaConsumer<DomainMessage, DomainProcessor, DomainDlqPublisher, DomainMetrics>(
-    processor,
-    dlqPublisher,
-    metrics,
-    config
-) {
-    override fun getTopicName(): String {
-        return "<domain>.entity.v1"
-    }
-    
-    @Topic("<domain>.entity.v1")
-    fun receive(
-        @KafkaKey key: String,
-        message: DomainMessage,
-        consumer: Consumer<*, *>,
-        @KafkaPartition partition: Int,
-        offset: Long
-    ) {
-        super.receive(key, message, consumer, partition, offset)
-    }
-}
-```
+**Key Implementation Points:**
+- Uses `kafka-python` library for consumer implementation
+- Manual offset commits after successful processing or DLQ publish
+- Retry logic implemented directly in consumer loop
+- Sequential processing per partition (enforced by `max_poll_records=1` for rate limiting)
+- Graceful shutdown with signal handlers
+- Database connection pooling for efficient resource management
+- Error classification separates retryable from non-retryable errors
+- DLQ publishing with comprehensive error metadata
 
-**Key Points:**
-- Extends `AbstractKafkaConsumer` which provides virtual thread-based processing
-- `receive()` is a regular function (no suspend needed - virtual threads handle blocking efficiently)
-- All retry logic, DLQ handling, and offset commits are handled by the base class
-- Sequential processing per partition is guaranteed
-- Uses virtual threads for efficient blocking I/O (configured in `application.yml`)
-
-### Processor Implementation
-
-```kotlin
-@Singleton
-class DomainProcessor(
-    private val metrics: DomainMetrics
-) {
-    private val logger = KotlinLogging.logger {}
-    
-    fun process(message: DomainMessage) {
-        val startTime = System.currentTimeMillis()
-        
-        try {
-            validate(message)
-            // Business logic here
-            val duration = System.currentTimeMillis() - startTime
-            metrics.recordProcessingDuration(duration.toDouble())
-            metrics.incrementProcessed()
-        } catch (e: ValidationException) {
-            metrics.incrementError()
-            throw ProcessingException("Validation failed: ${e.message}", e)
-        } catch (e: Exception) {
-            metrics.incrementError()
-            throw ProcessingException("Processing failed: ${e.message}", e)
-        }
-    }
-    
-    private fun validate(message: DomainMessage) {
-        // Validation logic
-    }
-}
-```
+See [Kafka Consumer Template](../../08-templates/code/kafka-consumer-template.py) for complete implementation including:
+- Consumer loop with retry logic
+- Message processing
+- Error classification
+- Retry utilities
+- Database connection pooling
+- Configuration management
 
 ## Configuration
 
-### application.yml
+Python consumers use environment variables for configuration. See [Kafka Consumer Template](../../08-templates/code/kafka-consumer-template.py) for complete configuration implementation.
 
-```yaml
-micronaut:
-  executors:
-    consumer:
-      type: virtual  # Use virtual threads for Kafka consumers (requires JDK 21+)
+**Configuration Best Practices:**
+- Use environment variables for all configuration (12-factor app pattern)
+- Provide sensible defaults for local development
+- Use dataclasses for type-safe configuration
+- Validate configuration on startup
+- Support configuration via `.env` files for local development
 
-kafka:
-  bootstrap:
-    servers: ${KAFKA_BROKERS}
-  consumers:
-    <domain>-entity:
-      group-id: <domain>-entity-consumer-group
-      enable-auto-commit: false
-      auto-offset-reset: earliest
-      max-poll-records: 100
-      session-timeout-ms: 30000
-      heartbeat-interval-ms: 10000
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: io.micronaut.serde.kafka.KafkaSerdeDeserializer
+**Required Environment Variables:**
+- `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`
+- `POSTGRES_POOL_MIN`, `POSTGRES_POOL_MAX` (optional, defaults: 2, 10)
+- `KAFKA_BROKERS`, `KAFKA_INPUT_TOPIC`, `KAFKA_CONSUMER_GROUP`
+- `RETRY_MAX_RETRIES`, `RETRY_INITIAL_DELAY_MS`, `RETRY_MAX_DELAY_MS`, `RETRY_BACKOFF_MULTIPLIER`, `RETRY_JITTER` (optional, see retry standard for defaults)
+
+**Configuration Example**:
+
+```python
+# config.py or environment variables
+@dataclass
+class RetryConfig:
+    max_retries: int = int(os.getenv("MAX_RETRIES", "3"))
+    initial_retry_delay_ms: int = int(os.getenv("INITIAL_RETRY_DELAY_MS", "1000"))
+    max_retry_delay_ms: int = int(os.getenv("MAX_RETRY_DELAY_MS", "30000"))
+    retry_backoff_multiplier: float = float(os.getenv("RETRY_BACKOFF_MULTIPLIER", "2.0"))
+    retry_jitter: bool = os.getenv("RETRY_JITTER", "true").lower() == "true"
 ```
 
-**Virtual Threads Configuration:**
-- `micronaut.executors.consumer.type: virtual` enables virtual threads for Kafka consumers
-- Requires JDK 21+ and Micronaut 4+
-- Virtual threads make blocking operations (Thread.sleep, blocking I/O) efficient
-- No need for suspend functions or coroutines - simple blocking code works efficiently
+**Kotlin Configuration Example**:
+
+```yaml
+# application.yml
+batch:
+  consumer:
+    max-retries: 3
+    initial-retry-delay-ms: 1000
+    max-retry-delay-ms: 30000
+    retry-backoff-multiplier: 2.0
+    retry-jitter: true
+```
+
+See [Kafka Consumer Standard](../../05-standards/workflow-standards/kafka-consumer-standard.md) for required parameters and defaults.
 
 ## Retry Strategy
 
-### Retry Configuration
+**All consumers MUST implement retry logic according to the [Kafka Consumer Standard](../../05-standards/workflow-standards/kafka-consumer-standard.md).**
 
-Configured via `ConsumerConfig`:
-- **Max Retries**: 3 attempts (configurable via `batch.consumer.max-retries`)
-- **Initial Delay**: 1 second (configurable via `batch.consumer.initial-retry-delay-ms`)
-- **Max Delay**: 10 seconds (configurable via `batch.consumer.max-retry-delay-ms`)
-- **Backoff**: Exponential (configurable via `batch.consumer.retry-backoff-multiplier`)
+The standard defines the **mandatory rules and requirements**:
+- Error classification rules (retryable vs non-retryable)
+- Exponential backoff formula and parameters
+- Retry configuration parameters and defaults
+- DLQ routing rules
+- Consumer group management
+- Metrics and observability requirements
 
-### Retry Behavior
+This pattern shows **how to implement** those requirements. See the standard for complete rule definitions.
 
-1. **Transient Errors**: Retry with exponential backoff using `Thread.sleep()` (virtual thread parks efficiently)
-2. **Validation Errors**: No retry, send to DLQ immediately
-3. **Persistent Errors**: Retry up to max, then send to DLQ
+### Implementation Example
+
+**Complete retry implementation with error classification and backoff**:
+
+```python
+def process_with_retry(message: InstitutionUpsertedMessage) -> Dict[str, Any]:
+    """Process message with retry logic and exponential backoff."""
+    retry_count = 0
+    max_retries = config.max_retries
+    
+    while retry_count <= max_retries:
+        try:
+            result = process_message(message)
+            if result["success"]:
+                metrics.increment_processed("success")
+                return result
+            
+            # Check if error is retryable
+            error = result.get("error")
+            if not is_retryable_error(error):
+                metrics.increment_error(error_type=type(error).__name__, classification="non-retryable")
+                publish_to_dlq(message, error, retry_count=retry_count)
+                return result
+            
+            # Retryable error - check if we should retry
+            if retry_count >= max_retries:
+                metrics.increment_error(error_type=type(error).__name__, classification="retryable")
+                publish_to_dlq(message, error, retry_count=retry_count)
+                return result
+            
+            # Calculate and apply backoff
+            delay_ms = calculate_backoff(retry_count, config)
+            logger.warning(
+                f"Retryable error (attempt {retry_count + 1}/{max_retries + 1}), "
+                f"retrying in {delay_ms}ms: {error}"
+            )
+            metrics.increment_retry(retry_attempt=retry_count + 1)
+            time.sleep(delay_ms / 1000.0)
+            retry_count += 1
+            
+        except RetryableException as e:
+            if retry_count >= max_retries:
+                metrics.increment_error(error_type=type(e).__name__, classification="retryable")
+                publish_to_dlq(message, e, retry_count=retry_count)
+                raise
+            
+            delay_ms = calculate_backoff(retry_count, config)
+            logger.warning(f"Retryable exception, retrying in {delay_ms}ms: {e}")
+            metrics.increment_retry(retry_attempt=retry_count + 1)
+            time.sleep(delay_ms / 1000.0)
+            retry_count += 1
+            
+        except NonRetryableException as e:
+            metrics.increment_error(error_type=type(e).__name__, classification="non-retryable")
+            publish_to_dlq(message, e, retry_count=0)
+            raise
+    
+    # Should not reach here, but handle gracefully
+    raise Exception("Max retries exceeded")
+```
+
+### Error Classification Implementation
+
+**Error classification function implementing standard rules**:
+
+```python
+def is_retryable_error(error: Exception) -> bool:
+    """Classify error as retryable or non-retryable per standard."""
+    # Network/connection errors - retryable
+    if isinstance(error, (ConnectionError, TimeoutError, requests.exceptions.Timeout)):
+        return True
+    
+    # HTTP errors - classify by status code
+    if isinstance(error, requests.exceptions.HTTPError):
+        if error.response.status_code in [429, 502, 503, 504]:
+            return True  # Rate limit, bad gateway, service unavailable, gateway timeout
+        if error.response.status_code in [400, 401, 403, 404]:
+            return False  # Bad request, unauthorized, forbidden, not found
+    
+    # Database transient errors - retryable
+    if isinstance(error, psycopg2.OperationalError):
+        return True  # Connection errors are retryable
+    if isinstance(error, psycopg2.IntegrityError):
+        return False  # Constraint violations are not retryable
+    
+    # Validation errors - not retryable
+    if isinstance(error, ValueError):
+        return False
+    
+    # Default: assume retryable for unknown errors (conservative approach)
+    return True
+```
+
+### Backoff Calculation Implementation
+
+**Exponential backoff with jitter**:
+
+```python
+import random
+
+def calculate_backoff(retry_count: int, config: RetryConfig) -> int:
+    """Calculate exponential backoff delay with jitter per standard formula."""
+    base_delay = min(
+        config.initial_retry_delay_ms * (config.retry_backoff_multiplier ** retry_count),
+        config.max_retry_delay_ms
+    )
+    
+    if config.retry_jitter:
+        jitter = random.uniform(0, base_delay * 0.1)  # 10% jitter
+        return int(base_delay + jitter)
+    
+    return int(base_delay)
+```
 
 ### Implementation Details
 
-- Uses virtual threads (Project Loom) for efficient blocking operations
-- Retry delays use `Thread.sleep()` - virtual threads park instead of blocking platform threads
-- Processing happens sequentially per partition
-- Offset commits occur on the listener thread after successful processing/DLQ publish
-- Virtual threads make blocking I/O operations cheap and scalable
+- Retry logic implemented directly in consumer loop (no virtual threads in Python)
+- Uses `time.sleep()` for retry delays
+- Sequential processing per partition (enforced by `max_poll_records=1` for rate limiting)
+- Error classification via `is_retryable_error()` function
+- Backoff calculation via `calculate_backoff()` function
+- See [Kafka Consumer Standard](../../05-standards/workflow-standards/kafka-consumer-standard.md) for complete rule definitions
 
-### Memory Management
-
-The `AbstractKafkaConsumer` tracks assigned partitions, active consumers, and in-flight work to coordinate shutdown and prevent memory leaks.
-
-**Partition Assignment Tracking:**
-- `assignedPartitions` set tracks all partitions that have been assigned (persists across processing cycles)
-- Used during shutdown to pause all assigned partitions, even when idle
-- Updated when messages are received (indicating partition assignment)
-- Separate from active processing tracking to handle shutdown when consumer is idle
-
-**Partition Lifecycle Tracking:**
-- `activeConsumers` map tracks consumer instances per partition for shutdown coordination
-- Entries are automatically cleaned up in `finally` block after processing completes (success or failure)
-- This prevents memory leaks from unbounded map growth and stale/closed consumer references
-- The map only contains partitions with currently active processing (not all assigned partitions)
-
-**In-Flight Work Tracking:**
-- `inFlightWork` map tracks count of messages currently being processed per partition
-- Used during graceful shutdown to wait for all in-flight messages to complete
-- Counter is incremented at start of `receive()`, decremented in `finally` block
-- Entries are removed when counter reaches zero to keep map clean
 
 ## DLQ Strategy
+
+**DLQ routing and message structure MUST follow the [Kafka Consumer Standard](../../05-standards/workflow-standards/kafka-consumer-standard.md).**
 
 ### DLQ Topic Naming
 
@@ -290,23 +330,22 @@ The `AbstractKafkaConsumer` tracks assigned partitions, active consumers, and in
 
 ### DLQ Message Structure
 
-```kotlin
-data class DlqMessage(
-    val originalMessage: DomainMessage,
-    val errorMessage: String,
-    val errorType: String,
-    val failedAt: String,
-    val retryCount: Int,
-    val stackTrace: String?
-)
+The standard defines the required DLQ message structure. Example implementation:
+
+**Python:**
+```python
+{
+    "original_message": { /* original Kafka message */ },
+    "error_type": "ValueError",
+    "error_message": "Invalid bacen_cod_inst format",
+    "failed_at": "2024-01-01T00:00:00Z",
+    "retry_count": 3,
+    "error_classification": "non-retryable",
+    "stack_trace": "..."  # Optional, for debugging
+}
 ```
 
-### DLQ Publishing
-
-- Always include original message
-- Include error metadata
-- Include retry count
-- Include stack trace for debugging
+See [Kafka Consumer Standard](../../05-standards/workflow-standards/kafka-consumer-standard.md) for complete requirements.
 
 ## Graceful Shutdown
 
@@ -321,7 +360,7 @@ The consumer implements graceful shutdown with draining to ensure in-flight work
 
 ### Draining Mechanism
 
-**Problem**: Previously, shutdown just set a flag and paused partitions, but didn't wait for in-flight messages to complete. If the app stopped while a record was mid-retry, the consumer could exit without committing, causing duplicates or unprocessed records. Additionally, `drainInFlightWork()` just polls counters while sleeping; it cannot actually interrupt the virtual thread that is sleeping inside `processWithRetry`, so if a retry is in the middle of a long backoff, shutdown will sit in this loop until the sleep completes or the timeout expires.
+**Problem**: Previously, shutdown just set a flag and paused partitions, but didn't wait for in-flight messages to complete. If the app stopped while a record was mid-retry, the consumer could exit without committing, causing duplicates or unprocessed records. Additionally, if a retry is in the middle of a long backoff, shutdown will wait until the sleep completes or the timeout expires.
 
 **Solution**: 
 - Track in-flight work per partition, pause all assigned partitions (not just active ones), then wait for all in-flight messages to complete (with configurable timeout)
@@ -346,7 +385,7 @@ The consumer attempts to mitigate `max.poll.interval.ms` violations, but has imp
 
 ### Problem
 
-Long retry loops with `Thread.sleep()` can exceed `max.poll.interval.ms`, causing Kafka to think the consumer is dead and trigger rebalances. Even with virtual threads, the listener thread is blocked until `receive()` returns, preventing heartbeats.
+Long retry loops with `time.sleep()` can exceed `max.poll.interval.ms`, causing Kafka to think the consumer is dead and trigger rebalances. The consumer thread is blocked during retry delays, preventing heartbeats.
 
 ### Important Limitations
 
@@ -383,7 +422,7 @@ The consumer processes messages sequentially per partition, which means poison m
 **Poison Message Impact:**
 - A single poison message (one that always fails) will block processing for its partition
 - Processing is blocked until all retries are exhausted and the message is sent to DLQ
-- Virtual threads make `Thread.sleep()` cheap, but they don't solve starvation
+- Sequential processing ensures ordering but can cause starvation if one message blocks
 - Newer messages in the same partition can't progress until the poison message completes its retry cycle
 
 **Why This Design:**
@@ -437,20 +476,7 @@ The consumer processes messages sequentially per partition, which means poison m
 
 ### Metrics Implementation
 
-```kotlin
-@Singleton
-class DomainMetrics(
-    private val meterRegistry: MeterRegistry
-) {
-    private val processedCounter = Counter.builder("domain.entity.processed")
-        .register(meterRegistry)
-    
-    private val processingTimer = Timer.builder("domain.entity.processing.duration")
-        .register(meterRegistry)
-    
-    // ... other metrics
-}
-```
+Metrics should be implemented using your preferred Python metrics library (e.g., Prometheus client, StatsD). See [Kafka Consumer Template](../../08-templates/code/kafka-consumer-template.py) for implementation patterns.
 
 ## Testing
 
@@ -471,6 +497,8 @@ class DomainMetrics(
 
 ## Best Practices
 
+### General Best Practices
+
 1. **Manual Commit**: Always use manual commit for control
 2. **Idempotency**: Ensure processing is idempotent
 3. **Error Handling**: Comprehensive error handling at all levels
@@ -480,11 +508,66 @@ class DomainMetrics(
 7. **Retries**: Retry transient errors, not validation errors
 8. **Metrics**: Expose all key metrics for monitoring
 
+### Python-Specific Best Practices
+
+1. **Connection Pooling**: Always use connection pooling for database connections
+   - Use `psycopg2.pool.ThreadedConnectionPool` for PostgreSQL
+   - Configure pool size based on expected concurrency
+   - Always return connections to pool in `finally` blocks
+   - Close pool gracefully on shutdown
+
+2. **Rate Limiting**: Enforce rate limits for external API calls
+   - Use global state to track last API call time
+   - Sleep between calls to respect API rate limits
+   - Consider rate limit minimum delay in retry backoff calculation
+
+3. **Error Classification**: Implement explicit error classification
+   - Separate retryable from non-retryable errors
+   - Use exception types and HTTP status codes for classification
+   - Default to retryable for unknown errors (conservative approach)
+
+4. **Graceful Shutdown**: Implement proper signal handling
+   - Register SIGTERM and SIGINT handlers
+   - Set shutdown flag to stop accepting new messages
+   - Close consumers, producers, and connection pools in `finally` block
+
+5. **Configuration Management**: Use environment variables for configuration
+   - Provide sensible defaults for local development
+   - Use dataclasses for type-safe configuration
+   - Validate configuration on startup
+
+6. **Sequential Processing**: Use `max_poll_records=1` when rate limiting is required
+   - Ensures sequential processing per partition
+   - Prevents overwhelming external APIs
+   - Simplifies rate limit enforcement
+
+7. **Structured Logging**: Use structured logging with context
+   - Include message identifiers in log messages
+   - Log processing time for performance monitoring
+   - Include error context in exception logs
+
+8. **Database Transaction Management**: Use transactions for data consistency
+   - Commit only after successful processing
+   - Rollback on errors
+   - Check connection state before rollback (handles mocks in tests)
+
+9. **DLQ Publishing**: Always include comprehensive error metadata
+   - Original message
+   - Error type and message
+   - Retry count
+   - Error classification (retryable/non-retryable)
+   - Timestamp of failure
+
+10. **Health Checks**: Implement health check endpoints
+    - Track consumer running state
+    - Expose via HTTP endpoint for Kubernetes liveness/readiness probes
+    - Use separate thread for health check server
+
 ## Known Limitations
 
 ### max.poll.interval.ms Risk
 
-**Issue**: Long retry loops can exceed `max.poll.interval.ms`, causing Kafka to think the consumer is dead and trigger rebalances. Even with virtual threads, the listener thread is blocked until `receive()` returns, preventing heartbeats.
+**Issue**: Long retry loops can exceed `max.poll.interval.ms`, causing Kafka to think the consumer is dead and trigger rebalances. The consumer thread is blocked during retry delays, preventing heartbeats.
 
 **Current Mitigation**: 
 - Partition pausing during retries (for backpressure, not heartbeat protection)
@@ -620,7 +703,7 @@ class DomainMetrics(
    - Support for bulk replay
 
 3. **Better Shutdown Handling**: More graceful handling of in-flight work
-   - Interrupt virtual threads more gracefully
+   - Better coordination between shutdown and retry loops
    - Better coordination between shutdown and commits
    - Metrics for shutdown duration
 
@@ -754,7 +837,7 @@ class DomainMetrics(
 **Recommendations**:
 1. **Reduce `max.poll.records`**: Lower memory usage
 2. **Reduce Retry Counts**: Fail faster to free resources
-3. **Monitor Memory**: Track virtual thread count and memory usage
+3. **Monitor Memory**: Track memory usage and connection pool size
 4. **Tune JVM**: Optimize heap size and GC settings
 
 ## Monitoring Checklist
@@ -782,7 +865,7 @@ class DomainMetrics(
    - Commit failures
 
 5. **Infrastructure Metrics**:
-   - Virtual thread count
+   - Thread count (if using threading)
    - Memory usage
    - CPU usage
    - Network I/O
@@ -820,6 +903,7 @@ class DomainMetrics(
 ## Related Patterns
 
 - [Batch Workflow Standard](../05-standards/workflow-standards/batch-workflow-standard.md)
+- [Kafka Consumer Standard](../05-standards/workflow-standards/kafka-consumer-standard.md) - **Required reading for consumer implementation**
 - [Service Pattern](./service-pattern.md)
 - [Repository Pattern](./repository-pattern.md)
 - [Kafka Operations Guide](./kafka-operations-guide.md)
@@ -827,5 +911,5 @@ class DomainMetrics(
 
 ## Examples
 
-- [SWAPI People Consumer](../../../service/kotlin/app/src/main/kotlin/io/github/salomax/neotool/app/batch/swapi/PeopleConsumer.kt)
+- [Institution Enhancement Consumer](../../../workflow/financial_data/institution_enhancement/flows/consumer.py) - Python Kafka consumer implementation
 - [SWAPI ETL Workflow](../../07-examples/batch-workflows/swapi-etl-workflow.md)
