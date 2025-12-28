@@ -268,3 +268,103 @@ Follow the [Neotool Development Workflow](../../../docs/06-workflows/feature-dev
 ## License
 
 See root LICENSE file.
+
+## Answers to Your Questions
+
+### 1. Magic Bytes Validation
+**Status:** Not implemented  
+**Implementation approach:**
+- Validate during the confirmation phase (after upload), not during issuance
+- Download the first 512 bytes from R2/MinIO during `confirmAssetUpload`
+- Compare magic bytes against the declared MIME type
+- Set status to `FAILED` with `error_reason = "MIME type mismatch"` if mismatch
+
+**Reference:** DECISIONS.md § "Magic Bytes Validation: On Upload Issuance vs. Confirmation"
+
+### 2. Integration Tests with MinIO
+**Status:** Testcontainers is configured, but no MinIO-specific container found
+
+**Current state:**
+- `build.gradle.kts` includes `testcontainers` dependencies
+- No MinIO-specific testcontainer module found in the codebase
+
+**Solution:** Testcontainers doesn't have a dedicated MinIO module, but you can use a generic container:
+
+```kotlin
+// Example approach (not implemented yet)
+val minioContainer = GenericContainer("minio/minio:latest")
+    .withCommand("server", "/data")
+    .withExposedPorts(9000, 9001)
+    .withEnv("MINIO_ROOT_USER", "minioadmin")
+    .withEnv("MINIO_ROOT_PASSWORD", "minioadmin")
+```
+
+Alternatively, use the S3-compatible LocalStack container which has better testcontainers support.
+
+### 3. Standardized GraphQL Error Codes
+**Status:** Partially defined in the spec and partially implemented
+
+**Found in codebase:**
+- `GraphQLPayload` in `common` module defines:
+  - `VALIDATION_ERROR`
+  - `INVALID_INPUT`
+  - `NOT_FOUND`
+  - `INTERNAL_ERROR`
+- Asset service has `AssetGraphQLExceptionHandler` with:
+  - `VALIDATION_ERROR`
+  - `STATE_ERROR`
+
+**Spec requirements (from README.md):**
+- `VALIDATION_ERROR` (400)
+- `UNAUTHORIZED` (401)
+- `FORBIDDEN` (403)
+- `NOT_FOUND` (404)
+- `RATE_LIMIT_EXCEEDED` (429)
+- `STORAGE_UNAVAILABLE` (502/503)
+
+**Gap:** Missing `RATE_LIMIT_EXCEEDED` and `STORAGE_UNAVAILABLE` error codes. The asset service should align with the common `GraphQLPayload` pattern and add the missing codes.
+
+---
+
+## Proposed README Updates
+
+Add a TODO section to the README with the tasks you listed. Here's the section to add:
+
+```markdown:service/kotlin/assets/README.md
+<code_block_to_apply_changes_from>
+## TODO
+
+### High Priority (MVP)
+- [ ] **Magic Bytes Validation** - Validate file magic bytes match declared MIME type during confirmation phase
+- [ ] **Integration Tests with MinIO** - Add comprehensive integration tests using Testcontainers with MinIO/S3-compatible storage
+- [ ] **Background Jobs** - Implement scheduled jobs:
+  - [ ] `UploadConfirmationJob` - Background polling for PENDING uploads (every 1min)
+  - [ ] `CleanupPendingJob` - Mark stale PENDING uploads as FAILED (every 1h)
+  - [ ] `PurgeDeletedJob` - Hard delete DELETED metadata after retention (daily)
+- [ ] **Image Dimension Validation** - Add configurable dimension validation per resourceType (min/max width/height, decompression bomb protection)
+
+### Medium Priority
+- [ ] **Circuit Breaker for R2 Client** - Implement circuit breaker pattern for R2 storage operations (prevent cascading failures)
+- [ ] **Per-Namespace Quota Tracking** - Track and enforce quotas per namespace (soft limits, warnings at 80%, hard block at 100%)
+- [ ] **Per-Namespace Bytes/Hour Rate Limiting** - Add per-namespace bytes/hour rate limiting with 429 responses
+- [ ] **Burst Allowance in Rate Limiting** - Implement burst allowance (10 uploads within 60s) for UX-sensitive flows
+- [ ] **Path-Based Quotas** - Track total size per `{namespace}/{resourceType}` path
+- [ ] **Audit Logging** - Structured audit logs for all asset lifecycle events (create, confirm, delete, status transitions)
+- [ ] **CORS Validation/Health Check** - Add service startup check for CORS configuration (optional health check)
+
+### GraphQL API Enhancements
+- [ ] **`assets` Query with Filters** - Implement unified `assets` query with `AssetFilter` input and `AssetsConnection` (Relay pagination)
+- [ ] **`purgeAsset` Mutation** - Admin-only mutation for GDPR compliance (bypasses grace periods, immediate purge)
+
+### Observability & Operations
+- [ ] **Observability / SLO Monitoring** - Add Prometheus metrics, OpenTelemetry traces, Grafana dashboards, and alerting
+- [ ] **Hard Delete Implementation** - Align delete behavior with DECISIONS.md (hard delete immediately, retain metadata with `deletedAt`)
+
+### Future Features (Post-MVP)
+- [ ] **Signed URLs** - Swap public URLs for signed/HMAC URLs without contract change
+- [ ] **Malware Scanning** - Integrate Cloudflare Enterprise Built-in Malicious Uploads Detection
+- [ ] **GDPR/LGPD Compliance Tooling** - Implement `exportOwnerAssets` mutation and enhanced purge workflows
+- [ ] **Backup & Disaster Recovery** - Cross-region replication strategy and recovery playbook
+
+### Out of Scope (For Now)
+- **Per-ResourceType Validation Rules** - Deferred; using namespace-level validation instead

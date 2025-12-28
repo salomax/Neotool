@@ -22,6 +22,7 @@ import io.micronaut.http.MediaType
 import java.util.Optional
 import io.micronaut.json.tree.JsonNode
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
+import io.micronaut.test.support.TestPropertyProvider
 import jakarta.inject.Inject
 import jakarta.inject.Named
 import jakarta.persistence.EntityManager
@@ -40,13 +41,15 @@ import java.util.UUID
  * Integration tests for Asset GraphQL operations.
  * Tests cover all GraphQL queries and mutations with real database and mocked storage.
  */
-@MicronautTest(startApplication = true)
+@MicronautTest(
+    startApplication = true
+)
 @DisplayName("Asset GraphQL Integration Tests")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Tag("integration")
 @Tag("graphql")
 @Tag("assets")
-open class AssetGraphQLIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTest {
+open class AssetGraphQLIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTest, TestPropertyProvider {
     @Inject
     lateinit var assetRepository: AssetRepository
 
@@ -58,6 +61,14 @@ open class AssetGraphQLIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
     lateinit var mockStorageClient: MockStorageClient
 
     private val testUserId = "test-user-${UUID.randomUUID()}"
+
+    // Override properties to use MockStorageClient for this test
+    override fun getProperties(): MutableMap<String, String> {
+        val props = super.getProperties()
+        // Enable mock storage client instead of real S3/MinIO
+        props["test.use-mock-storage"] = "true"
+        return props
+    }
 
     @BeforeEach
     override fun setUp() {
