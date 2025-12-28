@@ -965,7 +965,7 @@ class TestExtractWebsiteFromReceitaData:
         }
         result = extract_website_from_receita_data(receita_data, None)
 
-        assert result == "https://examplecompany"
+        assert result == "https://examplecompany.com.br"
 
     def test_trade_name_fallback_when_domain_is_empty_string(self):
         """Test that trade_name is used as fallback when domain is empty string."""
@@ -974,7 +974,7 @@ class TestExtractWebsiteFromReceitaData:
         }
         result = extract_website_from_receita_data(receita_data, "")
 
-        assert result == "https://examplecompany"
+        assert result == "https://examplecompany.com.br"
 
     def test_trade_name_fallback_lowercase(self):
         """Test that trade_name fallback converts to lowercase."""
@@ -983,7 +983,7 @@ class TestExtractWebsiteFromReceitaData:
         }
         result = extract_website_from_receita_data(receita_data, None)
 
-        assert result == "https://examplecompany"
+        assert result == "https://examplecompany.com.br"
 
     def test_trade_name_fallback_strips_whitespace(self):
         """Test that trade_name fallback strips whitespace."""
@@ -992,7 +992,7 @@ class TestExtractWebsiteFromReceitaData:
         }
         result = extract_website_from_receita_data(receita_data, None)
 
-        assert result == "https://examplecompany"
+        assert result == "https://examplecompany.com.br"
 
     def test_trade_name_fallback_not_used_when_domain_exists(self):
         """Test that trade_name fallback is not used when domain exists."""
@@ -1060,7 +1060,7 @@ class TestExtractWebsiteFromReceitaData:
         result = extract_website_from_receita_data(receita_data, None)
 
         # Should remove spaces but keep special characters (validation will catch invalid domains)
-        assert result == "https://example&companyltda"
+        assert result == "https://example&companyltda.com.br"
 
     def test_trade_name_fallback_with_mixed_case(self):
         """Test that trade_name fallback handles mixed case correctly."""
@@ -1069,7 +1069,7 @@ class TestExtractWebsiteFromReceitaData:
         }
         result = extract_website_from_receita_data(receita_data, None)
 
-        assert result == "https://examplecompany"
+        assert result == "https://examplecompany.com.br"
 
 
 # ============================================================================

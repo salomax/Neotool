@@ -118,6 +118,37 @@ For complete implementation templates, see [Kafka Consumer Template](../../08-te
 
 The consumer implements retry logic directly in the consumer loop:
 
+### Shared Python Runner
+
+We now recommend using the shared `KafkaConsumerRunner` provided under `workflow/common/consumer_base.py` for all Python batch consumers.
+
+- Centralizes the retry loop, DLQ publishing, commit handling, signal-driven shutdown, and health/cleanup hooks described earlier.
+- Accepts pluggable hooks for message parsing, domain processors, DLQ metadata, retry configurations, and rate-limit overrides.
+- Automatically logs retry classification decisions using `workflow/common/error_classification.py` and calculates exponential backoff via `workflow/common/retry_utils.py`.
+- Covers graceful shutdown via signal handlers and optional health server lifecycle hooks.
+
+An example instantiation:
+
+```python
+runner = KafkaConsumerRunner(
+    consumer_factory=create_consumer,
+    producer_factory=create_kafka_producer,
+    retry_config=_config.retry,
+    message_factory=InstitutionUpsertedMessage.from_dict,
+    process_message=process_message,
+    dlq_publisher=_publish_to_dlq,
+    rate_limit_min_delay_ms=lambda: _config.cnpja.rate_limit_seconds * 1000,
+    health_server_start=lambda: start_health_server(_config.health_check),
+    health_server_stop=stop_health_server,
+    running_flag_setter=set_consumer_running,
+    cleanup_callback=close_pool,
+    message_context=lambda message: f"bacen_cod_inst={message.bacen_cod_inst}",
+    logger=logger,
+)
+runner.run()
+```
+
+Consumers should keep only domain-specific wiring (message models, processor functions, rate limits, metrics) and rely on the base runner for retry/DLQ lifecycle.
 **Key Implementation Points:**
 - Uses `kafka-python` library for consumer implementation
 - Manual offset commits after successful processing or DLQ publish

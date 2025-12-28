@@ -1,8 +1,8 @@
 # Stage 1: Builder (if needed for compilation)
-FROM python:3.14-slim AS builder
+FROM python:3.14-alpine AS builder
 
 # Stage 2: Runtime
-FROM python:3.14-slim
+FROM python:3.14-alpine
 
 # Install system dependencies (psycopg2-binary needs libpq)
 RUN apt-get update && apt-get install -y --no-install-recommends \
