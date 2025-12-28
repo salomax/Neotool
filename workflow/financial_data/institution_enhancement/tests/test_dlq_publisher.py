@@ -138,6 +138,8 @@ class TestPublishToDlq:
         assert dlq_message["error_type"] == "ValueError"
         assert dlq_message["error_message"] == "Test error"
         assert dlq_message["failed_at"] == fixed_time.isoformat()
+        assert "retry_count" in dlq_message
+        assert "error_classification" in dlq_message
 
         # Verify future.get was called with timeout
         mock_future.get.assert_called_once_with(timeout=10)
@@ -172,12 +174,16 @@ class TestPublishToDlq:
         assert "error_type" in dlq_message
         assert "error_message" in dlq_message
         assert "failed_at" in dlq_message
+        assert "retry_count" in dlq_message
+        assert "error_classification" in dlq_message
 
         assert dlq_message["original_message"] == original_message
         assert dlq_message["error_type"] == "RuntimeError"
         assert dlq_message["error_message"] == "Runtime error occurred"
         assert isinstance(dlq_message["failed_at"], str)
         assert "T" in dlq_message["failed_at"]  # ISO format
+        assert isinstance(dlq_message["retry_count"], int)
+        assert dlq_message["error_classification"] in ["retryable", "non-retryable", "unknown"]
 
     @patch("tasks.dlq_publisher.datetime")
     def test_uses_bacen_cod_inst_as_key(self, mock_datetime):
@@ -355,4 +361,6 @@ class TestPublishToDlq:
         call_args = mock_producer.send.call_args
         dlq_message = call_args[1]["value"]
         assert dlq_message["failed_at"] == "2024-01-01T12:30:45+00:00"
+        assert "retry_count" in dlq_message
+        assert "error_classification" in dlq_message
 

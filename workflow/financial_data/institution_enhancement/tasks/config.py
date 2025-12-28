@@ -135,6 +135,39 @@ class HealthCheckConfig:
 
 
 @dataclass
+class RetryConfig:
+    """Retry configuration for message processing."""
+
+    max_retries: int
+    initial_retry_delay_ms: int
+    max_retry_delay_ms: int
+    retry_backoff_multiplier: float
+    retry_jitter: bool
+
+    @classmethod
+    def from_env(cls) -> "RetryConfig":
+        """
+        Create retry configuration from environment variables.
+
+        Returns:
+            RetryConfig instance
+        """
+        max_retries = int(os.getenv("MAX_RETRIES", "3"))
+        initial_retry_delay_ms = int(os.getenv("INITIAL_RETRY_DELAY_MS", "1000"))
+        max_retry_delay_ms = int(os.getenv("MAX_RETRY_DELAY_MS", "30000"))
+        retry_backoff_multiplier = float(os.getenv("RETRY_BACKOFF_MULTIPLIER", "2.0"))
+        retry_jitter = os.getenv("RETRY_JITTER", "true").lower() in ("true", "1", "yes")
+
+        return cls(
+            max_retries=max_retries,
+            initial_retry_delay_ms=initial_retry_delay_ms,
+            max_retry_delay_ms=max_retry_delay_ms,
+            retry_backoff_multiplier=retry_backoff_multiplier,
+            retry_jitter=retry_jitter,
+        )
+
+
+@dataclass
 class Config:
     """Main configuration class."""
 
@@ -142,6 +175,7 @@ class Config:
     kafka: KafkaConfig
     cnpja: CNPJAConfig
     health_check: HealthCheckConfig
+    retry: RetryConfig
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -156,6 +190,7 @@ class Config:
             kafka=KafkaConfig.from_env(),
             cnpja=CNPJAConfig.from_env(),
             health_check=HealthCheckConfig.from_env(),
+            retry=RetryConfig.from_env(),
         )
 
 

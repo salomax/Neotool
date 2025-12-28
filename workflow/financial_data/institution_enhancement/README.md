@@ -94,16 +94,18 @@ For multi-process or multi-instance deployments (e.g., multiple Kubernetes pods)
 
 Enhancement data is stored in `financial_data.institution_enhancement` table:
 - `parent_cnpj` (TEXT, PK) - Root CNPJ
-- `domain` (TEXT, nullable) - Extracted domain
-- `website` (TEXT, nullable) - Website URL (TODO)
+- `email_domain` (TEXT, nullable) - Extracted email domain
+- `website` (TEXT, nullable) - Website URL
 - `logo_storage_key` (TEXT, nullable) - Logo storage key (TODO)
-- `social_network` (JSONB, nullable) - Social network links (TODO)
+- `social_network` (JSONB, nullable) - Social network links
 - `receita_data` (JSONB, nullable) - Full CNPJá API response
+- `legal_name` (TEXT, nullable) - Company legal name
+- `trade_name` (TEXT, nullable) - Company trade name
 - `created_at`, `updated_at` - Timestamps
 
 ## Error Handling
 
-- **404 Not Found**: Institution not found in CNPJá API → Store with null domain/receita_data
+- **404 Not Found**: Institution not found in CNPJá API → Store with null email_domain/receita_data
 - **Rate Limit Exceeded (429)**: Retry with exponential backoff (respecting 15s minimum)
 - **Timeout**: Retry with exponential backoff (max 3 attempts)
 - **Database Connection Errors**: Retry with exponential backoff (max 3 attempts)

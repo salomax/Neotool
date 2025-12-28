@@ -11,6 +11,7 @@
 -- - Primary key: parent_cnpj (root CNPJ - either cnpj_instituicao_lider or constructed from bacen_cod_inst)
 -- - Domain extraction from CNPJ data provider emails
 -- - Website URL (if available from CNPJ data provider or website resolution)
+-- - Legal name and trade name extracted from CNPJ data provider
 -- - Social network links discovered from website scraping (JSONB)
 -- - Logo storage key (TODO: asset management service integration)
 -- - Receita data (JSONB) storing full CNPJ data provider response
@@ -25,8 +26,14 @@ CREATE TABLE IF NOT EXISTS financial_data.institution_enhancement (
     -- or constructed CNPJ from bacen_cod_inst for institutions with no parent)
     parent_cnpj TEXT NOT NULL PRIMARY KEY,
     
+    -- Legal name extracted from CNPJ data provider (company.name field)
+    legal_name TEXT,
+    
+    -- Trade name extracted from CNPJ data provider (alias field)
+    trade_name TEXT,
+
     -- Domain extracted from CNPJ data provider emails
-    domain TEXT,
+    email_domain TEXT,
     
     -- Website URL (if available from CNPJ data provider or website resolution)
     website TEXT,
@@ -41,7 +48,7 @@ CREATE TABLE IF NOT EXISTS financial_data.institution_enhancement (
     -- Full CNPJ data provider response stored as JSONB
     -- This data comes from Receita.gov.br via CNPJ data provider
     receita_data JSONB,
-    
+        
     -- Audit timestamps
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -49,13 +56,13 @@ CREATE TABLE IF NOT EXISTS financial_data.institution_enhancement (
 
 -- Add comments for documentation
 COMMENT ON TABLE financial_data.institution_enhancement IS 
-    'Stores enhanced institution data from CNPJ data provider, including domain, website, social networks, logo, and receita data. One enhancement per parent CNPJ (shared by institutions with the same parent).';
+    'Stores enhanced institution data from CNPJ data provider, including domain, website, legal name, trade name, social networks, logo, and receita data. One enhancement per parent CNPJ (shared by institutions with the same parent).';
 
 COMMENT ON COLUMN financial_data.institution_enhancement.parent_cnpj IS 
     'Root CNPJ (primary key). Either cnpj_instituicao_lider from institution table (for institutions with a parent), or constructed CNPJ from bacen_cod_inst (for institutions with no parent). Multiple institutions can share the same parent_cnpj.';
 
-COMMENT ON COLUMN financial_data.institution_enhancement.domain IS 
-    'Domain extracted from first email in CNPJ data provider response.';
+COMMENT ON COLUMN financial_data.institution_enhancement.email_domain IS 
+    'Email domain extracted from first email in CNPJ data provider response (excluding blacklisted email provider domains).';
 
 COMMENT ON COLUMN financial_data.institution_enhancement.website IS 
     'Website URL if available from CNPJ data provider or website resolution. Used for logo download and social network discovery.';
@@ -68,4 +75,10 @@ COMMENT ON COLUMN financial_data.institution_enhancement.social_network IS
 
 COMMENT ON COLUMN financial_data.institution_enhancement.receita_data IS 
     'Full CNPJ data provider response stored as JSONB. Contains data from Receita.gov.br.';
+
+COMMENT ON COLUMN financial_data.institution_enhancement.legal_name IS 
+    'Company legal name extracted from CNPJ data provider response (company.name field).';
+
+COMMENT ON COLUMN financial_data.institution_enhancement.trade_name IS 
+    'Company trade name extracted from CNPJ data provider response (alias field).';
 

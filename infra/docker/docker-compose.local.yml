@@ -56,15 +56,16 @@ services:
     container_name: neotool-kafka
     restart: unless-stopped
     ports:
-      - "9092:9092"
-      - "9093:9093"
+    - "9092:9092"  # Internal Docker network
+    - "9094:9094"  # External access (host machine)
+    - "9093:9093"
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,EXTERNAL://0.0.0.0:9094,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
@@ -74,8 +75,36 @@ services:
       CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
     volumes:
       - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
     profiles:
       - kafka
+
+  # -------------------------------------------------------------
+  # Institution Enhancement Consumer
+  # -------------------------------------------------------------
+  institution-enhancement-consumer:
+    build:
+      context: ../../workflow/financial_data/institution_enhancement
+      dockerfile: Dockerfile
+    container_name: neotool-institution-enhancement-consumer
+    env_file: ../.env.local
+    environment:
+      POSTGRES_HOST: pgbouncer
+      KAFKA_BROKERS: kafka:9092
+      HEALTH_CHECK_PORT: 8080
+      HEALTH_CHECK_ENABLED: "true"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 30s
+      timeout: 10s
+      start_period: 40s
+      retries: 3
 
   # -------------------------------------------------------------
   # Prefect Stack

@@ -55,6 +55,22 @@ warnings.filterwarnings(
 )
 # Additional testcontainers warning filters (redundant but ensures coverage)
 
+# Suppress urllib3 SystemTimeWarning when system time is mocked in tests
+# This warning occurs when tests mock dates before 2025-01-01 and urllib3
+# checks system time for SSL verification. This is expected in test environments.
+warnings.filterwarnings(
+    "ignore",
+    message=".*System time is way off.*",
+    category=UserWarning,
+    module=r"urllib3.*",
+)
+warnings.filterwarnings(
+    "ignore",
+    message=".*System time is way off.*",
+    category=Warning,
+    module=r"urllib3.*",
+)
+
 
 def pytest_configure(config):
     """Configure pytest to suppress known warnings from third-party libraries."""
@@ -105,6 +121,30 @@ def pytest_configure(config):
         "ignore",
         category=DeprecationWarning,
         module=r"coolname\.loader",
+    )
+    # Suppress urllib3 SystemTimeWarning when system time is mocked in tests
+    # This warning occurs when tests mock dates before 2025-01-01 and urllib3
+    # checks system time for SSL verification. This is expected in test environments.
+    warnings.filterwarnings(
+        "ignore",
+        message=".*System time is way off.*",
+        category=UserWarning,
+        module=r"urllib3.*",
+    )
+    warnings.filterwarnings(
+        "ignore",
+        message=".*System time is way off.*",
+        category=Warning,
+        module=r"urllib3.*",
+    )
+    # Also add pytest-level filter
+    config.addinivalue_line(
+        "filterwarnings",
+        "ignore::UserWarning:urllib3.connection",
+    )
+    config.addinivalue_line(
+        "filterwarnings",
+        "ignore:System time is way off.*:UserWarning:urllib3.*",
     )
     # Suppress Prefect logging errors during test teardown
     # These occur when Prefect tries to log during shutdown after file handles are closed.

@@ -179,11 +179,13 @@ def migrated_database(postgres_container):
             """
             CREATE TABLE IF NOT EXISTS financial_data.institution_enhancement (
                 parent_cnpj TEXT NOT NULL PRIMARY KEY,
-                domain TEXT,
+                email_domain TEXT,
                 website TEXT,
                 logo_storage_key TEXT,
                 social_network JSONB,
                 receita_data JSONB,
+                legal_name TEXT,
+                trade_name TEXT,
                 created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
                 updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
             );
@@ -263,6 +265,8 @@ class TestEndToEndProcessing:
                 "cnpj": "60872504000123",
                 "name": "Test Institution",
                 "emails": [{"domain": "example.com"}],
+                "alias": "Test Trade Name",
+                "company": {"name": "Test Legal Name LTDA"},
             },
         }
 
@@ -294,13 +298,15 @@ class TestEndToEndProcessing:
         try:
             with verify_conn.cursor() as cur:
                 cur.execute(
-                    "SELECT domain, receita_data FROM financial_data.institution_enhancement WHERE parent_cnpj = %s",
+                    "SELECT email_domain, receita_data, legal_name, trade_name FROM financial_data.institution_enhancement WHERE parent_cnpj = %s",
                     (result["parent_cnpj"],),
                 )
                 row = cur.fetchone()
                 assert row is not None
                 assert row[0] == "example.com"
                 assert row[1] is not None  # receita_data stored
+                assert row[2] == "Test Legal Name LTDA"  # legal_name
+                assert row[3] == "Test Trade Name"  # trade_name
         finally:
             verify_conn.close()
 
@@ -340,12 +346,12 @@ class TestEndToEndProcessing:
         assert result["success"] is True
         assert result["domain"] is None  # No domain from 404
 
-        # Verify database record exists with null domain (create new connection since process_message closes it)
+        # Verify database record exists with null email_domain (create new connection since process_message closes it)
         verify_conn = _create_verification_connection(postgres_container)
         try:
             with verify_conn.cursor() as cur:
                 cur.execute(
-                    "SELECT domain FROM financial_data.institution_enhancement WHERE parent_cnpj = %s",
+                    "SELECT email_domain FROM financial_data.institution_enhancement WHERE parent_cnpj = %s",
                     (result["parent_cnpj"],),
                 )
                 row = cur.fetchone()
@@ -394,7 +400,11 @@ class TestEndToEndProcessing:
         mock_query_cnpja.return_value = {
             "found": True,
             "error": None,
-            "data": {"emails": [{"domain": "second.com"}]},
+            "data": {
+                "emails": [{"domain": "second.com"}],
+                "alias": "Second Trade Name",
+                "company": {"name": "Second Legal Name"},
+            },
         }
 
         # Second processing (same message)
@@ -413,10 +423,15 @@ class TestEndToEndProcessing:
                 count = cur.fetchone()[0]
                 assert count == 1  # Only one record
 
-                # Verify domain was updated
-                cur.execute("SELECT domain FROM financial_data.institution_enhancement WHERE parent_cnpj = %s", (parent_cnpj,))
-                domain = cur.fetchone()[0]
-                assert domain == "second.com"
+                # Verify email_domain, legal_name, and trade_name were updated
+                cur.execute(
+                    "SELECT email_domain, legal_name, trade_name FROM financial_data.institution_enhancement WHERE parent_cnpj = %s",
+                    (parent_cnpj,),
+                )
+                row = cur.fetchone()
+                assert row[0] == "second.com"
+                assert row[1] == "Second Legal Name"
+                assert row[2] == "Second Trade Name"
         finally:
             verify_conn.close()
 

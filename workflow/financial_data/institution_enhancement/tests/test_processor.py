@@ -19,6 +19,9 @@ from psycopg2.extras import Json
 from tasks.message import InstitutionUpsertedMessage
 from tasks.processor import (
     extract_domain_from_emails,
+    extract_legal_name,
+    extract_trade_name,
+    extract_website_from_receita_data,
     get_parent_cnpj,
     process_message,
 )
@@ -42,7 +45,7 @@ class TestExtractDomainFromEmails:
         assert isinstance(result, str)
 
     def test_valid_domain_extraction_multiple_emails_uses_first(self):
-        """Test that extraction uses first email when multiple emails provided."""
+        """Test that extraction uses first non-blacklisted email when multiple emails provided."""
         emails = [
             {"domain": "first.com"},
             {"domain": "second.com"},
@@ -143,8 +146,8 @@ class TestExtractDomainFromEmails:
 
         assert result is None
 
-    def test_multiple_emails_first_has_no_domain_returns_none(self):
-        """Test that if first email has no domain, returns None even if others have domains."""
+    def test_multiple_emails_skips_invalid_uses_first_valid(self):
+        """Test that extraction skips invalid emails and uses first valid domain."""
         emails = [
             {"email": "test@example.com"},  # First has no domain key
             {"domain": "second.com"},  # Second has domain
@@ -152,11 +155,11 @@ class TestExtractDomainFromEmails:
         ]
         result = extract_domain_from_emails(emails)
 
-        assert result is None
-        # Should use first email, which has no domain
+        assert result == "second.com"
+        # Should skip first email (no domain key) and use first valid domain
 
-    def test_multiple_emails_first_has_empty_domain_returns_none(self):
-        """Test that if first email has empty domain, returns None even if others have domains."""
+    def test_multiple_emails_skips_empty_uses_first_valid(self):
+        """Test that extraction skips empty domains and uses first valid domain."""
         emails = [
             {"domain": ""},  # First has empty domain
             {"domain": "second.com"},  # Second has domain
@@ -164,8 +167,8 @@ class TestExtractDomainFromEmails:
         ]
         result = extract_domain_from_emails(emails)
 
-        assert result is None
-        # Should use first email, which has empty domain
+        assert result == "second.com"
+        # Should skip first email (empty domain) and use first valid domain
 
     def test_domain_with_internal_spaces_preserved(self):
         """Test that internal spaces in domain are preserved (though unlikely in real domains)."""
@@ -189,6 +192,884 @@ class TestExtractDomainFromEmails:
         result = extract_domain_from_emails(emails)
 
         assert result is None
+
+    def test_blacklisted_domain_gmail_returns_none(self):
+        """Test that gmail.com domain is blacklisted and returns None."""
+        emails = [{"domain": "gmail.com"}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_blacklisted_domain_hotmail_returns_none(self):
+        """Test that hotmail.com domain is blacklisted and returns None."""
+        emails = [{"domain": "hotmail.com"}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_blacklisted_domain_outlook_returns_none(self):
+        """Test that outlook.com domain is blacklisted and returns None."""
+        emails = [{"domain": "outlook.com"}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_blacklisted_domain_live_returns_none(self):
+        """Test that live.com domain is blacklisted and returns None."""
+        emails = [{"domain": "live.com"}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_blacklisted_domain_yahoo_returns_none(self):
+        """Test that yahoo.com domain is blacklisted and returns None."""
+        emails = [{"domain": "yahoo.com"}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_blacklisted_domain_icloud_returns_none(self):
+        """Test that icloud.com domain is blacklisted and returns None."""
+        emails = [{"domain": "icloud.com"}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_blacklisted_domain_bol_returns_none(self):
+        """Test that bol.com.br domain is blacklisted and returns None."""
+        emails = [{"domain": "bol.com.br"}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_blacklisted_domain_ig_returns_none(self):
+        """Test that ig.com.br domain is blacklisted and returns None."""
+        emails = [{"domain": "ig.com.br"}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_blacklisted_domain_terra_returns_none(self):
+        """Test that terra.com.br domain is blacklisted and returns None."""
+        emails = [{"domain": "terra.com.br"}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_blacklisted_domain_uol_returns_none(self):
+        """Test that uol.com.br domain is blacklisted and returns None."""
+        emails = [{"domain": "uol.com.br"}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_blacklisted_domain_globo_returns_none(self):
+        """Test that globo.com domain is blacklisted and returns None."""
+        emails = [{"domain": "globo.com"}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_blacklisted_domain_r7_returns_none(self):
+        """Test that r7.com domain is blacklisted and returns None."""
+        emails = [{"domain": "r7.com"}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_blacklisted_domain_superig_returns_none(self):
+        """Test that superig.com.br domain is blacklisted and returns None."""
+        emails = [{"domain": "superig.com.br"}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_blacklisted_domain_zipmail_returns_none(self):
+        """Test that zipmail.com.br domain is blacklisted and returns None."""
+        emails = [{"domain": "zipmail.com.br"}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_blacklisted_domain_tutanota_returns_none(self):
+        """Test that tutanota.com domain is blacklisted and returns None."""
+        emails = [{"domain": "tutanota.com"}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_blacklisted_domain_protonmail_returns_none(self):
+        """Test that protonmail.com domain is blacklisted and returns None."""
+        emails = [{"domain": "protonmail.com"}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_blacklisted_domain_uai_returns_none(self):
+        """Test that uai.com.br domain is blacklisted and returns None."""
+        emails = [{"domain": "uai.com.br"}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_blacklisted_domains_case_insensitive(self):
+        """Test that blacklist check is case-insensitive."""
+        test_cases = [
+            "GMAIL.COM",
+            "Gmail.Com",
+            "gMaIl.CoM",
+            "Hotmail.COM",
+            "YAHOO.com",
+        ]
+        
+        for domain in test_cases:
+            emails = [{"domain": domain}]
+            result = extract_domain_from_emails(emails)
+            assert result is None, f"Should return None for blacklisted domain (case-insensitive): {domain}"
+
+    def test_multiple_emails_skips_blacklisted_uses_first_valid(self):
+        """Test that extraction skips blacklisted domains and uses first valid domain."""
+        emails = [
+            {"domain": "gmail.com"},  # Blacklisted
+            {"domain": "hotmail.com"},  # Blacklisted
+            {"domain": "company.com"},  # Valid
+            {"domain": "another.com"},  # Valid (shouldn't be used)
+        ]
+        result = extract_domain_from_emails(emails)
+
+        assert result == "company.com"
+        # Should skip blacklisted domains and use first valid one
+
+    def test_all_emails_blacklisted_returns_none(self):
+        """Test that if all emails are blacklisted, returns None."""
+        emails = [
+            {"domain": "gmail.com"},
+            {"domain": "hotmail.com"},
+            {"domain": "yahoo.com"},
+        ]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+        # All domains were blacklisted
+
+    def test_blacklisted_domain_with_whitespace_still_blacklisted(self):
+        """Test that blacklisted domains with whitespace are still filtered."""
+        emails = [{"domain": "  gmail.com  "}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+        # Whitespace should be stripped, then domain checked against blacklist
+
+
+# ============================================================================
+# Unit Tests - extract_trade_name
+# ============================================================================
+
+
+class TestExtractTradeName:
+    """Test extract_trade_name function."""
+
+    def test_extract_trade_name_from_alias(self):
+        """Test extraction from alias field."""
+        receita_data = {"alias": "Company Trade Name"}
+        result = extract_trade_name(receita_data)
+
+        assert result == "Company Trade Name"
+        assert isinstance(result, str)
+
+    def test_extract_trade_name_with_whitespace(self):
+        """Test that whitespace is stripped from trade name."""
+        receita_data = {"alias": "  Company Trade Name  "}
+        result = extract_trade_name(receita_data)
+
+        assert result == "Company Trade Name"
+
+    def test_extract_trade_name_empty_string_returns_none(self):
+        """Test that empty string alias returns None."""
+        receita_data = {"alias": ""}
+        result = extract_trade_name(receita_data)
+
+        assert result is None
+
+    def test_extract_trade_name_whitespace_only_returns_none(self):
+        """Test that whitespace-only alias returns None."""
+        receita_data = {"alias": "   "}
+        result = extract_trade_name(receita_data)
+
+        assert result is None
+
+    def test_extract_trade_name_missing_alias_returns_none(self):
+        """Test that missing alias field returns None."""
+        receita_data = {"name": "Some Company"}
+        result = extract_trade_name(receita_data)
+
+        assert result is None
+
+    def test_extract_trade_name_none_receita_data_returns_none(self):
+        """Test that None receita_data returns None."""
+        result = extract_trade_name(None)
+
+        assert result is None
+
+    def test_extract_trade_name_empty_dict_returns_none(self):
+        """Test that empty dictionary returns None."""
+        receita_data = {}
+        result = extract_trade_name(receita_data)
+
+        assert result is None
+
+    def test_extract_trade_name_none_alias_returns_none(self):
+        """Test that None alias returns None."""
+        receita_data = {"alias": None}
+        result = extract_trade_name(receita_data)
+
+        assert result is None
+
+
+# ============================================================================
+# Unit Tests - extract_legal_name
+# ============================================================================
+
+
+class TestExtractLegalName:
+    """Test extract_legal_name function."""
+
+    def test_extract_legal_name_from_company_name(self):
+        """Test extraction from company.name field."""
+        receita_data = {"company": {"name": "Company Legal Name LTDA"}}
+        result = extract_legal_name(receita_data)
+
+        assert result == "Company Legal Name LTDA"
+        assert isinstance(result, str)
+
+    def test_extract_legal_name_with_whitespace(self):
+        """Test that whitespace is stripped from legal name."""
+        receita_data = {"company": {"name": "  Company Legal Name LTDA  "}}
+        result = extract_legal_name(receita_data)
+
+        assert result == "Company Legal Name LTDA"
+
+    def test_extract_legal_name_empty_string_returns_none(self):
+        """Test that empty string company.name returns None."""
+        receita_data = {"company": {"name": ""}}
+        result = extract_legal_name(receita_data)
+
+        assert result is None
+
+    def test_extract_legal_name_whitespace_only_returns_none(self):
+        """Test that whitespace-only company.name returns None."""
+        receita_data = {"company": {"name": "   "}}
+        result = extract_legal_name(receita_data)
+
+        assert result is None
+
+    def test_extract_legal_name_missing_company_returns_none(self):
+        """Test that missing company field returns None."""
+        receita_data = {"alias": "Trade Name"}
+        result = extract_legal_name(receita_data)
+
+        assert result is None
+
+    def test_extract_legal_name_missing_name_in_company_returns_none(self):
+        """Test that missing name field in company returns None."""
+        receita_data = {"company": {"cnpj": "12345678000190"}}
+        result = extract_legal_name(receita_data)
+
+        assert result is None
+
+    def test_extract_legal_name_none_receita_data_returns_none(self):
+        """Test that None receita_data returns None."""
+        result = extract_legal_name(None)
+
+        assert result is None
+
+    def test_extract_legal_name_empty_dict_returns_none(self):
+        """Test that empty dictionary returns None."""
+        receita_data = {}
+        result = extract_legal_name(receita_data)
+
+        assert result is None
+
+    def test_extract_legal_name_none_company_returns_none(self):
+        """Test that None company returns None."""
+        receita_data = {"company": None}
+        result = extract_legal_name(receita_data)
+
+        assert result is None
+
+    def test_extract_legal_name_none_name_returns_none(self):
+        """Test that None name in company returns None."""
+        receita_data = {"company": {"name": None}}
+        result = extract_legal_name(receita_data)
+
+        assert result is None
+
+
+# ============================================================================
+# Unit Tests - extract_website_from_receita_data
+# ============================================================================
+
+
+class TestExtractWebsiteFromReceitaData:
+    """Test extract_website_from_receita_data function."""
+
+    def test_sicoob_website_from_alias(self):
+        """Test that website is set to Sicoob URL when alias contains 'sicoob'."""
+        receita_data = {
+            "alias": "Sicoob Credicitrus",
+            "company": {"name": "Some Company"},
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://www.sicoob.com.br"
+
+    def test_sicoob_website_from_alias_case_insensitive(self):
+        """Test that Sicoob detection is case-insensitive in alias."""
+        test_cases = [
+            "SICOOB",
+            "sicoob",
+            "SiCoOb",
+            "Sicoob Credicitrus",
+            "Some SICOOB Bank",
+            "sicoob-something",
+        ]
+        
+        for alias in test_cases:
+            receita_data = {"alias": alias}
+            result = extract_website_from_receita_data(receita_data, "example.com")
+            assert result == "https://www.sicoob.com.br", f"Failed for alias: {alias}"
+
+    def test_sicoob_website_from_company_name(self):
+        """Test that website is set to Sicoob URL when company.name contains 'sicoob'."""
+        receita_data = {
+            "alias": "Some Trade Name",
+            "company": {"name": "Sicoob Credicitrus LTDA"},
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://www.sicoob.com.br"
+
+    def test_sicoob_website_from_company_name_case_insensitive(self):
+        """Test that Sicoob detection is case-insensitive in company.name."""
+        test_cases = [
+            "SICOOB",
+            "sicoob",
+            "SiCoOb",
+            "Sicoob Credicitrus LTDA",
+            "Some SICOOB Bank",
+            "sicoob-something",
+        ]
+        
+        for company_name in test_cases:
+            receita_data = {"company": {"name": company_name}}
+            result = extract_website_from_receita_data(receita_data, "example.com")
+            assert result == "https://www.sicoob.com.br", f"Failed for company.name: {company_name}"
+
+    def test_sicoob_website_priority_over_other_fields(self):
+        """Test that Sicoob rule takes priority over other website fields."""
+        receita_data = {
+            "alias": "Sicoob Credicitrus",
+            "website": "https://other-website.com",
+            "site": "https://another-site.com",
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://www.sicoob.com.br"
+
+    def test_sicoob_website_priority_over_domain(self):
+        """Test that Sicoob rule takes priority over domain construction."""
+        receita_data = {
+            "alias": "Sicoob Credicitrus",
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://www.sicoob.com.br"
+
+    def test_no_sicoob_uses_normal_extraction(self):
+        """Test that normal extraction works when Sicoob is not present."""
+        receita_data = {
+            "alias": "Regular Company",
+            "company": {"name": "Regular Company LTDA"},
+            "website": "https://regular-company.com",
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://regular-company.com"
+
+    def test_no_sicoob_uses_domain_fallback(self):
+        """Test that domain fallback works when Sicoob is not present."""
+        receita_data = {
+            "alias": "Regular Company",
+            "company": {"name": "Regular Company LTDA"},
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://example.com"
+
+    def test_sicoob_in_both_alias_and_company_name(self):
+        """Test that Sicoob detection works when present in both fields."""
+        receita_data = {
+            "alias": "Sicoob Credicitrus",
+            "company": {"name": "Sicoob Credicitrus LTDA"},
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://www.sicoob.com.br"
+
+    def test_sicoob_partial_word_match(self):
+        """Test that Sicoob detection matches partial words correctly."""
+        receita_data = {
+            "alias": "SicoobCredicitrus",
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://www.sicoob.com.br"
+
+    def test_cresol_website_from_alias(self):
+        """Test that website is set to Cresol URL when alias contains 'cresol'."""
+        receita_data = {
+            "alias": "Cresol Central",
+            "company": {"name": "Some Company"},
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://cresol.com.br"
+
+    def test_cresol_website_from_alias_case_insensitive(self):
+        """Test that Cresol detection is case-insensitive in alias."""
+        test_cases = [
+            "CRESOL",
+            "cresol",
+            "CrEsOl",
+            "Cresol Central",
+            "Some CRESOL Bank",
+            "cresol-something",
+        ]
+        
+        for alias in test_cases:
+            receita_data = {"alias": alias}
+            result = extract_website_from_receita_data(receita_data, "example.com")
+            assert result == "https://cresol.com.br", f"Failed for alias: {alias}"
+
+    def test_cresol_website_from_company_name(self):
+        """Test that website is set to Cresol URL when company.name contains 'cresol'."""
+        receita_data = {
+            "alias": "Some Trade Name",
+            "company": {"name": "Cresol Central LTDA"},
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://cresol.com.br"
+
+    def test_cresol_website_from_company_name_case_insensitive(self):
+        """Test that Cresol detection is case-insensitive in company.name."""
+        test_cases = [
+            "CRESOL",
+            "cresol",
+            "CrEsOl",
+            "Cresol Central LTDA",
+            "Some CRESOL Bank",
+            "cresol-something",
+        ]
+        
+        for company_name in test_cases:
+            receita_data = {"company": {"name": company_name}}
+            result = extract_website_from_receita_data(receita_data, "example.com")
+            assert result == "https://cresol.com.br", f"Failed for company.name: {company_name}"
+
+    def test_cresol_website_priority_over_other_fields(self):
+        """Test that Cresol rule takes priority over other website fields."""
+        receita_data = {
+            "alias": "Cresol Central",
+            "website": "https://other-website.com",
+            "site": "https://another-site.com",
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://cresol.com.br"
+
+    def test_cresol_website_priority_over_domain(self):
+        """Test that Cresol rule takes priority over domain construction."""
+        receita_data = {
+            "alias": "Cresol Central",
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://cresol.com.br"
+
+    def test_cresol_in_both_alias_and_company_name(self):
+        """Test that Cresol detection works when present in both fields."""
+        receita_data = {
+            "alias": "Cresol Central",
+            "company": {"name": "Cresol Central LTDA"},
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://cresol.com.br"
+
+    def test_cresol_partial_word_match(self):
+        """Test that Cresol detection matches partial words correctly."""
+        receita_data = {
+            "alias": "CresolCentral",
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://cresol.com.br"
+
+    def test_sicoob_priority_over_cresol(self):
+        """Test that Sicoob rule takes priority over Cresol rule."""
+        receita_data = {
+            "alias": "Sicoob Cresol",
+            "company": {"name": "Cresol Sicoob"},
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://www.sicoob.com.br"
+
+    def test_sicredi_website_from_alias(self):
+        """Test that website is set to Sicredi URL when alias contains 'sicredi'."""
+        receita_data = {
+            "alias": "Sicredi Central",
+            "company": {"name": "Some Company"},
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://sicredi.com.br"
+
+    def test_sicredi_website_from_alias_case_insensitive(self):
+        """Test that Sicredi detection is case-insensitive in alias."""
+        test_cases = [
+            "SICREDI",
+            "sicredi",
+            "SiCrEdI",
+            "Sicredi Central",
+            "Some SICREDI Bank",
+            "sicredi-something",
+        ]
+        
+        for alias in test_cases:
+            receita_data = {"alias": alias}
+            result = extract_website_from_receita_data(receita_data, "example.com")
+            assert result == "https://sicredi.com.br", f"Failed for alias: {alias}"
+
+    def test_sicredi_website_from_company_name(self):
+        """Test that website is set to Sicredi URL when company.name contains 'sicredi'."""
+        receita_data = {
+            "alias": "Some Trade Name",
+            "company": {"name": "Sicredi Central LTDA"},
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://sicredi.com.br"
+
+    def test_sicredi_website_from_company_name_case_insensitive(self):
+        """Test that Sicredi detection is case-insensitive in company.name."""
+        test_cases = [
+            "SICREDI",
+            "sicredi",
+            "SiCrEdI",
+            "Sicredi Central LTDA",
+            "Some SICREDI Bank",
+            "sicredi-something",
+        ]
+        
+        for company_name in test_cases:
+            receita_data = {"company": {"name": company_name}}
+            result = extract_website_from_receita_data(receita_data, "example.com")
+            assert result == "https://sicredi.com.br", f"Failed for company.name: {company_name}"
+
+    def test_sicredi_website_priority_over_other_fields(self):
+        """Test that Sicredi rule takes priority over other website fields."""
+        receita_data = {
+            "alias": "Sicredi Central",
+            "website": "https://other-website.com",
+            "site": "https://another-site.com",
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://sicredi.com.br"
+
+    def test_sicredi_website_priority_over_domain(self):
+        """Test that Sicredi rule takes priority over domain construction."""
+        receita_data = {
+            "alias": "Sicredi Central",
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://sicredi.com.br"
+
+    def test_sicredi_in_both_alias_and_company_name(self):
+        """Test that Sicredi detection works when present in both fields."""
+        receita_data = {
+            "alias": "Sicredi Central",
+            "company": {"name": "Sicredi Central LTDA"},
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://sicredi.com.br"
+
+    def test_sicredi_partial_word_match(self):
+        """Test that Sicredi detection matches partial words correctly."""
+        receita_data = {
+            "alias": "SicrediCentral",
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://sicredi.com.br"
+
+    def test_sicoob_priority_over_sicredi(self):
+        """Test that Sicoob rule takes priority over Sicredi rule."""
+        receita_data = {
+            "alias": "Sicoob Sicredi",
+            "company": {"name": "Sicredi Sicoob"},
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://www.sicoob.com.br"
+
+    def test_cresol_priority_over_sicredi(self):
+        """Test that Cresol rule takes priority over Sicredi rule."""
+        receita_data = {
+            "alias": "Cresol Sicredi",
+            "company": {"name": "Sicredi Cresol"},
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://cresol.com.br"
+
+    def test_unicred_website_from_alias(self):
+        """Test that website is set to Unicred URL when alias contains 'unicred'."""
+        receita_data = {
+            "alias": "Unicred Central",
+            "company": {"name": "Some Company"},
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://www.unicred.com.br/"
+
+    def test_unicred_website_from_alias_case_insensitive(self):
+        """Test that Unicred detection is case-insensitive in alias."""
+        test_cases = [
+            "UNICRED",
+            "unicred",
+            "UnIcReD",
+            "Unicred Central",
+            "Some UNICRED Bank",
+            "unicred-something",
+        ]
+        
+        for alias in test_cases:
+            receita_data = {"alias": alias}
+            result = extract_website_from_receita_data(receita_data, "example.com")
+            assert result == "https://www.unicred.com.br/", f"Failed for alias: {alias}"
+
+    def test_unicred_website_from_company_name(self):
+        """Test that website is set to Unicred URL when company.name contains 'unicred'."""
+        receita_data = {
+            "alias": "Some Trade Name",
+            "company": {"name": "Unicred Central LTDA"},
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://www.unicred.com.br/"
+
+    def test_unicred_website_from_company_name_case_insensitive(self):
+        """Test that Unicred detection is case-insensitive in company.name."""
+        test_cases = [
+            "UNICRED",
+            "unicred",
+            "UnIcReD",
+            "Unicred Central LTDA",
+            "Some UNICRED Bank",
+            "unicred-something",
+        ]
+        
+        for company_name in test_cases:
+            receita_data = {"company": {"name": company_name}}
+            result = extract_website_from_receita_data(receita_data, "example.com")
+            assert result == "https://www.unicred.com.br/", f"Failed for company.name: {company_name}"
+
+    def test_unicred_website_priority_over_other_fields(self):
+        """Test that Unicred rule takes priority over other website fields."""
+        receita_data = {
+            "alias": "Unicred Central",
+            "website": "https://other-website.com",
+            "site": "https://another-site.com",
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://www.unicred.com.br/"
+
+    def test_unicred_website_priority_over_domain(self):
+        """Test that Unicred rule takes priority over domain construction."""
+        receita_data = {
+            "alias": "Unicred Central",
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://www.unicred.com.br/"
+
+    def test_unicred_in_both_alias_and_company_name(self):
+        """Test that Unicred detection works when present in both fields."""
+        receita_data = {
+            "alias": "Unicred Central",
+            "company": {"name": "Unicred Central LTDA"},
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://www.unicred.com.br/"
+
+    def test_unicred_partial_word_match(self):
+        """Test that Unicred detection matches partial words correctly."""
+        receita_data = {
+            "alias": "UnicredCentral",
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://www.unicred.com.br/"
+
+    def test_sicoob_priority_over_unicred(self):
+        """Test that Sicoob rule takes priority over Unicred rule."""
+        receita_data = {
+            "alias": "Sicoob Unicred",
+            "company": {"name": "Unicred Sicoob"},
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://www.sicoob.com.br"
+
+    def test_cresol_priority_over_unicred(self):
+        """Test that Cresol rule takes priority over Unicred rule."""
+        receita_data = {
+            "alias": "Cresol Unicred",
+            "company": {"name": "Unicred Cresol"},
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://cresol.com.br"
+
+    def test_sicredi_priority_over_unicred(self):
+        """Test that Sicredi rule takes priority over Unicred rule."""
+        receita_data = {
+            "alias": "Sicredi Unicred",
+            "company": {"name": "Unicred Sicredi"},
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://sicredi.com.br"
+
+    def test_trade_name_fallback_when_domain_is_none(self):
+        """Test that trade_name is used as fallback when domain is None."""
+        receita_data = {
+            "alias": "Example Company",
+        }
+        result = extract_website_from_receita_data(receita_data, None)
+
+        assert result == "https://examplecompany"
+
+    def test_trade_name_fallback_when_domain_is_empty_string(self):
+        """Test that trade_name is used as fallback when domain is empty string."""
+        receita_data = {
+            "alias": "Example Company",
+        }
+        result = extract_website_from_receita_data(receita_data, "")
+
+        assert result == "https://examplecompany"
+
+    def test_trade_name_fallback_lowercase(self):
+        """Test that trade_name fallback converts to lowercase."""
+        receita_data = {
+            "alias": "EXAMPLE COMPANY",
+        }
+        result = extract_website_from_receita_data(receita_data, None)
+
+        assert result == "https://examplecompany"
+
+    def test_trade_name_fallback_strips_whitespace(self):
+        """Test that trade_name fallback strips whitespace."""
+        receita_data = {
+            "alias": "  Example Company  ",
+        }
+        result = extract_website_from_receita_data(receita_data, None)
+
+        assert result == "https://examplecompany"
+
+    def test_trade_name_fallback_not_used_when_domain_exists(self):
+        """Test that trade_name fallback is not used when domain exists."""
+        receita_data = {
+            "alias": "Example Company",
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        # Should use domain, not trade_name
+        assert result == "https://example.com"
+
+    def test_trade_name_fallback_not_used_when_alias_is_none(self):
+        """Test that trade_name fallback is not used when alias is None."""
+        receita_data = {
+            "alias": None,
+        }
+        result = extract_website_from_receita_data(receita_data, None)
+
+        assert result is None
+
+    def test_trade_name_fallback_not_used_when_alias_is_empty_string(self):
+        """Test that trade_name fallback is not used when alias is empty string."""
+        receita_data = {
+            "alias": "",
+        }
+        result = extract_website_from_receita_data(receita_data, None)
+
+        assert result is None
+
+    def test_trade_name_fallback_not_used_when_alias_is_whitespace_only(self):
+        """Test that trade_name fallback is not used when alias is whitespace only."""
+        receita_data = {
+            "alias": "   ",
+        }
+        result = extract_website_from_receita_data(receita_data, None)
+
+        assert result is None
+
+    def test_trade_name_fallback_priority_after_special_rules(self):
+        """Test that special rules take priority over trade_name fallback."""
+        receita_data = {
+            "alias": "Cresol Example",
+        }
+        result = extract_website_from_receita_data(receita_data, None)
+
+        # Should use Cresol rule, not trade_name fallback
+        assert result == "https://cresol.com.br"
+
+    def test_trade_name_fallback_priority_after_api_response_fields(self):
+        """Test that API response website fields take priority over trade_name fallback."""
+        receita_data = {
+            "alias": "Example Company",
+            "website": "https://actual-website.com",
+        }
+        result = extract_website_from_receita_data(receita_data, None)
+
+        # Should use website field, not trade_name fallback
+        assert result == "https://actual-website.com"
+
+    def test_trade_name_fallback_with_special_characters(self):
+        """Test that trade_name fallback handles special characters."""
+        receita_data = {
+            "alias": "Example & Company LTDA",
+        }
+        result = extract_website_from_receita_data(receita_data, None)
+
+        # Should remove spaces but keep special characters (validation will catch invalid domains)
+        assert result == "https://example&companyltda"
+
+    def test_trade_name_fallback_with_mixed_case(self):
+        """Test that trade_name fallback handles mixed case correctly."""
+        receita_data = {
+            "alias": "ExAmPlE CoMpAnY",
+        }
+        result = extract_website_from_receita_data(receita_data, None)
+
+        assert result == "https://examplecompany"
 
 
 # ============================================================================
@@ -583,6 +1464,8 @@ class TestProcessMessage:
             "name": "Test Institution",
             "emails": [{"domain": "example.com"}],
             "address": {"street": "Test Street"},
+            "alias": "Test Trade Name",
+            "company": {"name": "Test Legal Name LTDA"},
         }
 
         # Mock CNPJá API response
@@ -605,10 +1488,14 @@ class TestProcessMessage:
 
         # Assert: Verify Json wrapper was used
         execute_call_args = mock_cursor.execute.call_args[0][1]
-        receita_param = execute_call_args[5]  # 6th parameter (0-indexed: 5)
+        receita_param = execute_call_args[5]  # 6th parameter (0-indexed: 5) - receita_data
+        legal_name_param = execute_call_args[6]  # 7th parameter - legal_name
+        trade_name_param = execute_call_args[7]  # 8th parameter - trade_name
 
         assert isinstance(receita_param, Json)
         assert receita_param.adapted == receita_data
+        assert legal_name_param == "Test Legal Name LTDA"
+        assert trade_name_param == "Test Trade Name"
 
     @patch("tasks.processor.get_db_connection")
     @patch("tasks.processor.query_cnpja")
@@ -687,4 +1574,106 @@ class TestProcessMessage:
 
         # Assert: Connection should be returned to pool even on success
         mock_return_db_connection.assert_called_once_with(mock_conn)
+
+    @patch("tasks.processor.get_db_connection")
+    @patch("tasks.processor.query_cnpja")
+    def test_legal_name_and_trade_name_extraction(
+        self, mock_query_cnpja, mock_get_db_connection
+    ):
+        """Test that legal_name and trade_name are extracted and stored."""
+        # Arrange
+        message = InstitutionUpsertedMessage(
+            schema_version="1.0",
+            event_id="test-123",
+            occurred_at="2024-01-01T00:00:00Z",
+            source="test",
+            bacen_cod_inst="60872504",
+            change_type="CREATED",
+        )
+
+        # Mock CNPJá API response with legal_name and trade_name
+        mock_query_cnpja.return_value = {
+            "found": True,
+            "error": None,
+            "data": {
+                "cnpj": "60872504000123",
+                "name": "Test Institution",
+                "emails": [{"domain": "example.com"}],
+                "alias": "Trade Name Example",
+                "company": {"name": "Legal Name Example LTDA"},
+            },
+        }
+
+        # Mock database
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_cursor.__enter__ = Mock(return_value=mock_cursor)
+        mock_cursor.__exit__ = Mock(return_value=None)
+        mock_conn.cursor.return_value = mock_cursor
+        mock_get_db_connection.return_value = mock_conn
+
+        # Act
+        result = process_message(message)
+
+        # Assert
+        assert result["success"] is True
+
+        # Verify database was called with legal_name and trade_name
+        mock_cursor.execute.assert_called_once()
+        execute_call_args = mock_cursor.execute.call_args[0][1]
+        
+        # Check that legal_name and trade_name are in the parameters
+        # Parameters order: parent_cnpj, domain, website, logo_storage_key, 
+        # social_network, receita_data, legal_name, trade_name
+        assert execute_call_args[6] == "Legal Name Example LTDA"  # legal_name
+        assert execute_call_args[7] == "Trade Name Example"  # trade_name
+
+    @patch("tasks.processor.get_db_connection")
+    @patch("tasks.processor.query_cnpja")
+    def test_legal_name_and_trade_name_missing_fields(
+        self, mock_query_cnpja, mock_get_db_connection
+    ):
+        """Test that missing legal_name and trade_name fields are handled as None."""
+        # Arrange
+        message = InstitutionUpsertedMessage(
+            schema_version="1.0",
+            event_id="test-123",
+            occurred_at="2024-01-01T00:00:00Z",
+            source="test",
+            bacen_cod_inst="60872504",
+            change_type="CREATED",
+        )
+
+        # Mock CNPJá API response without alias and company.name
+        mock_query_cnpja.return_value = {
+            "found": True,
+            "error": None,
+            "data": {
+                "cnpj": "60872504000123",
+                "name": "Test Institution",
+                "emails": [{"domain": "example.com"}],
+            },
+        }
+
+        # Mock database
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_cursor.__enter__ = Mock(return_value=mock_cursor)
+        mock_cursor.__exit__ = Mock(return_value=None)
+        mock_conn.cursor.return_value = mock_cursor
+        mock_get_db_connection.return_value = mock_conn
+
+        # Act
+        result = process_message(message)
+
+        # Assert
+        assert result["success"] is True
+
+        # Verify database was called with None for legal_name and trade_name
+        mock_cursor.execute.assert_called_once()
+        execute_call_args = mock_cursor.execute.call_args[0][1]
+        
+        # Check that legal_name and trade_name are None
+        assert execute_call_args[6] is None  # legal_name
+        assert execute_call_args[7] is None  # trade_name
 

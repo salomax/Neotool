@@ -115,6 +115,7 @@ This specification is organized into numbered directories (00-11) for clear hier
 | Security Standards | `05-standards/security-standards/authentication-standards.md` | standard | security | security, auth, authorization |
 | Observability Standards | `05-standards/observability-standards.md` | standard | observability | observability, metrics, logging, monitoring |
 | Batch Workflow Standard | `05-standards/workflow-standards/batch-workflow-standard.md` | standard | workflow | batch, workflow, prefect, kafka |
+| Kafka Consumer Retry Standard | `05-standards/workflow-standards/kafka-consumer-retry-standard.md` | standard | workflow | kafka, consumer, retry, exponential-backoff, dlq, error-handling |
 
 ## Workflows (06-workflows)
 

@@ -16,6 +16,26 @@ from tasks.config import Config
 
 logger = logging.getLogger(__name__)
 
+# Lazy import to avoid circular dependencies
+_is_retryable_error = None
+
+
+def _get_is_retryable_error():
+    """Lazy import of is_retryable_error to avoid circular dependencies."""
+    global _is_retryable_error
+    if _is_retryable_error is None:
+        try:
+            from tasks.error_classification import is_retryable_error
+
+            _is_retryable_error = is_retryable_error
+        except ImportError:
+            # Fallback function if module not available
+            def _fallback_is_retryable_error(error):
+                return True  # Default to retryable
+
+            _is_retryable_error = _fallback_is_retryable_error
+    return _is_retryable_error
+
 
 DLQ_TOPIC = "financial-data.institution.upserted.enhancement.dlq"
 
@@ -44,6 +64,8 @@ def publish_to_dlq(
     producer: KafkaProducer,
     original_message: Dict[str, Any],
     error: Exception,
+    retry_count: int = 0,
+    error_classification: str = "unknown",
 ) -> bool:
     """
     Publish failed message to DLQ topic.
@@ -52,22 +74,32 @@ def publish_to_dlq(
     - Original message
     - Error information
     - Timestamp of failure
+    - Retry count
+    - Error classification
 
     Args:
         producer: Kafka producer instance
         original_message: Original Kafka message that failed
         error: Exception that caused the failure
+        retry_count: Number of retry attempts made before DLQ
+        error_classification: "retryable" or "non-retryable"
 
     Returns:
         True if successfully published to DLQ, False otherwise
     """
     bacen_cod_inst = original_message.get("bacen_cod_inst", "")
-    error_type = type(error).__name__
+    error_type = type(error).__name__ if isinstance(error, Exception) else "Unknown"
     error_message = str(error)
+
+    # Determine classification if not provided
+    if error_classification == "unknown":
+        is_retryable_error = _get_is_retryable_error()
+        error_classification = "retryable" if is_retryable_error(error) else "non-retryable"
 
     logger.info(
         f"Publishing to DLQ: bacen_cod_inst={bacen_cod_inst or 'empty'}, "
-        f"error_type={error_type}, topic={DLQ_TOPIC}"
+        f"error_type={error_type}, retry_count={retry_count}, "
+        f"classification={error_classification}, topic={DLQ_TOPIC}"
     )
 
     try:
@@ -76,6 +108,8 @@ def publish_to_dlq(
             "error_type": error_type,
             "error_message": error_message,
             "failed_at": datetime.now(timezone.utc).isoformat(),
+            "retry_count": retry_count,
+            "error_classification": error_classification,
         }
 
         # Use bacen_cod_inst as key for partitioning (empty string if missing)
