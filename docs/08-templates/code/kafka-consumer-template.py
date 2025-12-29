@@ -87,128 +87,44 @@ def create_consumer() -> KafkaConsumer:
     )
 
 
-def safe_commit(consumer: KafkaConsumer, context: str = "") -> bool:
-    """
-    Safely commit offsets, handling CommitFailedError gracefully.
-    
-    Returns:
-        True if commit succeeded, False otherwise
-    """
-    try:
-        consumer.commit()
-        return True
-    except CommitFailedError as e:
-        logger.warning(
-            f"Failed to commit offsets{(' ' + context) if context else ''}: "
-            f"Consumer was kicked out of group. Message will be reprocessed. Error: {e}"
-        )
-        return False
-    except Exception as e:
-        logger.error(
-            f"Unexpected error during commit{(' ' + context) if context else ''}: {e}",
-            exc_info=True
-        )
-        return False
-
-
 def run_consumer() -> None:
-    """Run the Kafka consumer in a loop."""
-    consumer = create_consumer()
-    producer = create_kafka_producer()
-    
-    # Flag for graceful shutdown
-    running = True
-    
-    def signal_handler(sig, frame):
-        """Handle shutdown signals gracefully."""
-        nonlocal running
-        logger.info("Received shutdown signal, stopping consumer...")
-        running = False
-    
-    # Register signal handlers
-    signal.signal(signal.SIGTERM, signal_handler)
-    signal.signal(signal.SIGINT, signal_handler)
-    
-    logger.info(f"Starting consumer for topic: {INPUT_TOPIC}")
-    logger.info(f"Consumer group: {CONSUMER_GROUP}")
-    
-    try:
-        for message in consumer:
-            if not running:
-                logger.info("Shutdown flag set, exiting consumer loop...")
-                break
-            
-            try:
-                # Parse message
-                message_data = message.value
-                domain_message = <Domain><Feature>Message.from_dict(message_data)
-                
-                logger.info(
-                    f"Processing message: partition={message.partition}, "
-                    f"offset={message.offset}"
-                )
-                
-                # Process message with retry logic
-                result = _process_with_retry(domain_message, message_data, producer, consumer)
-                
-                if result["success"]:
-                    logger.info("Successfully processed message")
-                    safe_commit(consumer, "after successful processing")
-                else:
-                    # Processing failed after all retries - already sent to DLQ
-                    error_msg = result.get("error", "Unknown error")
-                    logger.error(
-                        f"Processing failed after retries: "
-                        f"retry_count={result.get('retry_count', 0)}, error={error_msg}"
-                    )
-                    if result.get("dlq_published", False):
-                        safe_commit(consumer, "after DLQ publish")
-                    else:
-                        logger.error(
-                            "Failed to publish to DLQ, message not committed (will be retried)"
-                        )
-                        
-            except ValueError as e:
-                # Validation error - send to DLQ immediately
-                logger.error(f"Invalid message: error={e}")
-                if publish_to_dlq(
-                    producer,
-                    message.value,
-                    e,
-                    retry_count=0,
-                    error_classification="non-retryable",
-                ):
-                    safe_commit(consumer, "after invalid message DLQ publish")
-                    
-            except Exception as e:
-                # Unexpected exception
-                logger.exception(f"Error processing message: error={e}")
-                error_classification = (
-                    "retryable" if is_retryable_error(e) else "non-retryable"
-                )
-                if publish_to_dlq(
-                    producer,
-                    message.value,
-                    e,
-                    retry_count=0,
-                    error_classification=error_classification,
-                ):
-                    safe_commit(consumer, "after processing error DLQ publish")
-                    
-    except KeyboardInterrupt:
-        logger.info("Shutting down consumer...")
-    except Exception:
-        logger.exception("Fatal error in consumer")
-        raise
-    finally:
-        consumer.close()
-        producer.close()
-        close_pool()  # Close database connection pool
-        logger.info("Consumer stopped")
+    """
+    Run the Kafka consumer using KafkaConsumerRunner.
+
+    This uses the shared neotool-common runner which handles:
+    - Retry logic with exponential backoff
+    - DLQ publishing
+    - Manual commits
+    - Graceful shutdown
+    - Signal handling
+    """
+    runner = KafkaConsumerRunner(
+        consumer_factory=create_consumer,
+        producer_factory=create_kafka_producer,
+        retry_config=_config.retry,
+        message_factory=<Domain><Feature>Message.from_dict,
+        process_message=process_message,
+        dlq_publisher=publish_to_dlq,
+        # Optional: add rate limiting if needed
+        # rate_limit_min_delay_ms=lambda: _config.api.rate_limit_seconds * 1000,
+        # Optional: add health check hooks if needed
+        # health_server_start=start_health_server,
+        # health_server_stop=stop_health_server,
+        # running_flag_setter=set_consumer_running,
+        cleanup_callback=close_pool,
+        message_context=lambda msg: f"event_id={msg.event_id}",
+        logger=logger,
+    )
+    runner.run()
+
+
+def main():
+    """Entry point for the consumer (used by console_scripts in pyproject.toml)."""
+    run_consumer()
 
 
 if __name__ == "__main__":
-    run_consumer()
+    main()
 
 
 """
@@ -262,13 +178,15 @@ class <Domain><Feature>Message:
 
 """
 tasks/processor.py - Business logic processor
+
+Location: src/<package_name>/tasks/processor.py
 """
 
 import logging
 import time
 from typing import Any, Dict
 
-from tasks.message import <Domain><Feature>Message
+from <package_name>.tasks.message import <Domain><Feature>Message
 
 logger = logging.getLogger(__name__)
 
@@ -390,47 +308,102 @@ class Config:
 
 
 """
+pyproject.toml - Package configuration
+
+Place this file at: workflow/<domain>/<feature>/pyproject.toml
+
+This defines the package, its dependencies, and entry points.
+"""
+
+"""
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "<feature-name>"
+version = "0.1.0"
+description = "<Feature> Kafka consumer for <domain>"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "neotool-common",  # REQUIRED: Shared Neotool utilities
+    "kafka-python>=2.0.0",
+    "psycopg2-binary>=2.9.0",
+    "requests>=2.31.0",
+    "python-dotenv>=1.0.0",
+    # Add other dependencies as needed
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-mock>=3.12.0",
+    "pytest-cov>=4.1.0",
+    "black>=24.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.8.0",
+]
+
+[project.scripts]
+# Entry point that maps to main() function in consumer.py
+<feature-name>-consumer = "<package_name>.flows.consumer:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.black]
+line-length = 100
+target-version = ["py314"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.mypy]
+python_version = "3.14"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+"""
+
+
+"""
 Dockerfile - Docker deployment configuration
 
 Place this file at: workflow/<domain>/<feature>/Dockerfile
 
 Build from workflow/ directory:
-  docker build -f workflow/<domain>/<feature>/Dockerfile -t <consumer-name> workflow/
+  docker build -f <domain>/<feature>/Dockerfile -t <consumer-name> .
 
 See: docs/04-patterns/backend-patterns/kafka-consumer-pattern.md#docker-deployment
 """
 
 """
-# Stage 1: Builder (if needed for compilation)
-FROM python:3.14-alpine AS builder
-
-# Stage 2: Runtime
 FROM python:3.14-alpine
-
-# Install system dependencies (psycopg2-binary needs libpq)
-RUN apk add --no-cache \
-    postgresql-libs
-
-# Create non-root user and group
-RUN addgroup --system --gid 1000 consumer && \
-    adduser --system --uid 1000 --ingroup consumer consumer && \
-    mkdir -p /app && \
-    chown -R consumer:consumer /app
 
 WORKDIR /app
 
-# Copy requirements first for better layer caching
-COPY --chown=consumer:consumer <domain>/<feature>/requirements.txt .
+# Create non-root user
+RUN addgroup -g 1000 consumer && \
+    adduser -D -u 1000 -G consumer consumer
 
-# Install Python dependencies
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+# Install system dependencies
+RUN apk add --no-cache gcc musl-dev libpq-dev
 
-# Copy workflow common module (needed for consumer_base)
-COPY --chown=consumer:consumer common/ ./workflow/common/
+# Install neotool-common from local path
+COPY --chown=consumer:consumer ../../common /tmp/neotool-common/
+RUN pip install --no-cache-dir /tmp/neotool-common && \
+    rm -rf /tmp/neotool-common
 
 # Copy application code
-COPY --chown=consumer:consumer <domain>/<feature>/ .
+COPY --chown=consumer:consumer . /app/
+
+# Install the application
+RUN pip install --no-cache-dir /app
 
 # Switch to non-root user
 USER consumer
@@ -442,7 +415,7 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"
 
-# Entry point
-ENTRYPOINT ["python", "flows/consumer.py"]
+# Entry point (uses script defined in pyproject.toml)
+ENTRYPOINT ["<feature-name>-consumer"]
 """
 
