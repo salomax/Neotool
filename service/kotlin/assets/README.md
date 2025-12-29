@@ -72,8 +72,7 @@ assets/
 │   ├── service/                    # Business logic
 │   │   ├── AssetService.kt
 │   │   ├── StorageService.kt
-│   │   ├── ValidationService.kt
-│   │   └── RateLimitService.kt
+│   │   └── ValidationService.kt
 │   ├── storage/                    # S3/R2 client
 │   │   ├── S3StorageClient.kt
 │   │   └── StorageConfig.kt

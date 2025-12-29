@@ -6,8 +6,6 @@ import graphql.analysis.MaxQueryDepthInstrumentation
 import graphql.schema.idl.TypeDefinitionRegistry
 import io.github.salomax.neotool.assets.graphql.dto.AssetDTO
 import io.micronaut.context.annotation.Factory
-import io.micronaut.context.annotation.Replaces
-import io.micronaut.context.annotation.Requires
 import jakarta.inject.Singleton
 
 @Factory
@@ -16,7 +14,6 @@ class AssetGraphQLFactory(
     private val wiringFactory: AssetWiringFactory,
 ) {
     @Singleton
-    @Replaces(bean = graphql.GraphQL::class, factory = io.github.salomax.neotool.security.graphql.SecurityGraphQLFactory::class)
     fun graphQL(): graphql.GraphQL {
         val runtimeWiring = wiringFactory.build()
 
@@ -78,5 +75,3 @@ class AssetGraphQLFactory(
             .build()
     }
 }
-
-

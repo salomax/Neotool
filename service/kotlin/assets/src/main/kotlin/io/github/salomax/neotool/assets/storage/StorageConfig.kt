@@ -28,6 +28,7 @@ data class StorageProperties(
     var publicBasePath: String,
     var forcePathStyle: Boolean,
     var uploadTtlSeconds: Long,
+    var downloadTtlSeconds: Long = 3600, // Default: 1 hour
 ) {
     /**
      * Build full endpoint URL from hostname, port and protocol.

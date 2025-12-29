@@ -282,7 +282,7 @@ open class AssetRepositoryIntegrationTest : BaseIntegrationTest(), PostgresInteg
             val resourceId = "resource-${UUID.randomUUID()}"
             val asset1 = createTestAsset(resourceType = AssetResourceType.PROFILE_IMAGE, resourceId = resourceId)
             val asset2 = createTestAsset(resourceType = AssetResourceType.PROFILE_IMAGE, resourceId = resourceId)
-            createTestAsset(resourceType = AssetResourceType.COVER_IMAGE, resourceId = resourceId) // Different type
+            createTestAsset(resourceType = AssetResourceType.ATTACHMENT, resourceId = resourceId) // Different type
             createTestAsset(resourceType = AssetResourceType.PROFILE_IMAGE, resourceId = "other-resource") // Different ID
 
             // Act

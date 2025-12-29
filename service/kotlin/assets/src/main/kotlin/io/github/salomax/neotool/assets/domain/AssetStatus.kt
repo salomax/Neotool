@@ -8,7 +8,7 @@ package io.github.salomax.neotool.assets.domain
  * @property PENDING Upload URL generated, waiting for client upload
  * @property READY File uploaded and confirmed, ready for use
  * @property FAILED Upload failed or expired
- * @property DELETED Asset soft-deleted (metadata retained for audit)
+ * @property DELETED Asset deleted (deprecated - assets are now hard deleted)
  */
 enum class AssetStatus {
     /**
@@ -30,8 +30,8 @@ enum class AssetStatus {
     FAILED,
 
     /**
-     * Asset soft-deleted (metadata retained for audit).
-     * Asset is logically deleted but database record persists.
+     * Asset deleted (deprecated - assets are now hard deleted).
+     * This status may still exist in the database for legacy records.
      */
     DELETED,
 }

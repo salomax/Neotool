@@ -130,7 +130,8 @@ interface AssetRepository : JpaRepository<AssetEntity, UUID> {
 
     /**
      * Find all DELETED assets older than specified days.
-     * Used by purge job to hard delete soft-deleted assets.
+     * Used by purge job to hard delete legacy soft-deleted assets.
+     * Note: Assets are now hard-deleted immediately, so this is primarily for legacy data cleanup.
      */
     @Query(
         """
@@ -174,7 +175,8 @@ interface AssetRepository : JpaRepository<AssetEntity, UUID> {
 
     /**
      * Delete assets by IDs.
-     * Used for hard deletion of soft-deleted assets.
+     * Used for hard deletion of legacy soft-deleted assets.
+     * Note: Assets are now hard-deleted immediately, so this is primarily for legacy data cleanup.
      */
     fun deleteByIdIn(ids: List<UUID>): Long
 

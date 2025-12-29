@@ -10,7 +10,7 @@ micronaut {
     version("4.10.2")
     processing {
         incremental(true)
-        annotations("io.github.salomax.neotool.common.*")
+        annotations("io.github.salomax.neotool.common.*", "io.github.salomax.neotool.security.*")
     }
 }
 
@@ -48,6 +48,11 @@ dependencies {
     api("com.graphql-java:graphql-java:21.5")
     api("com.apollographql.federation:federation-graphql-java-support:5.4.0")
     api("com.graphql-java:java-dataloader:3.3.0")
+
+    // JWT - shared for all modules
+    api("io.jsonwebtoken:jjwt-api:0.12.5")
+    api("io.jsonwebtoken:jjwt-impl:0.12.5")
+    api("io.jsonwebtoken:jjwt-jackson:0.12.5")
 
     // Micrometer - api for other modules (needed for metrics instrumentation)
     api("io.micronaut.micrometer:micronaut-micrometer-core")

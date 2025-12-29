@@ -18,8 +18,6 @@ data class AuthContext(
     val userId: UUID,
     val email: String,
     val displayName: String?,
-    // Always non-null, empty list if none
     val roles: List<String>,
-    // Always non-null, empty list if none
     val permissions: List<String>,
 )

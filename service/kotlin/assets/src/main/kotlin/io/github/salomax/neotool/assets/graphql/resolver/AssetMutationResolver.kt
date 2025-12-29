@@ -52,15 +52,12 @@ class AssetMutationResolver(
         userId: String,
     ): AssetDTO {
         logger.info {
-            "Creating asset upload: namespace=${input.namespace}, resourceType=${input.resourceType}, " +
-                "resourceId=${input.resourceId}, userId=$userId"
+            "Creating asset upload: namespace=${input.namespace}, userId=$userId"
         }
 
         val asset =
             assetService.initiateUpload(
                 namespace = input.namespace,
-                resourceType = input.resourceType,
-                resourceId = input.resourceId,
                 ownerId = userId,
                 filename = input.filename,
                 mimeType = input.mimeType,

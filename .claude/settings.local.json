@@ -11,7 +11,9 @@
       "Bash(ls:*)",
       "Bash(tree:*)",
       "Bash(pnpm run test:*)",
-      "Bash(pnpm run typecheck:*)"
+      "Bash(pnpm run typecheck:*)",
+      "Bash(git checkout:*)",
+      "Bash(xargs ls:*)"
     ]
   }
 }

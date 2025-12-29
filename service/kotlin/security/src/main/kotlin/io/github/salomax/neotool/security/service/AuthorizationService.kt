@@ -596,9 +596,15 @@ class AuthorizationService(
 
                 // If service token has user context, also check user permission
                 if (principal.userId != null && principal.userPermissions != null) {
+                    val userId =
+                        principal.userId
+                            ?: return AuthorizationResult(
+                                allowed = false,
+                                reason = "User ID is required for propagated user context",
+                            )
                     val userResult =
                         checkPermission(
-                            userId = principal.userId,
+                            userId = userId,
                             permission = permission,
                             resourceType = resourceType,
                             resourceId = resourceId,

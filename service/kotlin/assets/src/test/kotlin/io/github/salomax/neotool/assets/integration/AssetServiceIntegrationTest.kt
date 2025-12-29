@@ -372,7 +372,7 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
     @DisplayName("Delete Asset")
     inner class DeleteAssetTests {
         @Test
-        fun `should soft delete asset`() {
+        fun `should hard delete asset`() {
             // Arrange
             val asset =
                 entityManager.runTransaction {
@@ -409,10 +409,9 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
             // Assert
             Assertions.assertThat(deleted).isTrue()
 
+            // Verify asset is hard-deleted (should not exist)
             val persisted = assetRepository.findById(asset.id!!)
-            Assertions.assertThat(persisted).isPresent
-            Assertions.assertThat(persisted.get().status).isEqualTo(AssetStatus.DELETED)
-            Assertions.assertThat(persisted.get().deletedAt).isNotNull()
+            Assertions.assertThat(persisted).isEmpty
         }
 
         @Test
@@ -464,76 +463,5 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
         }
     }
 
-    @Nested
-    @DisplayName("Find By Resource")
-    inner class FindByResourceTests {
-        @Test
-        fun `should find assets by resource type and ID`() {
-            // Arrange
-            val resourceId = "resource-${UUID.randomUUID()}"
-            val asset1 =
-                entityManager.runTransaction {
-                    val entity =
-                        AssetEntity(
-                            id = null,
-                            ownerId = testUserId,
-                            namespace = "user-profiles",
-                            resourceType = AssetResourceType.PROFILE_IMAGE,
-                            resourceId = resourceId,
-                            storageKey = "test/key1",
-                            storageRegion = "us-east-1",
-                            storageBucket = "test-bucket",
-                            mimeType = "image/jpeg",
-                            sizeBytes = 1024L,
-                            checksum = null,
-                            originalFilename = "test1.jpg",
-                            uploadUrl = null,
-                            uploadExpiresAt = null,
-                            publicUrl = "https://cdn.example.com/test1.jpg",
-                            status = AssetStatus.READY,
-                            idempotencyKey = null,
-                            createdAt = Instant.now(),
-                            updatedAt = Instant.now(),
-                            deletedAt = null,
-                        )
-                    assetRepository.save(entity)
-                }
-            val asset2 =
-                entityManager.runTransaction {
-                    val entity =
-                        AssetEntity(
-                            id = null,
-                            ownerId = testUserId,
-                            namespace = "user-profiles",
-                            resourceType = AssetResourceType.PROFILE_IMAGE,
-                            resourceId = resourceId,
-                            storageKey = "test/key2",
-                            storageRegion = "us-east-1",
-                            storageBucket = "test-bucket",
-                            mimeType = "image/jpeg",
-                            sizeBytes = 2048L,
-                            checksum = null,
-                            originalFilename = "test2.jpg",
-                            uploadUrl = null,
-                            uploadExpiresAt = null,
-                            publicUrl = "https://cdn.example.com/test2.jpg",
-                            status = AssetStatus.READY,
-                            idempotencyKey = null,
-                            createdAt = Instant.now(),
-                            updatedAt = Instant.now(),
-                            deletedAt = null,
-                        )
-                    assetRepository.save(entity)
-                }
-
-            // Act
-            val assets = assetService.findByResource(AssetResourceType.PROFILE_IMAGE, resourceId)
-
-            // Assert
-            Assertions.assertThat(assets).hasSizeGreaterThanOrEqualTo(2)
-            val assetIds = assets.map { it.id }.toSet()
-            Assertions.assertThat(assetIds).contains(asset1.id, asset2.id)
-        }
-    }
 }
 

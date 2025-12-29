@@ -1,6 +1,6 @@
 package io.github.salomax.neotool.assets.config
 
-import io.github.salomax.neotool.assets.domain.AssetResourceType
+import io.github.salomax.neotool.assets.domain.AssetVisibility
 import io.micronaut.core.io.ResourceLoader
 import jakarta.inject.Singleton
 import mu.KotlinLogging
@@ -88,6 +88,28 @@ class AssetConfigProperties(
         configMap: Map<String, Any>,
     ): NamespaceConfig {
         val description = configMap["description"] as? String ?: ""
+        
+        val visibilityString =
+            (configMap["visibility"] as? String)
+                ?: throw IllegalStateException("visibility not found for namespace: $name")
+        val visibility =
+            try {
+                AssetVisibility.valueOf(visibilityString)
+            } catch (e: IllegalArgumentException) {
+                throw IllegalStateException(
+                    "Invalid visibility '$visibilityString' for namespace: $name. " +
+                        "Valid values: ${AssetVisibility.entries.joinToString()}",
+                    e,
+                )
+            }
+
+        val keyTemplate =
+            (configMap["keyTemplate"] as? String)
+                ?: throw IllegalStateException("keyTemplate not found for namespace: $name")
+        
+        // Validate keyTemplate contains required placeholders
+        validateKeyTemplate(name, keyTemplate)
+
         val maxSizeBytes =
             (configMap["maxSizeBytes"] as? Number)?.toLong()
                 ?: throw IllegalStateException("maxSizeBytes not found for namespace: $name")
@@ -96,24 +118,49 @@ class AssetConfigProperties(
             (configMap["allowedMimeTypes"] as? List<String>)
                 ?: throw IllegalStateException("allowedMimeTypes not found for namespace: $name")
 
-        val resourceTypeStrings = (configMap["resourceTypes"] as? List<String>) ?: emptyList()
-        val resourceTypes =
-            resourceTypeStrings.mapNotNull { typeString ->
-                try {
-                    AssetResourceType.valueOf(typeString)
-                } catch (e: IllegalArgumentException) {
-                    logger.warn { "Invalid resource type in namespace $name: $typeString" }
-                    null
-                }
-            }
+        val uploadTtlSeconds =
+            (configMap["uploadTtlSeconds"] as? Number)?.toLong()
 
         return NamespaceConfig(
             name = name,
             description = description,
+            visibility = visibility,
+            keyTemplate = keyTemplate,
             maxSizeBytes = maxSizeBytes,
             allowedMimeTypes = allowedMimeTypes.toSet(),
-            resourceTypes = resourceTypes.toSet(),
+            uploadTtlSeconds = uploadTtlSeconds,
         )
+    }
+
+    /**
+     * Validate key template contains required placeholders.
+     *
+     * Required placeholders: {namespace}, {assetId}
+     * Optional placeholders: {ownerId}
+     */
+    private fun validateKeyTemplate(namespace: String, keyTemplate: String) {
+        if (!keyTemplate.contains("{namespace}")) {
+            throw IllegalStateException(
+                "keyTemplate for namespace '$namespace' must contain {namespace} placeholder: $keyTemplate",
+            )
+        }
+        if (!keyTemplate.contains("{assetId}")) {
+            throw IllegalStateException(
+                "keyTemplate for namespace '$namespace' must contain {assetId} placeholder: $keyTemplate",
+            )
+        }
+        
+        // Validate no empty segments (double slashes or leading/trailing slashes after replacement)
+        val testKey = keyTemplate
+            .replace("{namespace}", "test")
+            .replace("{ownerId}", "test")
+            .replace("{assetId}", "test")
+        
+        if (testKey.contains("//") || testKey.startsWith("/") || testKey.endsWith("/")) {
+            throw IllegalStateException(
+                "keyTemplate for namespace '$namespace' produces invalid key format: $keyTemplate",
+            )
+        }
     }
 }
 
@@ -131,9 +178,11 @@ data class AssetConfig(
 data class NamespaceConfig(
     val name: String,
     val description: String,
+    val visibility: AssetVisibility,
+    val keyTemplate: String,
     val maxSizeBytes: Long,
     val allowedMimeTypes: Set<String>,
-    val resourceTypes: Set<AssetResourceType>,
+    val uploadTtlSeconds: Long? = null, // Optional override, falls back to global default
 )
 
 /**
