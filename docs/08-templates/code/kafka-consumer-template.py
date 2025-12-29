@@ -1,17 +1,30 @@
 """
-Kafka Consumer Template
+Kafka Consumer Template (Package-Based Approach)
 
 This template provides a starting point for implementing Kafka consumers
-following the Kafka Consumer Pattern in Python.
+following the Kafka Consumer Pattern using proper Python packaging.
+
+**IMPORTANT**: This uses the new package-based approach with neotool-common.
+
+Package Structure:
+  workflow/<domain>/<feature>/
+  ├── pyproject.toml              # Package configuration
+  ├── Dockerfile                  # Docker deployment
+  ├── src/<package_name>/         # Source code
+  │   ├── flows/consumer.py       # Main consumer
+  │   └── tasks/                  # Business logic
+  └── tests/                      # Tests
 
 Replace:
 - <domain> with your domain name (e.g., financial_data, swapi, order)
 - <feature> with feature name (e.g., institution_enhancement, people, order_processing)
+- <package_name> with snake_case package name (e.g., institution_enhancement, swapi_people)
 - <Domain> with PascalCase domain (e.g., FinancialData, Swapi, Order)
 - <Feature> with PascalCase feature (e.g., InstitutionEnhancement, People, OrderProcessing)
 
 See: docs/04-patterns/backend-patterns/kafka-consumer-pattern.md
 See: docs/05-standards/workflow-standards/kafka-consumer-standard.md
+See: docs/05-standards/workflow-standards/batch-workflow-standard.md#45-python-package-structure
 
 Additional Features to Consider:
 - Health Check: Implement health check endpoint (see flows/health.py example)
@@ -21,28 +34,25 @@ Additional Features to Consider:
 
 """
 flows/consumer.py - Main consumer loop
+
+Location: src/<package_name>/flows/consumer.py
 """
 
 import json
 import logging
-import signal
-import sys
-import time
-from pathlib import Path
+from typing import Any, Dict
 
-from kafka import KafkaConsumer
-from kafka.errors import KafkaError, CommitFailedError
+from kafka import KafkaConsumer, KafkaProducer
 
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Import from neotool-common (shared utilities)
+from neotool_common.consumer_base import KafkaConsumerRunner
 
-from tasks.config import Config
-from tasks.db_connection import close_pool
-from tasks.dlq_publisher import create_kafka_producer, publish_to_dlq
-from tasks.error_classification import is_retryable_error
-from tasks.retry_utils import calculate_backoff
-from tasks.message import <Domain><Feature>Message
-from tasks.processor import process_message
+# Import from this package
+from <package_name>.tasks.config import Config
+from <package_name>.tasks.db_connection import close_pool
+from <package_name>.tasks.dlq_publisher import create_kafka_producer, publish_to_dlq
+from <package_name>.tasks.message import <Domain><Feature>Message
+from <package_name>.tasks.processor import process_message
 
 # Configuration
 _config = Config.from_env()
@@ -53,128 +63,11 @@ CONSUMER_GROUP = _config.kafka.consumer_group
 logger = logging.getLogger(__name__)
 
 
-def _process_with_retry(
-    message: <Domain><Feature>Message,
-    message_data: dict,
-    producer,
-    consumer,
-) -> dict:
-    """
-    Process message with retry logic and exponential backoff.
-    
-    Implements Kafka Consumer Retry Standard:
-    - Classifies errors as retryable vs non-retryable
-    - Retries retryable errors with exponential backoff
-    - Sends non-retryable errors to DLQ immediately
-    - Sends retryable errors to DLQ after max retries exceeded
-    """
-    retry_count = 0
-    max_retries = _config.retry.max_retries
-    
-    while retry_count <= max_retries:
-        try:
-            result = process_message(message)
-            
-            if result["success"]:
-                return result
-            
-            # Processing failed - check if error is retryable
-            error_msg = result.get("error", "Unknown error")
-            error = Exception(error_msg) if error_msg else Exception("Unknown error")
-            
-            if not is_retryable_error(error):
-                # Non-retryable error - send to DLQ immediately
-                logger.warning(
-                    f"Non-retryable error (attempt {retry_count + 1}), sending to DLQ: "
-                    f"error={error_msg}"
-                )
-                dlq_published = publish_to_dlq(
-                    producer,
-                    message_data,
-                    error,
-                    retry_count=retry_count,
-                    error_classification="non-retryable",
-                )
-                result["retry_count"] = retry_count
-                result["dlq_published"] = dlq_published
-                return result
-            
-            # Retryable error - check if we should retry
-            if retry_count >= max_retries:
-                # Max retries exceeded - send to DLQ
-                logger.error(
-                    f"Max retries exceeded ({max_retries}), sending to DLQ: error={error_msg}"
-                )
-                dlq_published = publish_to_dlq(
-                    producer,
-                    message_data,
-                    error,
-                    retry_count=retry_count,
-                    error_classification="retryable",
-                )
-                result["retry_count"] = retry_count
-                result["dlq_published"] = dlq_published
-                return result
-            
-            # Calculate and apply backoff
-            delay_ms = calculate_backoff(retry_count, _config.retry)
-            logger.warning(
-                f"Retryable error (attempt {retry_count + 1}/{max_retries + 1}), "
-                f"retrying in {delay_ms}ms: error={error_msg}"
-            )
-            time.sleep(delay_ms / 1000.0)
-            retry_count += 1
-            
-        except Exception as e:
-            # Exception during processing
-            if not is_retryable_error(e):
-                # Non-retryable exception - send to DLQ immediately
-                dlq_published = publish_to_dlq(
-                    producer,
-                    message_data,
-                    e,
-                    retry_count=retry_count,
-                    error_classification="non-retryable",
-                )
-                return {
-                    "success": False,
-                    "error": str(e),
-                    "retry_count": retry_count,
-                    "dlq_published": dlq_published,
-                }
-            
-            # Retryable exception - check if we should retry
-            if retry_count >= max_retries:
-                dlq_published = publish_to_dlq(
-                    producer,
-                    message_data,
-                    e,
-                    retry_count=retry_count,
-                    error_classification="retryable",
-                )
-                return {
-                    "success": False,
-                    "error": str(e),
-                    "retry_count": retry_count,
-                    "dlq_published": dlq_published,
-                }
-            
-            # Calculate and apply backoff
-            delay_ms = calculate_backoff(retry_count, _config.retry)
-            logger.warning(
-                f"Retryable exception (attempt {retry_count + 1}/{max_retries + 1}), "
-                f"retrying in {delay_ms}ms: error={e}"
-            )
-            time.sleep(delay_ms / 1000.0)
-            retry_count += 1
-    
-    # Should not reach here
-    return {
-        "success": False,
-        "error": "Retry loop exhausted",
-        "retry_count": retry_count,
-        "dlq_published": False,
-    }
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
 
 
 def create_consumer() -> KafkaConsumer:

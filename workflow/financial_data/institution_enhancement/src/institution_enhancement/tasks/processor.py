@@ -22,13 +22,13 @@ from tenacity import (
     after_log,
 )
 
-from tasks.cnpj_utils import construct_cnpj, validate_cnpj_format
-from tasks.cnpja_client import query_cnpja
-from tasks.db_connection import (
+from institution_enhancement.tasks.cnpj_utils import construct_cnpj, validate_cnpj_format
+from institution_enhancement.tasks.cnpja_client import query_cnpja
+from institution_enhancement.tasks.db_connection import (
     get_db_connection,
     return_db_connection,
 )
-from tasks.message import InstitutionUpsertedMessage
+from institution_enhancement.tasks.message import InstitutionUpsertedMessage
 
 logger = logging.getLogger(__name__)
 

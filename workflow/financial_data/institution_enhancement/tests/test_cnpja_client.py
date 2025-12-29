@@ -14,7 +14,7 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 import requests
 
-from tasks.cnpja_client import CNPJA_RATE_LIMIT_SECONDS, enforce_rate_limit, query_cnpja
+from institution_enhancement.tasks.cnpja_client import CNPJA_RATE_LIMIT_SECONDS, enforce_rate_limit, query_cnpja
 
 
 # ============================================================================

@@ -11,7 +11,7 @@ micronaut {
     version("4.10.2")
     processing {
         incremental(true)
-        annotations("io.github.salomax.neotool.financial_data.*")
+        annotations("io.github.salomax.neotool.financialdata.*")
     }
 }
 
@@ -31,7 +31,7 @@ dependencies {
 }
 
 application {
-    mainClass.set("io.github.salomax.neotool.financial_data.Application")
+    mainClass.set("io.github.salomax.neotool.financialdata.Application")
 }
 
 // Enable ZIP64 support for all JAR tasks to handle more than 65535 entries

@@ -25,8 +25,8 @@ from kafka import KafkaConsumer, KafkaProducer
 from testcontainers.core.container import DockerContainer
 from testcontainers.kafka import KafkaContainer
 
-from tasks.message import InstitutionUpsertedMessage
-from tasks.processor import process_message
+from institution_enhancement.tasks.message import InstitutionUpsertedMessage
+from institution_enhancement.tasks.processor import process_message
 
 # Disable testcontainers Reaper to avoid Colima socket mount issues
 os.environ.setdefault("TESTCONTAINERS_RYUK_DISABLED", "true")
@@ -579,7 +579,7 @@ class TestDlqFlow:
             retries=5,
         )
 
-        from tasks.dlq_publisher import publish_to_dlq
+        from institution_enhancement.tasks.dlq_publisher import publish_to_dlq
 
         # Arrange
 

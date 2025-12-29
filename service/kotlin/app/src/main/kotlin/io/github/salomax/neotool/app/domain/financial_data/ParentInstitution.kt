@@ -17,7 +17,7 @@ import java.util.regex.Pattern
  * - `cnpj_instituicao_lider` from institution table (if available)
  * - Constructed CNPJ from `bacen_cod_inst` (if no parent)
  */
-data class InstitutionEnhancement(
+data class ParentInstitution(
     /**
      * Root CNPJ (primary key).
      * Either cnpj_instituicao_lider from institution table, or constructed CNPJ from bacen_cod_inst.
@@ -145,14 +145,14 @@ data class InstitutionEnhancement(
     
     /**
      * Converts domain object to entity.
-     * This method will be fully implemented when InstitutionEnhancementEntity is created (domain-004).
+     * This method will be fully implemented when ParentInstitutionEntity is created (domain-004).
      *
-     * @return InstitutionEnhancementEntity instance
+     * @return ParentInstitutionEntity instance
      * @throws UnsupportedOperationException until entity is created
      */
     fun toEntity(): Nothing {
         throw UnsupportedOperationException(
-            "toEntity() will be implemented when InstitutionEnhancementEntity is created (domain-004)"
+            "toEntity() will be implemented when ParentInstitutionEntity is created (domain-004)"
         )
     }
 }

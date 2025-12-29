@@ -11,8 +11,8 @@ from typing import Any, Callable, Dict, Optional, Protocol, Union
 from kafka import KafkaConsumer, KafkaProducer
 from kafka.errors import CommitFailedError
 
-from workflow.common.error_classification import is_retryable_error
-from workflow.common.retry_utils import calculate_backoff
+from neotool_common.error_classification import is_retryable_error
+from neotool_common.retry_utils import calculate_backoff
 
 
 class RetryConfigProtocol(Protocol):

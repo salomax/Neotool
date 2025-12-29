@@ -56,21 +56,35 @@ flowchart TD
 
 ### Package Organization
 
+**New Package-Based Structure** (Required):
+
 ```
 workflow/<domain>/<feature>/
-├── flows/
-│   └── consumer.py              # Main consumer loop
-├── tasks/
-│   ├── message.py               # Message data classes
-│   ├── processor.py             # Business logic processor
-│   ├── dlq_publisher.py        # DLQ message publisher
-│   ├── error_classification.py  # Error classification logic
-│   ├── retry_utils.py           # Retry backoff calculation
-│   ├── db_connection.py         # Database connection pooling
-│   └── config.py                # Configuration management
+├── pyproject.toml               # Package configuration with dependencies
+├── Dockerfile                   # Docker deployment configuration
+├── .dockerignore                # Docker build exclusions
+├── pytest.ini                   # Test configuration (no pythonpath)
+├── src/                         # Source code directory
+│   └── <package_name>/          # Package namespace
+│       ├── __init__.py          # Package initialization
+│       ├── flows/
+│       │   └── consumer.py      # Main consumer loop
+│       └── tasks/
+│           ├── message.py       # Message data classes
+│           ├── processor.py     # Business logic processor
+│           ├── dlq_publisher.py # DLQ message publisher (optional - can use neotool_common)
+│           ├── db_connection.py # Database connection pooling
+│           └── config.py        # Configuration management
 └── tests/
     └── test_*.py                # Unit and integration tests
 ```
+
+**Key Changes from Old Structure**:
+- ✅ Source code under `src/<package_name>/` (src layout)
+- ✅ Package depends on `neotool-common` in `pyproject.toml`
+- ✅ No more `error_classification.py` or `retry_utils.py` - use `neotool_common`
+- ✅ Entry points defined in `pyproject.toml` [project.scripts]
+- ✅ No PYTHONPATH manipulation needed
 
 ### Key Components
 
@@ -118,18 +132,35 @@ For complete implementation templates, see [Kafka Consumer Template](../../08-te
 
 The consumer implements retry logic directly in the consumer loop:
 
-### Shared Python Runner
+### Shared Python Runner (neotool-common)
 
-We now recommend using the shared `KafkaConsumerRunner` provided under `workflow/common/consumer_base.py` for all Python batch consumers.
+**All Python batch consumers MUST use the shared `KafkaConsumerRunner`** from the `neotool-common` package.
 
-- Centralizes the retry loop, DLQ publishing, commit handling, signal-driven shutdown, and health/cleanup hooks described earlier.
-- Accepts pluggable hooks for message parsing, domain processors, DLQ metadata, retry configurations, and rate-limit overrides.
-- Automatically logs retry classification decisions using `workflow/common/error_classification.py` and calculates exponential backoff via `workflow/common/retry_utils.py`.
-- Covers graceful shutdown via signal handlers and optional health server lifecycle hooks.
+**Package**: `neotool-common` (installable package at `workflow/common/`)
 
-An example instantiation:
+**Import**:
+```python
+from neotool_common.consumer_base import KafkaConsumerRunner
+from neotool_common.error_classification import is_retryable_error
+from neotool_common.retry_utils import calculate_backoff
+```
+
+**Features**:
+- Centralizes retry loop, DLQ publishing, commit handling, signal-driven shutdown
+- Accepts pluggable hooks for message parsing, domain processors, DLQ metadata
+- Automatically logs retry classification decisions using `neotool_common.error_classification`
+- Calculates exponential backoff via `neotool_common.retry_utils`
+- Graceful shutdown via signal handlers and optional health server lifecycle hooks
+
+**Example Usage**:
 
 ```python
+from neotool_common.consumer_base import KafkaConsumerRunner
+from institution_enhancement.tasks.config import Config
+from institution_enhancement.tasks.message import InstitutionUpsertedMessage
+from institution_enhancement.tasks.processor import process_message
+# ... other imports
+
 runner = KafkaConsumerRunner(
     consumer_factory=create_consumer,
     producer_factory=create_kafka_producer,
@@ -148,7 +179,11 @@ runner = KafkaConsumerRunner(
 runner.run()
 ```
 
-Consumers should keep only domain-specific wiring (message models, processor functions, rate limits, metrics) and rely on the base runner for retry/DLQ lifecycle.
+**Benefits**:
+- Consumers keep only domain-specific wiring (message models, processor functions, rate limits, metrics)
+- Retry/DLQ lifecycle managed by shared, tested code
+- Consistent behavior across all Python consumers
+- Easy to upgrade all consumers by updating `neotool-common`
 **Key Implementation Points:**
 - Uses `kafka-python` library for consumer implementation
 - Manual offset commits after successful processing or DLQ publish
@@ -228,39 +263,30 @@ Python Kafka consumers should be containerized using Docker for consistent deplo
 5. Configure health check endpoint
 6. Use proper layer caching for dependencies
 
-**Example Dockerfile**:
+**Example Dockerfile** (New Package-Based Approach):
 
 ```dockerfile
-# Stage 1: Builder (if needed for compilation)
-FROM python:3.14-alpine AS builder
-
-# Stage 2: Runtime
 FROM python:3.14-alpine
-
-# Install system dependencies (psycopg2-binary needs libpq)
-RUN apk add --no-cache \
-    postgresql-libs
-
-# Create non-root user and group
-RUN addgroup --system --gid 1000 consumer && \
-    adduser --system --uid 1000 --ingroup consumer consumer && \
-    mkdir -p /app && \
-    chown -R consumer:consumer /app
 
 WORKDIR /app
 
-# Copy requirements first for better layer caching
-COPY --chown=consumer:consumer <domain>/<feature>/requirements.txt .
+# Create non-root user
+RUN addgroup -g 1000 consumer && \
+    adduser -D -u 1000 -G consumer consumer
 
-# Install Python dependencies
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+# Install system dependencies
+RUN apk add --no-cache gcc musl-dev libpq-dev
 
-# Copy workflow common module (needed for consumer_base)
-COPY --chown=consumer:consumer common/ ./workflow/common/
+# Install neotool-common from local path
+COPY --chown=consumer:consumer ../../common /tmp/neotool-common/
+RUN pip install --no-cache-dir /tmp/neotool-common && \
+    rm -rf /tmp/neotool-common
 
 # Copy application code
-COPY --chown=consumer:consumer <domain>/<feature>/ .
+COPY --chown=consumer:consumer . /app/
+
+# Install the application
+RUN pip install --no-cache-dir /app
 
 # Switch to non-root user
 USER consumer
@@ -272,9 +298,16 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"
 
-# Entry point
-ENTRYPOINT ["python", "flows/consumer.py"]
+# Run the consumer using entry point from pyproject.toml
+ENTRYPOINT ["<package-name>-consumer"]
 ```
+
+**Key Changes**:
+- ✅ Installs `neotool-common` package first
+- ✅ Installs consumer as a package (reads `pyproject.toml`)
+- ✅ Uses entry point defined in `pyproject.toml` instead of direct Python invocation
+- ✅ No PYTHONPATH manipulation needed
+- ✅ Simpler and more maintainable
 
 ### Build Context
 

@@ -13,9 +13,9 @@ COPY build.gradle.kts settings.gradle.kts gradle.properties ./
 COPY common/build.gradle.kts ./common/
 COPY common/src ./common/src
 
-# Copy financial_data module build files
-COPY financial_data/build.gradle.kts ./financial_data/
-COPY financial_data/src ./financial_data/src
+# Copy financialdata module build files
+COPY financialdata/build.gradle.kts ./financialdata/
+COPY financialdata/src ./financialdata/src
 
 # Download dependencies and build common module first (shared by all services)
 # This maximizes cache reuse across all service builds
@@ -27,27 +27,27 @@ RUN --mount=type=cache,target=/home/gradle/.gradle/caches \
     ./gradlew :common:assemble --build-cache
 
 # Build the application JAR
-# - './gradlew :financial_data:shadowJar': Executes the `shadowJar` task on the `:financial_data` module. This task typically
+# - './gradlew :financialdata:shadowJar': Executes the `shadowJar` task on the `:financialdata` module. This task typically
 #   creates an "uber" or "fat" JAR containing the application code and all its dependencies.
 # - '-x test': Skips running any tests during the build.
 # - '--build-cache': Uses the Gradle build cache for faster incremental builds
 # - '--parallel': Builds modules in parallel for better performance
 RUN --mount=type=cache,target=/home/gradle/.gradle/caches \
     --mount=type=cache,target=/home/gradle/.gradle/wrapper \
-    ./gradlew :financial_data:shadowJar -x test --build-cache --parallel
+    ./gradlew :financialdata:shadowJar -x test --build-cache --parallel
 
 # Use a minimal JRE (Java Runtime Environment) image based on Eclipse Temurin with JDK 21.
 # This image is much smaller than the full JDK image used for building.
 FROM eclipse-temurin:21-jre-alpine
 
 # Set the working directory for the application inside the final image.
-WORKDIR /financial_data
+WORKDIR /financialdata
 
 # Copy the generated "fat JAR" from the 'build' stage to the final image's working directory.
 # - 'COPY --from=build': Specifies that the file should be copied from the stage named 'build'.
-# - '/home/gradle/project/financial_data/build/libs/financial_data-all.jar': The path to the built JAR file in the 'build' container.
-# - '/financial_data/service.jar': The destination path and name in the final container.
-COPY --from=build /home/gradle/project/financial_data/build/libs/financial_data-all.jar /financial_data/service.jar
+# - '/home/gradle/project/financialdata/build/libs/financialdata-all.jar': The path to the built JAR file in the 'build' container.
+# - '/financialdata/service.jar': The destination path and name in the final container.
+COPY --from=build /home/gradle/project/financialdata/build/libs/financialdata-all.jar /financialdata/service.jar
 
 # Inform Docker that the container will listen on the specified port at runtime.
 # This is documentation and does not actually publish the port; it's a metadata instruction.
@@ -55,5 +55,5 @@ EXPOSE 8080
 
 # Define the command that runs when the container starts.
 # - '["java","-jar","/app/service.jar"]': Executes the JAR file using the Java Runtime.
-ENTRYPOINT ["java","-jar","/financial_data/service.jar"]
+ENTRYPOINT ["java","-jar","/financialdata/service.jar"]
 

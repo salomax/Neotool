@@ -12,8 +12,8 @@ from typing import Optional, Tuple
 
 from kafka import KafkaConsumer
 
-from tasks.config import Config, HealthCheckConfig
-from tasks.db_connection import get_db_connection, return_db_connection
+from institution_enhancement.tasks.config import Config, HealthCheckConfig
+from institution_enhancement.tasks.db_connection import get_db_connection, return_db_connection
 
 logger = logging.getLogger(__name__)
 

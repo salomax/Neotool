@@ -2,7 +2,7 @@ package io.github.salomax.neotool.financialdata.model
 
 import com.fasterxml.jackson.databind.JsonNode
 import io.github.salomax.neotool.common.entity.BaseEntity
-import io.github.salomax.neotool.financialdata.domain.InstitutionEnhancement
+import io.github.salomax.neotool.financialdata.domain.ParentInstitution
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.Id
@@ -13,7 +13,7 @@ import java.time.Instant
 
 @Entity
 @Table(name = "parent_institution", schema = "financial_data")
-open class InstitutionEnhancementEntity(
+open class ParentInstitutionEntity(
     @Id
     @Column(name = "parent_cnpj", nullable = false)
     val parentCnpj: String,
@@ -38,8 +38,8 @@ open class InstitutionEnhancementEntity(
     @Column(name = "updated_at", nullable = false)
     open var updatedAt: Instant = Instant.now(),
 ) : BaseEntity<String>(parentCnpj) {
-    fun toDomain(): InstitutionEnhancement {
-        return InstitutionEnhancement(
+    fun toDomain(): ParentInstitution {
+        return ParentInstitution(
             parentCnpj = this.parentCnpj,
             legalName = this.legalName,
             tradeName = this.tradeName,

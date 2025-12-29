@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -9,6 +9,31 @@ description = "BACEN IFData Ingestion Pipeline"
 requires-python = ">=3.14"
 readme = "README.md"
 license = {text = "Proprietary"}
+dependencies = [
+    "neotool-common",
+    "prefect>=3.1.0",
+    "psycopg2-binary>=2.9.0",
+    "kafka-python>=2.0.0",
+    "requests>=2.31.0",
+    "pyway>=1.0.0",
+    "python-dotenv>=1.0.0",
+    "beautifulsoup4>=4.12.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-mock>=3.12.0",
+    "pytest-cov>=4.1.0",
+    "testcontainers>=3.7.0",
+    "docker>=7.0.0",
+    "black>=24.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.8.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 # Black configuration
 [tool.black]

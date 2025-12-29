@@ -14,7 +14,7 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 from kafka.errors import KafkaError
 
-from tasks.dlq_publisher import DLQ_TOPIC, create_kafka_producer, publish_to_dlq
+from institution_enhancement.tasks.dlq_publisher import DLQ_TOPIC, create_kafka_producer, publish_to_dlq
 
 
 # ============================================================================

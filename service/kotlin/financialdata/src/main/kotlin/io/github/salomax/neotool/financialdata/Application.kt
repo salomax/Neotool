@@ -6,7 +6,7 @@ object Application {
     @JvmStatic
     fun main(args: Array<String>) {
         build(*args)
-            .packages("io.github.salomax.neotool.financial_data")
+            .packages("io.github.salomax.neotool.financialdata")
             .start()
     }
 }

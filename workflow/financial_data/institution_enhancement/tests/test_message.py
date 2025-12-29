@@ -10,7 +10,7 @@ Tests cover:
 
 import pytest
 
-from tasks.message import InstitutionUpsertedMessage
+from institution_enhancement.tasks.message import InstitutionUpsertedMessage
 
 
 # ============================================================================

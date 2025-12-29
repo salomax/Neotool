@@ -16,8 +16,8 @@ import pytest
 import psycopg2
 from psycopg2.extras import Json
 
-from tasks.message import InstitutionUpsertedMessage
-from tasks.processor import (
+from institution_enhancement.tasks.message import InstitutionUpsertedMessage
+from institution_enhancement.tasks.processor import (
     extract_domain_from_emails,
     extract_legal_name,
     extract_trade_name,
@@ -27,7 +27,7 @@ from tasks.processor import (
     validate_website_reachable,
     scrape_social_networks,
 )
-from tasks.db_connection import return_db_connection
+from institution_enhancement.tasks.db_connection import return_db_connection
 
 
 # ============================================================================

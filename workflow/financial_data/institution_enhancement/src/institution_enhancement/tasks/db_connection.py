@@ -18,7 +18,7 @@ from tenacity import (
     after_log,
 )
 
-from tasks.config import DatabaseConfig, Config
+from institution_enhancement.tasks.config import DatabaseConfig, Config
 
 logger = logging.getLogger(__name__)
 

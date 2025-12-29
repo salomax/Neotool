@@ -10,11 +10,11 @@ import sys
 from datetime import datetime
 from uuid import uuid4
 
-from tasks.config import Config
-from tasks.cnpj_utils import validate_cnpj_format
-from tasks.db_connection import close_pool, initialize_pool
-from tasks.message import InstitutionUpsertedMessage
-from tasks.processor import process_message
+from institution_enhancement.tasks.config import Config
+from institution_enhancement.tasks.cnpj_utils import validate_cnpj_format
+from institution_enhancement.tasks.db_connection import close_pool, initialize_pool
+from institution_enhancement.tasks.message import InstitutionUpsertedMessage
+from institution_enhancement.tasks.processor import process_message
 
 # Configure logging
 logging.basicConfig(

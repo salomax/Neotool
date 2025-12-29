@@ -9,7 +9,7 @@ Tests cover:
 
 import pytest
 
-from tasks.cnpj_utils import calculate_cnpj_validator_digits, construct_cnpj
+from institution_enhancement.tasks.cnpj_utils import calculate_cnpj_validator_digits, construct_cnpj
 
 
 # ============================================================================

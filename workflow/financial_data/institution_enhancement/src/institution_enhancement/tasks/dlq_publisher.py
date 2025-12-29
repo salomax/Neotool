@@ -12,7 +12,8 @@ from typing import Any, Dict
 from kafka import KafkaProducer
 from kafka.errors import KafkaError, KafkaTimeoutError
 
-from tasks.config import Config
+from institution_enhancement.tasks.config import Config
+from neotool_common.error_classification import is_retryable_error
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +26,6 @@ def _get_is_retryable_error():
     global _is_retryable_error
     if _is_retryable_error is None:
         try:
-            from tasks.error_classification import is_retryable_error
-
             _is_retryable_error = is_retryable_error
         except ImportError:
             # Fallback function if module not available

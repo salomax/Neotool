@@ -9,14 +9,14 @@ import logging
 from typing import Any
 
 from kafka import KafkaConsumer
-from workflow.common.consumer_base import KafkaConsumerRunner
+from neotool_common.consumer_base import KafkaConsumerRunner
 
-from tasks.config import Config
-from tasks.db_connection import close_pool
-from tasks.dlq_publisher import create_kafka_producer, publish_to_dlq
-from flows.health import set_consumer_running, start_health_server, stop_health_server
-from tasks.message import InstitutionUpsertedMessage
-from tasks.processor import process_message
+from institution_enhancement.tasks.config import Config
+from institution_enhancement.tasks.db_connection import close_pool
+from institution_enhancement.tasks.dlq_publisher import create_kafka_producer, publish_to_dlq
+from institution_enhancement.flows.health import set_consumer_running, start_health_server, stop_health_server
+from institution_enhancement.tasks.message import InstitutionUpsertedMessage
+from institution_enhancement.tasks.processor import process_message
 
 # Configuration
 _config = Config.from_env()
@@ -106,5 +106,10 @@ def run_consumer() -> None:
     runner.run()
 
 
-if __name__ == "__main__":
+def main():
+    """Entry point for the consumer (used by console_scripts)."""
     run_consumer()
+
+
+if __name__ == "__main__":
+    main()
