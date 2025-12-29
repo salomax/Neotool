@@ -99,3 +99,4 @@ CREATE INDEX IF NOT EXISTS idx_bank_report_data_bank_report_id
 -- Composite index for common query patterns
 CREATE INDEX IF NOT EXISTS idx_bank_report_data_lookup 
     ON financial_data.bank_report_data(bank_report_id, conta, nome_coluna);
+

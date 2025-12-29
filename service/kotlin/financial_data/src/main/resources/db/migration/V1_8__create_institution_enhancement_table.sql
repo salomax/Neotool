@@ -1,9 +1,9 @@
--- Migration: Create institution_enhancement table
+-- Migration: Create parent_institution table
 -- Version: V1_8
--- Description: Create financial_data.institution_enhancement table for storing enhanced institution data
+-- Description: Create financial_data.parent_institution table for storing enhanced institution data
 --              from CNPJ data provider, including domain, logo storage key, and receita data
 -- 
--- This migration creates the institution_enhancement table that stores enhanced data for parent institutions.
+-- This migration creates the parent_institution table that stores enhanced data for parent institutions.
 -- Enhancement is per parent CNPJ: if multiple institutions share the same parent (cnpj_instituicao_lider),
 -- they share the same enhancement. If an institution has no parent, enhancement is for that institution itself.
 -- 
@@ -20,8 +20,8 @@
 
 SET search_path TO financial_data, public;
 
--- Create institution_enhancement table
-CREATE TABLE IF NOT EXISTS financial_data.institution_enhancement (
+-- Create parent_institution table
+CREATE TABLE IF NOT EXISTS financial_data.parent_institution (
     -- Primary key: Root CNPJ (either cnpj_instituicao_lider from institution table,
     -- or constructed CNPJ from bacen_cod_inst for institutions with no parent)
     parent_cnpj TEXT NOT NULL PRIMARY KEY,
@@ -55,30 +55,30 @@ CREATE TABLE IF NOT EXISTS financial_data.institution_enhancement (
 );
 
 -- Add comments for documentation
-COMMENT ON TABLE financial_data.institution_enhancement IS 
+COMMENT ON TABLE financial_data.parent_institution IS 
     'Stores enhanced institution data from CNPJ data provider, including domain, website, legal name, trade name, social networks, logo, and receita data. One enhancement per parent CNPJ (shared by institutions with the same parent).';
 
-COMMENT ON COLUMN financial_data.institution_enhancement.parent_cnpj IS 
+COMMENT ON COLUMN financial_data.parent_institution.parent_cnpj IS 
     'Root CNPJ (primary key). Either cnpj_instituicao_lider from institution table (for institutions with a parent), or constructed CNPJ from bacen_cod_inst (for institutions with no parent). Multiple institutions can share the same parent_cnpj.';
 
-COMMENT ON COLUMN financial_data.institution_enhancement.email_domain IS 
+COMMENT ON COLUMN financial_data.parent_institution.email_domain IS 
     'Email domain extracted from first email in CNPJ data provider response (excluding blacklisted email provider domains).';
 
-COMMENT ON COLUMN financial_data.institution_enhancement.website IS 
+COMMENT ON COLUMN financial_data.parent_institution.website IS 
     'Website URL if available from CNPJ data provider or website resolution. Used for logo download and social network discovery.';
 
-COMMENT ON COLUMN financial_data.institution_enhancement.logo_storage_key IS 
+COMMENT ON COLUMN financial_data.parent_institution.logo_storage_key IS 
     'Storage key for institution logo from asset management service. TODO: Service integration pending.';
 
-COMMENT ON COLUMN financial_data.institution_enhancement.social_network IS 
+COMMENT ON COLUMN financial_data.parent_institution.social_network IS 
     'Social network links discovered from website scraping. JSON object with keys: linkedin, instagram, facebook, twitter, x.';
 
-COMMENT ON COLUMN financial_data.institution_enhancement.receita_data IS 
+COMMENT ON COLUMN financial_data.parent_institution.receita_data IS 
     'Full CNPJ data provider response stored as JSONB. Contains data from Receita.gov.br.';
 
-COMMENT ON COLUMN financial_data.institution_enhancement.legal_name IS 
+COMMENT ON COLUMN financial_data.parent_institution.legal_name IS 
     'Company legal name extracted from CNPJ data provider response (company.name field).';
 
-COMMENT ON COLUMN financial_data.institution_enhancement.trade_name IS 
+COMMENT ON COLUMN financial_data.parent_institution.trade_name IS 
     'Company trade name extracted from CNPJ data provider response (alias field).';
 

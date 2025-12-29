@@ -204,12 +204,8 @@ services:
       DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-neotool}:${POSTGRES_PASSWORD:-neotool}@pgbouncer:6432/${POSTGRES_DB:-neotool_db}?sslmode=disable"
     ports:
       - "9187:9187"
-    depends_on:
-      pgbouncer:
-        condition: service_healthy
     profiles:
       - observability
-      - database  # Also available when database profile is active
 
   # Loki - Log aggregation system
   loki:

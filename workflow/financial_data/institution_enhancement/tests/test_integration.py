@@ -25,11 +25,6 @@ from kafka import KafkaConsumer, KafkaProducer
 from testcontainers.core.container import DockerContainer
 from testcontainers.kafka import KafkaContainer
 
-# Add parent directory to path for imports
-import sys
-
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 from tasks.message import InstitutionUpsertedMessage
 from tasks.processor import process_message
 
@@ -177,7 +172,7 @@ def migrated_database(postgres_container):
         cur.execute("CREATE SCHEMA IF NOT EXISTS financial_data;")
         cur.execute(
             """
-            CREATE TABLE IF NOT EXISTS financial_data.institution_enhancement (
+            CREATE TABLE IF NOT EXISTS financial_data.parent_institution (
                 parent_cnpj TEXT NOT NULL PRIMARY KEY,
                 email_domain TEXT,
                 website TEXT,
@@ -205,7 +200,7 @@ def clean_enhancement_table(postgres_container, migrated_database):
     cleanup_conn = _create_verification_connection(postgres_container)
     try:
         with cleanup_conn.cursor() as cur:
-            cur.execute("DELETE FROM financial_data.institution_enhancement")
+            cur.execute("DELETE FROM financial_data.parent_institution")
             cleanup_conn.commit()
     finally:
         cleanup_conn.close()
@@ -216,7 +211,7 @@ def clean_enhancement_table(postgres_container, migrated_database):
     cleanup_conn = _create_verification_connection(postgres_container)
     try:
         with cleanup_conn.cursor() as cur:
-            cur.execute("DELETE FROM financial_data.institution_enhancement")
+            cur.execute("DELETE FROM financial_data.parent_institution")
             cleanup_conn.commit()
     finally:
         cleanup_conn.close()
@@ -298,7 +293,7 @@ class TestEndToEndProcessing:
         try:
             with verify_conn.cursor() as cur:
                 cur.execute(
-                    "SELECT email_domain, receita_data, legal_name, trade_name FROM financial_data.institution_enhancement WHERE parent_cnpj = %s",
+                    "SELECT email_domain, receita_data, legal_name, trade_name FROM financial_data.parent_institution WHERE parent_cnpj = %s",
                     (result["parent_cnpj"],),
                 )
                 row = cur.fetchone()
@@ -351,7 +346,7 @@ class TestEndToEndProcessing:
         try:
             with verify_conn.cursor() as cur:
                 cur.execute(
-                    "SELECT email_domain FROM financial_data.institution_enhancement WHERE parent_cnpj = %s",
+                    "SELECT email_domain FROM financial_data.parent_institution WHERE parent_cnpj = %s",
                     (result["parent_cnpj"],),
                 )
                 row = cur.fetchone()
@@ -419,13 +414,13 @@ class TestEndToEndProcessing:
         verify_conn = _create_verification_connection(postgres_container)
         try:
             with verify_conn.cursor() as cur:
-                cur.execute("SELECT COUNT(*) FROM financial_data.institution_enhancement WHERE parent_cnpj = %s", (parent_cnpj,))
+                cur.execute("SELECT COUNT(*) FROM financial_data.parent_institution WHERE parent_cnpj = %s", (parent_cnpj,))
                 count = cur.fetchone()[0]
                 assert count == 1  # Only one record
 
                 # Verify email_domain, legal_name, and trade_name were updated
                 cur.execute(
-                    "SELECT email_domain, legal_name, trade_name FROM financial_data.institution_enhancement WHERE parent_cnpj = %s",
+                    "SELECT email_domain, legal_name, trade_name FROM financial_data.parent_institution WHERE parent_cnpj = %s",
                     (parent_cnpj,),
                 )
                 row = cur.fetchone()

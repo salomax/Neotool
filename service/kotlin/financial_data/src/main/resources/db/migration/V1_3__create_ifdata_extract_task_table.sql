@@ -67,3 +67,4 @@ CREATE INDEX IF NOT EXISTS idx_ifdata_extract_task_ano_mes_nome_relatorio
 -- Index on created_at for audit queries and task ordering
 CREATE INDEX IF NOT EXISTS idx_ifdata_extract_task_created_at 
     ON financial_data.ifdata_extract_task(created_at);
+

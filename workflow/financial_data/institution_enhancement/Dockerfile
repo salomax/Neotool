@@ -16,6 +16,9 @@ RUN addgroup --system --gid 1000 consumer && \
 
 WORKDIR /app
 
+# Set PYTHONPATH so Python can find the workflow package
+ENV PYTHONPATH=/app
+
 # Copy requirements first for better layer caching
 COPY --chown=consumer:consumer financial_data/institution_enhancement/requirements.txt .
 

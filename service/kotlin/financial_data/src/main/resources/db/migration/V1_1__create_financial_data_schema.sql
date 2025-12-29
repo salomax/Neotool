@@ -10,3 +10,4 @@ SET search_path TO financial_data, public;
 
 -- Create the financial_data schema if it doesn't exist
 CREATE SCHEMA IF NOT EXISTS financial_data;
+

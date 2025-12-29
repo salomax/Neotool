@@ -9,7 +9,7 @@ This consumer processes `financial-data.institution.upserted` events to enhance 
 1. **CNPJ Construction**: Builds matrix CNPJ from `bacen_cod_inst`
 2. **CNPJá API Integration**: Queries CNPJá API for company information
 3. **Domain Extraction**: Extracts domain from email addresses
-4. **Data Storage**: Stores enhancement data in `financial_data.institution_enhancement` table
+4. **Data Storage**: Stores enhancement data in `financial_data.parent_institution` table
 
 ## Setup
 
@@ -52,9 +52,19 @@ This consumer processes `financial-data.institution.upserted` events to enhance 
 
 ## Running the Consumer
 
+**Important**: Set `PYTHONPATH` to the project root (parent of `workflow/` directory) so Python can find `workflow.common`:
+
 ```bash
+# From the project root (parent of workflow/ directory)
+export PYTHONPATH=$(pwd)
+python workflow/financial_data/institution_enhancement/flows/consumer.py
+
+# Or from within the institution_enhancement directory
+export PYTHONPATH=$(cd ../.. && pwd)
 python flows/consumer.py
 ```
+
+Alternatively, you can set it in your shell profile or use a script.
 
 The consumer will:
 - Connect to Kafka and subscribe to `financial-data.institution.upserted` topic
@@ -68,7 +78,15 @@ A standalone command-line script is available to process institution enhancement
 
 ### Usage
 
+**Important**: Set `PYTHONPATH` to the project root (parent of `workflow/` directory):
+
 ```bash
+# From the project root (parent of workflow/ directory)
+export PYTHONPATH=$(pwd)
+python workflow/financial_data/institution_enhancement/flows/standalone.py <cnpj_parent>
+
+# Or from within the institution_enhancement directory
+export PYTHONPATH=$(cd ../.. && pwd)
 python flows/standalone.py <cnpj_parent>
 ```
 
@@ -95,7 +113,7 @@ Successfully processed CNPJ: 12345678000190
 ### Features
 
 - **Same validation**: Uses the same `process_message` function as the consumer, including website reachability validation
-- **Database integration**: Stores enhancement data in the same `financial_data.institution_enhancement` table
+- **Database integration**: Stores enhancement data in the same `financial_data.parent_institution` table
 - **Rate limiting**: Respects the same CNPJá API rate limits (15 seconds between requests)
 - **Error handling**: Validates CNPJ format and handles processing errors gracefully
 
@@ -136,7 +154,7 @@ For multi-process or multi-instance deployments (e.g., multiple Kubernetes pods)
 
 ## Database Schema
 
-Enhancement data is stored in `financial_data.institution_enhancement` table:
+Enhancement data is stored in `financial_data.parent_institution` table:
 - `parent_cnpj` (TEXT, PK) - Root CNPJ
 - `email_domain` (TEXT, nullable) - Extracted email domain
 - `website` (TEXT, nullable) - Website URL

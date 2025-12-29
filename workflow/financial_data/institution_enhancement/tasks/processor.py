@@ -583,7 +583,7 @@ def process_message(message: InstitutionUpsertedMessage) -> Dict[str, Any]:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO financial_data.institution_enhancement (
+                INSERT INTO financial_data.parent_institution (
                     parent_cnpj, email_domain, website, logo_storage_key,
                     social_network, receita_data, legal_name, trade_name,
                     created_at, updated_at

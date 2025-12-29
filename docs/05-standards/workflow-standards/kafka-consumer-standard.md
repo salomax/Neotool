@@ -249,7 +249,7 @@ max_poll_interval_ms >= (max_retries * max_retry_delay_ms) + processing_time + b
 4. Document consumer group name in consumer configuration/README
 
 **Examples**:
-- `financial_data.institution_enhancement.v1`
+- `financial_data.parent_institution.v1`
 - `app.user_sync.consumer`
 
 ### 5.2 Partition Assignment

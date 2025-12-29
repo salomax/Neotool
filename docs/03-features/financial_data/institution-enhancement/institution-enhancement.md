@@ -57,7 +57,7 @@ This feature implements a Kafka consumer that processes `financial-data.institut
                │
                ▼
 ┌─────────────────────────────────────┐
-│  financial_data.institution_enhancement│
+│  financial_data.parent_institution│
 │  (one per parent CNPJ, shared by     │
 │   institutions with same parent)     │
 └─────────────────────────────────────┘
@@ -65,7 +65,7 @@ This feature implements a Kafka consumer that processes `financial-data.institut
 
 ## Database Schema
 
-### Table: `financial_data.institution_enhancement`
+### Table: `financial_data.parent_institution`
 
 **Relationship**: One enhancement per parent CNPJ (shared by institutions with the same parent)
 - Primary Key: `parent_cnpj` (root CNPJ - either `cnpj_instituicao_lider` or constructed from `bacen_cod_inst`)
@@ -235,17 +235,17 @@ The full CNPJ data provider response is stored in the `receita_data` JSONB colum
 **Current Status**: Metrics collection is not yet implemented
 
 **Planned Metrics**:
-- `financial_data.institution_enhancement.processed` - Counter
-- `financial_data.institution_enhancement.processing.duration` - Timer
-- `financial_data.institution_enhancement.dlq.count` - Counter
-- `financial_data.institution_enhancement.retry.count` - Counter
-- `financial_data.institution_enhancement.error.count` - Counter
-- `financial_data.institution_enhancement.cnpj_data_provider.queries` - Counter
-- `financial_data.institution_enhancement.cnpj_data_provider.not_found` - Counter
-- `financial_data.institution_enhancement.domain.extracted` - Counter
-- `financial_data.institution_enhancement.website.resolved` - Counter (TODO)
-- `financial_data.institution_enhancement.social_network.discovered` - Counter (TODO)
-- `financial_data.institution_enhancement.logo.downloaded` - Counter (TODO)
+- `financial_data.parent_institution.processed` - Counter
+- `financial_data.parent_institution.processing.duration` - Timer
+- `financial_data.parent_institution.dlq.count` - Counter
+- `financial_data.parent_institution.retry.count` - Counter
+- `financial_data.parent_institution.error.count` - Counter
+- `financial_data.parent_institution.cnpj_data_provider.queries` - Counter
+- `financial_data.parent_institution.cnpj_data_provider.not_found` - Counter
+- `financial_data.parent_institution.domain.extracted` - Counter
+- `financial_data.parent_institution.website.resolved` - Counter (TODO)
+- `financial_data.parent_institution.social_network.discovered` - Counter (TODO)
+- `financial_data.parent_institution.logo.downloaded` - Counter (TODO)
 
 ## Connection Pooling
 
@@ -411,10 +411,10 @@ When a message is successfully processed, you should see:
    INFO - Successfully stored enhancement data: parent_cnpj=60872504000123, domain=example.com
    ```
 
-2. **Database Record** in `financial_data.institution_enhancement`:
+2. **Database Record** in `financial_data.parent_institution`:
    ```sql
    SELECT parent_cnpj, domain, receita_data, created_at, updated_at
-   FROM financial_data.institution_enhancement
+   FROM financial_data.parent_institution
    WHERE parent_cnpj = '60872504000123';
    ```
 
@@ -522,13 +522,13 @@ SELECT
     receita_data IS NOT NULL as has_receita_data,
     created_at,
     updated_at
-FROM financial_data.institution_enhancement
+FROM financial_data.parent_institution
 ORDER BY created_at DESC
 LIMIT 10;
 
 -- Check specific institution
 SELECT *
-FROM financial_data.institution_enhancement
+FROM financial_data.parent_institution
 WHERE parent_cnpj = '60872504000123';
 
 -- Verify receita_data structure
@@ -538,7 +538,7 @@ SELECT
     receita_data->>'cnpj' as cnpj_from_api,
     receita_data->>'name' as name_from_api,
     jsonb_array_length(receita_data->'emails') as email_count
-FROM financial_data.institution_enhancement
+FROM financial_data.parent_institution
 WHERE receita_data IS NOT NULL;
 ```
 

@@ -61,3 +61,4 @@ CREATE INDEX IF NOT EXISTS idx_institution_situacao
 -- Index on source_hash for change detection lookups
 CREATE INDEX IF NOT EXISTS idx_institution_source_hash 
     ON financial_data.institution(source_hash);
+
