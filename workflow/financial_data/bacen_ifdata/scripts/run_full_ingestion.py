@@ -29,14 +29,15 @@ import sys
 import traceback
 from typing import Any
 
-# Add the parent directory to the path so we can import flows
+# Add the src directory to the path so we can import the package
 script_dir = Path(__file__).parent
 project_root = script_dir.parent
-sys.path.insert(0, str(project_root))
+src_dir = project_root / "src"
+sys.path.insert(0, str(src_dir))
 
-from flows.bacen_ifdata_ingestion import bacen_ifdata_ingestion_flow
-from tasks.constants import ANO_MES_LENGTH, MAX_MONTH, MAX_YEAR, MIN_MONTH, MIN_YEAR
-from tasks.quarter_determination import get_db_connection
+from bacen_ifdata.flows.bacen_ifdata_ingestion import bacen_ifdata_ingestion_flow
+from bacen_ifdata.tasks.constants import ANO_MES_LENGTH, MAX_MONTH, MAX_YEAR, MIN_MONTH, MIN_YEAR
+from bacen_ifdata.tasks.quarter_determination import get_db_connection
 
 
 def format_stats(stats: dict[str, Any], verbose: bool = False) -> str:

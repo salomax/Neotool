@@ -21,7 +21,7 @@ from uuid import uuid4
 
 from prefect import flow, get_run_logger, task
 from prefect.artifacts import create_markdown_artifact
-from tasks import (
+from bacen_ifdata.tasks import (
     check_extract_completion_task,
     create_extract_tasks,
     determine_target_quarter,
@@ -32,7 +32,7 @@ from tasks import (
     promote_raw_to_hot,
     publish_institution_events,
 )
-from tasks.paginated_extraction import RetryablePaginatedExtractionError
+from bacen_ifdata.tasks.paginated_extraction import RetryablePaginatedExtractionError
 
 # Configuration
 MAX_EXTRACTION_WORKERS = int(

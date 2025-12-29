@@ -30,13 +30,14 @@ Environment Variables:
 from pathlib import Path
 import sys
 
-# Add the parent directory to the path so we can import tasks
+# Add the src directory to the path so we can import the package
 script_dir = Path(__file__).parent
 project_root = script_dir.parent
-sys.path.insert(0, str(project_root))
+src_dir = project_root / "src"
+sys.path.insert(0, str(src_dir))
 
-from tasks.constants import ANO_MES_LENGTH, MAX_MONTH, MIN_MONTH
-from tasks.quarter_determination import get_db_connection
+from bacen_ifdata.tasks.constants import ANO_MES_LENGTH, MAX_MONTH, MIN_MONTH
+from bacen_ifdata.tasks.quarter_determination import get_db_connection
 
 
 def count_rows_to_purge(

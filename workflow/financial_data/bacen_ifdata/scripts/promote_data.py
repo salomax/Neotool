@@ -30,22 +30,23 @@ from pathlib import Path
 import sys
 from typing import Any
 
-# Add the parent directory to the path so we can import tasks
+# Add the src directory to the path so we can import the package
 script_dir = Path(__file__).parent
 project_root = script_dir.parent
-sys.path.insert(0, str(project_root))
+src_dir = project_root / "src"
+sys.path.insert(0, str(src_dir))
 
 # Import only the helper functions, NOT the Prefect task
 import psycopg2
-from tasks.constants import ANO_MES_LENGTH
-from tasks.promotion import (
+from bacen_ifdata.tasks.constants import ANO_MES_LENGTH
+from bacen_ifdata.tasks.promotion import (
     aggregate_rows_to_structured_data,
     fetch_raw_data_for_promotion,
     get_headers_from_first_row,
     mark_load_control_completed,
     upsert_bank_report,
 )
-from tasks.quarter_determination import get_db_connection
+from bacen_ifdata.tasks.quarter_determination import get_db_connection
 
 # Set up a simple logger for standalone execution
 logger = logging.getLogger("promote_data")

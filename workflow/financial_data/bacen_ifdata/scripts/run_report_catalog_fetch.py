@@ -20,13 +20,14 @@ Environment Variables:
 from pathlib import Path
 import sys
 
-# Add the parent directory to the path so we can import tasks
+# Add the src directory to the path so we can import the package
 script_dir = Path(__file__).parent
 project_root = script_dir.parent
-sys.path.insert(0, str(project_root))
+src_dir = project_root / "src"
+sys.path.insert(0, str(src_dir))
 
 from prefect import flow
-from tasks.report_catalog_fetch import fetch_report_catalog
+from bacen_ifdata.tasks.report_catalog_fetch import fetch_report_catalog
 
 
 # Define a minimal flow to provide Prefect context for the task
