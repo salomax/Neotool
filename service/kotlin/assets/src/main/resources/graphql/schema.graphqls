@@ -1,12 +1,18 @@
-"""
-Asset Management GraphQL Schema
+# ============================================================================
+# Asset Management GraphQL Schema
+#
+# Handles asset upload lifecycle:
+# 1. Client calls createAssetUpload mutation to get pre-signed upload URL
+# 2. Client uploads file directly to S3/R2 using the pre-signed upload URL
+# 3. Client calls confirmAssetUpload mutation to mark upload as complete
+# 4. Asset is now READY and accessible via publicUrl
+# ============================================================================
 
-Handles asset upload lifecycle:
-1. Client calls createAssetUpload mutation to get pre-signed upload URL
-2. Client uploads file directly to S3/R2 using the pre-signed URL
-3. Client calls confirmAssetUpload mutation to mark upload as complete
-4. Asset is now READY and accessible via publicUrl
-"""
+# ============================================================================
+# Scalars
+# ============================================================================
+
+scalar Long
 
 # ============================================================================
 # Types
@@ -14,22 +20,28 @@ Handles asset upload lifecycle:
 
 """
 Asset resource types - categorizes assets by their usage.
+@deprecated Resource type is now informational/metadata only, not used in storage key generation
 """
 enum AssetResourceType {
     """User profile image"""
     PROFILE_IMAGE
 
-    """User cover/banner image"""
-    COVER_IMAGE
-
-    """Group/organization logo"""
-    GROUP_LOGO
-
-    """Group/organization banner"""
-    GROUP_BANNER
+    """Institution/organization logo"""
+    INSTITUTION_LOGO
 
     """Generic file attachment (documents, PDFs, etc.)"""
     ATTACHMENT
+}
+
+"""
+Asset visibility level - determines access control and URL generation.
+"""
+enum AssetVisibility {
+    """Public asset - accessible without owner check, uses stable CDN URLs"""
+    PUBLIC
+
+    """Private asset - requires ownership check, uses presigned download URLs"""
+    PRIVATE
 }
 
 """
@@ -45,7 +57,7 @@ enum AssetStatus {
     """Upload failed or expired"""
     FAILED
 
-    """Asset soft-deleted (metadata retained for audit)"""
+    """Asset deleted"""
     DELETED
 }
 
@@ -62,11 +74,20 @@ type Asset {
     """Logical grouping (e.g., user-profiles, group-assets)"""
     namespace: String!
 
-    """Type of resource this asset represents"""
-    resourceType: AssetResourceType!
+    """Visibility level - determines access control and URL generation"""
+    visibility: AssetVisibility!
 
-    """ID of the resource this asset is attached to"""
-    resourceId: String!
+    """
+    Type of resource this asset represents.
+    @deprecated Resource type is now informational/metadata only, not used in storage key generation
+    """
+    resourceType: AssetResourceType! @deprecated(reason: "Resource type is now informational only")
+
+    """
+    ID of the resource this asset is attached to.
+    @deprecated Resource ID is now informational/metadata only, not used in storage key generation
+    """
+    resourceId: String! @deprecated(reason: "Resource ID is now informational only")
 
     """Unique key in S3/R2 storage"""
     storageKey: String!
@@ -100,9 +121,16 @@ type Asset {
 
     """
     Public CDN URL for accessing the asset.
-    Only available for READY assets.
+    Only available for READY PUBLIC assets. Returns null for PRIVATE assets (use downloadUrl instead).
     """
-    publicUrl: String!
+    publicUrl: String
+
+    """
+    Presigned download URL for PRIVATE assets.
+    Returns null for PUBLIC assets (use publicUrl instead).
+    @param ttlSeconds Time-to-live for the presigned URL (default: 3600 seconds / 1 hour)
+    """
+    downloadUrl(ttlSeconds: Int = 3600): String
 
     """Upload status"""
     status: AssetStatus!
@@ -116,7 +144,7 @@ type Asset {
     """Timestamp when asset record was last updated"""
     updatedAt: DateTime!
 
-    """Timestamp when asset was soft deleted (null if active)"""
+    """Timestamp when asset was deleted (null if active)"""
     deletedAt: DateTime
 }
 
@@ -130,15 +158,9 @@ Input for creating a new asset upload.
 input CreateAssetUploadInput {
     """
     Logical namespace for the asset (e.g., "user-profiles", "group-assets").
-    Determines validation rules (allowed MIME types, max file size).
+    Determines validation rules (allowed MIME types, max file size), visibility, and storage key template.
     """
     namespace: String!
-
-    """Type of asset being uploaded"""
-    resourceType: AssetResourceType!
-
-    """ID of the resource this asset belongs to"""
-    resourceId: String!
 
     """Original filename"""
     filename: String!
@@ -181,37 +203,6 @@ extend type Query {
     Returns null if asset not found or user doesn't have access.
     """
     asset(id: ID!): Asset
-
-    """
-    Get all assets for a specific resource.
-    Useful for retrieving all variants of an asset (e.g., different sizes).
-    """
-    assetsByResource(
-        resourceType: AssetResourceType!
-        resourceId: String!
-    ): [Asset!]!
-
-    """
-    Get assets by owner.
-    Supports pagination and filtering by status.
-    """
-    assetsByOwner(
-        ownerId: String!
-        status: AssetStatus
-        limit: Int = 50
-        offset: Int = 0
-    ): [Asset!]!
-
-    """
-    Get assets by namespace.
-    Useful for admin/monitoring purposes.
-    """
-    assetsByNamespace(
-        namespace: String!
-        status: AssetStatus
-        limit: Int = 50
-        offset: Int = 0
-    ): [Asset!]!
 }
 
 # ============================================================================
@@ -224,10 +215,9 @@ extend type Mutation {
 
     This mutation:
     1. Validates MIME type and file size against namespace configuration
-    2. Checks rate limits (uploads per hour/day, storage quota)
-    3. Creates PENDING asset record in database
-    4. Generates pre-signed S3/R2 upload URL (valid for 15 minutes)
-    5. Returns asset with uploadUrl
+    2. Creates PENDING asset record in database
+    3. Generates pre-signed S3/R2 upload URL (valid for 15 minutes)
+    4. Returns asset with uploadUrl
 
     Client should then:
     - Upload file directly to S3/R2 using the uploadUrl (PUT request)
@@ -284,9 +274,8 @@ extend type Mutation {
     Delete an asset.
 
     This mutation:
-    1. Soft-deletes the asset (sets status to DELETED)
-    2. Deletes the file from S3/R2 storage
-    3. Retains metadata for audit purposes
+    1. Deletes the file from S3/R2 storage
+    2. Hard-deletes the asset record from the database
 
     Only the asset owner can delete the asset.
     """

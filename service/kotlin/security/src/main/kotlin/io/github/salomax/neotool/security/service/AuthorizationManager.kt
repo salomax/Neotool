@@ -12,15 +12,32 @@ import java.util.UUID
  *
  * The manager enriches subject attributes with permissions from the token
  * to support ABAC evaluation while maintaining RBAC as the primary authorization mechanism.
+ *
+ * Implements [AuthorizationChecker] for compatibility with [AuthenticatedGraphQLWiringFactory].
+ * The basic [require] method (from the interface) delegates to the full [require] method
+ * with default parameters for simple permission checks.
  */
 @Singleton
 class AuthorizationManager(
     private val authorizationService: AuthorizationService,
-) {
+) : AuthorizationChecker {
     private val logger = KotlinLogging.logger {}
 
     /**
-     * Require a permission for the given principal.
+     * Require a permission for the given principal (implements [AuthorizationChecker]).
+     * This is the basic interface method that delegates to the full [require] method
+     * with default parameters for simple permission checks.
+     *
+     * @param principal The authenticated request principal
+     * @param permission The permission/action to check (e.g., "security:user:view")
+     * @throws AuthorizationDeniedException if permission is denied
+     */
+    override fun require(principal: RequestPrincipal, permission: String) {
+        require(principal, permission, null, null, null, null)
+    }
+
+    /**
+     * Require a permission for the given principal with optional ABAC parameters.
      * Throws AuthorizationDeniedException if the permission is not granted.
      *
      * @param principal The authenticated request principal

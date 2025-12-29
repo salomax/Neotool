@@ -83,22 +83,8 @@ class AssetGraphQLMapper(
      * @return CreateAssetUploadInput with extracted and validated fields
      */
     fun mapToCreateAssetUploadInput(input: Map<String, Any?>): CreateAssetUploadInput {
-        val resourceTypeString: String = extractField(input, "resourceType")
-        val resourceType =
-            try {
-                AssetResourceType.valueOf(resourceTypeString)
-            } catch (e: IllegalArgumentException) {
-                throw IllegalArgumentException(
-                    "Invalid resourceType: $resourceTypeString. " +
-                        "Valid values: ${AssetResourceType.entries.joinToString()}",
-                    e,
-                )
-            }
-
         return CreateAssetUploadInput(
             namespace = extractField(input, "namespace"),
-            resourceType = resourceType,
-            resourceId = extractField(input, "resourceId"),
             filename = extractField(input, "filename"),
             mimeType = extractField(input, "mimeType"),
             sizeBytes = extractField(input, "sizeBytes"),

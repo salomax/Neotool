@@ -18,22 +18,10 @@ enum class AssetResourceType {
     PROFILE_IMAGE,
 
     /**
-     * User profile cover/banner image.
-     * Namespace: user-profiles
-     */
-    COVER_IMAGE,
-
-    /**
-     * Group/organization logo.
+     * Institution/organization logo.
      * Namespace: group-assets
      */
-    GROUP_LOGO,
-
-    /**
-     * Group/organization banner image.
-     * Namespace: group-assets
-     */
-    GROUP_BANNER,
+    INSTITUTION_LOGO,
 
     /**
      * Generic attachment (documents, files, etc.).

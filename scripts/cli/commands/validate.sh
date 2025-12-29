@@ -43,8 +43,31 @@ declare -a TASK_HEADER_INITIALIZED=()  # Track if header (status + command) has 
 CURRENT_TASK_INDEX=-1
 UI_INITIALIZED=false
 
+# Get available services from settings.gradle.kts
+get_available_services() {
+    local settings_file="$BACKEND_DIR/settings.gradle.kts"
+    if [[ ! -f "$settings_file" ]]; then
+        log_error "Error: settings.gradle.kts not found at $settings_file"
+        return 1
+    fi
+    
+    # Extract service names from include() statement
+    # Example: include(":common", ":security", ":app", ":assistant", ":financialdata")
+    # We'll extract: common, security, app, assistant, financialdata
+    grep -E '^\s*include\(' "$settings_file" | \
+        sed -E 's/.*include\(//' | \
+        sed -E 's/\).*//' | \
+        grep -oE '":[^"]+"' | \
+        sed -E 's/^"://' | \
+        sed -E 's/"$//' | \
+        sort
+}
+
 # Show help text
 show_help() {
+    local available_services
+    available_services=$(get_available_services 2>/dev/null | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g')
+    
     cat << EOF
 $(log "Validation Command" "$BRIGHT")
 
@@ -60,7 +83,7 @@ Options:
   --web              Run only web (frontend) validations
   --service [name]   Run only service (backend) validations
                      If service name is provided, validate only that service
-                     Available services: app, assistant, security, common
+                     Available services: ${available_services:-app, assistant, security, common}
                      If no name provided, validate all services
   --skip-coverage    Skip coverage checks (faster validation)
   --help             Show this help message
@@ -538,16 +561,21 @@ main() {
     
     # Validate service name if provided
     if [[ -n "$service_name" ]]; then
-        case "$service_name" in
-            app|assistant|security|common)
-                # Valid service name
-                ;;
-            *)
-                log_error "Error: Invalid service name: $service_name"
-                log_error "Available services: app, assistant, security, common"
-                exit 1
-                ;;
-        esac
+        local available_services
+        available_services=$(get_available_services)
+        if [[ $? -ne 0 ]]; then
+            log_error "Error: Failed to read available services from settings.gradle.kts"
+            exit 1
+        fi
+        
+        # Check if service_name is in the list of available services
+        if ! echo "$available_services" | grep -qFx "$service_name"; then
+            local services_list
+            services_list=$(echo "$available_services" | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g')
+            log_error "Error: Invalid service name: $service_name"
+            log_error "Available services: $services_list"
+            exit 1
+        fi
     fi
     
     # Initialize UI

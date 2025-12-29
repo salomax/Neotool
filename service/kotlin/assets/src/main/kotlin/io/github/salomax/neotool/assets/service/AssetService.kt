@@ -1,11 +1,14 @@
 package io.github.salomax.neotool.assets.service
 
+import io.github.salomax.neotool.assets.config.AssetConfigProperties
 import io.github.salomax.neotool.assets.domain.Asset
 import io.github.salomax.neotool.assets.domain.AssetResourceType
 import io.github.salomax.neotool.assets.domain.AssetStatus
+import io.github.salomax.neotool.assets.domain.AssetVisibility
 import io.github.salomax.neotool.assets.entity.AssetEntity
 import io.github.salomax.neotool.assets.repository.AssetRepository
 import io.github.salomax.neotool.assets.storage.StorageClient
+import io.github.salomax.neotool.assets.storage.StorageKeyFactory
 import io.github.salomax.neotool.assets.storage.StorageProperties
 import jakarta.inject.Singleton
 import jakarta.transaction.Transactional
@@ -30,7 +33,8 @@ open class AssetService(
     private val storageClient: StorageClient,
     private val storageProperties: StorageProperties,
     private val validationService: ValidationService,
-    private val rateLimitService: RateLimitService,
+    private val assetConfig: AssetConfigProperties,
+    private val storageKeyFactory: StorageKeyFactory,
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -40,29 +44,34 @@ open class AssetService(
      * Creates PENDING asset record and generates pre-signed upload URL.
      *
      * @param namespace Configuration namespace (e.g., "user-profiles", "group-assets")
-     * @param resourceType Type of asset (PROFILE_IMAGE, ATTACHMENT, etc.)
-     * @param resourceId ID of the resource this asset belongs to
      * @param ownerId User ID of the asset owner
      * @param filename Original filename
      * @param mimeType MIME type of the file
      * @param sizeBytes File size in bytes
      * @param idempotencyKey Optional key to prevent duplicate uploads
+     * @param resourceType Type of asset (PROFILE_IMAGE, ATTACHMENT, etc.) - deprecated, kept for backward compatibility
+     * @param resourceId ID of the resource this asset belongs to - deprecated, kept for backward compatibility
      * @return Asset domain object with uploadUrl
      */
     open fun initiateUpload(
         namespace: String,
-        resourceType: AssetResourceType,
-        resourceId: String,
         ownerId: String,
         filename: String,
         mimeType: String,
         sizeBytes: Long,
         idempotencyKey: String? = null,
+        // Deprecated: resourceType is no longer used in storage key generation, kept for metadata only
+        resourceType: AssetResourceType = AssetResourceType.ATTACHMENT,
+        // Deprecated: resourceId is no longer used in storage key generation, kept for metadata only
+        resourceId: String = "legacy",
     ): Asset {
         logger.info {
-            "Initiating upload: namespace=$namespace, resourceType=$resourceType, resourceId=$resourceId, " +
-                "ownerId=$ownerId, filename=$filename, mimeType=$mimeType, sizeBytes=$sizeBytes"
+            "Initiating upload: namespace=$namespace, ownerId=$ownerId, " +
+                "filename=$filename, mimeType=$mimeType, sizeBytes=$sizeBytes"
         }
+
+        // Get namespace configuration
+        val namespaceConfig = assetConfig.getNamespaceConfig(namespace)
 
         // Check for existing upload with same idempotency key (within 24 hours)
         if (idempotencyKey != null) {
@@ -73,27 +82,27 @@ open class AssetService(
             }
         }
 
-        // Validate MIME type and file size
-        validationService.validate(namespace, mimeType, sizeBytes, resourceType)
+        // Validate MIME type and file size (no longer uses resourceType)
+        validationService.validate(namespace, mimeType, sizeBytes)
 
+        // Derive TTL: namespace override or global default
+        val uploadTtlSeconds = namespaceConfig.uploadTtlSeconds ?: storageProperties.uploadTtlSeconds
 
-        // Generate storage key
-        val storageKey = Asset.generateStorageKey(namespace, resourceType, resourceId, UUID.randomUUID())
+        // Calculate upload expiration
+        val uploadExpiresAt = Instant.now().plus(uploadTtlSeconds, ChronoUnit.SECONDS)
 
-        // Calculate upload expiration (15 minutes from now)
-        val uploadExpiresAt = Instant.now().plus(storageProperties.uploadTtlSeconds, ChronoUnit.SECONDS)
-
-        // Create pending asset entity
-        // Database generates UUID v7
+        // Create pending asset entity with temporary storage key
+        // Database generates UUID v7, then we'll update storage key with actual ID
         // Note: publicUrl is no longer stored - generated dynamically from storageKey
         val entity =
             AssetEntity(
                 id = null,
                 ownerId = ownerId,
                 namespace = namespace,
+                visibility = namespaceConfig.visibility,
                 resourceType = resourceType,
                 resourceId = resourceId,
-                storageKey = storageKey,
+                storageKey = "temp/${UUID.randomUUID()}", // Temporary, will be updated after save
                 storageRegion = storageProperties.region,
                 storageBucket = storageProperties.bucket,
                 mimeType = mimeType,
@@ -111,22 +120,33 @@ open class AssetService(
                 deletedAt = null,
             )
 
+        // Save entity to get database-generated UUID v7
         val saved = assetRepository.save(entity)
-        logger.info { "Created PENDING asset: id=${saved.id}, storageKey=$storageKey" }
+        val assetId = saved.id
+            ?: throw IllegalStateException("Database did not generate UUID v7 for asset")
 
-        // Generate pre-signed upload URL
+        // Generate storage key using template from namespace config with actual asset ID
+        val storageKey = storageKeyFactory.buildKey(namespaceConfig, ownerId, assetId)
+
+        // Update entity with correct storage key
+        saved.storageKey = storageKey
+        val updated = assetRepository.update(saved)
+
+        logger.info { "Created PENDING asset: id=$assetId, storageKey=$storageKey, visibility=${updated.visibility}" }
+
+        // Generate pre-signed upload URL using namespace TTL
         val uploadUrl =
             storageClient.generatePresignedUploadUrl(
                 storageKey,
                 mimeType,
-                storageProperties.uploadTtlSeconds,
+                uploadTtlSeconds,
             )
 
         // Update entity with uploadUrl
-        saved.uploadUrl = uploadUrl
-        val updated = assetRepository.update(saved)
+        updated.uploadUrl = uploadUrl
+        val final = assetRepository.update(updated)
 
-        return updated.toDomain()
+        return final.toDomain()
     }
 
     /**
@@ -210,9 +230,13 @@ open class AssetService(
     /**
      * Get asset by ID.
      *
+     * Visibility-based authorization:
+     * - PUBLIC assets: Accessible without owner check (but still return null if missing)
+     * - PRIVATE assets: Require ownership check
+     *
      * @param assetId Asset ID
      * @param requesterId User ID requesting the asset (for authorization)
-     * @return Asset domain object or null if not found
+     * @return Asset domain object or null if not found/unauthorized
      */
     open fun getAsset(
         assetId: UUID,
@@ -224,11 +248,19 @@ open class AssetService(
                 .orElse(null)
                 ?: return null
 
-        // Authorization: Only owner can access their assets
-        // In a real system, you might have admin roles or other access rules
-        if (entity.ownerId != requesterId) {
-            logger.warn { "Unauthorized asset access attempt: assetId=$assetId, requesterId=$requesterId" }
-            return null // Don't reveal existence
+        // Visibility-based authorization
+        when (entity.visibility) {
+            AssetVisibility.PUBLIC -> {
+                // PUBLIC assets: accessible without owner check
+                logger.debug { "Accessing PUBLIC asset: assetId=$assetId, requesterId=$requesterId" }
+            }
+            AssetVisibility.PRIVATE -> {
+                // PRIVATE assets: require ownership
+                if (entity.ownerId != requesterId) {
+                    logger.warn { "Unauthorized asset access attempt: assetId=$assetId, requesterId=$requesterId" }
+                    return null // Don't reveal existence
+                }
+            }
         }
 
         return entity.toDomain()
@@ -237,7 +269,7 @@ open class AssetService(
     /**
      * Delete asset.
      *
-     * Soft-deletes from database and deletes from storage.
+     * Hard-deletes from database and deletes from storage.
      *
      * @param assetId Asset ID
      * @param ownerId User ID of the asset owner (for authorization)
@@ -268,86 +300,13 @@ open class AssetService(
             logger.warn(e) { "Failed to delete from storage (continuing): ${entity.storageKey}" }
         }
 
-        // Soft delete in database
-        entity.status = AssetStatus.DELETED
-        entity.deletedAt = Instant.now()
-        entity.updatedAt = Instant.now()
-        assetRepository.update(entity)
+        // Hard delete from database
+        assetRepository.delete(entity)
 
-        logger.info { "Asset soft-deleted: id=$assetId, storageKey=${entity.storageKey}" }
+        logger.info { "Asset hard-deleted: id=$assetId, storageKey=${entity.storageKey}" }
         return true
     }
 
-    /**
-     * Find assets by resource.
-     *
-     * @param resourceType Type of resource
-     * @param resourceId ID of the resource
-     * @return List of assets
-     */
-    open fun findByResource(
-        resourceType: AssetResourceType,
-        resourceId: String,
-    ): List<Asset> {
-        val entities = assetRepository.findByResourceTypeAndResourceId(resourceType, resourceId)
-        return entities.map { it.toDomain() }
-    }
-
-    /**
-     * Find assets by owner.
-     *
-     * @param ownerId Owner ID
-     * @param status Optional status filter
-     * @param limit Maximum number of results
-     * @param offset Offset for pagination
-     * @return List of assets
-     */
-    open fun findByOwner(
-        ownerId: String,
-        status: AssetStatus? = null,
-        limit: Int = 50,
-        offset: Int = 0,
-    ): List<Asset> {
-        val entities =
-            if (status != null) {
-                assetRepository.findByOwnerIdAndStatus(ownerId, status)
-            } else {
-                assetRepository.findByOwnerId(ownerId)
-            }
-
-        return entities
-            .drop(offset)
-            .take(limit)
-            .map { it.toDomain() }
-    }
-
-    /**
-     * Find assets by namespace.
-     *
-     * @param namespace Namespace
-     * @param status Optional status filter
-     * @param limit Maximum number of results
-     * @param offset Offset for pagination
-     * @return List of assets
-     */
-    open fun findByNamespace(
-        namespace: String,
-        status: AssetStatus? = null,
-        limit: Int = 50,
-        offset: Int = 0,
-    ): List<Asset> {
-        val entities =
-            if (status != null) {
-                assetRepository.findByNamespaceAndStatus(namespace, status)
-            } else {
-                assetRepository.findByNamespace(namespace)
-            }
-
-        return entities
-            .drop(offset)
-            .take(limit)
-            .map { it.toDomain() }
-    }
 
     /**
      * Find asset by idempotency key (within 24 hour window).

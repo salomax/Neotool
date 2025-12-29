@@ -36,4 +36,18 @@ data class RequestPrincipal(
         permissionsFromToken = permissionsFromToken,
         userPermissions = null,
     )
+
+    /**
+     * Returns the ID of the entity performing the action (the "actor").
+     *
+     * For USER principals: returns userId
+     * For SERVICE principals: returns userId if user context is propagated, otherwise serviceId
+     *
+     * @return The actor ID, or null if neither userId nor serviceId is available (should not happen in practice)
+     */
+    val actorId: UUID?
+        get() = when (principalType) {
+            PrincipalType.USER -> userId
+            PrincipalType.SERVICE -> userId ?: serviceId
+        }
 }

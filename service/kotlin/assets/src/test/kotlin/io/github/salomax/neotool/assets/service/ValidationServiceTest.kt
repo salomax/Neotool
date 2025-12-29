@@ -40,7 +40,7 @@ class ValidationServiceTest {
             whenever(assetConfig.getNamespaceConfig(namespace)).thenReturn(namespaceConfig)
 
             // Act & Assert - should not throw
-            validationService.validateMimeType(namespace, mimeType, AssetResourceType.PROFILE_IMAGE)
+            validationService.validateMimeType(namespace, mimeType)
 
             // Verify
             verify(assetConfig).getNamespaceConfig(namespace)
@@ -55,7 +55,7 @@ class ValidationServiceTest {
             whenever(assetConfig.getNamespaceConfig(namespace)).thenReturn(namespaceConfig)
 
             // Act & Assert - should not throw
-            validationService.validateMimeType(namespace, mimeType, AssetResourceType.PROFILE_IMAGE)
+            validationService.validateMimeType(namespace, mimeType)
 
             // Verify
             verify(assetConfig).getNamespaceConfig(namespace)
@@ -71,7 +71,7 @@ class ValidationServiceTest {
 
             // Act & Assert
             assertThatThrownBy {
-                validationService.validateMimeType(namespace, mimeType, AssetResourceType.PROFILE_IMAGE)
+                validationService.validateMimeType(namespace, mimeType)
             }
                 .isInstanceOf(IllegalArgumentException::class.java)
                 .hasMessageContaining("Invalid MIME type")
@@ -91,7 +91,7 @@ class ValidationServiceTest {
             whenever(assetConfig.getNamespaceConfig(namespace)).thenReturn(defaultConfig)
 
             // Act & Assert - should not throw
-            validationService.validateMimeType(namespace, mimeType, AssetResourceType.ATTACHMENT)
+            validationService.validateMimeType(namespace, mimeType)
 
             // Verify
             verify(assetConfig).getNamespaceConfig(namespace)
@@ -107,7 +107,7 @@ class ValidationServiceTest {
 
             // Act & Assert
             assertThatThrownBy {
-                validationService.validateMimeType(namespace, mimeType, AssetResourceType.PROFILE_IMAGE)
+                validationService.validateMimeType(namespace, mimeType)
             }
                 .isInstanceOf(IllegalArgumentException::class.java)
                 .hasMessageContaining("Invalid MIME type")
@@ -131,7 +131,7 @@ class ValidationServiceTest {
             whenever(assetConfig.getNamespaceConfig(namespace)).thenReturn(namespaceConfig)
 
             // Act & Assert - should not throw
-            validationService.validateMimeType(namespace, mimeType, AssetResourceType.PROFILE_IMAGE)
+            validationService.validateMimeType(namespace, mimeType)
 
             // Verify
             verify(assetConfig).getNamespaceConfig(namespace)
@@ -145,12 +145,11 @@ class ValidationServiceTest {
             val namespaceConfig =
                 ValidationTestDataBuilders.namespaceConfig(
                     name = namespace,
-                    resourceTypes = setOf(AssetResourceType.GROUP_LOGO, AssetResourceType.GROUP_BANNER),
                 )
             whenever(assetConfig.getNamespaceConfig(namespace)).thenReturn(namespaceConfig)
 
-            // Act & Assert - should not throw (resourceType parameter doesn't affect validation currently)
-            validationService.validateMimeType(namespace, mimeType, AssetResourceType.GROUP_LOGO)
+            // Act & Assert - should not throw
+            validationService.validateMimeType(namespace, mimeType)
 
             // Verify
             verify(assetConfig).getNamespaceConfig(namespace)
@@ -169,7 +168,7 @@ class ValidationServiceTest {
             whenever(assetConfig.getNamespaceConfig(namespace)).thenReturn(namespaceConfig)
 
             // Act & Assert - should not throw
-            validationService.validateFileSize(namespace, sizeBytes, AssetResourceType.PROFILE_IMAGE)
+            validationService.validateFileSize(namespace, sizeBytes)
 
             // Verify
             verify(assetConfig).getNamespaceConfig(namespace)
@@ -184,7 +183,7 @@ class ValidationServiceTest {
             whenever(assetConfig.getNamespaceConfig(namespace)).thenReturn(namespaceConfig)
 
             // Act & Assert - should not throw
-            validationService.validateFileSize(namespace, sizeBytes, AssetResourceType.PROFILE_IMAGE)
+            validationService.validateFileSize(namespace, sizeBytes)
 
             // Verify
             verify(assetConfig).getNamespaceConfig(namespace)
@@ -200,7 +199,7 @@ class ValidationServiceTest {
 
             // Act & Assert
             assertThatThrownBy {
-                validationService.validateFileSize(namespace, sizeBytes, AssetResourceType.PROFILE_IMAGE)
+                validationService.validateFileSize(namespace, sizeBytes)
             }
                 .isInstanceOf(IllegalArgumentException::class.java)
                 .hasMessageContaining("File size exceeds limit")
@@ -218,7 +217,7 @@ class ValidationServiceTest {
 
             // Act & Assert
             assertThatThrownBy {
-                validationService.validateFileSize(namespace, sizeBytes, AssetResourceType.PROFILE_IMAGE)
+                validationService.validateFileSize(namespace, sizeBytes)
             }
                 .isInstanceOf(IllegalArgumentException::class.java)
                 .hasMessageContaining("File size must be greater than 0")
@@ -235,7 +234,7 @@ class ValidationServiceTest {
 
             // Act & Assert
             assertThatThrownBy {
-                validationService.validateFileSize(namespace, sizeBytes, AssetResourceType.PROFILE_IMAGE)
+                validationService.validateFileSize(namespace, sizeBytes)
             }
                 .isInstanceOf(IllegalArgumentException::class.java)
                 .hasMessageContaining("File size must be greater than 0")
@@ -258,7 +257,7 @@ class ValidationServiceTest {
             whenever(assetConfig.getNamespaceConfig(namespace)).thenReturn(namespaceConfig)
 
             // Act & Assert - should not throw
-            validationService.validate(namespace, mimeType, sizeBytes, AssetResourceType.PROFILE_IMAGE)
+            validationService.validate(namespace, mimeType, sizeBytes)
 
             // Verify - validate() calls both validateMimeType() and validateFileSize(), each calling getNamespaceConfig()
             verify(assetConfig, times(2)).getNamespaceConfig(namespace)
@@ -275,7 +274,7 @@ class ValidationServiceTest {
 
             // Act & Assert
             assertThatThrownBy {
-                validationService.validate(namespace, mimeType, sizeBytes, AssetResourceType.PROFILE_IMAGE)
+                validationService.validate(namespace, mimeType, sizeBytes)
             }
                 .isInstanceOf(IllegalArgumentException::class.java)
                 .hasMessageContaining("Invalid MIME type")
@@ -295,7 +294,7 @@ class ValidationServiceTest {
 
             // Act & Assert
             assertThatThrownBy {
-                validationService.validate(namespace, mimeType, sizeBytes, AssetResourceType.PROFILE_IMAGE)
+                validationService.validate(namespace, mimeType, sizeBytes)
             }
                 .isInstanceOf(IllegalArgumentException::class.java)
                 .hasMessageContaining("File size exceeds limit")

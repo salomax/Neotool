@@ -12,8 +12,9 @@ import java.util.UUID
  * @property id Unique identifier (UUID v7 - time-sortable)
  * @property ownerId User ID or system ID that owns this asset
  * @property namespace Logical grouping (e.g., user-profiles, group-assets)
- * @property resourceType Type of resource (e.g., PROFILE_IMAGE, GROUP_LOGO)
- * @property resourceId ID of the resource this asset is attached to
+ * @property visibility Visibility level (PUBLIC or PRIVATE) - determines access control and URL generation
+ * @property resourceType Type of resource (e.g., PROFILE_IMAGE, INSTITUTION_LOGO) - informational/metadata only, not used in key generation
+ * @property resourceId ID of the resource this asset is attached to - informational/metadata only, not used in key generation
  * @property storageKey Unique key in S3/R2 storage
  * @property storageRegion Storage region (e.g., us-east-1)
  * @property storageBucket Storage bucket name
@@ -28,12 +29,13 @@ import java.util.UUID
  * @property idempotencyKey Client-provided key to prevent duplicate uploads
  * @property createdAt Timestamp when asset record was created
  * @property updatedAt Timestamp when asset record was last updated
- * @property deletedAt Timestamp when asset was soft deleted (null if active)
+ * @property deletedAt Timestamp when asset was deleted (null if active, deprecated - assets are now hard deleted)
  */
 data class Asset(
     val id: UUID? = null,
     val ownerId: String,
     val namespace: String,
+    val visibility: AssetVisibility,
     val resourceType: AssetResourceType,
     val resourceId: String,
     val storageKey: String,
@@ -68,7 +70,8 @@ data class Asset(
     fun isFailed(): Boolean = status == AssetStatus.FAILED
 
     /**
-     * Check if the asset is soft-deleted.
+     * Check if the asset is deleted.
+     * Note: Assets are now hard-deleted, so this status should rarely be encountered.
      */
     fun isDeleted(): Boolean = status == AssetStatus.DELETED
 
@@ -95,6 +98,7 @@ data class Asset(
     /**
      * Generate public URL from storage key and base URL.
      * This method generates the URL dynamically based on the current environment configuration.
+     * Only valid for PUBLIC assets - PRIVATE assets should use presigned download URLs.
      *
      * @param baseUrl Base CDN URL (e.g., https://cdn.example.com)
      * @return Public CDN URL
@@ -105,27 +109,8 @@ data class Asset(
 
     companion object {
         /**
-         * Generate a storage key for an asset.
-         * Format: {namespace}/{resourceType}/{resourceId}/{uuid}
-         *
-         * @param namespace Logical grouping
-         * @param resourceType Type of resource
-         * @param resourceId ID of the resource
-         * @param uuid Unique identifier for the asset
-         * @return Storage key path
-         */
-        fun generateStorageKey(
-            namespace: String,
-            resourceType: AssetResourceType,
-            resourceId: String,
-            uuid: UUID,
-        ): String {
-            val resourceTypeLower = resourceType.name.lowercase().replace('_', '-')
-            return "$namespace/$resourceTypeLower/$resourceId/$uuid"
-        }
-
-        /**
          * Generate a public URL for an asset.
+         * Only valid for PUBLIC assets - PRIVATE assets should use presigned download URLs.
          *
          * @param baseUrl Base CDN URL (e.g., https://cdn.example.com)
          * @param storageKey Storage key path

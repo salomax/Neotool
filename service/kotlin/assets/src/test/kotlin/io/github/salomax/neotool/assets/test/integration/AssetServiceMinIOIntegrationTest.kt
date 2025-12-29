@@ -239,10 +239,9 @@ open class AssetServiceMinIOIntegrationTest : BaseIntegrationTest(), PostgresInt
             val stillExists = storageClient.objectExists(confirmedAsset.storageKey!!)
             Assertions.assertThat(stillExists).isFalse()
 
-            // Verify metadata is soft-deleted
+            // Verify metadata is hard-deleted (should not exist)
             val persisted = assetRepository.findById(confirmedAsset.id!!)
-            Assertions.assertThat(persisted).isPresent
-            Assertions.assertThat(persisted.get().status).isEqualTo(AssetStatus.DELETED)
+            Assertions.assertThat(persisted).isEmpty
         }
 
         @Test

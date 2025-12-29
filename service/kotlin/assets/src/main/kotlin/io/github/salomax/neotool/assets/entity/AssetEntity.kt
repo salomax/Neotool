@@ -3,6 +3,7 @@ package io.github.salomax.neotool.assets.entity
 import io.github.salomax.neotool.assets.domain.Asset
 import io.github.salomax.neotool.assets.domain.AssetResourceType
 import io.github.salomax.neotool.assets.domain.AssetStatus
+import io.github.salomax.neotool.assets.domain.AssetVisibility
 import io.github.salomax.neotool.common.entity.BaseEntity
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
@@ -35,6 +36,8 @@ import java.util.UUID
         Index(name = "idx_assets_created_at", columnList = "created_at"),
         Index(name = "idx_assets_owner_status", columnList = "owner_id,status"),
         Index(name = "idx_assets_namespace_status", columnList = "namespace,status"),
+        Index(name = "idx_assets_visibility", columnList = "visibility"),
+        Index(name = "idx_assets_owner_namespace", columnList = "owner_id,namespace"),
     ],
 )
 open class AssetEntity(
@@ -46,6 +49,9 @@ open class AssetEntity(
     open var ownerId: String,
     @Column(name = "namespace", nullable = false, length = 100)
     open var namespace: String,
+    @Enumerated(EnumType.STRING)
+    @Column(name = "visibility", nullable = false, length = 20)
+    open var visibility: AssetVisibility = AssetVisibility.PRIVATE,
     @Enumerated(EnumType.STRING)
     @Column(name = "resource_type", nullable = false, length = 50)
     open var resourceType: AssetResourceType,
@@ -93,6 +99,7 @@ open class AssetEntity(
             id = id,
             ownerId = ownerId,
             namespace = namespace,
+            visibility = visibility,
             resourceType = resourceType,
             resourceId = resourceId,
             storageKey = storageKey,
@@ -121,6 +128,7 @@ open class AssetEntity(
                 id = asset.id,
                 ownerId = asset.ownerId,
                 namespace = asset.namespace,
+                visibility = asset.visibility,
                 resourceType = asset.resourceType,
                 resourceId = asset.resourceId,
                 storageKey = asset.storageKey,

@@ -93,6 +93,7 @@ open class AssetGraphQLIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
         resourceType: AssetResourceType = AssetResourceType.PROFILE_IMAGE,
         resourceId: String = "resource-123",
     ): AssetEntity {
+        val assetId = UUID.randomUUID()
         val entity =
             AssetEntity(
                 id = null,
@@ -100,12 +101,7 @@ open class AssetGraphQLIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                 namespace = namespace,
                 resourceType = resourceType,
                 resourceId = resourceId,
-                storageKey = Asset.generateStorageKey(
-                    namespace,
-                    resourceType,
-                    resourceId,
-                    UUID.randomUUID()
-                ),
+                storageKey = "$namespace/$ownerId/$assetId",
                 storageRegion = "us-east-1",
                 storageBucket = "test-bucket",
                 mimeType = "image/jpeg",
@@ -270,169 +266,6 @@ open class AssetGraphQLIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
             Assertions.assertThat(data["asset"].isNull).isTrue()
         }
 
-        @Test
-        fun `should query assets by resource`() {
-            // Arrange
-            val resourceId = "resource-${UUID.randomUUID()}"
-            val asset1 = createTestAsset(resourceId = resourceId, resourceType = AssetResourceType.PROFILE_IMAGE)
-            val asset2 = createTestAsset(resourceId = resourceId, resourceType = AssetResourceType.COVER_IMAGE)
-            createTestAsset(resourceId = "other-resource") // Should not be returned
-
-            val query =
-                mapOf(
-                    "query" to
-                        """
-                        query GetAssetsByResource(${'$'}resourceType: AssetResourceType!, ${'$'}resourceId: String!) {
-                            assetsByResource(resourceType: ${'$'}resourceType, resourceId: ${'$'}resourceId) {
-                                id
-                                resourceType
-                                resourceId
-                            }
-                        }
-                        """.trimIndent(),
-                    "variables" to
-                        mapOf(
-                            "resourceType" to "PROFILE_IMAGE",
-                            "resourceId" to resourceId,
-                        ),
-                )
-
-            // Act
-            val request =
-                HttpRequest
-                    .POST("/graphql", query)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .header("Authorization", "Bearer test-token")
-
-            val response = httpClient.exchangeAsString(request)
-
-            // Assert
-            response
-                .shouldBeSuccessful()
-                .shouldBeJson()
-                .shouldHaveNonEmptyBody()
-
-            val payload: JsonNode = json.read(response)
-            payload["errors"].assertNoErrors()
-
-            val data = payload["data"]
-            val assets = data["assetsByResource"]
-            Assertions.assertThat(assets.isArray).isTrue()
-            Assertions.assertThat(assets.size()).isGreaterThanOrEqualTo(1)
-
-            val assetIds = (0 until assets.size()).map { assets[it]["id"].stringValue }.toSet()
-            Assertions.assertThat(assetIds).contains(asset1.id.toString())
-        }
-
-        @Test
-        fun `should query assets by owner`() {
-            // Arrange
-            val ownerId = "owner-${UUID.randomUUID()}"
-            val asset1 = createTestAsset(ownerId = ownerId, status = AssetStatus.READY)
-            val asset2 = createTestAsset(ownerId = ownerId, status = AssetStatus.PENDING)
-            createTestAsset(ownerId = "other-owner") // Should not be returned
-
-            val query =
-                mapOf(
-                    "query" to
-                        """
-                        query GetAssetsByOwner(${'$'}ownerId: String!, ${'$'}status: AssetStatus) {
-                            assetsByOwner(ownerId: ${'$'}ownerId, status: ${'$'}status) {
-                                id
-                                ownerId
-                                status
-                            }
-                        }
-                        """.trimIndent(),
-                    "variables" to
-                        mapOf(
-                            "ownerId" to ownerId,
-                            "status" to "READY",
-                        ),
-                )
-
-            // Act
-            val request =
-                HttpRequest
-                    .POST("/graphql", query)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .header("Authorization", "Bearer test-token")
-
-            val response = httpClient.exchangeAsString(request)
-
-            // Assert
-            response
-                .shouldBeSuccessful()
-                .shouldBeJson()
-                .shouldHaveNonEmptyBody()
-
-            val payload: JsonNode = json.read(response)
-            payload["errors"].assertNoErrors()
-
-            val data = payload["data"]
-            val assets = data["assetsByOwner"]
-            Assertions.assertThat(assets.isArray).isTrue()
-            Assertions.assertThat(assets.size()).isGreaterThanOrEqualTo(1)
-
-            val assetIds = (0 until assets.size()).map { assets[it]["id"].stringValue }.toSet()
-            Assertions.assertThat(assetIds).contains(asset1.id.toString())
-            Assertions.assertThat(assetIds).doesNotContain(asset2.id.toString())
-        }
-
-        @Test
-        fun `should query assets by namespace`() {
-            // Arrange
-            val namespace = "test-namespace-${UUID.randomUUID()}"
-            val asset1 = createTestAsset(namespace = namespace, status = AssetStatus.READY)
-            val asset2 = createTestAsset(namespace = namespace, status = AssetStatus.PENDING)
-            createTestAsset(namespace = "other-namespace") // Should not be returned
-
-            val query =
-                mapOf(
-                    "query" to
-                        """
-                        query GetAssetsByNamespace(${'$'}namespace: String!, ${'$'}status: AssetStatus) {
-                            assetsByNamespace(namespace: ${'$'}namespace, status: ${'$'}status) {
-                                id
-                                namespace
-                                status
-                            }
-                        }
-                        """.trimIndent(),
-                    "variables" to
-                        mapOf(
-                            "namespace" to namespace,
-                            "status" to "READY",
-                        ),
-                )
-
-            // Act
-            val request =
-                HttpRequest
-                    .POST("/graphql", query)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .header("Authorization", "Bearer test-token")
-
-            val response = httpClient.exchangeAsString(request)
-
-            // Assert
-            response
-                .shouldBeSuccessful()
-                .shouldBeJson()
-                .shouldHaveNonEmptyBody()
-
-            val payload: JsonNode = json.read(response)
-            payload["errors"].assertNoErrors()
-
-            val data = payload["data"]
-            val assets = data["assetsByNamespace"]
-            Assertions.assertThat(assets.isArray).isTrue()
-            Assertions.assertThat(assets.size()).isGreaterThanOrEqualTo(1)
-
-            val assetIds = (0 until assets.size()).map { assets[it]["id"].stringValue }.toSet()
-            Assertions.assertThat(assetIds).contains(asset1.id.toString())
-            Assertions.assertThat(assetIds).doesNotContain(asset2.id.toString())
-        }
     }
 
     @Nested
@@ -591,11 +424,9 @@ open class AssetGraphQLIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
             val data = payload["data"]
             Assertions.assertThat(data["deleteAsset"].booleanValue).isTrue()
 
-            // Verify asset is soft-deleted
-            val deletedAsset = assetRepository.findById(asset.id!!).orElse(null)
-            Assertions.assertThat(deletedAsset).isNotNull()
-            Assertions.assertThat(deletedAsset?.status).isEqualTo(AssetStatus.DELETED)
-            Assertions.assertThat(deletedAsset?.deletedAt).isNotNull()
+            // Verify asset is hard-deleted (should not exist)
+            val deletedAsset = assetRepository.findById(asset.id!!)
+            Assertions.assertThat(deletedAsset).isEmpty
         }
     }
 }

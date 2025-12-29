@@ -11,6 +11,7 @@ import io.github.salomax.neotool.assets.graphql.dto.CreateAssetUploadInput
 import io.github.salomax.neotool.assets.graphql.mapper.AssetGraphQLMapper
 import io.github.salomax.neotool.assets.graphql.resolver.AssetMutationResolver
 import io.github.salomax.neotool.assets.graphql.resolver.AssetQueryResolver
+import io.github.salomax.neotool.assets.storage.StorageClient
 import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.createValidatedDataFetcher
 import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.getRequiredString
 import io.github.salomax.neotool.common.graphql.GraphQLPayloadDataFetcher.createMutationDataFetcher
@@ -29,6 +30,7 @@ class AssetWiringFactory(
     private val mutationResolver: AssetMutationResolver,
     private val mapper: AssetGraphQLMapper,
     private val requestPrincipalProvider: RequestPrincipalProvider,
+    private val storageClient: StorageClient,
     resolverRegistry: GraphQLResolverRegistry,
 ) : GraphQLWiringFactory() {
     init {
@@ -48,40 +50,6 @@ class AssetWiringFactory(
 
                     val asset = queryResolver.asset(id, requesterId)
                     asset
-                },
-            )
-            .dataFetcher(
-                "assetsByResource",
-                createValidatedDataFetcher { env ->
-                    val resourceTypeString = getRequiredString(env, "resourceType")
-                    val resourceType = AssetResourceType.valueOf(resourceTypeString)
-                    val resourceId = getRequiredString(env, "resourceId")
-
-                    queryResolver.assetsByResource(resourceType, resourceId)
-                },
-            )
-            .dataFetcher(
-                "assetsByOwner",
-                createValidatedDataFetcher { env ->
-                    val ownerId = getRequiredString(env, "ownerId")
-                    val statusString = env.getArgument<String?>("status")
-                    val status = statusString?.let { AssetStatus.valueOf(it) }
-                    val limit = env.getArgument<Int?>("limit") ?: 50
-                    val offset = env.getArgument<Int?>("offset") ?: 0
-
-                    queryResolver.assetsByOwner(ownerId, status, limit, offset)
-                },
-            )
-            .dataFetcher(
-                "assetsByNamespace",
-                createValidatedDataFetcher { env ->
-                    val namespace = getRequiredString(env, "namespace")
-                    val statusString = env.getArgument<String?>("status")
-                    val status = statusString?.let { AssetStatus.valueOf(it) }
-                    val limit = env.getArgument<Int?>("limit") ?: 50
-                    val offset = env.getArgument<Int?>("offset") ?: 0
-
-                    queryResolver.assetsByNamespace(namespace, status, limit, offset)
                 },
             )
 
@@ -146,6 +114,13 @@ class AssetWiringFactory(
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
                         val asset = env.getSource<AssetDTO>()
                         asset?.namespace
+                    },
+                )
+                type.dataFetcher(
+                    "visibility",
+                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                        val asset = env.getSource<AssetDTO>()
+                        asset?.visibility?.name
                     },
                 )
                 type.dataFetcher(
@@ -229,16 +204,33 @@ class AssetWiringFactory(
                     "publicUrl",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
                         val asset = env.getSource<AssetDTO>()
-                        // publicUrl is always generated in DTO, so it should never be null
-                        // If it is null, something went wrong in DTO creation
+                        // For PUBLIC assets, publicUrl is generated in DTO
+                        // For PRIVATE assets, publicUrl is null (they use downloadUrl instead)
+                        asset?.publicUrl
+                    },
+                )
+                type.dataFetcher(
+                    "downloadUrl",
+                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                        val asset = env.getSource<AssetDTO>()
                         if (asset == null) {
-                            throw IllegalStateException("AssetDTO source is null")
+                            return@createValidatedDataFetcher null
                         }
-                        val publicUrl = asset.publicUrl
-                        if (publicUrl.isBlank()) {
-                            throw IllegalStateException("publicUrl is blank in AssetDTO (storageKey: ${asset.storageKey})")
+
+                        // downloadUrl is only for PRIVATE assets
+                        // PUBLIC assets should use publicUrl instead
+                        if (asset.visibility.name == "PUBLIC") {
+                            return@createValidatedDataFetcher null
                         }
-                        publicUrl
+
+                        // Get TTL parameter (default: 3600 seconds)
+                        val ttlSeconds = env.getArgument<Int?>("ttlSeconds") ?: 3600
+
+                        // Generate presigned download URL
+                        storageClient.generatePresignedDownloadUrl(
+                            asset.storageKey,
+                            ttlSeconds.toLong()
+                        )
                     },
                 )
                 type.dataFetcher(

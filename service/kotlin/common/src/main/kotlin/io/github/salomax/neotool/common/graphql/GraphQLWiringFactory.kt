@@ -5,7 +5,10 @@ import graphql.schema.idl.TypeRuntimeWiring
 import jakarta.inject.Singleton
 
 /**
- * Enhanced wiring factory that ensures consistent resolver registration
+ * Base class for GraphQL wiring factories that ensures consistent resolver registration.
+ * This class provides the core GraphQL wiring functionality without any authentication/authorization concerns.
+ *
+ * For wiring factories that require authentication and authorization, use [AuthenticatedGraphQLWiringFactory] instead.
  */
 abstract class GraphQLWiringFactory {
     /**
@@ -32,9 +35,10 @@ abstract class GraphQLWiringFactory {
     protected abstract fun registerMutationResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder
 
     /**
-     * Register all Subscription resolvers - must be implemented by concrete factories
+     * Register all Subscription resolvers - can be overridden by concrete factories if subscriptions are needed.
+     * Default implementation is a no-op for modules that don't use subscriptions.
      */
-    protected abstract fun registerSubscriptionResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder
+    protected open fun registerSubscriptionResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder = type
 
     /**
      * Register custom type resolvers - can be overridden by concrete factories to register
