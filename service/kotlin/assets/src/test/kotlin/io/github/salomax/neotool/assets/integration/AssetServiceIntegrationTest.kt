@@ -5,7 +5,6 @@ import io.github.salomax.neotool.assets.domain.AssetStatus
 import io.github.salomax.neotool.assets.entity.AssetEntity
 import io.github.salomax.neotool.assets.repository.AssetRepository
 import io.github.salomax.neotool.assets.service.AssetService
-import io.github.salomax.neotool.assets.storage.StorageClient
 import io.github.salomax.neotool.assets.test.MockStorageClient
 import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
@@ -31,7 +30,7 @@ import java.util.UUID
  * Tests service layer with real database and mocked storage.
  */
 @MicronautTest(
-    startApplication = true
+    startApplication = true,
 )
 @DisplayName("Asset Service Integration Tests")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -146,7 +145,8 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                     namespace = "user-profiles",
                     ownerId = testUserId,
                     filename = "document.pdf",
-                    mimeType = "application/pdf", // Not allowed for user-profiles
+                    // Not allowed for user-profiles
+                    mimeType = "application/pdf",
                     sizeBytes = 1048576L,
                 )
             }.isInstanceOf(IllegalArgumentException::class.java)
@@ -161,7 +161,8 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                     ownerId = testUserId,
                     filename = "large.jpg",
                     mimeType = "image/jpeg",
-                    sizeBytes = 100_000_000L, // Exceeds default limit
+                    // Exceeds default limit
+                    sizeBytes = 100_000_000L,
                 )
             }.isInstanceOf(IllegalArgumentException::class.java)
         }
@@ -246,8 +247,10 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                             originalFilename = "test.jpg",
                             uploadUrl = null,
                             uploadExpiresAt = null,
-                            publicUrl = null, // No longer stored - generated dynamically
-                            status = AssetStatus.READY, // Already ready
+                            // No longer stored - generated dynamically
+                            publicUrl = null,
+                            // Already ready
+                            status = AssetStatus.READY,
                             idempotencyKey = null,
                             createdAt = Instant.now(),
                             updatedAt = Instant.now(),
@@ -286,7 +289,8 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                             originalFilename = "test.jpg",
                             uploadUrl = null,
                             uploadExpiresAt = null,
-                            publicUrl = null, // No longer stored - generated dynamically
+                            // No longer stored - generated dynamically
+                            publicUrl = null,
                             status = AssetStatus.READY,
                             idempotencyKey = null,
                             createdAt = Instant.now(),
@@ -334,7 +338,8 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                             originalFilename = "test.jpg",
                             uploadUrl = null,
                             uploadExpiresAt = null,
-                            publicUrl = null, // No longer stored - generated dynamically
+                            // No longer stored - generated dynamically
+                            publicUrl = null,
                             status = AssetStatus.READY,
                             idempotencyKey = null,
                             createdAt = Instant.now(),
@@ -374,7 +379,8 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                             originalFilename = "test.jpg",
                             uploadUrl = null,
                             uploadExpiresAt = null,
-                            publicUrl = null, // No longer stored - generated dynamically
+                            // No longer stored - generated dynamically
+                            publicUrl = null,
                             status = AssetStatus.READY,
                             idempotencyKey = null,
                             createdAt = Instant.now(),
@@ -425,7 +431,8 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                             originalFilename = "test.jpg",
                             uploadUrl = null,
                             uploadExpiresAt = null,
-                            publicUrl = null, // No longer stored - generated dynamically
+                            // No longer stored - generated dynamically
+                            publicUrl = null,
                             status = AssetStatus.READY,
                             idempotencyKey = null,
                             createdAt = Instant.now(),
@@ -442,6 +449,4 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
             Assertions.assertThat(deleted).isFalse()
         }
     }
-
 }
-

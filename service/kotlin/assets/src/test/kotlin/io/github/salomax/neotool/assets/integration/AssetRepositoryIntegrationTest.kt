@@ -6,6 +6,8 @@ import io.github.salomax.neotool.assets.repository.AssetRepository
 import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.common.test.transaction.runTransaction
+import io.micronaut.test.extensions.junit5.annotation.MicronautTest
+import jakarta.inject.Inject
 import jakarta.persistence.EntityManager
 import org.assertj.core.api.Assertions
 import org.junit.jupiter.api.AfterEach
@@ -14,9 +16,6 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.junit.jupiter.api.extension.ExtendWith
-import io.micronaut.test.extensions.junit5.annotation.MicronautTest
-import jakarta.inject.Inject
 import java.time.Instant
 import java.util.UUID
 
@@ -66,7 +65,8 @@ open class AssetRepositoryIntegrationTest : BaseIntegrationTest(), PostgresInteg
                     originalFilename = "test.jpg",
                     uploadUrl = if (status == AssetStatus.PENDING) "https://upload.example.com/presigned" else null,
                     uploadExpiresAt = if (status == AssetStatus.PENDING) Instant.now().plusSeconds(900) else null,
-                    publicUrl = null, // No longer stored - generated dynamically
+                    // No longer stored - generated dynamically
+                    publicUrl = null,
                     status = status,
                     idempotencyKey = null,
                     createdAt = Instant.now(),
@@ -99,7 +99,8 @@ open class AssetRepositoryIntegrationTest : BaseIntegrationTest(), PostgresInteg
                     originalFilename = "avatar.jpg",
                     uploadUrl = null,
                     uploadExpiresAt = null,
-                    publicUrl = null, // No longer stored - generated dynamically
+                    // No longer stored - generated dynamically
+                    publicUrl = null,
                     status = AssetStatus.READY,
                     idempotencyKey = null,
                     createdAt = Instant.now(),
@@ -108,11 +109,12 @@ open class AssetRepositoryIntegrationTest : BaseIntegrationTest(), PostgresInteg
                 )
 
             // Act
-            val saved = entityManager.runTransaction {
-                val result = assetRepository.save(entity)
-                entityManager.flush()
-                result
-            }
+            val saved =
+                entityManager.runTransaction {
+                    val result = assetRepository.save(entity)
+                    entityManager.flush()
+                    result
+                }
 
             // Assert
             Assertions.assertThat(saved.id).isNotNull()
@@ -290,7 +292,8 @@ open class AssetRepositoryIntegrationTest : BaseIntegrationTest(), PostgresInteg
                             originalFilename = "test.jpg",
                             uploadUrl = null,
                             uploadExpiresAt = null,
-                            publicUrl = null, // No longer stored - generated dynamically
+                            // No longer stored - generated dynamically
+                            publicUrl = null,
                             status = AssetStatus.READY,
                             idempotencyKey = idempotencyKey,
                             createdAt = Instant.now(),
@@ -384,4 +387,3 @@ open class AssetRepositoryIntegrationTest : BaseIntegrationTest(), PostgresInteg
         }
     }
 }
-

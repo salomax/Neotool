@@ -43,7 +43,8 @@ data class Asset(
     val originalFilename: String?,
     val uploadUrl: String?,
     val uploadExpiresAt: Instant?,
-    val publicUrl: String? = null, // Deprecated - generated dynamically from storageKey
+    // Deprecated - generated dynamically from storageKey
+    val publicUrl: String? = null,
     val status: AssetStatus,
     val idempotencyKey: String?,
     val createdAt: Instant,

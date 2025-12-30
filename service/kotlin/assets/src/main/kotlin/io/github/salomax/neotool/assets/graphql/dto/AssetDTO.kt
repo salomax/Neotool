@@ -30,7 +30,8 @@ data class AssetDTO(
     val originalFilename: String?,
     val uploadUrl: String?,
     val uploadExpiresAt: Instant?,
-    val publicUrl: String?, // Generated dynamically from storageKey for PUBLIC assets, null for PRIVATE
+    // Generated dynamically from storageKey for PUBLIC assets, null for PRIVATE
+    val publicUrl: String?,
     val status: AssetStatus,
     val idempotencyKey: String?,
     val createdAt: Instant,

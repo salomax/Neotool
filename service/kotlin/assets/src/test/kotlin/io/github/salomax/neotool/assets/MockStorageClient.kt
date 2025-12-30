@@ -53,11 +53,12 @@ class MockStorageClient : StorageClient {
         sizeBytes: Long,
         contentType: String? = null,
     ) {
-        objects[storageKey] = StorageClient.ObjectMetadata(
-            sizeBytes = sizeBytes,
-            contentType = contentType,
-            etag = "mock-etag-$storageKey",
-        )
+        objects[storageKey] =
+            StorageClient.ObjectMetadata(
+                sizeBytes = sizeBytes,
+                contentType = contentType,
+                etag = "mock-etag-$storageKey",
+            )
     }
 
     /**
@@ -73,5 +74,3 @@ class MockStorageClient : StorageClient {
      */
     fun getObjectCount(): Int = objects.size
 }
-
-

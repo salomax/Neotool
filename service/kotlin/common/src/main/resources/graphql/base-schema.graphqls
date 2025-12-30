@@ -4,14 +4,12 @@
 directive @key(fields: String!) repeatable on OBJECT | INTERFACE
 
 # Common scalar types
+scalar Long
 scalar DateTime
 scalar UUID
 
 # Common query patterns
 type Query {
-  # Common utility queries
-  currentUser: String
-  
   # Placeholder - modules will extend this
   _placeholder: String
 }

@@ -1,13 +1,9 @@
 package io.github.salomax.neotool.assets.graphql
 
-import graphql.scalars.ExtendedScalars
 import graphql.schema.DataFetchingEnvironment
 import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.TypeRuntimeWiring
 import io.github.salomax.neotool.assets.domain.rbac.AssetPermissions
-import java.time.Instant
-import java.time.OffsetDateTime
-import java.time.ZoneOffset
 import io.github.salomax.neotool.assets.graphql.dto.AssetDTO
 import io.github.salomax.neotool.assets.graphql.mapper.AssetGraphQLMapper
 import io.github.salomax.neotool.assets.graphql.resolver.AssetMutationResolver
@@ -20,6 +16,7 @@ import io.github.salomax.neotool.common.graphql.GraphQLResolverRegistry
 import io.github.salomax.neotool.security.service.AuthorizationChecker
 import io.github.salomax.neotool.security.service.RequestPrincipalProvider
 import jakarta.inject.Singleton
+import java.time.ZoneOffset
 import java.util.UUID
 
 /**
@@ -97,11 +94,7 @@ class AssetWiringFactory(
 
     override fun registerCustomTypeResolvers(builder: RuntimeWiring.Builder): RuntimeWiring.Builder =
         builder
-            // Register scalar types - must be done before type resolvers
-            .scalar(ExtendedScalars.GraphQLLong)
-            .scalar(ExtendedScalars.DateTime)
-            .scalar(ExtendedScalars.UUID)
-            // Registrar Asset type resolvers
+            // Register Asset type resolvers
             .type("Asset") { type ->
                 type.dataFetcher(
                     "id",

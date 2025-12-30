@@ -27,12 +27,13 @@ abstract class BaseSchemaRegistryFactory {
     /**
      * Load the core/base schema - override in concrete implementations
      */
-    protected open fun loadBaseSchema(): TypeDefinitionRegistry = loadSchemaFromResource("graphql/schema.graphqls")
+    protected open fun loadBaseSchema(): TypeDefinitionRegistry = loadSchemaFromResource("graphql/base-schema.graphqls")
 
     /**
      * Load additional schemas from modules - override to add module-specific types
      */
-    protected open fun loadModuleSchemas(): List<TypeDefinitionRegistry> = emptyList()
+    protected open fun loadModuleSchemas(): List<TypeDefinitionRegistry> =
+        listOf(loadSchemaFromResource("graphql/schema.graphqls"))
 
     /**
      * Utility method to load schema from classpath resource

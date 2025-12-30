@@ -93,7 +93,8 @@ open class AssetService(
                 ownerId = ownerId,
                 namespace = namespace,
                 visibility = namespaceConfig.visibility,
-                storageKey = "temp/${UUID.randomUUID()}", // Temporary, will be updated after save
+                // Temporary, will be updated after save
+                storageKey = "temp/${UUID.randomUUID()}",
                 storageRegion = storageProperties.region,
                 storageBucket = storageProperties.bucket,
                 mimeType = mimeType,
@@ -103,7 +104,8 @@ open class AssetService(
                 // Upload URL will be set after generation
                 uploadUrl = null,
                 uploadExpiresAt = uploadExpiresAt,
-                publicUrl = null, // No longer stored - generated dynamically
+                // No longer stored - generated dynamically
+                publicUrl = null,
                 status = AssetStatus.PENDING,
                 idempotencyKey = idempotencyKey,
                 createdAt = Instant.now(),
@@ -284,7 +286,9 @@ open class AssetService(
         requesterId: String,
         clientTtlSeconds: Long? = null,
     ): String? {
-        logger.debug { "Generating download URL: assetId=$assetId, requesterId=$requesterId, clientTtlSeconds=$clientTtlSeconds" }
+        logger.debug {
+            "Generating download URL: assetId=$assetId, requesterId=$requesterId, clientTtlSeconds=$clientTtlSeconds"
+        }
 
         // Get asset (this performs authorization check)
         val asset = getAsset(assetId, requesterId) ?: return null
@@ -298,11 +302,12 @@ open class AssetService(
 
         // Cap client-supplied TTL to configured maximum
         // This prevents clients from requesting arbitrarily long-lived URLs
-        val ttlSeconds = if (clientTtlSeconds != null) {
-            minOf(clientTtlSeconds, storageProperties.downloadTtlSeconds)
-        } else {
-            storageProperties.downloadTtlSeconds
-        }
+        val ttlSeconds =
+            if (clientTtlSeconds != null) {
+                minOf(clientTtlSeconds, storageProperties.downloadTtlSeconds)
+            } else {
+                storageProperties.downloadTtlSeconds
+            }
 
         logger.debug { "Generating presigned download URL with TTL: $ttlSeconds seconds" }
         return storageClient.generatePresignedDownloadUrl(asset.storageKey, ttlSeconds)

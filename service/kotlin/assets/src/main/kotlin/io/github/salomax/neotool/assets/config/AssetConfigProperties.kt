@@ -167,5 +167,6 @@ data class NamespaceConfig(
     val keyTemplate: String,
     val maxSizeBytes: Long,
     val allowedMimeTypes: Set<String>,
-    val uploadTtlSeconds: Long? = null, // Optional override, falls back to global default
+    // Optional override, falls back to global default
+    val uploadTtlSeconds: Long? = null,
 )

@@ -33,7 +33,7 @@ import java.util.UUID
  * Tests full upload flow: createAssetUpload -> PUT to MinIO -> confirmAssetUpload.
  */
 @MicronautTest(
-    startApplication = true
+    startApplication = true,
 )
 @DisplayName("Asset Service MinIO Integration Tests")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -304,4 +304,3 @@ open class AssetServiceMinIOIntegrationTest : BaseIntegrationTest(), PostgresInt
         }
     }
 }
-

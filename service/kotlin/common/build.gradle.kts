@@ -46,6 +46,7 @@ dependencies {
 
     // GraphQL - api for other modules
     api("com.graphql-java:graphql-java:21.5")
+    api("com.graphql-java:graphql-java-extended-scalars:21.0")
     api("com.apollographql.federation:federation-graphql-java-support:5.4.0")
     api("com.graphql-java:java-dataloader:3.3.0")
 

@@ -8,11 +8,5 @@ import jakarta.inject.Singleton
 @Factory
 class SecuritySchemaRegistryFactory : BaseSchemaRegistryFactory() {
     @Singleton
-    override fun typeRegistry(): TypeDefinitionRegistry {
-        return super.typeRegistry()
-    }
-
-    override fun loadBaseSchema(): TypeDefinitionRegistry {
-        return loadSchemaFromResource("graphql/schema.graphqls")
-    }
+    override fun typeRegistry(): TypeDefinitionRegistry = super.typeRegistry()
 }
