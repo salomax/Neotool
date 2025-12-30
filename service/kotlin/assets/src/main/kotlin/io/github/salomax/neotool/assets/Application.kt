@@ -1,7 +1,13 @@
 package io.github.salomax.neotool.assets
 
-import io.micronaut.runtime.Micronaut.run
+import io.micronaut.runtime.Micronaut
 
-fun main(args: Array<String>) {
-    run(*args)
+object Application {
+    @JvmStatic
+    fun main(args: Array<String>) {
+        Micronaut
+            .build(*args)
+            .packages("io.github.salomax.neotool.assets")
+            .start()
+    }
 }
