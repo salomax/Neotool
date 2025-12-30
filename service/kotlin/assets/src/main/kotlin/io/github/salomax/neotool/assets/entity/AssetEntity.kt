@@ -1,7 +1,6 @@
 package io.github.salomax.neotool.assets.entity
 
 import io.github.salomax.neotool.assets.domain.Asset
-import io.github.salomax.neotool.assets.domain.AssetResourceType
 import io.github.salomax.neotool.assets.domain.AssetStatus
 import io.github.salomax.neotool.assets.domain.AssetVisibility
 import io.github.salomax.neotool.common.entity.BaseEntity
@@ -12,7 +11,6 @@ import jakarta.persistence.Enumerated
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
-import jakarta.persistence.Index
 import jakarta.persistence.Table
 import jakarta.persistence.Version
 import java.time.Instant
@@ -28,17 +26,6 @@ import java.util.UUID
 @Table(
     name = "assets",
     schema = "assets",
-    indexes = [
-        Index(name = "idx_assets_owner_id", columnList = "owner_id"),
-        Index(name = "idx_assets_namespace", columnList = "namespace"),
-        Index(name = "idx_assets_resource", columnList = "resource_type,resource_id"),
-        Index(name = "idx_assets_status", columnList = "status"),
-        Index(name = "idx_assets_created_at", columnList = "created_at"),
-        Index(name = "idx_assets_owner_status", columnList = "owner_id,status"),
-        Index(name = "idx_assets_namespace_status", columnList = "namespace,status"),
-        Index(name = "idx_assets_visibility", columnList = "visibility"),
-        Index(name = "idx_assets_owner_namespace", columnList = "owner_id,namespace"),
-    ],
 )
 open class AssetEntity(
     @Id
@@ -52,11 +39,6 @@ open class AssetEntity(
     @Enumerated(EnumType.STRING)
     @Column(name = "visibility", nullable = false, length = 20)
     open var visibility: AssetVisibility = AssetVisibility.PRIVATE,
-    @Enumerated(EnumType.STRING)
-    @Column(name = "resource_type", nullable = false, length = 50)
-    open var resourceType: AssetResourceType,
-    @Column(name = "resource_id", nullable = false, length = 255)
-    open var resourceId: String,
     @Column(name = "storage_key", nullable = false, length = 500, unique = true)
     open var storageKey: String,
     @Column(name = "storage_region", nullable = false, length = 50)
@@ -100,8 +82,6 @@ open class AssetEntity(
             ownerId = ownerId,
             namespace = namespace,
             visibility = visibility,
-            resourceType = resourceType,
-            resourceId = resourceId,
             storageKey = storageKey,
             storageRegion = storageRegion,
             storageBucket = storageBucket,
@@ -129,8 +109,6 @@ open class AssetEntity(
                 ownerId = asset.ownerId,
                 namespace = asset.namespace,
                 visibility = asset.visibility,
-                resourceType = asset.resourceType,
-                resourceId = asset.resourceId,
                 storageKey = asset.storageKey,
                 storageRegion = asset.storageRegion,
                 storageBucket = asset.storageBucket,

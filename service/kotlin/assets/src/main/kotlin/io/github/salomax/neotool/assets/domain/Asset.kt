@@ -13,8 +13,6 @@ import java.util.UUID
  * @property ownerId User ID or system ID that owns this asset
  * @property namespace Logical grouping (e.g., user-profiles, group-assets)
  * @property visibility Visibility level (PUBLIC or PRIVATE) - determines access control and URL generation
- * @property resourceType Type of resource (e.g., PROFILE_IMAGE, INSTITUTION_LOGO) - informational/metadata only, not used in key generation
- * @property resourceId ID of the resource this asset is attached to - informational/metadata only, not used in key generation
  * @property storageKey Unique key in S3/R2 storage
  * @property storageRegion Storage region (e.g., us-east-1)
  * @property storageBucket Storage bucket name
@@ -36,8 +34,6 @@ data class Asset(
     val ownerId: String,
     val namespace: String,
     val visibility: AssetVisibility,
-    val resourceType: AssetResourceType,
-    val resourceId: String,
     val storageKey: String,
     val storageRegion: String,
     val storageBucket: String,
@@ -88,7 +84,7 @@ data class Asset(
      */
     fun canUpload(): Boolean = isPending() && !isUploadExpired()
 
-    /**
+    /** TODO remove it
      * Get the public URL if the asset is ready, null otherwise.
      * @deprecated Use generatePublicUrl() with baseUrl parameter instead
      */
@@ -103,9 +99,7 @@ data class Asset(
      * @param baseUrl Base CDN URL (e.g., https://cdn.example.com)
      * @return Public CDN URL
      */
-    fun generatePublicUrl(baseUrl: String): String {
-        return generatePublicUrl(baseUrl, storageKey)
-    }
+    fun generatePublicUrl(baseUrl: String): String = generatePublicUrl(baseUrl, storageKey)
 
     companion object {
         /**

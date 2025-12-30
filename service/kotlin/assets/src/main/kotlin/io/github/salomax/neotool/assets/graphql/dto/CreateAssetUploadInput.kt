@@ -9,7 +9,7 @@ import jakarta.validation.constraints.Positive
  * GraphQL input for creating asset upload.
  *
  * Maps to createAssetUpload mutation input.
- * ResourceType and resourceId are no longer required - namespace determines storage key template.
+ * Namespace determines storage key template.
  */
 @Introspected
 @Serdeable

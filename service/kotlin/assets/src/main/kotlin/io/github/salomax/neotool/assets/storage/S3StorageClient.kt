@@ -274,11 +274,14 @@ class S3StorageClient(
                 storageProperties.secretKey,
             )
 
-        val builder = S3Presigner
-            .builder()
-            .endpointOverride(URI.create(storageProperties.getEndpoint()))
-            .region(software.amazon.awssdk.regions.Region.of(storageProperties.region))
-            .credentialsProvider(software.amazon.awssdk.auth.credentials.StaticCredentialsProvider.create(credentials))
+        val builder =
+            S3Presigner
+                .builder()
+                .endpointOverride(URI.create(storageProperties.getEndpoint()))
+                .region(software.amazon.awssdk.regions.Region.of(storageProperties.region))
+                .credentialsProvider(
+                    software.amazon.awssdk.auth.credentials.StaticCredentialsProvider.create(credentials),
+                )
 
         // Apply path-style access if configured (required for MinIO)
         if (storageProperties.forcePathStyle) {
@@ -286,7 +289,7 @@ class S3StorageClient(
                 software.amazon.awssdk.services.s3.S3Configuration
                     .builder()
                     .pathStyleAccessEnabled(true)
-                    .build()
+                    .build(),
             )
         }
 

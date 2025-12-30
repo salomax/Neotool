@@ -1,4 +1,4 @@
-package io.github.salomax.neotool.common.test.security
+package io.github.salomax.neotool.assets
 
 import io.github.salomax.neotool.security.service.RequestPrincipal
 import io.github.salomax.neotool.security.service.TokenPrincipalDecoder
@@ -29,14 +29,21 @@ class TestTokenPrincipalDecoder : TokenPrincipalDecoder {
 
         // Accept any token in tests - return a mock principal
         // In real tests, you might want to parse claims from the token
+        // Include all asset permissions for testing
         return RequestPrincipal(
             userId = TEST_USER_ID,
             token = token,
-            permissionsFromToken = listOf(
-                "assets:read",
-                "assets:write",
-                "assets:delete",
-            ),
+            permissionsFromToken =
+                listOf(
+                    // Asset permissions (using the correct format from AssetPermissions)
+                    "assets:asset:view",
+                    "assets:asset:upload",
+                    "assets:asset:delete",
+                    // Legacy format for backward compatibility with other tests
+                    "assets:read",
+                    "assets:write",
+                    "assets:delete",
+                ),
         )
     }
 }

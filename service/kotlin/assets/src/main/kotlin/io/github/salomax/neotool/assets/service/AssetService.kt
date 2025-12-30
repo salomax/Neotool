@@ -2,7 +2,6 @@ package io.github.salomax.neotool.assets.service
 
 import io.github.salomax.neotool.assets.config.AssetConfigProperties
 import io.github.salomax.neotool.assets.domain.Asset
-import io.github.salomax.neotool.assets.domain.AssetResourceType
 import io.github.salomax.neotool.assets.domain.AssetStatus
 import io.github.salomax.neotool.assets.domain.AssetVisibility
 import io.github.salomax.neotool.assets.entity.AssetEntity
@@ -49,8 +48,6 @@ open class AssetService(
      * @param mimeType MIME type of the file
      * @param sizeBytes File size in bytes
      * @param idempotencyKey Optional key to prevent duplicate uploads
-     * @param resourceType Type of asset (PROFILE_IMAGE, ATTACHMENT, etc.) - deprecated, kept for backward compatibility
-     * @param resourceId ID of the resource this asset belongs to - deprecated, kept for backward compatibility
      * @return Asset domain object with uploadUrl
      */
     open fun initiateUpload(
@@ -60,10 +57,6 @@ open class AssetService(
         mimeType: String,
         sizeBytes: Long,
         idempotencyKey: String? = null,
-        // Deprecated: resourceType is no longer used in storage key generation, kept for metadata only
-        resourceType: AssetResourceType = AssetResourceType.ATTACHMENT,
-        // Deprecated: resourceId is no longer used in storage key generation, kept for metadata only
-        resourceId: String = "legacy",
     ): Asset {
         logger.info {
             "Initiating upload: namespace=$namespace, ownerId=$ownerId, " +
@@ -82,7 +75,7 @@ open class AssetService(
             }
         }
 
-        // Validate MIME type and file size (no longer uses resourceType)
+        // Validate MIME type and file size
         validationService.validate(namespace, mimeType, sizeBytes)
 
         // Derive TTL: namespace override or global default
@@ -100,8 +93,6 @@ open class AssetService(
                 ownerId = ownerId,
                 namespace = namespace,
                 visibility = namespaceConfig.visibility,
-                resourceType = resourceType,
-                resourceId = resourceId,
                 storageKey = "temp/${UUID.randomUUID()}", // Temporary, will be updated after save
                 storageRegion = storageProperties.region,
                 storageBucket = storageProperties.bucket,
@@ -122,8 +113,9 @@ open class AssetService(
 
         // Save entity to get database-generated UUID v7
         val saved = assetRepository.save(entity)
-        val assetId = saved.id
-            ?: throw IllegalStateException("Database did not generate UUID v7 for asset")
+        val assetId =
+            saved.id
+                ?: throw IllegalStateException("Database did not generate UUID v7 for asset")
 
         // Generate storage key using template from namespace config with actual asset ID
         val storageKey = storageKeyFactory.buildKey(namespaceConfig, ownerId, assetId)
@@ -197,6 +189,10 @@ open class AssetService(
         // Verify object exists in storage
         if (!storageClient.objectExists(entity.storageKey)) {
             logger.error { "Asset confirmation failed: object not found in storage: ${entity.storageKey}" }
+            entity.status = AssetStatus.FAILED
+            entity.uploadUrl = null // Clear stale upload URL
+            entity.updatedAt = now
+            assetRepository.update(entity)
             throw IllegalArgumentException("Upload not completed: file not found in storage")
         }
 
@@ -204,6 +200,10 @@ open class AssetService(
         val metadata = storageClient.getObjectMetadata(entity.storageKey)
         if (metadata == null) {
             logger.error { "Asset confirmation failed: could not retrieve metadata: ${entity.storageKey}" }
+            entity.status = AssetStatus.FAILED
+            entity.uploadUrl = null // Clear stale upload URL
+            entity.updatedAt = now
+            assetRepository.update(entity)
             throw IllegalArgumentException("Upload verification failed: could not retrieve file metadata")
         }
 
@@ -267,6 +267,48 @@ open class AssetService(
     }
 
     /**
+     * Generate presigned download URL for a PRIVATE asset.
+     *
+     * This method:
+     * - Verifies the asset exists and requester has access (authorization check)
+     * - Only generates URLs for PRIVATE assets (PUBLIC assets use publicUrl)
+     * - Caps client-requested TTL to configured maximum (downloadTtlSeconds)
+     *
+     * @param assetId Asset ID
+     * @param requesterId User ID requesting the download (for authorization)
+     * @param clientTtlSeconds Optional client-requested TTL (will be capped to configured maximum)
+     * @return Presigned download URL or null if asset not found/unauthorized/PUBLIC
+     */
+    open fun generateDownloadUrl(
+        assetId: UUID,
+        requesterId: String,
+        clientTtlSeconds: Long? = null,
+    ): String? {
+        logger.debug { "Generating download URL: assetId=$assetId, requesterId=$requesterId, clientTtlSeconds=$clientTtlSeconds" }
+
+        // Get asset (this performs authorization check)
+        val asset = getAsset(assetId, requesterId) ?: return null
+
+        // Only generate download URLs for PRIVATE assets
+        // PUBLIC assets should use publicUrl instead
+        if (asset.visibility != AssetVisibility.PRIVATE) {
+            logger.debug { "Skipping download URL generation for PUBLIC asset: assetId=$assetId" }
+            return null
+        }
+
+        // Cap client-supplied TTL to configured maximum
+        // This prevents clients from requesting arbitrarily long-lived URLs
+        val ttlSeconds = if (clientTtlSeconds != null) {
+            minOf(clientTtlSeconds, storageProperties.downloadTtlSeconds)
+        } else {
+            storageProperties.downloadTtlSeconds
+        }
+
+        logger.debug { "Generating presigned download URL with TTL: $ttlSeconds seconds" }
+        return storageClient.generatePresignedDownloadUrl(asset.storageKey, ttlSeconds)
+    }
+
+    /**
      * Delete asset.
      *
      * Hard-deletes from database and deletes from storage.
@@ -306,7 +348,6 @@ open class AssetService(
         logger.info { "Asset hard-deleted: id=$assetId, storageKey=${entity.storageKey}" }
         return true
     }
-
 
     /**
      * Find asset by idempotency key (within 24 hour window).

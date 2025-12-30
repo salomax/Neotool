@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.assets.repository
 
-import io.github.salomax.neotool.assets.domain.AssetResourceType
 import io.github.salomax.neotool.assets.domain.AssetStatus
 import io.github.salomax.neotool.assets.entity.AssetEntity
 import io.micronaut.data.annotation.Query
@@ -57,33 +56,6 @@ interface AssetRepository : JpaRepository<AssetEntity, UUID> {
         namespace: String,
         status: AssetStatus,
     ): List<AssetEntity>
-
-    /**
-     * Find asset by resource type and resource ID.
-     * Typically one asset per resource, but multiple can exist (versioning, variants).
-     */
-    fun findByResourceTypeAndResourceId(
-        resourceType: AssetResourceType,
-        resourceId: String,
-    ): List<AssetEntity>
-
-    /**
-     * Find the latest READY asset for a given resource.
-     * Useful for getting the current active asset (e.g., current profile image).
-     */
-    @Query(
-        """
-        SELECT a FROM AssetEntity a
-        WHERE a.resourceType = :resourceType
-        AND a.resourceId = :resourceId
-        AND a.status = 'READY'
-        ORDER BY a.createdAt DESC
-        """,
-    )
-    fun findLatestReadyByResource(
-        resourceType: AssetResourceType,
-        resourceId: String,
-    ): Optional<AssetEntity>
 
     /**
      * Count assets by owner and status.

@@ -14,4 +14,3 @@ object AssetPermissions {
     // Asset delete permissions
     const val ASSETS_ASSET_DELETE = "assets:asset:delete"
 }
-

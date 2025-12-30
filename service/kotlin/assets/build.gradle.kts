@@ -41,6 +41,7 @@ dependencies {
 
     // GraphQL
     implementation("io.micronaut.graphql:micronaut-graphql")
+    implementation("com.graphql-java:graphql-java-extended-scalars:21.0")
 
     // Database
     implementation("io.micronaut.data:micronaut-data-hibernate-jpa")

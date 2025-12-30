@@ -1,7 +1,6 @@
 package io.github.salomax.neotool.assets.test.integration
 
 import io.github.salomax.neotool.assets.domain.Asset
-import io.github.salomax.neotool.assets.domain.AssetResourceType
 import io.github.salomax.neotool.assets.domain.AssetStatus
 import io.github.salomax.neotool.assets.entity.AssetEntity
 import io.github.salomax.neotool.assets.repository.AssetRepository
@@ -88,8 +87,6 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
             val asset =
                 assetService.initiateUpload(
                     namespace = "user-profiles",
-                    resourceType = AssetResourceType.PROFILE_IMAGE,
-                    resourceId = "user-123",
                     ownerId = testUserId,
                     filename = "avatar.jpg",
                     mimeType = "image/jpeg",
@@ -104,7 +101,6 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
             Assertions.assertThat(asset.uploadExpiresAt).isNotNull()
             Assertions.assertThat(asset.ownerId).isEqualTo(testUserId)
             Assertions.assertThat(asset.namespace).isEqualTo("user-profiles")
-            Assertions.assertThat(asset.resourceType).isEqualTo(AssetResourceType.PROFILE_IMAGE)
 
             // Verify persisted in database
             val persisted = assetRepository.findById(asset.id!!)
@@ -119,8 +115,6 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
             val firstAsset =
                 assetService.initiateUpload(
                     namespace = "user-profiles",
-                    resourceType = AssetResourceType.PROFILE_IMAGE,
-                    resourceId = "user-123",
                     ownerId = testUserId,
                     filename = "avatar.jpg",
                     mimeType = "image/jpeg",
@@ -132,8 +126,6 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
             val secondAsset =
                 assetService.initiateUpload(
                     namespace = "user-profiles",
-                    resourceType = AssetResourceType.PROFILE_IMAGE,
-                    resourceId = "user-123",
                     ownerId = testUserId,
                     filename = "avatar.jpg",
                     mimeType = "image/jpeg",
@@ -152,8 +144,6 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
             Assertions.assertThatThrownBy {
                 assetService.initiateUpload(
                     namespace = "user-profiles",
-                    resourceType = AssetResourceType.PROFILE_IMAGE,
-                    resourceId = "user-123",
                     ownerId = testUserId,
                     filename = "document.pdf",
                     mimeType = "application/pdf", // Not allowed for user-profiles
@@ -168,8 +158,6 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
             Assertions.assertThatThrownBy {
                 assetService.initiateUpload(
                     namespace = "user-profiles",
-                    resourceType = AssetResourceType.PROFILE_IMAGE,
-                    resourceId = "user-123",
                     ownerId = testUserId,
                     filename = "large.jpg",
                     mimeType = "image/jpeg",
@@ -188,8 +176,6 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
             val asset =
                 assetService.initiateUpload(
                     namespace = "user-profiles",
-                    resourceType = AssetResourceType.PROFILE_IMAGE,
-                    resourceId = "user-123",
                     ownerId = testUserId,
                     filename = "avatar.jpg",
                     mimeType = "image/jpeg",
@@ -221,8 +207,6 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
             val asset =
                 assetService.initiateUpload(
                     namespace = "user-profiles",
-                    resourceType = AssetResourceType.PROFILE_IMAGE,
-                    resourceId = "user-123",
                     ownerId = testUserId,
                     filename = "avatar.jpg",
                     mimeType = "image/jpeg",
@@ -235,6 +219,12 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                 assetService.confirmUpload(asset.id!!, testUserId)
             }.isInstanceOf(IllegalArgumentException::class.java)
                 .hasMessageContaining("not found in storage")
+
+            // Verify asset is marked as FAILED and uploadUrl is cleared
+            val persisted = assetRepository.findById(asset.id!!)
+            Assertions.assertThat(persisted).isPresent
+            Assertions.assertThat(persisted.get().status).isEqualTo(AssetStatus.FAILED)
+            Assertions.assertThat(persisted.get().uploadUrl).isNull()
         }
 
         @Test
@@ -247,8 +237,6 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                             id = null,
                             ownerId = testUserId,
                             namespace = "user-profiles",
-                            resourceType = AssetResourceType.PROFILE_IMAGE,
-                            resourceId = "user-123",
                             storageKey = "test/key",
                             storageRegion = "us-east-1",
                             storageBucket = "test-bucket",
@@ -289,8 +277,6 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                             id = null,
                             ownerId = testUserId,
                             namespace = "user-profiles",
-                            resourceType = AssetResourceType.PROFILE_IMAGE,
-                            resourceId = "user-123",
                             storageKey = "test/key",
                             storageRegion = "us-east-1",
                             storageBucket = "test-bucket",
@@ -339,8 +325,6 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                             id = null,
                             ownerId = otherUserId,
                             namespace = "user-profiles",
-                            resourceType = AssetResourceType.PROFILE_IMAGE,
-                            resourceId = "user-123",
                             storageKey = "test/key",
                             storageRegion = "us-east-1",
                             storageBucket = "test-bucket",
@@ -381,8 +365,6 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                             id = null,
                             ownerId = testUserId,
                             namespace = "user-profiles",
-                            resourceType = AssetResourceType.PROFILE_IMAGE,
-                            resourceId = "user-123",
                             storageKey = "test/key",
                             storageRegion = "us-east-1",
                             storageBucket = "test-bucket",
@@ -434,8 +416,6 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                             id = null,
                             ownerId = otherUserId,
                             namespace = "user-profiles",
-                            resourceType = AssetResourceType.PROFILE_IMAGE,
-                            resourceId = "user-123",
                             storageKey = "test/key",
                             storageRegion = "us-east-1",
                             storageBucket = "test-bucket",

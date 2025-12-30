@@ -1,8 +1,9 @@
 package io.github.salomax.neotool.assets.test.integration
 
+import io.github.salomax.neotool.assets.TestTokenPrincipalDecoder
 import io.github.salomax.neotool.assets.domain.Asset
-import io.github.salomax.neotool.assets.domain.AssetResourceType
 import io.github.salomax.neotool.assets.domain.AssetStatus
+import io.github.salomax.neotool.assets.domain.AssetVisibility
 import io.github.salomax.neotool.assets.entity.AssetEntity
 import io.github.salomax.neotool.assets.repository.AssetRepository
 import io.github.salomax.neotool.assets.storage.StorageClient
@@ -19,7 +20,6 @@ import io.github.salomax.neotool.common.test.transaction.runTransaction
 import io.micronaut.context.ApplicationContext
 import io.micronaut.http.HttpRequest
 import io.micronaut.http.MediaType
-import java.util.Optional
 import io.micronaut.json.tree.JsonNode
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import io.micronaut.test.support.TestPropertyProvider
@@ -35,6 +35,7 @@ import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.time.Instant
+import java.util.Optional
 import java.util.UUID
 
 /**
@@ -42,14 +43,17 @@ import java.util.UUID
  * Tests cover all GraphQL queries and mutations with real database and mocked storage.
  */
 @MicronautTest(
-    startApplication = true
+    startApplication = true,
 )
 @DisplayName("Asset GraphQL Integration Tests")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Tag("integration")
 @Tag("graphql")
 @Tag("assets")
-open class AssetGraphQLIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTest, TestPropertyProvider {
+open class AssetGraphQLIntegrationTest :
+    BaseIntegrationTest(),
+    PostgresIntegrationTest,
+    TestPropertyProvider {
     @Inject
     lateinit var assetRepository: AssetRepository
 
@@ -60,7 +64,8 @@ open class AssetGraphQLIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
     @Named("mockStorageClient")
     lateinit var mockStorageClient: MockStorageClient
 
-    private val testUserId = "test-user-${UUID.randomUUID()}"
+    // Use the same test user ID as TestTokenPrincipalDecoder to ensure authorization works
+    private val testUserId = TestTokenPrincipalDecoder.TEST_USER_ID.toString()
 
     // Override properties to use MockStorageClient for this test
     override fun getProperties(): MutableMap<String, String> {
@@ -90,8 +95,7 @@ open class AssetGraphQLIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
         ownerId: String = testUserId,
         status: AssetStatus = AssetStatus.READY,
         namespace: String = "user-profiles",
-        resourceType: AssetResourceType = AssetResourceType.PROFILE_IMAGE,
-        resourceId: String = "resource-123",
+        visibility: AssetVisibility = AssetVisibility.PUBLIC, // Use PUBLIC so publicUrl is generated
     ): AssetEntity {
         val assetId = UUID.randomUUID()
         val entity =
@@ -99,8 +103,7 @@ open class AssetGraphQLIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                 id = null,
                 ownerId = ownerId,
                 namespace = namespace,
-                resourceType = resourceType,
-                resourceId = resourceId,
+                visibility = visibility,
                 storageKey = "$namespace/$ownerId/$assetId",
                 storageRegion = "us-east-1",
                 storageBucket = "test-bucket",
@@ -142,8 +145,6 @@ open class AssetGraphQLIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                                 id
                                 ownerId
                                 namespace
-                                resourceType
-                                resourceId
                                 status
                                 mimeType
                                 sizeBytes
@@ -162,68 +163,98 @@ open class AssetGraphQLIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                     .header("Authorization", "Bearer test-token")
 
             // Get response - GraphQL returns 200 even with errors, so we can use exchange
-            val response = try {
-                httpClient.exchangeAsString(request)
-            } catch (e: io.micronaut.http.client.exceptions.HttpClientResponseException) {
-                // If exchange throws, try to read the error response
-                val errorResponse = e.response
-                val errorBody = if (errorResponse != null) {
-                    try {
-                        // Try to parse as JSON to get GraphQL errors
-                        val errorPayload: JsonNode = json.read(errorResponse)
-                        if (errorPayload["errors"] != null && !errorPayload["errors"].isNull) {
-                            (0 until errorPayload["errors"].size()).joinToString("\n") { i ->
-                                val error = errorPayload["errors"][i]
-                                val message = error["message"]?.stringValue ?: "No message"
-                                val path = error["path"]?.toString() ?: "No path"
-                                "Error $i: $message (path: $path)"
+            val response =
+                try {
+                    httpClient.exchangeAsString(request)
+                } catch (e: io.micronaut.http.client.exceptions.HttpClientResponseException) {
+                    // If exchange throws, try to read the error response
+                    val errorResponse = e.response
+                    val errorBody =
+                        if (errorResponse != null) {
+                            try {
+                                // Try to parse as JSON to get GraphQL errors
+                                val errorPayload: JsonNode = json.read(errorResponse)
+                                if (errorPayload["errors"] != null && !errorPayload["errors"].isNull) {
+                                    (0 until errorPayload["errors"].size()).joinToString("\n") { i ->
+                                        val error = errorPayload["errors"][i]
+                                        val message = error["message"]?.stringValue ?: "No message"
+                                        val path = error["path"]?.toString() ?: "No path"
+                                        "Error $i: $message (path: $path)"
+                                    }
+                                } else {
+                                    e.message ?: "Unknown error"
+                                }
+                            } catch (ex: Exception) {
+                                e.message ?: "Unknown error"
                             }
                         } else {
                             e.message ?: "Unknown error"
                         }
-                    } catch (ex: Exception) {
-                        e.message ?: "Unknown error"
-                    }
-                } else {
-                    e.message ?: "Unknown error"
+                    throw AssertionError("HTTP request failed (${e.status}):\n$errorBody", e)
                 }
-                throw AssertionError("HTTP request failed (${e.status}):\n$errorBody", e)
-            }
 
             // Assert
-            // Check for errors first to get better error messages
-            val payload: JsonNode = json.read(response)
-            if (payload["errors"] != null && !payload["errors"].isNull && payload["errors"].size() > 0) {
-                val errorMsg = (0 until payload["errors"].size()).joinToString("\n") { i ->
-                    val error = payload["errors"][i]
-                    val message = error["message"]?.stringValue ?: "No message"
-                    val path = error["path"]?.toString() ?: "No path"
-                    "Error $i: $message (path: $path)"
-                }
-                throw AssertionError("GraphQL errors:\n$errorMsg\nResponse: $response")
-            }
-            
             response
                 .shouldBeSuccessful()
                 .shouldBeJson()
                 .shouldHaveNonEmptyBody()
 
+            val payload: JsonNode = json.read(response)
+
+            // Check for errors first to get better error messages
+            if (payload["errors"] != null && !payload["errors"].isNull && payload["errors"].size() > 0) {
+                val errorMsg =
+                    (0 until payload["errors"].size()).joinToString("\n") { i ->
+                        val error = payload["errors"][i]
+                        val message = error["message"]?.stringValue ?: "No message"
+                        val path = error["path"]?.toString() ?: "No path"
+                        "Error $i: $message (path: $path)"
+                    }
+                throw AssertionError("GraphQL errors:\n$errorMsg\nResponse: $response")
+            }
+
             payload["errors"].assertNoErrors()
 
             val data = payload["data"]
             Assertions.assertThat(data).isNotNull()
+            Assertions.assertThat(data.isNull).isFalse()
 
             val assetData = data["asset"]
-            Assertions.assertThat(assetData).isNotNull()
-            Assertions.assertThat(assetData["id"].stringValue).isEqualTo(asset.id.toString())
-            Assertions.assertThat(assetData["ownerId"].stringValue).isEqualTo(testUserId)
-            Assertions.assertThat(assetData["namespace"].stringValue).isEqualTo("user-profiles")
-            Assertions.assertThat(assetData["resourceType"].stringValue).isEqualTo("PROFILE_IMAGE")
-            Assertions.assertThat(assetData["status"].stringValue).isEqualTo("READY")
-            Assertions.assertThat(assetData["mimeType"].stringValue).isEqualTo("image/jpeg")
-            Assertions.assertThat(assetData["sizeBytes"].longValue).isEqualTo(1024L)
+            if (assetData == null || assetData.isNull) {
+                // If asset is null, check if there are any errors we missed
+                val errors = payload["errors"]
+                val errorMsg =
+                    if (errors != null && !errors.isNull && errors.size() > 0) {
+                        (0 until errors.size()).joinToString("\n") { i ->
+                            val error = errors[i]
+                            val message = error["message"]?.stringValue ?: "No message"
+                            val path = error["path"]?.toString() ?: "No path"
+                            "Error $i: $message (path: $path)"
+                        }
+                    } else {
+                        "No errors found, but asset is null. Response: $response"
+                    }
+                throw AssertionError("Asset data is null in GraphQL response:\n$errorMsg")
+            }
+
+            // Verify all fields with null-safe checks
+            val idNode = assetData["id"]
+            Assertions.assertThat(idNode).isNotNull()
+            if (idNode.isNull) {
+                throw AssertionError("Asset id is null. Asset data: $assetData")
+            }
+            Assertions.assertThat(idNode.stringValue).isEqualTo(asset.id.toString())
+
+            Assertions.assertThat(assetData["ownerId"]?.stringValue).isEqualTo(testUserId)
+            Assertions.assertThat(assetData["namespace"]?.stringValue).isEqualTo("user-profiles")
+            Assertions.assertThat(assetData["status"]?.stringValue).isEqualTo("READY")
+            Assertions.assertThat(assetData["mimeType"]?.stringValue).isEqualTo("image/jpeg")
+            Assertions.assertThat(assetData["sizeBytes"]?.longValue).isEqualTo(1024L)
             // publicUrl is now generated dynamically, just verify it's present and not empty
-            Assertions.assertThat(assetData["publicUrl"].stringValue).isNotEmpty()
+            val publicUrlNode = assetData["publicUrl"]
+            Assertions.assertThat(publicUrlNode).isNotNull()
+            Assertions.assertThat(publicUrlNode.isNull).isFalse()
+            Assertions.assertThat(publicUrlNode.stringValue).isNotEmpty()
         }
 
         @Test
@@ -265,7 +296,6 @@ open class AssetGraphQLIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
             val data = payload["data"]
             Assertions.assertThat(data["asset"].isNull).isTrue()
         }
-
     }
 
     @Nested
@@ -285,8 +315,6 @@ open class AssetGraphQLIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                                 uploadExpiresAt
                                 status
                                 namespace
-                                resourceType
-                                resourceId
                             }
                         }
                         """.trimIndent(),
@@ -295,8 +323,6 @@ open class AssetGraphQLIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                             "input" to
                                 mapOf(
                                     "namespace" to "user-profiles",
-                                    "resourceType" to "PROFILE_IMAGE",
-                                    "resourceId" to "user-123",
                                     "filename" to "avatar.jpg",
                                     "mimeType" to "image/jpeg",
                                     "sizeBytes" to 1048576L,
@@ -329,7 +355,6 @@ open class AssetGraphQLIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
             Assertions.assertThat(asset["uploadUrl"].stringValue).isNotEmpty()
             Assertions.assertThat(asset["status"].stringValue).isEqualTo("PENDING")
             Assertions.assertThat(asset["namespace"].stringValue).isEqualTo("user-profiles")
-            Assertions.assertThat(asset["resourceType"].stringValue).isEqualTo("PROFILE_IMAGE")
         }
 
         @Test
@@ -430,4 +455,3 @@ open class AssetGraphQLIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
         }
     }
 }
-

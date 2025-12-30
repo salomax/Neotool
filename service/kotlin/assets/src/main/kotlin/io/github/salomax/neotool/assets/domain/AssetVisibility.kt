@@ -20,4 +20,3 @@ enum class AssetVisibility {
      */
     PRIVATE,
 }
-
