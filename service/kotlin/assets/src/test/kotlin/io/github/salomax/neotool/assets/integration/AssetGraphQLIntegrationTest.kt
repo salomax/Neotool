@@ -1,12 +1,10 @@
 package io.github.salomax.neotool.assets.test.integration
 
 import io.github.salomax.neotool.assets.TestTokenPrincipalDecoder
-import io.github.salomax.neotool.assets.domain.Asset
 import io.github.salomax.neotool.assets.domain.AssetStatus
 import io.github.salomax.neotool.assets.domain.AssetVisibility
 import io.github.salomax.neotool.assets.entity.AssetEntity
 import io.github.salomax.neotool.assets.repository.AssetRepository
-import io.github.salomax.neotool.assets.storage.StorageClient
 import io.github.salomax.neotool.assets.test.MockStorageClient
 import io.github.salomax.neotool.common.test.assertions.assertNoErrors
 import io.github.salomax.neotool.common.test.assertions.shouldBeJson
@@ -17,7 +15,6 @@ import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.common.test.json.read
 import io.github.salomax.neotool.common.test.transaction.runTransaction
-import io.micronaut.context.ApplicationContext
 import io.micronaut.http.HttpRequest
 import io.micronaut.http.MediaType
 import io.micronaut.json.tree.JsonNode
@@ -35,7 +32,6 @@ import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.time.Instant
-import java.util.Optional
 import java.util.UUID
 
 /**
@@ -95,7 +91,8 @@ open class AssetGraphQLIntegrationTest :
         ownerId: String = testUserId,
         status: AssetStatus = AssetStatus.READY,
         namespace: String = "user-profiles",
-        visibility: AssetVisibility = AssetVisibility.PUBLIC, // Use PUBLIC so publicUrl is generated
+        // Use PUBLIC so publicUrl is generated
+        visibility: AssetVisibility = AssetVisibility.PUBLIC,
     ): AssetEntity {
         val assetId = UUID.randomUUID()
         val entity =
@@ -113,7 +110,8 @@ open class AssetGraphQLIntegrationTest :
                 originalFilename = "test.jpg",
                 uploadUrl = if (status == AssetStatus.PENDING) "https://upload.example.com/presigned" else null,
                 uploadExpiresAt = if (status == AssetStatus.PENDING) Instant.now().plusSeconds(900) else null,
-                publicUrl = null, // No longer stored - generated dynamically
+                // No longer stored - generated dynamically
+                publicUrl = null,
                 status = status,
                 idempotencyKey = null,
                 createdAt = Instant.now(),

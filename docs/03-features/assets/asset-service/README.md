@@ -137,13 +137,237 @@
 - **Data classification:** avoid storing sensitive PII in asset metadata; use opaque IDs for `ownerId`/`resourceId`.
 
 ### Local Development & Testing
-- Emulate storage with MinIO via docker-compose; console on :9001 for manual bucket creation/upload without AWS CLI.
-- Config for dev: `STORAGE_ENDPOINT=http://localhost:9000`, `STORAGE_BUCKET=assets`, `STORAGE_FORCE_PATH_STYLE=true`, `STORAGE_ACCESS_KEY=minio`, `STORAGE_SECRET=minio123`, `STORAGE_PUBLIC_BASE_URL=http://localhost:9000/assets/` (or proxy domain).
-- Provide sample seed script to create bucket, configure CORS, and upload sample object; keep parity with prod by only swapping endpoints/creds.
-- **Testing strategy:** follow project testing standards.
-  - Unit tests: storage client, URL resolver, validation logic, rate limiter (coverage target per project spec).
-  - Integration tests: MinIO stack; test full upload flow, CORS preflight, hard delete, quota enforcement.
-  - Contract tests: GraphQL schema stability; validate upload URL -> PUT -> confirm -> fetch metadata -> GET object via public URL; verify cache headers.
+
+#### Prerequisites
+
+To test Asset uploads locally, you need:
+
+1. **PostgreSQL Database** (via docker-compose or local instance)
+2. **MinIO Container** (S3-compatible storage for local development)
+3. **Asset Service** running with proper configuration
+
+#### Step 1: Start MinIO Container
+
+MinIO is not included in the default docker-compose files. Add the following service to `infra/docker/docker-compose.local.yml`:
+
+```yaml
+  minio:
+    image: minio/minio:latest
+    container_name: neotool-minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"  # S3 API
+      - "9001:9001"  # Console UI
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    profiles:
+      - storage
+
+volumes:
+  minio-data:
+```
+
+Then start MinIO:
+
+```bash
+cd infra/docker
+docker-compose -f docker-compose.local.yml --profile storage up -d minio
+```
+
+**MinIO Console:** Access the web UI at http://localhost:9001
+- Username: `minioadmin`
+- Password: `minioadmin`
+
+**Create Bucket:** The bucket will be created automatically by the service on first use, or you can create it manually via the console.
+
+#### Step 2: Configure Environment Variables
+
+The Asset service uses the following environment variables (with defaults from `application.yml`):
+
+**Storage Configuration (Required):**
+```bash
+# MinIO endpoint (defaults work for local)
+STORAGE_HOSTNAME=localhost
+STORAGE_PORT=9000
+STORAGE_USE_HTTPS=false
+STORAGE_REGION=us-east-1
+STORAGE_BUCKET=neotool-assets
+STORAGE_ACCESS_KEY=minioadmin
+STORAGE_SECRET=minioadmin
+STORAGE_PUBLIC_BASE_PATH=neotool-assets
+STORAGE_FORCE_PATH_STYLE=true  # Required for MinIO
+STORAGE_UPLOAD_TTL_SECONDS=900  # 15 minutes
+```
+
+**Validation Configuration (Optional - has defaults):**
+```bash
+STORAGE_MAX_UPLOAD_BYTES=10485760  # 10MB default
+ASSET_ALLOWED_MIME_TYPES=image/jpeg,image/png,image/webp,image/gif
+```
+
+**Rate Limiting (Optional - has defaults):**
+```bash
+ASSET_RATE_LIMIT_REQUESTS_PER_HOUR=100
+ASSET_RATE_LIMIT_BYTES_PER_HOUR=1073741824  # 1GB
+ASSET_RATE_LIMIT_BURST=10
+```
+
+**Database Configuration (Required):**
+```bash
+DB_USER=neotool
+DB_PASSWORD=neotool
+# Database connection via pgbouncer (default: localhost:6432)
+```
+
+**Note:** All storage variables have defaults in `application.yml`, so you can run the service without setting them if using the default MinIO setup.
+
+#### Step 3: Run Database Migrations
+
+Ensure the database is running and run Flyway migrations:
+
+```bash
+cd service/kotlin
+./gradlew :assets:flywayMigrate
+```
+
+#### Step 4: Start the Asset Service
+
+```bash
+cd service/kotlin
+./gradlew :assets:run
+```
+
+The service will start on **http://localhost:8083**
+
+**GraphiQL Interface:** http://localhost:8083/graphiql
+
+#### Step 5: Test Asset Upload
+
+**Example GraphQL Mutation (via GraphiQL):**
+
+```graphql
+mutation {
+  createAssetUpload(input: {
+    namespace: "user-profiles"
+    filename: "test-avatar.jpg"
+    mimeType: "image/jpeg"
+    sizeBytes: 204800
+    idempotencyKey: "test-upload-001"
+  }) {
+    id
+    uploadUrl
+    uploadExpiresAt
+    status
+    visibility
+    storageKey
+  }
+}
+```
+
+**Then upload the file directly to the `uploadUrl`:**
+
+```bash
+# Using curl
+curl -X PUT "<uploadUrl>" \
+  -H "Content-Type: image/jpeg" \
+  --data-binary @path/to/image.jpg
+```
+
+**Confirm the upload:**
+
+```graphql
+mutation {
+  confirmAssetUpload(input: {
+    assetId: "<assetId>"
+  }) {
+    id
+    status
+    publicUrl
+    storageKey
+  }
+}
+```
+
+**Query the asset:**
+
+```graphql
+query {
+  asset(id: "<assetId>") {
+    id
+    status
+    publicUrl
+    storageKey
+    mimeType
+    sizeBytes
+  }
+}
+```
+
+#### Troubleshooting
+
+**MinIO Connection Issues:**
+```bash
+# Check MinIO is running
+docker ps | grep minio
+
+# Check MinIO health
+curl http://localhost:9000/minio/health/live
+
+# Access MinIO console
+open http://localhost:9001
+# Login: minioadmin / minioadmin
+
+# Create bucket manually (if needed)
+# Use MinIO console or mc CLI:
+mc alias set local http://localhost:9000 minioadmin minioadmin
+mc mb local/neotool-assets
+```
+
+**Database Migration Issues:**
+```bash
+# Check Flyway status
+./gradlew :assets:flywayInfo
+
+# Repair failed migration
+./gradlew :assets:flywayRepair
+
+# Baseline existing database
+./gradlew :assets:flywayBaseline
+```
+
+**Service Not Starting:**
+- Verify PostgreSQL is running and accessible on port 6432 (via pgbouncer)
+- Check that MinIO is running and accessible on port 9000
+- Review service logs for configuration errors
+- Ensure all required environment variables are set (or defaults are acceptable)
+
+**Upload URL Expired:**
+- Upload URLs expire after 15 minutes (configurable via `STORAGE_UPLOAD_TTL_SECONDS`)
+- Request a new upload URL if expired
+- Use idempotency keys to prevent duplicate assets on retries
+
+**CORS Issues (Browser Uploads):**
+- MinIO CORS must be configured for browser-based uploads
+- Configure via MinIO console: Settings → CORS
+- Or use `mc` CLI: `mc cors set download local/neotool-assets`
+- Example CORS policy (see "R2 CORS Policy Example" section below)
+
+#### Testing Strategy
+
+Follow project testing standards:
+
+- **Unit tests:** storage client, URL resolver, validation logic, rate limiter (coverage target per project spec).
+- **Integration tests:** MinIO stack; test full upload flow, CORS preflight, hard delete, quota enforcement.
+- **Contract tests:** GraphQL schema stability; validate upload URL -> PUT -> confirm -> fetch metadata -> GET object via public URL; verify cache headers.
 
 ## Non-Functional Requirements
 

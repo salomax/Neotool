@@ -4,8 +4,8 @@ import io.github.salomax.neotool.assets.storage.StorageClient
 import io.micronaut.context.annotation.Bean
 import io.micronaut.context.annotation.Factory
 import io.micronaut.context.annotation.Primary
-import io.micronaut.context.annotation.Requires
 import io.micronaut.context.annotation.Replaces
+import io.micronaut.context.annotation.Requires
 import jakarta.inject.Named
 import jakarta.inject.Singleton
 
@@ -37,9 +37,9 @@ class TestConfiguration {
     @Primary
     @Replaces(bean = StorageClient::class)
     @Requires(property = "test.use-mock-storage", value = "true", defaultValue = "false")
-    fun storageClient(@Named("mockStorageClient") mockStorageClient: MockStorageClient): StorageClient {
+    fun storageClient(
+        @Named("mockStorageClient") mockStorageClient: MockStorageClient,
+    ): StorageClient {
         return mockStorageClient
     }
 }
-
-
