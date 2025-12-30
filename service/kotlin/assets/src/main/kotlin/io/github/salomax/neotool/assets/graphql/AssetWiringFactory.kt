@@ -17,7 +17,6 @@ import io.github.salomax.neotool.security.service.AuthorizationChecker
 import io.github.salomax.neotool.security.service.RequestPrincipalProvider
 import jakarta.inject.Singleton
 import java.time.ZoneOffset
-import java.util.UUID
 
 /**
  * Asset module wiring factory for GraphQL resolvers with authentication and authorization.
