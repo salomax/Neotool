@@ -103,7 +103,7 @@ open class AssetGraphQLIntegrationTest :
                 visibility = visibility,
                 storageKey = "$namespace/$ownerId/$assetId",
                 storageRegion = "us-east-1",
-                storageBucket = "test-bucket",
+                storageBucket = if (visibility == AssetVisibility.PUBLIC) "neotool-assets-public" else "neotool-assets-private",
                 mimeType = "image/jpeg",
                 sizeBytes = 1024L,
                 checksum = "test-checksum",
@@ -359,7 +359,7 @@ open class AssetGraphQLIntegrationTest :
         fun `should confirm asset upload`() {
             // Arrange
             val asset = createTestAsset(status = AssetStatus.PENDING)
-            mockStorageClient.simulateUpload(asset.storageKey, sizeBytes = 1024L, contentType = "image/jpeg")
+            mockStorageClient.simulateUpload(asset.storageBucket, asset.storageKey, sizeBytes = 1024L, contentType = "image/jpeg")
 
             val query =
                 mapOf(
@@ -413,7 +413,7 @@ open class AssetGraphQLIntegrationTest :
         fun `should delete asset`() {
             // Arrange
             val asset = createTestAsset()
-            mockStorageClient.simulateUpload(asset.storageKey, sizeBytes = 1024L)
+            mockStorageClient.simulateUpload(asset.storageBucket, asset.storageKey, sizeBytes = 1024L)
 
             val query =
                 mapOf(

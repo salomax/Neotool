@@ -213,8 +213,9 @@ class AssetWiringFactory(
                         // Get TTL parameter (default: 3600 seconds)
                         val ttlSeconds = env.getArgument<Int?>("ttlSeconds") ?: 3600
 
-                        // Generate presigned download URL
+                        // Generate presigned download URL using stored bucket
                         storageClient.generatePresignedDownloadUrl(
+                            asset.storageBucket,
                             asset.storageKey,
                             ttlSeconds.toLong(),
                         )

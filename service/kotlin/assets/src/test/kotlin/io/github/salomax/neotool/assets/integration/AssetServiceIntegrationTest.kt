@@ -98,6 +98,9 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
             Assertions.assertThat(asset.uploadUrl).isNotNull()
             Assertions.assertThat(asset.uploadUrl).isNotEmpty()
             Assertions.assertThat(asset.uploadExpiresAt).isNotNull()
+            // Verify bucket is set (user-profiles is PRIVATE, so should use private bucket)
+            Assertions.assertThat(asset.storageBucket).isNotNull()
+            Assertions.assertThat(asset.storageBucket).isNotEmpty()
             Assertions.assertThat(asset.ownerId).isEqualTo(testUserId)
             Assertions.assertThat(asset.namespace).isEqualTo("user-profiles")
 
@@ -135,6 +138,40 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
             // Assert
             Assertions.assertThat(secondAsset.id).isEqualTo(firstAsset.id)
             Assertions.assertThat(assetRepository.count()).isEqualTo(1)
+        }
+
+        @Test
+        fun `should use private bucket for PRIVATE namespace`() {
+            // Act - user-profiles is PRIVATE
+            val asset =
+                assetService.initiateUpload(
+                    namespace = "user-profiles",
+                    ownerId = testUserId,
+                    filename = "avatar.jpg",
+                    mimeType = "image/jpeg",
+                    sizeBytes = 1048576L,
+                )
+
+            // Assert
+            Assertions.assertThat(asset.storageBucket).isEqualTo("neotool-assets-private")
+            Assertions.assertThat(asset.visibility.name).isEqualTo("PRIVATE")
+        }
+
+        @Test
+        fun `should use public bucket for PUBLIC namespace`() {
+            // Act - group-assets is PUBLIC
+            val asset =
+                assetService.initiateUpload(
+                    namespace = "group-assets",
+                    ownerId = testUserId,
+                    filename = "logo.jpg",
+                    mimeType = "image/jpeg",
+                    sizeBytes = 1048576L,
+                )
+
+            // Assert
+            Assertions.assertThat(asset.storageBucket).isEqualTo("neotool-assets-public")
+            Assertions.assertThat(asset.visibility.name).isEqualTo("PUBLIC")
         }
 
         @Test
@@ -182,7 +219,7 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                     mimeType = "image/jpeg",
                     sizeBytes = 1024L,
                 )
-            mockStorageClient.simulateUpload(asset.storageKey!!, sizeBytes = 1024L, contentType = "image/jpeg")
+            mockStorageClient.simulateUpload(asset.storageBucket, asset.storageKey!!, sizeBytes = 1024L, contentType = "image/jpeg")
 
             // Act
             val confirmedAsset = assetService.confirmUpload(asset.id!!, testUserId)
@@ -240,7 +277,7 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                             namespace = "user-profiles",
                             storageKey = "test/key",
                             storageRegion = "us-east-1",
-                            storageBucket = "test-bucket",
+                            storageBucket = "neotool-assets-private", // user-profiles is PRIVATE
                             mimeType = "image/jpeg",
                             sizeBytes = 1024L,
                             checksum = null,
@@ -282,7 +319,7 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                             namespace = "user-profiles",
                             storageKey = "test/key",
                             storageRegion = "us-east-1",
-                            storageBucket = "test-bucket",
+                            storageBucket = "neotool-assets-private", // user-profiles is PRIVATE
                             mimeType = "image/jpeg",
                             sizeBytes = 1024L,
                             checksum = null,
@@ -331,7 +368,7 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                             namespace = "user-profiles",
                             storageKey = "test/key",
                             storageRegion = "us-east-1",
-                            storageBucket = "test-bucket",
+                            storageBucket = "neotool-assets-private", // user-profiles is PRIVATE
                             mimeType = "image/jpeg",
                             sizeBytes = 1024L,
                             checksum = null,
@@ -372,7 +409,7 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                             namespace = "user-profiles",
                             storageKey = "test/key",
                             storageRegion = "us-east-1",
-                            storageBucket = "test-bucket",
+                            storageBucket = "neotool-assets-private", // user-profiles is PRIVATE
                             mimeType = "image/jpeg",
                             sizeBytes = 1024L,
                             checksum = null,
@@ -389,7 +426,7 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                         )
                     assetRepository.save(entity)
                 }
-            mockStorageClient.simulateUpload(asset.storageKey, sizeBytes = 1024L)
+            mockStorageClient.simulateUpload(asset.storageBucket, asset.storageKey, sizeBytes = 1024L)
 
             // Act
             val deleted = assetService.deleteAsset(asset.id!!, testUserId)
@@ -424,7 +461,7 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                             namespace = "user-profiles",
                             storageKey = "test/key",
                             storageRegion = "us-east-1",
-                            storageBucket = "test-bucket",
+                            storageBucket = "neotool-assets-private", // user-profiles is PRIVATE
                             mimeType = "image/jpeg",
                             sizeBytes = 1024L,
                             checksum = null,

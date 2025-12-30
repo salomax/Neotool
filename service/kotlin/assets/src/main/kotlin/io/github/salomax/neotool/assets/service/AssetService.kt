@@ -6,9 +6,12 @@ import io.github.salomax.neotool.assets.domain.AssetStatus
 import io.github.salomax.neotool.assets.domain.AssetVisibility
 import io.github.salomax.neotool.assets.entity.AssetEntity
 import io.github.salomax.neotool.assets.repository.AssetRepository
+import io.github.salomax.neotool.assets.storage.BucketResolver
 import io.github.salomax.neotool.assets.storage.StorageClient
 import io.github.salomax.neotool.assets.storage.StorageKeyFactory
 import io.github.salomax.neotool.assets.storage.StorageProperties
+import io.micrometer.core.instrument.Counter
+import io.micrometer.core.instrument.MeterRegistry
 import jakarta.inject.Singleton
 import jakarta.transaction.Transactional
 import mu.KotlinLogging
@@ -34,8 +37,27 @@ open class AssetService(
     private val validationService: ValidationService,
     private val assetConfig: AssetConfigProperties,
     private val storageKeyFactory: StorageKeyFactory,
+    private val bucketResolver: BucketResolver,
+    private val meterRegistry: MeterRegistry? = null,
 ) {
     private val logger = KotlinLogging.logger {}
+
+    // Metrics for bucket usage tracking (optional - only if MeterRegistry is available)
+    private fun recordBucketUploadMetric(bucket: String, visibility: String) {
+        try {
+            meterRegistry?.let { registry ->
+                Counter.builder("assets.upload.bucket")
+                    .description("Number of asset uploads per bucket")
+                    .tag("bucket", bucket)
+                    .tag("visibility", visibility)
+                    .register(registry)
+                    .increment()
+            }
+        } catch (e: Exception) {
+            // Metrics are optional - don't fail if registry is not available
+            logger.debug(e) { "Failed to record bucket usage metric" }
+        }
+    }
 
     /**
      * Initiate asset upload.
@@ -66,10 +88,32 @@ open class AssetService(
         // Get namespace configuration
         val namespaceConfig = assetConfig.getNamespaceConfig(namespace)
 
+        // Determine bucket based on namespace visibility
+        val bucket = bucketResolver.resolveBucket(namespaceConfig.visibility)
+        logger.info {
+            "Selected bucket '$bucket' for namespace '$namespace' " +
+            "(visibility: ${namespaceConfig.visibility})"
+        }
+
+        // Track bucket usage metric
+        recordBucketUploadMetric(bucket, namespaceConfig.visibility.name)
+
         // Check for existing upload with same idempotency key (within 24 hours)
         if (idempotencyKey != null) {
             val existing = findByIdempotencyKey(ownerId, idempotencyKey)
             if (existing != null) {
+                // Verify bucket matches current namespace visibility
+                val expectedBucket = bucketResolver.resolveBucket(namespaceConfig.visibility)
+                if (existing.storageBucket != expectedBucket) {
+                    logger.warn {
+                        "Idempotency key conflict: existing asset in bucket ${existing.storageBucket}, " +
+                        "expected $expectedBucket for namespace $namespace"
+                    }
+                    throw IllegalArgumentException(
+                        "Idempotency key conflict: namespace visibility changed. " +
+                        "Please use a new idempotency key."
+                    )
+                }
                 logger.info { "Returning existing asset for idempotency key: $idempotencyKey, assetId=${existing.id}" }
                 return existing
             }
@@ -96,7 +140,7 @@ open class AssetService(
                 // Temporary, will be updated after save
                 storageKey = "temp/${UUID.randomUUID()}",
                 storageRegion = storageProperties.region,
-                storageBucket = storageProperties.bucket,
+                storageBucket = bucket, // Store selected bucket
                 mimeType = mimeType,
                 sizeBytes = sizeBytes,
                 checksum = null,
@@ -128,9 +172,10 @@ open class AssetService(
 
         logger.info { "Created PENDING asset: id=$assetId, storageKey=$storageKey, visibility=${updated.visibility}" }
 
-        // Generate pre-signed upload URL using namespace TTL
+        // Generate pre-signed upload URL using namespace TTL and selected bucket
         val uploadUrl =
             storageClient.generatePresignedUploadUrl(
+                bucket,
                 storageKey,
                 mimeType,
                 uploadTtlSeconds,
@@ -188,9 +233,12 @@ open class AssetService(
             throw IllegalArgumentException("Upload URL has expired")
         }
 
-        // Verify object exists in storage
-        if (!storageClient.objectExists(entity.storageKey)) {
-            logger.error { "Asset confirmation failed: object not found in storage: ${entity.storageKey}" }
+        // Verify object exists in storage using stored bucket
+        if (!storageClient.objectExists(entity.storageBucket, entity.storageKey)) {
+            logger.error {
+                "Asset confirmation failed: object not found in storage: " +
+                "bucket=${entity.storageBucket}, key=${entity.storageKey}"
+            }
             entity.status = AssetStatus.FAILED
             entity.uploadUrl = null // Clear stale upload URL
             entity.updatedAt = now
@@ -198,8 +246,8 @@ open class AssetService(
             throw IllegalArgumentException("Upload not completed: file not found in storage")
         }
 
-        // Get metadata from storage to verify
-        val metadata = storageClient.getObjectMetadata(entity.storageKey)
+        // Get metadata from storage to verify using stored bucket
+        val metadata = storageClient.getObjectMetadata(entity.storageBucket, entity.storageKey)
         if (metadata == null) {
             logger.error { "Asset confirmation failed: could not retrieve metadata: ${entity.storageKey}" }
             entity.status = AssetStatus.FAILED
@@ -310,7 +358,7 @@ open class AssetService(
             }
 
         logger.debug { "Generating presigned download URL with TTL: $ttlSeconds seconds" }
-        return storageClient.generatePresignedDownloadUrl(asset.storageKey, ttlSeconds)
+        return storageClient.generatePresignedDownloadUrl(asset.storageBucket, asset.storageKey, ttlSeconds)
     }
 
     /**
@@ -341,10 +389,13 @@ open class AssetService(
 
         // Delete from storage (best effort - don't fail if already deleted)
         try {
-            storageClient.deleteObject(entity.storageKey)
-            logger.debug { "Deleted from storage: ${entity.storageKey}" }
+            storageClient.deleteObject(entity.storageBucket, entity.storageKey)
+            logger.debug { "Deleted from storage: bucket=${entity.storageBucket}, key=${entity.storageKey}" }
         } catch (e: Exception) {
-            logger.warn(e) { "Failed to delete from storage (continuing): ${entity.storageKey}" }
+            logger.warn(e) {
+                "Failed to delete from storage (continuing): " +
+                "bucket=${entity.storageBucket}, key=${entity.storageKey}"
+            }
         }
 
         // Hard delete from database

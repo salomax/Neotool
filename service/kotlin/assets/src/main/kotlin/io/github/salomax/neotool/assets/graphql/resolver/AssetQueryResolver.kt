@@ -2,7 +2,7 @@ package io.github.salomax.neotool.assets.graphql.resolver
 
 import io.github.salomax.neotool.assets.graphql.dto.AssetDTO
 import io.github.salomax.neotool.assets.service.AssetService
-import io.github.salomax.neotool.assets.storage.StorageProperties
+import io.github.salomax.neotool.assets.storage.BucketResolver
 import jakarta.inject.Singleton
 import mu.KotlinLogging
 import java.util.UUID
@@ -15,7 +15,7 @@ import java.util.UUID
 @Singleton
 class AssetQueryResolver(
     private val assetService: AssetService,
-    private val storageProperties: StorageProperties,
+    private val bucketResolver: BucketResolver,
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -43,6 +43,6 @@ class AssetQueryResolver(
     ): AssetDTO? {
         val assetId = UUID.fromString(id)
         val asset = assetService.getAsset(assetId, requesterId) ?: return null
-        return AssetDTO.fromDomain(asset, storageProperties.getPublicBaseUrl())
+        return AssetDTO.fromDomain(asset, bucketResolver.getPublicBaseUrl())
     }
 }

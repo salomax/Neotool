@@ -9,6 +9,7 @@ import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest
 import software.amazon.awssdk.services.s3.model.GetObjectRequest
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest
+import software.amazon.awssdk.services.s3.model.NoSuchBucketException
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException
 import software.amazon.awssdk.services.s3.model.PutObjectRequest
 import software.amazon.awssdk.services.s3.model.S3Exception
@@ -37,11 +38,12 @@ class S3StorageClient(
     private val logger = LoggerFactory.getLogger(S3StorageClient::class.java)
 
     override fun generatePresignedUploadUrl(
+        bucket: String,
         storageKey: String,
         mimeType: String,
         ttlSeconds: Long,
     ): String {
-        logger.debug("Generating presigned upload URL for key: $storageKey, mimeType: $mimeType")
+        logger.debug("Generating presigned upload URL for bucket: $bucket, key: $storageKey, mimeType: $mimeType")
 
         return try {
             val presigner = createPresigner()
@@ -49,7 +51,7 @@ class S3StorageClient(
             val putRequest =
                 PutObjectRequest
                     .builder()
-                    .bucket(storageProperties.bucket)
+                    .bucket(bucket)
                     .key(storageKey)
                     .contentType(mimeType)
                     .build()
@@ -67,6 +69,12 @@ class S3StorageClient(
             val url = presignedRequest.url().toString()
             logger.debug("Generated presigned upload URL: $url")
             url
+        } catch (e: NoSuchBucketException) {
+            logger.error("Bucket does not exist: $bucket", e)
+            throw StorageUnavailableException(
+                "Storage bucket '$bucket' does not exist. Please contact administrator.",
+                e,
+            )
         } catch (e: SdkException) {
             logger.error("Failed to generate presigned upload URL: ${e.message}", e)
             throw StorageUnavailableException(
@@ -83,10 +91,11 @@ class S3StorageClient(
     }
 
     override fun generatePresignedDownloadUrl(
+        bucket: String,
         storageKey: String,
         ttlSeconds: Long,
     ): String {
-        logger.debug("Generating presigned download URL for key: $storageKey")
+        logger.debug("Generating presigned download URL for bucket: $bucket, key: $storageKey")
 
         return try {
             val presigner = createPresigner()
@@ -94,7 +103,7 @@ class S3StorageClient(
             val getRequest =
                 GetObjectRequest
                     .builder()
-                    .bucket(storageProperties.bucket)
+                    .bucket(bucket)
                     .key(storageKey)
                     .build()
 
@@ -111,6 +120,12 @@ class S3StorageClient(
             val url = presignedRequest.url().toString()
             logger.debug("Generated presigned download URL: $url")
             url
+        } catch (e: NoSuchBucketException) {
+            logger.error("Bucket does not exist: $bucket", e)
+            throw StorageUnavailableException(
+                "Storage bucket '$bucket' does not exist. Please contact administrator.",
+                e,
+            )
         } catch (e: SdkException) {
             logger.error("Failed to generate presigned download URL: ${e.message}", e)
             throw StorageUnavailableException(
@@ -126,22 +141,31 @@ class S3StorageClient(
         }
     }
 
-    override fun objectExists(storageKey: String): Boolean {
-        logger.debug("Checking if object exists: $storageKey")
+    override fun objectExists(
+        bucket: String,
+        storageKey: String,
+    ): Boolean {
+        logger.debug("Checking if object exists: bucket=$bucket, key=$storageKey")
 
         return try {
             val headRequest =
                 HeadObjectRequest
                     .builder()
-                    .bucket(storageProperties.bucket)
+                    .bucket(bucket)
                     .key(storageKey)
                     .build()
 
             s3Client.headObject(headRequest)
-            logger.debug("Object exists: $storageKey")
+            logger.debug("Object exists: bucket=$bucket, key=$storageKey")
             true
+        } catch (e: NoSuchBucketException) {
+            logger.error("Bucket does not exist: $bucket", e)
+            throw StorageUnavailableException(
+                "Storage bucket '$bucket' does not exist. Please contact administrator.",
+                e,
+            )
         } catch (e: NoSuchKeyException) {
-            logger.debug("Object does not exist: $storageKey")
+            logger.debug("Object does not exist: bucket=$bucket, key=$storageKey")
             false
         } catch (e: S3Exception) {
             // Check if it's a service unavailable error (503) or connection issue
@@ -167,14 +191,17 @@ class S3StorageClient(
         }
     }
 
-    override fun getObjectMetadata(storageKey: String): StorageClient.ObjectMetadata? {
-        logger.debug("Getting object metadata: $storageKey")
+    override fun getObjectMetadata(
+        bucket: String,
+        storageKey: String,
+    ): StorageClient.ObjectMetadata? {
+        logger.debug("Getting object metadata: bucket=$bucket, key=$storageKey")
 
         return try {
             val headRequest =
                 HeadObjectRequest
                     .builder()
-                    .bucket(storageProperties.bucket)
+                    .bucket(bucket)
                     .key(storageKey)
                     .build()
 
@@ -184,8 +211,14 @@ class S3StorageClient(
                 contentType = response.contentType(),
                 etag = response.eTag(),
             )
+        } catch (e: NoSuchBucketException) {
+            logger.error("Bucket does not exist: $bucket", e)
+            throw StorageUnavailableException(
+                "Storage bucket '$bucket' does not exist. Please contact administrator.",
+                e,
+            )
         } catch (e: NoSuchKeyException) {
-            logger.warn("Object not found for metadata: $storageKey")
+            logger.warn("Object not found for metadata: bucket=$bucket, key=$storageKey")
             null
         } catch (e: S3Exception) {
             // Check if it's a service unavailable error (503) or connection issue
@@ -211,23 +244,32 @@ class S3StorageClient(
         }
     }
 
-    override fun deleteObject(storageKey: String): Boolean {
-        logger.info("Deleting object: $storageKey")
+    override fun deleteObject(
+        bucket: String,
+        storageKey: String,
+    ): Boolean {
+        logger.info("Deleting object: bucket=$bucket, key=$storageKey")
 
         return try {
             val deleteRequest =
                 DeleteObjectRequest
                     .builder()
-                    .bucket(storageProperties.bucket)
+                    .bucket(bucket)
                     .key(storageKey)
                     .build()
 
             s3Client.deleteObject(deleteRequest)
-            logger.info("Successfully deleted object: $storageKey")
+            logger.info("Successfully deleted object: bucket=$bucket, key=$storageKey")
             true
+        } catch (e: NoSuchBucketException) {
+            logger.error("Bucket does not exist: $bucket", e)
+            throw StorageUnavailableException(
+                "Storage bucket '$bucket' does not exist. Please contact administrator.",
+                e,
+            )
         } catch (e: NoSuchKeyException) {
             // Object doesn't exist - consider deletion successful
-            logger.debug("Object not found for deletion (already deleted): $storageKey")
+            logger.debug("Object not found for deletion (already deleted): bucket=$bucket, key=$storageKey")
             true
         } catch (e: S3Exception) {
             // Check if it's a service unavailable error (503) or connection issue
@@ -251,7 +293,7 @@ class S3StorageClient(
                 e,
             )
         } catch (e: Exception) {
-            logger.error("Unexpected error deleting object: $storageKey", e)
+            logger.error("Unexpected error deleting object: bucket=$bucket, key=$storageKey", e)
             throw StorageUnavailableException(
                 "Storage service is currently unavailable. Please try again later.",
                 e,
@@ -259,7 +301,18 @@ class S3StorageClient(
         }
     }
 
-    override fun generatePublicUrl(storageKey: String): String {
+    override fun generatePublicUrl(
+        bucket: String,
+        storageKey: String,
+    ): String {
+        // Defensive check: public URLs should only be generated for public bucket
+        if (bucket != storageProperties.publicBucket) {
+            logger.warn(
+                "Attempted to generate public URL for private bucket: $bucket. " +
+                "This should not happen - use presigned URLs for private assets.",
+            )
+        }
+
         val baseUrl = storageProperties.getPublicBaseUrl().trimEnd('/')
         return "$baseUrl/$storageKey"
     }

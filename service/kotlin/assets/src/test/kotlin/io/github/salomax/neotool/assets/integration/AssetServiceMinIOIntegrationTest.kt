@@ -76,13 +76,17 @@ open class AssetServiceMinIOIntegrationTest : BaseIntegrationTest(), PostgresInt
                 )
                 .build()
 
-        // Ensure bucket exists
-        val bucketName = "neotool-assets"
-        try {
-            s3Client.headBucket(HeadBucketRequest.builder().bucket(bucketName).build())
-        } catch (e: NoSuchBucketException) {
-            // Bucket doesn't exist, create it
-            s3Client.createBucket(CreateBucketRequest.builder().bucket(bucketName).build())
+        // Ensure both buckets exist
+        val publicBucket = "neotool-assets-public"
+        val privateBucket = "neotool-assets-private"
+        
+        listOf(publicBucket, privateBucket).forEach { bucketName ->
+            try {
+                s3Client.headBucket(HeadBucketRequest.builder().bucket(bucketName).build())
+            } catch (e: NoSuchBucketException) {
+                // Bucket doesn't exist, create it
+                s3Client.createBucket(CreateBucketRequest.builder().bucket(bucketName).build())
+            }
         }
     }
 
@@ -148,11 +152,11 @@ open class AssetServiceMinIOIntegrationTest : BaseIntegrationTest(), PostgresInt
             Assertions.assertThat(confirmedAsset.storageKey).isEqualTo(asset.storageKey)
 
             // Verify object exists in MinIO
-            val objectExists = storageClient.objectExists(confirmedAsset.storageKey!!)
+            val objectExists = storageClient.objectExists(confirmedAsset.storageBucket, confirmedAsset.storageKey!!)
             Assertions.assertThat(objectExists).isTrue()
 
             // Verify metadata
-            val metadata = storageClient.getObjectMetadata(confirmedAsset.storageKey!!)
+            val metadata = storageClient.getObjectMetadata(confirmedAsset.storageBucket, confirmedAsset.storageKey!!)
             Assertions.assertThat(metadata).isNotNull()
             Assertions.assertThat(metadata?.sizeBytes).isEqualTo(sizeBytes)
         }
@@ -188,7 +192,7 @@ open class AssetServiceMinIOIntegrationTest : BaseIntegrationTest(), PostgresInt
             Assertions.assertThat(response.statusCode()).isIn(200, 204)
 
             // Verify object exists
-            val exists = storageClient.objectExists(asset.storageKey!!)
+            val exists = storageClient.objectExists(asset.storageBucket, asset.storageKey!!)
             Assertions.assertThat(exists).isTrue()
         }
 
@@ -218,7 +222,7 @@ open class AssetServiceMinIOIntegrationTest : BaseIntegrationTest(), PostgresInt
 
             // Confirm upload
             val confirmedAsset = assetService.confirmUpload(asset.id!!, testUserId)
-            Assertions.assertThat(storageClient.objectExists(confirmedAsset.storageKey!!)).isTrue()
+            Assertions.assertThat(storageClient.objectExists(confirmedAsset.storageBucket, confirmedAsset.storageKey!!)).isTrue()
 
             // Act - Delete asset
             val deleted = assetService.deleteAsset(confirmedAsset.id!!, testUserId)
@@ -227,7 +231,7 @@ open class AssetServiceMinIOIntegrationTest : BaseIntegrationTest(), PostgresInt
             Assertions.assertThat(deleted).isTrue()
 
             // Verify object is deleted from MinIO
-            val stillExists = storageClient.objectExists(confirmedAsset.storageKey!!)
+            val stillExists = storageClient.objectExists(confirmedAsset.storageBucket, confirmedAsset.storageKey!!)
             Assertions.assertThat(stillExists).isFalse()
 
             // Verify metadata is hard-deleted (should not exist)
@@ -248,7 +252,7 @@ open class AssetServiceMinIOIntegrationTest : BaseIntegrationTest(), PostgresInt
                 )
 
             // Act - Check before upload
-            val existsBefore = storageClient.objectExists(asset.storageKey!!)
+            val existsBefore = storageClient.objectExists(asset.storageBucket, asset.storageKey!!)
             Assertions.assertThat(existsBefore).isFalse()
 
             // Upload file
@@ -264,7 +268,7 @@ open class AssetServiceMinIOIntegrationTest : BaseIntegrationTest(), PostgresInt
             )
 
             // Act - Check after upload
-            val existsAfter = storageClient.objectExists(asset.storageKey!!)
+            val existsAfter = storageClient.objectExists(asset.storageBucket, asset.storageKey!!)
             Assertions.assertThat(existsAfter).isTrue()
         }
 
@@ -294,7 +298,7 @@ open class AssetServiceMinIOIntegrationTest : BaseIntegrationTest(), PostgresInt
             )
 
             // Act
-            val metadata = storageClient.getObjectMetadata(asset.storageKey!!)
+            val metadata = storageClient.getObjectMetadata(asset.storageBucket, asset.storageKey!!)
 
             // Assert
             Assertions.assertThat(metadata).isNotNull()
