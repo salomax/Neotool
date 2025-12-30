@@ -30,88 +30,28 @@ class AssetGraphQLExceptionHandler : DataFetcherExceptionHandler {
         return when (exception) {
             is IllegalArgumentException -> {
                 logger.debug("GraphQL validation error: ${exception.message}")
-
-                val errorBuilder =
-                    GraphQLError
-                        .newError()
-                        .message(exception.message ?: "Validation error")
-
-                // Only set path and location if they're not null to avoid NPE
-                handlerParameters.path?.let { errorBuilder.path(it) }
-                try {
-                    handlerParameters.sourceLocation?.let { errorBuilder.location(it) }
-                } catch (e: NullPointerException) {
-                    // sourceLocation can throw NPE if field is null, ignore it
-                }
-
-                val error =
-                    errorBuilder
-                        .extensions(buildExtensions("VALIDATION_ERROR"))
-                        .build()
-
-                CompletableFuture.completedFuture(
-                    DataFetcherExceptionHandlerResult
-                        .newResult()
-                        .error(error)
-                        .build(),
+                buildErrorResponse(
+                    handlerParameters,
+                    exception.message ?: "Validation error",
+                    "VALIDATION_ERROR",
                 )
             }
 
             is IllegalStateException -> {
                 logger.debug("GraphQL state error: ${exception.message}")
-
-                val errorBuilder =
-                    GraphQLError
-                        .newError()
-                        .message(exception.message ?: "Operation failed")
-
-                // Only set path and location if they're not null to avoid NPE
-                handlerParameters.path?.let { errorBuilder.path(it) }
-                try {
-                    handlerParameters.sourceLocation?.let { errorBuilder.location(it) }
-                } catch (e: NullPointerException) {
-                    // sourceLocation can throw NPE if field is null, ignore it
-                }
-
-                val error =
-                    errorBuilder
-                        .extensions(buildExtensions("STATE_ERROR"))
-                        .build()
-
-                CompletableFuture.completedFuture(
-                    DataFetcherExceptionHandlerResult
-                        .newResult()
-                        .error(error)
-                        .build(),
+                buildErrorResponse(
+                    handlerParameters,
+                    exception.message ?: "Operation failed",
+                    "STATE_ERROR",
                 )
             }
 
             is StorageUnavailableException -> {
                 logger.warn("Storage service unavailable: ${exception.message}", exception.cause)
-
-                val errorBuilder =
-                    GraphQLError
-                        .newError()
-                        .message(exception.message ?: "Storage service is currently unavailable. Please try again later.")
-
-                // Only set path and location if they're not null to avoid NPE
-                handlerParameters.path?.let { errorBuilder.path(it) }
-                try {
-                    handlerParameters.sourceLocation?.let { errorBuilder.location(it) }
-                } catch (e: NullPointerException) {
-                    // sourceLocation can throw NPE if field is null, ignore it
-                }
-
-                val error =
-                    errorBuilder
-                        .extensions(buildExtensions("STORAGE_UNAVAILABLE"))
-                        .build()
-
-                CompletableFuture.completedFuture(
-                    DataFetcherExceptionHandlerResult
-                        .newResult()
-                        .error(error)
-                        .build(),
+                buildErrorResponse(
+                    handlerParameters,
+                    exception.message ?: "Storage service is currently unavailable. Please try again later.",
+                    "STORAGE_UNAVAILABLE",
                 )
             }
 
@@ -123,14 +63,43 @@ class AssetGraphQLExceptionHandler : DataFetcherExceptionHandler {
         }
     }
 
-    private fun buildExtensions(
-        code: String,
-    ): Map<String, Any?> {
+    /**
+     * Builds a GraphQL error response with safe handling of optional fields.
+     * Safely sets path and location without throwing NPEs.
+     */
+    private fun buildErrorResponse(
+        handlerParameters: DataFetcherExceptionHandlerParameters,
+        message: String,
+        errorCode: String,
+    ): CompletableFuture<DataFetcherExceptionHandlerResult> {
+        val errorBuilder = GraphQLError.newError().message(message)
+
+        // Safely set path if available
+        handlerParameters.path?.let { errorBuilder.path(it) }
+
+        // Safely set location if available (sourceLocation can throw NPE when accessed if null)
+        try {
+            val sourceLocation = handlerParameters.sourceLocation
+            if (sourceLocation != null) {
+                errorBuilder.location(sourceLocation)
+            }
+        } catch (e: NullPointerException) {
+            // sourceLocation property access can throw NPE if underlying field is null
+            // This is a known issue with GraphQL Java library - ignore silently
+            logger.trace("Source location not available for error: $message")
+        }
+
+        val error = errorBuilder.extensions(buildExtensions(errorCode)).build()
+
+        return CompletableFuture.completedFuture(
+            DataFetcherExceptionHandlerResult.newResult().error(error).build(),
+        )
+    }
+
+    private fun buildExtensions(code: String): Map<String, Any?> {
         return mapOf(
             "code" to code,
             "service" to "assets",
         )
     }
 }
-
-

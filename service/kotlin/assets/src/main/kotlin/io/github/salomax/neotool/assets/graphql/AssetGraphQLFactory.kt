@@ -17,7 +17,14 @@ class AssetGraphQLFactory(
     fun graphQL(): graphql.GraphQL {
         val runtimeWiring = wiringFactory.build()
 
-        // Federation requires fetchEntities and resolveEntityType even if not actively used
+        // Federation requires fetchEntities and resolveEntityType even if not actively used.
+        // NOTE: fetchEntities is currently a placeholder. To implement proper federation support:
+        // 1. Inject AssetService or AssetRepository into this factory
+        // 2. Extract asset ID from representations and fetch from service
+        // 3. Convert domain Asset to AssetDTO using AssetGraphQLMapper
+        // 4. Return the DTO for federation to resolve references from other services
+        // For now, this returns null which means federation references to Asset will not resolve.
+        // This is acceptable if the assets service is not part of a federated supergraph.
         val federatedSchema =
             Federation.transform(registry, runtimeWiring)
                 .fetchEntities { env ->
@@ -30,9 +37,12 @@ class AssetGraphQLFactory(
                             try {
                                 when (rep["__typename"]) {
                                     "Asset" -> {
-                                        // For now, return null as we don't have a repository injected here
-                                        // In a real implementation, we would fetch the asset from the repository
-                                        // This is a placeholder for federation support
+                                        // TODO: Implement federation entity fetching
+                                        // This requires injecting AssetService/AssetRepository and AssetGraphQLMapper
+                                        // Example implementation:
+                                        // val assetId = UUID.fromString(id.toString())
+                                        // val asset = assetService.getAsset(assetId, null) // No requester for federation
+                                        // asset?.let { mapper.toAssetDTO(it) }
                                         null
                                     }
                                     else -> null

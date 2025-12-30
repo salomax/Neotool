@@ -1,38 +1,40 @@
 package io.github.salomax.neotool.assets.graphql
 
+import graphql.scalars.ExtendedScalars
 import graphql.schema.DataFetchingEnvironment
 import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.TypeRuntimeWiring
-import io.github.salomax.neotool.assets.domain.AssetResourceType
-import io.github.salomax.neotool.assets.domain.AssetStatus
+import io.github.salomax.neotool.assets.domain.rbac.AssetPermissions
+import java.time.Instant
+import java.time.OffsetDateTime
+import java.time.ZoneOffset
 import io.github.salomax.neotool.assets.graphql.dto.AssetDTO
-import io.github.salomax.neotool.assets.graphql.dto.ConfirmAssetUploadInput
-import io.github.salomax.neotool.assets.graphql.dto.CreateAssetUploadInput
 import io.github.salomax.neotool.assets.graphql.mapper.AssetGraphQLMapper
 import io.github.salomax.neotool.assets.graphql.resolver.AssetMutationResolver
 import io.github.salomax.neotool.assets.graphql.resolver.AssetQueryResolver
 import io.github.salomax.neotool.assets.storage.StorageClient
+import io.github.salomax.neotool.common.graphql.AuthenticatedGraphQLWiringFactory
 import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.createValidatedDataFetcher
 import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.getRequiredString
-import io.github.salomax.neotool.common.graphql.GraphQLPayloadDataFetcher.createMutationDataFetcher
 import io.github.salomax.neotool.common.graphql.GraphQLResolverRegistry
-import io.github.salomax.neotool.common.graphql.GraphQLWiringFactory
+import io.github.salomax.neotool.security.service.AuthorizationChecker
 import io.github.salomax.neotool.security.service.RequestPrincipalProvider
 import jakarta.inject.Singleton
 import java.util.UUID
 
 /**
- * Asset module wiring factory for GraphQL resolvers
+ * Asset module wiring factory for GraphQL resolvers with authentication and authorization.
  */
 @Singleton
 class AssetWiringFactory(
     private val queryResolver: AssetQueryResolver,
     private val mutationResolver: AssetMutationResolver,
     private val mapper: AssetGraphQLMapper,
-    private val requestPrincipalProvider: RequestPrincipalProvider,
+    requestPrincipalProvider: RequestPrincipalProvider,
+    authorizationChecker: AuthorizationChecker,
     private val storageClient: StorageClient,
     resolverRegistry: GraphQLResolverRegistry,
-) : GraphQLWiringFactory() {
+) : AuthenticatedGraphQLWiringFactory(requestPrincipalProvider, authorizationChecker) {
     init {
         // Register resolvers in the registry for cross-module access
         resolverRegistry.register("assetQuery", queryResolver)
@@ -44,12 +46,11 @@ class AssetWiringFactory(
             .dataFetcher(
                 "asset",
                 createValidatedDataFetcher { env ->
-                    val id = getRequiredString(env, "id")
-                    val principal = requestPrincipalProvider.fromGraphQl(env)
-                    val requesterId = principal.userId.toString()
-
-                    val asset = queryResolver.asset(id, requesterId)
-                    asset
+                    env.withPermission(AssetPermissions.ASSETS_ASSET_VIEW) { principal ->
+                        val id = getRequiredString(env, "id")
+                        val requesterId = principal.userId.toString()
+                        queryResolver.asset(id, requesterId)
+                    }
                 },
             )
 
@@ -58,35 +59,37 @@ class AssetWiringFactory(
             .dataFetcher(
                 "createAssetUpload",
                 createValidatedDataFetcher { env ->
-                    val inputMap = env.getArgument<Map<String, Any?>>("input")
-                        ?: throw IllegalArgumentException("input is required")
-                    val input = mapper.mapToCreateAssetUploadInput(inputMap)
-                    val principal = requestPrincipalProvider.fromGraphQl(env)
-                    val userId = principal.userId.toString()
-
-                    mutationResolver.createAssetUpload(input, userId)
+                    env.withPermission(AssetPermissions.ASSETS_ASSET_UPLOAD) { principal ->
+                        val inputMap =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        val input = mapper.mapToCreateAssetUploadInput(inputMap)
+                        val userId = principal.userId.toString()
+                        mutationResolver.createAssetUpload(input, userId)
+                    }
                 },
             )
             .dataFetcher(
                 "confirmAssetUpload",
                 createValidatedDataFetcher { env ->
-                    val inputMap = env.getArgument<Map<String, Any?>>("input")
-                        ?: throw IllegalArgumentException("input is required")
-                    val input = mapper.mapToConfirmAssetUploadInput(inputMap)
-                    val principal = requestPrincipalProvider.fromGraphQl(env)
-                    val userId = principal.userId.toString()
-
-                    mutationResolver.confirmAssetUpload(input, userId)
+                    env.withPermission(AssetPermissions.ASSETS_ASSET_UPLOAD) { principal ->
+                        val inputMap =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        val input = mapper.mapToConfirmAssetUploadInput(inputMap)
+                        val userId = principal.userId.toString()
+                        mutationResolver.confirmAssetUpload(input, userId)
+                    }
                 },
             )
             .dataFetcher(
                 "deleteAsset",
                 createValidatedDataFetcher { env ->
-                    val assetId = getRequiredString(env, "assetId")
-                    val principal = requestPrincipalProvider.fromGraphQl(env)
-                    val userId = principal.userId.toString()
-
-                    mutationResolver.deleteAsset(assetId, userId)
+                    env.withPermission(AssetPermissions.ASSETS_ASSET_DELETE) { principal ->
+                        val assetId = getRequiredString(env, "assetId")
+                        val userId = principal.userId.toString()
+                        mutationResolver.deleteAsset(assetId, userId)
+                    }
                 },
             )
 
@@ -94,6 +97,11 @@ class AssetWiringFactory(
 
     override fun registerCustomTypeResolvers(builder: RuntimeWiring.Builder): RuntimeWiring.Builder =
         builder
+            // Register scalar types - must be done before type resolvers
+            .scalar(ExtendedScalars.GraphQLLong)
+            .scalar(ExtendedScalars.DateTime)
+            .scalar(ExtendedScalars.UUID)
+            // Registrar Asset type resolvers
             .type("Asset") { type ->
                 type.dataFetcher(
                     "id",
@@ -121,20 +129,6 @@ class AssetWiringFactory(
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
                         val asset = env.getSource<AssetDTO>()
                         asset?.visibility?.name
-                    },
-                )
-                type.dataFetcher(
-                    "resourceType",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val asset = env.getSource<AssetDTO>()
-                        asset?.resourceType?.name
-                    },
-                )
-                type.dataFetcher(
-                    "resourceId",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val asset = env.getSource<AssetDTO>()
-                        asset?.resourceId
                     },
                 )
                 type.dataFetcher(
@@ -197,7 +191,8 @@ class AssetWiringFactory(
                     "uploadExpiresAt",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
                         val asset = env.getSource<AssetDTO>()
-                        asset?.uploadExpiresAt
+                        // Convert Instant to OffsetDateTime for GraphQL DateTime scalar
+                        asset?.uploadExpiresAt?.atOffset(ZoneOffset.UTC)
                     },
                 )
                 type.dataFetcher(
@@ -229,7 +224,7 @@ class AssetWiringFactory(
                         // Generate presigned download URL
                         storageClient.generatePresignedDownloadUrl(
                             asset.storageKey,
-                            ttlSeconds.toLong()
+                            ttlSeconds.toLong(),
                         )
                     },
                 )
@@ -251,23 +246,25 @@ class AssetWiringFactory(
                     "createdAt",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
                         val asset = env.getSource<AssetDTO>()
-                        asset?.createdAt
+                        // Convert Instant to OffsetDateTime for GraphQL DateTime scalar
+                        asset?.createdAt?.atOffset(ZoneOffset.UTC)
                     },
                 )
                 type.dataFetcher(
                     "updatedAt",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
                         val asset = env.getSource<AssetDTO>()
-                        asset?.updatedAt
+                        // Convert Instant to OffsetDateTime for GraphQL DateTime scalar
+                        asset?.updatedAt?.atOffset(ZoneOffset.UTC)
                     },
                 )
                 type.dataFetcher(
                     "deletedAt",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
                         val asset = env.getSource<AssetDTO>()
-                        asset?.deletedAt
+                        // Convert Instant to OffsetDateTime for GraphQL DateTime scalar
+                        asset?.deletedAt?.atOffset(ZoneOffset.UTC)
                     },
                 )
             }
 }
-

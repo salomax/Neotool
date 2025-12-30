@@ -123,7 +123,6 @@ mutation {
     mimeType: "image/jpeg"
     expectedSize: 2048000
     resourceType: PROFILE_IMAGE
-    resourceId: "user-123"
     idempotencyKey: "unique-client-uuid"
   }) {
     asset {

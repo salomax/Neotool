@@ -28,8 +28,6 @@ class AssetMutationResolver(
      * mutation {
      *   createAssetUpload(input: {
      *     namespace: "user-profiles"
-     *     resourceType: PROFILE_IMAGE
-     *     resourceId: "user-123"
      *     filename: "avatar.jpg"
      *     mimeType: "image/jpeg"
      *     sizeBytes: 1048576
@@ -39,9 +37,17 @@ class AssetMutationResolver(
      *     uploadUrl
      *     uploadExpiresAt
      *     status
+     *     visibility
+     *     storageKey
      *   }
      * }
      * ```
+     *
+     * Note: The `namespace` parameter determines:
+     * - Storage key template (configured per namespace)
+     * - Visibility level (PUBLIC or PRIVATE)
+     * - Validation rules (allowed MIME types, max file size)
+     * - Upload URL TTL
      *
      * @param input Create asset upload input
      * @param userId User ID of the requester (extracted from authentication context)
@@ -82,9 +88,15 @@ class AssetMutationResolver(
      *     id
      *     status
      *     publicUrl
+     *     downloadUrl(ttlSeconds: 3600)
+     *     visibility
      *   }
      * }
      * ```
+     *
+     * Note:
+     * - For PUBLIC assets: `publicUrl` will be populated with a stable CDN URL
+     * - For PRIVATE assets: `publicUrl` will be null, use `downloadUrl` instead
      *
      * @param input Confirm asset upload input
      * @param userId User ID of the requester (extracted from authentication context)

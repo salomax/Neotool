@@ -1,6 +1,6 @@
 -- Asset Service - Assets Table Migration
 -- Version: 1.1
--- Description: Creates the assets table with audit fields, visibility column, and indexes
+-- Description: Creates the assets table with audit fields and visibility column
 -- Reference: docs/03-features/assets/asset-service/README.md, docs/asset-refactor-plan.md
 
 -- Create assets schema if not exists
@@ -18,10 +18,6 @@ CREATE TABLE IF NOT EXISTS assets.assets (
     -- Ownership & namespace
     owner_id VARCHAR(255) NOT NULL,
     namespace VARCHAR(100) NOT NULL,
-
-    -- Resource association
-    resource_type VARCHAR(50) NOT NULL,
-    resource_id VARCHAR(255) NOT NULL,
 
     -- Storage metadata
     storage_key VARCHAR(500) NOT NULL UNIQUE,
@@ -65,32 +61,11 @@ CREATE TABLE IF NOT EXISTS assets.assets (
     CONSTRAINT assets_upload_expires_future CHECK (upload_expires_at IS NULL OR upload_expires_at > created_at)
 );
 
--- Indexes for performance
-CREATE INDEX IF NOT EXISTS idx_assets_owner_id ON assets.assets(owner_id);
-CREATE INDEX IF NOT EXISTS idx_assets_namespace ON assets.assets(namespace);
-CREATE INDEX IF NOT EXISTS idx_assets_resource ON assets.assets(resource_type, resource_id);
-CREATE INDEX IF NOT EXISTS idx_assets_status ON assets.assets(status);
-CREATE INDEX IF NOT EXISTS idx_assets_visibility ON assets.assets(visibility);
-CREATE INDEX IF NOT EXISTS idx_assets_created_at ON assets.assets(created_at);
-CREATE INDEX IF NOT EXISTS idx_assets_idempotency_key ON assets.assets(idempotency_key) WHERE idempotency_key IS NOT NULL;
-
--- Composite indexes for common queries
-CREATE INDEX IF NOT EXISTS idx_assets_owner_status ON assets.assets(owner_id, status);
-CREATE INDEX IF NOT EXISTS idx_assets_namespace_status ON assets.assets(namespace, status);
-CREATE INDEX IF NOT EXISTS idx_assets_owner_namespace ON assets.assets(owner_id, namespace);
-
--- Unique constraint for active idempotency (excludes FAILED status)
-CREATE UNIQUE INDEX IF NOT EXISTS idx_assets_idempotency_unique
-    ON assets.assets(owner_id, idempotency_key)
-    WHERE status != 'FAILED' AND idempotency_key IS NOT NULL;
-
 -- Comments for documentation
 COMMENT ON TABLE assets.assets IS 'Stores asset metadata for uploaded files (images, documents, etc.)';
 COMMENT ON COLUMN assets.assets.id IS 'UUID v7 primary key (time-sortable, database-generated)';
 COMMENT ON COLUMN assets.assets.owner_id IS 'User ID or system ID that owns this asset';
 COMMENT ON COLUMN assets.assets.namespace IS 'Logical grouping (e.g., user-profiles, group-assets)';
-COMMENT ON COLUMN assets.assets.resource_type IS 'Type of resource (e.g., PROFILE_IMAGE, INSTITUTION_LOGO)';
-COMMENT ON COLUMN assets.assets.resource_id IS 'ID of the resource this asset is attached to';
 COMMENT ON COLUMN assets.assets.storage_key IS 'Unique key in S3/R2 storage';
 COMMENT ON COLUMN assets.assets.storage_region IS 'Storage region (e.g., us-east-1)';
 COMMENT ON COLUMN assets.assets.storage_bucket IS 'Storage bucket name';

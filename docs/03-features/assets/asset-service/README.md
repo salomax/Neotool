@@ -1,10 +1,10 @@
 # Assets Service Specification
 
 ## Overview
-- Purpose: provide upload, storage, and delivery of binary assets (primarily images) via an S3-compatible store (Cloudflare R2 in prod, MinIO in dev) fronted by CDN. Public URLs now; signed URLs later without contract change.
-- Scope: backend service/API (GraphQL-only) to issue upload URLs, track metadata, and expose delivery URLs. No frontend UI beyond existing consumers.
-- Out of scope (for now): per-tenant billing, client-side image manipulation, video/transcoding, DRM, automated variant generation.
-- Future roadmap: malware scanning (Enterprise Plan with Cloudflare's detection), advanced backup strategies, GDPR/LGPD compliance tooling, SLO monitoring dashboards.
+- Purpose: provide upload, storage, and delivery of binary assets (primarily images and documents) via an S3-compatible store (Cloudflare R2 in prod, MinIO in dev) fronted by CDN.
+- Scope: backend service/API (GraphQL-only) to issue upload URLs, track metadata, and expose delivery URLs. Clients upload directly to storage; the service never proxies the binary.
+- Visibility model: namespaces drive visibility (PUBLIC vs PRIVATE) and storage key templates; PUBLIC assets get stable CDN URLs, PRIVATE assets use presigned download URLs with TTL.
+- Out of scope (current impl): variants/transcoding, malware scanning, overwrite semantics, multi-bucket sharding.
 
 ## Goals
 - Simple dev experience: same code path for local (MinIO) and prod (R2/S3) by switching env vars.
@@ -14,31 +14,40 @@
 
 ## Functional Requirements
 
-### API Surface (GraphQL-only)
-- Provide `createAssetUpload` GraphQL mutation that returns: `key`, `uploadUrl` (pre-signed PUT), `publicUrl`, `expiresAt`, `contentType`, `contentLengthLimit`.
-  - Mutation accepts optional `idempotencyKey` (UUID) for deduplication within 24h window; returns existing asset if key matches and status != FAILED.
-- Provide `asset` query for metadata + resolved `publicUrl` (or signed URL once enabled).
-- Optional list/search query for internal tooling: filter by owner, namespace, status, type, createdAt.
-- Upload is direct from client/job to storage; service never proxies the binary.
-- Expose health/readiness endpoints consistent with service standards (non-GraphQL).
+### API Surface (GraphQL-only, current implementation)
+- Mutations:
+  - `createAssetUpload(input: CreateAssetUploadInput!)` -> `Asset` with `uploadUrl`, `uploadExpiresAt`, `storageKey`, `visibility`, `status`.
+  - `confirmAssetUpload(input: ConfirmAssetUploadInput!)` -> `Asset` with updated `status` and URLs.
+  - `deleteAsset(assetId: ID!)` -> Boolean.
+- Query: `asset(id: ID!): Asset`.
+- Inputs:
+  - `CreateAssetUploadInput`: `namespace`, `filename`, `mimeType`, `sizeBytes`, optional `idempotencyKey`.
+  - `ConfirmAssetUploadInput`: `assetId`, optional `checksum`.
+- Upload is direct to storage using the presigned PUT URL returned by `createAssetUpload`.
+- URLs:
+  - PUBLIC assets: `publicUrl` populated from `publicBaseUrl + storageKey`.
+  - PRIVATE assets: `downloadUrl(ttlSeconds: Int = 3600)` field generates a presigned GET URL; `publicUrl` is null.
 
 ### Storage & Key Scheme
-- Single bucket per environment (configurable): `STORAGE_BUCKET`.
-- Object key format: `{namespace}/{resourceType}/{assetId}/{variant}` with default namespace `public` (tenant-less today); original upload uses `original` variant; derived variants use fixed names (e.g., `thumb`, `medium`, `full`).
-- Keys are immutable; no overwrite allowed once `READY` unless explicitly flagged (`allowOverwrite` false by default).
-- Store checksum (e.g., SHA-256) supplied by client or computed server-side for integrity/dedupe.
-- Enforce max object size per environment; reject pre-sign requests over limit.
+- Single bucket per environment (configurable): `asset.storage.bucket`.
+- Object key format is namespace-driven and templated: see `asset-config.yml` with placeholders `{namespace}`, `{ownerId}`, `{assetId}`; examples:
+  - `user-profiles/{ownerId}/{assetId}`
+  - `group-assets/{assetId}`
+  - `attachments/{ownerId}/{assetId}`
+- Keys are immutable; overwrites are not supported once `READY`.
+- Namespace controls visibility: PUBLIC (CDN URL) vs PRIVATE (presigned download URL).
+- Persisted fields (current impl): `id`, `owner_id`, `namespace`, `storage_key`, `storage_region`, `storage_bucket`, `mime_type`, `size_bytes`, `checksum`, `original_filename`, `upload_url`, `upload_expires_at`, `status`, `visibility`, `idempotency_key`, timestamps, `version`.
 
-- Persist: `id` (UUIDv7), `namespace` (default `public`), `ownerId` (user/service), `resourceType` (enum), `resourceId` (optional FK to domain resource), `status` (`PENDING_UPLOAD`, `READY`, `FAILED`, `DELETED`), `mimeType`, `size` (optional until head), `checksum`, `storageKey`, `publicBaseUrl`, `variants` (available + planned), `createdAt`, `updatedAt`, `deletedAt` (soft delete), `lastAccessedAt` (optional).
-- Status transitions: `PENDING_UPLOAD` -> `READY` on successful head/confirm; `FAILED` on error; `DELETED` on soft delete; hard delete/purge tracked separately.
-- Immutability: metadata is append-only for history-sensitive fields (owner, namespace, resource binding) unless explicitly allowed via admin path.
-
-### Upload Flow
-- Client calls `createAssetUpload` with `mimeType`, `expectedSize`, `resourceType/resourceId`, optional `namespace` (defaults to `public`), optional `checksum`.
-- Service validates mime/size/namespace quotas, allocates `assetId`, writes metadata as `PENDING_UPLOAD`, issues pre-signed PUT to storage endpoint with short TTL.
-- Client PUTs binary to storage (direct).
-- Service confirms upload: either via client callback (`confirmAssetUpload`), background poll/head, or event from storage if available. On success, updates status to `READY`, records size and checksum (if computed).
-- On failure/expiration, status -> `FAILED`; upload URL expires automatically; stale PENDING cleaned by scheduled job.
+### Upload Flow (current impl)
+- Client calls `createAssetUpload(namespace, filename, mimeType, sizeBytes, idempotencyKey?)`.
+  - Validates MIME and size against namespace rules from `asset-config.yml`.
+  - Stores `PENDING` asset with temporary key, then rewrites the key using the namespace template `{namespace}/{ownerId?}/{assetId}`.
+  - Generates a presigned PUT URL (TTL from namespace `uploadTtlSeconds` or global default) and returns it in `uploadUrl`.
+- Client PUTs the file directly to storage using that URL (no auth headers required beyond the presign).
+- Client calls `confirmAssetUpload(assetId, checksum?)`.
+  - Service verifies ownership, status, TTL, checks object exists, fetches metadata, and updates status to `READY`, clearing `uploadUrl`.
+  - For PRIVATE assets, consumers should ask for `downloadUrl(ttlSeconds)`; for PUBLIC assets, use `publicUrl`.
+- On expired or missing uploads, confirmation fails and the asset should be retried (status set to `FAILED` by cleanup jobs or error paths).
 
 ### Delivery & URLs
 - `publicUrl` = `STORAGE_PUBLIC_BASE_URL` + `storageKey` (variant-specific). Returned in API responses; not persisted as absolute string unless caching for analytics.
@@ -163,115 +172,101 @@
   - Public URL availability: >99.95% (CDN-dependent).
 - Error budget: track 5xx rate; 0.1% monthly budget.
 
-## API Contract (GraphQL First)
+## API Contract (GraphQL)
 
 ### Mutations
-- **`createAssetUpload(input: CreateAssetUploadInput!): CreateAssetUploadPayload`**
-  - Input: `{ mimeType!, expectedSize!, resourceType!, resourceId, namespace, checksum, idempotencyKey }`
-  - Payload: `{ asset { id, key, status, mimeType, plannedVariants, publicUrl, uploadUrl, uploadExpiresAt } }`
-  - Errors: `VALIDATION_ERROR` (invalid mime/size/quota), `RATE_LIMIT_EXCEEDED`, `UNAUTHORIZED`, `STORAGE_UNAVAILABLE`.
+- **`createAssetUpload(input: CreateAssetUploadInput!): Asset!`**
+  - Input fields: `namespace!`, `filename!`, `mimeType!`, `sizeBytes!`, `idempotencyKey`.
+  - Returns: full `Asset` object including `uploadUrl`, `uploadExpiresAt`, `status`, `visibility`, `storageKey`.
+  - Errors: `VALIDATION_ERROR`, `STATE_ERROR`, `STORAGE_UNAVAILABLE`, plus auth errors via wiring permissions.
 
-- **`confirmAssetUpload(id: ID!, size: Int, checksum: String): ConfirmAssetUploadPayload`**
-  - Optional explicit confirmation path; alternative to background polling.
-  - Updates status to `READY` if object exists; `FAILED` otherwise.
+- **`confirmAssetUpload(input: ConfirmAssetUploadInput!): Asset!`**
+  - Input fields: `assetId!`, optional `checksum`.
+  - Returns: updated `Asset`; for PUBLIC assets `publicUrl` is populated, for PRIVATE assets use `downloadUrl(ttlSeconds)` field.
 
-- **`deleteAsset(id: ID!): DeleteAssetPayload`**
-  - Hard delete: immediately removes object from R2 and marks metadata as `DELETED`.
-  - Returns success boolean and `deletedAt` timestamp.
-
-- **`purgeAsset(id: ID!): PurgeAssetPayload`**
-  - Admin-only; for compliance/GDPR (future implementation).
-  - Bypasses grace periods; immediately purges metadata and object.
+- **`deleteAsset(assetId: ID!): Boolean!`**
+  - Hard-deletes metadata row and attempts to delete object from storage. Returns `true` on success, `false` if not found/unauthorized.
 
 ### Queries
 - **`asset(id: ID!): Asset`**
-  - Returns: `{ id, namespace, ownerId, resourceType, resourceId, status, mimeType, sizeBytes, checksum, storageKey, publicUrl, variants, createdAt, updatedAt, deletedAt }`
-
-- **`assets(filter: AssetFilter, limit: Int, offset: Int): AssetsConnection`**
-  - Filter: `{ namespace, ownerId, resourceType, resourceId, status, createdAfter, createdBefore }`
-  - For internal tooling/admin dashboards.
+  - Returns asset if found and authorized (PUBLIC assets bypass owner check; PRIVATE requires ownership).
 
 ### Error Handling
 - Errors follow project GraphQL standards: structured error types with codes.
-- Common codes: `VALIDATION_ERROR` (400), `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `RATE_LIMIT_EXCEEDED` (429), `STORAGE_UNAVAILABLE` (502/503).
+- Asset module maps: `VALIDATION_ERROR`, `STATE_ERROR`, `STORAGE_UNAVAILABLE`; optimistic locking delegated to common handler.
+
+## Client Integration (Service-to-Service)
+1. Choose namespace based on business rules; namespaces are defined in `asset-config.yml` with visibility, allowed MIME types, size limits, and key templates.
+2. Call `createAssetUpload` with `namespace`, `filename`, `mimeType`, `sizeBytes`, and a client-generated `idempotencyKey` to dedupe retries within 24h.
+3. Perform `PUT` to the returned `uploadUrl` with `Content-Type` set to the declared MIME type; no auth headers are needed beyond the presign.
+4. Call `confirmAssetUpload` with the returned `assetId`; optionally include a checksum (stored but not validated against multipart ETags yet).
+5. Use the returned URLs:
+   - PUBLIC: use `publicUrl` (stable CDN URL derived from `storageKey`).
+   - PRIVATE: call `downloadUrl(ttlSeconds)` in the GraphQL response shape to fetch a presigned GET URL per request.
+6. Handle failures: if confirmation fails due to expiry, retry by issuing a new `createAssetUpload` (idempotency prevents dupes) and uploading again.
 
 ## Data Model (Logical)
 
-### Table: `asset` (schema `app`)
-**Columns:**
-- `id` (UUID v7, PK): unique asset identifier; time-sortable.
-- `namespace` (VARCHAR, NOT NULL, default `'public'`): logical grouping; future multi-tenancy.
-- `owner_id` (UUID, NOT NULL): FK to user/service who owns the asset.
-- `resource_type` (ENUM `asset_resource_type`, NOT NULL): type of resource (e.g., `profile_image`, `post_image`, `document`).
-- `resource_id` (UUID, NULLABLE): optional FK to domain resource (e.g., user.id, post.id).
-- `storage_key` (VARCHAR, NOT NULL, UNIQUE): full object key in R2 bucket (e.g., `public/profile_image/01HQXY.../original`).
-- `public_base_url` (VARCHAR, NOT NULL): base CDN URL (e.g., `https://cdn.example.com/assets/`).
-- `mime_type` (VARCHAR, NOT NULL): validated MIME type.
-- `size_bytes` (BIGINT, NULLABLE): actual size after upload; NULL until confirmed.
-- `checksum` (VARCHAR, NULLABLE): SHA-256 or client-provided checksum for integrity.
-- `status` (ENUM `asset_status`, NOT NULL): `PENDING_UPLOAD`, `READY`, `FAILED`, `DELETED`.
-- `variants_planned` (JSONB, NULLABLE): planned variants config (future); e.g., `["thumb", "medium"]`.
-- `variants_ready` (JSONB, NULLABLE): successfully generated variants (future); e.g., `["thumb"]`.
-- `error_reason` (TEXT, NULLABLE): reason for `FAILED` status.
-- `idempotency_key` (UUID, NULLABLE, UNIQUE): client-provided key for deduplication (24h window).
-- `created_at` (TIMESTAMPTZ, NOT NULL, default NOW()).
-- `updated_at` (TIMESTAMPTZ, NOT NULL, default NOW(), auto-update on change).
-- `deleted_at` (TIMESTAMPTZ, NULLABLE): soft delete timestamp (if hard delete not used, set on delete).
-- `deleted_by` (UUID, NULLABLE): actor who deleted the asset.
+### Table: `assets` (schema `assets`)
+**Columns (current implementation):**
+- `id` (UUID v7, PK, db-generated)
+- `owner_id` (VARCHAR, NOT NULL)
+- `namespace` (VARCHAR, NOT NULL)
+- `storage_key` (VARCHAR, NOT NULL, UNIQUE)
+- `storage_region` (VARCHAR, NOT NULL)
+- `storage_bucket` (VARCHAR, NOT NULL)
+- `mime_type` (VARCHAR, NOT NULL)
+- `size_bytes` (BIGINT, NULLABLE)
+- `checksum` (VARCHAR, NULLABLE)
+- `original_filename` (VARCHAR, NULLABLE)
+- `upload_url` (TEXT, NULLABLE)
+- `upload_expires_at` (TIMESTAMPTZ, NULLABLE)
+- `public_url` (TEXT, NULLABLE; deprecated, derived at runtime)
+- `status` (VARCHAR ENUM: `PENDING`, `READY`, `FAILED`, `DELETED`)
+- `visibility` (VARCHAR ENUM: `PUBLIC`, `PRIVATE`)
+- `idempotency_key` (VARCHAR, NULLABLE)
+- `created_at` (TIMESTAMPTZ, NOT NULL, default NOW())
+- `updated_at` (TIMESTAMPTZ, NOT NULL, default NOW(), trigger-updated)
+- `deleted_at` (TIMESTAMPTZ, NULLABLE)
+- `version` (BIGINT, optimistic locking)
 
-**Indexes:**
-- `(namespace, id)`: primary access pattern.
-- `(namespace, resource_type, resource_id)`: query assets by resource.
-- `(owner_id, created_at)`: query assets by owner.
-- `(status, created_at)`: cleanup jobs for expired `PENDING_UPLOAD`.
-- `(idempotency_key)`: fast lookup for deduplication (partial index where NOT NULL).
+**Indexes / queries:**
+- `storage_key` unique lookup.
+- `owner_id` and `namespace` lookups for listing and quotas.
+- `status` + `timestamps` for cleanup of stale PENDING/FAILED assets.
 
-**Enums:**
-- `asset_status`: `PENDING_UPLOAD`, `READY`, `FAILED`, `DELETED`.
-- `asset_resource_type`: `profile_image`, `post_image`, `document`, `attachment` (extend as needed).
-
-**Constraints:**
-- Foreign key `owner_id` -> `app.user.id` or `app.service.id` (depending on auth model).
-- Check constraint: `size_bytes >= 0` when NOT NULL.
-- Check constraint: `deleted_at IS NULL OR status = 'DELETED'`.
+**Notes:**
+- Visibility is derived from namespace config; storage keys come from namespace templates.
+- `public_url` is no longer persisted; `publicUrl` is generated from `storageKey` at read time.
 
 ## Key Workflows
 
-### 1. Upload Issuance
+### 1. Upload Issuance (createAssetUpload)
 ```
-Client -> GraphQL: createAssetUpload(mimeType, expectedSize, resourceType, ...)
+Client -> GraphQL: createAssetUpload(input: {
+  namespace, filename, mimeType, sizeBytes, idempotencyKey?
+})
 Service:
-  1. Check idempotencyKey; return existing if duplicate within 24h
-  2. Validate MIME type against allowed list (magic bytes check deferred to confirmation)
-  3. Validate expectedSize against quota (per-owner, per-namespace, per-resourceType)
-  4. Check rate limits (per-owner); reject if exceeded
-  5. Allocate assetId (UUIDv7)
-  6. Compute storage_key: {namespace}/{resourceType}/{assetId}/original
-  7. Insert metadata with status = PENDING_UPLOAD
-  8. Generate pre-signed PUT URL (TTL: 15min, headers: Content-Type, Content-Length)
-  9. Return: { assetId, uploadUrl, publicUrl, expiresAt }
+  1. Check idempotencyKey for same owner (24h window); return existing asset if found
+  2. Load namespace config (visibility, keyTemplate, limits) from asset-config.yml
+  3. Validate MIME and size against namespace rules
+  4. Insert PENDING asset with temporary key, then compute final storage_key from template ({namespace}/{ownerId?}/{assetId})
+  5. Generate presigned PUT URL (TTL from namespace or global setting)
+  6. Persist uploadUrl and return Asset with uploadUrl + uploadExpiresAt
 ```
 
-### 2. Upload Confirmation
-**Option A: Client Callback**
+### 2. Upload Confirmation (confirmAssetUpload)
 ```
-Client -> R2: PUT binary to uploadUrl (direct)
-Client -> GraphQL: confirmAssetUpload(assetId, size, checksum)
+Client -> storage: PUT binary using uploadUrl (direct)
+Client -> GraphQL: confirmAssetUpload(input: { assetId, checksum? })
 Service:
-  1. HEAD object in R2 to verify existence
-  2. Validate size matches expectedSize (tolerance ±1%)
-  3. Optional: compute checksum if not provided and compare
-  4. Update metadata: status = READY, size_bytes = actual, checksum
-  5. Return: { asset { status, publicUrl } }
-```
-
-**Option B: Background Polling**
-```
-Service (scheduled every 1min):
-  1. Query assets with status = PENDING_UPLOAD AND created_at > 15min ago
-  2. For each: HEAD object in R2
-  3. If exists: update to READY (same validation as Option A)
-  4. If not exists and created_at > 1h: update to FAILED (expired)
+  1. Verify owner matches and status is PENDING, and upload URL not expired
+  2. HEAD object to ensure it exists; fetch metadata (size, ETag, content-type)
+  3. Persist checksum if provided (ETag comparison for simple uploads only)
+  4. Update status to READY, set sizeBytes, clear uploadUrl
+  5. Return Asset with:
+     - publicUrl when visibility = PUBLIC
+     - downloadUrl resolver for PRIVATE (requires ttlSeconds argument)
 ```
 
 ### 3. Hard Delete
@@ -474,24 +469,24 @@ Service:
 const { data } = await graphql(`
   mutation {
     createAssetUpload(input: {
+      namespace: "user-profiles"
+      filename: "avatar.jpg"
       mimeType: "image/jpeg"
-      expectedSize: 2048000
-      resourceType: PROFILE_IMAGE
-      resourceId: "user-123"
+      sizeBytes: 204800
       idempotencyKey: "unique-client-uuid"
     }) {
-      asset {
-        id
-        uploadUrl
-        publicUrl
-        uploadExpiresAt
-      }
+      id
+      uploadUrl
+      uploadExpiresAt
+      status
+      visibility
+      storageKey
     }
   }
 `)
 
 // 2. Upload file directly to R2
-const response = await fetch(data.createAssetUpload.asset.uploadUrl, {
+const response = await fetch(data.createAssetUpload.uploadUrl, {
   method: 'PUT',
   headers: { 'Content-Type': 'image/jpeg' },
   body: fileBlob
@@ -500,14 +495,17 @@ const response = await fetch(data.createAssetUpload.asset.uploadUrl, {
 // 3. Confirm upload (or rely on background polling)
 await graphql(`
   mutation {
-    confirmAssetUpload(id: "${data.createAssetUpload.asset.id}") {
-      asset { status publicUrl }
+    confirmAssetUpload(input: { assetId: "${data.createAssetUpload.id}" }) {
+      id
+      status
+      publicUrl        // populated when visibility = PUBLIC
+      downloadUrl      // provide ttlSeconds arg when visibility = PRIVATE
     }
   }
 `)
 
 // 4. Use public URL
-console.log(data.createAssetUpload.asset.publicUrl)
+console.log(data.confirmAssetUpload.publicUrl)
 // => https://cdn.neotool.com/assets/public/profile_image/01HQXY.../original
 ```
 

@@ -1,7 +1,6 @@
 package io.github.salomax.neotool.assets.service
 
 import io.github.salomax.neotool.assets.config.AssetConfigProperties
-import io.github.salomax.neotool.assets.domain.AssetResourceType
 import io.github.salomax.neotool.assets.test.ValidationTestDataBuilders
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach

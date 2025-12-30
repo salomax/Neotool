@@ -51,10 +51,11 @@ class StorageKeyFactory {
         }
 
         // Replace placeholders
-        var key = template
-            .replace("{namespace}", namespace)
-            .replace("{ownerId}", ownerId)
-            .replace("{assetId}", assetId.toString())
+        var key =
+            template
+                .replace("{namespace}", namespace)
+                .replace("{ownerId}", ownerId)
+                .replace("{assetId}", assetId.toString())
 
         // Validate resulting key format
         validateKeyFormat(namespace, key)
@@ -72,7 +73,10 @@ class StorageKeyFactory {
      * - Valid characters (alphanumeric, hyphens, underscores, slashes)
      * - Not empty
      */
-    private fun validateKeyFormat(namespace: String, key: String) {
+    private fun validateKeyFormat(
+        namespace: String,
+        key: String,
+    ) {
         if (key.isBlank()) {
             throw IllegalArgumentException(
                 "Generated storage key for namespace '$namespace' is empty",
@@ -100,4 +104,3 @@ class StorageKeyFactory {
         }
     }
 }
-

@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.assets.test.integration
 
-import io.github.salomax.neotool.assets.domain.AssetResourceType
 import io.github.salomax.neotool.assets.domain.AssetStatus
 import io.github.salomax.neotool.assets.repository.AssetRepository
 import io.github.salomax.neotool.assets.service.AssetService
@@ -103,8 +102,6 @@ open class AssetServiceMinIOIntegrationTest : BaseIntegrationTest(), PostgresInt
         fun `should complete full upload flow with real MinIO`() {
             // Arrange
             val namespace = "user-profiles"
-            val resourceType = AssetResourceType.PROFILE_IMAGE
-            val resourceId = "user-123"
             val filename = "avatar.jpg"
             val mimeType = "image/jpeg"
             val sizeBytes = 1024L
@@ -113,8 +110,6 @@ open class AssetServiceMinIOIntegrationTest : BaseIntegrationTest(), PostgresInt
             val asset =
                 assetService.initiateUpload(
                     namespace = namespace,
-                    resourceType = resourceType,
-                    resourceId = resourceId,
                     ownerId = testUserId,
                     filename = filename,
                     mimeType = mimeType,
@@ -168,8 +163,6 @@ open class AssetServiceMinIOIntegrationTest : BaseIntegrationTest(), PostgresInt
             val asset =
                 assetService.initiateUpload(
                     namespace = "user-profiles",
-                    resourceType = AssetResourceType.PROFILE_IMAGE,
-                    resourceId = "user-456",
                     ownerId = testUserId,
                     filename = "test.jpg",
                     mimeType = "image/jpeg",
@@ -205,8 +198,6 @@ open class AssetServiceMinIOIntegrationTest : BaseIntegrationTest(), PostgresInt
             val asset =
                 assetService.initiateUpload(
                     namespace = "user-profiles",
-                    resourceType = AssetResourceType.PROFILE_IMAGE,
-                    resourceId = "user-789",
                     ownerId = testUserId,
                     filename = "delete-test.jpg",
                     mimeType = "image/jpeg",
@@ -250,8 +241,6 @@ open class AssetServiceMinIOIntegrationTest : BaseIntegrationTest(), PostgresInt
             val asset =
                 assetService.initiateUpload(
                     namespace = "user-profiles",
-                    resourceType = AssetResourceType.PROFILE_IMAGE,
-                    resourceId = "user-exists",
                     ownerId = testUserId,
                     filename = "exists-test.jpg",
                     mimeType = "image/jpeg",
@@ -286,8 +275,6 @@ open class AssetServiceMinIOIntegrationTest : BaseIntegrationTest(), PostgresInt
             val asset =
                 assetService.initiateUpload(
                     namespace = "user-profiles",
-                    resourceType = AssetResourceType.PROFILE_IMAGE,
-                    resourceId = "user-metadata",
                     ownerId = testUserId,
                     filename = "metadata-test.jpg",
                     mimeType = "image/jpeg",

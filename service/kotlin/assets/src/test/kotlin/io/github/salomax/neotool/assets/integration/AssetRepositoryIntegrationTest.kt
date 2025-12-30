@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.assets.test.integration
 
-import io.github.salomax.neotool.assets.domain.AssetResourceType
 import io.github.salomax.neotool.assets.domain.AssetStatus
 import io.github.salomax.neotool.assets.entity.AssetEntity
 import io.github.salomax.neotool.assets.repository.AssetRepository
@@ -51,8 +50,6 @@ open class AssetRepositoryIntegrationTest : BaseIntegrationTest(), PostgresInteg
         ownerId: String = "test-user-${UUID.randomUUID()}",
         status: AssetStatus = AssetStatus.READY,
         namespace: String = "user-profiles",
-        resourceType: AssetResourceType = AssetResourceType.PROFILE_IMAGE,
-        resourceId: String = "resource-${UUID.randomUUID()}",
     ): AssetEntity {
         return entityManager.runTransaction {
             val entity =
@@ -60,9 +57,7 @@ open class AssetRepositoryIntegrationTest : BaseIntegrationTest(), PostgresInteg
                     id = null,
                     ownerId = ownerId,
                     namespace = namespace,
-                    resourceType = resourceType,
-                    resourceId = resourceId,
-                    storageKey = "$namespace/$resourceType/$resourceId/${UUID.randomUUID()}",
+                    storageKey = "$namespace/$ownerId/${UUID.randomUUID()}",
                     storageRegion = "us-east-1",
                     storageBucket = "test-bucket",
                     mimeType = "image/jpeg",
@@ -95,9 +90,7 @@ open class AssetRepositoryIntegrationTest : BaseIntegrationTest(), PostgresInteg
                     id = null,
                     ownerId = "test-user",
                     namespace = "user-profiles",
-                    resourceType = AssetResourceType.PROFILE_IMAGE,
-                    resourceId = "user-123",
-                    storageKey = "user-profiles/profile-image/user-123/${UUID.randomUUID()}",
+                    storageKey = "user-profiles/profile-image/test-user/${UUID.randomUUID()}",
                     storageRegion = "us-east-1",
                     storageBucket = "test-bucket",
                     mimeType = "image/jpeg",
@@ -274,46 +267,6 @@ open class AssetRepositoryIntegrationTest : BaseIntegrationTest(), PostgresInteg
     }
 
     @Nested
-    @DisplayName("Find By Resource")
-    inner class FindByResourceTests {
-        @Test
-        fun `should find assets by resource type and ID`() {
-            // Arrange
-            val resourceId = "resource-${UUID.randomUUID()}"
-            val asset1 = createTestAsset(resourceType = AssetResourceType.PROFILE_IMAGE, resourceId = resourceId)
-            val asset2 = createTestAsset(resourceType = AssetResourceType.PROFILE_IMAGE, resourceId = resourceId)
-            createTestAsset(resourceType = AssetResourceType.ATTACHMENT, resourceId = resourceId) // Different type
-            createTestAsset(resourceType = AssetResourceType.PROFILE_IMAGE, resourceId = "other-resource") // Different ID
-
-            // Act
-            val assets = assetRepository.findByResourceTypeAndResourceId(AssetResourceType.PROFILE_IMAGE, resourceId)
-
-            // Assert
-            Assertions.assertThat(assets).hasSizeGreaterThanOrEqualTo(2)
-            val assetIds = assets.map { it.id }.toSet()
-            Assertions.assertThat(assetIds).contains(asset1.id, asset2.id)
-        }
-
-        @Test
-        fun `should find latest ready asset by resource`() {
-            // Arrange
-            val resourceId = "resource-${UUID.randomUUID()}"
-            val olderAsset = createTestAsset(resourceType = AssetResourceType.PROFILE_IMAGE, resourceId = resourceId, status = AssetStatus.READY)
-            Thread.sleep(10) // Ensure different timestamps
-            val newerAsset = createTestAsset(resourceType = AssetResourceType.PROFILE_IMAGE, resourceId = resourceId, status = AssetStatus.READY)
-            createTestAsset(resourceType = AssetResourceType.PROFILE_IMAGE, resourceId = resourceId, status = AssetStatus.PENDING) // Should not be returned
-
-            // Act
-            val latest = assetRepository.findLatestReadyByResource(AssetResourceType.PROFILE_IMAGE, resourceId)
-
-            // Assert
-            Assertions.assertThat(latest).isPresent
-            Assertions.assertThat(latest.get().id).isEqualTo(newerAsset.id)
-            Assertions.assertThat(latest.get().status).isEqualTo(AssetStatus.READY)
-        }
-    }
-
-    @Nested
     @DisplayName("Find By Idempotency Key")
     inner class FindByIdempotencyKeyTests {
         @Test
@@ -328,8 +281,6 @@ open class AssetRepositoryIntegrationTest : BaseIntegrationTest(), PostgresInteg
                             id = null,
                             ownerId = ownerId,
                             namespace = "user-profiles",
-                            resourceType = AssetResourceType.PROFILE_IMAGE,
-                            resourceId = "user-123",
                             storageKey = "test/key",
                             storageRegion = "us-east-1",
                             storageBucket = "test-bucket",

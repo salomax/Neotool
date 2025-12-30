@@ -1,7 +1,5 @@
 package io.github.salomax.neotool.assets.graphql.resolver
 
-import io.github.salomax.neotool.assets.domain.AssetResourceType
-import io.github.salomax.neotool.assets.domain.AssetStatus
 import io.github.salomax.neotool.assets.graphql.dto.AssetDTO
 import io.github.salomax.neotool.assets.service.AssetService
 import io.github.salomax.neotool.assets.storage.StorageProperties
@@ -47,5 +45,4 @@ class AssetQueryResolver(
         val asset = assetService.getAsset(assetId, requesterId) ?: return null
         return AssetDTO.fromDomain(asset, storageProperties.getPublicBaseUrl())
     }
-
 }

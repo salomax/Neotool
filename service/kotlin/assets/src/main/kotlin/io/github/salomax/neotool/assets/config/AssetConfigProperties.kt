@@ -10,7 +10,7 @@ import java.io.InputStream
 /**
  * Asset configuration properties loaded from asset-config.yml.
  *
- * Provides namespace-based validation rules and global rate limits.
+ * Provides namespace-based validation rules.
  */
 @Singleton
 class AssetConfigProperties(
@@ -27,18 +27,10 @@ class AssetConfigProperties(
      *
      * Falls back to "default" namespace if not found.
      */
-    fun getNamespaceConfig(namespace: String): NamespaceConfig {
-        return config.namespaces[namespace]
+    fun getNamespaceConfig(namespace: String): NamespaceConfig =
+        config.namespaces[namespace]
             ?: config.namespaces["default"]
             ?: throw IllegalStateException("Default namespace configuration not found")
-    }
-
-    /**
-     * Get rate limit configuration.
-     */
-    fun getRateLimitConfig(): RateLimitConfig {
-        return config.rateLimit
-    }
 
     /**
      * Load configuration from asset-config.yml.
@@ -47,7 +39,8 @@ class AssetConfigProperties(
         logger.info { "Loading asset configuration from asset-config.yml" }
 
         val inputStream: InputStream =
-            resourceLoader.getResourceAsStream("classpath:asset-config.yml")
+            resourceLoader
+                .getResourceAsStream("classpath:asset-config.yml")
                 .orElseThrow { IllegalStateException("asset-config.yml not found in classpath") }
 
         val yaml = Yaml()
@@ -63,21 +56,9 @@ class AssetConfigProperties(
                 parseNamespaceConfig(name, namespaceMap)
             }
 
-        // Parse rate limits
-        val rateLimitMap =
-            configMap["rateLimit"] as? Map<String, Any>
-                ?: throw IllegalStateException("rateLimit configuration not found")
-
-        val rateLimit =
-            RateLimitConfig(
-                uploadsPerHour = (rateLimitMap["uploadsPerHour"] as? Int) ?: 100,
-                uploadsPerDay = (rateLimitMap["uploadsPerDay"] as? Int) ?: 1000,
-                storageQuotaBytes = (rateLimitMap["storageQuotaBytes"] as? Number)?.toLong() ?: 1073741824L,
-            )
-
         logger.info { "Asset configuration loaded successfully: ${namespaces.size} namespaces configured" }
 
-        return AssetConfig(namespaces, rateLimit)
+        return AssetConfig(namespaces)
     }
 
     /**
@@ -88,7 +69,7 @@ class AssetConfigProperties(
         configMap: Map<String, Any>,
     ): NamespaceConfig {
         val description = configMap["description"] as? String ?: ""
-        
+
         val visibilityString =
             (configMap["visibility"] as? String)
                 ?: throw IllegalStateException("visibility not found for namespace: $name")
@@ -106,7 +87,7 @@ class AssetConfigProperties(
         val keyTemplate =
             (configMap["keyTemplate"] as? String)
                 ?: throw IllegalStateException("keyTemplate not found for namespace: $name")
-        
+
         // Validate keyTemplate contains required placeholders
         validateKeyTemplate(name, keyTemplate)
 
@@ -138,7 +119,10 @@ class AssetConfigProperties(
      * Required placeholders: {namespace}, {assetId}
      * Optional placeholders: {ownerId}
      */
-    private fun validateKeyTemplate(namespace: String, keyTemplate: String) {
+    private fun validateKeyTemplate(
+        namespace: String,
+        keyTemplate: String,
+    ) {
         if (!keyTemplate.contains("{namespace}")) {
             throw IllegalStateException(
                 "keyTemplate for namespace '$namespace' must contain {namespace} placeholder: $keyTemplate",
@@ -149,13 +133,15 @@ class AssetConfigProperties(
                 "keyTemplate for namespace '$namespace' must contain {assetId} placeholder: $keyTemplate",
             )
         }
-        
+
+        // TODO valida using regex?
         // Validate no empty segments (double slashes or leading/trailing slashes after replacement)
-        val testKey = keyTemplate
-            .replace("{namespace}", "test")
-            .replace("{ownerId}", "test")
-            .replace("{assetId}", "test")
-        
+        val testKey =
+            keyTemplate
+                .replace("{namespace}", "test")
+                .replace("{ownerId}", "test")
+                .replace("{assetId}", "test")
+
         if (testKey.contains("//") || testKey.startsWith("/") || testKey.endsWith("/")) {
             throw IllegalStateException(
                 "keyTemplate for namespace '$namespace' produces invalid key format: $keyTemplate",
@@ -169,7 +155,6 @@ class AssetConfigProperties(
  */
 data class AssetConfig(
     val namespaces: Map<String, NamespaceConfig>,
-    val rateLimit: RateLimitConfig,
 )
 
 /**
@@ -183,13 +168,4 @@ data class NamespaceConfig(
     val maxSizeBytes: Long,
     val allowedMimeTypes: Set<String>,
     val uploadTtlSeconds: Long? = null, // Optional override, falls back to global default
-)
-
-/**
- * Global rate limit configuration.
- */
-data class RateLimitConfig(
-    val uploadsPerHour: Int,
-    val uploadsPerDay: Int,
-    val storageQuotaBytes: Long,
 )

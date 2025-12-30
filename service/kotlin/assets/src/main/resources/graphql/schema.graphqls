@@ -19,21 +19,6 @@ scalar Long
 # ============================================================================
 
 """
-Asset resource types - categorizes assets by their usage.
-@deprecated Resource type is now informational/metadata only, not used in storage key generation
-"""
-enum AssetResourceType {
-    """User profile image"""
-    PROFILE_IMAGE
-
-    """Institution/organization logo"""
-    INSTITUTION_LOGO
-
-    """Generic file attachment (documents, PDFs, etc.)"""
-    ATTACHMENT
-}
-
-"""
 Asset visibility level - determines access control and URL generation.
 """
 enum AssetVisibility {
@@ -76,18 +61,6 @@ type Asset {
 
     """Visibility level - determines access control and URL generation"""
     visibility: AssetVisibility!
-
-    """
-    Type of resource this asset represents.
-    @deprecated Resource type is now informational/metadata only, not used in storage key generation
-    """
-    resourceType: AssetResourceType! @deprecated(reason: "Resource type is now informational only")
-
-    """
-    ID of the resource this asset is attached to.
-    @deprecated Resource ID is now informational/metadata only, not used in storage key generation
-    """
-    resourceId: String! @deprecated(reason: "Resource ID is now informational only")
 
     """Unique key in S3/R2 storage"""
     storageKey: String!
@@ -228,16 +201,17 @@ extend type Mutation {
     mutation {
       createAssetUpload(input: {
         namespace: "user-profiles"
-        resourceType: PROFILE_IMAGE
-        resourceId: "user-123"
         filename: "avatar.jpg"
         mimeType: "image/jpeg"
         sizeBytes: 1048576
+        idempotencyKey: "unique-key-123"
       }) {
         id
         uploadUrl
         uploadExpiresAt
         status
+        visibility
+        storageKey
       }
     }
     ```

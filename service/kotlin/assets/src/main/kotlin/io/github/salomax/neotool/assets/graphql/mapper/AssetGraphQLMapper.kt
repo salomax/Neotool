@@ -1,7 +1,6 @@
 package io.github.salomax.neotool.assets.graphql.mapper
 
 import io.github.salomax.neotool.assets.domain.Asset
-import io.github.salomax.neotool.assets.domain.AssetResourceType
 import io.github.salomax.neotool.assets.graphql.dto.AssetDTO
 import io.github.salomax.neotool.assets.graphql.dto.ConfirmAssetUploadInput
 import io.github.salomax.neotool.assets.graphql.dto.CreateAssetUploadInput
