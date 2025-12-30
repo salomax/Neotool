@@ -4,7 +4,7 @@ import io.github.salomax.neotool.assets.domain.Asset
 import io.github.salomax.neotool.assets.graphql.dto.AssetDTO
 import io.github.salomax.neotool.assets.graphql.dto.ConfirmAssetUploadInput
 import io.github.salomax.neotool.assets.graphql.dto.CreateAssetUploadInput
-import io.github.salomax.neotool.assets.storage.StorageProperties
+import io.github.salomax.neotool.assets.storage.BucketResolver
 import jakarta.inject.Singleton
 import java.util.UUID
 
@@ -16,7 +16,7 @@ import java.util.UUID
  */
 @Singleton
 class AssetGraphQLMapper(
-    private val storageProperties: StorageProperties,
+    private val bucketResolver: BucketResolver,
 ) {
     /**
      * Extract field with type safety and default values.
@@ -115,7 +115,7 @@ class AssetGraphQLMapper(
      * @return AssetDTO for GraphQL response
      */
     fun toAssetDTO(asset: Asset): AssetDTO {
-        return AssetDTO.fromDomain(asset, storageProperties.getPublicBaseUrl())
+        return AssetDTO.fromDomain(asset, bucketResolver.getPublicBaseUrl())
     }
 
     /**
@@ -126,7 +126,7 @@ class AssetGraphQLMapper(
      * @return List of AssetDTOs for GraphQL response
      */
     fun toAssetDTOs(assets: List<Asset>): List<AssetDTO> {
-        val baseUrl = storageProperties.getPublicBaseUrl()
+        val baseUrl = bucketResolver.getPublicBaseUrl()
         return assets.map { AssetDTO.fromDomain(it, baseUrl) }
     }
 }

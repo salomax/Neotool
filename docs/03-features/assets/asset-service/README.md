@@ -29,7 +29,12 @@
   - PRIVATE assets: `downloadUrl(ttlSeconds: Int = 3600)` field generates a presigned GET URL; `publicUrl` is null.
 
 ### Storage & Key Scheme
-- Single bucket per environment (configurable): `asset.storage.bucket`.
+- **Separate buckets per environment**: 
+  - `neotool-assets-public` (configurable via `STORAGE_PUBLIC_BUCKET`) - for PUBLIC assets with public read access
+  - `neotool-assets-private` (configurable via `STORAGE_PRIVATE_BUCKET`) - for PRIVATE assets, presigned URLs only
+- Bucket selection is automatic based on namespace visibility configuration:
+  - PUBLIC namespaces → public bucket
+  - PRIVATE namespaces → private bucket
 - Object key format is namespace-driven and templated: see `asset-config.yml` with placeholders `{namespace}`, `{ownerId}`, `{assetId}`; examples:
   - `user-profiles/{ownerId}/{assetId}`
   - `group-assets/{assetId}`
@@ -187,7 +192,27 @@ docker-compose -f docker-compose.local.yml --profile storage up -d minio
 - Username: `minioadmin`
 - Password: `minioadmin`
 
-**Create Bucket:** The bucket will be created automatically by the service on first use, or you can create it manually via the console.
+**Create Buckets:** You need to create both buckets manually using `docker exec`:
+- `neotool-assets-public` - for PUBLIC assets (will have public read access)
+- `neotool-assets-private` - for PRIVATE assets (no public access)
+
+```bash
+# Set up MinIO client alias
+docker exec neotool-minio mc alias set local http://localhost:9000 minioadmin minioadmin
+
+# Create both buckets
+docker exec neotool-minio mc mb local/neotool-assets-public
+docker exec neotool-minio mc mb local/neotool-assets-private
+
+# Configure public bucket for anonymous read access
+docker exec neotool-minio mc anonymous set download local/neotool-assets-public
+
+# Verify the setup
+docker exec neotool-minio mc ls local
+docker exec neotool-minio mc anonymous get local/neotool-assets-public
+```
+
+**Note:** The service validates that both buckets exist at startup. If buckets are missing, the service will fail to start with a clear error message.
 
 #### Step 2: Configure Environment Variables
 
@@ -200,10 +225,12 @@ STORAGE_HOSTNAME=localhost
 STORAGE_PORT=9000
 STORAGE_USE_HTTPS=false
 STORAGE_REGION=us-east-1
-STORAGE_BUCKET=neotool-assets
+# Separate buckets for public and private assets
+STORAGE_PUBLIC_BUCKET=neotool-assets-public
+STORAGE_PRIVATE_BUCKET=neotool-assets-private
 STORAGE_ACCESS_KEY=minioadmin
 STORAGE_SECRET=minioadmin
-STORAGE_PUBLIC_BASE_PATH=neotool-assets
+STORAGE_PUBLIC_BASE_PATH=neotool-assets-public  # Base path for public CDN URLs
 STORAGE_FORCE_PATH_STYLE=true  # Required for MinIO
 STORAGE_UPLOAD_TTL_SECONDS=900  # 15 minutes
 ```
@@ -326,10 +353,25 @@ curl http://localhost:9000/minio/health/live
 open http://localhost:9001
 # Login: minioadmin / minioadmin
 
-# Create bucket manually (if needed)
+# Create buckets manually (if needed)
 # Use MinIO console or mc CLI:
 mc alias set local http://localhost:9000 minioadmin minioadmin
-mc mb local/neotool-assets
+mc mb local/neotool-assets-public
+mc mb local/neotool-assets-private
+
+# Configure public bucket for anonymous read access
+mc anonymous set download local/neotool-assets-public
+```
+
+**Bucket Validation Errors:**
+If you see errors like "Required bucket does not exist", ensure both buckets are created:
+```bash
+# List buckets
+mc ls local
+
+# Verify bucket exists
+mc stat local/neotool-assets-public
+mc stat local/neotool-assets-private
 ```
 
 **Database Migration Issues:**
@@ -535,14 +577,19 @@ Service:
 ## Configuration
 
 ### Storage (Required)
-- `STORAGE_ENDPOINT` (string): S3-compatible endpoint (e.g., `https://<account-id>.r2.cloudflarestorage.com` for R2, `http://localhost:9000` for MinIO).
+- `STORAGE_HOSTNAME` (string): Storage hostname (e.g., `localhost` for MinIO, `<account-id>.r2.cloudflarestorage.com` for R2).
+- `STORAGE_PORT` (int): Storage port (e.g., `9000` for MinIO, `443` for R2).
+- `STORAGE_USE_HTTPS` (bool, default `false`): Use HTTPS for storage connections.
 - `STORAGE_REGION` (string): AWS region or equivalent (e.g., `auto` for R2, `us-east-1` for S3).
-- `STORAGE_BUCKET` (string): bucket name (e.g., `neotool-assets-prod`).
+- `STORAGE_PUBLIC_BUCKET` (string, default `neotool-assets-public`): Bucket name for PUBLIC assets. Must have public read access configured.
+- `STORAGE_PRIVATE_BUCKET` (string, default `neotool-assets-private`): Bucket name for PRIVATE assets. No public access required.
 - `STORAGE_ACCESS_KEY` (string): access key ID.
 - `STORAGE_SECRET` (string): secret access key.
-- `STORAGE_PUBLIC_BASE_URL` (string): public CDN URL prefix (e.g., `https://cdn.neotool.com/assets/`).
+- `STORAGE_PUBLIC_BASE_PATH` (string, default `neotool-assets-public`): Base path for public CDN URLs (e.g., `neotool-assets-public`).
 - `STORAGE_FORCE_PATH_STYLE` (bool, default `false`): use path-style URLs for MinIO (`true`) vs. virtual-hosted for R2/S3 (`false`).
 - `STORAGE_UPLOAD_TTL_SECONDS` (int, default `900`): pre-signed URL expiry (15min recommended).
+
+**Important:** Both buckets must exist and be accessible before the service starts. The service validates bucket existence at startup and will fail to start if buckets are missing or inaccessible.
 
 ### Validation & Limits (Required)
 - `STORAGE_MAX_UPLOAD_BYTES` (int, default `10485760`): global max upload size (10MB default).
@@ -768,3 +815,70 @@ console.log(data.confirmAssetUpload.publicUrl)
   }
 ]
 ```
+
+### Bucket Setup Instructions
+
+#### MinIO (Local Development)
+
+1. **Set up MinIO client alias:**
+   ```bash
+   docker exec neotool-minio mc alias set local http://localhost:9000 minioadmin minioadmin
+   ```
+
+2. **Create both buckets:**
+   ```bash
+   docker exec neotool-minio mc mb local/neotool-assets-public
+   docker exec neotool-minio mc mb local/neotool-assets-private
+   ```
+
+3. **Configure public bucket for anonymous read access:**
+   ```bash
+   docker exec neotool-minio mc anonymous set download local/neotool-assets-public
+   ```
+
+4. **Verify bucket setup:**
+   ```bash
+   # List buckets
+   docker exec neotool-minio mc ls local
+   
+   # Check public bucket policy
+   docker exec neotool-minio mc anonymous get local/neotool-assets-public
+   
+   # Test public access (should work without credentials)
+   curl http://localhost:9000/neotool-assets-public/test-key
+   ```
+
+#### Cloudflare R2 (Production)
+
+1. **Create both buckets via R2 Dashboard:**
+   - Navigate to R2 Dashboard → Create Bucket
+   - Create `neotool-assets-public`
+   - Create `neotool-assets-private`
+
+2. **Configure public bucket:**
+   - Go to Bucket Settings → Public Access
+   - Enable "Public Access" for `neotool-assets-public`
+   - Configure CORS policy (see R2 CORS Policy Example above)
+
+3. **Verify bucket access:**
+   - Public bucket should allow anonymous GET requests
+   - Private bucket should require authentication
+
+#### Verification Steps
+
+After setup, verify both buckets are accessible:
+
+```bash
+# For MinIO
+curl -I http://localhost:9000/neotool-assets-public/test
+# Should return 200 or 404 (not 403 Access Denied)
+
+# For R2 (replace with your R2 endpoint)
+curl -I https://<account-id>.r2.cloudflarestorage.com/neotool-assets-public/test
+# Should return 200 or 404 (not 403 Access Denied)
+```
+
+**Troubleshooting:**
+- **403 Access Denied on public bucket:** Bucket policy not configured correctly. Check public access settings.
+- **Bucket does not exist error:** Ensure both buckets are created before starting the service.
+- **Service fails to start:** Check bucket names match configuration (`STORAGE_PUBLIC_BUCKET` and `STORAGE_PRIVATE_BUCKET`).

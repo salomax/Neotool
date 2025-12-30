@@ -4,7 +4,7 @@ import io.github.salomax.neotool.assets.graphql.dto.AssetDTO
 import io.github.salomax.neotool.assets.graphql.dto.ConfirmAssetUploadInput
 import io.github.salomax.neotool.assets.graphql.dto.CreateAssetUploadInput
 import io.github.salomax.neotool.assets.service.AssetService
-import io.github.salomax.neotool.assets.storage.StorageProperties
+import io.github.salomax.neotool.assets.storage.BucketResolver
 import jakarta.inject.Singleton
 import mu.KotlinLogging
 
@@ -16,7 +16,7 @@ import mu.KotlinLogging
 @Singleton
 class AssetMutationResolver(
     private val assetService: AssetService,
-    private val storageProperties: StorageProperties,
+    private val bucketResolver: BucketResolver,
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -72,7 +72,7 @@ class AssetMutationResolver(
             )
 
         logger.info { "Asset upload created: assetId=${asset.id}, uploadUrl present=${asset.uploadUrl != null}" }
-        return AssetDTO.fromDomain(asset, storageProperties.getPublicBaseUrl())
+        return AssetDTO.fromDomain(asset, bucketResolver.getPublicBaseUrl())
     }
 
     /**
@@ -116,7 +116,7 @@ class AssetMutationResolver(
             )
 
         logger.info { "Asset upload confirmed: assetId=${asset.id}, status=${asset.status}" }
-        return AssetDTO.fromDomain(asset, storageProperties.getPublicBaseUrl())
+        return AssetDTO.fromDomain(asset, bucketResolver.getPublicBaseUrl())
     }
 
     /**
