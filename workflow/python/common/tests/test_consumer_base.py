@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from workflow.common.consumer_base import KafkaConsumerRunner
+from neotool_common.consumer_base import KafkaConsumerRunner
 
 
 def _make_runner(process_message, dlq_publisher, max_retries=2):
@@ -34,7 +34,7 @@ def _make_runner(process_message, dlq_publisher, max_retries=2):
 @pytest.fixture(autouse=True)
 def disable_sleep(monkeypatch):
     """Avoid actually sleeping during retry tests."""
-    monkeypatch.setattr("workflow.common.consumer_base.time.sleep", lambda _: None)
+    monkeypatch.setattr("neotool_common.consumer_base.time.sleep", lambda _: None)
 
 
 def test_retries_until_success():

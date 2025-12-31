@@ -210,7 +210,7 @@ ENTRYPOINT ["<package-name>-consumer"]
 **Development Setup**:
 ```bash
 # Install neotool-common (one-time)
-cd workflow/common
+cd workflow/python/common
 pip install -e ".[dev]"
 
 # Install consumer package (editable mode)

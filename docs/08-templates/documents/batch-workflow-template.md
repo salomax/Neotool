@@ -109,7 +109,7 @@ For Python Kafka consumers, use proper package structure with `pyproject.toml`:
 - **Development Setup**:
   ```bash
   # Install neotool-common (one-time)
-  cd workflow/common && pip install -e ".[dev]"
+  cd workflow/python/common && pip install -e ".[dev]"
 
   # Install consumer package
   cd ../financial_data/<feature> && pip install -e ".[dev]"

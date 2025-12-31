@@ -486,7 +486,7 @@ ORDER BY nome_relatorio;
 
 ```bash
 # Use the promote_data.py script
-cd workflow/financial_data/bacen_ifdata
+cd workflow/python/financial_data/bacen_ifdata
 python scripts/promote_data.py --ano-mes 202403
 
 # Promote specific report
@@ -500,7 +500,7 @@ python scripts/promote_data.py --ano-mes 202403 --verbose
 
 ```bash
 # Use the run_full_ingestion.py script
-cd workflow/financial_data/bacen_ifdata
+cd workflow/python/financial_data/bacen_ifdata
 python scripts/run_full_ingestion.py 202403
 
 # Purge and re-extract from scratch

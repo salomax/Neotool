@@ -133,11 +133,11 @@ delay = base_delay + jitter
 
 ### 1.4 Shared Python Consumer Runner
 
-All Python batch consumers **should use** the shared `KafkaConsumerRunner` implementation in `workflow/common/consumer_base.py`:
+All Python batch consumers **should use** the shared `KafkaConsumerRunner` implementation in `workflow/python/common/src/neotool_common/consumer_base.py`:
 - It wires retry loops, error classification, DLQ publishing, safe commits, and graceful shutdown in a single place.
 - Plug in domain-specific hooks (`message_factory`, `process_message`, DLQ publisher, rate-limit provider, health/cleanup callbacks) to keep each consumer file focused on business logic.
-- Shares `workflow/common/error_classification.py` and `workflow/common/retry_utils.py` so classification/backoff logic stays consistent.
-- Covered by `workflow/common/tests/test_consumer_base.py`, fulfilling the testing requirements listed later in this standard.
+- Shares `workflow/python/common/src/neotool_common/error_classification.py` and `workflow/python/common/src/neotool_common/retry_utils.py` so classification/backoff logic stays consistent.
+- Covered by `workflow/python/common/tests/test_consumer_base.py`, fulfilling the testing requirements listed later in this standard.
 
 Following this pattern ensures every Python consumer complies with the retry and DLQ rules from sections 1–4 without duplicating boilerplate.
 

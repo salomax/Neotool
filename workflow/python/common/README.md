@@ -12,13 +12,13 @@ Shared utilities for Neotool workflow components.
 
 ### Development (editable mode)
 ```bash
-cd workflow/common
+cd workflow/python/common
 pip install -e ".[dev]"
 ```
 
 ### Production
 ```bash
-pip install ./workflow/common
+pip install ./workflow/python/common
 ```
 
 ## Usage

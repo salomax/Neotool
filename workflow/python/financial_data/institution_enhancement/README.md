@@ -52,15 +52,15 @@ This consumer processes `financial-data.institution.upserted` events to enhance 
 
 ## Running the Consumer
 
-**Important**: Set `PYTHONPATH` to the project root (parent of `workflow/` directory) so Python can find `workflow.common`:
+**Important**: Set `PYTHONPATH` to the project root (parent of `workflow/` directory) so Python can find `neotool_common`:
 
 ```bash
 # From the project root (parent of workflow/ directory)
 export PYTHONPATH=$(pwd)
-python workflow/financial_data/institution_enhancement/flows/consumer.py
+python workflow/python/financial_data/institution_enhancement/flows/consumer.py
 
 # Or from within the institution_enhancement directory
-export PYTHONPATH=$(cd ../.. && pwd)
+export PYTHONPATH=$(cd ../../.. && pwd)
 python flows/consumer.py
 ```
 
@@ -83,10 +83,10 @@ A standalone command-line script is available to process institution enhancement
 ```bash
 # From the project root (parent of workflow/ directory)
 export PYTHONPATH=$(pwd)
-python workflow/financial_data/institution_enhancement/flows/standalone.py <cnpj_parent>
+python workflow/python/financial_data/institution_enhancement/flows/standalone.py <cnpj_parent>
 
 # Or from within the institution_enhancement directory
-export PYTHONPATH=$(cd ../.. && pwd)
+export PYTHONPATH=$(cd ../../.. && pwd)
 python flows/standalone.py <cnpj_parent>
 ```
 

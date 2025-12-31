@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install neotool-common from local path
-COPY --chown=nobody:nogroup ../../common /tmp/neotool-common/
+COPY --chown=nobody:nogroup ../common /tmp/neotool-common/
 RUN pip install --no-cache-dir /tmp/neotool-common && rm -rf /tmp/neotool-common
 
 # Copy application code

@@ -40,9 +40,9 @@ if [ -d "/workflow" ]; then
   echo "Deploying Prefect flows..."
   
   # Deploy bacen_ifdata flow
-  if [ -d "/workflow/financial_data/bacen_ifdata" ]; then
+  if [ -d "/workflow/python/financial_data/bacen_ifdata" ]; then
     echo "  Deploying bacen-ifdata-ingestion..."
-    cd /workflow/financial_data/bacen_ifdata
+    cd /workflow/python/financial_data/bacen_ifdata
     prefect deploy 2>&1 | grep -v "already exists" || true
   fi
   

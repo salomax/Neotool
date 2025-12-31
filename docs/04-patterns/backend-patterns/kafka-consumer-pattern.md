@@ -136,7 +136,7 @@ The consumer implements retry logic directly in the consumer loop:
 
 **All Python batch consumers MUST use the shared `KafkaConsumerRunner`** from the `neotool-common` package.
 
-**Package**: `neotool-common` (installable package at `workflow/common/`)
+**Package**: `neotool-common` (installable package at `workflow/python/common/`)
 
 **Import**:
 ```python
@@ -1126,5 +1126,5 @@ Metrics should be implemented using your preferred Python metrics library (e.g.,
 
 ## Examples
 
-- [Institution Enhancement Consumer](../../../workflow/financial_data/institution_enhancement/flows/consumer.py) - Python Kafka consumer implementation
+- [Institution Enhancement Consumer](../../../workflow/python/financial_data/institution_enhancement/flows/consumer.py) - Python Kafka consumer implementation
 - [SWAPI ETL Workflow](../../07-examples/batch-workflows/swapi-etl-workflow.md)

@@ -94,13 +94,13 @@ This feature acts as the entry point for all BACEN IFData datasets inside Invist
 
 10. **Run database migrations:**
     
-    **Important**: Pyway migrations must be run from the `workflow/financial_data/` directory (where `pyway.conf` is located), not from the `bacen_ifdata/` subdirectory.
+    **Important**: Pyway migrations must be run from the `workflow/python/financial_data/` directory (where `pyway.conf` is located), not from the `bacen_ifdata/` subdirectory.
     
     **Run Migrations**:
     
     ```bash
     # Navigate to the financial_data directory (where pyway.conf is located)
-    cd ../..  # From bacen_ifdata/, go to workflow/financial_data/
+    cd ../..  # From bacen_ifdata/, go to workflow/python/financial_data/
     
     # Run migrations using pyway with explicit config file
     # Use the venv from bacen_ifdata/ since that's where pyway is installed
@@ -116,7 +116,7 @@ This feature acts as the entry point for all BACEN IFData datasets inside Invist
     **Note**: The `-c pyway.conf` flag is required because pyway needs to be run from the directory containing the config file. The config file specifies the migration directory and database connection details. The pyway history table is stored in the `public` schema, so no schema bootstrap is required.
     
     **Troubleshooting**:
-    - If you get "Missing configuration options" error, make sure you're running pyway from `workflow/financial_data/` directory with `-c pyway.conf`
+    - If you get "Missing configuration options" error, make sure you're running pyway from `workflow/python/financial_data/` directory with `-c pyway.conf`
     - Migrations are idempotent (use `IF NOT EXISTS`), so it's safe to run them multiple times
 
 ## Running the Flow

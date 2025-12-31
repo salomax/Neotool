@@ -96,10 +96,10 @@ def test_database_connection():
 def test_pyway_config():
     """Test that pyway configuration file exists and is readable."""
     # Find pyway.conf relative to this test file
-    # test_setup.py is at: workflow/financial_data/bacen_ifdata/tests/test_setup.py
-    # pyway.conf is at: workflow/financial_data/pyway.conf
+    # test_setup.py is at: workflow/python/financial_data/bacen_ifdata/tests/test_setup.py
+    # pyway.conf is at: workflow/python/financial_data/pyway.conf
     test_dir = Path(__file__).parent
-    project_root = test_dir.parent.parent  # workflow/financial_data/
+    project_root = test_dir.parent.parent  # workflow/python/financial_data/
     pyway_conf = project_root / "pyway.conf"
 
     assert pyway_conf.exists(), f"pyway.conf not found at {pyway_conf}"
@@ -121,10 +121,10 @@ def test_pyway_config():
 def test_migrations_directory():
     """Test that migrations directory exists."""
     # Find migrations directory relative to this test file
-    # test_setup.py is at: workflow/financial_data/bacen_ifdata/tests/test_setup.py
-    # migrations/ is at: workflow/financial_data/migrations/
+    # test_setup.py is at: workflow/python/financial_data/bacen_ifdata/tests/test_setup.py
+    # migrations/ is at: workflow/python/financial_data/migrations/
     test_dir = Path(__file__).parent
-    project_root = test_dir.parent.parent  # workflow/financial_data/
+    project_root = test_dir.parent.parent  # workflow/python/financial_data/
     migrations_dir = project_root / "migrations"
 
     assert (

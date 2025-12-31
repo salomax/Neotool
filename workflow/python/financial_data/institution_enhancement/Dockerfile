@@ -10,12 +10,12 @@ RUN addgroup -g 1000 consumer && \
 RUN apk add --no-cache gcc musl-dev libpq-dev
 
 # Install neotool-common from local path
-COPY --chown=consumer:consumer ../../common /tmp/neotool-common/
+COPY --chown=consumer:consumer common /tmp/neotool-common/
 RUN pip install --no-cache-dir /tmp/neotool-common && \
     rm -rf /tmp/neotool-common
 
 # Copy application code
-COPY --chown=consumer:consumer . /app/
+COPY --chown=consumer:consumer financial_data/institution_enhancement /app/
 
 # Install the application
 RUN pip install --no-cache-dir /app

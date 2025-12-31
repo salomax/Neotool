@@ -301,7 +301,7 @@ docker compose -f docker-compose.local.yml up institution-enhancement-consumer
 docker compose -f docker-compose.local.yml --profile database --profile kafka up -d
 
 # Run consumer locally (requires Python 3.14 and dependencies)
-cd workflow/financial_data/institution_enhancement
+cd workflow/python/financial_data/institution_enhancement
 python3.14 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
@@ -601,7 +601,7 @@ producer.send('financial-data.institution.upserted', key='60872504', value=messa
 Run the automated integration tests:
 
 ```bash
-cd workflow/financial_data/institution_enhancement
+cd workflow/python/financial_data/institution_enhancement
 pytest tests/test_integration.py -v -m integration
 ```
 

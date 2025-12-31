@@ -428,7 +428,7 @@ def migrated_database(postgres_container):
 
     # Get paths
     test_dir = Path(__file__).parent
-    project_root = test_dir.parent.parent  # workflow/financial_data/
+    project_root = test_dir.parent.parent  # workflow/python/financial_data/
 
     # Create temporary config file in project root (where pyway expects it)
     # Use absolute path to avoid issues with working directory changes

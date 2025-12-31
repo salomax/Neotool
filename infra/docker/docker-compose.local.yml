@@ -58,16 +58,15 @@ services:
     ports:
     - "9092:9092"  # Internal Docker network
     - "9094:9094"  # External access (host machine)
-    - "9093:9093"
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,EXTERNAL://0.0.0.0:9094,CONTROLLER://0.0.0.0:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:9094,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
@@ -76,7 +75,7 @@ services:
     volumes:
       - kafka-data:/var/lib/kafka/data
     healthcheck:
-      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 || exit 1"]
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 || exit 1"]
       interval: 10s
       timeout: 5s
       start_period: 30s
@@ -85,26 +84,151 @@ services:
       - kafka
 
   # -------------------------------------------------------------
-  # Institution Enhancement Consumer
+  # Institution Enhancement Consumer (Go)
   # -------------------------------------------------------------
   institution-enhancement-consumer:
     build:
-      context: ../../workflow
-      dockerfile: financial_data/institution_enhancement/Dockerfile
-    container_name: neotool-institution-enhancement-consumer
+      context: ../../workflow/go/financial_data/institution_enhancement
+      dockerfile: deployments/docker/Dockerfile
+      target: consumer
+    container_name: neotool-institution-enhancement-consumer-go
     env_file: ../.env.local
     environment:
       POSTGRES_HOST: pgbouncer
+      POSTGRES_PORT: 6432
       KAFKA_BROKERS: kafka:9092
-      HEALTH_CHECK_PORT: 8080
+      KAFKA_TOPIC: financial-data.institution.upserted
+      KAFKA_CONSUMER_GROUP: institution-enhancement-consumer-go
+      KAFKA_DLQ_TOPIC: financial-data.institution.upserted.enhancement.dlq
+      CNPJA_TIMEOUT_SECONDS: 30
+      CNPJA_RATE_LIMIT_SECONDS: 15
       HEALTH_CHECK_ENABLED: "true"
+      HEALTH_CHECK_PORT: 8080
+      RETRY_MAX_RETRIES: 3
+      RETRY_INITIAL_DELAY_MS: 1000
+      RETRY_MAX_DELAY_MS: 30000
+      RETRY_BACKOFF_MULTIPLIER: 2.0
+      RETRY_JITTER: "true"
     restart: unless-stopped
+    ports:
+      - "8080:8080"  # Health check endpoint
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       start_period: 40s
       retries: 3
+
+  # -------------------------------------------------------------
+  # Institution Enhancement Consumer (Python)
+  # -------------------------------------------------------------
+  institution-enhancement-consumer-python:
+    build:
+      context: ../../workflow/python
+      dockerfile: financial_data/institution_enhancement/Dockerfile
+    container_name: neotool-institution-enhancement-consumer-python
+    env_file: ../.env.local
+    environment:
+      POSTGRES_HOST: pgbouncer
+      POSTGRES_PORT: 6432
+      POSTGRES_DB: neotool_db
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_INPUT_TOPIC: financial-data.institution.upserted
+      KAFKA_CONSUMER_GROUP: institution-enhancement-consumer-python
+      KAFKA_DLQ_TOPIC: financial-data.institution.upserted.enhancement.dlq
+      CNPJA_BASE_URL: https://open.cnpja.com/office
+      CNPJA_API_TIMEOUT: 30
+      CNPJA_RATE_LIMIT_SECONDS: 15
+      HEALTH_CHECK_ENABLED: "true"
+      HEALTH_CHECK_PORT: 8081
+      MAX_RETRIES: 3
+      INITIAL_RETRY_DELAY_MS: 1000
+      MAX_RETRY_DELAY_MS: 30000
+      RETRY_BACKOFF_MULTIPLIER: 2.0
+      RETRY_JITTER: "true"
+      POSTGRES_POOL_MIN: 2
+      POSTGRES_POOL_MAX: 10
+    restart: unless-stopped
+    ports:
+      - "8081:8081"  # Health check endpoint
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8081/health')"]
+      interval: 30s
+      timeout: 10s
+      start_period: 40s
+      retries: 3
+
+  # -------------------------------------------------------------
+  # Institution Enhancement DLQ Consumer (Go) - ON-DEMAND ONLY
+  # Usage: docker compose -f infra/docker/docker-compose.local.yml run --rm institution-enhancement-dlq-consumer
+  # -------------------------------------------------------------
+  institution-enhancement-dlq-consumer:
+    build:
+      context: ../../workflow/go/financial_data/institution_enhancement
+      dockerfile: deployments/docker/Dockerfile
+      target: dlq-consumer
+    env_file: ../.env.local
+    environment:
+      POSTGRES_HOST: pgbouncer
+      POSTGRES_PORT: 6432
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_TOPIC: financial-data.institution.upserted
+      KAFKA_CONSUMER_GROUP: institution-enhancement-consumer-go-dlq
+      KAFKA_DLQ_TOPIC: financial-data.institution.upserted.enhancement.dlq
+      CNPJA_TIMEOUT_SECONDS: 30
+      CNPJA_RATE_LIMIT_SECONDS: 15
+      HEALTH_CHECK_ENABLED: "false"
+      RETRY_MAX_RETRIES: 3
+      RETRY_INITIAL_DELAY_MS: 1000
+      RETRY_MAX_DELAY_MS: 30000
+      RETRY_BACKOFF_MULTIPLIER: 2.0
+      RETRY_JITTER: "true"
+    profiles:
+      - tools  # Only runs when explicitly called with --profile tools or via 'run'
+
+  # -------------------------------------------------------------
+  # Institution Enhancement DLQ Inspector (Go) - ON-DEMAND ONLY
+  # Usage: docker compose -f infra/docker/docker-compose.local.yml run --rm institution-enhancement-dlq-inspector
+  # -------------------------------------------------------------
+  institution-enhancement-dlq-inspector:
+    build:
+      context: ../../workflow/go/financial_data/institution_enhancement
+      dockerfile: deployments/docker/Dockerfile
+      target: dlq-inspector
+    env_file: ../.env.local
+    environment:
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_DLQ_TOPIC: financial-data.institution.upserted.enhancement.dlq
+    profiles:
+      - tools  # Only runs when explicitly called
+
+  # -------------------------------------------------------------
+  # DLQ Retry Consumer (Go) - Shared Service
+  # Automatically retries transient errors from all DLQs with cooling-off periods
+  # Can be run as:
+  #   - CronJob in K8s (recommended for production)
+  #   - On-demand: docker compose -f infra/docker/docker-compose.local.yml run --rm dlq-retry-consumer
+  #   - Scheduled daemon (use --profile dlq-retry for auto-start)
+  # -------------------------------------------------------------
+  dlq-retry-consumer:
+    build:
+      context: ../../workflow/go/shared/dlq-retry-consumer
+      dockerfile: Dockerfile
+    container_name: neotool-dlq-retry-consumer
+    env_file: ../.env.local
+    environment:
+      KAFKA_BROKERS: kafka:9092
+      DLQ_CONFIG_PATH: /app/config/dlq-mappings.yaml
+      LOG_LEVEL: info
+    volumes:
+      # Mount custom config if needed (optional - uses default if not provided)
+      - ../../workflow/go/shared/dlq-retry-consumer/config/dlq-mappings.yaml:/app/config/dlq-mappings.yaml:ro
+    depends_on:
+      kafka:
+        condition: service_healthy
+    profiles:
+      - tools  # Only runs when explicitly called or use --profile dlq-retry for auto-start
+    restart: "no"  # Don't auto-restart - designed for one-shot execution
 
   # -------------------------------------------------------------
   # Prefect Stack

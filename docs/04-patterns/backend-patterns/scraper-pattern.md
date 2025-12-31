@@ -640,5 +640,5 @@ def test_scrape_social_networks_failure():
 
 ## Examples
 
-- [Institution Enhancement Processor](../../../workflow/financial_data/institution_enhancement/tasks/processor.py) - Example of website validation and social network scraping
+- [Institution Enhancement Processor](../../../workflow/python/financial_data/institution_enhancement/tasks/processor.py) - Example of website validation and social network scraping
 
