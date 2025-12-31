@@ -1,35 +1,42 @@
-FROM python:3.14-alpine
+# Multi-stage build for minimal image size
+# Stage 1: Builder
+FROM python:3.14-slim AS builder
 
-WORKDIR /app
+WORKDIR /build
 
-# Create non-root user
-RUN addgroup -g 1000 consumer && \
-    adduser -D -u 1000 -G consumer consumer
-
-# Install system dependencies
-RUN apk add --no-cache gcc musl-dev libpq-dev
+# Install build dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    gcc \
+    g++ \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install neotool-common from local path
-COPY --chown=consumer:consumer common /tmp/neotool-common/
-RUN pip install --no-cache-dir /tmp/neotool-common && \
-    rm -rf /tmp/neotool-common
+COPY common /tmp/neotool-common/
+RUN pip install --no-cache-dir --user /tmp/neotool-common
 
-# Copy application code
-COPY --chown=consumer:consumer financial_data/institution_enhancement /app/
+# Copy application code and install
+COPY financial_data/institution_enhancement /build/
+RUN pip install --no-cache-dir --user /build
 
-# Install the application
-RUN pip install --no-cache-dir /app
+# Stage 2: Runtime with distroless
+FROM gcr.io/distroless/python3-debian12:nonroot
 
-# Switch to non-root user
-USER consumer
+# Copy Python packages from builder
+COPY --from=builder /root/.local /home/nonroot/.local
+COPY --from=builder /usr/local/lib/python3.14/site-packages /usr/local/lib/python3.14/site-packages
+
+# Set Python path to include user site-packages
+ENV PYTHONPATH=/home/nonroot/.local/lib/python3.14/site-packages:/usr/local/lib/python3.14/site-packages
+ENV PATH=/home/nonroot/.local/bin:$PATH
 
 # Expose health check port
 EXPOSE 8080
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"
+# Run the consumer as non-root user (distroless nonroot user is 65532)
+USER nonroot
 
 # Run the consumer
-ENTRYPOINT ["institution-enhancement-consumer"]
+ENTRYPOINT ["/home/nonroot/.local/bin/institution-enhancement-consumer"]
 

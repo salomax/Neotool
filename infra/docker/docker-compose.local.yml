@@ -109,6 +109,7 @@ services:
       RETRY_MAX_DELAY_MS: 30000
       RETRY_BACKOFF_MULTIPLIER: 2.0
       RETRY_JITTER: "true"
+      WORKER_POOL_SIZE: 5
     restart: unless-stopped
     ports:
       - "8080:8080"  # Health check endpoint
