@@ -8,7 +8,6 @@ import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
-import jakarta.persistence.Version
 import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
@@ -36,8 +35,6 @@ open class BankReportDataEntity(
     open var createdAt: Instant = Instant.now(),
     @Column(name = "updated_at", nullable = false)
     open var updatedAt: Instant = Instant.now(),
-    @Version
-    open var version: Long = 0,
 ) : BaseEntity<UUID?>(id) {
     fun toDomain(): BankReportData {
         return BankReportData(
@@ -50,7 +47,6 @@ open class BankReportDataEntity(
             saldo = this.saldo,
             createdAt = this.createdAt,
             updatedAt = this.updatedAt,
-            version = this.version,
         )
     }
 }

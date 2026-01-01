@@ -13,7 +13,6 @@ data class BankReport(
     val tipoInstituicao: Int,
     val createdAt: Instant = Instant.now(),
     val updatedAt: Instant = Instant.now(),
-    val version: Long = 0,
 ) {
     fun toEntity(): BankReportEntity {
         return BankReportEntity(
@@ -26,7 +25,6 @@ data class BankReport(
             tipoInstituicao = this.tipoInstituicao,
             createdAt = this.createdAt,
             updatedAt = this.updatedAt,
-            version = this.version,
         )
     }
 }
