@@ -79,7 +79,7 @@ open class AssetServiceMinIOIntegrationTest : BaseIntegrationTest(), PostgresInt
         // Ensure both buckets exist
         val publicBucket = "neotool-assets-public"
         val privateBucket = "neotool-assets-private"
-        
+
         listOf(publicBucket, privateBucket).forEach { bucketName ->
             try {
                 s3Client.headBucket(HeadBucketRequest.builder().bucket(bucketName).build())
@@ -222,7 +222,12 @@ open class AssetServiceMinIOIntegrationTest : BaseIntegrationTest(), PostgresInt
 
             // Confirm upload
             val confirmedAsset = assetService.confirmUpload(asset.id!!, testUserId)
-            Assertions.assertThat(storageClient.objectExists(confirmedAsset.storageBucket, confirmedAsset.storageKey!!)).isTrue()
+            Assertions.assertThat(
+                storageClient.objectExists(
+                    confirmedAsset.storageBucket,
+                    confirmedAsset.storageKey!!,
+                ),
+            ).isTrue()
 
             // Act - Delete asset
             val deleted = assetService.deleteAsset(confirmedAsset.id!!, testUserId)

@@ -5,6 +5,7 @@ import io.github.salomax.neotool.security.model.PrincipalEntity
 import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.UserRepository
+import io.github.salomax.neotool.security.service.RefreshTokenService
 import jakarta.inject.Singleton
 import jakarta.transaction.Transactional
 import mu.KotlinLogging
@@ -23,10 +24,12 @@ import java.util.UUID
 open class AuthenticationService(
     private val userRepository: UserRepository,
     private val principalRepository: PrincipalRepository,
-    private val jwtService: JwtService,
+    private val jwtTokenIssuer: JwtTokenIssuer,
+    private val jwtTokenValidator: JwtTokenValidator,
     private val emailService: EmailService,
     private val rateLimitService: RateLimitService,
     private val oauthProviderRegistry: OAuthProviderRegistry,
+    private val refreshTokenService: RefreshTokenService,
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -120,7 +123,7 @@ open class AuthenticationService(
      */
     fun generateAccessToken(user: UserEntity): String {
         val userId = requireNotNull(user.id) { "User ID is required for access token generation" }
-        return jwtService.generateAccessToken(userId, user.email)
+        return jwtTokenIssuer.generateAccessToken(userId, user.email)
     }
 
     /**
@@ -137,13 +140,13 @@ open class AuthenticationService(
         permissions: List<String>,
     ): String {
         val userId = requireNotNull(user.id) { "User ID is required for access token generation" }
-        return jwtService.generateAccessToken(userId, user.email, permissions)
+        return jwtTokenIssuer.generateAccessToken(userId, user.email, permissions)
     }
 
     /**
      * Generate JWT access token from an AuthContext.
      *
-     * This method delegates to JwtService to generate a token from the normalized
+     * This method delegates to JwtTokenIssuer to generate a token from the normalized
      * authentication context. Token issuance is agnostic of how the user authenticated.
      *
      * Access tokens are short-lived and stateless.
@@ -152,20 +155,22 @@ open class AuthenticationService(
      * @return JWT access token string
      */
     fun generateAccessToken(authContext: AuthContext): String {
-        return jwtService.generateAccessToken(authContext)
+        return jwtTokenIssuer.generateAccessToken(authContext)
     }
 
     /**
      * Generate JWT refresh token for a user.
      *
      * Refresh tokens are long-lived and stored in the database for revocation.
+     * Uses RefreshTokenService for token rotation support.
      *
      * @param user The authenticated user
      * @return JWT refresh token string
      */
     fun generateRefreshToken(user: UserEntity): String {
         val userId = requireNotNull(user.id) { "User ID is required for refresh token generation" }
-        return jwtService.generateRefreshToken(userId)
+        // Use new refresh token service with rotation support
+        return refreshTokenService.createRefreshToken(userId)
     }
 
     /**
@@ -175,10 +180,10 @@ open class AuthenticationService(
      * @return UserEntity if token is valid, null otherwise
      */
     fun validateAccessToken(token: String): UserEntity? {
-        val userId = jwtService.getUserIdFromToken(token) ?: return null
+        val userId = jwtTokenValidator.getUserIdFromToken(token) ?: return null
 
         // Verify it's an access token
-        if (!jwtService.isAccessToken(token)) {
+        if (!jwtTokenValidator.isAccessToken(token)) {
             logger.debug { "Token is not an access token" }
             return null
         }
@@ -198,14 +203,17 @@ open class AuthenticationService(
     /**
      * Validate a JWT refresh token and return the user.
      *
+     * @deprecated Use RefreshTokenService.refreshAccessToken() instead for token rotation support
      * @param token The JWT refresh token
      * @return UserEntity if token is valid, null otherwise
      */
+    @Deprecated("Use RefreshTokenService.refreshAccessToken() for token rotation support", ReplaceWith("refreshTokenService.refreshAccessToken(token)"))
     fun validateRefreshToken(token: String): UserEntity? {
-        val userId = jwtService.getUserIdFromToken(token) ?: return null
+        // Legacy validation (backward compatibility)
+        val userId = jwtTokenValidator.getUserIdFromToken(token) ?: return null
 
         // Verify it's a refresh token
-        if (!jwtService.isRefreshToken(token)) {
+        if (!jwtTokenValidator.isRefreshToken(token)) {
             logger.debug { "Token is not a refresh token" }
             return null
         }
@@ -314,11 +322,15 @@ open class AuthenticationService(
     }
 
     /**
-     * Clear remember me token for a user
+     * Clear remember me token for a user.
+     * Also revokes all refresh tokens if RefreshTokenService is available.
      */
     @Transactional
     open fun clearRememberMeToken(userId: UUID): UserEntity {
-        // Fetch the entity and update it in place
+        // Revoke all refresh tokens if service is available
+        refreshTokenService?.revokeAllTokensForUser(userId)
+
+        // Fetch the entity and update it in place (backward compatibility)
         val user =
             userRepository.findById(userId).orElseThrow {
                 IllegalStateException("User not found with id: $userId")

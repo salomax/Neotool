@@ -219,7 +219,12 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                     mimeType = "image/jpeg",
                     sizeBytes = 1024L,
                 )
-            mockStorageClient.simulateUpload(asset.storageBucket, asset.storageKey!!, sizeBytes = 1024L, contentType = "image/jpeg")
+            mockStorageClient.simulateUpload(
+                asset.storageBucket,
+                asset.storageKey!!,
+                sizeBytes = 1024L,
+                contentType = "image/jpeg",
+            )
 
             // Act
             val confirmedAsset = assetService.confirmUpload(asset.id!!, testUserId)
@@ -277,7 +282,8 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                             namespace = "user-profiles",
                             storageKey = "test/key",
                             storageRegion = "us-east-1",
-                            storageBucket = "neotool-assets-private", // user-profiles is PRIVATE
+                            // user-profiles is PRIVATE
+                            storageBucket = "neotool-assets-private",
                             mimeType = "image/jpeg",
                             sizeBytes = 1024L,
                             checksum = null,
@@ -319,7 +325,8 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                             namespace = "user-profiles",
                             storageKey = "test/key",
                             storageRegion = "us-east-1",
-                            storageBucket = "neotool-assets-private", // user-profiles is PRIVATE
+                            // user-profiles is PRIVATE
+                            storageBucket = "neotool-assets-private",
                             mimeType = "image/jpeg",
                             sizeBytes = 1024L,
                             checksum = null,
@@ -368,7 +375,8 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                             namespace = "user-profiles",
                             storageKey = "test/key",
                             storageRegion = "us-east-1",
-                            storageBucket = "neotool-assets-private", // user-profiles is PRIVATE
+                            // user-profiles is PRIVATE
+                            storageBucket = "neotool-assets-private",
                             mimeType = "image/jpeg",
                             sizeBytes = 1024L,
                             checksum = null,
@@ -409,7 +417,8 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                             namespace = "user-profiles",
                             storageKey = "test/key",
                             storageRegion = "us-east-1",
-                            storageBucket = "neotool-assets-private", // user-profiles is PRIVATE
+                            // user-profiles is PRIVATE
+                            storageBucket = "neotool-assets-private",
                             mimeType = "image/jpeg",
                             sizeBytes = 1024L,
                             checksum = null,
@@ -461,7 +470,8 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                             namespace = "user-profiles",
                             storageKey = "test/key",
                             storageRegion = "us-east-1",
-                            storageBucket = "neotool-assets-private", // user-profiles is PRIVATE
+                            // user-profiles is PRIVATE
+                            storageBucket = "neotool-assets-private",
                             mimeType = "image/jpeg",
                             sizeBytes = 1024L,
                             checksum = null,

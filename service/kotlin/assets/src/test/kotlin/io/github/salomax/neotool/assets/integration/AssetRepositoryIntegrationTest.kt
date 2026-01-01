@@ -58,7 +58,8 @@ open class AssetRepositoryIntegrationTest : BaseIntegrationTest(), PostgresInteg
                     namespace = namespace,
                     storageKey = "$namespace/$ownerId/${UUID.randomUUID()}",
                     storageRegion = "us-east-1",
-                    storageBucket = "neotool-assets-private", // user-profiles is PRIVATE
+                    // user-profiles is PRIVATE
+                    storageBucket = "neotool-assets-private",
                     mimeType = "image/jpeg",
                     sizeBytes = 1024L,
                     checksum = "test-checksum",
@@ -92,7 +93,8 @@ open class AssetRepositoryIntegrationTest : BaseIntegrationTest(), PostgresInteg
                     namespace = "user-profiles",
                     storageKey = "user-profiles/profile-image/test-user/${UUID.randomUUID()}",
                     storageRegion = "us-east-1",
-                    storageBucket = "neotool-assets-private", // user-profiles is PRIVATE
+                    // user-profiles is PRIVATE
+                    storageBucket = "neotool-assets-private",
                     mimeType = "image/jpeg",
                     sizeBytes = 1024L,
                     checksum = "test-checksum",
@@ -285,7 +287,8 @@ open class AssetRepositoryIntegrationTest : BaseIntegrationTest(), PostgresInteg
                             namespace = "user-profiles",
                             storageKey = "test/key",
                             storageRegion = "us-east-1",
-                            storageBucket = "neotool-assets-private", // user-profiles is PRIVATE
+                            // user-profiles is PRIVATE
+                            storageBucket = "neotool-assets-private",
                             mimeType = "image/jpeg",
                             sizeBytes = 1024L,
                             checksum = null,

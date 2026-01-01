@@ -8,19 +8,19 @@ import jakarta.inject.Singleton
  */
 @Singleton
 class JwtPrincipalDecoder(
-    private val jwtService: JwtService,
+    private val jwtTokenValidator: JwtTokenValidator,
 ) : TokenPrincipalDecoder {
 
     override fun fromToken(token: String): RequestPrincipal {
         // Service token handling
-        if (jwtService.isServiceToken(token)) {
+        if (jwtTokenValidator.isServiceToken(token)) {
             val serviceId =
-                jwtService.getServiceIdFromToken(token)
+                jwtTokenValidator.getServiceIdFromToken(token)
                     ?: throw AuthenticationRequiredException("Invalid service token: missing service ID")
 
-            val servicePermissions = jwtService.getPermissionsFromToken(token) ?: emptyList()
-            val userId = jwtService.getUserIdFromServiceToken(token)
-            val userPermissions = jwtService.getUserPermissionsFromServiceToken(token)
+            val servicePermissions = jwtTokenValidator.getPermissionsFromToken(token) ?: emptyList()
+            val userId = jwtTokenValidator.getUserIdFromServiceToken(token)
+            val userPermissions = jwtTokenValidator.getUserPermissionsFromServiceToken(token)
 
             return RequestPrincipal(
                 principalType = PrincipalType.SERVICE,
@@ -33,15 +33,15 @@ class JwtPrincipalDecoder(
         }
 
         // Access token handling
-        if (!jwtService.isAccessToken(token)) {
+        if (!jwtTokenValidator.isAccessToken(token)) {
             throw AuthenticationRequiredException("Invalid or expired access token")
         }
 
         val userId =
-            jwtService.getUserIdFromToken(token)
+            jwtTokenValidator.getUserIdFromToken(token)
                 ?: throw AuthenticationRequiredException("Invalid token: missing user ID")
 
-        val permissions = jwtService.getPermissionsFromToken(token) ?: emptyList()
+        val permissions = jwtTokenValidator.getPermissionsFromToken(token) ?: emptyList()
 
         return RequestPrincipal(
             principalType = PrincipalType.USER,

@@ -32,7 +32,10 @@ class AuthorizationManager(
      * @param permission The permission/action to check (e.g., "security:user:view")
      * @throws AuthorizationDeniedException if permission is denied
      */
-    override fun require(principal: RequestPrincipal, permission: String) {
+    override fun require(
+        principal: RequestPrincipal,
+        permission: String,
+    ) {
         require(principal, permission, null, null, null, null)
     }
 

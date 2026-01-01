@@ -45,7 +45,7 @@ data class StorageProperties(
         require(privateBucket.isNotBlank()) { "privateBucket must not be blank" }
         require(publicBucket != privateBucket) {
             "publicBucket and privateBucket must be different. " +
-            "Got: publicBucket='$publicBucket', privateBucket='$privateBucket'"
+                "Got: publicBucket='$publicBucket', privateBucket='$privateBucket'"
         }
         require(publicBasePath.isNotBlank()) { "publicBasePath must not be blank" }
     }

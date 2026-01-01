@@ -3,8 +3,10 @@ package io.github.salomax.neotool.assets.storage
 import io.github.salomax.neotool.assets.exception.StorageUnavailableException
 import jakarta.inject.Singleton
 import org.slf4j.LoggerFactory
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.core.exception.SdkException
 import software.amazon.awssdk.core.retry.RetryUtils
+import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest
 import software.amazon.awssdk.services.s3.model.GetObjectRequest
@@ -309,7 +311,7 @@ class S3StorageClient(
         if (bucket != storageProperties.publicBucket) {
             logger.warn(
                 "Attempted to generate public URL for private bucket: $bucket. " +
-                "This should not happen - use presigned URLs for private assets.",
+                    "This should not happen - use presigned URLs for private assets.",
             )
         }
 
@@ -331,9 +333,9 @@ class S3StorageClient(
             S3Presigner
                 .builder()
                 .endpointOverride(URI.create(storageProperties.getEndpoint()))
-                .region(software.amazon.awssdk.regions.Region.of(storageProperties.region))
+                .region(Region.of(storageProperties.region))
                 .credentialsProvider(
-                    software.amazon.awssdk.auth.credentials.StaticCredentialsProvider.create(credentials),
+                    StaticCredentialsProvider.create(credentials),
                 )
 
         // Apply path-style access if configured (required for MinIO)
