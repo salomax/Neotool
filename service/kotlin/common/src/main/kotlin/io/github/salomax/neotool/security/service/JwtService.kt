@@ -1,11 +1,15 @@
 package io.github.salomax.neotool.security.service
 
+import io.github.salomax.neotool.security.config.JwtAlgorithm
 import io.github.salomax.neotool.security.config.JwtConfig
 import io.jsonwebtoken.Claims
 import io.jsonwebtoken.Jwts
+import io.jsonwebtoken.JwtParser
 import io.jsonwebtoken.security.Keys
 import jakarta.inject.Singleton
 import mu.KotlinLogging
+import java.security.PrivateKey
+import java.security.PublicKey
 import java.time.Instant
 import java.util.Date
 import java.util.UUID
@@ -14,26 +18,141 @@ import javax.crypto.SecretKey
 /**
  * Service for JWT token generation and validation.
  *
+ * @deprecated This service has been split into:
+ * - [JwtTokenIssuer] (in security module) - for token generation
+ * - [JwtTokenValidator] (in common module) - for token validation
+ *
+ * Migration guide:
+ * - For token generation: Use [JwtTokenIssuer] instead
+ * - For token validation: Use [JwtTokenValidator] instead
+ *
+ * This class is kept for backward compatibility but will be removed in a future version.
+ *
  * Implements JWT best practices:
- * - Uses HMAC-SHA256 (HS256) algorithm for signing
- * - Includes standard claims: sub (subject/userId), iat (issued at), exp (expiration)
+ * - Supports both HMAC-SHA256 (HS256) and RSA-SHA256 (RS256) algorithms
+ * - Includes standard claims: sub (subject/userId), iat (issued at), exp (expiration), iss (issuer)
  * - Configurable token expiration times
- * - Secure secret key management via configuration
+ * - Secure key management via configuration
+ * - Dual-mode validation: tries RS256 first, falls back to HS256
  *
  * @see https://tools.ietf.org/html/rfc7519
  */
+@Deprecated(
+    message = "Use JwtTokenIssuer for token generation and JwtTokenValidator for token validation",
+    replaceWith = ReplaceWith("JwtTokenIssuer or JwtTokenValidator", imports = ["io.github.salomax.neotool.security.service.JwtTokenIssuer", "io.github.salomax.neotool.security.service.JwtTokenValidator"])
+)
 @Singleton
 class JwtService(
     private val jwtConfig: JwtConfig,
+    private val keyManagerFactory: KeyManagerFactory,
 ) {
     private val logger = KotlinLogging.logger {}
 
-    private val secretKey: SecretKey by lazy {
-        val secret = jwtConfig.secret
+    private val keyManager: KeyManager by lazy {
+        keyManagerFactory.getKeyManager()
+    }
+
+    private fun getSecretKey(keyId: String? = null): SecretKey? {
+        val secret = keyManager.getSecret(keyId ?: jwtConfig.keyId ?: "default")
+        if (secret == null) {
+            return null
+        }
         if (secret.length < 32) {
             logger.warn { "JWT secret is less than 32 characters. Consider using a longer secret for production." }
         }
-        Keys.hmacShaKeyFor(secret.toByteArray())
+        return Keys.hmacShaKeyFor(secret.toByteArray())
+    }
+
+    private fun getPrivateKey(keyId: String? = null): PrivateKey? {
+        return keyManager.getPrivateKey(keyId ?: jwtConfig.keyId ?: "default")
+    }
+
+    private fun getPublicKey(keyId: String? = null): PublicKey? {
+        return keyManager.getPublicKey(keyId ?: jwtConfig.keyId ?: "default")
+    }
+
+    // Backward compatibility: lazy properties for single key pair
+    private val secretKey: SecretKey? by lazy {
+        getSecretKey()
+    }
+
+    private val privateKey: PrivateKey? by lazy {
+        getPrivateKey()
+    }
+
+    private val publicKey: PublicKey? by lazy {
+        getPublicKey()
+    }
+
+    /**
+     * Get the signing key based on configured algorithm.
+     */
+    private val signingKey: Any by lazy {
+        when (jwtConfig.algorithm) {
+            JwtAlgorithm.RS256 -> {
+                privateKey ?: throw IllegalStateException("RS256 requires private key. Configure jwt.private-key-path or jwt.private-key")
+            }
+            JwtAlgorithm.HS256 -> {
+                secretKey ?: throw IllegalStateException("HS256 requires secret. Configure jwt.secret")
+            }
+            JwtAlgorithm.AUTO -> {
+                privateKey ?: secretKey ?: throw IllegalStateException("AUTO mode requires either private key (RS256) or secret (HS256)")
+            }
+        }
+    }
+
+    /**
+     * Get the current signing algorithm.
+     */
+    fun getAlgorithm(): JwtAlgorithm {
+        return when {
+            jwtConfig.algorithm == JwtAlgorithm.RS256 -> JwtAlgorithm.RS256
+            jwtConfig.algorithm == JwtAlgorithm.HS256 -> JwtAlgorithm.HS256
+            privateKey != null -> JwtAlgorithm.RS256
+            else -> JwtAlgorithm.HS256
+        }
+    }
+
+    /**
+     * Get the current key ID for JWKS.
+     */
+    fun getKeyId(): String? {
+        return jwtConfig.keyId
+    }
+
+    /**
+     * Sign a JWT builder with the appropriate key and algorithm.
+     */
+    private fun signBuilder(builder: io.jsonwebtoken.JwtBuilder): io.jsonwebtoken.JwtBuilder {
+        val algorithm = getAlgorithm()
+        val keyId = getKeyId()
+
+        // Add key ID to header if available (for JWKS)
+        val builderWithHeader = if (keyId != null) {
+            builder.header().add("kid", keyId).and()
+        } else {
+            builder
+        }
+
+        return when (algorithm) {
+            JwtAlgorithm.RS256 -> {
+                requireNotNull(privateKey) { "RS256 requires private key" }
+                builderWithHeader.signWith(privateKey)
+            }
+            JwtAlgorithm.HS256 -> {
+                requireNotNull(secretKey) { "HS256 requires secret key" }
+                builderWithHeader.signWith(secretKey)
+            }
+            JwtAlgorithm.AUTO -> {
+                // AUTO mode: prefer RS256 if available
+                if (privateKey != null) {
+                    builderWithHeader.signWith(privateKey)
+                } else {
+                    requireNotNull(secretKey) { "AUTO mode requires either private key or secret" }
+                    builderWithHeader.signWith(secretKey)
+                }
+            }
+        }
     }
 
     /**
@@ -61,13 +180,12 @@ class JwtService(
                 .claim("type", "access")
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiration))
+                .issuer("neotool-security-service") // Add issuer claim
 
         // Always include permissions claim as array (empty [] when no permissions)
         builder.claim("permissions", permissions ?: emptyList<String>())
 
-        return builder
-            .signWith(secretKey)
-            .compact()
+        return signBuilder(builder).compact()
     }
 
     /**
@@ -102,32 +220,80 @@ class JwtService(
         val now = Instant.now()
         val expiration = now.plusSeconds(jwtConfig.refreshTokenExpirationSeconds)
 
-        return Jwts.builder()
-            .subject(userId.toString())
-            .claim("type", "refresh")
-            .issuedAt(Date.from(now))
-            .expiration(Date.from(expiration))
-            .signWith(secretKey)
-            .compact()
+        return signBuilder(
+            Jwts.builder()
+                .subject(userId.toString())
+                .claim("type", "refresh")
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(expiration))
+                .issuer("neotool-security-service")
+        ).compact()
     }
 
     /**
      * Validate and parse a JWT token.
+     * Supports dual-mode validation: tries RS256 first, falls back to HS256 if RS256 fails.
+     * Extracts key ID from token header if present, otherwise uses default key.
      *
      * @param token The JWT token string to validate
      * @return Claims if token is valid, null otherwise
      */
     fun validateToken(token: String): Claims? {
-        return try {
-            Jwts.parser()
-                .verifyWith(secretKey)
-                .build()
-                .parseSignedClaims(token)
-                .payload
+        // Extract key ID from token header if present
+        val keyId = try {
+            val parts = token.split(".")
+            if (parts.size >= 2) {
+                val headerJson = String(java.util.Base64.getUrlDecoder().decode(parts[0]))
+                // Simple JSON parsing for "kid" field
+                val kidMatch = Regex("\"kid\"\\s*:\\s*\"([^\"]+)\"").find(headerJson)
+                kidMatch?.groupValues?.get(1)
+            } else {
+                null
+            }
         } catch (e: Exception) {
-            logger.debug { "Token validation failed: ${e.message}" }
+            logger.debug { "Failed to extract key ID from token header: ${e.message}" }
             null
+        } ?: jwtConfig.keyId ?: "default"
+
+        // Try RS256 first if public key is available
+        val publicKey = getPublicKey(keyId)
+        if (publicKey != null && (jwtConfig.algorithm == JwtAlgorithm.RS256 || jwtConfig.algorithm == JwtAlgorithm.AUTO)) {
+            try {
+                val claims = Jwts.parser()
+                    .verifyWith(publicKey as java.security.interfaces.RSAPublicKey)
+                    .build()
+                    .parseSignedClaims(token)
+                    .payload
+                logger.debug { "Token validated successfully with RS256 (kid: $keyId)" }
+                return claims
+            } catch (e: Exception) {
+                logger.debug { "RS256 validation failed: ${e.message}" }
+                // Fall through to try HS256 if AUTO mode
+                if (jwtConfig.algorithm == JwtAlgorithm.RS256) {
+                    return null // RS256 was required but failed
+                }
+            }
         }
+
+        // Try HS256 if secret is available and algorithm allows it
+        val secretKey = getSecretKey(keyId)
+        if (secretKey != null && (jwtConfig.algorithm == JwtAlgorithm.HS256 || jwtConfig.algorithm == JwtAlgorithm.AUTO)) {
+            try {
+                val claims = Jwts.parser()
+                    .verifyWith(secretKey)
+                    .build()
+                    .parseSignedClaims(token)
+                    .payload
+                logger.debug { "Token validated successfully with HS256 (kid: $keyId)" }
+                return claims
+            } catch (e: Exception) {
+                logger.debug { "HS256 validation failed: ${e.message}" }
+                return null
+            }
+        }
+
+        logger.warn { "No valid key available for token validation (kid: $keyId)" }
+        return null
     }
 
     /**
@@ -193,15 +359,16 @@ class JwtService(
         val now = Instant.now()
         val expiration = now.plusSeconds(jwtConfig.accessTokenExpirationSeconds)
 
-        return Jwts.builder()
-            .subject(serviceId.toString())
-            .claim("type", "service")
-            .claim("aud", targetAudience)
-            .claim("permissions", permissions)
-            .issuedAt(Date.from(now))
-            .expiration(Date.from(expiration))
-            .signWith(secretKey)
-            .compact()
+        return signBuilder(
+            Jwts.builder()
+                .subject(serviceId.toString())
+                .claim("type", "service")
+                .claim("aud", targetAudience)
+                .claim("permissions", permissions)
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(expiration))
+                .issuer("neotool-security-service")
+        ).compact()
     }
 
     /**
@@ -227,17 +394,18 @@ class JwtService(
         val now = Instant.now()
         val expiration = now.plusSeconds(jwtConfig.accessTokenExpirationSeconds)
 
-        return Jwts.builder()
-            .subject(serviceId.toString())
-            .claim("type", "service")
-            .claim("aud", targetAudience)
-            .claim("permissions", permissions)
-            .claim("user_id", userId.toString())
-            .claim("user_permissions", userPermissions)
-            .issuedAt(Date.from(now))
-            .expiration(Date.from(expiration))
-            .signWith(secretKey)
-            .compact()
+        return signBuilder(
+            Jwts.builder()
+                .subject(serviceId.toString())
+                .claim("type", "service")
+                .claim("aud", targetAudience)
+                .claim("permissions", permissions)
+                .claim("user_id", userId.toString())
+                .claim("user_permissions", userPermissions)
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(expiration))
+                .issuer("neotool-security-service")
+        ).compact()
     }
 
     /**

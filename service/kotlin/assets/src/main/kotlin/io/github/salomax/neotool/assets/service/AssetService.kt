@@ -43,7 +43,10 @@ open class AssetService(
     private val logger = KotlinLogging.logger {}
 
     // Metrics for bucket usage tracking (optional - only if MeterRegistry is available)
-    private fun recordBucketUploadMetric(bucket: String, visibility: String) {
+    private fun recordBucketUploadMetric(
+        bucket: String,
+        visibility: String,
+    ) {
         try {
             meterRegistry?.let { registry ->
                 Counter.builder("assets.upload.bucket")
@@ -92,7 +95,7 @@ open class AssetService(
         val bucket = bucketResolver.resolveBucket(namespaceConfig.visibility)
         logger.info {
             "Selected bucket '$bucket' for namespace '$namespace' " +
-            "(visibility: ${namespaceConfig.visibility})"
+                "(visibility: ${namespaceConfig.visibility})"
         }
 
         // Track bucket usage metric
@@ -107,11 +110,11 @@ open class AssetService(
                 if (existing.storageBucket != expectedBucket) {
                     logger.warn {
                         "Idempotency key conflict: existing asset in bucket ${existing.storageBucket}, " +
-                        "expected $expectedBucket for namespace $namespace"
+                            "expected $expectedBucket for namespace $namespace"
                     }
                     throw IllegalArgumentException(
                         "Idempotency key conflict: namespace visibility changed. " +
-                        "Please use a new idempotency key."
+                            "Please use a new idempotency key.",
                     )
                 }
                 logger.info { "Returning existing asset for idempotency key: $idempotencyKey, assetId=${existing.id}" }
@@ -140,7 +143,8 @@ open class AssetService(
                 // Temporary, will be updated after save
                 storageKey = "temp/${UUID.randomUUID()}",
                 storageRegion = storageProperties.region,
-                storageBucket = bucket, // Store selected bucket
+                // Store selected bucket
+                storageBucket = bucket,
                 mimeType = mimeType,
                 sizeBytes = sizeBytes,
                 checksum = null,
@@ -237,7 +241,7 @@ open class AssetService(
         if (!storageClient.objectExists(entity.storageBucket, entity.storageKey)) {
             logger.error {
                 "Asset confirmation failed: object not found in storage: " +
-                "bucket=${entity.storageBucket}, key=${entity.storageKey}"
+                    "bucket=${entity.storageBucket}, key=${entity.storageKey}"
             }
             entity.status = AssetStatus.FAILED
             entity.uploadUrl = null // Clear stale upload URL
@@ -394,7 +398,7 @@ open class AssetService(
         } catch (e: Exception) {
             logger.warn(e) {
                 "Failed to delete from storage (continuing): " +
-                "bucket=${entity.storageBucket}, key=${entity.storageKey}"
+                    "bucket=${entity.storageBucket}, key=${entity.storageKey}"
             }
         }
 

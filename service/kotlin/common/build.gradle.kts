@@ -55,6 +55,9 @@ dependencies {
     api("io.jsonwebtoken:jjwt-impl:0.12.5")
     api("io.jsonwebtoken:jjwt-jackson:0.12.5")
 
+    // Vault client for secret management
+    api("com.bettercloud:vault-java-driver:5.1.0")
+
     // Micrometer - api for other modules (needed for metrics instrumentation)
     api("io.micronaut.micrometer:micronaut-micrometer-core")
 
@@ -125,6 +128,7 @@ afterEvaluate {
                         "io.github.salomax.neotool.common.logging.MDCFilter",
                         "io.github.salomax.neotool.common.logging.EnterpriseLoggingFilter",
                         "io.github.salomax.neotool.common.logging.EnterpriseLogMethodInterceptor",
+                        "io.github.salomax.neotool.common.security.SecurityHeadersFilter",
                         "io.github.salomax.neotool.common.exception.GraphQLOptimisticLockExceptionHandler",
                         "io.github.salomax.neotool.common.exception.OptimisticLockExceptionHandler",
                         "io.github.salomax.neotool.common.graphql.GraphQLRequest",

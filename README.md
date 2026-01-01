@@ -645,6 +645,8 @@ pnpm run ci:unit
 
 - [ ] Implement Idle Timeout: Define a period of inactivity (e.g., 30 days). If the Refresh Token has not been used within this period, it MUST be revoked. This cleans up unused sessions and forces re-login after long periods of absence.
 
+- [ ] Key rotation automation: Implement automatic key rotation with zero-downtime key rollover. Support multiple active key versions, automatic expiration of old keys, and seamless transition for validators.
+
 - [ ] Audit trail
 
 ### Authorization

@@ -265,6 +265,377 @@ Service ──> Principal (enabled/disabled status)
 Authorization Check ──> AuthorizationAuditLog
 ```
 
+### JWT Key and Token Flows
+
+#### 1. Key Creation Flow
+
+The security service automatically generates RSA key pairs on first startup. This flow ensures only one pod generates keys even when multiple pods start simultaneously.
+
+```mermaid
+flowchart TD
+    A[Application Startup] --> B{JwtKeyInitializer.onStartup}
+    B --> C{autoGenerateKeys enabled?}
+    C -->|No| Z[Skip - Keys Pre-provisioned]
+    C -->|Yes| D[Get KeyManager from Factory]
+    D --> E[Check if Keys Exist]
+    E -->|Keys Found| Z
+    E -->|Keys Missing| F{Vault Enabled?}
+    F -->|Yes| G[Acquire Vault Lock]
+    F -->|No| H[Acquire File Lock]
+    G --> I{Lock Acquired?}
+    I -->|No| J[Retry with Delay]
+    J --> I
+    I -->|Yes| K[Double-Check Keys Exist]
+    H --> K
+    K -->|Keys Found| L[Release Lock & Skip]
+    K -->|Keys Missing| M[Generate RSA Key Pair]
+    M --> N[Store Keys via WritableKeyManager]
+    N --> O{Storage Success?}
+    O -->|Yes| P[Release Lock]
+    O -->|No| Q[Log Error]
+    P --> R[Ready to Issue Tokens]
+    L --> R
+    Q --> R
+    
+    style A fill:#e1f5ff
+    style M fill:#fff4e1
+    style N fill:#fff4e1
+    style R fill:#e8f5e9
+    style Q fill:#ffebee
+```
+
+**Step-by-Step Process:**
+
+1. **Application Startup Event** (`JwtKeyInitializer.onStartup()`)
+   - **Class**: `JwtKeyInitializer`
+   - **Method**: `onStartup(StartupEvent)`
+   - **Rule**: Runs automatically when Micronaut application starts
+   - **Why**: Ensures keys are available before any token operations
+
+2. **Check Auto-Generation Configuration** (`jwtConfig.autoGenerateKeys`)
+   - **Class**: `JwtConfig`
+   - **Property**: `autoGenerateKeys: Boolean`
+   - **Rule**: If `false`, skip generation (keys must be provisioned via Vault or file system)
+   - **Why**: Allows production environments to disable auto-generation for security compliance
+
+3. **Get Key Manager** (`keyManagerFactory.getKeyManager()`)
+   - **Class**: `KeyManagerFactory`
+   - **Method**: `getKeyManager(): KeyManager`
+   - **Rule**: Returns `VaultKeyManager` if Vault enabled, else `FileKeyManager`
+   - **Why**: Abstraction allows different storage backends without code changes
+
+4. **Check Keys Exist** (`keyManager.getPrivateKey(keyId)`)
+   - **Class**: `KeyManager` interface
+   - **Method**: `getPrivateKey(keyId: String): PrivateKey?`
+   - **Rule**: Returns `null` if keys don't exist
+   - **Why**: Idempotent check - safe to run on every startup
+
+5. **Acquire Distributed Lock** (`vaultClient.acquireLock()` or `fileLock.withLock()`)
+   - **Class**: `VaultClient` or `ReentrantLock`
+   - **Method**: `acquireLock(lockPath, ttlSeconds)` or `withLock { }`
+   - **Rule**: Prevents race conditions when multiple pods start simultaneously
+   - **Why**: Ensures only one pod generates keys, others wait and verify
+
+6. **Double-Check Keys After Lock** (`keyManager.getPrivateKey(keyId)`)
+   - **Class**: `KeyManager`
+   - **Rule**: Another pod may have created keys while waiting for lock
+   - **Why**: Prevents duplicate key generation (double-checked locking pattern)
+
+7. **Generate RSA Key Pair** (`JwtKeyGenerator.generateRsaKeyPair()`)
+   - **Class**: `JwtKeyGenerator`
+   - **Method**: `generateRsaKeyPair(keySize: Int): KeyPair`
+   - **Rule**: Uses `KeyPairGenerator` with `SecureRandom`, minimum 2048 bits
+   - **Why**: Cryptographically secure key generation for signing tokens
+
+8. **Store Key Pair** (`writableKeyManager.storeKeyPair()`)
+   - **Class**: `WritableKeyManager` interface
+   - **Method**: `storeKeyPair(keyId, privateKey, publicKey): Boolean`
+   - **Rule**: Stores both keys atomically in Vault or files
+   - **Why**: Ensures keys are stored together, prevents partial state
+
+9. **Release Lock** (`vaultClient.releaseLock()` or automatic)
+   - **Class**: `VaultClient` or `ReentrantLock`
+   - **Rule**: Always release in `finally` block, even on errors
+   - **Why**: Prevents deadlocks if pod crashes during generation
+
+**Key Classes:**
+- `JwtKeyInitializer` - Orchestrates key generation on startup
+- `JwtKeyGenerator` - Generates RSA key pairs
+- `KeyManagerFactory` - Selects appropriate key manager
+- `VaultKeyManager` / `FileKeyManager` - Store keys in different backends
+- `VaultClient` - Provides distributed locking via Vault
+
+#### 2. Token Issuance Flow
+
+When a user authenticates (password or OAuth), the security service issues a JWT token signed with the private key.
+
+```mermaid
+flowchart TD
+    A[User Authentication] --> B{Authentication Method}
+    B -->|Password| C[AuthenticationService.authenticate]
+    B -->|OAuth| D[OAuthProvider.validateAndExtractClaims]
+    C --> E{Valid Credentials?}
+    D --> F{Valid Token?}
+    E -->|No| G[Return null]
+    F -->|No| G
+    E -->|Yes| H[Load User from DB]
+    F -->|Yes| I[Create/Find User by Email]
+    H --> J[Check Principal Enabled]
+    I --> J
+    J -->|Disabled| G
+    J -->|Enabled| K[Build AuthContext]
+    K --> L[Get User Permissions]
+    L --> M[JwtTokenIssuer.generateAccessToken]
+    M --> N[Get Signing Key from KeyManager]
+    N --> O{Algorithm Type?}
+    O -->|RS256| P[Get Private Key]
+    O -->|HS256| Q[Get Secret Key]
+    O -->|AUTO| R{Private Key Available?}
+    R -->|Yes| P
+    R -->|No| Q
+    P --> S[Build JWT Claims]
+    Q --> S
+    S --> T[Add Key ID to Header]
+    T --> U[Sign Token with Key]
+    U --> V[Return Signed JWT Token]
+    
+    style A fill:#e1f5ff
+    style M fill:#fff4e1
+    style S fill:#fff4e1
+    style U fill:#fff4e1
+    style V fill:#e8f5e9
+    style G fill:#ffebee
+```
+
+**Step-by-Step Process:**
+
+1. **User Authentication** (`AuthenticationService.authenticate()` or OAuth)
+   - **Class**: `AuthenticationService`
+   - **Method**: `authenticate(email, password): UserEntity?`
+   - **Rule**: Validates credentials, checks principal enabled status
+   - **Why**: Ensures only authenticated, enabled users receive tokens
+
+2. **Build Authentication Context** (`AuthContextFactory.build()`)
+   - **Class**: `AuthContextFactory`
+   - **Method**: `build(user: UserEntity): AuthContext`
+   - **Rule**: Loads user roles and permissions from database
+   - **Why**: Normalizes authentication data regardless of auth method (password/OAuth)
+
+3. **Generate Access Token** (`JwtTokenIssuer.generateAccessToken()`)
+   - **Class**: `JwtTokenIssuer`
+   - **Method**: `generateAccessToken(authContext: AuthContext): String`
+   - **Rule**: Only security module can issue tokens
+   - **Why**: Centralizes token issuance, ensures consistent token format
+
+4. **Build JWT Claims** (`Jwts.builder()`)
+   - **Class**: `JwtTokenIssuer`
+   - **Method**: `generateAccessToken(userId, email, permissions)`
+   - **Rule**: Includes standard claims: `sub`, `iat`, `exp`, `iss`, `type`, `permissions`
+   - **Why**: Standard JWT claims enable validation and authorization
+
+5. **Get Signing Key** (`keyManager.getPrivateKey()` or `getSecretKey()`)
+   - **Class**: `KeyManager`
+   - **Method**: `getPrivateKey(keyId)` or `getSecret(keyId)`
+   - **Rule**: Uses configured `keyId` or default
+   - **Why**: Supports key rotation by allowing multiple active keys
+
+6. **Determine Algorithm** (`getAlgorithm()`)
+   - **Class**: `JwtTokenIssuer`
+   - **Method**: `getAlgorithm(): JwtAlgorithm`
+   - **Rule**: Prefers RS256 if private key available, falls back to HS256
+   - **Why**: RS256 is more secure (asymmetric), HS256 is simpler (symmetric)
+
+7. **Add Key ID to Header** (`builder.header().add("kid", keyId)`)
+   - **Class**: `JwtTokenIssuer`
+   - **Method**: `signBuilder()`
+   - **Rule**: Includes `kid` in JWT header if configured
+   - **Why**: Enables validators to select correct public key for verification
+
+8. **Sign Token** (`builder.signWith(privateKey/secretKey)`)
+   - **Class**: `JwtTokenIssuer`
+   - **Method**: `signBuilder()`
+   - **Rule**: Uses RS256 with private key or HS256 with secret
+   - **Why**: Cryptographic signature proves token authenticity and prevents tampering
+
+9. **Compact Token** (`builder.compact()`)
+   - **Class**: `io.jsonwebtoken.Jwts`
+   - **Rule**: Encodes JWT as base64url string
+   - **Why**: Standard JWT format for transmission in HTTP headers
+
+**Key Classes:**
+- `AuthenticationService` - Validates user credentials
+- `JwtTokenIssuer` - Signs and issues JWT tokens
+- `KeyManager` - Provides signing keys
+- `AuthContextFactory` - Builds normalized auth context
+- `JwtKeyGenerator` - Generates key pairs (used during key creation)
+
+#### 3. Token Validation Flow (Multi-Issuer)
+
+When a request arrives, the system validates the JWT token. It supports tokens from the internal security service and external IdPs (like Google OAuth).
+
+```mermaid
+flowchart TD
+    A[Incoming Request] --> B[Extract JWT from Header]
+    B --> C[JwtPrincipalDecoder.fromToken]
+    C --> D[Parse Token Header]
+    D --> E[Extract Issuer Claim]
+    E --> F{Issuer Type?}
+    F -->|neotool-security-service| G[JwtTokenValidator.validateToken]
+    F -->|accounts.google.com| H[GoogleOAuthProvider.validateAndExtractClaims]
+    F -->|Unknown| I[Try Internal Validator]
+    I --> G
+    G --> J[Extract Key ID from Header]
+    J --> K[Get Public Key from KeyManager]
+    K --> L{Key Found?}
+    L -->|No| M[Try Secret Key]
+    L -->|Yes| N[Verify RS256 Signature]
+    M --> O{Secret Found?}
+    O -->|No| P[Validation Failed]
+    O -->|Yes| Q[Verify HS256 Signature]
+    N --> R{Signature Valid?}
+    Q --> R
+    R -->|No| P
+    R -->|Yes| S[Check Expiration]
+    S --> T{Token Expired?}
+    T -->|Yes| P
+    T -->|No| U[Extract Claims]
+    H --> V[Parse Google ID Token]
+    V --> W[Verify Audience]
+    W --> X{Audience Valid?}
+    X -->|No| P
+    X -->|Yes| Y[Verify Issuer]
+    Y --> Z{Issuer Valid?}
+    Z -->|No| P
+    Z -->|Yes| AA[Check Expiration]
+    AA --> AB{Token Expired?}
+    AB -->|Yes| P
+    AB -->|No| AC[Extract User Claims]
+    U --> AD{Token Type?}
+    AC --> AE[Create/Find User]
+    AE --> AF[Build AuthContext]
+    AF --> AG[Issue Internal Token]
+    AG --> AD
+    AD -->|service| AH[Extract Service ID]
+    AD -->|access| AI[Extract User ID]
+    AH --> AJ[Build RequestPrincipal]
+    AI --> AJ
+    AJ --> AK[Return RequestPrincipal]
+    P --> AL[Throw AuthenticationRequiredException]
+    
+    style A fill:#e1f5ff
+    style G fill:#fff4e1
+    style H fill:#fff4e1
+    style N fill:#fff4e1
+    style Q fill:#fff4e1
+    style AK fill:#e8f5e9
+    style P fill:#ffebee
+    style AL fill:#ffebee
+```
+
+**Step-by-Step Process:**
+
+1. **Extract Token from Request** (`JwtPrincipalDecoder.fromToken()`)
+   - **Class**: `JwtPrincipalDecoder`
+   - **Method**: `fromToken(token: String): RequestPrincipal`
+   - **Rule**: Token extracted from `Authorization: Bearer <token>` header
+   - **Why**: Standard HTTP authentication header format
+
+2. **Parse Token Header** (`token.split(".")`)
+   - **Class**: `JwtTokenValidator`
+   - **Method**: `validateToken(token: String)`
+   - **Rule**: JWT has 3 parts: header.payload.signature
+   - **Why**: Extract `kid` (key ID) and `iss` (issuer) from header
+
+3. **Identify Issuer** (`claims.issuer` or `payload.issuer`)
+   - **Class**: `JwtTokenValidator` or `GoogleOAuthProvider`
+   - **Rule**: 
+     - `"neotool-security-service"` → Internal token
+     - `"accounts.google.com"` → Google OAuth token
+     - Unknown → Try internal validator first
+   - **Why**: Routes to correct validator based on issuer
+
+4. **Internal Token Validation** (`JwtTokenValidator.validateToken()`)
+   - **Class**: `JwtTokenValidator`
+   - **Method**: `validateToken(token: String): Claims?`
+   - **Rule**: Tries RS256 first, falls back to HS256 if AUTO mode
+   - **Why**: Supports both algorithms, prefers more secure RS256
+
+5. **Get Verification Key** (`keyManager.getPublicKey(keyId)` or `getSecret(keyId)`)
+   - **Class**: `KeyManager`
+   - **Method**: `getPublicKey(keyId)` for RS256, `getSecret(keyId)` for HS256
+   - **Rule**: Uses `kid` from header, or default key if not present
+   - **Why**: Supports key rotation by selecting correct key
+
+6. **Verify Signature** (`Jwts.parser().verifyWith(key).parseSignedClaims()`)
+   - **Class**: `JwtTokenValidator`
+   - **Method**: `validateToken()`
+   - **Rule**: Cryptographic verification of signature
+   - **Why**: Ensures token wasn't tampered with and was signed by trusted issuer
+
+7. **Check Expiration** (`claims.expiration`)
+   - **Class**: `JwtTokenValidator`
+   - **Rule**: Token must not be expired (`exp > now`)
+   - **Why**: Prevents use of stale tokens, enforces token lifetime
+
+8. **External Token Validation** (`GoogleOAuthProvider.validateAndExtractClaims()`)
+   - **Class**: `GoogleOAuthProvider`
+   - **Method**: `validateAndExtractClaims(idToken: String): OAuthUserClaims?`
+   - **Rule**: Validates Google ID token format, audience, issuer, expiration
+   - **Why**: External IdP tokens need different validation than internal tokens
+
+9. **Verify Audience** (`tokenAudienceList.contains(clientId)`)
+   - **Class**: `GoogleOAuthProvider`
+   - **Rule**: Token audience must match configured Google Client ID
+   - **Why**: Ensures token was issued for this application, not another
+
+10. **Verify Issuer** (`tokenIssuer == expectedIssuer`)
+   - **Class**: `GoogleOAuthProvider`
+   - **Rule**: Token issuer must be `"accounts.google.com"` or `"https://accounts.google.com"`
+   - **Why**: Prevents token forgery, ensures token from trusted Google
+
+11. **Extract Claims** (`claims.subject`, `claims["permissions"]`, etc.)
+   - **Class**: `JwtTokenValidator` or `GoogleOAuthProvider`
+   - **Rule**: Extract user ID, permissions, email from validated token
+   - **Why**: Claims contain authorization information needed for request processing
+
+12. **Build RequestPrincipal** (`JwtPrincipalDecoder.fromToken()`)
+   - **Class**: `JwtPrincipalDecoder`
+   - **Method**: `fromToken()`
+   - **Rule**: Creates `RequestPrincipal` with user/service ID and permissions
+   - **Why**: Normalized security context for authorization checks
+
+13. **Handle Service Tokens** (`jwtTokenValidator.isServiceToken()`)
+   - **Class**: `JwtPrincipalDecoder`
+   - **Rule**: Service tokens have `type="service"` claim
+   - **Why**: Service-to-service authentication needs different handling than user tokens
+
+**Key Classes:**
+- `JwtPrincipalDecoder` - Entry point for token validation, builds RequestPrincipal
+- `JwtTokenValidator` - Validates internal security service tokens
+- `GoogleOAuthProvider` - Validates Google OAuth ID tokens
+- `KeyManager` - Provides public keys/secrets for signature verification
+- `OAuthProviderRegistry` - Manages multiple OAuth providers
+
+**Validation Rules:**
+
+1. **Internal Tokens** (`iss="neotool-security-service"`):
+   - Must have valid signature (RS256 or HS256)
+   - Must not be expired
+   - Must have `sub` (subject/user ID) claim
+   - May have `permissions` claim for authorization
+
+2. **Google OAuth Tokens** (`iss="accounts.google.com"`):
+   - Must have valid Google signature (validated by Google library)
+   - Must have correct `aud` (audience) matching Client ID
+   - Must have correct `iss` (issuer)
+   - Must not be expired
+   - Must have `email` claim
+
+3. **Service Tokens** (`type="service"`):
+   - Same validation as internal tokens
+   - Must have `aud` (target audience) claim
+   - May have `user_id` and `user_permissions` for user context propagation
+
 ---
 
 ## Implementation Guide
@@ -509,6 +880,7 @@ CREATE TABLE abac_policies (
 - Store tokens securely (httpOnly cookies or secure storage)
 - Invalidate tokens on logout
 - Use strong JWT secrets (min 32 bytes)
+- Store JWT keys in Vault (production)
 
 ❌ **DON'T:**
 - Store tokens in localStorage (XSS risk)
@@ -516,6 +888,123 @@ CREATE TABLE abac_policies (
 - Share tokens between users
 - Expose token secrets in code
 - Allow token reuse after logout
+- Store private keys in environment variables (use Vault)
+
+### 2.1. Vault Integration for Key Management
+
+The system supports HashiCorp Vault for secure storage of JWT signing keys and secrets. This is the recommended approach for production environments.
+
+#### Configuration
+
+Enable Vault in `application.yml`:
+
+```yaml
+vault:
+  enabled: ${VAULT_ENABLED:false}
+  address: ${VAULT_ADDRESS:http://localhost:8200}
+  token: ${VAULT_TOKEN:}
+  secret-path: ${VAULT_SECRET_PATH:secret/jwt/keys}
+  engine-version: ${VAULT_ENGINE_VERSION:2}
+  connection-timeout: ${VAULT_CONNECTION_TIMEOUT:5000}
+  read-timeout: ${VAULT_READ_TIMEOUT:5000}
+```
+
+#### Vault Secret Structure
+
+Keys should be stored in Vault with this structure:
+
+```
+secret/jwt/keys/{keyId}/
+  ├── private: "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
+  ├── public: "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----"
+  └── secret: "base64-encoded-secret" (optional, for HS256 fallback)
+```
+
+Example for key ID `kid-1`:
+- Path: `secret/jwt/keys/kid-1`
+- Keys: `private`, `public`, `secret`
+
+#### Development vs Production
+
+**Development:**
+- Vault disabled by default (`vault.enabled: false`)
+- Uses file-based or environment variable keys
+- No Vault server required
+
+**Production:**
+- Enable Vault (`VAULT_ENABLED=true`)
+- Provide Vault token via environment variable or service account
+- Keys automatically fetched from Vault with 5-minute caching
+- Falls back to file-based if Vault unavailable
+
+#### Automatic Key Generation on First Startup
+
+The security service automatically generates RSA key pairs on first startup if keys don't exist.
+
+**How it works:**
+1. On startup, the service checks if keys exist for the configured `key-id`
+2. If keys don't exist and `jwt.auto-generate-keys=true` (default), keys are automatically generated
+3. Uses distributed locking (Vault Lock API or file locks) to prevent race conditions when multiple pods start simultaneously
+4. Keys are stored in Vault (if enabled) or local files (if Vault disabled)
+
+**Configuration:**
+```yaml
+jwt:
+  auto-generate-keys: ${JWT_AUTO_GENERATE_KEYS:true}
+  key-size: ${JWT_KEY_SIZE:4096}
+  key-id: ${JWT_KEY_ID:kid-1}
+  lock-ttl-seconds: ${JWT_LOCK_TTL_SECONDS:60}
+  lock-retry-attempts: ${JWT_LOCK_RETRY_ATTEMPTS:3}
+  lock-retry-delay-seconds: ${JWT_LOCK_RETRY_DELAY_SECONDS:2}
+```
+
+**Distributed Locking:**
+- **With Vault**: Uses Vault KV with check-and-set (CAS) for distributed locking
+  - Lock path: `sys/locks/jwt-key-init/{keyId}`
+  - TTL prevents deadlocks if pod crashes during key generation
+  - Only one pod generates keys, others wait and verify keys exist
+- **Without Vault**: Uses file-based locking (ReentrantLock)
+
+**Race Condition Handling:**
+When multiple pods start simultaneously:
+1. All pods check if keys exist → NO
+2. All pods attempt to acquire lock
+3. One pod acquires lock, others wait
+4. Lock holder double-checks keys (still missing)
+5. Lock holder generates and stores keys
+6. Lock holder releases lock
+7. Other pods acquire lock, double-check keys → EXIST
+8. Other pods skip generation
+
+**Disabling Auto-Generation:**
+Set `jwt.auto-generate-keys=false` for production environments where keys are provisioned through Vault or file system:
+```yaml
+jwt:
+  auto-generate-keys: false
+```
+
+#### Key Rotation (Future)
+
+The architecture supports key rotation:
+- Multiple active key versions
+- Key ID (kid) in JWT header identifies signing key
+- Validators fetch correct public key by kid
+- Old keys remain valid until expiration
+
+#### Security Considerations
+
+✅ **DO:**
+- Store Vault token securely (environment variable or K8s service account)
+- Use Vault policies to restrict key access
+- Enable Vault audit logging
+- Rotate Vault tokens regularly
+- Use separate Vault paths per environment
+
+❌ **DON'T:**
+- Commit Vault tokens to code
+- Use root Vault tokens
+- Grant broad Vault access policies
+- Store keys in both Vault and files simultaneously
 
 ### 3. Authorization Security
 

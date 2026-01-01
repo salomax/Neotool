@@ -1,12 +1,10 @@
 package io.github.salomax.neotool.assets.storage
 
-import io.github.salomax.neotool.assets.exception.StorageUnavailableException
 import io.micronaut.context.annotation.Requires
 import jakarta.annotation.PostConstruct
 import jakarta.inject.Singleton
 import mu.KotlinLogging
 import software.amazon.awssdk.services.s3.S3Client
-import software.amazon.awssdk.services.s3.model.HeadBucketRequest
 import software.amazon.awssdk.services.s3.model.NoSuchBucketException
 import software.amazon.awssdk.services.s3.model.S3Exception
 

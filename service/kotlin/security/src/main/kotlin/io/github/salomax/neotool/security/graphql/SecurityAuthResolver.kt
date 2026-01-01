@@ -14,6 +14,7 @@ import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.AuthContextFactory
 import io.github.salomax.neotool.security.service.AuthenticationService
 import io.github.salomax.neotool.security.service.AuthorizationService
+import io.github.salomax.neotool.security.service.RefreshTokenService
 import jakarta.inject.Singleton
 import jakarta.validation.ConstraintViolationException
 import mu.KotlinLogging
@@ -37,6 +38,7 @@ class SecurityAuthResolver(
     private val userRepository: UserRepository,
     private val inputValidator: InputValidator,
     private val mapper: SecurityGraphQLMapper,
+    private val refreshTokenService: RefreshTokenService,
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -65,9 +67,8 @@ class SecurityAuthResolver(
             var refreshToken: String? = null
             if (rememberMe) {
                 val userId = requireNotNull(user.id) { "User ID is required for refresh token generation" }
-                refreshToken = authenticationService.generateRefreshToken(user)
-                // Store refresh token in database for revocation support
-                authenticationService.saveRememberMeToken(userId, refreshToken)
+                // Use new refresh token service with rotation support
+                refreshToken = refreshTokenService.createRefreshToken(userId)
             }
 
             logger.info { "User signed in successfully: ${user.email}" }
@@ -137,9 +138,8 @@ class SecurityAuthResolver(
             var refreshToken: String? = null
             if (rememberMe) {
                 val userId = requireNotNull(user.id) { "User ID is required for refresh token generation" }
-                refreshToken = authenticationService.generateRefreshToken(user)
-                // Store refresh token in database for revocation support
-                authenticationService.saveRememberMeToken(userId, refreshToken)
+                // Use new refresh token service with rotation support
+                refreshToken = refreshTokenService.createRefreshToken(userId)
             }
 
             logger.info { "User signed in with OAuth successfully: ${user.email} (provider: $provider)" }
@@ -180,8 +180,8 @@ class SecurityAuthResolver(
 
             // Generate refresh token (for automatic sign-in after signup)
             val userId = requireNotNull(user.id) { "User ID is required for refresh token generation" }
-            val refreshToken = authenticationService.generateRefreshToken(user)
-            authenticationService.saveRememberMeToken(userId, refreshToken)
+            // Use new refresh token service with rotation support
+            val refreshToken = refreshTokenService.createRefreshToken(userId)
 
             logger.info { "User signed up successfully: ${user.email}" }
 
@@ -268,7 +268,7 @@ class SecurityAuthResolver(
      * Refresh access token mutation resolver.
      *
      * Validates a refresh token and issues a new access token with current permissions.
-     * Does not generate a new refresh token - the existing one remains valid.
+     * Implements token rotation - returns both new access token and new refresh token.
      */
     fun refreshAccessToken(input: Map<String, Any?>): GraphQLPayload<SignInPayloadDTO> {
         return try {
@@ -278,24 +278,20 @@ class SecurityAuthResolver(
 
             logger.debug { "Refresh access token attempt" }
 
-            // Validate refresh token and get user
+            // Use RefreshTokenService for token rotation
+            val tokenPair = refreshTokenService.refreshAccessToken(refreshToken)
+
+            // Get user from the new access token to build response
             val user =
-                authenticationService.validateRefreshToken(refreshToken)
-                    ?: throw IllegalArgumentException("Invalid or expired refresh token")
-
-            // Build authentication context (loads current roles and permissions)
-            val authContext = authContextFactory.build(user)
-
-            // Generate new JWT access token with current permissions
-            val token = authenticationService.generateAccessToken(authContext)
+                authenticationService.validateAccessToken(tokenPair.accessToken)
+                    ?: throw IllegalArgumentException("Failed to validate new access token")
 
             logger.info { "Access token refreshed successfully for user: ${user.email}" }
 
             val payload =
                 SignInPayloadDTO(
-                    token = token,
-                    // Don't return refresh token - client should keep existing one
-                    refreshToken = null,
+                    token = tokenPair.accessToken,
+                    refreshToken = tokenPair.refreshToken, // Return new refresh token (rotation)
                     user = mapper.userToDTO(user),
                 )
 

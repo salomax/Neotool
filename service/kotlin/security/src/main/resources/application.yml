@@ -41,11 +41,60 @@ micronaut:
 jwt:
   # Secret key for signing JWT tokens (use strong random secret in production)
   # Can be set via JWT_SECRET environment variable
+  # Required for HS256, optional for RS256 (kept for backward compatibility)
   secret: ${JWT_SECRET:change-me-in-production-use-strong-random-secret-min-32-chars}
+  # Algorithm: HS256, RS256, or AUTO (default: AUTO - tries RS256 first, falls back to HS256)
+  # Can be set via JWT_ALGORITHM environment variable
+  algorithm: ${JWT_ALGORITHM:AUTO}
+  # RSA private key path (PEM format) - required for RS256 signing
+  # Can be set via JWT_PRIVATE_KEY_PATH environment variable
+  private-key-path: ${JWT_PRIVATE_KEY_PATH:}
+  # RSA public key path (PEM format) - required for RS256 validation
+  # Can be set via JWT_PUBLIC_KEY_PATH environment variable
+  public-key-path: ${JWT_PUBLIC_KEY_PATH:}
+  # Inline RSA private key (PEM or base64) - alternative to private-key-path
+  # Can be set via JWT_PRIVATE_KEY environment variable
+  private-key: ${JWT_PRIVATE_KEY:}
+  # Inline RSA public key (PEM or base64) - alternative to public-key-path
+  # Can be set via JWT_PUBLIC_KEY environment variable
+  public-key: ${JWT_PUBLIC_KEY:}
+  # Key ID for JWKS (default: kid-1)
+  # Can be set via JWT_KEY_ID environment variable
+  key-id: ${JWT_KEY_ID:kid-1}
+  # Enable JWKS endpoint (default: true)
+  # Can be set via JWT_JWKS_ENABLED environment variable
+  jwks-enabled: ${JWT_JWKS_ENABLED:true}
+  # JWKS URL for validators (not used by issuer service)
+  # Can be set via JWT_JWKS_URL environment variable
+  jwks-url: ${JWT_JWKS_URL:}
   # Access token expiration in seconds (default: 900 = 15 minutes)
   access-token-expiration-seconds: ${JWT_ACCESS_TOKEN_EXPIRATION_SECONDS:900}
   # Refresh token expiration in seconds (default: 604800 = 7 days)
   refresh-token-expiration-seconds: ${JWT_REFRESH_TOKEN_EXPIRATION_SECONDS:604800}
+
+# Vault Configuration
+vault:
+  # Enable Vault integration (default: false for development)
+  # Can be set via VAULT_ENABLED environment variable
+  enabled: ${VAULT_ENABLED:false}
+  # Vault server address
+  # Can be set via VAULT_ADDRESS environment variable
+  address: ${VAULT_ADDRESS:http://localhost:8200}
+  # Vault authentication token (should be provided via environment variable in production)
+  # Can be set via VAULT_TOKEN environment variable
+  token: ${VAULT_TOKEN:}
+  # Secret path prefix in Vault (keys stored at {secret-path}/{keyId}/private, {secret-path}/{keyId}/public)
+  # Can be set via VAULT_SECRET_PATH environment variable
+  secret-path: ${VAULT_SECRET_PATH:secret/jwt/keys}
+  # KV secrets engine version (default: 2)
+  # Can be set via VAULT_ENGINE_VERSION environment variable
+  engine-version: ${VAULT_ENGINE_VERSION:2}
+  # Connection timeout in milliseconds (default: 5000)
+  # Can be set via VAULT_CONNECTION_TIMEOUT environment variable
+  connection-timeout: ${VAULT_CONNECTION_TIMEOUT:5000}
+  # Read timeout in milliseconds (default: 5000)
+  # Can be set via VAULT_READ_TIMEOUT environment variable
+  read-timeout: ${VAULT_READ_TIMEOUT:5000}
 
 # Email Configuration
 email:

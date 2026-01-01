@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.security.test.service.unit
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import io.github.salomax.neotool.security.config.JwtConfig
 import io.github.salomax.neotool.security.service.AuthContext
 import io.github.salomax.neotool.security.service.JwtService
@@ -9,6 +10,7 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import java.time.Instant
+import java.util.Base64
 import java.util.UUID
 
 @DisplayName("JwtService Unit Tests")
@@ -223,6 +225,43 @@ class JwtServiceTest {
             val claims = jwtService.validateToken(tamperedToken)
 
             assertThat(claims).isNull()
+        }
+
+        @Test
+        fun `should prevent permission elevation via token manipulation`() {
+            val userId = UUID.randomUUID()
+            val email = "test@example.com"
+            val normalPermissions = listOf("assets:asset:view")
+            val normalToken = jwtService.generateAccessToken(userId, email, normalPermissions)
+
+            // Attacker tries to modify token to add admin permission
+            val tokenParts = normalToken.split(".")
+            val header = tokenParts[0]
+            val payload = tokenParts[1]
+            val signature = tokenParts[2]
+
+            // Decode payload
+            val decoded = Base64.getUrlDecoder().decode(payload)
+            val objectMapper = ObjectMapper()
+            @Suppress("UNCHECKED_CAST")
+            val claims = objectMapper.readValue(decoded, Map::class.java) as MutableMap<String, Any>
+
+            // Modify permissions claim to add admin permission
+            val modifiedClaims = claims.toMutableMap().apply {
+                put("permissions", listOf("security:*"))
+            }
+
+            // Re-encode modified payload
+            val modifiedPayload = Base64.getUrlEncoder().withoutPadding().encodeToString(
+                objectMapper.writeValueAsBytes(modifiedClaims)
+            )
+
+            // Reconstruct token with modified payload but original signature
+            val tamperedToken = "$header.$modifiedPayload.$signature"
+
+            // Should fail signature verification
+            val result = jwtService.validateToken(tamperedToken)
+            assertThat(result).isNull()
         }
 
         @Test

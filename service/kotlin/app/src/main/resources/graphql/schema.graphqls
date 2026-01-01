@@ -1,5 +1,3 @@
-directive @key(fields: String!) repeatable on OBJECT | INTERFACE
-
 # Specific entity types implementing interfaces
 type Product @key(fields: "id") {
   id: ID!
@@ -23,7 +21,7 @@ type Customer @key(fields: "id") {
 }
 
 # Query type with clean, focused operations
-type Query {
+extend type Query {
   # Entity queries
   products: [Product!]!
   product(id: ID!): Product
@@ -32,7 +30,7 @@ type Query {
 }
 
 # Mutation type with consistent patterns
-type Mutation {
+extend type Mutation {
   # Product mutations
   createProduct(input: ProductInput!): Product!
   updateProduct(id: ID!, input: ProductInput!): Product!
