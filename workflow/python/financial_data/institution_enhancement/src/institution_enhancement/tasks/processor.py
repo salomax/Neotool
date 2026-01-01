@@ -29,6 +29,7 @@ from institution_enhancement.tasks.db_connection import (
     return_db_connection,
 )
 from institution_enhancement.tasks.message import InstitutionUpsertedMessage
+from institution_enhancement.tasks.serper_client import SerperClient
 
 logger = logging.getLogger(__name__)
 
@@ -166,52 +167,130 @@ def _normalize_social_url(href: str, base_url: str) -> str:
         return f"https://{href}"
 
 
-def extract_website_from_receita_data(receita_data: Dict[str, Any], domain: Optional[str]) -> Optional[str]:
+def extract_website_from_receita_data(
+    receita_data: Dict[str, Any],
+    domain: Optional[str],
+    institution_name: Optional[str],
+    parent_cnpj: str,
+    serper_client: Optional[SerperClient],
+) -> Optional[str]:
     """
-    Extract website URL from CNPJá API response or construct from domain.
+    Extract and validate website URL using multiple strategies.
+
+    Priority order (matching Go implementation):
+    1. Check for special institution keywords (SICOOB, CRESOL, etc.) - no validation needed
+    2. Extract from CNPJá API response (website, site, url, homepage, web fields)
+    3. Construct from email domain if available
+    4. Search using Serper API (if enabled)
+
+    Validation (only for non-special websites):
+    - First attempt: Add "www." prefix if not present (HTTP client retries: 2 attempts with 30s, 60s backoff)
+    - Second attempt: Remove "www." prefix if first attempt failed
+    - Accept 2xx and 3xx status codes as "reachable"
+    - Timeout: 20 seconds per request
 
     Args:
         receita_data: CNPJá API response data
         domain: Extracted domain from emails
+        institution_name: Name of the institution (for Serper search)
+        parent_cnpj: Parent CNPJ (for Serper search)
+        serper_client: Serper client instance (optional)
 
     Returns:
-        Website URL string, or None if not available
+        Validated website URL string, or None if not available
     """
-    if not receita_data:
-        return None
-
-    alias = receita_data.get("alias", "") or ""
-    company_name = receita_data.get("company", {}).get("name", "") or ""
-    
-    # Check special rules: if keyword is found in alias or company_name, return corresponding website
-    alias_lower = alias.lower()
-    company_name_lower = company_name.lower()
-    
-    for keyword, website in SPECIAL_WEBSITES.items():
-        if keyword in alias_lower or keyword in company_name_lower:
-            return website
-
-    # Try to get website directly from API response
-    # Check common field names that might contain website
-    website = next(
-        (receita_data.get(field) for field in WEBSITE_FIELD_NAMES if receita_data.get(field)),
-        None
+    logger.info(
+        f"Starting website extraction: has_receita_data={receita_data is not None}, "
+        f"has_domain={domain is not None}, has_institution_name={institution_name is not None}, "
+        f"has_serper_client={serper_client is not None}"
     )
-    if website:
-        website = website.strip()
-        if website:
-            return _normalize_url(website)
 
-    # Fallback: construct from domain
+    # Priority 1: Check for special institution keywords
+    if institution_name:
+        logger.info(f"Checking for special institution website: institution_name={institution_name}")
+        alias_lower = institution_name.lower()
+
+        for keyword, website in SPECIAL_WEBSITES.items():
+            if keyword in alias_lower:
+                logger.info(
+                    f"Using special website (no validation needed): "
+                    f"institution_name={institution_name}, website={website}"
+                )
+                return website
+
+        logger.info(f"No special website found for institution: institution_name={institution_name}")
+
+    # Priority 2: Extract from CNPJá API response
+    if receita_data:
+        # Check common field names that might contain website
+        api_website = next(
+            (receita_data.get(field) for field in WEBSITE_FIELD_NAMES if receita_data.get(field)),
+            None
+        )
+
+        logger.info(
+            f"Extracting website from CNPJá API: has_website={api_website is not None}, "
+            f"raw_website={api_website}"
+        )
+
+        if api_website:
+            api_website = api_website.strip()
+            if api_website:
+                normalized = _normalize_url(api_website)
+                logger.info(f"Normalized website from CNPJá API: original={api_website}, normalized={normalized}")
+
+                validated_url = validate_website_reachable(normalized)
+                if validated_url:
+                    logger.info(f"Website validated from CNPJá API: url={validated_url}")
+                    return validated_url
+                logger.warning(f"Website from CNPJá API failed validation: url={normalized}")
+        else:
+            logger.info("No website found in CNPJá API response")
+
+    # Priority 3: Construct from email domain
     if domain:
-        return f"https://{domain}"
+        logger.info(f"Attempting to construct website from email domain: email_domain={domain}")
+        domain_website = _normalize_url(domain)
+        logger.info(f"Normalized email domain to URL: original={domain}, normalized={domain_website}")
 
-    # Fallback: if domain is null but trade_name (alias) is not null, construct from trade_name
-    if not domain and alias:
-        trade_name_normalized = alias.lower().strip().replace(" ", "")
-        if trade_name_normalized:
-            return f"https://{trade_name_normalized}.com.br"
+        validated_url = validate_website_reachable(domain_website)
+        if validated_url:
+            logger.info(f"Website validated from email domain: url={validated_url}")
+            return validated_url
+        logger.warning(f"Website from email domain failed validation: url={domain_website}")
+    else:
+        logger.info("No email domain available for website construction")
 
+    # Priority 4: Search using Serper API (if enabled)
+    if serper_client and institution_name:
+        logger.info(
+            f"Attempting to find website using Serper API: "
+            f"institution_name={institution_name}, cnpj={parent_cnpj}"
+        )
+
+        serper_website = serper_client.search_website(institution_name, parent_cnpj)
+        if serper_website:
+            logger.info(
+                f"Website found using Serper API: url={serper_website}, "
+                f"institution_name={institution_name}"
+            )
+
+            # Validate the website found by Serper
+            validated_url = validate_website_reachable(serper_website)
+            if validated_url:
+                logger.info(f"Website from Serper validated successfully: url={validated_url}")
+                return validated_url
+            logger.warning(f"Website from Serper failed validation: url={serper_website}")
+        else:
+            logger.info("No website found using Serper API")
+    else:
+        if not serper_client:
+            logger.info("Serper API not enabled (client is None)")
+        else:
+            logger.info("Serper API skipped (no institution name)")
+
+    # No valid website found
+    logger.warning("No valid website found after all attempts")
     return None
 
 
@@ -243,8 +322,8 @@ def extract_legal_name(receita_data: Dict[str, Any]) -> Optional[str]:
 
 @retry(
     retry=retry_if_exception_type((requests.exceptions.Timeout, requests.exceptions.ConnectionError)),
-    stop=stop_after_attempt(3),
-    wait=wait_incrementing(start=40, increment=20, max=80),
+    stop=stop_after_attempt(2),  # Changed from 3 to 2 retries (total 2 attempts)
+    wait=wait_incrementing(start=30, increment=30, max=60),  # Changed: 30s, 60s backoff
     before_sleep=before_sleep_log(logger, logging.WARNING),
     after=after_log(logger, logging.INFO),
     reraise=True,  # Re-raise to let retry mechanism work, then catch in outer try/except
@@ -289,40 +368,165 @@ def _validate_website_reachable_attempt(website: str) -> bool:
     return is_reachable
 
 
-def validate_website_reachable(website: Optional[str]) -> bool:
+def _has_www_prefix(url: str) -> bool:
+    """
+    Check if URL already has www. subdomain.
+
+    Args:
+        url: URL to check
+
+    Returns:
+        True if URL has www. prefix, False otherwise
+    """
+    # Remove protocol
+    without_protocol = url
+    if "://" in url:
+        without_protocol = url.split("://", 1)[1]
+
+    return without_protocol.startswith("www.")
+
+
+def _add_www_prefix(url: str) -> str:
+    """
+    Add www. to the URL if it doesn't have it.
+
+    Args:
+        url: URL to modify
+
+    Returns:
+        URL with www. prefix
+    """
+    # Extract protocol
+    protocol = "https://"
+    domain = url
+
+    if "://" in url:
+        protocol, domain = url.split("://", 1)
+        protocol += "://"
+
+    # Add www. to domain
+    return f"{protocol}www.{domain}"
+
+
+def _remove_www_prefix(url: str) -> str:
+    """
+    Remove www. from the URL if it has it.
+
+    Args:
+        url: URL to modify
+
+    Returns:
+        URL without www. prefix
+    """
+    # Extract protocol
+    protocol = "https://"
+    domain = url
+
+    if "://" in url:
+        protocol, domain = url.split("://", 1)
+        protocol += "://"
+
+    # Remove www. from domain if present
+    if domain.startswith("www."):
+        domain = domain[4:]
+
+    return f"{protocol}{domain}"
+
+
+def validate_website_reachable(website: Optional[str]) -> Optional[str]:
     """
     Validate that a website URL is reachable.
-    
+
     Uses cloudscraper to handle Cloudflare protection and other anti-bot measures.
     Trusted websites (from SPECIAL_WEBSITES) are skipped from validation.
-    Retries up to 3 times with backoff delays of 40s, 60s, and 80s for timeout/connection errors.
-    
+
+    New logic (matching Go implementation):
+    - First attempt: Try with www. prefix if not present (retries: 2 attempts with 30s, 60s backoff)
+    - Second attempt: Try without www. prefix if first attempt failed
+    - Returns the validated URL (with or without www.) or None if unreachable
+
     Args:
         website: Website URL to validate
-        
+
     Returns:
-        True if website is reachable (returns 2xx or 3xx status), False otherwise
+        Validated URL (with or without www. prefix), or None if not reachable
     """
     if not website:
-        return False
-    
+        return None
+
     # Skip validation for trusted websites (manually set from SPECIAL_WEBSITES)
     trusted_websites = set(SPECIAL_WEBSITES.values())
     if website in trusted_websites:
         logger.info(f"Skipping validation for trusted website: {website}")
-        return True
-    
+        return website
+
+    logger.info(f"Starting website validation: url={website}")
+
+    # First attempt: try with www. prefix (if not already present)
+    if not _has_www_prefix(website):
+        first_attempt_url = _add_www_prefix(website)
+        logger.info(
+            f"First attempt: trying with www prefix - "
+            f"original_url={website}, attempt_url={first_attempt_url}"
+        )
+    else:
+        first_attempt_url = website
+        logger.info(f"First attempt: URL already has www prefix - attempt_url={first_attempt_url}")
+
     try:
-        return _validate_website_reachable_attempt(website)
+        if _validate_website_reachable_attempt(first_attempt_url):
+            logger.info(f"Website validated successfully on first attempt: url={first_attempt_url}")
+            return first_attempt_url
+        else:
+            logger.warning(f"Website not reachable on first attempt: url={first_attempt_url}")
     except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
-        logger.warning(f"Network error validating website {website} after retries: {e}")
-        return False
+        logger.warning(
+            f"First attempt failed: url={first_attempt_url}, error={e}"
+        )
     except requests.exceptions.RequestException as e:
-        logger.warning(f"Failed to validate website {website}: {e}")
-        return False
+        logger.warning(f"First attempt failed: url={first_attempt_url}, error={e}")
     except Exception as e:
-        logger.warning(f"Unexpected error validating website {website}: {e}", exc_info=True)
-        return False
+        logger.warning(
+            f"First attempt failed: url={first_attempt_url}, error={e}",
+            exc_info=True
+        )
+
+    # Second attempt: try without www. prefix (if first attempt had it)
+    if _has_www_prefix(first_attempt_url):
+        website_without_www = _remove_www_prefix(first_attempt_url)
+        logger.info(
+            f"Second attempt: trying without www prefix - "
+            f"original_url={first_attempt_url}, attempt_url={website_without_www}"
+        )
+
+        try:
+            if _validate_website_reachable_attempt(website_without_www):
+                logger.info(
+                    f"Website validated successfully on second attempt: url={website_without_www}"
+                )
+                return website_without_www
+            else:
+                logger.warning(
+                    f"Website not reachable on second attempt: url={website_without_www}"
+                )
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+            logger.warning(
+                f"Second attempt failed: url={website_without_www}, error={e}"
+            )
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"Second attempt failed: url={website_without_www}, error={e}")
+        except Exception as e:
+            logger.warning(
+                f"Second attempt failed: url={website_without_www}, error={e}",
+                exc_info=True
+            )
+    else:
+        logger.info(
+            f"Skipping second attempt (first attempt didn't have www): url={first_attempt_url}"
+        )
+
+    logger.warning(f"All website validation attempts failed: original_url={website}")
+    return None
 
 
 @retry(
@@ -478,7 +682,7 @@ def get_parent_cnpj(message: InstitutionUpsertedMessage) -> str:
     return constructed
 
 
-def process_message(message: InstitutionUpsertedMessage) -> Dict[str, Any]:
+def process_message(message: InstitutionUpsertedMessage, serper_client: Optional[SerperClient] = None) -> Dict[str, Any]:
     """
     Process institution enhancement message.
 
@@ -551,28 +755,43 @@ def process_message(message: InstitutionUpsertedMessage) -> Dict[str, Any]:
         emails = receita_data.get("emails", [])
         domain = extract_domain_from_emails(emails)
 
-        # Extract website from CNPJá API response or construct from domain
-        website = extract_website_from_receita_data(receita_data, domain)
-        
         # Extract legal name and trade name
         legal_name = extract_legal_name(receita_data)
         trade_name = extract_trade_name(receita_data)
 
-        # Validate website is reachable before saving
+        # Determine institution name for website search
+        # Priority: message name, trade name, legal name
+        institution_name = message.nome_instituicao
+        name_source = "message"
+        if not institution_name:
+            if trade_name:
+                institution_name = trade_name
+                name_source = "trade_name"
+            elif legal_name:
+                institution_name = legal_name
+                name_source = "legal_name"
+
+        if institution_name:
+            logger.info(
+                f"Using institution name for website search: name={institution_name}, source={name_source}"
+            )
+
+        # Extract and validate website (includes Serper fallback if enabled)
+        website = extract_website_from_receita_data(
+            receita_data,
+            domain,
+            institution_name,
+            parent_cnpj,
+            serper_client,
+        )
+
+        # Scrape social networks (if website is available)
         if website:
-            if not validate_website_reachable(website):
-                logger.warning(
-                    f"Website not reachable for {parent_cnpj}: {website}, "
-                    f"not saving website to database"
+            social_network = scrape_social_networks(website)
+            if social_network:
+                logger.info(
+                    f"Found social networks for {parent_cnpj}: {list(social_network.keys())}"
                 )
-                website = None  # Don't save unreachable websites
-            else:
-                # Website is reachable, scrape social networks
-                social_network = scrape_social_networks(website)
-                if social_network:
-                    logger.info(
-                        f"Found social networks for {parent_cnpj}: {list(social_network.keys())}"
-                    )
 
     # TODO: Implement logo download from asset management service
 

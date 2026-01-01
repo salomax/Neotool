@@ -17,12 +17,16 @@ from institution_enhancement.tasks.dlq_publisher import create_kafka_producer, p
 from institution_enhancement.flows.health import set_consumer_running, start_health_server, stop_health_server
 from institution_enhancement.tasks.message import InstitutionUpsertedMessage
 from institution_enhancement.tasks.processor import process_message
+from institution_enhancement.tasks.serper_client import SerperClient
 
 # Configuration
 _config = Config.from_env()
 KAFKA_BROKERS = _config.kafka.brokers
 INPUT_TOPIC = _config.kafka.input_topic
 CONSUMER_GROUP = _config.kafka.consumer_group
+
+# Initialize Serper client (if enabled)
+_serper_client = SerperClient.from_env()
 
 # Configure logging
 logging.basicConfig(
@@ -68,12 +72,12 @@ def _publish_to_dlq(
 def _format_message_context(message: Any) -> str:
     """
     Format message context for logging.
-    
+
     Handles both dict (raw Kafka message) and InstitutionUpsertedMessage object.
-    
+
     Args:
         message: Either a dict or InstitutionUpsertedMessage instance
-        
+
     Returns:
         Formatted string with bacen_cod_inst
     """
@@ -82,6 +86,19 @@ def _format_message_context(message: Any) -> str:
     if isinstance(message, dict):
         return f"bacen_cod_inst={message.get('bacen_cod_inst', 'unknown')}"
     return "bacen_cod_inst=unknown"
+
+
+def _process_message_with_serper(message: InstitutionUpsertedMessage) -> dict:
+    """
+    Wrapper to pass Serper client to process_message.
+
+    Args:
+        message: Institution upserted message
+
+    Returns:
+        Processing result dictionary
+    """
+    return process_message(message, serper_client=_serper_client)
 
 
 def run_consumer() -> None:
@@ -93,7 +110,7 @@ def run_consumer() -> None:
         producer_factory=create_kafka_producer,
         retry_config=_config.retry,
         message_factory=InstitutionUpsertedMessage.from_dict,
-        process_message=process_message,
+        process_message=_process_message_with_serper,
         dlq_publisher=_publish_to_dlq,
         rate_limit_min_delay_ms=lambda: _config.cnpja.rate_limit_seconds * 1000,
         health_server_start=lambda: start_health_server(_config.health_check),

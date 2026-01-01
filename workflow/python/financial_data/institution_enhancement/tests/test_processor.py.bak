@@ -1,0 +1,1928 @@
+"""
+Unit tests for domain extraction from emails and processor functions.
+
+Tests cover:
+- Extraction from emails array
+- Null/empty handling
+- Whitespace normalization
+- Edge cases
+- Parent CNPJ retrieval
+- Message processing with mocked dependencies
+"""
+
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
+import psycopg2
+from psycopg2.extras import Json
+
+from institution_enhancement.tasks.message import InstitutionUpsertedMessage
+from institution_enhancement.tasks.processor import (
+    extract_domain_from_emails,
+    extract_legal_name,
+    extract_trade_name,
+    extract_website_from_receita_data,
+    get_parent_cnpj,
+    process_message,
+    validate_website_reachable,
+    scrape_social_networks,
+)
+from institution_enhancement.tasks.db_connection import return_db_connection
+
+
+# ============================================================================
+# Test Helpers
+# ============================================================================
+
+
+def _extract_website_helper(receita_data, domain, institution_name=None, parent_cnpj="12345678901234"):
+    """Helper function to call extract_website_from_receita_data with default test parameters."""
+    return extract_website_from_receita_data(
+        receita_data,
+        domain,
+        institution_name,
+        parent_cnpj,
+        serper_client=None,  # Tests don't use Serper by default
+    )
+
+
+# ============================================================================
+# Unit Tests - extract_domain_from_emails
+# ============================================================================
+
+
+class TestExtractDomainFromEmails:
+    """Test extract_domain_from_emails function."""
+
+    def test_valid_domain_extraction_single_email(self):
+        """Test extraction from single email with valid domain."""
+        emails = [{"domain": "example.com"}]
+        result = extract_domain_from_emails(emails)
+
+        assert result == "example.com"
+        assert isinstance(result, str)
+
+    def test_valid_domain_extraction_multiple_emails_uses_first(self):
+        """Test that extraction uses first non-blacklisted email when multiple emails provided."""
+        emails = [
+            {"domain": "first.com"},
+            {"domain": "second.com"},
+            {"domain": "third.com"},
+        ]
+        result = extract_domain_from_emails(emails)
+
+        assert result == "first.com"
+        # Should use first email, not second or third
+
+    def test_typical_domain_format(self):
+        """Test extraction with typical domain formats."""
+        test_cases = [
+            "example.com",
+            "subdomain.example.com",
+            "example.co.uk",
+            "example-site.com",
+            "123example.com",
+        ]
+
+        for domain in test_cases:
+            emails = [{"domain": domain}]
+            result = extract_domain_from_emails(emails)
+            assert result == domain, f"Failed for domain: {domain}"
+
+    def test_empty_list_returns_none(self):
+        """Test that empty list returns None."""
+        emails = []
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_none_domain_returns_none(self):
+        """Test that None domain returns None."""
+        emails = [{"domain": None}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_empty_string_domain_returns_none(self):
+        """Test that empty string domain returns None."""
+        emails = [{"domain": ""}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_whitespace_only_domain_returns_none(self):
+        """Test that whitespace-only domain returns None."""
+        test_cases = [" ", "  ", "\t", "\n", "\t\n", "   "]
+
+        for whitespace in test_cases:
+            emails = [{"domain": whitespace}]
+            result = extract_domain_from_emails(emails)
+            assert result is None, f"Should return None for whitespace-only: {repr(whitespace)}"
+
+    def test_leading_whitespace_stripped(self):
+        """Test that leading whitespace is stripped from domain."""
+        emails = [{"domain": "  example.com"}]
+        result = extract_domain_from_emails(emails)
+
+        assert result == "example.com"
+        assert result.startswith("example")  # No leading whitespace
+
+    def test_trailing_whitespace_stripped(self):
+        """Test that trailing whitespace is stripped from domain."""
+        emails = [{"domain": "example.com  "}]
+        result = extract_domain_from_emails(emails)
+
+        assert result == "example.com"
+        assert result.endswith("com")  # No trailing whitespace
+
+    def test_both_leading_and_trailing_whitespace_stripped(self):
+        """Test that both leading and trailing whitespace are stripped."""
+        emails = [{"domain": "  example.com  "}]
+        result = extract_domain_from_emails(emails)
+
+        assert result == "example.com"
+        assert result == "example.com"  # No whitespace on either side
+
+    def test_tab_and_newline_whitespace_stripped(self):
+        """Test that tab and newline characters are stripped."""
+        emails = [{"domain": "\t\nexample.com\n\t"}]
+        result = extract_domain_from_emails(emails)
+
+        assert result == "example.com"
+
+    def test_missing_domain_key_returns_none(self):
+        """Test that missing 'domain' key returns None."""
+        emails = [{"email": "test@example.com"}]  # Missing 'domain' key
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_empty_dict_returns_none(self):
+        """Test that empty dictionary returns None."""
+        emails = [{}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_multiple_emails_skips_invalid_uses_first_valid(self):
+        """Test that extraction skips invalid emails and uses first valid domain."""
+        emails = [
+            {"email": "test@example.com"},  # First has no domain key
+            {"domain": "second.com"},  # Second has domain
+            {"domain": "third.com"},  # Third has domain
+        ]
+        result = extract_domain_from_emails(emails)
+
+        assert result == "second.com"
+        # Should skip first email (no domain key) and use first valid domain
+
+    def test_multiple_emails_skips_empty_uses_first_valid(self):
+        """Test that extraction skips empty domains and uses first valid domain."""
+        emails = [
+            {"domain": ""},  # First has empty domain
+            {"domain": "second.com"},  # Second has domain
+            {"domain": "third.com"},  # Third has domain
+        ]
+        result = extract_domain_from_emails(emails)
+
+        assert result == "second.com"
+        # Should skip first email (empty domain) and use first valid domain
+
+    def test_domain_with_internal_spaces_preserved(self):
+        """Test that internal spaces in domain are preserved (though unlikely in real domains)."""
+        # Note: Real domains shouldn't have internal spaces, but we test the behavior
+        emails = [{"domain": "example .com"}]
+        result = extract_domain_from_emails(emails)
+
+        # strip() only removes leading/trailing, not internal spaces
+        assert result == "example .com"
+
+    def test_domain_with_mixed_whitespace(self):
+        """Test domain with various whitespace characters."""
+        emails = [{"domain": "  \t\n  example.com  \t\n  "}]
+        result = extract_domain_from_emails(emails)
+
+        assert result == "example.com"
+
+    def test_single_whitespace_character_returns_none(self):
+        """Test that single whitespace character returns None."""
+        emails = [{"domain": " "}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_blacklisted_domain_gmail_returns_none(self):
+        """Test that gmail.com domain is blacklisted and returns None."""
+        emails = [{"domain": "gmail.com"}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_blacklisted_domain_hotmail_returns_none(self):
+        """Test that hotmail.com domain is blacklisted and returns None."""
+        emails = [{"domain": "hotmail.com"}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_blacklisted_domain_outlook_returns_none(self):
+        """Test that outlook.com domain is blacklisted and returns None."""
+        emails = [{"domain": "outlook.com"}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_blacklisted_domain_live_returns_none(self):
+        """Test that live.com domain is blacklisted and returns None."""
+        emails = [{"domain": "live.com"}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_blacklisted_domain_yahoo_returns_none(self):
+        """Test that yahoo.com domain is blacklisted and returns None."""
+        emails = [{"domain": "yahoo.com"}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_blacklisted_domain_icloud_returns_none(self):
+        """Test that icloud.com domain is blacklisted and returns None."""
+        emails = [{"domain": "icloud.com"}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_blacklisted_domain_bol_returns_none(self):
+        """Test that bol.com.br domain is blacklisted and returns None."""
+        emails = [{"domain": "bol.com.br"}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_blacklisted_domain_ig_returns_none(self):
+        """Test that ig.com.br domain is blacklisted and returns None."""
+        emails = [{"domain": "ig.com.br"}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_blacklisted_domain_terra_returns_none(self):
+        """Test that terra.com.br domain is blacklisted and returns None."""
+        emails = [{"domain": "terra.com.br"}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_blacklisted_domain_uol_returns_none(self):
+        """Test that uol.com.br domain is blacklisted and returns None."""
+        emails = [{"domain": "uol.com.br"}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_blacklisted_domain_globo_returns_none(self):
+        """Test that globo.com domain is blacklisted and returns None."""
+        emails = [{"domain": "globo.com"}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_blacklisted_domain_r7_returns_none(self):
+        """Test that r7.com domain is blacklisted and returns None."""
+        emails = [{"domain": "r7.com"}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_blacklisted_domain_superig_returns_none(self):
+        """Test that superig.com.br domain is blacklisted and returns None."""
+        emails = [{"domain": "superig.com.br"}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_blacklisted_domain_zipmail_returns_none(self):
+        """Test that zipmail.com.br domain is blacklisted and returns None."""
+        emails = [{"domain": "zipmail.com.br"}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_blacklisted_domain_tutanota_returns_none(self):
+        """Test that tutanota.com domain is blacklisted and returns None."""
+        emails = [{"domain": "tutanota.com"}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_blacklisted_domain_protonmail_returns_none(self):
+        """Test that protonmail.com domain is blacklisted and returns None."""
+        emails = [{"domain": "protonmail.com"}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_blacklisted_domain_uai_returns_none(self):
+        """Test that uai.com.br domain is blacklisted and returns None."""
+        emails = [{"domain": "uai.com.br"}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+
+    def test_blacklisted_domains_case_insensitive(self):
+        """Test that blacklist check is case-insensitive."""
+        test_cases = [
+            "GMAIL.COM",
+            "Gmail.Com",
+            "gMaIl.CoM",
+            "Hotmail.COM",
+            "YAHOO.com",
+        ]
+        
+        for domain in test_cases:
+            emails = [{"domain": domain}]
+            result = extract_domain_from_emails(emails)
+            assert result is None, f"Should return None for blacklisted domain (case-insensitive): {domain}"
+
+    def test_multiple_emails_skips_blacklisted_uses_first_valid(self):
+        """Test that extraction skips blacklisted domains and uses first valid domain."""
+        emails = [
+            {"domain": "gmail.com"},  # Blacklisted
+            {"domain": "hotmail.com"},  # Blacklisted
+            {"domain": "company.com"},  # Valid
+            {"domain": "another.com"},  # Valid (shouldn't be used)
+        ]
+        result = extract_domain_from_emails(emails)
+
+        assert result == "company.com"
+        # Should skip blacklisted domains and use first valid one
+
+    def test_all_emails_blacklisted_returns_none(self):
+        """Test that if all emails are blacklisted, returns None."""
+        emails = [
+            {"domain": "gmail.com"},
+            {"domain": "hotmail.com"},
+            {"domain": "yahoo.com"},
+        ]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+        # All domains were blacklisted
+
+    def test_blacklisted_domain_with_whitespace_still_blacklisted(self):
+        """Test that blacklisted domains with whitespace are still filtered."""
+        emails = [{"domain": "  gmail.com  "}]
+        result = extract_domain_from_emails(emails)
+
+        assert result is None
+        # Whitespace should be stripped, then domain checked against blacklist
+
+
+# ============================================================================
+# Unit Tests - extract_trade_name
+# ============================================================================
+
+
+class TestExtractTradeName:
+    """Test extract_trade_name function."""
+
+    def test_extract_trade_name_from_alias(self):
+        """Test extraction from alias field."""
+        receita_data = {"alias": "Company Trade Name"}
+        result = extract_trade_name(receita_data)
+
+        assert result == "Company Trade Name"
+        assert isinstance(result, str)
+
+    def test_extract_trade_name_with_whitespace(self):
+        """Test that whitespace is stripped from trade name."""
+        receita_data = {"alias": "  Company Trade Name  "}
+        result = extract_trade_name(receita_data)
+
+        assert result == "Company Trade Name"
+
+    def test_extract_trade_name_empty_string_returns_none(self):
+        """Test that empty string alias returns None."""
+        receita_data = {"alias": ""}
+        result = extract_trade_name(receita_data)
+
+        assert result is None
+
+    def test_extract_trade_name_whitespace_only_returns_none(self):
+        """Test that whitespace-only alias returns None."""
+        receita_data = {"alias": "   "}
+        result = extract_trade_name(receita_data)
+
+        assert result is None
+
+    def test_extract_trade_name_missing_alias_returns_none(self):
+        """Test that missing alias field returns None."""
+        receita_data = {"name": "Some Company"}
+        result = extract_trade_name(receita_data)
+
+        assert result is None
+
+    def test_extract_trade_name_none_receita_data_returns_none(self):
+        """Test that None receita_data returns None."""
+        result = extract_trade_name(None)
+
+        assert result is None
+
+    def test_extract_trade_name_empty_dict_returns_none(self):
+        """Test that empty dictionary returns None."""
+        receita_data = {}
+        result = extract_trade_name(receita_data)
+
+        assert result is None
+
+    def test_extract_trade_name_none_alias_returns_none(self):
+        """Test that None alias returns None."""
+        receita_data = {"alias": None}
+        result = extract_trade_name(receita_data)
+
+        assert result is None
+
+
+# ============================================================================
+# Unit Tests - extract_legal_name
+# ============================================================================
+
+
+class TestExtractLegalName:
+    """Test extract_legal_name function."""
+
+    def test_extract_legal_name_from_company_name(self):
+        """Test extraction from company.name field."""
+        receita_data = {"company": {"name": "Company Legal Name LTDA"}}
+        result = extract_legal_name(receita_data)
+
+        assert result == "Company Legal Name LTDA"
+        assert isinstance(result, str)
+
+    def test_extract_legal_name_with_whitespace(self):
+        """Test that whitespace is stripped from legal name."""
+        receita_data = {"company": {"name": "  Company Legal Name LTDA  "}}
+        result = extract_legal_name(receita_data)
+
+        assert result == "Company Legal Name LTDA"
+
+    def test_extract_legal_name_empty_string_returns_none(self):
+        """Test that empty string company.name returns None."""
+        receita_data = {"company": {"name": ""}}
+        result = extract_legal_name(receita_data)
+
+        assert result is None
+
+    def test_extract_legal_name_whitespace_only_returns_none(self):
+        """Test that whitespace-only company.name returns None."""
+        receita_data = {"company": {"name": "   "}}
+        result = extract_legal_name(receita_data)
+
+        assert result is None
+
+    def test_extract_legal_name_missing_company_returns_none(self):
+        """Test that missing company field returns None."""
+        receita_data = {"alias": "Trade Name"}
+        result = extract_legal_name(receita_data)
+
+        assert result is None
+
+    def test_extract_legal_name_missing_name_in_company_returns_none(self):
+        """Test that missing name field in company returns None."""
+        receita_data = {"company": {"cnpj": "12345678000190"}}
+        result = extract_legal_name(receita_data)
+
+        assert result is None
+
+    def test_extract_legal_name_none_receita_data_returns_none(self):
+        """Test that None receita_data returns None."""
+        result = extract_legal_name(None)
+
+        assert result is None
+
+    def test_extract_legal_name_empty_dict_returns_none(self):
+        """Test that empty dictionary returns None."""
+        receita_data = {}
+        result = extract_legal_name(receita_data)
+
+        assert result is None
+
+    def test_extract_legal_name_none_company_returns_none(self):
+        """Test that None company returns None."""
+        receita_data = {"company": None}
+        result = extract_legal_name(receita_data)
+
+        assert result is None
+
+    def test_extract_legal_name_none_name_returns_none(self):
+        """Test that None name in company returns None."""
+        receita_data = {"company": {"name": None}}
+        result = extract_legal_name(receita_data)
+
+        assert result is None
+
+
+# ============================================================================
+# Unit Tests - extract_website_from_receita_data
+# ============================================================================
+
+
+class TestExtractWebsiteFromReceitaData:
+    """Test extract_website_from_receita_data function."""
+
+    def test_sicoob_website_from_alias(self):
+        """Test that website is set to Sicoob URL when alias contains 'sicoob'."""
+        receita_data = {
+            "alias": "Sicoob Credicitrus",
+            "company": {"name": "Some Company"},
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://www.sicoob.com.br"
+
+    def test_sicoob_website_from_alias_case_insensitive(self):
+        """Test that Sicoob detection is case-insensitive in alias."""
+        test_cases = [
+            "SICOOB",
+            "sicoob",
+            "SiCoOb",
+            "Sicoob Credicitrus",
+            "Some SICOOB Bank",
+            "sicoob-something",
+        ]
+        
+        for alias in test_cases:
+            receita_data = {"alias": alias}
+            result = extract_website_from_receita_data(receita_data, "example.com")
+            assert result == "https://www.sicoob.com.br", f"Failed for alias: {alias}"
+
+    def test_sicoob_website_from_company_name(self):
+        """Test that website is set to Sicoob URL when company.name contains 'sicoob'."""
+        receita_data = {
+            "alias": "Some Trade Name",
+            "company": {"name": "Sicoob Credicitrus LTDA"},
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://www.sicoob.com.br"
+
+    def test_sicoob_website_from_company_name_case_insensitive(self):
+        """Test that Sicoob detection is case-insensitive in company.name."""
+        test_cases = [
+            "SICOOB",
+            "sicoob",
+            "SiCoOb",
+            "Sicoob Credicitrus LTDA",
+            "Some SICOOB Bank",
+            "sicoob-something",
+        ]
+        
+        for company_name in test_cases:
+            receita_data = {"company": {"name": company_name}}
+            result = extract_website_from_receita_data(receita_data, "example.com")
+            assert result == "https://www.sicoob.com.br", f"Failed for company.name: {company_name}"
+
+    def test_sicoob_website_priority_over_other_fields(self):
+        """Test that Sicoob rule takes priority over other website fields."""
+        receita_data = {
+            "alias": "Sicoob Credicitrus",
+            "website": "https://other-website.com",
+            "site": "https://another-site.com",
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://www.sicoob.com.br"
+
+    def test_sicoob_website_priority_over_domain(self):
+        """Test that Sicoob rule takes priority over domain construction."""
+        receita_data = {
+            "alias": "Sicoob Credicitrus",
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://www.sicoob.com.br"
+
+    def test_no_sicoob_uses_normal_extraction(self):
+        """Test that normal extraction works when Sicoob is not present."""
+        receita_data = {
+            "alias": "Regular Company",
+            "company": {"name": "Regular Company LTDA"},
+            "website": "https://regular-company.com",
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://regular-company.com"
+
+    def test_no_sicoob_uses_domain_fallback(self):
+        """Test that domain fallback works when Sicoob is not present."""
+        receita_data = {
+            "alias": "Regular Company",
+            "company": {"name": "Regular Company LTDA"},
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://example.com"
+
+    def test_sicoob_in_both_alias_and_company_name(self):
+        """Test that Sicoob detection works when present in both fields."""
+        receita_data = {
+            "alias": "Sicoob Credicitrus",
+            "company": {"name": "Sicoob Credicitrus LTDA"},
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://www.sicoob.com.br"
+
+    def test_sicoob_partial_word_match(self):
+        """Test that Sicoob detection matches partial words correctly."""
+        receita_data = {
+            "alias": "SicoobCredicitrus",
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://www.sicoob.com.br"
+
+    def test_cresol_website_from_alias(self):
+        """Test that website is set to Cresol URL when alias contains 'cresol'."""
+        receita_data = {
+            "alias": "Cresol Central",
+            "company": {"name": "Some Company"},
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://cresol.com.br"
+
+    def test_cresol_website_from_alias_case_insensitive(self):
+        """Test that Cresol detection is case-insensitive in alias."""
+        test_cases = [
+            "CRESOL",
+            "cresol",
+            "CrEsOl",
+            "Cresol Central",
+            "Some CRESOL Bank",
+            "cresol-something",
+        ]
+        
+        for alias in test_cases:
+            receita_data = {"alias": alias}
+            result = extract_website_from_receita_data(receita_data, "example.com")
+            assert result == "https://cresol.com.br", f"Failed for alias: {alias}"
+
+    def test_cresol_website_from_company_name(self):
+        """Test that website is set to Cresol URL when company.name contains 'cresol'."""
+        receita_data = {
+            "alias": "Some Trade Name",
+            "company": {"name": "Cresol Central LTDA"},
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://cresol.com.br"
+
+    def test_cresol_website_from_company_name_case_insensitive(self):
+        """Test that Cresol detection is case-insensitive in company.name."""
+        test_cases = [
+            "CRESOL",
+            "cresol",
+            "CrEsOl",
+            "Cresol Central LTDA",
+            "Some CRESOL Bank",
+            "cresol-something",
+        ]
+        
+        for company_name in test_cases:
+            receita_data = {"company": {"name": company_name}}
+            result = extract_website_from_receita_data(receita_data, "example.com")
+            assert result == "https://cresol.com.br", f"Failed for company.name: {company_name}"
+
+    def test_cresol_website_priority_over_other_fields(self):
+        """Test that Cresol rule takes priority over other website fields."""
+        receita_data = {
+            "alias": "Cresol Central",
+            "website": "https://other-website.com",
+            "site": "https://another-site.com",
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://cresol.com.br"
+
+    def test_cresol_website_priority_over_domain(self):
+        """Test that Cresol rule takes priority over domain construction."""
+        receita_data = {
+            "alias": "Cresol Central",
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://cresol.com.br"
+
+    def test_cresol_in_both_alias_and_company_name(self):
+        """Test that Cresol detection works when present in both fields."""
+        receita_data = {
+            "alias": "Cresol Central",
+            "company": {"name": "Cresol Central LTDA"},
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://cresol.com.br"
+
+    def test_cresol_partial_word_match(self):
+        """Test that Cresol detection matches partial words correctly."""
+        receita_data = {
+            "alias": "CresolCentral",
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://cresol.com.br"
+
+    def test_sicoob_priority_over_cresol(self):
+        """Test that Sicoob rule takes priority over Cresol rule."""
+        receita_data = {
+            "alias": "Sicoob Cresol",
+            "company": {"name": "Cresol Sicoob"},
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://www.sicoob.com.br"
+
+    def test_sicredi_website_from_alias(self):
+        """Test that website is set to Sicredi URL when alias contains 'sicredi'."""
+        receita_data = {
+            "alias": "Sicredi Central",
+            "company": {"name": "Some Company"},
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://sicredi.com.br"
+
+    def test_sicredi_website_from_alias_case_insensitive(self):
+        """Test that Sicredi detection is case-insensitive in alias."""
+        test_cases = [
+            "SICREDI",
+            "sicredi",
+            "SiCrEdI",
+            "Sicredi Central",
+            "Some SICREDI Bank",
+            "sicredi-something",
+        ]
+        
+        for alias in test_cases:
+            receita_data = {"alias": alias}
+            result = extract_website_from_receita_data(receita_data, "example.com")
+            assert result == "https://sicredi.com.br", f"Failed for alias: {alias}"
+
+    def test_sicredi_website_from_company_name(self):
+        """Test that website is set to Sicredi URL when company.name contains 'sicredi'."""
+        receita_data = {
+            "alias": "Some Trade Name",
+            "company": {"name": "Sicredi Central LTDA"},
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://sicredi.com.br"
+
+    def test_sicredi_website_from_company_name_case_insensitive(self):
+        """Test that Sicredi detection is case-insensitive in company.name."""
+        test_cases = [
+            "SICREDI",
+            "sicredi",
+            "SiCrEdI",
+            "Sicredi Central LTDA",
+            "Some SICREDI Bank",
+            "sicredi-something",
+        ]
+        
+        for company_name in test_cases:
+            receita_data = {"company": {"name": company_name}}
+            result = extract_website_from_receita_data(receita_data, "example.com")
+            assert result == "https://sicredi.com.br", f"Failed for company.name: {company_name}"
+
+    def test_sicredi_website_priority_over_other_fields(self):
+        """Test that Sicredi rule takes priority over other website fields."""
+        receita_data = {
+            "alias": "Sicredi Central",
+            "website": "https://other-website.com",
+            "site": "https://another-site.com",
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://sicredi.com.br"
+
+    def test_sicredi_website_priority_over_domain(self):
+        """Test that Sicredi rule takes priority over domain construction."""
+        receita_data = {
+            "alias": "Sicredi Central",
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://sicredi.com.br"
+
+    def test_sicredi_in_both_alias_and_company_name(self):
+        """Test that Sicredi detection works when present in both fields."""
+        receita_data = {
+            "alias": "Sicredi Central",
+            "company": {"name": "Sicredi Central LTDA"},
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://sicredi.com.br"
+
+    def test_sicredi_partial_word_match(self):
+        """Test that Sicredi detection matches partial words correctly."""
+        receita_data = {
+            "alias": "SicrediCentral",
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://sicredi.com.br"
+
+    def test_sicoob_priority_over_sicredi(self):
+        """Test that Sicoob rule takes priority over Sicredi rule."""
+        receita_data = {
+            "alias": "Sicoob Sicredi",
+            "company": {"name": "Sicredi Sicoob"},
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://www.sicoob.com.br"
+
+    def test_cresol_priority_over_sicredi(self):
+        """Test that Cresol rule takes priority over Sicredi rule."""
+        receita_data = {
+            "alias": "Cresol Sicredi",
+            "company": {"name": "Sicredi Cresol"},
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://cresol.com.br"
+
+    def test_unicred_website_from_alias(self):
+        """Test that website is set to Unicred URL when alias contains 'unicred'."""
+        receita_data = {
+            "alias": "Unicred Central",
+            "company": {"name": "Some Company"},
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://www.unicred.com.br/"
+
+    def test_unicred_website_from_alias_case_insensitive(self):
+        """Test that Unicred detection is case-insensitive in alias."""
+        test_cases = [
+            "UNICRED",
+            "unicred",
+            "UnIcReD",
+            "Unicred Central",
+            "Some UNICRED Bank",
+            "unicred-something",
+        ]
+        
+        for alias in test_cases:
+            receita_data = {"alias": alias}
+            result = extract_website_from_receita_data(receita_data, "example.com")
+            assert result == "https://www.unicred.com.br/", f"Failed for alias: {alias}"
+
+    def test_unicred_website_from_company_name(self):
+        """Test that website is set to Unicred URL when company.name contains 'unicred'."""
+        receita_data = {
+            "alias": "Some Trade Name",
+            "company": {"name": "Unicred Central LTDA"},
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://www.unicred.com.br/"
+
+    def test_unicred_website_from_company_name_case_insensitive(self):
+        """Test that Unicred detection is case-insensitive in company.name."""
+        test_cases = [
+            "UNICRED",
+            "unicred",
+            "UnIcReD",
+            "Unicred Central LTDA",
+            "Some UNICRED Bank",
+            "unicred-something",
+        ]
+        
+        for company_name in test_cases:
+            receita_data = {"company": {"name": company_name}}
+            result = extract_website_from_receita_data(receita_data, "example.com")
+            assert result == "https://www.unicred.com.br/", f"Failed for company.name: {company_name}"
+
+    def test_unicred_website_priority_over_other_fields(self):
+        """Test that Unicred rule takes priority over other website fields."""
+        receita_data = {
+            "alias": "Unicred Central",
+            "website": "https://other-website.com",
+            "site": "https://another-site.com",
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://www.unicred.com.br/"
+
+    def test_unicred_website_priority_over_domain(self):
+        """Test that Unicred rule takes priority over domain construction."""
+        receita_data = {
+            "alias": "Unicred Central",
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://www.unicred.com.br/"
+
+    def test_unicred_in_both_alias_and_company_name(self):
+        """Test that Unicred detection works when present in both fields."""
+        receita_data = {
+            "alias": "Unicred Central",
+            "company": {"name": "Unicred Central LTDA"},
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://www.unicred.com.br/"
+
+    def test_unicred_partial_word_match(self):
+        """Test that Unicred detection matches partial words correctly."""
+        receita_data = {
+            "alias": "UnicredCentral",
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://www.unicred.com.br/"
+
+    def test_sicoob_priority_over_unicred(self):
+        """Test that Sicoob rule takes priority over Unicred rule."""
+        receita_data = {
+            "alias": "Sicoob Unicred",
+            "company": {"name": "Unicred Sicoob"},
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://www.sicoob.com.br"
+
+    def test_cresol_priority_over_unicred(self):
+        """Test that Cresol rule takes priority over Unicred rule."""
+        receita_data = {
+            "alias": "Cresol Unicred",
+            "company": {"name": "Unicred Cresol"},
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://cresol.com.br"
+
+    def test_sicredi_priority_over_unicred(self):
+        """Test that Sicredi rule takes priority over Unicred rule."""
+        receita_data = {
+            "alias": "Sicredi Unicred",
+            "company": {"name": "Unicred Sicredi"},
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        assert result == "https://sicredi.com.br"
+
+    def test_trade_name_fallback_when_domain_is_none(self):
+        """Test that trade_name is used as fallback when domain is None."""
+        receita_data = {
+            "alias": "Example Company",
+        }
+        result = extract_website_from_receita_data(receita_data, None)
+
+        assert result == "https://examplecompany.com.br"
+
+    def test_trade_name_fallback_when_domain_is_empty_string(self):
+        """Test that trade_name is used as fallback when domain is empty string."""
+        receita_data = {
+            "alias": "Example Company",
+        }
+        result = extract_website_from_receita_data(receita_data, "")
+
+        assert result == "https://examplecompany.com.br"
+
+    def test_trade_name_fallback_lowercase(self):
+        """Test that trade_name fallback converts to lowercase."""
+        receita_data = {
+            "alias": "EXAMPLE COMPANY",
+        }
+        result = extract_website_from_receita_data(receita_data, None)
+
+        assert result == "https://examplecompany.com.br"
+
+    def test_trade_name_fallback_strips_whitespace(self):
+        """Test that trade_name fallback strips whitespace."""
+        receita_data = {
+            "alias": "  Example Company  ",
+        }
+        result = extract_website_from_receita_data(receita_data, None)
+
+        assert result == "https://examplecompany.com.br"
+
+    def test_trade_name_fallback_not_used_when_domain_exists(self):
+        """Test that trade_name fallback is not used when domain exists."""
+        receita_data = {
+            "alias": "Example Company",
+        }
+        result = extract_website_from_receita_data(receita_data, "example.com")
+
+        # Should use domain, not trade_name
+        assert result == "https://example.com"
+
+    def test_trade_name_fallback_not_used_when_alias_is_none(self):
+        """Test that trade_name fallback is not used when alias is None."""
+        receita_data = {
+            "alias": None,
+        }
+        result = extract_website_from_receita_data(receita_data, None)
+
+        assert result is None
+
+    def test_trade_name_fallback_not_used_when_alias_is_empty_string(self):
+        """Test that trade_name fallback is not used when alias is empty string."""
+        receita_data = {
+            "alias": "",
+        }
+        result = extract_website_from_receita_data(receita_data, None)
+
+        assert result is None
+
+    def test_trade_name_fallback_not_used_when_alias_is_whitespace_only(self):
+        """Test that trade_name fallback is not used when alias is whitespace only."""
+        receita_data = {
+            "alias": "   ",
+        }
+        result = extract_website_from_receita_data(receita_data, None)
+
+        assert result is None
+
+    def test_trade_name_fallback_priority_after_special_rules(self):
+        """Test that special rules take priority over trade_name fallback."""
+        receita_data = {
+            "alias": "Cresol Example",
+        }
+        result = extract_website_from_receita_data(receita_data, None)
+
+        # Should use Cresol rule, not trade_name fallback
+        assert result == "https://cresol.com.br"
+
+    def test_trade_name_fallback_priority_after_api_response_fields(self):
+        """Test that API response website fields take priority over trade_name fallback."""
+        receita_data = {
+            "alias": "Example Company",
+            "website": "https://actual-website.com",
+        }
+        result = extract_website_from_receita_data(receita_data, None)
+
+        # Should use website field, not trade_name fallback
+        assert result == "https://actual-website.com"
+
+    def test_trade_name_fallback_with_special_characters(self):
+        """Test that trade_name fallback handles special characters."""
+        receita_data = {
+            "alias": "Example & Company LTDA",
+        }
+        result = extract_website_from_receita_data(receita_data, None)
+
+        # Should remove spaces but keep special characters (validation will catch invalid domains)
+        assert result == "https://example&companyltda.com.br"
+
+    def test_trade_name_fallback_with_mixed_case(self):
+        """Test that trade_name fallback handles mixed case correctly."""
+        receita_data = {
+            "alias": "ExAmPlE CoMpAnY",
+        }
+        result = extract_website_from_receita_data(receita_data, None)
+
+        assert result == "https://examplecompany.com.br"
+
+
+# ============================================================================
+# Unit Tests - get_parent_cnpj
+# ============================================================================
+
+
+class TestGetParentCnpj:
+    """Test get_parent_cnpj function."""
+
+    def test_uses_cnpj_instituicao_lider_when_available(self):
+        """Test that cnpj_instituicao_lider is used when available."""
+        message = InstitutionUpsertedMessage(
+            schema_version="1.0",
+            event_id="test-123",
+            occurred_at="2024-01-01T00:00:00Z",
+            source="test",
+            bacen_cod_inst="60872504",
+            change_type="CREATED",
+            cnpj_instituicao_lider="11222333000181",
+        )
+
+        result = get_parent_cnpj(message)
+
+        assert result == "11222333000181"
+        # Should use leader CNPJ, not construct from bacen_cod_inst
+
+    def test_constructs_cnpj_from_bacen_cod_inst_when_no_leader(self):
+        """Test that CNPJ is constructed from bacen_cod_inst when no leader."""
+        message = InstitutionUpsertedMessage(
+            schema_version="1.0",
+            event_id="test-123",
+            occurred_at="2024-01-01T00:00:00Z",
+            source="test",
+            bacen_cod_inst="60872504",
+            change_type="CREATED",
+            cnpj_instituicao_lider=None,
+        )
+
+        result = get_parent_cnpj(message)
+
+        assert result is not None
+        assert len(result) == 14
+        assert result.startswith("608725040001")
+        # Should construct CNPJ from bacen_cod_inst
+
+    def test_raises_value_error_when_construction_fails(self):
+        """Test that ValueError is raised when CNPJ construction fails."""
+        message = InstitutionUpsertedMessage(
+            schema_version="1.0",
+            event_id="test-123",
+            occurred_at="2024-01-01T00:00:00Z",
+            source="test",
+            bacen_cod_inst="",  # Empty string will fail construction
+            change_type="CREATED",
+            cnpj_instituicao_lider=None,
+        )
+
+        with pytest.raises(ValueError, match="Cannot construct CNPJ from bacen_cod_inst"):
+            get_parent_cnpj(message)
+
+    def test_raises_value_error_when_invalid_bacen_cod_inst(self):
+        """Test that ValueError is raised for invalid bacen_cod_inst."""
+        message = InstitutionUpsertedMessage(
+            schema_version="1.0",
+            event_id="test-123",
+            occurred_at="2024-01-01T00:00:00Z",
+            source="test",
+            bacen_cod_inst="ABC",  # Invalid, no digits
+            change_type="CREATED",
+            cnpj_instituicao_lider=None,
+        )
+
+        with pytest.raises(ValueError, match="Cannot construct CNPJ from bacen_cod_inst"):
+            get_parent_cnpj(message)
+
+    def test_prioritizes_leader_over_construction(self):
+        """Test that leader CNPJ is prioritized even if bacen_cod_inst is valid."""
+        message = InstitutionUpsertedMessage(
+            schema_version="1.0",
+            event_id="test-123",
+            occurred_at="2024-01-01T00:00:00Z",
+            source="test",
+            bacen_cod_inst="60872504",
+            change_type="CREATED",
+            cnpj_instituicao_lider="99999999999999",  # Different from constructed
+        )
+
+        result = get_parent_cnpj(message)
+
+        assert result == "99999999999999"
+        # Should use leader, not construct
+
+
+# ============================================================================
+# Unit Tests - process_message (with mocked dependencies)
+# ============================================================================
+
+
+class TestProcessMessage:
+    """Test process_message function with mocked dependencies."""
+
+    @patch("tasks.processor.get_db_connection")
+    @patch("tasks.processor.query_cnpja")
+    @patch("tasks.processor.validate_website_reachable")
+    @patch("tasks.processor.scrape_social_networks")
+    def test_successful_processing_with_domain_extraction(
+        self, mock_scrape_social_networks, mock_validate_website_reachable, mock_query_cnpja, mock_get_db_connection
+    ):
+        """Test successful processing with domain extraction."""
+        # Arrange
+        message = InstitutionUpsertedMessage(
+            schema_version="1.0",
+            event_id="test-123",
+            occurred_at="2024-01-01T00:00:00Z",
+            source="test",
+            bacen_cod_inst="60872504",
+            change_type="CREATED",
+        )
+
+        # Mock CNPJá API response
+        mock_query_cnpja.return_value = {
+            "found": True,
+            "error": None,
+            "data": {
+                "cnpj": "60872504000123",
+                "name": "Test Institution",
+                "emails": [{"domain": "example.com"}],
+            },
+        }
+
+        # Mock website validation and social network scraping
+        mock_validate_website_reachable.return_value = True
+        mock_scrape_social_networks.return_value = None
+
+        # Mock database
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_cursor.__enter__ = Mock(return_value=mock_cursor)
+        mock_cursor.__exit__ = Mock(return_value=None)
+        mock_conn.cursor.return_value = mock_cursor
+        mock_get_db_connection.return_value = mock_conn
+
+        # Act
+        result = process_message(message)
+
+        # Assert
+        assert result["success"] is True
+        assert result["parent_cnpj"] is not None
+        assert result["domain"] == "example.com"
+        assert result["error"] is None
+
+        # Verify database was called
+        mock_cursor.execute.assert_called_once()
+        mock_conn.commit.assert_called_once()
+        # Connection is returned to pool, not closed (connection pooling)
+
+        # Verify CNPJá API was called
+        mock_query_cnpja.assert_called_once()
+        
+        # Verify website validation was called (website would be constructed from domain)
+        mock_validate_website_reachable.assert_called_once()
+
+    @patch("tasks.processor.get_db_connection")
+    @patch("tasks.processor.query_cnpja")
+    def test_successful_processing_without_domain_404_from_api(
+        self, mock_query_cnpja, mock_get_db_connection
+    ):
+        """Test successful processing without domain (404 from API)."""
+        # Arrange
+        message = InstitutionUpsertedMessage(
+            schema_version="1.0",
+            event_id="test-123",
+            occurred_at="2024-01-01T00:00:00Z",
+            source="test",
+            bacen_cod_inst="60872504",
+            change_type="CREATED",
+        )
+
+        # Mock CNPJá API 404 response
+        mock_query_cnpja.return_value = {
+            "found": False,
+            "error": None,
+            "data": None,
+        }
+
+        # Mock database
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_cursor.__enter__ = Mock(return_value=mock_cursor)
+        mock_cursor.__exit__ = Mock(return_value=None)
+        mock_conn.cursor.return_value = mock_cursor
+        mock_get_db_connection.return_value = mock_conn
+
+        # Act
+        result = process_message(message)
+
+        # Assert
+        assert result["success"] is True
+        assert result["parent_cnpj"] is not None
+        assert result["domain"] is None  # No domain from 404
+        assert result["error"] is None
+
+        # Verify database was still called (with null domain)
+        mock_cursor.execute.assert_called_once()
+        mock_conn.commit.assert_called_once()
+
+    @patch("tasks.processor.query_cnpja")
+    def test_api_error_handling_returns_error_result(self, mock_query_cnpja):
+        """Test API error handling returns error result."""
+        # Arrange
+        message = InstitutionUpsertedMessage(
+            schema_version="1.0",
+            event_id="test-123",
+            occurred_at="2024-01-01T00:00:00Z",
+            source="test",
+            bacen_cod_inst="60872504",
+            change_type="CREATED",
+        )
+
+        # Mock CNPJá API error
+        mock_query_cnpja.return_value = {
+            "found": None,
+            "error": "Request timeout",
+            "data": None,
+        }
+
+        # Act
+        result = process_message(message)
+
+        # Assert
+        assert result["success"] is False
+        assert result["parent_cnpj"] is not None
+        assert result["domain"] is None
+        assert result["error"] == "Request timeout"
+
+    @patch("tasks.processor.get_db_connection")
+    @patch("tasks.processor.query_cnpja")
+    def test_database_connection_error_raises_exception(
+        self, mock_query_cnpja, mock_get_db_connection
+    ):
+        """Test database connection error raises exception."""
+        # Arrange
+        message = InstitutionUpsertedMessage(
+            schema_version="1.0",
+            event_id="test-123",
+            occurred_at="2024-01-01T00:00:00Z",
+            source="test",
+            bacen_cod_inst="60872504",
+            change_type="CREATED",
+        )
+
+        # Mock CNPJá API success
+        mock_query_cnpja.return_value = {
+            "found": True,
+            "error": None,
+            "data": {"emails": [{"domain": "example.com"}]},
+        }
+
+        # Mock database connection error
+        mock_get_db_connection.side_effect = psycopg2.OperationalError("Connection failed")
+
+        # Act & Assert
+        with pytest.raises(psycopg2.OperationalError, match="Connection failed"):
+            process_message(message)
+
+    @patch("tasks.processor.get_db_connection")
+    @patch("tasks.processor.query_cnpja")
+    def test_database_insert_error_raises_exception(
+        self, mock_query_cnpja, mock_get_db_connection
+    ):
+        """Test database insert error raises exception."""
+        # Arrange
+        message = InstitutionUpsertedMessage(
+            schema_version="1.0",
+            event_id="test-123",
+            occurred_at="2024-01-01T00:00:00Z",
+            source="test",
+            bacen_cod_inst="60872504",
+            change_type="CREATED",
+        )
+
+        # Mock CNPJá API success
+        mock_query_cnpja.return_value = {
+            "found": True,
+            "error": None,
+            "data": {"emails": [{"domain": "example.com"}]},
+        }
+
+        # Mock database
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_cursor.__enter__ = Mock(return_value=mock_cursor)
+        mock_cursor.__exit__ = Mock(return_value=None)
+        mock_cursor.execute.side_effect = psycopg2.DatabaseError("Database error")
+        mock_conn.cursor.return_value = mock_cursor
+        mock_get_db_connection.return_value = mock_conn
+
+        # Act & Assert
+        with pytest.raises(psycopg2.DatabaseError, match="Database error"):
+            process_message(message)
+
+        # Verify rollback was called
+        mock_conn.rollback.assert_called_once()
+        # Connection is returned to pool, not closed (connection pooling)
+
+    def test_message_validation_error_raises_value_error(self):
+        """Test message validation error raises ValueError."""
+        # Arrange: Invalid message (missing bacen_cod_inst)
+        message = InstitutionUpsertedMessage(
+            schema_version="1.0",
+            event_id="test-123",
+            occurred_at="2024-01-01T00:00:00Z",
+            source="test",
+            bacen_cod_inst="",  # Invalid: empty
+            change_type="CREATED",
+        )
+
+        # Act & Assert
+        with pytest.raises(ValueError, match="bacen_cod_inst is required"):
+            process_message(message)
+
+    def test_invalid_change_type_raises_value_error(self):
+        """Test invalid change_type raises ValueError."""
+        # Arrange: Invalid change_type
+        message = InstitutionUpsertedMessage(
+            schema_version="1.0",
+            event_id="test-123",
+            occurred_at="2024-01-01T00:00:00Z",
+            source="test",
+            bacen_cod_inst="60872504",
+            change_type="INVALID",  # Invalid change_type
+        )
+
+        # Act & Assert
+        with pytest.raises(ValueError, match="Invalid change_type"):
+            process_message(message)
+
+    @patch("tasks.processor.get_db_connection")
+    @patch("tasks.processor.query_cnpja")
+    @patch("tasks.processor.validate_website_reachable")
+    @patch("tasks.processor.scrape_social_networks")
+    def test_idempotency_on_conflict_updates_existing_record(
+        self, mock_scrape_social_networks, mock_validate_website_reachable, mock_query_cnpja, mock_get_db_connection
+    ):
+        """Test that ON CONFLICT updates existing record (idempotency)."""
+        # Arrange
+        message = InstitutionUpsertedMessage(
+            schema_version="1.0",
+            event_id="test-123",
+            occurred_at="2024-01-01T00:00:00Z",
+            source="test",
+            bacen_cod_inst="60872504",
+            change_type="CREATED",
+        )
+
+        # Mock CNPJá API response
+        mock_query_cnpja.return_value = {
+            "found": True,
+            "error": None,
+            "data": {
+                "emails": [{"domain": "example.com"}],
+            },
+        }
+
+        # Mock website validation and social network scraping
+        mock_validate_website_reachable.return_value = True
+        mock_scrape_social_networks.return_value = None
+
+        # Mock database
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_cursor.__enter__ = Mock(return_value=mock_cursor)
+        mock_cursor.__exit__ = Mock(return_value=None)
+        mock_conn.cursor.return_value = mock_cursor
+        mock_get_db_connection.return_value = mock_conn
+
+        # Act
+        result = process_message(message)
+
+        # Assert
+        assert result["success"] is True
+
+        # Verify SQL includes ON CONFLICT clause
+        execute_call = mock_cursor.execute.call_args[0][0]
+        assert "ON CONFLICT" in execute_call.upper()
+        assert "DO UPDATE SET" in execute_call.upper()
+
+    @patch("tasks.processor.get_db_connection")
+    @patch("tasks.processor.query_cnpja")
+    @patch("tasks.processor.validate_website_reachable")
+    @patch("tasks.processor.scrape_social_networks")
+    def test_receita_data_stored_as_jsonb(
+        self, mock_scrape_social_networks, mock_validate_website_reachable, mock_query_cnpja, mock_get_db_connection
+    ):
+        """Test that receita_data is stored as JSONB."""
+        # Arrange
+        message = InstitutionUpsertedMessage(
+            schema_version="1.0",
+            event_id="test-123",
+            occurred_at="2024-01-01T00:00:00Z",
+            source="test",
+            bacen_cod_inst="60872504",
+            change_type="CREATED",
+        )
+
+        receita_data = {
+            "cnpj": "60872504000123",
+            "name": "Test Institution",
+            "emails": [{"domain": "example.com"}],
+            "address": {"street": "Test Street"},
+            "alias": "Test Trade Name",
+            "company": {"name": "Test Legal Name LTDA"},
+        }
+
+        # Mock CNPJá API response
+        mock_query_cnpja.return_value = {
+            "found": True,
+            "error": None,
+            "data": receita_data,
+        }
+
+        # Mock website validation and social network scraping
+        mock_validate_website_reachable.return_value = True
+        mock_scrape_social_networks.return_value = None
+
+        # Mock database
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_cursor.__enter__ = Mock(return_value=mock_cursor)
+        mock_cursor.__exit__ = Mock(return_value=None)
+        mock_conn.cursor.return_value = mock_cursor
+        mock_get_db_connection.return_value = mock_conn
+
+        # Act
+        process_message(message)
+
+        # Assert: Verify Json wrapper was used
+        execute_call_args = mock_cursor.execute.call_args[0][1]
+        receita_param = execute_call_args[5]  # 6th parameter (0-indexed: 5) - receita_data
+        legal_name_param = execute_call_args[6]  # 7th parameter - legal_name
+        trade_name_param = execute_call_args[7]  # 8th parameter - trade_name
+
+        assert isinstance(receita_param, Json)
+        assert receita_param.adapted == receita_data
+        assert legal_name_param == "Test Legal Name LTDA"
+        assert trade_name_param == "Test Trade Name"
+
+    @patch("tasks.processor.get_db_connection")
+    @patch("tasks.processor.query_cnpja")
+    def test_no_receita_data_stored_as_none(
+        self, mock_query_cnpja, mock_get_db_connection
+    ):
+        """Test that None receita_data is stored as None."""
+        # Arrange
+        message = InstitutionUpsertedMessage(
+            schema_version="1.0",
+            event_id="test-123",
+            occurred_at="2024-01-01T00:00:00Z",
+            source="test",
+            bacen_cod_inst="60872504",
+            change_type="CREATED",
+        )
+
+        # Mock CNPJá API 404 response
+        mock_query_cnpja.return_value = {
+            "found": False,
+            "error": None,
+            "data": None,
+        }
+
+        # Mock database
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_cursor.__enter__ = Mock(return_value=mock_cursor)
+        mock_cursor.__exit__ = Mock(return_value=None)
+        mock_conn.cursor.return_value = mock_cursor
+        mock_get_db_connection.return_value = mock_conn
+
+        # Act
+        process_message(message)
+
+        # Assert: Verify None is passed for receita_data
+        execute_call_args = mock_cursor.execute.call_args[0][1]
+        receita_param = execute_call_args[5]  # 6th parameter
+
+        assert receita_param is None
+
+    @patch("tasks.processor.get_db_connection")
+    @patch("tasks.processor.query_cnpja")
+    @patch("tasks.processor.return_db_connection")
+    @patch("tasks.processor.validate_website_reachable")
+    @patch("tasks.processor.scrape_social_networks")
+    def test_database_close_called_in_finally_block(
+        self, mock_scrape_social_networks, mock_validate_website_reachable, mock_return_db_connection, mock_query_cnpja, mock_get_db_connection
+    ):
+        """Test that database connection is returned to pool in finally block."""
+        # Arrange
+        message = InstitutionUpsertedMessage(
+            schema_version="1.0",
+            event_id="test-123",
+            occurred_at="2024-01-01T00:00:00Z",
+            source="test",
+            bacen_cod_inst="60872504",
+            change_type="CREATED",
+        )
+
+        # Mock CNPJá API success
+        mock_query_cnpja.return_value = {
+            "found": True,
+            "error": None,
+            "data": {"emails": [{"domain": "example.com"}]},
+        }
+
+        # Mock website validation and social network scraping
+        mock_validate_website_reachable.return_value = True
+        mock_scrape_social_networks.return_value = None
+
+        # Mock database
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_cursor.__enter__ = Mock(return_value=mock_cursor)
+        mock_cursor.__exit__ = Mock(return_value=None)
+        mock_conn.cursor.return_value = mock_cursor
+        mock_get_db_connection.return_value = mock_conn
+
+        # Act
+        process_message(message)
+
+        # Assert: Connection should be returned to pool even on success
+        mock_return_db_connection.assert_called_once_with(mock_conn)
+
+    @patch("tasks.processor.get_db_connection")
+    @patch("tasks.processor.query_cnpja")
+    @patch("tasks.processor.validate_website_reachable")
+    @patch("tasks.processor.scrape_social_networks")
+    def test_legal_name_and_trade_name_extraction(
+        self, mock_scrape_social_networks, mock_validate_website_reachable, mock_query_cnpja, mock_get_db_connection
+    ):
+        """Test that legal_name and trade_name are extracted and stored."""
+        # Arrange
+        message = InstitutionUpsertedMessage(
+            schema_version="1.0",
+            event_id="test-123",
+            occurred_at="2024-01-01T00:00:00Z",
+            source="test",
+            bacen_cod_inst="60872504",
+            change_type="CREATED",
+        )
+
+        # Mock CNPJá API response with legal_name and trade_name
+        mock_query_cnpja.return_value = {
+            "found": True,
+            "error": None,
+            "data": {
+                "cnpj": "60872504000123",
+                "name": "Test Institution",
+                "emails": [{"domain": "example.com"}],
+                "alias": "Trade Name Example",
+                "company": {"name": "Legal Name Example LTDA"},
+            },
+        }
+
+        # Mock website validation and social network scraping
+        mock_validate_website_reachable.return_value = True
+        mock_scrape_social_networks.return_value = None
+
+        # Mock database
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_cursor.__enter__ = Mock(return_value=mock_cursor)
+        mock_cursor.__exit__ = Mock(return_value=None)
+        mock_conn.cursor.return_value = mock_cursor
+        mock_get_db_connection.return_value = mock_conn
+
+        # Act
+        result = process_message(message)
+
+        # Assert
+        assert result["success"] is True
+
+        # Verify database was called with legal_name and trade_name
+        mock_cursor.execute.assert_called_once()
+        execute_call_args = mock_cursor.execute.call_args[0][1]
+        
+        # Check that legal_name and trade_name are in the parameters
+        # Parameters order: parent_cnpj, domain, website, logo_storage_key, 
+        # social_network, receita_data, legal_name, trade_name
+        assert execute_call_args[6] == "Legal Name Example LTDA"  # legal_name
+        assert execute_call_args[7] == "Trade Name Example"  # trade_name
+
+    @patch("tasks.processor.get_db_connection")
+    @patch("tasks.processor.query_cnpja")
+    @patch("tasks.processor.validate_website_reachable")
+    @patch("tasks.processor.scrape_social_networks")
+    def test_legal_name_and_trade_name_missing_fields(
+        self, mock_scrape_social_networks, mock_validate_website_reachable, mock_query_cnpja, mock_get_db_connection
+    ):
+        """Test that missing legal_name and trade_name fields are handled as None."""
+        # Arrange
+        message = InstitutionUpsertedMessage(
+            schema_version="1.0",
+            event_id="test-123",
+            occurred_at="2024-01-01T00:00:00Z",
+            source="test",
+            bacen_cod_inst="60872504",
+            change_type="CREATED",
+        )
+
+        # Mock CNPJá API response without alias and company.name
+        mock_query_cnpja.return_value = {
+            "found": True,
+            "error": None,
+            "data": {
+                "cnpj": "60872504000123",
+                "name": "Test Institution",
+                "emails": [{"domain": "example.com"}],
+            },
+        }
+
+        # Mock website validation and social network scraping
+        mock_validate_website_reachable.return_value = True
+        mock_scrape_social_networks.return_value = None
+
+        # Mock database
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_cursor.__enter__ = Mock(return_value=mock_cursor)
+        mock_cursor.__exit__ = Mock(return_value=None)
+        mock_conn.cursor.return_value = mock_cursor
+        mock_get_db_connection.return_value = mock_conn
+
+        # Act
+        result = process_message(message)
+
+        # Assert
+        assert result["success"] is True
+
+        # Verify database was called with None for legal_name and trade_name
+        mock_cursor.execute.assert_called_once()
+        execute_call_args = mock_cursor.execute.call_args[0][1]
+        
+        # Check that legal_name and trade_name are None
+        assert execute_call_args[6] is None  # legal_name
+        assert execute_call_args[7] is None  # trade_name
+
+
+# ============================================================================
+# Unit Tests - validate_website_reachable (with retry logic)
+# ============================================================================
+
+
+class TestValidateWebsiteReachable:
+    """Test validate_website_reachable function with retry logic."""
+
+    @patch("tasks.processor._validate_website_reachable_attempt")
+    def test_validate_website_reachable_success_on_first_attempt(self, mock_attempt):
+        """Test that validation succeeds on first attempt."""
+        mock_attempt.return_value = True
+        
+        result = validate_website_reachable("https://example.com")
+        
+        assert result is True
+        mock_attempt.assert_called_once_with("https://example.com")
+
+    def test_validate_website_reachable_retries_on_timeout(self):
+        """Test that validation retries on timeout with backoff delays."""
+        from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_incrementing
+        import requests
+        
+        # Create a mock that will be wrapped with retry decorator
+        call_count = [0]
+        def mock_attempt(*args, **kwargs):
+            call_count[0] += 1
+            if call_count[0] <= 2:
+                raise requests.exceptions.Timeout("Request timeout")
+            return True
+        
+        # Wrap the mock with retry decorator to simulate the actual behavior
+        mock_with_retry = retry(
+            retry=retry_if_exception_type((requests.exceptions.Timeout, requests.exceptions.ConnectionError)),
+            stop=stop_after_attempt(3),
+            wait=wait_incrementing(start=0.001, increment=0, max=0.001),  # Fast retry for tests
+            reraise=True,
+        )(mock_attempt)
+        
+        # Patch the decorated function with our retry-wrapped mock
+        with patch("tasks.processor._validate_website_reachable_attempt", mock_with_retry):
+            result = validate_website_reachable("https://example.com")
+        
+        assert result is True
+        # Should have been called 3 times (2 failures + 1 success)
+        assert call_count[0] == 3
+
+    def test_validate_website_reachable_retries_on_connection_error(self):
+        """Test that validation retries on connection error."""
+        from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_incrementing
+        import requests
+        
+        # Create a mock that will be wrapped with retry decorator
+        call_count = [0]
+        def mock_attempt(*args, **kwargs):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                raise requests.exceptions.ConnectionError("Connection failed")
+            return True
+        
+        # Wrap the mock with retry decorator to simulate the actual behavior
+        mock_with_retry = retry(
+            retry=retry_if_exception_type((requests.exceptions.Timeout, requests.exceptions.ConnectionError)),
+            stop=stop_after_attempt(3),
+            wait=wait_incrementing(start=0.001, increment=0, max=0.001),  # Fast retry for tests
+            reraise=True,
+        )(mock_attempt)
+        
+        # Patch the decorated function with our retry-wrapped mock
+        with patch("tasks.processor._validate_website_reachable_attempt", mock_with_retry):
+            result = validate_website_reachable("https://example.com")
+        
+        assert result is True
+        assert call_count[0] == 2
+
+    def test_validate_website_reachable_returns_false_after_all_retries_fail(self):
+        """Test that validation returns False after all retries are exhausted."""
+        from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_incrementing
+        import requests
+        
+        # Create a mock that will be wrapped with retry decorator
+        call_count = [0]
+        def mock_attempt(*args, **kwargs):
+            call_count[0] += 1
+            raise requests.exceptions.Timeout("Request timeout")
+        
+        # Wrap the mock with retry decorator to simulate the actual behavior
+        mock_with_retry = retry(
+            retry=retry_if_exception_type((requests.exceptions.Timeout, requests.exceptions.ConnectionError)),
+            stop=stop_after_attempt(3),
+            wait=wait_incrementing(start=0.001, increment=0, max=0.001),  # Fast retry for tests
+            reraise=True,
+        )(mock_attempt)
+        
+        # Patch the decorated function with our retry-wrapped mock
+        with patch("tasks.processor._validate_website_reachable_attempt", mock_with_retry):
+            result = validate_website_reachable("https://example.com")
+        
+        assert result is False
+        # Should have been called 3 times (all retries exhausted)
+        assert call_count[0] == 3
+
+    def test_validate_website_reachable_returns_false_for_none(self):
+        """Test that validation returns False for None input."""
+        result = validate_website_reachable(None)
+        assert result is False
+
+    def test_validate_website_reachable_skips_trusted_websites(self):
+        """Test that trusted websites are skipped from validation."""
+        result = validate_website_reachable("https://www.sicoob.com.br")
+        assert result is True
+
+
+# ============================================================================
+# Unit Tests - scrape_social_networks (with retry logic)
+# ============================================================================
+
+
+class TestScrapeSocialNetworks:
+    """Test scrape_social_networks function with retry logic."""
+
+    @patch("tasks.processor._scrape_social_networks_attempt")
+    def test_scrape_social_networks_success_on_first_attempt(self, mock_attempt):
+        """Test that scraping succeeds on first attempt."""
+        mock_attempt.return_value = {"facebook": "https://facebook.com/example"}
+        
+        result = scrape_social_networks("https://example.com")
+        
+        assert result == {"facebook": "https://facebook.com/example"}
+        mock_attempt.assert_called_once_with("https://example.com")
+
+    def test_scrape_social_networks_retries_on_timeout(self):
+        """Test that scraping retries on timeout."""
+        from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_incrementing
+        import requests
+        
+        # Create a mock that will be wrapped with retry decorator
+        call_count = [0]
+        def mock_attempt(*args, **kwargs):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                raise requests.exceptions.Timeout("Request timeout")
+            return {"instagram": "https://instagram.com/example"}
+        
+        # Wrap the mock with retry decorator to simulate the actual behavior
+        mock_with_retry = retry(
+            retry=retry_if_exception_type((requests.exceptions.Timeout, requests.exceptions.ConnectionError)),
+            stop=stop_after_attempt(3),
+            wait=wait_incrementing(start=0.001, increment=0, max=0.001),  # Fast retry for tests
+            reraise=True,
+        )(mock_attempt)
+        
+        # Patch the decorated function with our retry-wrapped mock
+        with patch("tasks.processor._scrape_social_networks_attempt", mock_with_retry):
+            result = scrape_social_networks("https://example.com")
+        
+        assert result == {"instagram": "https://instagram.com/example"}
+        assert call_count[0] == 2
+
+    def test_scrape_social_networks_returns_none_after_all_retries_fail(self):
+        """Test that scraping returns None after all retries are exhausted."""
+        from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_incrementing
+        import requests
+        
+        # Create a mock that will be wrapped with retry decorator
+        call_count = [0]
+        def mock_attempt(*args, **kwargs):
+            call_count[0] += 1
+            raise requests.exceptions.ConnectionError("Connection failed")
+        
+        # Wrap the mock with retry decorator to simulate the actual behavior
+        mock_with_retry = retry(
+            retry=retry_if_exception_type((requests.exceptions.Timeout, requests.exceptions.ConnectionError)),
+            stop=stop_after_attempt(3),
+            wait=wait_incrementing(start=0.001, increment=0, max=0.001),  # Fast retry for tests
+            reraise=True,
+        )(mock_attempt)
+        
+        # Patch the decorated function with our retry-wrapped mock
+        with patch("tasks.processor._scrape_social_networks_attempt", mock_with_retry):
+            result = scrape_social_networks("https://example.com")
+        
+        assert result is None
+        # Should have been called 3 times (all retries exhausted)
+        assert call_count[0] == 3
+
+    def test_scrape_social_networks_returns_none_for_none_input(self):
+        """Test that scraping returns None for None input."""
+        result = scrape_social_networks(None)
+        assert result is None
+

@@ -31,6 +31,22 @@ from institution_enhancement.tasks.db_connection import return_db_connection
 
 
 # ============================================================================
+# Test Helpers
+# ============================================================================
+
+
+def _extract_website_helper(receita_data, domain, institution_name=None, parent_cnpj="12345678901234"):
+    """Helper function to call extract_website_from_receita_data with default test parameters."""
+    return extract_website_from_receita_data(
+        receita_data,
+        domain,
+        institution_name,
+        parent_cnpj,
+        serper_client=None,  # Tests don't use Serper by default
+    )
+
+
+# ============================================================================
 # Unit Tests - extract_domain_from_emails
 # ============================================================================
 
@@ -521,7 +537,7 @@ class TestExtractWebsiteFromReceitaData:
             "alias": "Sicoob Credicitrus",
             "company": {"name": "Some Company"},
         }
-        result = extract_website_from_receita_data(receita_data, "example.com")
+        result = _extract_website_helper(receita_data, "example.com")
 
         assert result == "https://www.sicoob.com.br"
 
@@ -538,7 +554,7 @@ class TestExtractWebsiteFromReceitaData:
         
         for alias in test_cases:
             receita_data = {"alias": alias}
-            result = extract_website_from_receita_data(receita_data, "example.com")
+            result = _extract_website_helper(receita_data, "example.com")
             assert result == "https://www.sicoob.com.br", f"Failed for alias: {alias}"
 
     def test_sicoob_website_from_company_name(self):
@@ -547,7 +563,7 @@ class TestExtractWebsiteFromReceitaData:
             "alias": "Some Trade Name",
             "company": {"name": "Sicoob Credicitrus LTDA"},
         }
-        result = extract_website_from_receita_data(receita_data, "example.com")
+        result = _extract_website_helper(receita_data, "example.com")
 
         assert result == "https://www.sicoob.com.br"
 
@@ -564,7 +580,7 @@ class TestExtractWebsiteFromReceitaData:
         
         for company_name in test_cases:
             receita_data = {"company": {"name": company_name}}
-            result = extract_website_from_receita_data(receita_data, "example.com")
+            result = _extract_website_helper(receita_data, "example.com")
             assert result == "https://www.sicoob.com.br", f"Failed for company.name: {company_name}"
 
     def test_sicoob_website_priority_over_other_fields(self):
@@ -574,7 +590,7 @@ class TestExtractWebsiteFromReceitaData:
             "website": "https://other-website.com",
             "site": "https://another-site.com",
         }
-        result = extract_website_from_receita_data(receita_data, "example.com")
+        result = _extract_website_helper(receita_data, "example.com")
 
         assert result == "https://www.sicoob.com.br"
 
@@ -583,7 +599,7 @@ class TestExtractWebsiteFromReceitaData:
         receita_data = {
             "alias": "Sicoob Credicitrus",
         }
-        result = extract_website_from_receita_data(receita_data, "example.com")
+        result = _extract_website_helper(receita_data, "example.com")
 
         assert result == "https://www.sicoob.com.br"
 
@@ -594,7 +610,7 @@ class TestExtractWebsiteFromReceitaData:
             "company": {"name": "Regular Company LTDA"},
             "website": "https://regular-company.com",
         }
-        result = extract_website_from_receita_data(receita_data, "example.com")
+        result = _extract_website_helper(receita_data, "example.com")
 
         assert result == "https://regular-company.com"
 
@@ -604,7 +620,7 @@ class TestExtractWebsiteFromReceitaData:
             "alias": "Regular Company",
             "company": {"name": "Regular Company LTDA"},
         }
-        result = extract_website_from_receita_data(receita_data, "example.com")
+        result = _extract_website_helper(receita_data, "example.com")
 
         assert result == "https://example.com"
 
@@ -614,7 +630,7 @@ class TestExtractWebsiteFromReceitaData:
             "alias": "Sicoob Credicitrus",
             "company": {"name": "Sicoob Credicitrus LTDA"},
         }
-        result = extract_website_from_receita_data(receita_data, "example.com")
+        result = _extract_website_helper(receita_data, "example.com")
 
         assert result == "https://www.sicoob.com.br"
 
@@ -623,7 +639,7 @@ class TestExtractWebsiteFromReceitaData:
         receita_data = {
             "alias": "SicoobCredicitrus",
         }
-        result = extract_website_from_receita_data(receita_data, "example.com")
+        result = _extract_website_helper(receita_data, "example.com")
 
         assert result == "https://www.sicoob.com.br"
 
@@ -633,7 +649,7 @@ class TestExtractWebsiteFromReceitaData:
             "alias": "Cresol Central",
             "company": {"name": "Some Company"},
         }
-        result = extract_website_from_receita_data(receita_data, "example.com")
+        result = _extract_website_helper(receita_data, "example.com")
 
         assert result == "https://cresol.com.br"
 
@@ -650,7 +666,7 @@ class TestExtractWebsiteFromReceitaData:
         
         for alias in test_cases:
             receita_data = {"alias": alias}
-            result = extract_website_from_receita_data(receita_data, "example.com")
+            result = _extract_website_helper(receita_data, "example.com")
             assert result == "https://cresol.com.br", f"Failed for alias: {alias}"
 
     def test_cresol_website_from_company_name(self):
@@ -659,7 +675,7 @@ class TestExtractWebsiteFromReceitaData:
             "alias": "Some Trade Name",
             "company": {"name": "Cresol Central LTDA"},
         }
-        result = extract_website_from_receita_data(receita_data, "example.com")
+        result = _extract_website_helper(receita_data, "example.com")
 
         assert result == "https://cresol.com.br"
 
@@ -676,7 +692,7 @@ class TestExtractWebsiteFromReceitaData:
         
         for company_name in test_cases:
             receita_data = {"company": {"name": company_name}}
-            result = extract_website_from_receita_data(receita_data, "example.com")
+            result = _extract_website_helper(receita_data, "example.com")
             assert result == "https://cresol.com.br", f"Failed for company.name: {company_name}"
 
     def test_cresol_website_priority_over_other_fields(self):
@@ -686,7 +702,7 @@ class TestExtractWebsiteFromReceitaData:
             "website": "https://other-website.com",
             "site": "https://another-site.com",
         }
-        result = extract_website_from_receita_data(receita_data, "example.com")
+        result = _extract_website_helper(receita_data, "example.com")
 
         assert result == "https://cresol.com.br"
 
@@ -695,7 +711,7 @@ class TestExtractWebsiteFromReceitaData:
         receita_data = {
             "alias": "Cresol Central",
         }
-        result = extract_website_from_receita_data(receita_data, "example.com")
+        result = _extract_website_helper(receita_data, "example.com")
 
         assert result == "https://cresol.com.br"
 
@@ -705,7 +721,7 @@ class TestExtractWebsiteFromReceitaData:
             "alias": "Cresol Central",
             "company": {"name": "Cresol Central LTDA"},
         }
-        result = extract_website_from_receita_data(receita_data, "example.com")
+        result = _extract_website_helper(receita_data, "example.com")
 
         assert result == "https://cresol.com.br"
 
@@ -714,7 +730,7 @@ class TestExtractWebsiteFromReceitaData:
         receita_data = {
             "alias": "CresolCentral",
         }
-        result = extract_website_from_receita_data(receita_data, "example.com")
+        result = _extract_website_helper(receita_data, "example.com")
 
         assert result == "https://cresol.com.br"
 
@@ -724,7 +740,7 @@ class TestExtractWebsiteFromReceitaData:
             "alias": "Sicoob Cresol",
             "company": {"name": "Cresol Sicoob"},
         }
-        result = extract_website_from_receita_data(receita_data, "example.com")
+        result = _extract_website_helper(receita_data, "example.com")
 
         assert result == "https://www.sicoob.com.br"
 
@@ -734,7 +750,7 @@ class TestExtractWebsiteFromReceitaData:
             "alias": "Sicredi Central",
             "company": {"name": "Some Company"},
         }
-        result = extract_website_from_receita_data(receita_data, "example.com")
+        result = _extract_website_helper(receita_data, "example.com")
 
         assert result == "https://sicredi.com.br"
 
@@ -751,7 +767,7 @@ class TestExtractWebsiteFromReceitaData:
         
         for alias in test_cases:
             receita_data = {"alias": alias}
-            result = extract_website_from_receita_data(receita_data, "example.com")
+            result = _extract_website_helper(receita_data, "example.com")
             assert result == "https://sicredi.com.br", f"Failed for alias: {alias}"
 
     def test_sicredi_website_from_company_name(self):
@@ -760,7 +776,7 @@ class TestExtractWebsiteFromReceitaData:
             "alias": "Some Trade Name",
             "company": {"name": "Sicredi Central LTDA"},
         }
-        result = extract_website_from_receita_data(receita_data, "example.com")
+        result = _extract_website_helper(receita_data, "example.com")
 
         assert result == "https://sicredi.com.br"
 
@@ -777,7 +793,7 @@ class TestExtractWebsiteFromReceitaData:
         
         for company_name in test_cases:
             receita_data = {"company": {"name": company_name}}
-            result = extract_website_from_receita_data(receita_data, "example.com")
+            result = _extract_website_helper(receita_data, "example.com")
             assert result == "https://sicredi.com.br", f"Failed for company.name: {company_name}"
 
     def test_sicredi_website_priority_over_other_fields(self):
@@ -787,7 +803,7 @@ class TestExtractWebsiteFromReceitaData:
             "website": "https://other-website.com",
             "site": "https://another-site.com",
         }
-        result = extract_website_from_receita_data(receita_data, "example.com")
+        result = _extract_website_helper(receita_data, "example.com")
 
         assert result == "https://sicredi.com.br"
 
@@ -796,7 +812,7 @@ class TestExtractWebsiteFromReceitaData:
         receita_data = {
             "alias": "Sicredi Central",
         }
-        result = extract_website_from_receita_data(receita_data, "example.com")
+        result = _extract_website_helper(receita_data, "example.com")
 
         assert result == "https://sicredi.com.br"
 
@@ -806,7 +822,7 @@ class TestExtractWebsiteFromReceitaData:
             "alias": "Sicredi Central",
             "company": {"name": "Sicredi Central LTDA"},
         }
-        result = extract_website_from_receita_data(receita_data, "example.com")
+        result = _extract_website_helper(receita_data, "example.com")
 
         assert result == "https://sicredi.com.br"
 
@@ -815,7 +831,7 @@ class TestExtractWebsiteFromReceitaData:
         receita_data = {
             "alias": "SicrediCentral",
         }
-        result = extract_website_from_receita_data(receita_data, "example.com")
+        result = _extract_website_helper(receita_data, "example.com")
 
         assert result == "https://sicredi.com.br"
 
@@ -825,7 +841,7 @@ class TestExtractWebsiteFromReceitaData:
             "alias": "Sicoob Sicredi",
             "company": {"name": "Sicredi Sicoob"},
         }
-        result = extract_website_from_receita_data(receita_data, "example.com")
+        result = _extract_website_helper(receita_data, "example.com")
 
         assert result == "https://www.sicoob.com.br"
 
@@ -835,7 +851,7 @@ class TestExtractWebsiteFromReceitaData:
             "alias": "Cresol Sicredi",
             "company": {"name": "Sicredi Cresol"},
         }
-        result = extract_website_from_receita_data(receita_data, "example.com")
+        result = _extract_website_helper(receita_data, "example.com")
 
         assert result == "https://cresol.com.br"
 
@@ -845,7 +861,7 @@ class TestExtractWebsiteFromReceitaData:
             "alias": "Unicred Central",
             "company": {"name": "Some Company"},
         }
-        result = extract_website_from_receita_data(receita_data, "example.com")
+        result = _extract_website_helper(receita_data, "example.com")
 
         assert result == "https://www.unicred.com.br/"
 
@@ -862,7 +878,7 @@ class TestExtractWebsiteFromReceitaData:
         
         for alias in test_cases:
             receita_data = {"alias": alias}
-            result = extract_website_from_receita_data(receita_data, "example.com")
+            result = _extract_website_helper(receita_data, "example.com")
             assert result == "https://www.unicred.com.br/", f"Failed for alias: {alias}"
 
     def test_unicred_website_from_company_name(self):
@@ -871,7 +887,7 @@ class TestExtractWebsiteFromReceitaData:
             "alias": "Some Trade Name",
             "company": {"name": "Unicred Central LTDA"},
         }
-        result = extract_website_from_receita_data(receita_data, "example.com")
+        result = _extract_website_helper(receita_data, "example.com")
 
         assert result == "https://www.unicred.com.br/"
 
@@ -888,7 +904,7 @@ class TestExtractWebsiteFromReceitaData:
         
         for company_name in test_cases:
             receita_data = {"company": {"name": company_name}}
-            result = extract_website_from_receita_data(receita_data, "example.com")
+            result = _extract_website_helper(receita_data, "example.com")
             assert result == "https://www.unicred.com.br/", f"Failed for company.name: {company_name}"
 
     def test_unicred_website_priority_over_other_fields(self):
@@ -898,7 +914,7 @@ class TestExtractWebsiteFromReceitaData:
             "website": "https://other-website.com",
             "site": "https://another-site.com",
         }
-        result = extract_website_from_receita_data(receita_data, "example.com")
+        result = _extract_website_helper(receita_data, "example.com")
 
         assert result == "https://www.unicred.com.br/"
 
@@ -907,7 +923,7 @@ class TestExtractWebsiteFromReceitaData:
         receita_data = {
             "alias": "Unicred Central",
         }
-        result = extract_website_from_receita_data(receita_data, "example.com")
+        result = _extract_website_helper(receita_data, "example.com")
 
         assert result == "https://www.unicred.com.br/"
 
@@ -917,7 +933,7 @@ class TestExtractWebsiteFromReceitaData:
             "alias": "Unicred Central",
             "company": {"name": "Unicred Central LTDA"},
         }
-        result = extract_website_from_receita_data(receita_data, "example.com")
+        result = _extract_website_helper(receita_data, "example.com")
 
         assert result == "https://www.unicred.com.br/"
 
@@ -926,7 +942,7 @@ class TestExtractWebsiteFromReceitaData:
         receita_data = {
             "alias": "UnicredCentral",
         }
-        result = extract_website_from_receita_data(receita_data, "example.com")
+        result = _extract_website_helper(receita_data, "example.com")
 
         assert result == "https://www.unicred.com.br/"
 
@@ -936,7 +952,7 @@ class TestExtractWebsiteFromReceitaData:
             "alias": "Sicoob Unicred",
             "company": {"name": "Unicred Sicoob"},
         }
-        result = extract_website_from_receita_data(receita_data, "example.com")
+        result = _extract_website_helper(receita_data, "example.com")
 
         assert result == "https://www.sicoob.com.br"
 
@@ -946,7 +962,7 @@ class TestExtractWebsiteFromReceitaData:
             "alias": "Cresol Unicred",
             "company": {"name": "Unicred Cresol"},
         }
-        result = extract_website_from_receita_data(receita_data, "example.com")
+        result = _extract_website_helper(receita_data, "example.com")
 
         assert result == "https://cresol.com.br"
 
@@ -956,7 +972,7 @@ class TestExtractWebsiteFromReceitaData:
             "alias": "Sicredi Unicred",
             "company": {"name": "Unicred Sicredi"},
         }
-        result = extract_website_from_receita_data(receita_data, "example.com")
+        result = _extract_website_helper(receita_data, "example.com")
 
         assert result == "https://sicredi.com.br"
 
@@ -965,7 +981,7 @@ class TestExtractWebsiteFromReceitaData:
         receita_data = {
             "alias": "Example Company",
         }
-        result = extract_website_from_receita_data(receita_data, None)
+        result = _extract_website_helper(receita_data, None)
 
         assert result == "https://examplecompany.com.br"
 
@@ -974,7 +990,7 @@ class TestExtractWebsiteFromReceitaData:
         receita_data = {
             "alias": "Example Company",
         }
-        result = extract_website_from_receita_data(receita_data, "")
+        result = _extract_website_helper(receita_data, "")
 
         assert result == "https://examplecompany.com.br"
 
@@ -983,7 +999,7 @@ class TestExtractWebsiteFromReceitaData:
         receita_data = {
             "alias": "EXAMPLE COMPANY",
         }
-        result = extract_website_from_receita_data(receita_data, None)
+        result = _extract_website_helper(receita_data, None)
 
         assert result == "https://examplecompany.com.br"
 
@@ -992,7 +1008,7 @@ class TestExtractWebsiteFromReceitaData:
         receita_data = {
             "alias": "  Example Company  ",
         }
-        result = extract_website_from_receita_data(receita_data, None)
+        result = _extract_website_helper(receita_data, None)
 
         assert result == "https://examplecompany.com.br"
 
@@ -1001,7 +1017,7 @@ class TestExtractWebsiteFromReceitaData:
         receita_data = {
             "alias": "Example Company",
         }
-        result = extract_website_from_receita_data(receita_data, "example.com")
+        result = _extract_website_helper(receita_data, "example.com")
 
         # Should use domain, not trade_name
         assert result == "https://example.com"
@@ -1011,7 +1027,7 @@ class TestExtractWebsiteFromReceitaData:
         receita_data = {
             "alias": None,
         }
-        result = extract_website_from_receita_data(receita_data, None)
+        result = _extract_website_helper(receita_data, None)
 
         assert result is None
 
@@ -1020,7 +1036,7 @@ class TestExtractWebsiteFromReceitaData:
         receita_data = {
             "alias": "",
         }
-        result = extract_website_from_receita_data(receita_data, None)
+        result = _extract_website_helper(receita_data, None)
 
         assert result is None
 
@@ -1029,7 +1045,7 @@ class TestExtractWebsiteFromReceitaData:
         receita_data = {
             "alias": "   ",
         }
-        result = extract_website_from_receita_data(receita_data, None)
+        result = _extract_website_helper(receita_data, None)
 
         assert result is None
 
@@ -1038,7 +1054,7 @@ class TestExtractWebsiteFromReceitaData:
         receita_data = {
             "alias": "Cresol Example",
         }
-        result = extract_website_from_receita_data(receita_data, None)
+        result = _extract_website_helper(receita_data, None)
 
         # Should use Cresol rule, not trade_name fallback
         assert result == "https://cresol.com.br"
@@ -1049,7 +1065,7 @@ class TestExtractWebsiteFromReceitaData:
             "alias": "Example Company",
             "website": "https://actual-website.com",
         }
-        result = extract_website_from_receita_data(receita_data, None)
+        result = _extract_website_helper(receita_data, None)
 
         # Should use website field, not trade_name fallback
         assert result == "https://actual-website.com"
@@ -1059,7 +1075,7 @@ class TestExtractWebsiteFromReceitaData:
         receita_data = {
             "alias": "Example & Company LTDA",
         }
-        result = extract_website_from_receita_data(receita_data, None)
+        result = _extract_website_helper(receita_data, None)
 
         # Should remove spaces but keep special characters (validation will catch invalid domains)
         assert result == "https://example&companyltda.com.br"
@@ -1069,7 +1085,7 @@ class TestExtractWebsiteFromReceitaData:
         receita_data = {
             "alias": "ExAmPlE CoMpAnY",
         }
-        result = extract_website_from_receita_data(receita_data, None)
+        result = _extract_website_helper(receita_data, None)
 
         assert result == "https://examplecompany.com.br"
 

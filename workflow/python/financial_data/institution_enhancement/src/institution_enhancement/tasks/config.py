@@ -135,6 +135,29 @@ class HealthCheckConfig:
 
 
 @dataclass
+class SerperConfig:
+    """Serper API configuration."""
+
+    enabled: bool
+    api_key: str
+    timeout: int
+
+    @classmethod
+    def from_env(cls) -> "SerperConfig":
+        """
+        Create Serper API configuration from environment variables.
+
+        Returns:
+            SerperConfig instance
+        """
+        enabled = os.getenv("SERPER_ENABLED", "false").lower() in ("true", "1", "yes")
+        api_key = os.getenv("SERPER_API_KEY", "")
+        timeout = int(os.getenv("SERPER_TIMEOUT_SECONDS", "10"))
+
+        return cls(enabled=enabled, api_key=api_key, timeout=timeout)
+
+
+@dataclass
 class RetryConfig:
     """Retry configuration for message processing."""
 
@@ -174,6 +197,7 @@ class Config:
     database: DatabaseConfig
     kafka: KafkaConfig
     cnpja: CNPJAConfig
+    serper: SerperConfig
     health_check: HealthCheckConfig
     retry: RetryConfig
 
@@ -189,6 +213,7 @@ class Config:
             database=DatabaseConfig.from_env(),
             kafka=KafkaConfig.from_env(),
             cnpja=CNPJAConfig.from_env(),
+            serper=SerperConfig.from_env(),
             health_check=HealthCheckConfig.from_env(),
             retry=RetryConfig.from_env(),
         )

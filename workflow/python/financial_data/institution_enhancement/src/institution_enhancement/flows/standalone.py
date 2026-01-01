@@ -15,6 +15,7 @@ from institution_enhancement.tasks.cnpj_utils import validate_cnpj_format
 from institution_enhancement.tasks.db_connection import close_pool, initialize_pool
 from institution_enhancement.tasks.message import InstitutionUpsertedMessage
 from institution_enhancement.tasks.processor import process_message
+from institution_enhancement.tasks.serper_client import SerperClient
 
 # Configure logging
 logging.basicConfig(
@@ -70,22 +71,29 @@ def main() -> int:
         print("CNPJ must be exactly 14 digits (numbers only)")
         return 1
     
-    # Initialize database connection pool
+    # Initialize database connection pool and Serper client
     try:
         config = Config.from_env()
         initialize_pool(config.database)
         logger.info(f"Database connection pool initialized")
+
+        # Initialize Serper client (if enabled)
+        serper_client = SerperClient.from_env()
+        if serper_client:
+            logger.info("Serper API enabled")
+        else:
+            logger.info("Serper API disabled")
     except Exception as e:
-        print(f"Error: Failed to initialize database connection pool: {e}")
-        logger.error(f"Database initialization error: {e}", exc_info=True)
+        print(f"Error: Failed to initialize: {e}")
+        logger.error(f"Initialization error: {e}", exc_info=True)
         return 1
-    
+
     # Create message and process
     try:
         message = create_minimal_message(cnpj_parent)
         logger.info(f"Processing CNPJ: {cnpj_parent}")
-        
-        result = process_message(message)
+
+        result = process_message(message, serper_client=serper_client)
         
         if result["success"]:
             print(f"Successfully processed CNPJ: {cnpj_parent}")
