@@ -15,6 +15,7 @@ data class BankReportData(
     val saldo: BigDecimal? = null,
     val createdAt: Instant = Instant.now(),
     val updatedAt: Instant = Instant.now(),
+    val version: Long = 0,
 ) {
     fun toEntity(): BankReportDataEntity {
         return BankReportDataEntity(
@@ -28,6 +29,7 @@ data class BankReportData(
             saldo = this.saldo,
             createdAt = this.createdAt,
             updatedAt = this.updatedAt,
+            version = this.version,
         )
     }
 }

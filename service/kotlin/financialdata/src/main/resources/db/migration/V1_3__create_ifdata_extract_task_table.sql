@@ -24,32 +24,32 @@ CREATE TABLE IF NOT EXISTS financial_data.ifdata_extract_task (
     nome_relatorio TEXT NOT NULL,
     numero_relatorio TEXT NOT NULL,
     page_skip INTEGER NOT NULL,
-    
+
     -- Pagination control
     page_top INTEGER NOT NULL DEFAULT 5000,
-    
+
     -- Status: PENDING -> RUNNING -> SUCCESS | EMPTY | ERROR
     -- EMPTY is terminal (end of pagination), not an error
     status TEXT NOT NULL DEFAULT 'PENDING',
-    
+
     -- Retry tracking
     attempt_count INTEGER NOT NULL DEFAULT 0,
     last_error TEXT,
     last_http_status INTEGER,
-    
+
     -- Execution timestamps
     started_at TIMESTAMPTZ,
     finished_at TIMESTAMPTZ,
-    
+
     -- Audit timestamps
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    
+
     -- Composite primary key on natural key
     PRIMARY KEY (ano_mes, tipo_instituicao, nome_relatorio, numero_relatorio, page_skip),
-    
+
     -- CHECK constraint for valid status values
-    CONSTRAINT chk_ifdata_extract_task_status 
+    CONSTRAINT chk_ifdata_extract_task_status
         CHECK (status IN ('PENDING', 'RUNNING', 'SUCCESS', 'EMPTY', 'ERROR'))
 );
 

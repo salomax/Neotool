@@ -13,7 +13,7 @@ import java.time.Instant
 open class InstitutionEntity(
     @Id
     @Column(name = "bacen_cod_inst", nullable = false)
-    val bacenCodInst: String,
+    open val bacenCodInst: String,
     @Column(name = "ano_mes_ref", nullable = false, length = 6)
     open var anoMesRef: String,
     @Column(name = "source_hash", nullable = false, length = 64)

@@ -16,7 +16,7 @@ import java.time.Instant
 open class ParentInstitutionEntity(
     @Id
     @Column(name = "parent_cnpj", nullable = false)
-    val parentCnpj: String,
+    open val parentCnpj: String,
     @Column(name = "legal_name")
     open var legalName: String? = null,
     @Column(name = "trade_name")
