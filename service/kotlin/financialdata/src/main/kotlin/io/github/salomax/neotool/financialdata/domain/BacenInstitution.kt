@@ -1,9 +1,9 @@
 package io.github.salomax.neotool.financialdata.domain
 
-import io.github.salomax.neotool.financialdata.model.InstitutionEntity
+import io.github.salomax.neotool.financialdata.model.BacenInstitutionEntity
 import java.time.Instant
 
-data class Institution(
+data class BacenInstitution(
     val bacenCodInst: String,
     val anoMesRef: String,
     val sourceHash: String,
@@ -22,8 +22,8 @@ data class Institution(
     val createdAt: Instant = Instant.now(),
     val updatedAt: Instant = Instant.now(),
 ) {
-    fun toEntity(): InstitutionEntity {
-        return InstitutionEntity(
+    fun toEntity(): BacenInstitutionEntity {
+        return BacenInstitutionEntity(
             bacenCodInst = this.bacenCodInst,
             anoMesRef = this.anoMesRef,
             sourceHash = this.sourceHash,
@@ -44,3 +44,4 @@ data class Institution(
         )
     }
 }
+

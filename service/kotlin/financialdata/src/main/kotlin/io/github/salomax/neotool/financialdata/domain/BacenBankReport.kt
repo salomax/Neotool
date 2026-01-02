@@ -1,10 +1,10 @@
 package io.github.salomax.neotool.financialdata.domain
 
-import io.github.salomax.neotool.financialdata.model.BankReportEntity
+import io.github.salomax.neotool.financialdata.model.BacenBankReportEntity
 import java.time.Instant
 import java.util.UUID
 
-data class BankReport(
+data class BacenBankReport(
     val id: UUID? = null,
     val codInst: String,
     val anoMes: String,
@@ -14,8 +14,8 @@ data class BankReport(
     val createdAt: Instant = Instant.now(),
     val updatedAt: Instant = Instant.now(),
 ) {
-    fun toEntity(): BankReportEntity {
-        return BankReportEntity(
+    fun toEntity(): BacenBankReportEntity {
+        return BacenBankReportEntity(
             // null for new entities, DB generates UUID v7
             id = this.id,
             codInst = this.codInst,
@@ -28,3 +28,4 @@ data class BankReport(
         )
     }
 }
+

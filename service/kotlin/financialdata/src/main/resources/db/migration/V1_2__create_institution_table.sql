@@ -1,8 +1,8 @@
--- Migration: Create institution table
+-- Migration: Create bacen_institution table
 -- Version: V1_2
--- Description: Create financial_data.institution table for BACEN institution registry with change detection
+-- Description: Create financial_data.bacen_institution table for BACEN institution registry with change detection
 -- 
--- This migration creates the institution table that stores the current-state BACEN registry.
+-- This migration creates the bacen_institution table that stores the current-state BACEN registry.
 -- The table supports hash-based change detection and Kafka event publishing for NEW/CHANGED institutions.
 -- 
 -- Key features:
@@ -13,8 +13,8 @@
 
 SET search_path TO financial_data, public;
 
--- Create institution table
-CREATE TABLE IF NOT EXISTS financial_data.institution (
+-- Create bacen_institution table
+CREATE TABLE IF NOT EXISTS financial_data.bacen_institution (
     -- Primary key: BACEN institution code (TEXT to preserve leading zeros)
     bacen_cod_inst TEXT NOT NULL PRIMARY KEY,
     
@@ -23,13 +23,16 @@ CREATE TABLE IF NOT EXISTS financial_data.institution (
     
     -- Institution name fields
     nome_instituicao TEXT,
-    nome_reduzido TEXT,
     
     -- Institution status and classification
     situacao CHAR(1),
     segmento_tb TEXT,
     atividade TEXT,
     tipo_controle TEXT,
+    
+    -- Consolidation type fields
+    tipo_consolidado_bancario TEXT,  -- TCB: Banking consolidated type (b1, B2, B3S, B3C, b4, N1, n2, N4)
+    tipo_consolidacao CHAR(1),       -- TD: Consolidation type (I=Independent, C=Conglomerate)
     
     -- Location fields
     uf CHAR(2),
@@ -51,14 +54,19 @@ CREATE TABLE IF NOT EXISTS financial_data.institution (
 -- Create indexes for common query patterns
 
 -- Index on ano_mes_ref for querying institutions by quarter
-CREATE INDEX IF NOT EXISTS idx_institution_ano_mes_ref 
-    ON financial_data.institution(ano_mes_ref);
+CREATE INDEX IF NOT EXISTS idx_bacen_institution_ano_mes_ref 
+    ON financial_data.bacen_institution(ano_mes_ref);
 
 -- Index on situacao for filtering active institutions (situacao='A')
-CREATE INDEX IF NOT EXISTS idx_institution_situacao 
-    ON financial_data.institution(situacao);
+CREATE INDEX IF NOT EXISTS idx_bacen_institution_situacao 
+    ON financial_data.bacen_institution(situacao);
 
 -- Index on source_hash for change detection lookups
-CREATE INDEX IF NOT EXISTS idx_institution_source_hash 
-    ON financial_data.institution(source_hash);
+CREATE INDEX IF NOT EXISTS idx_bacen_institution_source_hash 
+    ON financial_data.bacen_institution(source_hash);
+
+-- Add comments for consolidation fields
+COMMENT ON COLUMN financial_data.bacen_institution.tipo_consolidado_bancario IS 'Banking consolidated type (TCB): b1=Commercial bank/Caixas, B2=Multiple/Investment, B3S=Singular cooperative, B3C=Central cooperative, b4=Development, N1=Non-bank credit, n2=Non-bank capital markets, N4=Payment institutions';
+COMMENT ON COLUMN financial_data.bacen_institution.tipo_consolidacao IS 'Consolidation type (TD): I=Independent institution, C=Conglomerate';
+COMMENT ON COLUMN financial_data.bacen_institution.tipo_controle IS 'Control type (TC): 1=Public, 2=Private national, 3=Private foreign control';
 

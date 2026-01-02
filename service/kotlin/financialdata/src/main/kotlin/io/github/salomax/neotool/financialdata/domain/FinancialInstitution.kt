@@ -1,10 +1,10 @@
 package io.github.salomax.neotool.financialdata.domain
 
 import com.fasterxml.jackson.databind.JsonNode
-import io.github.salomax.neotool.financialdata.model.ParentInstitutionEntity
+import io.github.salomax.neotool.financialdata.model.FinancialInstitutionEntity
 import java.time.Instant
 
-data class ParentInstitution(
+data class FinancialInstitution(
     val parentCnpj: String,
     val legalName: String? = null,
     val tradeName: String? = null,
@@ -16,8 +16,8 @@ data class ParentInstitution(
     val createdAt: Instant = Instant.now(),
     val updatedAt: Instant = Instant.now(),
 ) {
-    fun toEntity(): ParentInstitutionEntity {
-        return ParentInstitutionEntity(
+    fun toEntity(): FinancialInstitutionEntity {
+        return FinancialInstitutionEntity(
             parentCnpj = this.parentCnpj,
             legalName = this.legalName,
             tradeName = this.tradeName,
@@ -31,3 +31,4 @@ data class ParentInstitution(
         )
     }
 }
+

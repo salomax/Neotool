@@ -1,7 +1,7 @@
 package io.github.salomax.neotool.financialdata.model
 
 import io.github.salomax.neotool.common.entity.BaseEntity
-import io.github.salomax.neotool.financialdata.domain.Institution
+import io.github.salomax.neotool.financialdata.domain.BacenInstitution
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.Id
@@ -9,8 +9,8 @@ import jakarta.persistence.Table
 import java.time.Instant
 
 @Entity
-@Table(name = "institution", schema = "financial_data")
-open class InstitutionEntity(
+@Table(name = "bacen_institution", schema = "financial_data")
+open class BacenInstitutionEntity(
     @Id
     @Column(name = "bacen_cod_inst", nullable = false)
     open val bacenCodInst: String,
@@ -47,8 +47,8 @@ open class InstitutionEntity(
     @Column(name = "updated_at", nullable = false)
     open var updatedAt: Instant = Instant.now(),
 ) : BaseEntity<String>(bacenCodInst) {
-    fun toDomain(): Institution {
-        return Institution(
+    fun toDomain(): BacenInstitution {
+        return BacenInstitution(
             bacenCodInst = this.bacenCodInst,
             anoMesRef = this.anoMesRef,
             sourceHash = this.sourceHash,
@@ -69,3 +69,4 @@ open class InstitutionEntity(
         )
     }
 }
+

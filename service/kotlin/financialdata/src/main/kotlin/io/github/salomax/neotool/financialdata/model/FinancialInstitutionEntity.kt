@@ -2,7 +2,7 @@ package io.github.salomax.neotool.financialdata.model
 
 import com.fasterxml.jackson.databind.JsonNode
 import io.github.salomax.neotool.common.entity.BaseEntity
-import io.github.salomax.neotool.financialdata.domain.ParentInstitution
+import io.github.salomax.neotool.financialdata.domain.FinancialInstitution
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.Id
@@ -12,8 +12,8 @@ import org.hibernate.type.SqlTypes
 import java.time.Instant
 
 @Entity
-@Table(name = "parent_institution", schema = "financial_data")
-open class ParentInstitutionEntity(
+@Table(name = "financial_institution", schema = "financial_data")
+open class FinancialInstitutionEntity(
     @Id
     @Column(name = "parent_cnpj", nullable = false)
     open val parentCnpj: String,
@@ -38,8 +38,8 @@ open class ParentInstitutionEntity(
     @Column(name = "updated_at", nullable = false)
     open var updatedAt: Instant = Instant.now(),
 ) : BaseEntity<String>(parentCnpj) {
-    fun toDomain(): ParentInstitution {
-        return ParentInstitution(
+    fun toDomain(): FinancialInstitution {
+        return FinancialInstitution(
             parentCnpj = this.parentCnpj,
             legalName = this.legalName,
             tradeName = this.tradeName,
@@ -53,3 +53,4 @@ open class ParentInstitutionEntity(
         )
     }
 }
+
