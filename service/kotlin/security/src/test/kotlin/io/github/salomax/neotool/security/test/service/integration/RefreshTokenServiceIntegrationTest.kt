@@ -4,6 +4,7 @@ import io.github.salomax.neotool.common.security.exception.AuthenticationRequire
 import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
+import io.github.salomax.neotool.common.test.transaction.runTransaction
 import io.github.salomax.neotool.security.model.PrincipalEntity
 import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.repo.PrincipalRepository
@@ -14,6 +15,8 @@ import io.github.salomax.neotool.security.service.jwt.RefreshTokenService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject
+import jakarta.persistence.EntityManager
+import org.junit.jupiter.api.BeforeEach
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.DisplayName
@@ -51,14 +54,37 @@ class RefreshTokenServiceIntegrationTest :
     @Inject
     lateinit var refreshTokenService: RefreshTokenService
 
+    @Inject
+    lateinit var entityManager: EntityManager
+
     private fun uniqueEmail() = SecurityTestDataBuilders.uniqueEmail("refresh-token")
+
+    @BeforeEach
+    fun cleanupTestDataBefore() {
+        // Clean up before each test to ensure clean state
+        try {
+            entityManager.runTransaction {
+                refreshTokenRepository.deleteAll()
+                principalRepository.deleteAll()
+                userRepository.deleteAll()
+                entityManager.flush()
+            }
+            entityManager.clear()
+        } catch (e: Exception) {
+            // Ignore cleanup errors
+        }
+    }
 
     @AfterEach
     fun cleanupTestData() {
         try {
-            refreshTokenRepository.deleteAll()
-            principalRepository.deleteAll()
-            userRepository.deleteAll()
+            entityManager.runTransaction {
+                refreshTokenRepository.deleteAll()
+                principalRepository.deleteAll()
+                userRepository.deleteAll()
+                entityManager.flush()
+            }
+            entityManager.clear()
         } catch (e: Exception) {
             // Ignore cleanup errors
         }

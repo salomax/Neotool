@@ -3,14 +3,18 @@ package io.github.salomax.neotool.security.test.service.integration
 import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
+import io.github.salomax.neotool.common.test.transaction.runTransaction
 import io.github.salomax.neotool.security.model.PrincipalEntity
 import io.github.salomax.neotool.security.repo.PrincipalRepository
+import io.github.salomax.neotool.security.repo.RefreshTokenRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.authentication.AuthContextFactory
 import io.github.salomax.neotool.security.service.authentication.AuthenticationService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject
+import jakarta.persistence.EntityManager
+import org.junit.jupiter.api.BeforeEach
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.DisplayName
@@ -45,16 +49,34 @@ class AuthenticationServiceIntegrationTest :
     lateinit var authContextFactory: AuthContextFactory
 
     @Inject
-    lateinit var jwtService: JwtService
+    lateinit var jwtTokenValidator: io.github.salomax.neotool.common.security.jwt.JwtTokenValidator
+
+    @Inject
+    lateinit var refreshTokenRepository: RefreshTokenRepository
+
+    @Inject
+    lateinit var entityManager: EntityManager
 
     private fun uniqueEmail() = SecurityTestDataBuilders.uniqueEmail("authentication-integration")
+
+    @BeforeEach
+    fun cleanupTestDataBefore() {
+        // Clean up before each test to ensure clean state
+        cleanupTestData()
+    }
 
     @AfterEach
     fun cleanupTestData() {
         // Clean up test data after each test
         // Note: BaseIntegrationTest.setUp() and tearDown() are final and handle container setup
         try {
-            userRepository.deleteAll()
+            entityManager.runTransaction {
+                refreshTokenRepository.deleteAll()
+                principalRepository.deleteAll()
+                userRepository.deleteAll()
+                entityManager.flush()
+            }
+            entityManager.clear()
         } catch (e: Exception) {
             // Ignore cleanup errors
         }
@@ -534,7 +556,7 @@ class AuthenticationServiceIntegrationTest :
             assertThat(accessToken.split(".")).hasSize(3) // JWT has 3 parts
 
             // Assert - Token contains permissions claim (empty array for user with no roles)
-            val permissions = jwtService.getPermissionsFromToken(accessToken)
+            val permissions = jwtTokenValidator.getPermissionsFromToken(accessToken)
             assertThat(permissions).isNotNull()
             assertThat(permissions).isEmpty()
 
@@ -781,7 +803,7 @@ class AuthenticationServiceIntegrationTest :
             val userFromAccessToken = authenticationService.validateAccessToken(accessToken)
             assertThat(userFromAccessToken).isNotNull()
             assertThat(userFromAccessToken?.id).isEqualTo(savedUser.id)
-            val permissions = jwtService.getPermissionsFromToken(accessToken)
+            val permissions = jwtTokenValidator.getPermissionsFromToken(accessToken)
             assertThat(permissions).isNotNull() // Permissions claim should always be present
 
             // Assert - Refresh token works

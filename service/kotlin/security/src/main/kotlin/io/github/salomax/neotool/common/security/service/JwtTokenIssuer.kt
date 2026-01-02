@@ -1,16 +1,19 @@
 package io.github.salomax.neotool.security.service.jwt
 
+import io.github.salomax.neotool.common.security.config.JwtAlgorithm
 import io.github.salomax.neotool.common.security.config.JwtConfig
 import io.github.salomax.neotool.common.security.key.KeyManager
+import io.github.salomax.neotool.common.security.key.KeyManagerFactory
 import io.github.salomax.neotool.common.security.principal.AuthContext
-import io.github.salomax.neotool.security.key.SecurityKeyManagerFactory
 import io.jsonwebtoken.Jwts
+import io.jsonwebtoken.security.Keys
 import jakarta.inject.Singleton
 import mu.KotlinLogging
 import java.security.PrivateKey
 import java.time.Instant
 import java.util.Date
 import java.util.UUID
+import javax.crypto.SecretKey
 
 /**
  * Service for JWT token generation (issuance).
@@ -19,7 +22,7 @@ import java.util.UUID
  * Only the security module should use this service to generate tokens.
  *
  * Implements JWT best practices:
- * - Uses RSA-SHA256 (RS256) algorithm only
+ * - Supports both HMAC-SHA256 (HS256) and RSA-SHA256 (RS256) algorithms
  * - Includes standard claims: sub (subject/userId), iat (issued at), exp (expiration), iss (issuer)
  * - Configurable token expiration times
  * - Secure key management via KeyManager
@@ -29,7 +32,7 @@ import java.util.UUID
 @Singleton
 class JwtTokenIssuer(
     private val jwtConfig: JwtConfig,
-    private val keyManagerFactory: SecurityKeyManagerFactory,
+    private val keyManagerFactory: KeyManagerFactory,
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -37,8 +40,30 @@ class JwtTokenIssuer(
         keyManagerFactory.getKeyManager()
     }
 
+    private fun getSecretKey(keyId: String? = null): SecretKey? {
+        val secret = keyManager.getSecret(keyId ?: jwtConfig.keyId ?: "default")
+        if (secret == null) {
+            return null
+        }
+        if (secret.length < 32) {
+            logger.warn { "JWT secret is less than 32 characters. Consider using a longer secret for production." }
+        }
+        return Keys.hmacShaKeyFor(secret.toByteArray())
+    }
+
     private fun getPrivateKey(keyId: String? = null): PrivateKey? =
         keyManager.getPrivateKey(keyId ?: jwtConfig.keyId ?: "default")
+
+    /**
+     * Get the current signing algorithm.
+     */
+    fun getAlgorithm(): JwtAlgorithm =
+        when {
+            jwtConfig.algorithm == JwtAlgorithm.RS256 -> JwtAlgorithm.RS256
+            jwtConfig.algorithm == JwtAlgorithm.HS256 -> JwtAlgorithm.HS256
+            getPrivateKey() != null -> JwtAlgorithm.RS256
+            else -> JwtAlgorithm.HS256
+        }
 
     /**
      * Get the current key ID for JWKS.
@@ -46,9 +71,10 @@ class JwtTokenIssuer(
     fun getKeyId(): String? = jwtConfig.keyId
 
     /**
-     * Sign a JWT builder with RS256 algorithm using the private key.
+     * Sign a JWT builder with the appropriate key and algorithm.
      */
     private fun signBuilder(builder: io.jsonwebtoken.JwtBuilder): io.jsonwebtoken.JwtBuilder {
+        val algorithm = getAlgorithm()
         val keyId = getKeyId()
 
         // Add key ID to header if available (for JWKS)
@@ -59,8 +85,28 @@ class JwtTokenIssuer(
                 builder
             }
 
-        val privateKey = requireNotNull(getPrivateKey()) { "RS256 requires private key" }
-        return builderWithHeader.signWith(privateKey)
+        return when (algorithm) {
+            JwtAlgorithm.RS256 -> {
+                val privateKey = requireNotNull(getPrivateKey()) { "RS256 requires private key" }
+                builderWithHeader.signWith(privateKey)
+            }
+
+            JwtAlgorithm.HS256 -> {
+                val secretKey = requireNotNull(getSecretKey()) { "HS256 requires secret key" }
+                builderWithHeader.signWith(secretKey)
+            }
+
+            JwtAlgorithm.AUTO -> {
+                // AUTO mode: prefer RS256 if available
+                val privateKey = getPrivateKey()
+                if (privateKey != null) {
+                    builderWithHeader.signWith(privateKey)
+                } else {
+                    val secretKey = requireNotNull(getSecretKey()) { "AUTO mode requires either private key or secret" }
+                    builderWithHeader.signWith(secretKey)
+                }
+            }
+        }
     }
 
     /**

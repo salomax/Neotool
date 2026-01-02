@@ -39,13 +39,9 @@ micronaut:
 
 # JWT Configuration
 jwt:
-  # Secret key for signing JWT tokens (use strong random secret in production)
-  # Can be set via JWT_SECRET environment variable
-  # Required for HS256, optional for RS256 (kept for backward compatibility)
-  secret: ${JWT_SECRET:change-me-in-production-use-strong-random-secret-min-32-chars}
-  # Algorithm: HS256, RS256, or AUTO (default: AUTO - tries RS256 first, falls back to HS256)
+  # Algorithm: RS256 (RSA-SHA256) - only supported algorithm
   # Can be set via JWT_ALGORITHM environment variable
-  algorithm: ${JWT_ALGORITHM:AUTO}
+  algorithm: ${JWT_ALGORITHM:RS256}
   # RSA private key path (PEM format) - required for RS256 signing
   # Can be set via JWT_PRIVATE_KEY_PATH environment variable
   private-key-path: ${JWT_PRIVATE_KEY_PATH:}

@@ -2,199 +2,330 @@
   <img src="./design/assets/logos/neotool-logo-blue.svg" alt="NeoTool Logo" width="220" />
 </p>
 
-# NeoTool — build enterprise solutions smarter and faster
+# NeoTool
 
 ![Kotlin](https://img.shields.io/badge/Kotlin-Micronaut-7F52FF?logo=kotlin)
 ![GraphQL](https://img.shields.io/badge/API-GraphQL-E10098?logo=graphql)
 ![React](https://img.shields.io/badge/Web-Next.js-000000?logo=nextdotjs)
-![ReactNative](https://img.shields.io/badge/Mobile-React%20Native-61DAFB?logo=react)
 ![Docker](https://img.shields.io/badge/Infra-Docker%20Compose-2496ED?logo=docker)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-NeoTool is a **modular full‑stack baseline** for building new products quickly without sacrificing architecture quality. It ships a cohesive monorepo with backend, frontend, contracts, design assets, and infra that are ready to customize.
+**A production-grade full-stack baseline for building enterprise products without starting from scratch.**
 
-**What sets it apart**
-- Spec‑Driven Development: documentation in `docs/` drives implementation, validation, and reviews.
-- GraphQL‑first contracts with federation support and OpenAPI for REST.
-- Security‑first patterns out of the box (AuthN/Z, mTLS, audit hooks).
-- Cloud‑ready tooling: local Docker stack, K8s/GitOps artifacts, and CI/CD guardrails.
-- Productization path: treat this repo as upstream and pull improvements into your products.
+NeoTool is a cohesive monorepo that brings together backend services, frontend apps, API contracts, design assets, and infrastructure in a way that actually works together. It's designed for teams who want to move fast without sacrificing architectural quality or ending up with technical debt six months down the road.
 
----
+## Why NeoTool?
 
-## Repository map
+Most starter projects are either too minimal to be useful or too opinionated to adapt. NeoTool strikes a different balance:
 
-| Area | Path | Notes |
-| --- | --- | --- |
-| **Frontend** | `web/` | Next.js + React scaffold wired for GraphQL APIs. |
-| **Mobile** | `mobile/` | Expo + React Native starter (optional). |
-| **Backend** | `service/kotlin/` | Micronaut services (GraphQL, modular architecture, tests). |
-| **Contracts** | `contracts/` | GraphQL federation schemas and OpenAPI specs. |
-| **Design** | `design/` | Brand assets, UI tokens, icons, guidelines. |
-| **Infra** | `infra/` | Docker Compose for local, K8s/GitOps artifacts, observability stack. |
-| **Docs** | `docs/` | ADRs, feature specs, standards, and checklists. |
-| **CLI** | `neotool` | Helper for validation, schema sync, Kafka, and more. |
+- **Spec-driven development** — Documentation in `docs/` isn't an afterthought; it drives implementation, validation, and code reviews
+- **GraphQL federation** — Real federated schemas with multiple subgraphs, not just a single monolithic API
+- **Security baked in** — Authentication, authorization, mTLS, audit logging, and RBAC/ABAC patterns ready to go
+- **Observable from day one** — Grafana, Prometheus, and Loki integrated locally and in production
+- **Cloud-ready tooling** — Docker Compose for local dev, K8s artifacts for deployment, CI/CD guardrails that actually catch issues
+
+Think of it as upstream infrastructure for your products. You can fork it, customize it, and periodically pull improvements back in.
 
 ---
 
-## Quick start
+## Repository Structure
+
+| Path | What's Inside |
+| --- | --- |
+| [`web/`](web/) | Next.js + React frontend with GraphQL integration, TypeScript, and comprehensive testing |
+| [`service/kotlin/`](service/kotlin/) | Micronaut backend with modular services: App, Security, Assets, Assistant, and Common utilities |
+| [`contracts/`](contracts/) | GraphQL federation schemas (supergraph + subgraphs) and OpenAPI specs for REST endpoints |
+| [`design/`](design/) | Brand assets, UI tokens, logos (SVG/PNG), icons, and design guidelines |
+| [`infra/`](infra/) | Docker Compose for local development, K8s manifests, observability stack configs, GraphQL router setup |
+| [`docs/`](docs/) | 94 structured markdown files covering architecture, patterns, standards, workflows, and ADRs |
+| [`scripts/cli/`](scripts/cli/) | NeoTool CLI for schema validation, environment checks, Kafka management, and more |
+
+---
+
+## Quick Start
 
 ### Prerequisites
-- Node.js 20+
-- JDK 21+
-- Docker Engine (Colima recommended on macOS/Linux)
-- Git, `pnpm` or `npm`
 
-### Bootstrap the stack
+- **Node.js 20+** (for frontend)
+- **JDK 21+** (for Kotlin backend)
+- **Docker** (Colima recommended on macOS/Linux)
+- **pnpm** or npm
+- Git
+
+### 1. Clone and Verify Tooling
+
 ```bash
 git clone https://github.com/salomax/neotool.git
 cd neotool
 
-# Verify tooling (Node, Docker, JVM)
+# Check that Node, Docker, and JVM are properly installed
 ./neotool --version
 ```
 
-Install dependencies:
+### 2. Install Dependencies
+
 ```bash
-# Web
-cd web && pnpm install   # or npm install
+# Frontend
+cd web && pnpm install
 
 # Backend
 cd ../service/kotlin && ./gradlew build
 ```
 
-Run local infrastructure (Postgres, router, etc.):
+### 3. Spin Up Local Infrastructure
+
 ```bash
+# Start Postgres, pgbouncer, GraphQL router, and observability stack
 docker compose -f infra/docker/docker-compose.local.yml up -d
 ```
 
-Start the apps:
+### 4. Run the Applications
+
 ```bash
-# Web
+# Web (in one terminal)
 cd web && pnpm dev
 
-# Backend
+# Backend services (in another terminal)
 cd service/kotlin && ./gradlew run
 ```
 
-Environment configuration:
-- Add `.env.local` files under `infra/` (database, GraphQL endpoint, AI keys).
-- Add `.env.local` under `web/` for API URLs.
-- Adjust `project.config.json` to rename the project.
+### 5. Configure Environment
+
+- Create `.env.local` files in `infra/` for database credentials, GraphQL endpoints, and API keys
+- Add `.env.local` in `web/` for frontend API URLs
+- Adjust `project.config.json` if you want to rename the project
+
+---
+
+## Core Services
+
+NeoTool ships with five Kotlin backend modules, each with a clear responsibility:
+
+### **App Service**
+Main business logic with domain modeling, GraphQL resolvers, HTTP controllers, and repository layers. Start here for product-specific features.
+
+### **Security Service**
+Full authentication and authorization stack:
+- **AuthN**: Password-based (Argon2id), OAuth2 (Google), JWT (access + refresh tokens), remember-me, password reset with rate limiting
+- **AuthZ**: RBAC + ABAC, resource-level and GraphQL field-level enforcement, permission-based checks
+- **Interservice**: mTLS for service-to-service communication, audit logging hooks
+- **GraphQL API**: User, role, group, and permission management with pagination and batch operations to avoid N+1 queries
+
+See [`docs/03-features/security/`](docs/03-features/security/) for detailed documentation.
+
+### **Assets Service**
+File and media storage management with S3-compatible bucket operations, upload/download handling, and visibility controls. Built for handling product images, documents, and user-generated content.
+
+### **Assistant Service**
+AI integration layer with LLM support (Gemini provider), conversation context management, tool registry, and agent-based interactions. Ready for building AI-powered features without reinventing the wheel.
+
+### **Common Module**
+Shared utilities across all services: GraphQL federation infrastructure, pagination helpers, JWT handling, entity base classes, exception handling, batch/Kafka utilities, metrics collection, and testing infrastructure.
+
+---
+
+## Frontend
+
+The `web/` directory is a **Next.js + React** application with:
+
+- **TypeScript** throughout
+- **Apollo Client** for GraphQL with type-safe operations via GraphQL Code Generator
+- **Vitest** for unit tests, **Playwright** for E2E tests
+- **Storybook** for component documentation
+- **ESLint** and comprehensive linting rules
+- **80% minimum code coverage** enforced in CI
+
+It's wired to consume the GraphQL federation API and follows the design tokens from `design/` for consistent branding.
+
+---
+
+## GraphQL Federation
+
+NeoTool uses **real GraphQL federation** with Apollo Router:
+
+```
+contracts/graphql/
+├── supergraph/
+│   ├── supergraph.graphql      # Unified schema
+│   ├── supergraph.yaml         # Router configuration
+│   └── supergraph.local.yaml   # Local dev overrides
+└── subgraphs/
+    ├── app/schema.graphqls           # Product & Customer entities
+    ├── security/schema.graphqls      # User, Role, Permission types
+    └── assistant/schema.graphqls     # AI conversation schema
+```
+
+Each service exposes its own subgraph, and the router stitches them together. This means you can evolve each domain independently without breaking the overall API contract.
+
+---
+
+## Infrastructure & Observability
+
+### Local Stack (Docker Compose)
+Running `docker compose -f infra/docker/docker-compose.local.yml up` gives you:
+- **Postgres** + **pgbouncer** for connection pooling
+- **GraphQL Router** for schema federation
+- **Grafana** + **Prometheus** + **Loki** + **Promtail** for metrics and log aggregation
+
+Everything is pre-configured with provisioning for dashboards and datasources. You get production-like observability in your local environment.
+
+### Production Deployment
+K8s manifests (Kustomize-friendly, ArgoCD-compatible) live in `infra/` alongside router configs for staging and production environments.
 
 ---
 
 ## NeoTool CLI
 
+The `./neotool` command provides utilities for common operations:
+
 ```bash
-./neotool --version                 # Verify toolchain
+./neotool --version                 # Verify Node, Docker, JVM versions
 
 ./neotool graphql sync              # Interactive schema sync
 ./neotool graphql validate          # Validate schema consistency
 ./neotool graphql generate          # Build supergraph schema
 
-./neotool validate                  # Run all validations
+./neotool validate                  # Run all validations (web + backend)
 ./neotool validate --web            # Frontend only
 ./neotool validate --service        # Backend only
 
-./neotool kafka --topic             # List topics
-./neotool kafka --topic <name>      # Describe topic
+./neotool kafka --topic             # List Kafka topics
+./neotool kafka --topic <name>      # Describe specific topic
 ./neotool kafka --consumer-group    # List consumer groups
+./neotool kafka --reset-offsets     # Manage consumer offsets
+
+./neotool upstream                  # Manage .gitattributes merge strategies
 ```
 
 All commands are also available via `scripts/cli/cli`.
 
 ---
 
-## Architecture
+## CI/CD Pipeline
+
+NeoTool uses a three-stage pipeline model:
+
+### **Pull Request (Preview)**
+- Build, lint, typecheck, unit/integration tests
+- **Coverage gates**: Backend 90% unit / 80% integration / 100% security / 80% incremental; Frontend 80% across all metrics
+- Preview deployments for testing changes in isolation
+
+### **Staging (Rehearsal)**
+- Deploy merged changes using the same image digests that will go to production
+- Smoke tests, E2E tests, contract validation with real infrastructure and secrets
+- Integration testing across services
+
+### **Production (Promotion)**
+- Promote tested image digest via Git tag (`vX.Y.Z`)
+- Gated with approvals and optional canary/blue-green deployment
+- Automatic rollback on health regression
+
+**Release flow**: `git tag vX.Y.Z && git push origin vX.Y.Z` or create a GitHub release.
+
+---
+
+## Documentation
+
+The `docs/` directory contains **94 structured markdown files** organized for progressive discovery:
+
+- **00-overview**: Architecture, tech stack, quick-start guides
+- **01-architecture**: System, service, frontend, data, and API design
+- **02-domain**: Domain modeling, glossary, core concepts
+- **03-features**: Feature specifications (security, assets)
+- **04-patterns**: Backend, frontend, API, and infrastructure patterns
+- **05-standards**: Coding, architecture, API, database, testing, security standards
+- **06-workflows**: Feature development, code review, testing, deployment workflows
+- **07-examples**: Concrete code examples for backend, frontend, and full-stack scenarios
+- **08-templates**: Feature forms, AI prompts, code templates, document templates
+- **09-adr**: Architecture Decision Records for key technical choices
+- **10-reference**: Commands, file structure, GraphQL schema reference, API documentation
+- **11-validation**: Checklists and validation scripts
+
+See [`docs/MANIFEST.md`](docs/MANIFEST.md) for the complete document index.
+
+---
+
+## Roadmap
+
+### Near-term
+- Entity versioning for optimistic concurrency control
+- Enhanced observability with custom SLO definitions and alerting
+- Feature flags integration (Unleash)
+- Visual regression testing
+- JWT ID (JTI) support and access token blacklist — see [Security TODO](docs/03-features/security/README.md#todo)
+
+### Under Consideration
+- React Native mobile app (currently not implemented)
+- BI service for analytics and reporting
+- Webhook management system
+- Additional AI agent examples and chat UI templates
+
+---
+
+## Architecture Overview
 
 ```mermaid
 graph TD
-    subgraph Frontend
+    subgraph Clients
         Web[Next.js Web App]
-        Mobile[React Native App]
+        ExtClient[External API Clients]
     end
 
-    subgraph Backend
-        ServiceKotlin[Micronaut Service]
-        GraphQLGateway[GraphQL Router]
-        RestGateway[REST Gateway]
+    subgraph Gateway
+        Router[GraphQL Router<br/>Federation]
+        RestGW[REST Gateway]
     end
 
-    ExternalClient[External Client] --> RestGateway
-    Web --> GraphQLGateway
-    Mobile --> GraphQLGateway
-    GraphQLGateway --> ServiceKotlin
-    RestGateway --> ServiceKotlin
-    ServiceKotlin --> DB[(Postgres/Pgbouncer)]
+    subgraph Backend Services
+        AppSvc[App Service]
+        SecuritySvc[Security Service]
+        AssetSvc[Assets Service]
+        AssistantSvc[Assistant Service]
+    end
+
+    subgraph Data & Infrastructure
+        DB[(Postgres + pgbouncer)]
+        Observability[Grafana + Prometheus + Loki]
+    end
+
+    Web --> Router
+    ExtClient --> RestGW
+
+    Router --> AppSvc
+    Router --> SecuritySvc
+    Router --> AssetSvc
+    Router --> AssistantSvc
+
+    RestGW --> AppSvc
+    RestGW --> SecuritySvc
+
+    AppSvc --> DB
+    SecuritySvc --> DB
+    AssetSvc --> DB
+    AssistantSvc --> DB
+
+    AppSvc -.-> Observability
+    SecuritySvc -.-> Observability
+    AssetSvc -.-> Observability
+    AssistantSvc -.-> Observability
 ```
-
----
-
-## Frontend
-
-Next.js + React foundation aimed at consuming GraphQL APIs. Includes TypeScript, linting, testing, and environment-driven configuration. Aligns with the design tokens and assets in `design/` for consistent branding across products.
-
----
-
-## Backend
-
-Kotlin + Micronaut services with modular boundaries, GraphQL endpoints, and testable components. Gradle tasks cover unit/integration tests, coverage (Kover), and incremental coverage enforcement for PRs. See `docs/service/` for module details.
-
-### Security module
-Built-in authentication and authorization:
-- Password auth with Argon2id, OAuth2 (Google), JWT (access + refresh), remember-me, reset with rate limiting.
-- RBAC + ABAC, permission-based checks, resource-level and GraphQL field-level enforcement.
-- Interservice auth with mTLS, principals for users/services, audit logging hooks.
-- GraphQL API for user management, pagination, and batch operations to avoid N+1.
-
-More details: `docs/03-features/security/`.
-
-### APIs
-- GraphQL federation as the primary contract surface.
-- REST gateway where needed, with OpenAPI specs in `contracts/`.
-
----
-
-## Infrastructure
-
-Local stack via Docker Compose (`infra/docker/`), including database, pgbouncer, and GraphQL router. K8s/GitOps artifacts (Kustomize, ArgoCD-friendly) live in `infra/`, alongside observability pieces (Grafana/Prometheus/Loki) and router configs. Environment samples are provided in `infra/.env.local`.
-
----
-
-## Data layer
-
-Postgres (fronted by pgbouncer) is the default store. Migrations and persistence strategies are defined per service; see service-specific docs for schema design and migration workflow.
-
----
-
-## CI/CD model
-
-Pipeline emphasizes preview validation, staging rehearsal, and digest promotion to production:
-- PR: build, lint, typecheck, unit/integration tests, coverage gates, preview deployments.
-- Staging: deploy merged changes using the same image digests; smoke/E2E/contract checks with real infra and secrets.
-- Production: promote the tested digest via tag/release, gated with approvals and canary/blue-green options; automatic rollback on health regression.
-
-Coverage thresholds:
-- Backend: unit 90%, integration 80%, security services 100%, incremental coverage 80% on changed lines.
-- Frontend: minimum 80% for branches/functions/lines/statements.
-
-Release promotion: `git tag vX.Y.Z && git push origin vX.Y.Z` (or create a GitHub release to tag automatically).
-
----
-
-## Roadmap (snapshot)
-
-- Entity versioning for concurrency control
-- CI/CD + K8s artifacts hardening and GitOps enablement
-- Observability: logging (promtail/Loki), monitoring alerts, SLO definitions
-- Feature flags (Unleash), Vault service integration
-- Visual regression testing
-- AI agents, BI service, webhook and AI chat examples
-- Mobile improvements (multi-env, Expo)
 
 ---
 
 ## Contributing
 
-Issues, ideas, and PRs are welcome. Keep modules clean, align with the existing architecture, and favor upstream-friendly changes so products can easily pull updates.***
+We welcome issues, feature requests, and pull requests. A few guidelines:
+
+- **Keep modules clean**: Follow existing architectural patterns and separation of concerns
+- **Align with standards**: Check `docs/05-standards/` before submitting code
+- **Favor upstream-friendly changes**: Keep in mind that other products may pull updates from this repo
+- **Write tests**: Maintain coverage thresholds (90% unit, 80% integration for backend; 80% overall for frontend)
+- **Update docs**: If you change behavior, update the relevant spec in `docs/`
+
+For detailed contribution workflows, see [`docs/06-workflows/code-review.md`](docs/06-workflows/code-review.md).
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE) for details.

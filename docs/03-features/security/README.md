@@ -267,103 +267,43 @@ Authorization Check ──> AuthorizationAuditLog
 
 ### JWT Key and Token Flows
 
-#### 1. Key Creation Flow
+#### 1. Key Provisioning
 
-The security service automatically generates RSA key pairs on first startup. This flow ensures only one pod generates keys even when multiple pods start simultaneously.
+JWT signing keys are provisioned as infrastructure via Terraform and stored in Vault. The security service reads keys from Vault at startup and uses them to sign tokens.
 
 ```mermaid
 flowchart TD
-    A[Application Startup] --> B{JwtKeyInitializer.onStartup}
-    B --> C{autoGenerateKeys enabled?}
-    C -->|No| Z[Skip - Keys Pre-provisioned]
-    C -->|Yes| D[Get KeyManager from Factory]
-    D --> E[Check if Keys Exist]
-    E -->|Keys Found| Z
-    E -->|Keys Missing| F{Vault Enabled?}
-    F -->|Yes| G[Acquire Vault Lock]
-    F -->|No| H[Acquire File Lock]
-    G --> I{Lock Acquired?}
-    I -->|No| J[Retry with Delay]
-    J --> I
-    I -->|Yes| K[Double-Check Keys Exist]
-    H --> K
-    K -->|Keys Found| L[Release Lock & Skip]
-    K -->|Keys Missing| M[Generate RSA Key Pair]
-    M --> N[Store Keys via WritableKeyManager]
-    N --> O{Storage Success?}
-    O -->|Yes| P[Release Lock]
-    O -->|No| Q[Log Error]
-    P --> R[Ready to Issue Tokens]
-    L --> R
-    Q --> R
+    A[Terraform] -->|Creates Keys| B[Vault]
+    B -->|Stores Keys| C[secret/jwt/keys/kid-1]
+    D[Security Service Startup] -->|Reads Keys| B
+    D -->|Issues Tokens| E[JWT Tokens]
     
     style A fill:#e1f5ff
-    style M fill:#fff4e1
-    style N fill:#fff4e1
-    style R fill:#e8f5e9
-    style Q fill:#ffebee
+    style B fill:#fff4e1
+    style D fill:#e8f5e9
 ```
 
-**Step-by-Step Process:**
+**Key Provisioning Process:**
 
-1. **Application Startup Event** (`JwtKeyInitializer.onStartup()`)
-   - **Class**: `JwtKeyInitializer`
-   - **Method**: `onStartup(StartupEvent)`
-   - **Rule**: Runs automatically when Micronaut application starts
-   - **Why**: Ensures keys are available before any token operations
+1. **Infrastructure Provisioning** (Terraform)
+   - Terraform generates RSA key pairs using `tls_private_key` resource
+   - Keys are stored in Vault at `secret/jwt/keys/{keyId}`
+   - Keys are created before application deployment
 
-2. **Check Auto-Generation Configuration** (`jwtConfig.autoGenerateKeys`)
-   - **Class**: `JwtConfig`
-   - **Property**: `autoGenerateKeys: Boolean`
-   - **Rule**: If `false`, skip generation (keys must be provisioned via Vault or file system)
-   - **Why**: Allows production environments to disable auto-generation for security compliance
+2. **Application Startup**
+   - Security service starts and connects to Vault
+   - Service reads private key from Vault using `KeyManager.getPrivateKey()`
+   - If keys don't exist, token issuance will fail (expected - keys must be provisioned)
 
-3. **Get Key Manager** (`keyManagerFactory.getKeyManager()`)
-   - **Class**: `KeyManagerFactory`
-   - **Method**: `getKeyManager(): KeyManager`
-   - **Rule**: Returns `VaultKeyManager` if Vault enabled, else `FileKeyManager`
-   - **Why**: Abstraction allows different storage backends without code changes
-
-4. **Check Keys Exist** (`keyManager.getPrivateKey(keyId)`)
-   - **Class**: `KeyManager` interface
-   - **Method**: `getPrivateKey(keyId: String): PrivateKey?`
-   - **Rule**: Returns `null` if keys don't exist
-   - **Why**: Idempotent check - safe to run on every startup
-
-5. **Acquire Distributed Lock** (`vaultClient.acquireLock()` or `fileLock.withLock()`)
-   - **Class**: `VaultClient` or `ReentrantLock`
-   - **Method**: `acquireLock(lockPath, ttlSeconds)` or `withLock { }`
-   - **Rule**: Prevents race conditions when multiple pods start simultaneously
-   - **Why**: Ensures only one pod generates keys, others wait and verify
-
-6. **Double-Check Keys After Lock** (`keyManager.getPrivateKey(keyId)`)
-   - **Class**: `KeyManager`
-   - **Rule**: Another pod may have created keys while waiting for lock
-   - **Why**: Prevents duplicate key generation (double-checked locking pattern)
-
-7. **Generate RSA Key Pair** (`JwtKeyGenerator.generateRsaKeyPair()`)
-   - **Class**: `JwtKeyGenerator`
-   - **Method**: `generateRsaKeyPair(keySize: Int): KeyPair`
-   - **Rule**: Uses `KeyPairGenerator` with `SecureRandom`, minimum 2048 bits
-   - **Why**: Cryptographically secure key generation for signing tokens
-
-8. **Store Key Pair** (`writableKeyManager.storeKeyPair()`)
-   - **Class**: `WritableKeyManager` interface
-   - **Method**: `storeKeyPair(keyId, privateKey, publicKey): Boolean`
-   - **Rule**: Stores both keys atomically in Vault or files
-   - **Why**: Ensures keys are stored together, prevents partial state
-
-9. **Release Lock** (`vaultClient.releaseLock()` or automatic)
-   - **Class**: `VaultClient` or `ReentrantLock`
-   - **Rule**: Always release in `finally` block, even on errors
-   - **Why**: Prevents deadlocks if pod crashes during generation
+3. **Key Storage**
+   - Keys are stored in Vault at path: `secret/jwt/keys/{keyId}`
+   - Each key has `private` and `public` fields containing PEM-encoded keys
+   - Keys are read-only from application perspective
 
 **Key Classes:**
-- `JwtKeyInitializer` - Orchestrates key generation on startup
-- `JwtKeyGenerator` - Generates RSA key pairs
-- `KeyManagerFactory` - Selects appropriate key manager
-- `VaultKeyManager` / `FileKeyManager` - Store keys in different backends
-- `VaultClient` - Provides distributed locking via Vault
+- `KeyManagerFactory` - Selects appropriate key manager (VaultKeyManager or FileKeyManager)
+- `VaultKeyManager` / `FileKeyManager` - Read keys from different backends
+- `VaultClient` - Provides Vault API access
 
 #### 2. Token Issuance Flow
 
@@ -1195,51 +1135,50 @@ Example for key ID `kid-1`:
 - Keys automatically fetched from Vault with 5-minute caching
 - Falls back to file-based if Vault unavailable
 
-#### Automatic Key Generation on First Startup
+#### Key Provisioning via Terraform
 
-The security service automatically generates RSA key pairs on first startup if keys don't exist.
+JWT signing keys are provisioned as infrastructure using Terraform. Keys are created and stored in Vault before the application starts.
 
 **How it works:**
-1. On startup, the service checks if keys exist for the configured `key-id`
-2. If keys don't exist and `jwt.auto-generate-keys=true` (default), keys are automatically generated
-3. Uses distributed locking (Vault Lock API or file locks) to prevent race conditions when multiple pods start simultaneously
-4. Keys are stored in Vault (if enabled) or local files (if Vault disabled)
+1. Terraform generates RSA key pairs using `tls_private_key` resource
+2. Keys are stored in Vault at `secret/jwt/keys/{keyId}` with `private` and `public` fields
+3. Application reads keys from Vault at startup using `KeyManager.getPrivateKey()`
+4. If keys don't exist, the application will fail to start (keys must be provisioned first)
 
-**Configuration:**
-```yaml
-jwt:
-  auto-generate-keys: ${JWT_AUTO_GENERATE_KEYS:true}
-  key-size: ${JWT_KEY_SIZE:4096}
-  key-id: ${JWT_KEY_ID:kid-1}
-  lock-ttl-seconds: ${JWT_LOCK_TTL_SECONDS:60}
-  lock-retry-attempts: ${JWT_LOCK_RETRY_ATTEMPTS:3}
-  lock-retry-delay-seconds: ${JWT_LOCK_RETRY_DELAY_SECONDS:2}
+**Terraform Configuration:**
+```hcl
+resource "tls_private_key" "jwt_signing_key" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+resource "vault_kv_secret_v2" "jwt_keys" {
+  mount = "secret"
+  name  = "jwt/keys/kid-1"
+
+  data_json = jsonencode({
+    private = tls_private_key.jwt_signing_key.private_key_pem
+    public  = tls_private_key.jwt_signing_key.public_key_pem
+  })
+}
 ```
 
-**Distributed Locking:**
-- **With Vault**: Uses Vault KV with check-and-set (CAS) for distributed locking
-  - Lock path: `sys/locks/jwt-key-init/{keyId}`
-  - TTL prevents deadlocks if pod crashes during key generation
-  - Only one pod generates keys, others wait and verify keys exist
-- **Without Vault**: Uses file-based locking (ReentrantLock)
-
-**Race Condition Handling:**
-When multiple pods start simultaneously:
-1. All pods check if keys exist → NO
-2. All pods attempt to acquire lock
-3. One pod acquires lock, others wait
-4. Lock holder double-checks keys (still missing)
-5. Lock holder generates and stores keys
-6. Lock holder releases lock
-7. Other pods acquire lock, double-check keys → EXIST
-8. Other pods skip generation
-
-**Disabling Auto-Generation:**
-Set `jwt.auto-generate-keys=false` for production environments where keys are provisioned through Vault or file system:
+**Application Configuration:**
 ```yaml
 jwt:
-  auto-generate-keys: false
+  key-id: ${JWT_KEY_ID:kid-1}  # Must match Terraform key_id
+
+vault:
+  enabled: ${VAULT_ENABLED:true}
+  address: ${VAULT_ADDRESS:http://vault:8200}
+  secret-path: ${VAULT_SECRET_PATH:secret/jwt/keys}
 ```
+
+**Key Requirements:**
+- Keys must exist in Vault before application startup
+- Key ID in application config must match Terraform key ID
+- Vault must be accessible from the application
+- Application requires read access to `secret/jwt/keys/{keyId}` path
 
 #### Key Rotation (Future)
 
@@ -1458,6 +1397,24 @@ logger:
   - Resource sharing between users
   - Granular resource permissions
   - Share expiration and revocation
+
+- [ ] Key Rotation Support
+  - Implement key rotation workflow and tooling
+  - Support multiple active key versions simultaneously
+  - Automatic key version selection by kid header
+  - Key deprecation and expiration handling
+  - Rotation without service downtime
+
+- [ ] JWT ID (JTI) and Access Token Blacklist
+  - **RFC 7519 (JWT Specification) Section 4.1.7:**
+    "The 'jti' (JWT ID) claim provides a unique identifier for the JWT. The identifier value MUST be assigned in a manner that ensures that there is a negligible probability that the same value will be accidentally assigned to a different data object."
+  - Add `jti` claim to all JWT tokens (access, refresh, service tokens)
+  - Implement Redis-based token blacklist for access tokens
+  - Store blacklisted JTI values in Redis with TTL matching token expiration
+  - Validate JTI against blacklist during token validation
+  - Admin API endpoint to revoke user's access tokens by user ID
+  - Support bulk revocation for security incidents
+  - Automatic cleanup of expired blacklist entries via Redis TTL
 
 - [ ] Multi-Factor Authentication (MFA)
   - TOTP (Google Authenticator, Authy)

@@ -48,24 +48,3 @@ interface KeyManager {
      */
     fun isAvailable(): Boolean
 }
-
-/**
- * Interface for key managers that support writing keys.
- * Separates read-only KeyManager from writable implementations.
- * This follows Interface Segregation Principle.
- */
-interface WritableKeyManager : KeyManager {
-    /**
-     * Store both private and public keys atomically.
-     *
-     * @param keyId Key identifier
-     * @param privateKey Private key to store
-     * @param publicKey Public key to store
-     * @return true on success, false on failure
-     */
-    fun storeKeyPair(
-        keyId: String,
-        privateKey: PrivateKey,
-        publicKey: PublicKey,
-    ): Boolean
-}
