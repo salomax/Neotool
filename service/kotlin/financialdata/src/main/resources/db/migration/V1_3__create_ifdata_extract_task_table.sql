@@ -32,6 +32,9 @@ CREATE TABLE IF NOT EXISTS financial_data.bacen_ifdata_extract_task (
     -- EMPTY is terminal (end of pagination), not an error
     status TEXT NOT NULL DEFAULT 'PENDING',
 
+    -- Total rows processed
+    rows_processed INTEGER NOT NULL DEFAULT 0,
+
     -- Retry tracking
     attempt_count INTEGER NOT NULL DEFAULT 0,
     last_error TEXT,
