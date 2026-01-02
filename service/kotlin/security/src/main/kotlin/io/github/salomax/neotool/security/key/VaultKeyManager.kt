@@ -1,7 +1,9 @@
-package io.github.salomax.neotool.common.security.key
+package io.github.salomax.neotool.security.key
 
-import io.github.salomax.neotool.common.security.config.VaultConfig
-import io.github.salomax.neotool.common.security.vault.VaultClient
+import io.github.salomax.neotool.common.security.key.JwtKeyManager
+import io.github.salomax.neotool.common.security.key.KeyManager
+import io.github.salomax.neotool.security.config.VaultConfig
+import io.github.salomax.neotool.security.vault.VaultClient
 import io.micronaut.context.annotation.Requires
 import jakarta.inject.Singleton
 import mu.KotlinLogging
@@ -23,7 +25,7 @@ import kotlin.concurrent.withLock
 class VaultKeyManager(
     private val vaultClient: VaultClient,
     private val vaultConfig: VaultConfig,
-) : WritableKeyManager {
+) : KeyManager {
     private val logger = KotlinLogging.logger {}
 
     private val cache = ConcurrentHashMap<String, CachedKey>()
@@ -125,121 +127,6 @@ class VaultKeyManager(
     }
 
     /**
-     * Store private key in Vault.
-     *
-     * @param keyId Key identifier
-     * @param privateKey Private key to store
-     * @return true on success, false on failure
-     */
-    fun storePrivateKey(
-        keyId: String,
-        privateKey: PrivateKey,
-    ): Boolean =
-        try {
-            require(privateKey is RSAPrivateKey) {
-                "Private key must be RSA key, got ${privateKey.javaClass.name}"
-            }
-            val secretPath = "${vaultConfig.secretPath}/$keyId"
-            val privateKeyPem = JwtKeyManager.privateKeyToPem(privateKey)
-
-            // Read existing secret to merge with new private key
-            val existing = vaultClient.getSecret(secretPath) ?: emptyMap()
-            val data = existing.mapValues { it.value.toString() }.toMutableMap()
-            data["private"] = privateKeyPem
-
-            val success = vaultClient.writeSecret(secretPath, data)
-            if (success) {
-                // Clear cache to force refresh
-                cache.remove("private:$keyId")
-                logger.info { "Private key stored in Vault: $secretPath" }
-            }
-            success
-        } catch (e: Exception) {
-            logger.error(e) { "Failed to store private key in Vault: $keyId" }
-            false
-        }
-
-    /**
-     * Store public key in Vault.
-     *
-     * @param keyId Key identifier
-     * @param publicKey Public key to store
-     * @return true on success, false on failure
-     */
-    fun storePublicKey(
-        keyId: String,
-        publicKey: PublicKey,
-    ): Boolean =
-        try {
-            require(publicKey is RSAPublicKey) {
-                "Public key must be RSA key, got ${publicKey.javaClass.name}"
-            }
-            val secretPath = "${vaultConfig.secretPath}/$keyId"
-            val publicKeyPem = JwtKeyManager.publicKeyToPem(publicKey)
-
-            // Read existing secret to merge with new public key
-            val existing = vaultClient.getSecret(secretPath) ?: emptyMap()
-            val data = existing.mapValues { it.value.toString() }.toMutableMap()
-            data["public"] = publicKeyPem
-
-            val success = vaultClient.writeSecret(secretPath, data)
-            if (success) {
-                // Clear cache to force refresh
-                cache.remove("public:$keyId")
-                logger.info { "Public key stored in Vault: $secretPath" }
-            }
-            success
-        } catch (e: Exception) {
-            logger.error(e) { "Failed to store public key in Vault: $keyId" }
-            false
-        }
-
-    /**
-     * Store both private and public keys in Vault atomically.
-     *
-     * @param keyId Key identifier
-     * @param privateKey Private key to store
-     * @param publicKey Public key to store
-     * @return true on success, false on failure
-     */
-    override fun storeKeyPair(
-        keyId: String,
-        privateKey: PrivateKey,
-        publicKey: PublicKey,
-    ): Boolean =
-        try {
-            // Validate key types before casting
-            require(privateKey is RSAPrivateKey) {
-                "Private key must be RSA key, got ${privateKey.javaClass.name}"
-            }
-            require(publicKey is RSAPublicKey) {
-                "Public key must be RSA key, got ${publicKey.javaClass.name}"
-            }
-
-            val secretPath = "${vaultConfig.secretPath}/$keyId"
-            val privateKeyPem = JwtKeyManager.privateKeyToPem(privateKey)
-            val publicKeyPem = JwtKeyManager.publicKeyToPem(publicKey)
-
-            val data =
-                mapOf(
-                    "private" to privateKeyPem,
-                    "public" to publicKeyPem,
-                )
-
-            val success = vaultClient.writeSecret(secretPath, data)
-            if (success) {
-                // Clear cache to force refresh
-                cache.remove("private:$keyId")
-                cache.remove("public:$keyId")
-                logger.info { "Key pair stored in Vault: $secretPath" }
-            }
-            success
-        } catch (e: Exception) {
-            logger.error(e) { "Failed to store key pair in Vault: $keyId" }
-            false
-        }
-
-    /**
      * Clear cache (useful for testing or key rotation).
      */
     fun clearCache() {
@@ -247,3 +134,4 @@ class VaultKeyManager(
         logger.debug { "Vault key cache cleared" }
     }
 }
+

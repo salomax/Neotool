@@ -1,12 +1,12 @@
 package io.github.salomax.neotool.common.security.jwt
 
-import io.github.salomax.neotool.common.security.config.JwtAlgorithm
 import io.github.salomax.neotool.common.security.config.JwtConfig
+import io.github.salomax.neotool.common.security.exception.AuthenticationRequiredException
 import io.github.salomax.neotool.common.security.key.KeyManager
 import io.github.salomax.neotool.common.security.key.KeyManagerFactory
 import io.jsonwebtoken.Claims
+import io.jsonwebtoken.JwtException
 import io.jsonwebtoken.Jwts
-import io.jsonwebtoken.security.Keys
 import jakarta.inject.Singleton
 import mu.KotlinLogging
 import java.security.PublicKey
@@ -14,7 +14,6 @@ import java.security.interfaces.RSAPublicKey
 import java.time.Instant
 import java.util.Base64
 import java.util.UUID
-import javax.crypto.SecretKey
 
 /**
  * Service for JWT token validation.
@@ -23,10 +22,10 @@ import javax.crypto.SecretKey
  * All modules (security, app, assets, assistant) use this service to validate tokens.
  *
  * Implements JWT validation best practices:
- * - Supports both HMAC-SHA256 (HS256) and RSA-SHA256 (RS256) algorithms
- * - Dual-mode validation: tries RS256 first, falls back to HS256 if RS256 fails
+ * - Uses RSA-SHA256 (RS256) algorithm only
  * - Extracts key ID from token header for multi-key support
  * - Secure key management via KeyManager
+ * - Throws exceptions on validation failure for proper error handling
  *
  * @see https://tools.ietf.org/html/rfc7519
  */
@@ -41,29 +40,20 @@ class JwtTokenValidator(
         keyManagerFactory.getKeyManager()
     }
 
-    private fun getSecretKey(keyId: String? = null): SecretKey? {
-        val secret = keyManager.getSecret(keyId ?: jwtConfig.keyId ?: "default")
-        if (secret == null) {
-            return null
-        }
-        if (secret.length < 32) {
-            logger.warn { "JWT secret is less than 32 characters. Consider using a longer secret for production." }
-        }
-        return Keys.hmacShaKeyFor(secret.toByteArray())
-    }
-
     private fun getPublicKey(keyId: String? = null): PublicKey? =
         keyManager.getPublicKey(keyId ?: jwtConfig.keyId ?: "default")
 
     /**
-     * Validate and parse a JWT token.
-     * Supports dual-mode validation: tries RS256 first, falls back to HS256 if RS256 fails.
+     * Validate and parse a JWT token using RS256 algorithm.
      * Extracts key ID from token header if present, otherwise uses default key.
      *
      * @param token The JWT token string to validate
-     * @return Claims if token is valid, null otherwise
+     * @return Claims if token is valid
+     * @throws AuthenticationRequiredException if public key is missing or token validation fails
+     * @throws JwtException if token validation fails (wrapped in AuthenticationRequiredException)
      */
-    fun validateToken(token: String): Claims? {
+    @Throws(AuthenticationRequiredException::class)
+    fun validateToken(token: String): Claims {
         // Extract key ID from token header if present
         val keyId =
             try {
@@ -86,68 +76,44 @@ class JwtTokenValidator(
                 null
             } ?: jwtConfig.keyId ?: "default"
 
-        // Try RS256 first if public key is available
-        val publicKey = getPublicKey(keyId)
-        if (publicKey != null &&
-            (jwtConfig.algorithm == JwtAlgorithm.RS256 || jwtConfig.algorithm == JwtAlgorithm.AUTO)
-        ) {
-            try {
-                val claims =
-                    Jwts
-                        .parser()
-                        .verifyWith(publicKey as RSAPublicKey)
-                        .build()
-                        .parseSignedClaims(token)
-                        .payload
-                logger.debug { "Token validated successfully with RS256 (kid: $keyId)" }
-                return claims
-            } catch (e: Exception) {
-                logger.debug { "RS256 validation failed: ${e.message}" }
-                // Fall through to try HS256 if AUTO mode
-                if (jwtConfig.algorithm == JwtAlgorithm.RS256) {
-                    return null // RS256 was required but failed
-                }
-            }
-        }
+        // Get public key for RS256 validation
+        val publicKey =
+            getPublicKey(keyId)
+                ?: throw AuthenticationRequiredException(
+                    "JWT public key is missing for key ID: $keyId. Cannot validate token without public key.",
+                )
 
-        // Try HS256 if secret is available and algorithm allows it
-        val secretKey = getSecretKey(keyId)
-        if (secretKey != null &&
-            (jwtConfig.algorithm == JwtAlgorithm.HS256 || jwtConfig.algorithm == JwtAlgorithm.AUTO)
-        ) {
-            try {
-                val claims =
-                    Jwts
-                        .parser()
-                        .verifyWith(secretKey)
-                        .build()
-                        .parseSignedClaims(token)
-                        .payload
-                logger.debug { "Token validated successfully with HS256 (kid: $keyId)" }
-                return claims
-            } catch (e: Exception) {
-                logger.debug { "HS256 validation failed: ${e.message}" }
-                return null
-            }
+        try {
+            val claims =
+                Jwts
+                    .parser()
+                    .verifyWith(publicKey as RSAPublicKey)
+                    .build()
+                    .parseSignedClaims(token)
+                    .payload
+            logger.debug { "Token validated successfully with RS256 (kid: $keyId)" }
+            return claims
+        } catch (e: JwtException) {
+            throw AuthenticationRequiredException("Token validation failed: ${e.message}")
+        } catch (e: Exception) {
+            throw AuthenticationRequiredException("Token validation failed: ${e.message}")
         }
-
-        logger.warn { "No valid key available for token validation (kid: $keyId)" }
-        return null
     }
 
     /**
      * Extract user ID from a validated JWT token.
      *
      * @param token The JWT token string
-     * @return User ID if token is valid, null otherwise
+     * @return User ID if token is valid
+     * @throws AuthenticationRequiredException if token validation fails
      */
+    @Throws(AuthenticationRequiredException::class)
     fun getUserIdFromToken(token: String): UUID? {
-        val claims = validateToken(token) ?: return null
+        val claims = validateToken(token)
         return try {
             UUID.fromString(claims.subject)
         } catch (e: Exception) {
-            logger.warn { "Invalid user ID in token subject: ${e.message}" }
-            null
+            throw AuthenticationRequiredException("Invalid user ID in token subject: ${e.message}")
         }
     }
 
@@ -155,10 +121,12 @@ class JwtTokenValidator(
      * Extract permissions from a validated JWT token.
      *
      * @param token The JWT token string
-     * @return List of permission names if token is valid and contains permissions claim, null otherwise
+     * @return List of permission names if token contains permissions claim, empty list otherwise
+     * @throws AuthenticationRequiredException if token validation fails
      */
+    @Throws(AuthenticationRequiredException::class)
     fun getPermissionsFromToken(token: String): List<String>? {
-        val claims = validateToken(token) ?: return null
+        val claims = validateToken(token)
         return try {
             val permissionsClaim = claims["permissions"]
             if (permissionsClaim == null) {
@@ -176,6 +144,8 @@ class JwtTokenValidator(
                     null
                 }
             }
+        } catch (e: AuthenticationRequiredException) {
+            throw e
         } catch (e: Exception) {
             logger.warn { "Error extracting permissions from token: ${e.message}" }
             null
@@ -187,9 +157,11 @@ class JwtTokenValidator(
      *
      * @param token The JWT token string
      * @return true if token is a valid service token, false otherwise
+     * @throws AuthenticationRequiredException if token validation fails
      */
+    @Throws(AuthenticationRequiredException::class)
     fun isServiceToken(token: String): Boolean {
-        val claims = validateToken(token) ?: return false
+        val claims = validateToken(token)
         return claims["type"] == "service"
     }
 
@@ -198,17 +170,18 @@ class JwtTokenValidator(
      *
      * @param token The JWT token string
      * @return Service ID if token is valid and is a service token, null otherwise
+     * @throws AuthenticationRequiredException if token validation fails
      */
+    @Throws(AuthenticationRequiredException::class)
     fun getServiceIdFromToken(token: String): UUID? {
-        val claims = validateToken(token) ?: return null
+        val claims = validateToken(token)
         if (claims["type"] != "service") {
             return null
         }
         return try {
             UUID.fromString(claims.subject)
         } catch (e: Exception) {
-            logger.warn { "Invalid service ID in token subject: ${e.message}" }
-            null
+            throw AuthenticationRequiredException("Invalid service ID in token subject: ${e.message}")
         }
     }
 
@@ -216,10 +189,12 @@ class JwtTokenValidator(
      * Extract audience from a validated JWT token.
      *
      * @param token The JWT token string
-     * @return Audience if token is valid and contains aud claim, null otherwise
+     * @return Audience if token contains aud claim, null otherwise
+     * @throws AuthenticationRequiredException if token validation fails
      */
+    @Throws(AuthenticationRequiredException::class)
     fun getAudienceFromToken(token: String): String? {
-        val claims = validateToken(token) ?: return null
+        val claims = validateToken(token)
         return claims.audience?.firstOrNull() ?: claims["aud"]?.toString()
     }
 
@@ -228,9 +203,11 @@ class JwtTokenValidator(
      *
      * @param token The JWT token string
      * @return User ID if token is valid, is a service token, and contains user_id claim, null otherwise
+     * @throws AuthenticationRequiredException if token validation fails
      */
+    @Throws(AuthenticationRequiredException::class)
     fun getUserIdFromServiceToken(token: String): UUID? {
-        val claims = validateToken(token) ?: return null
+        val claims = validateToken(token)
         if (claims["type"] != "service") {
             return null
         }
@@ -238,8 +215,7 @@ class JwtTokenValidator(
         return try {
             UUID.fromString(userIdClaim.toString())
         } catch (e: Exception) {
-            logger.warn { "Invalid user ID in service token: ${e.message}" }
-            null
+            throw AuthenticationRequiredException("Invalid user ID in service token: ${e.message}")
         }
     }
 
@@ -247,10 +223,12 @@ class JwtTokenValidator(
      * Extract user permissions from a service token with user context.
      *
      * @param token The JWT token string
-     * @return List of user permission names if token is valid and contains user_permissions claim, null otherwise
+     * @return List of user permission names if token contains user_permissions claim, null otherwise
+     * @throws AuthenticationRequiredException if token validation fails
      */
+    @Throws(AuthenticationRequiredException::class)
     fun getUserPermissionsFromServiceToken(token: String): List<String>? {
-        val claims = validateToken(token) ?: return null
+        val claims = validateToken(token)
         if (claims["type"] != "service") {
             return null
         }
@@ -267,6 +245,8 @@ class JwtTokenValidator(
                     null
                 }
             }
+        } catch (e: AuthenticationRequiredException) {
+            throw e
         } catch (e: Exception) {
             logger.warn { "Error extracting user permissions from service token: ${e.message}" }
             null
@@ -278,9 +258,11 @@ class JwtTokenValidator(
      *
      * @param token The JWT token string
      * @return true if token is a valid access token (type="access" and not a service token), false otherwise
+     * @throws AuthenticationRequiredException if token validation fails
      */
+    @Throws(AuthenticationRequiredException::class)
     fun isAccessToken(token: String): Boolean {
-        val claims = validateToken(token) ?: return false
+        val claims = validateToken(token)
         val type = claims["type"]?.toString()
         return type == "access"
     }
@@ -290,9 +272,11 @@ class JwtTokenValidator(
      *
      * @param token The JWT token string
      * @return true if token is a valid refresh token, false otherwise
+     * @throws AuthenticationRequiredException if token validation fails
      */
+    @Throws(AuthenticationRequiredException::class)
     fun isRefreshToken(token: String): Boolean {
-        val claims = validateToken(token) ?: return false
+        val claims = validateToken(token)
         return claims["type"] == "refresh"
     }
 
@@ -301,9 +285,11 @@ class JwtTokenValidator(
      *
      * @param token The JWT token string
      * @return Expiration Instant if token is valid, null otherwise
+     * @throws AuthenticationRequiredException if token validation fails
      */
+    @Throws(AuthenticationRequiredException::class)
     fun getTokenExpiration(token: String): Instant? {
-        val claims = validateToken(token) ?: return null
+        val claims = validateToken(token)
         return claims.expiration?.toInstant()
     }
 
@@ -312,9 +298,11 @@ class JwtTokenValidator(
      *
      * @param token The JWT token string
      * @return Token type ("access" or "refresh") if token is valid, null otherwise
+     * @throws AuthenticationRequiredException if token validation fails
      */
+    @Throws(AuthenticationRequiredException::class)
     fun getTokenType(token: String): String? {
-        val claims = validateToken(token) ?: return null
+        val claims = validateToken(token)
         return claims["type"]?.toString()
     }
 
@@ -322,10 +310,12 @@ class JwtTokenValidator(
      * Extract email from a validated JWT token.
      *
      * @param token The JWT token string
-     * @return Email if token is valid and contains email claim, null otherwise
+     * @return Email if token contains email claim, null otherwise
+     * @throws AuthenticationRequiredException if token validation fails
      */
+    @Throws(AuthenticationRequiredException::class)
     fun getEmailFromToken(token: String): String? {
-        val claims = validateToken(token) ?: return null
+        val claims = validateToken(token)
         return claims["email"]?.toString()
     }
 }

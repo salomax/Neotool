@@ -1,4 +1,4 @@
-package io.github.salomax.neotool.common.security.service
+package io.github.salomax.neotool.common.security.principal
 
 import graphql.GraphQLContext
 import graphql.schema.DataFetchingEnvironment

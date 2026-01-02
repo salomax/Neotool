@@ -41,13 +41,9 @@ micronaut:
 
 # JWT Configuration (Validator Only)
 jwt:
-  # Algorithm: HS256, RS256, or AUTO (default: AUTO - tries RS256 first, falls back to HS256)
+  # Algorithm: RS256 (RSA-SHA256) - only supported algorithm
   # Can be set via JWT_ALGORITHM environment variable
-  algorithm: ${JWT_ALGORITHM:AUTO}
-  # Secret key for HS256 validation (use strong random secret in production)
-  # Can be set via JWT_SECRET environment variable
-  # Required for HS256 validation
-  secret: ${JWT_SECRET:change-me-in-production-use-strong-random-secret-min-32-chars}
+  algorithm: ${JWT_ALGORITHM:RS256}
   # RSA public key path (PEM format) - for RS256 validation
   # Can be set via JWT_PUBLIC_KEY_PATH environment variable
   public-key-path: ${JWT_PUBLIC_KEY_PATH:}

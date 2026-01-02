@@ -1,7 +1,7 @@
 package io.github.salomax.neotool.security.http
 
 import io.github.salomax.neotool.common.security.config.JwtConfig
-import io.github.salomax.neotool.common.security.key.KeyManagerFactory
+import io.github.salomax.neotool.security.key.SecurityKeyManagerFactory
 import io.micronaut.http.HttpResponse
 import io.micronaut.http.MediaType
 import io.micronaut.http.annotation.Controller
@@ -24,7 +24,7 @@ import java.util.Base64
 @Controller("/.well-known")
 class JwksController(
     private val jwtConfig: JwtConfig,
-    private val keyManagerFactory: KeyManagerFactory,
+    private val keyManagerFactory: SecurityKeyManagerFactory,
 ) {
     private val logger = KotlinLogging.logger {}
 

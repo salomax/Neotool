@@ -1,4 +1,4 @@
-package io.github.salomax.neotool.common.security.config
+package io.github.salomax.neotool.security.config
 
 import io.micronaut.context.annotation.ConfigurationProperties
 import jakarta.validation.constraints.Min
@@ -74,3 +74,4 @@ data class VaultConfig(
      */
     fun isConfigured(): Boolean = enabled && token != null && token.isNotBlank()
 }
+

@@ -10,6 +10,7 @@ import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.common.test.json.read
 import io.github.salomax.neotool.common.test.transaction.runTransaction
 import io.github.salomax.neotool.security.model.UserEntity
+import io.github.salomax.neotool.security.repo.RefreshTokenRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.authentication.AuthenticationService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
@@ -21,6 +22,7 @@ import jakarta.inject.Inject
 import jakarta.persistence.EntityManager
 import org.assertj.core.api.Assertions
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Tag
@@ -46,6 +48,9 @@ open class GraphQLAuthenticationIntegrationTest :
     @Inject
     lateinit var entityManager: EntityManager
 
+    @Inject
+    lateinit var refreshTokenRepository: RefreshTokenRepository
+
     private fun uniqueEmail() = SecurityTestDataBuilders.uniqueEmail("graphql-authentication")
 
     fun saveUser(user: UserEntity) {
@@ -57,11 +62,22 @@ open class GraphQLAuthenticationIntegrationTest :
         }
     }
 
+    @BeforeEach
+    fun cleanupTestDataBefore() {
+        // Clean up before each test to ensure clean state
+        cleanupTestData()
+    }
+
     @AfterEach
     fun cleanupTestData() {
         // Clean up test data after each test
         try {
-            userRepository.deleteAll()
+            entityManager.runTransaction {
+                refreshTokenRepository.deleteAll()
+                userRepository.deleteAll()
+                entityManager.flush()
+            }
+            entityManager.clear()
         } catch (e: Exception) {
             // Ignore cleanup errors
         }

@@ -1,10 +1,7 @@
-package io.github.salomax.neotool.common.security.service
+package io.github.salomax.neotool.common.security.principal
 
 import io.github.salomax.neotool.common.security.exception.AuthenticationRequiredException
 import io.github.salomax.neotool.common.security.jwt.JwtTokenValidator
-import io.github.salomax.neotool.common.security.principal.JwtPrincipalDecoder
-import io.github.salomax.neotool.common.security.principal.PrincipalType
-import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach

@@ -18,7 +18,7 @@ import java.security.interfaces.RSAPublicKey
 @Singleton
 class FileKeyManager(
     private val jwtConfig: JwtConfig,
-) : WritableKeyManager {
+) : KeyManager {
     private val logger = KotlinLogging.logger {}
 
     // Cache keys in memory to avoid repeated file reads
@@ -89,107 +89,4 @@ class FileKeyManager(
         // File-based manager is always available (may not have keys, but manager itself is available)
         return true
     }
-
-    /**
-     * Store private key to file.
-     *
-     * @param keyId Key identifier (used for file naming if multiple keys supported)
-     * @param privateKey Private key to store
-     * @return true on success, false on failure
-     */
-    fun storePrivateKey(
-        keyId: String,
-        privateKey: PrivateKey,
-    ): Boolean =
-        try {
-            require(privateKey is RSAPrivateKey) {
-                "Private key must be RSA key, got ${privateKey.javaClass.name}"
-            }
-            val privateKeyPem = JwtKeyManager.privateKeyToPem(privateKey)
-            val filePath = jwtConfig.privateKeyPath ?: "./keys/jwt-private-key.pem"
-
-            val file = File(filePath)
-            file.parentFile?.mkdirs()
-            file.writeText(privateKeyPem, StandardCharsets.UTF_8)
-
-            // Set secure permissions (600 = owner read/write only)
-            file.setReadable(false, false)
-            file.setWritable(false, false)
-            file.setReadable(true, true)
-            file.setWritable(true, true)
-
-            // Update cache
-            cachedPrivateKey = privateKey
-            logger.info { "Private key stored to file: $filePath" }
-            true
-        } catch (e: Exception) {
-            logger.error(e) { "Failed to store private key to file: $keyId" }
-            false
-        }
-
-    /**
-     * Store public key to file.
-     *
-     * @param keyId Key identifier (used for file naming if multiple keys supported)
-     * @param publicKey Public key to store
-     * @return true on success, false on failure
-     */
-    fun storePublicKey(
-        keyId: String,
-        publicKey: PublicKey,
-    ): Boolean =
-        try {
-            require(publicKey is RSAPublicKey) {
-                "Public key must be RSA key, got ${publicKey.javaClass.name}"
-            }
-            val publicKeyPem = JwtKeyManager.publicKeyToPem(publicKey)
-            val filePath = jwtConfig.publicKeyPath ?: "./keys/jwt-public-key.pem"
-
-            val file = File(filePath)
-            file.parentFile?.mkdirs()
-            file.writeText(publicKeyPem, StandardCharsets.UTF_8)
-
-            // Set readable permissions (644 = owner read/write, others read)
-            file.setReadable(true, false)
-            file.setWritable(true, true)
-            file.setWritable(false, false)
-
-            // Update cache
-            cachedPublicKey = publicKey
-            logger.info { "Public key stored to file: $filePath" }
-            true
-        } catch (e: Exception) {
-            logger.error(e) { "Failed to store public key to file: $keyId" }
-            false
-        }
-
-    /**
-     * Store both private and public keys to files atomically.
-     *
-     * @param keyId Key identifier
-     * @param privateKey Private key to store
-     * @param publicKey Public key to store
-     * @return true on success, false on failure
-     */
-    override fun storeKeyPair(
-        keyId: String,
-        privateKey: PrivateKey,
-        publicKey: PublicKey,
-    ): Boolean =
-        try {
-            // Validate key types before casting
-            require(privateKey is RSAPrivateKey) {
-                "Private key must be RSA key, got ${privateKey.javaClass.name}"
-            }
-            require(publicKey is RSAPublicKey) {
-                "Public key must be RSA key, got ${publicKey.javaClass.name}"
-            }
-
-            val privateSuccess = storePrivateKey(keyId, privateKey)
-            val publicSuccess = storePublicKey(keyId, publicKey)
-            privateSuccess && publicSuccess
-        } catch (e: Exception) {
-            logger.error(e) { "Failed to store key pair to files: $keyId" }
-            false
-        }
 }
