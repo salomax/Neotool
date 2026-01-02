@@ -1,15 +1,14 @@
 package io.github.salomax.neotool.security.test.service
 
-import io.github.salomax.neotool.security.config.JwtConfig
-import io.github.salomax.neotool.security.service.FileKeyManager
-import io.github.salomax.neotool.security.service.JwtKeyManager
+import io.github.salomax.neotool.common.security.config.JwtConfig
+import io.github.salomax.neotool.common.security.key.FileKeyManager
+import io.github.salomax.neotool.common.security.key.JwtKeyManager
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
 @DisplayName("FileKeyManager Tests")
 class FileKeyManagerTest {
-
     @Test
     fun `should return true for isAvailable`() {
         val config = JwtConfig()
@@ -32,10 +31,11 @@ class FileKeyManagerTest {
         val keyPair = JwtKeyManager.generateKeyPair(2048)
         val (privateKeyPem, publicKeyPem) = JwtKeyManager.keyPairToPem(keyPair)
 
-        val config = JwtConfig(
-            privateKey = privateKeyPem,
-            publicKey = publicKeyPem,
-        )
+        val config =
+            JwtConfig(
+                privateKey = privateKeyPem,
+                publicKey = publicKeyPem,
+            )
         val manager = FileKeyManager(config)
 
         val privateKey = manager.getPrivateKey("test")
@@ -66,4 +66,3 @@ class FileKeyManagerTest {
         assertThat(secret).isNull()
     }
 }
-

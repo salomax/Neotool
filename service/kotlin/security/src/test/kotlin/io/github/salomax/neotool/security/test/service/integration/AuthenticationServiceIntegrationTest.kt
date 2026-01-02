@@ -1,14 +1,13 @@
 package io.github.salomax.neotool.security.test.service.integration
 
+import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.security.model.PrincipalEntity
 import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.UserRepository
-import io.github.salomax.neotool.security.service.AuthContextFactory
-import io.github.salomax.neotool.security.service.AuthenticationService
-import io.github.salomax.neotool.security.service.JwtService
-import io.github.salomax.neotool.security.service.PrincipalType
+import io.github.salomax.neotool.security.service.authentication.AuthContextFactory
+import io.github.salomax.neotool.security.service.authentication.AuthenticationService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject
@@ -30,7 +29,9 @@ import org.junit.jupiter.api.assertThrows
 @Tag("authentication")
 @Tag("security")
 @TestMethodOrder(MethodOrderer.Random::class)
-class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTest {
+class AuthenticationServiceIntegrationTest :
+    BaseIntegrationTest(),
+    PostgresIntegrationTest {
     @Inject
     lateinit var userRepository: UserRepository
 
@@ -46,7 +47,7 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
     @Inject
     lateinit var jwtService: JwtService
 
-    private fun uniqueEmail() = SecurityTestDataBuilders.uniqueEmail("auth-integration")
+    private fun uniqueEmail() = SecurityTestDataBuilders.uniqueEmail("authentication-integration")
 
     @AfterEach
     fun cleanupTestData() {

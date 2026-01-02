@@ -8,8 +8,8 @@ import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.repo.GroupMembershipRepository
 import io.github.salomax.neotool.security.repo.GroupRepository
 import io.github.salomax.neotool.security.repo.UserRepository
-import io.github.salomax.neotool.security.service.AuthenticationService
-import io.github.salomax.neotool.security.service.GroupManagementService
+import io.github.salomax.neotool.security.service.management.GroupManagementService
+import io.github.salomax.neotool.security.service.authentication.AuthenticationService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject
@@ -37,7 +37,9 @@ import java.util.UUID
 @Tag("group-management")
 @Tag("database")
 @TestMethodOrder(MethodOrderer.Random::class)
-open class GroupManagementIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTest {
+open class GroupManagementIntegrationTest :
+    BaseIntegrationTest(),
+    PostgresIntegrationTest {
     @Inject
     lateinit var groupRepository: GroupRepository
 

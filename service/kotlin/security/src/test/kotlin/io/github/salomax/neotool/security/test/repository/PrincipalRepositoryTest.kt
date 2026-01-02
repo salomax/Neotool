@@ -1,10 +1,10 @@
 package io.github.salomax.neotool.security.test.repository
 
+import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.security.model.PrincipalEntity
 import io.github.salomax.neotool.security.repo.PrincipalRepository
-import io.github.salomax.neotool.security.service.PrincipalType
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject
 import org.assertj.core.api.Assertions.assertThat
@@ -14,7 +14,9 @@ import java.util.UUID
 
 @MicronautTest(startApplication = false)
 @DisplayName("PrincipalRepository Integration Tests")
-class PrincipalRepositoryTest : BaseIntegrationTest(), PostgresIntegrationTest {
+class PrincipalRepositoryTest :
+    BaseIntegrationTest(),
+    PostgresIntegrationTest {
     @Inject
     lateinit var principalRepository: PrincipalRepository
 

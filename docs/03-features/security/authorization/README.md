@@ -233,15 +233,16 @@ Every authorization decision generates an audit log entry with:
 ### Data Flow
 
 1. **Request Arrives**: User makes request (GraphQL query/mutation or HTTP endpoint)
-2. **Authentication**: Token is validated, principal is extracted
+2. **Authentication**: Token is validated, principal is extracted with permissions from token claims
 3. **Authorization Check**: 
-   - HTTP: `AuthorizationInterceptor` checks `@RequiresAuthorization` annotation
-   - GraphQL: Resolver calls `AuthorizationManager.require()`
-4. **RBAC Evaluation**: `AuthorizationService` checks if user has permission through roles
-5. **ABAC Evaluation**: If RBAC allows, `AbacEvaluationService` evaluates policies
-6. **Decision**: Final decision is made (explicit deny overrides allow)
-7. **Audit Logging**: Decision is logged to audit service
-8. **Response**: Access granted or `AuthorizationDeniedException` thrown
+   - HTTP: `AuthorizationInterceptor` checks `@RequiresAuthorization` annotation using `PermissionChecker` (token-based)
+   - GraphQL: Resolver calls `PermissionChecker.require()` via `AuthorizationChecker` interface (token-based)
+4. **Token-Based Validation**: `PermissionChecker` validates permissions from JWT token claims (no database access)
+5. **Advanced Authorization** (optional): For ABAC policies or dynamic resource checks, use `AuthorizationManager` which performs database-backed authorization
+6. **Decision**: Access granted or `AuthorizationDeniedException` thrown
+7. **Response**: Access granted or error returned
+
+**Note**: Standard permission checks use token-based validation for performance and stateless operation. Permissions are embedded in JWT tokens at generation time via `AuthContextFactory`, making tokens self-contained.
 
 ---
 
@@ -249,7 +250,47 @@ Every authorization decision generates an audit log entry with:
 
 ### Backend Implementation
 
-#### 1. AuthorizationService
+#### 1. PermissionChecker (Primary Authorization Mechanism)
+
+**Location**: `service/kotlin/common/src/main/kotlin/io/github/salomax/neotool/common/security/service/PermissionChecker.kt`
+
+**Purpose**: Token-based permission validation for REST and GraphQL endpoints.
+
+**Key Features**:
+- Validates permissions from JWT token claims (no database access)
+- Stateless and performant - no database queries on every request
+- Used by both REST (`AuthorizationInterceptor`) and GraphQL (`AuthenticatedGraphQLWiringFactory`)
+- Marked as `@Primary` implementation of `AuthorizationChecker` interface
+
+**How It Works**:
+1. Permissions are embedded in JWT tokens at generation time via `AuthContextFactory`
+2. On request, `PermissionChecker` extracts permissions from token claims
+3. Validates required permission against token permissions
+4. Throws `AuthorizationDeniedException` if permission is missing
+
+**Usage**:
+- Standard permission checks in REST endpoints (via `@RequiresAuthorization` annotation)
+- Standard permission checks in GraphQL resolvers (via `env.withPermission()`)
+- All modules can use this for lightweight, stateless authorization
+
+#### 2. AuthorizationManager (Advanced Authorization)
+
+**Location**: `service/kotlin/security/src/main/kotlin/io/github/salomax/neotool/security/service/AuthorizationManager.kt`
+
+**Purpose**: Database-backed authorization for advanced use cases (ABAC policies, dynamic resource checks).
+
+**Key Features**:
+- Performs database queries to check current permissions
+- Supports ABAC policy evaluation
+- Supports dynamic resource authorization
+- Can be used when real-time permission revocation is required
+
+**When to Use**:
+- ABAC policy evaluation
+- Dynamic resource-level authorization
+- Cases requiring real-time permission checks (not token-based)
+
+#### 3. AuthorizationService
 
 **Location**: `service/kotlin/security/src/main/kotlin/io/github/salomax/neotool/security/service/AuthorizationService.kt`
 
@@ -266,6 +307,8 @@ Every authorization decision generates an audit log entry with:
 - Lightweight permission checks using `existsPermissionForRoles()`
 - Single user context fetch for both RBAC and ABAC
 - Caching of role IDs and permissions
+
+**Note**: Used internally by `AuthorizationManager` and `AuthContextFactory` for token generation.
 
 #### 2. AbacEvaluationService
 
@@ -323,9 +366,11 @@ fun getUser(id: String): User {
 
 1. Intercepts method calls with `@RequiresAuthorization` annotation
 2. Extracts token from HTTP request
-3. Validates token and creates principal
-4. Calls `AuthorizationManager.require()`
+3. Validates token and creates principal with permissions from token claims
+4. Calls `PermissionChecker.require()` (token-based validation, no database access)
 5. Proceeds if allowed, throws exception if denied
+
+**Note**: Uses token-based validation for stateless, performant authorization. Permissions are validated from JWT token claims.
 
 #### 5. GraphQL Resolver
 
@@ -923,6 +968,7 @@ For questions or issues:
 **Last Updated**: 2024
 **Version**: 1.0
 **Status**: Active Development
+
 
 
 

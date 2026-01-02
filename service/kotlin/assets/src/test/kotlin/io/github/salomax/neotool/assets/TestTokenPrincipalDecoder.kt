@@ -1,8 +1,8 @@
 package io.github.salomax.neotool.assets
 
-import io.github.salomax.neotool.security.service.RequestPrincipal
-import io.github.salomax.neotool.security.service.TokenPrincipalDecoder
-import io.github.salomax.neotool.security.service.exception.AuthenticationRequiredException
+import io.github.salomax.neotool.common.security.exception.AuthenticationRequiredException
+import io.github.salomax.neotool.common.security.principal.RequestPrincipal
+import io.github.salomax.neotool.common.security.principal.TokenPrincipalDecoder
 import io.micronaut.context.annotation.Primary
 import io.micronaut.context.annotation.Requires
 import jakarta.inject.Singleton

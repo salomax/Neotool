@@ -1,11 +1,11 @@
 package io.github.salomax.neotool.common.graphql
 
 import graphql.schema.DataFetchingEnvironment
-import io.github.salomax.neotool.security.service.AuthorizationChecker
-import io.github.salomax.neotool.security.service.RequestPrincipal
-import io.github.salomax.neotool.security.service.RequestPrincipalProvider
-import io.github.salomax.neotool.security.service.exception.AuthenticationRequiredException
-import io.github.salomax.neotool.security.service.exception.AuthorizationDeniedException
+import io.github.salomax.neotool.common.security.authorization.AuthorizationChecker
+import io.github.salomax.neotool.common.security.exception.AuthenticationRequiredException
+import io.github.salomax.neotool.common.security.exception.AuthorizationDeniedException
+import io.github.salomax.neotool.common.security.principal.RequestPrincipal
+import io.github.salomax.neotool.common.security.principal.RequestPrincipalProvider
 
 /**
  * Helper utilities for GraphQL permission checking.
@@ -53,4 +53,3 @@ object GraphQLPermissionHelper {
         return block(principal)
     }
 }
-

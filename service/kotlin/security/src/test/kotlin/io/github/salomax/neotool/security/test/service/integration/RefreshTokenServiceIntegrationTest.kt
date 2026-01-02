@@ -1,17 +1,16 @@
 package io.github.salomax.neotool.security.test.service.integration
 
+import io.github.salomax.neotool.common.security.exception.AuthenticationRequiredException
+import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.security.model.PrincipalEntity
-import io.github.salomax.neotool.security.model.RefreshTokenEntity
 import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.RefreshTokenRepository
 import io.github.salomax.neotool.security.repo.UserRepository
-import io.github.salomax.neotool.security.service.AuthenticationService
-import io.github.salomax.neotool.security.service.PrincipalType
-import io.github.salomax.neotool.security.service.RefreshTokenService
-import io.github.salomax.neotool.security.service.exception.AuthenticationRequiredException
+import io.github.salomax.neotool.security.service.authentication.AuthenticationService
+import io.github.salomax.neotool.security.service.jwt.RefreshTokenService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject
@@ -26,8 +25,6 @@ import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.TestMethodOrder
 import org.junit.jupiter.api.assertThrows
 import java.security.MessageDigest
-import java.time.Instant
-import java.util.UUID
 
 @MicronautTest(startApplication = true)
 @DisplayName("RefreshTokenService Integration Tests")
@@ -36,7 +33,9 @@ import java.util.UUID
 @Tag("refresh-token")
 @Tag("security")
 @TestMethodOrder(MethodOrderer.Random::class)
-class RefreshTokenServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTest {
+class RefreshTokenServiceIntegrationTest :
+    BaseIntegrationTest(),
+    PostgresIntegrationTest {
     @Inject
     lateinit var refreshTokenRepository: RefreshTokenRepository
 
@@ -66,30 +65,32 @@ class RefreshTokenServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegr
     }
 
     private fun createTestUser(): UserEntity {
-        val user = SecurityTestDataBuilders.userWithPassword(
-            authenticationService = authenticationService,
-            email = uniqueEmail(),
-            password = "TestPassword123!",
-        )
+        val user =
+            SecurityTestDataBuilders.userWithPassword(
+                authenticationService = authenticationService,
+                email = uniqueEmail(),
+                password = "TestPassword123!",
+            )
         val savedUser = userRepository.save(user)
         val userId = savedUser.id!!
 
         // Create enabled principal
-        val principal = PrincipalEntity(
-            principalType = PrincipalType.USER,
-            externalId = userId.toString(),
-            enabled = true,
-        )
+        val principal =
+            PrincipalEntity(
+                principalType = PrincipalType.USER,
+                externalId = userId.toString(),
+                enabled = true,
+            )
         principalRepository.save(principal)
 
         return savedUser
     }
 
-    private fun hashToken(token: String): String {
-        return MessageDigest.getInstance("SHA-256")
+    private fun hashToken(token: String): String =
+        MessageDigest
+            .getInstance("SHA-256")
             .digest(token.toByteArray())
             .joinToString("") { "%02x".format(it) }
-    }
 
     @Nested
     @DisplayName("Create Refresh Token")
@@ -219,10 +220,12 @@ class RefreshTokenServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegr
             val refreshToken = refreshTokenService.createRefreshToken(user.id!!)
 
             // Disable user
-            val principal = principalRepository.findByPrincipalTypeAndExternalId(
-                PrincipalType.USER,
-                user.id!!.toString(),
-            ).orElseThrow()
+            val principal =
+                principalRepository
+                    .findByPrincipalTypeAndExternalId(
+                        PrincipalType.USER,
+                        user.id!!.toString(),
+                    ).orElseThrow()
             principal.enabled = false
             principalRepository.save(principal)
 
@@ -343,4 +346,3 @@ class RefreshTokenServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegr
         }
     }
 }
-

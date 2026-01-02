@@ -2,6 +2,7 @@ package io.github.salomax.neotool.security.graphql.mapper
 
 import io.github.salomax.neotool.common.graphql.pagination.Connection
 import io.github.salomax.neotool.common.graphql.pagination.OrderDirection
+import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.security.domain.UserManagement
 import io.github.salomax.neotool.security.domain.rbac.User
 import io.github.salomax.neotool.security.graphql.dto.PageInfoDTO
@@ -9,10 +10,9 @@ import io.github.salomax.neotool.security.graphql.dto.UpdateUserInputDTO
 import io.github.salomax.neotool.security.graphql.dto.UserConnectionDTO
 import io.github.salomax.neotool.security.graphql.dto.UserDTO
 import io.github.salomax.neotool.security.graphql.dto.UserEdgeDTO
+import io.github.salomax.neotool.security.model.UserOrderBy
 import io.github.salomax.neotool.security.repo.PrincipalRepository
-import io.github.salomax.neotool.security.service.PrincipalType
-import io.github.salomax.neotool.security.service.UserOrderBy
-import io.github.salomax.neotool.security.service.UserOrderField
+import io.github.salomax.neotool.security.model.UserOrderField
 import jakarta.inject.Singleton
 import java.util.UUID
 
@@ -128,23 +128,17 @@ class UserManagementMapper(
     /**
      * Convert String ID to UUID.
      */
-    fun toUserId(id: String): UUID {
-        return UUID.fromString(id)
-    }
+    fun toUserId(id: String): UUID = UUID.fromString(id)
 
     /**
      * Convert String ID to UUID for role ID.
      */
-    fun toRoleId(id: String): UUID {
-        return UUID.fromString(id)
-    }
+    fun toRoleId(id: String): UUID = UUID.fromString(id)
 
     /**
      * Convert String ID to UUID for group ID.
      */
-    fun toGroupId(id: String): UUID {
-        return UUID.fromString(id)
-    }
+    fun toGroupId(id: String): UUID = UUID.fromString(id)
 
     /**
      * Convert GraphQL orderBy input list to service layer UserOrderBy list.
@@ -165,12 +159,19 @@ class UserManagementMapper(
 
             val field =
                 when (fieldStr) {
-                    "DISPLAY_NAME" -> UserOrderField.DISPLAY_NAME
-                    "EMAIL" -> UserOrderField.EMAIL
-                    else ->
+                    "DISPLAY_NAME" -> {
+                        UserOrderField.DISPLAY_NAME
+                    }
+
+                    "EMAIL" -> {
+                        UserOrderField.EMAIL
+                    }
+
+                    else -> {
                         throw IllegalArgumentException(
                             "Invalid UserOrderField: $fieldStr. Allowed: DISPLAY_NAME, EMAIL",
                         )
+                    }
                 }
 
             val direction =
@@ -201,11 +202,10 @@ class UserManagementMapper(
     /**
      * Map GraphQL input map to UpdateUserInputDTO.
      */
-    fun mapToUpdateUserInputDTO(input: Map<String, Any?>): UpdateUserInputDTO {
-        return UpdateUserInputDTO(
+    fun mapToUpdateUserInputDTO(input: Map<String, Any?>): UpdateUserInputDTO =
+        UpdateUserInputDTO(
             displayName = extractField<String?>(input, "displayName", null),
         )
-    }
 
     /**
      * Extract field with type safety and default values.

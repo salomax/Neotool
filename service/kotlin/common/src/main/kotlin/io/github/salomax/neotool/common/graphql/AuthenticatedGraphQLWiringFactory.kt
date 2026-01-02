@@ -1,11 +1,11 @@
 package io.github.salomax.neotool.common.graphql
 
 import graphql.schema.DataFetchingEnvironment
-import io.github.salomax.neotool.security.service.AuthorizationChecker
-import io.github.salomax.neotool.security.service.RequestPrincipal
-import io.github.salomax.neotool.security.service.RequestPrincipalProvider
-import io.github.salomax.neotool.security.service.exception.AuthenticationRequiredException
-import io.github.salomax.neotool.security.service.exception.AuthorizationDeniedException
+import io.github.salomax.neotool.common.security.authorization.AuthorizationChecker
+import io.github.salomax.neotool.common.security.exception.AuthenticationRequiredException
+import io.github.salomax.neotool.common.security.exception.AuthorizationDeniedException
+import io.github.salomax.neotool.common.security.principal.RequestPrincipal
+import io.github.salomax.neotool.common.security.principal.RequestPrincipalProvider
 
 /**
  * Base class for GraphQL wiring factories that require authentication and authorization.
@@ -16,7 +16,7 @@ import io.github.salomax.neotool.security.service.exception.AuthorizationDeniedE
  * Benefits:
  * - Type-safe: Dependencies are required in constructor, no nullable properties
  * - Clean API: Extension functions for `withPermission()` and `principal()` on DataFetchingEnvironment
- * - Separation of concerns: All auth code is contained in this class, not in base class
+ * - Separation of concerns: All authentication code is contained in this class, not in base class
  * - Enterprise-grade: Explicit contracts, easy to test and mock
  *
  * Example usage:
@@ -43,7 +43,6 @@ abstract class AuthenticatedGraphQLWiringFactory(
     protected val requestPrincipalProvider: RequestPrincipalProvider,
     protected val authorizationChecker: AuthorizationChecker,
 ) : GraphQLWiringFactory() {
-
     /**
      * Extension function for permission checking that passes the validated principal to the block.
      * Uses the injected requestPrincipalProvider and authorizationChecker.
@@ -72,15 +71,14 @@ abstract class AuthenticatedGraphQLWiringFactory(
     protected fun <T> DataFetchingEnvironment.withPermission(
         action: String,
         block: (RequestPrincipal) -> T,
-    ): T {
-        return GraphQLPermissionHelper.withPermissionAndPrincipal(
+    ): T =
+        GraphQLPermissionHelper.withPermissionAndPrincipal(
             this,
             action,
             requestPrincipalProvider,
             authorizationChecker,
             block,
         )
-    }
 
     /**
      * Helper function to enforce permission checks with principal (full version with explicit dependencies).
@@ -101,15 +99,14 @@ abstract class AuthenticatedGraphQLWiringFactory(
         requestPrincipalProvider: RequestPrincipalProvider,
         authorizationChecker: AuthorizationChecker,
         block: (RequestPrincipal) -> T,
-    ): T {
-        return GraphQLPermissionHelper.withPermissionAndPrincipal(
+    ): T =
+        GraphQLPermissionHelper.withPermissionAndPrincipal(
             env,
             action,
             requestPrincipalProvider,
             authorizationChecker,
             block,
         )
-    }
 
     /**
      * Extension function to get the current principal from GraphQL context.
@@ -118,8 +115,5 @@ abstract class AuthenticatedGraphQLWiringFactory(
      * @return The authenticated request principal
      * @throws AuthenticationRequiredException if no valid token is present
      */
-    protected fun DataFetchingEnvironment.principal(): RequestPrincipal {
-        return requestPrincipalProvider.fromGraphQl(this)
-    }
+    protected fun DataFetchingEnvironment.principal(): RequestPrincipal = requestPrincipalProvider.fromGraphQl(this)
 }
-

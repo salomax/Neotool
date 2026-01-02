@@ -1,4 +1,3 @@
-
 plugins {
     id("org.jetbrains.kotlin.jvm")
     id("io.micronaut.application")
@@ -9,7 +8,7 @@ plugins {
 }
 
 micronaut {
-    version("4.10.2")
+    version("4.10.6")
     processing {
         incremental(true)
         annotations("io.github.salomax.neotool.security.*")

@@ -65,9 +65,9 @@ class CustomerController
 
 ### Rule: GraphQL Context Token Extraction
 
-**Rule**: `GraphQLControllerBase` automatically extracts the Bearer token from the `Authorization` header and stores it in GraphQL context as `"token"`. Resolvers should use `RequestPrincipalProvider.fromGraphQl()` to extract and validate the principal.
+**Rule**: `GraphQLControllerBase` automatically extracts the Bearer token from the `Authorization` header and stores it in GraphQL context as `"token"`. Resolvers should use `AuthenticatedGraphQLWiringFactory` which provides `env.principal()` extension function to extract and validate the principal.
 
-**Rationale**: Centralized token extraction ensures consistent authentication across all GraphQL operations. The token is stored in GraphQL context once per request and can be accessed by all data fetchers.
+**Rationale**: Centralized token extraction ensures consistent authentication across all GraphQL operations. The token is stored in GraphQL context once per request and can be accessed by all data fetchers. Using `AuthenticatedGraphQLWiringFactory` provides a clean, type-safe API for resolvers.
 
 **Implementation**:
 
@@ -75,18 +75,61 @@ class CustomerController
    - Format: `"Bearer <token>"`
    - Token is stored in GraphQL context as `"token"` (non-nullable String)
    - If no token is provided, context does not contain `"token"` key
+   - Token extraction happens once per request before GraphQL execution
 
-2. **Resolvers** use `RequestPrincipalProvider.fromGraphQl()`:
-   - Extracts token from GraphQL context
-   - Validates token and creates `RequestPrincipal`
-   - Caches principal in GraphQL context as `"requestPrincipal"` for performance
-   - Throws `AuthenticationRequiredException` if token is missing or invalid
+2. **Resolvers** use `AuthenticatedGraphQLWiringFactory`:
+   - Extend `AuthenticatedGraphQLWiringFactory` instead of `GraphQLWiringFactory`
+   - Use `env.principal()` extension function to get authenticated principal
+   - Use `env.withPermission(action) { principal -> ... }` for permission checks
+   - Principal validation happens lazily on first access
+   - Validated principal is cached in GraphQL context as `"requestPrincipal"`
+
+3. **Authentication Flow**:
+   ```
+   GraphQL Request
+   → GraphQLControllerBase extracts token → stores in context
+   → GraphQL query executes
+   → Resolver calls env.principal()
+   → AuthenticatedGraphQLWiringFactory.principal() extension
+   → RequestPrincipalProvider.fromGraphQl(env)
+   → Checks cache → if not cached, validates JWT token
+   → Returns RequestPrincipal (cached for subsequent resolvers)
+   ```
 
 **Key Points**:
 - Token extraction happens once per request in `GraphQLControllerBase`
-- Principal validation and caching happens on first access via `RequestPrincipalProvider`
-- Subsequent data fetchers reuse cached principal (no revalidation)
+- Principal validation happens lazily when resolver calls `env.principal()`
+- Principal is validated once and cached in GraphQL context
+- Subsequent data fetchers in the same request reuse cached principal (no revalidation)
 - Token is stored as non-nullable String in context (null tokens are not stored)
+- **No annotation required** - authentication is automatic when resolver requests principal
+
+**Example Usage**:
+
+```kotlin
+@Singleton
+class AssetWiringFactory(
+    private val queryResolver: AssetQueryResolver,
+    requestPrincipalProvider: RequestPrincipalProvider,
+    authorizationChecker: AuthorizationChecker,
+    resolverRegistry: GraphQLResolverRegistry,
+) : AuthenticatedGraphQLWiringFactory(requestPrincipalProvider, authorizationChecker) {
+
+    override fun registerQueryResolvers(type: TypeRuntimeWiring.Builder) = type
+        .dataFetcher("asset", createValidatedDataFetcher { env ->
+            // Get authenticated principal (triggers JWT validation if not cached)
+            val principal = env.principal()
+            
+            // Check permission and execute with principal
+            env.withPermission(AssetPermissions.ASSETS_ASSET_VIEW) { principal ->
+                val id = getRequiredString(env, "id")
+                queryResolver.asset(id, principal.userId.toString())
+            }
+        })
+}
+```
+
+**See Also**: [Security Feature Documentation - GraphQL Token Validation Flow](../../03-features/security/README.md#4-graphql-token-validation-flow) for complete step-by-step authentication flow.
 
 ## Performance Rules
 

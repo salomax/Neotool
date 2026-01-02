@@ -1,5 +1,7 @@
 package io.github.salomax.neotool.security.test.service.unit
 
+import io.github.salomax.neotool.common.security.exception.AuthorizationDeniedException
+import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.security.repo.GroupMembershipRepository
 import io.github.salomax.neotool.security.repo.GroupRoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.PermissionRepository
@@ -7,12 +9,10 @@ import io.github.salomax.neotool.security.repo.PrincipalPermissionRepository
 import io.github.salomax.neotool.security.repo.PrincipalPermissionRepositoryCustom
 import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
-import io.github.salomax.neotool.security.service.AbacEvaluationResult
-import io.github.salomax.neotool.security.service.AbacEvaluationService
-import io.github.salomax.neotool.security.service.AuthorizationAuditService
-import io.github.salomax.neotool.security.service.AuthorizationService
-import io.github.salomax.neotool.security.service.PrincipalType
-import io.github.salomax.neotool.security.service.exception.AuthorizationDeniedException
+import io.github.salomax.neotool.security.service.authorization.AbacEvaluationResult
+import io.github.salomax.neotool.security.service.authorization.AbacEvaluationService
+import io.github.salomax.neotool.security.service.authorization.AuthorizationAuditService
+import io.github.salomax.neotool.security.service.authorization.AuthorizationService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -817,10 +817,10 @@ class AuthorizationServiceTest {
             whenever(groupMembershipRepository.findActiveMembershipsByUserId(any(), any())).thenReturn(emptyList())
 
             // Act & Assert
-            org.assertj.core.api.Assertions.assertThatThrownBy {
-                authorizationService.requirePermission(userId, permission)
-            }
-                .isInstanceOf(AuthorizationDeniedException::class.java)
+            org.assertj.core.api.Assertions
+                .assertThatThrownBy {
+                    authorizationService.requirePermission(userId, permission)
+                }.isInstanceOf(AuthorizationDeniedException::class.java)
                 .hasMessageContaining("User $userId lacks permission '$permission'")
         }
 

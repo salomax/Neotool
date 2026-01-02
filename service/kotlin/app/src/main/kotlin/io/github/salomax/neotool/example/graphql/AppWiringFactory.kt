@@ -28,52 +28,45 @@ class AppWiringFactory(
         resolverRegistry.register("product", productResolver)
     }
 
-    override fun registerQueryResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder {
-        return type
+    override fun registerQueryResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder =
+        type
             .dataFetcher(
                 "hello",
                 createValidatedDataFetcher { _ ->
                     "Hello from GraphQL!"
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "currentUser",
                 createValidatedDataFetcher { _ ->
                     "user@example.com"
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "products",
                 createValidatedDataFetcher { _ ->
                     productResolver.list()
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "product",
                 createCrudDataFetcher("getProductById") { id ->
                     productResolver.getById(id)
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "customers",
                 createValidatedDataFetcher { _ ->
                     customerResolver.list()
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "customer",
                 createCrudDataFetcher("getCustomerById") { id ->
                     customerResolver.getById(id)
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "currentUser",
                 createValidatedDataFetcher { _ ->
                     // Auth functionality not available in app module (security module dependency removed)
                     null
                 },
             )
-    }
 
     override fun registerMutationResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder {
         return type
@@ -82,60 +75,53 @@ class AppWiringFactory(
                 createMutationDataFetcher("createProduct") { input ->
                     productResolver.create(input)
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "updateProduct",
                 createUpdateMutationDataFetcher("updateProduct") { id, input ->
                     productResolver.update(id, input)
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "deleteProduct",
                 createCrudDataFetcher("deleteProduct") { id ->
                     productResolver.delete(id)
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "createCustomer",
                 createMutationDataFetcher("createCustomer") { input ->
                     customerResolver.create(input)
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "updateCustomer",
                 createUpdateMutationDataFetcher("updateCustomer") { id, input ->
                     customerResolver.update(id, input)
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "deleteCustomer",
                 createCrudDataFetcher("deleteCustomer") { id ->
                     customerResolver.delete(id)
                 },
             )
-        // SignIn mutation removed - auth functionality not available in app module (security module dependency removed)
+        // SignIn mutation removed - authentication functionality not available in app module (security module dependency removed)
     }
 
-    override fun registerSubscriptionResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder {
-        return type
+    override fun registerSubscriptionResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder =
+        type
             .dataFetcher(
                 "productUpdated",
                 createValidatedDataFetcher { _ ->
                     // TODO: Implement subscription logic
                     null
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "customerUpdated",
                 createValidatedDataFetcher { _ ->
                     // TODO: Implement subscription logic
                     null
                 },
             )
-    }
 
-    override fun registerCustomTypeResolvers(builder: RuntimeWiring.Builder): RuntimeWiring.Builder {
-        return builder
+    override fun registerCustomTypeResolvers(builder: RuntimeWiring.Builder): RuntimeWiring.Builder =
+        builder
             .type("Customer") { type ->
                 type.dataFetcher(
                     "id",
@@ -151,8 +137,7 @@ class AppWiringFactory(
                         customer?.version?.toInt() ?: 0
                     },
                 )
-            }
-            .type("Product") { type ->
+            }.type("Product") { type ->
                 type.dataFetcher(
                     "id",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -168,5 +153,4 @@ class AppWiringFactory(
                     },
                 )
             }
-    }
 }

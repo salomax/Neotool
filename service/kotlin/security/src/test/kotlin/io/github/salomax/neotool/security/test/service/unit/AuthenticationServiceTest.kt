@@ -1,19 +1,20 @@
 package io.github.salomax.neotool.security.test.service.unit
 
-import io.github.salomax.neotool.security.config.JwtConfig
+import io.github.salomax.neotool.common.security.jwt.JwtTokenValidator
+import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.security.model.PrincipalEntity
 import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.repo.PasswordResetAttemptRepository
 import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.UserRepository
-import io.github.salomax.neotool.security.service.AuthenticationService
-import io.github.salomax.neotool.security.service.EmailService
-import io.github.salomax.neotool.security.service.JwtService
-import io.github.salomax.neotool.security.service.OAuthProvider
-import io.github.salomax.neotool.security.service.OAuthProviderRegistry
-import io.github.salomax.neotool.security.service.OAuthUserClaims
-import io.github.salomax.neotool.security.service.PrincipalType
-import io.github.salomax.neotool.security.service.RateLimitService
+import io.github.salomax.neotool.security.service.email.EmailService
+import io.github.salomax.neotool.security.service.jwt.JwtTokenIssuer
+import io.github.salomax.neotool.security.service.oauth.OAuthProvider
+import io.github.salomax.neotool.security.service.oauth.OAuthUserClaims
+import io.github.salomax.neotool.security.service.rate.RateLimitService
+import io.github.salomax.neotool.security.service.authentication.AuthenticationService
+import io.github.salomax.neotool.security.service.jwt.RefreshTokenService
+import io.github.salomax.neotool.security.service.oauth.OAuthProviderRegistry
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -23,6 +24,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.ArgumentCaptor
 import org.mockito.kotlin.any
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
@@ -34,7 +36,9 @@ import java.util.UUID
 class AuthenticationServiceTest {
     private lateinit var userRepository: UserRepository
     private lateinit var principalRepository: PrincipalRepository
-    private lateinit var jwtService: JwtService
+    private lateinit var jwtTokenIssuer: JwtTokenIssuer
+    private lateinit var jwtTokenValidator: JwtTokenValidator
+    private lateinit var refreshTokenService: RefreshTokenService
     private lateinit var authenticationService: AuthenticationService
     private lateinit var oauthProvider: OAuthProvider
     private lateinit var oauthProviderRegistry: OAuthProviderRegistry
@@ -43,13 +47,9 @@ class AuthenticationServiceTest {
     fun setUp() {
         userRepository = mock()
         principalRepository = mock()
-        val jwtConfig =
-            JwtConfig(
-                secret = "test-secret-key-minimum-32-characters-long-for-hmac-sha256",
-                accessTokenExpirationSeconds = 900L,
-                refreshTokenExpirationSeconds = 604800L,
-            )
-        jwtService = JwtService(jwtConfig)
+        jwtTokenIssuer = mock()
+        jwtTokenValidator = mock()
+        refreshTokenService = mock()
         val emailService: EmailService = mock()
         val passwordResetAttemptRepository: PasswordResetAttemptRepository = mock()
         val rateLimitService = RateLimitService(passwordResetAttemptRepository)
@@ -60,10 +60,12 @@ class AuthenticationServiceTest {
             AuthenticationService(
                 userRepository,
                 principalRepository,
-                jwtService,
+                jwtTokenIssuer,
+                jwtTokenValidator,
                 emailService,
                 rateLimitService,
                 oauthProviderRegistry,
+                refreshTokenService,
             )
     }
 
@@ -293,15 +295,20 @@ class AuthenticationServiceTest {
     inner class RememberMeTokenTests {
         @Test
         fun `should generate remember me token`() {
+            val userId = UUID.randomUUID()
             val user =
                 SecurityTestDataBuilders.user(
-                    id = UUID.randomUUID(),
+                    id = userId,
                     email = "test@example.com",
                 )
+            val expectedToken = "refresh-token-123"
+            whenever(refreshTokenService.createRefreshToken(eq(userId))).thenReturn(expectedToken)
+
             val token = authenticationService.generateRefreshToken(user)
 
             assertThat(token).isNotBlank()
-            assertThat(token.split(".")).hasSize(3) // JWT has 3 parts
+            assertThat(token).isEqualTo(expectedToken)
+            verify(refreshTokenService).createRefreshToken(eq(userId))
         }
 
         @Test
@@ -425,39 +432,54 @@ class AuthenticationServiceTest {
     inner class JwtTokenGenerationTests {
         @Test
         fun `should generate access token for user`() {
+            val userId = UUID.randomUUID()
+            val email = "test@example.com"
             val user =
                 SecurityTestDataBuilders.user(
-                    id = UUID.randomUUID(),
-                    email = "test@example.com",
+                    id = userId,
+                    email = email,
                 )
+            val expectedToken = "access-token-123"
+            whenever(jwtTokenIssuer.generateAccessToken(eq(userId), eq(email))).thenReturn(expectedToken)
 
             val token = authenticationService.generateAccessToken(user)
 
             assertThat(token).isNotBlank()
-            assertThat(token.split(".")).hasSize(3) // JWT has 3 parts
+            assertThat(token).isEqualTo(expectedToken)
+            verify(jwtTokenIssuer).generateAccessToken(eq(userId), eq(email))
         }
 
         @Test
         fun `should generate refresh token for user`() {
+            val userId = UUID.randomUUID()
             val user =
                 SecurityTestDataBuilders.user(
-                    id = UUID.randomUUID(),
+                    id = userId,
                     email = "test@example.com",
                 )
+            val expectedToken = "refresh-token-456"
+            whenever(refreshTokenService.createRefreshToken(eq(userId))).thenReturn(expectedToken)
 
             val token = authenticationService.generateRefreshToken(user)
 
             assertThat(token).isNotBlank()
-            assertThat(token.split(".")).hasSize(3) // JWT has 3 parts
+            assertThat(token).isEqualTo(expectedToken)
+            verify(refreshTokenService).createRefreshToken(eq(userId))
         }
 
         @Test
         fun `should generate different tokens for same user`() {
+            val userId = UUID.randomUUID()
+            val email = "test@example.com"
             val user =
                 SecurityTestDataBuilders.user(
-                    id = UUID.randomUUID(),
-                    email = "test@example.com",
+                    id = userId,
+                    email = email,
                 )
+            val accessTokenValue = "access-token-789"
+            val refreshTokenValue = "refresh-token-789"
+            whenever(jwtTokenIssuer.generateAccessToken(eq(userId), eq(email))).thenReturn(accessTokenValue)
+            whenever(refreshTokenService.createRefreshToken(eq(userId))).thenReturn(refreshTokenValue)
 
             val accessToken = authenticationService.generateAccessToken(user)
             val refreshToken = authenticationService.generateRefreshToken(user)
@@ -478,8 +500,9 @@ class AuthenticationServiceTest {
                     id = userId,
                     email = email,
                 )
-
-            val token = authenticationService.generateAccessToken(user)
+            val token = "valid-access-token"
+            whenever(jwtTokenValidator.getUserIdFromToken(token)).thenReturn(userId)
+            whenever(jwtTokenValidator.isAccessToken(token)).thenReturn(true)
             whenever(userRepository.findById(userId)).thenReturn(Optional.of(user))
 
             val result = authenticationService.validateAccessToken(token)
@@ -493,6 +516,7 @@ class AuthenticationServiceTest {
         @Test
         fun `should return null for invalid access token`() {
             val invalidToken = "invalid.token.format"
+            whenever(jwtTokenValidator.getUserIdFromToken(invalidToken)).thenReturn(null)
 
             val result = authenticationService.validateAccessToken(invalidToken)
 
@@ -502,14 +526,9 @@ class AuthenticationServiceTest {
 
         @Test
         fun `should return null for refresh token used as access token`() {
-            val userId = UUID.randomUUID()
-            val user =
-                SecurityTestDataBuilders.user(
-                    id = userId,
-                    email = "test@example.com",
-                )
-
-            val refreshToken = authenticationService.generateRefreshToken(user)
+            val refreshToken = "refresh-token-as-access"
+            whenever(jwtTokenValidator.getUserIdFromToken(refreshToken)).thenReturn(UUID.randomUUID())
+            whenever(jwtTokenValidator.isAccessToken(refreshToken)).thenReturn(false)
 
             val result = authenticationService.validateAccessToken(refreshToken)
 
@@ -520,13 +539,9 @@ class AuthenticationServiceTest {
         @Test
         fun `should return null when user not found for valid token`() {
             val userId = UUID.randomUUID()
-            val user =
-                SecurityTestDataBuilders.user(
-                    id = userId,
-                    email = "test@example.com",
-                )
-
-            val token = authenticationService.generateAccessToken(user)
+            val token = "valid-access-token"
+            whenever(jwtTokenValidator.getUserIdFromToken(token)).thenReturn(userId)
+            whenever(jwtTokenValidator.isAccessToken(token)).thenReturn(true)
             whenever(userRepository.findById(userId)).thenReturn(Optional.empty())
 
             val result = authenticationService.validateAccessToken(token)
@@ -544,8 +559,9 @@ class AuthenticationServiceTest {
                     id = userId,
                     email = email,
                 )
-
-            val token = authenticationService.generateAccessToken(user)
+            val token = "valid-access-token"
+            whenever(jwtTokenValidator.getUserIdFromToken(token)).thenReturn(userId)
+            whenever(jwtTokenValidator.isAccessToken(token)).thenReturn(true)
             whenever(userRepository.findById(userId)).thenReturn(Optional.of(user))
             mockDisabledPrincipal(userId)
 
@@ -568,9 +584,10 @@ class AuthenticationServiceTest {
                     id = userId,
                     email = email,
                 )
-
-            val refreshToken = authenticationService.generateRefreshToken(user)
+            val refreshToken = "valid-refresh-token"
             user.rememberMeToken = refreshToken
+            whenever(jwtTokenValidator.getUserIdFromToken(refreshToken)).thenReturn(userId)
+            whenever(jwtTokenValidator.isRefreshToken(refreshToken)).thenReturn(true)
             whenever(userRepository.findById(userId)).thenReturn(Optional.of(user))
 
             val result = authenticationService.validateRefreshToken(refreshToken)
@@ -584,6 +601,7 @@ class AuthenticationServiceTest {
         @Test
         fun `should return null for invalid refresh token`() {
             val invalidToken = "invalid.token.format"
+            whenever(jwtTokenValidator.getUserIdFromToken(invalidToken)).thenReturn(null)
 
             val result = authenticationService.validateRefreshToken(invalidToken)
 
@@ -593,14 +611,9 @@ class AuthenticationServiceTest {
 
         @Test
         fun `should return null for access token used as refresh token`() {
-            val userId = UUID.randomUUID()
-            val user =
-                SecurityTestDataBuilders.user(
-                    id = userId,
-                    email = "test@example.com",
-                )
-
-            val accessToken = authenticationService.generateAccessToken(user)
+            val accessToken = "access-token-as-refresh"
+            whenever(jwtTokenValidator.getUserIdFromToken(accessToken)).thenReturn(UUID.randomUUID())
+            whenever(jwtTokenValidator.isRefreshToken(accessToken)).thenReturn(false)
 
             val result = authenticationService.validateRefreshToken(accessToken)
 
@@ -618,8 +631,9 @@ class AuthenticationServiceTest {
                     // Token was revoked
                     rememberMeToken = null,
                 )
-
-            val refreshToken = authenticationService.generateRefreshToken(user)
+            val refreshToken = "revoked-refresh-token"
+            whenever(jwtTokenValidator.getUserIdFromToken(refreshToken)).thenReturn(userId)
+            whenever(jwtTokenValidator.isRefreshToken(refreshToken)).thenReturn(true)
             whenever(userRepository.findById(userId)).thenReturn(Optional.of(user))
 
             val result = authenticationService.validateRefreshToken(refreshToken)
@@ -637,8 +651,9 @@ class AuthenticationServiceTest {
                     email = "test@example.com",
                     rememberMeToken = "different-token",
                 )
-
-            val refreshToken = authenticationService.generateRefreshToken(user)
+            val refreshToken = "refresh-token-not-matching"
+            whenever(jwtTokenValidator.getUserIdFromToken(refreshToken)).thenReturn(userId)
+            whenever(jwtTokenValidator.isRefreshToken(refreshToken)).thenReturn(true)
             whenever(userRepository.findById(userId)).thenReturn(Optional.of(user))
 
             val result = authenticationService.validateRefreshToken(refreshToken)
@@ -650,13 +665,9 @@ class AuthenticationServiceTest {
         @Test
         fun `should return null when user not found for valid refresh token`() {
             val userId = UUID.randomUUID()
-            val user =
-                SecurityTestDataBuilders.user(
-                    id = userId,
-                    email = "test@example.com",
-                )
-
-            val refreshToken = authenticationService.generateRefreshToken(user)
+            val refreshToken = "valid-refresh-token"
+            whenever(jwtTokenValidator.getUserIdFromToken(refreshToken)).thenReturn(userId)
+            whenever(jwtTokenValidator.isRefreshToken(refreshToken)).thenReturn(true)
             whenever(userRepository.findById(userId)).thenReturn(Optional.empty())
 
             val result = authenticationService.validateRefreshToken(refreshToken)
@@ -674,9 +685,10 @@ class AuthenticationServiceTest {
                     id = userId,
                     email = email,
                 )
-
-            val refreshToken = authenticationService.generateRefreshToken(user)
+            val refreshToken = "valid-refresh-token"
             user.rememberMeToken = refreshToken
+            whenever(jwtTokenValidator.getUserIdFromToken(refreshToken)).thenReturn(userId)
+            whenever(jwtTokenValidator.isRefreshToken(refreshToken)).thenReturn(true)
             whenever(userRepository.findById(userId)).thenReturn(Optional.of(user))
             mockDisabledPrincipal(userId)
 

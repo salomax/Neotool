@@ -8,6 +8,9 @@ import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.createValid
 import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.getRequiredString
 import io.github.salomax.neotool.common.graphql.GraphQLPayloadDataFetcher.createMutationDataFetcher
 import io.github.salomax.neotool.common.graphql.GraphQLResolverRegistry
+import io.github.salomax.neotool.common.security.authorization.AuthorizationChecker
+import io.github.salomax.neotool.common.security.principal.RequestPrincipal
+import io.github.salomax.neotool.common.security.principal.RequestPrincipalProvider
 import io.github.salomax.neotool.security.domain.rbac.SecurityPermissions
 import io.github.salomax.neotool.security.graphql.dataloader.GroupMembersDataLoader
 import io.github.salomax.neotool.security.graphql.dataloader.GroupRolesDataLoader
@@ -42,9 +45,6 @@ import io.github.salomax.neotool.security.graphql.resolver.GroupManagementResolv
 import io.github.salomax.neotool.security.graphql.resolver.PermissionManagementResolver
 import io.github.salomax.neotool.security.graphql.resolver.RoleManagementResolver
 import io.github.salomax.neotool.security.graphql.resolver.UserManagementResolver
-import io.github.salomax.neotool.security.service.AuthorizationManager
-import io.github.salomax.neotool.security.service.RequestPrincipal
-import io.github.salomax.neotool.security.service.RequestPrincipalProvider
 import jakarta.inject.Singleton
 import java.util.concurrent.CompletableFuture
 
@@ -63,12 +63,12 @@ class SecurityWiringFactory(
     private val roleManagementMapper: RoleManagementMapper,
     private val userManagementMapper: UserManagementMapper,
     requestPrincipalProvider: RequestPrincipalProvider,
-    authorizationManager: AuthorizationManager,
+    authorizationChecker: AuthorizationChecker,
     resolverRegistry: GraphQLResolverRegistry,
-) : AuthenticatedGraphQLWiringFactory(requestPrincipalProvider, authorizationManager) {
+) : AuthenticatedGraphQLWiringFactory(requestPrincipalProvider, authorizationChecker) {
     init {
         // Register resolvers in the registry for cross-module access
-        resolverRegistry.register("auth", authResolver)
+        resolverRegistry.register("authentication", authResolver)
         resolverRegistry.register("authorization", authorizationResolver)
         resolverRegistry.register("userManagement", userManagementResolver)
         resolverRegistry.register("groupManagement", groupManagementResolver)

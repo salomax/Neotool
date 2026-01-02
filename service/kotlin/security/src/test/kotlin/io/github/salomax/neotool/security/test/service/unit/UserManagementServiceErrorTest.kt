@@ -7,7 +7,7 @@ import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.repo.UserRepositoryCustom
-import io.github.salomax.neotool.security.service.UserManagementService
+import io.github.salomax.neotool.security.service.management.UserManagementService
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName

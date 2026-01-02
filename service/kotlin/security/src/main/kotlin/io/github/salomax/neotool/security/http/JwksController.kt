@@ -1,14 +1,14 @@
 package io.github.salomax.neotool.security.http
 
-import io.github.salomax.neotool.security.config.JwtConfig
+import io.github.salomax.neotool.common.security.config.JwtConfig
+import io.github.salomax.neotool.common.security.key.KeyManagerFactory
 import io.micronaut.http.HttpResponse
+import io.micronaut.http.MediaType
 import io.micronaut.http.annotation.Controller
 import io.micronaut.http.annotation.Get
 import io.micronaut.http.annotation.Produces
-import io.micronaut.http.MediaType
 import jakarta.inject.Singleton
 import mu.KotlinLogging
-import java.math.BigInteger
 import java.security.interfaces.RSAPublicKey
 import java.util.Base64
 
@@ -24,7 +24,7 @@ import java.util.Base64
 @Controller("/.well-known")
 class JwksController(
     private val jwtConfig: JwtConfig,
-    private val keyManagerFactory: io.github.salomax.neotool.security.service.KeyManagerFactory,
+    private val keyManagerFactory: KeyManagerFactory,
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -32,7 +32,7 @@ class JwksController(
      * JWKS response DTO.
      */
     data class JwksResponse(
-        val keys: List<Jwk>
+        val keys: List<Jwk>,
     )
 
     /**
@@ -77,14 +77,18 @@ class JwksController(
 
         val response = JwksResponse(keys = listOf(jwk))
 
-        return HttpResponse.ok(response)
+        return HttpResponse
+            .ok(response)
             .header("Cache-Control", "public, max-age=300") // Cache for 5 minutes
     }
 
     /**
      * Convert RSA public key to JWK format.
      */
-    private fun rsaPublicKeyToJwk(publicKey: RSAPublicKey, keyId: String): Jwk {
+    private fun rsaPublicKeyToJwk(
+        publicKey: RSAPublicKey,
+        keyId: String,
+    ): Jwk {
         val modulus = publicKey.modulus
         val exponent = publicKey.publicExponent
 
@@ -109,22 +113,20 @@ class JwksController(
     /**
      * Remove leading zero byte from byte array if present.
      */
-    private fun removeLeadingZero(bytes: ByteArray): ByteArray {
-        return if (bytes.isNotEmpty() && bytes[0].toInt() == 0) {
+    private fun removeLeadingZero(bytes: ByteArray): ByteArray =
+        if (bytes.isNotEmpty() && bytes[0].toInt() == 0) {
             bytes.sliceArray(1 until bytes.size)
         } else {
             bytes
         }
-    }
 
     /**
      * Encode bytes to base64url (RFC 4648 Section 5).
      * Base64url uses '-' instead of '+' and '_' instead of '/', and omits padding.
      */
-    private fun base64UrlEncode(bytes: ByteArray): String {
-        return Base64.getUrlEncoder()
+    private fun base64UrlEncode(bytes: ByteArray): String =
+        Base64
+            .getUrlEncoder()
             .withoutPadding()
             .encodeToString(bytes)
-    }
 }
-

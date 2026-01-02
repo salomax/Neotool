@@ -4,6 +4,7 @@ import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.OrderDirection
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
+import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.security.domain.UserManagement
 import io.github.salomax.neotool.security.model.PrincipalEntity
 import io.github.salomax.neotool.security.model.UserEntity
@@ -13,10 +14,9 @@ import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.repo.UserRepositoryCustom
-import io.github.salomax.neotool.security.service.PrincipalType
-import io.github.salomax.neotool.security.service.UserManagementService
-import io.github.salomax.neotool.security.service.UserOrderBy
-import io.github.salomax.neotool.security.service.UserOrderField
+import io.github.salomax.neotool.security.service.management.UserManagementService
+import io.github.salomax.neotool.security.model.UserOrderBy
+import io.github.salomax.neotool.security.model.UserOrderField
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -90,8 +90,7 @@ class UserManagementServiceTest {
                     null,
                     defaultOrderBy,
                 ),
-            )
-                .thenReturn(listOf(user1, user2))
+            ).thenReturn(listOf(user1, user2))
             whenever(userSearchRepository.countByNameOrEmail(null))
                 .thenReturn(2L)
 
@@ -152,8 +151,7 @@ class UserManagementServiceTest {
                     null,
                     defaultOrderBy,
                 ),
-            )
-                .thenReturn(emptyList())
+            ).thenReturn(emptyList())
             whenever(userSearchRepository.countByNameOrEmail(null))
                 .thenReturn(0L)
 
@@ -187,8 +185,7 @@ class UserManagementServiceTest {
                     compositeCursor,
                     defaultOrderBy,
                 ),
-            )
-                .thenReturn(listOf(user1))
+            ).thenReturn(listOf(user1))
             whenever(userSearchRepository.countByNameOrEmail(null))
                 .thenReturn(1L)
 
@@ -225,8 +222,7 @@ class UserManagementServiceTest {
                     null,
                     defaultOrderBy,
                 ),
-            )
-                .thenReturn(users)
+            ).thenReturn(users)
             whenever(userSearchRepository.countByNameOrEmail(null))
                 .thenReturn(21L)
 
@@ -254,8 +250,7 @@ class UserManagementServiceTest {
                     null,
                     defaultOrderBy,
                 ),
-            )
-                .thenReturn(emptyList())
+            ).thenReturn(emptyList())
             whenever(userSearchRepository.countByNameOrEmail(null))
                 .thenReturn(0L)
 
@@ -312,8 +307,7 @@ class UserManagementServiceTest {
                     null,
                     defaultOrderBy,
                 ),
-            )
-                .thenReturn(listOf(user1, user2))
+            ).thenReturn(listOf(user1, user2))
             whenever(userSearchRepository.countByNameOrEmail(null))
                 .thenReturn(2L)
 
@@ -345,8 +339,7 @@ class UserManagementServiceTest {
                     null,
                     idOnlyOrderBy,
                 ),
-            )
-                .thenReturn(listOf(user1))
+            ).thenReturn(listOf(user1))
             whenever(userSearchRepository.countByNameOrEmail(null))
                 .thenReturn(1L)
 
@@ -393,8 +386,7 @@ class UserManagementServiceTest {
                     null,
                     orderBy,
                 ),
-            )
-                .thenReturn(listOf(user1, user2))
+            ).thenReturn(listOf(user1, user2))
             whenever(userSearchRepository.countByNameOrEmail(null))
                 .thenReturn(2L)
 
@@ -446,8 +438,7 @@ class UserManagementServiceTest {
                     null,
                     orderBy,
                 ),
-            )
-                .thenReturn(listOf(user1, user2))
+            ).thenReturn(listOf(user1, user2))
             whenever(userSearchRepository.countByNameOrEmail(null))
                 .thenReturn(2L)
 
@@ -497,8 +488,7 @@ class UserManagementServiceTest {
                     compositeCursor,
                     orderBy,
                 ),
-            )
-                .thenReturn(listOf(user1))
+            ).thenReturn(listOf(user1))
             whenever(userSearchRepository.countByNameOrEmail(null))
                 .thenReturn(1L)
 
@@ -547,8 +537,7 @@ class UserManagementServiceTest {
                     null,
                     orderBy,
                 ),
-            )
-                .thenReturn(listOf(user1))
+            ).thenReturn(listOf(user1))
             whenever(userSearchRepository.countByNameOrEmail(null))
                 .thenReturn(1L)
 
@@ -588,8 +577,7 @@ class UserManagementServiceTest {
                     null,
                     orderBy,
                 ),
-            )
-                .thenReturn(listOf(user1))
+            ).thenReturn(listOf(user1))
             whenever(userSearchRepository.countByNameOrEmail(null))
                 .thenReturn(1L)
 
@@ -645,8 +633,7 @@ class UserManagementServiceTest {
                     null,
                     defaultOrderBy,
                 ),
-            )
-                .thenReturn(listOf(user1))
+            ).thenReturn(listOf(user1))
             whenever(userSearchRepository.countByNameOrEmail(query))
                 .thenReturn(1L)
 
@@ -656,7 +643,11 @@ class UserManagementServiceTest {
             // Assert
             assertThat(result).isNotNull()
             assertThat(result.edges.map { it.node }).hasSize(1)
-            assertThat(result.edges.first().node.email).isEqualTo("john@example.com")
+            assertThat(
+                result.edges
+                    .first()
+                    .node.email,
+            ).isEqualTo("john@example.com")
             assertThat(result.totalCount).isEqualTo(1L)
             verify(
                 userSearchRepository,
@@ -681,8 +672,7 @@ class UserManagementServiceTest {
                     null,
                     defaultOrderBy,
                 ),
-            )
-                .thenReturn(listOf(user1))
+            ).thenReturn(listOf(user1))
             whenever(userSearchRepository.countByNameOrEmail(query))
                 .thenReturn(1L)
 
@@ -719,8 +709,7 @@ class UserManagementServiceTest {
                     compositeCursor,
                     defaultOrderBy,
                 ),
-            )
-                .thenReturn(listOf(user1))
+            ).thenReturn(listOf(user1))
             whenever(userSearchRepository.countByNameOrEmail(query))
                 .thenReturn(5L)
 
@@ -753,8 +742,7 @@ class UserManagementServiceTest {
                     null,
                     defaultOrderBy,
                 ),
-            )
-                .thenReturn(emptyList())
+            ).thenReturn(emptyList())
             whenever(userSearchRepository.countByNameOrEmail(query))
                 .thenReturn(0L)
 
@@ -832,10 +820,9 @@ class UserManagementServiceTest {
             // Act & Assert
             assertThrows<IllegalArgumentException> {
                 userManagementService.enableUser(userId)
+            }.also { exception ->
+                assertThat(exception.message).contains("User not found")
             }
-                .also { exception ->
-                    assertThat(exception.message).contains("User not found")
-                }
             verify(userRepository).findById(userId)
             verify(userRepository, never()).update(any())
         }
@@ -866,10 +853,9 @@ class UserManagementServiceTest {
             // Act & Assert
             assertThrows<IllegalStateException> {
                 userManagementService.enableUser(userId)
+            }.also { exception ->
+                assertThat(exception.message).contains("already enabled")
             }
-                .also { exception ->
-                    assertThat(exception.message).contains("already enabled")
-                }
             verify(userRepository).findById(userId)
             verify(principalRepository, never()).update(any())
         }
@@ -924,10 +910,9 @@ class UserManagementServiceTest {
             // Act & Assert
             assertThrows<IllegalArgumentException> {
                 userManagementService.disableUser(userId)
+            }.also { exception ->
+                assertThat(exception.message).contains("User not found")
             }
-                .also { exception ->
-                    assertThat(exception.message).contains("User not found")
-                }
             verify(userRepository).findById(userId)
             verify(userRepository, never()).update(any())
         }
@@ -954,10 +939,9 @@ class UserManagementServiceTest {
             // Act & Assert
             assertThrows<IllegalStateException> {
                 userManagementService.disableUser(userId)
+            }.also { exception ->
+                assertThat(exception.message).contains("already disabled")
             }
-                .also { exception ->
-                    assertThat(exception.message).contains("already disabled")
-                }
             verify(userRepository).findById(userId)
             verify(userRepository, never()).update(any())
         }
@@ -1037,10 +1021,9 @@ class UserManagementServiceTest {
                         displayName = "New Name",
                     )
                 userManagementService.updateUser(command)
+            }.also { exception ->
+                assertThat(exception.message).contains("User not found")
             }
-                .also { exception ->
-                    assertThat(exception.message).contains("User not found")
-                }
             verify(userRepository).findById(userId)
             verify(userRepository, never()).update(any())
         }
@@ -1057,10 +1040,9 @@ class UserManagementServiceTest {
                     // blank string
                     displayName = "   ",
                 )
+            }.also { exception ->
+                assertThat(exception.message).contains("cannot be blank")
             }
-                .also { exception ->
-                    assertThat(exception.message).contains("cannot be blank")
-                }
         }
     }
 

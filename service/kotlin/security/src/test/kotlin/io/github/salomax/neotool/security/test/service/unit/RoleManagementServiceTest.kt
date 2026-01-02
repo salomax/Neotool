@@ -9,9 +9,9 @@ import io.github.salomax.neotool.security.repo.GroupRepository
 import io.github.salomax.neotool.security.repo.PermissionRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.RoleRepositoryCustom
-import io.github.salomax.neotool.security.service.RoleManagementService
-import io.github.salomax.neotool.security.service.RoleOrderBy
-import io.github.salomax.neotool.security.service.RoleOrderField
+import io.github.salomax.neotool.security.service.management.RoleManagementService
+import io.github.salomax.neotool.security.model.RoleOrderBy
+import io.github.salomax.neotool.security.model.RoleOrderField
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach

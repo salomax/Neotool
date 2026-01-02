@@ -13,7 +13,9 @@
       "Bash(pnpm run test:*)",
       "Bash(pnpm run typecheck:*)",
       "Bash(git checkout:*)",
-      "Bash(xargs ls:*)"
+      "Bash(xargs ls:*)",
+      "Bash({} ;)",
+      "Bash('s|import io\\\\.github\\\\.salomax\\\\.neotool\\\\.common\\\\.security\\\\.service\\\\.AuthContextFactory|import io.github.salomax.neotool.security.service.AuthContextFactory|g' )"
     ]
   }
 }

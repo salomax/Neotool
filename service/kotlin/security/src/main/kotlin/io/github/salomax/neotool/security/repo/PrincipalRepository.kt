@@ -1,7 +1,7 @@
 package io.github.salomax.neotool.security.repo
 
+import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.security.model.PrincipalEntity
-import io.github.salomax.neotool.security.service.PrincipalType
 import io.micronaut.data.annotation.Repository
 import io.micronaut.data.jpa.repository.JpaRepository
 import java.util.Optional

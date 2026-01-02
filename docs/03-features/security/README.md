@@ -475,78 +475,99 @@ When a request arrives, the system validates the JWT token. It supports tokens f
 
 ```mermaid
 flowchart TD
-    A[Incoming Request] --> B[Extract JWT from Header]
-    B --> C[JwtPrincipalDecoder.fromToken]
-    C --> D[Parse Token Header]
-    D --> E[Extract Issuer Claim]
-    E --> F{Issuer Type?}
-    F -->|neotool-security-service| G[JwtTokenValidator.validateToken]
-    F -->|accounts.google.com| H[GoogleOAuthProvider.validateAndExtractClaims]
-    F -->|Unknown| I[Try Internal Validator]
-    I --> G
-    G --> J[Extract Key ID from Header]
-    J --> K[Get Public Key from KeyManager]
-    K --> L{Key Found?}
-    L -->|No| M[Try Secret Key]
-    L -->|Yes| N[Verify RS256 Signature]
-    M --> O{Secret Found?}
-    O -->|No| P[Validation Failed]
-    O -->|Yes| Q[Verify HS256 Signature]
-    N --> R{Signature Valid?}
-    Q --> R
-    R -->|No| P
-    R -->|Yes| S[Check Expiration]
-    S --> T{Token Expired?}
-    T -->|Yes| P
-    T -->|No| U[Extract Claims]
-    H --> V[Parse Google ID Token]
-    V --> W[Verify Audience]
-    W --> X{Audience Valid?}
-    X -->|No| P
-    X -->|Yes| Y[Verify Issuer]
-    Y --> Z{Issuer Valid?}
-    Z -->|No| P
-    Z -->|Yes| AA[Check Expiration]
-    AA --> AB{Token Expired?}
-    AB -->|Yes| P
-    AB -->|No| AC[Extract User Claims]
-    U --> AD{Token Type?}
-    AC --> AE[Create/Find User]
-    AE --> AF[Build AuthContext]
-    AF --> AG[Issue Internal Token]
-    AG --> AD
-    AD -->|service| AH[Extract Service ID]
-    AD -->|access| AI[Extract User ID]
-    AH --> AJ[Build RequestPrincipal]
-    AI --> AJ
-    AJ --> AK[Return RequestPrincipal]
-    P --> AL[Throw AuthenticationRequiredException]
+    A[Incoming Request] --> B[AuthorizationInterceptor.intercept]
+    B --> C[Extract JWT from Header]
+    C --> D[RequestPrincipalProvider.fromToken]
+    D --> E[JwtPrincipalDecoder.fromToken]
+    E --> F[Parse Token Header]
+    F --> G[Extract Issuer Claim]
+    G --> H{Issuer Type?}
+    H -->|neotool-security-service| I[JwtTokenValidator.validateToken]
+    H -->|accounts.google.com| J[GoogleOAuthProvider.validateAndExtractClaims]
+    H -->|Unknown| K[Try Internal Validator]
+    K --> I
+    I --> L[Extract Key ID from Header]
+    L --> M[Get Public Key from KeyManager]
+    M --> N{Key Found?}
+    N -->|No| O[Try Secret Key]
+    N -->|Yes| P[Verify RS256 Signature]
+    O --> Q{Secret Found?}
+    Q -->|No| R[Validation Failed]
+    Q -->|Yes| S[Verify HS256 Signature]
+    P --> T{Signature Valid?}
+    S --> T
+    T -->|No| R
+    T -->|Yes| U[Check Expiration]
+    U --> V{Token Expired?}
+    V -->|Yes| R
+    V -->|No| W[Extract Claims]
+    J --> X[Parse Google ID Token]
+    X --> Y[Verify Audience]
+    Y --> Z{Audience Valid?}
+    Z -->|No| R
+    Z -->|Yes| AA[Verify Issuer]
+    AA --> AB{Issuer Valid?}
+    AB -->|No| R
+    AB -->|Yes| AC[Check Expiration]
+    AC --> AD{Token Expired?}
+    AD -->|Yes| R
+    AD -->|No| AE[Extract User Claims]
+    W --> AF{Token Type?}
+    AE --> AG[Create/Find User]
+    AG --> AH[Build AuthContext]
+    AH --> AI[Issue Internal Token]
+    AI --> AF
+    AF -->|service| AJ[Extract Service ID]
+    AF -->|access| AK[Extract User ID]
+    AJ --> AL[Build RequestPrincipal]
+    AK --> AL
+    AL --> AM[Return RequestPrincipal]
+    R --> AN[Throw AuthenticationRequiredException]
     
     style A fill:#e1f5ff
-    style G fill:#fff4e1
-    style H fill:#fff4e1
-    style N fill:#fff4e1
-    style Q fill:#fff4e1
-    style AK fill:#e8f5e9
-    style P fill:#ffebee
-    style AL fill:#ffebee
+    style B fill:#e1f5ff
+    style I fill:#fff4e1
+    style J fill:#fff4e1
+    style P fill:#fff4e1
+    style S fill:#fff4e1
+    style AM fill:#e8f5e9
+    style R fill:#ffebee
+    style AN fill:#ffebee
 ```
 
 **Step-by-Step Process:**
 
-1. **Extract Token from Request** (`JwtPrincipalDecoder.fromToken()`)
-   - **Class**: `JwtPrincipalDecoder`
-   - **Method**: `fromToken(token: String): RequestPrincipal`
+1. **Intercept Incoming Request** (`AuthorizationInterceptor.intercept()`)
+   - **Class**: `AuthorizationInterceptor`
+   - **Method**: `intercept(context: MethodInvocationContext): Any?`
+   - **Rule**: Micronaut interceptor that intercepts HTTP requests before method execution
+   - **Why**: Provides a centralized point to extract and validate tokens for all protected endpoints
+
+2. **Extract Token from Request** (`AuthorizationInterceptor.extractBearerToken()`)
+   - **Class**: `AuthorizationInterceptor`
+   - **Method**: `extractBearerToken(authHeader: String): String?`
    - **Rule**: Token extracted from `Authorization: Bearer <token>` header
    - **Why**: Standard HTTP authentication header format
 
-2. **Parse Token Header** (`token.split(".")`)
+3. **Request Principal Provider** (`RequestPrincipalProvider.fromToken()`)
+   - **Class**: `RequestPrincipalProvider`
+   - **Method**: `fromToken(token: String): RequestPrincipal`
+   - **Rule**: Delegates to configured `TokenPrincipalDecoder` (typically `JwtPrincipalDecoder`)
+   - **Why**: Abstraction layer allows different token decoders without changing calling code
+
+4. **Decode Token to Principal** (`JwtPrincipalDecoder.fromToken()`)
+   - **Class**: `JwtPrincipalDecoder`
+   - **Method**: `fromToken(token: String): RequestPrincipal`
+   - **Rule**: Validates token and builds `RequestPrincipal` with user/service ID and permissions
+   - **Why**: Entry point for JWT token validation, handles both user and service tokens
+
+5. **Parse Token Header** (`token.split(".")`)
    - **Class**: `JwtTokenValidator`
    - **Method**: `validateToken(token: String)`
    - **Rule**: JWT has 3 parts: header.payload.signature
    - **Why**: Extract `kid` (key ID) and `iss` (issuer) from header
 
-3. **Identify Issuer** (`claims.issuer` or `payload.issuer`)
+6. **Identify Issuer** (`claims.issuer` or `payload.issuer`)
    - **Class**: `JwtTokenValidator` or `GoogleOAuthProvider`
    - **Rule**: 
      - `"neotool-security-service"` → Internal token
@@ -554,63 +575,65 @@ flowchart TD
      - Unknown → Try internal validator first
    - **Why**: Routes to correct validator based on issuer
 
-4. **Internal Token Validation** (`JwtTokenValidator.validateToken()`)
+7. **Internal Token Validation** (`JwtTokenValidator.validateToken()`)
    - **Class**: `JwtTokenValidator`
    - **Method**: `validateToken(token: String): Claims?`
    - **Rule**: Tries RS256 first, falls back to HS256 if AUTO mode
    - **Why**: Supports both algorithms, prefers more secure RS256
 
-5. **Get Verification Key** (`keyManager.getPublicKey(keyId)` or `getSecret(keyId)`)
+8. **Get Verification Key** (`keyManager.getPublicKey(keyId)` or `getSecret(keyId)`)
    - **Class**: `KeyManager`
    - **Method**: `getPublicKey(keyId)` for RS256, `getSecret(keyId)` for HS256
    - **Rule**: Uses `kid` from header, or default key if not present
    - **Why**: Supports key rotation by selecting correct key
 
-6. **Verify Signature** (`Jwts.parser().verifyWith(key).parseSignedClaims()`)
+9. **Verify Signature** (`Jwts.parser().verifyWith(key).parseSignedClaims()`)
    - **Class**: `JwtTokenValidator`
    - **Method**: `validateToken()`
    - **Rule**: Cryptographic verification of signature
    - **Why**: Ensures token wasn't tampered with and was signed by trusted issuer
 
-7. **Check Expiration** (`claims.expiration`)
+10. **Check Expiration** (`claims.expiration`)
    - **Class**: `JwtTokenValidator`
    - **Rule**: Token must not be expired (`exp > now`)
    - **Why**: Prevents use of stale tokens, enforces token lifetime
 
-8. **External Token Validation** (`GoogleOAuthProvider.validateAndExtractClaims()`)
+11. **External Token Validation** (`GoogleOAuthProvider.validateAndExtractClaims()`)
    - **Class**: `GoogleOAuthProvider`
    - **Method**: `validateAndExtractClaims(idToken: String): OAuthUserClaims?`
    - **Rule**: Validates Google ID token format, audience, issuer, expiration
    - **Why**: External IdP tokens need different validation than internal tokens
 
-9. **Verify Audience** (`tokenAudienceList.contains(clientId)`)
+12. **Verify Audience** (`tokenAudienceList.contains(clientId)`)
    - **Class**: `GoogleOAuthProvider`
    - **Rule**: Token audience must match configured Google Client ID
    - **Why**: Ensures token was issued for this application, not another
 
-10. **Verify Issuer** (`tokenIssuer == expectedIssuer`)
+13. **Verify Issuer** (`tokenIssuer == expectedIssuer`)
    - **Class**: `GoogleOAuthProvider`
    - **Rule**: Token issuer must be `"accounts.google.com"` or `"https://accounts.google.com"`
    - **Why**: Prevents token forgery, ensures token from trusted Google
 
-11. **Extract Claims** (`claims.subject`, `claims["permissions"]`, etc.)
+14. **Extract Claims** (`claims.subject`, `claims["permissions"]`, etc.)
    - **Class**: `JwtTokenValidator` or `GoogleOAuthProvider`
    - **Rule**: Extract user ID, permissions, email from validated token
    - **Why**: Claims contain authorization information needed for request processing
 
-12. **Build RequestPrincipal** (`JwtPrincipalDecoder.fromToken()`)
+15. **Build RequestPrincipal** (`JwtPrincipalDecoder.fromToken()`)
    - **Class**: `JwtPrincipalDecoder`
    - **Method**: `fromToken()`
    - **Rule**: Creates `RequestPrincipal` with user/service ID and permissions
    - **Why**: Normalized security context for authorization checks
 
-13. **Handle Service Tokens** (`jwtTokenValidator.isServiceToken()`)
+16. **Handle Service Tokens** (`jwtTokenValidator.isServiceToken()`)
    - **Class**: `JwtPrincipalDecoder`
    - **Rule**: Service tokens have `type="service"` claim
    - **Why**: Service-to-service authentication needs different handling than user tokens
 
 **Key Classes:**
-- `JwtPrincipalDecoder` - Entry point for token validation, builds RequestPrincipal
+- `AuthorizationInterceptor` - Micronaut interceptor that intercepts HTTP requests and extracts tokens
+- `RequestPrincipalProvider` - Provides request principals from tokens via configured decoder
+- `JwtPrincipalDecoder` - JWT implementation of token decoder, builds RequestPrincipal
 - `JwtTokenValidator` - Validates internal security service tokens
 - `GoogleOAuthProvider` - Validates Google OAuth ID tokens
 - `KeyManager` - Provides public keys/secrets for signature verification
@@ -638,6 +661,220 @@ flowchart TD
 
 ---
 
+#### 4. GraphQL Token Validation Flow
+
+GraphQL uses a different authentication flow than REST endpoints. **No annotation is required** - authentication happens automatically when resolvers request the principal.
+
+```mermaid
+flowchart TD
+    A[GraphQL Request] --> B[GraphQLControllerBase.post]
+    B --> C[Extract Bearer Token from Header]
+    C --> D[Store Token in GraphQL Context]
+    D --> E[Execute GraphQL Query]
+    E --> F[Resolver Calls env.principal]
+    F --> G[AuthenticatedGraphQLWiringFactory.principal]
+    G --> H[RequestPrincipalProvider.fromGraphQl]
+    H --> I{Cached Principal?}
+    I -->|Yes| J[Return Cached Principal]
+    I -->|No| K[Extract Token from Context]
+    K --> L{Token Present?}
+    L -->|No| M[Throw AuthenticationRequiredException]
+    L -->|Yes| N[RequestPrincipalProvider.fromToken]
+    N --> O[JwtPrincipalDecoder.fromToken]
+    O --> P{Token Type?}
+    P -->|Service| Q[jwtTokenValidator.getServiceIdFromToken]
+    P -->|Access| R[jwtTokenValidator.getUserIdFromToken]
+    Q --> S[JwtTokenValidator.validateToken]
+    R --> S
+    S --> T[Extract Key ID from Header]
+    T --> U[Get Public Key from KeyManager]
+    U --> V[Jwts.parser.verifyWith.publicKey]
+    V --> W[parseSignedClaims - Signature Verification]
+    W --> X{Valid?}
+    X -->|No| Y[Throw Exception]
+    X -->|Yes| Z[Extract Claims]
+    Z --> AA[Build RequestPrincipal]
+    AA --> AB[Cache in GraphQL Context]
+    AB --> AC[Return RequestPrincipal]
+    J --> AD[Resolver Continues]
+    AC --> AD
+    M --> AE[GraphQL Error Response]
+    Y --> AE
+    
+    style A fill:#e1f5ff
+    style B fill:#e1f5ff
+    style G fill:#e1f5ff
+    style S fill:#fff4e1
+    style W fill:#fff4e1
+    style AC fill:#e8f5e9
+    style M fill:#ffebee
+    style Y fill:#ffebee
+    style AE fill:#ffebee
+```
+
+**Step-by-Step Process (GraphQL):**
+
+1. **GraphQL Request Arrives** (`GraphQLControllerBase.post()`)
+   - **Class**: `GraphQLControllerBase`
+   - **Method**: `post(@Body request, @Header("Authorization") authorization)`
+   - **Rule**: Micronaut injects the `Authorization` header value
+   - **Why**: Entry point for all GraphQL requests
+
+2. **Extract Bearer Token** (`GraphQLControllerBase.post()`)
+   - **Class**: `GraphQLControllerBase`
+   - **Method**: `authorization?.removePrefix("Bearer ")?.takeIf { it.isNotBlank() }`
+   - **Location**: Line 56
+   - **Rule**: Removes `"Bearer "` prefix, returns token string or `null`
+   - **Why**: Standard HTTP authentication header format
+
+3. **Store Token in GraphQL Context** (`GraphQLControllerBase.post()`)
+   - **Class**: `GraphQLControllerBase`
+   - **Method**: `.graphQLContext { builder -> builder.of("token", token) }`
+   - **Location**: Lines 79-83
+   - **Rule**: Token stored as `"token"` key in GraphQL context (only if not null)
+   - **Why**: Makes token available to all resolvers in the request without re-extraction
+
+4. **Execute GraphQL Query** (`GraphQLControllerBase.post()`)
+   - **Class**: `GraphQLControllerBase`
+   - **Method**: `graphQL.execute(execution.build())`
+   - **Location**: Line 102
+   - **Rule**: GraphQL engine executes the query
+   - **Why**: No JWT validation has happened yet - token is just stored
+
+5. **Resolver Requests Principal** (`env.principal()`)
+   - **Class**: Resolver using `AuthenticatedGraphQLWiringFactory`
+   - **Method**: `env.principal()` extension function
+   - **Rule**: Resolver calls this when it needs the authenticated user
+   - **Why**: Lazy validation - only validates when needed
+
+6. **AuthenticatedGraphQLWiringFactory.principal()** (`DataFetchingEnvironment.principal()`)
+   - **Class**: `AuthenticatedGraphQLWiringFactory`
+   - **Method**: `protected fun DataFetchingEnvironment.principal(): RequestPrincipal`
+   - **Location**: Line 121-123
+   - **Rule**: Extension function that delegates to `RequestPrincipalProvider.fromGraphQl(this)`
+   - **Why**: Provides convenient API for resolvers to get authenticated principal
+
+7. **RequestPrincipalProvider.fromGraphQl()** - Check Cache
+   - **Class**: `RequestPrincipalProvider`
+   - **Method**: `fromGraphQl(env: DataFetchingEnvironment): RequestPrincipal`
+   - **Location**: Lines 27-35
+   - **Rule**: Checks if principal was already validated and cached in this request
+   - **Why**: Performance optimization - avoids re-validating the same token multiple times
+
+8. **Extract Token from GraphQL Context** (`RequestPrincipalProvider.fromGraphQl()`)
+   - **Class**: `RequestPrincipalProvider`
+   - **Method**: `env.graphQlContext.getOrEmpty<String>("token")`
+   - **Location**: Lines 37-46
+   - **Rule**: Retrieves token from GraphQL context, throws `AuthenticationRequiredException` if missing
+   - **Why**: Token was stored in step 3, now we retrieve it for validation
+
+9. **RequestPrincipalProvider.fromToken()** (`RequestPrincipalProvider.fromToken()`)
+   - **Class**: `RequestPrincipalProvider`
+   - **Method**: `fromToken(token: String): RequestPrincipal`
+   - **Location**: Line 48, delegates to line 70
+   - **Rule**: Delegates to configured `TokenPrincipalDecoder` (typically `JwtPrincipalDecoder`)
+   - **Why**: Abstraction layer allows different token decoders
+
+10. **JwtPrincipalDecoder.fromToken()** - Determine Token Type
+    - **Class**: `JwtPrincipalDecoder`
+    - **Method**: `fromToken(token: String): RequestPrincipal`
+    - **Location**: Lines 13-53
+    - **Rule**: Checks if token is service token or access token, calls appropriate validator method
+    - **Why**: Different token types need different handling
+
+11. **JwtTokenValidator.getUserIdFromToken()** or **getServiceIdFromToken()**
+    - **Class**: `JwtTokenValidator`
+    - **Method**: `getUserIdFromToken(token)` or `getServiceIdFromToken(token)`
+    - **Location**: Lines 140-148 or 198-209
+    - **Rule**: Both methods call `validateToken(token)` internally
+    - **Why**: Extracts user/service ID from validated token
+
+12. **JwtTokenValidator.validateToken()** - THE VALIDATION HAPPENS HERE
+    - **Class**: `JwtTokenValidator`
+    - **Method**: `validateToken(token: String): Claims?`
+    - **Location**: Lines 62-132
+    - **Rule**: This is where JWT signature verification occurs
+    - **Why**: Central validation point for all JWT tokens
+
+13. **Extract Key ID from Token Header** (`JwtTokenValidator.validateToken()`)
+    - **Class**: `JwtTokenValidator`
+    - **Method**: Parses JWT header to extract `kid` (key ID)
+    - **Location**: Lines 64-83
+    - **Rule**: Extracts `kid` from JWT header, falls back to default if not present
+    - **Why**: Supports key rotation by selecting correct key
+
+14. **Get Public Key from KeyManager** (`JwtTokenValidator.validateToken()`)
+    - **Class**: `JwtTokenValidator`
+    - **Method**: `getPublicKey(keyId)` via `KeyManager`
+    - **Location**: Line 86
+    - **Rule**: Retrieves RSA public key for RS256 or secret key for HS256
+    - **Why**: Need the key to verify the token signature
+
+15. **Verify Signature** (`JwtTokenValidator.validateToken()`)
+    - **Class**: `JwtTokenValidator`
+    - **Method**: `Jwts.parser().verifyWith(publicKey).parseSignedClaims(token)`
+    - **Location**: Lines 91-97 (RS256) or 115-121 (HS256)
+    - **Rule**: 
+      - `verifyWith(publicKey)` configures the parser
+      - `parseSignedClaims(token)` performs the actual cryptographic signature verification
+      - Also validates expiration and token structure
+    - **Why**: Ensures token wasn't tampered with and was signed by trusted issuer
+
+16. **Extract Claims** (`JwtTokenValidator.validateToken()`)
+    - **Class**: `JwtTokenValidator`
+    - **Method**: Returns `Claims` object from validated token
+    - **Location**: Line 97 or 121
+    - **Rule**: Claims extracted only after successful signature verification
+    - **Why**: Claims contain user ID, permissions, and other authorization data
+
+17. **Build RequestPrincipal** (`JwtPrincipalDecoder.fromToken()`)
+    - **Class**: `JwtPrincipalDecoder`
+    - **Method**: `fromToken()` creates `RequestPrincipal` from validated claims
+    - **Location**: Lines 24-31 (service) or 45-52 (user)
+    - **Rule**: Creates `RequestPrincipal` with user/service ID and permissions
+    - **Why**: Normalized security context for authorization checks
+
+18. **Cache Principal in GraphQL Context** (`RequestPrincipalProvider.fromGraphQl()`)
+    - **Class**: `RequestPrincipalProvider`
+    - **Method**: `env.graphQlContext.put("requestPrincipal", principal)`
+    - **Location**: Lines 50-54
+    - **Rule**: Caches validated principal in GraphQL context
+    - **Why**: Subsequent resolvers in the same request can reuse cached principal (no re-validation)
+
+19. **Return Principal to Resolver**
+    - **Class**: `RequestPrincipalProvider`
+    - **Method**: Returns `RequestPrincipal` to calling resolver
+    - **Rule**: Principal is now available for authorization checks and business logic
+    - **Why**: Resolver can now use the principal to check permissions and access user data
+
+**Key Differences from REST Flow:**
+
+| Aspect | REST | GraphQL |
+|--------|------|---------|
+| **Trigger** | `@RequiresAuthorization` annotation required | Automatic - no annotation needed |
+| **Entry Point** | `AuthorizationInterceptor.intercept()` | `GraphQLControllerBase.post()` |
+| **Token Extraction** | In interceptor before method execution | In controller, stored in context |
+| **Validation Timing** | Before method execution (eager) | When resolver calls `fromGraphQl()` (lazy) |
+| **Caching** | No caching | Cached in GraphQL context (shared across resolvers) |
+| **Error Handling** | HTTP 401/403 | GraphQL error in `errors` array |
+| **Principal Access** | Via `@GraphQLContext RequestPrincipal` parameter | Via `env.principal()` extension function |
+
+**Key Classes (GraphQL):**
+- `GraphQLControllerBase` - Extracts token from HTTP header and stores in GraphQL context
+- `AuthenticatedGraphQLWiringFactory` - Base class providing `env.principal()` extension function
+- `RequestPrincipalProvider` - Extracts and validates principal from GraphQL context (with caching)
+- `JwtPrincipalDecoder` - JWT implementation of token decoder, builds RequestPrincipal
+- `JwtTokenValidator` - Validates JWT tokens (signature, expiration, structure)
+- `KeyManager` - Provides public keys/secrets for signature verification
+
+**Important Notes:**
+- **No annotation required**: GraphQL authentication happens automatically when resolvers request the principal
+- **Lazy validation**: JWT validation only occurs when a resolver calls `fromGraphQl()`
+- **Single validation per request**: Principal is validated once and cached, all resolvers share the same cached principal
+- **Performance optimized**: Token extraction happens once in controller, validation happens once on first access, caching prevents re-validation
+
+---
+
 ## Implementation Guide
 
 ### How to Authenticate a User
@@ -658,7 +895,26 @@ val userId = jwtService.validateToken(accessToken)
 
 ### How to Check Authorization
 
-See: [AuthorizationManager.kt](../../../service/kotlin/security/src/main/kotlin/io/github/salomax/neotool/security/service/AuthorizationManager.kt)
+**Standard Permission Checks (Token-Based)**:
+
+Both REST and GraphQL use `PermissionChecker` (via `AuthorizationChecker` interface) for token-based validation:
+
+```kotlin
+// REST: Use @RequiresAuthorization annotation
+@RequiresAuthorization(permission = "security:user:view")
+fun getUser(id: String): User {
+    // Method implementation
+}
+
+// GraphQL: Use env.withPermission() extension
+env.withPermission("security:user:view") { principal ->
+    // Resolver implementation
+}
+```
+
+**Advanced Authorization (Database-Backed)**:
+
+For ABAC policies or dynamic resource checks, use `AuthorizationManager`:
 
 ```kotlin
 // Check if user has permission (returns boolean)
@@ -667,13 +923,15 @@ val hasPermission = authorizationManager.check(
     action = "security:user:view"
 )
 
-// Require permission (throws exception if denied)
+// Require permission with ABAC support (throws exception if denied)
 authorizationManager.require(
     principal = requestPrincipal,
     action = "security:user:update",
     resourceId = userId
 )
 ```
+
+**Note**: Standard permission checks use token-based validation (no database queries). Use `AuthorizationManager` only for advanced use cases requiring database-backed checks.
 
 ### How to Get User Permissions
 

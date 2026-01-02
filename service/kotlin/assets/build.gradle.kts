@@ -11,7 +11,7 @@ version = "0.1.0"
 group = "io.github.salomax.neotool.assets"
 
 micronaut {
-    version("4.10.2")
+    version("4.10.6")
     runtime("netty")
     testRuntime("junit5")
     processing {
