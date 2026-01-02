@@ -3,7 +3,7 @@ package io.github.salomax.neotool.security.test.service.unit
 import io.github.salomax.neotool.security.domain.audit.AuthorizationResult
 import io.github.salomax.neotool.security.model.audit.AuthorizationAuditLogEntity
 import io.github.salomax.neotool.security.repo.AuthorizationAuditLogRepository
-import io.github.salomax.neotool.security.service.AuthorizationAuditService
+import io.github.salomax.neotool.security.service.authorization.AuthorizationAuditService
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName

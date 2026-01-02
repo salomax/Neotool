@@ -2,7 +2,7 @@ package io.github.salomax.neotool.security.test.service.unit
 
 import io.github.salomax.neotool.security.model.PasswordResetAttemptEntity
 import io.github.salomax.neotool.security.repo.PasswordResetAttemptRepository
-import io.github.salomax.neotool.security.service.RateLimitService
+import io.github.salomax.neotool.security.service.rate.RateLimitService
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName

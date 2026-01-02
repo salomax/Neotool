@@ -1,24 +1,36 @@
 package io.github.salomax.neotool.security.test.integration
 
+import io.github.salomax.neotool.common.security.principal.PrincipalType
+import io.github.salomax.neotool.common.security.principal.RequestPrincipalProvider
+import io.github.salomax.neotool.security.service.authorization.AuthorizationService
+import io.github.salomax.neotool.security.service.jwt.JwtTokenIssuer
 import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
+import io.github.salomax.neotool.common.test.transaction.runTransaction
 import io.github.salomax.neotool.security.repo.PermissionRepository
-import io.github.salomax.neotool.security.repo.PrincipalPermissionRepository
 import io.github.salomax.neotool.security.repo.PrincipalRepository
-import io.github.salomax.neotool.security.service.AuthorizationService
-import io.github.salomax.neotool.security.service.JwtService
-import io.github.salomax.neotool.security.service.PrincipalType
-import io.github.salomax.neotool.security.service.RequestPrincipalProvider
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject
+import jakarta.persistence.EntityManager
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.MethodOrderer
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.TestMethodOrder
 import java.util.UUID
 
 @MicronautTest(startApplication = true)
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DisplayName("Service Principal Integration Tests")
-class ServicePrincipalIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTest {
+@Tag("integration")
+@Tag("principal")
+@Tag("security")
+@TestMethodOrder(MethodOrderer.Random::class)
+class ServicePrincipalIntegrationTest :
+    BaseIntegrationTest(),
+    PostgresIntegrationTest {
     @Inject
     lateinit var principalRepository: PrincipalRepository
 
@@ -26,10 +38,7 @@ class ServicePrincipalIntegrationTest : BaseIntegrationTest(), PostgresIntegrati
     lateinit var permissionRepository: PermissionRepository
 
     @Inject
-    lateinit var principalPermissionRepository: PrincipalPermissionRepository
-
-    @Inject
-    lateinit var jwtService: JwtService
+    lateinit var jwtTokenIssuer: JwtTokenIssuer
 
     @Inject
     lateinit var requestPrincipalProvider: RequestPrincipalProvider
@@ -40,20 +49,27 @@ class ServicePrincipalIntegrationTest : BaseIntegrationTest(), PostgresIntegrati
     @Inject
     lateinit var servicePrincipalTestFixtures: ServicePrincipalTestFixtures
 
+    @Inject
+    lateinit var entityManager: EntityManager
+
     @Test
     fun `should create service principal and check permission`() {
         // Arrange
         val serviceId = UUID.randomUUID()
-        val permissionName = "assets:upload"
+        val permissionName = "assets:upload_${UUID.randomUUID()}"
 
         // Create permission
         val permission =
-            permissionRepository.save(
-                io.github.salomax.neotool.security.model.PermissionEntity(
-                    id = null,
-                    name = permissionName,
-                ),
-            )
+            entityManager.runTransaction {
+                permissionRepository.findByName(permissionName).orElseGet {
+                    permissionRepository.save(
+                        io.github.salomax.neotool.security.model.PermissionEntity(
+                            id = null,
+                            name = permissionName,
+                        ),
+                    )
+                }
+            }
 
         // Create service principal with permission
         val (principal, _) =
@@ -77,16 +93,20 @@ class ServicePrincipalIntegrationTest : BaseIntegrationTest(), PostgresIntegrati
     fun `should deny permission check when service principal is disabled`() {
         // Arrange
         val serviceId = UUID.randomUUID()
-        val permissionName = "assets:upload"
+        val permissionName = "assets:upload_${UUID.randomUUID()}"
 
         // Create permission
         val permission =
-            permissionRepository.save(
-                io.github.salomax.neotool.security.model.PermissionEntity(
-                    id = null,
-                    name = permissionName,
-                ),
-            )
+            entityManager.runTransaction {
+                permissionRepository.findByName(permissionName).orElseGet {
+                    permissionRepository.save(
+                        io.github.salomax.neotool.security.model.PermissionEntity(
+                            id = null,
+                            name = permissionName,
+                        ),
+                    )
+                }
+            }
 
         // Create disabled service principal with permission
         val (principal, _) =
@@ -113,7 +133,7 @@ class ServicePrincipalIntegrationTest : BaseIntegrationTest(), PostgresIntegrati
         val targetAudience = "assets-service"
         val permissions = listOf("assets:upload", "assets:read")
 
-        val token = jwtService.generateServiceToken(serviceId, targetAudience, permissions)
+        val token = jwtTokenIssuer.generateServiceToken(serviceId, targetAudience, permissions)
 
         // Act
         val principal = requestPrincipalProvider.fromToken(token)
@@ -135,7 +155,7 @@ class ServicePrincipalIntegrationTest : BaseIntegrationTest(), PostgresIntegrati
         val userPermissions = listOf("user:read")
 
         val token =
-            jwtService.generateServiceTokenWithUserContext(
+            jwtTokenIssuer.generateServiceTokenWithUserContext(
                 serviceId,
                 targetAudience,
                 servicePermissions,

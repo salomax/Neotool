@@ -1,7 +1,8 @@
 package io.github.salomax.neotool.security.test
 
+import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.security.model.UserEntity
-import io.github.salomax.neotool.security.service.AuthenticationService
+import io.github.salomax.neotool.security.service.authentication.AuthenticationService
 import java.time.Instant
 import java.util.UUID
 
@@ -236,10 +237,9 @@ object SecurityTestDataBuilders {
     /**
      * Generate a unique email for testing
      */
-    fun uniqueEmail(prefix: String = "test"): String {
-        return "$prefix-${System.currentTimeMillis()}-${Thread.currentThread().threadId()}-" +
+    fun uniqueEmail(prefix: String = "test"): String =
+        "$prefix-${System.currentTimeMillis()}-${Thread.currentThread().threadId()}-" +
             "${UUID.randomUUID().toString().take(8)}@example.com"
-    }
 
     /**
      * Create a GraphQL requestPasswordReset mutation
@@ -477,7 +477,7 @@ object SecurityTestDataBuilders {
      */
     fun principal(
         id: UUID? = null,
-        principalType: io.github.salomax.neotool.security.service.PrincipalType,
+        principalType: PrincipalType,
         externalId: String,
         enabled: Boolean = true,
         createdAt: Instant = Instant.now(),

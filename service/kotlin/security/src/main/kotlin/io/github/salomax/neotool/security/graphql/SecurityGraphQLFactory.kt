@@ -4,6 +4,7 @@ import com.apollographql.federation.graphqljava.Federation
 import graphql.analysis.MaxQueryComplexityInstrumentation
 import graphql.analysis.MaxQueryDepthInstrumentation
 import graphql.schema.idl.TypeDefinitionRegistry
+import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.security.graphql.dto.GroupDTO
 import io.github.salomax.neotool.security.graphql.dto.PermissionDTO
 import io.github.salomax.neotool.security.graphql.dto.RoleDTO
@@ -15,7 +16,6 @@ import io.github.salomax.neotool.security.repo.PermissionRepository
 import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.UserRepository
-import io.github.salomax.neotool.security.service.PrincipalType
 import io.micronaut.context.annotation.Factory
 import jakarta.inject.Singleton
 import java.util.UUID
@@ -36,7 +36,8 @@ class SecurityGraphQLFactory(
 
         // Federation requires fetchEntities and resolveEntityType even if not actively used
         val federatedSchema =
-            Federation.transform(registry, runtimeWiring)
+            Federation
+                .transform(registry, runtimeWiring)
                 .fetchEntities { env ->
                     val reps = env.getArgument<List<Map<String, Any>>>("representations")
                     reps?.map { rep ->
@@ -58,8 +59,7 @@ class SecurityGraphQLFactory(
                                                     .findByPrincipalTypeAndExternalId(
                                                         PrincipalType.USER,
                                                         userId.toString(),
-                                                    )
-                                                    .map { principal: PrincipalEntity -> principal.enabled }
+                                                    ).map { principal: PrincipalEntity -> principal.enabled }
                                                     .orElse(true)
                                             UserDTO(
                                                 id = userId.toString(),
@@ -71,12 +71,13 @@ class SecurityGraphQLFactory(
                                             )
                                         }
                                     }
+
                                     "Group" -> {
                                         val group =
-                                            groupRepository.findById(
-                                                UUID.fromString(id.toString()),
-                                            )
-                                                .orElse(null)
+                                            groupRepository
+                                                .findById(
+                                                    UUID.fromString(id.toString()),
+                                                ).orElse(null)
                                         group?.let {
                                             val groupDomain = it.toDomain()
                                             GroupDTO(
@@ -90,12 +91,13 @@ class SecurityGraphQLFactory(
                                             )
                                         }
                                     }
+
                                     "Role" -> {
                                         val role =
-                                            roleRepository.findById(
-                                                UUID.fromString(id.toString()),
-                                            )
-                                                .orElse(null)
+                                            roleRepository
+                                                .findById(
+                                                    UUID.fromString(id.toString()),
+                                                ).orElse(null)
                                         role?.let {
                                             val roleDomain = it.toDomain()
                                             RoleDTO(
@@ -108,9 +110,11 @@ class SecurityGraphQLFactory(
                                             )
                                         }
                                     }
+
                                     "Permission" -> {
                                         val permission =
-                                            permissionRepository.findById(UUID.fromString(id.toString()))
+                                            permissionRepository
+                                                .findById(UUID.fromString(id.toString()))
                                                 .orElse(null)
                                         permission?.let {
                                             val permissionDomain = it.toDomain()
@@ -122,7 +126,10 @@ class SecurityGraphQLFactory(
                                             )
                                         }
                                     }
-                                    else -> null
+
+                                    else -> {
+                                        null
+                                    }
                                 }
                             } catch (e: Exception) {
                                 // Log and return null if ID conversion fails
@@ -135,8 +142,7 @@ class SecurityGraphQLFactory(
                             }
                         }
                     }
-                }
-                .resolveEntityType { env ->
+                }.resolveEntityType { env ->
                     val entity = env.getObject<Any?>()
                     val schema = env.schema
 
@@ -145,26 +151,36 @@ class SecurityGraphQLFactory(
                     }
 
                     when (entity) {
-                        is UserDTO ->
+                        is UserDTO -> {
                             schema.getObjectType("User")
                                 ?: throw IllegalStateException("User type not found in schema")
-                        is GroupDTO ->
+                        }
+
+                        is GroupDTO -> {
                             schema.getObjectType("Group")
                                 ?: throw IllegalStateException("Group type not found in schema")
-                        is RoleDTO ->
+                        }
+
+                        is RoleDTO -> {
                             schema.getObjectType("Role")
                                 ?: throw IllegalStateException("Role type not found in schema")
-                        is PermissionDTO ->
+                        }
+
+                        is PermissionDTO -> {
                             schema.getObjectType("Permission")
                                 ?: throw IllegalStateException("Permission type not found in schema")
-                        else -> throw IllegalStateException(
-                            "Unknown federated type for entity: ${entity?.javaClass?.name}",
-                        )
-                    }
-                }
-                .build()
+                        }
 
-        return graphql.GraphQL.newGraphQL(federatedSchema)
+                        else -> {
+                            throw IllegalStateException(
+                                "Unknown federated type for entity: ${entity?.javaClass?.name}",
+                            )
+                        }
+                    }
+                }.build()
+
+        return graphql.GraphQL
+            .newGraphQL(federatedSchema)
             .instrumentation(MaxQueryComplexityInstrumentation(100))
             .instrumentation(MaxQueryDepthInstrumentation(10))
             .defaultDataFetcherExceptionHandler(SecurityGraphQLExceptionHandler())

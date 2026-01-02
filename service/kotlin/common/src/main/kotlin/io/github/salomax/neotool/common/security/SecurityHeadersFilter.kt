@@ -36,11 +36,13 @@ import org.reactivestreams.Subscription
 @Filter("/**")
 @Singleton
 class SecurityHeadersFilter(
-    @Nullable
-    @io.micronaut.context.annotation.Value("\${security.headers.csp:default-src 'self'; script-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'}")
+    @param:Nullable
+    @param:io.micronaut.context.annotation.Value(
+        "\${security.headers.csp:default-src 'self'; script-src 'self'; " +
+            "object-src 'none'; base-uri 'self'; form-action 'self'}",
+    )
     private val cspPolicy: String?,
 ) : HttpServerFilter {
-
     // Paths to exclude from security headers (internal/monitoring endpoints)
     private val excludedPaths =
         setOf(
@@ -109,7 +111,9 @@ class SecurityHeadersFilter(
         response.headers.add("X-XSS-Protection", "1; mode=block")
 
         // Content Security Policy
-        val csp = cspPolicy ?: "default-src 'self'; script-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
+        val csp =
+            cspPolicy
+                ?: "default-src 'self'; script-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
         response.headers.add("Content-Security-Policy", csp)
 
         // Referrer policy
@@ -126,10 +130,10 @@ class SecurityHeadersFilter(
         // Permissions Policy (formerly Feature-Policy)
         response.headers.add(
             "Permissions-Policy",
-            "geolocation=(), microphone=(), camera=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()",
+            "geolocation=(), microphone=(), camera=(), payment=(), usb=(), " +
+                "magnetometer=(), gyroscope=(), accelerometer=()",
         )
 
         return response
     }
 }
-

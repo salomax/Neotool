@@ -12,10 +12,10 @@ import io.github.salomax.neotool.security.repo.GroupRoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.PermissionRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.UserRepository
-import io.github.salomax.neotool.security.service.AuthContextFactory
-import io.github.salomax.neotool.security.service.AuthenticationService
-import io.github.salomax.neotool.security.service.EmailService
-import io.github.salomax.neotool.security.service.MockEmailService
+import io.github.salomax.neotool.security.service.authentication.AuthContextFactory
+import io.github.salomax.neotool.security.service.email.EmailService
+import io.github.salomax.neotool.security.service.email.MockEmailService
+import io.github.salomax.neotool.security.service.authentication.AuthenticationService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import io.micronaut.http.HttpRequest
 import io.micronaut.http.HttpStatus
@@ -46,7 +46,9 @@ import java.util.UUID
 @Tag("integration")
 @Tag("security")
 @Tag("http")
-open class AuthorizationInterceptorIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTest {
+open class AuthorizationInterceptorIntegrationTest :
+    BaseIntegrationTest(),
+    PostgresIntegrationTest {
     @Inject
     lateinit var userRepository: UserRepository
 
@@ -80,7 +82,7 @@ open class AuthorizationInterceptorIntegrationTest : BaseIntegrationTest(), Post
     private val mockEmailService: MockEmailService
         get() = emailService as MockEmailService
 
-    private fun uniqueEmail() = SecurityTestDataBuilders.uniqueEmail("rest-auth")
+    private fun uniqueEmail() = SecurityTestDataBuilders.uniqueEmail("rest-authentication")
 
     /**
      * Helper to create a user with specific permissions and generate an access token.
@@ -202,7 +204,8 @@ open class AuthorizationInterceptorIntegrationTest : BaseIntegrationTest(), Post
         fun `should return 401 when Authorization header has invalid format`() {
             // Arrange
             val request =
-                HttpRequest.GET<Any>("/protected/view")
+                HttpRequest
+                    .GET<Any>("/protected/view")
                     .header("Authorization", "InvalidFormat token123")
 
             // Act & Assert
@@ -218,7 +221,8 @@ open class AuthorizationInterceptorIntegrationTest : BaseIntegrationTest(), Post
         fun `should return 401 when token is invalid`() {
             // Arrange
             val request =
-                HttpRequest.GET<Any>("/protected/view")
+                HttpRequest
+                    .GET<Any>("/protected/view")
                     .header("Authorization", "Bearer invalid-token-12345")
 
             // Act & Assert
@@ -235,7 +239,8 @@ open class AuthorizationInterceptorIntegrationTest : BaseIntegrationTest(), Post
             // Arrange
             val (_, token) = createUserWithoutPermissionsAndToken()
             val request =
-                HttpRequest.GET<Any>("/protected/view")
+                HttpRequest
+                    .GET<Any>("/protected/view")
                     .header("Authorization", "Bearer $token")
 
             // Act & Assert
@@ -253,7 +258,8 @@ open class AuthorizationInterceptorIntegrationTest : BaseIntegrationTest(), Post
             val (_, token) =
                 createUserWithPermissionsAndToken(listOf(SecurityPermissions.SECURITY_USER_VIEW))
             val request =
-                HttpRequest.GET<Any>("/protected/view")
+                HttpRequest
+                    .GET<Any>("/protected/view")
                     .header("Authorization", "Bearer $token")
 
             // Act
@@ -287,7 +293,8 @@ open class AuthorizationInterceptorIntegrationTest : BaseIntegrationTest(), Post
         fun `should return 401 when token is invalid`() {
             // Arrange
             val request =
-                HttpRequest.POST("/protected/save", "")
+                HttpRequest
+                    .POST("/protected/save", "")
                     .header("Authorization", "Bearer invalid-token-12345")
 
             // Act & Assert
@@ -305,7 +312,8 @@ open class AuthorizationInterceptorIntegrationTest : BaseIntegrationTest(), Post
             val (_, token) =
                 createUserWithPermissionsAndToken(listOf(SecurityPermissions.SECURITY_USER_VIEW))
             val request =
-                HttpRequest.POST("/protected/save", "")
+                HttpRequest
+                    .POST("/protected/save", "")
                     .header("Authorization", "Bearer $token")
 
             // Act & Assert
@@ -323,7 +331,8 @@ open class AuthorizationInterceptorIntegrationTest : BaseIntegrationTest(), Post
             val (_, token) =
                 createUserWithPermissionsAndToken(listOf(SecurityPermissions.SECURITY_USER_SAVE))
             val request =
-                HttpRequest.POST("/protected/save", "")
+                HttpRequest
+                    .POST("/protected/save", "")
                     .header("Authorization", "Bearer $token")
 
             // Act

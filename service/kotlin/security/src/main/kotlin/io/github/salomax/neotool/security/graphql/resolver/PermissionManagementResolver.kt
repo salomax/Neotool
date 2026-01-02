@@ -3,7 +3,7 @@ package io.github.salomax.neotool.security.graphql.resolver
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import io.github.salomax.neotool.security.graphql.dto.PermissionConnectionDTO
 import io.github.salomax.neotool.security.graphql.mapper.PermissionManagementMapper
-import io.github.salomax.neotool.security.service.PermissionManagementService
+import io.github.salomax.neotool.security.service.management.PermissionManagementService
 import jakarta.inject.Singleton
 import mu.KotlinLogging
 import java.util.UUID

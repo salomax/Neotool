@@ -7,7 +7,7 @@ plugins {
 repositories { mavenCentral() }
 
 micronaut {
-    version("4.10.2")
+    version("4.10.6")
     processing {
         incremental(true)
         annotations("io.github.salomax.neotool.common.*", "io.github.salomax.neotool.security.*")
@@ -16,7 +16,7 @@ micronaut {
 
 dependencies {
     // Platform BOMs - should be api so all modules use same versions
-    api(platform("io.micronaut.platform:micronaut-platform:4.10.2"))
+    api(platform("io.micronaut.platform:micronaut-platform:4.10.6"))
     api(platform("io.micronaut.micrometer:micronaut-micrometer-bom:5.12.0"))
     api(platform("io.micronaut.tracing:micronaut-tracing-bom:7.1.4"))
 
@@ -96,7 +96,7 @@ dependencies {
     // Logging - api for other modules
     api("io.github.microutils:kotlin-logging:3.0.5")
     api("net.logstash.logback:logstash-logback-encoder:7.4")
-    api("ch.qos.logback:logback-classic:1.4.14")
+    api("ch.qos.logback:logback-classic:1.5.23")
     api("com.github.loki4j:loki-logback-appender:1.4.0")
 
     // KSP processors

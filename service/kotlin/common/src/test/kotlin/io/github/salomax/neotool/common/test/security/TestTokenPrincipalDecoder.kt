@@ -1,8 +1,8 @@
 package io.github.salomax.neotool.common.test.security
 
-import io.github.salomax.neotool.security.service.RequestPrincipal
-import io.github.salomax.neotool.security.service.TokenPrincipalDecoder
-import io.github.salomax.neotool.security.service.exception.AuthenticationRequiredException
+import io.github.salomax.neotool.common.security.exception.AuthenticationRequiredException
+import io.github.salomax.neotool.common.security.principal.RequestPrincipal
+import io.github.salomax.neotool.common.security.principal.TokenPrincipalDecoder
 import io.micronaut.context.annotation.Primary
 import io.micronaut.context.annotation.Requires
 import jakarta.inject.Singleton
@@ -33,16 +33,17 @@ class TestTokenPrincipalDecoder : TokenPrincipalDecoder {
         return RequestPrincipal(
             userId = TEST_USER_ID,
             token = token,
-            permissionsFromToken = listOf(
-                // Asset permissions (using the correct format from AssetPermissions)
-                "assets:asset:view",
-                "assets:asset:upload",
-                "assets:asset:delete",
-                // Legacy format for backward compatibility with other tests
-                "assets:read",
-                "assets:write",
-                "assets:delete",
-            ),
+            permissionsFromToken =
+                listOf(
+                    // Asset permissions (using the correct format from AssetPermissions)
+                    "assets:asset:view",
+                    "assets:asset:upload",
+                    "assets:asset:delete",
+                    // Legacy format for backward compatibility with other tests
+                    "assets:read",
+                    "assets:write",
+                    "assets:delete",
+                ),
         )
     }
 }

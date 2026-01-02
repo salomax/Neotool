@@ -1,9 +1,9 @@
 package io.github.salomax.neotool.security.test.service
 
 import io.github.salomax.neotool.security.config.EmailConfig
-import io.github.salomax.neotool.security.service.EmailService
-import io.github.salomax.neotool.security.service.EmailServiceFactory
-import io.github.salomax.neotool.security.service.MockEmailService
+import io.github.salomax.neotool.security.service.email.EmailService
+import io.github.salomax.neotool.security.service.email.EmailServiceFactory
+import io.github.salomax.neotool.security.service.email.MockEmailService
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName

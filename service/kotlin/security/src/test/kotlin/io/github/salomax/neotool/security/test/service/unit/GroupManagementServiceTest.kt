@@ -12,9 +12,9 @@ import io.github.salomax.neotool.security.repo.GroupRepositoryCustom
 import io.github.salomax.neotool.security.repo.GroupRoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.UserRepository
-import io.github.salomax.neotool.security.service.GroupManagementService
-import io.github.salomax.neotool.security.service.GroupOrderBy
-import io.github.salomax.neotool.security.service.GroupOrderField
+import io.github.salomax.neotool.security.service.management.GroupManagementService
+import io.github.salomax.neotool.security.model.GroupOrderBy
+import io.github.salomax.neotool.security.model.GroupOrderField
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach

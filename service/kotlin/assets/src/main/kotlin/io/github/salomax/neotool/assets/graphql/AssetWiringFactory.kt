@@ -13,8 +13,8 @@ import io.github.salomax.neotool.common.graphql.AuthenticatedGraphQLWiringFactor
 import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.createValidatedDataFetcher
 import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.getRequiredString
 import io.github.salomax.neotool.common.graphql.GraphQLResolverRegistry
-import io.github.salomax.neotool.security.service.AuthorizationChecker
-import io.github.salomax.neotool.security.service.RequestPrincipalProvider
+import io.github.salomax.neotool.common.security.authorization.AuthorizationChecker
+import io.github.salomax.neotool.common.security.principal.RequestPrincipalProvider
 import jakarta.inject.Singleton
 import java.time.ZoneOffset
 
@@ -64,8 +64,7 @@ class AssetWiringFactory(
                         mutationResolver.createAssetUpload(input, userId)
                     }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "confirmAssetUpload",
                 createValidatedDataFetcher { env ->
                     env.withPermission(AssetPermissions.ASSETS_ASSET_UPLOAD) { principal ->
@@ -77,8 +76,7 @@ class AssetWiringFactory(
                         mutationResolver.confirmAssetUpload(input, userId)
                     }
                 },
-            )
-            .dataFetcher(
+            ).dataFetcher(
                 "deleteAsset",
                 createValidatedDataFetcher { env ->
                     env.withPermission(AssetPermissions.ASSETS_ASSET_DELETE) { principal ->

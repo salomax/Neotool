@@ -2,7 +2,7 @@ package io.github.salomax.neotool.security.test.service.unit
 
 import io.github.salomax.neotool.security.domain.rbac.Permission
 import io.github.salomax.neotool.security.repo.PermissionRepository
-import io.github.salomax.neotool.security.service.PermissionService
+import io.github.salomax.neotool.security.service.authorization.PermissionService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach

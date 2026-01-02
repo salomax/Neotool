@@ -6,8 +6,8 @@ import graphql.execution.DataFetcherExceptionHandlerParameters
 import graphql.execution.DataFetcherExceptionHandlerResult
 import io.github.salomax.neotool.common.exception.GraphQLOptimisticLockExceptionHandler
 import io.github.salomax.neotool.common.graphql.GraphQLPayloadException
-import io.github.salomax.neotool.security.service.exception.AuthenticationRequiredException
-import io.github.salomax.neotool.security.service.exception.AuthorizationDeniedException
+import io.github.salomax.neotool.common.security.exception.AuthenticationRequiredException
+import io.github.salomax.neotool.common.security.exception.AuthorizationDeniedException
 import org.slf4j.LoggerFactory
 import java.util.concurrent.CompletableFuture
 import java.util.regex.Pattern

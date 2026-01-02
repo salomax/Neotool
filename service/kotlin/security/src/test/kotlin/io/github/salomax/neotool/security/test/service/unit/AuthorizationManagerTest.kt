@@ -1,10 +1,10 @@
 package io.github.salomax.neotool.security.test.service.unit
 
-import io.github.salomax.neotool.security.service.AuthorizationManager
-import io.github.salomax.neotool.security.service.AuthorizationResult
-import io.github.salomax.neotool.security.service.AuthorizationService
-import io.github.salomax.neotool.security.service.RequestPrincipal
-import io.github.salomax.neotool.security.service.exception.AuthorizationDeniedException
+import io.github.salomax.neotool.common.security.exception.AuthorizationDeniedException
+import io.github.salomax.neotool.common.security.principal.RequestPrincipal
+import io.github.salomax.neotool.security.service.authorization.AuthorizationManager
+import io.github.salomax.neotool.security.service.authorization.AuthorizationResult
+import io.github.salomax.neotool.security.service.authorization.AuthorizationService
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName

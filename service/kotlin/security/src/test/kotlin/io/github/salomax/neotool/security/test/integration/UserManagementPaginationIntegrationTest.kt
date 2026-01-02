@@ -8,10 +8,10 @@ import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.common.test.transaction.runTransaction
 import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.repo.UserRepository
-import io.github.salomax.neotool.security.service.AuthenticationService
-import io.github.salomax.neotool.security.service.UserManagementService
-import io.github.salomax.neotool.security.service.UserOrderBy
-import io.github.salomax.neotool.security.service.UserOrderField
+import io.github.salomax.neotool.security.model.UserOrderBy
+import io.github.salomax.neotool.security.model.UserOrderField
+import io.github.salomax.neotool.security.service.authentication.AuthenticationService
+import io.github.salomax.neotool.security.service.management.UserManagementService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject
@@ -40,7 +40,9 @@ import java.util.UUID
 @Tag("pagination")
 @Tag("database")
 @TestMethodOrder(MethodOrderer.Random::class)
-open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTest {
+open class UserManagementPaginationIntegrationTest :
+    BaseIntegrationTest(),
+    PostgresIntegrationTest {
     @Inject
     lateinit var userRepository: UserRepository
 
@@ -98,11 +100,31 @@ open class UserManagementPaginationIntegrationTest : BaseIntegrationTest(), Post
             // Using names starting with different letters to ensure proper sorting
             val names =
                 listOf(
-                    "Alice", "Bob", "Charlie", "David", "Eve",
-                    "Frank", "Grace", "Henry", "Ivy", "Jack",
-                    "Kate", "Liam", "Mia", "Noah", "Olivia",
-                    "Paul", "Quinn", "Rachel", "Sam", "Tina",
-                    "Uma", "Victor", "Wendy", "Xavier", "Yara",
+                    "Alice",
+                    "Bob",
+                    "Charlie",
+                    "David",
+                    "Eve",
+                    "Frank",
+                    "Grace",
+                    "Henry",
+                    "Ivy",
+                    "Jack",
+                    "Kate",
+                    "Liam",
+                    "Mia",
+                    "Noah",
+                    "Olivia",
+                    "Paul",
+                    "Quinn",
+                    "Rachel",
+                    "Sam",
+                    "Tina",
+                    "Uma",
+                    "Victor",
+                    "Wendy",
+                    "Xavier",
+                    "Yara",
                 )
 
             names.forEachIndexed { index, name ->

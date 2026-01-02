@@ -1,9 +1,9 @@
 package io.github.salomax.neotool.security.test.service.unit
 
 import io.github.salomax.neotool.security.config.EmailConfig
-import io.github.salomax.neotool.security.service.EmailService
-import io.github.salomax.neotool.security.service.EmailServiceFactory
-import io.github.salomax.neotool.security.service.MockEmailService
+import io.github.salomax.neotool.security.service.email.EmailService
+import io.github.salomax.neotool.security.service.email.EmailServiceFactory
+import io.github.salomax.neotool.security.service.email.MockEmailService
 import io.micronaut.context.annotation.Factory
 import io.micronaut.context.annotation.Primary
 import io.micronaut.context.annotation.Replaces

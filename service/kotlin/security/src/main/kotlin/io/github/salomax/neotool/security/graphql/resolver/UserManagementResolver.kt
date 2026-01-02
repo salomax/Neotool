@@ -5,8 +5,8 @@ import io.github.salomax.neotool.security.graphql.dto.UpdateUserInputDTO
 import io.github.salomax.neotool.security.graphql.dto.UserConnectionDTO
 import io.github.salomax.neotool.security.graphql.dto.UserDTO
 import io.github.salomax.neotool.security.graphql.mapper.UserManagementMapper
-import io.github.salomax.neotool.security.service.AuthorizationService
-import io.github.salomax.neotool.security.service.UserManagementService
+import io.github.salomax.neotool.security.service.authorization.AuthorizationService
+import io.github.salomax.neotool.security.service.management.UserManagementService
 import jakarta.inject.Singleton
 import mu.KotlinLogging
 import java.util.UUID

@@ -1,8 +1,9 @@
 package io.github.salomax.neotool.security.repo
 
 import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
+import io.github.salomax.neotool.security.model.GroupOrderBy
+import io.github.salomax.neotool.security.model.GroupOrderField
 import io.github.salomax.neotool.security.model.rbac.GroupEntity
-import io.github.salomax.neotool.security.service.GroupOrderBy
 import io.micronaut.transaction.annotation.ReadOnly
 import jakarta.inject.Singleton
 import jakarta.persistence.EntityManager
@@ -60,7 +61,7 @@ open class GroupRepositoryImpl(
         orderBy: List<GroupOrderBy>,
     ): List<GroupEntity> {
         require(orderBy.isNotEmpty()) { "orderBy must not be empty" }
-        require(orderBy.last().field == io.github.salomax.neotool.security.service.GroupOrderField.ID) {
+        require(orderBy.last().field == GroupOrderField.ID) {
             "Last orderBy field must be ID for deterministic ordering"
         }
 

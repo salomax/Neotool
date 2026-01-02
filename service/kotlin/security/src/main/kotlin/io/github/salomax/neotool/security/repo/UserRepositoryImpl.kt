@@ -2,7 +2,8 @@ package io.github.salomax.neotool.security.repo
 
 import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.security.model.UserEntity
-import io.github.salomax.neotool.security.service.UserOrderBy
+import io.github.salomax.neotool.security.model.UserOrderBy
+import io.github.salomax.neotool.security.model.UserOrderField
 import io.micronaut.transaction.annotation.ReadOnly
 import jakarta.inject.Singleton
 import jakarta.persistence.EntityManager
@@ -76,7 +77,7 @@ open class UserRepositoryImpl(
         orderBy: List<UserOrderBy>,
     ): List<UserEntity> {
         require(orderBy.isNotEmpty()) { "orderBy must not be empty" }
-        require(orderBy.last().field == io.github.salomax.neotool.security.service.UserOrderField.ID) {
+        require(orderBy.last().field == UserOrderField.ID) {
             "Last orderBy field must be ID for deterministic ordering"
         }
 

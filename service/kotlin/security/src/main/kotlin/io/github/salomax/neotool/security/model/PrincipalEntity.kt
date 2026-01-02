@@ -1,7 +1,7 @@
 package io.github.salomax.neotool.security.model
 
 import io.github.salomax.neotool.common.entity.BaseEntity
-import io.github.salomax.neotool.security.service.PrincipalType
+import io.github.salomax.neotool.common.security.principal.PrincipalType
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
@@ -39,8 +39,8 @@ open class PrincipalEntity(
     @Version
     open var version: Long = 0,
 ) : BaseEntity<UUID?>(id) {
-    fun toDomain(): Principal {
-        return Principal(
+    fun toDomain(): Principal =
+        Principal(
             id = this.id,
             principalType = this.principalType,
             externalId = this.externalId,
@@ -49,7 +49,6 @@ open class PrincipalEntity(
             updatedAt = this.updatedAt,
             version = this.version,
         )
-    }
 }
 
 /**

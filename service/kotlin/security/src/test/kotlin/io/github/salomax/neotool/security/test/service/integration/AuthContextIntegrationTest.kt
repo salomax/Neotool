@@ -18,9 +18,8 @@ import io.github.salomax.neotool.security.repo.GroupRoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.PermissionRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.UserRepository
-import io.github.salomax.neotool.security.service.AuthContextFactory
-import io.github.salomax.neotool.security.service.AuthenticationService
-import io.github.salomax.neotool.security.service.JwtService
+import io.github.salomax.neotool.security.service.authentication.AuthContextFactory
+import io.github.salomax.neotool.security.service.authentication.AuthenticationService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import io.micronaut.http.HttpRequest
 import io.micronaut.http.MediaType
@@ -43,9 +42,11 @@ import java.util.UUID
 @DisplayName("AuthContext Integration Tests")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Tag("integration")
-@Tag("auth-context")
+@Tag("authentication-context")
 @Tag("security")
-class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTest {
+class AuthContextIntegrationTest :
+    BaseIntegrationTest(),
+    PostgresIntegrationTest {
     @Inject
     lateinit var userRepository: UserRepository
 
@@ -79,7 +80,7 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
     private lateinit var testRole: RoleEntity
     private lateinit var testPermission: PermissionEntity
 
-    private fun uniqueEmail() = SecurityTestDataBuilders.uniqueEmail("auth-context")
+    private fun uniqueEmail() = SecurityTestDataBuilders.uniqueEmail("authentication-context")
 
     @BeforeEach
     fun setUpTestData() {
@@ -162,7 +163,8 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             // Act
@@ -212,7 +214,8 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             // Act
@@ -264,7 +267,8 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             // Act
@@ -339,7 +343,7 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
             val email = uniqueEmail()
             val password = "TestPassword123!"
 
-            // Create user with password (simulating password auth)
+            // Create user with password (simulating password authentication)
             val passwordUser =
                 SecurityTestDataBuilders.userWithPassword(
                     authenticationService = authenticationService,
@@ -377,7 +381,8 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
                     rememberMe = false,
                 )
             val signInRequest =
-                HttpRequest.POST("/graphql", signInMutation)
+                HttpRequest
+                    .POST("/graphql", signInMutation)
                     .contentType(MediaType.APPLICATION_JSON)
             val signInResponse = httpClient.exchangeAsString(signInRequest)
             signInResponse.shouldBeSuccessful().shouldBeJson()
@@ -390,7 +395,7 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
             oauthUser.passwordHash = null // Simulate OAuth user (no password)
             saveUser(oauthUser)
 
-            // Build auth context for OAuth user (simulating OAuth flow)
+            // Build authentication context for OAuth user (simulating OAuth flow)
             val oauthAuthContext = authContextFactory.build(oauthUser)
             val oauthToken = authenticationService.generateAccessToken(oauthAuthContext)
 
@@ -433,15 +438,15 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
                 groupMembershipRepository.save(groupMembership)
             }
 
-            // Build auth context (simulating Google OAuth)
+            // Build authentication context (simulating Google OAuth)
             val googleAuthContext = authContextFactory.build(user)
             val googleToken = authenticationService.generateAccessToken(googleAuthContext)
 
-            // Build auth context again (simulating future Microsoft OAuth)
+            // Build authentication context again (simulating future Microsoft OAuth)
             val microsoftAuthContext = authContextFactory.build(user)
             val microsoftToken = authenticationService.generateAccessToken(microsoftAuthContext)
 
-            // Build auth context again (simulating future GitHub OAuth)
+            // Build authentication context again (simulating future GitHub OAuth)
             val githubAuthContext = authContextFactory.build(user)
             val githubToken = authenticationService.generateAccessToken(githubAuthContext)
 
@@ -476,7 +481,8 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             // Act
@@ -521,7 +527,8 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             // Act
@@ -599,7 +606,8 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
                 )
 
             val signInRequest =
-                HttpRequest.POST("/graphql", signInMutation)
+                HttpRequest
+                    .POST("/graphql", signInMutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val signInResponse = httpClient.exchangeAsString(signInRequest)
@@ -624,7 +632,8 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
             val mutation = mapOf("query" to refreshMutation, "variables" to variables)
 
             val refreshRequest =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             // Act
@@ -677,7 +686,8 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
                 )
 
             val signInRequest =
-                HttpRequest.POST("/graphql", signInMutation)
+                HttpRequest
+                    .POST("/graphql", signInMutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val signInResponse = httpClient.exchangeAsString(signInRequest)
@@ -727,7 +737,8 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
             val mutation = mapOf("query" to refreshMutation, "variables" to variables)
 
             val refreshRequest =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val refreshResponse = httpClient.exchangeAsString(refreshRequest)
@@ -792,7 +803,8 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
                 )
 
             val signInRequest =
-                HttpRequest.POST("/graphql", signInMutation)
+                HttpRequest
+                    .POST("/graphql", signInMutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val signInResponse = httpClient.exchangeAsString(signInRequest)
@@ -822,7 +834,8 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
             val mutation = mapOf("query" to refreshMutation, "variables" to variables)
 
             val refreshRequest =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val refreshResponse = httpClient.exchangeAsString(refreshRequest)

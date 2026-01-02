@@ -11,7 +11,7 @@ import io.github.salomax.neotool.common.test.json.read
 import io.github.salomax.neotool.common.test.transaction.runTransaction
 import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.repo.UserRepository
-import io.github.salomax.neotool.security.service.AuthenticationService
+import io.github.salomax.neotool.security.service.authentication.AuthenticationService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import io.micronaut.http.HttpRequest
 import io.micronaut.http.MediaType
@@ -34,7 +34,9 @@ import org.junit.jupiter.api.TestInstance
 @Tag("graphql")
 @Tag("authentication")
 @Tag("security")
-open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTest {
+open class GraphQLAuthenticationIntegrationTest :
+    BaseIntegrationTest(),
+    PostgresIntegrationTest {
     @Inject
     lateinit var userRepository: UserRepository
 
@@ -44,7 +46,7 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
     @Inject
     lateinit var entityManager: EntityManager
 
-    private fun uniqueEmail() = SecurityTestDataBuilders.uniqueEmail("graphql-auth")
+    private fun uniqueEmail() = SecurityTestDataBuilders.uniqueEmail("graphql-authentication")
 
     fun saveUser(user: UserEntity) {
         // ensure it runs over a new transaction
@@ -89,7 +91,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             // Act
@@ -104,33 +107,40 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             payload["errors"].assertNoErrors()
 
             val data = payload["data"]
-            Assertions.assertThat(data)
+            Assertions
+                .assertThat(data)
                 .describedAs("GraphQL response must contain 'data'")
                 .isNotNull()
             val signInNode = data["signIn"]
-            Assertions.assertThat(signInNode)
+            Assertions
+                .assertThat(signInNode)
                 .describedAs("signIn payload must be present")
                 .isNotNull()
 
             val signInPayload: JsonNode = signInNode
             val tokenNode = signInPayload["token"]
-            Assertions.assertThat(tokenNode)
+            Assertions
+                .assertThat(tokenNode)
                 .describedAs("token must be present")
                 .isNotNull()
             Assertions.assertThat(tokenNode.stringValue).isNotBlank()
-            Assertions.assertThat(signInPayload["refreshToken"].isNull)
+            Assertions
+                .assertThat(signInPayload["refreshToken"].isNull)
                 .describedAs("refreshToken should be null when rememberMe is false")
                 .isTrue()
 
             val userData: JsonNode = signInPayload["user"]
-            Assertions.assertThat(userData)
+            Assertions
+                .assertThat(userData)
                 .describedAs("user data must be present")
                 .isNotNull()
-            Assertions.assertThat(userData["id"])
+            Assertions
+                .assertThat(userData["id"])
                 .describedAs("user id must be present")
                 .isNotNull()
             Assertions.assertThat(userData["email"].stringValue).isEqualTo(email)
-            Assertions.assertThat(userData["displayName"])
+            Assertions
+                .assertThat(userData["displayName"])
                 .describedAs("user displayName must be present")
                 .isNotNull()
         }
@@ -158,7 +168,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             // Act
@@ -174,18 +185,21 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
 
             val data = payload["data"]
             val signInNode = data["signIn"]
-            Assertions.assertThat(signInNode)
+            Assertions
+                .assertThat(signInNode)
                 .describedAs("signIn payload must be present")
                 .isNotNull()
 
             val signInPayload: JsonNode = signInNode
             val tokenNode = signInPayload["token"]
-            Assertions.assertThat(tokenNode)
+            Assertions
+                .assertThat(tokenNode)
                 .describedAs("token must be present")
                 .isNotNull()
             Assertions.assertThat(tokenNode.stringValue).isNotBlank()
             val refreshTokenNode = signInPayload["refreshToken"]
-            Assertions.assertThat(refreshTokenNode)
+            Assertions
+                .assertThat(refreshTokenNode)
                 .describedAs("refreshToken must be present when rememberMe is true")
                 .isNotNull()
             Assertions.assertThat(refreshTokenNode.stringValue).isNotBlank()
@@ -216,7 +230,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             // Act
@@ -230,7 +245,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             val payload: JsonNode = json.read(response)
             // GraphQL returns errors in the errors array, not as HTTP error
             val errors = payload["errors"]
-            Assertions.assertThat(errors)
+            Assertions
+                .assertThat(errors)
                 .describedAs("GraphQL should return errors for invalid credentials")
                 .isNotNull()
             Assertions.assertThat(errors.isArray).isTrue
@@ -239,7 +255,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             // Check error message
             val firstError = errors[0]
             val messageNode = firstError["message"]
-            Assertions.assertThat(messageNode)
+            Assertions
+                .assertThat(messageNode)
                 .describedAs("Error message must be present")
                 .isNotNull()
             val errorMessage = messageNode.stringValue
@@ -259,7 +276,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             // Act
@@ -272,7 +290,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             // Assert
             val payload: JsonNode = json.read(response)
             val errors = payload["errors"]
-            Assertions.assertThat(errors)
+            Assertions
+                .assertThat(errors)
                 .describedAs("GraphQL should return errors for non-existent user")
                 .isNotNull()
             Assertions.assertThat(errors.isArray).isTrue
@@ -306,7 +325,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             // Act
@@ -319,7 +339,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             // Assert
             val payload: JsonNode = json.read(response)
             val errors = payload["errors"]
-            Assertions.assertThat(errors)
+            Assertions
+                .assertThat(errors)
                 .describedAs("GraphQL should return errors for missing required field")
                 .isNotNull()
         }
@@ -351,7 +372,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             // Act
@@ -364,7 +386,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             // Assert
             val payload: JsonNode = json.read(response)
             val errors = payload["errors"]
-            Assertions.assertThat(errors)
+            Assertions
+                .assertThat(errors)
                 .describedAs("GraphQL should return errors for missing required field")
                 .isNotNull()
         }
@@ -391,7 +414,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             // Act
@@ -404,7 +428,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             // Assert
             val payload: JsonNode = json.read(response)
             val errors = payload["errors"]
-            Assertions.assertThat(errors)
+            Assertions
+                .assertThat(errors)
                 .describedAs("GraphQL should return errors for blank password")
                 .isNotNull()
             Assertions.assertThat(errors.isArray).isTrue
@@ -433,7 +458,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             // Act
@@ -446,7 +472,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             // Assert
             val payload: JsonNode = json.read(response)
             val errors = payload["errors"]
-            Assertions.assertThat(errors)
+            Assertions
+                .assertThat(errors)
                 .describedAs("GraphQL should return errors for empty password")
                 .isNotNull()
             Assertions.assertThat(errors.isArray).isTrue
@@ -472,7 +499,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             // Act
@@ -487,29 +515,34 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             payload["errors"].assertNoErrors()
 
             val data = payload["data"]
-            Assertions.assertThat(data)
+            Assertions
+                .assertThat(data)
                 .describedAs("GraphQL response must contain 'data'")
                 .isNotNull()
             val signUpNode = data["signUp"]
-            Assertions.assertThat(signUpNode)
+            Assertions
+                .assertThat(signUpNode)
                 .describedAs("signUp payload must be present")
                 .isNotNull()
 
             val signUpPayload: JsonNode = signUpNode
             val tokenNode = signUpPayload["token"]
-            Assertions.assertThat(tokenNode)
+            Assertions
+                .assertThat(tokenNode)
                 .describedAs("token must be present")
                 .isNotNull()
             Assertions.assertThat(tokenNode.stringValue).isNotBlank()
 
             val refreshTokenNode = signUpPayload["refreshToken"]
-            Assertions.assertThat(refreshTokenNode)
+            Assertions
+                .assertThat(refreshTokenNode)
                 .describedAs("refreshToken must be present")
                 .isNotNull()
             Assertions.assertThat(refreshTokenNode.stringValue).isNotBlank()
 
             val userNode = signUpPayload["user"]
-            Assertions.assertThat(userNode)
+            Assertions
+                .assertThat(userNode)
                 .describedAs("user must be present")
                 .isNotNull()
             Assertions.assertThat(userNode["id"].stringValue).isNotBlank()
@@ -518,7 +551,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
 
             // Verify user was created in database
             val savedUser = userRepository.findByEmail(email)
-            Assertions.assertThat(savedUser)
+            Assertions
+                .assertThat(savedUser)
                 .describedAs("User should be saved in database")
                 .isNotNull()
             Assertions.assertThat(savedUser?.email).isEqualTo(email)
@@ -550,7 +584,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             // Act
@@ -563,7 +598,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             // Assert
             val payload: JsonNode = json.read(response)
             val errors = payload["errors"]
-            Assertions.assertThat(errors)
+            Assertions
+                .assertThat(errors)
                 .describedAs("GraphQL should return errors for duplicate email")
                 .isNotNull()
             Assertions.assertThat(errors.isArray).isTrue
@@ -572,7 +608,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             // Check error message
             val firstError = errors[0]
             val messageNode = firstError["message"]
-            Assertions.assertThat(messageNode)
+            Assertions
+                .assertThat(messageNode)
                 .describedAs("Error message must be present")
                 .isNotNull()
             val errorMessage = messageNode.stringValue
@@ -594,7 +631,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             // Act
@@ -607,7 +645,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             // Assert
             val payload: JsonNode = json.read(response)
             val errors = payload["errors"]
-            Assertions.assertThat(errors)
+            Assertions
+                .assertThat(errors)
                 .describedAs("GraphQL should return errors for weak password")
                 .isNotNull()
             Assertions.assertThat(errors.isArray).isTrue
@@ -616,7 +655,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             // Check error message
             val firstError = errors[0]
             val messageNode = firstError["message"]
-            Assertions.assertThat(messageNode)
+            Assertions
+                .assertThat(messageNode)
                 .describedAs("Error message must be present")
                 .isNotNull()
             val errorMessage = messageNode.stringValue
@@ -651,7 +691,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             // Act
@@ -664,7 +705,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             // Assert
             val payload: JsonNode = json.read(response)
             val errors = payload["errors"]
-            Assertions.assertThat(errors)
+            Assertions
+                .assertThat(errors)
                 .describedAs("GraphQL should return errors for missing required field")
                 .isNotNull()
         }
@@ -697,7 +739,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             // Act
@@ -710,7 +753,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             // Assert
             val payload: JsonNode = json.read(response)
             val errors = payload["errors"]
-            Assertions.assertThat(errors)
+            Assertions
+                .assertThat(errors)
                 .describedAs("GraphQL should return errors for missing required field")
                 .isNotNull()
         }
@@ -743,7 +787,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             // Act
@@ -756,7 +801,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             // Assert
             val payload: JsonNode = json.read(response)
             val errors = payload["errors"]
-            Assertions.assertThat(errors)
+            Assertions
+                .assertThat(errors)
                 .describedAs("GraphQL should return errors for missing required field")
                 .isNotNull()
         }
@@ -788,14 +834,16 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
                 )
 
             val signInRequest =
-                HttpRequest.POST("/graphql", signInMutation)
+                HttpRequest
+                    .POST("/graphql", signInMutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val signInResponse = httpClient.exchangeAsString(signInRequest)
             val signInPayload: JsonNode = json.read(signInResponse)
             signInPayload["errors"].assertNoErrors()
             val signInData = signInPayload["data"]["signIn"]
-            Assertions.assertThat(signInData)
+            Assertions
+                .assertThat(signInData)
                 .describedAs("signIn data must be present")
                 .isNotNull()
             val token = signInData["token"].stringValue
@@ -803,7 +851,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             // Now query currentUser with the token
             val query = SecurityTestDataBuilders.currentUserQuery()
             val request =
-                HttpRequest.POST("/graphql", query)
+                HttpRequest
+                    .POST("/graphql", query)
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("Authorization", "Bearer $token")
 
@@ -819,20 +868,24 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             payload["errors"].assertNoErrors()
 
             val data = payload["data"]
-            Assertions.assertThat(data)
+            Assertions
+                .assertThat(data)
                 .describedAs("GraphQL response must contain 'data'")
                 .isNotNull()
             val currentUserNode = data["currentUser"]
-            Assertions.assertThat(currentUserNode)
+            Assertions
+                .assertThat(currentUserNode)
                 .describedAs("currentUser must be present")
                 .isNotNull()
 
             val currentUser: JsonNode = currentUserNode
-            Assertions.assertThat(currentUser["id"])
+            Assertions
+                .assertThat(currentUser["id"])
                 .describedAs("user id must be present")
                 .isNotNull()
             Assertions.assertThat(currentUser["email"].stringValue).isEqualTo(email)
-            Assertions.assertThat(currentUser["displayName"])
+            Assertions
+                .assertThat(currentUser["displayName"])
                 .describedAs("user displayName must be present")
                 .isNotNull()
         }
@@ -843,7 +896,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             // return null instead of throwing errors, allowing public queries.
             val query = SecurityTestDataBuilders.currentUserQuery()
             val request =
-                HttpRequest.POST("/graphql", query)
+                HttpRequest
+                    .POST("/graphql", query)
                     .contentType(MediaType.APPLICATION_JSON)
             // No Authorization header
 
@@ -859,11 +913,13 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             payload["errors"].assertNoErrors()
 
             val data = payload["data"]
-            Assertions.assertThat(data)
+            Assertions
+                .assertThat(data)
                 .describedAs("GraphQL response must contain 'data'")
                 .isNotNull()
             // Note: json.read converts null to JsonNull, so we check for isNull property
-            Assertions.assertThat(data["currentUser"].isNull)
+            Assertions
+                .assertThat(data["currentUser"].isNull)
                 .describedAs("currentUser should be null when no token provided")
                 .isTrue()
         }
@@ -874,7 +930,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             // Arrange
             val query = SecurityTestDataBuilders.currentUserQuery()
             val request =
-                HttpRequest.POST("/graphql", query)
+                HttpRequest
+                    .POST("/graphql", query)
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("Authorization", "Bearer invalid-token-123")
 
@@ -890,11 +947,13 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             payload["errors"].assertNoErrors()
 
             val data = payload["data"]
-            Assertions.assertThat(data)
+            Assertions
+                .assertThat(data)
                 .describedAs("GraphQL response must contain 'data'")
                 .isNotNull()
             // Note: json.read converts null to JsonNull, so we check for isNull property
-            Assertions.assertThat(data["currentUser"].isNull)
+            Assertions
+                .assertThat(data["currentUser"].isNull)
                 .describedAs("currentUser should be null when invalid token provided")
                 .isTrue()
         }
@@ -921,7 +980,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
                 )
 
             val signInRequest =
-                HttpRequest.POST("/graphql", signInMutation)
+                HttpRequest
+                    .POST("/graphql", signInMutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val signInResponse = httpClient.exchangeAsString(signInRequest)
@@ -933,7 +993,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             // Try to use refresh token as access token
             val query = SecurityTestDataBuilders.currentUserQuery()
             val request =
-                HttpRequest.POST("/graphql", query)
+                HttpRequest
+                    .POST("/graphql", query)
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("Authorization", "Bearer $refreshToken")
 
@@ -949,7 +1010,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             payload["errors"].assertNoErrors()
 
             val data = payload["data"]
-            Assertions.assertThat(data["currentUser"].isNull)
+            Assertions
+                .assertThat(data["currentUser"].isNull)
                 .describedAs("currentUser should be null when refresh token is used as access token")
                 .isTrue()
         }
@@ -983,7 +1045,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
                 )
 
             val signInRequest =
-                HttpRequest.POST("/graphql", signInMutation)
+                HttpRequest
+                    .POST("/graphql", signInMutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val signInResponse = httpClient.exchangeAsString(signInRequest)
@@ -991,7 +1054,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
 
             signInPayload["errors"].assertNoErrors()
             val signInData = signInPayload["data"]["signIn"]
-            Assertions.assertThat(signInData)
+            Assertions
+                .assertThat(signInData)
                 .describedAs("signIn data must be present")
                 .isNotNull()
             val token = signInData["token"].stringValue
@@ -1003,7 +1067,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             // Step 2: Query current user with token
             val query = SecurityTestDataBuilders.currentUserQuery()
             val queryRequest =
-                HttpRequest.POST("/graphql", query)
+                HttpRequest
+                    .POST("/graphql", query)
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("Authorization", "Bearer $token")
 
@@ -1012,7 +1077,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
 
             queryPayload["errors"].assertNoErrors()
             val currentUser = queryPayload["data"]["currentUser"]
-            Assertions.assertThat(currentUser)
+            Assertions
+                .assertThat(currentUser)
                 .describedAs("currentUser must be present")
                 .isNotNull()
             Assertions.assertThat(currentUser["email"].stringValue).isEqualTo(email)
@@ -1020,7 +1086,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
 
             // Step 3: Verify refresh token can be used for authentication
             val authenticatedUser = authenticationService.authenticateByToken(refreshToken)
-            Assertions.assertThat(authenticatedUser)
+            Assertions
+                .assertThat(authenticatedUser)
                 .describedAs("authenticatedUser must be present")
                 .isNotNull()
             Assertions.assertThat(authenticatedUser?.email).isEqualTo(email)
@@ -1048,7 +1115,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
                 )
 
             val signInRequest =
-                HttpRequest.POST("/graphql", signInMutation)
+                HttpRequest
+                    .POST("/graphql", signInMutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val signInResponse = httpClient.exchangeAsString(signInRequest)
@@ -1058,13 +1126,15 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             val token = signInData["token"].stringValue
 
             // Assert - Token is a JWT (has 3 parts separated by dots)
-            Assertions.assertThat(token.split("."))
+            Assertions
+                .assertThat(token.split("."))
                 .describedAs("Token should be a JWT with 3 parts (header.payload.signature)")
                 .hasSize(3)
 
             // Assert - Token can be validated as JWT access token
             val validatedUser = authenticationService.validateAccessToken(token)
-            Assertions.assertThat(validatedUser)
+            Assertions
+                .assertThat(validatedUser)
                 .describedAs("JWT access token should be valid")
                 .isNotNull()
             Assertions.assertThat(validatedUser?.email).isEqualTo(email)
@@ -1072,7 +1142,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             // Assert - Token can be used to query currentUser
             val query = SecurityTestDataBuilders.currentUserQuery()
             val queryRequest =
-                HttpRequest.POST("/graphql", query)
+                HttpRequest
+                    .POST("/graphql", query)
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("Authorization", "Bearer $token")
 
@@ -1080,7 +1151,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             val queryPayload: JsonNode = json.read(queryResponse)
             queryPayload["errors"].assertNoErrors()
             val currentUser = queryPayload["data"]["currentUser"]
-            Assertions.assertThat(currentUser)
+            Assertions
+                .assertThat(currentUser)
                 .describedAs("currentUser should be returned with valid JWT token")
                 .isNotNull()
             Assertions.assertThat(currentUser["email"].stringValue).isEqualTo(email)
@@ -1091,7 +1163,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             // Validates that invalid JWT tokens are properly rejected
             val query = SecurityTestDataBuilders.currentUserQuery()
             val request =
-                HttpRequest.POST("/graphql", query)
+                HttpRequest
+                    .POST("/graphql", query)
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("Authorization", "Bearer invalid.jwt.token")
 
@@ -1100,7 +1173,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             payload["errors"].assertNoErrors()
 
             val data = payload["data"]
-            Assertions.assertThat(data["currentUser"].isNull)
+            Assertions
+                .assertThat(data["currentUser"].isNull)
                 .describedAs("currentUser should be null for invalid JWT token")
                 .isTrue()
         }
@@ -1111,7 +1185,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             // For now, we test that invalid tokens are rejected
             val query = SecurityTestDataBuilders.currentUserQuery()
             val request =
-                HttpRequest.POST("/graphql", query)
+                HttpRequest
+                    .POST("/graphql", query)
                     .contentType(MediaType.APPLICATION_JSON)
                     .header(
                         "Authorization",
@@ -1125,7 +1200,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
             payload["errors"].assertNoErrors()
 
             val data = payload["data"]
-            Assertions.assertThat(data["currentUser"].isNull)
+            Assertions
+                .assertThat(data["currentUser"].isNull)
                 .describedAs("currentUser should be null for expired/invalid JWT token")
                 .isTrue()
         }
@@ -1143,7 +1219,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
@@ -1165,7 +1242,8 @@ open class GraphQLAuthenticationIntegrationTest : BaseIntegrationTest(), Postgre
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)

@@ -2,7 +2,6 @@
   <img src="./design/assets/logos/neotool-logo-blue.svg" alt="NeoTool Logo" width="220" />
 </p>
 
-
 # NeoTool — build enterprise solutions smarter and faster
 
 ![Kotlin](https://img.shields.io/badge/Kotlin-Micronaut-7F52FF?logo=kotlin)
@@ -12,338 +11,102 @@
 ![Docker](https://img.shields.io/badge/Infra-Docker%20Compose-2496ED?logo=docker)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
----
+NeoTool is a **modular full‑stack baseline** for building new products quickly without sacrificing architecture quality. It ships a cohesive monorepo with backend, frontend, contracts, design assets, and infra that are ready to customize.
 
-NeoTool is a **modular full‑stack boilerplate** designed to **accelerate new app development** while keeping **clean architecture and best practices** baked in from day one.
-
-Think of it as a **foundation framework** that helps you spin up new services or apps (backend, frontend, infra, and design system), all wired together and ready to evolve.
-
-NeoTool follows **Spec‑Driven Development (SDD)**: the `docs/` specification (features, patterns, standards, and validation checklists) drives implementation and review, not the other way around.
-
----
-
-## ✨ Overview
-
-NeoTool brings together several layers under one monorepo:
-
-| Layer | Description | Tech Stack |
-|-------|--------------|-------------|
-| **Frontend (`web/`)** | React + Next.js web app scaffold ready to consume GraphQL APIs. | React, Next.js, TypeScript |
-| **Mobile (`mobile/`)** | Expo + React Native setup for cross‑platform mobile apps. | React Native, Expo |
-| **Backend (`service/`)** | Kotlin + Micronaut with GraphQL, modular architecture, reusable components, and testing setup. | Kotlin, Micronaut, GraphQL, Gradle |
-| **Contracts (`contracts/`)** | GraphQL Federation + OpenAPI specs for schema standardization. | Apollo Federation, OpenAPI |
-| **Design (`design/`)** | Brand assets, UI tokens, icons, and design guidelines. | Figma, Adobe, Tokens |
-| **Infra (`infra/`)** | Docker Compose, Kubernetes (Kustomize), GitOps (ArgoCD), and observability stack. | Docker, K8s, Grafana, Prometheus, Loki |
-| **Docs (`docs/`)** | ADRs and developer documentation via Docusaurus. | Markdown, Docusaurus |
+**What sets it apart**
+- Spec‑Driven Development: documentation in `docs/` drives implementation, validation, and reviews.
+- GraphQL‑first contracts with federation support and OpenAPI for REST.
+- Security‑first patterns out of the box (AuthN/Z, mTLS, audit hooks).
+- Cloud‑ready tooling: local Docker stack, K8s/GitOps artifacts, and CI/CD guardrails.
+- Productization path: treat this repo as upstream and pull improvements into your products.
 
 ---
 
-## Getting Started
+## Repository map
+
+| Area | Path | Notes |
+| --- | --- | --- |
+| **Frontend** | `web/` | Next.js + React scaffold wired for GraphQL APIs. |
+| **Mobile** | `mobile/` | Expo + React Native starter (optional). |
+| **Backend** | `service/kotlin/` | Micronaut services (GraphQL, modular architecture, tests). |
+| **Contracts** | `contracts/` | GraphQL federation schemas and OpenAPI specs. |
+| **Design** | `design/` | Brand assets, UI tokens, icons, guidelines. |
+| **Infra** | `infra/` | Docker Compose for local, K8s/GitOps artifacts, observability stack. |
+| **Docs** | `docs/` | ADRs, feature specs, standards, and checklists. |
+| **CLI** | `neotool` | Helper for validation, schema sync, Kafka, and more. |
+
+---
+
+## Quick start
 
 ### Prerequisites
+- Node.js 20+
+- JDK 21+
+- Docker Engine (Colima recommended on macOS/Linux)
+- Git, `pnpm` or `npm`
 
-Before you begin, ensure you have the following installed:
-
-- **Node.js** - Version 20.x or higher (LTS recommended)
-- **JDK** - Version 21 or higher
-- **nvm** (Node Version Manager) - For managing Node.js versions
-- **sdkman** (SDK Manager) - For managing JDK and other SDKs
-- **Git** - Version control system
-- **Docker Engine** - For running infrastructure services (via Colima on Mac/Linux)
-- **Colima** - For running Docker Engine on Mac/Linux without Docker Desktop
-
-**What is Colima?** Colima (Containers on Linux on Mac) is a lightweight, open-source alternative to Docker Desktop. It runs Docker containers using a Linux virtual machine, providing a native Docker experience without the overhead of Docker Desktop.
-
-#### Installation Instructions
-
-##### macOS
-
+### Bootstrap the stack
 ```bash
-# Install Homebrew (if not already installed)
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-# Install Git
-brew install git
-
-# Install nvm (Node Version Manager)
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
-
-# Reload your shell configuration
-source ~/.zshrc  # or ~/.bash_profile if using bash
-
-# Install Node.js 20.x LTS using nvm
-nvm install 20
-nvm use 20
-nvm alias default 20
-
-# Install sdkman (SDK Manager)
-curl -s "https://get.sdkman.io" | bash
-source "$HOME/.sdkman/bin/sdkman-init.sh"
-
-# Install JDK 21 using sdkman
-sdk install java 21-tem
-# Or list available versions: sdk list java
-# Then install a specific version: sdk install java <version>
-
-# Install Colima (Docker Engine alternative)
-brew install colima docker docker-compose
-
-# Start Colima
-colima start
-
-# Verify installations
-node --version    # Should show v20.x.x
-java --version    # Should show openjdk 21.x.x
-git --version     # Should show git version
-docker --version  # Should show Docker version
-```
-
-##### Linux
-
-```bash
-# Install Git
-sudo apt update  # For Debian/Ubuntu
-sudo apt install -y git
-# OR for Fedora/RHEL
-sudo dnf install -y git
-
-# Install nvm (Node Version Manager)
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
-
-# Reload your shell configuration
-source ~/.bashrc  # or ~/.zshrc if using zsh
-
-# Install Node.js 20.x LTS using nvm
-nvm install 20
-nvm use 20
-nvm alias default 20
-
-# Install sdkman (SDK Manager)
-curl -s "https://get.sdkman.io" | bash
-source "$HOME/.sdkman/bin/sdkman-init.sh"
-
-# Install JDK 21 using sdkman
-sdk install java 21-tem
-# Or list available versions: sdk list java
-# Then install a specific version: sdk install java <version>
-
-# Install Colima (Docker Engine alternative)
-# For Debian/Ubuntu
-sudo apt install -y colima docker.io docker-compose
-# OR for Fedora/RHEL
-sudo dnf install -y colima docker docker-compose
-
-# Start Colima (provides Docker Engine)
-colima start
-
-# Verify installations
-node --version    # Should show v20.x.x
-java --version    # Should show openjdk 21.x.x
-git --version     # Should show git version
-docker --version  # Should show Docker version
-```
-
-**Note:** After installing nvm or sdkman, you may need to restart your terminal or run `source ~/.zshrc` (or `~/.bashrc`) for the changes to take effect.
-
-
-### Setup Options
-
-Choose the setup method that best fits your situation:
-
-#### Option 1: Starting a New Project
-
-If you're starting from scratch, clone the starter repository:
-
-```bash
-# Clone the repository
 git clone https://github.com/salomax/neotool.git
 cd neotool
 
-# Install dependencies for web frontend
-cd web
-npm install
-# or
-pnpm install
-
-# Install dependencies for Kotlin backend
-cd ../service/kotlin
-./gradlew build
-
-# Install dependencies for mobile (optional)
-cd ../../mobile
-npm install
-```
-
-#### Option 2: Integrating into an Existing Project
-
-If you already have a project and want to integrate NeoTool into it, merge from remote to preserve commit history:
-
-```bash
-# Navigate to your existing project
-cd /path/to/your/existing/project
-
-# Add the starter as a remote
-git remote add starter https://github.com/salomax/neotool.git
-
-# Fetch the starter repository
-git fetch starter
-
-# Merge the starter into your repo
-git merge starter/main --allow-unrelated-histories
-
-# Resolve any conflicts, then commit
-git add .
-git commit -m "Merge NeoTool starter boilerplate"
-```
-
-## Using NeoTool as an Upstream Base
-
-Once you start shipping products derived from NeoTool, treat this repo as the upstream foundation while keeping each product in its own repository. A typical workflow looks like this:
-
-1. **Clone your product repository** (or initialize it as usual) and keep it connected to its primary remote (`origin`).
-2. **Add NeoTool as an upstream remote** so you can pull foundational improvements over time:
-   ```bash
-   git remote add upstream git@github.com:salomax/neotool.git
-   git remote -v  # Confirm origin (product) and upstream (NeoTool) remotes
-   ```
-3. **Sync with upstream** whenever NeoTool ships updates:
-   ```bash
-   git fetch upstream
-   git checkout main
-   git merge upstream/main      # or: git rebase upstream/main
-   ```
-4. **Resolve conflicts, test, and push** the synchronized branch back to your product repo:
-   ```bash
-   # After resolving conflicts locally
-   git add .
-   git commit -m "Sync with NeoTool upstream"
-   git push origin main
-   ```
-   - If both repos changed the same file (e.g., a page inside `web/`), Git will stop during the merge/rebase and mark the conflicting file with conflict markers. Edit the file, decide which parts to keep or blend, then run `git add <file>` and continue (`git commit` for merges, `git rebase --continue` for rebases).
-5. **Use tags/releases when you prefer a stable baseline**:
-   ```bash
-   git fetch upstream --tags
-   git merge upstream/v1.4.0
-   ```
-
-By keeping changes that are universally useful inside this upstream and limiting product-specific customizations to your product repository, you minimize merge pain and keep all products aligned with NeoTool’s evolution.
-
-### Managing Merge Conflicts with Upstream
-
-To automatically resolve conflicts for product-specific files (like favicon, logos, or config files), use the `upstream` command to configure which files should always use "ours" merge strategy:
-
-```bash
-# Add specific files or patterns
-./neotool upstream add web/public/favicon.ico
-./neotool upstream add project.config.json
-./neotool upstream add "web/src/app/product/**"
-
-# List all configured files
-./neotool upstream list
-
-# Remove a file from auto-merge strategy
-./neotool upstream remove web/public/favicon.ico
-```
-
-Note: The `.gitattributes` file is already configured with default entries (favicon and logos) when you clone NeoTool. You can add more files as needed.
-
-This creates a `.gitattributes` file that tells Git to automatically keep your version of specified files during upstream merges, preventing conflicts for product-specific customizations.
-
-### Customizing Your Project Name
-
-After cloning or integrating the starter, you'll want to customize the project name from "neotool" to your own project name. This includes updating package names, namespaces, database names, and all references throughout the codebase.
-
-**Quick Setup:**
-
-1. **Check system requirements:**
-   ```bash
-   ./neotool --version
-   ```
-   This verifies that Node.js, Docker, and JVM are installed.
-
-2. **Edit `project.config.json`** with your project details
-
-3. **Review and commit the changes:**
-   ```bash
-   git diff
-   git add .
-   git commit -m "Rename project from neotool to <your-project-name>"
-   ```
-
-For detailed instructions, see the [Project Setup Guide](./docs/PROJECT_SETUP.md).
-
-### Neotool CLI
-
-The project includes a CLI tool for common tasks:
-
-```bash
-# Check system requirements (Node.js, Docker, JVM)
+# Verify tooling (Node, Docker, JVM)
 ./neotool --version
-
-# GraphQL schema management
-./neotool graphql sync      # Interactive schema sync
-./neotool graphql validate  # Validate schema consistency
-./neotool graphql generate  # Generate supergraph schema
-
-# Validation
-./neotool validate                    # Run all validations
-./neotool validate --web              # Frontend only
-./neotool validate --service          # Backend only
-
-# Kafka management
-./neotool kafka --topic                              # List topics
-./neotool kafka --topic <name>                       # Describe topic
-./neotool kafka --consumer-group                     # List consumer groups
-./neotool kafka --consumer-group <name>              # Describe consumer group
-
-# Show help
-./neotool help
-./neotool <command> --help  # Command-specific help
 ```
 
-All commands can also be accessed via `scripts/cli/cli` if you prefer.
+Install dependencies:
+```bash
+# Web
+cd web && pnpm install   # or npm install
 
-### Quick Start
-
-Once you have the project set up:
-
-1. **Configure environment variables for infra** - Create `.env.local` files in the `infra/` directory
-
-```plaintext
-# --- Global ---
-APP_NAME=neotool
-APP_LOCALE=en-US
-GRAPHQL_ENDPOINT=http://router:4000/graphql
-
-# --- Database ---
-POSTGRES_USER=neotool
-POSTGRES_PASSWORD=neotool
-POSTGRES_DB=neotool_db
-POSTGRES_HOST=postgres
-POSTGRES_PORT=5432
-
-# --- Grafana ---
-GF_SECURITY_ADMIN_USER=admin
-GF_SECURITY_ADMIN_PASSWORD=admin
-
-# --- AI ---
-GEMINI_API_KEY=<enter Gemini key here>
+# Backend
+cd ../service/kotlin && ./gradlew build
 ```
 
-2. **Configure environment variables for web** - Create `.env.local` files in the `web/` directory with your API URLs
-3. **Start the development server** - Run `npm run dev` or `pnpm dev` in the `web/` directory
-4. **Start the backend** - Run `./gradlew run` in the `service/kotlin/` directory, or use Docker Compose
-5. **Explore the documentation** - Visit the documentation section in the web app for detailed guides
+Run local infrastructure (Postgres, router, etc.):
+```bash
+docker compose -f infra/docker/docker-compose.local.yml up -d
+```
 
-### Next Steps
+Start the apps:
+```bash
+# Web
+cd web && pnpm dev
 
-- Review the [Architecture Documentation](./docs/adr/)
-- Check [Service Documentation](./docs/service/)
-- Review [Web Documentation](./docs/web/)
-- Explore the [Design System](./design/)
-- Set up your development environment
+# Backend
+cd service/kotlin && ./gradlew run
+```
 
-## 🧩 Architecture
+Environment configuration:
+- Add `.env.local` files under `infra/` (database, GraphQL endpoint, AI keys).
+- Add `.env.local` under `web/` for API URLs.
+- Adjust `project.config.json` to rename the project.
+
+---
+
+## NeoTool CLI
+
+```bash
+./neotool --version                 # Verify toolchain
+
+./neotool graphql sync              # Interactive schema sync
+./neotool graphql validate          # Validate schema consistency
+./neotool graphql generate          # Build supergraph schema
+
+./neotool validate                  # Run all validations
+./neotool validate --web            # Frontend only
+./neotool validate --service        # Backend only
+
+./neotool kafka --topic             # List topics
+./neotool kafka --topic <name>      # Describe topic
+./neotool kafka --consumer-group    # List consumer groups
+```
+
+All commands are also available via `scripts/cli/cli`.
+
+---
+
+## Architecture
 
 ```mermaid
 graph TD
@@ -368,306 +131,70 @@ graph TD
 
 ---
 
-## Infrastructure
-
-#TODO
-
----
-
 ## Frontend
 
-#TODO
+Next.js + React foundation aimed at consuming GraphQL APIs. Includes TypeScript, linting, testing, and environment-driven configuration. Aligns with the design tokens and assets in `design/` for consistent branding across products.
 
 ---
 
 ## Backend
 
-### Security Module
+Kotlin + Micronaut services with modular boundaries, GraphQL endpoints, and testable components. Gradle tasks cover unit/integration tests, coverage (Kover), and incremental coverage enforcement for PRs. See `docs/service/` for module details.
 
-NeoTool includes a comprehensive security module that handles authentication, authorization, and user management out of the box. Built with security best practices and production-ready patterns, it provides a solid foundation for enterprise applications.
+### Security module
+Built-in authentication and authorization:
+- Password auth with Argon2id, OAuth2 (Google), JWT (access + refresh), remember-me, reset with rate limiting.
+- RBAC + ABAC, permission-based checks, resource-level and GraphQL field-level enforcement.
+- Interservice auth with mTLS, principals for users/services, audit logging hooks.
+- GraphQL API for user management, pagination, and batch operations to avoid N+1.
 
-**Key Features:**
+More details: `docs/03-features/security/`.
 
-- **Authentication (AuthN)**
-  - Password-based authentication with Argon2id hashing
-  - OAuth 2.0 integration (Google, extensible to other providers)
-  - JWT tokens (Access + Refresh token flow)
-  - Remember Me functionality
-  - Password reset with rate limiting
-
-- **Authorization (AuthZ)**
-  - Role-Based Access Control (RBAC)
-  - Attribute-Based Access Control (ABAC)
-  - Permission-based authorization
-  - Resource-level access control
-  - Service-to-service authentication
-  - GraphQL field-level authorization
-
-- **User Management**
-  - User registration and profile management
-  - User enable/disable functionality
-  - Role and group assignment
-  - GraphQL API with Relay cursor pagination
-  - Batch operations for N+1 query prevention
-
-- **Security Infrastructure**
-  - Interservice authentication with mTLS support
-  - Principal-based access control (users and services)
-  - Audit logging for security events
-  - Comprehensive test coverage (100% for critical services)
-
-For detailed security documentation, see [Security Feature Documentation](./docs/03-features/security/).
-
-### APIs (GraphQL and REST)
-
-### Sync services
-
-#TODO
-
-### Async services
-
-#### Messaging
-
-#TODO
-
-#### Webhooks
-
-#TODO
+### APIs
+- GraphQL federation as the primary contract surface.
+- REST gateway where needed, with OpenAPI specs in `contracts/`.
 
 ---
 
-## Data storage layer
+## Infrastructure
 
-# CI/CD
-
-## Test → Build → CR → Preview → Staging → Production 
-
-This model validates code quality before merge (Preview Apps), validates system integration after merge (Staging), and promotes the same artifact digest to Production with gates, rollouts, and fast rollback.
-
-### Goals & Principles
-
-- Shift-left quality: catch issues in PR with automated checks + preview environments.
-
-- Staging as rehearsal: validate real infra, configs, and secrets after merge.
-
-- Promote, don’t rebuild: production uses the exact image digest tested in staging.
-
-- Safe releases: environments, approvals, canaries/blue-green, and automatic rollback.
-
-
-## Stages & Purpose
-
-### Pull Request CI + Preview App (Ephemeral)
-
-Test, build, lint, typecheck, security scan; deploy a temporary environment per PR
-
-PR is approved only after preview validation (automated + manual)
-
-### Staging (Shared, Persistent)
-
-Upon merge to main, deploy to staging using the built images (by tag/digest).
-
-Automated smoke/E2E tests, validate end-to-end integration (infra/secrets/DB migrations) close to prod.
-
-### Promotion to Production (Tag/Release)
-
-Deterministic deployments, create a semantic tag vX.Y.Z; promote the same digest from staging to prod.
-
-Gate via GitHub Environments (approvals), roll out (canary/blue-green), monitor, and auto-rollback if metrics degrade.
-
-Also, provide the release notes.
-
-To trigger it:
-
-```bash
-git tag v1.0.0 && git push origin v1.0.0
-```
-Or create a release in the GitHub UI, which can also create the tag automatically
-
-### 🚨 Emergency Fixes (Using Regular Flow)
-
-For emergency production fixes, we use the **same regular deployment flow** to ensure consistency and full validation.
-
-### Post-Release Verification & Rollback
-
-Health checks, SLO/SLA monitors, error-rate guards.
-
-Stable prod with auditable release trail.
-
-## Flowchart
-
-```mermaid
-graph TD
-  START1[✨ New Feature] --> A[Developer opens PR]
-  START2[🐛 Bug Fix / 🚨 Emergency Fix] --> A
-  A --> B[PR CI: build/lint/test]
-  B --> C{Build OK?}
-  C -- no --> C1[Fix & push]
-  C1 --> B
-  C -- yes --> D[Deploy Preview App]
-  D --> E[Validation on Preview App]
-  E --> F{Approve PR?}
-  F -- no --> C1
-  F -- yes --> G[Merge to main]
-  G --> H[Deploy to Staging using same images]
-  H --> I[Run DB migrations along first execution]
-  I --> J[Smoke + E2E + Contract tests + Observability checks]
-  J --> K{All checks green?}
-  K -- no --> H1[Fix → new PR cycle]
-  H1 --> A
-  K -- yes --> L[Create Tag with GitHub Release]
-  L --> M[Deploy to Production with Canary/Blue-Green]
-  M --> N[Post-release health checks & SLO guardrails]
-  N --> O{Healthy?}
-  O -- no --> P[Auto-rollback to previous digest]
-  O -- yes --> Q[Complete Release]
-```
-
-## Pipeline validations
-
-### Pull Request (Preview) Stage
-
-#### Backend Validations
-
-**Unit Tests** (runs for each service: app, assistant, security, common):
-```bash
-cd service/kotlin
-./gradlew :common:test --no-daemon
-./gradlew :[module]:test --no-daemon
-```
-
-**Unit Tests with Coverage** (generates Kover reports and validates thresholds):
-```bash
-cd service/kotlin
-./gradlew :[module]:test :[module]:koverXmlReport :[module]:koverHtmlReport :[module]:koverVerify --no-daemon
-```
-
-**Integration Tests** (runs for each service except common):
-```bash
-cd service/kotlin
-./gradlew :[module]:testIntegration --no-daemon
-```
-
-**Integration Tests with Coverage** (generates Kover reports and validates thresholds):
-```bash
-cd service/kotlin
-./gradlew :[module]:testIntegration :[module]:koverXmlReport :[module]:koverHtmlReport :[module]:koverVerify --no-daemon
-```
-
-**Run all backend tests with coverage**:
-```bash
-cd service/kotlin
-./gradlew test testIntegration koverRootReport --no-daemon
-```
-
-**Coverage Thresholds**:
-- Unit Tests: 90% minimum coverage (full codebase)
-- Integration Tests: 80% minimum coverage (full codebase)
-- Security Services (`io.github.salomax.neotool.security.service.*`): 100% coverage required
-- **Incremental Coverage (PRs)**: 80% minimum for changed lines only (prevents paying past debt)
-- Coverage reports are generated in `build/reports/kover/` directory
-
-**Incremental Coverage for PRs**:
-For Pull Requests, coverage is checked only for lines changed in the PR, not the entire codebase. This prevents failing PRs due to existing low coverage:
-```bash
-# Check incremental coverage for a module
-./gradlew :[module]:koverIncrementalCoverageCheck \
-  -Pcoverage.baseBranch=main \
-  -Pcoverage.incrementalThreshold=80
-```
-
-#### Frontend Validations
-
-```bash
-# Type checking
-pnpm run typecheck
-
-# Linting
-pnpm run lint
-
-# Unit tests
-pnpm run test
-
-# Tests in watch mode
-pnpm run test:watch
-
-# Tests with coverage
-pnpm run test:coverage
-```
-
-**Coverage Thresholds**:
-- Minimum 80% coverage required for branches, functions, lines, and statements
-- Coverage reports are generated in `web/coverage/` directory
-- CI/CD validates coverage thresholds and fails if not met
-
-**All CI validations**:
-```bash
-pnpm run ci:unit
-```
-
-#### Security Validations
-
-**Vulnerability scanning** (runs Trivy in CI):
-- Scans filesystem for CRITICAL and HIGH severity vulnerabilities
-- Results uploaded to GitHub Security tab
-- Can be run locally with: `trivy fs .`
+Local stack via Docker Compose (`infra/docker/`), including database, pgbouncer, and GraphQL router. K8s/GitOps artifacts (Kustomize, ArgoCD-friendly) live in `infra/`, alongside observability pieces (Grafana/Prometheus/Loki) and router configs. Environment samples are provided in `infra/.env.local`.
 
 ---
 
-## 🧭 Roadmap
+## Data layer
 
-### Architecture/Infra
-- [ ] Entity version validation in order to prevent concurrency issues
-- [ ] CI/CD + K8S artifacts
-- [ ] Mobile with React Native and Expo
-- [ ] Logging (promtail, loki)
-- [ ] Purge after a period of time (logs and workflow ru on GH)
-- [ ] Visual regression testing
-- [ ] AI agents
-- [ ] BI service
-- [ ] File storage abstraction
-- [ ] Monitoring alerts and SLO definitions
-- [ ] Feature flag service (unleash)
-- [ ] Vault service (HashiCorp)
-- [ ] Enable K8s deploy via GitOps  
-- [ ] K8S Autoscaling
-- [ ] Error tracker / Update Frontend / see Sentry (self-hosted or cloud)
-- [ ] Metrics tracker / Google Analytics
-- [ ] CDN integration
-
-### Prefect
-
-- [ ] Setup multi-env (local and container)
-
-### Security
-
-- [ ] Refresh token rotation: Implement a mechanism to track used Refresh Tokens (RTs). When an RT is used to get a new pair, it must be IMMEDIATELY invalidated. When a valid, un-replayed Refresh Token is received, the server MUST generate a brand new Access Token and a brand new Refresh Token.
-
-- [ ] Implement Idle Timeout: Define a period of inactivity (e.g., 30 days). If the Refresh Token has not been used within this period, it MUST be revoked. This cleans up unused sessions and forces re-login after long periods of absence.
-
-- [ ] Key rotation automation: Implement automatic key rotation with zero-downtime key rollover. Support multiple active key versions, automatic expiration of old keys, and seamless transition for validators.
-
-- [ ] Audit trail
-
-### Authorization
-
-- [ ] Add short-lived (30s-60s) caching for RBAC lookups – Introduce @Cacheable layers around collectUserRoleIds and getUserPermissions to cut repeated DB fetches within a pod while honoring per-user invalidation hooks (role assignment changes, group updates).
-
-- [ ] Share cache state across instances – Back the caches with a distributed store or event-driven invalidation (e.g., Redis/Memcached or Kafka-based cache busting) so permission changes on one container instantly purge stale entries on all others.
-
-- [ ] Guardrails and observability – Define TTLs, hit/miss metrics, and a fallback strategy (force bypass on critical actions) to ensure RBAC decisions remain accurate even if the cache is out-of-sync or unavailable.
-
-### Examples / Built-in features
-- [ ] Webhook example
-- [ ] AI Chat
-
-### Spec
-- [ ] Service monitoring Dashboards 
-- [ ] Mobile implementation
+Postgres (fronted by pgbouncer) is the default store. Migrations and persistence strategies are defined per service; see service-specific docs for schema design and migration workflow.
 
 ---
 
-## 🤝 Contributing
+## CI/CD model
 
-Pull requests, issues, and ideas are super welcome!  
-Just keep the structure clean and consistent with existing modules.
+Pipeline emphasizes preview validation, staging rehearsal, and digest promotion to production:
+- PR: build, lint, typecheck, unit/integration tests, coverage gates, preview deployments.
+- Staging: deploy merged changes using the same image digests; smoke/E2E/contract checks with real infra and secrets.
+- Production: promote the tested digest via tag/release, gated with approvals and canary/blue-green options; automatic rollback on health regression.
+
+Coverage thresholds:
+- Backend: unit 90%, integration 80%, security services 100%, incremental coverage 80% on changed lines.
+- Frontend: minimum 80% for branches/functions/lines/statements.
+
+Release promotion: `git tag vX.Y.Z && git push origin vX.Y.Z` (or create a GitHub release to tag automatically).
+
+---
+
+## Roadmap (snapshot)
+
+- Entity versioning for concurrency control
+- CI/CD + K8s artifacts hardening and GitOps enablement
+- Observability: logging (promtail/Loki), monitoring alerts, SLO definitions
+- Feature flags (Unleash), Vault service integration
+- Visual regression testing
+- AI agents, BI service, webhook and AI chat examples
+- Mobile improvements (multi-env, Expo)
+
+---
+
+## Contributing
+
+Issues, ideas, and PRs are welcome. Keep modules clean, align with the existing architecture, and favor upstream-friendly changes so products can easily pull updates.***

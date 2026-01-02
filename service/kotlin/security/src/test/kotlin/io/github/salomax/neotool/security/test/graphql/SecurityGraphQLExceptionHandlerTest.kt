@@ -4,9 +4,9 @@ import graphql.execution.DataFetcherExceptionHandlerParameters
 import graphql.execution.ExecutionStepInfo
 import graphql.execution.ResultPath
 import graphql.schema.DataFetchingEnvironment
+import io.github.salomax.neotool.common.security.exception.AuthenticationRequiredException
+import io.github.salomax.neotool.common.security.exception.AuthorizationDeniedException
 import io.github.salomax.neotool.security.graphql.SecurityGraphQLExceptionHandler
-import io.github.salomax.neotool.security.service.exception.AuthenticationRequiredException
-import io.github.salomax.neotool.security.service.exception.AuthorizationDeniedException
 import org.assertj.core.api.Assertions
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested

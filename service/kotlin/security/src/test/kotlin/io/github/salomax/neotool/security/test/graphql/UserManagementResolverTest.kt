@@ -5,8 +5,8 @@ import io.github.salomax.neotool.security.domain.rbac.Permission
 import io.github.salomax.neotool.security.domain.rbac.Role
 import io.github.salomax.neotool.security.graphql.mapper.UserManagementMapper
 import io.github.salomax.neotool.security.graphql.resolver.UserManagementResolver
-import io.github.salomax.neotool.security.service.AuthorizationService
-import io.github.salomax.neotool.security.service.UserManagementService
+import io.github.salomax.neotool.security.service.authorization.AuthorizationService
+import io.github.salomax.neotool.security.service.management.UserManagementService
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName

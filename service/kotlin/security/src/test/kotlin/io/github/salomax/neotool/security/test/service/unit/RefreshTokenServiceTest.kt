@@ -1,18 +1,17 @@
 package io.github.salomax.neotool.security.test.service.unit
 
-import io.github.salomax.neotool.security.config.JwtConfig
+import io.github.salomax.neotool.common.security.config.JwtConfig
+import io.github.salomax.neotool.common.security.exception.AuthenticationRequiredException
+import io.github.salomax.neotool.common.security.principal.AuthContext
+import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.security.model.PrincipalEntity
 import io.github.salomax.neotool.security.model.RefreshTokenEntity
-import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.RefreshTokenRepository
 import io.github.salomax.neotool.security.repo.UserRepository
-import io.github.salomax.neotool.security.service.AuthContext
-import io.github.salomax.neotool.security.service.AuthContextFactory
-import io.github.salomax.neotool.security.service.JwtService
-import io.github.salomax.neotool.security.service.PrincipalType
-import io.github.salomax.neotool.security.service.RefreshTokenService
-import io.github.salomax.neotool.security.service.exception.AuthenticationRequiredException
+import io.github.salomax.neotool.security.service.authentication.AuthContextFactory
+import io.github.salomax.neotool.security.service.jwt.JwtTokenIssuer
+import io.github.salomax.neotool.security.service.jwt.RefreshTokenService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -37,7 +36,7 @@ class RefreshTokenServiceTest {
     private lateinit var refreshTokenRepository: RefreshTokenRepository
     private lateinit var userRepository: UserRepository
     private lateinit var principalRepository: PrincipalRepository
-    private lateinit var jwtService: JwtService
+    private lateinit var jwtTokenIssuer: JwtTokenIssuer
     private lateinit var authContextFactory: AuthContextFactory
     private lateinit var jwtConfig: JwtConfig
     private lateinit var refreshTokenService: RefreshTokenService
@@ -47,39 +46,42 @@ class RefreshTokenServiceTest {
         refreshTokenRepository = mock()
         userRepository = mock()
         principalRepository = mock()
-        jwtConfig = JwtConfig(
-            secret = "test-secret-key-minimum-32-characters-long-for-hmac-sha256",
-            accessTokenExpirationSeconds = 900L,
-            refreshTokenExpirationSeconds = 604800L,
-        )
-        jwtService = JwtService(jwtConfig)
+        jwtTokenIssuer = mock()
+        jwtConfig =
+            JwtConfig(
+                secret = "test-secret-key-minimum-32-characters-long-for-hmac-sha256",
+                accessTokenExpirationSeconds = 900L,
+                refreshTokenExpirationSeconds = 604800L,
+            )
         authContextFactory = mock()
-        refreshTokenService = RefreshTokenService(
-            refreshTokenRepository,
-            userRepository,
-            principalRepository,
-            jwtService,
-            authContextFactory,
-            jwtConfig,
-        )
+        refreshTokenService =
+            RefreshTokenService(
+                refreshTokenRepository,
+                userRepository,
+                principalRepository,
+                jwtTokenIssuer,
+                authContextFactory,
+                jwtConfig,
+            )
     }
 
     private fun mockEnabledPrincipal(userId: UUID) {
-        val principal = PrincipalEntity(
-            id = UUID.randomUUID(),
-            principalType = PrincipalType.USER,
-            externalId = userId.toString(),
-            enabled = true,
-        )
+        val principal =
+            PrincipalEntity(
+                id = UUID.randomUUID(),
+                principalType = PrincipalType.USER,
+                externalId = userId.toString(),
+                enabled = true,
+            )
         whenever(principalRepository.findByPrincipalTypeAndExternalId(PrincipalType.USER, userId.toString()))
             .thenReturn(Optional.of(principal))
     }
 
-    private fun hashToken(token: String): String {
-        return MessageDigest.getInstance("SHA-256")
+    private fun hashToken(token: String): String =
+        MessageDigest
+            .getInstance("SHA-256")
             .digest(token.toByteArray())
             .joinToString("") { "%02x".format(it) }
-    }
 
     @Nested
     @DisplayName("Create Refresh Token")
@@ -89,7 +91,9 @@ class RefreshTokenServiceTest {
             // Arrange
             val userId = UUID.randomUUID()
             val user = SecurityTestDataBuilders.user(id = userId, email = "test@example.com")
+            val expectedToken = "refresh-token-123"
             whenever(userRepository.findById(userId)).thenReturn(Optional.of(user))
+            whenever(jwtTokenIssuer.generateRefreshToken(userId)).thenReturn(expectedToken)
             whenever(refreshTokenRepository.save(any())).thenAnswer { it.arguments[0] as RefreshTokenEntity }
 
             // Act
@@ -97,8 +101,9 @@ class RefreshTokenServiceTest {
 
             // Assert
             assertThat(refreshToken).isNotBlank()
-            assertThat(refreshToken.split(".")).hasSize(3) // JWT has 3 parts
+            assertThat(refreshToken).isEqualTo(expectedToken)
             verify(userRepository).findById(userId)
+            verify(jwtTokenIssuer).generateRefreshToken(userId)
             verify(refreshTokenRepository).save(any())
         }
 
@@ -120,7 +125,12 @@ class RefreshTokenServiceTest {
             // Arrange
             val userId = UUID.randomUUID()
             val user = SecurityTestDataBuilders.user(id = userId, email = "test@example.com")
+            val token1Value = "refresh-token-1"
+            val token2Value = "refresh-token-2"
             whenever(userRepository.findById(userId)).thenReturn(Optional.of(user))
+            whenever(jwtTokenIssuer.generateRefreshToken(userId))
+                .thenReturn(token1Value)
+                .thenReturn(token2Value)
             whenever(refreshTokenRepository.save(any())).thenAnswer { it.arguments[0] as RefreshTokenEntity }
 
             // Act
@@ -129,6 +139,8 @@ class RefreshTokenServiceTest {
 
             // Assert
             assertThat(token1).isNotEqualTo(token2)
+            assertThat(token1).isEqualTo(token1Value)
+            assertThat(token2).isEqualTo(token2Value)
             val captor = ArgumentCaptor.forClass(RefreshTokenEntity::class.java)
             verify(refreshTokenRepository, times(2)).save(captor.capture())
             val savedTokens = captor.allValues
@@ -145,25 +157,28 @@ class RefreshTokenServiceTest {
             val userId = UUID.randomUUID()
             val user = SecurityTestDataBuilders.user(id = userId, email = "test@example.com")
             val familyId = UUID.randomUUID()
-            val oldRefreshToken = jwtService.generateRefreshToken(userId)
+            val oldRefreshToken = "old-refresh-token-123"
+            whenever(jwtTokenIssuer.generateRefreshToken(userId)).thenReturn(oldRefreshToken)
             val tokenHash = hashToken(oldRefreshToken)
             val now = Instant.now()
             val expiresAt = now.plusSeconds(604800L)
 
-            val oldTokenRecord = RefreshTokenEntity(
-                userId = userId,
-                tokenHash = tokenHash,
-                familyId = familyId,
-                issuedAt = now.minusSeconds(3600),
-                expiresAt = expiresAt,
-            )
+            val oldTokenRecord =
+                RefreshTokenEntity(
+                    userId = userId,
+                    tokenHash = tokenHash,
+                    familyId = familyId,
+                    issuedAt = now.minusSeconds(3600),
+                    expiresAt = expiresAt,
+                )
 
             val authContext: AuthContext = mock()
             whenever(refreshTokenRepository.findByTokenHash(tokenHash)).thenReturn(oldTokenRecord)
             whenever(userRepository.findById(userId)).thenReturn(Optional.of(user))
             mockEnabledPrincipal(userId)
             whenever(authContextFactory.build(user)).thenReturn(authContext)
-            whenever(jwtService.generateAccessToken(any<AuthContext>())).thenReturn("new-access-token")
+            whenever(jwtTokenIssuer.generateAccessToken(any<AuthContext>())).thenReturn("new-access-token")
+            whenever(jwtTokenIssuer.generateRefreshToken(userId)).thenReturn("new-refresh-token-456")
             whenever(refreshTokenRepository.save(any())).thenAnswer { it.arguments[0] as RefreshTokenEntity }
 
             // Act
@@ -198,26 +213,28 @@ class RefreshTokenServiceTest {
         fun `should throw exception when token already replaced`() {
             // Arrange
             val userId = UUID.randomUUID()
-            val oldRefreshToken = jwtService.generateRefreshToken(userId)
+            val oldRefreshToken = "old-refresh-token-replaced"
             val tokenHash = hashToken(oldRefreshToken)
             val familyId = UUID.randomUUID()
             val now = Instant.now()
-            val replacedBy = RefreshTokenEntity(
-                userId = userId,
-                tokenHash = "replacement-hash",
-                familyId = familyId,
-                issuedAt = now,
-                expiresAt = now.plusSeconds(604800L),
-            )
+            val replacedBy =
+                RefreshTokenEntity(
+                    userId = userId,
+                    tokenHash = "replacement-hash",
+                    familyId = familyId,
+                    issuedAt = now,
+                    expiresAt = now.plusSeconds(604800L),
+                )
 
-            val oldTokenRecord = RefreshTokenEntity(
-                userId = userId,
-                tokenHash = tokenHash,
-                familyId = familyId,
-                issuedAt = now.minusSeconds(3600),
-                expiresAt = now.plusSeconds(604800L),
-                replacedBy = replacedBy,
-            )
+            val oldTokenRecord =
+                RefreshTokenEntity(
+                    userId = userId,
+                    tokenHash = tokenHash,
+                    familyId = familyId,
+                    issuedAt = now.minusSeconds(3600),
+                    expiresAt = now.plusSeconds(604800L),
+                    replacedBy = replacedBy,
+                )
 
             whenever(refreshTokenRepository.findByTokenHash(tokenHash)).thenReturn(oldTokenRecord)
             whenever(refreshTokenRepository.findByFamilyId(familyId)).thenReturn(listOf(oldTokenRecord, replacedBy))
@@ -234,18 +251,19 @@ class RefreshTokenServiceTest {
         fun `should throw exception when token revoked`() {
             // Arrange
             val userId = UUID.randomUUID()
-            val refreshToken = jwtService.generateRefreshToken(userId)
+            val refreshToken = "revoked-refresh-token"
             val tokenHash = hashToken(refreshToken)
             val now = Instant.now()
 
-            val tokenRecord = RefreshTokenEntity(
-                userId = userId,
-                tokenHash = tokenHash,
-                familyId = UUID.randomUUID(),
-                issuedAt = now.minusSeconds(3600),
-                expiresAt = now.plusSeconds(604800L),
-                revokedAt = now.minusSeconds(1800),
-            )
+            val tokenRecord =
+                RefreshTokenEntity(
+                    userId = userId,
+                    tokenHash = tokenHash,
+                    familyId = UUID.randomUUID(),
+                    issuedAt = now.minusSeconds(3600),
+                    expiresAt = now.plusSeconds(604800L),
+                    revokedAt = now.minusSeconds(1800),
+                )
 
             whenever(refreshTokenRepository.findByTokenHash(tokenHash)).thenReturn(tokenRecord)
 
@@ -259,17 +277,18 @@ class RefreshTokenServiceTest {
         fun `should throw exception when token expired`() {
             // Arrange
             val userId = UUID.randomUUID()
-            val refreshToken = jwtService.generateRefreshToken(userId)
+            val refreshToken = "expired-refresh-token"
             val tokenHash = hashToken(refreshToken)
             val now = Instant.now()
 
-            val tokenRecord = RefreshTokenEntity(
-                userId = userId,
-                tokenHash = tokenHash,
-                familyId = UUID.randomUUID(),
-                issuedAt = now.minusSeconds(604900L),
-                expiresAt = now.minusSeconds(100), // Expired
-            )
+            val tokenRecord =
+                RefreshTokenEntity(
+                    userId = userId,
+                    tokenHash = tokenHash,
+                    familyId = UUID.randomUUID(),
+                    issuedAt = now.minusSeconds(604900L),
+                    expiresAt = now.minusSeconds(100), // Expired
+                )
 
             whenever(refreshTokenRepository.findByTokenHash(tokenHash)).thenReturn(tokenRecord)
 
@@ -283,17 +302,18 @@ class RefreshTokenServiceTest {
         fun `should throw exception when user not found`() {
             // Arrange
             val userId = UUID.randomUUID()
-            val refreshToken = jwtService.generateRefreshToken(userId)
+            val refreshToken = "refresh-token-user-not-found"
             val tokenHash = hashToken(refreshToken)
             val now = Instant.now()
 
-            val tokenRecord = RefreshTokenEntity(
-                userId = userId,
-                tokenHash = tokenHash,
-                familyId = UUID.randomUUID(),
-                issuedAt = now,
-                expiresAt = now.plusSeconds(604800L),
-            )
+            val tokenRecord =
+                RefreshTokenEntity(
+                    userId = userId,
+                    tokenHash = tokenHash,
+                    familyId = UUID.randomUUID(),
+                    issuedAt = now,
+                    expiresAt = now.plusSeconds(604800L),
+                )
 
             whenever(refreshTokenRepository.findByTokenHash(tokenHash)).thenReturn(tokenRecord)
             whenever(userRepository.findById(userId)).thenReturn(Optional.empty())
@@ -309,17 +329,18 @@ class RefreshTokenServiceTest {
             // Arrange
             val userId = UUID.randomUUID()
             val user = SecurityTestDataBuilders.user(id = userId, email = "test@example.com")
-            val refreshToken = jwtService.generateRefreshToken(userId)
+            val refreshToken = "refresh-token-disabled-user"
             val tokenHash = hashToken(refreshToken)
             val now = Instant.now()
 
-            val tokenRecord = RefreshTokenEntity(
-                userId = userId,
-                tokenHash = tokenHash,
-                familyId = UUID.randomUUID(),
-                issuedAt = now,
-                expiresAt = now.plusSeconds(604800L),
-            )
+            val tokenRecord =
+                RefreshTokenEntity(
+                    userId = userId,
+                    tokenHash = tokenHash,
+                    familyId = UUID.randomUUID(),
+                    issuedAt = now,
+                    expiresAt = now.plusSeconds(604800L),
+                )
 
             whenever(refreshTokenRepository.findByTokenHash(tokenHash)).thenReturn(tokenRecord)
             whenever(userRepository.findById(userId)).thenReturn(Optional.of(user))
@@ -341,13 +362,14 @@ class RefreshTokenServiceTest {
             // Arrange
             val tokenHash = "test-token-hash"
             val now = Instant.now()
-            val tokenRecord = RefreshTokenEntity(
-                userId = UUID.randomUUID(),
-                tokenHash = tokenHash,
-                familyId = UUID.randomUUID(),
-                issuedAt = now,
-                expiresAt = now.plusSeconds(604800L),
-            )
+            val tokenRecord =
+                RefreshTokenEntity(
+                    userId = UUID.randomUUID(),
+                    tokenHash = tokenHash,
+                    familyId = UUID.randomUUID(),
+                    issuedAt = now,
+                    expiresAt = now.plusSeconds(604800L),
+                )
 
             whenever(refreshTokenRepository.findByTokenHash(tokenHash)).thenReturn(tokenRecord)
             whenever(refreshTokenRepository.save(any())).thenAnswer { it.arguments[0] as RefreshTokenEntity }
@@ -367,20 +389,22 @@ class RefreshTokenServiceTest {
             // Arrange
             val userId = UUID.randomUUID()
             val now = Instant.now()
-            val token1 = RefreshTokenEntity(
-                userId = userId,
-                tokenHash = "hash1",
-                familyId = UUID.randomUUID(),
-                issuedAt = now,
-                expiresAt = now.plusSeconds(604800L),
-            )
-            val token2 = RefreshTokenEntity(
-                userId = userId,
-                tokenHash = "hash2",
-                familyId = UUID.randomUUID(),
-                issuedAt = now,
-                expiresAt = now.plusSeconds(604800L),
-            )
+            val token1 =
+                RefreshTokenEntity(
+                    userId = userId,
+                    tokenHash = "hash1",
+                    familyId = UUID.randomUUID(),
+                    issuedAt = now,
+                    expiresAt = now.plusSeconds(604800L),
+                )
+            val token2 =
+                RefreshTokenEntity(
+                    userId = userId,
+                    tokenHash = "hash2",
+                    familyId = UUID.randomUUID(),
+                    issuedAt = now,
+                    expiresAt = now.plusSeconds(604800L),
+                )
 
             whenever(refreshTokenRepository.findByUserIdAndRevokedAtIsNull(userId))
                 .thenReturn(listOf(token1, token2))
@@ -398,20 +422,22 @@ class RefreshTokenServiceTest {
             // Arrange
             val familyId = UUID.randomUUID()
             val now = Instant.now()
-            val token1 = RefreshTokenEntity(
-                userId = UUID.randomUUID(),
-                tokenHash = "hash1",
-                familyId = familyId,
-                issuedAt = now,
-                expiresAt = now.plusSeconds(604800L),
-            )
-            val token2 = RefreshTokenEntity(
-                userId = UUID.randomUUID(),
-                tokenHash = "hash2",
-                familyId = familyId,
-                issuedAt = now,
-                expiresAt = now.plusSeconds(604800L),
-            )
+            val token1 =
+                RefreshTokenEntity(
+                    userId = UUID.randomUUID(),
+                    tokenHash = "hash1",
+                    familyId = familyId,
+                    issuedAt = now,
+                    expiresAt = now.plusSeconds(604800L),
+                )
+            val token2 =
+                RefreshTokenEntity(
+                    userId = UUID.randomUUID(),
+                    tokenHash = "hash2",
+                    familyId = familyId,
+                    issuedAt = now,
+                    expiresAt = now.plusSeconds(604800L),
+                )
 
             whenever(refreshTokenRepository.findByFamilyId(familyId))
                 .thenReturn(listOf(token1, token2))
@@ -425,4 +451,3 @@ class RefreshTokenServiceTest {
         }
     }
 }
-

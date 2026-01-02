@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.security.test.graphql
 
 import io.github.salomax.neotool.common.graphql.InputValidator
+import io.github.salomax.neotool.common.security.principal.AuthContext
 import io.github.salomax.neotool.security.graphql.SecurityAuthResolver
 import io.github.salomax.neotool.security.graphql.dto.RequestPasswordResetPayloadDTO
 import io.github.salomax.neotool.security.graphql.dto.ResetPasswordPayloadDTO
@@ -8,11 +9,12 @@ import io.github.salomax.neotool.security.graphql.dto.SignInPayloadDTO
 import io.github.salomax.neotool.security.graphql.dto.SignUpPayloadDTO
 import io.github.salomax.neotool.security.graphql.dto.UserDTO
 import io.github.salomax.neotool.security.graphql.mapper.SecurityGraphQLMapper
+import io.github.salomax.neotool.security.model.TokenPair
 import io.github.salomax.neotool.security.repo.UserRepository
-import io.github.salomax.neotool.security.service.AuthContext
-import io.github.salomax.neotool.security.service.AuthContextFactory
-import io.github.salomax.neotool.security.service.AuthenticationService
-import io.github.salomax.neotool.security.service.AuthorizationService
+import io.github.salomax.neotool.security.service.authentication.AuthContextFactory
+import io.github.salomax.neotool.security.service.authentication.AuthenticationService
+import io.github.salomax.neotool.security.service.authorization.AuthorizationService
+import io.github.salomax.neotool.security.service.jwt.RefreshTokenService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import jakarta.validation.ConstraintViolationException
 import org.assertj.core.api.Assertions.assertThat
@@ -40,6 +42,7 @@ class SecurityAuthResolverTest {
     private lateinit var userRepository: UserRepository
     private lateinit var inputValidator: InputValidator
     private lateinit var mapper: SecurityGraphQLMapper
+    private lateinit var refreshTokenService: RefreshTokenService
     private lateinit var resolver: SecurityAuthResolver
 
     @BeforeEach
@@ -50,6 +53,7 @@ class SecurityAuthResolverTest {
         userRepository = mock()
         inputValidator = mock()
         mapper = mock()
+        refreshTokenService = mock()
         resolver =
             SecurityAuthResolver(
                 authenticationService,
@@ -58,6 +62,7 @@ class SecurityAuthResolverTest {
                 userRepository,
                 inputValidator,
                 mapper,
+                refreshTokenService,
             )
     }
 
@@ -96,8 +101,7 @@ class SecurityAuthResolverTest {
             verify(authenticationService).authenticate("test@example.com", "password123")
             verify(authContextFactory).build(user)
             verify(authenticationService).generateAccessToken(eq(authContext))
-            verify(authenticationService, never()).generateRefreshToken(any())
-            verify(authenticationService, never()).saveRememberMeToken(any(), any())
+            verify(refreshTokenService, never()).createRefreshToken(any())
         }
 
         @Test
@@ -118,7 +122,7 @@ class SecurityAuthResolverTest {
             whenever(authenticationService.authenticate("test@example.com", "password123")).thenReturn(user)
             whenever(authContextFactory.build(user)).thenReturn(authContext)
             whenever(authenticationService.generateAccessToken(eq(authContext))).thenReturn("access-token")
-            whenever(authenticationService.generateRefreshToken(user)).thenReturn("refresh-token")
+            whenever(refreshTokenService.createRefreshToken(user.id!!)).thenReturn("refresh-token")
             whenever(mapper.userToDTO(user)).thenReturn(userDTO)
 
             // Act
@@ -130,8 +134,7 @@ class SecurityAuthResolverTest {
             assertThat(payload.token).isEqualTo("access-token")
             assertThat(payload.refreshToken).isEqualTo("refresh-token")
             verify(authContextFactory).build(user)
-            verify(authenticationService).generateRefreshToken(user)
-            verify(authenticationService).saveRememberMeToken(user.id!!, "refresh-token")
+            verify(refreshTokenService).createRefreshToken(user.id!!)
         }
 
         @Test
@@ -201,7 +204,7 @@ class SecurityAuthResolverTest {
             assertThat(result.success).isTrue()
             verify(authContextFactory).build(user)
             verify(authenticationService).generateAccessToken(eq(authContext))
-            verify(authenticationService, never()).generateRefreshToken(any())
+            verify(refreshTokenService, never()).createRefreshToken(any())
         }
     }
 
@@ -370,7 +373,7 @@ class SecurityAuthResolverTest {
             ).thenReturn(user)
             whenever(authContextFactory.build(user)).thenReturn(authContext)
             whenever(authenticationService.generateAccessToken(eq(authContext))).thenReturn("access-token")
-            whenever(authenticationService.generateRefreshToken(user)).thenReturn("refresh-token")
+            whenever(refreshTokenService.createRefreshToken(user.id!!)).thenReturn("refresh-token")
             whenever(mapper.userToDTO(user)).thenReturn(userDTO)
 
             // Act
@@ -383,7 +386,7 @@ class SecurityAuthResolverTest {
             assertThat(payload.refreshToken).isEqualTo("refresh-token")
             verify(authenticationService).registerUser("New User", "newuser@example.com", "password123")
             verify(authContextFactory).build(user)
-            verify(authenticationService).saveRememberMeToken(user.id!!, "refresh-token")
+            verify(refreshTokenService).createRefreshToken(user.id!!)
         }
 
         @Test
@@ -670,7 +673,7 @@ class SecurityAuthResolverTest {
             ).thenReturn(user)
             whenever(authContextFactory.build(user)).thenReturn(authContext)
             whenever(authenticationService.generateAccessToken(eq(authContext))).thenReturn("access-token")
-            whenever(authenticationService.generateRefreshToken(user)).thenReturn("refresh-token")
+            whenever(refreshTokenService.createRefreshToken(user.id!!)).thenReturn("refresh-token")
             whenever(mapper.userToDTO(user)).thenReturn(userDTO)
 
             // Act
@@ -687,37 +690,29 @@ class SecurityAuthResolverTest {
             val user = SecurityTestDataBuilders.user(id = UUID.randomUUID(), email = "test@example.com")
             val userDTO = UserDTO(id = user.id.toString(), email = user.email)
             val input = mapOf("refreshToken" to "valid-refresh-token")
-            val authContext =
-                AuthContext(
-                    userId = user.id!!,
-                    email = user.email,
-                    displayName = user.displayName,
-                    roles = listOf("admin"),
-                    permissions = listOf("transaction:read"),
-                )
+            val tokenPair = TokenPair(accessToken = "new-access-token", refreshToken = "new-refresh-token")
 
-            whenever(authenticationService.validateRefreshToken("valid-refresh-token")).thenReturn(user)
-            whenever(authContextFactory.build(user)).thenReturn(authContext)
-            whenever(authenticationService.generateAccessToken(eq(authContext))).thenReturn("new-access-token")
+            whenever(refreshTokenService.refreshAccessToken("valid-refresh-token")).thenReturn(tokenPair)
+            whenever(authenticationService.validateAccessToken("new-access-token")).thenReturn(user)
             whenever(mapper.userToDTO(user)).thenReturn(userDTO)
 
             // Act
             resolver.refreshAccessToken(input)
 
             // Assert
-            verify(authContextFactory).build(user)
-            verify(authenticationService).generateAccessToken(eq(authContext))
+            verify(refreshTokenService).refreshAccessToken("valid-refresh-token")
+            verify(authenticationService).validateAccessToken("new-access-token")
         }
 
         @Test
         fun `should produce identical permissions for same user regardless of auth method`() {
-            // Arrange - Same user, different auth methods
+            // Arrange - Same user, different authentication methods
             val userId = UUID.randomUUID()
             val email = "test@example.com"
             val user = SecurityTestDataBuilders.user(id = userId, email = email)
             val userDTO = UserDTO(id = user.id.toString(), email = user.email)
 
-            // Same auth context for both methods (proving consistency)
+            // Same authentication context for both methods (proving consistency)
             val authContext =
                 AuthContext(
                     userId = userId,
@@ -727,7 +722,7 @@ class SecurityAuthResolverTest {
                     permissions = listOf("transaction:read", "transaction:write"),
                 )
 
-            // Password auth
+            // Password authentication
             val passwordInput = mapOf("email" to email, "password" to "password123", "rememberMe" to false)
             whenever(authenticationService.authenticate(email, "password123")).thenReturn(user)
             whenever(authContextFactory.build(user)).thenReturn(authContext).thenReturn(authContext)
@@ -736,7 +731,7 @@ class SecurityAuthResolverTest {
                 .thenReturn("oauth-token")
             whenever(mapper.userToDTO(user)).thenReturn(userDTO)
 
-            // OAuth auth
+            // OAuth authentication
             val oauthInput = mapOf("provider" to "google", "idToken" to "valid-id-token", "rememberMe" to false)
             whenever(authenticationService.authenticateWithOAuth("google", "valid-id-token")).thenReturn(user)
 
@@ -744,7 +739,7 @@ class SecurityAuthResolverTest {
             val passwordResult = resolver.signIn(passwordInput)
             val oauthResult = resolver.signInWithOAuth(oauthInput)
 
-            // Assert - Both should use same auth context (same permissions)
+            // Assert - Both should use same authentication context (same permissions)
             verify(authContextFactory, times(2)).build(user)
             assertThat(passwordResult.success).isTrue()
             assertThat(oauthResult.success).isTrue()

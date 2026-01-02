@@ -4,7 +4,7 @@ import io.github.salomax.neotool.security.graphql.dto.AuthorizationResultDTO
 import io.github.salomax.neotool.security.graphql.dto.PermissionDTO
 import io.github.salomax.neotool.security.graphql.dto.RoleDTO
 import io.github.salomax.neotool.security.graphql.mapper.AuthorizationMapper
-import io.github.salomax.neotool.security.service.AuthorizationService
+import io.github.salomax.neotool.security.service.authorization.AuthorizationService
 import jakarta.inject.Singleton
 import mu.KotlinLogging
 import java.util.UUID

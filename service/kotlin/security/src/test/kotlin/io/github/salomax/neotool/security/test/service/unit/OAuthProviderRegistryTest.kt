@@ -1,7 +1,7 @@
 package io.github.salomax.neotool.security.test.service.unit
 
-import io.github.salomax.neotool.security.service.OAuthProvider
-import io.github.salomax.neotool.security.service.OAuthProviderRegistry
+import io.github.salomax.neotool.security.service.oauth.OAuthProvider
+import io.github.salomax.neotool.security.service.oauth.OAuthProviderRegistry
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName

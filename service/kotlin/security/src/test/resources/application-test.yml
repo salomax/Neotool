@@ -27,6 +27,17 @@ endpoints:
     redis:
       enabled: false
 
+jwt:
+  # Secret key for signing JWT tokens in tests
+  # Must be at least 32 characters for HS256
+  secret: ${JWT_SECRET:test-secret-key-minimum-32-characters-long-for-hmac-sha256-algorithm}
+  # Use HS256 for tests (simpler, no key files needed)
+  algorithm: ${JWT_ALGORITHM:HS256}
+  # Access token expiration in seconds (default: 900 = 15 minutes)
+  access-token-expiration-seconds: ${JWT_ACCESS_TOKEN_EXPIRATION_SECONDS:900}
+  # Refresh token expiration in seconds (default: 604800 = 7 days)
+  refresh-token-expiration-seconds: ${JWT_REFRESH_TOKEN_EXPIRATION_SECONDS:604800}
+
 logging:
   level:
     io.github.salomax.neotool: DEBUG
