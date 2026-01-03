@@ -15,7 +15,15 @@
       "Bash(git checkout:*)",
       "Bash(xargs ls:*)",
       "Bash({} ;)",
-      "Bash('s|import io\\\\.github\\\\.salomax\\\\.neotool\\\\.common\\\\.security\\\\.service\\\\.AuthContextFactory|import io.github.salomax.neotool.security.service.AuthContextFactory|g' )"
+      "Bash('s|import io\\\\.github\\\\.salomax\\\\.neotool\\\\.common\\\\.security\\\\.service\\\\.AuthContextFactory|import io.github.salomax.neotool.security.service.AuthContextFactory|g' )",
+      "Bash(rmdir:*)",
+      "Bash(rm:*)",
+      "Bash(for:*)",
+      "Bash(chmod:*)",
+      "Bash(/Users/salomax/src/Neotool/docs/update-references.sh)",
+      "Bash(git add:*)",
+      "Bash(done)",
+      "Bash(git mv:*)"
     ]
   }
 }
