@@ -6,7 +6,7 @@ status: draft
 version: 1.0.0
 tags: [service, repository, graphql, search, pagination, financial-data]
 ai_optimized: true
-search_keywords: [institution, search, autocomplete, parent_institution, bank_report, relay, pagination]
+search_keywords: [institution, search, autocomplete, bacen_institution, bank_report, relay, pagination]
 related:
   - 03-features/financial_data/repository-requirements.md
   - 04-patterns/backend-patterns/service-pattern.md
@@ -23,16 +23,16 @@ related:
 
 This document outlines the service layer implementation for two main GraphQL queries:
 
-1. **Autocomplete Search** (`searchInstitutionsAutocomplete`) - Real-time suggestions as user types
-2. **Full Search** (`searchInstitutions`) - Complete search with financial metrics and Relay pagination
+1. **Autocomplete Search** (`searchBacenInstitutionsAutocomplete`) - Real-time suggestions as user types
+2. **Full Search** (`searchBacenInstitutions`) - Complete search with financial metrics and Relay pagination
 
-Both queries search `ParentInstitutionEntity` and related `InstitutionEntity` data, with the full search query aggregating financial metrics from `BankReportEntity` and `BankReportDataEntity`.
+Both queries search `BacenInstitutionEntity` data, with the full search query aggregating financial metrics from `BacenBankReportEntity` and `BacenBankReportDataEntity`.
 
 ## GraphQL Queries
 
 ### Query A: Autocomplete Search
 
-**Query Name**: `searchInstitutionsAutocomplete`
+**Query Name**: `searchBacenInstitutionsAutocomplete`
 
 **Purpose**: Provides real-time suggestions as the user types in the search bar.
 
@@ -41,14 +41,14 @@ Both queries search `ParentInstitutionEntity` and related `InstitutionEntity` da
 
 **Response**:
 ```graphql
-type InstitutionAutocompleteConnection {
-  suggestions: [InstitutionAutocompleteItem!]!
+type BacenInstitutionAutocompleteConnection {
+  suggestions: [BacenInstitutionAutocompleteItem!]!
 }
 
-type InstitutionAutocompleteItem {
+type BacenInstitutionAutocompleteItem {
   id: ID!
-  name: String!  # Combined trade name and legal name
-  cnpj: String!
+  name: String!  # nome_instituicao from bacen_institution
+  cnpj: String
   logoUrl: String
 }
 ```
@@ -57,34 +57,33 @@ type InstitutionAutocompleteItem {
 - No pagination (limited to top N results, e.g., 10-20)
 - Fast response time (< 100ms target)
 - Case-insensitive partial matching
-- Searches: `parent_institution.trade_name`, `parent_institution.legal_name`, `parent_institution.parent_cnpj`, `institution.nome_instituicao`, `institution.bacen_cod_inst` (non-C prefix)
+- Searches: `bacen_institution.nome_instituicao`, `bacen_institution.bacen_cod_inst` (non-C prefix)
 
 ### Query B: Full Search
 
-**Query Name**: `searchInstitutions`
+**Query Name**: `searchBacenInstitutions`
 
 **Purpose**: Complete search with financial metrics, supporting Relay pagination.
 
 **Inputs**:
-- `query: String` - Optional search query (name, CNPJ, code)
+- `query: String` - Optional search query (name, code)
 - `first: Int` - Page size (default: 20, max: 100)
 - `after: String` - Cursor for pagination
-- `orderBy: [InstitutionOrderBy!]` - Optional sorting
 
 **Response**:
 ```graphql
-type InstitutionConnection {
-  edges: [InstitutionEdge!]!
+type BacenInstitutionConnection {
+  edges: [BacenInstitutionEdge!]!
   pageInfo: PageInfo!
   totalCount: Int
 }
 
-type InstitutionEdge {
-  node: InstitutionSummaryItem!
+type BacenInstitutionEdge {
+  node: BacenInstitutionSummaryItem!
   cursor: String!
 }
 
-type InstitutionSummaryItem {
+type BacenInstitutionSummaryItem {
   id: ID!
   name: String!
   logoUrl: String
@@ -98,10 +97,10 @@ type InstitutionSummaryItem {
 
 **Characteristics**:
 - Relay pagination (cursor-based)
-- Full text search on trade name, legal name, CNPJ
-- Aggregates financial metrics from latest `bank_report` data
-- Supports sorting by various fields
+- Full text search on institution name and code
+- Aggregates financial metrics from latest `bacen_bank_report` data using specific account codes
 - Returns `totalCount` for filtered results
+- Results are ordered by `bacen_cod_inst` (deterministic ordering for pagination)
 
 ## Architecture Layers
 
@@ -109,33 +108,33 @@ type InstitutionSummaryItem {
 
 #### Domain Objects
 
-**InstitutionAutocomplete** (domain object for autocomplete results):
+**BacenInstitutionAutocomplete** (domain object for autocomplete results):
 ```kotlin
 package io.github.salomax.neotool.financialdata.domain
 
-data class InstitutionAutocomplete(
-    val id: String,  // parent_cnpj or bacen_cod_inst
-    val name: String,  // Combined: trade name or legal name
-    val cnpj: String,  // parent_cnpj
-    val logoUrl: String?,  // Derived from logo_storage_key
+data class BacenInstitutionAutocomplete(
+    val id: String,  // bacen_cod_inst
+    val name: String,  // nome_instituicao from bacen_institution
+    val cnpj: String?,  // cnpj_instituicao_lider (if available)
+    val logoUrl: String?,  // Derived from financial_institution.logo_storage_key (if linked)
 )
 ```
 
-**InstitutionSummary** (domain object for full search results):
+**BacenInstitutionSummary** (domain object for full search results):
 ```kotlin
 package io.github.salomax.neotool.financialdata.domain
 
 import java.math.BigDecimal
 
-data class InstitutionSummary(
-    val id: String,  // parent_cnpj or bacen_cod_inst
-    val name: String,  // Combined: trade name or legal name
+data class BacenInstitutionSummary(
+    val id: String,  // bacen_cod_inst
+    val name: String,  // nome_instituicao from bacen_institution
     val logoUrl: String?,
-    val profit: BigDecimal?,  // Lucro from bank_report_data
-    val equity: BigDecimal?,  // Patrimonio from bank_report_data
+    val profit: BigDecimal?,  // Lucro Líquido (conta 78187) from bacen_bank_report_data
+    val equity: BigDecimal?,  // Patrimônio Líquido (conta 78186) from bacen_bank_report_data
     val yoyGrowth: BigDecimal?,  // Crescimento YoY calculation
     val basileiaIndex: BigDecimal?,  // Indice Basileia calculation
-    val bacenInstitutionType: Int?,  // tipo_instituicao from bank_report
+    val bacenInstitutionType: Int?,  // tipo_instituicao from bacen_bank_report
 )
 ```
 
@@ -143,63 +142,61 @@ data class InstitutionSummary(
 
 #### Custom Repository Interface
 
-**ParentInstitutionRepositoryCustom**:
+**BacenInstitutionRepositoryCustom**:
 ```kotlin
 package io.github.salomax.neotool.financialdata.repo
 
 import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
-import io.github.salomax.neotool.financialdata.model.ParentInstitutionEntity
+import io.github.salomax.neotool.financialdata.model.BacenInstitutionEntity
 
 /**
- * Custom query contract for ParentInstitution search operations.
+ * Custom query contract for BacenInstitution search operations.
  * Declared separately so Micronaut Data can generate the default repository implementation
  * while these methods are provided via a manual bean.
  */
-interface ParentInstitutionRepositoryCustom {
+interface BacenInstitutionRepositoryCustom {
     /**
      * Search institutions for autocomplete suggestions.
-     * Performs case-insensitive partial matching on trade_name, legal_name, CNPJ, nome_instituicao, and bacen_cod_inst.
+     * Performs case-insensitive partial matching on nome_instituicao and bacen_cod_inst.
      * Returns limited results (e.g., top 20) for fast autocomplete response.
      *
      * @param query Search query (partial match, case-insensitive)
      * @param limit Maximum number of results to return (default: 20)
-     * @return List of matching parent institutions for autocomplete
+     * @return List of matching BACEN institutions for autocomplete
      */
-    fun searchAutocomplete(
+    fun searchBacenInstitutionsAutocomplete(
         query: String,
         limit: Int = 20,
-    ): List<ParentInstitutionEntity>
+    ): List<BacenInstitutionEntity>
 
     /**
      * Search institutions with full text search and financial metrics aggregation.
-     * Performs case-insensitive partial matching on trade_name, legal_name, CNPJ, nome_instituicao, and bacen_cod_inst.
+     * Performs case-insensitive partial matching on nome_instituicao and bacen_cod_inst.
      * When query is null or empty, returns all institutions (list behavior).
-     * Aggregates financial metrics from latest bank_report data.
-     * Results are ordered according to the orderBy parameter.
+     * Aggregates financial metrics from latest bacen_bank_report data using specific account codes.
+     * Results are ordered by bacen_cod_inst for deterministic pagination.
      *
      * @param query Search query (partial match, case-insensitive). If null or empty, returns all institutions.
      * @param first Maximum number of results to return
      * @param after Composite cursor to start after (exclusive), or null for first page
-     * @param orderBy List of order by specifications (must include ID as final sort)
      * @return List of matching institutions with aggregated financial metrics
      */
-    fun searchInstitutions(
+    fun searchBacenInstitutions(
         query: String?,
         first: Int,
         after: CompositeCursor?,
-        orderBy: List<InstitutionOrderBy>,
     ): List<InstitutionSearchResult>
 
     /**
      * Count institutions matching the search query.
-     * Performs case-insensitive partial matching on trade_name, legal_name, CNPJ, nome_instituicao, and bacen_cod_inst.
+     * Performs case-insensitive partial matching on nome_instituicao and bacen_cod_inst.
      * When query is null or empty, returns total count of all institutions.
-     * This count matches the same WHERE clause as searchInstitutions but without pagination.
+     * This count matches the same WHERE clause as searchBacenInstitutions but without pagination.
      *
      * @param query Search query (partial match, case-insensitive). If null or empty, counts all institutions.
      * @return Total count of matching institutions (or all institutions if query is null/empty)
      */
-    fun countInstitutions(query: String?): Long
+    fun countBacenInstitutions(query: String?): Long
 }
 ```
 
@@ -215,89 +212,58 @@ import java.math.BigDecimal
  */
 data class InstitutionSearchResult(
     // Institution identification
-    val parentCnpj: String,
-    val bacenCodInst: String?,
-    
-    // Institution names
-    val tradeName: String?,
-    val legalName: String?,
+    val bacenCodInst: String,
     val nomeInstituicao: String?,
+    val cnpjInstituicaoLider: String?,
     
-    // Logo
+    // Logo (from financial_institution if linked)
     val logoStorageKey: String?,
     
-    // Financial metrics (aggregated from bank_report_data)
-    val profit: BigDecimal?,
-    val equity: BigDecimal?,
-    val yoyGrowth: BigDecimal?,
-    val basileiaIndex: BigDecimal?,
-    val bacenInstitutionType: Int?,
-)
-```
-
-#### Order By Enums
-
-**InstitutionOrderField**:
-```kotlin
-package io.github.salomax.neotool.financialdata.service
-
-enum class InstitutionOrderField {
-    NAME,           // Sort by trade_name or legal_name
-    CNPJ,           // Sort by parent_cnpj
-    PROFIT,         // Sort by profit (lucro)
-    EQUITY,         // Sort by equity (patrimonio)
-    YOY_GROWTH,     // Sort by YoY growth
-    BASILEIA,       // Sort by Basileia index
-    ID,             // Sort by parent_cnpj (for deterministic ordering)
-}
-```
-
-**InstitutionOrderBy**:
-```kotlin
-package io.github.salomax.neotool.financialdata.service
-
-import io.github.salomax.neotool.common.graphql.pagination.OrderDirection
-
-data class InstitutionOrderBy(
-    val field: InstitutionOrderField,
-    val direction: OrderDirection,
+    // Financial metrics (aggregated from bacen_bank_report_data using specific account codes)
+    val profit: BigDecimal?,  // Lucro Líquido (conta 78187)
+    val equity: BigDecimal?,  // Patrimônio Líquido (conta 78186)
+    val yoyGrowth: BigDecimal?,  // Crescimento YoY calculation
+    val basileiaIndex: BigDecimal?,  // Indice Basileia calculation
+    val bacenInstitutionType: Int?,  // tipo_instituicao from bacen_bank_report
 )
 ```
 
 #### Repository Implementation
 
-**ParentInstitutionRepositoryImpl**:
+**BacenInstitutionRepositoryImpl**:
 - Uses Micronaut Query Builder (EntityManager + JPA Criteria API)
-- Implements complex JOINs between `parent_institution`, `institution`, `bank_report`, and `bank_report_data`
+- Implements complex JOINs between `bacen_institution`, `bacen_bank_report`, `bacen_bank_report_data`, and `bacen_bank_report_account`
+- Optionally LEFT JOINs with `financial_institution` for logo data
 - Builds dynamic WHERE clauses based on query parameter
-- Implements cursor-based pagination using `CompositeCursor`
-- Aggregates financial metrics using SQL aggregation functions
+- Implements cursor-based pagination using `CompositeCursor` (based on `bacen_cod_inst`)
+- Aggregates financial metrics using SQL aggregation functions with specific account codes
 - All read-only methods annotated with `@ReadOnly`
 
 **Key Implementation Details**:
 1. **JOIN Strategy**:
-   - LEFT JOIN `institution` on `institution.cnpj_instituicao_lider = parent_institution.parent_cnpj`
-   - LEFT JOIN `bank_report` on `bank_report.cod_inst = institution.bacen_cod_inst` (latest report only)
-   - LEFT JOIN `bank_report_data` on `bank_report_data.bank_report_id = bank_report.id`
+   - Base table: `bacen_institution`
+   - LEFT JOIN `bacen_bank_report` on `bacen_bank_report.cod_inst = bacen_institution.bacen_cod_inst` (latest report only, using MAX(`ano_mes`))
+   - LEFT JOIN `bacen_bank_report_data` on `bacen_bank_report_data.bank_report_id = bacen_bank_report.id`
+   - LEFT JOIN `bacen_bank_report_account` on `bacen_bank_report_data.account_id = bacen_bank_report_account.id`
+   - LEFT JOIN `financial_institution` on `financial_institution.parent_cnpj = bacen_institution.cnpj_instituicao_lider` (for logo)
 
 2. **Search Fields**:
-   - `parent_institution.trade_name` (ILIKE)
-   - `parent_institution.legal_name` (ILIKE)
-   - `parent_institution.parent_cnpj` (ILIKE)
-   - `institution.nome_instituicao` (ILIKE)
-   - `institution.bacen_cod_inst` (ILIKE, but exclude codes starting with 'C')
+   - `bacen_institution.nome_instituicao` (ILIKE)
+   - `bacen_institution.bacen_cod_inst` (ILIKE, but exclude codes starting with 'C')
 
-3. **Financial Metrics Aggregation**:
-   - Profit (Lucro): SUM of relevant `bank_report_data.saldo` accounts
-   - Equity (Patrimonio): SUM of relevant `bank_report_data.saldo` accounts
-   - YoY Growth: Comparison of current period vs same period previous year
-   - Basileia Index: Calculation from capital adequacy ratio
-   - Latest report: Use MAX(`bank_report.ano_mes`) per institution
+3. **Financial Metrics Aggregation** (using specific account codes):
+   - Profit (Lucro Líquido): SUM of `bacen_bank_report_data.saldo` WHERE `bacen_bank_report_account.conta = '78187'`
+   - Equity (Patrimônio Líquido): SUM of `bacen_bank_report_data.saldo` WHERE `bacen_bank_report_account.conta = '78186'`
+   - Resultado Operacional: SUM of `bacen_bank_report_data.saldo` WHERE `bacen_bank_report_account.conta = '78225'`
+   - Ativo Total: SUM of `bacen_bank_report_data.saldo` WHERE `bacen_bank_report_account.conta = '78182'`
+   - YoY Growth: Comparison of current period vs same period previous year (calculation TBD)
+   - Basileia Index: Calculation from capital adequacy ratio (calculation TBD)
+   - Latest report: Use MAX(`bacen_bank_report.ano_mes`) per institution
 
 4. **Pagination**:
-   - Uses `CompositeCursor` for multi-field sorting
-   - Implements cursor predicates based on `orderBy` fields
-   - Always includes ID (parent_cnpj) as final sort for deterministic ordering
+   - Uses `CompositeCursor` with single field: `bacen_cod_inst`
+   - Results ordered by `bacen_cod_inst ASC` for deterministic ordering
+   - Cursor encodes the `bacen_cod_inst` value
 
 ### Service Layer
 
@@ -308,16 +274,16 @@ data class InstitutionOrderBy(
 package io.github.salomax.neotool.financialdata.service
 
 import io.github.salomax.neotool.common.graphql.pagination.Connection
-import io.github.salomax.neotool.financialdata.domain.InstitutionAutocomplete
-import io.github.salomax.neotool.financialdata.domain.InstitutionSummary
+import io.github.salomax.neotool.financialdata.domain.BacenInstitutionAutocomplete
+import io.github.salomax.neotool.financialdata.domain.BacenInstitutionSummary
 
 /**
  * Service for searching financial institutions with autocomplete and full search capabilities.
  */
 @Singleton
 open class InstitutionSearchService(
-    private val parentInstitutionRepository: ParentInstitutionRepository,
-    private val institutionSearchRepository: ParentInstitutionRepositoryCustom,
+    private val bacenInstitutionRepository: BacenInstitutionRepository,
+    private val institutionSearchRepository: BacenInstitutionRepositoryCustom,
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -330,25 +296,25 @@ open class InstitutionSearchService(
      * @return List of institution autocomplete suggestions
      * @throws IllegalArgumentException if query is null or empty
      */
-    fun searchAutocomplete(
+    fun searchBacenInstitutionsAutocomplete(
         query: String,
         limit: Int = 20,
-    ): List<InstitutionAutocomplete> {
+    ): List<BacenInstitutionAutocomplete> {
         // Validate query
         if (query.isBlank()) {
             throw IllegalArgumentException("Query cannot be empty for autocomplete search")
         }
 
         // Query repository
-        val entities = institutionSearchRepository.searchAutocomplete(query.trim(), limit)
+        val entities = institutionSearchRepository.searchBacenInstitutionsAutocomplete(query.trim(), limit)
         
         // Convert to domain
         return entities.map { entity ->
-            InstitutionAutocomplete(
-                id = entity.parentCnpj,
-                name = entity.tradeName ?: entity.legalName ?: "Unknown",
-                cnpj = entity.parentCnpj,
-                logoUrl = entity.logoStorageKey?.let { deriveLogoUrl(it) },
+            BacenInstitutionAutocomplete(
+                id = entity.bacenCodInst,
+                name = entity.nomeInstituicao ?: "Unknown",
+                cnpj = entity.cnpjInstituicaoLider,
+                logoUrl = null, // TODO: Join with financial_institution for logo
             )
         }
     }
@@ -358,19 +324,18 @@ open class InstitutionSearchService(
      * Unified method that handles both list (no query) and search (with query) operations.
      * When query is null or empty, returns all institutions. When query is provided, returns filtered institutions.
      * totalCount is always calculated.
+     * Results are ordered by bacen_cod_inst for deterministic pagination.
      *
      * @param query Optional search query (partial match, case-insensitive). If null or empty, returns all institutions.
      * @param first Maximum number of results to return (default: 20, max: 100)
-     * @param after Cursor string for pagination (base64-encoded composite cursor)
-     * @param orderBy Optional list of order by specifications. If null or empty, defaults to NAME ASC, ID ASC.
+     * @param after Cursor string for pagination (base64-encoded composite cursor with bacen_cod_inst)
      * @return Connection containing paginated institutions with totalCount
      */
-    fun searchInstitutions(
+    fun searchBacenInstitutions(
         query: String?,
         first: Int = PaginationConstants.DEFAULT_PAGE_SIZE,
         after: String?,
-        orderBy: List<InstitutionOrderBy>? = null,
-    ): Connection<InstitutionSummary> {
+    ): Connection<BacenInstitutionSummary> {
         // Validate and normalize pagination
         val pageSize = when {
             first < 1 -> throw IllegalArgumentException("Parameter 'first' must be at least 1, got: $first")
@@ -378,19 +343,6 @@ open class InstitutionSearchService(
                 "Parameter 'first' must be at most ${PaginationConstants.MAX_PAGE_SIZE}, got: $first"
             )
             else -> first
-        }
-
-        // Determine effective orderBy
-        val effectiveOrderBy = when {
-            orderBy == null || orderBy.isEmpty() -> listOf(
-                InstitutionOrderBy(InstitutionOrderField.NAME, OrderDirection.ASC),
-                InstitutionOrderBy(InstitutionOrderField.ID, OrderDirection.ASC),
-            )
-            else -> {
-                // Ensure ID is always last for deterministic ordering
-                val withoutId = orderBy.filter { it.field != InstitutionOrderField.ID }
-                withoutId + InstitutionOrderBy(InstitutionOrderField.ID, OrderDirection.ASC)
-            }
         }
 
         // Decode cursor
@@ -406,24 +358,23 @@ open class InstitutionSearchService(
         val normalizedQuery = if (query.isNullOrBlank()) null else query.trim()
 
         // Query repository (one extra to check for more results)
-        val results = institutionSearchRepository.searchInstitutions(
+        val results = institutionSearchRepository.searchBacenInstitutions(
             normalizedQuery,
             pageSize + 1,
             afterCompositeCursor,
-            effectiveOrderBy,
         )
         val hasMore = results.size > pageSize
 
         // Always get total count
-        val totalCount = institutionSearchRepository.countInstitutions(normalizedQuery)
+        val totalCount = institutionSearchRepository.countBacenInstitutions(normalizedQuery)
 
         // Take only requested number and convert to domain
         val institutions = results
             .take(pageSize)
             .map { result ->
-                InstitutionSummary(
-                    id = result.parentCnpj,
-                    name = result.tradeName ?: result.legalName ?: result.nomeInstituicao ?: "Unknown",
+                BacenInstitutionSummary(
+                    id = result.bacenCodInst,
+                    name = result.nomeInstituicao ?: "Unknown",
                     logoUrl = result.logoStorageKey?.let { deriveLogoUrl(it) },
                     profit = result.profit,
                     equity = result.equity,
@@ -433,28 +384,14 @@ open class InstitutionSearchService(
                 )
             }
 
-        // Build connection with composite cursor encoding
+        // Build connection with composite cursor encoding (using bacen_cod_inst)
         return ConnectionBuilder.buildConnection(
             items = institutions,
             hasMore = hasMore,
             encodeCursor = { institution ->
-                // Build composite cursor from orderBy fields
-                val fieldValues = buildMap {
-                    effectiveOrderBy.forEach { order ->
-                        when (order.field) {
-                            InstitutionOrderField.NAME -> put("name", institution.name)
-                            InstitutionOrderField.CNPJ -> put("cnpj", institution.id)
-                            InstitutionOrderField.PROFIT -> put("profit", institution.profit)
-                            InstitutionOrderField.EQUITY -> put("equity", institution.equity)
-                            InstitutionOrderField.YOY_GROWTH -> put("yoyGrowth", institution.yoyGrowth)
-                            InstitutionOrderField.BASILEIA -> put("basileia", institution.basileiaIndex)
-                            InstitutionOrderField.ID -> put("id", institution.id)
-                        }
-                    }
-                }
                 CursorEncoder.encodeCompositeCursor(
                     CompositeCursor(
-                        fieldValues = fieldValues,
+                        fieldValues = mapOf("id" to institution.id),
                         id = institution.id,
                     )
                 )
@@ -484,8 +421,8 @@ open class InstitutionSearchService(
 package io.github.salomax.neotool.financialdata.graphql.resolver
 
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
-import io.github.salomax.neotool.financialdata.graphql.dto.InstitutionAutocompleteConnectionDTO
-import io.github.salomax.neotool.financialdata.graphql.dto.InstitutionConnectionDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionAutocompleteConnectionDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionConnectionDTO
 import io.github.salomax.neotool.financialdata.graphql.mapper.InstitutionSearchMapper
 import io.github.salomax.neotool.financialdata.service.InstitutionSearchService
 import jakarta.inject.Singleton
@@ -507,22 +444,22 @@ class InstitutionSearchResolver(
      * Returns suggestions as user types.
      *
      * @param query Search query (required)
-     * @return InstitutionAutocompleteConnectionDTO
+     * @return BacenInstitutionAutocompleteConnectionDTO
      * @throws IllegalArgumentException if query is null or empty
      */
-    fun searchInstitutionsAutocomplete(
+    fun searchBacenInstitutionsAutocomplete(
         query: String,
-    ): InstitutionAutocompleteConnectionDTO {
+    ): BacenInstitutionAutocompleteConnectionDTO {
         // Validate query
         if (query.isBlank()) {
             throw IllegalArgumentException("Query cannot be empty for autocomplete search")
         }
 
         // Call service
-        val suggestions = institutionSearchService.searchAutocomplete(query)
+        val suggestions = institutionSearchService.searchBacenInstitutionsAutocomplete(query)
         
         // Convert to DTO
-        return mapper.toInstitutionAutocompleteConnectionDTO(suggestions)
+        return mapper.toBacenInstitutionAutocompleteConnectionDTO(suggestions)
     }
 
     /**
@@ -531,16 +468,14 @@ class InstitutionSearchResolver(
      * @param query Optional search query
      * @param first Maximum number of results (default: 20, min: 1, max: 100)
      * @param after Cursor for pagination
-     * @param orderBy Optional order by specification
-     * @return InstitutionConnectionDTO
-     * @throws IllegalArgumentException if first is invalid or orderBy contains invalid fields/directions
+     * @return BacenInstitutionConnectionDTO
+     * @throws IllegalArgumentException if first is invalid
      */
-    fun searchInstitutions(
+    fun searchBacenInstitutions(
         query: String?,
         first: Int?,
         after: String?,
-        orderBy: List<Map<String, Any?>>?,
-    ): InstitutionConnectionDTO {
+    ): BacenInstitutionConnectionDTO {
         // Validate pagination parameter
         val pageSize = when {
             first == null -> PaginationConstants.DEFAULT_PAGE_SIZE
@@ -551,23 +486,15 @@ class InstitutionSearchResolver(
             else -> first
         }
 
-        // Validate orderBy - mapper will throw IllegalArgumentException for invalid fields/directions
-        val orderByList = try {
-            mapper.toInstitutionOrderByList(orderBy)
-        } catch (e: IllegalArgumentException) {
-            throw IllegalArgumentException("Invalid orderBy parameter: ${e.message}", e)
-        }
-
         // Call service - propagate any exceptions (will be converted to GraphQL errors)
-        val connection = institutionSearchService.searchInstitutions(
+        val connection = institutionSearchService.searchBacenInstitutions(
             query,
             pageSize,
             after,
-            orderByList,
         )
         
         // Convert to DTO
-        return mapper.toInstitutionConnectionDTO(connection)
+        return mapper.toBacenInstitutionConnectionDTO(connection)
     }
 }
 ```
@@ -579,22 +506,19 @@ class InstitutionSearchResolver(
 package io.github.salomax.neotool.financialdata.graphql.mapper
 
 import io.github.salomax.neotool.common.graphql.pagination.Connection
-import io.github.salomax.neotool.common.graphql.pagination.OrderDirection
-import io.github.salomax.neotool.financialdata.domain.InstitutionAutocomplete
-import io.github.salomax.neotool.financialdata.domain.InstitutionSummary
+import io.github.salomax.neotool.financialdata.domain.BacenInstitutionAutocomplete
+import io.github.salomax.neotool.financialdata.domain.BacenInstitutionSummary
 import io.github.salomax.neotool.financialdata.graphql.dto.*
-import io.github.salomax.neotool.financialdata.service.InstitutionOrderBy
-import io.github.salomax.neotool.financialdata.service.InstitutionOrderField
 import jakarta.inject.Singleton
 
 @Singleton
 class InstitutionSearchMapper {
-    fun toInstitutionAutocompleteConnectionDTO(
-        suggestions: List<InstitutionAutocomplete>,
-    ): InstitutionAutocompleteConnectionDTO {
-        return InstitutionAutocompleteConnectionDTO(
+    fun toBacenInstitutionAutocompleteConnectionDTO(
+        suggestions: List<BacenInstitutionAutocomplete>,
+    ): BacenInstitutionAutocompleteConnectionDTO {
+        return BacenInstitutionAutocompleteConnectionDTO(
             suggestions = suggestions.map { suggestion ->
-                InstitutionAutocompleteItemDTO(
+                BacenInstitutionAutocompleteItemDTO(
                     id = suggestion.id,
                     name = suggestion.name,
                     cnpj = suggestion.cnpj,
@@ -604,13 +528,13 @@ class InstitutionSearchMapper {
         )
     }
 
-    fun toInstitutionConnectionDTO(
-        connection: Connection<InstitutionSummary>,
-    ): InstitutionConnectionDTO {
-        return InstitutionConnectionDTO(
+    fun toBacenInstitutionConnectionDTO(
+        connection: Connection<BacenInstitutionSummary>,
+    ): BacenInstitutionConnectionDTO {
+        return BacenInstitutionConnectionDTO(
             edges = connection.edges.map { edge ->
-                InstitutionEdgeDTO(
-                    node = toInstitutionSummaryItemDTO(edge.node),
+                BacenInstitutionEdgeDTO(
+                    node = toBacenInstitutionSummaryItemDTO(edge.node),
                     cursor = edge.cursor,
                 )
             },
@@ -624,10 +548,10 @@ class InstitutionSearchMapper {
         )
     }
 
-    fun toInstitutionSummaryItemDTO(
-        summary: InstitutionSummary,
-    ): InstitutionSummaryItemDTO {
-        return InstitutionSummaryItemDTO(
+    fun toBacenInstitutionSummaryItemDTO(
+        summary: BacenInstitutionSummary,
+    ): BacenInstitutionSummaryItemDTO {
+        return BacenInstitutionSummaryItemDTO(
             id = summary.id,
             name = summary.name,
             logoUrl = summary.logoUrl,
@@ -639,49 +563,12 @@ class InstitutionSearchMapper {
         )
     }
 
-    fun toInstitutionOrderByList(
-        orderBy: List<Map<String, Any?>>?,
-    ): List<InstitutionOrderBy>? {
-        if (orderBy == null || orderBy.isEmpty()) {
-            return null
-        }
-
-        return orderBy.map { orderByMap ->
-            val fieldStr = orderByMap["field"] as? String
-                ?: throw IllegalArgumentException("orderBy field is required")
-            val directionStr = orderByMap["direction"] as? String
-                ?: throw IllegalArgumentException("orderBy direction is required")
-
-            val field = when (fieldStr) {
-                "NAME" -> InstitutionOrderField.NAME
-                "CNPJ" -> InstitutionOrderField.CNPJ
-                "PROFIT" -> InstitutionOrderField.PROFIT
-                "EQUITY" -> InstitutionOrderField.EQUITY
-                "YOY_GROWTH" -> InstitutionOrderField.YOY_GROWTH
-                "BASILEIA" -> InstitutionOrderField.BASILEIA
-                "ID" -> InstitutionOrderField.ID
-                else -> throw IllegalArgumentException(
-                    "Invalid InstitutionOrderField: $fieldStr. Allowed: NAME, CNPJ, PROFIT, EQUITY, YOY_GROWTH, BASILEIA, ID"
-                )
-            }
-
-            val direction = when (directionStr) {
-                "ASC" -> OrderDirection.ASC
-                "DESC" -> OrderDirection.DESC
-                else -> throw IllegalArgumentException(
-                    "Invalid OrderDirection: $directionStr. Allowed: ASC, DESC"
-                )
-            }
-
-            InstitutionOrderBy(field, direction)
-        }
-    }
 }
 ```
 
 #### DTOs
 
-**InstitutionAutocompleteConnectionDTO**:
+**BacenInstitutionAutocompleteConnectionDTO**:
 ```kotlin
 package io.github.salomax.neotool.financialdata.graphql.dto
 
@@ -690,21 +577,21 @@ import io.micronaut.serde.annotation.Serdeable
 
 @Introspected
 @Serdeable
-data class InstitutionAutocompleteConnectionDTO(
-    val suggestions: List<InstitutionAutocompleteItemDTO>,
+data class BacenInstitutionAutocompleteConnectionDTO(
+    val suggestions: List<BacenInstitutionAutocompleteItemDTO>,
 )
 
 @Introspected
 @Serdeable
-data class InstitutionAutocompleteItemDTO(
+data class BacenInstitutionAutocompleteItemDTO(
     val id: String,
     val name: String,
-    val cnpj: String,
+    val cnpj: String?,
     val logoUrl: String?,
 )
 ```
 
-**InstitutionConnectionDTO**:
+**BacenInstitutionConnectionDTO**:
 ```kotlin
 package io.github.salomax.neotool.financialdata.graphql.dto
 
@@ -713,22 +600,22 @@ import io.micronaut.serde.annotation.Serdeable
 
 @Introspected
 @Serdeable
-data class InstitutionConnectionDTO(
-    val edges: List<InstitutionEdgeDTO>,
+data class BacenInstitutionConnectionDTO(
+    val edges: List<BacenInstitutionEdgeDTO>,
     val pageInfo: PageInfoDTO,
     val totalCount: Int?,
 )
 
 @Introspected
 @Serdeable
-data class InstitutionEdgeDTO(
-    val node: InstitutionSummaryItemDTO,
+data class BacenInstitutionEdgeDTO(
+    val node: BacenInstitutionSummaryItemDTO,
     val cursor: String,
 )
 
 @Introspected
 @Serdeable
-data class InstitutionSummaryItemDTO(
+data class BacenInstitutionSummaryItemDTO(
     val id: String,
     val name: String,
     val logoUrl: String?,
@@ -754,30 +641,34 @@ data class PageInfoDTO(
 ### Phase 1: Repository Layer (Custom Repository Implementation)
 
 **Tasks**:
-1. Create `ParentInstitutionRepositoryCustom` interface
-2. Create `InstitutionOrderBy` and `InstitutionOrderField` enums
-3. Create `InstitutionSearchResult` DTO
-4. Create `ParentInstitutionRepositoryImpl` with:
-   - `searchAutocomplete()` method (simple JOIN, no metrics)
-   - `searchInstitutions()` method (complex JOIN with metrics aggregation)
+1. Create `BacenInstitutionRepositoryCustom` interface
+2. Create `InstitutionSearchResult` DTO
+3. Create `BacenInstitutionRepositoryImpl` with:
+   - `searchAutocomplete()` method (simple query, no metrics)
+   - `searchBacenInstitutions()` method (complex JOIN with metrics aggregation)
    - `countInstitutions()` method
-5. Implement JOIN logic between `parent_institution`, `institution`, `bank_report`, `bank_report_data`
-6. Implement search filter predicate builder
-7. Implement cursor-based pagination with `CompositeCursor`
-8. Implement financial metrics aggregation (placeholder calculations - detailed formulas TBD)
-9. Add unit tests for repository methods
+4. Implement JOIN logic between `bacen_institution`, `bacen_bank_report`, `bacen_bank_report_data`, `bacen_bank_report_account`, and optionally `financial_institution`
+5. Implement search filter predicate builder
+6. Implement cursor-based pagination with `CompositeCursor` (using `bacen_cod_inst`)
+7. Implement financial metrics aggregation using specific account codes:
+   - Profit (Lucro Líquido): conta 78187
+   - Equity (Patrimônio Líquido): conta 78186
+   - Resultado Operacional: conta 78225
+   - Ativo Total: conta 78182
+8. Add unit tests for repository methods
 
 **Dependencies**:
-- `ParentInstitutionEntity`
-- `InstitutionEntity`
-- `BankReportEntity`
-- `BankReportDataEntity`
+- `BacenInstitutionEntity`
+- `BacenBankReportEntity`
+- `BacenBankReportDataEntity`
+- `BacenBankReportAccountEntity` (via JOIN)
+- `FinancialInstitutionEntity` (optional, for logo)
 
 ### Phase 2: Domain Layer
 
 **Tasks**:
-1. Create `InstitutionAutocomplete` domain object
-2. Create `InstitutionSummary` domain object
+1. Create `BacenInstitutionAutocomplete` domain object
+2. Create `BacenInstitutionSummary` domain object
 3. Add conversion methods from repository DTOs to domain objects
 
 ### Phase 3: Service Layer
@@ -785,7 +676,7 @@ data class PageInfoDTO(
 **Tasks**:
 1. Create `InstitutionSearchService` with:
    - `searchAutocomplete()` method
-   - `searchInstitutions()` method
+   - `searchBacenInstitutions()` method
 2. Implement domain conversion
 3. Implement cursor encoding/decoding
 4. Implement connection building
@@ -793,7 +684,7 @@ data class PageInfoDTO(
 6. Add unit tests for service methods
 
 **Dependencies**:
-- `ParentInstitutionRepositoryCustom`
+- `BacenInstitutionRepositoryCustom`
 - Domain objects
 - Pagination utilities (`ConnectionBuilder`, `CursorEncoder`)
 
@@ -803,11 +694,11 @@ data class PageInfoDTO(
 1. Create `InstitutionSearchResolver`
 2. Create `InstitutionSearchMapper`
 3. Create DTOs:
-   - `InstitutionAutocompleteConnectionDTO`
-   - `InstitutionAutocompleteItemDTO`
-   - `InstitutionConnectionDTO`
-   - `InstitutionEdgeDTO`
-   - `InstitutionSummaryItemDTO`
+   - `BacenInstitutionAutocompleteConnectionDTO`
+   - `BacenInstitutionAutocompleteItemDTO`
+   - `BacenInstitutionConnectionDTO`
+   - `BacenInstitutionEdgeDTO`
+   - `BacenInstitutionSummaryItemDTO`
    - `PageInfoDTO`
 4. Implement GraphQL schema definitions
 5. Wire resolvers in `GraphQLWiringFactory`
@@ -820,30 +711,33 @@ data class PageInfoDTO(
 ### Phase 5: Financial Metrics Implementation
 
 **Tasks**:
-1. Define detailed formulas for:
-   - Profit (Lucro) calculation
-   - Equity (Patrimonio) calculation
-   - YoY Growth calculation
-   - Basileia Index calculation
-2. Update repository implementation with actual SQL aggregation
-3. Add unit tests for metric calculations
-4. Add integration tests with sample data
+1. Implement SQL aggregation for specific account codes:
+   - Profit (Lucro Líquido): SUM of `saldo` WHERE `conta = '78187'`
+   - Equity (Patrimônio Líquido): SUM of `saldo` WHERE `conta = '78186'`
+   - Resultado Operacional: SUM of `saldo` WHERE `conta = '78225'`
+   - Ativo Total: SUM of `saldo` WHERE `conta = '78182'`
+2. Define detailed formulas for:
+   - YoY Growth calculation (comparison of current period vs same period previous year)
+   - Basileia Index calculation (from capital adequacy ratio)
+3. Update repository implementation with actual SQL aggregation using account codes
+4. Add unit tests for metric calculations
+5. Add integration tests with sample data
 
-**Note**: This phase depends on detailed requirements for financial metric calculations, which will be provided later.
+**Note**: YoY Growth and Basileia Index calculations depend on detailed requirements which will be provided later.
 
 ## Database Considerations
 
 ### Indexes
 
 Ensure appropriate indexes exist for:
-- `parent_institution.parent_cnpj` (PRIMARY KEY)
-- `parent_institution.trade_name` (for search)
-- `parent_institution.legal_name` (for search)
-- `institution.cnpj_instituicao_lider` (for JOIN with parent_institution)
-- `institution.bacen_cod_inst` (for search and JOIN)
-- `institution.nome_instituicao` (for search)
-- `bank_report.cod_inst` and `bank_report.ano_mes` (for metrics calculation)
-- `bank_report_data.bank_report_id` (for JOIN)
+- `bacen_institution.bacen_cod_inst` (PRIMARY KEY)
+- `bacen_institution.nome_instituicao` (for search)
+- `bacen_institution.cnpj_instituicao_lider` (for JOIN with financial_institution)
+- `bacen_bank_report.cod_inst` and `bacen_bank_report.ano_mes` (for metrics calculation)
+- `bacen_bank_report_data.bank_report_id` (for JOIN)
+- `bacen_bank_report_data.account_id` (for JOIN with bacen_bank_report_account)
+- `bacen_bank_report_account.conta` (for filtering by account code)
+- `financial_institution.parent_cnpj` (for JOIN with bacen_institution, if needed for logo)
 
 ### Performance
 
@@ -860,10 +754,9 @@ Ensure appropriate indexes exist for:
 - Test autocomplete search with various queries
 - Test full search with null/empty query (returns all)
 - Test full search with query matching different fields
-- Test pagination with cursor
+- Test pagination with cursor (based on bacen_cod_inst)
 - Test count method matches search results
-- Test sorting with different orderBy specifications
-- Test financial metrics aggregation (with mock data)
+- Test financial metrics aggregation using specific account codes (with mock data)
 
 **Service Tests**:
 - Test autocomplete service method
@@ -876,7 +769,6 @@ Ensure appropriate indexes exist for:
 - Test autocomplete resolver
 - Test full search resolver
 - Test pagination parameter validation
-- Test orderBy validation
 - Test error handling
 
 ### Integration Tests
@@ -890,10 +782,17 @@ Ensure appropriate indexes exist for:
 ## Notes
 
 - The `bacen_cod_inst` field is a String (TEXT in database) to preserve leading zeros
-- The relationship between `institution` and `parent_institution` is via `cnpj_instituicao_lider` field
-- Financial metrics require joining with `bank_report` and `bank_report_data` tables
-- Autocomplete query should be optimized for speed (limited results, simple JOINs)
-- Full search query can be more complex (includes metrics aggregation)
+- The search is based on `BacenInstitutionEntity` - each result represents one BACEN institution record
+- Financial metrics are aggregated from `bacen_bank_report_data` using specific account codes:
+  - 78186: Patrimônio Líquido (Equity)
+  - 78187: Lucro Líquido (Profit)
+  - 78225: Resultado Operacional
+  - 78182: Ativo Total
+- The relationship between `bacen_institution` and `financial_institution` is via `cnpj_instituicao_lider` field (optional, for logo)
+- Financial metrics require joining with `bacen_bank_report`, `bacen_bank_report_data`, and `bacen_bank_report_account` tables
+- Autocomplete query should be optimized for speed (limited results, simple query)
+- Full search query includes metrics aggregation with account code filtering
+- Results are ordered by `bacen_cod_inst` for deterministic pagination (no custom sorting)
 - Consider creating a view or materialized view for complex metric calculations if performance becomes an issue
 - Logo URL derivation is placeholder - will integrate with asset management service later
 
