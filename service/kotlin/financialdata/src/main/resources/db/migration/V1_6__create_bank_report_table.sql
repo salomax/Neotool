@@ -63,8 +63,40 @@ CREATE INDEX IF NOT EXISTS idx_bacen_bank_report_scope
 CREATE INDEX IF NOT EXISTS idx_bacen_bank_report_created_at 
     ON financial_data.bacen_bank_report(created_at);
 
+-- Create bacen_bank_report_account table for normalized account metadata
+-- This table stores unique combinations of (grupo, conta, nome_coluna, descricao_coluna)
+-- to reduce storage by avoiding duplication of account descriptions
+CREATE TABLE IF NOT EXISTS financial_data.bacen_bank_report_account (
+    -- UUID v7 primary key (PostgreSQL 18+ has uuidv7() built-in)
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
+    
+    -- Account metadata fields (all nullable)
+    grupo TEXT,
+    conta TEXT,
+    nome_coluna TEXT,
+    descricao_coluna TEXT,
+    
+    -- Audit timestamps
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    
+    -- Unique constraint on account metadata combination
+    CONSTRAINT bacen_bank_report_account_unique 
+        UNIQUE (grupo, conta, nome_coluna, descricao_coluna)
+);
+
+-- Create indexes for bank_report_account table
+
+-- Index on id for foreign key lookups
+CREATE INDEX IF NOT EXISTS idx_bacen_bank_report_account_id 
+    ON financial_data.bacen_bank_report_account(id);
+
+-- Index on unique key fields for efficient lookups
+CREATE INDEX IF NOT EXISTS idx_bacen_bank_report_account_key 
+    ON financial_data.bacen_bank_report_account(grupo, conta, nome_coluna, descricao_coluna);
+
 -- Create bacen_bank_report_data table for normalized report data rows
--- This table stores individual data rows from CSV reports in a normalized structure
+-- This table stores individual data rows from JSON reports in a normalized structure
 CREATE TABLE IF NOT EXISTS financial_data.bacen_bank_report_data (
     -- UUID v7 primary key (PostgreSQL 18+ has uuidv7() built-in)
     id UUID PRIMARY KEY DEFAULT uuidv7(),
@@ -72,22 +104,27 @@ CREATE TABLE IF NOT EXISTS financial_data.bacen_bank_report_data (
     -- Foreign key to bank_report
     bank_report_id UUID NOT NULL,
     
-    -- CSV row fields (mapped from field_5+)
-    grupo TEXT,
-    conta TEXT,
-    nome_coluna TEXT,
-    descricao_coluna TEXT,
+    -- Foreign key to bank_report_account (normalized account metadata)
+    account_id UUID NOT NULL,
+    
+    -- Financial value
     saldo NUMERIC,  -- Nullable, can be currency or percentage
     
     -- Audit timestamps
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     
-    -- Foreign key constraint with CASCADE delete
+    -- Foreign key constraint to bank_report with CASCADE delete
     CONSTRAINT fk_bacen_bank_report_data_bacen_bank_report 
         FOREIGN KEY (bank_report_id) 
         REFERENCES financial_data.bacen_bank_report(id) 
-        ON DELETE CASCADE
+        ON DELETE CASCADE,
+    
+    -- Foreign key constraint to bank_report_account
+    CONSTRAINT fk_bacen_bank_report_data_bacen_bank_report_account 
+        FOREIGN KEY (account_id) 
+        REFERENCES financial_data.bacen_bank_report_account(id) 
+        ON DELETE RESTRICT
 );
 
 -- Create indexes for bank_report_data table
@@ -96,7 +133,11 @@ CREATE TABLE IF NOT EXISTS financial_data.bacen_bank_report_data (
 CREATE INDEX IF NOT EXISTS idx_bacen_bank_report_data_bank_report_id 
     ON financial_data.bacen_bank_report_data(bank_report_id);
 
+-- Index on account_id for efficient joins
+CREATE INDEX IF NOT EXISTS idx_bacen_bank_report_data_account_id 
+    ON financial_data.bacen_bank_report_data(account_id);
+
 -- Composite index for common query patterns
 CREATE INDEX IF NOT EXISTS idx_bacen_bank_report_data_lookup 
-    ON financial_data.bacen_bank_report_data(bank_report_id, conta, nome_coluna);
+    ON financial_data.bacen_bank_report_data(bank_report_id, account_id);
 

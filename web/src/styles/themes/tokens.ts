@@ -64,6 +64,8 @@ export interface DesignTokens {
     divider: string;
     inputBorder: string;
     tabBorder: string;
+    sidebarBg: string;
+    sidebarIcon: string;
   };
 }
 
@@ -118,6 +120,8 @@ export const tokens: Record<Mode, DesignTokens> = {
       divider: "#e2e8f0",
       inputBorder: "rgba(0, 0, 0, 0.23)",
       tabBorder: "rgba(0, 0, 0, 0.23)",
+      sidebarBg: "#ffffff",
+      sidebarIcon: "#728096",
     },
   },
   dark: {
@@ -170,6 +174,8 @@ export const tokens: Record<Mode, DesignTokens> = {
       divider: "#1f2937",
       inputBorder: "rgba(255, 255, 255, 0.23)",
       tabBorder: "rgba(255, 255, 255, 0.23)",
+      sidebarBg: "#ffffff",
+      sidebarIcon: "#728096",
     },
   },
 };
