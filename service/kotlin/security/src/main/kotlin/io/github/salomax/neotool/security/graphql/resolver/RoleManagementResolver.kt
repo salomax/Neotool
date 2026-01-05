@@ -6,7 +6,7 @@ import io.github.salomax.neotool.security.graphql.dto.RoleConnectionDTO
 import io.github.salomax.neotool.security.graphql.dto.RoleDTO
 import io.github.salomax.neotool.security.graphql.dto.UpdateRoleInputDTO
 import io.github.salomax.neotool.security.graphql.mapper.RoleManagementMapper
-import io.github.salomax.neotool.security.service.RoleManagementService
+import io.github.salomax.neotool.security.service.management.RoleManagementService
 import jakarta.inject.Singleton
 import mu.KotlinLogging
 import java.util.UUID

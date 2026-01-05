@@ -3,8 +3,8 @@ package io.github.salomax.neotool.security.test.service.unit
 import io.github.salomax.neotool.security.domain.rbac.Permission
 import io.github.salomax.neotool.security.domain.rbac.Role
 import io.github.salomax.neotool.security.model.UserEntity
-import io.github.salomax.neotool.security.service.AuthContextFactory
-import io.github.salomax.neotool.security.service.AuthorizationService
+import io.github.salomax.neotool.security.service.authentication.AuthContextFactory
+import io.github.salomax.neotool.security.service.authorization.AuthorizationService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -378,7 +378,7 @@ class AuthContextFactoryTest {
 
         @Test
         fun `should produce identical AuthContext for same user via password and OAuth authentication`() {
-            // Arrange - Same user, different auth methods
+            // Arrange - Same user, different authentication methods
             val userId = UUID.randomUUID()
             val email = "test@example.com"
 
@@ -505,7 +505,7 @@ class AuthContextFactoryTest {
 
         @Test
         fun `should handle exceptions consistently regardless of authentication method`() {
-            // Arrange - User from password auth
+            // Arrange - User from password authentication
             val passwordUser =
                 SecurityTestDataBuilders.user(
                     id = UUID.randomUUID(),

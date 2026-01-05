@@ -3,10 +3,11 @@ package io.github.salomax.neotool.security.test.service.unit
 import io.github.salomax.neotool.security.domain.UserManagement
 import io.github.salomax.neotool.security.repo.GroupMembershipRepository
 import io.github.salomax.neotool.security.repo.GroupRepository
+import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.repo.UserRepositoryCustom
-import io.github.salomax.neotool.security.service.UserManagementService
+import io.github.salomax.neotool.security.service.management.UserManagementService
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -37,12 +38,14 @@ class UserManagementServiceErrorTest {
         roleRepository = mock()
         groupMembershipRepository = mock()
         groupRepository = mock()
+        val principalRepository: PrincipalRepository = mock()
         userManagementService =
             UserManagementService(
                 userRepository,
                 userSearchRepository,
                 groupMembershipRepository,
                 groupRepository,
+                principalRepository,
             )
     }
 

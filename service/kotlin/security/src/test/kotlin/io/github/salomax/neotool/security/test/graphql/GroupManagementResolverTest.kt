@@ -4,7 +4,7 @@ import io.github.salomax.neotool.security.domain.rbac.Role
 import io.github.salomax.neotool.security.graphql.mapper.GroupManagementMapper
 import io.github.salomax.neotool.security.graphql.mapper.UserManagementMapper
 import io.github.salomax.neotool.security.graphql.resolver.GroupManagementResolver
-import io.github.salomax.neotool.security.service.GroupManagementService
+import io.github.salomax.neotool.security.service.management.GroupManagementService
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName

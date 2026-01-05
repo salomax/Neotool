@@ -3,7 +3,7 @@ package io.github.salomax.neotool.security.test.graphql
 import io.github.salomax.neotool.security.domain.rbac.Role
 import io.github.salomax.neotool.security.graphql.mapper.PermissionManagementMapper
 import io.github.salomax.neotool.security.graphql.resolver.PermissionManagementResolver
-import io.github.salomax.neotool.security.service.PermissionManagementService
+import io.github.salomax.neotool.security.service.management.PermissionManagementService
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName

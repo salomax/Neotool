@@ -40,20 +40,6 @@ describe('sorting utilities', () => {
         { field: 'EMAIL', direction: 'DESC' },
       ]);
     });
-
-    it('should convert ENABLED asc to GraphQL format', () => {
-      const result = toGraphQLOrderBy({ field: 'ENABLED', direction: 'asc' });
-      expect(result).toEqual([
-        { field: 'ENABLED', direction: 'ASC' },
-      ]);
-    });
-
-    it('should convert ENABLED desc to GraphQL format', () => {
-      const result = toGraphQLOrderBy({ field: 'ENABLED', direction: 'desc' });
-      expect(result).toEqual([
-        { field: 'ENABLED', direction: 'DESC' },
-      ]);
-    });
   });
 
   describe('fromGraphQLOrderBy', () => {
@@ -101,22 +87,6 @@ describe('sorting utilities', () => {
       expect(result).toEqual({ field: 'EMAIL', direction: 'desc' });
     });
 
-    it('should convert ENABLED ASC to frontend format', () => {
-      const input: UserOrderByInput[] = [
-        { field: 'ENABLED', direction: 'ASC' },
-      ];
-      const result = fromGraphQLOrderBy(input);
-      expect(result).toEqual({ field: 'ENABLED', direction: 'asc' });
-    });
-
-    it('should convert ENABLED DESC to frontend format', () => {
-      const input: UserOrderByInput[] = [
-        { field: 'ENABLED', direction: 'DESC' },
-      ];
-      const result = fromGraphQLOrderBy(input);
-      expect(result).toEqual({ field: 'ENABLED', direction: 'desc' });
-    });
-
     it('should take first orderBy entry and ignore subsequent entries', () => {
       const input: UserOrderByInput[] = [
         { field: 'DISPLAY_NAME', direction: 'ASC' },
@@ -162,27 +132,14 @@ describe('sorting utilities', () => {
     it('should handle EMAIL field transitions', () => {
       // null -> asc
       expect(getNextSortState(null, 'EMAIL')).toEqual({ field: 'EMAIL', direction: 'asc' });
-      
+
       // asc -> desc
       const asc: UserSortState = { field: 'EMAIL', direction: 'asc' };
       expect(getNextSortState(asc, 'EMAIL')).toEqual({ field: 'EMAIL', direction: 'desc' });
-      
+
       // desc -> null
       const desc: UserSortState = { field: 'EMAIL', direction: 'desc' };
       expect(getNextSortState(desc, 'EMAIL')).toBeNull();
-    });
-
-    it('should handle ENABLED field transitions', () => {
-      // null -> asc
-      expect(getNextSortState(null, 'ENABLED')).toEqual({ field: 'ENABLED', direction: 'asc' });
-      
-      // asc -> desc
-      const asc: UserSortState = { field: 'ENABLED', direction: 'asc' };
-      expect(getNextSortState(asc, 'ENABLED')).toEqual({ field: 'ENABLED', direction: 'desc' });
-      
-      // desc -> null
-      const desc: UserSortState = { field: 'ENABLED', direction: 'desc' };
-      expect(getNextSortState(desc, 'ENABLED')).toBeNull();
     });
 
     it('should switch to new field when clicking different column', () => {

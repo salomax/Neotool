@@ -1,7 +1,7 @@
 package io.github.salomax.neotool.security.test.service.unit
 
 import io.github.salomax.neotool.security.config.EmailConfig
-import io.github.salomax.neotool.security.service.EmailService
+import io.github.salomax.neotool.security.service.email.EmailService
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested

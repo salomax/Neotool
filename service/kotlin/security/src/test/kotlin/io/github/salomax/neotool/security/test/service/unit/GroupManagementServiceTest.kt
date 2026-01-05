@@ -5,6 +5,8 @@ import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.OrderDirection
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import io.github.salomax.neotool.security.domain.GroupManagement
+import io.github.salomax.neotool.security.model.GroupOrderBy
+import io.github.salomax.neotool.security.model.GroupOrderField
 import io.github.salomax.neotool.security.model.rbac.GroupMembershipEntity
 import io.github.salomax.neotool.security.repo.GroupMembershipRepository
 import io.github.salomax.neotool.security.repo.GroupRepository
@@ -12,9 +14,7 @@ import io.github.salomax.neotool.security.repo.GroupRepositoryCustom
 import io.github.salomax.neotool.security.repo.GroupRoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.UserRepository
-import io.github.salomax.neotool.security.service.GroupManagementService
-import io.github.salomax.neotool.security.service.GroupOrderBy
-import io.github.salomax.neotool.security.service.GroupOrderField
+import io.github.salomax.neotool.security.service.management.GroupManagementService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach

@@ -5,7 +5,7 @@ import io.github.salomax.neotool.security.domain.rbac.Role
 import io.github.salomax.neotool.security.graphql.dto.AuthorizationResultDTO
 import io.github.salomax.neotool.security.graphql.dto.PermissionDTO
 import io.github.salomax.neotool.security.graphql.dto.RoleDTO
-import io.github.salomax.neotool.security.service.AuthorizationResult
+import io.github.salomax.neotool.security.service.authorization.AuthorizationResult
 import jakarta.inject.Singleton
 
 /**

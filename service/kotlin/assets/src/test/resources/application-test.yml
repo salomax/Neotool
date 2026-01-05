@@ -1,0 +1,39 @@
+micronaut:
+  application:
+    name: neotool-service-test
+  server:
+    # random port for testing
+    port: 0
+  security:
+    enabled: false
+  http:
+    client:
+      read-timeout: 30s
+      connect-timeout: 10s
+datasources:
+  default:
+    enabled: false
+flyway:
+  enabled: false
+kafka:
+  enabled: false
+redis:
+  enabled: false
+endpoints:
+  enabled: false
+  health:
+    enabled: true
+    details-visible: ANONYMOUS
+    redis:
+      enabled: false
+
+logging:
+  level:
+    io.github.salomax.neotool: DEBUG
+    io.micronaut.transaction: DEBUG
+    io.micronaut.data.tx: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.flywaydb.core: INFO
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.testcontainers: OFF
+    org.apache.kafka: OFF

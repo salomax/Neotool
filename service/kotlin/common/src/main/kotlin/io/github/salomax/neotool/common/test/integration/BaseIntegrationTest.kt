@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.TestInstance
+import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Testcontainers
 import org.testcontainers.kafka.KafkaContainer
@@ -37,12 +38,19 @@ abstract class BaseIntegrationTest : TestPropertyProvider {
             props += KafkaTestContainer.micronautProps()
         }
 
+        if (MinIOIntegrationTest::class.isSuperclassOf(this::class)) {
+            val minio = MinIOTestContainer.container // init container
+            props += MinIOTestContainer.micronautProps()
+        }
+
         return props
     }
 
     fun getPgContainer(): PostgreSQLContainer<*> = PostgresTestContainer.container
 
     fun getKafkaContainer(): KafkaContainer = KafkaTestContainer.container
+
+    fun getMinIOContainer(): GenericContainer<*> = MinIOTestContainer.container
 
 //  fun getRedisContainer(): RedisContainer = TODO()
 
@@ -87,6 +95,15 @@ abstract class BaseIntegrationTest : TestPropertyProvider {
             assertThat(kafkaContainer.bootstrapServers).isNotNull()
             assertThat(kafkaContainer.bootstrapServers).isNotEmpty()
             assertThat(kafkaContainer.firstMappedPort).isGreaterThan(0)
+        }
+
+        // Test MinIO test container
+        if (MinIOIntegrationTest::class.isSuperclassOf(this::class)) {
+            val minioContainer = MinIOTestContainer.container
+            assertThat(minioContainer.isRunning).isTrue()
+            assertThat(minioContainer.host).isNotNull()
+            assertThat(minioContainer.getMappedPort(9000)).isGreaterThan(0)
+            assertThat(minioContainer.getMappedPort(9001)).isGreaterThan(0)
         }
     }
 

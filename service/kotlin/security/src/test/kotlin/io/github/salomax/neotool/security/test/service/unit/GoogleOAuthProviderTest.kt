@@ -1,7 +1,7 @@
 package io.github.salomax.neotool.security.test.service.unit
 
 import io.github.salomax.neotool.security.config.OAuthConfig
-import io.github.salomax.neotool.security.service.GoogleOAuthProvider
+import io.github.salomax.neotool.security.service.oauth.GoogleOAuthProvider
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
