@@ -14,8 +14,8 @@ import io.github.salomax.neotool.security.graphql.dto.RoleConnectionDTO
 import io.github.salomax.neotool.security.graphql.dto.RoleDTO
 import io.github.salomax.neotool.security.graphql.dto.RoleEdgeDTO
 import io.github.salomax.neotool.security.graphql.dto.UpdateRoleInputDTO
-import io.github.salomax.neotool.security.service.RoleOrderBy
-import io.github.salomax.neotool.security.service.RoleOrderField
+import io.github.salomax.neotool.security.model.RoleOrderBy
+import io.github.salomax.neotool.security.model.RoleOrderField
 import jakarta.inject.Singleton
 import java.util.UUID
 

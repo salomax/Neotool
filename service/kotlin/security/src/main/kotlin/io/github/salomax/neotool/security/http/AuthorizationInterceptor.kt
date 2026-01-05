@@ -1,8 +1,8 @@
 package io.github.salomax.neotool.security.http
 
-import io.github.salomax.neotool.security.service.AuthorizationManager
-import io.github.salomax.neotool.security.service.RequestPrincipalProvider
-import io.github.salomax.neotool.security.service.exception.AuthenticationRequiredException
+import io.github.salomax.neotool.common.security.authorization.AuthorizationChecker
+import io.github.salomax.neotool.common.security.exception.AuthenticationRequiredException
+import io.github.salomax.neotool.common.security.principal.RequestPrincipalProvider
 import io.micronaut.aop.InterceptorBean
 import io.micronaut.aop.MethodInterceptor
 import io.micronaut.aop.MethodInvocationContext
@@ -17,8 +17,11 @@ import mu.KotlinLogging
  * This interceptor:
  * 1. Extracts the Bearer token from the Authorization header
  * 2. Validates the token and creates a RequestPrincipal via [RequestPrincipalProvider]
- * 3. Checks authorization using [AuthorizationManager]
+ * 3. Checks authorization using [AuthorizationChecker] (token-based validation)
  * 4. Proceeds with method execution if authorized
+ *
+ * Uses token-based authorization validation, checking permissions embedded in the JWT token.
+ * This provides stateless, performant authorization without database queries.
  *
  * Future REST modules can use [RequiresAuthorization] annotation on their controllers
  * to automatically get authorization enforcement without implementing the logic themselves.
@@ -27,7 +30,7 @@ import mu.KotlinLogging
 @InterceptorBean(RequiresAuthorization::class)
 class AuthorizationInterceptor(
     private val requestPrincipalProvider: RequestPrincipalProvider,
-    private val authorizationManager: AuthorizationManager,
+    private val authorizationChecker: AuthorizationChecker,
 ) : MethodInterceptor<Any, Any> {
     private val logger = KotlinLogging.logger {}
 
@@ -47,7 +50,8 @@ class AuthorizationInterceptor(
 
         // Get current HTTP request from context
         val request =
-            ServerRequestContext.currentRequest<Any>()
+            ServerRequestContext
+                .currentRequest<Any>()
                 .orElseThrow {
                     logger.error { "RequiresAuthorization used but no HTTP request context available" }
                     AuthenticationRequiredException("No HTTP request context available")
@@ -74,7 +78,7 @@ class AuthorizationInterceptor(
 
         // Check authorization
         try {
-            authorizationManager.require(principal, permission)
+            authorizationChecker.require(principal, permission)
         } catch (e: Exception) {
             logger.debug(e) { "Authorization check failed for permission '$permission': ${e.message}" }
             throw e

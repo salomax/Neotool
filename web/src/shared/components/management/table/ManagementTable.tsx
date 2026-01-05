@@ -212,10 +212,9 @@ export interface ManagementTableProps<T, F extends string = string> {
 
 /**
  * Loading bar component - shows progress when loading with existing data
+ * Always reserves space to prevent layout shifts
  */
 function LoadingBar({ show }: { show: boolean }) {
-  if (!show) return null;
-  
   return (
     <Box
       sx={{
@@ -224,15 +223,17 @@ function LoadingBar({ show }: { show: boolean }) {
         flexShrink: 0,
       }}
     >
-      <LinearProgress
-        sx={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          width: "100%",
-        }}
-      />
+      {show && (
+        <LinearProgress
+          sx={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            width: "100%",
+          }}
+        />
+      )}
     </Box>
   );
 }

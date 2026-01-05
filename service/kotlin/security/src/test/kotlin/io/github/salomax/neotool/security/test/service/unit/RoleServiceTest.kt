@@ -2,7 +2,7 @@ package io.github.salomax.neotool.security.test.service.unit
 
 import io.github.salomax.neotool.security.domain.rbac.Role
 import io.github.salomax.neotool.security.repo.RoleRepository
-import io.github.salomax.neotool.security.service.RoleService
+import io.github.salomax.neotool.security.service.management.RoleService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach

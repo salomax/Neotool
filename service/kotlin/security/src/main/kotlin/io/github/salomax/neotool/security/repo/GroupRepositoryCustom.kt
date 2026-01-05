@@ -1,8 +1,8 @@
 package io.github.salomax.neotool.security.repo
 
 import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
+import io.github.salomax.neotool.security.model.GroupOrderBy
 import io.github.salomax.neotool.security.model.rbac.GroupEntity
-import io.github.salomax.neotool.security.service.GroupOrderBy
 
 /**
  * Custom query contract for {@link GroupRepository}.

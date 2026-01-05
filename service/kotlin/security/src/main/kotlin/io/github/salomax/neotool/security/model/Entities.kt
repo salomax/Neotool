@@ -35,8 +35,6 @@ open class UserEntity(
     open var passwordResetExpiresAt: Instant? = null,
     @Column(name = "password_reset_used_at")
     open var passwordResetUsedAt: Instant? = null,
-    @Column(nullable = false)
-    open var enabled: Boolean = true,
     @Column(name = "avatar_url")
     open var avatarUrl: String? = null,
     @Column(name = "avatar_provider")
@@ -55,7 +53,6 @@ open class UserEntity(
             id = this.id,
             email = this.email,
             displayName = this.displayName,
-            enabled = this.enabled,
             createdAt = this.createdAt,
             updatedAt = this.updatedAt,
             avatarUrl = this.avatarUrl,

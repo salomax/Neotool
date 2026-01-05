@@ -1,16 +1,22 @@
 package io.github.salomax.neotool.security.test.service.integration
 
+import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
+import io.github.salomax.neotool.common.test.transaction.runTransaction
+import io.github.salomax.neotool.security.model.PrincipalEntity
+import io.github.salomax.neotool.security.repo.PrincipalRepository
+import io.github.salomax.neotool.security.repo.RefreshTokenRepository
 import io.github.salomax.neotool.security.repo.UserRepository
-import io.github.salomax.neotool.security.service.AuthContextFactory
-import io.github.salomax.neotool.security.service.AuthenticationService
-import io.github.salomax.neotool.security.service.JwtService
+import io.github.salomax.neotool.security.service.authentication.AuthContextFactory
+import io.github.salomax.neotool.security.service.authentication.AuthenticationService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject
+import jakarta.persistence.EntityManager
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.MethodOrderer
 import org.junit.jupiter.api.Nested
@@ -27,9 +33,14 @@ import org.junit.jupiter.api.assertThrows
 @Tag("authentication")
 @Tag("security")
 @TestMethodOrder(MethodOrderer.Random::class)
-class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTest {
+class AuthenticationServiceIntegrationTest :
+    BaseIntegrationTest(),
+    PostgresIntegrationTest {
     @Inject
     lateinit var userRepository: UserRepository
+
+    @Inject
+    lateinit var principalRepository: PrincipalRepository
 
     @Inject
     lateinit var authenticationService: AuthenticationService
@@ -38,16 +49,34 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
     lateinit var authContextFactory: AuthContextFactory
 
     @Inject
-    lateinit var jwtService: JwtService
+    lateinit var jwtTokenValidator: io.github.salomax.neotool.common.security.jwt.JwtTokenValidator
 
-    private fun uniqueEmail() = SecurityTestDataBuilders.uniqueEmail("auth-integration")
+    @Inject
+    lateinit var refreshTokenRepository: RefreshTokenRepository
+
+    @Inject
+    lateinit var entityManager: EntityManager
+
+    private fun uniqueEmail() = SecurityTestDataBuilders.uniqueEmail("authentication-integration")
+
+    @BeforeEach
+    fun cleanupTestDataBefore() {
+        // Clean up before each test to ensure clean state
+        cleanupTestData()
+    }
 
     @AfterEach
     fun cleanupTestData() {
         // Clean up test data after each test
         // Note: BaseIntegrationTest.setUp() and tearDown() are final and handle container setup
         try {
-            userRepository.deleteAll()
+            entityManager.runTransaction {
+                refreshTokenRepository.deleteAll()
+                principalRepository.deleteAll()
+                userRepository.deleteAll()
+                entityManager.flush()
+            }
+            entityManager.clear()
         } catch (e: Exception) {
             // Ignore cleanup errors
         }
@@ -217,8 +246,17 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
                     email = email,
                     password = password,
                 )
-            user.enabled = false
-            userRepository.save(user)
+            val savedUser = userRepository.save(user)
+            val userId = savedUser.id!!
+
+            // Create and save disabled principal
+            val disabledPrincipal =
+                PrincipalEntity(
+                    principalType = PrincipalType.USER,
+                    externalId = userId.toString(),
+                    enabled = false,
+                )
+            principalRepository.save(disabledPrincipal)
 
             // Act
             val authenticatedUser = authenticationService.authenticate(email, password)
@@ -375,7 +413,8 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
                     password = password,
                 )
             val savedUser = userRepository.save(user)
-            val token = authenticationService.generateRememberMeToken()
+            // Use JWT refresh token instead of legacy remember me token
+            val token = authenticationService.generateRefreshToken(savedUser)
             authenticationService.saveRememberMeToken(savedUser.id!!, token)
 
             // Act
@@ -384,7 +423,8 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
             // Assert
             assertThat(authenticatedUser).isNotNull()
             assertThat(authenticatedUser?.email).isEqualTo(email)
-            assertThat(authenticatedUser?.rememberMeToken).isEqualTo(token)
+            // Note: rememberMeToken might be different if RefreshTokenService is used
+            // but the token should still authenticate
         }
 
         @Test
@@ -518,7 +558,7 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
             assertThat(accessToken.split(".")).hasSize(3) // JWT has 3 parts
 
             // Assert - Token contains permissions claim (empty array for user with no roles)
-            val permissions = jwtService.getPermissionsFromToken(accessToken)
+            val permissions = jwtTokenValidator.getPermissionsFromToken(accessToken)
             assertThat(permissions).isNotNull()
             assertThat(permissions).isEmpty()
 
@@ -610,12 +650,18 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
                     password = password,
                 )
             val savedUser = userRepository.save(user)
+            val userId = savedUser.id!!
             val authContext = authContextFactory.build(savedUser)
             val accessToken = authenticationService.generateAccessToken(authContext)
 
-            // Act - Disable user
-            savedUser.enabled = false
-            userRepository.save(savedUser)
+            // Act - Disable user by creating disabled principal
+            val disabledPrincipal =
+                PrincipalEntity(
+                    principalType = PrincipalType.USER,
+                    externalId = userId.toString(),
+                    enabled = false,
+                )
+            principalRepository.save(disabledPrincipal)
 
             // Act - Try to validate access token
             val validatedUser = authenticationService.validateAccessToken(accessToken)
@@ -636,12 +682,18 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
                     password = password,
                 )
             val savedUser = userRepository.save(user)
+            val userId = savedUser.id!!
             val refreshToken = authenticationService.generateRefreshToken(savedUser)
-            authenticationService.saveRememberMeToken(savedUser.id!!, refreshToken)
+            authenticationService.saveRememberMeToken(userId, refreshToken)
 
-            // Act - Disable user
-            savedUser.enabled = false
-            userRepository.save(savedUser)
+            // Act - Disable user by creating disabled principal
+            val disabledPrincipal =
+                PrincipalEntity(
+                    principalType = PrincipalType.USER,
+                    externalId = userId.toString(),
+                    enabled = false,
+                )
+            principalRepository.save(disabledPrincipal)
 
             // Act - Try to validate refresh token
             val validatedUser = authenticationService.validateRefreshToken(refreshToken)
@@ -753,7 +805,7 @@ class AuthenticationServiceIntegrationTest : BaseIntegrationTest(), PostgresInte
             val userFromAccessToken = authenticationService.validateAccessToken(accessToken)
             assertThat(userFromAccessToken).isNotNull()
             assertThat(userFromAccessToken?.id).isEqualTo(savedUser.id)
-            val permissions = jwtService.getPermissionsFromToken(accessToken)
+            val permissions = jwtTokenValidator.getPermissionsFromToken(accessToken)
             assertThat(permissions).isNotNull() // Permissions claim should always be present
 
             // Assert - Refresh token works

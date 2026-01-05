@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.common.test.integration
 
 import org.apache.kafka.common.serialization.StringSerializer
+import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.containers.wait.strategy.Wait
 import org.testcontainers.kafka.KafkaContainer
@@ -10,6 +11,8 @@ import java.time.Duration
 interface PostgresIntegrationTest
 
 interface KafkaIntegrationTest
+
+interface MinIOIntegrationTest
 
 // TODO implement the other containers:
 // interface RedisntegrationTest
@@ -82,4 +85,50 @@ object KafkaTestContainer : MicronautPropsTestContainer {
             "kafka.producers.default.key-serializer" to StringSerializer::class.java.name,
             "kafka.producers.default.value-serializer" to "io.micronaut.serde.kafka.KafkaSerdeSerializer",
         )
+}
+
+object MinIOTestContainer : MicronautPropsTestContainer {
+    private val image = TestConfig.str("test.minio.image", "minio/minio:latest")
+    private val reusable = TestConfig.bool("test.minio.reuse", true)
+    private val bucket = TestConfig.str("test.minio.bucket", "neotool-assets")
+    private val accessKey = TestConfig.str("test.minio.accessKey", "minioadmin")
+    private val secretKey = TestConfig.str("test.minio.secretKey", "minioadmin")
+
+    val container: GenericContainer<*> by lazy {
+        GenericContainer(DockerImageName.parse(image))
+            .withCommand("server", "/data", "--console-address", ":9001")
+            .withEnv("MINIO_ROOT_USER", accessKey)
+            .withEnv("MINIO_ROOT_PASSWORD", secretKey)
+            .withExposedPorts(9000, 9001)
+            .withReuse(reusable)
+            .waitingFor(
+                Wait.forListeningPort()
+                    .withStartupTimeout(Duration.ofSeconds(60)),
+            )
+            .withStartupAttempts(3)
+            .apply { start() }
+    }
+
+    fun getApiEndpoint(): String {
+        return "http://${container.host}:${container.getMappedPort(9000)}"
+    }
+
+    fun getConsoleEndpoint(): String {
+        return "http://${container.host}:${container.getMappedPort(9001)}"
+    }
+
+    override fun micronautProps(): Map<String, String> {
+        val endpoint = getApiEndpoint()
+        return mapOf(
+            "asset.storage.hostname" to container.host,
+            "asset.storage.port" to container.getMappedPort(9000).toString(),
+            "asset.storage.useHttps" to "false",
+            "asset.storage.region" to "us-east-1",
+            "asset.storage.bucket" to bucket,
+            "asset.storage.accessKey" to accessKey,
+            "asset.storage.secretKey" to secretKey,
+            "asset.storage.publicBasePath" to bucket,
+            "asset.storage.forcePathStyle" to "true",
+        )
+    }
 }

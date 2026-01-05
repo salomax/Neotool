@@ -1,7 +1,8 @@
 package io.github.salomax.neotool.security.test
 
+import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.security.model.UserEntity
-import io.github.salomax.neotool.security.service.AuthenticationService
+import io.github.salomax.neotool.security.service.authentication.AuthenticationService
 import java.time.Instant
 import java.util.UUID
 
@@ -32,7 +33,9 @@ object SecurityTestDataBuilders {
         )
 
     /**
-     * Create a test user with a hashed password
+     * Create a test user with a hashed password.
+     * For unit tests: pass an explicit ID (e.g., UUID.randomUUID())
+     * For integration tests: use default null to let database generate ID
      */
     fun userWithPassword(
         authenticationService: AuthenticationService,
@@ -234,10 +237,9 @@ object SecurityTestDataBuilders {
     /**
      * Generate a unique email for testing
      */
-    fun uniqueEmail(prefix: String = "test"): String {
-        return "$prefix-${System.currentTimeMillis()}-${Thread.currentThread().threadId()}-" +
+    fun uniqueEmail(prefix: String = "test"): String =
+        "$prefix-${System.currentTimeMillis()}-${Thread.currentThread().threadId()}-" +
             "${UUID.randomUUID().toString().take(8)}@example.com"
-    }
 
     /**
      * Create a GraphQL requestPasswordReset mutation
@@ -468,5 +470,27 @@ object SecurityTestDataBuilders {
             isActive = isActive,
             createdAt = createdAt,
             updatedAt = updatedAt,
+        )
+
+    /**
+     * Create a test principal entity
+     */
+    fun principal(
+        id: UUID? = null,
+        principalType: PrincipalType,
+        externalId: String,
+        enabled: Boolean = true,
+        createdAt: Instant = Instant.now(),
+        updatedAt: Instant = Instant.now(),
+        version: Long = 0,
+    ): io.github.salomax.neotool.security.model.PrincipalEntity =
+        io.github.salomax.neotool.security.model.PrincipalEntity(
+            id = id,
+            principalType = principalType,
+            externalId = externalId,
+            enabled = enabled,
+            createdAt = createdAt,
+            updatedAt = updatedAt,
+            version = version,
         )
 }

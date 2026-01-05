@@ -1,4 +1,3 @@
-
 plugins {
     id("org.jetbrains.kotlin.jvm")
     id("io.micronaut.application")
@@ -9,7 +8,7 @@ plugins {
 }
 
 micronaut {
-    version("4.10.2")
+    version("4.10.6")
     processing {
         incremental(true)
         annotations("io.github.salomax.neotool.security.*")
@@ -29,11 +28,6 @@ dependencies {
     ksp("io.micronaut.data:micronaut-data-processor")
     kspTest("io.micronaut:micronaut-inject-kotlin")
     kspTest("io.micronaut.data:micronaut-data-processor")
-
-    // JWT dependencies
-    implementation("io.jsonwebtoken:jjwt-api:0.12.5")
-    implementation("io.jsonwebtoken:jjwt-impl:0.12.5")
-    implementation("io.jsonwebtoken:jjwt-jackson:0.12.5")
 
     // Password hashing - Argon2id
     implementation("com.password4j:password4j:1.8.0")

@@ -3,11 +3,14 @@ package io.github.salomax.neotool.security.graphql
 import graphql.schema.DataFetchingEnvironment
 import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.TypeRuntimeWiring
+import io.github.salomax.neotool.common.graphql.AuthenticatedGraphQLWiringFactory
 import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.createValidatedDataFetcher
 import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.getRequiredString
 import io.github.salomax.neotool.common.graphql.GraphQLPayloadDataFetcher.createMutationDataFetcher
 import io.github.salomax.neotool.common.graphql.GraphQLResolverRegistry
-import io.github.salomax.neotool.common.graphql.GraphQLWiringFactory
+import io.github.salomax.neotool.common.security.authorization.AuthorizationChecker
+import io.github.salomax.neotool.common.security.principal.RequestPrincipal
+import io.github.salomax.neotool.common.security.principal.RequestPrincipalProvider
 import io.github.salomax.neotool.security.domain.rbac.SecurityPermissions
 import io.github.salomax.neotool.security.graphql.dataloader.GroupMembersDataLoader
 import io.github.salomax.neotool.security.graphql.dataloader.GroupRolesDataLoader
@@ -42,8 +45,6 @@ import io.github.salomax.neotool.security.graphql.resolver.GroupManagementResolv
 import io.github.salomax.neotool.security.graphql.resolver.PermissionManagementResolver
 import io.github.salomax.neotool.security.graphql.resolver.RoleManagementResolver
 import io.github.salomax.neotool.security.graphql.resolver.UserManagementResolver
-import io.github.salomax.neotool.security.service.AuthorizationManager
-import io.github.salomax.neotool.security.service.RequestPrincipalProvider
 import jakarta.inject.Singleton
 import java.util.concurrent.CompletableFuture
 
@@ -61,49 +62,18 @@ class SecurityWiringFactory(
     private val groupManagementMapper: GroupManagementMapper,
     private val roleManagementMapper: RoleManagementMapper,
     private val userManagementMapper: UserManagementMapper,
-    private val requestPrincipalProvider: RequestPrincipalProvider,
-    private val authorizationManager: AuthorizationManager,
+    requestPrincipalProvider: RequestPrincipalProvider,
+    authorizationChecker: AuthorizationChecker,
     resolverRegistry: GraphQLResolverRegistry,
-) : GraphQLWiringFactory() {
+) : AuthenticatedGraphQLWiringFactory(requestPrincipalProvider, authorizationChecker) {
     init {
         // Register resolvers in the registry for cross-module access
-        resolverRegistry.register("auth", authResolver)
+        resolverRegistry.register("authentication", authResolver)
         resolverRegistry.register("authorization", authorizationResolver)
         resolverRegistry.register("userManagement", userManagementResolver)
         resolverRegistry.register("groupManagement", groupManagementResolver)
         resolverRegistry.register("roleManagement", roleManagementResolver)
         resolverRegistry.register("permissionManagement", permissionManagementResolver)
-    }
-
-    /**
-     * Helper function to enforce permission checks before executing a data fetcher block.
-     * This helper can be reused for any GraphQL operation that requires authorization.
-     * It extracts the principal from GraphQL context, validates permissions, and executes
-     * the block only if authorization succeeds.
-     *
-     * Exceptions thrown by this method (AuthenticationRequiredException and AuthorizationDeniedException)
-     * are automatically converted to user-friendly GraphQL error messages by SecurityGraphQLExceptionHandler:
-     * - AuthenticationRequiredException → "Authentication required"
-     * - AuthorizationDeniedException → "Permission denied: <action>"
-     *
-     * These errors are returned in the GraphQL response's errors array, and no stack traces
-     * or sensitive information are exposed to the client.
-     *
-     * @param env The GraphQL DataFetchingEnvironment
-     * @param action The permission/action to check (e.g., SecurityPermissions.SECURITY_USER_VIEW)
-     * @param block The block to execute if authorization succeeds
-     * @return The result of executing the block
-     * @throws AuthenticationRequiredException if no valid token is present (converted to GraphQL error)
-     * @throws AuthorizationDeniedException if permission is denied (converted to GraphQL error)
-     */
-    private fun <T> withPermission(
-        env: DataFetchingEnvironment,
-        action: String,
-        block: () -> T,
-    ): T {
-        val principal = requestPrincipalProvider.fromGraphQl(env)
-        authorizationManager.require(principal, action)
-        return block()
     }
 
     /**
@@ -117,17 +87,20 @@ class SecurityWiringFactory(
      * - This follows standard RBAC patterns (users can view their own data)
      * - SECURITY_USER_VIEW is still required for viewing other users' data
      *
+     * Note: The principal parameter is nullable to handle edge cases (e.g., during sign-in mutations)
+     * where a principal may not be available in the GraphQL context yet.
+     *
      * @param env The GraphQL DataFetchingEnvironment
      * @param action The permission/action to check (e.g., SecurityPermissions.SECURITY_USER_VIEW)
      * @param userId The ID of the user whose data is being accessed
-     * @param block The block to execute if authorization succeeds
+     * @param block The block to execute if authorization succeeds, receiving the validated principal (nullable)
      * @return The result of executing the block
      */
     private fun <T> withPermissionOrOwnData(
         env: DataFetchingEnvironment,
         action: String,
         userId: String,
-        block: () -> T,
+        block: (RequestPrincipal?) -> T,
     ): T {
         // Try to get the current user's principal
         val principal =
@@ -137,8 +110,13 @@ class SecurityWiringFactory(
                 // If no principal (e.g., during sign-in mutation),
                 // check if we can extract user ID from the source UserDTO
                 // For sign-in, the user in the payload is the authenticated user
-                return block() // During sign-in, the user is viewing their own data
+                null
             }
+
+        // If no principal available, allow access (edge case during sign-in)
+        if (principal == null) {
+            return block(null)
+        }
 
         // Check if the user is viewing their own data
         val isOwnData =
@@ -151,9 +129,9 @@ class SecurityWiringFactory(
 
         // If viewing own data, allow access; otherwise require permission
         return if (isOwnData) {
-            block()
+            block(principal)
         } else {
-            withPermission(env, action, block)
+            env.withPermission(action) { p -> block(p) }
         }
     }
 
@@ -174,7 +152,7 @@ class SecurityWiringFactory(
             ).dataFetcher(
                 "checkPermission",
                 createValidatedDataFetcher { env ->
-                    withPermission(env, SecurityPermissions.SECURITY_USER_VIEW) {
+                    env.withPermission(SecurityPermissions.SECURITY_USER_VIEW) { _ ->
                         val userId = getRequiredString(env, "userId")
                         val permission = getRequiredString(env, "permission")
                         val resourceId = env.getArgument<String?>("resourceId")
@@ -184,7 +162,7 @@ class SecurityWiringFactory(
             ).dataFetcher(
                 "getUserPermissions",
                 createValidatedDataFetcher { env ->
-                    withPermission(env, SecurityPermissions.SECURITY_USER_VIEW) {
+                    env.withPermission(SecurityPermissions.SECURITY_USER_VIEW) { _ ->
                         val userId = getRequiredString(env, "userId")
                         authorizationResolver.getUserPermissions(userId)
                     }
@@ -192,7 +170,7 @@ class SecurityWiringFactory(
             ).dataFetcher(
                 "getUserRoles",
                 createValidatedDataFetcher { env ->
-                    withPermission(env, SecurityPermissions.SECURITY_USER_VIEW) {
+                    env.withPermission(SecurityPermissions.SECURITY_USER_VIEW) { _ ->
                         val userId = getRequiredString(env, "userId")
                         authorizationResolver.getUserRoles(userId)
                     }
@@ -200,7 +178,7 @@ class SecurityWiringFactory(
             ).dataFetcher(
                 "user",
                 createValidatedDataFetcher { env ->
-                    withPermission(env, SecurityPermissions.SECURITY_USER_VIEW) {
+                    env.withPermission(SecurityPermissions.SECURITY_USER_VIEW) { _ ->
                         val id = getRequiredString(env, "id")
                         userManagementResolver.user(id)
                     }
@@ -208,7 +186,7 @@ class SecurityWiringFactory(
             ).dataFetcher(
                 "users",
                 createValidatedDataFetcher { env ->
-                    withPermission(env, SecurityPermissions.SECURITY_USER_VIEW) {
+                    env.withPermission(SecurityPermissions.SECURITY_USER_VIEW) { _ ->
                         val first = env.getArgument<Int?>("first")
                         val after = env.getArgument<String?>("after")
                         val query = env.getArgument<String?>("query")
@@ -219,7 +197,7 @@ class SecurityWiringFactory(
             ).dataFetcher(
                 "group",
                 createValidatedDataFetcher { env ->
-                    withPermission(env, SecurityPermissions.SECURITY_GROUP_VIEW) {
+                    env.withPermission(SecurityPermissions.SECURITY_GROUP_VIEW) { _ ->
                         val id = getRequiredString(env, "id")
                         groupManagementResolver.group(id)
                     }
@@ -227,7 +205,7 @@ class SecurityWiringFactory(
             ).dataFetcher(
                 "groups",
                 createValidatedDataFetcher { env ->
-                    withPermission(env, SecurityPermissions.SECURITY_GROUP_VIEW) {
+                    env.withPermission(SecurityPermissions.SECURITY_GROUP_VIEW) { _ ->
                         val first = env.getArgument<Int?>("first")
                         val after = env.getArgument<String?>("after")
                         val query = env.getArgument<String?>("query")
@@ -238,7 +216,7 @@ class SecurityWiringFactory(
             ).dataFetcher(
                 "role",
                 createValidatedDataFetcher { env ->
-                    withPermission(env, SecurityPermissions.SECURITY_ROLE_VIEW) {
+                    env.withPermission(SecurityPermissions.SECURITY_ROLE_VIEW) { _ ->
                         val id = getRequiredString(env, "id")
                         roleManagementResolver.role(id)
                     }
@@ -246,7 +224,7 @@ class SecurityWiringFactory(
             ).dataFetcher(
                 "roles",
                 createValidatedDataFetcher { env ->
-                    withPermission(env, SecurityPermissions.SECURITY_ROLE_VIEW) {
+                    env.withPermission(SecurityPermissions.SECURITY_ROLE_VIEW) { _ ->
                         val first = env.getArgument<Int?>("first")
                         val after = env.getArgument<String?>("after")
                         val query = env.getArgument<String?>("query")
@@ -257,7 +235,7 @@ class SecurityWiringFactory(
             ).dataFetcher(
                 "permissions",
                 createValidatedDataFetcher { env ->
-                    withPermission(env, SecurityPermissions.SECURITY_ROLE_VIEW) {
+                    env.withPermission(SecurityPermissions.SECURITY_ROLE_VIEW) { _ ->
                         val first = env.getArgument<Int?>("first")
                         val after = env.getArgument<String?>("after")
                         val query = env.getArgument<String?>("query")
@@ -301,7 +279,7 @@ class SecurityWiringFactory(
             ).dataFetcher(
                 "enableUser",
                 createValidatedDataFetcher { env ->
-                    withPermission(env, SecurityPermissions.SECURITY_USER_SAVE) {
+                    env.withPermission(SecurityPermissions.SECURITY_USER_SAVE) { _ ->
                         val userId = getRequiredString(env, "userId")
                         userManagementResolver.enableUser(userId)
                     }
@@ -309,7 +287,7 @@ class SecurityWiringFactory(
             ).dataFetcher(
                 "disableUser",
                 createValidatedDataFetcher { env ->
-                    withPermission(env, SecurityPermissions.SECURITY_USER_SAVE) {
+                    env.withPermission(SecurityPermissions.SECURITY_USER_SAVE) { _ ->
                         val userId = getRequiredString(env, "userId")
                         userManagementResolver.disableUser(userId)
                     }
@@ -317,7 +295,7 @@ class SecurityWiringFactory(
             ).dataFetcher(
                 "createGroup",
                 createValidatedDataFetcher { env ->
-                    withPermission(env, SecurityPermissions.SECURITY_GROUP_SAVE) {
+                    env.withPermission(SecurityPermissions.SECURITY_GROUP_SAVE) { _ ->
                         val input =
                             env.getArgument<Map<String, Any?>>("input")
                                 ?: throw IllegalArgumentException("input is required")
@@ -329,7 +307,7 @@ class SecurityWiringFactory(
             ).dataFetcher(
                 "updateGroup",
                 createValidatedDataFetcher { env ->
-                    withPermission(env, SecurityPermissions.SECURITY_GROUP_SAVE) {
+                    env.withPermission(SecurityPermissions.SECURITY_GROUP_SAVE) { _ ->
                         val groupId = getRequiredString(env, "groupId")
                         val inputMap =
                             env.getArgument<Map<String, Any?>>("input")
@@ -341,7 +319,7 @@ class SecurityWiringFactory(
             ).dataFetcher(
                 "deleteGroup",
                 createValidatedDataFetcher { env ->
-                    withPermission(env, SecurityPermissions.SECURITY_GROUP_DELETE) {
+                    env.withPermission(SecurityPermissions.SECURITY_GROUP_DELETE) { _ ->
                         val groupId = getRequiredString(env, "groupId")
                         groupManagementResolver.deleteGroup(groupId)
                     }
@@ -349,7 +327,7 @@ class SecurityWiringFactory(
             ).dataFetcher(
                 "createRole",
                 createValidatedDataFetcher { env ->
-                    withPermission(env, SecurityPermissions.SECURITY_ROLE_SAVE) {
+                    env.withPermission(SecurityPermissions.SECURITY_ROLE_SAVE) { _ ->
                         val input =
                             env.getArgument<Map<String, Any?>>("input")
                                 ?: throw IllegalArgumentException("input is required")
@@ -361,7 +339,7 @@ class SecurityWiringFactory(
             ).dataFetcher(
                 "updateRole",
                 createValidatedDataFetcher { env ->
-                    withPermission(env, SecurityPermissions.SECURITY_ROLE_SAVE) {
+                    env.withPermission(SecurityPermissions.SECURITY_ROLE_SAVE) { _ ->
                         val roleId = getRequiredString(env, "roleId")
                         val inputMap =
                             env.getArgument<Map<String, Any?>>("input")
@@ -373,7 +351,7 @@ class SecurityWiringFactory(
             ).dataFetcher(
                 "deleteRole",
                 createValidatedDataFetcher { env ->
-                    withPermission(env, SecurityPermissions.SECURITY_ROLE_DELETE) {
+                    env.withPermission(SecurityPermissions.SECURITY_ROLE_DELETE) { _ ->
                         val roleId = getRequiredString(env, "roleId")
                         roleManagementResolver.deleteRole(roleId)
                     }
@@ -381,7 +359,7 @@ class SecurityWiringFactory(
             ).dataFetcher(
                 "assignPermissionToRole",
                 createValidatedDataFetcher { env ->
-                    withPermission(env, SecurityPermissions.SECURITY_ROLE_SAVE) {
+                    env.withPermission(SecurityPermissions.SECURITY_ROLE_SAVE) { _ ->
                         val roleId = getRequiredString(env, "roleId")
                         val permissionId = getRequiredString(env, "permissionId")
                         roleManagementResolver.assignPermissionToRole(roleId, permissionId)
@@ -390,7 +368,7 @@ class SecurityWiringFactory(
             ).dataFetcher(
                 "removePermissionFromRole",
                 createValidatedDataFetcher { env ->
-                    withPermission(env, SecurityPermissions.SECURITY_ROLE_SAVE) {
+                    env.withPermission(SecurityPermissions.SECURITY_ROLE_SAVE) { _ ->
                         val roleId = getRequiredString(env, "roleId")
                         val permissionId = getRequiredString(env, "permissionId")
                         roleManagementResolver.removePermissionFromRole(roleId, permissionId)
@@ -399,7 +377,7 @@ class SecurityWiringFactory(
             ).dataFetcher(
                 "assignGroupToUser",
                 createValidatedDataFetcher { env ->
-                    withPermission(env, SecurityPermissions.SECURITY_USER_SAVE) {
+                    env.withPermission(SecurityPermissions.SECURITY_USER_SAVE) { _ ->
                         val userId = getRequiredString(env, "userId")
                         val groupId = getRequiredString(env, "groupId")
                         userManagementResolver.assignGroupToUser(userId, groupId)
@@ -408,7 +386,7 @@ class SecurityWiringFactory(
             ).dataFetcher(
                 "removeGroupFromUser",
                 createValidatedDataFetcher { env ->
-                    withPermission(env, SecurityPermissions.SECURITY_USER_SAVE) {
+                    env.withPermission(SecurityPermissions.SECURITY_USER_SAVE) { _ ->
                         val userId = getRequiredString(env, "userId")
                         val groupId = getRequiredString(env, "groupId")
                         userManagementResolver.removeGroupFromUser(userId, groupId)
@@ -417,7 +395,7 @@ class SecurityWiringFactory(
             ).dataFetcher(
                 "updateUser",
                 createValidatedDataFetcher { env ->
-                    withPermission(env, SecurityPermissions.SECURITY_USER_SAVE) {
+                    env.withPermission(SecurityPermissions.SECURITY_USER_SAVE) { _ ->
                         val userId = getRequiredString(env, "userId")
                         val inputMap =
                             env.getArgument<Map<String, Any?>>("input")
@@ -429,7 +407,7 @@ class SecurityWiringFactory(
             ).dataFetcher(
                 "assignRoleToGroup",
                 createValidatedDataFetcher { env ->
-                    withPermission(env, SecurityPermissions.SECURITY_GROUP_SAVE) {
+                    env.withPermission(SecurityPermissions.SECURITY_GROUP_SAVE) { _ ->
                         val groupId = getRequiredString(env, "groupId")
                         val roleId = getRequiredString(env, "roleId")
                         groupManagementResolver.assignRoleToGroup(groupId, roleId)
@@ -438,7 +416,7 @@ class SecurityWiringFactory(
             ).dataFetcher(
                 "removeRoleFromGroup",
                 createValidatedDataFetcher { env ->
-                    withPermission(env, SecurityPermissions.SECURITY_GROUP_SAVE) {
+                    env.withPermission(SecurityPermissions.SECURITY_GROUP_SAVE) { _ ->
                         val groupId = getRequiredString(env, "groupId")
                         val roleId = getRequiredString(env, "roleId")
                         groupManagementResolver.removeRoleFromGroup(groupId, roleId)
@@ -489,7 +467,7 @@ class SecurityWiringFactory(
                             )
                         } else {
                             // Allow users to view their own roles without permission
-                            withPermissionOrOwnData(env, SecurityPermissions.SECURITY_USER_VIEW, user.id) {
+                            withPermissionOrOwnData(env, SecurityPermissions.SECURITY_USER_VIEW, user.id) { _ ->
                                 // Get DataLoader from context to batch requests
                                 val dataLoader =
                                     env.getDataLoader<
@@ -517,7 +495,7 @@ class SecurityWiringFactory(
                             )
                         } else {
                             // Allow users to view their own groups without permission
-                            withPermissionOrOwnData(env, SecurityPermissions.SECURITY_USER_VIEW, user.id) {
+                            withPermissionOrOwnData(env, SecurityPermissions.SECURITY_USER_VIEW, user.id) { _ ->
                                 // Get DataLoader from context to batch requests
                                 val dataLoader =
                                     env.getDataLoader<
@@ -545,7 +523,7 @@ class SecurityWiringFactory(
                             )
                         } else {
                             // Allow users to view their own permissions without permission
-                            withPermissionOrOwnData(env, SecurityPermissions.SECURITY_USER_VIEW, user.id) {
+                            withPermissionOrOwnData(env, SecurityPermissions.SECURITY_USER_VIEW, user.id) { _ ->
                                 // Get DataLoader from context to batch requests
                                 val dataLoader =
                                     env.getDataLoader<

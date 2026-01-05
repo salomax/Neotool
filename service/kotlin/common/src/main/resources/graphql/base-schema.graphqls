@@ -4,20 +4,12 @@
 directive @key(fields: String!) repeatable on OBJECT | INTERFACE
 
 # Common scalar types
+scalar Long
 scalar DateTime
 scalar UUID
 
-# Base types that all modules can extend
-interface Node {
-  id: ID!
-}
-
 # Common query patterns
 type Query {
-  # Common utility queries
-  hello: String!
-  currentUser: String
-  
   # Placeholder - modules will extend this
   _placeholder: String
 }

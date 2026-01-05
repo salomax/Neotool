@@ -27,6 +27,55 @@ endpoints:
     redis:
       enabled: false
 
+jwt:
+  # Algorithm: RS256 (RSA-SHA256) - only supported algorithm
+  # Can be set via JWT_ALGORITHM environment variable
+  algorithm: ${JWT_ALGORITHM:RS256}
+  # Access token expiration in seconds (default: 900 = 15 minutes)
+  access-token-expiration-seconds: ${JWT_ACCESS_TOKEN_EXPIRATION_SECONDS:900}
+  # Refresh token expiration in seconds (default: 604800 = 7 days)
+  refresh-token-expiration-seconds: ${JWT_REFRESH_TOKEN_EXPIRATION_SECONDS:604800}
+  # Test keys (inline PEM format)
+  private-key: |
+    -----BEGIN PRIVATE KEY-----
+    MIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQDQPgywZkMyOB71
+    sN9sh574N78IPDgRIUUVo+6DIGJ0Pba0UaR5+Z1gnxvpI9LsY1vOX/qeaGj4EID5
+    gfnBPSjS8JIR9LaED+srFEbV5T1rW74imkE4rjleZn4VMS5bzpnxnp07HmmnLnLk
+    wEHhoSOeuj12RZgYZ6h3wjVezE+JsDyMAXlE/ohldTrMKq9E/CkaeIAso0w6GOUu
+    5I5Rwcm3NzA1K+cnWs3OFK50BLHu2De+htomiaLhJA21YEDvkJ6jbT2HxgCfG9GH
+    clz+gc95wfbsOB2F/+FkhecGwpVR5WNn0V3U+qrAq8fejeUMT45myPBPiiPhDJhO
+    jdVxNPmDAgMBAAECggEAFbIhSE+fOKA4OYjP/lKy8VF9ibIcdUxuEi8eLnM1Tr8P
+    RgIrjLnA98wb8FJXK2G+suW1CsP+C7pMdbJg/w0ML834qf5A9cliyv410xsrJwBL
+    8vb3TJx6RaeQA004c0A3McFAyGQGxfBE8ChHtOZA+8yTkrr1ebVzC+ckAFhxAPs3
+    PAjYq4PNbaOQk2YI/y1172gUj1jPSxYG6Gu1Y3SmQdEfTNcGLhjUYdjp80ZRInvm
+    8eVhD2HRhzlcv0ig6/vPjXmFmkkWiqT8+0Y7bPJi/+ItsVKz4LhsLAlEgihsTCCD
+    WjJ5ECr9CySrPudB8eAdi0XOJcAGYWkguFTR2o/bwQKBgQD+pjFRHcVp+zJwWj84
+    KRYUpc6qISM4J9qLfUpX4gs75i+VGC7Ys+LFZUlQ5EliLbWFLddL2U4emnwKa8s6
+    s+BzEZk/r225PHU/uOdTKeVaG1BZx+qZmzqT32y7z0UezGu57O7uVftAV9wc/Nns
+    Xpj7e8URiKiWTuxwW1kgBCS7yQKBgQDRWNZt4ETuXtNt87JPxWxpdONGscQ3UXtQ
+    TcYWEvRtevhEW0oHNd44TLOHGKUZvCXLF8wW5X6rYRe9+gvLHyqQTUBOFi6OVN74
+    +hBpPh9iiZdY7H+14QLoRcG3KTU8KYNHmPXPOnWMEqnvby53Nhv50iT145gP/dKw
+    9/J9XDPY6wKBgQCKR60YI1aESogFQrx5vrXi2Hb1I7GAWQPwI0Uvm+wFxuWnzM4D
+    lwtZrbq2VoES80dS3qW+5m3paHJbJlXhtrP3SGMzlgu7Pv1ccQgMvP9ygsqLNmhK
+    qWSR0A23nsImC1OkTukgO0iIlC1PAG9GT8g7J+bHsrH5jToPeUtYe2eHIQKBgQCw
+    x+IbWt0apbzJBpc2wbIww2IBGrBlPktxnpt9nHgH02W+44/50sVaqXqYxHj26GjJ
+    vci8NQPoWM8hv/shhan9vR5mUljyHD1F5nThSnJaVXIWx294+Q/pcK6KqyOnMC8J
+    0OMSIX2N0VzrMen9BRZOueQ4N/760g6PHnII5klqDQKBgQCIvoJMtqlGMdmKlCIJ
+    +XKqtNYIgH9Nf/G+6qsc8mJwVLsitMMu0KpW2sil/hcRAAAJDyq2T62UPzBOzK68
+    2eslmM1UlmBCfQfmQRg+NBxEE/blZqSAaVfmpXtvkp7AiPI3cXcl/3Et0GuQ04pb
+    ne4cHSstQT/jdYzRzzKvnPwG2w==
+    -----END PRIVATE KEY-----
+  public-key: |
+    -----BEGIN PUBLIC KEY-----
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0D4MsGZDMjge9bDfbIee
+    +De/CDw4ESFFFaPugyBidD22tFGkefmdYJ8b6SPS7GNbzl/6nmho+BCA+YH5wT0o
+    0vCSEfS2hA/rKxRG1eU9a1u+IppBOK45XmZ+FTEuW86Z8Z6dOx5ppy5y5MBB4aEj
+    nro9dkWYGGeod8I1XsxPibA8jAF5RP6IZXU6zCqvRPwpGniALKNMOhjlLuSOUcHJ
+    tzcwNSvnJ1rNzhSudASx7tg3vobaJomi4SQNtWBA75Ceo209h8YAnxvRh3Jc/oHP
+    ecH27Dgdhf/hZIXnBsKVUeVjZ9Fd1PqqwKvH3o3lDE+OZsjwT4oj4QyYTo3VcTT5
+    gwIDAQAB
+    -----END PUBLIC KEY-----
+
 logging:
   level:
     io.github.salomax.neotool: DEBUG
