@@ -7,9 +7,9 @@ import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.common.test.transaction.runTransaction
 import io.github.salomax.neotool.security.model.UserEntity
-import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.model.UserOrderBy
 import io.github.salomax.neotool.security.model.UserOrderField
+import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.authentication.AuthenticationService
 import io.github.salomax.neotool.security.service.management.UserManagementService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders

@@ -15,7 +15,24 @@ search_keywords: [index, manifest, navigation, specification, documents]
 
 ## Document Organization
 
-This specification is organized into two major sections:
+NeoTool documentation is organized into **two separate systems** with different purposes:
+
+### `spec/` - LLM Specifications (Not in this manifest)
+**Purpose**: Minimal feature specifications for AI-assisted development
+**Audience**: LLMs (Claude Code, Cursor, etc.)
+**Contains**:
+- Feature specifications (what to build)
+- Architecture Decision Records for LLMs (key constraints)
+- Pointers to code examples
+
+**Location**: `/spec/` (root level, separate from `/docs/`)
+**Index**: See `spec/README.md` for complete structure
+
+### `docs/` - Human Documentation (This manifest)
+**Purpose**: Comprehensive reference for human developers
+**Audience**: Human developers (not loaded as LLM context)
+
+This manifest indexes the `docs/` directory only. The documentation here is organized into two major sections:
 
 ### Core Learning Path (01-12)
 Sequential documentation for understanding and building NeoTool:
@@ -33,7 +50,7 @@ Sequential documentation for understanding and building NeoTool:
 - **11-infrastructure**: Infrastructure and deployment (placeholder for future content)
 - **12-specification-driven-dev**: How to use this documentation system with AI assistants
 
-### Supporting Resources (90-94)
+### Supporting Resources (90-99)
 Quick lookup and reference materials:
 
 - **90-examples**: Concrete implementation examples (backend, frontend, full-stack)
@@ -41,6 +58,7 @@ Quick lookup and reference materials:
 - **92-adr**: Architecture Decision Records
 - **93-reference**: Quick reference guides (commands, file structure, GraphQL, API)
 - **94-validation**: Checklists & validation scripts
+- **99-ai-context**: AI-optimized entry points for LLM tools (guardrails, patterns, examples)
 
 ## Overview Documents (01-overview)
 
@@ -150,11 +168,12 @@ Quick lookup and reference materials:
 | Document | Path | Type | Category | Keywords |
 |----------|------|------|----------|----------|
 | Workflows Index | `08-workflows/README.md` | index | workflow | workflows, index, spec-driven |
-| Feature Development | `08-workflows/feature-development.md` | workflow | development | feature-development, workflow, spec-driven, sdd |
+| **SDD Workflow** | `workflows/sdd-workflow.md` | workflow | development | **sdd, spec-driven, llm, ai-assisted, primary** |
+| Feature Development (Legacy) | `08-workflows/feature-development.md` | workflow | development | feature-development, workflow, spec-driven, sdd, deprecated |
 | Code Review | `08-workflows/code-review.md` | workflow | review | code-review, workflow, spec-compliance |
 | Testing Workflow | `08-workflows/testing-workflow.md` | workflow | testing | testing, workflow, spec-driven, coverage |
 | Deployment Workflow | `08-workflows/deployment-workflow.md` | workflow | deployment | deployment, workflow, ci-cd |
-| Spec Context Strategy | `08-workflows/spec-context-strategy.md` | workflow | development | context, ai, optimization, spec, navigation, rag |
+| Spec Context Strategy (Legacy) | `08-workflows/spec-context-strategy.md` | workflow | development | context, ai, optimization, spec, navigation, rag, deprecated |
 
 ## Security Documentation (09-security)
 
@@ -253,12 +272,21 @@ Quick lookup and reference materials:
 ## Navigation Guidelines
 
 ### For AI Assistants
-1. **Start with**: `01-overview/architecture-overview.md` for system understanding
-2. **Reference**: `04-domain/glossary.md` for terminology
-3. **Learn SDD**: `12-specification-driven-dev/README.md` for how to use this documentation
-4. **Follow**: Cross-references in documents for related topics
-5. **Use**: Category tags to find related documents
-6. **For Feature Creation**: Use `91-templates/feature-templates/feature-creation/feature-form.md` and related templates
+
+**IMPORTANT**: AI assistants should primarily work with the `/spec/` directory, not this `/docs/` directory.
+
+**When implementing features**:
+1. **Read the spec**: `/spec/features/[feature-name].md`
+2. **Explore code**: Use integration points listed in the spec
+3. **Learn patterns**: From actual code, not from `/docs/`
+4. **Implement**: Following discovered patterns
+
+**Only reference `/docs/` when**:
+- The spec explicitly points to a specific doc for context
+- You need domain terminology (`04-domain/glossary.md`)
+- You're helping write human documentation
+
+**See**: `/spec/README.md` and `workflows/sdd-workflow.md` for the complete AI-assisted workflow.
 
 ### For Developers
 1. **Quick Start**: Read `README.md` and `01-overview/architecture-overview.md`

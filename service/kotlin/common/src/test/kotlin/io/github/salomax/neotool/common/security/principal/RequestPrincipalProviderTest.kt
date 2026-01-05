@@ -3,9 +3,6 @@ package io.github.salomax.neotool.common.security.principal
 import graphql.GraphQLContext
 import graphql.schema.DataFetchingEnvironment
 import io.github.salomax.neotool.common.security.exception.AuthenticationRequiredException
-import io.github.salomax.neotool.common.security.principal.RequestPrincipal
-import io.github.salomax.neotool.common.security.principal.RequestPrincipalProvider
-import io.github.salomax.neotool.common.security.principal.TokenPrincipalDecoder
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach

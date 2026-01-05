@@ -172,7 +172,101 @@ services:
       - NEXT_PUBLIC_GOOGLE_CLIENT_ID=your-client-id-here.apps.googleusercontent.com
 ```
 
-## Step 6: Verify Dependencies
+## Step 6: Configure JWT Keys
+
+**Important**: The backend requires an RSA private key to sign your application's JWT access tokens. Without this, you'll get the error: "RS256 requires private key".
+
+### Development Setup (File-based Keys)
+
+For local development, you can use file-based keys:
+
+#### Generate RSA Key Pair
+
+Generate an RSA key pair using OpenSSL:
+
+```bash
+# Generate private key (4096 bits recommended)
+openssl genpkey -algorithm RSA -out jwt-private.pem -pkeyopt rsa_keygen_bits:4096
+
+# Extract public key
+openssl rsa -pubout -in jwt-private.pem -out jwt-public.pem
+
+# Set appropriate permissions
+chmod 600 jwt-private.pem
+chmod 644 jwt-public.pem
+```
+
+#### Configure Environment Variables
+
+**Option A: File Paths (Recommended for Local Development)**
+
+```bash
+export JWT_PRIVATE_KEY_PATH=/path/to/jwt-private.pem
+export JWT_PUBLIC_KEY_PATH=/path/to/jwt-public.pem
+export JWT_KEY_ID=kid-1
+```
+
+**Option B: Inline Keys (Useful for Docker/Containers)**
+
+```bash
+# Read keys and set as environment variables
+export JWT_PRIVATE_KEY="$(cat jwt-private.pem)"
+export JWT_PUBLIC_KEY="$(cat jwt-public.pem)"
+export JWT_KEY_ID=kid-1
+```
+
+**Option C: Docker Compose**
+
+Add to your `docker-compose.yml`:
+
+```yaml
+services:
+  security:
+    environment:
+      - JWT_PRIVATE_KEY_PATH=/app/keys/jwt-private.pem
+      - JWT_PUBLIC_KEY_PATH=/app/keys/jwt-public.pem
+      - JWT_KEY_ID=kid-1
+    volumes:
+      - ./keys:/app/keys:ro
+```
+
+### Production Setup (Vault)
+
+**Important**: In production, JWT keys must be stored in HashiCorp Vault and provisioned via Terraform. File-based keys should NOT be used in production.
+
+**📖 For complete Vault setup instructions, see [Vault Setup Guide](./vault-setup.md)**
+
+The guide covers:
+- Local development setup
+- Creating secrets manually (CLI, UI, API)
+- Creating secrets with Terraform
+- Configuration and verification
+- Troubleshooting
+- Production considerations
+
+**Quick Reference:**
+- **Secret Path**: `secret/jwt/keys/{keyId}` (default: `secret/jwt/keys/kid-1`)
+- **Secret Fields**: `private` (RSA private key) and `public` (RSA public key)
+- **Configuration**: Set `VAULT_ENABLED=true`, `VAULT_ADDRESS`, `VAULT_TOKEN`, and `JWT_KEY_ID`
+
+### Security Notes
+
+**Development:**
+- Never commit private keys to version control
+- Use different keys for development and production
+- Set appropriate file permissions (`chmod 600` for private key)
+
+**Production:**
+- ✅ **Use Vault** for key storage (required)
+- ✅ Store Vault token securely (environment variable or K8s service account)
+- ✅ Use Vault policies to restrict key access
+- ✅ Enable Vault audit logging
+- ✅ Rotate Vault tokens regularly
+- ❌ **Never use file-based keys in production**
+- ❌ Never commit Vault tokens to code
+- ❌ Don't use root Vault tokens
+
+## Step 7: Verify Dependencies
 
 ### Backend Dependencies
 
@@ -189,7 +283,7 @@ implementation("com.google.api-client:google-api-client:2.2.0")
 
 The frontend uses Google Identity Services via a script tag (no npm package needed). The implementation is in `web/src/lib/auth/oauth/google.ts`.
 
-## Step 7: Test the Setup
+## Step 8: Test the Setup
 
 ### 1. Start Your Services
 
@@ -239,7 +333,13 @@ Check the backend logs for:
 - Verify test users are added if app is in "Testing" mode
 - Check that required scopes are configured
 
-## Step 8: Production Checklist
+**"RS256 requires private key"**
+- Ensure `JWT_PRIVATE_KEY_PATH` or `JWT_PRIVATE_KEY` environment variable is set
+- Verify the private key file exists and is readable
+- Check that the private key is in PEM format
+- Restart the backend service after setting environment variables
+
+## Step 9: Production Checklist
 
 Before deploying to production:
 
@@ -273,10 +373,39 @@ Before deploying to production:
    ↓
 9. Backend creates/updates user in database
    ↓
-10. Backend generates JWT and refresh token
+10. Backend generates its own JWT access token and refresh token
     ↓
 11. Frontend stores tokens and redirects user
 ```
+
+### Two-JWT Token Flow
+
+**Important**: The OAuth flow involves **two distinct JWT tokens** with different purposes:
+
+1. **Google's ID Token (JWT)**:
+   - **Issued by**: Google (`accounts.google.com`)
+   - **Purpose**: Proves user identity with Google (authentication)
+   - **Lifetime**: ~1 hour
+   - **Contains**: Google user info (email, name, picture, etc.)
+   - **Validation**: Backend validates using Google's public keys
+   - **Usage**: One-time use during login to verify identity
+
+2. **Application's Access Token (JWT)**:
+   - **Issued by**: Your NeoTool security service
+   - **Purpose**: Authorizes API access to your application (authorization)
+   - **Lifetime**: 15 minutes (configurable)
+   - **Contains**: Your user ID, permissions, email
+   - **Validation**: Your services validate using your public keys (RS256)
+   - **Usage**: Included in every API request (`Authorization: Bearer <token>`)
+
+**Why Two Tokens?**
+
+- **Different purposes**: Google's token authenticates with Google; your token authorizes access to your APIs
+- **Different claims**: Google's token has Google-specific claims; your token has your application's user ID and permissions
+- **Different lifetimes**: Google tokens are longer-lived; your access tokens are short-lived for security
+- **Different validation**: Your services can't validate Google tokens directly; they need your tokens with your user context
+
+**Note**: The backend requires an RSA private key to sign your application's JWT tokens. See [JWT Configuration](#jwt-configuration) for setup instructions.
 
 ### Key Components
 

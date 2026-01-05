@@ -49,4 +49,3 @@ open class PermissionService(
         logger.info { "Permission deleted: ID $id" }
     }
 }
-

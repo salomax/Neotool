@@ -56,4 +56,3 @@ open class AbacPolicyService(
         logger.info { "ABAC policy deleted: ID $id" }
     }
 }
-

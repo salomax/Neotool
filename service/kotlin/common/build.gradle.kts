@@ -125,10 +125,11 @@ afterEvaluate {
             filters {
                 excludes {
                     classes(
+                        // Logging infrastructure - observability, not business logic
                         "io.github.salomax.neotool.common.logging.MDCFilter",
                         "io.github.salomax.neotool.common.logging.EnterpriseLoggingFilter",
                         "io.github.salomax.neotool.common.logging.EnterpriseLogMethodInterceptor",
-                        "io.github.salomax.neotool.common.security.SecurityHeadersFilter",
+                        // Exception handlers - framework integration
                         "io.github.salomax.neotool.common.exception.GraphQLOptimisticLockExceptionHandler",
                         "io.github.salomax.neotool.common.exception.OptimisticLockExceptionHandler",
                         "io.github.salomax.neotool.common.graphql.GraphQLRequest",
@@ -156,7 +157,10 @@ afterEvaluate {
                         "io.github.salomax.neotool.common.graphql.pagination.Edge",
                         "io.github.salomax.neotool.common.graphql.pagination.Connection",
                         "io.github.salomax.neotool.common.graphql.pagination.CompositeCursor",
+                        // Metrics instrumentation - observability
                         "io.github.salomax.neotool.common.metrics.GraphQLMetricsInstrumentation",
+                        // Test infrastructure - utilities for testing, not production code
+                        "io.github.salomax.neotool.common.test.security.JwtTestFixture",
                         "io.github.salomax.neotool.common.test.http.HttpClientExtensionKt",
                         "io.github.salomax.neotool.common.test.http.RequestBuildersKt",
                         "io.github.salomax.neotool.common.test.assertions.ResponseAssertionsKt",
@@ -167,7 +171,12 @@ afterEvaluate {
                         "io.github.salomax.neotool.common.test.integration.MicronautPropsTestContainer",
                         "io.github.salomax.neotool.common.test.integration.PostgresTestContainer",
                         "io.github.salomax.neotool.common.test.integration.KafkaTestContainer",
+                        "io.github.salomax.neotool.common.test.integration.MinIOIntegrationTest",
+                        "io.github.salomax.neotool.common.test.integration.MinIOTestContainer",
                         "io.github.salomax.neotool.common.test.integration.TestConfig",
+                        "io.github.salomax.neotool.common.test.transaction.TransactionExtensionsKt",
+                        // Factory classes - minimal logic, mostly delegation
+                        "io.github.salomax.neotool.common.security.key.KeyManagerFactory",
                     )
                 }
             }

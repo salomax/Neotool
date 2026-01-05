@@ -287,7 +287,8 @@ class RefreshTokenServiceTest {
                     tokenHash = tokenHash,
                     familyId = UUID.randomUUID(),
                     issuedAt = now.minusSeconds(604900L),
-                    expiresAt = now.minusSeconds(100), // Expired
+                    // Expired
+                    expiresAt = now.minusSeconds(100),
                 )
 
             whenever(refreshTokenRepository.findByTokenHash(tokenHash)).thenReturn(tokenRecord)

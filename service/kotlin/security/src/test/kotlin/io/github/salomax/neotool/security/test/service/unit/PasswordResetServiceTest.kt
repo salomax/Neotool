@@ -5,13 +5,13 @@ import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.repo.PasswordResetAttemptRepository
 import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.UserRepository
+import io.github.salomax.neotool.security.service.authentication.AuthenticationService
 import io.github.salomax.neotool.security.service.email.EmailService
 import io.github.salomax.neotool.security.service.jwt.JwtTokenIssuer
-import io.github.salomax.neotool.security.service.oauth.OAuthProvider
-import io.github.salomax.neotool.security.service.rate.RateLimitService
-import io.github.salomax.neotool.security.service.authentication.AuthenticationService
 import io.github.salomax.neotool.security.service.jwt.RefreshTokenService
+import io.github.salomax.neotool.security.service.oauth.OAuthProvider
 import io.github.salomax.neotool.security.service.oauth.OAuthProviderRegistry
+import io.github.salomax.neotool.security.service.rate.RateLimitService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach

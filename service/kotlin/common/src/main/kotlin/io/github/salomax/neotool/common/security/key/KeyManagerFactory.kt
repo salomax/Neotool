@@ -5,7 +5,7 @@ import mu.KotlinLogging
 
 /**
  * Factory for creating and selecting the appropriate KeyManager implementation.
- * 
+ *
  * This common implementation only provides FileKeyManager.
  * For Vault support, use SecurityKeyManagerFactory in the security module.
  */

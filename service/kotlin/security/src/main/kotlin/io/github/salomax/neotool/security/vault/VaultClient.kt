@@ -17,17 +17,74 @@ class VaultClient(
 ) {
     private val logger = KotlinLogging.logger {}
 
+    /**
+     * Normalize Vault address to ensure it has a proper protocol and format.
+     * Handles cases where only port number or host:port is provided.
+     */
+    private fun normalizeVaultAddress(address: String): String {
+        val trimmed = address.trim()
+
+        // If already a full URL, return as-is
+        if (
+            trimmed.startsWith("http://", ignoreCase = true) ||
+            trimmed.startsWith("https://", ignoreCase = true)
+        ) {
+            return trimmed
+        }
+
+        // If it's just a port number, assume localhost
+        if (trimmed.matches(Regex("^\\d+$"))) {
+            logger.warn { "Vault address is just a port number ($trimmed), assuming http://localhost:$trimmed" }
+            return "http://localhost:$trimmed"
+        }
+
+        // If it's host:port format, add http://
+        if (trimmed.matches(Regex("^[^:]+:\\d+$"))) {
+            logger.warn { "Vault address missing protocol ($trimmed), assuming http://$trimmed" }
+            return "http://$trimmed"
+        }
+
+        // If it's just a hostname, add http:// and default port
+        if (!trimmed.contains("://") && !trimmed.contains(":")) {
+            logger.warn { "Vault address missing protocol and port ($trimmed), assuming http://$trimmed:8200" }
+            return "http://$trimmed:8200"
+        }
+
+        // Return as-is if we can't determine format (let library handle error)
+        return trimmed
+    }
+
     private val vaultDriver: com.bettercloud.vault.Vault by lazy {
         val openTimeoutSeconds = vaultConfig.connectionTimeout / 1000
         val readTimeoutSeconds = vaultConfig.readTimeout / 1000
 
+        // Normalize and validate Vault address
+        val normalizedAddress = normalizeVaultAddress(vaultConfig.address)
+
         val config =
             com.bettercloud.vault
                 .VaultConfig()
-                .address(vaultConfig.address)
+                .address(normalizedAddress)
                 .engineVersion(vaultConfig.engineVersion)
                 .openTimeout(openTimeoutSeconds)
                 .readTimeout(readTimeoutSeconds)
+
+        // Configure SSL - required even for HTTP connections
+        // For HTTP (non-HTTPS) addresses, disable SSL verification
+        val isHttps = normalizedAddress.startsWith("https://", ignoreCase = true)
+        if (isHttps) {
+            // For HTTPS, use default SSL config (verify certificates)
+            config.sslConfig(
+                com.bettercloud.vault.SslConfig()
+                    .verify(true),
+            )
+        } else {
+            // For HTTP, disable SSL verification (not applicable but required by library)
+            config.sslConfig(
+                com.bettercloud.vault.SslConfig()
+                    .verify(false),
+            )
+        }
 
         if (vaultConfig.token != null) {
             config.token(vaultConfig.token)
@@ -169,4 +226,3 @@ class VaultClient(
             false
         }
 }
-

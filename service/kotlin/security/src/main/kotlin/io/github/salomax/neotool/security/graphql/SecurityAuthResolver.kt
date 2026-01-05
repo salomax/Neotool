@@ -288,7 +288,8 @@ class SecurityAuthResolver(
             val payload =
                 SignInPayloadDTO(
                     token = tokenPair.accessToken,
-                    refreshToken = tokenPair.refreshToken, // Return new refresh token (rotation)
+                    // Return new refresh token (rotation)
+                    refreshToken = tokenPair.refreshToken,
                     user = mapper.userToDTO(user),
                 )
 

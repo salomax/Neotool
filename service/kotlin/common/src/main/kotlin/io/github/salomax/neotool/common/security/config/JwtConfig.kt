@@ -2,7 +2,6 @@ package io.github.salomax.neotool.common.security.config
 
 import io.micronaut.context.annotation.ConfigurationProperties
 import jakarta.validation.constraints.Min
-import jakarta.validation.constraints.NotBlank
 
 /**
  * JWT signing algorithm.
