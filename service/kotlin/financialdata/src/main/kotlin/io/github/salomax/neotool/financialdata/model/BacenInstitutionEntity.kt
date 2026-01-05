@@ -5,6 +5,9 @@ import io.github.salomax.neotool.financialdata.domain.BacenInstitution
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.Id
+import jakarta.persistence.JoinColumn
+import jakarta.persistence.JoinTable
+import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import java.time.Instant
 
@@ -42,6 +45,14 @@ open class BacenInstitutionEntity(
     open var tipoConsolidadoBancario: String? = null,
     @Column(name = "tipo_consolidacao", length = 1)
     open var tipoConsolidacao: Char? = null,
+    @ManyToOne
+    @JoinTable(
+        name = "financial_institution_bacen_institution",
+        schema = "financial_data",
+        joinColumns = [JoinColumn(name = "bacen_cod_inst", referencedColumnName = "bacen_cod_inst")],
+        inverseJoinColumns = [JoinColumn(name = "financial_institution_id", columnDefinition = "uuid")]
+    )
+    open var financialInstitution: FinancialInstitutionEntity? = null,
     @Column(name = "created_at", nullable = false)
     open var createdAt: Instant = Instant.now(),
     @Column(name = "updated_at", nullable = false)

@@ -5,17 +5,23 @@ import io.github.salomax.neotool.common.entity.BaseEntity
 import io.github.salomax.neotool.financialdata.domain.FinancialInstitution
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
+import jakarta.persistence.GeneratedValue
+import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
 import java.time.Instant
+import java.util.UUID
 
 @Entity
 @Table(name = "financial_institution", schema = "financial_data")
 open class FinancialInstitutionEntity(
     @Id
-    @Column(name = "parent_cnpj", nullable = false)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(columnDefinition = "uuid")
+    override val id: UUID? = null,
+    @Column(name = "parent_cnpj", nullable = false, unique = true)
     open val parentCnpj: String,
     @Column(name = "legal_name")
     open var legalName: String? = null,
@@ -37,9 +43,10 @@ open class FinancialInstitutionEntity(
     open var createdAt: Instant = Instant.now(),
     @Column(name = "updated_at", nullable = false)
     open var updatedAt: Instant = Instant.now(),
-) : BaseEntity<String>(parentCnpj) {
+) : BaseEntity<UUID?>(id) {
     fun toDomain(): FinancialInstitution {
         return FinancialInstitution(
+            id = this.id,
             parentCnpj = this.parentCnpj,
             legalName = this.legalName,
             tradeName = this.tradeName,

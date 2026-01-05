@@ -1,0 +1,63 @@
+directive @key(fields: String!) repeatable on OBJECT | INTERFACE
+
+# Query type for financial data operations
+type Query {
+  # Institution search queries
+  searchBacenInstitutionsAutocomplete(query: String!): BacenInstitutionAutocompleteConnection!
+  bacenInstitutions(query: String, first: Int, after: String): BacenInstitutionConnection!
+}
+
+# Enums
+enum BacenInstitutionType {
+  INDIVIDUAL_INSTITUTION
+  PRUDENTIAL_GROUP
+  FINANCIAL_GROUP
+}
+
+# Institution search types
+type BacenInstitutionAutocompleteConnection {
+  suggestions: [BacenInstitutionAutocompleteItem!]!
+}
+
+type BacenInstitutionAutocompleteItem {
+  id: ID!
+  name: String!
+  cnpj: String
+  legalName: String
+  tradeName: String
+  logoUrl: String
+}
+
+type BacenInstitutionConnection {
+  edges: [BacenInstitutionEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
+
+type BacenInstitutionEdge {
+  node: BacenInstitutionSummaryItem!
+  cursor: String!
+}
+
+type BacenInstitutionSummaryItem {
+  id: ID!
+  name: String!
+  legalName: String
+  tradeName: String
+  logoUrl: String
+  profit: Float
+  equity: Float
+  yoyEquityGrowth: Float
+  basileiaIndex: Float
+  bacenInstitutionType: String
+  institutionType: BacenInstitutionType
+  tipoConsolidadoBancario: String
+}
+
+type PageInfo {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+}
+
