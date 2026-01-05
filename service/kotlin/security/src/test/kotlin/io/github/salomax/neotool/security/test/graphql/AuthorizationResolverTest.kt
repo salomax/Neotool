@@ -7,8 +7,8 @@ import io.github.salomax.neotool.security.graphql.dto.PermissionDTO
 import io.github.salomax.neotool.security.graphql.dto.RoleDTO
 import io.github.salomax.neotool.security.graphql.mapper.AuthorizationMapper
 import io.github.salomax.neotool.security.graphql.resolver.AuthorizationResolver
-import io.github.salomax.neotool.security.service.AuthorizationResult
-import io.github.salomax.neotool.security.service.AuthorizationService
+import io.github.salomax.neotool.security.service.authorization.AuthorizationResult
+import io.github.salomax.neotool.security.service.authorization.AuthorizationService
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName

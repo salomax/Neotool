@@ -4,7 +4,7 @@ import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import io.github.salomax.neotool.security.repo.PermissionRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
-import io.github.salomax.neotool.security.service.PermissionManagementService
+import io.github.salomax.neotool.security.service.management.PermissionManagementService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach

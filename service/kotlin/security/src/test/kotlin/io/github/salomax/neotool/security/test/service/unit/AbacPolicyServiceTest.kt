@@ -3,7 +3,7 @@ package io.github.salomax.neotool.security.test.service.unit
 import io.github.salomax.neotool.security.domain.abac.AbacPolicy
 import io.github.salomax.neotool.security.domain.abac.PolicyEffect
 import io.github.salomax.neotool.security.repo.AbacPolicyRepository
-import io.github.salomax.neotool.security.service.AbacPolicyService
+import io.github.salomax.neotool.security.service.authorization.AbacPolicyService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach

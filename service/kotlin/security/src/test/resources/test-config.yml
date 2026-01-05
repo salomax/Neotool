@@ -7,10 +7,6 @@ test:
     reuse: true
     flyway: true
 
-  redis:
-    image: redis:7-alpine
-    port: 6379
-
   kafka:
     image: confluentinc/cp-kafka:7.6.1
 

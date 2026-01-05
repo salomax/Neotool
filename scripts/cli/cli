@@ -45,6 +45,11 @@ Commands:
     Subcommands: init, add, list, remove
     Run '$0 upstream --help' for more information.
 
+  $(log "vault" "$GREEN") <subcommand>
+    Manage HashiCorp Vault secrets for JWT keys.
+    Subcommands: create-secret
+    Run '$0 vault --help' for more information.
+
 Options:
   -v, --version    Check system requirements (Node.js, Docker, JVM)
 
@@ -60,6 +65,8 @@ Examples:
   $0 kafka --reset-offsets --group swapi-people-consumer-group --topic swapi.people.v1 --to-earliest --execute
   $0 upstream add web/public/favicon.ico
   $0 upstream list
+  $0 vault create-secret kid-1
+  $0 vault create-secret kid-2 --key-bits 2048
   $0 --version
 
 For more information about a specific command, run it with --help.
@@ -113,6 +120,12 @@ main() {
     # Handle upstream command (has subcommands)
     if [[ "$command" == "upstream" ]]; then
         execute_command "upstream" "$@"
+        exit $?
+    fi
+    
+    # Handle vault command (has subcommands)
+    if [[ "$command" == "vault" ]]; then
+        execute_command "vault" "$@"
         exit $?
     fi
     

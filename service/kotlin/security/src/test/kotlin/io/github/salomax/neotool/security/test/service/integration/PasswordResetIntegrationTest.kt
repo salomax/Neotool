@@ -4,7 +4,7 @@ import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.security.repo.PasswordResetAttemptRepository
 import io.github.salomax.neotool.security.repo.UserRepository
-import io.github.salomax.neotool.security.service.AuthenticationService
+import io.github.salomax.neotool.security.service.authentication.AuthenticationService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject
@@ -29,7 +29,9 @@ import java.util.UUID
 @Tag("password-reset")
 @Tag("security")
 @TestMethodOrder(MethodOrderer.Random::class)
-class PasswordResetIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTest {
+class PasswordResetIntegrationTest :
+    BaseIntegrationTest(),
+    PostgresIntegrationTest {
     @Inject
     lateinit var userRepository: UserRepository
 

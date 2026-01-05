@@ -7,7 +7,7 @@ object Application {
     @JvmStatic
     fun main(args: Array<String>) {
         build(*args)
-            .packages("io.github.salomax.neotool.example")
+            .packages("io.github.salomax.neotool.example", "io.github.salomax.neotool.common.graphql")
             .start()
     }
 }

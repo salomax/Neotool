@@ -3,13 +3,14 @@ title: NeoTool Specification
 type: overview
 category: documentation
 status: current
-version: 2.0.0
+version: 3.0.0
 tags: [documentation, specification, neotool, overview, quick-start]
 ai_optimized: true
 search_keywords: [specification, overview, quick-start, introduction]
 related:
-  - MANIFEST.md
-  - 00-overview/architecture-overview.md
+  - manifest.md
+  - 01-overview/architecture-overview.md
+last_updated: 2026-01-02
 ---
 
 # NeoTool Specification
@@ -20,31 +21,42 @@ Welcome to the NeoTool specification hub. This directory contains all technical 
 
 ## Quick Navigation
 
-- **[Specification Manifest](./MANIFEST.md)** - Complete index of all documents
-- **[Architecture Overview](./00-overview/architecture-overview.md)** - Start here for system understanding
-- **[Technology Stack](./00-overview/technology-stack.md)** - Technology choices and versions
-- **[Project Structure](./00-overview/project-structure.md)** - Monorepo organization
-- **[Core Principles](./00-overview/principles.md)** - Design philosophy
-- **[Quick Start](./00-overview/quick-start.md)** - Getting started guide
+- **[Specification Manifest](./manifest.md)** - Complete index of all documents
+- **[Architecture Overview](./01-overview/architecture-overview.md)** - Start here for system understanding
+- **[Technology Stack](./01-overview/technology-stack.md)** - Technology choices and versions
+- **[Project Structure](./01-overview/project-structure.md)** - Monorepo organization
+- **[Core Principles](./01-overview/principles.md)** - Design philosophy
+- **[Quick Start](./01-overview/quick-start.md)** - Getting started guide
 
-## Specification Structure
+## Documentation Philosophy
 
-The specification is organized into numbered directories for clear hierarchy:
+### Core Learning Path (01-12)
+Sequential documentation organized by learning flow:
 
 ```
-docs/
-├── 00-overview/      # High-level overview (architecture, tech stack, principles)
-├── 01-architecture/  # System & service architecture
-├── 02-domain/        # Domain model & business logic
-├── 03-features/      # Feature specifications (SDD)
-├── 04-patterns/      # Implementation patterns (backend, frontend, API, infrastructure)
-├── 05-standards/     # Coding standards & rules
-├── 06-workflows/     # Development workflows (feature dev, code review, testing, deployment)
-├── 07-examples/      # Concrete examples (backend, frontend, full-stack)
-├── 08-templates/     # Reusable templates (feature creation, AI prompts, code, documents)
-├── 09-adr/           # Architecture Decision Records
-├── 10-reference/     # Quick reference guides (commands, file structure, GraphQL, API)
-└── 11-validation/    # Checklists & validation (feature, code review, PR)
+01-overview/          → "What is NeoTool?"
+02-architecture/      → "How is it designed?"
+03-features/          → "What can it do?"
+04-domain/            → "What are we modeling?"
+05-backend/           → "How do we build backend?"
+06-contracts/         → "How do services communicate?"
+07-frontend/          → "How do we build frontend?"
+08-workflows/         → "How do we work?"
+09-security/          → "How do we stay secure?"
+10-observability/     → "How do we monitor?"
+11-infrastructure/    → "How do we deploy?"
+12-specification-driven-dev/ → "How do we use this documentation?"
+```
+
+### Supporting Resources (90-94)
+Quick reference and validation materials:
+
+```
+90-examples/          → "Show me code!"
+91-templates/         → "Give me boilerplate!"
+92-adr/               → "Why did we decide?"
+93-reference/         → "Quick lookup"
+94-validation/        → "Did I do it right?"
 ```
 
 ## Quick Start
@@ -52,121 +64,167 @@ docs/
 ### For Developers
 
 **First Steps:**
-1. **Read the architecture**: Start with [Architecture Overview](./00-overview/architecture-overview.md)
-2. **Understand the tech stack**: Review [Technology Stack](./00-overview/technology-stack.md)
-3. **Learn the patterns**: Explore [Patterns](./04-patterns/)
-4. **See examples**: Check [Examples](./07-examples/)
+1. **Read the architecture**: Start with [Architecture Overview](./01-overview/architecture-overview.md)
+2. **Understand the tech stack**: Review [Technology Stack](./01-overview/technology-stack.md)
+3. **Learn the patterns**: Explore [Backend Patterns](./05-backend/patterns/) or [Frontend Patterns](./07-frontend/patterns/)
+4. **See examples**: Check [Examples](./90-examples/)
 
 **Creating a Feature:**
-1. **Fill the feature form**: Use [Feature Form](./08-templates/feature-templates/feature-form.md)
-2. **Follow the workflow**: See [Feature Development Workflow](./06-workflows/feature-development.md)
-3. **Use templates**: Reference [Templates](./08-templates/)
-4. **Validate**: Complete [Feature Checklist](./11-validation/feature-checklist.md)
+1. **Fill the feature form**: Use [Feature Form](./91-templates/feature-templates/feature-form.md)
+2. **Follow the workflow**: See [Feature Development Workflow](./08-workflows/feature-development.md)
+3. **Use templates**: Reference [Code Templates](./91-templates/code-templates/)
+4. **Validate**: Complete [Feature Checklist](./94-validation/feature-checklist.md)
 
-### For AI Assistants
+### For AI Assistants (Cursor, Claude Code)
 
 **When Creating Features:**
-1. **Read the feature form**: Process [Feature Form](./08-templates/feature-templates/feature-form.md)
-2. **Reference standards**: Check [Standards](./05-standards/) for constraints
-3. **Follow patterns**: Use [Patterns](./04-patterns/) for implementation
-4. **Use templates**: Apply [Templates](./08-templates/) for structure
-5. **Reference examples**: See [Examples](./07-examples/) for guidance
+1. **Read the feature spec**: Process feature from [03-features/](./03-features/)
+2. **Reference domain model**: Check [04-domain/domain-model.md](./04-domain/domain-model.md)
+3. **Follow patterns**: Use [05-backend/patterns/](./05-backend/patterns/) or [07-frontend/patterns/](./07-frontend/patterns/)
+4. **Apply standards**: Check [Backend Standards](./05-backend/kotlin/) or [Frontend Standards](./07-frontend/standards/)
+5. **Use templates**: Apply [Code Templates](./91-templates/code-templates/) for structure
+6. **Reference examples**: See [Examples](./90-examples/) for guidance
 
 **When Answering Questions:**
-1. **Check definitions**: Reference [Glossary](./02-domain/glossary.md)
-2. **Find patterns**: Search [Patterns](./04-patterns/)
-3. **Review standards**: Check [Standards](./05-standards/)
-4. **See examples**: Look in [Examples](./07-examples/)
+1. **Check definitions**: Reference [Glossary](./04-domain/glossary.md)
+2. **Find patterns**: Search relevant pattern directories
+3. **Review standards**: Check coding and architecture standards
+4. **See examples**: Look in [Examples](./90-examples/)
 
-## Key Sections
+**SDD Workflow:**
+- See [Specification-Driven Development](./12-specification-driven-dev/) for complete AI integration guide
 
-### Overview (00-overview)
+## Core Documentation Sections
+
+### 01-overview — Project Overview
+High-level introduction to NeoTool:
 - **Architecture Overview**: System architecture at a glance
 - **Technology Stack**: Technology choices and versions
 - **Project Structure**: Monorepo organization
 - **Principles**: Core design principles
 - **Quick Start**: Getting started guide
 
-### Architecture (01-architecture)
+### 02-architecture — System Design
+Comprehensive architecture documentation:
 - **System Architecture**: Overall system design
-- **Service Architecture**: Service-level architecture
-- **Frontend Architecture**: Frontend structure and patterns
-- **Data Architecture**: Database design and organization
-- **API Architecture**: GraphQL Federation architecture
-- **Infrastructure Architecture**: Containerization, deployment, observability
+- Service architecture, data architecture, API architecture, frontend architecture, infrastructure architecture (to be created)
 
-### Domain (02-domain)
-- **Domain Model**: Domain entities & relationships
+### 03-features — Feature Specifications
+Complete feature specs with Gherkin scenarios:
+- **Authentication**: Sign in, sign up, password reset
+- **Assets**: File storage and management
+- **Security**: Authorization and user management
+- Each feature includes README, Gherkin scenarios, and decisions
+
+### 04-domain — Domain Modeling
+Domain-driven design documentation:
+- **Domain Model**: Entity relationships and boundaries
 - **Glossary**: Complete terminology reference
-- **Concepts**: Key concepts explained
+- **Concepts**: Key domain concepts
+- **Database Schema Standards**: Schema design rules
+- **UUID v7 Standard**: Primary key strategy
+- Data modeling patterns (to be created)
 
-### Features (03-features)
-- **Feature Specifications**: Complete feature specs with Gherkin
-- **Feature Design**: UI/UX design
-- **API Contracts**: GraphQL contracts
-- **Test Scenarios**: Test scenarios and cases
+### 05-backend — Backend Development
+Backend implementation guide organized by:
+- **[kotlin/](./05-backend/kotlin/)**: Language-specific standards (coding, linting, testing)
+- **[patterns/](./05-backend/patterns/)**: Cross-language patterns (entity, repository, service, GraphQL, Kafka, pagination, error handling)
+- **[testing/](./05-backend/testing/)**: Testing strategies (unit, integration, test data builders, mocking)
+- **[standards/](./05-backend/standards/)**: Architectural rules and constraints
 
-### Patterns (04-patterns)
-- **Backend Patterns**: Entity, repository, service, resolver, testing
-- **Frontend Patterns**: Component, page, hook, GraphQL, styling
-- **API Patterns**: GraphQL Federation, error handling
-- **Infrastructure Patterns**: Container, deployment, monitoring
+**Future**: Ready for Go with `05-backend/go/` when needed
 
-### Standards (05-standards)
-- **Coding Standards**: Code style, naming, conventions
-- **Architecture Standards**: Architecture constraints & patterns
-- **API Standards**: GraphQL, REST, API patterns
-- **Database Standards**: Database, schema, migration rules
-- **Testing Standards**: Testing requirements & patterns
-- **Security Standards**: Security & auth patterns
+### 06-contracts — API Contracts
+Service communication patterns:
+- **GraphQL Standards**: GraphQL API conventions
+- **GraphQL Query Pattern**: Resolver patterns
+- Federation patterns, router config, schema evolution, REST standards (to be created)
 
-### Workflows (06-workflows)
-- **Feature Development**: Step-by-step feature creation process
-- **Code Review**: Code review process
-- **Testing**: Testing workflow
-- **Deployment**: Deployment workflow
+### 07-frontend — Frontend Development
+React and Next.js implementation guide:
+- **[patterns/](./07-frontend/patterns/)**: Component patterns (GraphQL queries/mutations, management pages, styling, breadcrumbs, notifications)
+- **[testing/](./07-frontend/testing/)**: Testing strategies (unit with Vitest, E2E with Playwright)
+- **[standards/](./07-frontend/standards/)**: Coding, accessibility, performance standards (to be created)
 
-### Examples (07-examples)
-- **Backend Examples**: CRUD, federation examples
-- **Frontend Examples**: Page, component examples
-- **Full-Stack Examples**: Complete feature examples
+### 08-workflows — Development Processes
+Step-by-step workflow guides:
+- **Feature Development**: Complete feature creation process
+- **Code Review**: Review checklist and process
+- **Testing Workflow**: Testing strategy and execution
+- **Deployment Workflow**: CI/CD pipeline steps
+- **Spec Context Strategy**: Documentation navigation for AI
 
-### Templates (08-templates)
-- **Feature Templates**: Feature form, questionnaire, workflow
-- **AI Prompts**: Templates for AI-assisted development
-- **Code Templates**: Entity, resolver, component, test templates
-- **Document Templates**: Feature request, ADR, technical design
+### 09-security — Security Practices
+Security implementation across all layers:
+- **Authentication**: AuthN patterns and standards
+- Authorization, RBAC/ABAC, JWT, mTLS, audit logging, secret management (to be created)
 
-### Architecture Decision Records (09-adr)
+### 10-observability — Monitoring & Observability
+Production monitoring and debugging:
+- **Observability Overview**: Metrics, logging, tracing philosophy
+- Metrics standards, logging standards, tracing, alerting, SLO definitions (to be created)
+
+### 11-infrastructure — Deployment & Operations
+Infrastructure and deployment:
+- Docker Compose setup, Kubernetes manifests, GitOps workflow, CI/CD pipeline, environment management, disaster recovery (to be created)
+
+### 12-specification-driven-dev — Meta-Documentation
+How to use this documentation system:
+- **[README](./12-specification-driven-dev/README.md)**: Complete SDD philosophy and workflow
+- Cursor workflow, Claude Code workflow, prompt engineering, context management, safeguards, validation (to be created)
+
+## Supporting Materials
+
+### 90-examples — Code Examples
+Concrete implementations:
+- **[backend/](./90-examples/backend/)**: CRUD examples, batch workflows
+- **[frontend/](./90-examples/frontend/)**: Component and page examples
+- **full-stack/**: Complete feature implementations (to be created)
+
+### 91-templates — Boilerplate & Templates
+Reusable starting points:
+- **[feature-templates/](./91-templates/feature-templates/)**: Feature form, questionnaire, workflow
+- **[code-templates/](./91-templates/code-templates/)**: Entity, repository, service, resolver templates
+- **[document-templates/](./91-templates/document-templates/)**: Documentation templates
+- **[ai-prompts/](./91-templates/ai-prompts/)**: AI assistant prompt templates
+
+### 92-adr — Architecture Decision Records
+Key technical decisions with rationale:
 - **ADR-0001**: Monorepo architecture
 - **ADR-0002**: Containerized architecture
 - **ADR-0003**: Kotlin/Micronaut backend
 - **ADR-0004**: TypeScript/Next.js frontend
 - **ADR-0005**: PostgreSQL database
+- **ADR-0006**: Frontend authorization layer
+- **ADR-0007**: Asset service with Cloudflare R2
 
-### Reference (10-reference)
+### 93-reference — Quick Reference
+Fast lookup guides:
 - **Commands**: CLI commands reference
-- **File Structure**: File structure reference
-- **GraphQL Schema**: GraphQL schema reference
-- **API Reference**: API reference
+- **File Structure**: Project organization
+- **GraphQL Schema**: Schema reference
+- **API Endpoints**: API documentation
+- **Backend Quick Reference**: Common imports, annotations, patterns
 
-### Validation (11-validation)
-- **Feature Checklist**: Feature completion checklist
-- **Code Review Checklist**: Code review checklist
-- **PR Checklist**: Pull request checklist
-- **Validation Scripts**: Validation script documentation
+### 94-validation — Quality Assurance
+Checklists and validation:
+- **Feature Checklist**: Feature completion verification
+- **Code Review Checklist**: Review quality gates
+- **PR Checklist**: Pull request requirements
+- **Validation Scripts**: Automated validation tools
 
 ## Feature Creation Flow
 
-The specification enables a streamlined feature creation process:
+The specification enables streamlined Spec-Driven Development:
 
-1. **Fill Feature Form** → Simple human-readable form
-2. **AI Processes Form** → Generates questionnaire, documentation, plan
-3. **AI Uses Templates** → Generates code following patterns
-4. **Developer Validates** → Uses checklists
-5. **Review** → Uses code review checklist
+1. **Fill Feature Form** → [Feature Form Template](./91-templates/feature-templates/feature-form.md)
+2. **AI Processes Form** → Generates questionnaire, documentation, implementation plan
+3. **AI Uses Patterns** → Follows [Backend Patterns](./05-backend/patterns/) or [Frontend Patterns](./07-frontend/patterns/)
+4. **AI Applies Standards** → Adheres to coding and architecture standards
+5. **Developer Validates** → Uses [Validation Checklists](./94-validation/)
+6. **Code Review** → Uses [Code Review Checklist](./94-validation/code-review-checklist.md)
 
-See [Feature Development Workflow](./06-workflows/feature-development.md) for details.
+See [Feature Development Workflow](./08-workflows/feature-development.md) and [SDD Guide](./12-specification-driven-dev/) for complete process.
 
 ## Document Format
 
@@ -188,29 +246,45 @@ last_updated: YYYY-MM-DD
 ---
 ```
 
+## Migration Notes
+
+**Version 3.0.0 (2026-01-02)**: Major documentation reorganization
+- Renumbered from `00-11` to `01-12` + `90-94` taxonomy
+- Separated core learning path from supporting resources
+- Added cross-cutting concerns (security, observability, infrastructure)
+- Organized backend for multi-language support (Kotlin + future Go)
+- Created SDD meta-documentation section
+- Backup available at `docs.backup-20260102/`
+
+See [documentation-reorg-proposal.md](./documentation-reorg-proposal.md) and [migration-plan.md](./migration-plan.md) for details.
+
 ## Contributing
 
 ### Adding New Documentation
-1. Create files in the appropriate directory
-2. Follow the established naming conventions
+1. Determine appropriate section (01-12 for learning, 90-94 for reference)
+2. Create file in the correct directory
 3. Include proper YAML frontmatter
 4. Add cross-references to related documents
-5. Update [MANIFEST.md](./MANIFEST.md)
+5. Update [manifest.md](./manifest.md)
 
 ### Updating Existing Documentation
-1. Keep content current with code changes
-2. Improve clarity and examples
+1. Keep content synchronized with code changes
+2. Improve clarity and add examples
 3. Fix broken links and references
-4. Update version information as needed
+4. Update version and last_updated fields
+5. Update manifest.md if structure changes
 
 ## Related Resources
 
-- **Project Repository**: See root `README.md`
-- **CLI Tool**: `./neotool` for common tasks
-- **Contracts**: `contracts/` directory for GraphQL schemas
-- **Infrastructure**: `infra/` directory for deployment configs
+- **Project Repository**: See root [README.md](../README.md)
+- **CLI Tool**: `./neotool` for validation, schema sync, and common tasks
+- **Contracts**: [contracts/](../contracts/) directory for GraphQL schemas
+- **Infrastructure**: [infra/](../infra/) directory for deployment configs
 
 ---
 
-*This specification follows enterprise best practices for technical documentation and is designed to scale with the NeoTool platform. It is optimized for Spec-Driven Development with AI tools.*
+*This specification follows enterprise best practices for technical documentation and is designed to scale with the NeoTool platform. It is optimized for Spec-Driven Development with AI tools like Cursor and Claude Code.*
 
+**Version**: 3.0.0 (2026-01-02)
+**Organization**: `01-12` (core learning) + `90-94` (supporting resources)
+**Philosophy**: Documentation drives implementation. Code follows specification.

@@ -7,7 +7,7 @@ import io.github.salomax.neotool.security.graphql.dto.GroupDTO
 import io.github.salomax.neotool.security.graphql.dto.UpdateGroupInputDTO
 import io.github.salomax.neotool.security.graphql.mapper.GroupManagementMapper
 import io.github.salomax.neotool.security.graphql.mapper.UserManagementMapper
-import io.github.salomax.neotool.security.service.GroupManagementService
+import io.github.salomax.neotool.security.service.management.GroupManagementService
 import jakarta.inject.Singleton
 import mu.KotlinLogging
 import java.util.UUID

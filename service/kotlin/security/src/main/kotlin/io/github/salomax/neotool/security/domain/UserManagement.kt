@@ -71,21 +71,21 @@ object UserManagement {
      */
     object Validator {
         /**
-         * Validates that a user is not already enabled before enabling.
+         * Validates that a principal is not already enabled before enabling.
          * This is domain logic for state transitions.
          */
-        fun validateUserNotAlreadyEnabled(user: io.github.salomax.neotool.security.domain.rbac.User) {
-            if (user.enabled) {
+        fun validatePrincipalNotAlreadyEnabled(principal: io.github.salomax.neotool.security.model.Principal) {
+            if (principal.enabled) {
                 throw IllegalStateException("User is already enabled")
             }
         }
 
         /**
-         * Validates that a user is not already disabled before disabling.
+         * Validates that a principal is not already disabled before disabling.
          * This is domain logic for state transitions.
          */
-        fun validateUserNotAlreadyDisabled(user: io.github.salomax.neotool.security.domain.rbac.User) {
-            if (!user.enabled) {
+        fun validatePrincipalNotAlreadyDisabled(principal: io.github.salomax.neotool.security.model.Principal) {
+            if (!principal.enabled) {
                 throw IllegalStateException("User is already disabled")
             }
         }

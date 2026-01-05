@@ -11,9 +11,10 @@ import io.github.salomax.neotool.security.graphql.dto.SignUpPayloadDTO
 import io.github.salomax.neotool.security.graphql.dto.UserDTO
 import io.github.salomax.neotool.security.graphql.mapper.SecurityGraphQLMapper
 import io.github.salomax.neotool.security.repo.UserRepository
-import io.github.salomax.neotool.security.service.AuthContextFactory
-import io.github.salomax.neotool.security.service.AuthenticationService
-import io.github.salomax.neotool.security.service.AuthorizationService
+import io.github.salomax.neotool.security.service.authentication.AuthContextFactory
+import io.github.salomax.neotool.security.service.authentication.AuthenticationService
+import io.github.salomax.neotool.security.service.authorization.AuthorizationService
+import io.github.salomax.neotool.security.service.jwt.RefreshTokenService
 import jakarta.inject.Singleton
 import jakarta.validation.ConstraintViolationException
 import mu.KotlinLogging
@@ -37,14 +38,15 @@ class SecurityAuthResolver(
     private val userRepository: UserRepository,
     private val inputValidator: InputValidator,
     private val mapper: SecurityGraphQLMapper,
+    private val refreshTokenService: RefreshTokenService,
 ) {
     private val logger = KotlinLogging.logger {}
 
     /**
      * Sign in mutation resolver
      */
-    fun signIn(input: Map<String, Any?>): GraphQLPayload<SignInPayloadDTO> {
-        return try {
+    fun signIn(input: Map<String, Any?>): GraphQLPayload<SignInPayloadDTO> =
+        try {
             val email = input["email"] as? String ?: throw IllegalArgumentException("Email is required")
             val password = input["password"] as? String ?: throw IllegalArgumentException("Password is required")
             val rememberMe = input["rememberMe"] as? Boolean ?: false
@@ -65,9 +67,8 @@ class SecurityAuthResolver(
             var refreshToken: String? = null
             if (rememberMe) {
                 val userId = requireNotNull(user.id) { "User ID is required for refresh token generation" }
-                refreshToken = authenticationService.generateRefreshToken(user)
-                // Store refresh token in database for revocation support
-                authenticationService.saveRememberMeToken(userId, refreshToken)
+                // Use new refresh token service with rotation support
+                refreshToken = refreshTokenService.createRefreshToken(userId)
             }
 
             logger.info { "User signed in successfully: ${user.email}" }
@@ -84,7 +85,6 @@ class SecurityAuthResolver(
             logger.warn { "Sign in failed: ${e.message}" }
             GraphQLPayloadFactory.error(e)
         }
-    }
 
     /**
      * Get current user from JWT access token.
@@ -114,8 +114,8 @@ class SecurityAuthResolver(
     /**
      * Sign in with OAuth mutation resolver
      */
-    fun signInWithOAuth(input: Map<String, Any?>): GraphQLPayload<SignInPayloadDTO> {
-        return try {
+    fun signInWithOAuth(input: Map<String, Any?>): GraphQLPayload<SignInPayloadDTO> =
+        try {
             val provider = input["provider"] as? String ?: throw IllegalArgumentException("Provider is required")
             val idToken = input["idToken"] as? String ?: throw IllegalArgumentException("ID token is required")
             val rememberMe = input["rememberMe"] as? Boolean ?: false
@@ -137,9 +137,8 @@ class SecurityAuthResolver(
             var refreshToken: String? = null
             if (rememberMe) {
                 val userId = requireNotNull(user.id) { "User ID is required for refresh token generation" }
-                refreshToken = authenticationService.generateRefreshToken(user)
-                // Store refresh token in database for revocation support
-                authenticationService.saveRememberMeToken(userId, refreshToken)
+                // Use new refresh token service with rotation support
+                refreshToken = refreshTokenService.createRefreshToken(userId)
             }
 
             logger.info { "User signed in with OAuth successfully: ${user.email} (provider: $provider)" }
@@ -156,13 +155,12 @@ class SecurityAuthResolver(
             logger.warn { "OAuth sign in failed: ${e.message}" }
             GraphQLPayloadFactory.error(e)
         }
-    }
 
     /**
      * Sign up mutation resolver
      */
-    fun signUp(input: Map<String, Any?>): GraphQLPayload<SignUpPayloadDTO> {
-        return try {
+    fun signUp(input: Map<String, Any?>): GraphQLPayload<SignUpPayloadDTO> =
+        try {
             val name = input["name"] as? String ?: throw IllegalArgumentException("Name is required")
             val email = input["email"] as? String ?: throw IllegalArgumentException("Email is required")
             val password = input["password"] as? String ?: throw IllegalArgumentException("Password is required")
@@ -180,8 +178,8 @@ class SecurityAuthResolver(
 
             // Generate refresh token (for automatic sign-in after signup)
             val userId = requireNotNull(user.id) { "User ID is required for refresh token generation" }
-            val refreshToken = authenticationService.generateRefreshToken(user)
-            authenticationService.saveRememberMeToken(userId, refreshToken)
+            // Use new refresh token service with rotation support
+            val refreshToken = refreshTokenService.createRefreshToken(userId)
 
             logger.info { "User signed up successfully: ${user.email}" }
 
@@ -197,7 +195,6 @@ class SecurityAuthResolver(
             logger.warn { "Sign up failed: ${e.message}" }
             GraphQLPayloadFactory.error(e)
         }
-    }
 
     /**
      * Request password reset mutation resolver
@@ -268,34 +265,31 @@ class SecurityAuthResolver(
      * Refresh access token mutation resolver.
      *
      * Validates a refresh token and issues a new access token with current permissions.
-     * Does not generate a new refresh token - the existing one remains valid.
+     * Implements token rotation - returns both new access token and new refresh token.
      */
-    fun refreshAccessToken(input: Map<String, Any?>): GraphQLPayload<SignInPayloadDTO> {
-        return try {
+    fun refreshAccessToken(input: Map<String, Any?>): GraphQLPayload<SignInPayloadDTO> =
+        try {
             val refreshToken =
                 input["refreshToken"] as? String
                     ?: throw IllegalArgumentException("Refresh token is required")
 
             logger.debug { "Refresh access token attempt" }
 
-            // Validate refresh token and get user
+            // Use RefreshTokenService for token rotation
+            val tokenPair = refreshTokenService.refreshAccessToken(refreshToken)
+
+            // Get user from the new access token to build response
             val user =
-                authenticationService.validateRefreshToken(refreshToken)
-                    ?: throw IllegalArgumentException("Invalid or expired refresh token")
-
-            // Build authentication context (loads current roles and permissions)
-            val authContext = authContextFactory.build(user)
-
-            // Generate new JWT access token with current permissions
-            val token = authenticationService.generateAccessToken(authContext)
+                authenticationService.validateAccessToken(tokenPair.accessToken)
+                    ?: throw IllegalArgumentException("Failed to validate new access token")
 
             logger.info { "Access token refreshed successfully for user: ${user.email}" }
 
             val payload =
                 SignInPayloadDTO(
-                    token = token,
-                    // Don't return refresh token - client should keep existing one
-                    refreshToken = null,
+                    token = tokenPair.accessToken,
+                    // Return new refresh token (rotation)
+                    refreshToken = tokenPair.refreshToken,
                     user = mapper.userToDTO(user),
                 )
 
@@ -304,13 +298,12 @@ class SecurityAuthResolver(
             logger.warn { "Refresh access token failed: ${e.message}" }
             GraphQLPayloadFactory.error(e)
         }
-    }
 
     /**
      * Reset password mutation resolver
      */
-    fun resetPassword(input: Map<String, Any?>): GraphQLPayload<ResetPasswordPayloadDTO> {
-        return try {
+    fun resetPassword(input: Map<String, Any?>): GraphQLPayload<ResetPasswordPayloadDTO> =
+        try {
             val token = input["token"] as? String ?: throw IllegalArgumentException("Token is required")
             val newPassword =
                 input["newPassword"] as? String ?: throw IllegalArgumentException(
@@ -335,5 +328,4 @@ class SecurityAuthResolver(
             logger.warn { "Password reset failed: ${e.message}" }
             GraphQLPayloadFactory.error(e)
         }
-    }
 }

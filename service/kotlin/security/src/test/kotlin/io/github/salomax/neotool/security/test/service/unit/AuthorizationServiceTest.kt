@@ -1,14 +1,18 @@
 package io.github.salomax.neotool.security.test.service.unit
 
+import io.github.salomax.neotool.common.security.exception.AuthorizationDeniedException
+import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.security.repo.GroupMembershipRepository
 import io.github.salomax.neotool.security.repo.GroupRoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.PermissionRepository
+import io.github.salomax.neotool.security.repo.PrincipalPermissionRepository
+import io.github.salomax.neotool.security.repo.PrincipalPermissionRepositoryCustom
+import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
-import io.github.salomax.neotool.security.service.AbacEvaluationResult
-import io.github.salomax.neotool.security.service.AbacEvaluationService
-import io.github.salomax.neotool.security.service.AuthorizationAuditService
-import io.github.salomax.neotool.security.service.AuthorizationService
-import io.github.salomax.neotool.security.service.exception.AuthorizationDeniedException
+import io.github.salomax.neotool.security.service.authorization.AbacEvaluationResult
+import io.github.salomax.neotool.security.service.authorization.AbacEvaluationService
+import io.github.salomax.neotool.security.service.authorization.AuthorizationAuditService
+import io.github.salomax.neotool.security.service.authorization.AuthorizationService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -20,6 +24,7 @@ import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import java.util.Optional
 import java.util.UUID
 
 @DisplayName("AuthorizationService Unit Tests")
@@ -28,6 +33,9 @@ class AuthorizationServiceTest {
     private lateinit var permissionRepository: PermissionRepository
     private lateinit var groupMembershipRepository: GroupMembershipRepository
     private lateinit var groupRoleAssignmentRepository: GroupRoleAssignmentRepository
+    private lateinit var principalRepository: PrincipalRepository
+    private lateinit var principalPermissionRepository: PrincipalPermissionRepository
+    private lateinit var principalPermissionRepositoryCustom: PrincipalPermissionRepositoryCustom
     private lateinit var abacEvaluationService: AbacEvaluationService
     private lateinit var auditService: AuthorizationAuditService
     private lateinit var authorizationService: AuthorizationService
@@ -38,6 +46,9 @@ class AuthorizationServiceTest {
         permissionRepository = mock()
         groupMembershipRepository = mock()
         groupRoleAssignmentRepository = mock()
+        principalRepository = mock()
+        principalPermissionRepository = mock()
+        principalPermissionRepositoryCustom = mock()
         abacEvaluationService = mock()
         auditService = mock()
         authorizationService =
@@ -46,6 +57,9 @@ class AuthorizationServiceTest {
                 permissionRepository = permissionRepository,
                 groupMembershipRepository = groupMembershipRepository,
                 groupRoleAssignmentRepository = groupRoleAssignmentRepository,
+                principalRepository = principalRepository,
+                principalPermissionRepository = principalPermissionRepository,
+                principalPermissionRepositoryCustom = principalPermissionRepositoryCustom,
                 abacEvaluationService = abacEvaluationService,
                 auditService = auditService,
             )
@@ -803,10 +817,10 @@ class AuthorizationServiceTest {
             whenever(groupMembershipRepository.findActiveMembershipsByUserId(any(), any())).thenReturn(emptyList())
 
             // Act & Assert
-            org.assertj.core.api.Assertions.assertThatThrownBy {
-                authorizationService.requirePermission(userId, permission)
-            }
-                .isInstanceOf(AuthorizationDeniedException::class.java)
+            org.assertj.core.api.Assertions
+                .assertThatThrownBy {
+                    authorizationService.requirePermission(userId, permission)
+                }.isInstanceOf(AuthorizationDeniedException::class.java)
                 .hasMessageContaining("User $userId lacks permission '$permission'")
         }
 
@@ -868,6 +882,154 @@ class AuthorizationServiceTest {
             // Assert - verify that checkPermission was called with all parameters
             // This is verified indirectly by the fact that the method doesn't throw
             // and the mocks are set up correctly
+        }
+    }
+
+    @Nested
+    @DisplayName("Service Permission Checks")
+    inner class ServicePermissionTests {
+        @Test
+        fun `should allow when service has permission and is enabled`() {
+            // Arrange
+            val serviceId = UUID.randomUUID()
+            val permissionName = "assets:upload"
+            val principalEntity =
+                SecurityTestDataBuilders.principal(
+                    id = UUID.randomUUID(),
+                    principalType = PrincipalType.SERVICE,
+                    externalId = serviceId.toString(),
+                    enabled = true,
+                )
+            val permissionEntity =
+                SecurityTestDataBuilders.permission(
+                    id = UUID.randomUUID(),
+                    name = permissionName,
+                )
+
+            whenever(principalRepository.findByPrincipalTypeAndExternalId(PrincipalType.SERVICE, serviceId.toString()))
+                .thenReturn(Optional.of(principalEntity))
+            whenever(permissionRepository.findByName(permissionName))
+                .thenReturn(Optional.of(permissionEntity))
+            whenever(
+                principalPermissionRepositoryCustom.existsByPrincipalIdAndPermissionIdAndResourcePattern(
+                    principalEntity.id!!,
+                    permissionEntity.id!!,
+                    null,
+                ),
+            ).thenReturn(true)
+
+            // Act
+            val result = authorizationService.checkServicePermission(serviceId, permissionName)
+
+            // Assert
+            assertThat(result.allowed).isTrue()
+            assertThat(result.reason).contains("Service has permission")
+        }
+
+        @Test
+        fun `should deny when service principal is disabled`() {
+            // Arrange
+            val serviceId = UUID.randomUUID()
+            val permissionName = "assets:upload"
+            val principalEntity =
+                SecurityTestDataBuilders.principal(
+                    id = UUID.randomUUID(),
+                    principalType = PrincipalType.SERVICE,
+                    externalId = serviceId.toString(),
+                    // Disabled principal
+                    enabled = false,
+                )
+
+            whenever(principalRepository.findByPrincipalTypeAndExternalId(PrincipalType.SERVICE, serviceId.toString()))
+                .thenReturn(Optional.of(principalEntity))
+
+            // Act
+            val result = authorizationService.checkServicePermission(serviceId, permissionName)
+
+            // Assert
+            assertThat(result.allowed).isFalse()
+            assertThat(result.reason).contains("Service principal is disabled")
+        }
+
+        @Test
+        fun `should deny when service does not have permission`() {
+            // Arrange
+            val serviceId = UUID.randomUUID()
+            val permissionName = "assets:upload"
+            val principalEntity =
+                SecurityTestDataBuilders.principal(
+                    id = UUID.randomUUID(),
+                    principalType = PrincipalType.SERVICE,
+                    externalId = serviceId.toString(),
+                    enabled = true,
+                )
+            val permissionEntity =
+                SecurityTestDataBuilders.permission(
+                    id = UUID.randomUUID(),
+                    name = permissionName,
+                )
+
+            whenever(principalRepository.findByPrincipalTypeAndExternalId(PrincipalType.SERVICE, serviceId.toString()))
+                .thenReturn(Optional.of(principalEntity))
+            whenever(permissionRepository.findByName(permissionName))
+                .thenReturn(Optional.of(permissionEntity))
+            whenever(
+                principalPermissionRepositoryCustom.existsByPrincipalIdAndPermissionIdAndResourcePattern(
+                    principalEntity.id!!,
+                    permissionEntity.id!!,
+                    null,
+                ),
+            ).thenReturn(false)
+
+            // Act
+            val result = authorizationService.checkServicePermission(serviceId, permissionName)
+
+            // Assert
+            assertThat(result.allowed).isFalse()
+            assertThat(result.reason).contains("Service does not have permission")
+        }
+
+        @Test
+        fun `should deny when service principal not found`() {
+            // Arrange
+            val serviceId = UUID.randomUUID()
+            val permissionName = "assets:upload"
+
+            whenever(principalRepository.findByPrincipalTypeAndExternalId(PrincipalType.SERVICE, serviceId.toString()))
+                .thenReturn(Optional.empty())
+
+            // Act
+            val result = authorizationService.checkServicePermission(serviceId, permissionName)
+
+            // Assert
+            assertThat(result.allowed).isFalse()
+            assertThat(result.reason).contains("Service principal not found")
+        }
+
+        @Test
+        fun `should deny when permission not found`() {
+            // Arrange
+            val serviceId = UUID.randomUUID()
+            val permissionName = "assets:upload"
+            val principalEntity =
+                SecurityTestDataBuilders.principal(
+                    id = UUID.randomUUID(),
+                    principalType = PrincipalType.SERVICE,
+                    externalId = serviceId.toString(),
+                    enabled = true,
+                )
+
+            whenever(principalRepository.findByPrincipalTypeAndExternalId(PrincipalType.SERVICE, serviceId.toString()))
+                .thenReturn(Optional.of(principalEntity))
+            whenever(permissionRepository.findByName(permissionName))
+                .thenReturn(Optional.empty())
+
+            // Act
+            val result = authorizationService.checkServicePermission(serviceId, permissionName)
+
+            // Assert
+            assertThat(result.allowed).isFalse()
+            assertThat(result.reason).contains("Permission not found")
         }
     }
 }

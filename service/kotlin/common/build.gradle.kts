@@ -7,16 +7,16 @@ plugins {
 repositories { mavenCentral() }
 
 micronaut {
-    version("4.10.2")
+    version("4.10.6")
     processing {
         incremental(true)
-        annotations("io.github.salomax.neotool.common.*")
+        annotations("io.github.salomax.neotool.common.*", "io.github.salomax.neotool.security.*")
     }
 }
 
 dependencies {
     // Platform BOMs - should be api so all modules use same versions
-    api(platform("io.micronaut.platform:micronaut-platform:4.10.2"))
+    api(platform("io.micronaut.platform:micronaut-platform:4.10.6"))
     api(platform("io.micronaut.micrometer:micronaut-micrometer-bom:5.12.0"))
     api(platform("io.micronaut.tracing:micronaut-tracing-bom:7.1.4"))
 
@@ -46,8 +46,17 @@ dependencies {
 
     // GraphQL - api for other modules
     api("com.graphql-java:graphql-java:21.5")
+    api("com.graphql-java:graphql-java-extended-scalars:21.0")
     api("com.apollographql.federation:federation-graphql-java-support:5.4.0")
     api("com.graphql-java:java-dataloader:3.3.0")
+
+    // JWT - shared for all modules
+    api("io.jsonwebtoken:jjwt-api:0.12.5")
+    api("io.jsonwebtoken:jjwt-impl:0.12.5")
+    api("io.jsonwebtoken:jjwt-jackson:0.12.5")
+
+    // Vault client for secret management
+    api("com.bettercloud:vault-java-driver:5.1.0")
 
     // Micrometer - api for other modules (needed for metrics instrumentation)
     api("io.micronaut.micrometer:micronaut-micrometer-core")
@@ -87,7 +96,7 @@ dependencies {
     // Logging - api for other modules
     api("io.github.microutils:kotlin-logging:3.0.5")
     api("net.logstash.logback:logstash-logback-encoder:7.4")
-    api("ch.qos.logback:logback-classic:1.4.14")
+    api("ch.qos.logback:logback-classic:1.5.23")
     api("com.github.loki4j:loki-logback-appender:1.4.0")
 
     // KSP processors
@@ -116,9 +125,11 @@ afterEvaluate {
             filters {
                 excludes {
                     classes(
+                        // Logging infrastructure - observability, not business logic
                         "io.github.salomax.neotool.common.logging.MDCFilter",
                         "io.github.salomax.neotool.common.logging.EnterpriseLoggingFilter",
                         "io.github.salomax.neotool.common.logging.EnterpriseLogMethodInterceptor",
+                        // Exception handlers - framework integration
                         "io.github.salomax.neotool.common.exception.GraphQLOptimisticLockExceptionHandler",
                         "io.github.salomax.neotool.common.exception.OptimisticLockExceptionHandler",
                         "io.github.salomax.neotool.common.graphql.GraphQLRequest",
@@ -146,7 +157,10 @@ afterEvaluate {
                         "io.github.salomax.neotool.common.graphql.pagination.Edge",
                         "io.github.salomax.neotool.common.graphql.pagination.Connection",
                         "io.github.salomax.neotool.common.graphql.pagination.CompositeCursor",
+                        // Metrics instrumentation - observability
                         "io.github.salomax.neotool.common.metrics.GraphQLMetricsInstrumentation",
+                        // Test infrastructure - utilities for testing, not production code
+                        "io.github.salomax.neotool.common.test.security.JwtTestFixture",
                         "io.github.salomax.neotool.common.test.http.HttpClientExtensionKt",
                         "io.github.salomax.neotool.common.test.http.RequestBuildersKt",
                         "io.github.salomax.neotool.common.test.assertions.ResponseAssertionsKt",
@@ -157,7 +171,12 @@ afterEvaluate {
                         "io.github.salomax.neotool.common.test.integration.MicronautPropsTestContainer",
                         "io.github.salomax.neotool.common.test.integration.PostgresTestContainer",
                         "io.github.salomax.neotool.common.test.integration.KafkaTestContainer",
+                        "io.github.salomax.neotool.common.test.integration.MinIOIntegrationTest",
+                        "io.github.salomax.neotool.common.test.integration.MinIOTestContainer",
                         "io.github.salomax.neotool.common.test.integration.TestConfig",
+                        "io.github.salomax.neotool.common.test.transaction.TransactionExtensionsKt",
+                        // Factory classes - minimal logic, mostly delegation
+                        "io.github.salomax.neotool.common.security.key.KeyManagerFactory",
                     )
                 }
             }
