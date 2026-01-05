@@ -112,10 +112,14 @@ open class BacenInstitutionRepositoryImpl(
         // Set parameters
         var paramIndex = 1
         if (query != null && query.isNotBlank()) {
-            val likePattern = "%${query.lowercase()}%"
-            // Two parameters for the OR condition (nome_instituicao and bacen_cod_inst)
+            val likePattern = "%${query}%"
+            // Four parameters for the OR condition in WHERE clause (nome_instituicao, legal_name, trade_name, and bacen_cod_inst)
             nativeQuery.setParameter(paramIndex++, likePattern)
             nativeQuery.setParameter(paramIndex++, likePattern)
+            nativeQuery.setParameter(paramIndex++, likePattern)
+            nativeQuery.setParameter(paramIndex++, likePattern)
+            // One parameter for similarity() function in ORDER BY (uses the query text directly, not the pattern)
+            nativeQuery.setParameter(paramIndex++, query)
         }
         if (after != null) {
             val cursorValue = after.fieldValues["id"] as? String ?: after.id
@@ -167,8 +171,10 @@ open class BacenInstitutionRepositoryImpl(
                 append(
                     """
                     AND (
-                        LOWER(COALESCE(bi.nome_instituicao, '')) LIKE ?
-                        OR (LOWER(bi.bacen_cod_inst) LIKE ? AND LOWER(bi.bacen_cod_inst) NOT LIKE 'c%')
+                        COALESCE(bi.nome_instituicao, '') ILIKE ?
+                        OR COALESCE(fi.legal_name, '') ILIKE ?
+                        OR COALESCE(fi.trade_name, '') ILIKE ?
+                        OR (bi.bacen_cod_inst ILIKE ? AND bi.bacen_cod_inst NOT ILIKE 'c%')
                     )
                     """.trimIndent(),
                 )
@@ -176,6 +182,21 @@ open class BacenInstitutionRepositoryImpl(
             if (after != null) {
                 append(" AND bi.bacen_cod_inst > ?")
             }
+        }
+        
+        val orderByClause = if (query != null && query.isNotBlank()) {
+            """
+            ORDER BY 
+                similarity(
+                    (COALESCE(bi.nome_instituicao, '') || ' ' || 
+                     COALESCE(fi.legal_name, '') || ' ' || 
+                     COALESCE(fi.trade_name, ''))::TEXT,
+                    ?::TEXT
+                ) DESC,
+                bi.bacen_cod_inst ASC
+            """.trimIndent()
+        } else {
+            "ORDER BY bi.bacen_cod_inst ASC"
         }
 
         return """
@@ -215,7 +236,11 @@ open class BacenInstitutionRepositoryImpl(
                     )
                     ELSE NULL
                 END as yoy_equity_growth,
-                SUM(CASE WHEN bra.conta = '79664' THEN brd.saldo ELSE 0 END) as basileia_index,
+                CASE 
+                    WHEN COUNT(CASE WHEN bra.conta = '79664' THEN 1 END) > 0
+                    THEN SUM(CASE WHEN bra.conta = '79664' THEN brd.saldo END)
+                    ELSE NULL
+                END as basileia_index,
                 MAX(br.tipo_instituicao) as tipo_instituicao,
                 bi.tipo_consolidacao,
                 bi.cod_conglomerado_prudencial,
@@ -255,7 +280,7 @@ open class BacenInstitutionRepositoryImpl(
                 bi.cod_conglomerado_prudencial,
                 bi.cod_conglomerado_financeiro,
                 bi.tipo_consolidado_bancario
-            ORDER BY bi.bacen_cod_inst ASC
+            $orderByClause
         """.trimIndent()
     }
 

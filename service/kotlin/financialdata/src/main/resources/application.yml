@@ -94,7 +94,10 @@ flyway:
       baseline-on-migrate: true
       baseline-version: 0
       table: flyway_schema_history_financial_data
-
+      schemas:
+        - public
+        - financial_data
+          
 # Management Endpoints Configuration
 endpoints:
   all:
