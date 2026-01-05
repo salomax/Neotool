@@ -72,6 +72,8 @@ export const createAppTheme = (mode: Mode) => {
         inputBorder: t.palette.inputBorder,
         tabBorder: t.palette.tabBorder,
         errorLightBg: t.palette.errorLightBg,
+        sidebarBg: t.palette.sidebarBg,
+        sidebarIcon: t.palette.sidebarIcon,
       },
     },
   } as ThemeOptions & { custom?: { layout: typeof t.layout } };

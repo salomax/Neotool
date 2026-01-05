@@ -1,6 +1,6 @@
--- Migration: Create ifdata_extract_task table
+-- Migration: Create bacen_ifdata_extract_task table
 -- Version: V1_3
--- Description: Create financial_data.ifdata_extract_task table for BACEN IFData extraction task control
+-- Description: Create financial_data.bacen_ifdata_extract_task table for BACEN IFData extraction task control
 -- 
 -- This migration creates the ifdata_extract_task table that controls every external request
 -- made to BACEN IFData APIs. It serves as a queue and audit log for HTTP calls, enabling
@@ -16,8 +16,8 @@
 
 SET search_path TO financial_data, public;
 
--- Create ifdata_extract_task table
-CREATE TABLE IF NOT EXISTS financial_data.ifdata_extract_task (
+-- Create bacen_ifdata_extract_task table
+CREATE TABLE IF NOT EXISTS financial_data.bacen_ifdata_extract_task (
     -- Natural key dimensions (composite primary key)
     ano_mes CHAR(6) NOT NULL,
     tipo_instituicao INTEGER NOT NULL,
@@ -31,6 +31,9 @@ CREATE TABLE IF NOT EXISTS financial_data.ifdata_extract_task (
     -- Status: PENDING -> RUNNING -> SUCCESS | EMPTY | ERROR
     -- EMPTY is terminal (end of pagination), not an error
     status TEXT NOT NULL DEFAULT 'PENDING',
+
+    -- Total rows processed
+    rows_processed INTEGER NOT NULL DEFAULT 0,
 
     -- Retry tracking
     attempt_count INTEGER NOT NULL DEFAULT 0,
@@ -49,22 +52,22 @@ CREATE TABLE IF NOT EXISTS financial_data.ifdata_extract_task (
     PRIMARY KEY (ano_mes, tipo_instituicao, nome_relatorio, numero_relatorio, page_skip),
 
     -- CHECK constraint for valid status values
-    CONSTRAINT chk_ifdata_extract_task_status
+    CONSTRAINT chk_bacen_ifdata_extract_task_status
         CHECK (status IN ('PENDING', 'RUNNING', 'SUCCESS', 'EMPTY', 'ERROR'))
 );
 
 -- Create indexes for common query patterns
 
 -- Index on status for finding PENDING tasks (worker queue queries)
-CREATE INDEX IF NOT EXISTS idx_ifdata_extract_task_status 
-    ON financial_data.ifdata_extract_task(status);
+CREATE INDEX IF NOT EXISTS idx_bacen_ifdata_extract_task_status 
+    ON financial_data.bacen_ifdata_extract_task(status);
 
 -- Index on (ano_mes, nome_relatorio) for load control queries
 -- Used to check if all tasks for a quarter+report are terminal
-CREATE INDEX IF NOT EXISTS idx_ifdata_extract_task_ano_mes_nome_relatorio 
-    ON financial_data.ifdata_extract_task(ano_mes, nome_relatorio);
+CREATE INDEX IF NOT EXISTS idx_bacen_ifdata_extract_task_ano_mes_nome_relatorio 
+    ON financial_data.bacen_ifdata_extract_task(ano_mes, nome_relatorio);
 
 -- Index on created_at for audit queries and task ordering
-CREATE INDEX IF NOT EXISTS idx_ifdata_extract_task_created_at 
-    ON financial_data.ifdata_extract_task(created_at);
+CREATE INDEX IF NOT EXISTS idx_bacen_ifdata_extract_task_created_at 
+    ON financial_data.bacen_ifdata_extract_task(created_at);
 

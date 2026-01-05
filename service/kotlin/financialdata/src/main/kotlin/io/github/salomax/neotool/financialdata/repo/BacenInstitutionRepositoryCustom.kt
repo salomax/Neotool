@@ -1,0 +1,56 @@
+package io.github.salomax.neotool.financialdata.repo
+
+import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
+import io.github.salomax.neotool.financialdata.model.BacenInstitutionEntity
+
+/**
+ * Custom query contract for BacenInstitution search operations.
+ * Declared separately so Micronaut Data can generate the default repository implementation
+ * while these methods are provided via a manual bean.
+ */
+interface BacenInstitutionRepositoryCustom {
+    /**
+     * Search institutions for autocomplete suggestions.
+     * Performs case-insensitive partial matching on nome_instituicao and bacen_cod_inst.
+     * Returns limited results (e.g., top 20) for fast autocomplete response.
+     *
+     * @param query Search query (partial match, case-insensitive)
+     * @param limit Maximum number of results to return (default: 20)
+     * @return List of matching BACEN institutions for autocomplete
+     */
+    fun searchBacenInstitutionsAutocomplete(
+        query: String,
+        limit: Int = 20,
+    ): List<BacenInstitutionEntity>
+
+    /**
+     * Search institutions with full text search and financial metrics aggregation.
+     * Performs case-insensitive partial matching on nome_instituicao and bacen_cod_inst.
+     * When query is null or empty, returns all institutions (list behavior).
+     * Aggregates financial metrics from latest bacen_bank_report data using specific account codes.
+     * Calculates YoY equity growth by comparing latest equity with equity from same period a year ago.
+     * Results are ordered by bacen_cod_inst for deterministic pagination.
+     *
+     * @param query Search query (partial match, case-insensitive). If null or empty, returns all institutions.
+     * @param first Maximum number of results to return
+     * @param after Composite cursor to start after (exclusive), or null for first page
+     * @return List of matching institutions with aggregated financial metrics
+     */
+    fun bacenInstitutions(
+        query: String?,
+        first: Int,
+        after: CompositeCursor?,
+    ): List<InstitutionSearchResult>
+
+    /**
+     * Count institutions matching the search query.
+     * Performs case-insensitive partial matching on nome_instituicao and bacen_cod_inst.
+     * When query is null or empty, returns total count of all institutions.
+     * This count matches the same WHERE clause as searchBacenInstitutions but without pagination.
+     *
+     * @param query Search query (partial match, case-insensitive). If null or empty, counts all institutions.
+     * @return Total count of matching institutions (or all institutions if query is null/empty)
+     */
+    fun countBacenInstitutions(query: String?): Long
+}
+

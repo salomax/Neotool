@@ -8,6 +8,10 @@ subgraphs:
     routing_url: http://neotool-api:8080/graphql
     schema:
       file: ../subgraphs/security/schema.graphqls
+  financialdata:
+    routing_url: http://neotool-financial-data-service:8083/graphql
+    schema:
+      file: ../subgraphs/financialdata/schema.graphqls
 # new modules...
 #  module:
 #    routing_url: http://module:8080/graphql

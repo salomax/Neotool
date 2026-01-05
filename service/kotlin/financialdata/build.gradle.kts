@@ -39,10 +39,21 @@ tasks.withType<Jar> {
     isZip64 = true
 }
 
+// Configure Docker for Colima if DOCKER_HOST is not set
+val dockerHost = System.getenv("DOCKER_HOST") ?: run {
+    val colimaSocket = file("${System.getProperty("user.home")}/.colima/default/docker.sock")
+    if (colimaSocket.exists()) {
+        "unix://${colimaSocket.absolutePath}"
+    } else {
+        null
+    }
+}
+
 // Configure test task to disable Ryuk
 tasks.test {
     systemProperty("ryuk.disabled", "true")
     environment("TESTCONTAINERS_RYUK_DISABLED", "true")
+    dockerHost?.let { environment("DOCKER_HOST", it) }
 }
 
 // Task to run unit tests only (excludes integration tests)
@@ -60,6 +71,7 @@ tasks.register<Test>("testUnit") {
 
     systemProperty("ryuk.disabled", "true")
     environment("TESTCONTAINERS_RYUK_DISABLED", "true")
+    dockerHost?.let { environment("DOCKER_HOST", it) }
 }
 
 // Task to run integration tests
@@ -80,6 +92,7 @@ tasks.register<Test>("testIntegration") {
     // Disable Ryuk to avoid container startup issues
     systemProperty("ryuk.disabled", "true")
     environment("TESTCONTAINERS_RYUK_DISABLED", "true")
+    dockerHost?.let { environment("DOCKER_HOST", it) }
 
     // Ensure Docker is available
     doFirst {

@@ -1,8 +1,8 @@
--- Migration: Create ifdata_raw table
+-- Migration: Create bacen_ifdata_raw table
 -- Version: V1_5
--- Description: Create financial_data.ifdata_raw staging table for BACEN IFData raw CSV row storage
+-- Description: Create financial_data.bacen_ifdata_raw staging table for BACEN IFData raw CSV row storage
 -- 
--- This migration creates the ifdata_raw table that stores BACEN payload as-is (CSV rows),
+-- This migration creates the bacen_ifdata_raw table that stores BACEN payload as-is (CSV rows),
 -- preserving original values for auditing, debugging, and full reprocessing. This is a
 -- tall/raw staging table that enables safe reprocessing and promotion to hot tables.
 -- 
@@ -15,8 +15,8 @@
 
 SET search_path TO financial_data, public;
 
--- Create ifdata_raw table
-CREATE TABLE IF NOT EXISTS financial_data.ifdata_raw (
+-- Create bacen_ifdata_raw table
+CREATE TABLE IF NOT EXISTS financial_data.bacen_ifdata_raw (
     -- Primary key: UUID v7 for uniqueness (no natural unique key exists for raw CSV rows)
     -- Using uuidv7() which is built-in in PostgreSQL 18+ (no extension needed)
     id UUID PRIMARY KEY DEFAULT uuidv7(),
@@ -41,18 +41,18 @@ CREATE TABLE IF NOT EXISTS financial_data.ifdata_raw (
 -- Composite index on scope dimensions for promotion queries and purge operations
 -- Used to efficiently query all raw rows for a specific scope:
 -- (ano_mes, nome_relatorio, numero_relatorio, tipo_instituicao)
-CREATE INDEX IF NOT EXISTS idx_ifdata_raw_scope 
-    ON financial_data.ifdata_raw(ano_mes, nome_relatorio, numero_relatorio, tipo_instituicao);
+CREATE INDEX IF NOT EXISTS idx_bacen_ifdata_raw_scope 
+    ON financial_data.bacen_ifdata_raw(ano_mes, nome_relatorio, numero_relatorio, tipo_instituicao);
 
 -- Partial index on cod_inst for institution filtering during promotion
 -- Only indexes non-null values for efficiency
-CREATE INDEX IF NOT EXISTS idx_ifdata_raw_cod_inst 
-    ON financial_data.ifdata_raw(cod_inst) 
+CREATE INDEX IF NOT EXISTS idx_bacen_ifdata_raw_cod_inst 
+    ON financial_data.bacen_ifdata_raw(cod_inst) 
     WHERE cod_inst IS NOT NULL;
 
 -- Index on created_at for audit queries and ordering
-CREATE INDEX IF NOT EXISTS idx_ifdata_raw_created_at 
-    ON financial_data.ifdata_raw(created_at);
+CREATE INDEX IF NOT EXISTS idx_bacen_ifdata_raw_created_at 
+    ON financial_data.bacen_ifdata_raw(created_at);
 
 
 
