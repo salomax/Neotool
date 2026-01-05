@@ -11,8 +11,8 @@ import io.github.salomax.neotool.security.graphql.dto.UserConnectionDTO
 import io.github.salomax.neotool.security.graphql.dto.UserDTO
 import io.github.salomax.neotool.security.graphql.dto.UserEdgeDTO
 import io.github.salomax.neotool.security.model.UserOrderBy
-import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.model.UserOrderField
+import io.github.salomax.neotool.security.repo.PrincipalRepository
 import jakarta.inject.Singleton
 import java.util.UUID
 

@@ -7,6 +7,7 @@ import io.micronaut.http.MediaType
 import io.micronaut.http.annotation.Controller
 import io.micronaut.http.annotation.Get
 import io.micronaut.http.annotation.Produces
+import io.micronaut.serde.annotation.Serdeable
 import jakarta.inject.Singleton
 import mu.KotlinLogging
 import java.security.interfaces.RSAPublicKey
@@ -31,6 +32,7 @@ class JwksController(
     /**
      * JWKS response DTO.
      */
+    @Serdeable
     data class JwksResponse(
         val keys: List<Jwk>,
     )
@@ -38,13 +40,20 @@ class JwksController(
     /**
      * JSON Web Key (JWK) DTO.
      */
+    @Serdeable
     data class Jwk(
-        val kty: String, // Key type
-        val kid: String, // Key ID
-        val use: String, // Key use
-        val alg: String, // Algorithm
-        val n: String, // RSA modulus (base64url)
-        val e: String, // RSA exponent (base64url)
+        // Key type
+        val kty: String,
+        // Key ID
+        val kid: String,
+        // Key use
+        val use: String,
+        // Algorithm
+        val alg: String,
+        // RSA modulus (base64url)
+        val n: String,
+        // RSA exponent (base64url)
+        val e: String,
     )
 
     /**
@@ -79,7 +88,8 @@ class JwksController(
 
         return HttpResponse
             .ok(response)
-            .header("Cache-Control", "public, max-age=300") // Cache for 5 minutes
+            // Cache for 5 minutes
+            .header("Cache-Control", "public, max-age=300")
     }
 
     /**
@@ -103,7 +113,8 @@ class JwksController(
         return Jwk(
             kty = "RSA",
             kid = keyId,
-            use = "sig", // Signature
+            // Signature
+            use = "sig",
             alg = "RS256",
             n = n,
             e = e,

@@ -19,4 +19,6 @@ search_keywords: [reference, index]
 - [File Structure](./file-structure.md) - File structure reference
 - [GraphQL Schema](./graphql-schema.md) - GraphQL schema reference
 - [API Reference](./api-reference.md) - API reference
+- [Vault Setup](./vault-setup.md) - HashiCorp Vault setup and configuration guide
+- [Google OAuth Setup](./google-oauth-setup.md) - Google OAuth 2.0 setup guide
 

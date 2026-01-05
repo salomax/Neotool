@@ -12,9 +12,9 @@ import io.github.salomax.neotool.common.test.transaction.runTransaction
 import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.repo.PasswordResetAttemptRepository
 import io.github.salomax.neotool.security.repo.UserRepository
+import io.github.salomax.neotool.security.service.authentication.AuthenticationService
 import io.github.salomax.neotool.security.service.email.EmailService
 import io.github.salomax.neotool.security.service.email.MockEmailService
-import io.github.salomax.neotool.security.service.authentication.AuthenticationService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import io.micronaut.http.HttpRequest
 import io.micronaut.http.MediaType

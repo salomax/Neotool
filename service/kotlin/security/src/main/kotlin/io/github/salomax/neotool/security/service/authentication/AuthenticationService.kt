@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.security.service.authentication
 
 import com.password4j.Password
+import io.github.salomax.neotool.common.security.exception.AuthenticationRequiredException
 import io.github.salomax.neotool.common.security.jwt.JwtTokenValidator
 import io.github.salomax.neotool.common.security.principal.AuthContext
 import io.github.salomax.neotool.common.security.principal.PrincipalType
@@ -183,24 +184,32 @@ open class AuthenticationService(
      * @return UserEntity if token is valid, null otherwise
      */
     fun validateAccessToken(token: String): UserEntity? {
-        val userId = jwtTokenValidator.getUserIdFromToken(token) ?: return null
+        return try {
+            val userId = jwtTokenValidator.getUserIdFromToken(token) ?: return null
 
-        // Verify it's an access token
-        if (!jwtTokenValidator.isAccessToken(token)) {
-            logger.debug { "Token is not an access token" }
+            // Verify it's an access token
+            if (!jwtTokenValidator.isAccessToken(token)) {
+                logger.debug { "Token is not an access token" }
+                return null
+            }
+
+            // Fetch user from database
+            val user = userRepository.findById(userId).orElse(null) ?: return null
+
+            // Check if user principal is enabled (source of truth)
+            if (!isUserPrincipalEnabled(userId)) {
+                logger.debug { "User principal is disabled for user ID: $userId" }
+                return null
+            }
+
+            return user
+        } catch (e: AuthenticationRequiredException) {
+            logger.debug { "Invalid access token: ${e.message}" }
+            return null
+        } catch (e: Exception) {
+            logger.debug { "Error validating access token: ${e.message}" }
             return null
         }
-
-        // Fetch user from database
-        val user = userRepository.findById(userId).orElse(null) ?: return null
-
-        // Check if user principal is enabled (source of truth)
-        if (!isUserPrincipalEnabled(userId)) {
-            logger.debug { "User principal is disabled for user ID: $userId" }
-            return null
-        }
-
-        return user
     }
 
     /**
@@ -215,39 +224,60 @@ open class AuthenticationService(
         ReplaceWith("refreshTokenService.refreshAccessToken(token)"),
     )
     fun validateRefreshToken(token: String): UserEntity? {
-        // Legacy validation (backward compatibility)
-        val userId = jwtTokenValidator.getUserIdFromToken(token) ?: return null
+        return try {
+            // Legacy validation (backward compatibility)
+            val userId = jwtTokenValidator.getUserIdFromToken(token) ?: return null
 
-        // Verify it's a refresh token
-        if (!jwtTokenValidator.isRefreshToken(token)) {
-            logger.debug { "Token is not a refresh token" }
+            // Verify it's a refresh token
+            if (!jwtTokenValidator.isRefreshToken(token)) {
+                logger.debug { "Token is not a refresh token" }
+                return null
+            }
+
+            // Fetch user from database
+            val user = userRepository.findById(userId).orElse(null) ?: return null
+
+            // Check if rememberMeToken is set (legacy system takes priority for backward compatibility)
+            if (user.rememberMeToken != null) {
+                // Legacy system: token must match rememberMeToken
+                if (user.rememberMeToken != token) {
+                    logger.debug { "Refresh token does not match stored rememberMeToken for user: ${user.email}" }
+                    return null
+                }
+                // Token matches rememberMeToken - valid
+            } else {
+                // No rememberMeToken - check RefreshTokenService (new system)
+                val tokenHash = refreshTokenService.hashToken(token)
+                if (refreshTokenService.tokenExists(tokenHash)) {
+                    // Token exists in RefreshTokenService - validate it
+                    if (!refreshTokenService.isTokenValid(tokenHash)) {
+                        logger.debug {
+                            "Refresh token exists but is invalid (revoked/replaced/expired) for user: ${user.email}"
+                        }
+                        return null
+                    }
+                    // Token is valid in RefreshTokenService
+                } else {
+                    // Token doesn't exist in RefreshTokenService and no rememberMeToken
+                    logger.debug { "Refresh token not found for user: ${user.email}" }
+                    return null
+                }
+            }
+
+            // Check if user principal is enabled (source of truth)
+            if (!isUserPrincipalEnabled(userId)) {
+                logger.debug { "User principal is disabled for user ID: $userId" }
+                return null
+            }
+
+            return user
+        } catch (e: AuthenticationRequiredException) {
+            logger.debug { "Invalid refresh token: ${e.message}" }
+            return null
+        } catch (e: Exception) {
+            logger.debug { "Error validating refresh token: ${e.message}" }
             return null
         }
-
-        // Fetch user from database
-        val user = userRepository.findById(userId).orElse(null) ?: return null
-
-        // Verify the refresh token matches the stored one (for revocation support)
-        // If rememberMeToken is null, the refresh token was revoked
-        if (user.rememberMeToken == null) {
-            logger.debug { "Refresh token was revoked for user: ${user.email}" }
-            return null
-        }
-
-        // For backward compatibility, we check if the stored token matches
-        // In a production system, you might want to store token hashes instead
-        if (user.rememberMeToken != token) {
-            logger.debug { "Refresh token does not match stored token for user: ${user.email}" }
-            return null
-        }
-
-        // Check if user principal is enabled (source of truth)
-        if (!isUserPrincipalEnabled(userId)) {
-            logger.debug { "User principal is disabled for user ID: $userId" }
-            return null
-        }
-
-        return user
     }
 
     /**
@@ -317,7 +347,14 @@ open class AuthenticationService(
      */
     fun authenticateByToken(token: String): UserEntity? {
         // Try JWT refresh token first
-        val jwtUser = validateRefreshToken(token)
+        val jwtUser =
+            try {
+                validateRefreshToken(token)
+            } catch (e: Exception) {
+                logger.debug { "Error validating JWT refresh token: ${e.message}" }
+                null
+            }
+
         if (jwtUser != null) {
             return jwtUser
         }

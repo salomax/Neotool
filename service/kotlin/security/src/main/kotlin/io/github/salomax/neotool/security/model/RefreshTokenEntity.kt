@@ -67,4 +67,3 @@ open class RefreshTokenEntity(
      */
     fun isReplaced(): Boolean = replacedBy != null
 }
-

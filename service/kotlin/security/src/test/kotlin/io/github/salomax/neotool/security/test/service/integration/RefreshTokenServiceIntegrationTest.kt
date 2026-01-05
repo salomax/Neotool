@@ -16,9 +16,9 @@ import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject
 import jakarta.persistence.EntityManager
-import org.junit.jupiter.api.BeforeEach
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.MethodOrderer
 import org.junit.jupiter.api.Nested
@@ -358,17 +358,21 @@ class RefreshTokenServiceIntegrationTest :
             val user = createTestUser()
             val token1 = refreshTokenService.createRefreshToken(user.id!!)
 
-            // Act - Use token
+            // Act - Use token once
             val pair1 = refreshTokenService.refreshAccessToken(token1)
+            assertThat(pair1.accessToken).isNotBlank()
+            assertThat(pair1.refreshToken).isNotBlank()
 
-            // Assert - Original token cannot be used again
+            // Assert - Original token cannot be used again (reuse detection triggers family revocation)
             assertThrows<AuthenticationRequiredException> {
                 refreshTokenService.refreshAccessToken(token1)
             }
 
-            // But new token can be used
-            val pair2 = refreshTokenService.refreshAccessToken(pair1.refreshToken)
-            assertThat(pair2.accessToken).isNotBlank()
+            // After reuse detection, the entire token family is revoked (including the new token)
+            // This is the security best practice to prevent token theft
+            assertThrows<AuthenticationRequiredException> {
+                refreshTokenService.refreshAccessToken(pair1.refreshToken)
+            }
         }
     }
 }

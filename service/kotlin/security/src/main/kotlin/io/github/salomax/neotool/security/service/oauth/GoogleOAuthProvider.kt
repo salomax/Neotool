@@ -3,8 +3,6 @@ package io.github.salomax.neotool.security.service.oauth
 import com.google.api.client.auth.openidconnect.IdToken
 import com.google.api.client.json.gson.GsonFactory
 import io.github.salomax.neotool.security.config.OAuthConfig
-import io.github.salomax.neotool.security.service.oauth.OAuthProvider
-import io.github.salomax.neotool.security.service.oauth.OAuthUserClaims
 import jakarta.inject.Singleton
 import mu.KotlinLogging
 

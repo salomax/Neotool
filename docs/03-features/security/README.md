@@ -111,7 +111,7 @@ Access control determining what authenticated users can do.
 - Role-Based Access Control (RBAC)
 - Attribute-Based Access Control (ABAC)
 - Hybrid RBAC+ABAC evaluation
-- Resource-level permissions
+- **Resource Ownership** - Object-level access control ([docs](./authorization/resource-ownership.md))
 - Service-to-service authorization
 - Temporary access grants
 - Deny-by-default security model
@@ -1092,116 +1092,22 @@ CREATE TABLE abac_policies (
 
 The system supports HashiCorp Vault for secure storage of JWT signing keys and secrets. This is the recommended approach for production environments.
 
-#### Configuration
+**📖 For complete Vault setup instructions, see [Vault Setup Guide](../../93-reference/vault-setup.md)**
 
-Enable Vault in `application.yml`:
+The guide covers:
+- Local development setup
+- Creating secrets manually (CLI, UI, API)
+- Creating secrets with Terraform
+- Configuration and verification
+- Troubleshooting
+- Production considerations
 
-```yaml
-vault:
-  enabled: ${VAULT_ENABLED:false}
-  address: ${VAULT_ADDRESS:http://localhost:8200}
-  token: ${VAULT_TOKEN:}
-  secret-path: ${VAULT_SECRET_PATH:secret/jwt/keys}
-  engine-version: ${VAULT_ENGINE_VERSION:2}
-  connection-timeout: ${VAULT_CONNECTION_TIMEOUT:5000}
-  read-timeout: ${VAULT_READ_TIMEOUT:5000}
-```
-
-#### Vault Secret Structure
-
-Keys should be stored in Vault with this structure:
-
-```
-secret/jwt/keys/{keyId}/
-  ├── private: "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
-  ├── public: "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----"
-  └── secret: "base64-encoded-secret" (optional, for HS256 fallback)
-```
-
-Example for key ID `kid-1`:
-- Path: `secret/jwt/keys/kid-1`
-- Keys: `private`, `public`, `secret`
-
-#### Development vs Production
-
-**Development:**
-- Vault disabled by default (`vault.enabled: false`)
-- Uses file-based or environment variable keys
-- No Vault server required
-
-**Production:**
-- Enable Vault (`VAULT_ENABLED=true`)
-- Provide Vault token via environment variable or service account
-- Keys automatically fetched from Vault with 5-minute caching
-- Falls back to file-based if Vault unavailable
-
-#### Key Provisioning via Terraform
-
-JWT signing keys are provisioned as infrastructure using Terraform. Keys are created and stored in Vault before the application starts.
-
-**How it works:**
-1. Terraform generates RSA key pairs using `tls_private_key` resource
-2. Keys are stored in Vault at `secret/jwt/keys/{keyId}` with `private` and `public` fields
-3. Application reads keys from Vault at startup using `KeyManager.getPrivateKey()`
-4. If keys don't exist, the application will fail to start (keys must be provisioned first)
-
-**Terraform Configuration:**
-```hcl
-resource "tls_private_key" "jwt_signing_key" {
-  algorithm = "RSA"
-  rsa_bits  = 4096
-}
-
-resource "vault_kv_secret_v2" "jwt_keys" {
-  mount = "secret"
-  name  = "jwt/keys/kid-1"
-
-  data_json = jsonencode({
-    private = tls_private_key.jwt_signing_key.private_key_pem
-    public  = tls_private_key.jwt_signing_key.public_key_pem
-  })
-}
-```
-
-**Application Configuration:**
-```yaml
-jwt:
-  key-id: ${JWT_KEY_ID:kid-1}  # Must match Terraform key_id
-
-vault:
-  enabled: ${VAULT_ENABLED:true}
-  address: ${VAULT_ADDRESS:http://vault:8200}
-  secret-path: ${VAULT_SECRET_PATH:secret/jwt/keys}
-```
-
-**Key Requirements:**
-- Keys must exist in Vault before application startup
-- Key ID in application config must match Terraform key ID
-- Vault must be accessible from the application
-- Application requires read access to `secret/jwt/keys/{keyId}` path
-
-#### Key Rotation (Future)
-
-The architecture supports key rotation:
-- Multiple active key versions
-- Key ID (kid) in JWT header identifies signing key
-- Validators fetch correct public key by kid
-- Old keys remain valid until expiration
-
-#### Security Considerations
-
-✅ **DO:**
-- Store Vault token securely (environment variable or K8s service account)
-- Use Vault policies to restrict key access
-- Enable Vault audit logging
-- Rotate Vault tokens regularly
-- Use separate Vault paths per environment
-
-❌ **DON'T:**
-- Commit Vault tokens to code
-- Use root Vault tokens
-- Grant broad Vault access policies
-- Store keys in both Vault and files simultaneously
+**Quick Reference:**
+- **Secret Path**: `secret/jwt/keys/{keyId}` (default: `secret/jwt/keys/kid-1`)
+- **Secret Fields**: `private` (RSA private key) and `public` (RSA public key)
+- **Engine**: KV v2 (Key-Value secrets engine version 2)
+- **Development**: Vault disabled by default, uses file-based keys
+- **Production**: Vault required, keys provisioned via Terraform
 
 ### 3. Authorization Security
 
@@ -1392,11 +1298,13 @@ logger:
 
 ### TODO
 
-- [ ] Resource-Level ACLs
-  - Per-resource access control lists
-  - Resource sharing between users
-  - Granular resource permissions
-  - Share expiration and revocation
+- [x] **Resource Ownership and Access Control** ✅ IMPLEMENTED
+  - Per-service resource_ownership tables
+  - User and Group ownership
+  - Resource sharing with explicit grants
+  - Time-based access expiration
+  - Efficient query filtering
+  - **[📖 Documentation](./authorization/resource-ownership.md)**
 
 - [ ] Key Rotation Support
   - Implement key rotation workflow and tooling

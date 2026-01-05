@@ -133,6 +133,7 @@ class JwtTokenIssuer(
                 .builder()
                 .subject(userId.toString())
                 .claim("type", "refresh")
+                .id(UUID.randomUUID().toString()) // Add unique JTI to ensure token uniqueness
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiration))
                 .issuer("neotool-security-service"),

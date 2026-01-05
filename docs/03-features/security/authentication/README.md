@@ -90,30 +90,63 @@ Social login integration for seamless user onboarding.
 
 **Flow:**
 1. User clicks "Sign in with Google"
-2. Redirected to Google OAuth consent page
-3. User authorizes application
-4. Google returns authorization code
-5. Backend exchanges code for ID token
-6. ID token validated and user claims extracted
-7. User account created or retrieved
-8. JWT tokens generated and returned
+2. Frontend loads Google Identity Services
+3. Google shows sign-in popup
+4. User authenticates with Google
+5. Google returns ID token (JWT) to frontend
+6. Frontend sends ID token to backend via GraphQL mutation
+7. Backend validates ID token using Google's public keys
+8. Backend extracts user claims (email, name, etc.)
+9. Backend creates/updates user in database
+10. **Backend generates its own JWT access token and refresh token**
+11. Frontend stores tokens and redirects user
+
+**Important: Two Different JWTs**
+
+The OAuth flow involves **two distinct JWT tokens** with different purposes:
+
+1. **Google's ID Token (JWT)**:
+   - **Issued by**: Google
+   - **Purpose**: Proves user identity with Google (authentication)
+   - **Lifetime**: ~1 hour
+   - **Contains**: Google user info (email, name, picture, etc.)
+   - **Validation**: Backend validates using Google's public keys
+   - **Usage**: One-time use during login to verify identity
+
+2. **Application's Access Token (JWT)**:
+   - **Issued by**: Your NeoTool security service
+   - **Purpose**: Authorizes API access to your application (authorization)
+   - **Lifetime**: 15 minutes (configurable)
+   - **Contains**: Your user ID, permissions, email
+   - **Validation**: Your services validate using your public keys
+   - **Usage**: Included in every API request (`Authorization: Bearer <token>`)
+
+**Why Two Tokens?**
+
+- **Different purposes**: Google's token authenticates with Google; your token authorizes access to your APIs
+- **Different claims**: Google's token has Google-specific claims; your token has your application's user ID and permissions
+- **Different lifetimes**: Google tokens are longer-lived; your access tokens are short-lived for security
+- **Different validation**: Your services can't validate Google tokens directly; they need your tokens with your user context
 
 **Security:**
 - HTTPS-only OAuth redirects
 - State parameter prevents CSRF attacks
-- ID token signature validation
+- ID token signature validation using Google's public keys
 - Email verification status checked
 - Nonce validation for replay protection
+- Application tokens signed with RS256 using your private key
 
 **Code Example:**
 ```kotlin
+// Step 1: Validate Google's ID token and get/create user
 val user = authenticationService.authenticateWithOAuth(
     provider = "google",
-    idToken = googleIdToken
+    idToken = googleIdToken  // Google's JWT token
 )
 
-val accessToken = authenticationService.generateAccessToken(user)
-val refreshToken = authenticationService.generateRefreshToken(user)
+// Step 2: Generate your application's JWT tokens
+val accessToken = authenticationService.generateAccessToken(user)  // Your JWT token
+val refreshToken = authenticationService.generateRefreshToken(user)  // Your JWT token
 ```
 
 ### 3. JWT Token Authentication

@@ -58,7 +58,8 @@ open class RefreshTokenService(
         // Check if token was already used (potential theft detection)
         if (tokenRecord.replacedBy != null) {
             logger.warn {
-                "Refresh token reuse detected for user ${tokenRecord.userId} - revoking token family ${tokenRecord.familyId}"
+                "Refresh token reuse detected for user ${tokenRecord.userId} - " +
+                    "revoking token family ${tokenRecord.familyId}"
             }
             // Revoke entire token family (security best practice)
             revokeFamily(tokenRecord.familyId)
@@ -109,7 +110,8 @@ open class RefreshTokenService(
             RefreshTokenEntity(
                 userId = user.id!!,
                 tokenHash = newRefreshTokenHash,
-                familyId = tokenRecord.familyId, // Same family
+                // Same family
+                familyId = tokenRecord.familyId,
                 issuedAt = now,
                 expiresAt = now.plusSeconds(jwtConfig.refreshTokenExpirationSeconds),
             )
@@ -235,9 +237,35 @@ open class RefreshTokenService(
      * @param token The plaintext token
      * @return SHA-256 hash as hexadecimal string
      */
-    private fun hashToken(token: String): String =
+    fun hashToken(token: String): String =
         MessageDigest
             .getInstance("SHA-256")
             .digest(token.toByteArray())
             .joinToString("") { "%02x".format(it) }
+
+    /**
+     * Check if a refresh token exists in the RefreshTokenService.
+     * Used by AuthenticationService to determine if token is managed by new system.
+     *
+     * @param tokenHash The hashed token
+     * @return true if token exists (regardless of validity), false otherwise
+     */
+    fun tokenExists(tokenHash: String): Boolean {
+        return refreshTokenRepository.findByTokenHash(tokenHash) != null
+    }
+
+    /**
+     * Check if a refresh token is valid (exists and not revoked).
+     * Used by AuthenticationService for backward compatibility.
+     *
+     * @param tokenHash The hashed token
+     * @return true if token is valid, false otherwise
+     */
+    fun isTokenValid(tokenHash: String): Boolean {
+        val tokenRecord = refreshTokenRepository.findByTokenHash(tokenHash)
+        return tokenRecord != null &&
+            tokenRecord.revokedAt == null &&
+            tokenRecord.replacedBy == null &&
+            tokenRecord.expiresAt.isAfter(Instant.now())
+    }
 }

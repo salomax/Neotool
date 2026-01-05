@@ -26,7 +26,7 @@ micronaut:
           max-age: 3600
   security:
     enabled: true
-    
+
   # Micrometer Configuration for Metrics Collection
   metrics:
     enabled: true
@@ -70,12 +70,12 @@ jwt:
 
 # Vault Configuration
 vault:
-  # Enable Vault integration (default: false for development)
+  # Enable Vault integration
   # Can be set via VAULT_ENABLED environment variable
   enabled: ${VAULT_ENABLED:false}
   # Vault server address
   # Can be set via VAULT_ADDRESS environment variable
-  address: ${VAULT_ADDRESS:http://localhost:8200}
+  address: ${VAULT_ADDRESS:}
   # Vault authentication token (should be provided via environment variable in production)
   # Can be set via VAULT_TOKEN environment variable
   token: ${VAULT_TOKEN:}

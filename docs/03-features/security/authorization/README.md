@@ -785,22 +785,26 @@ curl -X GET http://localhost:8080/api/users \
 - Controlled emergency access
 - Compliance with audit requirements
 
-#### 7. Resource-Level ACLs
+#### 7. Resource-Level Access Control
 
-**Current State**: Resource ownership via ABAC policies
+**Current State**: ✅ **IMPLEMENTED** - See [Resource Ownership Documentation](./resource-ownership.md)
 
-**Improvement**: Per-resource access control lists
+**Implementation**: Per-service `resource_ownership` tables
 
-- Share individual resources with users/groups
-- Granular permissions per resource (read, comment, update)
-- Resource sharing UI
-- Share expiration dates
+- User and Group ownership
+- Resource sharing with explicit grants
+- Efficient query filtering for thousands of resources
+- Time-based access expiration
+- Per-service autonomy (no cross-service dependencies)
 
 **Benefits**:
 
-- Fine-grained resource sharing
-- Better collaboration
-- More flexible access patterns
+- Object-level authorization ("Can user access THIS resource?")
+- Complements RBAC/ABAC (action-level + object-level)
+- Performance-optimized for list queries
+- Handles group membership changes automatically
+
+**Documentation**: [Resource Ownership Architecture](./resource-ownership.md)
 
 #### 8. Service Accounts / API Tokens
 
@@ -933,11 +937,12 @@ curl -X GET http://localhost:8080/api/users \
 
 ## Related Documentation
 
+- [Resource Ownership Architecture](./resource-ownership.md) - Object-level access control
 - [Authorization Management Feature](./authorization-management.feature) - User, Group, and Role management
 - [Authorization Feature](./authorization.feature) - RBAC and ABAC access checks
 - [Access Management Feature](./access-management.feature) - Access control patterns
-- [Architecture Decision Records](../../../09-adr/) - Technical decisions
-- [Frontend Authorization Pattern](../../../04-patterns/frontend-patterns/) - Frontend implementation patterns
+- [Architecture Decision Records](../../../92-adr/) - Technical decisions
+- [Security Module Overview](../README.md) - Complete security documentation
 
 ---
 

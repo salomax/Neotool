@@ -9,8 +9,6 @@ import jakarta.inject.Singleton
 import mu.KotlinLogging
 import java.security.PrivateKey
 import java.security.PublicKey
-import java.security.interfaces.RSAPrivateKey
-import java.security.interfaces.RSAPublicKey
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
@@ -134,4 +132,3 @@ class VaultKeyManager(
         logger.debug { "Vault key cache cleared" }
     }
 }
-

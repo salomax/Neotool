@@ -8,6 +8,8 @@ import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.security.domain.UserManagement
 import io.github.salomax.neotool.security.model.PrincipalEntity
 import io.github.salomax.neotool.security.model.UserEntity
+import io.github.salomax.neotool.security.model.UserOrderBy
+import io.github.salomax.neotool.security.model.UserOrderField
 import io.github.salomax.neotool.security.repo.GroupMembershipRepository
 import io.github.salomax.neotool.security.repo.GroupRepository
 import io.github.salomax.neotool.security.repo.PrincipalRepository
@@ -15,8 +17,6 @@ import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.repo.UserRepositoryCustom
 import io.github.salomax.neotool.security.service.management.UserManagementService
-import io.github.salomax.neotool.security.model.UserOrderBy
-import io.github.salomax.neotool.security.model.UserOrderField
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach

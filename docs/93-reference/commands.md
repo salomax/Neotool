@@ -49,6 +49,43 @@ search_keywords: [commands, cli, reference]
 ./neotool kafka --topic --docker                     # Force Docker execution
 ```
 
+### Vault Management
+```bash
+./neotool vault create-secret <key-name>              # Create a new JWT key pair in Vault
+./neotool vault create-secret <key-name> --key-bits <bits>  # Create with custom key size
+./neotool vault create-secret <key-name> --force      # Overwrite existing secret
+./neotool vault create-secret <key-name> --vault-address <url>  # Use custom Vault address
+./neotool vault create-secret <key-name> --vault-token <token>   # Use custom Vault token
+```
+
+**Vault Options**:
+- `--key-bits <bits>`: RSA key size in bits (default: 4096)
+- `--secret-path <path>`: Vault secret path prefix (default: `secret/jwt/keys`)
+- `--vault-address <url>`: Vault server address (default: `http://localhost:8200`)
+- `--vault-token <token>`: Vault authentication token (default: from `VAULT_TOKEN` env or `myroot`)
+- `--force`: Overwrite existing secret if it exists
+- Environment variables: `VAULT_ADDRESS`, `VAULT_TOKEN`
+
+**Vault Examples**:
+```bash
+# Create a new JWT key pair named "kid-1"
+./neotool vault create-secret kid-1
+
+# Create with custom key size
+./neotool vault create-secret kid-2 --key-bits 2048
+
+# Overwrite existing secret
+./neotool vault create-secret kid-1 --force
+
+# Use custom Vault address (e.g., when Vault is in Docker)
+./neotool vault create-secret kid-1 --vault-address http://vault:8200
+
+# Use custom Vault token
+./neotool vault create-secret kid-1 --vault-token my-custom-token
+```
+
+**Note**: This command automatically generates RSA key pairs and stores them in Vault. It works with both local Vault CLI installations and Docker containers. Perfect for local development setup.
+
 ### Upstream Merge Strategy Management
 ```bash
 ./neotool upstream add <file|pattern>                 # Add file/pattern to use "ours" merge strategy

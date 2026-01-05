@@ -73,4 +73,3 @@ class SecurityKeyManagerFactoryTest {
         assertThat(manager).isInstanceOf(VaultKeyManager::class.java)
     }
 }
-

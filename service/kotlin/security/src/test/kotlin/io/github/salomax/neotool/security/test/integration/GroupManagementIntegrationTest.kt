@@ -8,8 +8,8 @@ import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.repo.GroupMembershipRepository
 import io.github.salomax.neotool.security.repo.GroupRepository
 import io.github.salomax.neotool.security.repo.UserRepository
-import io.github.salomax.neotool.security.service.management.GroupManagementService
 import io.github.salomax.neotool.security.service.authentication.AuthenticationService
+import io.github.salomax.neotool.security.service.management.GroupManagementService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject

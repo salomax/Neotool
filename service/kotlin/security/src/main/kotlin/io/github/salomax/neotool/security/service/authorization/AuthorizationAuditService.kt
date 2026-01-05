@@ -100,4 +100,3 @@ open class AuthorizationAuditService(
             .findByResourceTypeAndResourceId(resourceType, resourceId)
             .map { it.toDomain() }
 }
-

@@ -12,8 +12,6 @@ import io.github.salomax.neotool.security.repo.PrincipalPermissionRepository
 import io.github.salomax.neotool.security.repo.PrincipalPermissionRepositoryCustom
 import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
-import io.github.salomax.neotool.security.service.authorization.AbacEvaluationService
-import io.github.salomax.neotool.security.service.authorization.AuthorizationAuditService
 import jakarta.inject.Singleton
 import mu.KotlinLogging
 import java.time.Instant

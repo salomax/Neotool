@@ -7,14 +7,14 @@ import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.repo.PasswordResetAttemptRepository
 import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.UserRepository
+import io.github.salomax.neotool.security.service.authentication.AuthenticationService
 import io.github.salomax.neotool.security.service.email.EmailService
 import io.github.salomax.neotool.security.service.jwt.JwtTokenIssuer
+import io.github.salomax.neotool.security.service.jwt.RefreshTokenService
 import io.github.salomax.neotool.security.service.oauth.OAuthProvider
+import io.github.salomax.neotool.security.service.oauth.OAuthProviderRegistry
 import io.github.salomax.neotool.security.service.oauth.OAuthUserClaims
 import io.github.salomax.neotool.security.service.rate.RateLimitService
-import io.github.salomax.neotool.security.service.authentication.AuthenticationService
-import io.github.salomax.neotool.security.service.jwt.RefreshTokenService
-import io.github.salomax.neotool.security.service.oauth.OAuthProviderRegistry
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.ArgumentCaptor
 import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
@@ -440,13 +441,15 @@ class AuthenticationServiceTest {
                     email = email,
                 )
             val expectedToken = "access-token-123"
-            whenever(jwtTokenIssuer.generateAccessToken(eq(userId), eq(email))).thenReturn(expectedToken)
+            whenever(
+                jwtTokenIssuer.generateAccessToken(eq(userId), eq(email), anyOrNull<List<String>>()),
+            ).thenReturn(expectedToken)
 
             val token = authenticationService.generateAccessToken(user)
 
             assertThat(token).isNotBlank()
             assertThat(token).isEqualTo(expectedToken)
-            verify(jwtTokenIssuer).generateAccessToken(eq(userId), eq(email))
+            verify(jwtTokenIssuer).generateAccessToken(eq(userId), eq(email), anyOrNull<List<String>>())
         }
 
         @Test
@@ -478,7 +481,13 @@ class AuthenticationServiceTest {
                 )
             val accessTokenValue = "access-token-789"
             val refreshTokenValue = "refresh-token-789"
-            whenever(jwtTokenIssuer.generateAccessToken(eq(userId), eq(email))).thenReturn(accessTokenValue)
+            whenever(
+                jwtTokenIssuer.generateAccessToken(
+                    eq(userId),
+                    eq(email),
+                    anyOrNull<List<String>>(),
+                ),
+            ).thenReturn(accessTokenValue)
             whenever(refreshTokenService.createRefreshToken(eq(userId))).thenReturn(refreshTokenValue)
 
             val accessToken = authenticationService.generateAccessToken(user)

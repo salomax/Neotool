@@ -2,13 +2,13 @@ package io.github.salomax.neotool.security.test.integration
 
 import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.common.security.principal.RequestPrincipalProvider
-import io.github.salomax.neotool.security.service.authorization.AuthorizationService
-import io.github.salomax.neotool.security.service.jwt.JwtTokenIssuer
 import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.common.test.transaction.runTransaction
 import io.github.salomax.neotool.security.repo.PermissionRepository
 import io.github.salomax.neotool.security.repo.PrincipalRepository
+import io.github.salomax.neotool.security.service.authorization.AuthorizationService
+import io.github.salomax.neotool.security.service.jwt.JwtTokenIssuer
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject
 import jakarta.persistence.EntityManager

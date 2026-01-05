@@ -10,7 +10,7 @@ import mu.KotlinLogging
 /**
  * Factory for creating and selecting the appropriate KeyManager implementation in the security module.
  * Selects VaultKeyManager if Vault is enabled and available, otherwise falls back to FileKeyManager.
- * 
+ *
  * This extends the common KeyManagerFactory with Vault support for the security module.
  */
 @Singleton
@@ -52,4 +52,3 @@ class SecurityKeyManagerFactory(
         return vaultKeyManager
     }
 }
-

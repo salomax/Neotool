@@ -74,4 +74,3 @@ data class VaultConfig(
      */
     fun isConfigured(): Boolean = enabled && token != null && token.isNotBlank()
 }
-
