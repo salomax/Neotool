@@ -12,9 +12,9 @@ import io.github.salomax.neotool.common.test.transaction.runTransaction
 import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.repo.PasswordResetAttemptRepository
 import io.github.salomax.neotool.security.repo.UserRepository
-import io.github.salomax.neotool.security.service.AuthenticationService
-import io.github.salomax.neotool.security.service.EmailService
-import io.github.salomax.neotool.security.service.MockEmailService
+import io.github.salomax.neotool.security.service.authentication.AuthenticationService
+import io.github.salomax.neotool.security.service.email.EmailService
+import io.github.salomax.neotool.security.service.email.MockEmailService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import io.micronaut.http.HttpRequest
 import io.micronaut.http.MediaType
@@ -43,7 +43,9 @@ import java.util.UUID
 @Tag("password-reset")
 @Tag("security")
 @TestMethodOrder(MethodOrderer.Random::class)
-open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTest {
+open class PasswordResetGraphQLIntegrationTest :
+    BaseIntegrationTest(),
+    PostgresIntegrationTest {
     @Inject
     lateinit var userRepository: UserRepository
 
@@ -109,7 +111,8 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
@@ -122,19 +125,23 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
             payload["errors"].assertNoErrors()
 
             val data = payload["data"]
-            Assertions.assertThat(data)
+            Assertions
+                .assertThat(data)
                 .describedAs("GraphQL response must contain 'data'")
                 .isNotNull()
             val requestPasswordResetNode = data["requestPasswordReset"]
-            Assertions.assertThat(requestPasswordResetNode)
+            Assertions
+                .assertThat(requestPasswordResetNode)
                 .describedAs("requestPasswordReset payload must be present")
                 .isNotNull()
 
             val requestPasswordResetPayload: JsonNode = requestPasswordResetNode
-            Assertions.assertThat(requestPasswordResetPayload["success"].booleanValue)
+            Assertions
+                .assertThat(requestPasswordResetPayload["success"].booleanValue)
                 .describedAs("success should be true")
                 .isTrue()
-            Assertions.assertThat(requestPasswordResetPayload["message"].stringValue)
+            Assertions
+                .assertThat(requestPasswordResetPayload["message"].stringValue)
                 .describedAs("message should be present")
                 .isNotBlank()
 
@@ -142,13 +149,15 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
             entityManager.flush()
             entityManager.clear()
             val savedUser = userRepository.findByEmail(email)
-            Assertions.assertThat(savedUser?.passwordResetToken)
+            Assertions
+                .assertThat(savedUser?.passwordResetToken)
                 .describedAs("Password reset token should be saved")
                 .isNotNull()
 
             // Verify email was sent (using MockEmailService)
             val sentEmails = mockEmailService.getSentEmails(email)
-            Assertions.assertThat(sentEmails)
+            Assertions
+                .assertThat(sentEmails)
                 .describedAs("Email should be sent")
                 .hasSize(1)
             val sentEmail = sentEmails[0]
@@ -164,7 +173,8 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
             val mutation = SecurityTestDataBuilders.requestPasswordResetMutation(email = email)
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
@@ -178,7 +188,8 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
 
             val data = payload["data"]
             val requestPasswordResetNode = data["requestPasswordReset"]
-            Assertions.assertThat(requestPasswordResetNode["success"].booleanValue)
+            Assertions
+                .assertThat(requestPasswordResetNode["success"].booleanValue)
                 .describedAs("Should return success even for non-existent email (security)")
                 .isTrue()
         }
@@ -203,7 +214,8 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
@@ -214,7 +226,8 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
 
             val payload: JsonNode = json.read(response)
             val errors = payload["errors"]
-            Assertions.assertThat(errors)
+            Assertions
+                .assertThat(errors)
                 .describedAs("GraphQL should return errors for missing required field")
                 .isNotNull()
         }
@@ -238,7 +251,8 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
@@ -287,7 +301,8 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
@@ -300,19 +315,23 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
             payload["errors"].assertNoErrors()
 
             val data = payload["data"]
-            Assertions.assertThat(data)
+            Assertions
+                .assertThat(data)
                 .describedAs("GraphQL response must contain 'data'")
                 .isNotNull()
             val resetPasswordNode = data["resetPassword"]
-            Assertions.assertThat(resetPasswordNode)
+            Assertions
+                .assertThat(resetPasswordNode)
                 .describedAs("resetPassword payload must be present")
                 .isNotNull()
 
             val resetPasswordPayload: JsonNode = resetPasswordNode
-            Assertions.assertThat(resetPasswordPayload["success"].booleanValue)
+            Assertions
+                .assertThat(resetPasswordPayload["success"].booleanValue)
                 .describedAs("success should be true")
                 .isTrue()
-            Assertions.assertThat(resetPasswordPayload["message"].stringValue)
+            Assertions
+                .assertThat(resetPasswordPayload["message"].stringValue)
                 .describedAs("message should be present")
                 .isNotBlank()
 
@@ -320,12 +339,14 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
             entityManager.flush()
             entityManager.clear()
             val authenticatedUser = authenticationService.authenticate(email, newPassword)
-            Assertions.assertThat(authenticatedUser)
+            Assertions
+                .assertThat(authenticatedUser)
                 .describedAs("Should be able to authenticate with new password")
                 .isNotNull()
 
             val oldPasswordWorks = authenticationService.authenticate(email, oldPassword)
-            Assertions.assertThat(oldPasswordWorks)
+            Assertions
+                .assertThat(oldPasswordWorks)
                 .describedAs("Should not be able to authenticate with old password")
                 .isNull()
         }
@@ -342,7 +363,8 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
@@ -353,7 +375,8 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
 
             val payload: JsonNode = json.read(response)
             val errors = payload["errors"]
-            Assertions.assertThat(errors)
+            Assertions
+                .assertThat(errors)
                 .describedAs("GraphQL should return errors for invalid token")
                 .isNotNull()
             Assertions.assertThat(errors.isArray).isTrue
@@ -361,7 +384,8 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
 
             val firstError = errors[0]
             val messageNode = firstError["message"]
-            Assertions.assertThat(messageNode)
+            Assertions
+                .assertThat(messageNode)
                 .describedAs("Error message must be present")
                 .isNotNull()
             val errorMessage = messageNode.stringValue
@@ -390,7 +414,8 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
@@ -401,7 +426,8 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
 
             val payload: JsonNode = json.read(response)
             val errors = payload["errors"]
-            Assertions.assertThat(errors)
+            Assertions
+                .assertThat(errors)
                 .describedAs("GraphQL should return errors for expired token")
                 .isNotNull()
         }
@@ -432,7 +458,8 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
@@ -443,7 +470,8 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
 
             val payload: JsonNode = json.read(response)
             val errors = payload["errors"]
-            Assertions.assertThat(errors)
+            Assertions
+                .assertThat(errors)
                 .describedAs("GraphQL should return errors for weak password")
                 .isNotNull()
             Assertions.assertThat(errors.isArray).isTrue
@@ -478,7 +506,8 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
@@ -489,7 +518,8 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
 
             val payload: JsonNode = json.read(response)
             val errors = payload["errors"]
-            Assertions.assertThat(errors)
+            Assertions
+                .assertThat(errors)
                 .describedAs("GraphQL should return errors for missing required field")
                 .isNotNull()
         }
@@ -517,7 +547,8 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.exchangeAsString(request)
@@ -528,7 +559,8 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
 
             val payload: JsonNode = json.read(response)
             val errors = payload["errors"]
-            Assertions.assertThat(errors)
+            Assertions
+                .assertThat(errors)
                 .describedAs("GraphQL should return errors for missing required field")
                 .isNotNull()
         }
@@ -553,7 +585,8 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
             // Step 1: Request password reset
             val requestMutation = SecurityTestDataBuilders.requestPasswordResetMutation(email = email)
             val requestRequest =
-                HttpRequest.POST("/graphql", requestMutation)
+                HttpRequest
+                    .POST("/graphql", requestMutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val requestResponse = httpClient.exchangeAsString(requestRequest)
@@ -576,7 +609,8 @@ open class PasswordResetGraphQLIntegrationTest : BaseIntegrationTest(), Postgres
                     newPassword = newPassword,
                 )
             val resetRequest =
-                HttpRequest.POST("/graphql", resetMutation)
+                HttpRequest
+                    .POST("/graphql", resetMutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val resetResponse = httpClient.exchangeAsString(resetRequest)

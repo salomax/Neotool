@@ -1,0 +1,66 @@
+# Asset Service Business Configuration
+# Defines validation rules, rate limits, and policies for asset uploads
+
+namespaces:
+  user-profiles:
+    description: "User profile images"
+    # Access control: PRIVATE (owner-only) or PUBLIC (accessible without owner check)
+    visibility: PRIVATE
+    # Storage key pattern with placeholders for namespace, ownerId and assetId
+    keyTemplate: "{namespace}/{ownerId}/{assetId}"  
+    # 2 MB - Maximum file size allowed for uploads in this namespace
+    maxSizeBytes: 2097152 
+    # List of MIME types permitted for uploads in this namespace
+    allowedMimeTypes:  
+      - image/jpeg
+      - image/png
+      - image/webp
+      - image/gif
+    # 15 minutes - Time-to-live for pre-signed upload URLs before they expire
+    uploadTtlSeconds: 900  
+
+  group-assets:
+    description: "Institution/organization branding assets"
+    visibility: PUBLIC
+    keyTemplate: "{namespace}/{assetId}"
+    maxSizeBytes: 2097152  # 2 MB
+    allowedMimeTypes:
+      - image/jpeg
+      - image/png
+      - image/webp
+      - image/svg+xml
+    uploadTtlSeconds: 900  # 15 minutes
+
+  attachments:
+    description: "Generic file attachments (documents, PDFs, etc.)"
+    visibility: PRIVATE
+    keyTemplate: "{namespace}/{ownerId}/{assetId}"
+    maxSizeBytes: 2097152  # 2 MB
+    allowedMimeTypes:
+      - image/jpeg
+      - image/png
+      - image/webp
+      - application/pdf
+      - application/msword
+      - application/vnd.openxmlformats-officedocument.wordprocessingml.document
+      - application/vnd.ms-excel
+      - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+      - application/vnd.ms-powerpoint
+      - application/vnd.openxmlformats-officedocument.presentationml.presentation
+      - text/plain
+      - text/csv
+    uploadTtlSeconds: 900  # 15 minutes
+
+  default:
+    description: "Fallback for undefined namespaces"
+    visibility: PRIVATE
+    keyTemplate: "{namespace}/{ownerId}/{assetId}"
+    maxSizeBytes: 2097152  # 2 MB
+    allowedMimeTypes:
+      - image/jpeg
+      - image/png
+
+rateLimit:
+  uploadsPerHour: 100
+  uploadsPerDay: 1000
+  storageQuotaBytes: 1073741824  # 1 GB

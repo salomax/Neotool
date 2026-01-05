@@ -2,7 +2,7 @@ package io.github.salomax.neotool.security.repo
 
 import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.security.model.UserEntity
-import io.github.salomax.neotool.security.service.UserOrderBy
+import io.github.salomax.neotool.security.model.UserOrderBy
 
 /**
  * Custom query contract for {@link UserRepository}.

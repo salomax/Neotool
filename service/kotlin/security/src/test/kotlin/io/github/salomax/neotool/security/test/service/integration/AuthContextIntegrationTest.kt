@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.security.test.service.integration
 
+import io.github.salomax.neotool.common.security.jwt.JwtTokenValidator
 import io.github.salomax.neotool.common.test.assertions.assertNoErrors
 import io.github.salomax.neotool.common.test.assertions.shouldBeJson
 import io.github.salomax.neotool.common.test.assertions.shouldBeSuccessful
@@ -16,11 +17,11 @@ import io.github.salomax.neotool.security.repo.GroupMembershipRepository
 import io.github.salomax.neotool.security.repo.GroupRepository
 import io.github.salomax.neotool.security.repo.GroupRoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.PermissionRepository
+import io.github.salomax.neotool.security.repo.RefreshTokenRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.UserRepository
-import io.github.salomax.neotool.security.service.AuthContextFactory
-import io.github.salomax.neotool.security.service.AuthenticationService
-import io.github.salomax.neotool.security.service.JwtService
+import io.github.salomax.neotool.security.service.authentication.AuthContextFactory
+import io.github.salomax.neotool.security.service.authentication.AuthenticationService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import io.micronaut.http.HttpRequest
 import io.micronaut.http.MediaType
@@ -43,9 +44,11 @@ import java.util.UUID
 @DisplayName("AuthContext Integration Tests")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Tag("integration")
-@Tag("auth-context")
+@Tag("authentication-context")
 @Tag("security")
-class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTest {
+class AuthContextIntegrationTest :
+    BaseIntegrationTest(),
+    PostgresIntegrationTest {
     @Inject
     lateinit var userRepository: UserRepository
 
@@ -56,7 +59,7 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
     lateinit var authContextFactory: AuthContextFactory
 
     @Inject
-    lateinit var jwtService: JwtService
+    lateinit var jwtTokenValidator: JwtTokenValidator
 
     @Inject
     lateinit var roleRepository: RoleRepository
@@ -74,12 +77,15 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
     lateinit var groupRoleAssignmentRepository: GroupRoleAssignmentRepository
 
     @Inject
+    lateinit var refreshTokenRepository: RefreshTokenRepository
+
+    @Inject
     lateinit var entityManager: EntityManager
 
     private lateinit var testRole: RoleEntity
     private lateinit var testPermission: PermissionEntity
 
-    private fun uniqueEmail() = SecurityTestDataBuilders.uniqueEmail("auth-context")
+    private fun uniqueEmail() = SecurityTestDataBuilders.uniqueEmail("authentication-context")
 
     @BeforeEach
     fun setUpTestData() {
@@ -95,16 +101,26 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
         roleRepository.assignPermissionToRole(testRole.id!!, testPermission.id!!)
     }
 
+    @BeforeEach
+    fun cleanupTestDataBefore() {
+        // Clean up before each test to ensure clean state
+        cleanupTestData()
+    }
+
     @AfterEach
     fun cleanupTestData() {
         try {
             // Clean up role_permissions join table (no entity, so use native query)
-            entityManager.createNativeQuery("DELETE FROM security.role_permissions").executeUpdate()
-            groupRoleAssignmentRepository.deleteAll()
-            groupMembershipRepository.deleteAll()
-            userRepository.deleteAll()
-            roleRepository.deleteAll()
-            permissionRepository.deleteAll()
+            entityManager.runTransaction {
+                entityManager.createNativeQuery("DELETE FROM security.role_permissions").executeUpdate()
+                refreshTokenRepository.deleteAll()
+                groupRoleAssignmentRepository.deleteAll()
+                groupMembershipRepository.deleteAll()
+                userRepository.deleteAll()
+                roleRepository.deleteAll()
+                permissionRepository.deleteAll()
+            }
+            entityManager.clear()
         } catch (e: Exception) {
             // Ignore cleanup errors
         }
@@ -113,7 +129,6 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
     fun saveUser(user: UserEntity) {
         entityManager.runTransaction {
             authenticationService.saveUser(user)
-            entityManager.flush()
         }
     }
 
@@ -162,7 +177,8 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             // Act
@@ -180,14 +196,14 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
             val token = signInPayload["token"].stringValue
 
             // Verify JWT contains permissions
-            val permissions = jwtService.getPermissionsFromToken(token)
+            val permissions = jwtTokenValidator.getPermissionsFromToken(token)
             assertThat(permissions).isNotNull
             assertThat(permissions).contains("test:read")
 
             // Verify JWT contains correct userId and email
-            val userIdFromToken = jwtService.getUserIdFromToken(token)
+            val userIdFromToken = jwtTokenValidator.getUserIdFromToken(token)
             assertThat(userIdFromToken).isEqualTo(userId)
-            val claims = jwtService.validateToken(token)
+            val claims = jwtTokenValidator.validateToken(token)
             assertThat(claims?.get("email")).isEqualTo(email)
         }
 
@@ -212,7 +228,8 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             // Act
@@ -230,12 +247,12 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
             val token = signInPayload["token"].stringValue
 
             // Verify JWT contains empty permissions array (not null or missing)
-            val permissions = jwtService.getPermissionsFromToken(token)
+            val permissions = jwtTokenValidator.getPermissionsFromToken(token)
             assertThat(permissions).isNotNull()
             assertThat(permissions).isEmpty()
 
             // Verify permissions claim exists as array in raw claims
-            val claims = jwtService.validateToken(token)
+            val claims = jwtTokenValidator.validateToken(token)
             assertThat(claims).isNotNull()
             @Suppress("UNCHECKED_CAST")
             val tokenPermissions = claims?.get("permissions", List::class.java) as? List<*>
@@ -264,7 +281,8 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             // Act
@@ -282,7 +300,7 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
             val token = signInPayload["token"].stringValue
 
             // Verify permissions claim is always present and is an array
-            val claims = jwtService.validateToken(token)
+            val claims = jwtTokenValidator.validateToken(token)
             assertThat(claims).isNotNull()
             assertThat(claims?.containsKey("permissions")).isTrue()
             @Suppress("UNCHECKED_CAST")
@@ -304,22 +322,24 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
 
             // Create group and assign role to group, then add user to group
             val userId = requireNotNull(user.id)
-            val group = SecurityTestDataBuilders.group(name = "test-group-${UUID.randomUUID().toString().take(8)}")
-            val savedGroup = groupRepository.save(group)
+            entityManager.runTransaction {
+                val group = SecurityTestDataBuilders.group(name = "test-group-${UUID.randomUUID().toString().take(8)}")
+                val savedGroup = groupRepository.save(group)
 
-            val groupRoleAssignment =
-                SecurityTestDataBuilders.groupRoleAssignment(
-                    groupId = savedGroup.id,
-                    roleId = testRole.id!!,
-                )
-            groupRoleAssignmentRepository.save(groupRoleAssignment)
+                val groupRoleAssignment =
+                    SecurityTestDataBuilders.groupRoleAssignment(
+                        groupId = savedGroup.id,
+                        roleId = testRole.id!!,
+                    )
+                groupRoleAssignmentRepository.save(groupRoleAssignment)
 
-            val groupMembership =
-                SecurityTestDataBuilders.groupMembership(
-                    userId = userId,
-                    groupId = savedGroup.id,
-                )
-            groupMembershipRepository.save(groupMembership)
+                val groupMembership =
+                    SecurityTestDataBuilders.groupMembership(
+                        userId = userId,
+                        groupId = savedGroup.id,
+                    )
+                groupMembershipRepository.save(groupMembership)
+            }
 
             // Note: This test would need actual OAuth token validation setup
             // For now, we verify the factory is called by checking the JWT structure
@@ -339,7 +359,7 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
             val email = uniqueEmail()
             val password = "TestPassword123!"
 
-            // Create user with password (simulating password auth)
+            // Create user with password (simulating password authentication)
             val passwordUser =
                 SecurityTestDataBuilders.userWithPassword(
                     authenticationService = authenticationService,
@@ -377,7 +397,8 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
                     rememberMe = false,
                 )
             val signInRequest =
-                HttpRequest.POST("/graphql", signInMutation)
+                HttpRequest
+                    .POST("/graphql", signInMutation)
                     .contentType(MediaType.APPLICATION_JSON)
             val signInResponse = httpClient.exchangeAsString(signInRequest)
             signInResponse.shouldBeSuccessful().shouldBeJson()
@@ -390,13 +411,13 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
             oauthUser.passwordHash = null // Simulate OAuth user (no password)
             saveUser(oauthUser)
 
-            // Build auth context for OAuth user (simulating OAuth flow)
+            // Build authentication context for OAuth user (simulating OAuth flow)
             val oauthAuthContext = authContextFactory.build(oauthUser)
             val oauthToken = authenticationService.generateAccessToken(oauthAuthContext)
 
             // Assert - Both tokens should have identical permissions
-            val passwordPermissions = jwtService.getPermissionsFromToken(passwordToken)
-            val oauthPermissions = jwtService.getPermissionsFromToken(oauthToken)
+            val passwordPermissions = jwtTokenValidator.getPermissionsFromToken(passwordToken)
+            val oauthPermissions = jwtTokenValidator.getPermissionsFromToken(oauthToken)
 
             assertThat(passwordPermissions).isNotNull
             assertThat(oauthPermissions).isNotNull
@@ -433,22 +454,22 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
                 groupMembershipRepository.save(groupMembership)
             }
 
-            // Build auth context (simulating Google OAuth)
+            // Build authentication context (simulating Google OAuth)
             val googleAuthContext = authContextFactory.build(user)
             val googleToken = authenticationService.generateAccessToken(googleAuthContext)
 
-            // Build auth context again (simulating future Microsoft OAuth)
+            // Build authentication context again (simulating future Microsoft OAuth)
             val microsoftAuthContext = authContextFactory.build(user)
             val microsoftToken = authenticationService.generateAccessToken(microsoftAuthContext)
 
-            // Build auth context again (simulating future GitHub OAuth)
+            // Build authentication context again (simulating future GitHub OAuth)
             val githubAuthContext = authContextFactory.build(user)
             val githubToken = authenticationService.generateAccessToken(githubAuthContext)
 
             // Assert - All tokens should have identical permissions regardless of provider
-            val googlePermissions = jwtService.getPermissionsFromToken(googleToken)
-            val microsoftPermissions = jwtService.getPermissionsFromToken(microsoftToken)
-            val githubPermissions = jwtService.getPermissionsFromToken(githubToken)
+            val googlePermissions = jwtTokenValidator.getPermissionsFromToken(googleToken)
+            val microsoftPermissions = jwtTokenValidator.getPermissionsFromToken(microsoftToken)
+            val githubPermissions = jwtTokenValidator.getPermissionsFromToken(githubToken)
 
             assertThat(googlePermissions).isEqualTo(microsoftPermissions)
             assertThat(microsoftPermissions).isEqualTo(githubPermissions)
@@ -476,7 +497,8 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             // Act
@@ -494,14 +516,14 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
             val token = signUpPayload["token"].stringValue
 
             // Verify JWT is valid (new users may have no permissions, but token should still be valid)
-            val userIdFromToken = jwtService.getUserIdFromToken(token)
+            val userIdFromToken = jwtTokenValidator.getUserIdFromToken(token)
             assertThat(userIdFromToken).isNotNull
 
-            val claims = jwtService.validateToken(token)
+            val claims = jwtTokenValidator.validateToken(token)
             assertThat(claims?.get("email")).isEqualTo(email)
 
             // Verify permissions claim exists as array (empty for new users)
-            val permissions = jwtService.getPermissionsFromToken(token)
+            val permissions = jwtTokenValidator.getPermissionsFromToken(token)
             assertThat(permissions).isNotNull()
             assertThat(permissions).isEmpty()
         }
@@ -521,7 +543,8 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
                 )
 
             val request =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             // Act
@@ -539,7 +562,7 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
             val token = signUpPayload["token"].stringValue
 
             // Verify permissions claim exists as empty array (not null or missing)
-            val claims = jwtService.validateToken(token)
+            val claims = jwtTokenValidator.validateToken(token)
             assertThat(claims).isNotNull()
             @Suppress("UNCHECKED_CAST")
             val tokenPermissions = claims?.get("permissions", List::class.java) as? List<*>
@@ -547,7 +570,7 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
             assertThat(tokenPermissions).isEmpty()
 
             // Also verify via getPermissionsFromToken
-            val permissions = jwtService.getPermissionsFromToken(token)
+            val permissions = jwtTokenValidator.getPermissionsFromToken(token)
             assertThat(permissions).isNotNull()
             assertThat(permissions).isEmpty()
         }
@@ -599,12 +622,16 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
                 )
 
             val signInRequest =
-                HttpRequest.POST("/graphql", signInMutation)
+                HttpRequest
+                    .POST("/graphql", signInMutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val signInResponse = httpClient.exchangeAsString(signInRequest)
             val signInPayload: JsonNode = json.read(signInResponse)
             val refreshToken = signInPayload["data"]["signIn"]["refreshToken"].stringValue
+
+            // Clear entity manager cache to ensure fresh data is loaded
+            entityManager.clear()
 
             // Refresh access token
             val refreshMutation =
@@ -624,7 +651,8 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
             val mutation = mapOf("query" to refreshMutation, "variables" to variables)
 
             val refreshRequest =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             // Act
@@ -642,14 +670,14 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
             val newToken = refreshAccessTokenPayload["token"].stringValue
 
             // Verify new JWT contains permissions
-            val permissions = jwtService.getPermissionsFromToken(newToken)
+            val permissions = jwtTokenValidator.getPermissionsFromToken(newToken)
             assertThat(permissions).isNotNull
             assertThat(permissions).contains("test:read")
 
             // Verify JWT contains correct userId and email
-            val userIdFromToken = jwtService.getUserIdFromToken(newToken)
+            val userIdFromToken = jwtTokenValidator.getUserIdFromToken(newToken)
             assertThat(userIdFromToken).isEqualTo(userId)
-            val claims = jwtService.validateToken(newToken)
+            val claims = jwtTokenValidator.validateToken(newToken)
             assertThat(claims?.get("email")).isEqualTo(email)
         }
 
@@ -677,7 +705,8 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
                 )
 
             val signInRequest =
-                HttpRequest.POST("/graphql", signInMutation)
+                HttpRequest
+                    .POST("/graphql", signInMutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val signInResponse = httpClient.exchangeAsString(signInRequest)
@@ -686,7 +715,7 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
 
             // Verify initial token has no permissions
             val initialToken = signInPayload["data"]["signIn"]["token"].stringValue
-            val initialPermissions = jwtService.getPermissionsFromToken(initialToken)
+            val initialPermissions = jwtTokenValidator.getPermissionsFromToken(initialToken)
             assertThat(initialPermissions).isEmpty()
 
             // Create group and assign role to group, then add user to group (simulating permission change)
@@ -727,7 +756,8 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
             val mutation = mapOf("query" to refreshMutation, "variables" to variables)
 
             val refreshRequest =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val refreshResponse = httpClient.exchangeAsString(refreshRequest)
@@ -743,7 +773,7 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
             val newToken = refreshAccessTokenPayload["token"].stringValue
 
             // Verify new JWT contains updated permissions
-            val updatedPermissions = jwtService.getPermissionsFromToken(newToken)
+            val updatedPermissions = jwtTokenValidator.getPermissionsFromToken(newToken)
             assertThat(updatedPermissions).isNotNull
             assertThat(updatedPermissions).contains("test:read")
         }
@@ -792,7 +822,8 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
                 )
 
             val signInRequest =
-                HttpRequest.POST("/graphql", signInMutation)
+                HttpRequest
+                    .POST("/graphql", signInMutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val signInResponse = httpClient.exchangeAsString(signInRequest)
@@ -801,8 +832,11 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
             val initialToken = signInPayload["data"]["signIn"]["token"].stringValue
 
             // Verify initial token has permissions
-            val initialPermissions = jwtService.getPermissionsFromToken(initialToken)
+            val initialPermissions = jwtTokenValidator.getPermissionsFromToken(initialToken)
             assertThat(initialPermissions).contains("test:read")
+
+            // Clear entity manager cache to ensure fresh data is loaded
+            entityManager.clear()
 
             // Refresh access token - should maintain same permissions
             val refreshMutation =
@@ -822,7 +856,8 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
             val mutation = mapOf("query" to refreshMutation, "variables" to variables)
 
             val refreshRequest =
-                HttpRequest.POST("/graphql", mutation)
+                HttpRequest
+                    .POST("/graphql", mutation)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val refreshResponse = httpClient.exchangeAsString(refreshRequest)
@@ -835,7 +870,7 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
             val refreshedToken = refreshAccessTokenPayload["token"].stringValue
 
             // Assert - Refreshed token should have same permissions as initial token
-            val refreshedPermissions = jwtService.getPermissionsFromToken(refreshedToken)
+            val refreshedPermissions = jwtTokenValidator.getPermissionsFromToken(refreshedToken)
             assertThat(refreshedPermissions).isNotNull
             assertThat(refreshedPermissions).contains("test:read")
             assertThat(refreshedPermissions).isEqualTo(initialPermissions)
@@ -859,22 +894,24 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
             saveUser(user)
 
             val userId = requireNotNull(user.id)
-            val group = SecurityTestDataBuilders.group(name = "test-group-${UUID.randomUUID().toString().take(8)}")
-            val savedGroup = groupRepository.save(group)
+            entityManager.runTransaction {
+                val group = SecurityTestDataBuilders.group(name = "test-group-${UUID.randomUUID().toString().take(8)}")
+                val savedGroup = groupRepository.save(group)
 
-            val groupRoleAssignment =
-                SecurityTestDataBuilders.groupRoleAssignment(
-                    groupId = savedGroup.id,
-                    roleId = testRole.id!!,
-                )
-            groupRoleAssignmentRepository.save(groupRoleAssignment)
+                val groupRoleAssignment =
+                    SecurityTestDataBuilders.groupRoleAssignment(
+                        groupId = savedGroup.id,
+                        roleId = testRole.id!!,
+                    )
+                groupRoleAssignmentRepository.save(groupRoleAssignment)
 
-            val groupMembership =
-                SecurityTestDataBuilders.groupMembership(
-                    userId = userId,
-                    groupId = savedGroup.id,
-                )
-            groupMembershipRepository.save(groupMembership)
+                val groupMembership =
+                    SecurityTestDataBuilders.groupMembership(
+                        userId = userId,
+                        groupId = savedGroup.id,
+                    )
+                groupMembershipRepository.save(groupMembership)
+            }
 
             // Act
             val authContext = authContextFactory.build(user)
@@ -916,22 +953,24 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
             saveUser(user)
 
             val userId = requireNotNull(user.id)
-            val group = SecurityTestDataBuilders.group(name = "test-group-${UUID.randomUUID().toString().take(8)}")
-            val savedGroup = groupRepository.save(group)
+            entityManager.runTransaction {
+                val group = SecurityTestDataBuilders.group(name = "test-group-${UUID.randomUUID().toString().take(8)}")
+                val savedGroup = groupRepository.save(group)
 
-            val groupRoleAssignment =
-                SecurityTestDataBuilders.groupRoleAssignment(
-                    groupId = savedGroup.id,
-                    roleId = testRole.id!!,
-                )
-            groupRoleAssignmentRepository.save(groupRoleAssignment)
+                val groupRoleAssignment =
+                    SecurityTestDataBuilders.groupRoleAssignment(
+                        groupId = savedGroup.id,
+                        roleId = testRole.id!!,
+                    )
+                groupRoleAssignmentRepository.save(groupRoleAssignment)
 
-            val groupMembership =
-                SecurityTestDataBuilders.groupMembership(
-                    userId = userId,
-                    groupId = savedGroup.id,
-                )
-            groupMembershipRepository.save(groupMembership)
+                val groupMembership =
+                    SecurityTestDataBuilders.groupMembership(
+                        userId = userId,
+                        groupId = savedGroup.id,
+                    )
+                groupMembershipRepository.save(groupMembership)
+            }
 
             // Act
             val authContext = authContextFactory.build(user)
@@ -939,7 +978,7 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
 
             // Assert
             assertThat(token).isNotBlank()
-            val permissions = jwtService.getPermissionsFromToken(token)
+            val permissions = jwtTokenValidator.getPermissionsFromToken(token)
             assertThat(permissions).isNotNull()
             assertThat(permissions).contains("test:read")
         }
@@ -957,12 +996,12 @@ class AuthContextIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTes
 
             // Assert
             assertThat(token).isNotBlank()
-            val permissions = jwtService.getPermissionsFromToken(token)
+            val permissions = jwtTokenValidator.getPermissionsFromToken(token)
             assertThat(permissions).isNotNull()
             assertThat(permissions).isEmpty()
 
             // Verify permissions claim exists in raw token
-            val claims = jwtService.validateToken(token)
+            val claims = jwtTokenValidator.validateToken(token)
             assertThat(claims?.containsKey("permissions")).isTrue()
             @Suppress("UNCHECKED_CAST")
             val tokenPermissions = claims?.get("permissions", List::class.java) as? List<*>

@@ -2,7 +2,7 @@ package io.github.salomax.neotool.security.repo
 
 import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.security.model.RoleEntity
-import io.github.salomax.neotool.security.service.RoleOrderBy
+import io.github.salomax.neotool.security.model.RoleOrderBy
 
 /**
  * Custom query contract for {@link RoleRepository}.

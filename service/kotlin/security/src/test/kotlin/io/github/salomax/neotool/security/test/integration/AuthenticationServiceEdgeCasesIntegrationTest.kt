@@ -5,8 +5,8 @@ import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.common.test.transaction.runTransaction
 import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.repo.UserRepository
-import io.github.salomax.neotool.security.service.AuthContextFactory
-import io.github.salomax.neotool.security.service.AuthenticationService
+import io.github.salomax.neotool.security.service.authentication.AuthContextFactory
+import io.github.salomax.neotool.security.service.authentication.AuthenticationService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject
@@ -35,7 +35,9 @@ import java.util.UUID
 @Tag("authentication")
 @Tag("security")
 @TestMethodOrder(MethodOrderer.Random::class)
-open class AuthenticationServiceEdgeCasesIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTest {
+open class AuthenticationServiceEdgeCasesIntegrationTest :
+    BaseIntegrationTest(),
+    PostgresIntegrationTest {
     @Inject
     lateinit var userRepository: UserRepository
 
@@ -48,7 +50,7 @@ open class AuthenticationServiceEdgeCasesIntegrationTest : BaseIntegrationTest()
     @Inject
     lateinit var entityManager: EntityManager
 
-    private fun uniqueEmail() = SecurityTestDataBuilders.uniqueEmail("auth-edge-cases")
+    private fun uniqueEmail() = SecurityTestDataBuilders.uniqueEmail("authentication-edge-cases")
 
     fun saveUser(user: UserEntity) {
         entityManager.runTransaction {
@@ -437,9 +439,10 @@ open class AuthenticationServiceEdgeCasesIntegrationTest : BaseIntegrationTest()
             saveUser(user)
 
             // Try to register with same email
-            Assertions.assertThatThrownBy {
-                authenticationService.registerUser("New User", email, "NewPassword123!")
-            }.isInstanceOf(IllegalArgumentException::class.java)
+            Assertions
+                .assertThatThrownBy {
+                    authenticationService.registerUser("New User", email, "NewPassword123!")
+                }.isInstanceOf(IllegalArgumentException::class.java)
                 .hasMessageContaining("Email already exists")
         }
 
@@ -448,9 +451,10 @@ open class AuthenticationServiceEdgeCasesIntegrationTest : BaseIntegrationTest()
             val email = uniqueEmail()
 
             // Try to register with weak password
-            Assertions.assertThatThrownBy {
-                authenticationService.registerUser("New User", email, "weak")
-            }.isInstanceOf(IllegalArgumentException::class.java)
+            Assertions
+                .assertThatThrownBy {
+                    authenticationService.registerUser("New User", email, "weak")
+                }.isInstanceOf(IllegalArgumentException::class.java)
                 .hasMessageContaining("Password must be at least 8 characters")
         }
     }
@@ -481,9 +485,10 @@ open class AuthenticationServiceEdgeCasesIntegrationTest : BaseIntegrationTest()
             val nonExistentUserId = UUID.randomUUID()
             val token = "test-token"
 
-            Assertions.assertThatThrownBy {
-                authenticationService.saveRememberMeToken(nonExistentUserId, token)
-            }.isInstanceOf(IllegalStateException::class.java)
+            Assertions
+                .assertThatThrownBy {
+                    authenticationService.saveRememberMeToken(nonExistentUserId, token)
+                }.isInstanceOf(IllegalStateException::class.java)
                 .hasMessageContaining("User not found")
         }
 
@@ -513,9 +518,10 @@ open class AuthenticationServiceEdgeCasesIntegrationTest : BaseIntegrationTest()
         fun `should throw exception when clearing token for non-existent user`() {
             val nonExistentUserId = UUID.randomUUID()
 
-            Assertions.assertThatThrownBy {
-                authenticationService.clearRememberMeToken(nonExistentUserId)
-            }.isInstanceOf(IllegalStateException::class.java)
+            Assertions
+                .assertThatThrownBy {
+                    authenticationService.clearRememberMeToken(nonExistentUserId)
+                }.isInstanceOf(IllegalStateException::class.java)
                 .hasMessageContaining("User not found")
         }
     }
@@ -574,9 +580,10 @@ open class AuthenticationServiceEdgeCasesIntegrationTest : BaseIntegrationTest()
             val invalidToken = UUID.randomUUID().toString()
             val newPassword = "NewPassword123!"
 
-            Assertions.assertThatThrownBy {
-                authenticationService.resetPassword(invalidToken, newPassword)
-            }.isInstanceOf(IllegalArgumentException::class.java)
+            Assertions
+                .assertThatThrownBy {
+                    authenticationService.resetPassword(invalidToken, newPassword)
+                }.isInstanceOf(IllegalArgumentException::class.java)
                 .hasMessageContaining("Invalid or expired reset token")
         }
 
@@ -602,9 +609,10 @@ open class AuthenticationServiceEdgeCasesIntegrationTest : BaseIntegrationTest()
             val token = savedUser!!.passwordResetToken!!
 
             // Try to reset with weak password
-            Assertions.assertThatThrownBy {
-                authenticationService.resetPassword(token, "weak")
-            }.isInstanceOf(IllegalArgumentException::class.java)
+            Assertions
+                .assertThatThrownBy {
+                    authenticationService.resetPassword(token, "weak")
+                }.isInstanceOf(IllegalArgumentException::class.java)
                 .hasMessageContaining("Password must be at least 8 characters")
         }
     }

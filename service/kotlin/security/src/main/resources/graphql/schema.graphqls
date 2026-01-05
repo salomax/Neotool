@@ -1,5 +1,3 @@
-directive @key(fields: String!) repeatable on OBJECT | INTERFACE
-
 # User type for authentication and authorization
 type User @key(fields: "id") {
   id: ID!
@@ -15,13 +13,13 @@ type User @key(fields: "id") {
 }
 
 # Query type for security operations
-type Query {
+extend type Query {
   # Authentication queries
   currentUser: User
-  
+
   # Authorization queries
   checkPermission(userId: ID!, permission: String!, resourceId: ID): AuthorizationResult!
-  
+
   # Authorization management queries
   user(id: ID!): User
   users(first: Int, after: String, query: String, orderBy: [UserOrderByInput!]): UserConnection!
@@ -33,7 +31,7 @@ type Query {
 }
 
 # Mutation type for security operations
-type Mutation {
+extend type Mutation {
   # Authentication mutations
   signIn(input: SignInInput!): SignInPayload!
   signInWithOAuth(input: SignInWithOAuthInput!): SignInPayload!
@@ -41,7 +39,7 @@ type Mutation {
   refreshAccessToken(input: RefreshAccessTokenInput!): SignInPayload!
   requestPasswordReset(input: RequestPasswordResetInput!): RequestPasswordResetPayload!
   resetPassword(input: ResetPasswordInput!): ResetPasswordPayload!
-  
+
   # Authorization management mutations
   enableUser(userId: ID!): User!
   disableUser(userId: ID!): User!
@@ -233,7 +231,6 @@ enum OrderDirection {
 enum UserOrderField {
   DISPLAY_NAME
   EMAIL
-  ENABLED
 }
 
 enum GroupOrderField {

@@ -4,16 +4,19 @@ import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.OrderDirection
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
+import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.security.domain.UserManagement
+import io.github.salomax.neotool.security.model.PrincipalEntity
 import io.github.salomax.neotool.security.model.UserEntity
+import io.github.salomax.neotool.security.model.UserOrderBy
+import io.github.salomax.neotool.security.model.UserOrderField
 import io.github.salomax.neotool.security.repo.GroupMembershipRepository
 import io.github.salomax.neotool.security.repo.GroupRepository
+import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.repo.UserRepositoryCustom
-import io.github.salomax.neotool.security.service.UserManagementService
-import io.github.salomax.neotool.security.service.UserOrderBy
-import io.github.salomax.neotool.security.service.UserOrderField
+import io.github.salomax.neotool.security.service.management.UserManagementService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -36,6 +39,7 @@ class UserManagementServiceTest {
     private lateinit var roleRepository: RoleRepository
     private lateinit var groupMembershipRepository: GroupMembershipRepository
     private lateinit var groupRepository: GroupRepository
+    private lateinit var principalRepository: PrincipalRepository
     private lateinit var userManagementService: UserManagementService
 
     @BeforeEach
@@ -45,12 +49,14 @@ class UserManagementServiceTest {
         roleRepository = mock()
         groupMembershipRepository = mock()
         groupRepository = mock()
+        principalRepository = mock()
         userManagementService =
             UserManagementService(
                 userRepository,
                 userSearchRepository,
                 groupMembershipRepository,
                 groupRepository,
+                principalRepository,
             )
     }
 
@@ -84,8 +90,7 @@ class UserManagementServiceTest {
                     null,
                     defaultOrderBy,
                 ),
-            )
-                .thenReturn(listOf(user1, user2))
+            ).thenReturn(listOf(user1, user2))
             whenever(userSearchRepository.countByNameOrEmail(null))
                 .thenReturn(2L)
 
@@ -146,8 +151,7 @@ class UserManagementServiceTest {
                     null,
                     defaultOrderBy,
                 ),
-            )
-                .thenReturn(emptyList())
+            ).thenReturn(emptyList())
             whenever(userSearchRepository.countByNameOrEmail(null))
                 .thenReturn(0L)
 
@@ -181,8 +185,7 @@ class UserManagementServiceTest {
                     compositeCursor,
                     defaultOrderBy,
                 ),
-            )
-                .thenReturn(listOf(user1))
+            ).thenReturn(listOf(user1))
             whenever(userSearchRepository.countByNameOrEmail(null))
                 .thenReturn(1L)
 
@@ -219,8 +222,7 @@ class UserManagementServiceTest {
                     null,
                     defaultOrderBy,
                 ),
-            )
-                .thenReturn(users)
+            ).thenReturn(users)
             whenever(userSearchRepository.countByNameOrEmail(null))
                 .thenReturn(21L)
 
@@ -248,8 +250,7 @@ class UserManagementServiceTest {
                     null,
                     defaultOrderBy,
                 ),
-            )
-                .thenReturn(emptyList())
+            ).thenReturn(emptyList())
             whenever(userSearchRepository.countByNameOrEmail(null))
                 .thenReturn(0L)
 
@@ -306,8 +307,7 @@ class UserManagementServiceTest {
                     null,
                     defaultOrderBy,
                 ),
-            )
-                .thenReturn(listOf(user1, user2))
+            ).thenReturn(listOf(user1, user2))
             whenever(userSearchRepository.countByNameOrEmail(null))
                 .thenReturn(2L)
 
@@ -339,8 +339,7 @@ class UserManagementServiceTest {
                     null,
                     idOnlyOrderBy,
                 ),
-            )
-                .thenReturn(listOf(user1))
+            ).thenReturn(listOf(user1))
             whenever(userSearchRepository.countByNameOrEmail(null))
                 .thenReturn(1L)
 
@@ -387,8 +386,7 @@ class UserManagementServiceTest {
                     null,
                     orderBy,
                 ),
-            )
-                .thenReturn(listOf(user1, user2))
+            ).thenReturn(listOf(user1, user2))
             whenever(userSearchRepository.countByNameOrEmail(null))
                 .thenReturn(2L)
 
@@ -440,8 +438,7 @@ class UserManagementServiceTest {
                     null,
                     orderBy,
                 ),
-            )
-                .thenReturn(listOf(user1, user2))
+            ).thenReturn(listOf(user1, user2))
             whenever(userSearchRepository.countByNameOrEmail(null))
                 .thenReturn(2L)
 
@@ -451,66 +448,6 @@ class UserManagementServiceTest {
                     query = null,
                     after = null,
                     orderBy = listOf(UserOrderBy(UserOrderField.EMAIL, OrderDirection.DESC)),
-                )
-
-            // Assert
-            assertThat(result).isNotNull()
-            assertThat(result.edges.map { it.node }).hasSize(2)
-            verify(
-                userSearchRepository,
-            ).searchByNameOrEmail(
-                null,
-                PaginationConstants.DEFAULT_PAGE_SIZE + 1,
-                null,
-                orderBy,
-            )
-        }
-
-        @Test
-        fun `should sort by ENABLED then DISPLAY_NAME when multiple fields specified`() {
-            // Arrange
-            val user1 =
-                SecurityTestDataBuilders.user(
-                    id = UUID.randomUUID(),
-                    email = "user1@example.com",
-                    displayName = "Alice",
-                )
-            user1.enabled = true
-            val user2 =
-                SecurityTestDataBuilders.user(
-                    id = UUID.randomUUID(),
-                    email = "user2@example.com",
-                    displayName = "Bob",
-                )
-            user2.enabled = false
-            val orderBy =
-                listOf(
-                    UserOrderBy(UserOrderField.ENABLED, OrderDirection.DESC),
-                    UserOrderBy(UserOrderField.DISPLAY_NAME, OrderDirection.ASC),
-                    UserOrderBy(UserOrderField.ID, OrderDirection.ASC),
-                )
-            whenever(
-                userSearchRepository.searchByNameOrEmail(
-                    null,
-                    PaginationConstants.DEFAULT_PAGE_SIZE + 1,
-                    null,
-                    orderBy,
-                ),
-            )
-                .thenReturn(listOf(user1, user2))
-            whenever(userSearchRepository.countByNameOrEmail(null))
-                .thenReturn(2L)
-
-            // Act
-            val result =
-                userManagementService.searchUsers(
-                    query = null,
-                    after = null,
-                    orderBy =
-                        listOf(
-                            UserOrderBy(UserOrderField.ENABLED, OrderDirection.DESC),
-                            UserOrderBy(UserOrderField.DISPLAY_NAME, OrderDirection.ASC),
-                        ),
                 )
 
             // Assert
@@ -551,8 +488,7 @@ class UserManagementServiceTest {
                     compositeCursor,
                     orderBy,
                 ),
-            )
-                .thenReturn(listOf(user1))
+            ).thenReturn(listOf(user1))
             whenever(userSearchRepository.countByNameOrEmail(null))
                 .thenReturn(1L)
 
@@ -589,7 +525,6 @@ class UserManagementServiceTest {
                     email = "alice@example.com",
                     displayName = "Alice",
                 )
-            user1.enabled = true
             val orderBy =
                 listOf(
                     UserOrderBy(UserOrderField.EMAIL, OrderDirection.ASC),
@@ -602,8 +537,7 @@ class UserManagementServiceTest {
                     null,
                     orderBy,
                 ),
-            )
-                .thenReturn(listOf(user1))
+            ).thenReturn(listOf(user1))
             whenever(userSearchRepository.countByNameOrEmail(null))
                 .thenReturn(1L)
 
@@ -643,8 +577,7 @@ class UserManagementServiceTest {
                     null,
                     orderBy,
                 ),
-            )
-                .thenReturn(listOf(user1))
+            ).thenReturn(listOf(user1))
             whenever(userSearchRepository.countByNameOrEmail(null))
                 .thenReturn(1L)
 
@@ -700,8 +633,7 @@ class UserManagementServiceTest {
                     null,
                     defaultOrderBy,
                 ),
-            )
-                .thenReturn(listOf(user1))
+            ).thenReturn(listOf(user1))
             whenever(userSearchRepository.countByNameOrEmail(query))
                 .thenReturn(1L)
 
@@ -711,7 +643,11 @@ class UserManagementServiceTest {
             // Assert
             assertThat(result).isNotNull()
             assertThat(result.edges.map { it.node }).hasSize(1)
-            assertThat(result.edges.first().node.email).isEqualTo("john@example.com")
+            assertThat(
+                result.edges
+                    .first()
+                    .node.email,
+            ).isEqualTo("john@example.com")
             assertThat(result.totalCount).isEqualTo(1L)
             verify(
                 userSearchRepository,
@@ -736,8 +672,7 @@ class UserManagementServiceTest {
                     null,
                     defaultOrderBy,
                 ),
-            )
-                .thenReturn(listOf(user1))
+            ).thenReturn(listOf(user1))
             whenever(userSearchRepository.countByNameOrEmail(query))
                 .thenReturn(1L)
 
@@ -774,8 +709,7 @@ class UserManagementServiceTest {
                     compositeCursor,
                     defaultOrderBy,
                 ),
-            )
-                .thenReturn(listOf(user1))
+            ).thenReturn(listOf(user1))
             whenever(userSearchRepository.countByNameOrEmail(query))
                 .thenReturn(5L)
 
@@ -808,8 +742,7 @@ class UserManagementServiceTest {
                     null,
                     defaultOrderBy,
                 ),
-            )
-                .thenReturn(emptyList())
+            ).thenReturn(emptyList())
             whenever(userSearchRepository.countByNameOrEmail(query))
                 .thenReturn(0L)
 
@@ -851,10 +784,21 @@ class UserManagementServiceTest {
                     email = "user@example.com",
                     displayName = "Test User",
                 )
-            userEntity.enabled = false
+
+            // Mock disabled principal
+            val disabledPrincipal =
+                PrincipalEntity(
+                    id = UUID.randomUUID(),
+                    principalType = PrincipalType.USER,
+                    externalId = userId.toString(),
+                    enabled = false,
+                )
+
             whenever(userRepository.findById(userId)).thenReturn(Optional.of(userEntity))
-            whenever(userRepository.update(any())).thenAnswer {
-                it.arguments[0] as io.github.salomax.neotool.security.model.UserEntity
+            whenever(principalRepository.findByPrincipalTypeAndExternalId(PrincipalType.USER, userId.toString()))
+                .thenReturn(Optional.of(disabledPrincipal))
+            whenever(principalRepository.update(any())).thenAnswer {
+                it.arguments[0] as PrincipalEntity
             }
 
             // Act
@@ -863,9 +807,8 @@ class UserManagementServiceTest {
             // Assert
             assertThat(result).isNotNull()
             assertThat(result.id).isEqualTo(userId)
-            assertThat(userEntity.enabled).isTrue()
             verify(userRepository).findById(userId)
-            verify(userRepository).update(any())
+            verify(principalRepository).update(any())
         }
 
         @Test
@@ -877,10 +820,9 @@ class UserManagementServiceTest {
             // Act & Assert
             assertThrows<IllegalArgumentException> {
                 userManagementService.enableUser(userId)
+            }.also { exception ->
+                assertThat(exception.message).contains("User not found")
             }
-                .also { exception ->
-                    assertThat(exception.message).contains("User not found")
-                }
             verify(userRepository).findById(userId)
             verify(userRepository, never()).update(any())
         }
@@ -894,18 +836,28 @@ class UserManagementServiceTest {
                     id = userId,
                     email = "user@example.com",
                 )
-            userEntity.enabled = true
+
+            // Mock enabled principal
+            val enabledPrincipal =
+                PrincipalEntity(
+                    id = UUID.randomUUID(),
+                    principalType = PrincipalType.USER,
+                    externalId = userId.toString(),
+                    enabled = true,
+                )
+
             whenever(userRepository.findById(userId)).thenReturn(Optional.of(userEntity))
+            whenever(principalRepository.findByPrincipalTypeAndExternalId(PrincipalType.USER, userId.toString()))
+                .thenReturn(Optional.of(enabledPrincipal))
 
             // Act & Assert
             assertThrows<IllegalStateException> {
                 userManagementService.enableUser(userId)
+            }.also { exception ->
+                assertThat(exception.message).contains("already enabled")
             }
-                .also { exception ->
-                    assertThat(exception.message).contains("already enabled")
-                }
             verify(userRepository).findById(userId)
-            verify(userRepository, never()).update(any())
+            verify(principalRepository, never()).update(any())
         }
     }
 
@@ -922,10 +874,21 @@ class UserManagementServiceTest {
                     email = "user@example.com",
                     displayName = "Test User",
                 )
-            userEntity.enabled = true
+
+            // Mock enabled principal
+            val enabledPrincipal =
+                PrincipalEntity(
+                    id = UUID.randomUUID(),
+                    principalType = PrincipalType.USER,
+                    externalId = userId.toString(),
+                    enabled = true,
+                )
+
             whenever(userRepository.findById(userId)).thenReturn(Optional.of(userEntity))
-            whenever(userRepository.update(any())).thenAnswer {
-                it.arguments[0] as io.github.salomax.neotool.security.model.UserEntity
+            whenever(principalRepository.findByPrincipalTypeAndExternalId(PrincipalType.USER, userId.toString()))
+                .thenReturn(Optional.of(enabledPrincipal))
+            whenever(principalRepository.update(any())).thenAnswer {
+                it.arguments[0] as PrincipalEntity
             }
 
             // Act
@@ -934,9 +897,8 @@ class UserManagementServiceTest {
             // Assert
             assertThat(result).isNotNull()
             assertThat(result.id).isEqualTo(userId)
-            assertThat(userEntity.enabled).isFalse()
             verify(userRepository).findById(userId)
-            verify(userRepository).update(any())
+            verify(principalRepository).update(any())
         }
 
         @Test
@@ -948,10 +910,9 @@ class UserManagementServiceTest {
             // Act & Assert
             assertThrows<IllegalArgumentException> {
                 userManagementService.disableUser(userId)
+            }.also { exception ->
+                assertThat(exception.message).contains("User not found")
             }
-                .also { exception ->
-                    assertThat(exception.message).contains("User not found")
-                }
             verify(userRepository).findById(userId)
             verify(userRepository, never()).update(any())
         }
@@ -961,16 +922,26 @@ class UserManagementServiceTest {
             // Arrange
             val userId = UUID.randomUUID()
             val userEntity = SecurityTestDataBuilders.user(id = userId, email = "user@example.com")
-            userEntity.enabled = false
+
+            // Mock disabled principal
+            val disabledPrincipal =
+                PrincipalEntity(
+                    id = UUID.randomUUID(),
+                    principalType = PrincipalType.USER,
+                    externalId = userId.toString(),
+                    enabled = false,
+                )
+
             whenever(userRepository.findById(userId)).thenReturn(Optional.of(userEntity))
+            whenever(principalRepository.findByPrincipalTypeAndExternalId(PrincipalType.USER, userId.toString()))
+                .thenReturn(Optional.of(disabledPrincipal))
 
             // Act & Assert
             assertThrows<IllegalStateException> {
                 userManagementService.disableUser(userId)
+            }.also { exception ->
+                assertThat(exception.message).contains("already disabled")
             }
-                .also { exception ->
-                    assertThat(exception.message).contains("already disabled")
-                }
             verify(userRepository).findById(userId)
             verify(userRepository, never()).update(any())
         }
@@ -1050,10 +1021,9 @@ class UserManagementServiceTest {
                         displayName = "New Name",
                     )
                 userManagementService.updateUser(command)
+            }.also { exception ->
+                assertThat(exception.message).contains("User not found")
             }
-                .also { exception ->
-                    assertThat(exception.message).contains("User not found")
-                }
             verify(userRepository).findById(userId)
             verify(userRepository, never()).update(any())
         }
@@ -1070,10 +1040,9 @@ class UserManagementServiceTest {
                     // blank string
                     displayName = "   ",
                 )
+            }.also { exception ->
+                assertThat(exception.message).contains("cannot be blank")
             }
-                .also { exception ->
-                    assertThat(exception.message).contains("cannot be blank")
-                }
         }
     }
 

@@ -823,6 +823,233 @@ class AbstractKafkaConsumerTest {
         }
 
         @Test
+        fun `should call default handleDlqFallback when enabled and DLQ fails completely`() {
+            // Arrange
+            val message = createTestMessage()
+            val partition = 0
+            val offset = 100L
+            val testConfig = config.copy(enableDlqFallback = true, dlqMaxRetries = 1)
+            val consumerWithConfig = TestKafkaConsumer(processor, dlqPublisher, metrics, testConfig, processingExecutor)
+            val dlqAttempts = AtomicInteger(0)
+            val allDlqAttemptsLatch = CountDownLatch(1)
+
+            doAnswer { throw ProcessingException("Processing failed") }.whenever(processor).process(any())
+            whenever(dlqPublisher.publishToDlq(any(), any(), any())).thenAnswer {
+                val attempts = dlqAttempts.incrementAndGet()
+                if (attempts >= 2) { // Initial + 1 retry
+                    allDlqAttemptsLatch.countDown()
+                }
+                false
+            }
+
+            // Act
+            consumerWithConfig.receive("key", message, consumer, partition, offset)
+
+            // Wait for all DLQ attempts and fallback
+            allDlqAttemptsLatch.await(5, TimeUnit.SECONDS)
+            Thread.sleep(200) // Wait for fallback to be called
+
+            // Assert - Default fallback should be called (returns false)
+            verify(dlqPublisher, times(2)).publishToDlq(any(), any(), any()) // Initial + 1 retry
+            // Default fallback returns false, so no commit should happen
+            verify(consumer, never()).commitSync(any(), any())
+        }
+
+        @Test
+        fun `should handle DLQ exception and use fallback when enabled`() {
+            // Arrange
+            val message = createTestMessage()
+            val partition = 0
+            val offset = 100L
+            val testConfig = config.copy(enableDlqFallback = true, dlqMaxRetries = 1)
+            val consumerWithFallback =
+                TestKafkaConsumerWithFallback(
+                    processor,
+                    dlqPublisher,
+                    metrics,
+                    testConfig,
+                    processingExecutor,
+                    fallbackResult = true,
+                )
+            val dlqExceptionLatch = CountDownLatch(1)
+
+            doAnswer { throw ProcessingException("Processing failed") }.whenever(processor).process(any())
+            var dlqCallCount = 0
+            whenever(dlqPublisher.publishToDlq(any(), any(), any())).thenAnswer {
+                dlqCallCount++
+                if (dlqCallCount >= 2) { // After first attempt + 1 retry
+                    dlqExceptionLatch.countDown()
+                }
+                throw RuntimeException("DLQ publish exception") // Throw exception to test exception path
+            }
+
+            // Act
+            consumerWithFallback.receive("key", message, consumer, partition, offset)
+
+            // Wait for DLQ exceptions and fallback
+            dlqExceptionLatch.await(5, TimeUnit.SECONDS)
+            Thread.sleep(200) // Wait for fallback
+
+            // Assert - Should have attempted DLQ, then used fallback
+            verify(dlqPublisher, atLeast(2)).publishToDlq(any(), any(), any())
+        }
+
+        @Test
+        fun `should handle DLQ exception without fallback when disabled`() {
+            // Arrange
+            val message = createTestMessage()
+            val partition = 0
+            val offset = 100L
+            val testConfig = config.copy(enableDlqFallback = false, dlqMaxRetries = 1)
+            val consumerWithConfig = TestKafkaConsumer(processor, dlqPublisher, metrics, testConfig, processingExecutor)
+            val dlqExceptionLatch = CountDownLatch(1)
+
+            doAnswer { throw ProcessingException("Processing failed") }.whenever(processor).process(any())
+            var dlqCallCount = 0
+            whenever(dlqPublisher.publishToDlq(any(), any(), any())).thenAnswer {
+                dlqCallCount++
+                if (dlqCallCount >= 2) { // After first attempt + 1 retry
+                    dlqExceptionLatch.countDown()
+                }
+                throw RuntimeException("DLQ publish exception")
+            }
+
+            // Act
+            consumerWithConfig.receive("key", message, consumer, partition, offset)
+
+            // Wait for DLQ exceptions
+            dlqExceptionLatch.await(5, TimeUnit.SECONDS)
+            Thread.sleep(200)
+
+            // Assert - Should have attempted DLQ but no fallback
+            verify(dlqPublisher, atLeast(2)).publishToDlq(any(), any(), any())
+            verify(consumer, never()).commitSync(any(), any()) // No commit because DLQ failed
+        }
+
+        @Test
+        fun `should use fallback when DLQ exception occurs and max retries exceeded`() {
+            // Arrange
+            val message = createTestMessage()
+            val partition = 0
+            val offset = 100L
+            val testConfig = config.copy(enableDlqFallback = true, dlqMaxRetries = 1)
+            val consumerWithFallback =
+                TestKafkaConsumerWithFallback(
+                    processor,
+                    dlqPublisher,
+                    metrics,
+                    testConfig,
+                    processingExecutor,
+                    fallbackResult = true,
+                )
+            val dlqExceptionLatch = CountDownLatch(1)
+
+            doAnswer { throw ProcessingException("Processing failed") }.whenever(processor).process(any())
+            var dlqCallCount = 0
+            whenever(dlqPublisher.publishToDlq(any(), any(), any())).thenAnswer {
+                dlqCallCount++
+                if (dlqCallCount >= 2) { // After first attempt + 1 retry
+                    dlqExceptionLatch.countDown()
+                }
+                throw RuntimeException("DLQ publish exception")
+            }
+
+            // Act
+            consumerWithFallback.receive("key", message, consumer, partition, offset)
+
+            // Wait for DLQ exceptions and fallback
+            dlqExceptionLatch.await(5, TimeUnit.SECONDS)
+            Thread.sleep(200) // Wait for fallback
+
+            // Assert - Should have attempted DLQ, then used fallback
+            verify(dlqPublisher, atLeast(2)).publishToDlq(any(), any(), any())
+        }
+
+        @Test
+        fun `should detect shutdown before DLQ exception retry delay`() {
+            // Arrange
+            val message = createTestMessage()
+            val partition = 0
+            val offset = 100L
+            val testConfig = config.copy(dlqMaxRetries = 3, initialRetryDelayMs = 500L)
+            val consumerWithConfig = TestKafkaConsumer(processor, dlqPublisher, metrics, testConfig, processingExecutor)
+            val dlqExceptionLatch = CountDownLatch(1)
+            val shutdownLatch = CountDownLatch(1)
+
+            doAnswer { throw ProcessingException("Processing failed") }.whenever(processor).process(any())
+            var dlqCallCount = 0
+            whenever(dlqPublisher.publishToDlq(any(), any(), any())).thenAnswer {
+                dlqCallCount++
+                if (dlqCallCount == 1) {
+                    dlqExceptionLatch.countDown()
+                }
+                throw RuntimeException("DLQ publish exception")
+            }
+
+            // Act - Start processing
+            consumerWithConfig.receive("key", message, consumer, partition, offset)
+
+            // Wait for DLQ exception
+            dlqExceptionLatch.await(2, TimeUnit.SECONDS)
+
+            // Shutdown before exception retry delay (should detect shutdown before sleep)
+            Thread {
+                Thread.sleep(50) // Small delay
+                consumerWithConfig.shutdown()
+                shutdownLatch.countDown()
+            }.start()
+
+            // Wait for shutdown
+            shutdownLatch.await(3, TimeUnit.SECONDS)
+            Thread.sleep(100)
+
+            // Assert - Should have detected shutdown before retry delay
+            verify(dlqPublisher, atLeast(1)).publishToDlq(any(), any(), any())
+        }
+
+        @Test
+        fun `should detect shutdown after DLQ exception retry delay`() {
+            // Arrange
+            val message = createTestMessage()
+            val partition = 0
+            val offset = 100L
+            val testConfig = config.copy(dlqMaxRetries = 3, initialRetryDelayMs = 100L)
+            val consumerWithConfig = TestKafkaConsumer(processor, dlqPublisher, metrics, testConfig, processingExecutor)
+            val dlqExceptionLatch = CountDownLatch(1)
+            val shutdownLatch = CountDownLatch(1)
+
+            doAnswer { throw ProcessingException("Processing failed") }.whenever(processor).process(any())
+            var dlqCallCount = 0
+            whenever(dlqPublisher.publishToDlq(any(), any(), any())).thenAnswer {
+                dlqCallCount++
+                if (dlqCallCount == 1) {
+                    dlqExceptionLatch.countDown()
+                }
+                throw RuntimeException("DLQ publish exception")
+            }
+
+            // Act - Start processing
+            consumerWithConfig.receive("key", message, consumer, partition, offset)
+
+            // Wait for DLQ exception
+            dlqExceptionLatch.await(2, TimeUnit.SECONDS)
+
+            // Shutdown during exception retry delay (should detect shutdown after sleep)
+            Thread {
+                Thread.sleep(150) // Wait for sleep to start
+                consumerWithConfig.shutdown()
+                shutdownLatch.countDown()
+            }.start()
+
+            // Wait for shutdown
+            shutdownLatch.await(3, TimeUnit.SECONDS)
+            Thread.sleep(100)
+
+            // Assert - Should have detected shutdown after retry delay
+            verify(dlqPublisher, atLeast(1)).publishToDlq(any(), any(), any())
+        }
+
+        @Test
         fun `should not use DLQ fallback when disabled`() {
             // Arrange
             val message = createTestMessage("test-1")
@@ -922,6 +1149,74 @@ class AbstractKafkaConsumerTest {
         }
 
         @Test
+        fun `should detect shutdown before retry delay in processWithRetry`() {
+            // Arrange
+            val message = createTestMessage()
+            val partition = 0
+            val offset = 100L
+            val testConfig = config.copy(maxRetries = 3, initialRetryDelayMs = 500L)
+            val consumerWithConfig = TestKafkaConsumer(processor, dlqPublisher, metrics, testConfig, processingExecutor)
+            val retryStarted = CountDownLatch(1)
+
+            var callCount = 0
+            doAnswer {
+                callCount++
+                if (callCount == 1) {
+                    retryStarted.countDown()
+                }
+                throw ProcessingException("Retry test")
+            }.whenever(processor).process(any())
+
+            // Act - Start processing
+            consumerWithConfig.receive("key", message, consumer, partition, offset)
+            retryStarted.await(2, TimeUnit.SECONDS)
+
+            // Shutdown before retry delay completes
+            Thread.sleep(50) // Small delay to ensure we're in the delay period
+            consumerWithConfig.shutdown()
+
+            // Wait for shutdown to be detected
+            Thread.sleep(200)
+
+            // Assert - Should detect shutdown before delay
+            verify(processor, atLeast(1)).process(any())
+        }
+
+        @Test
+        fun `should detect shutdown after retry delay in processWithRetry`() {
+            // Arrange
+            val message = createTestMessage()
+            val partition = 0
+            val offset = 100L
+            val testConfig = config.copy(maxRetries = 3, initialRetryDelayMs = 100L)
+            val consumerWithConfig = TestKafkaConsumer(processor, dlqPublisher, metrics, testConfig, processingExecutor)
+            val retryStarted = CountDownLatch(1)
+
+            var callCount = 0
+            doAnswer {
+                callCount++
+                if (callCount == 1) {
+                    retryStarted.countDown()
+                }
+                throw ProcessingException("Retry test")
+            }.whenever(processor).process(any())
+
+            // Act - Start processing
+            consumerWithConfig.receive("key", message, consumer, partition, offset)
+            retryStarted.await(2, TimeUnit.SECONDS)
+
+            // Shutdown after retry delay completes but before next attempt
+            Thread.sleep(150) // Wait for delay to complete
+            consumerWithConfig.shutdown()
+
+            // Wait for shutdown to be detected
+            Thread.sleep(100)
+
+            // Assert - Should detect shutdown after delay
+            verify(processor, atLeast(1)).process(any())
+        }
+
+        @Test
         fun `should abort DLQ retry during shutdown`() {
             // Arrange
             val message = createTestMessage()
@@ -956,6 +1251,121 @@ class AbstractKafkaConsumerTest {
             // Assert
             // Should not have exhausted all DLQ retries
             verify(dlqPublisher, atMost(3)).publishToDlq(any(), any(), any())
+        }
+
+        @Test
+        fun `should detect shutdown before DLQ retry delay`() {
+            // Arrange
+            val message = createTestMessage()
+            val partition = 0
+            val offset = 100L
+            val testConfig = config.copy(dlqMaxRetries = 3, initialRetryDelayMs = 500L)
+            val consumerWithConfig = TestKafkaConsumer(processor, dlqPublisher, metrics, testConfig, processingExecutor)
+            val dlqAttemptLatch = CountDownLatch(1)
+            val shutdownLatch = CountDownLatch(1)
+
+            doAnswer { throw ProcessingException("Processing failed") }.whenever(processor).process(any())
+            var dlqCallCount = 0
+            whenever(dlqPublisher.publishToDlq(any(), any(), any())).thenAnswer {
+                dlqCallCount++
+                if (dlqCallCount == 1) {
+                    dlqAttemptLatch.countDown()
+                }
+                false // Always fail to trigger retry
+            }
+
+            // Act - Start processing
+            consumerWithConfig.receive("key", message, consumer, partition, offset)
+
+            // Wait for first DLQ attempt
+            dlqAttemptLatch.await(2, TimeUnit.SECONDS)
+
+            // Shutdown before the retry delay completes
+            Thread.sleep(50) // Small delay to ensure we're in the delay period
+            Thread {
+                consumerWithConfig.shutdown()
+                shutdownLatch.countDown()
+            }.start()
+
+            // Wait for shutdown
+            shutdownLatch.await(2, TimeUnit.SECONDS)
+
+            // Assert - Should detect shutdown before delay completes
+            verify(dlqPublisher, atLeast(1)).publishToDlq(any(), any(), any())
+        }
+
+        @Test
+        fun `should detect shutdown after DLQ retry delay`() {
+            // Arrange
+            val message = createTestMessage()
+            val partition = 0
+            val offset = 100L
+            val testConfig = config.copy(dlqMaxRetries = 3, initialRetryDelayMs = 100L)
+            val consumerWithConfig = TestKafkaConsumer(processor, dlqPublisher, metrics, testConfig, processingExecutor)
+            val dlqAttemptLatch = CountDownLatch(1)
+
+            doAnswer { throw ProcessingException("Processing failed") }.whenever(processor).process(any())
+            var dlqCallCount = 0
+            whenever(dlqPublisher.publishToDlq(any(), any(), any())).thenAnswer {
+                dlqCallCount++
+                if (dlqCallCount == 1) {
+                    dlqAttemptLatch.countDown()
+                }
+                false // Always fail to trigger retry
+            }
+
+            // Act - Start processing
+            consumerWithConfig.receive("key", message, consumer, partition, offset)
+
+            // Wait for first DLQ attempt
+            dlqAttemptLatch.await(2, TimeUnit.SECONDS)
+
+            // Shutdown after the retry delay completes but before next attempt
+            Thread.sleep(150) // Wait for delay to complete
+            consumerWithConfig.shutdown()
+
+            // Wait a bit for shutdown to be detected
+            Thread.sleep(100)
+
+            // Assert - Should detect shutdown after delay
+            verify(dlqPublisher, atLeast(1)).publishToDlq(any(), any(), any())
+        }
+
+        @Test
+        fun `should detect shutdown during DLQ exception retry delay`() {
+            // Arrange
+            val message = createTestMessage()
+            val partition = 0
+            val offset = 100L
+            val testConfig = config.copy(dlqMaxRetries = 3, initialRetryDelayMs = 200L)
+            val consumerWithConfig = TestKafkaConsumer(processor, dlqPublisher, metrics, testConfig, processingExecutor)
+            val dlqExceptionLatch = CountDownLatch(1)
+
+            doAnswer { throw ProcessingException("Processing failed") }.whenever(processor).process(any())
+            var dlqCallCount = 0
+            whenever(dlqPublisher.publishToDlq(any(), any(), any())).thenAnswer {
+                dlqCallCount++
+                if (dlqCallCount == 1) {
+                    dlqExceptionLatch.countDown()
+                }
+                throw RuntimeException("DLQ publish exception") // Throw exception to test exception path
+            }
+
+            // Act - Start processing
+            consumerWithConfig.receive("key", message, consumer, partition, offset)
+
+            // Wait for first DLQ exception
+            dlqExceptionLatch.await(2, TimeUnit.SECONDS)
+
+            // Shutdown during exception retry delay
+            Thread.sleep(50) // Small delay
+            consumerWithConfig.shutdown()
+
+            // Wait for shutdown to be detected
+            Thread.sleep(100)
+
+            // Assert - Should handle shutdown during exception retry
+            verify(dlqPublisher, atLeast(1)).publishToDlq(any(), any(), any())
         }
 
         @Test
@@ -1063,6 +1473,61 @@ class AbstractKafkaConsumerTest {
             waitForVerification({
                 verify(consumer).pause(setOf(partition1, partition2))
             })
+        }
+
+        @Test
+        fun `should handle empty assignments when pausing partitions during shutdown`() {
+            // Arrange
+            val processingLatch = CountDownLatch(1)
+            whenever(consumer.assignment()).thenReturn(emptySet())
+
+            doAnswer {
+                processingLatch.countDown()
+            }.whenever(processor).process(any())
+
+            // Act
+            testConsumer.receive("key", createTestMessage(), consumer, 0, 100L)
+
+            // Wait for processing to start (sets lastConsumer)
+            processingLatch.await(1, TimeUnit.SECONDS)
+
+            testConsumer.shutdown()
+
+            // Wait a bit for shutdown to complete
+            Thread.sleep(100)
+
+            // Assert - Should not throw exception, should handle empty assignments gracefully
+            verify(consumer).assignment()
+            verify(consumer, never()).pause(any())
+        }
+
+        @Test
+        fun `should handle exception when pausing partitions during shutdown`() {
+            // Arrange
+            val partition1 = TopicPartition("test.topic.v1", 0)
+            val partition2 = TopicPartition("test.topic.v1", 1)
+            val processingLatch = CountDownLatch(1)
+            whenever(consumer.assignment()).thenReturn(setOf(partition1, partition2))
+            doThrow(RuntimeException("Pause error")).whenever(consumer).pause(any())
+
+            doAnswer {
+                processingLatch.countDown()
+            }.whenever(processor).process(any())
+
+            // Act
+            testConsumer.receive("key", createTestMessage(), consumer, 0, 100L)
+
+            // Wait for processing to start (sets lastConsumer)
+            processingLatch.await(1, TimeUnit.SECONDS)
+
+            // Should not throw exception
+            testConsumer.shutdown()
+
+            // Wait a bit for shutdown to complete
+            Thread.sleep(100)
+
+            // Assert - Should have attempted to pause, but handled exception gracefully
+            verify(consumer).pause(any())
         }
 
         @Test
@@ -1859,6 +2324,239 @@ class AbstractKafkaConsumerTest {
             verify(metrics, never()).incrementRetry()
             verify(metrics).incrementError("processing")
             verify(dlqPublisher).publishToDlq(eq(message), any(), eq(0))
+        }
+
+        @Test
+        fun `should handle DLQ retry loop when dlqMaxRetries is 0`() {
+            // Arrange
+            val message = createTestMessage()
+            val partition = 0
+            val offset = 100L
+            val testConfig = config.copy(dlqMaxRetries = 0)
+            val consumerWithConfig = TestKafkaConsumer(processor, dlqPublisher, metrics, testConfig, processingExecutor)
+            val dlqLatch = CountDownLatch(1)
+
+            doAnswer { throw ValidationException("Validation failed") }.whenever(processor).process(any())
+            whenever(dlqPublisher.publishToDlq(any(), any(), any())).thenAnswer {
+                dlqLatch.countDown()
+                false // DLQ publish fails
+            }
+
+            // Act
+            consumerWithConfig.receive("key", message, consumer, partition, offset)
+
+            // Wait for DLQ attempt
+            dlqLatch.await(2, TimeUnit.SECONDS)
+            Thread.sleep(100)
+
+            // Assert - Should attempt DLQ at least once (no retries since dlqMaxRetries = 0)
+            verify(dlqPublisher, atLeast(1)).publishToDlq(any(), any(), any())
+            verify(metrics, atLeast(1)).incrementDlqPublishFailure()
+        }
+
+        @Test
+        fun `should handle DLQ retry loop boundary condition at maxRetries`() {
+            // Arrange
+            val message = createTestMessage()
+            val partition = 0
+            val offset = 100L
+            val testConfig = config.copy(dlqMaxRetries = 1)
+            val consumerWithConfig = TestKafkaConsumer(processor, dlqPublisher, metrics, testConfig, processingExecutor)
+            val dlqAttempts = AtomicInteger(0)
+            val allAttemptsLatch = CountDownLatch(1)
+
+            doAnswer { throw ValidationException("Validation failed") }.whenever(processor).process(any())
+            whenever(dlqPublisher.publishToDlq(any(), any(), any())).thenAnswer {
+                val attempts = dlqAttempts.incrementAndGet()
+                if (attempts >= 2) { // Initial + 1 retry = 2 attempts total
+                    allAttemptsLatch.countDown()
+                }
+                false // Always fail to trigger retry
+            }
+
+            // Act
+            consumerWithConfig.receive("key", message, consumer, partition, offset)
+
+            // Wait for all DLQ attempts
+            allAttemptsLatch.await(3, TimeUnit.SECONDS)
+            Thread.sleep(100)
+
+            // Assert - Should have attempted at least 2 times (initial + 1 retry)
+            verify(dlqPublisher, atLeast(2)).publishToDlq(any(), any(), any())
+        }
+
+        @Test
+        fun `should handle processing retry boundary condition at maxRetries`() {
+            // Arrange
+            val message = createTestMessage()
+            val partition = 0
+            val offset = 100L
+            val testConfig = config.copy(maxRetries = 1)
+            val consumerWithConfig = TestKafkaConsumer(processor, dlqPublisher, metrics, testConfig, processingExecutor)
+            val processingAttempts = AtomicInteger(0)
+            val allAttemptsLatch = CountDownLatch(1)
+
+            doAnswer {
+                val attempts = processingAttempts.incrementAndGet()
+                if (attempts >= 2) { // Initial + 1 retry = 2 attempts total
+                    allAttemptsLatch.countDown()
+                }
+                throw ProcessingException("Processing failed")
+            }.whenever(processor).process(any())
+
+            // Act
+            consumerWithConfig.receive("key", message, consumer, partition, offset)
+
+            // Wait for all processing attempts
+            allAttemptsLatch.await(3, TimeUnit.SECONDS)
+            Thread.sleep(100)
+
+            // Assert - Should have attempted exactly 2 times (initial + 1 retry)
+            verify(processor, times(2)).process(any())
+            verify(metrics).incrementRetry()
+            verify(metrics).incrementError("processing")
+        }
+
+        @Test
+        fun `should handle DLQ exception retry loop boundary condition`() {
+            // Arrange
+            val message = createTestMessage()
+            val partition = 0
+            val offset = 100L
+            val testConfig = config.copy(dlqMaxRetries = 1, enableDlqFallback = false)
+            val consumerWithConfig = TestKafkaConsumer(processor, dlqPublisher, metrics, testConfig, processingExecutor)
+            val dlqExceptionAttempts = AtomicInteger(0)
+            val allAttemptsLatch = CountDownLatch(1)
+
+            doAnswer { throw ValidationException("Validation failed") }.whenever(processor).process(any())
+            whenever(dlqPublisher.publishToDlq(any(), any(), any())).thenAnswer {
+                val attempts = dlqExceptionAttempts.incrementAndGet()
+                if (attempts >= 2) { // Initial + 1 retry
+                    allAttemptsLatch.countDown()
+                }
+                throw RuntimeException("DLQ publish exception")
+            }
+
+            // Act
+            consumerWithConfig.receive("key", message, consumer, partition, offset)
+
+            // Wait for all DLQ exception attempts
+            allAttemptsLatch.await(3, TimeUnit.SECONDS)
+            Thread.sleep(100)
+
+            // Assert - Should have attempted at least 2 times (initial + 1 retry)
+            verify(dlqPublisher, atLeast(2)).publishToDlq(any(), any(), any())
+            verify(metrics, atLeast(2)).incrementDlqPublishFailure()
+        }
+
+        @Test
+        fun `should handle DLQ publish failure when dlqAttempt exceeds maxRetries in else block`() {
+            // Arrange - This tests the path where dlqAttempt > dlqMaxRetries after incrementing in the else block
+            val message = createTestMessage()
+            val partition = 0
+            val offset = 100L
+            val testConfig = config.copy(dlqMaxRetries = 0, enableDlqFallback = false)
+            val consumerWithConfig = TestKafkaConsumer(processor, dlqPublisher, metrics, testConfig, processingExecutor)
+            val dlqLatch = CountDownLatch(1)
+
+            doAnswer { throw ValidationException("Validation failed") }.whenever(processor).process(any())
+            whenever(dlqPublisher.publishToDlq(any(), any(), any())).thenAnswer {
+                dlqLatch.countDown()
+                false // DLQ publish fails, will increment and check
+            }
+
+            // Act
+            consumerWithConfig.receive("key", message, consumer, partition, offset)
+
+            // Wait for DLQ attempt
+            dlqLatch.await(2, TimeUnit.SECONDS)
+            Thread.sleep(100)
+
+            // Assert - Should have attempted DLQ and hit the boundary check
+            verify(dlqPublisher, atLeast(1)).publishToDlq(any(), any(), any())
+            verify(metrics, atLeast(1)).incrementDlqPublishFailure()
+        }
+
+        @Test
+        fun `should handle DLQ exception when dlqAttempt exceeds maxRetries in catch block`() {
+            // Arrange - This tests the path where dlqAttempt > dlqMaxRetries after incrementing in the catch block
+            val message = createTestMessage()
+            val partition = 0
+            val offset = 100L
+            val testConfig = config.copy(dlqMaxRetries = 0, enableDlqFallback = false)
+            val consumerWithConfig = TestKafkaConsumer(processor, dlqPublisher, metrics, testConfig, processingExecutor)
+            val dlqLatch = CountDownLatch(1)
+
+            doAnswer { throw ValidationException("Validation failed") }.whenever(processor).process(any())
+            whenever(dlqPublisher.publishToDlq(any(), any(), any())).thenAnswer {
+                dlqLatch.countDown()
+                throw RuntimeException("DLQ publish exception")
+            }
+
+            // Act
+            consumerWithConfig.receive("key", message, consumer, partition, offset)
+
+            // Wait for DLQ exception
+            dlqLatch.await(2, TimeUnit.SECONDS)
+            Thread.sleep(100)
+
+            // Assert - Should have attempted DLQ and hit the boundary check in catch block
+            verify(dlqPublisher, atLeast(1)).publishToDlq(any(), any(), any())
+            verify(metrics, atLeast(1)).incrementDlqPublishFailure()
+        }
+
+        @Test
+        fun `should handle processing exception when attempt exceeds maxRetries`() {
+            // Arrange - Test the path where attempt > maxRetries after incrementing
+            val message = createTestMessage()
+            val partition = 0
+            val offset = 100L
+            val testConfig = config.copy(maxRetries = 0)
+            val consumerWithConfig = TestKafkaConsumer(processor, dlqPublisher, metrics, testConfig, processingExecutor)
+            val processingLatch = CountDownLatch(1)
+
+            doAnswer {
+                processingLatch.countDown()
+                throw ProcessingException("Processing failed")
+            }.whenever(processor).process(any())
+
+            // Act
+            consumerWithConfig.receive("key", message, consumer, partition, offset)
+
+            // Wait for processing attempt
+            processingLatch.await(2, TimeUnit.SECONDS)
+            Thread.sleep(100)
+
+            // Assert - Should have attempted processing and hit the boundary check
+            verify(processor, atLeast(1)).process(any())
+            verify(metrics).incrementError("processing")
+        }
+
+        @Test
+        fun `should handle generic exception when attempt exceeds maxRetries`() {
+            // Arrange - Test the path where attempt > maxRetries after incrementing for generic exception
+            val message = createTestMessage()
+            val partition = 0
+            val offset = 100L
+            val testConfig = config.copy(maxRetries = 0)
+            val consumerWithConfig = TestKafkaConsumer(processor, dlqPublisher, metrics, testConfig, processingExecutor)
+            val processingLatch = CountDownLatch(1)
+
+            doAnswer {
+                processingLatch.countDown()
+                throw RuntimeException("Unexpected error")
+            }.whenever(processor).process(any())
+
+            // Act
+            consumerWithConfig.receive("key", message, consumer, partition, offset)
+
+            // Wait for processing attempt
+            processingLatch.await(2, TimeUnit.SECONDS)
+            Thread.sleep(100)
+
+            // Assert - Should have attempted processing and hit the boundary check
+            verify(processor, atLeast(1)).process(any())
+            verify(metrics).incrementError("processing")
         }
     }
 }

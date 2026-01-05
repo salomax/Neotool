@@ -11,8 +11,8 @@ import io.github.salomax.neotool.security.repo.GroupRoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.PermissionRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.UserRepository
-import io.github.salomax.neotool.security.service.AuthenticationService
-import io.github.salomax.neotool.security.service.AuthorizationService
+import io.github.salomax.neotool.security.service.authentication.AuthenticationService
+import io.github.salomax.neotool.security.service.authorization.AuthorizationService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject
@@ -39,7 +39,9 @@ import java.time.Instant
 @Tag("authorization")
 @Tag("database")
 @TestMethodOrder(MethodOrderer.Random::class)
-open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTest {
+open class AuthorizationIntegrationTest :
+    BaseIntegrationTest(),
+    PostgresIntegrationTest {
     @Inject
     lateinit var roleRepository: RoleRepository
 
@@ -80,7 +82,7 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
         val user =
             SecurityTestDataBuilders.user(
                 id = null,
-                email = SecurityTestDataBuilders.uniqueEmail("auth-test"),
+                email = SecurityTestDataBuilders.uniqueEmail("authentication-test"),
             )
         return entityManager.runTransaction {
             val savedUser = authenticationService.saveUser(user)
@@ -121,13 +123,13 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
             val savedPermission = permissionRepository.save(permission)
 
             // Link role and permission via role_permissions join table
-            entityManager.createNativeQuery(
-                """
-                INSERT INTO security.role_permissions (role_id, permission_id)
-                VALUES (:roleId, :permissionId)
-                """.trimIndent(),
-            )
-                .setParameter("roleId", savedRole.id)
+            entityManager
+                .createNativeQuery(
+                    """
+                    INSERT INTO security.role_permissions (role_id, permission_id)
+                    VALUES (:roleId, :permissionId)
+                    """.trimIndent(),
+                ).setParameter("roleId", savedRole.id)
                 .setParameter("permissionId", savedPermission.id)
                 .executeUpdate()
 
@@ -190,13 +192,13 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
             val savedPermission = permissionRepository.save(permission)
 
             // Link role and permission
-            entityManager.createNativeQuery(
-                """
-                INSERT INTO security.role_permissions (role_id, permission_id)
-                VALUES (:roleId, :permissionId)
-                """.trimIndent(),
-            )
-                .setParameter("roleId", savedRole.id)
+            entityManager
+                .createNativeQuery(
+                    """
+                    INSERT INTO security.role_permissions (role_id, permission_id)
+                    VALUES (:roleId, :permissionId)
+                    """.trimIndent(),
+                ).setParameter("roleId", savedRole.id)
                 .setParameter("permissionId", savedPermission.id)
                 .executeUpdate()
 
@@ -243,13 +245,13 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
             val savedPermission = permissionRepository.save(permission)
 
             // Link role and permission
-            entityManager.createNativeQuery(
-                """
-                INSERT INTO security.role_permissions (role_id, permission_id)
-                VALUES (:roleId, :permissionId)
-                """.trimIndent(),
-            )
-                .setParameter("roleId", savedRole.id)
+            entityManager
+                .createNativeQuery(
+                    """
+                    INSERT INTO security.role_permissions (role_id, permission_id)
+                    VALUES (:roleId, :permissionId)
+                    """.trimIndent(),
+                ).setParameter("roleId", savedRole.id)
                 .setParameter("permissionId", savedPermission.id)
                 .executeUpdate()
 
@@ -298,13 +300,13 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
             val savedPermission = permissionRepository.save(permission)
 
             // Link role and permission
-            entityManager.createNativeQuery(
-                """
-                INSERT INTO security.role_permissions (role_id, permission_id)
-                VALUES (:roleId, :permissionId)
-                """.trimIndent(),
-            )
-                .setParameter("roleId", savedRole.id)
+            entityManager
+                .createNativeQuery(
+                    """
+                    INSERT INTO security.role_permissions (role_id, permission_id)
+                    VALUES (:roleId, :permissionId)
+                    """.trimIndent(),
+                ).setParameter("roleId", savedRole.id)
                 .setParameter("permissionId", savedPermission.id)
                 .executeUpdate()
 
@@ -364,23 +366,23 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
             val savedPermission2 = permissionRepository.save(permission2)
 
             // Link roles and permissions
-            entityManager.createNativeQuery(
-                """
-                INSERT INTO security.role_permissions (role_id, permission_id)
-                VALUES (:roleId, :permissionId)
-                """.trimIndent(),
-            )
-                .setParameter("roleId", savedRole1.id)
+            entityManager
+                .createNativeQuery(
+                    """
+                    INSERT INTO security.role_permissions (role_id, permission_id)
+                    VALUES (:roleId, :permissionId)
+                    """.trimIndent(),
+                ).setParameter("roleId", savedRole1.id)
                 .setParameter("permissionId", savedPermission1.id)
                 .executeUpdate()
 
-            entityManager.createNativeQuery(
-                """
-                INSERT INTO security.role_permissions (role_id, permission_id)
-                VALUES (:roleId, :permissionId)
-                """.trimIndent(),
-            )
-                .setParameter("roleId", savedRole2.id)
+            entityManager
+                .createNativeQuery(
+                    """
+                    INSERT INTO security.role_permissions (role_id, permission_id)
+                    VALUES (:roleId, :permissionId)
+                    """.trimIndent(),
+                ).setParameter("roleId", savedRole2.id)
                 .setParameter("permissionId", savedPermission2.id)
                 .executeUpdate()
 
@@ -547,13 +549,13 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
                     val savedPermission = permissionRepository.save(permission)
 
                     // Link role and permission
-                    entityManager.createNativeQuery(
-                        """
-                        INSERT INTO security.role_permissions (role_id, permission_id)
-                        VALUES (:roleId, :permissionId)
-                        """.trimIndent(),
-                    )
-                        .setParameter("roleId", savedRole.id)
+                    entityManager
+                        .createNativeQuery(
+                            """
+                            INSERT INTO security.role_permissions (role_id, permission_id)
+                            VALUES (:roleId, :permissionId)
+                            """.trimIndent(),
+                        ).setParameter("roleId", savedRole.id)
                         .setParameter("permissionId", savedPermission.id)
                         .executeUpdate()
 
@@ -601,8 +603,7 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
             assertThat(result.allowed)
                 .withFailMessage(
                     "Expected access to be allowed when RBAC and ABAC both allow. Reason: ${result.reason}",
-                )
-                .isTrue()
+                ).isTrue()
             assertThat(result.reason)
                 .withFailMessage("Expected reason to contain 'Access granted', but got: ${result.reason}")
                 .contains("Access granted")
@@ -625,13 +626,13 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
                     val savedPermission = permissionRepository.save(permission)
 
                     // Link role and permission
-                    entityManager.createNativeQuery(
-                        """
-                        INSERT INTO security.role_permissions (role_id, permission_id)
-                        VALUES (:roleId, :permissionId)
-                        """.trimIndent(),
-                    )
-                        .setParameter("roleId", savedRole.id)
+                    entityManager
+                        .createNativeQuery(
+                            """
+                            INSERT INTO security.role_permissions (role_id, permission_id)
+                            VALUES (:roleId, :permissionId)
+                            """.trimIndent(),
+                        ).setParameter("roleId", savedRole.id)
                         .setParameter("permissionId", savedPermission.id)
                         .executeUpdate()
 
@@ -682,8 +683,7 @@ open class AuthorizationIntegrationTest : BaseIntegrationTest(), PostgresIntegra
             assertThat(result.reason)
                 .withFailMessage(
                     "Expected reason to contain 'ABAC policy explicitly denies', but got: ${result.reason}",
-                )
-                .contains("ABAC policy explicitly denies")
+                ).contains("ABAC policy explicitly denies")
         }
     }
 }

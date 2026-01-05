@@ -1,15 +1,17 @@
 package io.github.salomax.neotool.security.test.service.unit
 
-import io.github.salomax.neotool.security.config.JwtConfig
+import io.github.salomax.neotool.common.security.jwt.JwtTokenValidator
 import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.repo.PasswordResetAttemptRepository
+import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.UserRepository
-import io.github.salomax.neotool.security.service.AuthenticationService
-import io.github.salomax.neotool.security.service.EmailService
-import io.github.salomax.neotool.security.service.JwtService
-import io.github.salomax.neotool.security.service.OAuthProvider
-import io.github.salomax.neotool.security.service.OAuthProviderRegistry
-import io.github.salomax.neotool.security.service.RateLimitService
+import io.github.salomax.neotool.security.service.authentication.AuthenticationService
+import io.github.salomax.neotool.security.service.email.EmailService
+import io.github.salomax.neotool.security.service.jwt.JwtTokenIssuer
+import io.github.salomax.neotool.security.service.jwt.RefreshTokenService
+import io.github.salomax.neotool.security.service.oauth.OAuthProvider
+import io.github.salomax.neotool.security.service.oauth.OAuthProviderRegistry
+import io.github.salomax.neotool.security.service.rate.RateLimitService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -33,7 +35,9 @@ import java.util.UUID
 @DisplayName("Password Reset Service Unit Tests")
 class PasswordResetServiceTest {
     private lateinit var userRepository: UserRepository
-    private lateinit var jwtService: JwtService
+    private lateinit var jwtTokenIssuer: JwtTokenIssuer
+    private lateinit var jwtTokenValidator: JwtTokenValidator
+    private lateinit var refreshTokenService: RefreshTokenService
     private lateinit var emailService: EmailService
     private lateinit var rateLimitService: RateLimitService
     private lateinit var authenticationService: AuthenticationService
@@ -41,13 +45,9 @@ class PasswordResetServiceTest {
     @BeforeEach
     fun setUp() {
         userRepository = mock()
-        val jwtConfig =
-            JwtConfig(
-                secret = "test-secret-key-minimum-32-characters-long-for-hmac-sha256",
-                accessTokenExpirationSeconds = 900L,
-                refreshTokenExpirationSeconds = 604800L,
-            )
-        jwtService = JwtService(jwtConfig)
+        jwtTokenIssuer = mock()
+        jwtTokenValidator = mock()
+        refreshTokenService = mock()
         emailService = mock()
 
         val passwordResetAttemptRepository: PasswordResetAttemptRepository = mock()
@@ -57,13 +57,17 @@ class PasswordResetServiceTest {
         whenever(oauthProvider.getProviderName()).thenReturn("google")
         val oauthProviderRegistry = OAuthProviderRegistry(listOf(oauthProvider))
 
+        val principalRepository: PrincipalRepository = mock()
         authenticationService =
             AuthenticationService(
                 userRepository,
-                jwtService,
+                principalRepository,
+                jwtTokenIssuer,
+                jwtTokenValidator,
                 emailService,
                 rateLimitService,
                 oauthProviderRegistry,
+                refreshTokenService,
             )
     }
 
@@ -170,7 +174,8 @@ class PasswordResetServiceTest {
 
             whenever(userRepository.findByEmail(email)).thenReturn(user)
             whenever(userRepository.save(any())).thenAnswer { it.arguments[0] as UserEntity }
-            doThrow(RuntimeException("Email service unavailable")).whenever(emailService)
+            doThrow(RuntimeException("Email service unavailable"))
+                .whenever(emailService)
                 .sendPasswordResetEmail(any(), any(), any())
 
             val result = authenticationService.requestPasswordReset(email, "en")

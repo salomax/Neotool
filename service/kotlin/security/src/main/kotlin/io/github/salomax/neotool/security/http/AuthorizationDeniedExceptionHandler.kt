@@ -1,6 +1,6 @@
 package io.github.salomax.neotool.security.http
 
-import io.github.salomax.neotool.security.service.exception.AuthorizationDeniedException
+import io.github.salomax.neotool.common.security.exception.AuthorizationDeniedException
 import io.micronaut.http.HttpRequest
 import io.micronaut.http.HttpResponse
 import io.micronaut.http.HttpStatus

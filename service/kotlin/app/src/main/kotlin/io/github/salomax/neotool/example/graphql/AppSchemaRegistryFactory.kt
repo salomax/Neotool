@@ -11,8 +11,4 @@ class AppSchemaRegistryFactory : BaseSchemaRegistryFactory() {
     override fun typeRegistry(): TypeDefinitionRegistry {
         return super.typeRegistry()
     }
-
-    override fun loadBaseSchema(): TypeDefinitionRegistry {
-        return loadSchemaFromResource("graphql/schema.graphqls")
-    }
 }

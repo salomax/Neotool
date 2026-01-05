@@ -1,12 +1,12 @@
 package io.github.salomax.neotool.security.repo
 
 import io.github.salomax.neotool.common.graphql.pagination.SortingConfig
-import io.github.salomax.neotool.security.service.GroupOrderBy
-import io.github.salomax.neotool.security.service.GroupOrderField
-import io.github.salomax.neotool.security.service.RoleOrderBy
-import io.github.salomax.neotool.security.service.RoleOrderField
-import io.github.salomax.neotool.security.service.UserOrderBy
-import io.github.salomax.neotool.security.service.UserOrderField
+import io.github.salomax.neotool.security.model.GroupOrderBy
+import io.github.salomax.neotool.security.model.GroupOrderField
+import io.github.salomax.neotool.security.model.RoleOrderBy
+import io.github.salomax.neotool.security.model.RoleOrderField
+import io.github.salomax.neotool.security.model.UserOrderBy
+import io.github.salomax.neotool.security.model.UserOrderField
 import java.util.UUID
 
 /**
@@ -16,6 +16,7 @@ import java.util.UUID
 object SortingConfigs {
     /**
      * Configuration for User entity sorting.
+     * Note: ENABLED ordering was removed because enabled status is now stored in Principal table.
      */
     val USER_CONFIG =
         SortingConfig<UserOrderField, UserOrderBy>(
@@ -23,7 +24,6 @@ object SortingConfigs {
                 when (field) {
                     UserOrderField.DISPLAY_NAME -> "displayName"
                     UserOrderField.EMAIL -> "email"
-                    UserOrderField.ENABLED -> "enabled"
                     UserOrderField.ID -> "id"
                 }
             },
@@ -35,9 +35,14 @@ object SortingConfigs {
                         val emailPath = root.get<String>("email")
                         criteriaBuilder.coalesce(displayNamePath, emailPath)
                     }
-                    UserOrderField.EMAIL -> root.get<String>("email")
-                    UserOrderField.ENABLED -> root.get<Boolean>("enabled")
-                    UserOrderField.ID -> root.get<UUID>("id")
+
+                    UserOrderField.EMAIL -> {
+                        root.get<String>("email")
+                    }
+
+                    UserOrderField.ID -> {
+                        root.get<UUID>("id")
+                    }
                 }
             },
             extractCursorValue = { cursor, field, fieldName ->
@@ -49,6 +54,7 @@ object SortingConfigs {
                             throw IllegalArgumentException("Invalid cursor ID format: ${cursor.id}", e)
                         }
                     }
+
                     UserOrderField.DISPLAY_NAME -> {
                         // If displayName is missing from cursor, use email as fallback (matching COALESCE logic)
                         val value = cursor.fieldValues[fieldName] ?: cursor.fieldValues["email"]
@@ -58,6 +64,7 @@ object SortingConfigs {
                             else -> value.toString()
                         }
                     }
+
                     UserOrderField.EMAIL -> {
                         val value = cursor.fieldValues[fieldName]
                         when (value) {
@@ -66,18 +73,9 @@ object SortingConfigs {
                             else -> value.toString()
                         }
                     }
-                    UserOrderField.ENABLED -> {
-                        val value = cursor.fieldValues[fieldName]
-                        when (value) {
-                            is Boolean -> value
-                            is String -> value.toBoolean() // Handle string "true"/"false"
-                            null -> null
-                            else -> throw IllegalArgumentException("Invalid boolean value in cursor: $value")
-                        }
-                    }
                 }
             },
-            allowedColumns = setOf("displayName", "email", "enabled", "id"),
+            allowedColumns = setOf("displayName", "email", "id"),
         )
 
     /**

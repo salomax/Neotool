@@ -2,7 +2,8 @@ package io.github.salomax.neotool.security.repo
 
 import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.security.model.RoleEntity
-import io.github.salomax.neotool.security.service.RoleOrderBy
+import io.github.salomax.neotool.security.model.RoleOrderBy
+import io.github.salomax.neotool.security.model.RoleOrderField
 import io.micronaut.transaction.annotation.ReadOnly
 import jakarta.inject.Singleton
 import jakarta.persistence.EntityManager
@@ -60,7 +61,7 @@ open class RoleRepositoryImpl(
         orderBy: List<RoleOrderBy>,
     ): List<RoleEntity> {
         require(orderBy.isNotEmpty()) { "orderBy must not be empty" }
-        require(orderBy.last().field == io.github.salomax.neotool.security.service.RoleOrderField.ID) {
+        require(orderBy.last().field == RoleOrderField.ID) {
             "Last orderBy field must be ID for deterministic ordering"
         }
 

@@ -1,6 +1,6 @@
 /**
  * Sorting utilities for converting between frontend sort state and GraphQL orderBy format.
- * 
+ *
  * The backend supports sorting by DISPLAY_NAME, EMAIL, and ENABLED fields.
  * Default sorting is DISPLAY_NAME ASC, ID ASC (ID is always added as final sort for deterministic ordering).
  */

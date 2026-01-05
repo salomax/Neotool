@@ -10,8 +10,8 @@ import io.github.salomax.neotool.security.graphql.dto.GroupDTO
 import io.github.salomax.neotool.security.graphql.dto.GroupEdgeDTO
 import io.github.salomax.neotool.security.graphql.dto.PageInfoDTO
 import io.github.salomax.neotool.security.graphql.dto.UpdateGroupInputDTO
-import io.github.salomax.neotool.security.service.GroupOrderBy
-import io.github.salomax.neotool.security.service.GroupOrderField
+import io.github.salomax.neotool.security.model.GroupOrderBy
+import io.github.salomax.neotool.security.model.GroupOrderField
 import jakarta.inject.Singleton
 import java.util.UUID
 

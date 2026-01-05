@@ -159,11 +159,12 @@ export function AppHeader() {
             ) : (
               <Button
                 variant="contained"
-                size="small"
+                size="medium"
                 onClick={handleSignIn}
                 aria-label="Sign in"
                 data-testid="header-signin-button"
                 name="header-signin"
+                sx={{ height: (theme) => theme.spacing(5.5), px: 2.5 }}
               >
                 Sign In
               </Button>

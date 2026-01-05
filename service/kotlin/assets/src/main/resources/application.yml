@@ -1,0 +1,175 @@
+micronaut:
+  application:
+    name: neotool-assets-service
+  executors:
+    blocking:
+      virtual: true
+  server:
+    port: 8083
+    # Use blocking I/O threads for request handling (required for JPA/Hibernate blocking operations)
+    # Works with virtual threads (enabled above) to efficiently handle blocking database operations
+    thread-selection: blocking
+    cors:
+      enabled: true
+      configurations:
+        web:
+          allowed-origins:
+            - http://localhost:3000
+            - http://127.0.0.1:3000
+          allowed-methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - OPTIONS
+          allowed-headers:
+            - "*"
+          allow-credentials: true
+          max-age: 3600
+  # Micrometer Configuration for Metrics Collection
+  metrics:
+    enabled: true
+    export:
+      prometheus:
+        enabled: true
+        step: PT15S
+  observation:
+    enabled: true
+
+datasources:
+  default:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:6432}/${POSTGRES_DB:neotool_db}
+    driverClassName: org.postgresql.Driver
+    username: ${POSTGRES_USER:neotool}
+    password: ${POSTGRES_PASSWORD:neotool}
+    dialect: POSTGRES
+    # HikariCP Connection Pool Configuration
+    # See: https://github.com/brettwooldridge/HikariCP#configuration-knobs-baby
+    hikari:
+      # Pool sizing
+      maximum-pool-size: ${HIKARI_MAX_POOL_SIZE:20}
+      minimum-idle: ${HIKARI_MIN_IDLE:5}
+      
+      # Connection lifecycle
+      connection-timeout: ${HIKARI_CONNECTION_TIMEOUT:30000} # 30 seconds
+      idle-timeout: ${HIKARI_IDLE_TIMEOUT:600000} # 10 minutes
+      max-lifetime: ${HIKARI_MAX_LIFETIME:1800000} # 30 minutes
+      leak-detection-threshold: ${HIKARI_LEAK_DETECTION:60000} # 60 seconds (0 to disable)
+      
+      # Connection validation
+      connection-test-query: "SELECT 1"
+      validation-timeout: ${HIKARI_VALIDATION_TIMEOUT:5000} # 5 seconds
+      
+      # Performance tuning
+      auto-commit: false # Let transactions control commit
+      read-only: false
+      
+      # PostgreSQL-specific optimizations
+      data-source-properties:
+        # Connection pool name for monitoring
+        applicationName: ${micronaut.application.name:neotool-assets-service}
+        # Connection parameters
+        socketTimeout: 30
+        loginTimeout: 10
+        # Performance hints
+        prepareThreshold: 0 # Disable prepared statement caching (let Hibernate handle it)
+        tcpKeepAlive: true
+        # SSL (configure for production)
+        # ssl: true
+        # sslmode: require
+
+jpa:
+  default:
+    properties:
+      hibernate:
+        hbm2ddl:
+          auto: none
+
+flyway:
+  datasources:
+    default:
+      enabled: true
+      baseline-on-migrate: true
+      baseline-version: 0
+      table: flyway_schema_history_assets
+
+graphql:
+  enabled: true
+  graphiql:
+    enabled: true
+    path: /graphiql
+
+# JWT Configuration (Validator Only)
+jwt:
+  # Algorithm: RS256 (RSA-SHA256) - only supported algorithm
+  # Can be set via JWT_ALGORITHM environment variable
+  algorithm: ${JWT_ALGORITHM:RS256}
+  # RSA public key path (PEM format) - for RS256 validation
+  # Can be set via JWT_PUBLIC_KEY_PATH environment variable
+  public-key-path: ${JWT_PUBLIC_KEY_PATH:}
+  # Inline RSA public key (PEM or base64) - alternative to public-key-path
+  # Can be set via JWT_PUBLIC_KEY environment variable
+  public-key: ${JWT_PUBLIC_KEY:}
+  # Key ID for multi-key support (default: kid-1)
+  # Can be set via JWT_KEY_ID environment variable
+  key-id: ${JWT_KEY_ID:kid-1}
+  # JWKS URL for fetching public keys (for future JWKS integration)
+  # Can be set via JWT_JWKS_URL environment variable
+  # Example: http://security-service:8080/.well-known/jwks.json
+  jwks-url: ${JWT_JWKS_URL:}
+
+# Vault Configuration
+vault:
+  # Enable Vault integration (default: false for development)
+  # Can be set via VAULT_ENABLED environment variable
+  enabled: ${VAULT_ENABLED:false}
+  # Vault server address
+  # Can be set via VAULT_ADDRESS environment variable
+  address: ${VAULT_ADDRESS:http://localhost:8200}
+  # Vault authentication token (should be provided via environment variable in production)
+  # Can be set via VAULT_TOKEN environment variable
+  token: ${VAULT_TOKEN:}
+  # Secret path prefix in Vault (keys stored at {secret-path}/{keyId}/private, {secret-path}/{keyId}/public)
+  # Can be set via VAULT_SECRET_PATH environment variable
+  secret-path: ${VAULT_SECRET_PATH:secret/jwt/keys}
+  # KV secrets engine version (default: 2)
+  # Can be set via VAULT_ENGINE_VERSION environment variable
+  engine-version: ${VAULT_ENGINE_VERSION:2}
+  # Connection timeout in milliseconds (default: 5000)
+  # Can be set via VAULT_CONNECTION_TIMEOUT environment variable
+  connection-timeout: ${VAULT_CONNECTION_TIMEOUT:5000}
+  # Read timeout in milliseconds (default: 5000)
+  # Can be set via VAULT_READ_TIMEOUT environment variable
+  read-timeout: ${VAULT_READ_TIMEOUT:5000}
+
+# Asset Service Configuration
+asset:
+  storage:
+    hostname: ${STORAGE_HOSTNAME:localhost}
+    port: ${STORAGE_PORT:9000}
+    useHttps: ${STORAGE_USE_HTTPS:false}
+    region: ${STORAGE_REGION:us-east-1}
+    # Separate buckets for public and private assets
+    publicBucket: ${STORAGE_PUBLIC_BUCKET:neotool-assets-public}
+    privateBucket: ${STORAGE_PRIVATE_BUCKET:neotool-assets-private}
+    # Legacy bucket support for migration (optional)
+    # bucket: ${STORAGE_BUCKET:}
+    accessKey: ${STORAGE_ACCESS_KEY:minioadmin}
+    secretKey: ${STORAGE_SECRET:minioadmin}
+    publicBasePath: ${STORAGE_PUBLIC_BASE_PATH:neotool-assets-public}
+    forcePathStyle: ${STORAGE_FORCE_PATH_STYLE:true}
+    uploadTtlSeconds: ${STORAGE_UPLOAD_TTL_SECONDS:900}
+
+# Management Endpoints Configuration
+endpoints:
+  all:
+    enabled: true
+  health:
+    enabled: true
+    sensitive: false
+  prometheus:
+    enabled: true
+    sensitive: false
+  metrics:
+    enabled: true
+    sensitive: false
