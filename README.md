@@ -262,6 +262,10 @@ See [`docs/MANIFEST.md`](docs/MANIFEST.md) for the complete document index.
 - Webhook management system
 - Additional AI agent examples and chat UI templates
 
+### Services
+
+- Communication service
+
 ---
 
 ## Architecture Overview

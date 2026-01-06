@@ -1,0 +1,81 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: vault-jwt-init
+  namespace: neotool-security
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: vault-init
+          image: hashicorp/vault:1.21.1
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              echo "Waiting for Vault..."
+              until vault status; do sleep 2; done
+
+              # Authenticate with Vault
+              export VAULT_TOKEN=$(cat /vault/token)
+              export VAULT_ADDR=http://vault.neotool-security.svc.cluster.local:8200
+
+              # Enable KV v2 secrets engine if not already enabled
+              if ! vault secrets list | grep -q "secret/"; then
+                echo "Enabling KV v2 secrets engine..."
+                vault secrets enable -version=2 -path=secret kv
+              fi
+
+              # Check if JWT keys already exist
+              if vault kv get secret/jwt/keys/default 2>/dev/null; then
+                echo "JWT keys already exist in Vault"
+                exit 0
+              fi
+
+              echo "Generating RSA 4096-bit key pair..."
+              
+              # Generate private key
+              openssl genpkey -algorithm RSA -out /tmp/private.pem -pkeyopt rsa_keygen_bits:4096
+              
+              # Generate public key from private key
+              openssl rsa -pubout -in /tmp/private.pem -out /tmp/public.pem
+
+              # Read keys into variables
+              PRIVATE_KEY=$(cat /tmp/private.pem)
+              PUBLIC_KEY=$(cat /tmp/public.pem)
+
+              # Store keys in Vault KV v2
+              echo "Storing keys in Vault..."
+              vault kv put secret/jwt/keys/default \
+                private="$PRIVATE_KEY" \
+                public="$PUBLIC_KEY"
+
+              # Clean up temporary files
+              rm -f /tmp/*.pem
+              
+              echo "JWT keys stored successfully in secret/jwt/keys/default"
+          env:
+            - name: VAULT_ADDR
+              value: "http://vault.neotool-security.svc.cluster.local:8200"
+            - name: VAULT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: vault-token
+                  key: token
+          volumeMounts:
+            - name: vault-token
+              mountPath: /vault/token
+              subPath: token
+              readOnly: true
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+      volumes:
+        - name: vault-token
+          secret:
+            secretName: vault-token
+

@@ -19,8 +19,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    profiles:
-      - database
 
   pgbouncer:
     image: edoburu/pgbouncer:latest
@@ -43,8 +41,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 30
-    profiles:
-      - database
 
   # -------------------------------------------------------------
   # Kafka Stack (KRaft mode - no Zookeeper needed)
@@ -73,38 +69,6 @@ services:
       CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
     volumes:
       - kafka-data:/var/lib/kafka/data
-    profiles:
-      - kafka
-
-  # -------------------------------------------------------------
-  # Prefect Stack
-  # Profile: prefect
-  # -------------------------------------------------------------
-  prefect-server:
-    image: prefecthq/prefect:3-latest
-    container_name: neotool-prefect-server
-    command: prefect server start --host 0.0.0.0
-    ports:
-      - "4200:4200"
-    environment:
-      PREFECT_API_URL: http://localhost:4200/api
-    volumes:
-      - prefect-data:/root/.prefect
-    profiles:
-      - prefect
-
-  prefect-ui:
-    image: prefecthq/prefect:3-latest
-    container_name: neotool-prefect-ui
-    command: prefect server start --host 0.0.0.0 --ui
-    ports:
-      - "4201:4200"
-    depends_on:
-      - prefect-server
-    environment:
-      PREFECT_API_URL: http://prefect-server:4200/api
-    profiles:
-      - prefect
 
   # -------------------------------------------------------------
   # Service Stack
@@ -125,8 +89,6 @@ services:
       pgbouncer:
         condition: service_healthy
     expose: ["8080"]
-    profiles:
-      - services
 
   app:
     build:
@@ -161,8 +123,6 @@ services:
       pgbouncer:
         condition: service_healthy
     expose: ["8080"]
-    profiles:
-      - services
 
   # -------------------------------------------------------------
   # Frontend Stack
@@ -179,8 +139,6 @@ services:
       GRAPHQL_SCHEMA_PATH: ../contracts/graphql/supergraph/supergraph.graphql
     ports:
       - "3000:3000"
-    profiles:
-      - frontend
 
   # -------------------------------------------------------------
   # API Gateway Stack
@@ -202,8 +160,6 @@ services:
       - APOLLO_ROUTER_TELEMETRY_METRICS_PROMETHEUS_ENABLED=true
       - APOLLO_ROUTER_TELEMETRY_METRICS_PROMETHEUS_LISTEN=0.0.0.0:9090
       - APOLLO_ROUTER_TELEMETRY_METRICS_PROMETHEUS_PATH=/metrics
-    profiles:
-      - gateway
 
   # -------------------------------------------------------------
   # Secrets Stack (Vault)
@@ -230,8 +186,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    profiles:
-      - secrets
 
   # -------------------------------------------------------------
   # Observability Stack
@@ -247,8 +201,6 @@ services:
       - ../observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     ports:
       - "9090:9090"
-    profiles:
-      - observability
 
   grafana:
     image: grafana/grafana:11.1.4
@@ -264,8 +216,6 @@ services:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
       - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
-    profiles:
-      - observability
 
   # PostgreSQL Exporter - monitors database metrics via pgbouncer
   postgres-exporter:
@@ -279,9 +229,6 @@ services:
     depends_on:
       pgbouncer:
         condition: service_healthy
-    profiles:
-      - observability
-      - database  # Also available when database profile is active
 
   # Loki - Log aggregation system
   loki:
@@ -295,8 +242,6 @@ services:
       - loki-data:/loki
     depends_on:
       - prometheus
-    profiles:
-      - observability
 
   # Promtail - Log collection agent
   promtail:
@@ -310,15 +255,12 @@ services:
     command: -config.file=/etc/promtail/config.yml
     depends_on:
       - loki
-    profiles:
-      - observability
       
 volumes:
   pgdata:
   loki-data:
   grafana-data:
   kafka-data:
-  prefect-data:
   vault-data:
   vault-logs:
 
