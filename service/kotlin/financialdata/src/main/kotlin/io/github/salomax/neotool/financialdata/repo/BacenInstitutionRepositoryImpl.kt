@@ -187,7 +187,7 @@ open class BacenInstitutionRepositoryImpl(
         val orderByClause = if (query != null && query.isNotBlank()) {
             """
             ORDER BY 
-                similarity(
+                financial_data.similarity(
                     (COALESCE(bi.nome_instituicao, '') || ' ' || 
                      COALESCE(fi.legal_name, '') || ' ' || 
                      COALESCE(fi.trade_name, ''))::TEXT,
