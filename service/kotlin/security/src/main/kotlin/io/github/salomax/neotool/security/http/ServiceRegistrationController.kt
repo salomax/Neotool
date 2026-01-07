@@ -52,11 +52,12 @@ class ServiceRegistrationController(
                     permissions = request.permissions,
                 )
 
+            // One-time clear secret
             val response =
                 ServiceRegistrationResponse(
                     serviceId = result.serviceId,
                     principalId = result.principalId.toString(),
-                    clientSecret = result.clientSecret, // One-time clear secret
+                    clientSecret = result.clientSecret,
                     permissions = result.permissions,
                 )
 
@@ -73,4 +74,3 @@ class ServiceRegistrationController(
         }
     }
 }
-

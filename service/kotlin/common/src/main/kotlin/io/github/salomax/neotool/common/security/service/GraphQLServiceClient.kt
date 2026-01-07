@@ -98,7 +98,8 @@ class GraphQLServiceClient(
 
         try {
             val httpRequest =
-                HttpRequest.POST(routerUrl, request)
+                HttpRequest
+                    .POST(routerUrl, request)
                     .contentType(MediaType.APPLICATION_JSON)
                     .bearerAuth(token)
 
@@ -110,8 +111,25 @@ class GraphQLServiceClient(
             val errors = body["errors"] as? List<*>
 
             return GraphQLResponse(
-                data = data?.mapValues { it.value },
-                errors = errors?.mapNotNull { it as? Map<*, *> }?.map { it.mapValues { it.value } },
+                data =
+                    data
+                        ?.mapKeys {
+                            it.key.toString()
+                        }?.mapValues {
+                            it.value as Any
+                        },
+                errors =
+                    errors
+                        ?.mapNotNull {
+                            it as? Map<*, *>
+                        }?.map {
+                            it
+                                .mapKeys {
+                                    it.key.toString()
+                                }.mapValues {
+                                    it.value as Any
+                                }
+                        },
             )
         } catch (e: HttpClientResponseException) {
             // Handle 401 by clearing cache and retrying once
@@ -121,7 +139,8 @@ class GraphQLServiceClient(
                 val newToken = serviceTokenClient.getServiceToken(targetAudience)
 
                 val httpRequest =
-                    HttpRequest.POST(routerUrl, request)
+                    HttpRequest
+                        .POST(routerUrl, request)
                         .contentType(MediaType.APPLICATION_JSON)
                         .bearerAuth(newToken)
 
@@ -132,8 +151,25 @@ class GraphQLServiceClient(
                 val errors = body["errors"] as? List<*>
 
                 return GraphQLResponse(
-                    data = data?.mapValues { it.value },
-                    errors = errors?.mapNotNull { it as? Map<*, *> }?.map { it.mapValues { it.value } },
+                    data =
+                        data
+                            ?.mapKeys {
+                                it.key.toString()
+                            }?.mapValues {
+                                it.value as Any
+                            },
+                    errors =
+                        errors
+                            ?.mapNotNull {
+                                it as? Map<*, *>
+                            }?.map {
+                                it
+                                    .mapKeys {
+                                        it.key.toString()
+                                    }.mapValues {
+                                        it.value as Any
+                                    }
+                            },
                 )
             }
 
@@ -145,4 +181,3 @@ class GraphQLServiceClient(
         }
     }
 }
-
