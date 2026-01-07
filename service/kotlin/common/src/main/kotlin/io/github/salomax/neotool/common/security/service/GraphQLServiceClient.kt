@@ -9,7 +9,6 @@ import jakarta.inject.Singleton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import mu.KotlinLogging
-import java.net.URL
 
 /**
  * HTTP client for services to call Apollo Router with service tokens.
