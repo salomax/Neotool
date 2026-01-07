@@ -86,6 +86,51 @@ search_keywords: [commands, cli, reference]
 
 **Note**: This command automatically generates RSA key pairs and stores them in Vault. It works with both local Vault CLI installations and Docker containers. Perfect for local development setup.
 
+### Service Registration
+```bash
+./neotool service register <service-id>                    # Register a new service
+./neotool service register <service-id> --permissions <list> # Register with permissions
+./neotool service register <service-id> --client-secret <secret>  # Use custom client secret
+./neotool service register <service-id> --output-env        # Output .env.local format
+./neotool service register <service-id> --force             # Update existing registration
+./neotool service register <service-id> --security-url <url>  # Use custom Security Service URL
+```
+
+**Service Registration Options**:
+- `--service-id <id>`: Service identifier (required, can also be positional argument)
+- `--client-secret <secret>`: Client secret (auto-generated if not provided)
+- `--permissions <list>`: Comma-separated list of permissions (default: empty)
+- `--security-url <url>`: Security Service URL (default: `http://localhost:8081`)
+- `--admin-token <token>`: Admin token for authentication (default: from `ADMIN_TOKEN` env)
+- `--output-env`: Output environment variables in `.env.local` format
+- `--force`: Update existing service registration
+- Environment variables: `SECURITY_SERVICE_URL`, `ADMIN_TOKEN`, `SERVICE_X_CLIENT_SECRET`
+
+**Service Registration Examples**:
+```bash
+# Register a new service (auto-generates client secret)
+./neotool service register service-x
+
+# Register with permissions
+./neotool service register service-x --permissions "asset:read,asset:list"
+
+# Register with custom client secret
+./neotool service register service-x --client-secret "my-secret-key"
+
+# Output environment variables for .env.local
+./neotool service register service-x --permissions "asset:read" --output-env
+
+# Register for Kubernetes/remote Security Service
+./neotool service register service-x \
+  --security-url http://security-service.neotool-security.svc.cluster.local:8081 \
+  --admin-token "your-admin-token"
+
+# Update existing registration
+./neotool service register service-x --force
+```
+
+**Note**: This command registers services with the Security Service for service-to-service authentication. It generates a client secret (if not provided), creates a service principal, and assigns permissions. The command is idempotent - running it multiple times with the same service ID will return success if the service is already registered. Perfect for local development and Kubernetes deployment workflows.
+
 ### Upstream Merge Strategy Management
 ```bash
 ./neotool upstream add <file|pattern>                 # Add file/pattern to use "ours" merge strategy
