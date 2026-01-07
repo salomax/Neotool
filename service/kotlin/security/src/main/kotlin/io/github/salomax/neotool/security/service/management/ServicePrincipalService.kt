@@ -22,7 +22,7 @@ import java.util.UUID
  * Handles registration, credential validation, and permission management for services.
  */
 @Singleton
-class ServicePrincipalService(
+open class ServicePrincipalService(
     private val principalRepository: PrincipalRepository,
     private val serviceCredentialRepository: ServiceCredentialRepository,
     private val principalPermissionRepository: PrincipalPermissionRepository,
@@ -48,7 +48,8 @@ class ServicePrincipalService(
     data class ServiceRegistrationResult(
         val principalId: UUID,
         val serviceId: String,
-        val clientSecret: String, // One-time clear secret (only returned at creation)
+        // One-time clear secret (only returned at creation)
+        val clientSecret: String,
         val permissions: List<String>,
     )
 
@@ -62,7 +63,7 @@ class ServicePrincipalService(
      * @throws IllegalArgumentException if service already exists or permission not found
      */
     @Transactional
-    fun registerService(
+    open fun registerService(
         serviceId: String,
         permissions: List<String>,
     ): ServiceRegistrationResult {
@@ -73,7 +74,8 @@ class ServicePrincipalService(
         if (existingPrincipal.isPresent) {
             throw IllegalArgumentException(
                 "Service with ID '$serviceId' already exists. " +
-                    "Use rotateServiceCredentials() to update credentials or updateServicePermissions() to modify permissions."
+                    "Use rotateServiceCredentials() to update credentials or " +
+                    "updateServicePermissions() to modify permissions.",
             )
         }
 
@@ -127,11 +129,12 @@ class ServicePrincipalService(
                 )
 
             if (!alreadyAssigned) {
+                // No resource pattern for service permissions
                 val principalPermission =
                     PrincipalPermissionEntity(
                         principalId = principalId,
                         permissionId = permissionId,
-                        resourcePattern = null, // No resource pattern for service permissions
+                        resourcePattern = null,
                     )
                 principalPermissionRepository.save(principalPermission)
                 assignedPermissions.add(permissionName)
@@ -144,10 +147,11 @@ class ServicePrincipalService(
 
         logger.info { "Registered service '$serviceId' with ${assignedPermissions.size} permissions" }
 
+        // Return one-time clear secret (only at creation)
         return ServiceRegistrationResult(
             principalId = principalId,
             serviceId = serviceId,
-            clientSecret = clientSecret, // Return one-time clear secret (only at creation)
+            clientSecret = clientSecret,
             permissions = assignedPermissions,
         )
     }
@@ -162,7 +166,7 @@ class ServicePrincipalService(
      * @throws IllegalArgumentException if current credentials are invalid
      */
     @Transactional
-    fun rotateServiceCredentials(
+    open fun rotateServiceCredentials(
         serviceId: String,
         currentSecret: String,
     ): ServiceRegistrationResult {
@@ -180,7 +184,7 @@ class ServicePrincipalService(
         // Update credential
         val existingCredential =
             serviceCredentialRepository
-                .findByPrincipalId(principalId)
+                .findById(principalId)
                 .orElseThrow { IllegalStateException("Credential not found for service: $serviceId") }
 
         existingCredential.credentialHash = credentialHash
@@ -189,10 +193,11 @@ class ServicePrincipalService(
 
         logger.info { "Rotated credentials for service: $serviceId" }
 
+        // Return one-time clear secret
         return ServiceRegistrationResult(
             principalId = principalId,
             serviceId = serviceId,
-            clientSecret = newSecret, // Return one-time clear secret
+            clientSecret = newSecret,
             permissions = getServicePermissions(principalId),
         )
     }
@@ -207,7 +212,7 @@ class ServicePrincipalService(
      * @throws IllegalArgumentException if service not found or permission not found
      */
     @Transactional
-    fun updateServicePermissions(
+    open fun updateServicePermissions(
         serviceId: String,
         permissionsToAdd: List<String> = emptyList(),
         permissionsToRemove: List<String> = emptyList(),
@@ -260,7 +265,8 @@ class ServicePrincipalService(
 
             // Find and delete permission assignments
             val assignments =
-                principalPermissionRepository.findByPrincipalId(principalId)
+                principalPermissionRepository
+                    .findByPrincipalId(principalId)
                     .filter { it.permissionId == permissionId && it.resourcePattern == null }
 
             assignments.forEach {
@@ -309,7 +315,7 @@ class ServicePrincipalService(
         // Load credential
         val credential =
             serviceCredentialRepository
-                .findByPrincipalId(principalId)
+                .findById(principalId)
                 .orElse(null)
                 ?: run {
                     logger.debug { "Service credential not found for: $serviceId" }
@@ -352,4 +358,3 @@ class ServicePrincipalService(
         return permissions.map { it.name }
     }
 }
-
