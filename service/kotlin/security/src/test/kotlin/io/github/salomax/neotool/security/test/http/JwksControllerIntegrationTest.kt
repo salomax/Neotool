@@ -3,7 +3,7 @@ package io.github.salomax.neotool.security.test.http
 import io.github.salomax.neotool.common.security.config.JwtConfig
 import io.github.salomax.neotool.common.test.http.exchangeAsString
 import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
-import io.github.salomax.neotool.security.key.SecurityKeyManagerFactory
+
 import io.micronaut.http.HttpRequest
 import io.micronaut.http.HttpStatus
 import io.micronaut.http.client.exceptions.HttpClientResponseException
@@ -28,8 +28,7 @@ open class JwksControllerIntegrationTest : BaseIntegrationTest() {
     @Inject
     lateinit var jwtConfig: JwtConfig
 
-    @Inject
-    lateinit var keyManagerFactory: SecurityKeyManagerFactory
+
 
     @Nested
     @DisplayName("JWKS Endpoint Success Cases")
