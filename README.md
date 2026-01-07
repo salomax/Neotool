@@ -262,6 +262,10 @@ See [`docs/MANIFEST.md`](docs/MANIFEST.md) for the complete document index.
 - Webhook management system
 - Additional AI agent examples and chat UI templates
 
+### Services
+
+- Communication service
+
 ---
 
 ## Architecture Overview
@@ -916,6 +920,41 @@ Checks all prerequisites and displays versions for debugging.
 - Stores keys in Vault at `secret/jwt/keys/<key-name>`
 - Works with local Vault CLI or Docker containers
 - Validates key names and prevents accidental overwrites
+
+---
+
+#### Service Registration
+**Register services with Security Service for service-to-service authentication:**
+
+```bash
+# Register a new service (auto-generates client secret)
+./neotool service register service-x
+
+# Register with permissions
+./neotool service register service-x --permissions "asset:read,asset:list"
+
+# Output environment variables for .env.local
+./neotool service register service-x --output-env
+
+# Register for Kubernetes/remote Security Service
+./neotool service register service-x \
+  --security-url http://security-service:8081 \
+  --admin-token "your-admin-token"
+```
+
+**Use Cases:**
+- Register new services for service-to-service authentication
+- Generate client secrets automatically
+- Assign permissions to service principals
+- Prepare services for Kubernetes deployment
+
+**Features:**
+- Auto-generates secure client secrets (32-byte base64)
+- Creates service principals in Security Service
+- Assigns permissions to service principals
+- Idempotent (safe to run multiple times)
+- Outputs `.env.local` format for easy configuration
+- Works with local and remote Security Service instances
 
 ---
 
