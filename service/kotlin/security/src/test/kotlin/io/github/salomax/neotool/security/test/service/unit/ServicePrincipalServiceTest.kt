@@ -18,8 +18,6 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
-import org.mockito.kotlin.anyOrNull
-import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
@@ -504,10 +502,11 @@ class ServicePrincipalServiceTest {
             whenever(permissionRepository.findByIdIn(any())).thenReturn(emptyList())
 
             // Act
-            val result = servicePrincipalService.updateServicePermissions(
-                serviceId,
-                permissionsToAdd = listOf(permissionName),
-            )
+            val result =
+                servicePrincipalService.updateServicePermissions(
+                    serviceId,
+                    permissionsToAdd = listOf(permissionName),
+                )
 
             // Assert
             verify(principalPermissionRepository).save(any())
@@ -551,10 +550,11 @@ class ServicePrincipalServiceTest {
             whenever(permissionRepository.findByIdIn(any())).thenReturn(emptyList())
 
             // Act
-            val result = servicePrincipalService.updateServicePermissions(
-                serviceId,
-                permissionsToRemove = listOf(permissionName),
-            )
+            val result =
+                servicePrincipalService.updateServicePermissions(
+                    serviceId,
+                    permissionsToRemove = listOf(permissionName),
+                )
 
             // Assert
             verify(principalPermissionRepository).delete(any())
@@ -629,4 +629,3 @@ class ServicePrincipalServiceTest {
         }
     }
 }
-

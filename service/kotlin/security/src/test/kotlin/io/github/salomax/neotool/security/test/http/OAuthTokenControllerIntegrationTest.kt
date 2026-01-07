@@ -5,7 +5,6 @@ import io.github.salomax.neotool.common.test.http.exchangeAsString
 import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.common.test.transaction.runTransaction
-import io.github.salomax.neotool.security.http.dto.TokenRequest
 import io.github.salomax.neotool.security.http.dto.TokenResponse
 import io.github.salomax.neotool.security.model.PermissionEntity
 import io.github.salomax.neotool.security.model.PrincipalEntity
@@ -102,16 +101,17 @@ open class OAuthTokenControllerIntegrationTest :
     ): UUID {
         return entityManager.runTransaction {
             // Create permission entities if needed
-            val permissionEntities = permissions.map { permissionName ->
-                permissionRepository.findByName(permissionName).orElseGet {
-                    permissionRepository.save(
-                        PermissionEntity(
-                            id = null,
-                            name = permissionName,
-                        ),
-                    )
+            val permissionEntities =
+                permissions.map { permissionName ->
+                    permissionRepository.findByName(permissionName).orElseGet {
+                        permissionRepository.save(
+                            PermissionEntity(
+                                id = null,
+                                name = permissionName,
+                            ),
+                        )
+                    }
                 }
-            }
 
             // Create principal
             val principal =
@@ -381,4 +381,3 @@ open class OAuthTokenControllerIntegrationTest :
         }
     }
 }
-
