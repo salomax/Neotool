@@ -348,3 +348,4 @@ Feature: Domain Layer Implementation for Financial Data Models
       Then the entity should have id set to "0001"
       And the entity primary key should be the bacenCodInst value
 
+

@@ -12,6 +12,9 @@ export type Scalars = {
   Boolean: { input: boolean; output: boolean; }
   Int: { input: number; output: number; }
   Float: { input: number; output: number; }
+  DateTime: { input: unknown; output: unknown; }
+  Long: { input: unknown; output: unknown; }
+  UUID: { input: unknown; output: unknown; }
   join__FieldSet: { input: unknown; output: unknown; }
   link__Import: { input: unknown; output: unknown; }
 };
@@ -22,9 +25,55 @@ export type AuthorizationResult = {
   reason: Scalars['String']['output'];
 };
 
-export type BaseEntityInput = {
-  name: Scalars['String']['input'];
+export type BacenInstitutionAutocompleteConnection = {
+  __typename: 'BacenInstitutionAutocompleteConnection';
+  suggestions: Array<BacenInstitutionAutocompleteItem>;
 };
+
+export type BacenInstitutionAutocompleteItem = {
+  __typename: 'BacenInstitutionAutocompleteItem';
+  cnpj: Maybe<Scalars['String']['output']>;
+  id: Scalars['ID']['output'];
+  legalName: Maybe<Scalars['String']['output']>;
+  logoUrl: Maybe<Scalars['String']['output']>;
+  name: Scalars['String']['output'];
+  tradeName: Maybe<Scalars['String']['output']>;
+};
+
+export type BacenInstitutionConnection = {
+  __typename: 'BacenInstitutionConnection';
+  edges: Array<BacenInstitutionEdge>;
+  pageInfo: PageInfo;
+  totalCount: Maybe<Scalars['Int']['output']>;
+};
+
+export type BacenInstitutionEdge = {
+  __typename: 'BacenInstitutionEdge';
+  cursor: Scalars['String']['output'];
+  node: BacenInstitutionSummaryItem;
+};
+
+export type BacenInstitutionSummaryItem = {
+  __typename: 'BacenInstitutionSummaryItem';
+  bacenInstitutionType: Maybe<Scalars['String']['output']>;
+  basileiaIndex: Maybe<Scalars['Float']['output']>;
+  equity: Maybe<Scalars['Float']['output']>;
+  id: Scalars['ID']['output'];
+  institutionType: Maybe<BacenInstitutionType>;
+  legalName: Maybe<Scalars['String']['output']>;
+  logoUrl: Maybe<Scalars['String']['output']>;
+  name: Scalars['String']['output'];
+  profit: Maybe<Scalars['Float']['output']>;
+  tipoConsolidadoBancario: Maybe<Scalars['String']['output']>;
+  tradeName: Maybe<Scalars['String']['output']>;
+  yoyEquityGrowth: Maybe<Scalars['Float']['output']>;
+};
+
+export enum BacenInstitutionType {
+  FinancialGroup = 'FINANCIAL_GROUP',
+  IndividualInstitution = 'INDIVIDUAL_INSTITUTION',
+  PrudentialGroup = 'PRUDENTIAL_GROUP'
+}
 
 export type CreateGroupInput = {
   description?: InputMaybe<Scalars['String']['input']>;
@@ -35,29 +84,6 @@ export type CreateGroupInput = {
 export type CreateRoleInput = {
   name: Scalars['String']['input'];
 };
-
-export type Customer = {
-  __typename: 'Customer';
-  createdAt: Maybe<Scalars['String']['output']>;
-  email: Scalars['String']['output'];
-  id: Scalars['ID']['output'];
-  name: Scalars['String']['output'];
-  status: Scalars['String']['output'];
-  updatedAt: Maybe<Scalars['String']['output']>;
-  version: Scalars['Int']['output'];
-};
-
-export type CustomerInput = {
-  email: Scalars['String']['input'];
-  name: Scalars['String']['input'];
-  status: Scalars['String']['input'];
-};
-
-export enum CustomerStatus {
-  Active = 'ACTIVE',
-  Inactive = 'INACTIVE',
-  Pending = 'PENDING'
-}
 
 export type Group = {
   __typename: 'Group';
@@ -97,13 +123,9 @@ export type Mutation = {
   assignGroupToUser: User;
   assignPermissionToRole: Role;
   assignRoleToGroup: Group;
-  createCustomer: Customer;
   createGroup: Group;
-  createProduct: Product;
   createRole: Role;
-  deleteCustomer: Scalars['Boolean']['output'];
   deleteGroup: Scalars['Boolean']['output'];
-  deleteProduct: Scalars['Boolean']['output'];
   deleteRole: Scalars['Boolean']['output'];
   disableUser: User;
   enableUser: User;
@@ -116,9 +138,7 @@ export type Mutation = {
   signIn: SignInPayload;
   signInWithOAuth: SignInPayload;
   signUp: SignUpPayload;
-  updateCustomer: Customer;
   updateGroup: Group;
-  updateProduct: Product;
   updateRole: Role;
   updateUser: User;
 };
@@ -142,18 +162,8 @@ export type MutationAssignRoleToGroupArgs = {
 };
 
 
-export type MutationCreateCustomerArgs = {
-  input: CustomerInput;
-};
-
-
 export type MutationCreateGroupArgs = {
   input: CreateGroupInput;
-};
-
-
-export type MutationCreateProductArgs = {
-  input: ProductInput;
 };
 
 
@@ -162,18 +172,8 @@ export type MutationCreateRoleArgs = {
 };
 
 
-export type MutationDeleteCustomerArgs = {
-  id: Scalars['ID']['input'];
-};
-
-
 export type MutationDeleteGroupArgs = {
   groupId: Scalars['ID']['input'];
-};
-
-
-export type MutationDeleteProductArgs = {
-  id: Scalars['ID']['input'];
 };
 
 
@@ -240,21 +240,9 @@ export type MutationSignUpArgs = {
 };
 
 
-export type MutationUpdateCustomerArgs = {
-  id: Scalars['ID']['input'];
-  input: CustomerInput;
-};
-
-
 export type MutationUpdateGroupArgs = {
   groupId: Scalars['ID']['input'];
   input: UpdateGroupInput;
-};
-
-
-export type MutationUpdateProductArgs = {
-  id: Scalars['ID']['input'];
-  input: ProductInput;
 };
 
 
@@ -301,40 +289,26 @@ export type PermissionEdge = {
   node: Permission;
 };
 
-export type Product = {
-  __typename: 'Product';
-  createdAt: Maybe<Scalars['String']['output']>;
-  id: Scalars['ID']['output'];
-  name: Scalars['String']['output'];
-  priceCents: Scalars['Int']['output'];
-  sku: Scalars['String']['output'];
-  stock: Scalars['Int']['output'];
-  updatedAt: Maybe<Scalars['String']['output']>;
-  version: Scalars['Int']['output'];
-};
-
-export type ProductInput = {
-  name: Scalars['String']['input'];
-  priceCents: Scalars['Int']['input'];
-  sku: Scalars['String']['input'];
-  stock: Scalars['Int']['input'];
-};
-
 export type Query = {
   __typename: 'Query';
+  bacenInstitutions: BacenInstitutionConnection;
   checkPermission: AuthorizationResult;
   currentUser: Maybe<User>;
-  customer: Maybe<Customer>;
-  customers: Array<Customer>;
   group: Maybe<Group>;
   groups: GroupConnection;
   permissions: PermissionConnection;
-  product: Maybe<Product>;
-  products: Array<Product>;
   role: Maybe<Role>;
   roles: RoleConnection;
+  searchBacenInstitutionsAutocomplete: BacenInstitutionAutocompleteConnection;
   user: Maybe<User>;
   users: UserConnection;
+};
+
+
+export type QueryBacenInstitutionsArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  query?: InputMaybe<Scalars['String']['input']>;
 };
 
 
@@ -342,11 +316,6 @@ export type QueryCheckPermissionArgs = {
   permission: Scalars['String']['input'];
   resourceId?: InputMaybe<Scalars['ID']['input']>;
   userId: Scalars['ID']['input'];
-};
-
-
-export type QueryCustomerArgs = {
-  id: Scalars['ID']['input'];
 };
 
 
@@ -370,11 +339,6 @@ export type QueryPermissionsArgs = {
 };
 
 
-export type QueryProductArgs = {
-  id: Scalars['ID']['input'];
-};
-
-
 export type QueryRoleArgs = {
   id: Scalars['ID']['input'];
 };
@@ -385,6 +349,11 @@ export type QueryRolesArgs = {
   first?: InputMaybe<Scalars['Int']['input']>;
   orderBy?: InputMaybe<Array<RoleOrderByInput>>;
   query?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type QuerySearchBacenInstitutionsAutocompleteArgs = {
+  query: Scalars['String']['input'];
 };
 
 
@@ -538,12 +507,12 @@ export type UserOrderByInput = {
 
 export enum UserOrderField {
   DisplayName = 'DISPLAY_NAME',
-  Email = 'EMAIL',
-  Enabled = 'ENABLED'
+  Email = 'EMAIL'
 }
 
 export enum Join__Graph {
-  App = 'APP',
+  Assets = 'ASSETS',
+  Financialdata = 'FINANCIALDATA',
   Security = 'SECURITY'
 }
 

@@ -1,3 +1,40 @@
+# ============================================================================
+# Base Schema - Common Types and Scalars
+# Auto-included from: service/kotlin/common/src/main/resources/graphql/base-schema.graphqls
+# ============================================================================
+
+# Base GraphQL Schema - Framework Level
+# This contains common types and directives used across all modules
+
+directive @key(fields: String!) repeatable on OBJECT | INTERFACE
+
+# Common scalar types
+scalar Long
+scalar DateTime
+scalar UUID
+
+# Common query patterns
+type Query {
+  # Placeholder - modules will extend this
+  _placeholder: String
+}
+
+# Common mutation patterns  
+type Mutation {
+  # Placeholder - modules will extend this
+  _placeholder: String
+}
+
+# Common subscription patterns
+type Subscription {
+  # Placeholder - modules will extend this
+  _placeholder: String
+}
+
+# ============================================================================
+# Service Schema - assistant
+# ============================================================================
+
 type Query {
   # Get conversation context for a session
   conversation(sessionId: String!): Conversation

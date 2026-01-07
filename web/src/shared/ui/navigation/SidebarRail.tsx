@@ -12,9 +12,6 @@ import { useTranslation } from 'react-i18next';
 import { LogoMark } from '@/shared/ui/brand/LogoMark';
 import { useAuthorization } from '@/shared/providers';
 
-import DesignServicesRoundedIcon from '@mui/icons-material/DesignServicesRounded';
-import CodeRoundedIcon from '@mui/icons-material/CodeRounded';
-import MenuBookRoundedIcon from '@mui/icons-material/MenuBookRounded';
 import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
 
 type NavItem = { href: string; label: string; icon: React.ElementType };
@@ -41,9 +38,7 @@ export function SidebarRail() {
   ]);
 
   const NAV_TOP: NavItem[] = [
-    { href: '/design-system', label: 'Design System', icon: DesignServicesRoundedIcon },
-    { href: '/examples', label: t('routes.examples'), icon: CodeRoundedIcon },
-    { href: '/documentation', label: 'Documentation', icon: MenuBookRoundedIcon },
+    // Removed design-system, examples, documentation
   ];
 
   // Only show Settings if user has authorization permissions

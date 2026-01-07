@@ -27,10 +27,67 @@ type AuthorizationResult
   reason: String!
 }
 
-input BaseEntityInput
-  @join__type(graph: APP)
+type BacenInstitutionAutocompleteConnection
+  @join__type(graph: ASSETS)
+  @join__type(graph: FINANCIALDATA)
 {
+  suggestions: [BacenInstitutionAutocompleteItem!]!
+}
+
+type BacenInstitutionAutocompleteItem
+  @join__type(graph: ASSETS)
+  @join__type(graph: FINANCIALDATA)
+{
+  id: ID!
   name: String!
+  cnpj: String
+  legalName: String
+  tradeName: String
+  logoUrl: String
+}
+
+type BacenInstitutionConnection
+  @join__type(graph: ASSETS)
+  @join__type(graph: FINANCIALDATA)
+{
+  edges: [BacenInstitutionEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
+
+type BacenInstitutionEdge
+  @join__type(graph: ASSETS)
+  @join__type(graph: FINANCIALDATA)
+{
+  node: BacenInstitutionSummaryItem!
+  cursor: String!
+}
+
+type BacenInstitutionSummaryItem
+  @join__type(graph: ASSETS)
+  @join__type(graph: FINANCIALDATA)
+{
+  id: ID!
+  name: String!
+  legalName: String
+  tradeName: String
+  logoUrl: String
+  profit: Float
+  equity: Float
+  yoyEquityGrowth: Float
+  basileiaIndex: Float
+  bacenInstitutionType: String
+  institutionType: BacenInstitutionType
+  tipoConsolidadoBancario: String
+}
+
+enum BacenInstitutionType
+  @join__type(graph: ASSETS)
+  @join__type(graph: FINANCIALDATA)
+{
+  INDIVIDUAL_INSTITUTION @join__enumValue(graph: ASSETS) @join__enumValue(graph: FINANCIALDATA)
+  PRUDENTIAL_GROUP @join__enumValue(graph: ASSETS) @join__enumValue(graph: FINANCIALDATA)
+  FINANCIAL_GROUP @join__enumValue(graph: ASSETS) @join__enumValue(graph: FINANCIALDATA)
 }
 
 input CreateGroupInput
@@ -47,33 +104,10 @@ input CreateRoleInput
   name: String!
 }
 
-type Customer
-  @join__type(graph: APP, key: "id")
-{
-  id: ID!
-  name: String!
-  email: String!
-  status: String!
-  createdAt: String
-  updatedAt: String
-  version: Int!
-}
-
-input CustomerInput
-  @join__type(graph: APP)
-{
-  name: String!
-  email: String!
-  status: String!
-}
-
-enum CustomerStatus
-  @join__type(graph: APP)
-{
-  ACTIVE @join__enumValue(graph: APP)
-  INACTIVE @join__enumValue(graph: APP)
-  PENDING @join__enumValue(graph: APP)
-}
+scalar DateTime
+  @join__type(graph: ASSETS)
+  @join__type(graph: FINANCIALDATA)
+  @join__type(graph: SECURITY)
 
 type Group
   @join__type(graph: SECURITY, key: "id")
@@ -118,7 +152,8 @@ enum GroupOrderField
 scalar join__FieldSet
 
 enum join__Graph {
-  APP @join__graph(name: "app", url: "http://host.docker.internal:8081/graphql")
+  ASSETS @join__graph(name: "assets", url: "http://host.docker.internal:8083/graphql")
+  FINANCIALDATA @join__graph(name: "financialdata", url: "http://host.docker.internal:8091/graphql")
   SECURITY @join__graph(name: "security", url: "http://host.docker.internal:8080/graphql")
 }
 
@@ -136,37 +171,35 @@ enum link__Purpose {
   EXECUTION
 }
 
+scalar Long
+  @join__type(graph: ASSETS)
+  @join__type(graph: FINANCIALDATA)
+  @join__type(graph: SECURITY)
+
 type Mutation
-  @join__type(graph: APP)
   @join__type(graph: SECURITY)
 {
-  createProduct(input: ProductInput!): Product! @join__field(graph: APP)
-  updateProduct(id: ID!, input: ProductInput!): Product! @join__field(graph: APP)
-  deleteProduct(id: ID!): Boolean! @join__field(graph: APP)
-  createCustomer(input: CustomerInput!): Customer! @join__field(graph: APP)
-  updateCustomer(id: ID!, input: CustomerInput!): Customer! @join__field(graph: APP)
-  deleteCustomer(id: ID!): Boolean! @join__field(graph: APP)
-  signIn(input: SignInInput!): SignInPayload! @join__field(graph: SECURITY)
-  signInWithOAuth(input: SignInWithOAuthInput!): SignInPayload! @join__field(graph: SECURITY)
-  signUp(input: SignUpInput!): SignUpPayload! @join__field(graph: SECURITY)
-  refreshAccessToken(input: RefreshAccessTokenInput!): SignInPayload! @join__field(graph: SECURITY)
-  requestPasswordReset(input: RequestPasswordResetInput!): RequestPasswordResetPayload! @join__field(graph: SECURITY)
-  resetPassword(input: ResetPasswordInput!): ResetPasswordPayload! @join__field(graph: SECURITY)
-  enableUser(userId: ID!): User! @join__field(graph: SECURITY)
-  disableUser(userId: ID!): User! @join__field(graph: SECURITY)
-  updateUser(userId: ID!, input: UpdateUserInput!): User! @join__field(graph: SECURITY)
-  createGroup(input: CreateGroupInput!): Group! @join__field(graph: SECURITY)
-  updateGroup(groupId: ID!, input: UpdateGroupInput!): Group! @join__field(graph: SECURITY)
-  deleteGroup(groupId: ID!): Boolean! @join__field(graph: SECURITY)
-  createRole(input: CreateRoleInput!): Role! @join__field(graph: SECURITY)
-  updateRole(roleId: ID!, input: UpdateRoleInput!): Role! @join__field(graph: SECURITY)
-  deleteRole(roleId: ID!): Boolean! @join__field(graph: SECURITY)
-  assignPermissionToRole(roleId: ID!, permissionId: ID!): Role! @join__field(graph: SECURITY)
-  removePermissionFromRole(roleId: ID!, permissionId: ID!): Role! @join__field(graph: SECURITY)
-  assignGroupToUser(userId: ID!, groupId: ID!): User! @join__field(graph: SECURITY)
-  removeGroupFromUser(userId: ID!, groupId: ID!): User! @join__field(graph: SECURITY)
-  assignRoleToGroup(groupId: ID!, roleId: ID!): Group! @join__field(graph: SECURITY)
-  removeRoleFromGroup(groupId: ID!, roleId: ID!): Group! @join__field(graph: SECURITY)
+  signIn(input: SignInInput!): SignInPayload!
+  signInWithOAuth(input: SignInWithOAuthInput!): SignInPayload!
+  signUp(input: SignUpInput!): SignUpPayload!
+  refreshAccessToken(input: RefreshAccessTokenInput!): SignInPayload!
+  requestPasswordReset(input: RequestPasswordResetInput!): RequestPasswordResetPayload!
+  resetPassword(input: ResetPasswordInput!): ResetPasswordPayload!
+  enableUser(userId: ID!): User!
+  disableUser(userId: ID!): User!
+  updateUser(userId: ID!, input: UpdateUserInput!): User!
+  createGroup(input: CreateGroupInput!): Group!
+  updateGroup(groupId: ID!, input: UpdateGroupInput!): Group!
+  deleteGroup(groupId: ID!): Boolean!
+  createRole(input: CreateRoleInput!): Role!
+  updateRole(roleId: ID!, input: UpdateRoleInput!): Role!
+  deleteRole(roleId: ID!): Boolean!
+  assignPermissionToRole(roleId: ID!, permissionId: ID!): Role!
+  removePermissionFromRole(roleId: ID!, permissionId: ID!): Role!
+  assignGroupToUser(userId: ID!, groupId: ID!): User!
+  removeGroupFromUser(userId: ID!, groupId: ID!): User!
+  assignRoleToGroup(groupId: ID!, roleId: ID!): Group!
+  removeRoleFromGroup(groupId: ID!, roleId: ID!): Group!
 }
 
 enum OrderDirection
@@ -177,6 +210,8 @@ enum OrderDirection
 }
 
 type PageInfo
+  @join__type(graph: ASSETS)
+  @join__type(graph: FINANCIALDATA)
   @join__type(graph: SECURITY)
 {
   hasNextPage: Boolean!
@@ -207,36 +242,13 @@ type PermissionEdge
   cursor: String!
 }
 
-type Product
-  @join__type(graph: APP, key: "id")
-{
-  id: ID!
-  name: String!
-  sku: String!
-  priceCents: Int!
-  stock: Int!
-  createdAt: String
-  updatedAt: String
-  version: Int!
-}
-
-input ProductInput
-  @join__type(graph: APP)
-{
-  name: String!
-  sku: String!
-  priceCents: Int!
-  stock: Int!
-}
-
 type Query
-  @join__type(graph: APP)
+  @join__type(graph: ASSETS)
+  @join__type(graph: FINANCIALDATA)
   @join__type(graph: SECURITY)
 {
-  products: [Product!]! @join__field(graph: APP)
-  product(id: ID!): Product @join__field(graph: APP)
-  customers: [Customer!]! @join__field(graph: APP)
-  customer(id: ID!): Customer @join__field(graph: APP)
+  searchBacenInstitutionsAutocomplete(query: String!): BacenInstitutionAutocompleteConnection! @join__field(graph: ASSETS) @join__field(graph: FINANCIALDATA)
+  bacenInstitutions(query: String, first: Int, after: String): BacenInstitutionConnection! @join__field(graph: ASSETS) @join__field(graph: FINANCIALDATA)
   currentUser: User @join__field(graph: SECURITY)
   checkPermission(userId: ID!, permission: String!, resourceId: ID): AuthorizationResult! @join__field(graph: SECURITY)
   user(id: ID!): User @join__field(graph: SECURITY)
@@ -423,5 +435,9 @@ enum UserOrderField
 {
   DISPLAY_NAME @join__enumValue(graph: SECURITY)
   EMAIL @join__enumValue(graph: SECURITY)
-  ENABLED @join__enumValue(graph: SECURITY)
 }
+
+scalar UUID
+  @join__type(graph: ASSETS)
+  @join__type(graph: FINANCIALDATA)
+  @join__type(graph: SECURITY)

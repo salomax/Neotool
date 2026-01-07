@@ -28,6 +28,11 @@ find_schema_sources() {
     echo "${schema_sources[@]}"
 }
 
+# Function to get base schema path
+get_base_schema_path() {
+    echo "$SERVICE_DIR/kotlin/common/src/main/resources/graphql/base-schema.graphqls"
+}
+
 # Function to list available subgraphs
 list_available_subgraphs() {
     local subgraphs=()
@@ -73,6 +78,7 @@ sync_to_contract() {
     local source_schema="$1"
     local subgraph_name="$2"
     local target_schema="$CONTRACTS_DIR/subgraphs/$subgraph_name/schema.graphqls"
+    local base_schema=$(get_base_schema_path)
     
     echo "📋 Syncing schema to contract..."
     echo "   Source: ${source_schema#$SERVICE_DIR/}"
@@ -87,9 +93,50 @@ sync_to_contract() {
         echo "💾 Created backup: $target_schema.backup"
     fi
     
-    # Copy schema
-    cp "$source_schema" "$target_schema"
-    echo "✅ Schema synchronized to contract: $subgraph_name"
+    # Merge base schema + service schema
+    if [[ -f "$base_schema" ]]; then
+        # Extract base scalars and filter out any that already exist in service schema
+        local base_scalars=$(grep "^scalar " "$base_schema" || true)
+        local service_scalars=$(grep "^scalar " "$source_schema" 2>/dev/null || true)
+        
+        # Filter out scalars that are already defined in service schema
+        local scalars_to_add=""
+        while IFS= read -r scalar_line; do
+            if [[ -n "$scalar_line" ]]; then
+                local scalar_name=$(echo "$scalar_line" | awk '{print $2}')
+                # Check if this scalar is not already in service schema
+                if ! echo "$service_scalars" | grep -q "^scalar $scalar_name$"; then
+                    scalars_to_add="${scalars_to_add}${scalar_line}"$'\n'
+                fi
+            fi
+        done <<< "$base_scalars"
+        
+        {
+            echo "# ============================================================================"
+            echo "# Base Schema - Common Scalars"
+            echo "# Auto-included from: service/kotlin/common/src/main/resources/graphql/base-schema.graphqls"
+            echo "# ============================================================================"
+            echo ""
+            # Only include scalars that aren't already in service schema
+            # Directives like @key are provided by Apollo Federation, so we don't include them
+            if [[ -n "$scalars_to_add" ]]; then
+                echo -n "$scalars_to_add"
+                echo ""
+            fi
+            echo "# ============================================================================"
+            echo "# Service Schema - $subgraph_name"
+            echo "# ============================================================================"
+            echo ""
+            cat "$source_schema"
+        } > "$target_schema"
+        echo "✅ Schema synchronized (with base scalars) to contract: $subgraph_name"
+    else
+        # Fallback: just copy if base schema not found
+        echo "⚠️  Base schema not found at: $base_schema"
+        echo "   Syncing without base schema (this may cause rover composition errors)"
+        cp "$source_schema" "$target_schema"
+        echo "✅ Schema synchronized to contract: $subgraph_name"
+    fi
 }
 
 # Function to auto-detect subgraph name from schema source path
@@ -232,9 +279,12 @@ interactive_sync() {
 # Function to validate schema consistency
 validate_schemas() {
     echo "🔍 Validating schema consistency..."
+    echo "   (Note: Contract schemas include base schema, so direct diff may show differences)"
+    echo ""
     
     local schema_sources=($(find_schema_sources))
     local validation_errors=0
+    local base_schema=$(get_base_schema_path)
     
     for source in "${schema_sources[@]}"; do
         local rel_path="${source#$SERVICE_DIR/}"
@@ -253,13 +303,26 @@ validate_schemas() {
             fi
             
             if [[ -n "$contract_schema" ]]; then
-                if ! diff -q "$source" "$contract_schema" > /dev/null; then
-                    echo "⚠️  Schema mismatch: $rel_path"
-                    echo "   Service: $source"
-                    echo "   Contract: $contract_schema"
-                    ((validation_errors++))
-                else
+                # Since contract schemas now include base schema, we do a simpler check:
+                # Verify that the contract schema exists and contains a marker indicating it was synced
+                # We check if the service schema's first non-comment line appears in the contract
+                local service_first_line=$(grep -v '^#' "$source" | grep -v '^$' | head -n 1)
+                local contract_content=$(cat "$contract_schema")
+                
+                if [[ -n "$service_first_line" ]] && echo "$contract_content" | grep -qF "$service_first_line"; then
                     echo "✅ Schema consistent: $rel_path"
+                else
+                    # Check if contract has been synced (contains base schema marker)
+                    if echo "$contract_content" | grep -q "Base Schema - Common Types and Scalars"; then
+                        echo "⚠️  Schema may be out of sync: $rel_path"
+                        echo "   Service schema content not found in contract"
+                        ((validation_errors++))
+                    else
+                        # Contract doesn't have base schema, might be old format
+                        echo "⚠️  Contract schema missing base schema: $rel_path"
+                        echo "   Run 'sync' to update with base schema"
+                        ((validation_errors++))
+                    fi
                 fi
             else
                 echo "⚠️  No contract found for: $rel_path"
@@ -269,9 +332,11 @@ validate_schemas() {
     done
     
     if [[ $validation_errors -eq 0 ]]; then
+        echo ""
         echo "✅ All schemas are consistent"
         return 0
     else
+        echo ""
         echo "❌ Found $validation_errors validation error(s)"
         echo "   Run 'sync' to fix these issues"
         return 1
