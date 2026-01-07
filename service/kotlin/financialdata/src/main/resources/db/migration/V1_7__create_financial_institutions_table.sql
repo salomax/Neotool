@@ -60,6 +60,16 @@ CREATE TABLE IF NOT EXISTS financial_data.financial_institution (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Index for trade_name searches
+CREATE INDEX idx_financial_institution_trade_name_trgm 
+ON financial_data.financial_institution 
+USING GIN (COALESCE(trade_name, '') gin_trgm_ops);
+
+-- Index for legal_name searches  
+CREATE INDEX idx_financial_institution_legal_name_trgm 
+ON financial_data.financial_institution 
+USING GIN (COALESCE(legal_name, '') gin_trgm_ops);
+
 -- Add comments for documentation
 COMMENT ON TABLE financial_data.financial_institution IS 
     'Stores enhanced institution data from CNPJ data provider, including domain, website, legal name, trade name, social networks, logo, and receita data. One enhancement per parent CNPJ (shared by institutions with the same parent).';

@@ -30,7 +30,7 @@ data class InstitutionSearchResult(
     // tipo_instituicao from bacen_bank_report
     val bacenInstitutionType: Int?,
     // Institution type classification fields (for calculation)
-    val tipoConsolidacao: Char?,
+    val tipoConsolidacao: String?,
     val codConglomeradoPrudencial: String?,
     val codConglomeradoFinanceiro: String?,
     // tipo_consolidado_bancario from bacen_institution
