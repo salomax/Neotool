@@ -1,0 +1,8 @@
+# Values for app service
+serviceName: app
+namespace: neotool-app
+
+image:
+  repository: ghcr.io/salomax/neotool-app
+  tag: latest
+

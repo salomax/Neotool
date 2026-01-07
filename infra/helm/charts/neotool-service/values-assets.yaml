@@ -1,0 +1,8 @@
+# Values for assets service
+serviceName: assets
+namespace: neotool-app
+
+image:
+  repository: ghcr.io/salomax/neotool-assets
+  tag: latest
+

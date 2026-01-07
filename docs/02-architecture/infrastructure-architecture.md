@@ -803,6 +803,96 @@ graph TB
 
 ---
 
+## K3S Deployment Architecture
+
+Neotool uses **K3S** (lightweight Kubernetes) for both local development and production VPC deployments.
+
+### K3S Overview
+
+K3S is a certified Kubernetes distribution that:
+- Reduces resource requirements compared to full Kubernetes
+- Includes essential components (Traefik, local-path storage, CoreDNS)
+- Maintains full Kubernetes API compatibility
+- Ideal for edge computing and resource-constrained environments
+
+### Deployment Environments
+
+**Local Development**:
+- Single-node K3S cluster
+- Local-path storage provisioner
+- Minimal resource requirements
+- MinIO for S3-compatible storage
+
+**Production VPC**:
+- Multi-node K3S cluster (3+ nodes)
+- 8 CPU / 32GB RAM per node
+- Cloudflare R2 storage backend
+- Private subnets with NAT gateway
+- High availability configuration
+
+### Infrastructure Components
+
+**Terraform Modules**:
+- `k3s/`: Provider-agnostic K3S cluster provisioning
+- `networking/`: Multi-cloud VPC abstraction (AWS/GCP/Azure)
+- `storage/`: Storage class management and Cloudflare R2 integration
+
+**Kubernetes Manifests**:
+- Base Kustomize configurations for all services
+- Environment-specific overlays (local/prod)
+- Helm charts for service deployment
+
+### Namespace Organization
+
+- `neotool-app`: Application services (app, security, assistant, assets)
+- `neotool-web`: Frontend and Apollo Router
+- `neotool-data`: PostgreSQL and PgBouncer
+- `neotool-messaging`: Kafka
+- `neotool-storage`: MinIO (dev) / Cloudflare R2 (prod)
+- `neotool-security`: HashiCorp Vault
+- `neotool-workflows`: CronJobs
+- `neotool-observability`: Prometheus, Grafana, Loki, Promtail
+
+### Security Architecture
+
+**JWT Key Management**:
+- Vault init job generates 4096-bit RSA keys
+- Keys stored in Vault KV v2 at `secret/jwt/keys/default`
+- Services use init containers to verify keys exist
+- KeyManager reads keys from Vault at runtime
+
+**Network Security**:
+- Services communicate via Kubernetes DNS
+- Private subnets in production
+- Security groups/firewall rules restrict access
+- Network policies (to be implemented)
+
+### Storage Architecture
+
+**Development**:
+- `local-path` storage class (K3S default)
+- MinIO for S3-compatible object storage
+
+**Production**:
+- `cloudflare-r2` storage class
+- S3-compatible API
+- Persistent volumes for stateful services
+
+### Deployment Flow
+
+1. **Infrastructure Provisioning**: Terraform creates K3S cluster and networking
+2. **Base Manifests**: Kubernetes resources deployed via Kustomize
+3. **Environment Patches**: Environment-specific configurations applied
+4. **Service Deployment**: Helm charts deploy application services
+5. **Verification**: Health checks and smoke tests validate deployment
+
+**See**: 
+- [K3S Setup Guide](../11-infrastructure/k3s-setup.md) for installation
+- [Terraform Guide](../11-infrastructure/terraform-guide.md) for infrastructure management
+- [K8S Deployment Runbook](../11-infrastructure/k8s-deployment-runbook.md) for deployment procedures
+
+---
+
 ## Related Documentation
 
 ### Architecture

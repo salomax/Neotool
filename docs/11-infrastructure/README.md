@@ -39,9 +39,11 @@ This section provides **operational documentation** for deploying, managing, and
 ### For DevOps/SRE
 
 **First Day**:
-1. [Deployment Guide](./deployment-guide.md) - Deploy to production
-2. [Operations Runbook](./operations-runbook.md) - Day-to-day operations
-3. [Monitoring Setup](./monitoring-setup.md) - Configure observability
+1. [K3S Setup Guide](./k3s-setup.md) - Set up K3S cluster
+2. [K8S Deployment Runbook](./k8s-deployment-runbook.md) - Deploy to Kubernetes
+3. [Hostinger VPC Runbook](./hostinger-vpc-runbook.md) - Deploy to Hostinger VPC
+4. [Operations Runbook](./operations-runbook.md) - Day-to-day operations
+5. [Monitoring Setup](./monitoring-setup.md) - Configure observability
 
 **Ongoing**:
 - [Troubleshooting Guide](./troubleshooting-guide.md) - Diagnose issues
@@ -52,8 +54,12 @@ This section provides **operational documentation** for deploying, managing, and
 
 **Deployment**:
 - [Local Development Setup](../01-overview/getting-started.md)
-- [Deploy to Staging](./deployment-guide.md#staging)
-- [Deploy to Production](./deployment-guide.md#production)
+- [K3S Setup](./k3s-setup.md) - Set up local K3S cluster
+- [K8S Deployment](./k8s-deployment-runbook.md) - Deploy to Kubernetes
+- [Hostinger Setup](./hostinger-setup-guide.md) - Configure Hostinger VPC
+- [Hostinger Deployment](./hostinger-vpc-runbook.md) - Deploy to Hostinger VPC
+- [Deploy to Staging](./deployment-guide.md#staging) - Docker Compose staging
+- [Deploy to Production](./k8s-deployment-runbook.md#production-vpc-deployment) - K3S production
 
 **Debugging**:
 - [Access Logs](./operations-runbook.md#viewing-logs)
@@ -67,7 +73,12 @@ This section provides **operational documentation** for deploying, managing, and
 ```
 11-infrastructure/
 ├── README.md                    # This file (navigation)
-├── deployment-guide.md          # Deployment procedures
+├── deployment-guide.md          # Deployment procedures (Docker Compose)
+├── k8s-deployment-runbook.md    # Kubernetes/K3S deployment procedures
+├── k3s-setup.md                 # K3S installation and configuration
+├── terraform-guide.md            # Terraform infrastructure management
+├── hostinger-setup-guide.md     # Hostinger VPC setup and configuration
+├── hostinger-vpc-runbook.md     # Hostinger VPC deployment runbook
 ├── operations-runbook.md        # Day-to-day operations
 ├── troubleshooting-guide.md     # Issue resolution
 ├── monitoring-setup.md          # Observability configuration
@@ -120,6 +131,7 @@ This section provides **operational documentation** for deploying, managing, and
 | **Development** | Local dev | Docker Compose | No | localhost:* |
 | **Staging** | Pre-production testing | Kubernetes (small) | Yes (on PR merge) | staging.neotool.io |
 | **Production** | Live system | Kubernetes (full) | Manual approval | neotool.io |
+| **Hostinger VPC** | Production on Hostinger | K3S on Hostinger VPS | Manual approval | neotool.io |
 
 **See**: [Deployment Guide](./deployment-guide.md) for environment-specific procedures.
 

@@ -1126,20 +1126,65 @@ The guide covers:
 - Assume authentication implies authorization
 - Hard-code permissions in code
 
-### 4. Service-to-Service Security
+### 4. Service-to-Service Authentication
+
+Service-to-service authentication using JWT tokens with service principals.
+
+**[📖 Full Service-to-Service Auth Documentation](../../09-security/service-to-service-auth.md)**
+
+**Capabilities:**
+- Service principal registration and management
+- OAuth2 client credentials flow for token issuance
+- Service token generation with permissions
+- Token caching and automatic refresh
+- Client libraries for easy integration
+
+**Key Services:**
+- `ServicePrincipalService` - Service registration and credential validation
+- `ServiceTokenClient` - HTTP client for obtaining service tokens
+- `GraphQLServiceClient` - GraphQL client with automatic token injection
+
+**Quick Start:**
+```bash
+# Register a service
+./neotool service register my-service \
+  --permissions "assets:read,assets:write"
+
+# Use in Kotlin service
+@Singleton
+class MyService(private val serviceTokenClient: ServiceTokenClient) {
+    suspend fun callOtherService() {
+        val token = serviceTokenClient.getServiceToken("target-service")
+        // Use token in API calls
+    }
+}
+```
+
+### 5. Security Infrastructure
+
+Supporting systems that enable the security module.
+
+**Components:**
+- **Principals**: Unified identity for users and services
+- **Audit Logging**: Comprehensive security event tracking
+- **Rate Limiting**: Protection against brute force attacks
+- **Token Management**: Lifecycle management for tokens
+- **Request Context**: Security context propagation
 
 ✅ **DO:**
 - Use separate service principals
-- Implement mTLS for service communication
+- Implement mTLS for service communication (future)
 - Scope service permissions tightly
 - Rotate service credentials regularly
 - Monitor service access patterns
+- Use `ServiceTokenClient` for token management
 
 ❌ **DON'T:**
 - Share user credentials for services
 - Use overly permissive service accounts
 - Skip authentication for internal services
 - Hard-code service credentials
+- Commit client secrets to version control
 
 ### 5. Audit and Monitoring
 
@@ -1348,6 +1393,14 @@ logger:
 
 - [ ] Performance Optimizations
   - Redis-based permission caching
+
+- [ ] Service-to-Service Hardening
+  - Lock down service registration with admin-only authorization and bootstrap override
+  - Require proof-of-possession on secret rotation and reconcile permission removals
+  - Server-generate high-entropy client secrets; enforce TLS-only token/registration endpoints
+  - Add audience/scope allowlists per service to constrain token issuance
+  - Rate limit and audit `/oauth/token` and service registration (issuance, denials, rotations)
+  - Implement user-context service tokens end-to-end or mark as unsupported in clients/docs
   - Permission pre-computation
   - Batch permission checks API
   - Query optimization
@@ -1420,5 +1473,4 @@ When contributing to the security module:
 ## Support
 
 For issues, questions, or feature requests, please open an issue on the GitHub project: https://github.com/salomax/neotool
-
 
