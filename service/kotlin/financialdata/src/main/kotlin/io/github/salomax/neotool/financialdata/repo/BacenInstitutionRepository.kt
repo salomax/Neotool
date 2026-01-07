@@ -10,4 +10,3 @@ interface BacenInstitutionRepository : JpaRepository<BacenInstitutionEntity, Str
 
     fun findByAnoMesRef(anoMesRef: String): List<BacenInstitutionEntity>
 }
-

@@ -50,4 +50,3 @@ open class BacenBankReportDataEntity(
         )
     }
 }
-

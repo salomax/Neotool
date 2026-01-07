@@ -9,4 +9,3 @@ import java.util.UUID
 interface BacenBankReportDataRepository : JpaRepository<BacenBankReportDataEntity, UUID> {
     fun findByBankReportId(bankReportId: UUID): List<BacenBankReportDataEntity>
 }
-

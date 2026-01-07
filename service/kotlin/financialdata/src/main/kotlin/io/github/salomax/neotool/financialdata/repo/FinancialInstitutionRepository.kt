@@ -7,4 +7,3 @@ import java.util.UUID
 
 @Repository
 interface FinancialInstitutionRepository : JpaRepository<FinancialInstitutionEntity, UUID>
-

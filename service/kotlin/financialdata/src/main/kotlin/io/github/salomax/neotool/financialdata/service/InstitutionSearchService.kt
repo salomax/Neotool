@@ -4,15 +4,14 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.common.graphql.pagination.Connection
 import io.github.salomax.neotool.common.graphql.pagination.ConnectionBuilder
-import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
-import java.util.Base64
 import io.github.salomax.neotool.financialdata.domain.BacenInstitutionAutocomplete
 import io.github.salomax.neotool.financialdata.domain.BacenInstitutionSummary
 import io.github.salomax.neotool.financialdata.repo.BacenInstitutionRepository
 import io.github.salomax.neotool.financialdata.repo.BacenInstitutionRepositoryCustom
 import jakarta.inject.Singleton
 import mu.KotlinLogging
+import java.util.Base64
 
 /**
  * Service for searching financial institutions with autocomplete and full search capabilities.
@@ -80,77 +79,86 @@ open class InstitutionSearchService(
         after: String?,
     ): Connection<BacenInstitutionSummary> {
         // Validate and normalize pagination
-        val pageSize = when {
-            first < 1 -> throw IllegalArgumentException("Parameter 'first' must be at least 1, got: $first")
-            first > PaginationConstants.MAX_PAGE_SIZE -> throw IllegalArgumentException(
-                "Parameter 'first' must be at most ${PaginationConstants.MAX_PAGE_SIZE}, got: $first",
-            )
-            else -> first
-        }
+        val pageSize =
+            when {
+                first < 1 -> throw IllegalArgumentException("Parameter 'first' must be at least 1, got: $first")
+                first > PaginationConstants.MAX_PAGE_SIZE -> throw IllegalArgumentException(
+                    "Parameter 'first' must be at most ${PaginationConstants.MAX_PAGE_SIZE}, got: $first",
+                )
+                else -> first
+            }
 
         // Decode cursor (bacen_cod_inst is String, so we decode without type validation)
-        val afterCompositeCursor: CompositeCursor? = after?.let {
-            try {
-                // Decode composite cursor - id is String (bacen_cod_inst), not UUID
-                val decoded = Base64.getUrlDecoder().decode(it)
-                val json = String(decoded)
-                @Suppress("UNCHECKED_CAST")
-                val map = objectMapper.readValue(json, Map::class.java) as Map<String, Any?>
-                val fieldValues = (map["fieldValues"] as? Map<*, *>)?.mapKeys { it.key.toString() }
-                    ?.mapValues { it.value } as? Map<String, Any?> ?: emptyMap()
-                val id = map["id"] as? String ?: throw IllegalArgumentException("Missing id in cursor")
-                CompositeCursor(fieldValues = fieldValues, id = id)
-            } catch (e: Exception) {
-                throw IllegalArgumentException("Invalid cursor: $after", e)
+        val afterCompositeCursor: CompositeCursor? =
+            after?.let {
+                try {
+                    // Decode composite cursor - id is String (bacen_cod_inst), not UUID
+                    val decoded = Base64.getUrlDecoder().decode(it)
+                    val json = String(decoded)
+                    @Suppress("UNCHECKED_CAST")
+                    val map = objectMapper.readValue(json, Map::class.java) as Map<String, Any?>
+                    val fieldValues =
+                        (map["fieldValues"] as? Map<*, *>)
+                            ?.mapKeys { it.key.toString() }
+                            ?.mapValues { it.value } as? Map<String, Any?> ?: emptyMap()
+                    val id = map["id"] as? String ?: throw IllegalArgumentException("Missing id in cursor")
+                    CompositeCursor(fieldValues = fieldValues, id = id)
+                } catch (e: Exception) {
+                    throw IllegalArgumentException("Invalid cursor: $after", e)
+                }
             }
-        }
 
         // Normalize query
-        val normalizedQuery = if (query.isNullOrBlank()) null else query.trim()
+        val normalizedQuery =
+            if (query.isNullOrBlank()) null else query.trim()
 
         // Query repository (one extra to check for more results)
-        val results = institutionSearchRepository.bacenInstitutions(
-            normalizedQuery,
-            pageSize + 1,
-            afterCompositeCursor,
-        )
+        val results =
+            institutionSearchRepository.bacenInstitutions(
+                normalizedQuery,
+                pageSize + 1,
+                afterCompositeCursor,
+            )
         val hasMore = results.size > pageSize
 
         // Always get total count
         val totalCount = institutionSearchRepository.countBacenInstitutions(normalizedQuery)
 
         // Take only requested number and convert to domain
-        val institutions = results
-            .take(pageSize)
-            .map { result ->
-                BacenInstitutionSummary(
-                    id = result.bacenCodInst,
-                    name = result.nomeInstituicao ?: "Unknown",
-                    legalName = result.legalName,
-                    tradeName = result.tradeName,
-                    logoUrl = result.logoStorageKey?.let { deriveLogoUrl(it) },
-                    profit = result.profit,
-                    equity = result.equity,
-                    yoyEquityGrowth = result.yoyEquityGrowth,
-                    basileiaIndex = result.basileiaIndex,
-                    bacenInstitutionType = result.bacenInstitutionType,
-                    institutionType = result.institutionType,
-                    tipoConsolidadoBancario = result.tipoConsolidadoBancario,
-                )
-            }
+        val institutions =
+            results
+                .take(pageSize)
+                .map { result ->
+                    BacenInstitutionSummary(
+                        id = result.bacenCodInst,
+                        name = result.nomeInstituicao ?: "Unknown",
+                        legalName = result.legalName,
+                        tradeName = result.tradeName,
+                        logoUrl =
+                            result.logoStorageKey?.let { deriveLogoUrl(it) },
+                        profit = result.profit,
+                        equity = result.equity,
+                        yoyEquityGrowth = result.yoyEquityGrowth,
+                        basileiaIndex = result.basileiaIndex,
+                        bacenInstitutionType = result.bacenInstitutionType,
+                        institutionType = result.institutionType,
+                        tipoConsolidadoBancario = result.tipoConsolidadoBancario,
+                    )
+                }
 
         // Build connection with composite cursor encoding (using bacen_cod_inst)
         return ConnectionBuilder.buildConnection(
             items = institutions,
             hasMore = hasMore,
-            encodeCursor = { institution ->
-                val composite = CompositeCursor(
-                    fieldValues = mapOf("id" to institution.id),
-                    id = institution.id,
-                )
-                val json = objectMapper.writeValueAsString(composite)
-                Base64.getUrlEncoder().withoutPadding().encodeToString(json.toByteArray())
-            },
+            encodeCursor =
+                { institution ->
+                    val composite = CompositeCursor(
+                        fieldValues = mapOf("id" to institution.id),
+                        id = institution.id,
+                    )
+                    val json = objectMapper.writeValueAsString(composite)
+                    Base64.getUrlEncoder().withoutPadding().encodeToString(json.toByteArray())
+                },
             totalCount = totalCount,
         )
     }
@@ -165,4 +173,3 @@ open class InstitutionSearchService(
         return "/assets/logos/$storageKey"
     }
 }
-

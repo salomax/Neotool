@@ -26,7 +26,14 @@
       "Bash(git mv:*)",
       "Bash(mkdir:*)",
       "Bash(grep:*)",
-      "Bash(../gradlew test:*)"
+      "Bash(../gradlew test:*)",
+      "Bash(echo:*)",
+      "Bash(colima status:*)",
+      "Bash(test:*)",
+      "Bash(export DOCKER_HOST=\"unix:///Users/salomax/.colima/default/docker.sock\")",
+      "Bash(export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=\"/var/run/docker.sock\")",
+      "Bash(source ~/.zshrc)",
+      "Bash(DOCKER_HOST=\"unix:///Users/salomax/.colima/default/docker.sock\" TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=\"/var/run/docker.sock\" ./gradlew:*)"
     ]
   }
 }

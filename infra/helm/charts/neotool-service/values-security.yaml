@@ -1,0 +1,13 @@
+# Values for security service
+serviceName: security
+namespace: neotool-app
+
+image:
+  repository: ghcr.io/salomax/neotool-security
+  tag: latest
+
+# Security service needs JWT key generation
+vault:
+  enabled: true
+  secretPath: secret/jwt/keys/default
+

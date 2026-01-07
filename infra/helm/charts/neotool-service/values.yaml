@@ -1,0 +1,77 @@
+# Default values for neotool-service
+serviceName: app
+replicas: 1
+
+image:
+  repository: ghcr.io/salomax/neotool-app
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8080
+
+# Vault configuration
+vault:
+  enabled: true
+  address: http://vault.neotool-security.svc.cluster.local:8200
+  secretPath: secret/jwt/keys/default
+  tokenSecret:
+    name: vault-token
+    key: token
+
+# Environment variables
+env:
+  - name: MICRONAUT_ENVIRONMENTS
+    value: "kubernetes"
+  - name: POSTGRES_HOST
+    value: "pgbouncer.neotool-data.svc.cluster.local"
+  - name: POSTGRES_PORT
+    value: "6432"
+  - name: KAFKA_BOOTSTRAP_SERVERS
+    value: "kafka.neotool-messaging.svc.cluster.local:9092"
+  - name: VAULT_ENABLED
+    value: "true"
+  - name: VAULT_ADDRESS
+    value: "http://vault.neotool-security.svc.cluster.local:8200"
+
+# Resource limits
+resources:
+  requests:
+    memory: "512Mi"
+    cpu: "250m"
+  limits:
+    memory: "1Gi"
+    cpu: "1000m"
+
+# Health checks
+healthCheck:
+  liveness:
+    path: /health
+    port: 8080
+    initialDelaySeconds: 60
+    periodSeconds: 10
+  readiness:
+    path: /health/readiness
+    port: 8080
+    initialDelaySeconds: 30
+    periodSeconds: 5
+
+# Autoscaling
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+# ServiceMonitor for Prometheus
+serviceMonitor:
+  enabled: true
+  interval: 30s
+  scrapeTimeout: 10s
+  path: /prometheus
+
+# Namespace
+namespace: neotool-app
+

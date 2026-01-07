@@ -12,27 +12,29 @@ data class InstitutionSearchResult(
     val bacenCodInst: String,
     val nomeInstituicao: String?,
     val cnpjInstituicaoLider: String?,
-
     // Enhanced data (from financial_institution if linked)
     val legalName: String?,
     val tradeName: String?,
     val logoStorageKey: String?,
-
     // Financial metrics (aggregated from bacen_bank_report_data using specific account codes)
-    val profit: BigDecimal?, // Lucro Líquido (conta 78187)
-    val equity: BigDecimal?, // Patrimônio Líquido (conta 78186) - latest period
-    val equityYearAgo: BigDecimal?, // Patrimônio Líquido (conta 78186) - same period a year ago
-    val yoyEquityGrowth: BigDecimal?, // Year-over-year equity growth percentage
-    val basileiaIndex: BigDecimal?, // Indice Basileia calculation
-    val bacenInstitutionType: Int?, // tipo_instituicao from bacen_bank_report
-
+    // Lucro Líquido (conta 78187)
+    val profit: BigDecimal?,
+    // Patrimônio Líquido (conta 78186) - latest period
+    val equity: BigDecimal?,
+    // Patrimônio Líquido (conta 78186) - same period a year ago
+    val equityYearAgo: BigDecimal?,
+    // Year-over-year equity growth percentage
+    val yoyEquityGrowth: BigDecimal?,
+    // Indice Basileia calculation
+    val basileiaIndex: BigDecimal?,
+    // tipo_instituicao from bacen_bank_report
+    val bacenInstitutionType: Int?,
     // Institution type classification fields (for calculation)
     val tipoConsolidacao: Char?,
     val codConglomeradoPrudencial: String?,
     val codConglomeradoFinanceiro: String?,
-    val tipoConsolidadoBancario: String?, // tipo_consolidado_bancario from bacen_institution
-
+    // tipo_consolidado_bancario from bacen_institution
+    val tipoConsolidadoBancario: String?,
     // Calculated institution type
     val institutionType: BacenInstitutionType?,
 )
-

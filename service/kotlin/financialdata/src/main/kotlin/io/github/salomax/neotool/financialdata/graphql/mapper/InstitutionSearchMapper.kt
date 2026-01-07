@@ -3,7 +3,12 @@ package io.github.salomax.neotool.financialdata.graphql.mapper
 import io.github.salomax.neotool.common.graphql.pagination.Connection
 import io.github.salomax.neotool.financialdata.domain.BacenInstitutionAutocomplete
 import io.github.salomax.neotool.financialdata.domain.BacenInstitutionSummary
-import io.github.salomax.neotool.financialdata.graphql.dto.*
+import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionAutocompleteConnectionDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionAutocompleteItemDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionConnectionDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionEdgeDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionSummaryItemDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.PageInfoDTO
 import jakarta.inject.Singleton
 
 @Singleton
@@ -12,16 +17,18 @@ class InstitutionSearchMapper {
         suggestions: List<BacenInstitutionAutocomplete>,
     ): BacenInstitutionAutocompleteConnectionDTO {
         return BacenInstitutionAutocompleteConnectionDTO(
-            suggestions = suggestions.map { suggestion ->
-                BacenInstitutionAutocompleteItemDTO(
-                    id = suggestion.id,
-                    name = suggestion.name,
-                    cnpj = suggestion.cnpj,
-                    legalName = suggestion.legalName,
-                    tradeName = suggestion.tradeName,
-                    logoUrl = suggestion.logoUrl,
-                )
-            },
+            suggestions =
+                suggestions
+                    .map { suggestion ->
+                        BacenInstitutionAutocompleteItemDTO(
+                            id = suggestion.id,
+                            name = suggestion.name,
+                            cnpj = suggestion.cnpj,
+                            legalName = suggestion.legalName,
+                            tradeName = suggestion.tradeName,
+                            logoUrl = suggestion.logoUrl,
+                        )
+                    },
         )
     }
 
@@ -29,12 +36,14 @@ class InstitutionSearchMapper {
         connection: Connection<BacenInstitutionSummary>,
     ): BacenInstitutionConnectionDTO {
         return BacenInstitutionConnectionDTO(
-            edges = connection.edges.map { edge ->
-                BacenInstitutionEdgeDTO(
-                    node = toBacenInstitutionSummaryItemDTO(edge.node),
-                    cursor = edge.cursor,
-                )
-            },
+            edges =
+                connection.edges
+                    .map { edge ->
+                        BacenInstitutionEdgeDTO(
+                            node = toBacenInstitutionSummaryItemDTO(edge.node),
+                            cursor = edge.cursor,
+                        )
+                    },
             pageInfo = PageInfoDTO(
                 hasNextPage = connection.pageInfo.hasNextPage,
                 hasPreviousPage = connection.pageInfo.hasPreviousPage,
@@ -45,9 +54,7 @@ class InstitutionSearchMapper {
         )
     }
 
-    fun toBacenInstitutionSummaryItemDTO(
-        summary: BacenInstitutionSummary,
-    ): BacenInstitutionSummaryItemDTO {
+    fun toBacenInstitutionSummaryItemDTO(summary: BacenInstitutionSummary): BacenInstitutionSummaryItemDTO {
         return BacenInstitutionSummaryItemDTO(
             id = summary.id,
             name = summary.name,
@@ -64,4 +71,3 @@ class InstitutionSearchMapper {
         )
     }
 }
-

@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: vault
+  namespace: neotool-security
+  labels:
+    app: vault
+spec:
+  ports:
+    - port: 8200
+      targetPort: 8200
+      name: vault
+  selector:
+    app: vault
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vault
+  namespace: neotool-security
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vault
+  template:
+    metadata:
+      labels:
+        app: vault
+    spec:
+      containers:
+        - name: vault
+          image: hashicorp/vault:1.21.1
+          command: ["vault", "server", "-dev"]
+          ports:
+            - containerPort: 8200
+              name: vault
+          env:
+            - name: VAULT_DEV_ROOT_TOKEN_ID
+              valueFrom:
+                secretKeyRef:
+                  name: vault-token
+                  key: token
+            - name: VAULT_DEV_LISTEN_ADDRESS
+              value: "0.0.0.0:8200"
+            - name: VAULT_ADDR
+              value: "http://0.0.0.0:8200"
+          securityContext:
+            capabilities:
+              add:
+                - IPC_LOCK
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - vault status
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - vault status
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+

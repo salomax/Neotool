@@ -7,7 +7,6 @@ import io.github.salomax.neotool.financialdata.model.FinancialInstitutionEntity
 import io.micronaut.transaction.annotation.ReadOnly
 import jakarta.inject.Singleton
 import jakarta.persistence.EntityManager
-import jakarta.persistence.Query
 import jakarta.persistence.TypedQuery
 import jakarta.persistence.criteria.CriteriaBuilder
 import jakarta.persistence.criteria.Predicate
@@ -22,7 +21,6 @@ import java.math.BigDecimal
 open class BacenInstitutionRepositoryImpl(
     private val entityManager: EntityManager,
 ) : BacenInstitutionRepositoryCustom {
-
     /**
      * Builds a search filter predicate for querying institutions by name or code.
      * Excludes codes starting with 'C'.
@@ -44,26 +42,30 @@ open class BacenInstitutionRepositoryImpl(
         val bacenCodInstPath = root.get<String>("bacenCodInst")
 
         // Search on nome_instituicao (case-insensitive)
-        val nomePredicate = criteriaBuilder.like(
-            criteriaBuilder.lower(
-                criteriaBuilder.coalesce(nomeInstituicaoPath, criteriaBuilder.literal("")),
-            ),
-            likePattern,
-        )
+        val nomePredicate =
+            criteriaBuilder.like(
+                criteriaBuilder
+                    .lower(
+                        criteriaBuilder.coalesce(nomeInstituicaoPath, criteriaBuilder.literal("")),
+                    ),
+                likePattern,
+            )
 
         // Search on bacen_cod_inst (case-insensitive, excluding codes starting with 'C')
-        val codInstPredicate = criteriaBuilder.and(
-            criteriaBuilder.like(
-                criteriaBuilder.lower(bacenCodInstPath),
-                likePattern,
-            ),
-            criteriaBuilder.not(
-                criteriaBuilder.like(
-                    criteriaBuilder.lower(bacenCodInstPath),
-                    "c%",
-                ),
-            ),
-        )
+        val codInstPredicate =
+            criteriaBuilder
+                .and(
+                    criteriaBuilder.like(
+                        criteriaBuilder.lower(bacenCodInstPath),
+                        likePattern,
+                    ),
+                    criteriaBuilder.not(
+                        criteriaBuilder.like(
+                            criteriaBuilder.lower(bacenCodInstPath),
+                            "c%",
+                        ),
+                    ),
+                )
 
         return criteriaBuilder.or(nomePredicate, codInstPredicate)
     }
@@ -78,7 +80,10 @@ open class BacenInstitutionRepositoryImpl(
         val root = criteriaQuery.from(BacenInstitutionEntity::class.java)
 
         // Join with financial_institution to fetch relationship
-        root.fetch<BacenInstitutionEntity, FinancialInstitutionEntity>("financialInstitution", jakarta.persistence.criteria.JoinType.LEFT)
+        root.fetch<BacenInstitutionEntity, FinancialInstitutionEntity>(
+            "financialInstitution",
+            jakarta.persistence.criteria.JoinType.LEFT,
+        )
 
         // Build search filter
         buildSearchFilterPredicate(root, criteriaBuilder, query)?.let {
@@ -112,7 +117,7 @@ open class BacenInstitutionRepositoryImpl(
         // Set parameters
         var paramIndex = 1
         if (query != null && query.isNotBlank()) {
-            val likePattern = "%${query}%"
+            val likePattern = "%$query%"
             // Four parameters for the OR condition in WHERE clause (nome_instituicao, legal_name, trade_name, and bacen_cod_inst)
             nativeQuery.setParameter(paramIndex++, likePattern)
             nativeQuery.setParameter(paramIndex++, likePattern)
@@ -137,7 +142,7 @@ open class BacenInstitutionRepositoryImpl(
             val equity = (row[7] as? Number)?.let { BigDecimal(it.toString()) }
             val equityYearAgo = (row[8] as? Number)?.let { BigDecimal(it.toString()) }
             val yoyEquityGrowth = (row[9] as? Number)?.let { BigDecimal(it.toString()) }
-            
+
             InstitutionSearchResult(
                 bacenCodInst = row[0] as String,
                 nomeInstituicao = row[1] as? String,
@@ -155,49 +160,55 @@ open class BacenInstitutionRepositoryImpl(
                 codConglomeradoPrudencial = row[13] as? String,
                 codConglomeradoFinanceiro = row[14] as? String,
                 tipoConsolidadoBancario = row[15] as? String,
-                institutionType = calculateInstitutionType(
-                    tipoConsolidacao = (row[12] as? String)?.firstOrNull(),
-                    bacenCodInst = row[0] as String,
-                    codConglomeradoPrudencial = row[13] as? String,
-                    codConglomeradoFinanceiro = row[14] as? String,
-                ),
+                institutionType =
+                    calculateInstitutionType(
+                        tipoConsolidacao = (row[12] as? String)?.firstOrNull(),
+                        bacenCodInst = row[0] as String,
+                        codConglomeradoPrudencial = row[13] as? String,
+                        codConglomeradoFinanceiro = row[14] as? String,
+                    ),
             )
         }
     }
 
-    private fun buildSearchQuery(query: String?, after: CompositeCursor?): String {
-        val whereClause = buildString {
-            if (query != null && query.isNotBlank()) {
-                append(
-                    """
-                    AND (
-                        COALESCE(bi.nome_instituicao, '') ILIKE ?
-                        OR COALESCE(fi.legal_name, '') ILIKE ?
-                        OR COALESCE(fi.trade_name, '') ILIKE ?
-                        OR (bi.bacen_cod_inst ILIKE ? AND bi.bacen_cod_inst NOT ILIKE 'c%')
+    private fun buildSearchQuery(
+        query: String?,
+        after: CompositeCursor?,
+    ): String {
+        val whereClause =
+            buildString {
+                if (query != null && query.isNotBlank()) {
+                    append(
+                        """
+                        AND (
+                            COALESCE(bi.nome_instituicao, '') ILIKE ?
+                            OR COALESCE(fi.legal_name, '') ILIKE ?
+                            OR COALESCE(fi.trade_name, '') ILIKE ?
+                            OR (bi.bacen_cod_inst ILIKE ? AND bi.bacen_cod_inst NOT ILIKE 'c%')
+                        )
+                        """.trimIndent(),
                     )
-                    """.trimIndent(),
-                )
+                }
+                if (after != null) {
+                    append(" AND bi.bacen_cod_inst > ?")
+                }
             }
-            if (after != null) {
-                append(" AND bi.bacen_cod_inst > ?")
+
+        val orderByClause =
+            if (query != null && query.isNotBlank()) {
+                """
+                ORDER BY 
+                    financial_data.similarity(
+                        (COALESCE(bi.nome_instituicao, '') || ' ' || 
+                         COALESCE(fi.legal_name, '') || ' ' || 
+                         COALESCE(fi.trade_name, ''))::TEXT,
+                        ?::TEXT
+                    ) DESC,
+                    bi.bacen_cod_inst ASC
+                """.trimIndent()
+            } else {
+                "ORDER BY bi.bacen_cod_inst ASC"
             }
-        }
-        
-        val orderByClause = if (query != null && query.isNotBlank()) {
-            """
-            ORDER BY 
-                financial_data.similarity(
-                    (COALESCE(bi.nome_instituicao, '') || ' ' || 
-                     COALESCE(fi.legal_name, '') || ' ' || 
-                     COALESCE(fi.trade_name, ''))::TEXT,
-                    ?::TEXT
-                ) DESC,
-                bi.bacen_cod_inst ASC
-            """.trimIndent()
-        } else {
-            "ORDER BY bi.bacen_cod_inst ASC"
-        }
 
         return """
             WITH latest_reports AS (
@@ -281,7 +292,7 @@ open class BacenInstitutionRepositoryImpl(
                 bi.cod_conglomerado_financeiro,
                 bi.tipo_consolidado_bancario
             $orderByClause
-        """.trimIndent()
+            """.trimIndent()
     }
 
     private fun calculateInstitutionType(
@@ -326,4 +337,3 @@ open class BacenInstitutionRepositoryImpl(
         return entityManager.createQuery(criteriaQuery).singleResult
     }
 }
-
