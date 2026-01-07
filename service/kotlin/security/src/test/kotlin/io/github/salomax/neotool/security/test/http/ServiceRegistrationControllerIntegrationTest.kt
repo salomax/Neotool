@@ -4,7 +4,6 @@ import io.github.salomax.neotool.common.test.http.exchangeAsString
 import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.common.test.transaction.runTransaction
-import io.github.salomax.neotool.security.http.dto.ServiceRegistrationRequest
 import io.github.salomax.neotool.security.http.dto.ServiceRegistrationResponse
 import io.github.salomax.neotool.security.model.PermissionEntity
 import io.github.salomax.neotool.security.repo.PermissionRepository
@@ -329,7 +328,5 @@ open class ServiceRegistrationControllerIntegrationTest :
 
             assertThat(exception.status).isEqualTo(HttpStatus.BAD_REQUEST)
         }
-
     }
 }
-
