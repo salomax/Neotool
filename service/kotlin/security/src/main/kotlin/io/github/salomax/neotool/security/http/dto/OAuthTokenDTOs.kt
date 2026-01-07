@@ -26,4 +26,3 @@ data class TokenResponse(
     val token_type: String = "Bearer",
     val expires_in: Long,
 )
-

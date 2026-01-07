@@ -2,7 +2,6 @@ package io.github.salomax.neotool.security.http.dto
 
 import io.micronaut.serde.annotation.Serdeable
 import jakarta.validation.constraints.NotBlank
-import jakarta.validation.constraints.NotEmpty
 
 /**
  * Request DTO for service registration.
@@ -23,7 +22,7 @@ data class ServiceRegistrationRequest(
 data class ServiceRegistrationResponse(
     val serviceId: String,
     val principalId: String,
-    val clientSecret: String, // One-time clear secret
+    // One-time clear secret
+    val clientSecret: String,
     val permissions: List<String>,
 )
-

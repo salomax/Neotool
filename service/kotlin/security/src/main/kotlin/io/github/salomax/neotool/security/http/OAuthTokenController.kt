@@ -14,7 +14,6 @@ import io.micronaut.http.hateoas.JsonError
 import jakarta.inject.Singleton
 import jakarta.validation.Valid
 import mu.KotlinLogging
-import java.util.UUID
 
 /**
  * Controller for OAuth2 token endpoint (client credentials flow).
@@ -115,4 +114,3 @@ class OAuthTokenController(
         }
     }
 }
-
