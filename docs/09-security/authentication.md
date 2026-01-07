@@ -116,11 +116,11 @@ flowchart TD
 
 2. **KeyManager** (`service/kotlin/common/src/main/kotlin/io/github/salomax/neotool/common/security/key/KeyManager.kt`)
    - Manages RSA key pairs (private/public)
-   - Supports multiple backends with automatic fallback:
-     - **Vault** (production) - Keys provisioned via Terraform
-     - **File-based** (development) - Local file paths or environment variables
-   - Caches keys for performance (5-minute TTL for Vault keys)
-   - Automatically selects backend based on configuration and availability
+   - Manages RSA key pairs (private/public)
+   - Supports multiple backends:
+     - **Vault** (Production Issuance) - Private keys for signing are stored in/retrieved from Vault
+     - **File-based** (Validation) - Public keys for validation are propagated from Vault or JWKS
+   - **Validation**: Does not require direct Vault access; uses cached/propagated public keys
 
 3. **JwtConfig** (`service/kotlin/common/src/main/kotlin/io/github/salomax/neotool/common/security/config/JwtConfig.kt`)
    - Configuration for token expiration times
@@ -301,6 +301,14 @@ flowchart TD
    - Abstraction layer for token decoding
    - Delegates to configured TokenPrincipalDecoder
    - Used by AuthorizationInterceptor
+
+### JWKS Configuration
+
+Services validate JWT tokens using public keys. The Security Service exposes these keys via the standard JWKS endpoint:
+
+`GET /.well-known/jwks.json`
+
+In production, other services should be configured to use this endpoint or have the public keys provisioned to them. Validating services do **not** need direct access to Vault.
 
 ### Error Handling
 

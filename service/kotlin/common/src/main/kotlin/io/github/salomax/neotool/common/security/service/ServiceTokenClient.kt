@@ -9,7 +9,6 @@ import jakarta.inject.Singleton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import mu.KotlinLogging
-import java.net.URL
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
@@ -119,7 +118,7 @@ class ServiceTokenClient(
         throw UnsupportedOperationException(
             "User context propagation is not yet implemented. " +
                 "This requires a separate OAuth2 endpoint that accepts both service credentials and user tokens. " +
-                "Use getServiceToken() for service-only tokens."
+                "Use getServiceToken() for service-only tokens.",
         )
     }
 
@@ -171,4 +170,3 @@ class ServiceTokenClient(
         }
     }
 }
-
