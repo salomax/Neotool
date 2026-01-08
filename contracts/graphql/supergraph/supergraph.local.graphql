@@ -228,6 +228,47 @@ input CreateAssetUploadInput
   idempotencyKey: String
 }
 
+"""Input for confirming an asset upload."""
+input ConfirmAssetUploadInput
+  @join__type(graph: ASSETS)
+{
+  """ID of the asset to confirm"""
+  assetId: ID!
+
+  """
+  Optional SHA-256 checksum to verify file integrity.
+  If provided, server will validate against actual file checksum.
+  """
+  checksum: String
+}
+
+"""Input for creating a new asset upload."""
+input CreateAssetUploadInput
+  @join__type(graph: ASSETS)
+{
+  """
+  Logical namespace for the asset (e.g., "user-profiles", "group-assets").
+  Determines validation rules (allowed MIME types, max file size), visibility, and storage key template.
+  """
+  namespace: String!
+
+  """Original filename"""
+  filename: String!
+
+  """MIME type of the file"""
+  mimeType: String!
+
+  """File size in bytes"""
+  sizeBytes: Long!
+
+  """
+  Optional idempotency key to prevent duplicate uploads.
+  If provided, subsequent calls with the same key within 24 hours
+  will return the existing asset instead of creating a new one.
+  """
+  idempotencyKey: String
+}
+
 input CreateGroupInput
   @join__type(graph: SECURITY)
 {
@@ -245,6 +286,11 @@ input CreateRoleInput
 scalar DateTime
   @join__type(graph: ASSETS)
   @join__type(graph: FINANCIALDATA)
+  @join__type(graph: SECURITY)
+
+scalar DateTime
+  @join__type(graph: APP)
+  @join__type(graph: ASSETS)
   @join__type(graph: SECURITY)
 
 type Group
@@ -290,9 +336,9 @@ enum GroupOrderField
 scalar join__FieldSet
 
 enum join__Graph {
+  SECURITY @join__graph(name: "security", url: "http://host.docker.internal:8080/graphql")
   ASSETS @join__graph(name: "assets", url: "http://host.docker.internal:8083/graphql")
   FINANCIALDATA @join__graph(name: "financialdata", url: "http://host.docker.internal:8091/graphql")
-  SECURITY @join__graph(name: "security", url: "http://host.docker.internal:8080/graphql")
 }
 
 scalar link__Import
@@ -452,17 +498,32 @@ type PermissionEdge
 }
 
 type Query
+<<<<<<< HEAD
   @join__type(graph: ASSETS)
   @join__type(graph: FINANCIALDATA)
   @join__type(graph: SECURITY)
 {
+=======
+  @join__type(graph: APP)
+  @join__type(graph: ASSETS)
+  @join__type(graph: SECURITY)
+{
+  products: [Product!]! @join__field(graph: APP)
+  product(id: ID!): Product @join__field(graph: APP)
+  customers: [Customer!]! @join__field(graph: APP)
+  customer(id: ID!): Customer @join__field(graph: APP)
+
+>>>>>>> upstream/main
   """
   Get asset by ID.
   Returns null if asset not found or user doesn't have access.
   """
   asset(id: ID!): Asset @join__field(graph: ASSETS)
+<<<<<<< HEAD
   searchBacenInstitutionsAutocomplete(query: String!): BacenInstitutionAutocompleteConnection! @join__field(graph: FINANCIALDATA)
   bacenInstitutions(query: String, first: Int, after: String): BacenInstitutionConnection! @join__field(graph: FINANCIALDATA)
+=======
+>>>>>>> upstream/main
   currentUser: User @join__field(graph: SECURITY)
   checkPermission(userId: ID!, permission: String!, resourceId: ID): AuthorizationResult! @join__field(graph: SECURITY)
   user(id: ID!): User @join__field(graph: SECURITY)
@@ -652,6 +713,11 @@ enum UserOrderField
 }
 
 scalar UUID
+<<<<<<< HEAD
   @join__type(graph: ASSETS)
   @join__type(graph: FINANCIALDATA)
+=======
+  @join__type(graph: APP)
+  @join__type(graph: ASSETS)
+>>>>>>> upstream/main
   @join__type(graph: SECURITY)
