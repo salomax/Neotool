@@ -1,0 +1,30 @@
+meta {
+  name: Enable User
+  type: graphql
+  seq: 10
+}
+
+post {
+  url: http://{{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  mutation EnableUser($userId: ID!) {
+    enableUser(userId: $userId) {
+      id
+      enabled
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "userId": "{{userId}}"
+  }
+}

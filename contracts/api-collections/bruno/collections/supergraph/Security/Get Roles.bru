@@ -1,0 +1,40 @@
+meta {
+  name: Get Roles
+  type: graphql
+  seq: 23
+}
+
+post {
+  url: http://{{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  query GetRoles($first: Int, $after: String, $query: String, $orderBy: [RoleOrderByInput!]) {
+    roles(first: $first, after: $after, query: $query, orderBy: $orderBy) {
+      edges {
+        node {
+          id
+          name
+        }
+        cursor
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      totalCount
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "first": 10
+  }
+}

@@ -1,0 +1,35 @@
+meta {
+  name: Sign Up
+  type: graphql
+  seq: 3
+}
+
+post {
+  url: http://{{router}}/graphql
+  body: graphql
+  auth: inherit
+}
+
+body:graphql {
+  mutation SignUp($input: SignUpInput!) {
+    signUp(input: $input) {
+      token
+      refreshToken
+      user {
+        id
+        email
+        displayName
+      }
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "input": {
+      "name": "New User",
+      "email": "newuser@example.com",
+      "password": "password123"
+    }
+  }
+}

@@ -1,0 +1,43 @@
+meta {
+  name: Get Current User
+  type: graphql
+  seq: 2
+}
+
+post {
+  url: http://{{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  query CurrentUser {
+    currentUser {
+      id
+      email
+      displayName
+    }
+  }
+}
+
+tests {
+  test("status 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Valid login", function() {
+    const data = res.getBody();
+    const username = bru.getCollectionVar("username");
+    
+    expect(data.data.currentUser.email).to.equal(username);  
+  });
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

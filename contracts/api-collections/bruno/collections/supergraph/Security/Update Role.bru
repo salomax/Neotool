@@ -1,0 +1,33 @@
+meta {
+  name: Update Role
+  type: graphql
+  seq: 25
+}
+
+post {
+  url: http://{{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  mutation UpdateRole($roleId: ID!, $input: UpdateRoleInput!) {
+    updateRole(roleId: $roleId, input: $input) {
+      id
+      name
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "roleId": "{{roleId}}",
+    "input": {
+      "name": "Updated Role Name"
+    }
+  }
+}

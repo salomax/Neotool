@@ -1,0 +1,39 @@
+meta {
+  name: Get Permissions
+  type: graphql
+  seq: 29
+}
+
+post {
+  url: http://{{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  query GetPermissions($first: Int, $after: String, $query: String) {
+    permissions(first: $first, after: $after, query: $query) {
+      edges {
+        node {
+          id
+          name
+        }
+        cursor
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "first": 10
+  }
+}
