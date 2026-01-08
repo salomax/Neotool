@@ -13,6 +13,7 @@ import { LogoMark } from '@/shared/ui/brand/LogoMark';
 import { useAuthorization } from '@/shared/providers';
 
 import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
+import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 
 type NavItem = { href: string; label: string; icon: React.ElementType };
 
@@ -38,7 +39,11 @@ export function SidebarRail() {
   ]);
 
   const NAV_TOP: NavItem[] = [
-    // Removed design-system, examples, documentation
+    {
+      href: '/bacen-institutions',
+      label: t('routes.financialInstitutions'),
+      icon: AccountBalanceIcon,
+    },
   ];
 
   // Only show Settings if user has authorization permissions

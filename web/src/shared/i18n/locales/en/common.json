@@ -25,7 +25,8 @@
     "profile": "Profile",
     "examples": "Examples",
     "forms": "Forms",
-    "settings": "Settings"
+    "settings": "Settings",
+    "financialInstitutions": "Financial Institutions"
   },
   "actions": {
     "save": "Save",

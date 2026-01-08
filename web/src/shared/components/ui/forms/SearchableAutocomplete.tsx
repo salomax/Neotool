@@ -7,7 +7,9 @@ import {
   CircularProgress,
   Box,
   Chip,
+  InputAdornment,
 } from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
 import { useDebounce } from "@/shared/hooks/ui/useDebounce";
 import { ErrorAlert } from "@/shared/components/ui/feedback";
 
@@ -136,6 +138,12 @@ export interface SearchableAutocompleteProps<
    * @default "lazy"
    */
   loadMode?: "lazy" | "eager";
+
+  /**
+   * Callback fired when user presses Enter to search
+   * Receives the current input value
+   */
+  onSearch?: (searchQuery: string) => void;
 }
 
 /**
@@ -198,9 +206,12 @@ export function SearchableAutocomplete<
   debounceMs = 300,
   variant = "outlined",
   loadMode = "lazy",
+  onSearch,
 }: SearchableAutocompleteProps<TOption, TSelected, TQueryData, TQueryVariables>) {
   // Local input value (what the user is typing)
   const [inputValue, setInputValue] = useState("");
+  // Track if we just selected an option to avoid double-triggering search
+  const justSelectedOptionRef = React.useRef(false);
   // Debounced value used for querying
   const debouncedSearch = useDebounce(inputValue, debounceMs);
 
@@ -390,8 +401,41 @@ export function SearchableAutocomplete<
     }
 
     onChange(nextArray);
-    if (nextArray.length > 0 && reason === "selectOption") {
+    if (nextArray.length === 0) {
       setInputValue("");
+      return;
+    }
+    if (nextArray.length > 0 && reason === "selectOption") {
+      // Mark that we just selected an option
+      justSelectedOptionRef.current = true;
+      // Trigger search when option is selected
+      if (onSearch) {
+        onSearch(getOptionLabel(nextValue as TOption));
+      }
+      // Keep the selected label visible in the input for single-select UX
+      setInputValue(getOptionLabel(nextValue as TOption));
+      // Reset the flag after a short delay
+      setTimeout(() => {
+        justSelectedOptionRef.current = false;
+      }, 100);
+    }
+  };
+
+  // Handle Enter key press to trigger search
+  // Note: We prevent default to stop autocomplete from clearing the input
+  // If no option is selected, we trigger search with the input value and keep it visible
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter" && inputValue.trim() && onSearch) {
+      // If we just selected an option, don't trigger search again
+      if (justSelectedOptionRef.current) {
+        return;
+      }
+      // Prevent default to stop autocomplete from clearing the input
+      event.preventDefault();
+      event.stopPropagation();
+      // Trigger search with the current input value
+      onSearch(inputValue.trim());
+      // Keep the input value visible (don't clear it)
     }
   };
 
@@ -413,9 +457,16 @@ export function SearchableAutocomplete<
       onInputChange={(_event, newInputValue, reason) => {
         // Preserve the current search text across option selection and other non-input changes.
         // We only update when the user is actively typing or explicitly clearing the field.
+        // Don't clear on "reset" or "blur" to keep the search term visible
         if (reason === "input" || reason === "clear") {
           setInputValue(newInputValue);
         }
+        // For "reset" or "blur", keep the current input value to preserve search term
+        // This keeps the search term visible after Enter is pressed
+      }}
+      onClose={(_event, reason) => {
+        // When closing due to Enter key, don't clear the input
+        // The input value should persist
       }}
       autoHighlight
       // UX: show dropdown arrow in eager mode, hide in lazy mode
@@ -452,14 +503,42 @@ export function SearchableAutocomplete<
               {...(helperTextValue && { helperText: helperTextValue })}
               fullWidth
               variant={variant}
+              onKeyDown={handleKeyDown}
               InputProps={{
                 ...params.InputProps,
+                startAdornment: (
+                  <>
+                    <InputAdornment position="start">
+                      <SearchIcon fontSize="small" sx={{ color: "text.secondary" }} />
+                    </InputAdornment>
+                    {params.InputProps?.startAdornment}
+                  </>
+                ),
                 endAdornment: (
                   <>
                     {loading ? <CircularProgress size={16} /> : null}
                     {params.InputProps?.endAdornment}
                   </>
                 ),
+              }}
+              sx={{
+                // Remove underline for standard variant
+                "& .MuiInput-underline:before": {
+                  display: "none",
+                },
+                "& .MuiInput-underline:after": {
+                  display: "none",
+                },
+                "& .MuiInput-underline:hover:not(.Mui-disabled):before": {
+                  display: "none",
+                },
+                // Set background to paper color to match other input fields
+                "& .MuiOutlinedInput-root": {
+                  backgroundColor: "background.paper",
+                  "&::after": {
+                    display: "none",
+                  },
+                },
               }}
             />
           {error && (
@@ -512,6 +591,5 @@ export function SearchableAutocomplete<
     />
   );
 }
-
 
 

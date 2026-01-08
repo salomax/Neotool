@@ -25,7 +25,8 @@
     "profile": "Perfil",
     "examples": "Exemplos",
     "forms": "Formulários",
-    "settings": "Configurações"
+    "settings": "Configurações",
+    "financialInstitutions": "Instituições Financeiras"
   },
   "actions": {
     "save": "Salvar",
