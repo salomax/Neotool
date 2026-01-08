@@ -293,7 +293,6 @@ enum join__Graph {
   ASSETS @join__graph(name: "assets", url: "http://host.docker.internal:8083/graphql")
   FINANCIALDATA @join__graph(name: "financialdata", url: "http://host.docker.internal:8091/graphql")
   SECURITY @join__graph(name: "security", url: "http://host.docker.internal:8080/graphql")
-  ASSETS @join__graph(name: "assets", url: "http://host.docker.internal:8082/graphql")
 }
 
 scalar link__Import

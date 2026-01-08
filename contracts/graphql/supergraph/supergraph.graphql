@@ -292,7 +292,7 @@ scalar join__FieldSet
 enum join__Graph {
   ASSETS @join__graph(name: "assets", url: "http://assets-service:8080/graphql")
   FINANCIALDATA @join__graph(name: "financialdata", url: "http://neotool-financial-data-service:8080/graphql")
-  SECURITY @join__graph(name: "security", url: "http://neotool-api:8080/graphql")
+  SECURITY @join__graph(name: "security", url: "http://neotool-security:8080/graphql")
 }
 
 scalar link__Import
