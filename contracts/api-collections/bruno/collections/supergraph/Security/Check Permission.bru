@@ -1,0 +1,32 @@
+meta {
+  name: Check Permission
+  type: graphql
+  seq: 30
+}
+
+post {
+  url: http://{{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  query CheckPermission($userId: ID!, $permission: String!, $resourceId: ID) {
+    checkPermission(userId: $userId, permission: $permission, resourceId: $resourceId) {
+      allowed
+      reason
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "userId": "{{userId}}",
+    "permission": "some:permission",
+    "resourceId": null
+  }
+}

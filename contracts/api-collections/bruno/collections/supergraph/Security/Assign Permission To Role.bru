@@ -1,0 +1,34 @@
+meta {
+  name: Assign Permission To Role
+  type: graphql
+  seq: 27
+}
+
+post {
+  url: http://{{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  mutation AssignPermissionToRole($roleId: ID!, $permissionId: ID!) {
+    assignPermissionToRole(roleId: $roleId, permissionId: $permissionId) {
+      id
+      permissions {
+        id
+        name
+      }
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "roleId": "{{roleId}}",
+    "permissionId": "{{permissionId}}"
+  }
+}

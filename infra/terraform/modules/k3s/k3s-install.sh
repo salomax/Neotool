@@ -7,6 +7,7 @@ set -e
 NODE_INDEX=${node_index}
 CLUSTER_NAME=${cluster_name}
 K3S_VERSION=${k3s_version}
+SERVER_COUNT=${server_count}
 IS_SERVER=${is_server}
 SERVER_IP="${server_ip}"
 K3S_TOKEN="${k3s_token}"
@@ -19,9 +20,10 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get install -y curl wget
 
-# Generate K3S token if not provided (for server)
-if [ "$IS_SERVER" = "true" ] && [ -z "$K3S_TOKEN" ]; then
-  K3S_TOKEN=$(openssl rand -hex 32)
+# Validate K3S token is provided
+if [ -z "$K3S_TOKEN" ]; then
+  echo "Error: K3S_TOKEN is required"
+  exit 1
 fi
 
 # Install K3S
@@ -43,18 +45,25 @@ if [ "$IS_SERVER" = "true" ]; then
   
   export INSTALL_K3S_EXEC
 
-  curl -sfL https://get.k3s.io | sh -s - server --cluster-init
+  if [ "$NODE_INDEX" -eq 0 ]; then
+    # First server: cluster-init
+    curl -sfL https://get.k3s.io | sh -s - server --cluster-init
+  else
+    # Additional servers: join existing cluster
+    if [ -z "$SERVER_IP" ]; then
+      echo "Error: SERVER_IP is required for additional server nodes"
+      exit 1
+    fi
+    
+    export K3S_URL="https://${SERVER_IP}:6443"
+    curl -sfL https://get.k3s.io | sh -s - server --server "https://${SERVER_IP}:6443"
+  fi
 
   # Wait for K3S to be ready
   timeout 300 bash -c 'until systemctl is-active --quiet k3s; do sleep 2; done'
   timeout 300 bash -c 'until kubectl get nodes 2>/dev/null; do sleep 2; done'
 else
   # Agent installation
-  if [ -z "$K3S_TOKEN" ]; then
-    echo "Error: K3S_TOKEN is required for agent nodes"
-    exit 1
-  fi
-  
   if [ -z "$SERVER_IP" ]; then
     echo "Error: SERVER_IP is required for agent nodes"
     exit 1

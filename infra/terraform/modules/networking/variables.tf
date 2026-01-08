@@ -1,10 +1,10 @@
 variable "provider_type" {
-  description = "Cloud provider type: local, aws, gcp, azure"
+  description = "Cloud provider type: local, aws, gcp, azure, vps"
   type        = string
   default     = "local"
   validation {
-    condition     = contains(["local", "aws", "gcp", "azure"], var.provider_type)
-    error_message = "Provider type must be one of: local, aws, gcp, azure"
+    condition     = contains(["local", "aws", "gcp", "azure", "vps"], var.provider_type)
+    error_message = "Provider type must be one of: local, aws, gcp, azure, vps"
   }
 }
 
