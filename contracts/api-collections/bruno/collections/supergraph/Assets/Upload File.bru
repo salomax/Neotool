@@ -1,0 +1,33 @@
+meta {
+  name: Upload File
+  type: http
+  seq: 2
+}
+
+put {
+  url: http://localhost:9000/neotool-assets/group-assets/019b6fc1-6962-7588-81c2-e18a102cf311?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20251230T145505Z&X-Amz-SignedHeaders=content-type%3Bhost&X-Amz-Credential=minioadmin%2F20251230%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Expires=900&X-Amz-Signature=d1aca72526616a7138f96659f61dd5e7c1efee940df61035b1a0674b8d83d4dd
+  body: file
+  auth: inherit
+}
+
+params:query {
+  X-Amz-Algorithm: AWS4-HMAC-SHA256
+  X-Amz-Date: 20251230T145505Z
+  X-Amz-SignedHeaders: content-type%3Bhost
+  X-Amz-Credential: minioadmin%2F20251230%2Fus-east-1%2Fs3%2Faws4_request
+  X-Amz-Expires: 900
+  X-Amz-Signature: d1aca72526616a7138f96659f61dd5e7c1efee940df61035b1a0674b8d83d4dd
+}
+
+headers {
+  Content-Type: image/jpeg
+}
+
+body:file {
+  file: @file(/Users/salomax/Downloads/invistus_logo.jpg) @contentType(image/jpeg)
+}
+
+settings {
+  encodeUrl: false
+  timeout: 0
+}
