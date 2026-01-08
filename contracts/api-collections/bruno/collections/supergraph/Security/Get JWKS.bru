@@ -1,0 +1,15 @@
+meta {
+  name: Get JWKS
+  type: http
+  seq: 31
+}
+
+get {
+  url: http://{{security_host}}/.well-known/jwks.json
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+}
