@@ -25,7 +25,27 @@ terraform {
       source  = "hashicorp/tls"
       version = "~> 4.0"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.0"
+    }
+    hostinger = {
+      source  = "hostinger/hostinger"
+      version = "~> 0.1"
+    }
   }
+}
+
+# Generate K3S token if not provided
+resource "random_password" "k3s_token" {
+  count   = var.k3s_token == "" && var.provider_type != "local" ? 1 : 0
+  length  = 64
+  special = false
+}
+
+# Local value for K3S token (use provided or generated)
+locals {
+  k3s_token = var.k3s_token != "" ? var.k3s_token : (var.provider_type != "local" && length(random_password.k3s_token) > 0 ? random_password.k3s_token[0].result : "")
 }
 
 # Local-exec provisioner for K3S installation (local only)

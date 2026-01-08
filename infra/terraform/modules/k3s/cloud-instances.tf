@@ -11,23 +11,25 @@ resource "aws_instance" "k3s_nodes" {
   vpc_security_group_ids = length(var.security_group_ids) > 0 ? var.security_group_ids : []
   key_name               = var.ssh_key_name != "" ? var.ssh_key_name : null
 
-  user_data = base64encode(templatefile("${path.module}/k3s-install.sh", {
+  # AWS EC2 user_data accepts plain text and auto-encodes it
+  user_data = templatefile("${path.module}/k3s-install.sh", {
     node_index         = count.index
-    cluster_name       = var.cluster_name
-    k3s_version        = var.k3s_version
-    is_server          = count.index == 0 ? "true" : "false"
-    server_ip          = count.index == 0 ? "" : aws_instance.k3s_nodes[0].private_ip
-    k3s_token          = count.index == 0 ? (var.k3s_token != "" ? var.k3s_token : "") : (var.k3s_token != "" ? var.k3s_token : "")
+    cluster_name      = var.cluster_name
+    k3s_version       = var.k3s_version
+    server_count      = var.server_count
+    is_server         = count.index < var.server_count ? "true" : "false"
+    server_ip         = count.index == 0 ? "" : aws_instance.k3s_nodes[0].private_ip
+    k3s_token         = local.k3s_token
     disable_components = join(",", var.disable_components)
-    server_flags       = join(" ", var.server_flags)
-    agent_flags        = join(" ", var.agent_flags)
-  }))
+    server_flags      = join(" ", var.server_flags)
+    agent_flags       = join(" ", var.agent_flags)
+  })
 
   tags = merge(
     {
-      Name = "${var.cluster_name}-node-${count.index}"
+      Name    = "${var.cluster_name}-node-${count.index}"
       Cluster = var.cluster_name
-      Role = count.index == 0 ? "server" : "agent"
+      Role    = count.index < var.server_count ? "server" : "agent"
     },
     var.node_labels
   )
@@ -85,9 +87,10 @@ resource "google_compute_instance" "k3s_nodes" {
     node_index         = count.index
     cluster_name       = var.cluster_name
     k3s_version        = var.k3s_version
-    is_server          = count.index == 0 ? "true" : "false"
+    server_count       = var.server_count
+    is_server          = count.index < var.server_count ? "true" : "false"
     server_ip          = count.index == 0 ? "" : google_compute_instance.k3s_nodes[0].network_interface[0].network_ip
-    k3s_token          = count.index == 0 ? (var.k3s_token != "" ? var.k3s_token : "") : (var.k3s_token != "" ? var.k3s_token : "")
+    k3s_token          = local.k3s_token
     disable_components = join(",", var.disable_components)
     server_flags       = join(" ", var.server_flags)
     agent_flags        = join(" ", var.agent_flags)
@@ -98,7 +101,7 @@ resource "google_compute_instance" "k3s_nodes" {
   labels = merge(
     {
       cluster = var.cluster_name
-      role    = count.index == 0 ? "server" : "agent"
+      role    = count.index < var.server_count ? "server" : "agent"
     },
     var.node_labels
   )
@@ -134,13 +137,15 @@ resource "azurerm_linux_virtual_machine" "k3s_nodes" {
     version   = "latest"
   }
 
+  # Azure requires base64-encoded custom_data
   custom_data = base64encode(templatefile("${path.module}/k3s-install.sh", {
     node_index         = count.index
     cluster_name       = var.cluster_name
     k3s_version        = var.k3s_version
-    is_server          = count.index == 0 ? "true" : "false"
+    server_count       = var.server_count
+    is_server          = count.index < var.server_count ? "true" : "false"
     server_ip          = count.index == 0 ? "" : azurerm_network_interface.k3s_nodes[0].private_ip_address
-    k3s_token          = count.index == 0 ? (var.k3s_token != "" ? var.k3s_token : "") : (var.k3s_token != "" ? var.k3s_token : "")
+    k3s_token          = local.k3s_token
     disable_components = join(",", var.disable_components)
     server_flags       = join(" ", var.server_flags)
     agent_flags        = join(" ", var.agent_flags)
@@ -149,7 +154,7 @@ resource "azurerm_linux_virtual_machine" "k3s_nodes" {
   tags = merge(
     {
       Cluster = var.cluster_name
-      Role    = count.index == 0 ? "server" : "agent"
+      Role    = count.index < var.server_count ? "server" : "agent"
     },
     var.node_labels
   )
