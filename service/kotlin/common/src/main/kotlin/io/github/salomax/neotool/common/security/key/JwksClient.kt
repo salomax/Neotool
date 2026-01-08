@@ -1,7 +1,9 @@
 package io.github.salomax.neotool.common.security.key
 
+import io.micronaut.core.annotation.Introspected
 import io.micronaut.http.HttpRequest
 import io.micronaut.http.client.HttpClient
+import io.micronaut.serde.annotation.Serdeable
 import jakarta.inject.Singleton
 import mu.KotlinLogging
 import java.math.BigInteger
@@ -41,14 +43,18 @@ class JwksClient(
     /**
      * JWKS response DTO.
      */
-    private data class JwksResponse(
+    @Serdeable
+    @Introspected
+    data class JwksResponse(
         val keys: List<Jwk>,
     )
 
     /**
      * JSON Web Key (JWK) DTO.
      */
-    private data class Jwk(
+    @Serdeable
+    @Introspected
+    data class Jwk(
         val kty: String,
         val kid: String?,
         val use: String?,

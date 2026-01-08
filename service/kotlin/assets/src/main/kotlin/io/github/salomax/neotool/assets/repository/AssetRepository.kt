@@ -13,14 +13,17 @@ import java.util.UUID
  * Repository for Asset persistence.
  *
  * Provides data access methods for assets following Micronaut Data patterns.
+ * Uses nullable return types (Kotlin style) for custom methods.
+ * Note: findById from JpaRepository returns Optional - use the extension function findAssetById() for nullable return type.
  */
 @Repository
 interface AssetRepository : JpaRepository<AssetEntity, UUID> {
+
     /**
      * Find asset by storage key.
      * Storage key is unique across all assets.
      */
-    fun findByStorageKey(storageKey: String): Optional<AssetEntity>
+    fun findByStorageKey(storageKey: String): AssetEntity?
 
     /**
      * Find asset by owner ID and idempotency key.
@@ -29,7 +32,7 @@ interface AssetRepository : JpaRepository<AssetEntity, UUID> {
     fun findByOwnerIdAndIdempotencyKey(
         ownerId: String,
         idempotencyKey: String,
-    ): Optional<AssetEntity>
+    ): AssetEntity?
 
     /**
      * Find all assets for a given owner.
@@ -173,4 +176,12 @@ interface AssetRepository : JpaRepository<AssetEntity, UUID> {
         """,
     )
     fun sumFileSizeByOwnerId(ownerId: String): Long?
+}
+
+/**
+ * Extension function to get nullable AssetEntity from Optional.
+ * Convenience method for Kotlin code that prefers nullable types over Optional.
+ */
+fun AssetRepository.findAssetById(id: UUID): AssetEntity? {
+    return findById(id).orElse(null)
 }

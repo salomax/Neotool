@@ -34,7 +34,7 @@ Register a service using the CLI command:
 
 ```bash
 ./neotool service register service-x \
-  --permissions "assets:read,assets:write" \
+  --permissions "assets:asset:view,assets:asset:upload,assets:asset:delete" \
   --output-env
 ```
 
@@ -55,7 +55,7 @@ curl -X POST http://localhost:8080/api/internal/services/register \
   -H "Content-Type: application/json" \
   -d '{
     "serviceId": "service-x",
-    "permissions": ["assets:read", "assets:write"]
+    "permissions": [assets:asset:view", "assets:asset:upload", "assets:asset:delete"]
   }'
 ```
 
@@ -129,6 +129,205 @@ security:
     id: ${SERVICE_ID}
     secret: ${SERVICE_SECRET}
 ```
+
+### Storing Client Credentials in Production
+
+After registering a service and receiving the `client_secret`, you **must** store it securely. The `client_secret` is only shown once during registration and cannot be retrieved later from the database (it's hashed).
+
+**Quick Setup Summary**: Once you have `SERVICE_ID` and `SERVICE_SECRET` as environment variables, the service will automatically:
+1. Use `ServiceTokenClient` to obtain JWT tokens from the Security Service
+2. Cache tokens with TTL to minimize API calls
+3. Include tokens in service-to-service API calls
+
+That's it! The service handles everything else automatically.
+
+#### Why Store in Vault?
+
+Storing credentials in Vault (or your secret manager) is critical for production because:
+
+✅ **Security**: Secrets are encrypted at rest and in transit  
+✅ **Audit Trail**: All secret access is logged for compliance  
+✅ **Centralized Management**: One place to manage all service credentials  
+✅ **Rotation**: Easy credential rotation without code changes  
+✅ **Multi-Pod Support**: All pods read from the same source  
+✅ **RBAC**: Fine-grained access control via Vault policies  
+✅ **Disaster Recovery**: Secrets can be backed up and restored  
+
+**Without Vault**: You'd need to manually manage secrets in multiple places, increasing risk of exposure and making rotation difficult.
+
+#### Step 1: Store Credentials in Vault
+
+Store the `client_secret` in Vault using the KV v2 secrets engine. The recommended path structure is:
+
+```
+secret/services/{service-id}/credentials
+```
+
+**Using Vault CLI**:
+
+```bash
+# Set Vault address and authenticate
+export VAULT_ADDR=http://vault.neotool-security.svc.cluster.local:8200
+export VAULT_TOKEN=$(kubectl get secret vault-token -n neotool-security -o jsonpath='{.data.token}' | base64 -d)
+
+# Store the client secret (replace with your actual values from registration)
+vault kv put secret/services/service-x/credentials \
+  client_id="service-x" \
+  client_secret="your-auto-generated-secret-here"
+```
+
+**Verify the secret was stored**:
+```bash
+vault kv get secret/services/service-x/credentials
+```
+
+**Using Terraform** (Recommended for Infrastructure as Code):
+
+Create or update your Terraform configuration:
+
+```hcl
+# Store service credentials in Vault
+resource "vault_kv_secret_v2" "service_x_credentials" {
+  mount = "secret"
+  name  = "services/service-x/credentials"
+  
+  data_json = jsonencode({
+    client_id     = "service-x"
+    client_secret = var.service_x_client_secret  # Pass via terraform.tfvars or environment
+  })
+  
+  # Optional: Add metadata
+  custom_metadata = {
+    service_name = "service-x"
+    created_by   = "terraform"
+    environment  = "production"
+  }
+}
+
+# Variable definition (in variables.tf)
+variable "service_x_client_secret" {
+  description = "Client secret for service-x (obtained from service registration)"
+  type        = string
+  sensitive   = true  # Marks as sensitive in Terraform
+}
+```
+
+**Why Terraform?**
+- **Version Control**: Track secret paths and structure in git (not the secrets themselves)
+- **Reproducibility**: Same infrastructure across environments
+- **State Management**: Terraform tracks what secrets exist
+- **CI/CD Integration**: Automate secret provisioning in pipelines
+- **Multi-Environment**: Use workspaces or variables for dev/staging/prod
+
+Apply with:
+```bash
+terraform apply -var="service_x_client_secret=your-secret-here"
+```
+
+#### Step 2: Sync to Kubernetes (Optional but Recommended)
+
+For Kubernetes deployments, use External Secrets Operator to automatically sync from Vault to Kubernetes Secrets:
+
+```yaml
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: service-x-credentials
+  namespace: neotool-app
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: vault-neotool
+    kind: ClusterSecretStore
+  target:
+    name: service-x-credentials
+    creationPolicy: Owner
+  data:
+    - secretKey: SERVICE_ID
+      remoteRef:
+        key: secret/services/service-x/credentials
+        property: client_id
+    - secretKey: SERVICE_SECRET
+      remoteRef:
+        key: secret/services/service-x/credentials
+        property: client_secret
+```
+
+Then reference in your deployment:
+```yaml
+env:
+  - name: SERVICE_ID
+    valueFrom:
+      secretKeyRef:
+        name: service-x-credentials
+        key: SERVICE_ID
+  - name: SERVICE_SECRET
+    valueFrom:
+      secretKeyRef:
+        name: service-x-credentials
+        key: SERVICE_SECRET
+```
+
+#### Step 3: Recovery and Retrieval
+
+If you need to retrieve credentials later (e.g., for a new environment or after rotation):
+
+**From Vault CLI**:
+```bash
+# Get the full secret
+vault kv get secret/services/service-x/credentials
+
+# Get specific field
+vault kv get -field=client_secret secret/services/service-x/credentials
+```
+
+**From Vault API**:
+```bash
+curl -H "X-Vault-Token: $VAULT_TOKEN" \
+  $VAULT_ADDR/v1/secret/data/services/service-x/credentials | jq '.data.data'
+```
+
+**From Kubernetes Secret** (if using External Secrets):
+```bash
+# Decode the secret
+kubectl get secret service-x-credentials -n neotool-app \
+  -o jsonpath='{.data.SERVICE_SECRET}' | base64 -d
+```
+
+**Important**: If you lose the `client_secret` and it wasn't stored in Vault, you'll need to:
+1. Register a new service principal (or rotate credentials if supported)
+2. Update all environments with the new secret
+3. This is why storing in Vault immediately after registration is critical!
+
+#### Credential Rotation
+
+When rotating credentials:
+
+1. **Register new credentials**:
+   ```bash
+   ./neotool service register service-x --force
+   ```
+
+2. **Update Vault**:
+   ```bash
+   vault kv put secret/services/service-x/credentials \
+     client_id="service-x" \
+     client_secret="new-secret-here"
+   ```
+
+3. **Restart pods** to pick up new environment variables:
+   ```bash
+   kubectl rollout restart deployment/service-x -n neotool-app
+   ```
+
+#### Security Best Practices
+
+- ✅ **Store immediately**: Save to Vault right after registration
+- ✅ **Never commit secrets**: Use `.gitignore` for any local secret files
+- ✅ **Separate environments**: Use different Vault paths per environment
+- ✅ **Rotate regularly**: Every 90 days or per security policy
+- ✅ **Least privilege**: Services only need read access to their own credentials
+- ✅ **Monitor access**: Review Vault audit logs regularly
 
 ## Using Tokens in Service Calls
 

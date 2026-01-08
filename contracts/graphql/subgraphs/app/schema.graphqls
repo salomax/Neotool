@@ -1,4 +1,15 @@
-directive @key(fields: String!) repeatable on OBJECT | INTERFACE
+# ============================================================================
+# Base Schema - Common Scalars
+# Auto-included from: service/kotlin/common/src/main/resources/graphql/base-schema.graphqls
+# ============================================================================
+
+scalar Long
+scalar DateTime
+scalar UUID
+
+# ============================================================================
+# Service Schema - app
+# ============================================================================
 
 # Specific entity types implementing interfaces
 type Product @key(fields: "id") {
@@ -23,7 +34,7 @@ type Customer @key(fields: "id") {
 }
 
 # Query type with clean, focused operations
-type Query {
+extend type Query {
   # Entity queries
   products: [Product!]!
   product(id: ID!): Product
@@ -32,7 +43,7 @@ type Query {
 }
 
 # Mutation type with consistent patterns
-type Mutation {
+extend type Mutation {
   # Product mutations
   createProduct(input: ProductInput!): Product!
   updateProduct(id: ID!, input: ProductInput!): Product!
