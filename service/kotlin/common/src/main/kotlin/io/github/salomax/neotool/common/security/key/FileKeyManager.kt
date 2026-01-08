@@ -15,7 +15,7 @@ import java.security.PublicKey
 @Singleton
 class FileKeyManager(
     private val jwtConfig: JwtConfig,
-    private val jwksClient: JwksClient? = null,
+    private val jwksClient: JwksClient?,
 ) : KeyManager {
     private val logger = KotlinLogging.logger {}
 
@@ -50,19 +50,33 @@ class FileKeyManager(
     override fun getPublicKey(keyId: String): PublicKey? {
         // If JWKS URL is configured, use JWKS client to fetch public keys
         val jwksUrl = jwtConfig.jwksUrl
-        if (!jwksUrl.isNullOrBlank() && jwksClient != null) {
-            logger.debug { "Fetching public key from JWKS endpoint: $jwksUrl" }
-            val key = jwksClient.getPublicKey(jwksUrl, keyId)
-            if (key != null) {
-                logger.debug { "Successfully fetched public key from JWKS for kid: $keyId" }
-                return key
+        if (!jwksUrl.isNullOrBlank()) {
+            if (jwksClient == null) {
+                logger.warn {
+                    "JWKS URL is configured ($jwksUrl) but JwksClient is not available. " +
+                        "Check if HttpClient is properly configured."
+                }
             } else {
-                logger.warn { "Failed to fetch public key from JWKS for kid: $keyId" }
+                logger.debug { "Fetching public key from JWKS endpoint: $jwksUrl for kid: $keyId" }
+                try {
+                    val key = jwksClient.getPublicKey(jwksUrl, keyId)
+                    if (key != null) {
+                        logger.info { "Successfully fetched public key from JWKS for kid: $keyId" }
+                        return key
+                    } else {
+                        logger.warn { "Failed to fetch public key from JWKS for kid: $keyId from $jwksUrl" }
+                    }
+                } catch (e: Exception) {
+                    logger.error(e) { "Error fetching public key from JWKS endpoint $jwksUrl for kid: $keyId" }
+                }
             }
+        } else {
+            logger.debug { "JWKS URL is not configured, falling back to file/env-based keys" }
         }
 
         // Fallback to file/env-based keys (for backward compatibility or when JWKS is not configured)
         if (cachedPublicKey != null) {
+            logger.debug { "Using cached public key from file/env" }
             return cachedPublicKey
         }
 
@@ -71,7 +85,10 @@ class FileKeyManager(
             cachedPublicKey = key
             logger.debug { "Loaded public key from file/env" }
         } else {
-            logger.debug { "No public key configured" }
+            logger.warn {
+                "No public key configured via file/env and JWKS is not available. " +
+                    "Cannot validate JWT tokens."
+            }
         }
         return key
     }
