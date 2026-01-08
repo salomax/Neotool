@@ -26,7 +26,7 @@ class FileKeyManagerTest {
                     keyId = "test-key",
                 )
 
-            val manager = FileKeyManager(config)
+            val manager = FileKeyManager(config, null)
 
             // Act
             val loadedPrivateKey = manager.getPrivateKey("test-key")
@@ -49,7 +49,7 @@ class FileKeyManagerTest {
                     keyId = "test-key",
                 )
 
-            val manager = FileKeyManager(config)
+            val manager = FileKeyManager(config, null)
 
             // Act
             val loadedPublicKey = manager.getPublicKey("test-key")
@@ -72,7 +72,7 @@ class FileKeyManagerTest {
                     keyId = "test-key",
                 )
 
-            val manager = FileKeyManager(config)
+            val manager = FileKeyManager(config, null)
 
             // Act
             val loadedPrivateKey = manager.getPrivateKey("test-key") as RSAPrivateKey
@@ -99,7 +99,7 @@ class FileKeyManagerTest {
                     keyId = "custom-key-id",
                 )
 
-            val manager = FileKeyManager(config)
+            val manager = FileKeyManager(config, null)
 
             // Act
             val retrievedKey = manager.getPrivateKey("custom-key-id")
@@ -121,7 +121,7 @@ class FileKeyManagerTest {
                     keyId = "custom-key-id",
                 )
 
-            val manager = FileKeyManager(config)
+            val manager = FileKeyManager(config, null)
 
             // Act
             val retrievedKey = manager.getPublicKey("custom-key-id")
@@ -143,7 +143,7 @@ class FileKeyManagerTest {
                     keyId = "key-1",
                 )
 
-            val manager = FileKeyManager(config)
+            val manager = FileKeyManager(config, null)
 
             // Act - FileKeyManager ignores keyId, always returns configured key
             val privateKey1 = manager.getPrivateKey("key-1")
@@ -173,7 +173,7 @@ class FileKeyManagerTest {
                     keyId = "default",
                 )
 
-            val manager = FileKeyManager(config)
+            val manager = FileKeyManager(config, null)
 
             // Act
             val retrievedKey = manager.getPublicKey("default")
@@ -259,7 +259,7 @@ class FileKeyManagerTest {
                     keyId = "test",
                 )
 
-            val manager = FileKeyManager(config)
+            val manager = FileKeyManager(config, null)
 
             // Act
             val privateKey = manager.getPrivateKey("test")
@@ -278,7 +278,7 @@ class FileKeyManagerTest {
                     keyId = "test",
                 )
 
-            val manager = FileKeyManager(config)
+            val manager = FileKeyManager(config, null)
 
             // Act
             val publicKey = manager.getPublicKey("test")
@@ -300,7 +300,7 @@ class FileKeyManagerTest {
                     keyId = "default",
                 )
 
-            val manager = FileKeyManager(config)
+            val manager = FileKeyManager(config, null)
 
             // Act - FileKeyManager ignores keyId parameter
             val keyWithDifferentId = manager.getPublicKey("different-key-id")
@@ -328,7 +328,7 @@ class FileKeyManagerTest {
                     keyId = "key-v1",
                 )
 
-            val manager = FileKeyManager(config)
+            val manager = FileKeyManager(config, null)
 
             // Act
             val key1 = manager.getPublicKey("key-v1")
@@ -350,7 +350,7 @@ class FileKeyManagerTest {
                     keyId = "stable-key",
                 )
 
-            val manager = FileKeyManager(config)
+            val manager = FileKeyManager(config, null)
 
             // Act
             val key1 = manager.getPublicKey("stable-key")
