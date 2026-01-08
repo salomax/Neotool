@@ -1,3 +1,16 @@
+# ============================================================================
+# Base Schema - Common Scalars
+# Auto-included from: service/kotlin/common/src/main/resources/graphql/base-schema.graphqls
+# ============================================================================
+
+scalar Long
+scalar DateTime
+scalar UUID
+
+# ============================================================================
+# Service Schema - assistant
+# ============================================================================
+
 type Query {
   # Get conversation context for a session
   conversation(sessionId: String!): Conversation

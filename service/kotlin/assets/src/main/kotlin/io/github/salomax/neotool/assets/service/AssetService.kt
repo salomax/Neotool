@@ -49,7 +49,8 @@ open class AssetService(
     ) {
         try {
             meterRegistry?.let { registry ->
-                Counter.builder("assets.upload.bucket")
+                Counter
+                    .builder("assets.upload.bucket")
                     .description("Number of asset uploads per bucket")
                     .tag("bucket", bucket)
                     .tag("visibility", visibility)
@@ -213,9 +214,7 @@ open class AssetService(
         val entity =
             assetRepository
                 .findById(assetId)
-                .orElseThrow {
-                    IllegalArgumentException("Asset not found: $assetId")
-                }
+                .orElseThrow { throw IllegalArgumentException("Asset not found: $assetId") }
 
         // Authorization check
         if (entity.ownerId != ownerId) {
@@ -300,7 +299,6 @@ open class AssetService(
             assetRepository
                 .findById(assetId)
                 .orElse(null)
-                ?: return null
 
         // Visibility-based authorization
         when (entity.visibility) {
@@ -308,6 +306,7 @@ open class AssetService(
                 // PUBLIC assets: accessible without owner check
                 logger.debug { "Accessing PUBLIC asset: assetId=$assetId, requesterId=$requesterId" }
             }
+
             AssetVisibility.PRIVATE -> {
                 // PRIVATE assets: require ownership
                 if (entity.ownerId != requesterId) {
@@ -383,7 +382,6 @@ open class AssetService(
             assetRepository
                 .findById(assetId)
                 .orElse(null)
-                ?: return false
 
         // Authorization check
         if (entity.ownerId != ownerId) {
@@ -423,7 +421,6 @@ open class AssetService(
         val entity =
             assetRepository
                 .findByOwnerIdAndIdempotencyKey(ownerId, idempotencyKey)
-                .orElse(null)
                 ?: return null
 
         // Check if asset is within 24 hour window
