@@ -1,0 +1,39 @@
+meta {
+  name: Create Asset Upload
+  type: graphql
+  seq: 1
+}
+
+post {
+  url: http://{{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  mutation CreateAssetUpload($input: CreateAssetUploadInput!) {
+    createAssetUpload(input: $input) {
+      id
+      uploadUrl
+      uploadExpiresAt
+      status
+      visibility
+      storageKey
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "input": {
+      "namespace": "user-profiles",
+      "filename": "avatar.jpg",
+      "mimeType": "image/jpeg",
+      "sizeBytes": 1024
+    }
+  }
+}

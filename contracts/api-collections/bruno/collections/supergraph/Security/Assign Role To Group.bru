@@ -1,0 +1,34 @@
+meta {
+  name: Assign Role To Group
+  type: graphql
+  seq: 20
+}
+
+post {
+  url: http://{{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  mutation AssignRoleToGroup($groupId: ID!, $roleId: ID!) {
+    assignRoleToGroup(groupId: $groupId, roleId: $roleId) {
+      id
+      roles {
+        id
+        name
+      }
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "groupId": "{{groupId}}",
+    "roleId": "{{roleId}}"
+  }
+}

@@ -1,0 +1,33 @@
+meta {
+  name: Create Role
+  type: graphql
+  seq: 22
+}
+
+post {
+  url: http://{{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  mutation CreateRole($input: CreateRoleInput!) {
+    createRole(input: $input) {
+      id
+      name
+      createdAt
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "input": {
+      "name": "New Role"
+    }
+  }
+}

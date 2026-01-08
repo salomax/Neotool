@@ -120,6 +120,7 @@ scalar join__FieldSet
 enum join__Graph {
   APP @join__graph(name: "app", url: "http://host.docker.internal:8081/graphql")
   SECURITY @join__graph(name: "security", url: "http://host.docker.internal:8080/graphql")
+  ASSETS @join__graph(name: "assets", url: "http://host.docker.internal:8082/graphql")
 }
 
 scalar link__Import

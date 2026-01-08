@@ -1,0 +1,30 @@
+meta {
+  name: Disable User
+  type: graphql
+  seq: 11
+}
+
+post {
+  url: http://{{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  mutation DisableUser($userId: ID!) {
+    disableUser(userId: $userId) {
+      id
+      enabled
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "userId": "{{userId}}"
+  }
+}

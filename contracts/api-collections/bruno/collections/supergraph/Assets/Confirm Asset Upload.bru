@@ -1,0 +1,33 @@
+meta {
+  name: Confirm Asset Upload
+  type: graphql
+  seq: 2
+}
+
+post {
+  url: http://{{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  mutation ConfirmAssetUpload($input: ConfirmAssetUploadInput!) {
+    confirmAssetUpload(input: $input) {
+      id
+      status
+      publicUrl
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "input": {
+      "assetId": "{{assetId}}"
+    }
+  }
+}

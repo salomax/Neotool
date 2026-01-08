@@ -1,0 +1,41 @@
+meta {
+  name: Get Groups
+  type: graphql
+  seq: 16
+}
+
+post {
+  url: http://{{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  query GetGroups($first: Int, $after: String, $query: String, $orderBy: [GroupOrderByInput!]) {
+    groups(first: $first, after: $after, query: $query, orderBy: $orderBy) {
+      edges {
+        node {
+          id
+          name
+          description
+        }
+        cursor
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      totalCount
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "first": 10
+  }
+}

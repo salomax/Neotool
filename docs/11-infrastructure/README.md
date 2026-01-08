@@ -185,6 +185,52 @@ graph TB
 
 ---
 
+## Component Specifications
+
+### Component Versions
+
+All infrastructure components use pinned versions for reproducibility:
+
+| Component | Version | Notes |
+|-----------|---------|-------|
+| **PostgreSQL** | `postgres:18rc1` | Database server |
+| **PgBouncer** | `edoburu/pgbouncer:latest` | Connection pooler |
+| **Kafka** | `apache/kafka:3.7.0` | KRaft mode (no Zookeeper) |
+| **Vault** | `hashicorp/vault:1.21.1` | Secrets management |
+| **Apollo Router** | `ghcr.io/apollographql/router:v2.7.0` | GraphQL gateway |
+| **Prometheus** | `prom/prometheus:v2.55.1` | Metrics collection |
+| **Grafana** | `grafana/grafana:11.1.4` | Visualization |
+| **Loki** | `grafana/loki:2.9.0` | Log aggregation |
+| **Promtail** | `grafana/promtail:2.9.0` | Log collection |
+| **MinIO** | `minio/minio:latest` | S3-compatible storage (dev only) |
+
+**Production Storage**: Cloudflare R2 (S3-compatible) instead of MinIO.
+
+### Kubernetes Namespaces
+
+The infrastructure is organized into the following namespaces:
+
+| Namespace | Purpose | Components |
+|-----------|---------|------------|
+| `neotool-app` | Application services | Kotlin microservices (App, Security, Assets, Assistant) |
+| `neotool-web` | Frontend | Next.js frontend |
+| `neotool-data` | Databases | PostgreSQL, PgBouncer |
+| `neotool-messaging` | Message queue | Kafka |
+| `neotool-storage` | Object storage | MinIO (dev only) |
+| `neotool-security` | Security | Vault, JWT key management |
+| `neotool-workflows` | Workflows | CronJobs, scheduled tasks |
+| `neotool-observability` | Monitoring | Prometheus, Grafana, Loki, Promtail |
+
+### Production Specifications
+
+**K3S Cluster**:
+- **Node Spec**: 8 CPU / 32GB RAM per node
+- **Storage**: Cloudflare R2 (S3-compatible)
+- **Deployment**: K3S in VPC (not cloud-managed K8S)
+- **Security**: HashiCorp Vault for JWT key management
+
+---
+
 ## Tools & Access
 
 ### Required Tools

@@ -1,0 +1,40 @@
+meta {
+  name: Get Role
+  type: graphql
+  seq: 24
+}
+
+post {
+  url: http://{{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  query GetRole($id: ID!) {
+    role(id: $id) {
+      id
+      name
+      createdAt
+      updatedAt
+      groups {
+        id
+        name
+      }
+      permissions {
+        id
+        name
+      }
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "id": "{{roleId}}"
+  }
+}

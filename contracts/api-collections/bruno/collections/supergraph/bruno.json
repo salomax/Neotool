@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "Neotool Supergraph API",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

@@ -1,0 +1,27 @@
+meta {
+  name: Delete Role
+  type: graphql
+  seq: 26
+}
+
+post {
+  url: http://{{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  mutation DeleteRole($roleId: ID!) {
+    deleteRole(roleId: $roleId)
+  }
+}
+
+body:graphql:vars {
+  {
+    "roleId": "{{roleId}}"
+  }
+}

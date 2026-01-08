@@ -1,5 +1,5 @@
 # Production Environment Configuration
-# K3S cluster in VPC with 8 CPU / 32GB RAM nodes
+# K3S cluster on Hostinger VPS
 # Cloudflare R2 for production storage
 
 terraform {
@@ -13,7 +13,20 @@ terraform {
       source  = "hashicorp/kubernetes"
       version = "~> 2.0"
     }
+    hostinger = {
+      source  = "hostinger/hostinger"
+      version = "~> 0.1"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.0"
+    }
   }
+}
+
+# Hostinger provider configuration
+provider "hostinger" {
+  api_token = var.hostinger_api_token
 }
 
 # Variables
@@ -42,9 +55,9 @@ variable "node_memory_gb" {
 }
 
 variable "provider_type" {
-  description = "Cloud provider: aws, gcp, azure"
+  description = "Cloud provider: aws, gcp, azure, vps"
   type        = string
-  default     = "aws"
+  default     = "vps"
 }
 
 variable "region" {
@@ -86,6 +99,50 @@ variable "cloudflare_r2_secret_access_key" {
   default     = ""
 }
 
+# Hostinger VPS configuration
+variable "hostinger_api_token" {
+  description = "Hostinger API token"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "hostinger_vps_plan" {
+  description = "Hostinger VPS plan ID"
+  type        = string
+  default     = ""
+}
+
+variable "hostinger_data_center_id" {
+  description = "Hostinger data center ID"
+  type        = number
+  default     = null
+}
+
+variable "hostinger_template_id" {
+  description = "Hostinger template ID (OS image)"
+  type        = number
+  default     = null
+}
+
+variable "hostinger_ssh_key_ids" {
+  description = "List of Hostinger SSH key IDs"
+  type        = list(string)
+  default     = []
+}
+
+variable "server_count" {
+  description = "Number of server nodes in the cluster"
+  type        = number
+  default     = 1
+}
+
+variable "instance_type" {
+  description = "Instance type/plan identifier (maps to Hostinger VPS plan)"
+  type        = string
+  default     = ""
+}
+
 # Networking module
 module "networking" {
   source = "../../modules/networking"
@@ -111,7 +168,22 @@ module "k3s" {
 
   cluster_name = var.cluster_name
   node_count   = var.node_count
+  server_count = var.server_count
   k3s_version  = "latest"
+  provider_type = var.provider_type
+  region       = var.region
+  instance_type = var.instance_type
+
+  # Networking outputs (may be empty for VPS)
+  subnet_ids         = module.networking.private_subnet_ids
+  security_group_ids = module.networking.security_group_id != null ? [module.networking.security_group_id] : []
+
+  # Hostinger VPS-specific configuration
+  hostinger_vps_plan      = var.hostinger_vps_plan
+  hostinger_data_center_id = var.hostinger_data_center_id
+  hostinger_template_id    = var.hostinger_template_id
+  hostinger_ssh_key_ids    = var.hostinger_ssh_key_ids
+  hostinger_api_token      = var.hostinger_api_token
 
   server_flags = [
     "--disable=traefik", # Use custom ingress if needed

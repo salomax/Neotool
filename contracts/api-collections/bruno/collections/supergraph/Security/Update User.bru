@@ -1,0 +1,33 @@
+meta {
+  name: Update User
+  type: graphql
+  seq: 12
+}
+
+post {
+  url: http://{{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  mutation UpdateUser($userId: ID!, $input: UpdateUserInput!) {
+    updateUser(userId: $userId, input: $input) {
+      id
+      displayName
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "userId": "{{userId}}",
+    "input": {
+      "displayName": "Updated Name"
+    }
+  }
+}
