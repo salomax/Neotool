@@ -11,8 +11,11 @@ import { useRelayPagination } from "@/shared/hooks/pagination";
 import { BACEN_INSTITUTIONS, SEARCH_BACEN_INSTITUTIONS_AUTOCOMPLETE } from "@/lib/graphql/operations/financial_data/bacen-institutions";
 import { useState, useMemo, useCallback } from "react";
 import { startTransition } from "react";
+import { useTranslation } from "@/shared/i18n";
+import { financialDataTranslations } from "@/features/financial_data/i18n";
 
 export default function BacenInstitutionsPage() {
+  const { t } = useTranslation(financialDataTranslations);
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [after, setAfter] = useState<string | null>(null);
@@ -154,8 +157,8 @@ export default function BacenInstitutionsPage() {
               }}
               getOptionId={(opt) => opt.id}
               getOptionLabel={(opt) => opt.name}
-              placeholder="Search by name or CNPJ..."
-              label="Financial Institutions"
+              placeholder={t("search.placeholder")}
+              label={t("search.label")}
               loadMode="lazy"
             />
           </Box>
@@ -177,8 +180,8 @@ export default function BacenInstitutionsPage() {
           loading={loading && !shouldSkipQuery}
           error={error}
           onRetry={() => refetch()}
-          emptyMessage="No institutions found"
-          errorMessage="Unable to load institutions. Please try again."
+          emptyMessage={t("messages.noInstitutionsFound")}
+          errorMessage={t("messages.unableToLoadInstitutions")}
         />
       </Container>
     </>

@@ -79,3 +79,59 @@ export function formatCurrency(
     maximumFractionDigits: 2,
   }).format(v);
 }
+
+/**
+ * Format large currency values (billions/millions) in a compact format
+ * Example: 30000000000 -> "R$ 30 bi" (with billionsLabel="bi")
+ * 
+ * @param value - The numeric value to format
+ * @param currency - ISO currency code (default: "BRL")
+ * @param locale - Locale string (default: "pt-BR" for BRL, otherwise undefined)
+ * @param labels - Object with "billions" and "millions" labels for compact format
+ * @returns Formatted currency string
+ */
+export function formatLargeCurrency(
+  value: number | null | undefined,
+  currency = "BRL",
+  locale?: string,
+  labels?: { billions: string; millions: string },
+): string {
+  if (value == null || value === 0) {
+    return formatCurrency(0, currency, locale);
+  }
+
+  const defaultLocale = locale || (currency === "BRL" ? "pt-BR" : undefined);
+  const billionsLabel = labels?.billions || "bi";
+  const millionsLabel = labels?.millions || "mi";
+
+  const billions = value / 1_000_000_000;
+  
+  if (billions >= 1) {
+    // Extract currency symbol using formatToParts
+    const parts = new Intl.NumberFormat(defaultLocale, {
+      style: "currency",
+      currency,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).formatToParts(1);
+    const currencySymbol = parts.find((p) => p.type === "currency")?.value || "";
+    
+    return `${currencySymbol} ${billions.toFixed(0)} ${billionsLabel}`;
+  }
+
+  const millions = value / 1_000_000;
+  if (millions >= 1) {
+    // Extract currency symbol using formatToParts
+    const parts = new Intl.NumberFormat(defaultLocale, {
+      style: "currency",
+      currency,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).formatToParts(1);
+    const currencySymbol = parts.find((p) => p.type === "currency")?.value || "";
+    
+    return `${currencySymbol} ${millions.toFixed(1)} ${millionsLabel}`;
+  }
+
+  return formatCurrency(value, currency, locale);
+}

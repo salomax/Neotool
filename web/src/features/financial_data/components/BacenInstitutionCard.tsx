@@ -7,31 +7,10 @@ import Typography from "@mui/material/Typography";
 import Stack from "@mui/material/Stack";
 import Box from "@mui/material/Box";
 import Avatar from "@mui/material/Avatar";
-import { formatCurrency } from "@/shared/components/ui/forms/components/masks/br";
+import { formatLargeCurrency } from "@/shared/components/ui/forms/components/masks/br";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
-
-/**
- * Format large currency values (billions) in a compact format
- * Example: 30000000000 -> "R$ 30 bi"
- */
-function formatLargeCurrency(value: number | null | undefined): string {
-  if (value == null || value === 0) {
-    return "R$ 0";
-  }
-
-  const billions = value / 1_000_000_000;
-  
-  if (billions >= 1) {
-    return `R$ ${billions.toFixed(0)} bi`;
-  }
-
-  const millions = value / 1_000_000;
-  if (millions >= 1) {
-    return `R$ ${millions.toFixed(1)} mi`;
-  }
-
-  return formatCurrency(value, "BRL", "pt-BR");
-}
+import { useTranslation } from "@/shared/i18n";
+import { financialDataTranslations } from "../i18n";
 
 /**
  * Format percentage with sign
@@ -105,6 +84,7 @@ export function BacenInstitutionCard({
   institution,
   onClick,
 }: BacenInstitutionCardProps) {
+  const { t } = useTranslation(financialDataTranslations);
   const displayName = institution.tradeName || institution.name;
   
   // Format institutionType enum to readable label
@@ -115,11 +95,11 @@ export function BacenInstitutionCard({
     
     switch (institution.institutionType) {
       case "INDIVIDUAL_INSTITUTION":
-        return "Instituição Individual";
+        return t("institutionTypes.individualInstitution");
       case "PRUDENTIAL_GROUP":
-        return "Grupo Prudencial";
+        return t("institutionTypes.prudentialGroup");
       case "FINANCIAL_GROUP":
-        return "Grupo Financeiro";
+        return t("institutionTypes.financialGroup");
       default:
         return institution.bacenInstitutionType || "";
     }
@@ -182,7 +162,7 @@ export function BacenInstitutionCard({
             mb: 2,
           }}
         >
-          {/* Lucro Líquido */}
+          {/* Net Profit */}
           <Box>
             <Typography
               variant="caption"
@@ -196,7 +176,7 @@ export function BacenInstitutionCard({
                 mb: 0.5,
               }}
             >
-              Lucro Líquido
+              {t("financialMetrics.netProfit")}
             </Typography>
             <Typography
               variant="body2"
@@ -205,11 +185,19 @@ export function BacenInstitutionCard({
                 fontSize: "0.875rem",
               }}
             >
-              {formatLargeCurrency(institution.profit)}
+              {formatLargeCurrency(
+                institution.profit,
+                "BRL",
+                "pt-BR",
+                {
+                  billions: t("currency.billions"),
+                  millions: t("currency.millions"),
+                }
+              )}
             </Typography>
           </Box>
 
-          {/* Patrimônio */}
+          {/* Equity */}
           <Box>
             <Typography
               variant="caption"
@@ -223,7 +211,7 @@ export function BacenInstitutionCard({
                 mb: 0.5,
               }}
             >
-              Patrimônio
+              {t("financialMetrics.equity")}
             </Typography>
             <Typography
               variant="body2"
@@ -232,11 +220,19 @@ export function BacenInstitutionCard({
                 fontSize: "0.875rem",
               }}
             >
-              {formatLargeCurrency(institution.equity)}
+              {formatLargeCurrency(
+                institution.equity,
+                "BRL",
+                "pt-BR",
+                {
+                  billions: t("currency.billions"),
+                  millions: t("currency.millions"),
+                }
+              )}
             </Typography>
           </Box>
 
-          {/* Cresc. YoY */}
+          {/* YoY Growth */}
           <Box>
             <Typography
               variant="caption"
@@ -250,7 +246,7 @@ export function BacenInstitutionCard({
                 mb: 0.5,
               }}
             >
-              Cresc. YoY
+              {t("financialMetrics.yoyGrowth")}
             </Typography>
             <Stack direction="row" spacing={0.5} alignItems="center">
               <TrendingUpIcon
@@ -272,7 +268,7 @@ export function BacenInstitutionCard({
             </Stack>
           </Box>
 
-          {/* Ind. Basileia */}
+          {/* Basel Index */}
           <Box>
             <Typography
               variant="caption"
@@ -286,7 +282,7 @@ export function BacenInstitutionCard({
                 mb: 0.5,
               }}
             >
-              Ind. Basileia
+              {t("financialMetrics.baselIndex")}
             </Typography>
             <Stack direction="row" spacing={1} alignItems="center">
               <Box

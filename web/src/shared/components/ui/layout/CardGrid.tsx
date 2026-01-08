@@ -8,6 +8,7 @@ import { Box } from "@mui/material";
 import { EmptyState, ErrorState } from "@/shared/components/ui/feedback/states/EmptyErrorState";
 import { Skeleton } from "@/shared/components/ui/primitives/Skeleton";
 import type { ResponsiveValue } from "./types";
+import { useTranslation } from "react-i18next";
 
 export interface CardGridProps<T> {
   /**
@@ -114,14 +115,18 @@ export function CardGrid<T>({
   loadingComponent,
   emptyComponent,
   errorComponent,
-  emptyMessage = "No results found",
+  emptyMessage,
   errorMessage,
   onRetry,
   scrollThreshold = 0.8,
   skeletonCount = 6,
 }: CardGridProps<T>) {
+  const { t } = useTranslation("common");
   const sentinelRef = React.useRef<HTMLDivElement>(null);
   const [showLoadMore, setShowLoadMore] = React.useState(false);
+  
+  // Use provided emptyMessage or fallback to translation
+  const displayEmptyMessage = emptyMessage || t("cardGrid.noResultsFound");
 
   // Convert columns to responsive format if needed
   const responsiveColumns: ResponsiveValue<number> = React.useMemo(() => {
@@ -145,7 +150,7 @@ export function CardGrid<T>({
     const observer = new IntersectionObserver(
       (entries) => {
         const [entry] = entries;
-        if (entry.isIntersecting && hasNextPage && !loading) {
+        if (entry && entry.isIntersecting && hasNextPage && !loading) {
           onLoadMore();
         }
       },
@@ -201,9 +206,9 @@ export function CardGrid<T>({
     }
     return (
       <ErrorState
-        title="Unable to load results"
-        description={errorMessage || error.message || "The search could not be completed. Please try again."}
-        retryText="Retry"
+        title={t("cardGrid.unableToLoadResults")}
+        description={errorMessage || error.message || t("cardGrid.searchCouldNotBeCompleted")}
+        retryText={t("cardGrid.retry")}
         onRetry={onRetry}
       />
     );
@@ -216,7 +221,7 @@ export function CardGrid<T>({
     }
     return (
       <EmptyState
-        title={emptyMessage}
+        title={displayEmptyMessage}
       />
     );
   }
@@ -283,7 +288,7 @@ export function CardGrid<T>({
       {showLoadMore && hasNextPage && !loading && onLoadMore && (
         <Stack alignItems="center" sx={{ mt: 3 }}>
           <Button variant="outlined" onClick={onLoadMore}>
-            Load More
+            {t("cardGrid.loadMore")}
           </Button>
         </Stack>
       )}
