@@ -61,6 +61,18 @@ class FileKeyManager(
         return key
     }
 
+    /**
+     * Set the public key at runtime.
+     * This is used by services that fetch the key from an external source (like Vault) at startup
+     * and need to inject it into this manager for validation validation.
+     *
+     * @param publicKey The public key to set
+     */
+    fun setPublicKey(publicKey: PublicKey) {
+        this.cachedPublicKey = publicKey
+        logger.info { "Public key injected at runtime" }
+    }
+
     override fun getSecret(keyId: String): String? {
         // For file-based manager, keyId is ignored (single secret)
         if (cachedSecret != null) {

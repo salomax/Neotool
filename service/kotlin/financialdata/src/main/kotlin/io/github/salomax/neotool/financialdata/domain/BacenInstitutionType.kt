@@ -2,7 +2,7 @@ package io.github.salomax.neotool.financialdata.domain
 
 /**
  * Enum representing the type of BACEN institution.
- * 
+ *
  * Classification logic (priority order):
  * 1. FINANCIAL_GROUP: bacen_cod_inst = cod_conglomerado_financeiro
  * 2. PRUDENTIAL_GROUP: bacen_cod_inst = cod_conglomerado_prudencial (and not financial)
@@ -27,4 +27,3 @@ enum class BacenInstitutionType {
      */
     FINANCIAL_GROUP,
 }
-

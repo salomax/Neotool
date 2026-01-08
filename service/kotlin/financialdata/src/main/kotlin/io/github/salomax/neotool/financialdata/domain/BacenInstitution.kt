@@ -44,4 +44,3 @@ data class BacenInstitution(
         )
     }
 }
-

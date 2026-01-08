@@ -12,10 +12,8 @@ import { useTranslation } from 'react-i18next';
 import { LogoMark } from '@/shared/ui/brand/LogoMark';
 import { useAuthorization } from '@/shared/providers';
 
-import DesignServicesRoundedIcon from '@mui/icons-material/DesignServicesRounded';
-import CodeRoundedIcon from '@mui/icons-material/CodeRounded';
-import MenuBookRoundedIcon from '@mui/icons-material/MenuBookRounded';
 import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
+import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 
 type NavItem = { href: string; label: string; icon: React.ElementType };
 
@@ -41,9 +39,11 @@ export function SidebarRail() {
   ]);
 
   const NAV_TOP: NavItem[] = [
-    { href: '/design-system', label: 'Design System', icon: DesignServicesRoundedIcon },
-    { href: '/examples', label: t('routes.examples'), icon: CodeRoundedIcon },
-    { href: '/documentation', label: 'Documentation', icon: MenuBookRoundedIcon },
+    {
+      href: '/bacen-institutions',
+      label: t('routes.financialInstitutions'),
+      icon: AccountBalanceIcon,
+    },
   ];
 
   // Only show Settings if user has authorization permissions

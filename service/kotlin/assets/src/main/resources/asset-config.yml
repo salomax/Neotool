@@ -19,8 +19,8 @@ namespaces:
     # 15 minutes - Time-to-live for pre-signed upload URLs before they expire
     uploadTtlSeconds: 900  
 
-  group-assets:
-    description: "Institution/organization branding assets"
+  institution-logos:
+    description: "Institution/organization logos"
     visibility: PUBLIC
     keyTemplate: "{namespace}/{assetId}"
     maxSizeBytes: 2097152  # 2 MB

@@ -50,6 +50,14 @@ allprojects {
         testLogging {
             events("passed", "skipped", "failed")
         }
+
+        // Docker configuration for Colima (macOS)
+        // This enables Testcontainers to work with Colima instead of Docker Desktop
+        // Uses user's home directory to work for any developer
+        val dockerHost = System.getenv("DOCKER_HOST")
+            ?: "unix://${System.getProperty("user.home")}/.colima/default/docker.sock"
+        environment("DOCKER_HOST", dockerHost)
+        environment("TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE", "/var/run/docker.sock")
     }
 }
 

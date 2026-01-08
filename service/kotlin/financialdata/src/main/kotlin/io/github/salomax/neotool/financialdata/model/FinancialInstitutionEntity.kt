@@ -60,4 +60,3 @@ open class FinancialInstitutionEntity(
         )
     }
 }
-

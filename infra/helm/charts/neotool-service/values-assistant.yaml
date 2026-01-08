@@ -1,0 +1,8 @@
+# Values for assistant service
+serviceName: assistant
+namespace: neotool-app
+
+image:
+  repository: ghcr.io/salomax/neotool-assistant
+  tag: latest
+

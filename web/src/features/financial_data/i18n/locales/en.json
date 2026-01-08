@@ -1,0 +1,25 @@
+{
+  "search": {
+    "placeholder": "Search by name or CNPJ...",
+    "label": "Financial Institutions"
+  },
+  "messages": {
+    "noInstitutionsFound": "No institutions found",
+    "unableToLoadInstitutions": "Unable to load institutions. Please try again."
+  },
+  "institutionTypes": {
+    "individualInstitution": "Individual Institution",
+    "prudentialGroup": "Prudential Group",
+    "financialGroup": "Financial Group"
+  },
+  "financialMetrics": {
+    "netProfit": "Net Profit",
+    "equity": "Equity",
+    "yoyGrowth": "YoY Growth",
+    "baselIndex": "Basel Index"
+  },
+  "currency": {
+    "billions": "bi",
+    "millions": "mi"
+  }
+}

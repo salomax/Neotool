@@ -27,4 +27,3 @@ open class BacenBankReportAccountEntity(
     @Column(name = "updated_at", nullable = false)
     open var updatedAt: Instant = Instant.now(),
 ) : BaseEntity<UUID>(id)
-

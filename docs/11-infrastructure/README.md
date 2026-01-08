@@ -39,9 +39,11 @@ This section provides **operational documentation** for deploying, managing, and
 ### For DevOps/SRE
 
 **First Day**:
-1. [Deployment Guide](./deployment-guide.md) - Deploy to production
-2. [Operations Runbook](./operations-runbook.md) - Day-to-day operations
-3. [Monitoring Setup](./monitoring-setup.md) - Configure observability
+1. [K3S Setup Guide](./k3s-setup.md) - Set up K3S cluster
+2. [K8S Deployment Runbook](./k8s-deployment-runbook.md) - Deploy to Kubernetes
+3. [Hostinger VPC Runbook](./hostinger-vpc-runbook.md) - Deploy to Hostinger VPC
+4. [Operations Runbook](./operations-runbook.md) - Day-to-day operations
+5. [Monitoring Setup](./monitoring-setup.md) - Configure observability
 
 **Ongoing**:
 - [Troubleshooting Guide](./troubleshooting-guide.md) - Diagnose issues
@@ -52,8 +54,12 @@ This section provides **operational documentation** for deploying, managing, and
 
 **Deployment**:
 - [Local Development Setup](../01-overview/getting-started.md)
-- [Deploy to Staging](./deployment-guide.md#staging)
-- [Deploy to Production](./deployment-guide.md#production)
+- [K3S Setup](./k3s-setup.md) - Set up local K3S cluster
+- [K8S Deployment](./k8s-deployment-runbook.md) - Deploy to Kubernetes
+- [Hostinger Setup](./hostinger-setup-guide.md) - Configure Hostinger VPC
+- [Hostinger Deployment](./hostinger-vpc-runbook.md) - Deploy to Hostinger VPC
+- [Deploy to Staging](./deployment-guide.md#staging) - Docker Compose staging
+- [Deploy to Production](./k8s-deployment-runbook.md#production-vpc-deployment) - K3S production
 
 **Debugging**:
 - [Access Logs](./operations-runbook.md#viewing-logs)
@@ -67,7 +73,12 @@ This section provides **operational documentation** for deploying, managing, and
 ```
 11-infrastructure/
 ├── README.md                    # This file (navigation)
-├── deployment-guide.md          # Deployment procedures
+├── deployment-guide.md          # Deployment procedures (Docker Compose)
+├── k8s-deployment-runbook.md    # Kubernetes/K3S deployment procedures
+├── k3s-setup.md                 # K3S installation and configuration
+├── terraform-guide.md            # Terraform infrastructure management
+├── hostinger-setup-guide.md     # Hostinger VPC setup and configuration
+├── hostinger-vpc-runbook.md     # Hostinger VPC deployment runbook
 ├── operations-runbook.md        # Day-to-day operations
 ├── troubleshooting-guide.md     # Issue resolution
 ├── monitoring-setup.md          # Observability configuration
@@ -120,6 +131,7 @@ This section provides **operational documentation** for deploying, managing, and
 | **Development** | Local dev | Docker Compose | No | localhost:* |
 | **Staging** | Pre-production testing | Kubernetes (small) | Yes (on PR merge) | staging.neotool.io |
 | **Production** | Live system | Kubernetes (full) | Manual approval | neotool.io |
+| **Hostinger VPC** | Production on Hostinger | K3S on Hostinger VPS | Manual approval | neotool.io |
 
 **See**: [Deployment Guide](./deployment-guide.md) for environment-specific procedures.
 
@@ -170,6 +182,52 @@ graph TB
 ```
 
 **See**: [Infrastructure Architecture](../02-architecture/infrastructure-architecture.md) for detailed design.
+
+---
+
+## Component Specifications
+
+### Component Versions
+
+All infrastructure components use pinned versions for reproducibility:
+
+| Component | Version | Notes |
+|-----------|---------|-------|
+| **PostgreSQL** | `postgres:18rc1` | Database server |
+| **PgBouncer** | `edoburu/pgbouncer:latest` | Connection pooler |
+| **Kafka** | `apache/kafka:3.7.0` | KRaft mode (no Zookeeper) |
+| **Vault** | `hashicorp/vault:1.21.1` | Secrets management |
+| **Apollo Router** | `ghcr.io/apollographql/router:v2.7.0` | GraphQL gateway |
+| **Prometheus** | `prom/prometheus:v2.55.1` | Metrics collection |
+| **Grafana** | `grafana/grafana:11.1.4` | Visualization |
+| **Loki** | `grafana/loki:2.9.0` | Log aggregation |
+| **Promtail** | `grafana/promtail:2.9.0` | Log collection |
+| **MinIO** | `minio/minio:latest` | S3-compatible storage (dev only) |
+
+**Production Storage**: Cloudflare R2 (S3-compatible) instead of MinIO.
+
+### Kubernetes Namespaces
+
+The infrastructure is organized into the following namespaces:
+
+| Namespace | Purpose | Components |
+|-----------|---------|------------|
+| `neotool-app` | Application services | Kotlin microservices (App, Security, Assets, Assistant) |
+| `neotool-web` | Frontend | Next.js frontend |
+| `neotool-data` | Databases | PostgreSQL, PgBouncer |
+| `neotool-messaging` | Message queue | Kafka |
+| `neotool-storage` | Object storage | MinIO (dev only) |
+| `neotool-security` | Security | Vault, JWT key management |
+| `neotool-workflows` | Workflows | CronJobs, scheduled tasks |
+| `neotool-observability` | Monitoring | Prometheus, Grafana, Loki, Promtail |
+
+### Production Specifications
+
+**K3S Cluster**:
+- **Node Spec**: 8 CPU / 32GB RAM per node
+- **Storage**: Cloudflare R2 (S3-compatible)
+- **Deployment**: K3S in VPC (not cloud-managed K8S)
+- **Security**: HashiCorp Vault for JWT key management
 
 ---
 

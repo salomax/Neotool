@@ -19,4 +19,3 @@ interface BacenBankReportRepository : JpaRepository<BacenBankReportEntity, UUID>
 
     fun findByAnoMes(anoMes: String): List<BacenBankReportEntity>
 }
-

@@ -21,6 +21,7 @@ out/
 # Kotlin compiler session files
 .kotlin/
 *.salive
+.run/
 
 __pycache__/
 

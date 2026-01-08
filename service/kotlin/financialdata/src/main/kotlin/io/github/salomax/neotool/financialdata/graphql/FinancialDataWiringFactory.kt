@@ -6,8 +6,12 @@ import graphql.schema.idl.TypeRuntimeWiring
 import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.createValidatedDataFetcher
 import io.github.salomax.neotool.common.graphql.GraphQLResolverRegistry
 import io.github.salomax.neotool.common.graphql.GraphQLWiringFactory
-import io.github.salomax.neotool.financialdata.domain.BacenInstitutionType
-import io.github.salomax.neotool.financialdata.graphql.dto.*
+import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionAutocompleteConnectionDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionAutocompleteItemDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionConnectionDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionEdgeDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionSummaryItemDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.PageInfoDTO
 import io.github.salomax.neotool.financialdata.graphql.resolver.InstitutionSearchResolver
 import jakarta.inject.Singleton
 
@@ -29,7 +33,9 @@ class FinancialDataWiringFactory(
             .dataFetcher(
                 "searchBacenInstitutionsAutocomplete",
                 createValidatedDataFetcher { env ->
-                    val query = env.getArgument<String>("query") ?: throw IllegalArgumentException("Query parameter is required")
+                    val query =
+                        env.getArgument<String>("query")
+                            ?: throw IllegalArgumentException("Query parameter is required")
                     institutionSearchResolver.searchBacenInstitutionsAutocomplete(query)
                 },
             )
@@ -272,4 +278,3 @@ class FinancialDataWiringFactory(
             }
     }
 }
-

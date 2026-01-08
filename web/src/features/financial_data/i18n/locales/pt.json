@@ -1,0 +1,25 @@
+{
+  "search": {
+    "placeholder": "Buscar por nome ou CNPJ...",
+    "label": "Instituições Financeiras"
+  },
+  "messages": {
+    "noInstitutionsFound": "Nenhuma instituição encontrada",
+    "unableToLoadInstitutions": "Não foi possível carregar as instituições. Por favor, tente novamente."
+  },
+  "institutionTypes": {
+    "individualInstitution": "Instituição Individual",
+    "prudentialGroup": "Grupo Prudencial",
+    "financialGroup": "Grupo Financeiro"
+  },
+  "financialMetrics": {
+    "netProfit": "Lucro Líquido",
+    "equity": "Patrimônio",
+    "yoyGrowth": "Cresc. YoY",
+    "baselIndex": "Ind. Basileia"
+  },
+  "currency": {
+    "billions": "bi",
+    "millions": "mi"
+  }
+}

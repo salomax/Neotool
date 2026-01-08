@@ -52,6 +52,10 @@ CREATE INDEX IF NOT EXISTS idx_bacen_bank_report_cod_inst
 CREATE INDEX IF NOT EXISTS idx_bacen_bank_report_ano_mes 
     ON financial_data.bacen_bank_report(ano_mes);
 
+-- Index on cod_inst and ano_mes for querying by institution and quarter
+CREATE INDEX IF NOT EXISTS idx_bacen_bank_report_cod_inst_ano_mes 
+    ON financial_data.bacen_bank_report(cod_inst, ano_mes);
+
 -- Composite index on scope dimensions for promotion queries and scope-based operations
 -- Used to efficiently query all reports for a specific scope:
 -- (ano_mes, nome_relatorio, numero_relatorio, tipo_instituicao)
@@ -94,6 +98,10 @@ CREATE INDEX IF NOT EXISTS idx_bacen_bank_report_account_id
 -- Index on unique key fields for efficient lookups
 CREATE INDEX IF NOT EXISTS idx_bacen_bank_report_account_key 
     ON financial_data.bacen_bank_report_account(grupo, conta, nome_coluna, descricao_coluna);
+
+-- Index on conta fields for efficient lookups
+CREATE INDEX IF NOT EXISTS idx_bacen_bank_report_account_conta
+    ON financial_data.bacen_bank_report_account(conta);
 
 -- Create bacen_bank_report_data table for normalized report data rows
 -- This table stores individual data rows from JSON reports in a normalized structure

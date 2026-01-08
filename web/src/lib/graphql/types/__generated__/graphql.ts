@@ -12,9 +12,93 @@ export type Scalars = {
   Boolean: { input: boolean; output: boolean; }
   Int: { input: number; output: number; }
   Float: { input: number; output: number; }
+  DateTime: { input: unknown; output: unknown; }
+  Long: { input: unknown; output: unknown; }
+  UUID: { input: unknown; output: unknown; }
   join__FieldSet: { input: unknown; output: unknown; }
   link__Import: { input: unknown; output: unknown; }
 };
+
+/** Asset metadata and access information. */
+export type Asset = {
+  __typename: 'Asset';
+  /** SHA-256 checksum for integrity verification */
+  checksum: Maybe<Scalars['String']['output']>;
+  /** Timestamp when asset record was created */
+  createdAt: Scalars['DateTime']['output'];
+  /** Timestamp when asset was deleted (null if active) */
+  deletedAt: Maybe<Scalars['DateTime']['output']>;
+  /**
+   * Presigned download URL for PRIVATE assets.
+   * Returns null for PUBLIC assets (use publicUrl instead).
+   * @param ttlSeconds Time-to-live for the presigned URL (default: 3600 seconds / 1 hour)
+   */
+  downloadUrl: Maybe<Scalars['String']['output']>;
+  /** Unique identifier (UUID v7) */
+  id: Scalars['ID']['output'];
+  /** Client-provided key to prevent duplicate uploads (optional) */
+  idempotencyKey: Maybe<Scalars['String']['output']>;
+  /** MIME type (e.g., image/jpeg, application/pdf) */
+  mimeType: Scalars['String']['output'];
+  /** Logical grouping (e.g., user-profiles, group-assets) */
+  namespace: Scalars['String']['output'];
+  /** Original filename from client upload */
+  originalFilename: Maybe<Scalars['String']['output']>;
+  /** User or system that owns this asset */
+  ownerId: Scalars['String']['output'];
+  /**
+   * Public CDN URL for accessing the asset.
+   * Only available for READY PUBLIC assets. Returns null for PRIVATE assets (use downloadUrl instead).
+   */
+  publicUrl: Maybe<Scalars['String']['output']>;
+  /** File size in bytes (null until upload confirmed) */
+  sizeBytes: Maybe<Scalars['Long']['output']>;
+  /** Upload status */
+  status: AssetStatus;
+  /** Storage bucket name */
+  storageBucket: Scalars['String']['output'];
+  /** Unique key in S3/R2 storage */
+  storageKey: Scalars['String']['output'];
+  /** Storage region */
+  storageRegion: Scalars['String']['output'];
+  /** Timestamp when asset record was last updated */
+  updatedAt: Scalars['DateTime']['output'];
+  /** When the upload URL expires */
+  uploadExpiresAt: Maybe<Scalars['DateTime']['output']>;
+  /**
+   * Pre-signed upload URL (temporary, only available for PENDING assets).
+   * Client uploads file directly to this URL.
+   */
+  uploadUrl: Maybe<Scalars['String']['output']>;
+  /** Visibility level - determines access control and URL generation */
+  visibility: AssetVisibility;
+};
+
+
+/** Asset metadata and access information. */
+export type AssetDownloadUrlArgs = {
+  ttlSeconds?: InputMaybe<Scalars['Int']['input']>;
+};
+
+/** Asset upload lifecycle status. */
+export enum AssetStatus {
+  /** Asset deleted */
+  Deleted = 'DELETED',
+  /** Upload failed or expired */
+  Failed = 'FAILED',
+  /** Upload URL generated, waiting for client upload */
+  Pending = 'PENDING',
+  /** File uploaded and confirmed, ready for use */
+  Ready = 'READY'
+}
+
+/** Asset visibility level - determines access control and URL generation. */
+export enum AssetVisibility {
+  /** Private asset - requires ownership check, uses presigned download URLs */
+  Private = 'PRIVATE',
+  /** Public asset - accessible without owner check, uses stable CDN URLs */
+  Public = 'PUBLIC'
+}
 
 export type AuthorizationResult = {
   __typename: 'AuthorizationResult';
@@ -22,8 +106,86 @@ export type AuthorizationResult = {
   reason: Scalars['String']['output'];
 };
 
-export type BaseEntityInput = {
-  name: Scalars['String']['input'];
+export type BacenInstitutionAutocompleteConnection = {
+  __typename: 'BacenInstitutionAutocompleteConnection';
+  suggestions: Array<BacenInstitutionAutocompleteItem>;
+};
+
+export type BacenInstitutionAutocompleteItem = {
+  __typename: 'BacenInstitutionAutocompleteItem';
+  cnpj: Maybe<Scalars['String']['output']>;
+  id: Scalars['ID']['output'];
+  legalName: Maybe<Scalars['String']['output']>;
+  logoUrl: Maybe<Scalars['String']['output']>;
+  name: Scalars['String']['output'];
+  tradeName: Maybe<Scalars['String']['output']>;
+};
+
+export type BacenInstitutionConnection = {
+  __typename: 'BacenInstitutionConnection';
+  edges: Array<BacenInstitutionEdge>;
+  pageInfo: PageInfo;
+  totalCount: Maybe<Scalars['Int']['output']>;
+};
+
+export type BacenInstitutionEdge = {
+  __typename: 'BacenInstitutionEdge';
+  cursor: Scalars['String']['output'];
+  node: BacenInstitutionSummaryItem;
+};
+
+export type BacenInstitutionSummaryItem = {
+  __typename: 'BacenInstitutionSummaryItem';
+  bacenInstitutionType: Maybe<Scalars['String']['output']>;
+  basileiaIndex: Maybe<Scalars['Float']['output']>;
+  equity: Maybe<Scalars['Float']['output']>;
+  id: Scalars['ID']['output'];
+  institutionType: Maybe<BacenInstitutionType>;
+  legalName: Maybe<Scalars['String']['output']>;
+  logoUrl: Maybe<Scalars['String']['output']>;
+  name: Scalars['String']['output'];
+  profit: Maybe<Scalars['Float']['output']>;
+  tipoConsolidadoBancario: Maybe<Scalars['String']['output']>;
+  tradeName: Maybe<Scalars['String']['output']>;
+  yoyEquityGrowth: Maybe<Scalars['Float']['output']>;
+};
+
+export enum BacenInstitutionType {
+  FinancialGroup = 'FINANCIAL_GROUP',
+  IndividualInstitution = 'INDIVIDUAL_INSTITUTION',
+  PrudentialGroup = 'PRUDENTIAL_GROUP'
+}
+
+/** Input for confirming an asset upload. */
+export type ConfirmAssetUploadInput = {
+  /** ID of the asset to confirm */
+  assetId: Scalars['ID']['input'];
+  /**
+   * Optional SHA-256 checksum to verify file integrity.
+   * If provided, server will validate against actual file checksum.
+   */
+  checksum?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** Input for creating a new asset upload. */
+export type CreateAssetUploadInput = {
+  /** Original filename */
+  filename: Scalars['String']['input'];
+  /**
+   * Optional idempotency key to prevent duplicate uploads.
+   * If provided, subsequent calls with the same key within 24 hours
+   * will return the existing asset instead of creating a new one.
+   */
+  idempotencyKey?: InputMaybe<Scalars['String']['input']>;
+  /** MIME type of the file */
+  mimeType: Scalars['String']['input'];
+  /**
+   * Logical namespace for the asset (e.g., "user-profiles", "group-assets").
+   * Determines validation rules (allowed MIME types, max file size), visibility, and storage key template.
+   */
+  namespace: Scalars['String']['input'];
+  /** File size in bytes */
+  sizeBytes: Scalars['Long']['input'];
 };
 
 export type CreateGroupInput = {
@@ -35,29 +197,6 @@ export type CreateGroupInput = {
 export type CreateRoleInput = {
   name: Scalars['String']['input'];
 };
-
-export type Customer = {
-  __typename: 'Customer';
-  createdAt: Maybe<Scalars['String']['output']>;
-  email: Scalars['String']['output'];
-  id: Scalars['ID']['output'];
-  name: Scalars['String']['output'];
-  status: Scalars['String']['output'];
-  updatedAt: Maybe<Scalars['String']['output']>;
-  version: Scalars['Int']['output'];
-};
-
-export type CustomerInput = {
-  email: Scalars['String']['input'];
-  name: Scalars['String']['input'];
-  status: Scalars['String']['input'];
-};
-
-export enum CustomerStatus {
-  Active = 'ACTIVE',
-  Inactive = 'INACTIVE',
-  Pending = 'PENDING'
-}
 
 export type Group = {
   __typename: 'Group';
@@ -97,13 +236,78 @@ export type Mutation = {
   assignGroupToUser: User;
   assignPermissionToRole: Role;
   assignRoleToGroup: Group;
-  createCustomer: Customer;
+  /**
+   * Step 2: Confirm asset upload after client completes file upload.
+   *
+   * This mutation:
+   * 1. Verifies file exists in S3/R2 storage
+   * 2. Optionally validates checksum if provided
+   * 3. Updates asset status to READY
+   * 4. Generates public CDN URL
+   * 5. Returns updated asset with publicUrl
+   *
+   * Example usage:
+   * ```graphql
+   * mutation {
+   * confirmAssetUpload(input: {
+   * assetId: "01234567-89ab-cdef-0123-456789abcdef"
+   * checksum: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+   * }) {
+   * id
+   * status
+   * publicUrl
+   * }
+   * }
+   * ```
+   */
+  confirmAssetUpload: Asset;
+  /**
+   * Step 1: Create asset upload and get pre-signed URL.
+   *
+   * This mutation:
+   * 1. Validates MIME type and file size against namespace configuration
+   * 2. Creates PENDING asset record in database
+   * 3. Generates pre-signed S3/R2 upload URL (valid for 15 minutes)
+   * 4. Returns asset with uploadUrl
+   *
+   * Client should then:
+   * - Upload file directly to S3/R2 using the uploadUrl (PUT request)
+   * - Call confirmAssetUpload mutation after upload completes
+   *
+   * Example usage:
+   * ```graphql
+   * mutation {
+   * createAssetUpload(input: {
+   * namespace: "user-profiles"
+   * filename: "avatar.jpg"
+   * mimeType: "image/jpeg"
+   * sizeBytes: 1048576
+   * idempotencyKey: "unique-key-123"
+   * }) {
+   * id
+   * uploadUrl
+   * uploadExpiresAt
+   * status
+   * visibility
+   * storageKey
+   * }
+   * }
+   * ```
+   */
+  createAssetUpload: Asset;
   createGroup: Group;
-  createProduct: Product;
   createRole: Role;
-  deleteCustomer: Scalars['Boolean']['output'];
+  /**
+   * Delete an asset.
+   *
+   * This mutation:
+   * 1. Deletes the file from S3/R2 storage
+   * 2. Hard-deletes the asset record from the database
+   *
+   * Only the asset owner can delete the asset.
+   */
+  deleteAsset: Scalars['Boolean']['output'];
   deleteGroup: Scalars['Boolean']['output'];
-  deleteProduct: Scalars['Boolean']['output'];
   deleteRole: Scalars['Boolean']['output'];
   disableUser: User;
   enableUser: User;
@@ -116,9 +320,7 @@ export type Mutation = {
   signIn: SignInPayload;
   signInWithOAuth: SignInPayload;
   signUp: SignUpPayload;
-  updateCustomer: Customer;
   updateGroup: Group;
-  updateProduct: Product;
   updateRole: Role;
   updateUser: User;
 };
@@ -142,8 +344,13 @@ export type MutationAssignRoleToGroupArgs = {
 };
 
 
-export type MutationCreateCustomerArgs = {
-  input: CustomerInput;
+export type MutationConfirmAssetUploadArgs = {
+  input: ConfirmAssetUploadInput;
+};
+
+
+export type MutationCreateAssetUploadArgs = {
+  input: CreateAssetUploadInput;
 };
 
 
@@ -152,28 +359,18 @@ export type MutationCreateGroupArgs = {
 };
 
 
-export type MutationCreateProductArgs = {
-  input: ProductInput;
-};
-
-
 export type MutationCreateRoleArgs = {
   input: CreateRoleInput;
 };
 
 
-export type MutationDeleteCustomerArgs = {
-  id: Scalars['ID']['input'];
+export type MutationDeleteAssetArgs = {
+  assetId: Scalars['ID']['input'];
 };
 
 
 export type MutationDeleteGroupArgs = {
   groupId: Scalars['ID']['input'];
-};
-
-
-export type MutationDeleteProductArgs = {
-  id: Scalars['ID']['input'];
 };
 
 
@@ -240,21 +437,9 @@ export type MutationSignUpArgs = {
 };
 
 
-export type MutationUpdateCustomerArgs = {
-  id: Scalars['ID']['input'];
-  input: CustomerInput;
-};
-
-
 export type MutationUpdateGroupArgs = {
   groupId: Scalars['ID']['input'];
   input: UpdateGroupInput;
-};
-
-
-export type MutationUpdateProductArgs = {
-  id: Scalars['ID']['input'];
-  input: ProductInput;
 };
 
 
@@ -301,40 +486,36 @@ export type PermissionEdge = {
   node: Permission;
 };
 
-export type Product = {
-  __typename: 'Product';
-  createdAt: Maybe<Scalars['String']['output']>;
-  id: Scalars['ID']['output'];
-  name: Scalars['String']['output'];
-  priceCents: Scalars['Int']['output'];
-  sku: Scalars['String']['output'];
-  stock: Scalars['Int']['output'];
-  updatedAt: Maybe<Scalars['String']['output']>;
-  version: Scalars['Int']['output'];
-};
-
-export type ProductInput = {
-  name: Scalars['String']['input'];
-  priceCents: Scalars['Int']['input'];
-  sku: Scalars['String']['input'];
-  stock: Scalars['Int']['input'];
-};
-
 export type Query = {
   __typename: 'Query';
+  /**
+   * Get asset by ID.
+   * Returns null if asset not found or user doesn't have access.
+   */
+  asset: Maybe<Asset>;
+  bacenInstitutions: BacenInstitutionConnection;
   checkPermission: AuthorizationResult;
   currentUser: Maybe<User>;
-  customer: Maybe<Customer>;
-  customers: Array<Customer>;
   group: Maybe<Group>;
   groups: GroupConnection;
   permissions: PermissionConnection;
-  product: Maybe<Product>;
-  products: Array<Product>;
   role: Maybe<Role>;
   roles: RoleConnection;
+  searchBacenInstitutionsAutocomplete: BacenInstitutionAutocompleteConnection;
   user: Maybe<User>;
   users: UserConnection;
+};
+
+
+export type QueryAssetArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type QueryBacenInstitutionsArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  query?: InputMaybe<Scalars['String']['input']>;
 };
 
 
@@ -342,11 +523,6 @@ export type QueryCheckPermissionArgs = {
   permission: Scalars['String']['input'];
   resourceId?: InputMaybe<Scalars['ID']['input']>;
   userId: Scalars['ID']['input'];
-};
-
-
-export type QueryCustomerArgs = {
-  id: Scalars['ID']['input'];
 };
 
 
@@ -370,11 +546,6 @@ export type QueryPermissionsArgs = {
 };
 
 
-export type QueryProductArgs = {
-  id: Scalars['ID']['input'];
-};
-
-
 export type QueryRoleArgs = {
   id: Scalars['ID']['input'];
 };
@@ -385,6 +556,11 @@ export type QueryRolesArgs = {
   first?: InputMaybe<Scalars['Int']['input']>;
   orderBy?: InputMaybe<Array<RoleOrderByInput>>;
   query?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type QuerySearchBacenInstitutionsAutocompleteArgs = {
+  query: Scalars['String']['input'];
 };
 
 
@@ -538,12 +714,12 @@ export type UserOrderByInput = {
 
 export enum UserOrderField {
   DisplayName = 'DISPLAY_NAME',
-  Email = 'EMAIL',
-  Enabled = 'ENABLED'
+  Email = 'EMAIL'
 }
 
 export enum Join__Graph {
-  App = 'APP',
+  Assets = 'ASSETS',
+  Financialdata = 'FINANCIALDATA',
   Security = 'SECURITY'
 }
 

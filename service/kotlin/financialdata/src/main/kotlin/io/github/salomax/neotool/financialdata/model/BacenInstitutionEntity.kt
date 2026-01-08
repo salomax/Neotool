@@ -50,7 +50,7 @@ open class BacenInstitutionEntity(
         name = "financial_institution_bacen_institution",
         schema = "financial_data",
         joinColumns = [JoinColumn(name = "bacen_cod_inst", referencedColumnName = "bacen_cod_inst")],
-        inverseJoinColumns = [JoinColumn(name = "financial_institution_id", columnDefinition = "uuid")]
+        inverseJoinColumns = [JoinColumn(name = "financial_institution_id", columnDefinition = "uuid")],
     )
     open var financialInstitution: FinancialInstitutionEntity? = null,
     @Column(name = "created_at", nullable = false)
@@ -80,4 +80,3 @@ open class BacenInstitutionEntity(
         )
     }
 }
-

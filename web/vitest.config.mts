@@ -188,7 +188,6 @@ export default defineConfig({
         'src/**/stories/**',
         'src/**/*.stories.{ts,tsx}',
         // Exclude examples and documentation
-        'src/app/(neotool)/**',
         // Exclude GraphQL schema and instrumentation components
         'src/lib/graphql/**',
         // Exclude barrel/index files (pure exports)

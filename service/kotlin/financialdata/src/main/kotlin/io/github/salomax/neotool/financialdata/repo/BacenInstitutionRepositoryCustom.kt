@@ -53,4 +53,3 @@ interface BacenInstitutionRepositoryCustom {
      */
     fun countBacenInstitutions(query: String?): Long
 }
-

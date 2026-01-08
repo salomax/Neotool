@@ -32,3 +32,4 @@ export {
   TABLE_PAGINATION_MARGIN,
 } from './DynamicTableBox';
 export { SidebarLayout } from './SidebarLayout';
+export { CardGrid, type CardGridProps } from './CardGrid';

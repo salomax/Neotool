@@ -1,3 +1,16 @@
+# ============================================================================
+# Base Schema - Common Scalars
+# Auto-included from: service/kotlin/common/src/main/resources/graphql/base-schema.graphqls
+# ============================================================================
+
+scalar Long
+scalar DateTime
+scalar UUID
+
+# ============================================================================
+# Service Schema - financialdata
+# ============================================================================
+
 directive @key(fields: String!) repeatable on OBJECT | INTERFACE
 
 # Query type for financial data operations
@@ -23,6 +36,8 @@ type BacenInstitutionAutocompleteItem {
   id: ID!
   name: String!
   cnpj: String
+  legalName: String
+  tradeName: String
   logoUrl: String
 }
 
@@ -40,6 +55,8 @@ type BacenInstitutionEdge {
 type BacenInstitutionSummaryItem {
   id: ID!
   name: String!
+  legalName: String
+  tradeName: String
   logoUrl: String
   profit: Float
   equity: Float
