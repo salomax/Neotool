@@ -33,7 +33,8 @@
       "Bash(export DOCKER_HOST=\"unix:///Users/salomax/.colima/default/docker.sock\")",
       "Bash(export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=\"/var/run/docker.sock\")",
       "Bash(source ~/.zshrc)",
-      "Bash(DOCKER_HOST=\"unix:///Users/salomax/.colima/default/docker.sock\" TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=\"/var/run/docker.sock\" ./gradlew:*)"
+      "Bash(DOCKER_HOST=\"unix:///Users/salomax/.colima/default/docker.sock\" TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=\"/var/run/docker.sock\" ./gradlew:*)",
+      "Bash(wc:*)"
     ]
   }
 }
