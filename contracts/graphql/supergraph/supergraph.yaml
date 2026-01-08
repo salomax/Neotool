@@ -1,13 +1,17 @@
 federation_version: 2
 subgraphs:
   app:
-    routing_url: http://neotool-api:8080/graphql
+    routing_url: http://neotool-app:8080/graphql
     schema:
       file: ../subgraphs/app/schema.graphqls
   security:
-    routing_url: http://neotool-api:8080/graphql
+    routing_url: http://neotool-security:8080/graphql
     schema:
       file: ../subgraphs/security/schema.graphqls
+  assets:
+    routing_url: http://neotool-assets:8080/graphql
+    schema:
+      file: ../subgraphs/assets/schema.graphqls      
 # new modules...
 #  module:
 #    routing_url: http://module:8080/graphql

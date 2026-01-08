@@ -1,0 +1,35 @@
+meta {
+  name: Update Group
+  type: graphql
+  seq: 18
+}
+
+post {
+  url: http://{{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  mutation UpdateGroup($groupId: ID!, $input: UpdateGroupInput!) {
+    updateGroup(groupId: $groupId, input: $input) {
+      id
+      name
+      description
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "groupId": "{{groupId}}",
+    "input": {
+      "name": "Updated Group Name",
+      "description": "Updated description"
+    }
+  }
+}

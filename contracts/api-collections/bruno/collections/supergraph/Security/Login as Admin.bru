@@ -1,0 +1,62 @@
+meta {
+  name: Login as Admin
+  type: graphql
+  seq: 1
+}
+
+post {
+  url: http://{{router}}/graphql
+  body: graphql
+  auth: inherit
+}
+
+headers {
+  content-type: application/json
+}
+
+body:graphql {
+  mutation SignIn($input: SignInInput!) {
+    signIn(input: $input) {
+      token
+      user {
+        id
+        email
+        permissions {
+          name
+        }
+      }
+    }
+  }
+  
+}
+
+body:graphql:vars {
+  {
+    "input": {
+      "email": "{{username}}",
+      "password": "{{password}}"
+    }
+  }
+}
+
+tests {
+  test("status 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Valid login", function() {
+    const data = res.getBody();
+    const username = bru.getCollectionVar("username");
+    
+    expect(data.data.signIn.user.email).to.equal(username);
+    
+    bru.setVar("jwt_token", data.data.signIn.token);
+  });
+  
+  
+}
+
+settings {
+  encodeUrl: false
+  timeout: 0
+}

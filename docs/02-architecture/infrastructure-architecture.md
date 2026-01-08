@@ -878,6 +878,38 @@ K3S is a certified Kubernetes distribution that:
 - S3-compatible API
 - Persistent volumes for stateful services
 
+### Component Relationships
+
+```
+┌─────────────┐
+│   Next.js   │
+│  Frontend   │
+└──────┬──────┘
+       │
+       ▼
+┌─────────────┐
+│   Apollo    │
+│   Router    │
+└──────┬──────┘
+       │
+   ┌───┴───┬──────────┬──────────┐
+   │       │          │          │
+   ▼       ▼          ▼          ▼
+┌─────┐ ┌──────┐  ┌────────┐ ┌───────┐
+│ App │ │Security│ │Assistant│ │Assets │
+└──┬──┘ └───┬──┘  └────┬───┘ └───┬────┘
+   │        │          │         │
+   └────────┴──────────┴─────────┘
+            │
+    ┌───────┴────────┐
+    │                │
+    ▼                ▼
+┌─────────┐    ┌──────────┐
+│PostgreSQL│    │  Kafka   │
+│PgBouncer │    │          │
+└─────────┘    └──────────┘
+```
+
 ### Deployment Flow
 
 1. **Infrastructure Provisioning**: Terraform creates K3S cluster and networking
@@ -886,10 +918,34 @@ K3S is a certified Kubernetes distribution that:
 4. **Service Deployment**: Helm charts deploy application services
 5. **Verification**: Health checks and smoke tests validate deployment
 
+### Scaling Strategy
+
+**Horizontal Pod Autoscaling (HPA)**:
+- CPU utilization: 80%
+- Memory utilization: 80%
+- Min replicas: 2 (local), 5 (production)
+- Max replicas: 10 (local), 50 (production)
+
+**Manual Scaling**:
+```bash
+kubectl scale deployment <name> --replicas=<count> -n <namespace>
+```
+
+### Backup and Recovery
+
+**Database**:
+- PostgreSQL persistent volumes
+- Regular backup procedures (see [Disaster Recovery](../11-infrastructure/disaster-recovery.md))
+
+**Vault**:
+- Dev mode: In-memory (no persistence)
+- Production: Raft storage with backups
+
 **See**: 
 - [K3S Setup Guide](../11-infrastructure/k3s-setup.md) for installation
 - [Terraform Guide](../11-infrastructure/terraform-guide.md) for infrastructure management
 - [K8S Deployment Runbook](../11-infrastructure/k8s-deployment-runbook.md) for deployment procedures
+- [Disaster Recovery](../11-infrastructure/disaster-recovery.md) for backup procedures
 
 ---
 

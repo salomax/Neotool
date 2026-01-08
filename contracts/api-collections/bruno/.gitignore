@@ -1,0 +1,7 @@
+.bruno/
+*.bru-workspace
+
+# Local-only environment and secret material; copy env.local.example instead
+*.env
+*.env.local
+*.secrets.*
