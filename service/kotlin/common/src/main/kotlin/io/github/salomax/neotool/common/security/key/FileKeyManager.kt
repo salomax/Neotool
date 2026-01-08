@@ -7,13 +7,15 @@ import java.security.PrivateKey
 import java.security.PublicKey
 
 /**
- * Key manager implementation that loads keys from files or environment variables.
+ * Key manager implementation that loads keys from files, environment variables, or JWKS endpoint.
+ * Supports JWKS for validator services (assets, app, assistant) that don't need Vault access.
  * This is the fallback implementation when Vault is not available.
  * Maintains backward compatibility with existing JwtService behavior.
  */
 @Singleton
 class FileKeyManager(
     private val jwtConfig: JwtConfig,
+    private val jwksClient: JwksClient? = null,
 ) : KeyManager {
     private val logger = KotlinLogging.logger {}
 
@@ -46,7 +48,20 @@ class FileKeyManager(
     }
 
     override fun getPublicKey(keyId: String): PublicKey? {
-        // For file-based manager, keyId is ignored (single key pair)
+        // If JWKS URL is configured, use JWKS client to fetch public keys
+        val jwksUrl = jwtConfig.jwksUrl
+        if (!jwksUrl.isNullOrBlank() && jwksClient != null) {
+            logger.debug { "Fetching public key from JWKS endpoint: $jwksUrl" }
+            val key = jwksClient.getPublicKey(jwksUrl, keyId)
+            if (key != null) {
+                logger.debug { "Successfully fetched public key from JWKS for kid: $keyId" }
+                return key
+            } else {
+                logger.warn { "Failed to fetch public key from JWKS for kid: $keyId" }
+            }
+        }
+
+        // Fallback to file/env-based keys (for backward compatibility or when JWKS is not configured)
         if (cachedPublicKey != null) {
             return cachedPublicKey
         }

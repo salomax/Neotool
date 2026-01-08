@@ -24,6 +24,18 @@ GraphiQL: http://localhost:8083/graphiql
 
 All configuration is done via environment variables or `application.yml`.
 
+### JWT Authentication
+
+The assets service validates JWT tokens but does not issue them. Public keys for validation are fetched from the security service via JWKS.
+
+**Required Configuration:**
+- `JWT_JWKS_URL`: URL to the security service's JWKS endpoint (required)
+  - Example: `http://security-service:8080/.well-known/jwks.json`
+  - The service will automatically fetch and cache public keys from this endpoint
+- `JWT_KEY_ID`: Key identifier (default: `kid-1`)
+
+**Note:** Validating services do not need direct access to Vault. The security service manages private keys and exposes public keys via the JWKS endpoint. Only the security service requires Vault access for key management.
+
 ### Storage Settings
 
 - `STORAGE_ENDPOINT`: S3-compatible endpoint (default: `http://localhost:9000` for MinIO)
