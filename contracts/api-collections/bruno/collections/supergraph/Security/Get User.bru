@@ -1,0 +1,42 @@
+meta {
+  name: Get User
+  type: graphql
+  seq: 9
+}
+
+post {
+  url: http://{{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  query GetUser($id: ID!) {
+    user(id: $id) {
+      id
+      email
+      displayName
+      enabled
+      createdAt
+      updatedAt
+      roles {
+        id
+        name
+      }
+      groups {
+        id
+        name
+      }
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "id": "{{userId}}"
+  }
+}

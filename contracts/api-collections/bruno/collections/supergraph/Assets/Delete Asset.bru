@@ -1,0 +1,27 @@
+meta {
+  name: Delete Asset
+  type: graphql
+  seq: 4
+}
+
+post {
+  url: http://{{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  mutation DeleteAsset($assetId: ID!) {
+    deleteAsset(assetId: $assetId)
+  }
+}
+
+body:graphql:vars {
+  {
+    "assetId": "{{assetId}}"
+  }
+}

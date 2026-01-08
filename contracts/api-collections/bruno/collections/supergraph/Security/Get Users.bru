@@ -1,0 +1,42 @@
+meta {
+  name: Get Users
+  type: graphql
+  seq: 8
+}
+
+post {
+  url: http://{{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  query GetUsers($first: Int, $after: String, $query: String, $orderBy: [UserOrderByInput!]) {
+    users(first: $first, after: $after, query: $query, orderBy: $orderBy) {
+      edges {
+        node {
+          id
+          email
+          displayName
+          enabled
+        }
+        cursor
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      totalCount
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "first": 10
+  }
+}

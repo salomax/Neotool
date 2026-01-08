@@ -1,0 +1,36 @@
+meta {
+  name: Get Asset
+  type: graphql
+  seq: 3
+}
+
+post {
+  url: http://{{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  query GetAsset($id: ID!) {
+    asset(id: $id) {
+      id
+      status
+      visibility
+      publicUrl
+      downloadUrl
+      mimeType
+      sizeBytes
+      createdAt
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "id": "{{assetId}}"
+  }
+}

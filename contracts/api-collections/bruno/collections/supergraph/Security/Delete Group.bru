@@ -1,0 +1,27 @@
+meta {
+  name: Delete Group
+  type: graphql
+  seq: 19
+}
+
+post {
+  url: http://{{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  mutation DeleteGroup($groupId: ID!) {
+    deleteGroup(groupId: $groupId)
+  }
+}
+
+body:graphql:vars {
+  {
+    "groupId": "{{groupId}}"
+  }
+}

@@ -1,0 +1,32 @@
+meta {
+  name: Refresh Access Token
+  type: graphql
+  seq: 5
+}
+
+post {
+  url: http://{{router}}/graphql
+  body: graphql
+  auth: inherit
+}
+
+body:graphql {
+  mutation RefreshAccessToken($input: RefreshAccessTokenInput!) {
+    refreshAccessToken(input: $input) {
+      token
+      refreshToken
+      user {
+        id
+        email
+      }
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "input": {
+      "refreshToken": "{{refreshToken}}"
+    }
+  }
+}
