@@ -55,3 +55,6 @@ ALTER TABLE financial_data.bacen_bank_report
     ADD CONSTRAINT fk_bacen_bank_report_catalog 
     FOREIGN KEY (numero_relatorio) 
     REFERENCES financial_data.bacen_bank_report_catalog (numero_relatorio);
+
+-- Create index for bacen query latest trimester
+CREATE INDEX bacen_bank_report_cod_inst_ano_mes ON financial_data.bacen_bank_report USING btree (cod_inst, ano_mes DESC)

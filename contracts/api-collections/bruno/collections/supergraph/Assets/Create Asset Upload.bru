@@ -38,3 +38,16 @@ body:graphql:vars {
     }
   }
 }
+
+tests {
+  test("status 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Valid login", function() {
+    const data = res.getBody();
+    bru.setVar("asset_id", data.data.createAssetUpload.id);
+  });
+  
+  
+}

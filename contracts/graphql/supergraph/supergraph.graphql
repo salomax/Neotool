@@ -22,77 +22,78 @@ directive @link(url: String, as: String, for: link__Purpose, import: [link__Impo
 
 """Asset metadata and access information."""
 type Asset
-  @join__type(graph: ASSETS)
+  @join__type(graph: ASSETS, key: "id")
+  @join__type(graph: FINANCIALDATA, key: "id")
 {
   """Unique identifier (UUID v7)"""
   id: ID!
 
   """User or system that owns this asset"""
-  ownerId: String!
+  ownerId: String! @join__field(graph: ASSETS)
 
   """Logical grouping (e.g., user-profiles, group-assets)"""
-  namespace: String!
+  namespace: String! @join__field(graph: ASSETS)
 
   """Visibility level - determines access control and URL generation"""
-  visibility: AssetVisibility!
+  visibility: AssetVisibility! @join__field(graph: ASSETS)
 
   """Unique key in S3/R2 storage"""
-  storageKey: String!
+  storageKey: String! @join__field(graph: ASSETS)
 
   """Storage region"""
-  storageRegion: String!
+  storageRegion: String! @join__field(graph: ASSETS)
 
   """Storage bucket name"""
-  storageBucket: String!
+  storageBucket: String! @join__field(graph: ASSETS)
 
   """MIME type (e.g., image/jpeg, application/pdf)"""
-  mimeType: String!
+  mimeType: String! @join__field(graph: ASSETS)
 
   """File size in bytes (null until upload confirmed)"""
-  sizeBytes: Long
+  sizeBytes: Long @join__field(graph: ASSETS)
 
   """SHA-256 checksum for integrity verification"""
-  checksum: String
+  checksum: String @join__field(graph: ASSETS)
 
   """Original filename from client upload"""
-  originalFilename: String
+  originalFilename: String @join__field(graph: ASSETS)
 
   """
   Pre-signed upload URL (temporary, only available for PENDING assets).
   Client uploads file directly to this URL.
   """
-  uploadUrl: String
+  uploadUrl: String @join__field(graph: ASSETS)
 
   """When the upload URL expires"""
-  uploadExpiresAt: DateTime
+  uploadExpiresAt: DateTime @join__field(graph: ASSETS)
 
   """
   Public CDN URL for accessing the asset.
   Only available for READY PUBLIC assets. Returns null for PRIVATE assets (use downloadUrl instead).
   """
-  publicUrl: String
+  publicUrl: String @join__field(graph: ASSETS)
 
   """
   Presigned download URL for PRIVATE assets.
   Returns null for PUBLIC assets (use publicUrl instead).
   @param ttlSeconds Time-to-live for the presigned URL (default: 3600 seconds / 1 hour)
   """
-  downloadUrl(ttlSeconds: Int = 3600): String
+  downloadUrl(ttlSeconds: Int = 3600): String @join__field(graph: ASSETS)
 
   """Upload status"""
-  status: AssetStatus!
+  status: AssetStatus! @join__field(graph: ASSETS)
 
   """Client-provided key to prevent duplicate uploads (optional)"""
-  idempotencyKey: String
+  idempotencyKey: String @join__field(graph: ASSETS)
 
   """Timestamp when asset record was created"""
-  createdAt: DateTime!
+  createdAt: DateTime! @join__field(graph: ASSETS)
 
   """Timestamp when asset record was last updated"""
-  updatedAt: DateTime!
+  updatedAt: DateTime! @join__field(graph: ASSETS)
 
   """Timestamp when asset was deleted (null if active)"""
-  deletedAt: DateTime
+  deletedAt: DateTime @join__field(graph: ASSETS)
 }
 
 """Asset upload lifecycle status."""
@@ -144,7 +145,7 @@ type BacenInstitutionAutocompleteItem
   cnpj: String
   legalName: String
   tradeName: String
-  logoUrl: String
+  logoAsset: Asset
 }
 
 type BacenInstitutionConnection
@@ -169,7 +170,7 @@ type BacenInstitutionSummaryItem
   name: String!
   legalName: String
   tradeName: String
-  logoUrl: String
+  logoAsset: Asset
   profit: Float
   equity: Float
   yoyEquityGrowth: Float
@@ -185,47 +186,6 @@ enum BacenInstitutionType
   INDIVIDUAL_INSTITUTION @join__enumValue(graph: FINANCIALDATA)
   PRUDENTIAL_GROUP @join__enumValue(graph: FINANCIALDATA)
   FINANCIAL_GROUP @join__enumValue(graph: FINANCIALDATA)
-}
-
-"""Input for confirming an asset upload."""
-input ConfirmAssetUploadInput
-  @join__type(graph: ASSETS)
-{
-  """ID of the asset to confirm"""
-  assetId: ID!
-
-  """
-  Optional SHA-256 checksum to verify file integrity.
-  If provided, server will validate against actual file checksum.
-  """
-  checksum: String
-}
-
-"""Input for creating a new asset upload."""
-input CreateAssetUploadInput
-  @join__type(graph: ASSETS)
-{
-  """
-  Logical namespace for the asset (e.g., "user-profiles", "group-assets").
-  Determines validation rules (allowed MIME types, max file size), visibility, and storage key template.
-  """
-  namespace: String!
-
-  """Original filename"""
-  filename: String!
-
-  """MIME type of the file"""
-  mimeType: String!
-
-  """File size in bytes"""
-  sizeBytes: Long!
-
-  """
-  Optional idempotency key to prevent duplicate uploads.
-  If provided, subsequent calls with the same key within 24 hours
-  will return the existing asset instead of creating a new one.
-  """
-  idempotencyKey: String
 }
 
 """Input for confirming an asset upload."""
@@ -288,11 +248,6 @@ scalar DateTime
   @join__type(graph: FINANCIALDATA)
   @join__type(graph: SECURITY)
 
-scalar DateTime
-  @join__type(graph: APP)
-  @join__type(graph: ASSETS)
-  @join__type(graph: SECURITY)
-
 type Group
   @join__type(graph: SECURITY, key: "id")
 {
@@ -336,9 +291,9 @@ enum GroupOrderField
 scalar join__FieldSet
 
 enum join__Graph {
-  SECURITY @join__graph(name: "security", url: "http://neotool-security:8080/graphql")
   ASSETS @join__graph(name: "assets", url: "http://assets-service:8080/graphql")
   FINANCIALDATA @join__graph(name: "financialdata", url: "http://neotool-financial-data-service:8080/graphql")
+  SECURITY @join__graph(name: "security", url: "http://neotool-security:8080/graphql")
 }
 
 scalar link__Import
@@ -498,32 +453,17 @@ type PermissionEdge
 }
 
 type Query
-<<<<<<< HEAD
   @join__type(graph: ASSETS)
   @join__type(graph: FINANCIALDATA)
   @join__type(graph: SECURITY)
 {
-=======
-  @join__type(graph: APP)
-  @join__type(graph: ASSETS)
-  @join__type(graph: SECURITY)
-{
-  products: [Product!]! @join__field(graph: APP)
-  product(id: ID!): Product @join__field(graph: APP)
-  customers: [Customer!]! @join__field(graph: APP)
-  customer(id: ID!): Customer @join__field(graph: APP)
-
->>>>>>> upstream/main
   """
   Get asset by ID.
   Returns null if asset not found or user doesn't have access.
   """
   asset(id: ID!): Asset @join__field(graph: ASSETS)
-<<<<<<< HEAD
   searchBacenInstitutionsAutocomplete(query: String!): BacenInstitutionAutocompleteConnection! @join__field(graph: FINANCIALDATA)
   bacenInstitutions(query: String, first: Int, after: String): BacenInstitutionConnection! @join__field(graph: FINANCIALDATA)
-=======
->>>>>>> upstream/main
   currentUser: User @join__field(graph: SECURITY)
   checkPermission(userId: ID!, permission: String!, resourceId: ID): AuthorizationResult! @join__field(graph: SECURITY)
   user(id: ID!): User @join__field(graph: SECURITY)
@@ -713,11 +653,6 @@ enum UserOrderField
 }
 
 scalar UUID
-<<<<<<< HEAD
   @join__type(graph: ASSETS)
   @join__type(graph: FINANCIALDATA)
-=======
-  @join__type(graph: APP)
-  @join__type(graph: ASSETS)
->>>>>>> upstream/main
   @join__type(graph: SECURITY)

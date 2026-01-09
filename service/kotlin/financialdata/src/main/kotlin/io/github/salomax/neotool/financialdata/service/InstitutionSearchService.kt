@@ -56,7 +56,7 @@ open class InstitutionSearchService(
                 cnpj = entity.cnpjInstituicaoLider,
                 legalName = financialInstitution?.legalName,
                 tradeName = financialInstitution?.tradeName,
-                logoUrl = financialInstitution?.logoStorageKey?.let { deriveLogoUrl(it) },
+                assetId = financialInstitution?.assetId,
             )
         }
     }
@@ -134,8 +134,7 @@ open class InstitutionSearchService(
                         name = result.nomeInstituicao ?: "Unknown",
                         legalName = result.legalName,
                         tradeName = result.tradeName,
-                        logoUrl =
-                            result.logoStorageKey?.let { deriveLogoUrl(it) },
+                        assetId = result.assetId,
                         profit = result.profit,
                         equity = result.equity,
                         yoyEquityGrowth = result.yoyEquityGrowth,
@@ -163,13 +162,4 @@ open class InstitutionSearchService(
         )
     }
 
-    /**
-     * Derive logo URL from storage key.
-     * TODO: Integrate with asset management service.
-     */
-    private fun deriveLogoUrl(storageKey: String): String {
-        // Placeholder: return storage key as URL
-        // Future: integrate with asset management service to get actual URL
-        return "/assets/logos/$storageKey"
-    }
 }

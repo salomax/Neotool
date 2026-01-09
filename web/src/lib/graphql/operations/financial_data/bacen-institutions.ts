@@ -10,7 +10,9 @@ export const SEARCH_BACEN_INSTITUTIONS_AUTOCOMPLETE = gql`
         id
         name
         cnpj
-        logoUrl
+        logoAsset {
+          publicUrl
+        }
       }
     }
   }
@@ -26,7 +28,9 @@ export const BACEN_INSTITUTIONS = gql`
         node {
           id
           name
-          logoUrl
+          logoAsset {
+            publicUrl
+          }
           profit
           equity
           yoyEquityGrowth

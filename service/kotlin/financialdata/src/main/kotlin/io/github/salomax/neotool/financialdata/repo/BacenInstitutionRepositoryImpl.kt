@@ -11,7 +11,6 @@ import jakarta.persistence.TypedQuery
 import jakarta.persistence.criteria.CriteriaBuilder
 import jakarta.persistence.criteria.Predicate
 import jakarta.persistence.criteria.Root
-import java.math.BigDecimal
 
 /**
  * Custom repository implementation for BacenInstitution search operations.
@@ -75,6 +74,48 @@ open class BacenInstitutionRepositoryImpl(
         query: String,
         limit: Int,
     ): List<BacenInstitutionEntity> {
+        val normalizedQuery = query.trim().takeIf { it.isNotBlank() }
+            ?: return emptyList()
+
+        val likePattern = "%${normalizedQuery.lowercase()}%"
+
+        // Build native SQL query to get bacen_cod_inst ordered by similarity score
+        // Similar to bacenInstitutions, we consider nome_instituicao, legal_name, and trade_name for similarity
+        val sql = """
+            SELECT 
+                bi.bacen_cod_inst,
+                financial_data.similarity(
+                    COALESCE(bi.nome_instituicao, fi.legal_name, fi.trade_name, '')::TEXT,
+                    ?::TEXT
+                ) as similarity_score
+            FROM financial_data.bacen_institution bi
+            LEFT JOIN financial_data.financial_institution_bacen_institution fibi
+                ON fibi.bacen_cod_inst = bi.bacen_cod_inst
+            LEFT JOIN financial_data.financial_institution fi
+                ON fi.id = fibi.financial_institution_id
+            WHERE (bi.nome_instituicao ILIKE ?
+                   OR (bi.bacen_cod_inst ILIKE ? AND bi.bacen_cod_inst NOT ILIKE 'c%'))
+            ORDER BY similarity_score DESC, bi.bacen_cod_inst ASC
+            LIMIT ?
+        """.trimIndent()
+
+        val nativeQuery = entityManager.createNativeQuery(sql)
+        nativeQuery.setParameter(1, normalizedQuery)
+        nativeQuery.setParameter(2, likePattern)
+        nativeQuery.setParameter(3, likePattern)
+        nativeQuery.setParameter(4, limit)
+
+        @Suppress("UNCHECKED_CAST")
+        val results = nativeQuery.resultList as List<Array<Any?>>
+
+        // Extract bacen_cod_inst values in order
+        val bacenCodInstList = results.map { row -> row[0] as String }
+
+        if (bacenCodInstList.isEmpty()) {
+            return emptyList()
+        }
+
+        // Fetch full entities with financial_institution relationship using JPA
         val criteriaBuilder = entityManager.criteriaBuilder
         val criteriaQuery = criteriaBuilder.createQuery(BacenInstitutionEntity::class.java)
         val root = criteriaQuery.from(BacenInstitutionEntity::class.java)
@@ -85,23 +126,17 @@ open class BacenInstitutionRepositoryImpl(
             jakarta.persistence.criteria.JoinType.LEFT,
         )
 
-        // Build search filter
-        buildSearchFilterPredicate(root, criteriaBuilder, query)?.let {
-            criteriaQuery.where(it)
-        }
-
-        // Order by nome_instituicao for relevance
-        val nomePath = root.get<String?>("nomeInstituicao")
-        criteriaQuery.orderBy(
-            criteriaBuilder.asc(
-                criteriaBuilder.coalesce(nomePath, criteriaBuilder.literal("")),
-            ),
-        )
+        // Filter by the ordered bacen_cod_inst list
+        val bacenCodInstPath = root.get<String>("bacenCodInst")
+        criteriaQuery.where(bacenCodInstPath.`in`(bacenCodInstList))
 
         val typedQuery: TypedQuery<BacenInstitutionEntity> = entityManager.createQuery(criteriaQuery)
-        typedQuery.maxResults = limit
+        val entities = typedQuery.resultList
 
-        return typedQuery.resultList
+        // Maintain the order from the similarity query
+        return bacenCodInstList.mapNotNull { codInst ->
+            entities.find { it.bacenCodInst == codInst }
+        }
     }
 
     @ReadOnly
@@ -119,10 +154,6 @@ open class BacenInstitutionRepositoryImpl(
         if (query != null && query.isNotBlank()) {
             val likePattern = "%$query%"
             // Parameters for bacen_fi_data CTE: nome_instituicao and bacen_cod_inst
-            nativeQuery.setParameter(paramIndex++, likePattern)
-            nativeQuery.setParameter(paramIndex++, likePattern)
-            // Parameters for fi_data CTE: trade_name, legal_name, parent_cnpj
-            nativeQuery.setParameter(paramIndex++, likePattern)
             nativeQuery.setParameter(paramIndex++, likePattern)
             nativeQuery.setParameter(paramIndex++, likePattern)
             // Parameter for similarity() function in fi_matched_data CTE (uses the query text directly, not the pattern)
@@ -158,7 +189,7 @@ open class BacenInstitutionRepositoryImpl(
                 cnpjInstituicaoLider = mapper.getString("cnpj_instituicao_lider"),
                 legalName = mapper.getString("legal_name"),
                 tradeName = mapper.getString("trade_name"),
-                logoStorageKey = mapper.getString("logo_storage_key"),
+                assetId = mapper.getUUID("asset_id"),
                 profit = profit,
                 equity = equity,
                 equityYearAgo = equityYearAgo,
@@ -187,24 +218,26 @@ open class BacenInstitutionRepositoryImpl(
     private fun getColumnIndexMap(): Map<String, Int> {
         return mapOf(
             "bacen_cod_inst" to 0,
-            "nome_instituicao" to 1,
-            "cnpj_instituicao_lider" to 2,
-            "legal_name" to 3,
-            "trade_name" to 4,
-            "logo_storage_key" to 5,
+            "cod_conglomerado_prudencial" to 1,
+            "cod_conglomerado_financeiro" to 2,
+            "nome_instituicao" to 3,
+            "cnpj_instituicao_lider" to 4,
+            "asset_id" to 5,
             "tipo_consolidacao" to 6,
-            "max_ano_mes" to 7,
-            "year_ago_ano_mes" to 8,
-            "similarity_score" to 9,
-            "profit" to 10,
-            "equity" to 11,
-            "equity_year_ago" to 12,
-            "yoy_equity_growth" to 13,
-            "basileia_index" to 14,
-            "tipo_instituicao" to 15,
-            "cod_conglomerado_prudencial" to 16,
-            "cod_conglomerado_financeiro" to 17,
-            "tipo_consolidado_bancario" to 18,
+            "similarity_score" to 7,
+            "financial_institution_id" to 8,
+            "parent_cnpj" to 9,
+            "max_ano_mes" to 10,
+            "year_ago_ano_mes" to 11,
+            "profit" to 12,
+            "equity" to 13,
+            "equity_year_ago" to 14,
+            "yoy_equity_growth" to 15,
+            "basileia_index" to 16,
+            "tipo_instituicao" to 17,
+            "legal_name" to 18,
+            "trade_name" to 19,
+            "tipo_consolidado_bancario" to 20,
         )
     }
 
@@ -226,7 +259,7 @@ open class BacenInstitutionRepositoryImpl(
         // Build ORDER BY clause
         val orderByClause =
             if (hasQuery) {
-                "ORDER BY fi.similarity_score DESC, basileia_index ASC, fi.bacen_cod_inst ASC"
+                "ORDER BY fi.similarity_score DESC, (fi.bacen_cod_inst = fi.cod_conglomerado_prudencial) DESC, (fi.bacen_cod_inst = fi.cod_conglomerado_financeiro) DESC"
             } else {
                 "ORDER BY fi.bacen_cod_inst ASC"
             }
@@ -235,44 +268,20 @@ open class BacenInstitutionRepositoryImpl(
         val bacenFiWhereClause =
             if (hasQuery) {
                 """
-                and (COALESCE(bi.nome_instituicao, '') ILIKE ?
+                and (bi.nome_instituicao ILIKE ?
                      OR (bi.bacen_cod_inst ILIKE ? AND bi.bacen_cod_inst NOT ILIKE 'c%'))
                 """.trimIndent()
             } else {
                 ""
             }
 
-        val fiDataWhereClause =
-            if (hasQuery) {
-                """
-                AND (
-                    COALESCE(fi.trade_name, '') ILIKE ?
-                    or COALESCE(fi.legal_name, '') ILIKE ?
-                    or COALESCE(fi.parent_cnpj, '') ILIKE ?
-                )
-                """.trimIndent()
-            } else {
-                ""
-            }
-
-        val similarityFunction =
-            if (hasQuery) {
-                """
-                financial_data.similarity(
-                    (COALESCE(bacen_fi_data.nome_instituicao, '') || ' ' || 
-                     COALESCE(fi_data.legal_name, '') || ' ' || 
-                     COALESCE(fi_data.trade_name, ''))::TEXT, ?::TEXT
-                ) as similarity_score
-                """.trimIndent()
-            } else {
-                "NULL as similarity_score"
-            }
-
         return """
             WITH latest_reports AS (
-                SELECT cod_inst, MAX(ano_mes) as max_ano_mes
+                SELECT DISTINCT ON (cod_inst)
+                    cod_inst,
+                    ano_mes as max_ano_mes
                 FROM financial_data.bacen_bank_report
-                GROUP BY cod_inst
+                ORDER BY cod_inst, ano_mes DESC
             ),
             year_ago_ano_mes AS (
                 SELECT 
@@ -285,63 +294,86 @@ open class BacenInstitutionRepositoryImpl(
                     END as year_ago_ano_mes
                 FROM latest_reports
             ),
-            bacen_fi_data as (
+            bacen_fi_match_data as (
                 SELECT
                     bi.bacen_cod_inst,
-                    bi.nome_instituicao
-                from financial_data.bacen_institution bi
-                where 1=1
+                    bi.nome_instituicao,
+                    bi.cod_conglomerado_financeiro,
+                    bi.cod_conglomerado_prudencial,
+                    bi.cnpj_instituicao_lider,
+                    bi.tipo_consolidacao
+                FROM financial_data.bacen_institution bi
+                WHERE 1=1
                 $bacenFiWhereClause
             ),
-            fi_data as (
-                select
-                    fi.id as financial_institution_id,
-                    fi.legal_name,
-                    fi.trade_name,
-                    fi.parent_cnpj,
-                    fi.logo_storage_key
-                FROM financial_data.financial_institution fi
-                WHERE 1=1
-                $fiDataWhereClause
+            bacen_fi_data as (
+                SELECT
+                  b.bacen_cod_inst,
+                  b.nome_instituicao,
+                  b.tipo_consolidacao,
+                  b.cnpj_instituicao_lider,
+                  b.cod_conglomerado_prudencial,
+                  b.cod_conglomerado_financeiro
+                FROM bacen_fi_match_data b
+                UNION
+                SELECT
+                  child.bacen_cod_inst,
+                  child.nome_instituicao,
+                  child.tipo_consolidacao,
+                  child.cnpj_instituicao_lider,
+                  child.cod_conglomerado_prudencial,
+                  child.cod_conglomerado_financeiro
+                FROM financial_data.bacen_institution child
+                JOIN bacen_fi_match_data b
+                  ON (child.bacen_cod_inst IN (b.cod_conglomerado_financeiro, b.cod_conglomerado_prudencial)
+                    OR b.bacen_cod_inst = child.cnpj_instituicao_lider)
             ),
             fi_matched_data as (
                 SELECT 
-                    COALESCE(bacen_fi_data.bacen_cod_inst, fibi.bacen_cod_inst) as bacen_cod_inst,
+                    bacen_fi_data.bacen_cod_inst,
                     coalesce(bacen_fi_data.nome_instituicao, fi_data.legal_name, fi_data.trade_name) as nome_instituicao,
                     fi_data.parent_cnpj,
-                    COALESCE(fi_data.financial_institution_id, fibi.financial_institution_id) as financial_institution_id,
-                    fi_data.logo_storage_key,
+                    fi_data.id AS financial_institution_id,
+                    fi_data.asset_id,
                     fi_data.legal_name,
                     fi_data.trade_name,
-                    $similarityFunction
+                    bacen_fi_data.tipo_consolidacao,
+                    bacen_fi_data.cnpj_instituicao_lider,
+                    bacen_fi_data.cod_conglomerado_prudencial,
+                    bacen_fi_data.cod_conglomerado_financeiro,
+                    financial_data.similarity(
+    					coalesce(bacen_fi_data.nome_instituicao, fi_data.legal_name, fi_data.trade_name)::TEXT, 
+    					?::TEXT
+					) as similarity_score
                 FROM bacen_fi_data
-                    FULL OUTER JOIN financial_data.financial_institution_bacen_institution fibi
+                    LEFT JOIN financial_data.financial_institution_bacen_institution fibi
                         ON fibi.bacen_cod_inst = bacen_fi_data.bacen_cod_inst
-                    FULL OUTER JOIN fi_data
-                        ON fi_data.financial_institution_id = fibi.financial_institution_id
-                WHERE 1=1
-                  and (bacen_fi_data.bacen_cod_inst IS NOT NULL OR fi_data.financial_institution_id IS NOT NULL)
-            )    
-            select 
+                    LEFT JOIN financial_data.financial_institution fi_data
+                        ON fi_data.id = fibi.financial_institution_id
+            )
+            SELECT
                 fi.bacen_cod_inst,
+                fi.cod_conglomerado_prudencial,
+                fi.cod_conglomerado_financeiro,
                 fi.nome_instituicao,
-                bi.cnpj_instituicao_lider,
-                fi.legal_name,
-                fi.trade_name,
-                fi.logo_storage_key,
-                bi.tipo_consolidacao,
+                fi.cnpj_instituicao_lider,
+                fi.asset_id,
+                fi.tipo_consolidacao,
+                fi.similarity_score,
+                fi.financial_institution_id,
+                fi.parent_cnpj,
                 latest_reports.max_ano_mes,
                 year_ago_ano_mes.year_ago_ano_mes,
-                fi.similarity_score,
                 MAX(CASE 
                     WHEN bra.conta = '78187' THEN brd.saldo     
                     ELSE NULL 
-                end) as profit,
+                END) as profit,
                 MAX(CASE 
                     WHEN bra.conta = '78186' THEN brd.saldo     
                     ELSE NULL 
-                end) as equity,
-                MAX(CASE WHEN bra_year_ago.conta = '78186' THEN brd_year_ago.saldo ELSE NULL END) as equity_year_ago,
+                END) as equity,
+                MAX(CASE 
+                    WHEN bra_year_ago.conta = '78186' THEN brd_year_ago.saldo ELSE NULL END) as equity_year_ago,
                 CASE 
                     WHEN MAX(CASE WHEN bra_year_ago.conta = '78186' THEN brd_year_ago.saldo ELSE NULL END) IS NOT NULL 
                     THEN (
@@ -354,13 +386,12 @@ open class BacenInstitutionRepositoryImpl(
                 MAX(CASE 
                     WHEN bra.conta = '79664' THEN brd.saldo     
                     ELSE NULL 
-                end) as basileia_index,
+                END) as basileia_index,
                 MAX(br.tipo_instituicao) as tipo_instituicao,
-                bi.cod_conglomerado_prudencial,
-                bi.cod_conglomerado_financeiro,
-                bi.tipo_consolidado_bancario
-            from fi_matched_data fi   
-                INNER JOIN financial_data.bacen_institution bi ON bi.bacen_cod_inst = fi.bacen_cod_inst
+                fi.legal_name,
+                fi.trade_name,
+                MAX(bi.tipo_consolidado_bancario) as tipo_consolidado_bancario
+            FROM fi_matched_data fi
                 INNER JOIN latest_reports ON latest_reports.cod_inst = fi.bacen_cod_inst
                 INNER JOIN financial_data.bacen_bank_report br 
                     ON br.cod_inst = fi.bacen_cod_inst 
@@ -375,23 +406,25 @@ open class BacenInstitutionRepositoryImpl(
                 LEFT JOIN financial_data.bacen_bank_report_data brd_year_ago 
                     ON brd_year_ago.bank_report_id = br_year_ago.id
                 LEFT JOIN financial_data.bacen_bank_report_account bra_year_ago 
-                    ON bra_year_ago.id = brd_year_ago.account_id and bra_year_ago.conta IN ('78186')
-            where 1=1
+                    ON bra_year_ago.id = brd_year_ago.account_id AND bra_year_ago.conta IN ('78186')
+                LEFT JOIN financial_data.bacen_institution bi ON bi.bacen_cod_inst = fi.bacen_cod_inst
+            WHERE 1=1
             $whereClause
             GROUP BY 
                 fi.bacen_cod_inst,
+                fi.cod_conglomerado_prudencial,
+                fi.cod_conglomerado_financeiro,
                 fi.nome_instituicao,
-                bi.cnpj_instituicao_lider,
-                fi.legal_name,
-                fi.trade_name,
-                fi.logo_storage_key,
-                bi.tipo_consolidacao,
+                fi.cnpj_instituicao_lider,
+                fi.asset_id,
+                fi.tipo_consolidacao,
+                fi.similarity_score,
+                fi.financial_institution_id,
+                fi.parent_cnpj,
                 latest_reports.max_ano_mes,
                 year_ago_ano_mes.year_ago_ano_mes,
-                fi.similarity_score,
-                bi.cod_conglomerado_prudencial,
-                bi.cod_conglomerado_financeiro,
-                bi.tipo_consolidado_bancario
+                fi.legal_name,
+                fi.trade_name
             $orderByClause
             """.trimIndent()
     }

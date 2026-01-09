@@ -19,7 +19,12 @@ export default function BacenInstitutionsPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [after, setAfter] = useState<string | null>(null);
-  const [selectedInstitution, setSelectedInstitution] = useState<{ id: string; name: string } | null>(null);
+  const [selectedInstitution, setSelectedInstitution] = useState<{
+    id: string;
+    name: string;
+    cnpj: string | null;
+    logoAsset: any | null;
+  } | null>(null);
 
   const queryVariables = useMemo(
     () => ({
@@ -138,7 +143,7 @@ export default function BacenInstitutionsPage() {
                 id: item.id,
                 name: item.name,
                 cnpj: item.cnpj,
-                logoUrl: item.logoUrl,
+                logoAsset: item.logoAsset,
               })}
               selectedItems={selectedInstitution ? [selectedInstitution] : []}
               onChange={(items) => {

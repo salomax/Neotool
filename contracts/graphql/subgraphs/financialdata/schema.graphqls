@@ -11,7 +11,13 @@ scalar UUID
 # Service Schema - financialdata
 # ============================================================================
 
-directive @key(fields: String!) repeatable on OBJECT | INTERFACE
+# External type reference - Asset is defined in the assets subgraph
+# This is a stub type for federation - the full type is defined in the assets subgraph
+# The id field is provided by this subgraph (from assetId in our data), and federation
+# will use it to resolve the full Asset entity from the assets subgraph
+type Asset @key(fields: "id") {
+  id: ID!
+}
 
 # Query type for financial data operations
 type Query {
@@ -38,7 +44,7 @@ type BacenInstitutionAutocompleteItem {
   cnpj: String
   legalName: String
   tradeName: String
-  logoUrl: String
+  logoAsset: Asset
 }
 
 type BacenInstitutionConnection {
@@ -57,7 +63,7 @@ type BacenInstitutionSummaryItem {
   name: String!
   legalName: String
   tradeName: String
-  logoUrl: String
+  logoAsset: Asset
   profit: Float
   equity: Float
   yoyEquityGrowth: Float

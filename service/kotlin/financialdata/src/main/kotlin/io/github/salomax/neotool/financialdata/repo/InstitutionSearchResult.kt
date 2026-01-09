@@ -15,7 +15,7 @@ data class InstitutionSearchResult(
     // Enhanced data (from financial_institution if linked)
     val legalName: String?,
     val tradeName: String?,
-    val logoStorageKey: String?,
+    val assetId: java.util.UUID?,
     // Financial metrics (aggregated from bacen_bank_report_data using specific account codes)
     // Lucro Líquido (conta 78187)
     val profit: BigDecimal?,

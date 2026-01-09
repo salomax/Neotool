@@ -45,6 +45,27 @@ Subcommands:
       --vault-token <token>  Vault authentication token (default: from VAULT_TOKEN env or 'myroot')
       --force                Overwrite existing secret if it exists
 
+  $(log "backup" "$GREEN") [key-name]
+    Backup JWT keys from Vault to local file (~/.vault-keys/backup.json).
+    If key-name is provided, backs up only that key. Otherwise, backs up all keys.
+    
+    Options:
+      --secret-path <path>   Vault secret path prefix (default: secret/jwt/keys)
+      --vault-address <url> Vault server address (default: http://localhost:8200)
+      --vault-token <token>  Vault authentication token (default: from VAULT_TOKEN env or 'myroot')
+      --output <file>        Output file path (default: ~/.vault-keys/backup.json)
+
+  $(log "restore" "$GREEN") [key-name]
+    Restore JWT keys from local backup file to Vault.
+    If key-name is provided, restores only that key. Otherwise, restores all keys from backup.
+    
+    Options:
+      --secret-path <path>   Vault secret path prefix (default: secret/jwt/keys)
+      --vault-address <url> Vault server address (default: http://localhost:8200)
+      --vault-token <token>  Vault authentication token (default: from VAULT_TOKEN env or 'myroot')
+      --input <file>          Input backup file path (default: ~/.vault-keys/backup.json)
+      --force                 Overwrite existing keys in Vault
+
 Environment variables:
   VAULT_ADDRESS              Vault server address
   VAULT_TOKEN                Vault authentication token
@@ -52,8 +73,10 @@ Environment variables:
 Examples:
   $0 create-secret kid-1
   $0 create-secret kid-2 --key-bits 2048
-  $0 create-secret my-key --vault-address http://vault:8200
-  $0 create-secret kid-1 --force
+  $0 backup kid-1
+  $0 backup                    # Backup all keys
+  $0 restore kid-1
+  $0 restore                  # Restore all keys
 EOF
 }
 
@@ -424,6 +447,261 @@ create_secret() {
     log "  export JWT_KEY_ID=${key_name}" "$GRAY"
 }
 
+# Backup keys from Vault to local file
+backup_keys() {
+    local key_name="$1"
+    local secret_path_prefix="$2"
+    local vault_addr="$3"
+    local vault_token="$4"
+    local output_file="$5"
+    
+    # Create backup directory if it doesn't exist
+    local backup_dir
+    backup_dir=$(dirname "$output_file")
+    mkdir -p "$backup_dir"
+    
+    # Check Vault connection
+    if ! check_vault_connection "$vault_addr" "$vault_token"; then
+        exit 1
+    fi
+    
+    log "Backing up keys from Vault..." "$BLUE"
+    
+    local temp_json
+    temp_json=$(mktemp)
+    
+    if [[ -n "$key_name" ]]; then
+        # Backup single key
+        local secret_path="${secret_path_prefix}/${key_name}"
+        
+        if ! secret_exists "$secret_path" "$vault_addr" "$vault_token"; then
+            log_error "Error: Secret not found at ${secret_path}"
+            exit 1
+        fi
+        
+        # Get keys from Vault
+        local private_key
+        private_key=$(execute_vault_command "vault kv get -field=private ${secret_path}" "$vault_addr" "$vault_token" 2>/dev/null || echo "")
+        local public_key
+        public_key=$(execute_vault_command "vault kv get -field=public ${secret_path}" "$vault_addr" "$vault_token" 2>/dev/null || echo "")
+        
+        if [[ -z "$private_key" ]] || [[ -z "$public_key" ]]; then
+            log_error "Error: Failed to retrieve keys from Vault"
+            exit 1
+        fi
+        
+        # Create JSON backup
+        if command -v jq >/dev/null 2>&1; then
+            jq -n \
+                --arg key_name "$key_name" \
+                --arg private "$private_key" \
+                --arg public "$public_key" \
+                '{keys: [{name: $key_name, private: $private, public: $public}]}' > "$temp_json"
+        else
+            # Fallback without jq
+            cat > "$temp_json" << EOF
+{
+  "keys": [
+    {
+      "name": "$key_name",
+      "private": $(printf '%s' "$private_key" | sed 's/\\/\\\\/g; s/"/\\"/g' | awk '{printf "\"%s\"", $0}'),
+      "public": $(printf '%s' "$public_key" | sed 's/\\/\\\\/g; s/"/\\"/g' | awk '{printf "\"%s\"", $0}')
+    }
+  ]
+}
+EOF
+        fi
+    else
+        # Backup all keys - list all keys in the secret path
+        log "Discovering all keys in ${secret_path_prefix}..." "$BLUE"
+        
+        local keys_list
+        keys_list=$(execute_vault_command "vault kv list ${secret_path_prefix}" "$vault_addr" "$vault_token" 2>/dev/null || echo "")
+        
+        if [[ -z "$keys_list" ]] || echo "$keys_list" | grep -qi "no value\|not found"; then
+            log_error "Error: No keys found at ${secret_path_prefix}"
+            exit 1
+        fi
+        
+        # Extract key names (skip header lines)
+        local key_names
+        key_names=$(echo "$keys_list" | grep -v "^Keys" | grep -v "^----" | grep -v "^$" | sed 's|/$||' | tr '\n' ' ')
+        
+        if [[ -z "$key_names" ]]; then
+            log_error "Error: No keys found to backup"
+            exit 1
+        fi
+        
+        # Build JSON array
+        local json_keys=""
+        local first=true
+        
+        for key in $key_names; do
+            local secret_path="${secret_path_prefix}/${key}"
+            log "  Backing up key: ${key}..." "$GRAY"
+            
+            local private_key
+            private_key=$(execute_vault_command "vault kv get -field=private ${secret_path}" "$vault_addr" "$vault_token" 2>/dev/null || echo "")
+            local public_key
+            public_key=$(execute_vault_command "vault kv get -field=public ${secret_path}" "$vault_addr" "$vault_token" 2>/dev/null || echo "")
+            
+            if [[ -z "$private_key" ]] || [[ -z "$public_key" ]]; then
+                log_error "  Warning: Failed to retrieve key ${key}, skipping..."
+                continue
+            fi
+            
+            # Escape keys for JSON
+            local private_escaped
+            private_escaped=$(printf '%s' "$private_key" | sed 's/\\/\\\\/g; s/"/\\"/g; s/$/\\n/' | tr -d '\n' | sed 's/\\n$//')
+            local public_escaped
+            public_escaped=$(printf '%s' "$public_key" | sed 's/\\/\\\\/g; s/"/\\"/g; s/$/\\n/' | tr -d '\n' | sed 's/\\n$//')
+            
+            if [[ "$first" == "true" ]]; then
+                json_keys="    {\"name\": \"${key}\", \"private\": \"${private_escaped}\", \"public\": \"${public_escaped}\"}"
+                first=false
+            else
+                json_keys="${json_keys},\n    {\"name\": \"${key}\", \"private\": \"${private_escaped}\", \"public\": \"${public_escaped}\"}"
+            fi
+        done
+        
+        if [[ -z "$json_keys" ]]; then
+            log_error "Error: No keys were successfully backed up"
+            exit 1
+        fi
+        
+        # Create JSON backup
+        printf "{\n  \"keys\": [\n%s\n  ]\n}" "$json_keys" > "$temp_json"
+    fi
+    
+    # Write to output file
+    cp "$temp_json" "$output_file"
+    rm -f "$temp_json"
+    
+    log "Backup completed successfully!" "$GREEN"
+    log "Backup saved to: ${output_file}" "$BRIGHT"
+}
+
+# Restore keys from local file to Vault
+restore_keys() {
+    local key_name="$1"
+    local secret_path_prefix="$2"
+    local vault_addr="$3"
+    local vault_token="$4"
+    local input_file="$5"
+    local force="$6"
+    
+    # Check if backup file exists
+    if [[ ! -f "$input_file" ]]; then
+        log_error "Error: Backup file not found: ${input_file}"
+        log_error "Run 'vault backup' first to create a backup"
+        exit 1
+    fi
+    
+    # Check Vault connection
+    if ! check_vault_connection "$vault_addr" "$vault_token"; then
+        exit 1
+    fi
+    
+    log "Restoring keys from backup..." "$BLUE"
+    
+    # Parse backup file
+    local keys_to_restore
+    
+    if command -v jq >/dev/null 2>&1; then
+        # Use jq to parse JSON
+        if [[ -n "$key_name" ]]; then
+            # Restore single key
+            keys_to_restore=$(jq -r ".keys[] | select(.name == \"${key_name}\")" "$input_file")
+            if [[ -z "$keys_to_restore" ]] || [[ "$keys_to_restore" == "null" ]]; then
+                log_error "Error: Key '${key_name}' not found in backup file"
+                exit 1
+            fi
+        else
+            # Restore all keys
+            keys_to_restore=$(jq -c ".keys[]" "$input_file")
+        fi
+    else
+        # Fallback: simple grep/sed parsing (basic JSON parsing)
+        log_error "Warning: jq not found, using basic JSON parsing"
+        if [[ -n "$key_name" ]]; then
+            # Try to extract single key (basic parsing)
+            if ! grep -q "\"name\": \"${key_name}\"" "$input_file"; then
+                log_error "Error: Key '${key_name}' not found in backup file"
+                exit 1
+            fi
+            # Extract the key block (simplified)
+            keys_to_restore=$(grep -A 3 "\"name\": \"${key_name}\"" "$input_file" | head -3)
+        else
+            # For all keys, we'll need to parse manually
+            log_error "Error: jq is required for restoring all keys. Please install jq or restore keys individually."
+            exit 1
+        fi
+    fi
+    
+    # Restore keys
+    if command -v jq >/dev/null 2>&1; then
+        if [[ -n "$key_name" ]]; then
+            # Restore single key
+            local name
+            name=$(echo "$keys_to_restore" | jq -r '.name')
+            local private
+            private=$(echo "$keys_to_restore" | jq -r '.private')
+            local public
+            public=$(echo "$keys_to_restore" | jq -r '.public')
+            
+            local secret_path="${secret_path_prefix}/${name}"
+            
+            # Check if exists and force flag
+            if secret_exists "$secret_path" "$vault_addr" "$vault_token" && [[ "$force" != "true" ]]; then
+                log_error "Error: Key '${name}' already exists in Vault. Use --force to overwrite."
+                exit 1
+            fi
+            
+            log "  Restoring key: ${name}..." "$GRAY"
+            store_secret_via_api "$secret_path" "$private" "$public" "$vault_addr" "$vault_token"
+            log "  ✓ Restored ${name}" "$GREEN"
+        else
+            # Restore all keys - use process substitution to avoid subshell issues
+            local restored_count=0
+            local skipped_count=0
+            
+            while IFS= read -r key_json; do
+                local name
+                name=$(echo "$key_json" | jq -r '.name')
+                local private
+                private=$(echo "$key_json" | jq -r '.private')
+                local public
+                public=$(echo "$key_json" | jq -r '.public')
+                
+                local secret_path="${secret_path_prefix}/${name}"
+                
+                # Check if exists and force flag
+                if secret_exists "$secret_path" "$vault_addr" "$vault_token" && [[ "$force" != "true" ]]; then
+                    log "  ⚠ Skipping ${name} (already exists, use --force to overwrite)" "$YELLOW"
+                    skipped_count=$((skipped_count + 1))
+                    continue
+                fi
+                
+                log "  Restoring key: ${name}..." "$GRAY"
+                if store_secret_via_api "$secret_path" "$private" "$public" "$vault_addr" "$vault_token"; then
+                    log "  ✓ Restored ${name}" "$GREEN"
+                    restored_count=$((restored_count + 1))
+                else
+                    log_error "  ✗ Failed to restore ${name}"
+                fi
+            done < <(jq -c '.keys[]' "$input_file")
+            
+            log "Restored ${restored_count} key(s), skipped ${skipped_count} key(s)" "$BLUE"
+        fi
+    else
+        # Fallback parsing (only works for single key)
+        log_error "Error: jq is required for restore. Please install jq: brew install jq (macOS) or apt-get install jq (Linux)"
+        exit 1
+    fi
+    
+    log "Restore completed successfully!" "$GREEN"
+}
+
 # Main function
 main() {
     # Check for help flag first
@@ -509,6 +787,135 @@ main() {
             fi
             
             create_secret "$key_name" "$key_bits" "$secret_path" "$vault_addr" "$vault_token" "$force"
+            ;;
+        backup)
+            local key_name=""
+            local secret_path="$DEFAULT_SECRET_PATH"
+            local vault_addr="$VAULT_ADDRESS"
+            local vault_token="$VAULT_TOKEN"
+            local output_file="${HOME}/.vault-keys/backup.json"
+            
+            # Parse arguments
+            while [[ $# -gt 0 ]]; do
+                case "$1" in
+                    --secret-path)
+                        if [[ $# -lt 2 ]]; then
+                            log_error "Error: --secret-path requires a value"
+                            exit 1
+                        fi
+                        secret_path="$2"
+                        shift 2
+                        ;;
+                    --vault-address)
+                        if [[ $# -lt 2 ]]; then
+                            log_error "Error: --vault-address requires a value"
+                            exit 1
+                        fi
+                        vault_addr="$2"
+                        shift 2
+                        ;;
+                    --vault-token)
+                        if [[ $# -lt 2 ]]; then
+                            log_error "Error: --vault-token requires a value"
+                            exit 1
+                        fi
+                        vault_token="$2"
+                        shift 2
+                        ;;
+                    --output)
+                        if [[ $# -lt 2 ]]; then
+                            log_error "Error: --output requires a value"
+                            exit 1
+                        fi
+                        output_file="$2"
+                        shift 2
+                        ;;
+                    --help|-h)
+                        show_help
+                        exit 0
+                        ;;
+                    *)
+                        if [[ -z "$key_name" ]]; then
+                            key_name="$1"
+                        else
+                            log_error "Error: Unknown option: $1"
+                            echo ""
+                            show_help
+                            exit 1
+                        fi
+                        shift
+                        ;;
+                esac
+            done
+            
+            backup_keys "$key_name" "$secret_path" "$vault_addr" "$vault_token" "$output_file"
+            ;;
+        restore)
+            local key_name=""
+            local secret_path="$DEFAULT_SECRET_PATH"
+            local vault_addr="$VAULT_ADDRESS"
+            local vault_token="$VAULT_TOKEN"
+            local input_file="${HOME}/.vault-keys/backup.json"
+            local force=false
+            
+            # Parse arguments
+            while [[ $# -gt 0 ]]; do
+                case "$1" in
+                    --secret-path)
+                        if [[ $# -lt 2 ]]; then
+                            log_error "Error: --secret-path requires a value"
+                            exit 1
+                        fi
+                        secret_path="$2"
+                        shift 2
+                        ;;
+                    --vault-address)
+                        if [[ $# -lt 2 ]]; then
+                            log_error "Error: --vault-address requires a value"
+                            exit 1
+                        fi
+                        vault_addr="$2"
+                        shift 2
+                        ;;
+                    --vault-token)
+                        if [[ $# -lt 2 ]]; then
+                            log_error "Error: --vault-token requires a value"
+                            exit 1
+                        fi
+                        vault_token="$2"
+                        shift 2
+                        ;;
+                    --input)
+                        if [[ $# -lt 2 ]]; then
+                            log_error "Error: --input requires a value"
+                            exit 1
+                        fi
+                        input_file="$2"
+                        shift 2
+                        ;;
+                    --force)
+                        force=true
+                        shift
+                        ;;
+                    --help|-h)
+                        show_help
+                        exit 0
+                        ;;
+                    *)
+                        if [[ -z "$key_name" ]]; then
+                            key_name="$1"
+                        else
+                            log_error "Error: Unknown option: $1"
+                            echo ""
+                            show_help
+                            exit 1
+                        fi
+                        shift
+                        ;;
+                esac
+            done
+            
+            restore_keys "$key_name" "$secret_path" "$vault_addr" "$vault_token" "$input_file" "$force"
             ;;
         *)
             log_error "Unknown subcommand: $subcommand"

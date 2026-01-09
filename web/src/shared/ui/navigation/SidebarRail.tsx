@@ -70,8 +70,9 @@ export function SidebarRail() {
         alignItems: 'center',
         py: 2,
         gap: 1,
-        boxShadow: '2px 0 12px rgba(0,0,0,0.10), inset -1px 0 0 rgba(255,255,255,0.10)',
         zIndex: (t) => t.zIndex.drawer + 1,
+        borderRight: '1px solid',
+        borderColor: 'divider',
       }}
     >
       {/* Logo */}

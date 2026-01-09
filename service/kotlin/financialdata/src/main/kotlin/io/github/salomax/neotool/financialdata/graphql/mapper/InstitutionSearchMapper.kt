@@ -26,7 +26,7 @@ class InstitutionSearchMapper {
                             cnpj = suggestion.cnpj,
                             legalName = suggestion.legalName,
                             tradeName = suggestion.tradeName,
-                            logoUrl = suggestion.logoUrl,
+                            assetId = suggestion.assetId?.toString(),
                         )
                     },
         )
@@ -60,7 +60,7 @@ class InstitutionSearchMapper {
             name = summary.name,
             legalName = summary.legalName,
             tradeName = summary.tradeName,
-            logoUrl = summary.logoUrl,
+            assetId = summary.assetId?.toString(),
             profit = summary.profit?.toDouble(),
             equity = summary.equity?.toDouble(),
             yoyEquityGrowth = summary.yoyEquityGrowth?.toDouble(),

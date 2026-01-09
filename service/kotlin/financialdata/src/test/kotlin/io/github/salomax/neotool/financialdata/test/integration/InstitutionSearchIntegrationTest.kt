@@ -103,7 +103,9 @@ class InstitutionSearchIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                         id
                         name
                         cnpj
-                        logoUrl
+                        logoAsset {
+                          publicUrl
+                        }
                     }
                 }
             }
@@ -145,7 +147,9 @@ class InstitutionSearchIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                         node {
                             id
                             name
-                            logoUrl
+                            logoAsset {
+                          publicUrl
+                        }
                             profit
                             equity
                             yoyEquityGrowth

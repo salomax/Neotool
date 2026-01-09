@@ -141,10 +141,17 @@ class FinancialDataWiringFactory(
                         },
                     )
                     .dataFetcher(
-                        "logoUrl",
+                        "logoAsset",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
                             val item = env.getSource<BacenInstitutionSummaryItemDTO>()
-                            item?.logoUrl
+                            // Return Asset reference for federation
+                            // Federation will resolve the Asset entity using the ID
+                            item?.assetId?.let { assetId ->
+                                mapOf(
+                                    "__typename" to "Asset",
+                                    "id" to assetId,
+                                )
+                            }
                         },
                     )
                     .dataFetcher(
@@ -235,10 +242,17 @@ class FinancialDataWiringFactory(
                         },
                     )
                     .dataFetcher(
-                        "logoUrl",
+                        "logoAsset",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
                             val item = env.getSource<BacenInstitutionAutocompleteItemDTO>()
-                            item?.logoUrl
+                            // Return Asset reference for federation
+                            // Federation will resolve the Asset entity using the ID
+                            item?.assetId?.let { assetId ->
+                                mapOf(
+                                    "__typename" to "Asset",
+                                    "id" to assetId,
+                                )
+                            }
                         },
                     )
             }
@@ -273,6 +287,17 @@ class FinancialDataWiringFactory(
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
                         val connection = env.getSource<BacenInstitutionAutocompleteConnectionDTO>()
                         connection?.suggestions
+                    },
+                )
+            }
+            // Asset type resolver - for federation entity references
+            .type("Asset") { type ->
+                type.dataFetcher(
+                    "id",
+                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                        // Asset reference is returned as a map with __typename and id
+                        val assetRef = env.getSource<Map<String, Any>>()
+                        assetRef?.get("id") as? String
                     },
                 )
             }
