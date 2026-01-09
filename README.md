@@ -94,6 +94,7 @@ cd service/kotlin && ./gradlew run
 - Create `.env.local` files in `infra/` for database credentials, GraphQL endpoints, and API keys
 - Add `.env.local` in `web/` for frontend API URLs
 - Adjust `project.config.json` if you want to rename the project
+- Increase memory to 4GB if needed on `~/.colima/default/colima.yaml`
 
 ---
 
