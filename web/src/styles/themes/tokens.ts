@@ -66,6 +66,10 @@ export interface DesignTokens {
     tabBorder: string;
     sidebarBg: string;
     sidebarIcon: string;
+    // Currency-specific colors
+    currencyPositive: string;
+    currencyNegative: string;
+    currencyNeutral: string;
   };
 }
 
@@ -122,6 +126,10 @@ export const tokens: Record<Mode, DesignTokens> = {
       tabBorder: "rgba(0, 0, 0, 0.23)",
       sidebarBg: "#ffffff",
       sidebarIcon: "#728096",
+      // Currency-specific colors
+      currencyPositive: "#16a34a", // success color for positive values
+      currencyNegative: "#dc2626", // error color for negative values  
+      currencyNeutral: "#0f172a", // text color for neutral values
     },
   },
   dark: {
@@ -176,6 +184,10 @@ export const tokens: Record<Mode, DesignTokens> = {
       tabBorder: "rgba(255, 255, 255, 0.23)",
       sidebarBg: "#ffffff",
       sidebarIcon: "#728096",
+      // Currency-specific colors
+      currencyPositive: "#22c55e", // success color for positive values
+      currencyNegative: "#ef4444", // error color for negative values  
+      currencyNeutral: "#e5e7eb", // text color for neutral values
     },
   },
 };

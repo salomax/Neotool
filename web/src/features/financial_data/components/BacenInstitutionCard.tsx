@@ -7,7 +7,7 @@ import Typography from "@mui/material/Typography";
 import Stack from "@mui/material/Stack";
 import Box from "@mui/material/Box";
 import Avatar from "@mui/material/Avatar";
-import { formatLargeCurrency } from "@/shared/components/ui/forms/components/masks/br";
+import { CurrencyDisplay } from "@/shared/components/ui/data-display";
 import BusinessIcon from "@mui/icons-material/Business";
 import LocationCityIcon from "@mui/icons-material/LocationCity";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
@@ -216,15 +216,22 @@ export function BacenInstitutionCard({
                 fontSize: "0.875rem",
               }}
             >
-              {formatLargeCurrency(
-                institution.profit,
-                "BRL",
-                "pt-BR",
-                {
-                  billions: t("currency.billions"),
-                  millions: t("currency.millions"),
-                }
-              )}
+              <CurrencyDisplay
+              value={institution.profit}
+              currency="BRL"
+              locale="pt-BR"
+              format="large"
+              labels={{
+                billions: t("currency.billions"),
+                millions: t("currency.millions"),
+              }}
+              variant="body2"
+              sx={{
+                fontWeight: 700,
+                fontSize: "0.875rem",
+              }}
+              showColor={true}
+            />
             </Typography>
           </Box>
 
@@ -251,15 +258,22 @@ export function BacenInstitutionCard({
                 fontSize: "0.875rem",
               }}
             >
-              {formatLargeCurrency(
-                institution.equity,
-                "BRL",
-                "pt-BR",
-                {
-                  billions: t("currency.billions"),
-                  millions: t("currency.millions"),
-                }
-              )}
+              <CurrencyDisplay
+              value={institution.equity}
+              currency="BRL"
+              locale="pt-BR"
+              format="large"
+              labels={{
+                billions: t("currency.billions"),
+                millions: t("currency.millions"),
+              }}
+              variant="body2"
+              sx={{
+                fontWeight: 700,
+                fontSize: "0.875rem",
+              }}
+              showColor={true}
+            />
             </Typography>
           </Box>
 

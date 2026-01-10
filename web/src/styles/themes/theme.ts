@@ -74,6 +74,10 @@ export const createAppTheme = (mode: Mode) => {
         errorLightBg: t.palette.errorLightBg,
         sidebarBg: t.palette.sidebarBg,
         sidebarIcon: t.palette.sidebarIcon,
+        // Currency-specific colors
+        currencyPositive: t.palette.currencyPositive,
+        currencyNegative: t.palette.currencyNegative,
+        currencyNeutral: t.palette.currencyNeutral,
       },
     },
   } as ThemeOptions & { custom?: { layout: typeof t.layout } };

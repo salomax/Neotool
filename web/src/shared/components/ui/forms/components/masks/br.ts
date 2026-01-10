@@ -100,12 +100,15 @@ export function formatLargeCurrency(
     return formatCurrency(0, currency, locale);
   }
 
+  const isNegative = value < 0;
+  const absValue = Math.abs(value);
+
   const defaultLocale = locale || (currency === "BRL" ? "pt-BR" : undefined);
   const billionsLabel = labels?.billions || "bi";
   const millionsLabel = labels?.millions || "mi";
 
-  const billions = value / 1_000_000_000;
-  
+  const billions = absValue / 1_000_000_000;
+
   if (billions >= 1) {
     // Extract currency symbol using formatToParts
     const parts = new Intl.NumberFormat(defaultLocale, {
@@ -115,11 +118,12 @@ export function formatLargeCurrency(
       maximumFractionDigits: 0,
     }).formatToParts(1);
     const currencySymbol = parts.find((p) => p.type === "currency")?.value || "";
-    
-    return `${currencySymbol} ${billions.toFixed(0)} ${billionsLabel}`;
+
+    const formatted = `${currencySymbol} ${billions.toFixed(0)} ${billionsLabel}`;
+    return isNegative ? `-${formatted}` : formatted;
   }
 
-  const millions = value / 1_000_000;
+  const millions = absValue / 1_000_000;
   if (millions >= 1) {
     // Extract currency symbol using formatToParts
     const parts = new Intl.NumberFormat(defaultLocale, {
@@ -129,8 +133,9 @@ export function formatLargeCurrency(
       maximumFractionDigits: 0,
     }).formatToParts(1);
     const currencySymbol = parts.find((p) => p.type === "currency")?.value || "";
-    
-    return `${currencySymbol} ${millions.toFixed(1)} ${millionsLabel}`;
+
+    const formatted = `${currencySymbol} ${millions.toFixed(1)} ${millionsLabel}`;
+    return isNegative ? `-${formatted}` : formatted;
   }
 
   return formatCurrency(value, currency, locale);
