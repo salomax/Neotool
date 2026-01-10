@@ -18,14 +18,7 @@ body:graphql {
   query SearchBacenInstitutionsAutocomplete($query: String!) {
     searchBacenInstitutionsAutocomplete(query: $query) {
       suggestions {
-        id
         name
-        cnpj
-        legalName
-        tradeName
-        logoAsset {
-          id
-        }
       }
     }
   }

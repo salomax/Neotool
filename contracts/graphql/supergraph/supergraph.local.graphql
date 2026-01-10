@@ -140,12 +140,7 @@ type BacenInstitutionAutocompleteConnection
 type BacenInstitutionAutocompleteItem
   @join__type(graph: FINANCIALDATA)
 {
-  id: ID!
   name: String!
-  cnpj: String
-  legalName: String
-  tradeName: String
-  logoAsset: Asset
 }
 
 type BacenInstitutionConnection

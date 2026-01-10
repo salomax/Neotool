@@ -100,12 +100,7 @@ class InstitutionSearchIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
             query SearchAutocomplete(${'$'}query: String!) {
                 searchBacenInstitutionsAutocomplete(query: ${'$'}query) {
                     suggestions {
-                        id
                         name
-                        cnpj
-                        logoAsset {
-                          publicUrl
-                        }
                     }
                 }
             }
@@ -387,7 +382,6 @@ class InstitutionSearchIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
             query SearchAutocomplete(${'$'}query: String!) {
                 searchBacenInstitutionsAutocomplete(query: ${'$'}query) {
                     suggestions {
-                        id
                         name
                     }
                 }

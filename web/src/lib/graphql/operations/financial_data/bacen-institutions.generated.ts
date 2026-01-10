@@ -9,7 +9,7 @@ export type SearchBacenInstitutionsAutocompleteQueryVariables = Types.Exact<{
 }>;
 
 
-export type SearchBacenInstitutionsAutocompleteQuery = { searchBacenInstitutionsAutocomplete: { __typename: 'BacenInstitutionAutocompleteConnection', suggestions: Array<{ __typename: 'BacenInstitutionAutocompleteItem', id: string, name: string, cnpj: string | null, logoAsset: { __typename: 'Asset', publicUrl: string | null } | null }> } };
+export type SearchBacenInstitutionsAutocompleteQuery = { searchBacenInstitutionsAutocomplete: { __typename: 'BacenInstitutionAutocompleteConnection', suggestions: Array<{ __typename: 'BacenInstitutionAutocompleteItem', name: string }> } };
 
 export type BacenInstitutionsQueryVariables = Types.Exact<{
   query?: Types.InputMaybe<Types.Scalars['String']['input']>;
@@ -25,12 +25,7 @@ export const SearchBacenInstitutionsAutocompleteDocument = gql`
     query SearchBacenInstitutionsAutocomplete($query: String!) {
   searchBacenInstitutionsAutocomplete(query: $query) {
     suggestions {
-      id
       name
-      cnpj
-      logoAsset {
-        publicUrl
-      }
     }
   }
 }

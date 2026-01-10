@@ -26,12 +26,7 @@ type BacenInstitutionAutocompleteConnection {
 }
 
 type BacenInstitutionAutocompleteItem {
-  id: ID!
   name: String!
-  cnpj: String
-  legalName: String
-  tradeName: String
-  logoAsset: Asset
 }
 
 type BacenInstitutionConnection {

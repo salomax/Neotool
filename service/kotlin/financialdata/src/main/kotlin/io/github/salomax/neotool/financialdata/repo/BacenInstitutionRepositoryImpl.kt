@@ -73,29 +73,25 @@ open class BacenInstitutionRepositoryImpl(
     override fun searchBacenInstitutionsAutocomplete(
         query: String,
         limit: Int,
-    ): List<BacenInstitutionEntity> {
+    ): List<String> {
         val normalizedQuery = query.trim().takeIf { it.isNotBlank() }
             ?: return emptyList()
 
         val likePattern = "%${normalizedQuery.lowercase()}%"
 
-        // Build native SQL query to get bacen_cod_inst ordered by similarity score
-        // Similar to bacenInstitutions, we consider nome_instituicao, legal_name, and trade_name for similarity
+        // Build native SQL query to get nome_instituicao ordered by similarity score
+        // Simplified to only query bacen_institution table for better performance
         val sql = """
             SELECT 
-                bi.bacen_cod_inst,
+                bi.nome_instituicao,
                 financial_data.similarity(
-                    COALESCE(bi.nome_instituicao, fi.legal_name, fi.trade_name, '')::TEXT,
+                    COALESCE(bi.nome_instituicao, '')::TEXT,
                     ?::TEXT
                 ) as similarity_score
             FROM financial_data.bacen_institution bi
-            LEFT JOIN financial_data.financial_institution_bacen_institution fibi
-                ON fibi.bacen_cod_inst = bi.bacen_cod_inst
-            LEFT JOIN financial_data.financial_institution fi
-                ON fi.id = fibi.financial_institution_id
             WHERE (bi.nome_instituicao ILIKE ?
                    OR (bi.bacen_cod_inst ILIKE ? AND bi.bacen_cod_inst NOT ILIKE 'c%'))
-            ORDER BY similarity_score DESC, bi.bacen_cod_inst ASC
+            ORDER BY similarity_score DESC, bi.nome_instituicao ASC
             LIMIT ?
         """.trimIndent()
 
@@ -108,35 +104,10 @@ open class BacenInstitutionRepositoryImpl(
         @Suppress("UNCHECKED_CAST")
         val results = nativeQuery.resultList as List<Array<Any?>>
 
-        // Extract bacen_cod_inst values in order
-        val bacenCodInstList = results.map { row -> row[0] as String }
-
-        if (bacenCodInstList.isEmpty()) {
-            return emptyList()
-        }
-
-        // Fetch full entities with financial_institution relationship using JPA
-        val criteriaBuilder = entityManager.criteriaBuilder
-        val criteriaQuery = criteriaBuilder.createQuery(BacenInstitutionEntity::class.java)
-        val root = criteriaQuery.from(BacenInstitutionEntity::class.java)
-
-        // Join with financial_institution to fetch relationship
-        root.fetch<BacenInstitutionEntity, FinancialInstitutionEntity>(
-            "financialInstitution",
-            jakarta.persistence.criteria.JoinType.LEFT,
-        )
-
-        // Filter by the ordered bacen_cod_inst list
-        val bacenCodInstPath = root.get<String>("bacenCodInst")
-        criteriaQuery.where(bacenCodInstPath.`in`(bacenCodInstList))
-
-        val typedQuery: TypedQuery<BacenInstitutionEntity> = entityManager.createQuery(criteriaQuery)
-        val entities = typedQuery.resultList
-
-        // Maintain the order from the similarity query
-        return bacenCodInstList.mapNotNull { codInst ->
-            entities.find { it.bacenCodInst == codInst }
-        }
+        // Extract nome_instituicao values in order, filtering out nulls
+        return results
+            .mapNotNull { row -> row[0] as? String }
+            .filter { it.isNotBlank() }
     }
 
     @ReadOnly

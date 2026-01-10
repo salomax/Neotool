@@ -13,15 +13,16 @@ interface BacenInstitutionRepositoryCustom {
      * Search institutions for autocomplete suggestions.
      * Performs case-insensitive partial matching on nome_instituicao and bacen_cod_inst.
      * Returns limited results (e.g., top 20) for fast autocomplete response.
+     * Results are ordered by similarity score (DESC) for best matches first.
      *
      * @param query Search query (partial match, case-insensitive)
      * @param limit Maximum number of results to return (default: 20)
-     * @return List of matching BACEN institutions for autocomplete
+     * @return List of institution names (nome_instituicao) ordered by similarity
      */
     fun searchBacenInstitutionsAutocomplete(
         query: String,
         limit: Int = 20,
-    ): List<BacenInstitutionEntity>
+    ): List<String>
 
     /**
      * Search institutions with full text search and financial metrics aggregation.

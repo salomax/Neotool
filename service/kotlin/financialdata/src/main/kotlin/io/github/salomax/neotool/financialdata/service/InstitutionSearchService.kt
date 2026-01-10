@@ -5,7 +5,6 @@ import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.common.graphql.pagination.Connection
 import io.github.salomax.neotool.common.graphql.pagination.ConnectionBuilder
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
-import io.github.salomax.neotool.financialdata.domain.BacenInstitutionAutocomplete
 import io.github.salomax.neotool.financialdata.domain.BacenInstitutionSummary
 import io.github.salomax.neotool.financialdata.repo.BacenInstitutionRepository
 import io.github.salomax.neotool.financialdata.repo.BacenInstitutionRepositoryCustom
@@ -27,38 +26,24 @@ open class InstitutionSearchService(
     /**
      * Search institutions for autocomplete suggestions.
      * Returns limited results for fast response time.
+     * Simplified to only return institution names for better performance.
      *
      * @param query Search query (required, non-empty)
      * @param limit Maximum number of results (default: 20)
-     * @return List of institution autocomplete suggestions
+     * @return List of institution names ordered by similarity score
      * @throws IllegalArgumentException if query is null or empty
      */
     fun searchBacenInstitutionsAutocomplete(
         query: String,
         limit: Int = 20,
-    ): List<BacenInstitutionAutocomplete> {
+    ): List<String> {
         // Validate query
         if (query.isBlank()) {
             throw IllegalArgumentException("Query cannot be empty for autocomplete search")
         }
 
-        // Query repository
-        val entities = institutionSearchRepository.searchBacenInstitutionsAutocomplete(query.trim(), limit)
-
-        // Convert to domain
-        // Note: For autocomplete, we load the financial_institution relationship if available
-        // This requires fetching the relationship, which may impact performance
-        return entities.map { entity ->
-            val financialInstitution = entity.financialInstitution
-            BacenInstitutionAutocomplete(
-                id = entity.bacenCodInst,
-                name = entity.nomeInstituicao ?: "Unknown",
-                cnpj = entity.cnpjInstituicaoLider,
-                legalName = financialInstitution?.legalName,
-                tradeName = financialInstitution?.tradeName,
-                assetId = financialInstitution?.assetId,
-            )
-        }
+        // Query repository - returns List<String> of institution names
+        return institutionSearchRepository.searchBacenInstitutionsAutocomplete(query.trim(), limit)
     }
 
     /**

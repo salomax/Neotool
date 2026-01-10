@@ -14,12 +14,7 @@ data class BacenInstitutionAutocompleteConnectionDTO(
 @Introspected
 @Serdeable
 data class BacenInstitutionAutocompleteItemDTO(
-    val id: String,
     val name: String,
-    val cnpj: String?,
-    val legalName: String?,
-    val tradeName: String?,
-    val assetId: String?,
 )
 
 // Full search DTOs

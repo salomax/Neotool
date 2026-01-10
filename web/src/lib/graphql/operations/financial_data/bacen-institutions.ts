@@ -7,12 +7,7 @@ export const SEARCH_BACEN_INSTITUTIONS_AUTOCOMPLETE = gql`
   query SearchBacenInstitutionsAutocomplete($query: String!) {
     searchBacenInstitutionsAutocomplete(query: $query) {
       suggestions {
-        id
         name
-        cnpj
-        logoAsset {
-          publicUrl
-        }
       }
     }
   }

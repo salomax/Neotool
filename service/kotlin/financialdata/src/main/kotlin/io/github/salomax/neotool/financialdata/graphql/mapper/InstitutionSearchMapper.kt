@@ -1,7 +1,6 @@
 package io.github.salomax.neotool.financialdata.graphql.mapper
 
 import io.github.salomax.neotool.common.graphql.pagination.Connection
-import io.github.salomax.neotool.financialdata.domain.BacenInstitutionAutocomplete
 import io.github.salomax.neotool.financialdata.domain.BacenInstitutionSummary
 import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionAutocompleteConnectionDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionAutocompleteItemDTO
@@ -14,19 +13,14 @@ import jakarta.inject.Singleton
 @Singleton
 class InstitutionSearchMapper {
     fun toBacenInstitutionAutocompleteConnectionDTO(
-        suggestions: List<BacenInstitutionAutocomplete>,
+        suggestions: List<String>,
     ): BacenInstitutionAutocompleteConnectionDTO {
         return BacenInstitutionAutocompleteConnectionDTO(
             suggestions =
                 suggestions
-                    .map { suggestion ->
+                    .map { name ->
                         BacenInstitutionAutocompleteItemDTO(
-                            id = suggestion.id,
-                            name = suggestion.name,
-                            cnpj = suggestion.cnpj,
-                            legalName = suggestion.legalName,
-                            tradeName = suggestion.tradeName,
-                            assetId = suggestion.assetId?.toString(),
+                            name = name,
                         )
                     },
         )

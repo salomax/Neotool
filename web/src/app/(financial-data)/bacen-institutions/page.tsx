@@ -13,17 +13,16 @@ import { useState, useMemo, useCallback } from "react";
 import { startTransition } from "react";
 import { useTranslation } from "@/shared/i18n";
 import { financialDataTranslations } from "@/features/financial_data/i18n";
+import { usePageTitle } from "@/shared/hooks/ui/usePageTitle";
 
 export default function BacenInstitutionsPage() {
   const { t } = useTranslation(financialDataTranslations);
+  usePageTitle(t("pageTitle"));
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [after, setAfter] = useState<string | null>(null);
   const [selectedInstitution, setSelectedInstitution] = useState<{
-    id: string;
     name: string;
-    cnpj: string | null;
-    logoAsset: any | null;
   } | null>(null);
 
   const queryVariables = useMemo(
@@ -73,7 +72,7 @@ export default function BacenInstitutionsPage() {
   }, [data, shouldSkipQuery]);
 
   // Pagination hook
-  const { loadNextPage, hasNextPage } = useRelayPagination(
+  const { loadNextPage } = useRelayPagination(
     institutions,
     pageInfo,
     totalCount,
@@ -138,17 +137,17 @@ export default function BacenInstitutionsPage() {
             <SearchableAutocomplete
               useQuery={useAutocompleteQuery}
               getQueryVariables={(query) => ({ query })}
-              extractData={(data) => data?.searchBacenInstitutionsAutocomplete?.suggestions || []}
+              extractData={(data: any) => data?.searchBacenInstitutionsAutocomplete?.suggestions || []}
               transformOption={(item: any) => ({
-                id: item.id,
+                id: item.name, // Use name as id since autocomplete only returns names
                 name: item.name,
-                cnpj: item.cnpj,
-                logoAsset: item.logoAsset,
               })}
               selectedItems={selectedInstitution ? [selectedInstitution] : []}
               onChange={(items) => {
                 if (items.length > 0) {
                   setSelectedInstitution(items[0] as any);
+                  // Trigger search with the selected name
+                  handleSearchChange(items[0].name);
                 } else {
                   setSelectedInstitution(null);
                   handleSearchChange("");

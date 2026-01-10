@@ -113,12 +113,7 @@ export type BacenInstitutionAutocompleteConnection = {
 
 export type BacenInstitutionAutocompleteItem = {
   __typename: 'BacenInstitutionAutocompleteItem';
-  cnpj: Maybe<Scalars['String']['output']>;
-  id: Scalars['ID']['output'];
-  legalName: Maybe<Scalars['String']['output']>;
-  logoAsset: Maybe<Asset>;
   name: Scalars['String']['output'];
-  tradeName: Maybe<Scalars['String']['output']>;
 };
 
 export type BacenInstitutionConnection = {

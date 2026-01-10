@@ -20,7 +20,7 @@ type Asset @key(fields: "id") {
 }
 
 # Query type for financial data operations
-type Query {
+extend type Query {
   # Institution search queries
   searchBacenInstitutionsAutocomplete(query: String!): BacenInstitutionAutocompleteConnection!
   bacenInstitutions(query: String, first: Int, after: String): BacenInstitutionConnection!
@@ -39,12 +39,7 @@ type BacenInstitutionAutocompleteConnection {
 }
 
 type BacenInstitutionAutocompleteItem {
-  id: ID!
   name: String!
-  cnpj: String
-  legalName: String
-  tradeName: String
-  logoAsset: Asset
 }
 
 type BacenInstitutionConnection {
