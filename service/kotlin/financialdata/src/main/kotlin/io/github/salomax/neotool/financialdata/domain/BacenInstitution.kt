@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.financialdata.domain
 
 import io.github.salomax.neotool.financialdata.model.BacenInstitutionEntity
+import io.github.salomax.neotool.financialdata.model.BacenInstitutionId
 import java.time.Instant
 
 data class BacenInstitution(
@@ -24,8 +25,10 @@ data class BacenInstitution(
 ) {
     fun toEntity(): BacenInstitutionEntity {
         return BacenInstitutionEntity(
-            bacenCodInst = this.bacenCodInst,
-            anoMesRef = this.anoMesRef,
+            id = BacenInstitutionId(
+                bacenCodInst = this.bacenCodInst,
+                anoMesRef = this.anoMesRef,
+            ),
             sourceHash = this.sourceHash,
             nomeInstituicao = this.nomeInstituicao,
             situacao = this.situacao,

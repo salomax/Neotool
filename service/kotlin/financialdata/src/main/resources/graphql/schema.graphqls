@@ -9,8 +9,12 @@ type Asset @key(fields: "id") {
 # Query type for financial data operations
 extend type Query {
   # Institution search queries
-  searchBacenInstitutionsAutocomplete(query: String!): BacenInstitutionAutocompleteConnection!
-  bacenInstitutions(query: String, first: Int, after: String): BacenInstitutionConnection!
+  # anoMes: Quarter filter (YYYYMM format). If not provided, uses latest quarter globally.
+  searchBacenInstitutionsAutocomplete(query: String!, anoMes: String): BacenInstitutionAutocompleteConnection!
+  bacenInstitutions(query: String, anoMes: String, first: Int, after: String): BacenInstitutionConnection!
+  # Institution detail query
+  # anoMes: Quarter filter (YYYYMM format). If not provided, uses latest quarter globally.
+  bacenFinanceInstitution(id: ID!, anoMes: String): BacenFinanceInstitution
 }
 
 # Enums
@@ -18,6 +22,23 @@ enum BacenInstitutionType {
   INDIVIDUAL_INSTITUTION
   PRUDENTIAL_GROUP
   FINANCIAL_GROUP
+}
+
+enum BacenControlType {
+  PUBLIC
+  PRIVATE_DOMESTIC
+  PRIVATE_FOREIGN_CONTROL
+}
+
+enum BacenInstitutionBankType {
+  B1
+  B2
+  B3S
+  B3C
+  B4
+  N1
+  N2
+  N4
 }
 
 # Institution search types
@@ -60,5 +81,78 @@ type PageInfo {
   hasPreviousPage: Boolean!
   startCursor: String
   endCursor: String
+}
+
+# Institution detail types
+type BacenFinanceInstitution {
+  id: ID!
+  name: String!
+  legalName: String
+  tradeName: String
+  logoAsset: Asset
+  profit: Float
+  equity: Float
+  yoyEquityGrowth: Float
+  basileiaIndex: Float
+  bacenInstitutionType: String
+  institutionType: BacenInstitutionType
+  tipoConsolidadoBancario: String
+  
+  # Enriched summary fields
+  quarter: String
+  asset: ID
+  website: String
+  socialNetworks: [String!]
+  mainActivity: String
+  address: String
+  founded: String
+  controlType: BacenControlType
+  institutionBankType: BacenInstitutionBankType
+  mobilizacaoIndex: Float
+  totalAssets: Float
+  funding: Float
+  loanPortfolio: Float
+  RWAReferenceEquity: Float
+  
+  # Reports
+  reportsSummary(range: QuarterRangeInput!): ReportsAvailability!
+  reportDetails(reportId: ID!, range: QuarterRangeInput!): ReportDetails!
+}
+
+input QuarterRangeInput {
+  from: String # "YYYYMM"
+  to: String   # "YYYYMM"
+  last: Int
+}
+
+type ReportsAvailability {
+  quarters: [QuarterReports!]!
+}
+
+type QuarterReports {
+  quarter: String! # "YYYYMM"
+  reports: [ReportDescriptor!]!
+}
+
+type ReportDescriptor {
+  reportId: ID!
+  name: String
+  group: String
+  accountNumber: String
+  columnName: String
+}
+
+type ReportDetails {
+  reportId: ID!
+  name: String
+  group: String
+  accountNumber: String
+  columnName: String
+  valuesByQuarter: [QuarterValue!]!
+}
+
+type QuarterValue {
+  quarter: String! # "YYYYMM"
+  value: Float
 }
 

@@ -27,14 +27,17 @@ open class InstitutionSearchService(
      * Search institutions for autocomplete suggestions.
      * Returns limited results for fast response time.
      * Simplified to only return institution names for better performance.
+     * Filters by quarter (ano_mes_ref). If anoMes is null, uses latest quarter globally.
      *
      * @param query Search query (required, non-empty)
+     * @param anoMes Quarter filter (YYYYMM format). If null, uses latest quarter globally.
      * @param limit Maximum number of results (default: 20)
      * @return List of institution names ordered by similarity score
      * @throws IllegalArgumentException if query is null or empty
      */
     fun searchBacenInstitutionsAutocomplete(
         query: String,
+        anoMes: String? = null,
         limit: Int = 20,
     ): List<String> {
         // Validate query
@@ -43,7 +46,7 @@ open class InstitutionSearchService(
         }
 
         // Query repository - returns List<String> of institution names
-        return institutionSearchRepository.searchBacenInstitutionsAutocomplete(query.trim(), limit)
+        return institutionSearchRepository.searchBacenInstitutionsAutocomplete(query.trim(), anoMes, limit)
     }
 
     /**
@@ -52,14 +55,17 @@ open class InstitutionSearchService(
      * When query is null or empty, returns all institutions. When query is provided, returns filtered institutions.
      * totalCount is always calculated.
      * Results are ordered by bacen_cod_inst for deterministic pagination.
+     * Filters by quarter (ano_mes_ref). If anoMes is null, uses latest quarter globally.
      *
      * @param query Optional search query (partial match, case-insensitive). If null or empty, returns all institutions.
+     * @param anoMes Quarter filter (YYYYMM format). If null, uses latest quarter globally.
      * @param first Maximum number of results to return (default: 20, max: 100)
      * @param after Cursor string for pagination (base64-encoded composite cursor with bacen_cod_inst)
      * @return Connection containing paginated institutions with totalCount
      */
     fun bacenInstitutions(
         query: String?,
+        anoMes: String? = null,
         first: Int = PaginationConstants.DEFAULT_PAGE_SIZE,
         after: String?,
     ): Connection<BacenInstitutionSummary> {
@@ -101,13 +107,14 @@ open class InstitutionSearchService(
         val results =
             institutionSearchRepository.bacenInstitutions(
                 normalizedQuery,
+                anoMes,
                 pageSize + 1,
                 afterCompositeCursor,
             )
         val hasMore = results.size > pageSize
 
         // Always get total count
-        val totalCount = institutionSearchRepository.countBacenInstitutions(normalizedQuery)
+        val totalCount = institutionSearchRepository.countBacenInstitutions(normalizedQuery, anoMes)
 
         // Take only requested number and convert to domain
         val institutions =

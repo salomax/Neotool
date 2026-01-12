@@ -3,8 +3,8 @@ package io.github.salomax.neotool.financialdata.model
 import io.github.salomax.neotool.common.entity.BaseEntity
 import io.github.salomax.neotool.financialdata.domain.BacenInstitution
 import jakarta.persistence.Column
+import jakarta.persistence.EmbeddedId
 import jakarta.persistence.Entity
-import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.JoinTable
 import jakarta.persistence.ManyToOne
@@ -14,11 +14,7 @@ import java.time.Instant
 @Entity
 @Table(name = "bacen_institution", schema = "financial_data")
 open class BacenInstitutionEntity(
-    @Id
-    @Column(name = "bacen_cod_inst", nullable = false)
-    open val bacenCodInst: String,
-    @Column(name = "ano_mes_ref", nullable = false, length = 6)
-    open var anoMesRef: String,
+    @EmbeddedId override val id: BacenInstitutionId,
     @Column(name = "source_hash", nullable = false, length = 64)
     open var sourceHash: String,
     @Column(name = "nome_instituicao")
@@ -49,7 +45,10 @@ open class BacenInstitutionEntity(
     @JoinTable(
         name = "financial_institution_bacen_institution",
         schema = "financial_data",
-        joinColumns = [JoinColumn(name = "bacen_cod_inst", referencedColumnName = "bacen_cod_inst")],
+        joinColumns = [
+            JoinColumn(name = "bacen_cod_inst", referencedColumnName = "bacen_cod_inst"),
+            JoinColumn(name = "ano_mes_ref", referencedColumnName = "ano_mes_ref"),
+        ],
         inverseJoinColumns = [JoinColumn(name = "financial_institution_id", columnDefinition = "uuid")],
     )
     open var financialInstitution: FinancialInstitutionEntity? = null,
@@ -57,7 +56,14 @@ open class BacenInstitutionEntity(
     open var createdAt: Instant = Instant.now(),
     @Column(name = "updated_at", nullable = false)
     open var updatedAt: Instant = Instant.now(),
-) : BaseEntity<String>(bacenCodInst) {
+) : BaseEntity<BacenInstitutionId>(id) {
+    // Convenience properties for easier access
+    val bacenCodInst: String
+        get() = id.bacenCodInst
+
+    val anoMesRef: String
+        get() = id.anoMesRef
+
     fun toDomain(): BacenInstitution {
         return BacenInstitution(
             bacenCodInst = this.bacenCodInst,

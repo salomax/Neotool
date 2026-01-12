@@ -11,6 +11,7 @@ import { CurrencyDisplay } from "@/shared/components/ui/data-display";
 import BusinessIcon from "@mui/icons-material/Business";
 import LocationCityIcon from "@mui/icons-material/LocationCity";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 import { useTheme, alpha } from "@mui/material/styles";
 import { useTranslation } from "@/shared/i18n";
 import { financialDataTranslations } from "../i18n";
@@ -30,14 +31,36 @@ function formatPercentage(value: number | null | undefined): string {
 }
 
 /**
- * Format Basileia index as percentage
+ * Format Basileia index as percentage with color coding
+ * < 11% Critical red
+ * 11%-14% appropriate yellow  
+ * >14% Good green
  */
 function formatBasileiaIndex(value: number | null | undefined): string {
   if (value == null) {
     return "0%";
   }
 
-  return `${value.toFixed(1)}%`;
+  const percentage = value * 100;
+  return `${percentage.toFixed(1)}%`;
+}
+
+/**
+ * Get Basileia index color based on value
+ */
+function getBasileiaIndexColor(value: number | null | undefined): string {
+  if (value == null) {
+    return "success.main"; // Default to green for null
+  }
+
+  const percentage = value * 100;
+  if (percentage < 11) {
+    return "error.main"; // Critical red
+  } else if (percentage <= 14) {
+    return "warning.main"; // Appropriate yellow
+  } else {
+    return "success.main"; // Good green
+  }
 }
 
 export interface BacenInstitution {
@@ -294,18 +317,29 @@ export function BacenInstitutionCard({
               {t("financialMetrics.yoyGrowth")}
             </Typography>
             <Stack direction="row" spacing={0.5} alignItems="center">
-              <TrendingUpIcon
-                sx={{
-                  fontSize: "1rem",
-                  color: "success.main",
-                }}
-              />
+              {institution.yoyEquityGrowth && institution.yoyEquityGrowth < 0 ? (
+                <TrendingDownIcon
+                  sx={{
+                    fontSize: "1rem",
+                    color: (theme) => theme.custom?.palette?.currencyNegative || "error.main",
+                  }}
+                />
+              ) : (
+                <TrendingUpIcon
+                  sx={{
+                    fontSize: "1rem",
+                    color: (theme) => theme.custom?.palette?.currencyPositive || "success.main",
+                  }}
+                />
+              )}
               <Typography
                 variant="body2"
                 sx={{
                   fontWeight: 700,
                   fontSize: "0.875rem",
-                  color: "success.main",
+                  color: institution.yoyEquityGrowth && institution.yoyEquityGrowth < 0 
+                    ? (theme) => theme.custom?.palette?.currencyNegative || "error.main"
+                    : (theme) => theme.custom?.palette?.currencyPositive || "success.main",
                 }}
               >
                 {formatPercentage(institution.yoyEquityGrowth)}
@@ -335,9 +369,16 @@ export function BacenInstitutionCard({
                   width: 8,
                   height: 8,
                   borderRadius: "50%",
-                  bgcolor: "success.main",
-                  boxShadow: (theme) =>
-                    `0 0 8px ${theme.palette.success.main}40`,
+                  bgcolor: getBasileiaIndexColor(institution.basileiaIndex),
+                  boxShadow: (theme) => {
+                    const colorKey = getBasileiaIndexColor(institution.basileiaIndex);
+                    const colorMap: Record<string, string> = {
+                      "error.main": theme.palette.error.main,
+                      "warning.main": theme.palette.warning.main,
+                      "success.main": theme.palette.success.main
+                    };
+                    return `0 0 8px ${colorMap[colorKey]}40`;
+                  },
                 }}
               />
               <Typography
