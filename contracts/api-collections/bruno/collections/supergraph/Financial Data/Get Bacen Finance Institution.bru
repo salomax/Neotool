@@ -1,0 +1,63 @@
+meta {
+  name: Get Bacen Finance Institution
+  type: graphql
+  seq: 4
+}
+
+post {
+  url: http://{{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  query GetBacenFinanceInstitution($id: ID!, $anoMes: String) {
+    bacenFinanceInstitution(id: $id, anoMes: $anoMes) {
+      id
+      quarter
+      name
+      legalName
+      tradeName
+      logoAsset {
+        id
+        publicUrl
+      }
+      institutionType
+      controlType
+      institutionBankType
+      tipoConsolidadoBancario
+      website
+      socialNetworks
+      mainActivity
+      address
+      founded
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "id": "C0080075",
+    "anoMes": "202509"
+  }
+}
+
+tests {
+  test("status 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Has institution data", function() {
+    const data = res.getBody();
+    expect(data.data.bacenFinanceInstitution).to.be.an('object');
+  });
+  
+  test("Has id", function() {
+    const data = res.getBody();
+    expect(data.data.bacenFinanceInstitution.id).to.be.a('string');
+  });
+}

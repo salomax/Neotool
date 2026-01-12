@@ -18,9 +18,8 @@ data class BacenFinanceInstitution(
     val equity: BigDecimal?,
     val yoyEquityGrowth: BigDecimal?,
     val basileiaIndex: BigDecimal?,
-    val bacenInstitutionType: Int?,
     val institutionType: BacenInstitutionType?,
-    val tipoConsolidadoBancario: String?,
+    val tipoConsolidadoBancario: BacenInstitutionBankType?,
 
     // Enriched summary fields
     val quarter: String?, // Latest ano_mes from bacen_bank_report

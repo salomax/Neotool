@@ -86,34 +86,22 @@ type PageInfo {
 # Institution detail types
 type BacenFinanceInstitution {
   id: ID!
+  quarter: String
   name: String!
+  asset: Asset
   legalName: String
   tradeName: String
   logoAsset: Asset
-  profit: Float
-  equity: Float
-  yoyEquityGrowth: Float
-  basileiaIndex: Float
-  bacenInstitutionType: String
   institutionType: BacenInstitutionType
-  tipoConsolidadoBancario: String
-  
-  # Enriched summary fields
-  quarter: String
-  asset: ID
+  controlType: BacenControlType
+  institutionBankType: BacenInstitutionBankType
+  tipoConsolidadoBancario: BacenInstitutionBankType
   website: String
   socialNetworks: [String!]
   mainActivity: String
   address: String
   founded: String
-  controlType: BacenControlType
-  institutionBankType: BacenInstitutionBankType
-  mobilizacaoIndex: Float
-  totalAssets: Float
-  funding: Float
-  loanPortfolio: Float
-  RWAReferenceEquity: Float
-  
+
   # Reports
   reportsSummary(range: QuarterRangeInput!): ReportsAvailability!
   reportDetails(reportId: ID!, range: QuarterRangeInput!): ReportDetails!
@@ -137,6 +125,7 @@ type QuarterReports {
 type ReportDescriptor {
   reportId: ID!
   name: String
+  # Optional fields - only present in reportDetails, not in reportsSummary
   group: String
   accountNumber: String
   columnName: String

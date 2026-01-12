@@ -3,9 +3,11 @@ package io.github.salomax.neotool.financialdata.repo
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.github.salomax.neotool.financialdata.domain.QuarterRange
-import io.github.salomax.neotool.financialdata.repo.result.InstitutionDetailResult
+import io.github.salomax.neotool.financialdata.repo.result.BacenBankReportDataResult
+import io.github.salomax.neotool.financialdata.repo.result.FinancialInstitutionDataResult
 import io.github.salomax.neotool.financialdata.repo.result.ReportDescriptorResult
 import io.github.salomax.neotool.financialdata.repo.result.ReportValueResult
+import io.github.salomax.neotool.financialdata.service.QuarterService
 import io.micronaut.transaction.annotation.ReadOnly
 import jakarta.inject.Singleton
 import jakarta.persistence.EntityManager
@@ -22,121 +24,39 @@ import java.util.UUID
 open class BacenInstitutionDetailRepositoryImpl(
     private val entityManager: EntityManager,
     private val objectMapper: ObjectMapper,
+    private val quarterService: QuarterService,
 ) : BacenInstitutionDetailRepositoryCustom {
 
-    /**
-     * Gets the latest quarter (max ano_mes_ref) globally across all institutions.
-     * Used as default when anoMes parameter is not provided.
-     */
-    private fun getLatestQuarter(): String? {
-        val sql = """
-            SELECT MAX(ano_mes_ref) 
-            FROM financial_data.bacen_institution
-        """.trimIndent()
-        val nativeQuery = entityManager.createNativeQuery(sql)
-        val result = nativeQuery.singleResult as? String
-        return result
-    }
-
     @ReadOnly
-    override fun getInstitutionDetail(id: String, anoMes: String?): InstitutionDetailResult? {
+    override fun getFinancialInstitutionData(id: String, anoMes: String?): FinancialInstitutionDataResult? {
         // Resolve quarter: use provided anoMes or latest quarter globally
-        val targetAnoMes = anoMes ?: getLatestQuarter() ?: return null
+        val targetAnoMes = anoMes ?: quarterService.getLatestQuarter() ?: return null
 
         val sql = """
-            WITH latest_reports AS (
-                SELECT DISTINCT ON (cod_inst)
-                    cod_inst,
-                    ano_mes as max_ano_mes
-                FROM financial_data.bacen_bank_report
-                WHERE cod_inst = ?
-                ORDER BY cod_inst, ano_mes DESC
-            ),
-            year_ago_ano_mes AS (
-                SELECT 
-                    cod_inst,
-                    max_ano_mes,
-                    CASE 
-                        WHEN CAST(SUBSTRING(max_ano_mes, 1, 4) AS INTEGER) > 0 
-                        THEN LPAD((CAST(SUBSTRING(max_ano_mes, 1, 4) AS INTEGER) - 1)::TEXT, 4, '0') || SUBSTRING(max_ano_mes, 5, 2)
-                        ELSE NULL
-                    END as year_ago_ano_mes
-                FROM latest_reports
-            )
             SELECT
-                bi.bacen_cod_inst,
                 bi.nome_instituicao,
+                bi.tipo_controle,
+                bi.tipo_consolidacao,
+                bi.tipo_consolidado_bancario,
                 fi.legal_name,
                 fi.trade_name,
                 fi.asset_id,
                 fi.website,
                 fi.social_network,
-                fi.receita_data,
-                bi.tipo_controle,
-                bi.tipo_consolidacao,
-                bi.tipo_consolidado_bancario,
-                latest_reports.max_ano_mes as quarter,
-                MAX(CASE WHEN bra.conta = '78187' THEN brd.saldo ELSE NULL END) as profit,
-                MAX(CASE WHEN bra.conta = '78186' THEN brd.saldo ELSE NULL END) as equity,
-                MAX(CASE WHEN bra_year_ago.conta = '78186' THEN brd_year_ago.saldo ELSE NULL END) as equity_year_ago,
-                CASE 
-                    WHEN MAX(CASE WHEN bra_year_ago.conta = '78186' THEN brd_year_ago.saldo ELSE NULL END) IS NOT NULL 
-                    THEN (
-                        (MAX(CASE WHEN bra.conta = '78186' THEN brd.saldo ELSE 0 END) - 
-                         MAX(CASE WHEN bra_year_ago.conta = '78186' THEN brd_year_ago.saldo ELSE 0 END)) * 100.0 /
-                        MAX(CASE WHEN bra_year_ago.conta = '78186' THEN brd_year_ago.saldo ELSE 0 END)
-                    )
-                    ELSE NULL
-                END as yoy_equity_growth,
-                MAX(CASE WHEN bra.conta = '79664' THEN brd.saldo ELSE NULL END) as basileia_index,
-                MAX(br.tipo_instituicao) as tipo_instituicao,
-                MAX(CASE WHEN bra.conta = '79665' THEN brd.saldo ELSE NULL END) as mobilizacao_index,
-                MAX(CASE WHEN bra.conta = '78188' THEN brd.saldo ELSE NULL END) as total_assets,
-                MAX(CASE WHEN bra.conta = '78189' THEN brd.saldo ELSE NULL END) as funding,
-                MAX(CASE WHEN bra.conta = '78190' THEN brd.saldo ELSE NULL END) as loan_portfolio,
-                MAX(CASE WHEN bra.conta = '78191' THEN brd.saldo ELSE NULL END) as rwa_reference_equity
+                fi.receita_data
             FROM financial_data.bacen_institution bi
                 LEFT JOIN financial_data.financial_institution_bacen_institution fibi
                     ON fibi.bacen_cod_inst = bi.bacen_cod_inst
                     AND fibi.ano_mes_ref = bi.ano_mes_ref
                 LEFT JOIN financial_data.financial_institution fi
                     ON fi.id = fibi.financial_institution_id
-                LEFT JOIN latest_reports ON latest_reports.cod_inst = bi.bacen_cod_inst
-                LEFT JOIN financial_data.bacen_bank_report br 
-                    ON br.cod_inst = bi.bacen_cod_inst 
-                    AND br.ano_mes = latest_reports.max_ano_mes
-                LEFT JOIN financial_data.bacen_bank_report_data brd 
-                    ON brd.bank_report_id = br.id
-                LEFT JOIN financial_data.bacen_bank_report_account bra 
-                    ON bra.id = brd.account_id
-                LEFT JOIN year_ago_ano_mes ON year_ago_ano_mes.cod_inst = bi.bacen_cod_inst
-                LEFT JOIN financial_data.bacen_bank_report br_year_ago
-                    ON br_year_ago.cod_inst = bi.bacen_cod_inst AND br_year_ago.ano_mes = year_ago_ano_mes.year_ago_ano_mes
-                LEFT JOIN financial_data.bacen_bank_report_data brd_year_ago 
-                    ON brd_year_ago.bank_report_id = br_year_ago.id
-                LEFT JOIN financial_data.bacen_bank_report_account bra_year_ago 
-                    ON bra_year_ago.id = brd_year_ago.account_id AND bra_year_ago.conta IN ('78186')
             WHERE bi.bacen_cod_inst = ?
               AND bi.ano_mes_ref = ?
-            GROUP BY 
-                bi.bacen_cod_inst,
-                bi.nome_instituicao,
-                fi.legal_name,
-                fi.trade_name,
-                fi.asset_id,
-                fi.website,
-                fi.social_network,
-                fi.receita_data,
-                bi.tipo_controle,
-                bi.tipo_consolidacao,
-                bi.tipo_consolidado_bancario,
-                latest_reports.max_ano_mes
         """.trimIndent()
 
         val query = entityManager.createNativeQuery(sql)
         query.setParameter(1, id)
-        query.setParameter(2, id)
-        query.setParameter(3, targetAnoMes)
+        query.setParameter(2, targetAnoMes)
 
         @Suppress("UNCHECKED_CAST")
         val results = query.resultList as? List<Array<Any?>>
@@ -147,29 +67,16 @@ open class BacenInstitutionDetailRepositoryImpl(
 
         val row = results[0]
         val columnIndices = mapOf(
-            "bacen_cod_inst" to 0,
-            "nome_instituicao" to 1,
-            "legal_name" to 2,
-            "trade_name" to 3,
-            "asset_id" to 4,
-            "website" to 5,
-            "social_network" to 6,
-            "receita_data" to 7,
-            "tipo_controle" to 8,
-            "tipo_consolidacao" to 9,
-            "tipo_consolidado_bancario" to 10,
-            "quarter" to 11,
-            "profit" to 12,
-            "equity" to 13,
-            "equity_year_ago" to 14,
-            "yoy_equity_growth" to 15,
-            "basileia_index" to 16,
-            "tipo_instituicao" to 17,
-            "mobilizacao_index" to 18,
-            "total_assets" to 19,
-            "funding" to 20,
-            "loan_portfolio" to 21,
-            "rwa_reference_equity" to 22,
+            "nome_instituicao" to 0,
+            "tipo_controle" to 1,
+            "tipo_consolidacao" to 2,
+            "tipo_consolidado_bancario" to 3,
+            "legal_name" to 4,
+            "trade_name" to 5,
+            "asset_id" to 6,
+            "website" to 7,
+            "social_network" to 8,
+            "receita_data" to 9,
         )
 
         val mapper = SqlResultMapper(row, columnIndices)
@@ -182,33 +89,99 @@ open class BacenInstitutionDetailRepositoryImpl(
         val receitaDataJson = mapper.getValue("receita_data") as? String
         val (mainActivity, address, founded) = parseReceitaData(receitaDataJson)
 
-        return InstitutionDetailResult(
-            bacenCodInst = mapper.getString("bacen_cod_inst") ?: id,
+        return FinancialInstitutionDataResult(
             nomeInstituicao = mapper.getString("nome_instituicao"),
+            tipoControle = mapper.getString("tipo_controle"),
+            tipoConsolidacao = mapper.getString("tipo_consolidacao"),
+            tipoConsolidadoBancario = mapper.getString("tipo_consolidado_bancario"),
             legalName = mapper.getString("legal_name"),
             tradeName = mapper.getString("trade_name"),
             assetId = mapper.getUUID("asset_id"),
-            profit = mapper.getNumber("profit"),
-            equity = mapper.getNumber("equity"),
-            yoyEquityGrowth = mapper.getNumber("yoy_equity_growth"),
-            basileiaIndex = mapper.getNumber("basileia_index"),
-            bacenInstitutionType = mapper.getInt("tipo_instituicao"),
-            tipoConsolidadoBancario = mapper.getString("tipo_consolidado_bancario"),
-            institutionType = mapper.getString("tipo_consolidacao"),
-            quarter = mapper.getString("quarter"),
             website = mapper.getString("website"),
             socialNetworks = socialNetworks,
             mainActivity = mainActivity,
             address = address,
             founded = founded,
-            tipoControle = mapper.getString("tipo_controle"),
-            tipoConsolidadoBancarioCode = mapper.getString("tipo_consolidado_bancario"),
-            mobilizacaoIndex = mapper.getNumber("mobilizacao_index"),
-            totalAssets = mapper.getNumber("total_assets"),
-            funding = mapper.getNumber("funding"),
-            loanPortfolio = mapper.getNumber("loan_portfolio"),
-            rwaReferenceEquity = mapper.getNumber("rwa_reference_equity"),
         )
+    }
+
+    @ReadOnly
+    override fun getBacenBankReportData(id: String, anoMes: String?): List<BacenBankReportDataResult> {
+        // Resolve quarter: use provided anoMes or latest quarter globally
+        val targetAnoMes = anoMes ?: quarterService.getLatestQuarter() ?: return emptyList()
+
+        val sql = """
+            SELECT
+                bi.bacen_cod_inst,
+                bi.ano_mes_ref,
+                br.numero_relatorio,
+                bbrc.nome_relatorio,
+                bra.grupo,
+                bra.conta,
+                bra.nome_coluna,
+                brd.saldo
+            FROM financial_data.bacen_institution bi
+                INNER JOIN financial_data.bacen_bank_report br
+                    ON bi.bacen_cod_inst = br.cod_inst
+                    AND bi.ano_mes_ref = br.ano_mes
+                INNER JOIN financial_data.bacen_bank_report_data brd
+                    ON br.id = brd.bank_report_id
+                INNER JOIN financial_data.bacen_bank_report_account bra
+                    ON brd.account_id = bra.id
+                INNER JOIN financial_data.bacen_bank_report_catalog bbrc
+                    ON bbrc.numero_relatorio = br.numero_relatorio
+            WHERE 1=1
+                AND bi.bacen_cod_inst = ?
+                AND bi.ano_mes_ref = ?
+            GROUP BY
+                bi.bacen_cod_inst,
+                bi.ano_mes_ref,
+                br.numero_relatorio,
+                bbrc.nome_relatorio,
+                bra.grupo,
+                bra.conta,
+                bra.nome_coluna,
+                brd.saldo
+            ORDER BY
+                bi.bacen_cod_inst,
+                bi.ano_mes_ref,
+                bi.nome_instituicao,
+                br.numero_relatorio,
+                bra.grupo,
+                bra.conta
+        """.trimIndent()
+
+        val query = entityManager.createNativeQuery(sql)
+        query.setParameter(1, id)
+        query.setParameter(2, targetAnoMes)
+
+        @Suppress("UNCHECKED_CAST")
+        val results = query.resultList as? List<Array<Any?>> ?: return emptyList()
+
+        val columnIndices = mapOf(
+            "bacen_cod_inst" to 0,
+            "ano_mes_ref" to 1,
+            "numero_relatorio" to 2,
+            "nome_relatorio" to 3,
+            "grupo" to 4,
+            "conta" to 5,
+            "nome_coluna" to 6,
+            "saldo" to 7,
+        )
+
+        return results.map { row ->
+            val mapper = SqlResultMapper(row, columnIndices)
+            BacenBankReportDataResult(
+                bacenCodInst = mapper.getString("bacen_cod_inst") ?: id,
+                anoMesRef = mapper.getString("ano_mes_ref") ?: targetAnoMes,
+                reportNumber = mapper.getString("numero_relatorio") ?: "",
+                reportName = mapper.getString("nome_relatorio"),
+                group = mapper.getString("grupo"),
+                account = mapper.getString("conta"),
+                columnName = mapper.getString("nome_coluna"),
+                balance = mapper.getNumber("saldo"),
+            )
+        }
     }
 
     @ReadOnly
@@ -247,20 +220,13 @@ open class BacenInstitutionDetailRepositoryImpl(
             SELECT DISTINCT
                 br.ano_mes as quarter,
                 br.numero_relatorio as report_id,
-                brc.nome_relatorio as name,
-                bra.grupo,
-                bra.conta as account_number,
-                bra.nome_coluna as column_name
+                brc.nome_relatorio as name
             FROM financial_data.bacen_bank_report br
                 INNER JOIN financial_data.bacen_bank_report_catalog brc
                     ON brc.numero_relatorio = br.numero_relatorio
-                INNER JOIN financial_data.bacen_bank_report_data brd
-                    ON brd.bank_report_id = br.id
-                INNER JOIN financial_data.bacen_bank_report_account bra
-                    ON bra.id = brd.account_id
             WHERE br.cod_inst = ?
                 AND br.ano_mes IN ($quartersPlaceholder)
-            ORDER BY br.ano_mes DESC, br.numero_relatorio, bra.grupo, bra.conta
+            ORDER BY br.ano_mes DESC, br.numero_relatorio
         """.trimIndent()
 
         val query = entityManager.createNativeQuery(sql)
@@ -276,9 +242,6 @@ open class BacenInstitutionDetailRepositoryImpl(
             "quarter" to 0,
             "report_id" to 1,
             "name" to 2,
-            "grupo" to 3,
-            "account_number" to 4,
-            "column_name" to 5,
         )
 
         return results.map { row ->
@@ -287,9 +250,9 @@ open class BacenInstitutionDetailRepositoryImpl(
                 quarter = mapper.getString("quarter") ?: "",
                 reportId = mapper.getString("report_id") ?: "",
                 name = mapper.getString("name"),
-                group = mapper.getString("grupo"),
-                accountNumber = mapper.getString("account_number"),
-                columnName = mapper.getString("column_name"),
+                group = null,  // Not available in summary - only in reportDetails
+                accountNumber = null,  // Not available in summary - only in reportDetails
+                columnName = null,  // Not available in summary - only in reportDetails
             )
         }
     }

@@ -1,7 +1,8 @@
 package io.github.salomax.neotool.financialdata.repo
 
 import io.github.salomax.neotool.financialdata.domain.QuarterRange
-import io.github.salomax.neotool.financialdata.repo.result.InstitutionDetailResult
+import io.github.salomax.neotool.financialdata.repo.result.BacenBankReportDataResult
+import io.github.salomax.neotool.financialdata.repo.result.FinancialInstitutionDataResult
 import io.github.salomax.neotool.financialdata.repo.result.ReportDescriptorResult
 import io.github.salomax.neotool.financialdata.repo.result.ReportValueResult
 
@@ -11,14 +12,24 @@ import io.github.salomax.neotool.financialdata.repo.result.ReportValueResult
  */
 interface BacenInstitutionDetailRepositoryCustom {
     /**
-     * Get enriched institution detail data including financial_institution and bacen_institution data.
+     * Get financial institution data from financial_data.financial_institution table.
      * Filters by quarter (ano_mes_ref). If anoMes is null, uses latest quarter globally.
      *
      * @param id Institution ID (bacen_cod_inst)
      * @param anoMes Quarter filter (YYYYMM format). If null, uses latest quarter globally.
-     * @return InstitutionDetailResult or null if not found
+     * @return FinancialInstitutionDataResult or null if not found
      */
-    fun getInstitutionDetail(id: String, anoMes: String? = null): InstitutionDetailResult?
+    fun getFinancialInstitutionData(id: String, anoMes: String? = null): FinancialInstitutionDataResult?
+
+    /**
+     * Get BACEN bank report data from bacen_bank_report and related tables.
+     * Filters by quarter (ano_mes_ref). If anoMes is null, uses latest quarter globally.
+     *
+     * @param id Institution ID (bacen_cod_inst)
+     * @param anoMes Quarter filter (YYYYMM format). If null, uses latest quarter globally.
+     * @return List of BacenBankReportDataResult, empty list if no data found
+     */
+    fun getBacenBankReportData(id: String, anoMes: String? = null): List<BacenBankReportDataResult>
 
     /**
      * Get latest quarter (ano_mes) for an institution.

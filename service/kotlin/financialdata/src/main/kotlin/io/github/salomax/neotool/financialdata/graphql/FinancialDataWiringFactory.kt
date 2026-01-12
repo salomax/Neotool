@@ -351,13 +351,6 @@ class FinancialDataWiringFactory(
                         },
                     )
                     .dataFetcher(
-                        "bacenInstitutionType",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val institution = env.getSource<BacenFinanceInstitutionDTO>()
-                            institution?.bacenInstitutionType
-                        },
-                    )
-                    .dataFetcher(
                         "institutionType",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
                             val institution = env.getSource<BacenFinanceInstitutionDTO>()
@@ -368,7 +361,7 @@ class FinancialDataWiringFactory(
                         "tipoConsolidadoBancario",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
                             val institution = env.getSource<BacenFinanceInstitutionDTO>()
-                            institution?.tipoConsolidadoBancario
+                            institution?.tipoConsolidadoBancario?.name
                         },
                     )
                     // New fields specific to BacenFinanceInstitution

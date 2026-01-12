@@ -4,6 +4,7 @@ import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.financialdata.domain.BacenInstitutionType
 import io.github.salomax.neotool.financialdata.model.BacenInstitutionEntity
 import io.github.salomax.neotool.financialdata.model.FinancialInstitutionEntity
+import io.github.salomax.neotool.financialdata.service.QuarterService
 import io.micronaut.transaction.annotation.ReadOnly
 import jakarta.inject.Singleton
 import jakarta.persistence.EntityManager
@@ -19,30 +20,8 @@ import jakarta.persistence.criteria.Root
 @Singleton
 open class BacenInstitutionRepositoryImpl(
     private val entityManager: EntityManager,
+    private val quarterService: QuarterService,
 ) : BacenInstitutionRepositoryCustom {
-    /**
-     * Gets the latest quarter (max ano_mes_ref) globally across all institutions.
-     * Used as default when anoMes parameter is not provided.
-     */
-    private fun getLatestQuarter(): String? {
-        val sql = """
-            SELECT MAX(ano_mes_ref) 
-            FROM financial_data.bacen_institution bi
-            WHERE bi.ano_mes_ref IN (
-                SELECT DISTINCT ano_mes_ref
-                FROM financial_data.bacen_institution
-                EXCEPT
-                SELECT DISTINCT bi2.ano_mes_ref
-                FROM financial_data.bacen_institution bi2
-                INNER JOIN financial_data.bacen_ifdata_extract_task task
-                    ON task.ano_mes = bi2.ano_mes_ref
-                WHERE task.status NOT IN ('EMPTY', 'SUCCESS')
-            )
-        """.trimIndent()
-        val nativeQuery = entityManager.createNativeQuery(sql)
-        val result = nativeQuery.singleResult as? String
-        return result
-    }
     /**
      * Builds a search filter predicate for querying institutions by name or code.
      * Excludes codes starting with 'C'.
@@ -102,7 +81,7 @@ open class BacenInstitutionRepositoryImpl(
             ?: return emptyList()
 
         // Resolve quarter: use provided anoMes or latest quarter globally
-        val targetAnoMes = anoMes ?: getLatestQuarter() ?: return emptyList()
+        val targetAnoMes = anoMes ?: quarterService.getLatestQuarter() ?: return emptyList()
 
         val likePattern = "%${normalizedQuery.lowercase()}%"
 
@@ -147,7 +126,7 @@ open class BacenInstitutionRepositoryImpl(
         after: CompositeCursor?,
     ): List<InstitutionSearchResult> {
         // Resolve quarter: use provided anoMes or latest quarter globally
-        val targetAnoMes = anoMes ?: getLatestQuarter() ?: return emptyList()
+        val targetAnoMes = anoMes ?: quarterService.getLatestQuarter() ?: return emptyList()
 
         // Build native SQL query for complex aggregation
         val sql = buildSearchQuery(query, targetAnoMes, after)
@@ -504,7 +483,7 @@ open class BacenInstitutionRepositoryImpl(
     @ReadOnly
     override fun countBacenInstitutions(query: String?, anoMes: String?): Long {
         // Resolve quarter: use provided anoMes or latest quarter globally
-        val targetAnoMes = anoMes ?: getLatestQuarter() ?: return 0
+        val targetAnoMes = anoMes ?: quarterService.getLatestQuarter() ?: return 0
 
         // Use native SQL for consistency with search query and to handle quarter filtering
         val hasQuery = query != null && query.isNotBlank()

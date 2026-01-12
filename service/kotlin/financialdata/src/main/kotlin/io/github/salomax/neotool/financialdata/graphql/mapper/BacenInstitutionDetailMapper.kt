@@ -27,7 +27,6 @@ class BacenInstitutionDetailMapper {
             equity = institution.equity?.toDouble(),
             yoyEquityGrowth = institution.yoyEquityGrowth?.toDouble(),
             basileiaIndex = institution.basileiaIndex?.toDouble(),
-            bacenInstitutionType = institution.bacenInstitutionType?.toString(),
             institutionType = institution.institutionType,
             tipoConsolidadoBancario = institution.tipoConsolidadoBancario,
             quarter = institution.quarter,

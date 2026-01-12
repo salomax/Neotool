@@ -32,53 +32,117 @@ open class BacenInstitutionDetailService(
      * @return BacenFinanceInstitution or null if not found
      */
     fun getBacenFinanceInstitution(id: String, anoMes: String? = null): BacenFinanceInstitution? {
-        val result = institutionDetailRepository.getInstitutionDetail(id, anoMes) ?: return null
+        // Get financial institution data
+        val financialData = institutionDetailRepository.getFinancialInstitutionData(id, anoMes) ?: return null
+
+        // Get BACEN bank report data
+        val reportData = institutionDetailRepository.getBacenBankReportData(id, anoMes)
+
+        // Extract financial metrics from report data
+        val financialMetrics = extractFinancialMetrics(reportData, anoMes)
 
         // Map control type
-        val controlType = mapControlType(result.tipoControle)
+        val controlType = mapControlType(financialData.tipoControle)
 
         // Map institution bank type
-        val institutionBankType = mapInstitutionBankType(result.tipoConsolidadoBancarioCode)
+        val institutionBankType = mapInstitutionBankType(financialData.tipoConsolidadoBancario)
 
         // Map institution type
         val institutionType = mapInstitutionType(
-            tipoConsolidacao = result.institutionType,
-            bacenCodInst = result.bacenCodInst,
+            tipoConsolidacao = financialData.tipoConsolidacao,
+            bacenCodInst = id,
             codConglomeradoPrudencial = null, // Not available in detail result
             codConglomeradoFinanceiro = null, // Not available in detail result
         )
 
+        // Get latest quarter from report data
+        val latestQuarter = reportData.firstOrNull()?.anoMesRef
+
         return BacenFinanceInstitution(
-            id = result.bacenCodInst,
-            name = result.nomeInstituicao ?: "Unknown",
-            legalName = result.legalName,
-            tradeName = result.tradeName,
-            assetId = result.assetId,
-            profit = result.profit,
-            equity = result.equity,
-            yoyEquityGrowth = result.yoyEquityGrowth,
-            basileiaIndex = result.basileiaIndex,
-            bacenInstitutionType = result.bacenInstitutionType,
+            id = id,
+            name = financialData.nomeInstituicao ?: "Unknown",
+            legalName = financialData.legalName,
+            tradeName = financialData.tradeName,
+            assetId = financialData.assetId,
+            profit = financialMetrics.profit,
+            equity = financialMetrics.equity,
+            yoyEquityGrowth = financialMetrics.yoyEquityGrowth,
+            basileiaIndex = financialMetrics.basileiaIndex,
             institutionType = institutionType,
-            tipoConsolidadoBancario = result.tipoConsolidadoBancario,
-            quarter = result.quarter,
-            website = result.website,
-            socialNetworks = result.socialNetworks,
-            mainActivity = result.mainActivity,
-            address = result.address,
-            founded = result.founded,
+            tipoConsolidadoBancario = institutionBankType,
+            quarter = latestQuarter,
+            website = financialData.website,
+            socialNetworks = financialData.socialNetworks,
+            mainActivity = financialData.mainActivity,
+            address = financialData.address,
+            founded = financialData.founded,
             controlType = controlType,
             institutionBankType = institutionBankType,
-            mobilizacaoIndex = result.mobilizacaoIndex,
-            totalAssets = result.totalAssets,
-            funding = result.funding,
-            loanPortfolio = result.loanPortfolio,
-            rwaReferenceEquity = result.rwaReferenceEquity,
+            mobilizacaoIndex = financialMetrics.mobilizacaoIndex,
+            totalAssets = financialMetrics.totalAssets,
+            funding = financialMetrics.funding,
+            loanPortfolio = financialMetrics.loanPortfolio,
+            rwaReferenceEquity = financialMetrics.rwaReferenceEquity,
         )
     }
 
     /**
+     * Extract financial metrics from report data.
+     * Maps account numbers to specific financial metrics.
+     */
+    private fun extractFinancialMetrics(
+        reportData: List<io.github.salomax.neotool.financialdata.repo.result.BacenBankReportDataResult>,
+        anoMes: String?,
+    ): FinancialMetrics {
+        // Group by account number for easier lookup
+        val accountMap = reportData.associateBy { it.account }
+
+        val profit = accountMap["78187"]?.balance
+        val equity = accountMap["78186"]?.balance
+        val basileiaIndex = accountMap["79664"]?.balance
+        val mobilizacaoIndex = accountMap["79665"]?.balance
+        val totalAssets = accountMap["78188"]?.balance
+        val funding = accountMap["78189"]?.balance
+        val loanPortfolio = accountMap["78190"]?.balance
+        val rwaReferenceEquity = accountMap["78191"]?.balance
+
+        // Calculate year-over-year equity growth
+        // Note: This requires year-ago data which would need a separate query
+        // For now, we'll leave it as null since we don't have year-ago data in the new structure
+        val yoyEquityGrowth: java.math.BigDecimal? = null
+
+        return FinancialMetrics(
+            profit = profit,
+            equity = equity,
+            yoyEquityGrowth = yoyEquityGrowth,
+            basileiaIndex = basileiaIndex,
+            mobilizacaoIndex = mobilizacaoIndex,
+            totalAssets = totalAssets,
+            funding = funding,
+            loanPortfolio = loanPortfolio,
+            rwaReferenceEquity = rwaReferenceEquity,
+        )
+    }
+
+    /**
+     * Internal data class for financial metrics extracted from report data.
+     */
+    private data class FinancialMetrics(
+        val profit: java.math.BigDecimal?,
+        val equity: java.math.BigDecimal?,
+        val yoyEquityGrowth: java.math.BigDecimal?,
+        val basileiaIndex: java.math.BigDecimal?,
+        val mobilizacaoIndex: java.math.BigDecimal?,
+        val totalAssets: java.math.BigDecimal?,
+        val funding: java.math.BigDecimal?,
+        val loanPortfolio: java.math.BigDecimal?,
+        val rwaReferenceEquity: java.math.BigDecimal?,
+    )
+
+    /**
      * Get available reports grouped by quarter for an institution.
+     * Returns only report catalog information (reportId and name).
+     * Detailed account/group/column information is available in reportDetails.
      *
      * @param id Institution ID (bacen_cod_inst)
      * @param range Quarter range filter
@@ -91,15 +155,17 @@ open class BacenInstitutionDetailService(
         val quartersMap = reports.groupBy { it.quarter }
 
         val quarterReports = quartersMap.map { (quarter, reports) ->
+            // Deduplicate by reportId (defensive - SQL DISTINCT should handle this)
+            val uniqueReports = reports.distinctBy { it.reportId }
+
             QuarterReports(
                 quarter = quarter,
-                reports = reports.map { report ->
+                reports = uniqueReports.map { report ->
                     ReportDescriptor(
                         reportId = report.reportId,
                         name = report.name,
-                        group = report.group,
-                        accountNumber = report.accountNumber,
-                        columnName = report.columnName,
+                        // group, accountNumber, columnName not set (default to null)
+                        // These fields are only available in reportDetails
                     )
                 },
             )

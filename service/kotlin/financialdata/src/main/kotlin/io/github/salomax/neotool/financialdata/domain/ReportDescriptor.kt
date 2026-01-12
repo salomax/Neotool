@@ -1,8 +1,10 @@
 package io.github.salomax.neotool.financialdata.domain
 
 /**
- * Domain object representing a report descriptor (metadata only, no values).
- * Used in reportsSummary to list available reports without loading detailed values.
+ * Domain object representing a report descriptor.
+ *
+ * In reportsSummary: Only reportId and name are populated.
+ * In reportDetails: All fields are populated including group, accountNumber, columnName.
  */
 data class ReportDescriptor(
     /**
@@ -16,17 +18,20 @@ data class ReportDescriptor(
     val name: String?,
 
     /**
-     * Group from bacen_bank_report_account
+     * Group from bacen_bank_report_account.
+     * Only present in reportDetails, not in reportsSummary.
      */
-    val group: String?,
+    val group: String? = null,
 
     /**
-     * Account number (conta) from bacen_bank_report_account
+     * Account number (conta) from bacen_bank_report_account.
+     * Only present in reportDetails, not in reportsSummary.
      */
-    val accountNumber: String?,
+    val accountNumber: String? = null,
 
     /**
-     * Column name (nome_coluna) from bacen_bank_report_account
+     * Column name (nome_coluna) from bacen_bank_report_account.
+     * Only present in reportDetails, not in reportsSummary.
      */
-    val columnName: String?,
+    val columnName: String? = null,
 )

@@ -131,6 +131,37 @@ type AuthorizationResult
   reason: String!
 }
 
+enum BacenControlType
+  @join__type(graph: FINANCIALDATA)
+{
+  PUBLIC @join__enumValue(graph: FINANCIALDATA)
+  PRIVATE_DOMESTIC @join__enumValue(graph: FINANCIALDATA)
+  PRIVATE_FOREIGN_CONTROL @join__enumValue(graph: FINANCIALDATA)
+}
+
+type BacenFinanceInstitution
+  @join__type(graph: FINANCIALDATA)
+{
+  id: ID!
+  quarter: String
+  name: String!
+  asset: Asset
+  legalName: String
+  tradeName: String
+  logoAsset: Asset
+  institutionType: BacenInstitutionType
+  controlType: BacenControlType
+  institutionBankType: BacenInstitutionBankType
+  tipoConsolidadoBancario: BacenInstitutionBankType
+  website: String
+  socialNetworks: [String!]
+  mainActivity: String
+  address: String
+  founded: String
+  reportsSummary(range: QuarterRangeInput!): ReportsAvailability!
+  reportDetails(reportId: ID!, range: QuarterRangeInput!): ReportDetails!
+}
+
 type BacenInstitutionAutocompleteConnection
   @join__type(graph: FINANCIALDATA)
 {
@@ -141,6 +172,19 @@ type BacenInstitutionAutocompleteItem
   @join__type(graph: FINANCIALDATA)
 {
   name: String!
+}
+
+enum BacenInstitutionBankType
+  @join__type(graph: FINANCIALDATA)
+{
+  B1 @join__enumValue(graph: FINANCIALDATA)
+  B2 @join__enumValue(graph: FINANCIALDATA)
+  B3S @join__enumValue(graph: FINANCIALDATA)
+  B3C @join__enumValue(graph: FINANCIALDATA)
+  B4 @join__enumValue(graph: FINANCIALDATA)
+  N1 @join__enumValue(graph: FINANCIALDATA)
+  N2 @join__enumValue(graph: FINANCIALDATA)
+  N4 @join__enumValue(graph: FINANCIALDATA)
 }
 
 type BacenInstitutionConnection
@@ -447,6 +491,28 @@ type PermissionEdge
   cursor: String!
 }
 
+input QuarterRangeInput
+  @join__type(graph: FINANCIALDATA)
+{
+  from: String
+  to: String
+  last: Int
+}
+
+type QuarterReports
+  @join__type(graph: FINANCIALDATA)
+{
+  quarter: String!
+  reports: [ReportDescriptor!]!
+}
+
+type QuarterValue
+  @join__type(graph: FINANCIALDATA)
+{
+  quarter: String!
+  value: Float
+}
+
 type Query
   @join__type(graph: ASSETS)
   @join__type(graph: FINANCIALDATA)
@@ -457,8 +523,9 @@ type Query
   Returns null if asset not found or user doesn't have access.
   """
   asset(id: ID!): Asset @join__field(graph: ASSETS)
-  searchBacenInstitutionsAutocomplete(query: String!): BacenInstitutionAutocompleteConnection! @join__field(graph: FINANCIALDATA)
-  bacenInstitutions(query: String, first: Int, after: String): BacenInstitutionConnection! @join__field(graph: FINANCIALDATA)
+  searchBacenInstitutionsAutocomplete(query: String!, anoMes: String): BacenInstitutionAutocompleteConnection! @join__field(graph: FINANCIALDATA)
+  bacenInstitutions(query: String, anoMes: String, first: Int, after: String): BacenInstitutionConnection! @join__field(graph: FINANCIALDATA)
+  bacenFinanceInstitution(id: ID!, anoMes: String): BacenFinanceInstitution @join__field(graph: FINANCIALDATA)
   currentUser: User @join__field(graph: SECURITY)
   checkPermission(userId: ID!, permission: String!, resourceId: ID): AuthorizationResult! @join__field(graph: SECURITY)
   user(id: ID!): User @join__field(graph: SECURITY)
@@ -474,6 +541,33 @@ input RefreshAccessTokenInput
   @join__type(graph: SECURITY)
 {
   refreshToken: String!
+}
+
+type ReportDescriptor
+  @join__type(graph: FINANCIALDATA)
+{
+  reportId: ID!
+  name: String
+  group: String
+  accountNumber: String
+  columnName: String
+}
+
+type ReportDetails
+  @join__type(graph: FINANCIALDATA)
+{
+  reportId: ID!
+  name: String
+  group: String
+  accountNumber: String
+  columnName: String
+  valuesByQuarter: [QuarterValue!]!
+}
+
+type ReportsAvailability
+  @join__type(graph: FINANCIALDATA)
+{
+  quarters: [QuarterReports!]!
 }
 
 input RequestPasswordResetInput
