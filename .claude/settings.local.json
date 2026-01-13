@@ -40,7 +40,20 @@
       "Bash(kubectl config get-contexts:*)",
       "Bash(terraform output:*)",
       "Bash(export KUBECONFIG=~/.kube/config-hostinger)",
-      "Bash(kubectl config use-context:*)"
+      "Bash(kubectl config use-context:*)",
+      "Bash(git push:*)",
+      "Bash(git pull:*)",
+      "Bash(git stash:*)",
+      "Bash(git commit:*)",
+      "Bash(./vault-init.sh:*)",
+      "Bash(./vault-unseal.sh)",
+      "Bash(kubectl exec:*)",
+      "Bash(source:*)",
+      "Bash(./vault-configure.sh:*)",
+      "Bash(./vault-store-postgres.sh:*)",
+      "Bash(kubectl describe:*)",
+      "Bash(kubectl delete:*)",
+      "Bash(git revert:*)"
     ]
   }
 }

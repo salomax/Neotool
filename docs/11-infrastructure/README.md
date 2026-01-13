@@ -39,11 +39,12 @@ This section provides **operational documentation** for deploying, managing, and
 ### For DevOps/SRE
 
 **First Day**:
-1. [K3S Setup Guide](./k3s-setup.md) - Set up K3S cluster
-2. [K8S Deployment Runbook](./k8s-deployment-runbook.md) - Deploy to Kubernetes
-3. [Hostinger VPC Runbook](./hostinger-vpc-runbook.md) - Deploy to Hostinger VPC
-4. [Operations Runbook](./operations-runbook.md) - Day-to-day operations
-5. [Monitoring Setup](./monitoring-setup.md) - Configure observability
+1. [GitOps README](../infra/kubernetes/README.md) - **Complete GitOps guide (Flux CD)**
+2. [K3S Setup Guide](./k3s-setup.md) - Set up K3S cluster
+3. [K8S Deployment Runbook](./k8s-deployment-runbook.md) - Deploy to Kubernetes
+4. [Hostinger VPC Runbook](./hostinger-vpc-runbook.md) - Deploy to Hostinger VPC
+5. [Operations Runbook](./operations-runbook.md) - Day-to-day operations
+6. [Monitoring Setup](./monitoring-setup.md) - Configure observability
 
 **Ongoing**:
 - [Troubleshooting Guide](./troubleshooting-guide.md) - Diagnose issues
@@ -53,6 +54,7 @@ This section provides **operational documentation** for deploying, managing, and
 ### For Developers
 
 **Deployment**:
+- **[GitOps Guide](../infra/kubernetes/README.md)** - **Complete GitOps workflow (Flux CD)**
 - [Local Development Setup](../01-overview/getting-started.md)
 - [K3S Setup](./k3s-setup.md) - Set up local K3S cluster
 - [K8S Deployment](./k8s-deployment-runbook.md) - Deploy to Kubernetes
@@ -86,6 +88,9 @@ This section provides **operational documentation** for deploying, managing, and
 ├── scaling-guide.md             # Resource scaling
 ├── security-operations.md       # Security procedures
 └── maintenance-guide.md         # Routine maintenance
+
+../infra/kubernetes/
+└── README.md                     # Complete GitOps guide (Flux CD)
 ```
 
 ---
@@ -96,9 +101,10 @@ This section provides **operational documentation** for deploying, managing, and
 
 | Task | Documentation | Frequency |
 |------|--------------|-----------|
+| **Deploy via GitOps** | **[GitOps Guide](../infra/kubernetes/README.md)** | **On every Git push** |
 | Deploy to staging | [Deployment Guide](./deployment-guide.md#staging) | Per PR |
-| Deploy to production | [Deployment Guide](./deployment-guide.md#production) | Weekly |
-| Rollback deployment | [Deployment Guide](./deployment-guide.md#rollback) | As needed |
+| Deploy to production | [GitOps Guide](../infra/kubernetes/README.md#step-by-step-gitops-workflow) | On Git push |
+| Rollback deployment | [GitOps Guide](../infra/kubernetes/README.md#step-by-step-gitops-workflow) | Git revert |
 | Blue-green deployment | [Deployment Guide](./deployment-guide.md#blue-green) | Major releases |
 
 ### Operations
@@ -130,10 +136,12 @@ This section provides **operational documentation** for deploying, managing, and
 |-------------|---------|----------------|-------------|-----|
 | **Development** | Local dev | Docker Compose | No | localhost:* |
 | **Staging** | Pre-production testing | Kubernetes (small) | Yes (on PR merge) | staging.neotool.io |
-| **Production** | Live system | Kubernetes (full) | Manual approval | neotool.io |
-| **Hostinger VPC** | Production on Hostinger | K3S on Hostinger VPS | Manual approval | neotool.io |
+| **Production** | Live system | Kubernetes (full) | **GitOps (Flux)** | neotool.io |
+| **Hostinger VPC** | Production on Hostinger | K3S on Hostinger VPS | **GitOps (Flux)** | neotool.io |
 
-**See**: [Deployment Guide](./deployment-guide.md) for environment-specific procedures.
+**See**: 
+- [GitOps Guide](../infra/kubernetes/README.md) - **Complete GitOps workflow**
+- [Deployment Guide](./deployment-guide.md) - Legacy deployment procedures
 
 ### Environment Parity
 
