@@ -27,12 +27,23 @@ spec:
   values:
     global:
       enabled: true
-      tlsDisable: true  # TODO: Enable TLS in production
+      tlsDisable: false
 
     injector:
       enabled: false  # We'll use External Secrets Operator instead
 
     server:
+      # Mount TLS certificates from cert-manager
+      volumes:
+        - name: vault-tls
+          secret:
+            secretName: vault-tls
+            defaultMode: 0400
+
+      volumeMounts:
+        - name: vault-tls
+          mountPath: /vault/tls
+          readOnly: true
       # Production mode (not dev!)
       dev:
         enabled: false
@@ -90,9 +101,10 @@ spec:
         ui = true
 
         listener "tcp" {
-          tls_disable = 1
-          address = "[::]:8200"
-          cluster_address = "[::]:8201"
+          tls_cert_file = "/vault/tls/tls.crt"
+          tls_key_file  = "/vault/tls/tls.key"
+          address = "0.0.0.0:8200"
+          cluster_address = "0.0.0.0:8201"
         }
 
         storage "file" {
