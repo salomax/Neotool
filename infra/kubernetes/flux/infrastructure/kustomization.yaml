@@ -9,11 +9,6 @@ resources:
   # Helm repositories
   - sources/helmrepositories.yaml
 
-  # Cert-manager (TLS certificate management)
-  - cert-manager/helmrelease.yaml
-  - cert-manager/issuer.yaml
-  - cert-manager/vault-certificate.yaml
-
   # Vault (secrets management)
   - vault/helmrelease.yaml
 
