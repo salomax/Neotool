@@ -57,6 +57,19 @@ spec:
           memory: 512Mi
           cpu: 200m
 
+      # Security context
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+        runAsGroup: 1000
+        fsGroup: 1000
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+          add:
+            - IPC_LOCK  # Required for mlock (memory locking)
+
       # Service configuration
       service:
         enabled: true
