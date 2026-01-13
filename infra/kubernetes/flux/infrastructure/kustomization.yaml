@@ -4,6 +4,7 @@ kind: Kustomization
 resources:
   # Namespace first
   - namespace.yaml
+  - resource-quota.yaml
 
   # Helm repositories
   - sources/helmrepositories.yaml

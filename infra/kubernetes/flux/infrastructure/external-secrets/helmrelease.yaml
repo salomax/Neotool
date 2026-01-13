@@ -39,6 +39,16 @@ spec:
         memory: 256Mi
         cpu: 200m
 
+    # Security context for all containers
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      fsGroup: 1000
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+
     webhook:
       create: true
 

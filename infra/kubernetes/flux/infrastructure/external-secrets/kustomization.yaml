@@ -4,5 +4,6 @@ kind: Kustomization
 resources:
   # ExternalSecret resources
   # Applied after External Secrets Operator is installed
+  - service-account.yaml
   - secret-store.yaml
   - postgres-external-secret.yaml
