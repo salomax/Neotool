@@ -33,6 +33,17 @@ spec:
       enabled: false  # We'll use External Secrets Operator instead
 
     server:
+      # Mount TLS certificates from cert-manager
+      volumes:
+        - name: vault-tls
+          secret:
+            secretName: vault-tls
+            defaultMode: 0400
+
+      volumeMounts:
+        - name: vault-tls
+          mountPath: /vault/tls
+          readOnly: true
       # Production mode (not dev!)
       dev:
         enabled: false
@@ -47,18 +58,6 @@ spec:
         size: 1Gi
         storageClass: local-path
         accessMode: ReadWriteOnce
-
-      # Mount TLS certificates from cert-manager
-      volumes:
-        - name: vault-tls
-          secret:
-            secretName: vault-tls
-            defaultMode: 0400
-
-      volumeMounts:
-        - name: vault-tls
-          mountPath: /vault/tls
-          readOnly: true
 
       # Resources
       resources:
@@ -88,7 +87,7 @@ spec:
         type: ClusterIP
         port: 8200
 
-      # Readiness/Liveness probes - use HTTPS
+      # Readiness/Liveness probes
       readinessProbe:
         enabled: true
         path: /v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204
