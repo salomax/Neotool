@@ -41,17 +41,17 @@ This will:
 - Configure the cluster
 - Save kubeconfig to `~/.kube/config`
 
-### 2. Deploy Kubernetes Manifests
+### 2. Bootstrap Flux GitOps
 
 ```bash
-cd infra/kubernetes
-./scripts/deploy.sh local
+cd infra/kubernetes/flux
+./bootstrap-dev.sh
 ```
 
 This will:
-- Apply all base Kubernetes manifests
-- Apply local environment patches
-- Wait for all deployments to be ready
+- Install Flux CD controllers
+- Set up Git → Cluster synchronization
+- Automatically deploy all manifests from Git
 
 ### 3. Verify Deployment
 
@@ -89,12 +89,17 @@ This will:
 - Configure Cloudflare R2 storage
 - Set up nodes with 8 CPU / 32GB RAM
 
-### 3. Deploy Applications
+### 3. Bootstrap Flux GitOps
 
 ```bash
-cd infra/kubernetes
-./scripts/deploy.sh prod
+cd infra/kubernetes/flux
+./bootstrap.sh
 ```
+
+This will:
+- Install Flux CD controllers
+- Set up Git → Cluster synchronization (production branch)
+- Automatically deploy all manifests from Git
 
 ### 4. Verify Production Deployment
 
@@ -183,21 +188,33 @@ kubectl exec -n neotool-app deployment/app -- curl http://vault.neotool-security
 
 ## Rollback Procedures
 
-### Rollback Deployment
+### Rollback Deployment (GitOps)
+
+With Flux GitOps, rollback is done via Git:
 
 ```bash
-cd infra/kubernetes
-./scripts/rollback.sh <environment>
+# Revert the commit that caused the issue
+git revert <commit-hash>
+git push
+
+# Or checkout a previous version
+git checkout <previous-commit> -- infra/kubernetes/flux/
+git commit -m "Rollback to previous version"
+git push
+
+# Flux will automatically reconcile and rollback
 ```
 
 ### Rollback to Specific Revision
 
 ```bash
-# List deployment history
-kubectl rollout history deployment/<deployment-name> -n <namespace>
+# List deployment history (via Git)
+git log --oneline -- infra/kubernetes/flux/
 
-# Rollback to specific revision
-./scripts/rollback.sh <environment> <revision>
+# Checkout specific commit
+git checkout <commit-hash> -- infra/kubernetes/flux/
+git commit -m "Rollback to <commit-hash>"
+git push
 ```
 
 ## Production VPC Setup

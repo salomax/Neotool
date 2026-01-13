@@ -2,16 +2,17 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-  # Namespace first
-  - namespace.yaml
+  # 1. Namespace and ResourceQuota (foundation)
+  - namespace/kustomization.yaml
 
-  # Helm repositories
-  - sources/helmrepositories.yaml
+  # 2. Network Policies (security)
+  - network-policies/kustomization.yaml
 
-  # Vault (secrets management)
-  - vault/helmrelease.yaml
+  # 3. Helm chart repositories (required for HelmReleases)
+  - helm-sources/kustomization.yaml
 
-  # External Secrets Operator (syncs Vault → K8s)
-  # Only the operator HelmRelease - not the ExternalSecret resources
-  # Those will be applied after the operator is ready
-  - external-secrets/helmrelease.yaml
+  # 4. Vault (secrets management) - includes log cleanup CronJob
+  - vault/kustomization.yaml
+
+  # 5. External Secrets Operator (syncs Vault → K8s)
+  - external-secrets/kustomization.yaml
