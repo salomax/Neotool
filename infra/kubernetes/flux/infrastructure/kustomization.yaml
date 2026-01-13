@@ -12,6 +12,6 @@ resources:
   - vault/helmrelease.yaml
 
   # External Secrets Operator (syncs Vault → K8s)
+  # Only the operator HelmRelease - not the ExternalSecret resources
+  # Those will be applied after the operator is ready
   - external-secrets/helmrelease.yaml
-  - external-secrets/secret-store.yaml
-  - external-secrets/postgres-external-secret.yaml
