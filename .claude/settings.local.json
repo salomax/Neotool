@@ -27,7 +27,20 @@
       "Bash(mkdir:*)",
       "Bash(grep:*)",
       "Bash(../gradlew test:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(kubectl cluster-info:*)",
+      "Bash(kubectl get:*)",
+      "Bash(flux check:*)",
+      "Bash(brew install:*)",
+      "Bash(curl:*)",
+      "Bash(bash)",
+      "Bash(bash -s ~/.local/bin)",
+      "Bash(~/.local/bin/flux:*)",
+      "Bash(echo:*)",
+      "Bash(kubectl config get-contexts:*)",
+      "Bash(terraform output:*)",
+      "Bash(export KUBECONFIG=~/.kube/config-hostinger)",
+      "Bash(kubectl config use-context:*)"
     ]
   }
 }

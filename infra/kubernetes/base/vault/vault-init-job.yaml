@@ -46,14 +46,14 @@ spec:
 
               # Store keys in Vault KV v2
               echo "Storing keys in Vault..."
-              vault kv put secret/jwt/keys/default \
+              vault kv put secret/jwt/keys/kid-1 \
                 private="$PRIVATE_KEY" \
                 public="$PUBLIC_KEY"
 
               # Clean up temporary files
               rm -f /tmp/*.pem
               
-              echo "JWT keys stored successfully in secret/jwt/keys/default"
+              echo "JWT keys stored successfully in secret/jwt/keys/kid-1"
           env:
             - name: VAULT_ADDR
               value: "http://vault.neotool-security.svc.cluster.local:8200"

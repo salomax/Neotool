@@ -4,15 +4,20 @@ kind: Kustomization
 namespace: default
 
 resources:
-  # Namespaces
-  - namespaces/neotool-app.yaml
-  - namespaces/neotool-web.yaml
-  - namespaces/neotool-data.yaml
-  - namespaces/neotool-messaging.yaml
-  - namespaces/neotool-storage.yaml
-  - namespaces/neotool-security.yaml
-  - namespaces/neotool-workflows.yaml
-  - namespaces/neotool-observability.yaml
+#  Vault
+  - vault/vault-deployment.yaml
+  - vault/vault-secret.yaml
+  - vault/vault-init-job.yaml
+
+  # Services
+  # - services/neotool-app.yaml
+  # - services/neotool-web.yaml
+  # - services/neotool-data.yaml
+  # - services/neotool-messaging.yaml
+  # - services/neotool-storage.yaml
+  # - services/neotool-security.yaml
+  # - services/neotool-workflows.yaml
+  # - services/neotool-observability.yaml
 
   # Databases
   - databases/postgres-statefulset.yaml
@@ -21,24 +26,19 @@ resources:
   - databases/vault-external-secrets.yaml
 
   # Kafka
-  - kafka/kafka-statefulset.yaml
-
-  # Vault
-  - vault/vault-deployment.yaml
-  - vault/vault-secret.yaml
-  - vault/vault-init-job.yaml
+  # - kafka/kafka-statefulset.yaml
 
   # Storage
-  - storage/minio-deployment.yaml
+  # - storage/minio-deployment.yaml
 
   # Web
-  - web/nextjs-deployment.yaml
+  # - web/nextjs-deployment.yaml
 
   # Router
-  - router/apollo-router-deployment.yaml
+  # - router/apollo-router-deployment.yaml
 
   # Observability
-  - observability/prometheus/deployment.yaml
-  - observability/grafana/deployment.yaml
-  - observability/loki/loki-statefulset.yaml
-  - observability/promtail/promtail-daemonset.yaml
+  # - observability/prometheus/deployment.yaml
+  # - observability/grafana/deployment.yaml
+  # - observability/loki/loki-statefulset.yaml
+  # - observability/promtail/promtail-daemonset.yaml

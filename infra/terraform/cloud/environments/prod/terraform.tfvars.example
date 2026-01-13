@@ -6,7 +6,7 @@ node_count   = 3
 node_cpu     = 8
 node_memory_gb = 32
 
-provider_type = "aws"  # aws, gcp, or azure
+provider_type = "aws"  # aws, gcp, azure or hostinger
 region        = "us-east-1"
 vpc_cidr      = "10.0.0.0/16"
 

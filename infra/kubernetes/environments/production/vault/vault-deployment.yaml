@@ -1,0 +1,115 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: vault
+  namespace: production
+  labels:
+    app: vault
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8200
+      targetPort: 8200
+      protocol: TCP
+    - name: cluster
+      port: 8201
+      targetPort: 8201
+      protocol: TCP
+  selector:
+    app: vault
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: vault
+  namespace: production
+  labels:
+    app: vault
+spec:
+  serviceName: vault
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vault
+  template:
+    metadata:
+      labels:
+        app: vault
+    spec:
+      serviceAccountName: vault
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: vault
+          image: hashicorp/vault:1.21.1
+          imagePullPolicy: IfNotPresent
+          command:
+            - vault
+            - server
+            - -config=/vault/config/vault.hcl
+          ports:
+            - name: http
+              containerPort: 8200
+              protocol: TCP
+            - name: cluster
+              containerPort: 8201
+              protocol: TCP
+          env:
+            - name: VAULT_ADDR
+              value: "http://127.0.0.1:8200"
+            - name: VAULT_API_ADDR
+              value: "http://vault.production.svc.cluster.local:8200"
+            - name: SKIP_CHOWN
+              value: "true"
+            - name: SKIP_SETCAP
+              value: "true"
+          volumeMounts:
+            - name: vault-config
+              mountPath: /vault/config
+            - name: vault-data
+              mountPath: /vault/data
+          livenessProbe:
+            httpGet:
+              path: /v1/sys/health?standbyok=true
+              port: 8200
+              scheme: HTTP
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204
+              port: 8200
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+      volumes:
+        - name: vault-config
+          configMap:
+            name: vault-config
+  volumeClaimTemplates:
+    - metadata:
+        name: vault-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: local-path
+        resources:
+          requests:
+            storage: 1Gi
