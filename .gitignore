@@ -43,3 +43,13 @@ artifacts/
 web/public/robots.txt
 # sitemap.xml: ssitemap files containing URLs with metadata (lastmod, changefreq, priority)
 web/public/sitemap*.xml
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+terraform.tfvars
+*.tfvars.backup
+.terraformrc
+terraform.rc

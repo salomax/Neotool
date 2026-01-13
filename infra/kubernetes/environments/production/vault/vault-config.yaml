@@ -1,0 +1,34 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-config
+  namespace: production
+data:
+  vault.hcl: |
+    # Vault Server Configuration for Production
+
+    ui = true
+
+    # File storage backend (persisted to PVC)
+    storage "file" {
+      path = "/vault/data"
+    }
+
+    # Listener for API and UI
+    listener "tcp" {
+      address     = "0.0.0.0:8200"
+      tls_disable = 1
+      # Note: In production with external access, you should enable TLS
+      # tls_cert_file = "/vault/tls/tls.crt"
+      # tls_key_file  = "/vault/tls/tls.key"
+    }
+
+    # API address (internal cluster)
+    api_addr = "http://vault.production.svc.cluster.local:8200"
+    cluster_addr = "http://vault.production.svc.cluster.local:8201"
+
+    # Disable mlock for containers (required for K8s)
+    disable_mlock = true
+
+    # Log level
+    log_level = "info"
