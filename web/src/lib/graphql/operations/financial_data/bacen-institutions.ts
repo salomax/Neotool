@@ -14,6 +14,30 @@ export const SEARCH_BACEN_INSTITUTIONS_AUTOCOMPLETE = gql`
 `;
 
 /**
+ * GraphQL query for fetching Bacen institution report details
+ */
+export const BACEN_INSTITUTION_REPORT_DETAILS = gql`
+  query BacenInstitutionReportDetails($id: ID!, $reportId: ID!, $range: QuarterRangeInput!) {
+    bacenFinanceInstitution(id: $id) {
+      id
+      reportDetails(reportId: $reportId, range: $range) {
+        reportId
+        name
+        accounts {
+          group
+          accountNumber
+          columnName
+          valuesByQuarter {
+            quarter
+            value
+          }
+        }
+      }
+    }
+  }
+`;
+
+/**
  * GraphQL query for fetching paginated Bacen institutions
  */
 export const BACEN_INSTITUTIONS = gql`
@@ -41,6 +65,59 @@ export const BACEN_INSTITUTIONS = gql`
         endCursor
       }
       totalCount
+    }
+  }
+`;
+
+/**
+ * GraphQL query for fetching a single Bacen institution by ID
+ */
+export const BACEN_INSTITUTION = gql`
+  query BacenInstitution($id: ID!, $anoMes: String) {
+    bacenFinanceInstitution(id: $id, anoMes: $anoMes) {
+      id
+      quarter
+      name
+      legalName
+      tradeName
+      logoAsset {
+        id
+        publicUrl
+      }
+      asset {
+        publicUrl
+      }
+      institutionType
+      controlType
+      institutionBankType
+      tipoConsolidadoBancario
+      website
+      socialNetworks
+      mainActivity
+      address
+      founded
+      rwaReferenceEquity
+    }
+  }
+`;
+
+/**
+ * GraphQL query for fetching Bacen institution report catalog by trimester
+ */
+export const BACEN_INSTITUTION_REPORTS = gql`
+  query BacenInstitutionReports($id: ID!, $anoMes: String, $range: QuarterRangeInput!) {
+    bacenFinanceInstitution(id: $id, anoMes: $anoMes) {
+      id
+      name
+      reportsSummary(range: $range) {
+        quarters {
+          quarter
+          reports {
+            reportId
+            name
+          }
+        }
+      }
     }
   }
 `;

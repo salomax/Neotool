@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useQuery } from "@apollo/client/react";
 import { useRouter } from "next/navigation";
-import { Container, Box } from "@/shared/components/ui/layout";
+import { Container, Box, Page } from "@/shared/components/ui/layout";
 import { SearchableAutocomplete } from "@/shared/components/ui/forms/SearchableAutocomplete";
 import { CardGrid } from "@/shared/components/ui/layout/CardGrid";
 import { BacenInstitutionCard, type BacenInstitution } from "@/features/financial_data/components/BacenInstitutionCard";
@@ -14,6 +14,7 @@ import { startTransition } from "react";
 import { useTranslation } from "@/shared/i18n";
 import { financialDataTranslations } from "@/features/financial_data/i18n";
 import { usePageTitle } from "@/shared/hooks/ui/usePageTitle";
+import { encodeId } from "@/shared/utils/idObfuscation";
 
 export default function BacenInstitutionsPage() {
   const { t } = useTranslation(financialDataTranslations);
@@ -94,7 +95,7 @@ export default function BacenInstitutionsPage() {
 
   const handleCardClick = useCallback(
     (institution: BacenInstitution) => {
-      router.push(`/bacen-institutions/${institution.id}`);
+      router.push(`/bacen-institutions/${encodeId(institution.id)}`);
     },
     [router]
   );
@@ -118,7 +119,7 @@ export default function BacenInstitutionsPage() {
   );
 
   return (
-    <>
+    <Page>
       <Box
         component="header"
         sx={{
@@ -188,6 +189,6 @@ export default function BacenInstitutionsPage() {
           errorMessage={t("messages.unableToLoadInstitutions")}
         />
       </Container>
-    </>
+    </Page>
   );
 }

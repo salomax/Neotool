@@ -7,6 +7,7 @@ import io.github.salomax.neotool.financialdata.domain.BacenInstitutionType
 import io.github.salomax.neotool.financialdata.domain.QuarterRange
 import io.github.salomax.neotool.financialdata.domain.QuarterReports
 import io.github.salomax.neotool.financialdata.domain.QuarterValue
+import io.github.salomax.neotool.financialdata.domain.ReportAccount
 import io.github.salomax.neotool.financialdata.domain.ReportDescriptor
 import io.github.salomax.neotool.financialdata.domain.ReportDetails
 import io.github.salomax.neotool.financialdata.domain.ReportsAvailability
@@ -176,6 +177,7 @@ open class BacenInstitutionDetailService(
 
     /**
      * Get detailed report values by quarter for a specific report.
+     * Groups values by account (group, accountNumber, columnName) and returns all accounts.
      *
      * @param id Institution ID (bacen_cod_inst)
      * @param reportId Report ID (numero_relatorio)
@@ -189,23 +191,46 @@ open class BacenInstitutionDetailService(
             return null
         }
 
-        // Use first value for metadata (all should have same report metadata)
+        // Use first value for report metadata (all should have same report metadata)
         val first = values.first()
 
-        val quarterValues = values.map { value ->
-            QuarterValue(
-                quarter = value.quarter,
-                value = value.value,
+        // Group values by account (composite key: group, accountNumber, columnName)
+        val accountsMap = values.groupBy { value ->
+            Triple(
+                value.group,
+                value.accountNumber,
+                value.columnName,
             )
-        }.sortedByDescending { it.quarter } // Most recent first
+        }
+
+        // Create ReportAccount for each unique account
+        val accounts = accountsMap.map { (accountKey, accountValues) ->
+            val (group, accountNumber, columnName) = accountKey
+
+            // Aggregate valuesByQuarter per account, sorted descending (most recent first)
+            val quarterValues = accountValues.map { value ->
+                QuarterValue(
+                    quarter = value.quarter,
+                    value = value.value,
+                )
+            }.sortedByDescending { it.quarter }
+
+            ReportAccount(
+                group = group,
+                accountNumber = accountNumber,
+                columnName = columnName,
+                valuesByQuarter = quarterValues,
+            )
+        }.sortedWith(
+            // Sort accounts consistently: by accountNumber then group
+            compareBy<ReportAccount> { it.accountNumber ?: "" }
+                .thenBy { it.group ?: "" }
+        )
 
         return ReportDetails(
             reportId = first.reportId,
             name = first.name,
-            group = first.group,
-            accountNumber = first.accountNumber,
-            columnName = first.columnName,
-            valuesByQuarter = quarterValues,
+            accounts = accounts,
         )
     }
 

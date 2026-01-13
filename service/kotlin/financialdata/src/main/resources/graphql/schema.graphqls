@@ -101,6 +101,7 @@ type BacenFinanceInstitution {
   mainActivity: String
   address: String
   founded: String
+  rwaReferenceEquity: Float
 
   # Reports
   reportsSummary(range: QuarterRangeInput!): ReportsAvailability!
@@ -134,6 +135,10 @@ type ReportDescriptor {
 type ReportDetails {
   reportId: ID!
   name: String
+  accounts: [ReportAccount!]!
+}
+
+type ReportAccount {
   group: String
   accountNumber: String
   columnName: String

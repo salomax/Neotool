@@ -1,7 +1,7 @@
 package io.github.salomax.neotool.financialdata.domain
 
 /**
- * Domain object representing detailed report information with values by quarter.
+ * Domain object representing detailed report information with multiple accounts.
  */
 data class ReportDetails(
     /**
@@ -15,22 +15,7 @@ data class ReportDetails(
     val name: String?,
 
     /**
-     * Group from bacen_bank_report_account
+     * List of accounts in this report, each with its own values by quarter
      */
-    val group: String?,
-
-    /**
-     * Account number (conta) from bacen_bank_report_account
-     */
-    val accountNumber: String?,
-
-    /**
-     * Column name (nome_coluna) from bacen_bank_report_account
-     */
-    val columnName: String?,
-
-    /**
-     * Values by quarter for this report
-     */
-    val valuesByQuarter: List<QuarterValue>,
+    val accounts: List<ReportAccount>,
 )

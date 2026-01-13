@@ -158,6 +158,7 @@ type BacenFinanceInstitution
   mainActivity: String
   address: String
   founded: String
+  rwaReferenceEquity: Float
   reportsSummary(range: QuarterRangeInput!): ReportsAvailability!
   reportDetails(reportId: ID!, range: QuarterRangeInput!): ReportDetails!
 }
@@ -543,6 +544,15 @@ input RefreshAccessTokenInput
   refreshToken: String!
 }
 
+type ReportAccount
+  @join__type(graph: FINANCIALDATA)
+{
+  group: String
+  accountNumber: String
+  columnName: String
+  valuesByQuarter: [QuarterValue!]!
+}
+
 type ReportDescriptor
   @join__type(graph: FINANCIALDATA)
 {
@@ -558,10 +568,7 @@ type ReportDetails
 {
   reportId: ID!
   name: String
-  group: String
-  accountNumber: String
-  columnName: String
-  valuesByQuarter: [QuarterValue!]!
+  accounts: [ReportAccount!]!
 }
 
 type ReportsAvailability

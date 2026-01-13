@@ -1,4 +1,5 @@
 // Layout - Components for structuring and organizing content
+export { Page } from './Page';
 export { Stack } from './Stack';
 export { Paper } from './Paper';
 export { Frame } from './Frame';

@@ -106,6 +106,46 @@ export type AuthorizationResult = {
   reason: Scalars['String']['output'];
 };
 
+export enum BacenControlType {
+  PrivateDomestic = 'PRIVATE_DOMESTIC',
+  PrivateForeignControl = 'PRIVATE_FOREIGN_CONTROL',
+  Public = 'PUBLIC'
+}
+
+export type BacenFinanceInstitution = {
+  __typename: 'BacenFinanceInstitution';
+  address: Maybe<Scalars['String']['output']>;
+  asset: Maybe<Asset>;
+  controlType: Maybe<BacenControlType>;
+  founded: Maybe<Scalars['String']['output']>;
+  id: Scalars['ID']['output'];
+  institutionBankType: Maybe<BacenInstitutionBankType>;
+  institutionType: Maybe<BacenInstitutionType>;
+  legalName: Maybe<Scalars['String']['output']>;
+  logoAsset: Maybe<Asset>;
+  mainActivity: Maybe<Scalars['String']['output']>;
+  name: Scalars['String']['output'];
+  quarter: Maybe<Scalars['String']['output']>;
+  reportDetails: ReportDetails;
+  reportsSummary: ReportsAvailability;
+  rwaReferenceEquity: Maybe<Scalars['Float']['output']>;
+  socialNetworks: Maybe<Array<Scalars['String']['output']>>;
+  tipoConsolidadoBancario: Maybe<BacenInstitutionBankType>;
+  tradeName: Maybe<Scalars['String']['output']>;
+  website: Maybe<Scalars['String']['output']>;
+};
+
+
+export type BacenFinanceInstitutionReportDetailsArgs = {
+  range: QuarterRangeInput;
+  reportId: Scalars['ID']['input'];
+};
+
+
+export type BacenFinanceInstitutionReportsSummaryArgs = {
+  range: QuarterRangeInput;
+};
+
 export type BacenInstitutionAutocompleteConnection = {
   __typename: 'BacenInstitutionAutocompleteConnection';
   suggestions: Array<BacenInstitutionAutocompleteItem>;
@@ -115,6 +155,17 @@ export type BacenInstitutionAutocompleteItem = {
   __typename: 'BacenInstitutionAutocompleteItem';
   name: Scalars['String']['output'];
 };
+
+export enum BacenInstitutionBankType {
+  B1 = 'B1',
+  B2 = 'B2',
+  B3C = 'B3C',
+  B3S = 'B3S',
+  B4 = 'B4',
+  N1 = 'N1',
+  N2 = 'N2',
+  N4 = 'N4'
+}
 
 export type BacenInstitutionConnection = {
   __typename: 'BacenInstitutionConnection';
@@ -481,6 +532,24 @@ export type PermissionEdge = {
   node: Permission;
 };
 
+export type QuarterRangeInput = {
+  from?: InputMaybe<Scalars['String']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+  to?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type QuarterReports = {
+  __typename: 'QuarterReports';
+  quarter: Scalars['String']['output'];
+  reports: Array<ReportDescriptor>;
+};
+
+export type QuarterValue = {
+  __typename: 'QuarterValue';
+  quarter: Scalars['String']['output'];
+  value: Maybe<Scalars['Float']['output']>;
+};
+
 export type Query = {
   __typename: 'Query';
   /**
@@ -488,6 +557,7 @@ export type Query = {
    * Returns null if asset not found or user doesn't have access.
    */
   asset: Maybe<Asset>;
+  bacenFinanceInstitution: Maybe<BacenFinanceInstitution>;
   bacenInstitutions: BacenInstitutionConnection;
   checkPermission: AuthorizationResult;
   currentUser: Maybe<User>;
@@ -507,8 +577,15 @@ export type QueryAssetArgs = {
 };
 
 
+export type QueryBacenFinanceInstitutionArgs = {
+  anoMes?: InputMaybe<Scalars['String']['input']>;
+  id: Scalars['ID']['input'];
+};
+
+
 export type QueryBacenInstitutionsArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
+  anoMes?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
   query?: InputMaybe<Scalars['String']['input']>;
 };
@@ -555,6 +632,7 @@ export type QueryRolesArgs = {
 
 
 export type QuerySearchBacenInstitutionsAutocompleteArgs = {
+  anoMes?: InputMaybe<Scalars['String']['input']>;
   query: Scalars['String']['input'];
 };
 
@@ -573,6 +651,35 @@ export type QueryUsersArgs = {
 
 export type RefreshAccessTokenInput = {
   refreshToken: Scalars['String']['input'];
+};
+
+export type ReportAccount = {
+  __typename: 'ReportAccount';
+  accountNumber: Maybe<Scalars['String']['output']>;
+  columnName: Maybe<Scalars['String']['output']>;
+  group: Maybe<Scalars['String']['output']>;
+  valuesByQuarter: Array<QuarterValue>;
+};
+
+export type ReportDescriptor = {
+  __typename: 'ReportDescriptor';
+  accountNumber: Maybe<Scalars['String']['output']>;
+  columnName: Maybe<Scalars['String']['output']>;
+  group: Maybe<Scalars['String']['output']>;
+  name: Maybe<Scalars['String']['output']>;
+  reportId: Scalars['ID']['output'];
+};
+
+export type ReportDetails = {
+  __typename: 'ReportDetails';
+  accounts: Array<ReportAccount>;
+  name: Maybe<Scalars['String']['output']>;
+  reportId: Scalars['ID']['output'];
+};
+
+export type ReportsAvailability = {
+  __typename: 'ReportsAvailability';
+  quarters: Array<QuarterReports>;
 };
 
 export type RequestPasswordResetInput = {

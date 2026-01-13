@@ -22,12 +22,14 @@ body:graphql {
       reportDetails(reportId: $reportId, range: $range) {
         reportId
         name
-        group
-        accountNumber
-        columnName
-        valuesByQuarter {
-          quarter
-          value
+        accounts {
+          group
+          accountNumber
+          columnName
+          valuesByQuarter {
+            quarter
+            value
+          }
         }
       }
     }
@@ -36,7 +38,7 @@ body:graphql {
 
 body:graphql:vars {
   {
-    "id": "C0080075",
+    "id": "00000000",
     "anoMes": "202509",
     "reportId": "1",
     "range": {
@@ -55,8 +57,19 @@ tests {
     expect(data.data.bacenFinanceInstitution.reportDetails).to.be.an('object');
   });
   
-  test("Has values by quarter", function() {
+  test("Has accounts array", function() {
     const data = res.getBody();
-    expect(data.data.bacenFinanceInstitution.reportDetails.valuesByQuarter).to.be.an('array');
+    expect(data.data.bacenFinanceInstitution.reportDetails.accounts).to.be.an('array');
+    expect(data.data.bacenFinanceInstitution.reportDetails.accounts.length).to.be.greaterThan(0);
+  });
+  
+  test("Each account has required fields", function() {
+    const data = res.getBody();
+    const accounts = data.data.bacenFinanceInstitution.reportDetails.accounts;
+    accounts.forEach((account) => {
+      expect(account).to.have.property('accountNumber');
+      expect(account).to.have.property('valuesByQuarter');
+      expect(account.valuesByQuarter).to.be.an('array');
+    });
   });
 }

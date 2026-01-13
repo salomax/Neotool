@@ -63,6 +63,12 @@ data class ReportDescriptorDTO(
 data class ReportDetailsDTO(
     val reportId: String,
     val name: String?,
+    val accounts: List<ReportAccountDTO>,
+)
+
+@Introspected
+@Serdeable
+data class ReportAccountDTO(
     val group: String?,
     val accountNumber: String?,
     val columnName: String?,

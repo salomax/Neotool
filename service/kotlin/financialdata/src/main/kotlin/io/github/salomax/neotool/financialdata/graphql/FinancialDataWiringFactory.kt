@@ -15,6 +15,7 @@ import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionSumma
 import io.github.salomax.neotool.financialdata.graphql.dto.PageInfoDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.QuarterReportsDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.QuarterValueDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.ReportAccountDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.ReportDescriptorDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.ReportDetailsDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.ReportsAvailabilityDTO
@@ -376,7 +377,14 @@ class FinancialDataWiringFactory(
                         "asset",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
                             val institution = env.getSource<BacenFinanceInstitutionDTO>()
-                            institution?.assetId
+                            // Return Asset reference for federation
+                            // Federation will resolve the Asset entity using the ID
+                            institution?.assetId?.let { assetId ->
+                                mapOf(
+                                    "__typename" to "Asset",
+                                    "id" to assetId,
+                                )
+                            }
                         },
                     )
                     .dataFetcher(
@@ -558,31 +566,41 @@ class FinancialDataWiringFactory(
                         },
                     )
                     .dataFetcher(
-                        "group",
+                        "accounts",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
                             val details = env.getSource<ReportDetailsDTO>()
-                            details?.group
+                            details?.accounts
                         },
                     )
+            }
+            // ReportAccount type resolvers
+            .type("ReportAccount") { type ->
+                type.dataFetcher(
+                    "group",
+                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                        val account = env.getSource<ReportAccountDTO>()
+                        account?.group
+                    },
+                )
                     .dataFetcher(
                         "accountNumber",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val details = env.getSource<ReportDetailsDTO>()
-                            details?.accountNumber
+                            val account = env.getSource<ReportAccountDTO>()
+                            account?.accountNumber
                         },
                     )
                     .dataFetcher(
                         "columnName",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val details = env.getSource<ReportDetailsDTO>()
-                            details?.columnName
+                            val account = env.getSource<ReportAccountDTO>()
+                            account?.columnName
                         },
                     )
                     .dataFetcher(
                         "valuesByQuarter",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val details = env.getSource<ReportDetailsDTO>()
-                            details?.valuesByQuarter
+                            val account = env.getSource<ReportAccountDTO>()
+                            account?.valuesByQuarter
                         },
                     )
             }

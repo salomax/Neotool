@@ -3,12 +3,14 @@ package io.github.salomax.neotool.financialdata.graphql.mapper
 import io.github.salomax.neotool.financialdata.domain.BacenFinanceInstitution
 import io.github.salomax.neotool.financialdata.domain.QuarterReports
 import io.github.salomax.neotool.financialdata.domain.QuarterValue
+import io.github.salomax.neotool.financialdata.domain.ReportAccount
 import io.github.salomax.neotool.financialdata.domain.ReportDescriptor
 import io.github.salomax.neotool.financialdata.domain.ReportDetails
 import io.github.salomax.neotool.financialdata.domain.ReportsAvailability
 import io.github.salomax.neotool.financialdata.graphql.dto.BacenFinanceInstitutionDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.QuarterReportsDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.QuarterValueDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.ReportAccountDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.ReportDescriptorDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.ReportDetailsDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.ReportsAvailabilityDTO
@@ -72,10 +74,16 @@ class BacenInstitutionDetailMapper {
         return ReportDetailsDTO(
             reportId = details.reportId,
             name = details.name,
-            group = details.group,
-            accountNumber = details.accountNumber,
-            columnName = details.columnName,
-            valuesByQuarter = details.valuesByQuarter.map { toQuarterValueDTO(it) },
+            accounts = details.accounts.map { toReportAccountDTO(it) },
+        )
+    }
+
+    fun toReportAccountDTO(account: ReportAccount): ReportAccountDTO {
+        return ReportAccountDTO(
+            group = account.group,
+            accountNumber = account.accountNumber,
+            columnName = account.columnName,
+            valuesByQuarter = account.valuesByQuarter.map { toQuarterValueDTO(it) },
         )
     }
 
