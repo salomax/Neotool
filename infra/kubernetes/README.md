@@ -1,6 +1,6 @@
 # Neotool Kubernetes GitOps Infrastructure
 
-> **Complete guide to GitOps deployment using Flux CD on Kubernetes (K3S)**
+> **Complete guide to GitOps deployment using Flux CD on Kubernetes**
 
 This repository contains the complete GitOps infrastructure for deploying Neotool to Kubernetes using Flux CD. All infrastructure is managed declaratively through Git, with automatic synchronization from repository to cluster.
 
@@ -37,15 +37,6 @@ GitOps is a methodology where **Git is the single source of truth** for infrastr
 - ✅ **Reversible**: Easy rollback via Git revert
 - ✅ **Consistent**: Same process for dev, staging, and production
 
-### Current Setup
-
-- **Cluster**: K3S on Hostinger VPS (8 CPU, 32GB RAM)
-- **GitOps Tool**: Flux CD v2
-- **Branch**: `20260108_3` (development) → `main` (production)
-- **Namespace**: `production`
-- **Service Mesh**: Linkerd (mTLS enabled)
-- **Secrets Management**: HashiCorp Vault + External Secrets Operator
-
 ---
 
 ## Architecture
@@ -54,36 +45,36 @@ GitOps is a methodology where **Git is the single source of truth** for infrastr
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    GitHub Repository                         │
+│                    GitHub Repository                        │
 │  (Source of Truth - All K8s manifests live here)            │
 └──────────────────────┬──────────────────────────────────────┘
                        │
-                       │ Git Push / Poll (every 1-10 min)
+                       │ Git Push / Polling
                        │
                        ▼
-┌─────────────────────────────────────────────────────────────┐
-│              Flux Controllers (flux-system)                  │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
-│  │ GitRepository│  │ Kustomization│  │ HelmRelease  │     │
-│  │  Controller  │  │  Controller  │  │  Controller  │     │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘     │
-└─────────┼──────────────────┼──────────────────┼────────────┘
-          │                  │                  │
-          │                  │                  │
-          ▼                  ▼                  ▼
-┌─────────────────────────────────────────────────────────────┐
-│              K3S Cluster (Production)                        │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │  Production Namespace                                 │   │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐          │   │
-│  │  │  Vault   │  │External  │  │PostgreSQL│          │   │
-│  │  │          │  │ Secrets  │  │          │          │   │
-│  │  └──────────┘  └──────────┘  └──────────┘          │   │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐          │   │
-│  │  │  Apps    │  │  Web     │  │ Services │          │   │
-│  │  └──────────┘  └──────────┘  └──────────┘          │   │
-│  └──────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│              Flux Controllers (flux-system)             │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │
+│  │ GitRepository│  │ Kustomization│  │ HelmRelease  │   │
+│  │  Controller  │  │  Controller  │  │  Controller  │   │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘   │
+└─────────┼─────────────────┼─────────────────┼───────────┘
+          │                 │                 │
+          │                 │                 │
+          ▼                 ▼                 ▼
+┌─────────────────────────────────────────────────────┐
+│              K3S Cluster (Production)               │
+│  ┌──────────────────────────────────────────────┐   │
+│  │  Production Namespace                        │   │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐    │   │
+│  │  │  Vault   │  │External  │  │PostgreSQL│    │   │
+│  │  │          │  │ Secrets  │  │          │    │   │
+│  │  └──────────┘  └──────────┘  └──────────┘    │   │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐    │   │
+│  │  │  Apps    │  │  Web     │  │ Services │    │   │
+│  │  └──────────┘  └──────────┘  └──────────┘    │   │
+│  └──────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────┘
 ```
 
 ### Directory Structure
@@ -98,7 +89,10 @@ infra/kubernetes/
 │   │       │   ├── gotk-sync.yaml
 │   │       │   └── kustomization.yaml
 │   │       ├── infrastructure.yaml    # Infrastructure Kustomization
-│   │       ├── apps.yaml             # Applications Kustomization
+│   │       ├── database.yaml          # Database Kustomization
+│   │       ├── streaming.yaml         # Streaming Kustomization
+│   │       ├── observability.yaml     # Observability Kustomization
+│   │       ├── apps.yaml              # Applications Kustomization (services, web)
 │   │       └── external-secrets-config.yaml
 │   │
 │   ├── infrastructure/                # Platform services (infrastructure layer)
@@ -115,10 +109,24 @@ infra/kubernetes/
 │   │       ├── secret-store.yaml     # Vault connection config
 │   │       └── postgres-external-secret.yaml
 │   │
-│   ├── apps/                         # Application manifests (to be added)
-│   │   ├── postgres/
-│   │   ├── services/
-│   │   └── web/
+│   ├── apps/                         # Application manifests (organized by component type)
+│   │   ├── database/                 # PostgreSQL, PgBouncer
+│   │   │   ├── kustomization.yaml
+│   │   │   ├── postgres/
+│   │   │   └── pgbouncer/
+│   │   ├── streaming/                # Kafka
+│   │   │   ├── kustomization.yaml
+│   │   │   └── kafka/
+│   │   ├── observability/            # Prometheus, Grafana, Loki, Promtail
+│   │   │   ├── kustomization.yaml
+│   │   │   ├── prometheus/
+│   │   │   ├── grafana/
+│   │   │   ├── loki/
+│   │   │   └── promtail/
+│   │   ├── services/                 # Kotlin services (to be added)
+│   │   │   └── kustomization.yaml
+│   │   └── web/                      # Next.js, Apollo Router (to be added)
+│   │       └── kustomization.yaml
 │   │
 │   ├── bootstrap.sh                  # Bootstrap Flux (production)
 │   ├── bootstrap-dev.sh              # Bootstrap Flux (dev branch)
@@ -128,14 +136,8 @@ infra/kubernetes/
 │   ├── vault-configure.sh            # Configure Vault K8s auth
 │   └── vault-store-postgres.sh       # Store PostgreSQL credentials
 │
-├── base/                             # Base Kubernetes manifests (legacy)
-│   ├── databases/
-│   ├── services/
-│   ├── web/
-│   └── ...
-│
-└── environments/                     # Environment overlays (legacy)
-    └── production/
+└── scripts/                          # Helper scripts
+    └── rollback.sh                   # Rollback helper (if needed)
 ```
 
 ### Component Relationships
@@ -1184,13 +1186,51 @@ kubectl port-forward -n production svc/<name> <local>:<remote>  # Port forward
 
 ---
 
+## Applications Structure
+
+All applications are organized by component type in `flux/apps/`:
+
+### Database (`flux/apps/database/`)
+- **PostgreSQL**: StatefulSet with PVC (100Gi storage)
+- **PgBouncer**: Connection pooler for PostgreSQL
+
+### Streaming (`flux/apps/streaming/`)
+- **Kafka**: StatefulSet with KRaft mode (no Zookeeper)
+
+### Observability (`flux/apps/observability/`)
+- **Prometheus**: Metrics collection
+- **Grafana**: Dashboards and visualization
+- **Loki**: Log aggregation
+- **Promtail**: Log collection (DaemonSet)
+
+### Services (`flux/apps/services/`)
+- Your Kotlin microservices (to be added)
+- Template kustomization ready
+
+### Web (`flux/apps/web/`)
+- Next.js frontend (to be added)
+- Apollo Router (GraphQL gateway) (to be added)
+- Template kustomization ready
+
+### Adding New Components
+
+1. Create directory: `flux/apps/novo-componente/`
+2. Add Kubernetes manifests
+3. Create `kustomization.yaml` in the component directory
+4. Create Kustomization in `clusters/production/novo-componente.yaml`
+5. Commit and push - Flux will deploy automatically!
+
+**Note**: All resources use the `production` namespace (not `neotool-*` namespaces).
+
+---
+
 ## Next Steps
 
-1. **Deploy Applications**: Add your application manifests to `flux/apps/`
-2. **Set Up Monitoring**: Configure Prometheus and Grafana
+1. **Deploy Applications**: Add your application manifests to `flux/apps/services/` and `flux/apps/web/`
+2. **Set Up Monitoring**: Prometheus and Grafana are already configured in `flux/apps/observability/`
 3. **Configure CI/CD**: Integrate with GitHub Actions
 4. **Add More Environments**: Create staging/development overlays
-5. **Implement Backup Strategy**: Automated backups for Vault and database
+5. **Implement Log Retention**: Vault log cleanup CronJob is already configured
 
 ---
 

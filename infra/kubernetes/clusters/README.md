@@ -104,10 +104,25 @@ All clusters get:
 
 ### For K3S (Current Setup)
 
+**Step 1: Foundation Setup (Prerequisites)**
 ```bash
 cd clusters/k3s/foundation
 ./setup.sh production
 ```
+
+This installs:
+- Cert-Manager (for TLS certificates)
+- Linkerd (service mesh)
+
+**Step 2: Bootstrap Flux GitOps**
+```bash
+cd ../../flux
+./bootstrap.sh  # For production branch
+# or
+./bootstrap-dev.sh  # For development branch
+```
+
+After Flux is bootstrapped, all deployments are managed via GitOps automatically.
 
 ### For EKS
 
@@ -147,8 +162,8 @@ To migrate from one cluster type to another:
 
 ## Best Practices
 
-1. **Keep applications cluster-agnostic** - store in `base/` or `environments/`
-2. **Use Kustomize overlays** for cluster-specific configs
+1. **Keep applications cluster-agnostic** - store in `flux/apps/` (GitOps)
+2. **Use Flux GitOps** for all deployments (not Kustomize overlays)
 3. **Document cluster-specific quirks** in cluster READMEs
 4. **Version your cluster configs** alongside application code
 5. **Test foundation scripts** on clean clusters

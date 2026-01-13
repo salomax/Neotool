@@ -2,7 +2,11 @@
 set -e
 
 # K3S-Specific Foundation Setup Script
-# This script is tailored for K3S clusters with their specific features
+# This script sets up prerequisites before Flux GitOps bootstrap
+# It installs Cert-Manager and Linkerd, which are required before Flux can deploy applications
+#
+# NOTE: This is a PRE-REQUISITE script. After running this, you should bootstrap Flux:
+#   cd ../../flux && ./bootstrap.sh
 
 KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config-hostinger}"
 export KUBECONFIG
@@ -85,9 +89,13 @@ echo ""
 
 # Create environment namespace
 echo "Step 2: Creating $ENVIRONMENT namespace..."
-kubectl apply -f ../../environments/$ENVIRONMENT/namespace.yaml 2>/dev/null || \
-kubectl create namespace $ENVIRONMENT
-echo "✓ Namespace created"
+# Note: Namespace is now managed by Flux GitOps, but we create it here as a prerequisite
+if kubectl get namespace $ENVIRONMENT &>/dev/null; then
+    echo "✓ Namespace already exists"
+else
+    kubectl create namespace $ENVIRONMENT
+    echo "✓ Namespace created"
+fi
 echo ""
 
 # Check storage class (K3S uses local-path by default)
@@ -189,8 +197,11 @@ echo ""
 echo "1. Enable Linkerd on $ENVIRONMENT namespace:"
 echo "   kubectl annotate namespace $ENVIRONMENT linkerd.io/inject=enabled"
 echo ""
-echo "2. Deploy your applications:"
-echo "   kubectl apply -k ../../environments/$ENVIRONMENT/"
+echo "2. Bootstrap Flux GitOps:"
+echo "   cd ../../flux && ./bootstrap.sh"
+echo ""
+echo "   Or for development branch:"
+echo "   cd ../../flux && ./bootstrap-dev.sh"
 echo ""
 echo "3. Install Linkerd Viz (optional, for dashboard):"
 echo "   linkerd viz install | kubectl apply -f -"
