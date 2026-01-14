@@ -19,20 +19,23 @@ resource "null_resource" "setup_vps" {
   triggers = {
     # Re-run when trigger value changes
     trigger = var.trigger_on_change
-    
+
     # Re-run when commands change
     commands = join("\n", var.setup_commands)
-    
+
     # Re-run when connection details change
-    vps_ip = var.vps_ip
+    vps_ip           = var.vps_ip
+    vps_user         = var.vps_user
+    private_key_path = var.private_key_path
+    ssh_port         = tostring(var.ssh_port)
   }
 
   connection {
     type        = "ssh"
-    host        = var.vps_ip
-    user        = var.vps_user
-    private_key = file(var.private_key_path)
-    port        = var.ssh_port
+    host        = self.triggers.vps_ip
+    user        = self.triggers.vps_user
+    private_key = file(self.triggers.private_key_path)
+    port        = tonumber(self.triggers.ssh_port)
     timeout     = "5m"
   }
 
@@ -53,14 +56,17 @@ resource "null_resource" "k3s_install" {
     disable_components  = join(",", var.k3s_disable_components)
     server_flags        = local.k3s_server_flags_joined
     vps_ip              = var.vps_ip
+    vps_user            = var.vps_user
+    private_key_path    = var.private_key_path
+    ssh_port            = tostring(var.ssh_port)
   }
 
   connection {
     type        = "ssh"
-    host        = var.vps_ip
-    user        = var.vps_user
-    private_key = file(var.private_key_path)
-    port        = var.ssh_port
+    host        = self.triggers.vps_ip
+    user        = self.triggers.vps_user
+    private_key = file(self.triggers.private_key_path)
+    port        = tonumber(self.triggers.ssh_port)
     timeout     = "10m"
   }
 
@@ -111,15 +117,19 @@ resource "null_resource" "k3s_verify" {
   depends_on = [null_resource.k3s_install]
 
   triggers = {
-    k3s_install_id = null_resource.k3s_install.id
+    k3s_install_id   = null_resource.k3s_install.id
+    vps_ip           = var.vps_ip
+    vps_user         = var.vps_user
+    private_key_path = var.private_key_path
+    ssh_port         = tostring(var.ssh_port)
   }
 
   connection {
     type        = "ssh"
-    host        = var.vps_ip
-    user        = var.vps_user
-    private_key = file(var.private_key_path)
-    port        = var.ssh_port
+    host        = self.triggers.vps_ip
+    user        = self.triggers.vps_user
+    private_key = file(self.triggers.private_key_path)
+    port        = tonumber(self.triggers.ssh_port)
     timeout     = "5m"
   }
 
@@ -127,16 +137,16 @@ resource "null_resource" "k3s_verify" {
     inline = [
       <<-EOT
         set -e
-        
+
         echo "Verifying K3S cluster is ready..."
-        
+
         # Wait for cluster to be fully ready
         timeout 300 bash -c 'until kubectl get nodes --no-headers 2>/dev/null | grep -q Ready; do sleep 5; done'
-        
+
         # Display cluster info
         echo "K3S cluster status:"
         kubectl get nodes
-        
+
         echo "K3S cluster is ready!"
       EOT
     ]
@@ -148,16 +158,20 @@ resource "null_resource" "kubeconfig_retrieve" {
   depends_on = [null_resource.k3s_verify]
 
   triggers = {
-    k3s_verify_id = null_resource.k3s_verify.id
-    vps_ip        = var.vps_ip
+    k3s_verify_id   = null_resource.k3s_verify.id
+    vps_ip          = var.vps_ip
+    vps_user        = var.vps_user
+    private_key_path = var.private_key_path
+    ssh_port        = tostring(var.ssh_port)
+    kubeconfig_path = local.kubeconfig_path_expanded
   }
 
   connection {
     type        = "ssh"
-    host        = var.vps_ip
-    user        = var.vps_user
-    private_key = file(var.private_key_path)
-    port        = var.ssh_port
+    host        = self.triggers.vps_ip
+    user        = self.triggers.vps_user
+    private_key = file(self.triggers.private_key_path)
+    port        = tonumber(self.triggers.ssh_port)
     timeout     = "5m"
   }
 
@@ -170,11 +184,11 @@ resource "null_resource" "kubeconfig_retrieve" {
           echo "Error: kubeconfig not found at /etc/rancher/k3s/k3s.yaml"
           exit 1
         fi
-        
+
         # Copy kubeconfig to a temporary location with proper permissions
         cp /etc/rancher/k3s/k3s.yaml /tmp/k3s.yaml
         chmod 644 /tmp/k3s.yaml
-        
+
         echo "Kubeconfig ready at /tmp/k3s.yaml"
       EOT
     ]
@@ -184,29 +198,29 @@ resource "null_resource" "kubeconfig_retrieve" {
   provisioner "local-exec" {
     command = <<-EOT
       # Expand ~ to home directory
-      KUBECONFIG_PATH="${local.kubeconfig_path_expanded}"
+      KUBECONFIG_PATH="${self.triggers.kubeconfig_path}"
       KUBECONFIG_PATH=$(eval echo "$KUBECONFIG_PATH")
-      
+
       # Create kubeconfig directory if it doesn't exist
       mkdir -p "$(dirname "$KUBECONFIG_PATH")"
-      
+
       # Copy kubeconfig from VPS
-      scp -i ${var.private_key_path} \
+      scp -i ${self.triggers.private_key_path} \
           -o StrictHostKeyChecking=no \
           -o UserKnownHostsFile=/dev/null \
-          -P ${var.ssh_port} \
-          ${var.vps_user}@${var.vps_ip}:/tmp/k3s.yaml \
+          -P ${self.triggers.ssh_port} \
+          ${self.triggers.vps_user}@${self.triggers.vps_ip}:/tmp/k3s.yaml \
           "$KUBECONFIG_PATH.tmp"
-      
+
       # Replace 127.0.0.1 with VPS IP address
-      sed 's/127.0.0.1/${var.vps_ip}/g' "$KUBECONFIG_PATH.tmp" > "$KUBECONFIG_PATH"
-      
+      sed 's/127.0.0.1/${self.triggers.vps_ip}/g' "$KUBECONFIG_PATH.tmp" > "$KUBECONFIG_PATH"
+
       # Set proper permissions
       chmod 600 "$KUBECONFIG_PATH"
-      
+
       # Remove temporary file
       rm -f "$KUBECONFIG_PATH.tmp"
-      
+
       echo "Kubeconfig saved to $KUBECONFIG_PATH"
     EOT
   }

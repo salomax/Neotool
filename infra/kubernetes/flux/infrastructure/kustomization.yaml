@@ -3,16 +3,16 @@ kind: Kustomization
 
 resources:
   # 1. Namespace and ResourceQuota (foundation)
-  - namespace/kustomization.yaml
+  - namespace/
 
   # 2. Network Policies (security)
-  - network-policies/kustomization.yaml
+  - network-policies/
 
   # 3. Helm chart repositories (required for HelmReleases)
-  - helm-sources/kustomization.yaml
+  - helm-sources/
 
   # 4. Vault (secrets management) - includes log cleanup CronJob
-  - vault/kustomization.yaml
+  - vault/
 
   # 5. External Secrets Operator (syncs Vault → K8s)
-  - external-secrets/kustomization.yaml
+  - external-secrets/
