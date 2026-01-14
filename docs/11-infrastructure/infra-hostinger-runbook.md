@@ -1054,6 +1054,64 @@ kubectl get secret postgres-credentials -n production
 kubectl get secret postgres-credentials -n production -o jsonpath='{.data.POSTGRES_USER}' | base64 -d
 ```
 
+#### 4.6 Possible problems
+
+**Vault in CrashLoopBackOff or Complete Reset Needed**:
+
+If Vault is crashing, has invalid credentials, or you need a clean slate:
+
+```bash
+# 1. Delete the Vault HelmRelease (Flux will remove all resources)
+kubectl delete helmrelease vault -n flux-system
+
+# Wait for pod to be deleted (10-15 seconds)
+kubectl get pods -n production -w
+
+# 2. Delete the Persistent Volume Claim (IMPORTANT - ensures clean storage)
+kubectl delete pvc data-vault-0 -n production
+
+# 3. Recreate Vault via Flux
+kubectl apply -f ~/src/Neotool/infra/kubernetes/flux/infrastructure/vault/helmrelease.yaml
+
+# Wait for pod to be ready
+kubectl wait --for=condition=ready pod/vault-0 -n production --timeout=120s
+
+# 4. Initialize Vault with new credentials
+INIT_OUTPUT=$(kubectl exec -n production vault-0 -- vault operator init -key-shares=5 -key-threshold=3 -format=json)
+
+cat > ~/.neotool/vault-credentials.txt <<EOF
+# Vault Credentials - KEEP SECURE!
+# Generated: $(date)
+
+ROOT_TOKEN=$(echo "$INIT_OUTPUT" | jq -r '.root_token')
+
+UNSEAL_KEY_1=$(echo "$INIT_OUTPUT" | jq -r '.unseal_keys_b64[0]')
+UNSEAL_KEY_2=$(echo "$INIT_OUTPUT" | jq -r '.unseal_keys_b64[1]')
+UNSEAL_KEY_3=$(echo "$INIT_OUTPUT" | jq -r '.unseal_keys_b64[2]')
+UNSEAL_KEY_4=$(echo "$INIT_OUTPUT" | jq -r '.unseal_keys_b64[3]')
+UNSEAL_KEY_5=$(echo "$INIT_OUTPUT" | jq -r '.unseal_keys_b64[4]')
+EOF
+
+chmod 600 ~/.neotool/vault-credentials.txt
+
+# 5. Unseal Vault
+cd ~/src/Neotool/infra/kubernetes/scripts
+./vault-unseal.sh
+
+# 6. Configure Vault for Kubernetes auth
+./vault-configure.sh
+
+# 7. Store PostgreSQL credentials
+./vault-store-postgres.sh
+```
+
+**Why this works**:
+- Deleting the HelmRelease tells Flux to clean up all Vault resources
+- Deleting the PVC ensures no corrupt state from previous installation
+- Recreating via `kubectl apply` triggers Flux to redeploy from Git
+- Fresh initialization creates new, valid credentials
+
+
 ### Phase 5: Verify Complete Deployment
 
 #### 5.1 Check Infrastructure Components
@@ -1781,7 +1839,6 @@ kubectl cluster-info
 - ✅ Use `kubectl apply --dry-run` to test manifests
 - ✅ Keep Terraform state backed up
 - ✅ Document environment-specific configurations
-
 
 ### Useful Links
 
