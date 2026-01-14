@@ -12,6 +12,7 @@ import BusinessIcon from "@mui/icons-material/Business";
 import LocationCityIcon from "@mui/icons-material/LocationCity";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import TrendingDownIcon from "@mui/icons-material/TrendingDown";
+import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import { useTheme, alpha } from "@mui/material/styles";
 import { useTranslation } from "@/shared/i18n";
 import { financialDataTranslations } from "../i18n";
@@ -181,10 +182,21 @@ export function BacenInstitutionCard({
               height: 56,
               border: "1px solid",
               borderColor: "divider",
-              bgcolor: "background.paper",
+              bgcolor: institution.logoAsset?.publicUrl 
+                ? "background.paper" 
+                : alpha(theme.palette.primary.main, 0.1),
             }}
           >
-            {displayName.charAt(0).toUpperCase()}
+            {institution.logoAsset?.publicUrl ? (
+              displayName.charAt(0).toUpperCase()
+            ) : (
+              <AccountBalanceIcon 
+                sx={{ 
+                  color: theme.palette.primary.main,
+                  fontSize: 32,
+                }} 
+              />
+            )}
           </Avatar>
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography
