@@ -55,7 +55,9 @@
   "currency": {
     "billions": "bi",
     "millions": "mi",
+    "trillions": "tri",
     "billionsLong": "bilhões",
-    "millionsLong": "milhões"
+    "millionsLong": "milhões",
+    "trillionsLong": "trilhões"
   }
 }

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Box, Paper, Typography, Skeleton } from "@mui/material";
+import { useTranslation as useReactI18nTranslation } from "react-i18next";
 import { parseCurrencyValue, CurrencyLabels } from "@/shared/utils/currency";
 
 export interface MetricBoxProps {
@@ -36,8 +37,25 @@ export const MetricBox: React.FC<MetricBoxProps> = ({
   isNumber = false,
   totalizerFormat = "long",
   locale = "pt-BR",
-  currencyLabels
+  currencyLabels: providedCurrencyLabels
 }) => {
+  const { t: tCommon } = useReactI18nTranslation("common");
+
+  // Use provided labels or fall back to common translations
+  const currencyLabels = React.useMemo<CurrencyLabels>(() => {
+    if (providedCurrencyLabels) {
+      return providedCurrencyLabels;
+    }
+    return {
+      billions: tCommon("currency.billions"),
+      millions: tCommon("currency.millions"),
+      trillions: tCommon("currency.trillions"),
+      billionsLong: tCommon("currency.billionsLong"),
+      millionsLong: tCommon("currency.millionsLong"),
+      trillionsLong: tCommon("currency.trillionsLong"),
+    };
+  }, [providedCurrencyLabels, tCommon]);
+
   if (isLoading) {
     return (
       <Paper variant="outlined" sx={{ p: 2, height: "100%" }}>
@@ -48,7 +66,7 @@ export const MetricBox: React.FC<MetricBoxProps> = ({
     );
   }
 
-  const currencyParts = !isNumber && value != null && currencyLabels
+  const currencyParts = !isNumber && value != null
     ? parseCurrencyValue(value, currency, locale, currencyLabels, totalizerFormat)
     : null;
 

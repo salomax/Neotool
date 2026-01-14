@@ -11,8 +11,10 @@ export interface CurrencyParts {
 export interface CurrencyLabels {
   billions: string;
   millions: string;
+  trillions?: string;
   billionsLong?: string;
   millionsLong?: string;
+  trillionsLong?: string;
 }
 
 /**
@@ -45,6 +47,9 @@ export function parseCurrencyValue(
 
   const isNegative = value < 0;
   const absValue = Math.abs(value);
+  const trillionsLabel = totalizerFormat === "long"
+    ? (labels?.trillionsLong || "trilhões")
+    : (labels?.trillions || "tri");
   const billionsLabel = totalizerFormat === "long" 
     ? (labels?.billionsLong || "bilhões")
     : (labels?.billions || "bi");
@@ -61,6 +66,20 @@ export function parseCurrencyValue(
   const currencySymbol = parts.find((p) => p.type === "currency")?.value || "";
 
   const billions = absValue / 1_000_000_000;
+  if (billions >= 1000) {
+    // If billions >= 1000, convert to trillions
+    const trillions = billions / 1000;
+    // Format with one decimal place (e.g., 2.0)
+    const numberStr = trillions.toLocaleString(locale, { 
+      minimumFractionDigits: 1, 
+      maximumFractionDigits: 1 
+    });
+    return { 
+      symbol: currencySymbol, 
+      number: isNegative ? `-${numberStr}` : numberStr, 
+      totalizer: trillionsLabel 
+    };
+  }
   if (billions >= 1) {
     // Format with one decimal place (e.g., 87.4)
     const numberStr = billions.toLocaleString(locale, { 

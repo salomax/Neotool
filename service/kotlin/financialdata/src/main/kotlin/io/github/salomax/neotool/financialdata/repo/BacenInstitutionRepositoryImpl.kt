@@ -138,11 +138,10 @@ open class BacenInstitutionRepositoryImpl(
         // 2-3: Query pattern for bacen_institutions (if hasQuery): nome_instituicao and bacen_cod_inst
         // 4: ano_mes_ref for UNION part in bacen_institutions_and_groups CTE
         // 5: Query pattern for similarity_score calculation in financial_institutions CTE (if hasQuery)
-        // 6: Query pattern for similarity filter in financial_institutions CTE (if hasQuery)
-        // 7: ano_mes for bank report join
-        // 8-9: ano_mes for year_ago calculation (two occurrences)
-        // 10: ano_mes_ref for final join with bacen_institution
-        // 11: Cursor value (if hasAfter)
+        // 6: ano_mes for bank report join
+        // 7-8: ano_mes for year_ago calculation (two occurrences)
+        // 9: ano_mes_ref for final join with bacen_institution
+        // 10: Cursor value (if hasAfter)
         var paramIndex = 1
         val likePattern = if (query != null && query.isNotBlank()) "%$query%" else ""
         // anoMes for bacen_institutions CTE
@@ -156,8 +155,6 @@ open class BacenInstitutionRepositoryImpl(
         nativeQuery.setParameter(paramIndex++, targetAnoMes)
         if (query != null && query.isNotBlank()) {
             // Parameter for similarity_score calculation in financial_institutions CTE (uses the pattern with %)
-            nativeQuery.setParameter(paramIndex++, likePattern)
-            // Parameter for similarity filter in financial_institutions CTE (uses the pattern with %)
             nativeQuery.setParameter(paramIndex++, likePattern)
         }
         // anoMes for bank report join
@@ -282,18 +279,6 @@ open class BacenInstitutionRepositoryImpl(
                 ""
             }
 
-        // Build similarity filter for financial_institutions CTE
-        val similarityFilter =
-            if (hasQuery) {
-                """
-                WHERE financial_data.similarity(
-                    coalesce(bacen_institutions_and_groups.nome_instituicao, fi_data.legal_name, fi_data.trade_name)::TEXT, 
-                    ?::TEXT) > 0.1
-                """.trimIndent()
-            } else {
-                "WHERE 1=1"
-            }
-
         return """
             WITH 
             bacen_institutions AS (
@@ -356,7 +341,6 @@ open class BacenInstitutionRepositoryImpl(
                         ON fibi.bacen_cod_inst = bacen_institutions_and_groups.bacen_cod_inst
                     LEFT JOIN financial_data.financial_institution fi_data
                         ON fi_data.id = fibi.financial_institution_id
-                $similarityFilter
             )
             SELECT 
                 fi.bacen_cod_inst,

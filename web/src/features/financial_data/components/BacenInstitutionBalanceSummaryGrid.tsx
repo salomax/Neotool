@@ -92,45 +92,21 @@ export const BacenInstitutionBalanceSummaryGrid: React.FC<BacenInstitutionBalanc
       type: 'metric' as const,
       label: t("lastBalanceSummary.totalAssets"),
       value: getValue("140220") ?? getValue("78182"),
-      currencyLabels: {
-        billions: t("currency.billions"),
-        millions: t("currency.millions"),
-        billionsLong: t("currency.billionsLong"),
-        millionsLong: t("currency.millionsLong"),
-      }
     },
     { 
       type: 'metric' as const,
       label: t("lastBalanceSummary.funding"),
       value: getValue("140239") ?? getValue("78185"),
-      currencyLabels: {
-        billions: t("currency.billions"),
-        millions: t("currency.millions"),
-        billionsLong: t("currency.billionsLong"),
-        millionsLong: t("currency.millionsLong"),
-      }
     },
     { 
       type: 'metric' as const,
       label: t("lastBalanceSummary.creditPortfolio"),
       value: getValue("141873") ?? getValue("78183"),
-      currencyLabels: {
-        billions: t("currency.billions"),
-        millions: t("currency.millions"),
-        billionsLong: t("currency.billionsLong"),
-        millionsLong: t("currency.millionsLong"),
-      }
     },
     { 
       type: 'metric' as const,
       label: t("lastBalanceSummary.netEquity"),
       value: getValue("140246") ?? getValue("78186"),
-      currencyLabels: {
-        billions: t("currency.billions"),
-        millions: t("currency.millions"),
-        billionsLong: t("currency.billionsLong"),
-        millionsLong: t("currency.millionsLong"),
-      }
     },
     // Row 2
     ...(imobilizacaoValue != null ? [{
@@ -145,23 +121,11 @@ export const BacenInstitutionBalanceSummaryGrid: React.FC<BacenInstitutionBalanc
       type: 'metric' as const,
       label: t("lastBalanceSummary.referenceEquity"),
       value: institution?.rwaReferenceEquity ?? null,
-      currencyLabels: {
-        billions: t("currency.billions"),
-        millions: t("currency.millions"),
-        billionsLong: t("currency.billionsLong"),
-        millionsLong: t("currency.millionsLong"),
-      }
     },
     { 
       type: 'metric' as const,
       label: t("lastBalanceSummary.netProfit"),
       value: getValue("141870") ?? getValue("78187"),
-      currencyLabels: {
-        billions: t("currency.billions"),
-        millions: t("currency.millions"),
-        billionsLong: t("currency.billionsLong"),
-        millionsLong: t("currency.millionsLong"),
-      }
     },
     { 
       type: 'metric' as const,
