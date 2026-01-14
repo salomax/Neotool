@@ -53,7 +53,8 @@
       "Bash(./vault-store-postgres.sh:*)",
       "Bash(kubectl describe:*)",
       "Bash(kubectl delete:*)",
-      "Bash(git revert:*)"
+      "Bash(git revert:*)",
+      "Bash(flux get helmreleases:*)"
     ]
   }
 }
