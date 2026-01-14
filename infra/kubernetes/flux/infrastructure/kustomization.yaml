@@ -15,4 +15,4 @@ resources:
   - vault/
 
   # 5. External Secrets Operator (syncs Vault → K8s)
-  # - external-secrets/
+  - external-secrets/
