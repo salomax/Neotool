@@ -34,7 +34,9 @@
       "Bash(export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=\"/var/run/docker.sock\")",
       "Bash(source ~/.zshrc)",
       "Bash(DOCKER_HOST=\"unix:///Users/salomax/.colima/default/docker.sock\" TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=\"/var/run/docker.sock\" ./gradlew:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(npm run type-check:*)",
+      "Bash(npm run typecheck:*)"
     ]
   }
 }

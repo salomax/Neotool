@@ -7,6 +7,7 @@ import { BACEN_INSTITUTION_REPORT_DETAILS, BACEN_INSTITUTION } from "@/lib/graph
 import { MetricGrid, MetricGridItem } from "@/shared/components/ui/data-display";
 import { useTranslation } from "@/shared/i18n";
 import { financialDataTranslations } from "@/features/financial_data/i18n";
+import { BASILEIA_THRESHOLDS, IMMOBILIZATION_THRESHOLDS } from "@/features/financial_data/constants/metrics";
 
 // --- Types & Interfaces ---
 
@@ -51,27 +52,27 @@ export const BacenInstitutionBalanceSummaryGrid: React.FC<BacenInstitutionBalanc
   // Basileia
   const basileiaValue = getValue("79664");
   const basileiaThresholds = {
-    bad: (v: number) => v < 11,
-    regular: (v: number) => v >= 11 && v <= 14,
-    good: (v: number) => v > 14
+    bad: (v: number) => v < BASILEIA_THRESHOLDS.critical,
+    regular: (v: number) => v >= BASILEIA_THRESHOLDS.critical && v <= BASILEIA_THRESHOLDS.warning,
+    good: (v: number) => v > BASILEIA_THRESHOLDS.warning
   };
   const basileiaThresholdValues = {
-    bad: 11,
-    regular: 14,
+    bad: BASILEIA_THRESHOLDS.critical,
+    regular: BASILEIA_THRESHOLDS.warning,
     good: 100
   };
 
   // Imobilizacao
   const imobilizacaoValue = getValue("79662");
   const imobilizacaoThresholds = {
-    bad: (v: number) => v > 50,
-    regular: (v: number) => v >= 40 && v <= 50,
-    good: (v: number) => v < 40
+    bad: (v: number) => v > IMMOBILIZATION_THRESHOLDS.warning,
+    regular: (v: number) => v >= IMMOBILIZATION_THRESHOLDS.good && v <= IMMOBILIZATION_THRESHOLDS.warning,
+    good: (v: number) => v < IMMOBILIZATION_THRESHOLDS.good
   };
   const imobilizacaoThresholdValues = {
-    bad: 100,
-    regular: 50,
-    good: 40
+    bad: IMMOBILIZATION_THRESHOLDS.critical,
+    regular: IMMOBILIZATION_THRESHOLDS.warning,
+    good: IMMOBILIZATION_THRESHOLDS.good
   };
 
   // Grid items in the exact order from the mock:

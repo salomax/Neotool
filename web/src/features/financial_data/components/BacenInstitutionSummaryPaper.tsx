@@ -92,6 +92,7 @@ export function BacenInstitutionSummaryPaper({ institution }: BacenInstitutionSu
               height: 80,
               border: "1px solid",
               borderColor: "divider",
+              borderRadius: 1.5, // Less rounded (12px)
               bgcolor: "background.default",
             }}
           >

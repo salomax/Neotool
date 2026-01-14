@@ -11,7 +11,8 @@
     "invalidInstitutionId": "ID da instituição inválido",
     "institutionNotFound": "Instituição não encontrada",
     "noReportData": "Nenhum dado disponível para este relatório",
-    "selectReport": "Selecione um relatório para ver os detalhes"
+    "selectReport": "Selecione um relatório para ver os detalhes",
+    "clickToViewDetails": "Clique para ver detalhes"
   },
   "institutionTypes": {
     "individualInstitution": "Instituição Individual",

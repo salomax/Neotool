@@ -7,62 +7,20 @@ import Typography from "@mui/material/Typography";
 import Stack from "@mui/material/Stack";
 import Box from "@mui/material/Box";
 import Avatar from "@mui/material/Avatar";
-import { CurrencyDisplay } from "@/shared/components/ui/data-display";
-import BusinessIcon from "@mui/icons-material/Business";
-import LocationCityIcon from "@mui/icons-material/LocationCity";
-import TrendingUpIcon from "@mui/icons-material/TrendingUp";
-import TrendingDownIcon from "@mui/icons-material/TrendingDown";
+import {
+  CurrencyDisplay,
+  TrendIndicator,
+  StatusIndicator,
+  FinancialMetricItem,
+} from "@/shared/components/ui/data-display";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import { useTheme, alpha } from "@mui/material/styles";
 import { useTranslation } from "@/shared/i18n";
 import { financialDataTranslations } from "../i18n";
-
-/**
- * Format percentage with sign
- * Example: 0.12 -> "+12%"
- */
-function formatPercentage(value: number | null | undefined): string {
-  if (value == null) {
-    return "0%";
-  }
-
-  const percentage = value * 100;
-  const sign = percentage >= 0 ? "+" : "";
-  return `${sign}${percentage.toFixed(0)}%`;
-}
-
-/**
- * Format Basileia index as percentage with color coding
- * < 11% Critical red
- * 11%-14% appropriate yellow  
- * >14% Good green
- */
-function formatBasileiaIndex(value: number | null | undefined): string {
-  if (value == null) {
-    return "0%";
-  }
-
-  const percentage = value * 100;
-  return `${percentage.toFixed(1)}%`;
-}
-
-/**
- * Get Basileia index color based on value
- */
-function getBasileiaIndexColor(value: number | null | undefined): string {
-  if (value == null) {
-    return "success.main"; // Default to green for null
-  }
-
-  const percentage = value * 100;
-  if (percentage < 11) {
-    return "error.main"; // Critical red
-  } else if (percentage <= 14) {
-    return "warning.main"; // Appropriate yellow
-  } else {
-    return "success.main"; // Good green
-  }
-}
+import { formatPercentage, getPercentageColor } from "@/shared/utils/percentage";
+import { getCustomThemeValue, getDerivedFontSize } from "@/shared/utils/theme";
+import { getInstitutionTypeConfig } from "../utils/institutionType";
+import { BASILEIA_THRESHOLDS } from "../constants/metrics";
 
 export interface BacenInstitution {
   id: string;
@@ -92,15 +50,16 @@ export interface BacenInstitutionCardProps {
   onClick?: () => void;
 }
 
+
 /**
  * Bacen Institution Card component.
- * 
+ *
  * Displays institution information in a card format with:
  * - Logo (circular, with fallback)
  * - Institution name and type
  * - Financial metrics (profit, equity, YoY growth, Basileia index)
  * - Institution type badge in footer
- * 
+ *
  * @example
  * ```tsx
  * <BacenInstitutionCard
@@ -109,6 +68,7 @@ export interface BacenInstitutionCardProps {
  * />
  * ```
  */
+
 export function BacenInstitutionCard({
   institution,
   onClick,
@@ -116,55 +76,57 @@ export function BacenInstitutionCard({
   const { t } = useTranslation(financialDataTranslations);
   const theme = useTheme();
   const displayName = institution.tradeName || institution.name;
-  
-  // Get configuration based on institution type
-  const getTypeConfig = () => {
-    const type = institution.institutionType;
-    
-    // Default fallback
-    const defaultConfig = {
-      label: institution.bacenInstitutionType || "",
-      icon: BusinessIcon,
-      color: theme.palette.text.secondary,
-      bgColor: alpha(theme.palette.action.hover, 0.5),
-    };
 
-    if (!type) return defaultConfig;
+  // Memoize institution type configuration
+  const typeConfig = React.useMemo(
+    () =>
+      getInstitutionTypeConfig(
+        institution.institutionType,
+        theme,
+        t,
+        institution.bacenInstitutionType || ""
+      ),
+    [institution.institutionType, institution.bacenInstitutionType, theme, t]
+  );
 
-    switch (type) {
-      case "INDIVIDUAL_INSTITUTION":
-        return {
-          label: t("institutionTypes.individualInstitution"),
-          icon: BusinessIcon,
-          color: theme.palette.primary.main,
-          bgColor: alpha(theme.palette.primary.main, 0.08),
-        };
-      case "PRUDENTIAL_GROUP":
-        return {
-          label: t("institutionTypes.prudentialGroup"),
-          icon: LocationCityIcon,
-          color: theme.palette.secondary.main,
-          bgColor: alpha(theme.palette.secondary.main, 0.08),
-        };
-      case "FINANCIAL_GROUP":
-        return {
-          label: t("institutionTypes.financialGroup"),
-          icon: LocationCityIcon,
-          color: theme.palette.success.main,
-          bgColor: alpha(theme.palette.success.main, 0.08),
-        };
-      default:
-        return defaultConfig;
-    }
-  };
-
-  const typeConfig = getTypeConfig();
   const Icon = typeConfig.icon;
+
+  // Memoize Basileia index color
+  const basileiaIndexColor = React.useMemo(
+    () => {
+      const percentage = institution.basileiaIndex != null ? institution.basileiaIndex * 100 : null;
+      return getPercentageColor(percentage, BASILEIA_THRESHOLDS);
+    },
+    [institution.basileiaIndex]
+  );
+
+  // Handle keyboard navigation
+  const handleKeyDown = React.useCallback(
+    (event: React.KeyboardEvent) => {
+      if (onClick && (event.key === "Enter" || event.key === " ")) {
+        event.preventDefault();
+        onClick();
+      }
+    },
+    [onClick]
+  );
+
+  const hasLogo = !!institution.logoAsset?.publicUrl;
+
+  // Extract theme tokens for cleaner code
+  const borderWidth = getCustomThemeValue(theme, 'custom.border.default', 1);
+  const avatarSize = theme.spacing(7); // 56px (7 * 8px)
+  const iconSizeLarge = theme.spacing(4); // 32px (4 * 8px)
+  const iconSizeMedium = theme.typography.h5.fontSize; // 20px
 
   return (
     <Card 
       onClick={onClick} 
       hoverable 
+      onKeyDown={handleKeyDown}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      aria-label={onClick ? `${displayName}. ${t("messages.clickToViewDetails")}` : undefined}
       sx={{ 
         height: "100%", 
         display: "flex", 
@@ -175,35 +137,25 @@ export function BacenInstitutionCard({
         {/* Header: Logo and Name */}
         <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 3 }}>
           <Avatar
-            src={institution.logoAsset?.publicUrl || undefined}
+            src={hasLogo ? institution.logoAsset?.publicUrl || undefined : undefined}
             alt={displayName}
             sx={{
-              width: 56,
-              height: 56,
+              width: avatarSize,
+              height: avatarSize,
               border: "1px solid",
               borderColor: "divider",
-              bgcolor: institution.logoAsset?.publicUrl 
-                ? "background.paper" 
-                : alpha(theme.palette.primary.main, 0.1),
+              borderRadius: 1.5, // Less rounded (12px)
+              bgcolor: "background.default",
             }}
           >
-            {institution.logoAsset?.publicUrl ? (
-              displayName.charAt(0).toUpperCase()
-            ) : (
-              <AccountBalanceIcon 
-                sx={{ 
-                  color: theme.palette.primary.main,
-                  fontSize: 32,
-                }} 
-              />
-            )}
+            <AccountBalanceIcon sx={{ fontSize: 30, color: 'text.secondary' }} />
           </Avatar>
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography
               variant="h6"
               sx={{
                 fontWeight: 700,
-                fontSize: "1.125rem",
+                fontSize: theme.typography.h6.fontSize, // 18px (1.125rem)
                 lineHeight: 1.2,
                 display: "-webkit-box",
                 WebkitLineClamp: 2,
@@ -229,181 +181,47 @@ export function BacenInstitutionCard({
           }}
         >
           {/* Net Profit */}
-          <Box>
-            <Typography
-              variant="caption"
-              sx={{
-                fontSize: "0.625rem",
-                fontWeight: 600,
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                color: "text.secondary",
-                display: "block",
-                mb: 0.5,
-              }}
-            >
-              {t("financialMetrics.netProfit")}
-            </Typography>
-            <Typography
-              variant="body2"
-              sx={{
-                fontWeight: 700,
-                fontSize: "0.875rem",
-              }}
-            >
-              <CurrencyDisplay
+          <FinancialMetricItem label={t("financialMetrics.netProfit")}>
+            <CurrencyDisplay
               value={institution.profit}
               currency="BRL"
               locale="pt-BR"
               format="large"
-              labels={{
-                billions: t("currency.billions"),
-                millions: t("currency.millions"),
-              }}
               variant="body2"
-              sx={{
-                fontWeight: 700,
-                fontSize: "0.875rem",
-              }}
               showColor={true}
             />
-            </Typography>
-          </Box>
+          </FinancialMetricItem>
 
           {/* Equity */}
-          <Box>
-            <Typography
-              variant="caption"
-              sx={{
-                fontSize: "0.625rem",
-                fontWeight: 600,
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                color: "text.secondary",
-                display: "block",
-                mb: 0.5,
-              }}
-            >
-              {t("financialMetrics.equity")}
-            </Typography>
-            <Typography
-              variant="body2"
-              sx={{
-                fontWeight: 700,
-                fontSize: "0.875rem",
-              }}
-            >
-              <CurrencyDisplay
+          <FinancialMetricItem label={t("financialMetrics.equity")}>
+            <CurrencyDisplay
               value={institution.equity}
               currency="BRL"
               locale="pt-BR"
               format="large"
-              labels={{
-                billions: t("currency.billions"),
-                millions: t("currency.millions"),
-              }}
               variant="body2"
-              sx={{
-                fontWeight: 700,
-                fontSize: "0.875rem",
-              }}
               showColor={true}
             />
-            </Typography>
-          </Box>
+          </FinancialMetricItem>
 
           {/* YoY Growth */}
-          <Box>
-            <Typography
-              variant="caption"
-              sx={{
-                fontSize: "0.625rem",
-                fontWeight: 600,
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                color: "text.secondary",
-                display: "block",
-                mb: 0.5,
-              }}
-            >
-              {t("financialMetrics.yoyGrowth")}
-            </Typography>
-            <Stack direction="row" spacing={0.5} alignItems="center">
-              {institution.yoyEquityGrowth && institution.yoyEquityGrowth < 0 ? (
-                <TrendingDownIcon
-                  sx={{
-                    fontSize: "1rem",
-                    color: (theme) => theme.custom?.palette?.currencyNegative || "error.main",
-                  }}
-                />
-              ) : (
-                <TrendingUpIcon
-                  sx={{
-                    fontSize: "1rem",
-                    color: (theme) => theme.custom?.palette?.currencyPositive || "success.main",
-                  }}
-                />
-              )}
-              <Typography
-                variant="body2"
-                sx={{
-                  fontWeight: 700,
-                  fontSize: "0.875rem",
-                  color: institution.yoyEquityGrowth && institution.yoyEquityGrowth < 0 
-                    ? (theme) => theme.custom?.palette?.currencyNegative || "error.main"
-                    : (theme) => theme.custom?.palette?.currencyPositive || "success.main",
-                }}
-              >
-                {formatPercentage(institution.yoyEquityGrowth)}
-              </Typography>
-            </Stack>
-          </Box>
+          <FinancialMetricItem label={t("financialMetrics.yoyGrowth")}>
+            <TrendIndicator
+              value={institution.yoyEquityGrowth}
+              decimals={0}
+              variant="body2"
+            />
+          </FinancialMetricItem>
 
           {/* Basel Index */}
-          <Box>
-            <Typography
-              variant="caption"
-              sx={{
-                fontSize: "0.625rem",
-                fontWeight: 600,
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                color: "text.secondary",
-                display: "block",
-                mb: 0.5,
-              }}
-            >
-              {t("financialMetrics.baselIndex")}
-            </Typography>
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Box
-                sx={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: "50%",
-                  bgcolor: getBasileiaIndexColor(institution.basileiaIndex),
-                  boxShadow: (theme) => {
-                    const colorKey = getBasileiaIndexColor(institution.basileiaIndex);
-                    const colorMap: Record<string, string> = {
-                      "error.main": theme.palette.error.main,
-                      "warning.main": theme.palette.warning.main,
-                      "success.main": theme.palette.success.main
-                    };
-                    return `0 0 8px ${colorMap[colorKey]}40`;
-                  },
-                }}
-              />
-              <Typography
-                variant="body2"
-                sx={{
-                  fontWeight: 700,
-                  fontSize: "0.875rem",
-                }}
-              >
-                {formatBasileiaIndex(institution.basileiaIndex)}
-              </Typography>
-            </Stack>
-          </Box>
+          <FinancialMetricItem label={t("financialMetrics.baselIndex")}>
+            <StatusIndicator
+              color={basileiaIndexColor}
+              label={formatPercentage(institution.basileiaIndex, { decimals: 1 })}
+              ariaLabel={`Índice Basileia: ${formatPercentage(institution.basileiaIndex ?? 0, { decimals: 1 })}`}
+              variant="body2"
+            />
+          </FinancialMetricItem>
         </Box>
       </CardContent>
 
@@ -416,7 +234,7 @@ export function BacenInstitutionCard({
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          borderTop: "1px solid",
+          borderTop: `${borderWidth}px solid`,
           borderColor: "divider",
         }}
       >
@@ -427,7 +245,7 @@ export function BacenInstitutionCard({
             color: typeConfig.color,
             textTransform: "uppercase",
             letterSpacing: "0.05em",
-            fontSize: "0.7rem",
+            fontSize: getDerivedFontSize(theme, 'body2', 11.2 / 14), // 11.2px from 14px base
           }}
         >
           {typeConfig.label}
@@ -435,8 +253,8 @@ export function BacenInstitutionCard({
         <Icon
           sx={{
             color: typeConfig.color,
-            fontSize: 20,
-            opacity: 0.8,
+            fontSize: iconSizeMedium, // 20px from typography.h5
+            opacity: 0.8, // Could be a token in the future
           }}
         />
       </Box>

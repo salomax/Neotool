@@ -51,5 +51,11 @@
     "searchCouldNotBeCompleted": "The search could not be completed. Please try again.",
     "retry": "Retry",
     "loadMore": "Load More"
+  },
+  "currency": {
+    "billions": "bi",
+    "millions": "mi",
+    "billionsLong": "billions",
+    "millionsLong": "millions"
   }
 }
