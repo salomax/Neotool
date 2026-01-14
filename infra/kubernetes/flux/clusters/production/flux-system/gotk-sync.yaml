@@ -11,7 +11,7 @@ spec:
     branch: "20260108_3"
   secretRef:
     name: flux-system
-  url: ssh://git@github.com/salomax/Neotool
+  url: ssh://git@github.com/salomax/neotool
 ---
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
