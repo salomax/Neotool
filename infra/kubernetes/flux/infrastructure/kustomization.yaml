@@ -15,5 +15,4 @@ resources:
   - vault/
 
   # 5. External Secrets Operator (syncs Vault → K8s)
-  # TEMPORARIAMENTE DESABILITADO PARA TESTES
   # - external-secrets/
