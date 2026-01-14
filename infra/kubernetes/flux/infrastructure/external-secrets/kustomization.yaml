@@ -2,11 +2,7 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-  # External Secrets Operator HelmRelease
+  # External Secrets Operator HelmRelease only
+  # The CRD-dependent resources (SecretStore, ExternalSecret, ServiceAccount)
+  # are managed by the external-secrets-config Kustomization which depends on this
   - helmrelease.yaml
-  
-  # External Secrets configuration (applied after operator is ready)
-  # These are applied separately to ensure operator is running first
-  - service-account.yaml
-  - secret-store.yaml
-  - postgres-external-secret.yaml
