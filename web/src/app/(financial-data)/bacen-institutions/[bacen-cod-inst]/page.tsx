@@ -200,7 +200,17 @@ export default function BacenInstitutionDetailPage() {
                     
                     {account.valuesByQuarter && account.valuesByQuarter.length > 0 ? (
                       <LineChart
-                        data={account.valuesByQuarter}
+                        data={
+                          account.id === "INDICE_DE_BASILEIA" || account.id === "INDICE_DE_IMOBILIZACAO"
+                            ? account.valuesByQuarter.map((item: any) => ({
+                                ...item,
+                                value:
+                                  item.value === null || item.value === undefined
+                                    ? item.value
+                                    : Number(item.value) * 100,
+                              }))
+                            : account.valuesByQuarter
+                        }
                         xKey="quarter"
                         xDateFormat={(value: any) => {
                           const str = String(value);

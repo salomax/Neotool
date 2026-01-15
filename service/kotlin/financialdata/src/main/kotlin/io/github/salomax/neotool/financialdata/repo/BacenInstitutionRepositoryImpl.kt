@@ -357,42 +357,35 @@ open class BacenInstitutionRepositoryImpl(
                 fi.trade_name,
                 MAX(fi.tipo_consolidado_bancario) as tipo_consolidado_bancario,
                 MAX(CASE 
-                    WHEN bra.conta = '78187' THEN COALESCE(brd.saldo_ajustado, brd.saldo)
-                    WHEN bra.conta = '141870' THEN brd.saldo   
+                    WHEN brac.normalized_name = 'LUCRO_LIQUIDO' THEN COALESCE(brd.saldo_ajustado, brd.saldo)
                     ELSE NULL 
                 END) as profit,
                 MAX(CASE 
-                    WHEN bra.conta = '78186' THEN brd.saldo     
-                    WHEN bra.conta = '140246' THEN brd.saldo     
+                    WHEN brac.normalized_name = 'PATRIMONIO_LIQUIDO' THEN brd.saldo
                     ELSE NULL 
                 END) as equity,
                 MAX(CASE 
-                    WHEN bra_year_ago.conta = '78186' THEN brd_year_ago.saldo
-                    WHEN bra_year_ago.conta = '140246' THEN brd_year_ago.saldo 
+                    WHEN brac_year_ago.normalized_name = 'PATRIMONIO_LIQUIDO' THEN brd_year_ago.saldo
                     ELSE NULL END) as equity_year_ago,
                 CASE 
                     WHEN MAX(CASE 
-                        WHEN bra_year_ago.conta = '78186' THEN brd_year_ago.saldo
-                        WHEN bra_year_ago.conta = '140246' THEN brd_year_ago.saldo 
+                        WHEN brac_year_ago.normalized_name = 'PATRIMONIO_LIQUIDO' THEN brd_year_ago.saldo
                         ELSE NULL END) IS NOT NULL 
                     THEN (
                         (MAX(CASE 
-                            WHEN bra.conta = '78186' THEN brd.saldo
-                            WHEN bra.conta = '140246' THEN brd.saldo
+                            WHEN brac.normalized_name = 'PATRIMONIO_LIQUIDO' THEN brd.saldo
                             ELSE 0 END) - 
                          MAX(CASE 
-                            WHEN bra_year_ago.conta = '78186' THEN brd_year_ago.saldo 
-                            WHEN bra_year_ago.conta = '140246' THEN brd_year_ago.saldo
+                            WHEN brac_year_ago.normalized_name = 'PATRIMONIO_LIQUIDO' THEN brd_year_ago.saldo
                             ELSE 0 END)) * 100.0 /
                         MAX(CASE 
-                            WHEN bra_year_ago.conta = '78186' THEN brd_year_ago.saldo 
-                            WHEN bra_year_ago.conta = '140246' THEN brd_year_ago.saldo
+                            WHEN brac_year_ago.normalized_name = 'PATRIMONIO_LIQUIDO' THEN brd_year_ago.saldo
                             ELSE 0 END)
                     )
                     ELSE NULL
                 END as yoy_equity_growth,
                 MAX(CASE 
-                    WHEN bra.conta = '79664' THEN brd.saldo     
+                    WHEN brac.normalized_name = 'INDICE_DE_BASILEIA' THEN brd.saldo
                     ELSE NULL 
                 END) as basileia_index,
                 MAX(br.tipo_instituicao) as tipo_instituicao
@@ -404,17 +397,22 @@ open class BacenInstitutionRepositoryImpl(
                     ON brd.bank_report_id = br.id
                 INNER JOIN financial_data.bacen_bank_report_account bra 
                     ON bra.id = brd.account_id
-                    AND bra.conta IN (
-                        '78187', '141870', -- Lucro líquido
-                        '78186', '140246', -- Patrimônio Líquido
-                        '79664') -- Índice basiléia
+                INNER JOIN financial_data.bacen_bank_report_account_canonical brac
+                    ON brac.id = bra.canonical_account_id
+                    AND brac.normalized_name IN (
+                        'LUCRO_LIQUIDO',
+                        'PATRIMONIO_LIQUIDO',
+                        'INDICE_DE_BASILEIA')
                 LEFT JOIN financial_data.bacen_bank_report br_year_ago
                     ON br_year_ago.cod_inst = fi.bacen_cod_inst 
                     AND br_year_ago.ano_mes = (LPAD((CAST(SUBSTRING(?::TEXT, 1, 4) AS INTEGER) - 1)::TEXT, 4, '0') || SUBSTRING(?::TEXT, 5, 2))
                 LEFT JOIN financial_data.bacen_bank_report_data brd_year_ago 
                     ON brd_year_ago.bank_report_id = br_year_ago.id
                 LEFT JOIN financial_data.bacen_bank_report_account bra_year_ago 
-                    ON bra_year_ago.id = brd_year_ago.account_id AND bra_year_ago.conta IN ('78186', '140246')
+                    ON bra_year_ago.id = brd_year_ago.account_id
+                LEFT JOIN financial_data.bacen_bank_report_account_canonical brac_year_ago
+                    ON brac_year_ago.id = bra_year_ago.canonical_account_id
+                    AND brac_year_ago.normalized_name IN ('PATRIMONIO_LIQUIDO')
                 LEFT JOIN financial_data.bacen_institution bi 
                     ON bi.bacen_cod_inst = fi.bacen_cod_inst 
                     AND bi.ano_mes_ref = ?

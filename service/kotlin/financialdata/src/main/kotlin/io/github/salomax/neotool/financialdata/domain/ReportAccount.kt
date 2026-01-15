@@ -11,12 +11,12 @@ data class ReportAccount(
     val group: String?,
 
     /**
-     * Account id (normalized account name like "ATIVO_TOTAL") from bacen_bank_report_account
+     * Account id (canonical normalized name like "ATIVO_TOTAL") from bacen_bank_report_account_canonical
      */
     val accountId: String?,
 
     /**
-     * Account name (display name from nome_coluna) from bacen_bank_report_account
+     * Account name (display name from canonical account) from bacen_bank_report_account_canonical
      */
     val accountName: String?,
 

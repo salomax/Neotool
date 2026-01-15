@@ -257,8 +257,8 @@ open class BacenInstitutionDetailRepositoryImpl(
                 br.numero_relatorio as report_id,
                 brc.nome_relatorio as name,
                 bra.grupo as account_group,
-                TRIM('_' FROM UPPER(regexp_replace(regexp_replace(regexp_replace(regexp_replace(financial_data.unaccent(bra.nome_coluna), '[\n\r].*', '', 'g'), '\(([^)]+)\)', '\1', 'g'), '\s+', '_', 'g'), '[/-]_', '', 'g'))) as account_id,
-                TRIM(regexp_replace(bra.nome_coluna, '[\n\r].*', '', 'g')) as account_name,
+                brac.normalized_name as account_id,
+                brac.display_name as account_name,
                 COALESCE(brd.saldo_ajustado, brd.saldo) value
             FROM financial_data.bacen_bank_report br
                 INNER JOIN financial_data.bacen_bank_report_catalog brc
@@ -267,6 +267,8 @@ open class BacenInstitutionDetailRepositoryImpl(
                     ON brd.bank_report_id = br.id
                 INNER JOIN financial_data.bacen_bank_report_account bra
                     ON bra.id = brd.account_id
+                LEFT JOIN financial_data.bacen_bank_report_account_canonical brac
+                    ON brac.id = bra.canonical_account_id
             WHERE br.cod_inst = ?
                 AND br.numero_relatorio = ?
                 AND br.ano_mes IN ($quartersPlaceholder)

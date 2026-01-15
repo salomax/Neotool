@@ -33,11 +33,20 @@ open class BacenInstitutionDetailService(
      * @return BacenFinanceInstitution or null if not found
      */
     fun getBacenFinanceInstitution(id: String, anoMes: String? = null): BacenFinanceInstitution? {
+        logger.debug { "Fetching BacenFinanceInstitution for id=$id, anoMes=$anoMes" }
+
         // Get financial institution data
-        val financialData = institutionDetailRepository.getFinancialInstitutionData(id, anoMes) ?: return null
+        val financialData = institutionDetailRepository.getFinancialInstitutionData(id, anoMes)
+        if (financialData == null) {
+            logger.debug { "Financial institution not found for id=$id, anoMes=$anoMes" }
+            return null
+        }
 
         // Get BACEN bank report data
         val reportData = institutionDetailRepository.getBacenBankReportData(id, anoMes)
+        if (reportData.isEmpty()) {
+            logger.debug { "No report data found for id=$id, anoMes=$anoMes" }
+        }
 
         // Extract financial metrics from report data
         val financialMetrics = extractFinancialMetrics(reportData, anoMes)
@@ -98,6 +107,13 @@ open class BacenInstitutionDetailService(
         // Group by account number for easier lookup
         val accountMap = reportData.associateBy { it.account }
 
+        // Expected account numbers for financial metrics
+        val expectedAccounts = setOf("78187", "78186", "79664", "79665", "78188", "78189", "78190", "78191")
+        val missingAccounts = expectedAccounts.filter { it !in accountMap }
+        if (missingAccounts.isNotEmpty()) {
+            logger.debug { "Missing expected account numbers in report data: $missingAccounts" }
+        }
+
         val profit = accountMap["78187"]?.balance
         val equity = accountMap["78186"]?.balance
         val basileiaIndex = accountMap["79664"]?.balance
@@ -108,8 +124,10 @@ open class BacenInstitutionDetailService(
         val rwaReferenceEquity = accountMap["78191"]?.balance
 
         // Calculate year-over-year equity growth
-        // Note: This requires year-ago data which would need a separate query
-        // For now, we'll leave it as null since we don't have year-ago data in the new structure
+        // TODO: Implement YoY equity growth calculation
+        // This requires comparing current period equity (account 78186) with equity from the same period
+        // a year ago. This would need a separate query to fetch historical data or modification of
+        // the repository to support year-over-year comparisons.
         val yoyEquityGrowth: java.math.BigDecimal? = null
 
         return FinancialMetrics(
@@ -185,9 +203,12 @@ open class BacenInstitutionDetailService(
      * @return ReportDetails or null if report not found
      */
     fun getReportDetails(id: String, reportId: String, range: QuarterRange): ReportDetails? {
+        logger.debug { "Fetching report details for id=$id, reportId=$reportId, range=$range" }
+
         val values = institutionDetailRepository.getReportDetailsByQuarterRange(id, reportId, range)
 
         if (values.isEmpty()) {
+            logger.debug { "No report details found for id=$id, reportId=$reportId, range=$range" }
             return null
         }
 
@@ -265,7 +286,15 @@ open class BacenInstitutionDetailService(
 
     /**
      * Map institution type based on tipo_consolidacao and group codes.
-     * Simplified version - full logic would need codConglomeradoPrudencial and codConglomeradoFinanceiro.
+     *
+     * TODO: This is a simplified implementation. The full logic requires:
+     * - codConglomeradoPrudencial: Prudential conglomerate code from bacen_institution
+     * - codConglomeradoFinanceiro: Financial conglomerate code from bacen_institution
+     *
+     * These fields are currently not available in FinancialInstitutionDataResult and would need to be
+     * added to the repository query to enable proper institution type mapping.
+     *
+     * Priority: FINANCIAL_GROUP > PRUDENTIAL_GROUP > INDIVIDUAL_INSTITUTION
      */
     private fun mapInstitutionType(
         tipoConsolidacao: String?,
@@ -287,7 +316,10 @@ open class BacenInstitutionDetailService(
             codConglomeradoPrudencial == null && codConglomeradoFinanceiro == null -> {
                 BacenInstitutionType.INDIVIDUAL_INSTITUTION
             }
-            else -> null
+            else -> {
+                logger.debug { "Could not determine institution type for bacenCodInst=$bacenCodInst, tipoConsolidacao=$tipoConsolidacao" }
+                null
+            }
         }
     }
 }

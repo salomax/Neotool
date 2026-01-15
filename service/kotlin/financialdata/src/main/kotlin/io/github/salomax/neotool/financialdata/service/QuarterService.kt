@@ -1,8 +1,8 @@
-    package io.github.salomax.neotool.financialdata.service
+package io.github.salomax.neotool.financialdata.service
 
-import io.micronaut.transaction.annotation.ReadOnly
+import io.github.salomax.neotool.financialdata.repo.QuarterRepositoryCustom
 import jakarta.inject.Singleton
-import jakarta.persistence.EntityManager
+import mu.KotlinLogging
 
 /**
  * Service for quarter-related operations in the financial_data module.
@@ -10,22 +10,24 @@ import jakarta.persistence.EntityManager
  */
 @Singleton
 open class QuarterService(
-    private val entityManager: EntityManager,
+    private val quarterRepository: QuarterRepositoryCustom,
 ) {
+    private val logger = KotlinLogging.logger {}
+
     /**
      * Gets the latest quarter (max ano_mes_ref) globally across all institutions.
      * Used as default when anoMes parameter is not provided.
      *
      * @return Latest quarter in "YYYYMM" format or null if no data exists
      */
-    @ReadOnly
     open fun getLatestQuarter(): String? {
-        val sql = """
-            SELECT MAX(ano_mes_ref) 
-            FROM financial_data.bacen_institution
-        """.trimIndent()
-        val nativeQuery = entityManager.createNativeQuery(sql)
-        val result = nativeQuery.singleResult as? String
-        return result
+        return try {
+            val latestQuarter = quarterRepository.getLatestQuarter()
+            logger.debug { "Retrieved latest quarter: $latestQuarter" }
+            latestQuarter
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to get latest quarter" }
+            null
+        }
     }
 }

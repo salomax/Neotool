@@ -22,6 +22,8 @@ open class BacenBankReportAccountEntity(
     open var nomeColuna: String? = null,
     @Column(name = "descricao_coluna")
     open var descricaoColuna: String? = null,
+    @Column(name = "canonical_account_id", columnDefinition = "uuid")
+    open var canonicalAccountId: UUID? = null,
     @Column(name = "created_at", nullable = false)
     open var createdAt: Instant = Instant.now(),
     @Column(name = "updated_at", nullable = false)

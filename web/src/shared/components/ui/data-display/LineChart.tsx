@@ -153,6 +153,17 @@ export const LineChart: React.FC<LineChartProps> = ({
 
   const palette = colors && colors.length > 0 ? colors : defaultPalette(theme);
 
+  const legendPayload = React.useMemo(
+    () =>
+      series.map((serie, index) => ({
+        value: serie.name,
+        type: "line",
+        id: serie.id,
+        color: serie.color || palette[index % palette.length],
+      })),
+    [series, palette]
+  );
+
   const axisPadding = { top: 16, bottom: 4 };
 
   const leftAxes = (axes || []).filter((axis) => axis.side === "left");
@@ -367,11 +378,11 @@ export const LineChart: React.FC<LineChartProps> = ({
     };
   };
 
-  const tooltipFormatter = (value: any, _name: any, tooltipProps: any) => {
+  const tooltipFormatter = (value: any, name: any, tooltipProps: any) => {
     const serie = series.find(
-      (s) => s.dataKey === tooltipProps?.dataKey || s.name === _name
+      (s) => s.dataKey === tooltipProps?.dataKey || s.name === name
     );
-    const formatter = getTickFormatter(serie?.yAxisId);
+    const axisConfig = getAxis(serie?.yAxisId);
     const numeric =
       typeof value === "number"
         ? value
@@ -379,11 +390,27 @@ export const LineChart: React.FC<LineChartProps> = ({
         ? NaN
         : Number(value);
 
-    if (!formatter || !Number.isFinite(numeric)) {
-      return value;
+    if (!Number.isFinite(numeric)) {
+      return ["", ""];
     }
 
-    return formatter(numeric);
+    if (axisConfig?.format === "currency") {
+      const formatter = new Intl.NumberFormat(locale, {
+        style: "currency",
+        currency: axisConfig.currency ?? "BRL",
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+      return [formatter.format(numeric), ""];
+    }
+
+    const formatter = getTickFormatter(serie?.yAxisId);
+
+    if (!formatter) {
+      return [value, ""];
+    }
+
+    return [formatter(numeric), ""];
   };
 
   const xTickFormatter =
@@ -401,6 +428,65 @@ export const LineChart: React.FC<LineChartProps> = ({
           }).format(date);
         }
       : undefined);
+
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (!active || !payload || payload.length === 0) {
+      return null;
+    }
+
+    const formattedLabel = xTickFormatter ? xTickFormatter(label) : label;
+
+    return (
+      <Box
+        sx={{
+          bgcolor: theme.palette.background.paper,
+          border: `1px solid ${theme.palette.divider}`,
+          p: 1.5,
+        }}
+      >
+        <Typography variant="caption" color="text.secondary">
+          {formattedLabel}
+        </Typography>
+        {payload.map((entry: any, index: number) => {
+          const [formattedValue] = tooltipFormatter(
+            entry.value,
+            entry.name,
+            entry
+          );
+          const color = entry.color || palette[index % palette.length];
+
+          return (
+            <Box
+              key={entry.dataKey || index}
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                mt: index === 0 ? 0.5 : 0.25,
+              }}
+            >
+              <Box
+                sx={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  bgcolor: color,
+                  mr: 1,
+                }}
+              />
+              <Typography variant="body2">
+                {entry.name && (
+                  <Box component="span" sx={{ mr: 0.5 }}>
+                    {entry.name}
+                  </Box>
+                )}
+                {formattedValue}
+              </Typography>
+            </Box>
+          );
+        })}
+      </Box>
+    );
+  };
 
   return (
     <Box sx={{ p: 2, ...sx }}>
@@ -512,35 +598,28 @@ export const LineChart: React.FC<LineChartProps> = ({
                 />
               ))}
 
-            {showTooltip && (
-              <Tooltip
-                formatter={tooltipFormatter}
-                labelFormatter={xTickFormatter}
-                labelStyle={{ color: theme.palette.text.primary }}
-              />
-            )}
+            {showTooltip && <Tooltip content={<CustomTooltip />} />}
             {showLegend && <Legend />}
 
             {series.map((serie, index) => {
               const color = serie.color || palette[index % palette.length];
+              const yAxisKey = getAxis(serie.yAxisId)?.id;
 
               return (
-                <Line
-                  key={serie.id}
-                  type="monotone"
-                  dataKey={serie.dataKey}
-                  name={serie.name}
-                  stroke={color}
-                  strokeWidth={strokeWidth}
-                  yAxisId={getAxis(serie.yAxisId)?.id}
-                  dot={showDots}
-                  isAnimationActive={true}
-                  connectNulls={true}
-                  label={showValueLabels}
-                  fill={
-                    showArea ? `url(#linechart-gradient-${serie.id})` : undefined
-                  }
-                />
+                <React.Fragment key={serie.id}>
+                  <Line
+                    type="monotone"
+                    dataKey={serie.dataKey}
+                    name={serie.name}
+                    stroke={color}
+                    strokeWidth={strokeWidth}
+                    yAxisId={yAxisKey}
+                    dot={showDots}
+                    isAnimationActive={true}
+                    connectNulls={true}
+                    label={showValueLabels}
+                  />
+                </React.Fragment>
               );
             })}
           </RechartsLineChart>
