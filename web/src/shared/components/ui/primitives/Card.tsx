@@ -60,6 +60,10 @@ export function Card({
   const combinedSx: SxProps<Theme> = React.useMemo(() => {
     const baseStyles: SxProps<Theme> = {
       borderRadius: 2,
+      boxShadow:
+        variant === "outlined"
+          ? "0 10px 30px rgba(15, 23, 42, 0.06)"
+          : "0 5px 15px rgba(15, 23, 42, 0.08)",
       transition: hoverable
         ? 'box-shadow 0.2s ease-in-out, transform 0.2s ease-in-out'
         : undefined,
@@ -71,12 +75,18 @@ export function Card({
 
     if (hoverable && isClickable) {
       baseStyles['&:hover'] = {
-        boxShadow: variant === "outlined" ? 4 : 6,
+        boxShadow:
+          variant === "outlined"
+            ? "0 14px 40px rgba(15, 23, 42, 0.08)"
+            : "0 18px 46px rgba(15, 23, 42, 0.10)",
         transform: 'translateY(-2px)',
       };
     } else if (hoverable) {
       baseStyles['&:hover'] = {
-        boxShadow: variant === "outlined" ? 2 : 4,
+        boxShadow:
+          variant === "outlined"
+            ? "0 12px 34px rgba(15, 23, 42, 0.07)"
+            : "0 16px 42px rgba(15, 23, 42, 0.09)",
       };
     }
 
@@ -96,4 +106,3 @@ export function Card({
 }
 
 export default Card;
-

@@ -655,17 +655,16 @@ export type RefreshAccessTokenInput = {
 
 export type ReportAccount = {
   __typename: 'ReportAccount';
-  accountNumber: Maybe<Scalars['String']['output']>;
-  columnName: Maybe<Scalars['String']['output']>;
   group: Maybe<Scalars['String']['output']>;
+  id: Maybe<Scalars['String']['output']>;
+  name: Maybe<Scalars['String']['output']>;
   valuesByQuarter: Array<QuarterValue>;
 };
 
 export type ReportDescriptor = {
   __typename: 'ReportDescriptor';
-  accountNumber: Maybe<Scalars['String']['output']>;
-  columnName: Maybe<Scalars['String']['output']>;
   group: Maybe<Scalars['String']['output']>;
+  id: Maybe<Scalars['String']['output']>;
   name: Maybe<Scalars['String']['output']>;
   reportId: Scalars['ID']['output'];
 };

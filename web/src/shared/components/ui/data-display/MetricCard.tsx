@@ -1,0 +1,443 @@
+"use client";
+
+import * as React from "react";
+import { Box, Typography, Chip } from "@mui/material";
+import { useTheme, alpha } from "@mui/material/styles";
+import type { SxProps, Theme } from "@mui/material/styles";
+import {
+  AreaChart as RechartsAreaChart,
+  Area,
+  ResponsiveContainer,
+  XAxis,
+} from "recharts";
+import Card, {
+  CardProps,
+} from "@/shared/components/ui/primitives/Card";
+import { parseCurrencyValue, type CurrencyLabels } from "@/shared/utils/currency";
+import { formatPercentageWithSign } from "@/shared/utils/percentage";
+import ArrowDropUpIcon from "@mui/icons-material/ArrowDropUp";
+import { useTranslation as useReactI18nTranslation } from "react-i18next";
+
+import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
+
+export type MetricValueType = "currency" | "number" | "percentage";
+
+export interface MetricCardProps extends Omit<CardProps, "children"> {
+  label: string;
+  actualValue: number | null | undefined;
+  valueType: MetricValueType;
+  currency?: string;
+  locale?: string;
+  totalizerFormat?: "short" | "long";
+  currencyLabels?: CurrencyLabels;
+  historical?: number[];
+  growthPercentage?: number | null;
+  growthLabel?: string;
+  contentSx?: SxProps<Theme>;
+}
+
+interface NumberParts {
+  number: string;
+  totalizer: string | null;
+}
+
+function parseNumberValue(
+  value: number,
+  locale: string,
+  labels: CurrencyLabels,
+  totalizerFormat: "short" | "long"
+): NumberParts {
+  const isNegative = value < 0;
+  const absValue = Math.abs(value);
+
+  const trillionsLabel =
+    totalizerFormat === "long"
+      ? labels.trillionsLong || "trilhões"
+      : labels.trillions || "tri";
+  const billionsLabel =
+    totalizerFormat === "long"
+      ? labels.billionsLong || "bilhões"
+      : labels.billions || "bi";
+  const millionsLabel =
+    totalizerFormat === "long"
+      ? labels.millionsLong || "milhões"
+      : labels.millions || "mi";
+
+  const trillions = absValue / 1_000_000_000_000;
+  if (trillions >= 1) {
+    const numberStr = trillions.toLocaleString(locale, {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    });
+    return {
+      number: isNegative ? `-${numberStr}` : numberStr,
+      totalizer: trillionsLabel,
+    };
+  }
+
+  const billions = absValue / 1_000_000_000;
+  if (billions >= 1) {
+    const numberStr = billions.toLocaleString(locale, {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    });
+    return {
+      number: isNegative ? `-${numberStr}` : numberStr,
+      totalizer: billionsLabel,
+    };
+  }
+
+  const millions = absValue / 1_000_000;
+  if (millions >= 1) {
+    const numberStr = millions.toLocaleString(locale, {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    });
+    return {
+      number: isNegative ? `-${numberStr}` : numberStr,
+      totalizer: millionsLabel,
+    };
+  }
+
+  const numberStr = absValue.toLocaleString(locale, {
+    maximumFractionDigits: 0,
+  });
+
+  return {
+    number: isNegative ? `-${numberStr}` : numberStr,
+    totalizer: null,
+  };
+}
+
+export function MetricCard({
+  label,
+  actualValue,
+  valueType,
+  currency = "BRL",
+  locale = "pt-BR",
+  totalizerFormat = "short",
+  currencyLabels: providedCurrencyLabels,
+  historical,
+  growthPercentage,
+  growthLabel,
+  contentSx,
+  sx,
+  ...rest
+}: MetricCardProps) {
+  const { t: tCommon } = useReactI18nTranslation("common");
+  const theme = useTheme();
+
+  const { variant, hoverable, onClick, ...cardRest } = rest;
+
+  const currencyLabels = React.useMemo<CurrencyLabels>(() => {
+    if (providedCurrencyLabels) {
+      return providedCurrencyLabels;
+    }
+    return {
+      billions: tCommon("currency.billions"),
+      millions: tCommon("currency.millions"),
+      trillions: tCommon("currency.trillions"),
+      billionsLong: tCommon("currency.billionsLong"),
+      millionsLong: tCommon("currency.millionsLong"),
+      trillionsLong: tCommon("currency.trillionsLong"),
+    };
+  }, [providedCurrencyLabels, tCommon]);
+
+  const mainValueParts = React.useMemo(() => {
+    if (typeof actualValue !== "number" || !Number.isFinite(actualValue)) {
+      return {
+        prefix: "",
+        main: "-",
+        suffix: "",
+      };
+    }
+
+    if (valueType === "currency") {
+      const parts = parseCurrencyValue(
+        actualValue,
+        currency,
+        locale,
+        currencyLabels,
+        totalizerFormat
+      );
+      return {
+        prefix: parts.symbol,
+        main: parts.number,
+        suffix: parts.totalizer ?? "",
+      };
+    }
+
+    if (valueType === "number") {
+      const parts = parseNumberValue(
+        actualValue,
+        locale,
+        currencyLabels,
+        totalizerFormat
+      );
+      return {
+        prefix: "",
+        main: parts.number,
+        suffix: parts.totalizer ?? "",
+      };
+    }
+
+    if (valueType === "percentage") {
+      const percentageValue = actualValue * 100;
+      const formatted = percentageValue.toLocaleString(locale, {
+        maximumFractionDigits: 1,
+      });
+      return {
+        prefix: "",
+        main: formatted,
+        suffix: "%",
+      };
+    }
+
+    // Fallback (should not reach here)
+    return {
+      prefix: "",
+      main: String(actualValue),
+      suffix: "",
+    };
+  }, [
+    actualValue,
+    valueType,
+    currency,
+    locale,
+    currencyLabels,
+    totalizerFormat,
+  ]);
+
+  const hasGrowth = growthPercentage != null;
+
+  const growthColor = React.useMemo(() => {
+    if (!hasGrowth) {
+      return theme.palette.primary.main;
+    }
+    if ((growthPercentage ?? 0) > 0) {
+      return theme.palette.success.main;
+    }
+    if ((growthPercentage ?? 0) < 0) {
+      return theme.palette.error.main;
+    }
+    return theme.palette.text.secondary;
+  }, [growthPercentage, hasGrowth, theme.palette]);
+
+  const growthBgColor = React.useMemo(() => {
+    if (!hasGrowth) {
+      return theme.palette.primary.light;
+    }
+    if ((growthPercentage ?? 0) > 0) {
+      return (theme as any).custom?.palette?.successLightBg;
+    }
+    if ((growthPercentage ?? 0) < 0) {
+      return (theme as any).custom?.palette?.errorLightBg;
+    }
+    return theme.palette.action.hover;
+  }, [growthPercentage, hasGrowth, theme]);
+
+  const chartStrokeColor = React.useMemo(
+    () => alpha(growthColor, 0.5),
+    [growthColor]
+  );
+  const chartFillColor = React.useMemo(
+    () => alpha(growthColor, 0.06),
+    [growthColor]
+  );
+
+  const chartData = React.useMemo(
+    () =>
+      (historical ?? []).map((value, index) => ({
+        index,
+        value,
+      })),
+    [historical]
+  );
+
+  const showChart = chartData.length > 1;
+
+  const growthFormatted = React.useMemo(() => {
+    if (!hasGrowth) {
+      return "";
+    }
+    return formatPercentageWithSign(growthPercentage ?? 0, {
+      decimals: 1,
+      showZeroSign: false,
+    });
+  }, [growthPercentage, hasGrowth]);
+
+  const GrowthIcon = React.useMemo(() => {
+    if (!hasGrowth) {
+      return null;
+    }
+    if ((growthPercentage ?? 0) > 0) {
+      return ArrowDropUpIcon;
+    }
+    if ((growthPercentage ?? 0) < 0) {
+      return ArrowDropDownIcon;
+    }
+    return null;
+  }, [growthPercentage, hasGrowth]);
+
+  return (
+    <Card
+      variant={variant ?? "outlined"}
+      hoverable={hoverable ?? !!onClick}
+      onClick={onClick}
+      sx={{
+        p: 2.5,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        position: "relative",
+        overflow: "hidden",
+        minHeight: 168,
+        ...sx,
+      }}
+      {...cardRest}
+    >
+      {showChart && (
+        <Box
+          sx={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: 60,
+            pointerEvents: "none",
+            opacity: 0.35,
+          }}
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <RechartsAreaChart
+              data={chartData}
+              margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
+            >
+              <XAxis
+                dataKey="index"
+                type="number"
+                domain={["dataMin", "dataMax"]}
+                hide
+                padding={{ left: 0, right: 0 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <Area
+                type="monotone"
+                dataKey="value"
+                stroke={chartStrokeColor}
+                fill={chartFillColor}
+                strokeWidth={2}
+                isAnimationActive
+              />
+            </RechartsAreaChart>
+          </ResponsiveContainer>
+        </Box>
+      )}
+      <Box
+        sx={{
+          p: 1,
+          display: "flex",
+          flexDirection: "column",
+          gap: 1.25,
+          position: "relative",
+          ...contentSx,
+        }}
+      >
+        <Typography
+          variant="body2"
+          sx={{
+            fontSize: "0.8em",
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.01em",
+            color: "text.secondary",
+          }}
+        >
+          {label}
+        </Typography>
+
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "baseline",
+            gap: 0.75,
+          }}
+        >
+          {mainValueParts.prefix ? (
+            <Typography
+              variant="body1"
+              component="span"
+              sx={{ fontWeight: 500, color: "text.secondary", opacity: 0.5 }}
+            >
+              {mainValueParts.prefix}
+            </Typography>
+          ) : null}
+
+          <Typography
+            variant="h4"
+            component="span"
+            sx={{ fontWeight: 800, fontSize: "2.1em", letterSpacing: "-0.06em", lineHeight: 0.8 }}
+          >
+            {mainValueParts.main}
+          </Typography>
+
+          {mainValueParts.suffix ? (
+            <Typography
+              variant="body1"
+              component="span"
+              sx={{ fontWeight: 500, color: "text.secondary", opacity: 0.5  }}
+            >
+              {mainValueParts.suffix}
+            </Typography>
+          ) : null}
+        </Box>
+
+        {hasGrowth && GrowthIcon && (
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+            }}
+          >
+            <Chip
+              icon={
+                <GrowthIcon
+                  sx={{
+                    fontSize: 18,
+                  }}
+                />
+              }
+              label={growthFormatted}
+              sx={{
+                bgcolor: growthBgColor,
+                color: growthColor,
+                fontWeight: 700,
+                fontSize: 13,
+                height: "auto",
+                "& .MuiChip-label": {
+                  px: 0.5,
+                  py: 0.25,
+                  fontSize: 13,
+                  fontWeight: 700,
+                },
+                "& .MuiChip-icon": {
+                  color: growthColor,
+                  fontSize: 18,
+                },
+              }}
+            />
+            {growthLabel ? (
+              <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                {growthLabel}
+              </Typography>
+            ) : null}
+          </Box>
+        )}
+      </Box>
+    </Card>
+  );
+}
+
+export default MetricCard;

@@ -54,8 +54,8 @@ data class ReportDescriptorDTO(
     val reportId: String,
     val name: String?,
     val group: String?,
-    val accountNumber: String?,
-    val columnName: String?,
+    val accountId: String?,
+    val accountName: String?,
 )
 
 @Introspected
@@ -70,8 +70,8 @@ data class ReportDetailsDTO(
 @Serdeable
 data class ReportAccountDTO(
     val group: String?,
-    val accountNumber: String?,
-    val columnName: String?,
+    val accountId: String?,
+    val accountName: String?,
     val valuesByQuarter: List<QuarterValueDTO>,
 )
 

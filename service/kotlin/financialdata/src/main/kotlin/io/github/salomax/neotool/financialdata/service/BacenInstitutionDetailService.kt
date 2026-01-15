@@ -165,7 +165,7 @@ open class BacenInstitutionDetailService(
                     ReportDescriptor(
                         reportId = report.reportId,
                         name = report.name,
-                        // group, accountNumber, columnName not set (default to null)
+                        // group, accountId, accountName not set (default to null)
                         // These fields are only available in reportDetails
                     )
                 },
@@ -177,7 +177,7 @@ open class BacenInstitutionDetailService(
 
     /**
      * Get detailed report values by quarter for a specific report.
-     * Groups values by account (group, accountNumber, columnName) and returns all accounts.
+     * Groups values by account (group, accountId, accountName) and returns all accounts.
      *
      * @param id Institution ID (bacen_cod_inst)
      * @param reportId Report ID (numero_relatorio)
@@ -194,18 +194,18 @@ open class BacenInstitutionDetailService(
         // Use first value for report metadata (all should have same report metadata)
         val first = values.first()
 
-        // Group values by account (composite key: group, accountNumber, columnName)
+        // Group values by account (composite key: accountGroup, accountId, accountName)
         val accountsMap = values.groupBy { value ->
             Triple(
-                value.group,
-                value.accountNumber,
-                value.columnName,
+                value.accountGroup,
+                value.accountId,
+                value.accountName,
             )
         }
 
         // Create ReportAccount for each unique account
         val accounts = accountsMap.map { (accountKey, accountValues) ->
-            val (group, accountNumber, columnName) = accountKey
+            val (group, accountId, accountName) = accountKey
 
             // Aggregate valuesByQuarter per account, sorted descending (most recent first)
             val quarterValues = accountValues.map { value ->
@@ -217,13 +217,13 @@ open class BacenInstitutionDetailService(
 
             ReportAccount(
                 group = group,
-                accountNumber = accountNumber,
-                columnName = columnName,
+                accountId = accountId,
+                accountName = accountName,
                 valuesByQuarter = quarterValues,
             )
         }.sortedWith(
-            // Sort accounts consistently: by accountNumber then group
-            compareBy<ReportAccount> { it.accountNumber ?: "" }
+            // Sort accounts consistently: by accountId then group
+            compareBy<ReportAccount> { it.accountId ?: "" }
                 .thenBy { it.group ?: "" }
         )
 

@@ -142,8 +142,6 @@ export function BacenInstitutionCard({
             sx={{
               width: avatarSize,
               height: avatarSize,
-              border: "1px solid",
-              borderColor: "divider",
               borderRadius: 1.5, // Less rounded (12px)
               bgcolor: "background.default",
             }}

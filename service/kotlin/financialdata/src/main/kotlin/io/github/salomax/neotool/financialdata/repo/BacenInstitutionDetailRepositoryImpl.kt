@@ -251,8 +251,8 @@ open class BacenInstitutionDetailRepositoryImpl(
                 reportId = mapper.getString("report_id") ?: "",
                 name = mapper.getString("name"),
                 group = null,  // Not available in summary - only in reportDetails
-                accountNumber = null,  // Not available in summary - only in reportDetails
-                columnName = null,  // Not available in summary - only in reportDetails
+                accountId = null,  // Not available in summary - only in reportDetails
+                accountName = null,  // Not available in summary - only in reportDetails
             )
         }
     }
@@ -271,13 +271,13 @@ open class BacenInstitutionDetailRepositoryImpl(
 
         val quartersPlaceholder = quarters.joinToString(",") { "?" }
         val sql = """
-            SELECT
+            SELECT DISTINCT
                 br.ano_mes as quarter,
                 br.numero_relatorio as report_id,
                 brc.nome_relatorio as name,
-                bra.grupo,
-                bra.conta as account_number,
-                bra.nome_coluna as column_name,
+                bra.grupo as account_group,
+                TRIM('_' FROM UPPER(regexp_replace(regexp_replace(regexp_replace(regexp_replace(financial_data.unaccent(bra.nome_coluna), '[\n\r].*', '', 'g'), '\(([^)]+)\)', '\1', 'g'), '\s+', '_', 'g'), '[/-]_', '', 'g'))) as account_id,
+                TRIM(regexp_replace(bra.nome_coluna, '[\n\r].*', '', 'g')) as account_name,
                 brd.saldo as value
             FROM financial_data.bacen_bank_report br
                 INNER JOIN financial_data.bacen_bank_report_catalog brc
@@ -289,7 +289,10 @@ open class BacenInstitutionDetailRepositoryImpl(
             WHERE br.cod_inst = ?
                 AND br.numero_relatorio = ?
                 AND br.ano_mes IN ($quartersPlaceholder)
-            ORDER BY br.ano_mes DESC, bra.grupo, bra.conta
+            ORDER BY 
+                account_name, 
+                br.ano_mes DESC, 
+                bra.grupo
         """.trimIndent()
 
         val query = entityManager.createNativeQuery(sql)
@@ -306,9 +309,9 @@ open class BacenInstitutionDetailRepositoryImpl(
             "quarter" to 0,
             "report_id" to 1,
             "name" to 2,
-            "grupo" to 3,
-            "account_number" to 4,
-            "column_name" to 5,
+            "account_group" to 3,
+            "account_id" to 4,
+            "account_name" to 5,
             "value" to 6,
         )
 
@@ -318,9 +321,9 @@ open class BacenInstitutionDetailRepositoryImpl(
                 quarter = mapper.getString("quarter") ?: "",
                 reportId = mapper.getString("report_id") ?: "",
                 name = mapper.getString("name"),
-                group = mapper.getString("grupo"),
-                accountNumber = mapper.getString("account_number"),
-                columnName = mapper.getString("column_name"),
+                accountGroup = mapper.getString("account_group"),
+                accountId = mapper.getString("account_id"),
+                accountName = mapper.getString("account_name"),
                 value = mapper.getNumber("value"),
             )
         }

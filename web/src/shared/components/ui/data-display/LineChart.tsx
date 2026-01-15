@@ -31,6 +31,7 @@ export interface LineChartAxisConfig {
   label?: string;
   type?: AxisType;
   format?: AxisFormat;
+  currency?: string;
   tickFormatter?: (value: number) => string;
 }
 
@@ -50,6 +51,7 @@ export interface LineChartProps {
   showDots?: boolean;
   showValueLabels?: boolean;
   showTooltip?: boolean;
+  showLegend?: boolean;
   strokeWidth?: number;
   showArea?: boolean;
   colors?: string[];
@@ -78,7 +80,7 @@ const buildTickFormatter = (
     return (value: number) =>
       new Intl.NumberFormat(locale, {
         style: "currency",
-        currency: "BRL",
+        currency: axis.currency ?? "BRL",
         maximumFractionDigits: 0,
       }).format(value ?? 0);
   }
@@ -126,6 +128,7 @@ export const LineChart: React.FC<LineChartProps> = ({
   showDots = true,
   showValueLabels = false,
   showTooltip = true,
+  showLegend = true,
   strokeWidth = 2,
   showArea = false,
   colors,
@@ -240,7 +243,7 @@ export const LineChart: React.FC<LineChartProps> = ({
               ))}
 
             {showTooltip && <Tooltip />}
-            <Legend />
+            {showLegend && <Legend />}
 
             {series.map((serie, index) => {
               const color = serie.color || palette[index % palette.length];

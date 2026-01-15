@@ -6,7 +6,6 @@ import { useParams } from "next/navigation";
 import { SidebarLayout } from "@/shared/components/ui/layout/SidebarLayout";
 import { Page } from "@/shared/components/ui/layout";
 import { Box, Typography, Avatar, Stack, List, ListItemButton, ListItemText, CircularProgress, Divider } from "@mui/material";
-import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import { BACEN_INSTITUTION, BACEN_INSTITUTION_REPORTS, BACEN_INSTITUTION_REPORT_DETAILS } from "@/lib/graphql/operations/financial_data/bacen-institutions";
 import { usePageTitle } from "@/shared/hooks/ui/usePageTitle";
 import { useTranslation } from "@/shared/i18n";
@@ -40,8 +39,8 @@ export default function BacenInstitutionDetailPage() {
   const { data: reportsData } = useQuery(BACEN_INSTITUTION_REPORTS, {
     variables: {
       id: bacenCodInst,
-      anoMes: null,
-      range: { last: 1 },
+      anoMes: null, // Latest available quarter
+      range: { last: 1 }, // Latest available quarter
     },
     skip: !bacenCodInst,
   });
@@ -50,7 +49,7 @@ export default function BacenInstitutionDetailPage() {
     variables: {
       id: bacenCodInst,
       reportId: selectedReportId,
-      range: { last: 1 },
+      range: { last: 5 * 4 }, // 5 years * 4 quarters per year
     },
     skip: !bacenCodInst || !selectedReportId,
   });
@@ -143,7 +142,10 @@ export default function BacenInstitutionDetailPage() {
                   }
                 }}
               >
-                <ListItemText primary={report.name} />
+                <ListItemText 
+                  primary={report.name} 
+                  slotProps={{ primary: { variant: "body2" } }}
+                />
               </ListItemButton>
             ))}
           </List>
@@ -171,14 +173,14 @@ export default function BacenInstitutionDetailPage() {
                 {reportDetails.accounts.map((account: any, accountIndex: number) => (
                   <Box key={accountIndex} sx={{ p: 3, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
                     <Box sx={{ mb: 2 }}>
-                      {account.accountNumber && (
+                      {account.id && (
                         <Typography variant="h6" sx={{ mb: 0.5 }}>
-                          {account.accountNumber}
+                          {account.id}
                         </Typography>
                       )}
-                      {account.columnName && (
+                      {account.name && (
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                          {account.columnName}
+                          {account.name}
                         </Typography>
                       )}
                       {account.group && (

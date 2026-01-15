@@ -128,8 +128,7 @@ type ReportDescriptor {
   name: String
   # Optional fields - only present in reportDetails, not in reportsSummary
   group: String
-  accountNumber: String
-  columnName: String
+  id: String
 }
 
 type ReportDetails {
@@ -140,8 +139,8 @@ type ReportDetails {
 
 type ReportAccount {
   group: String
-  accountNumber: String
-  columnName: String
+  id: String
+  name: String
   valuesByQuarter: [QuarterValue!]!
 }
 

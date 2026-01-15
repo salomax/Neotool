@@ -9,8 +9,8 @@ data class ReportValueResult(
     val quarter: String, // "YYYYMM"
     val reportId: String, // numero_relatorio
     val name: String?, // nome_relatorio from catalog
-    val group: String?,
-    val accountNumber: String?,
-    val columnName: String?,
+    val accountGroup: String?,
+    val accountId: String?,
+    val accountName: String?,
     val value: BigDecimal?, // saldo from bacen_bank_report_data
 )

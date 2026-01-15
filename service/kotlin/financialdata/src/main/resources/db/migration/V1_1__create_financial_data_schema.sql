@@ -9,5 +9,7 @@
 SET search_path TO financial_data, public;
 
 -- Create the financial_data schema if it doesn't exist
-CREATE SCHEMA IF NOT EXISTS financial_data;
+CREATE SCHEMA IF NOT EXISTS ;
 
+-- Add extension for case insensitive
+CREATE EXTENSION IF NOT EXISTS unaccent SCHEMA financial_data;

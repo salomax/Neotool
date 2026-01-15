@@ -65,8 +65,8 @@ class BacenInstitutionDetailMapper {
             reportId = descriptor.reportId,
             name = descriptor.name,
             group = descriptor.group,
-            accountNumber = descriptor.accountNumber,
-            columnName = descriptor.columnName,
+            accountId = descriptor.accountId,
+            accountName = descriptor.accountName,
         )
     }
 
@@ -81,8 +81,8 @@ class BacenInstitutionDetailMapper {
     fun toReportAccountDTO(account: ReportAccount): ReportAccountDTO {
         return ReportAccountDTO(
             group = account.group,
-            accountNumber = account.accountNumber,
-            columnName = account.columnName,
+            accountId = account.accountId,
+            accountName = account.accountName,
             valuesByQuarter = account.valuesByQuarter.map { toQuarterValueDTO(it) },
         )
     }

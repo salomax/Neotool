@@ -72,6 +72,7 @@ export const createAppTheme = (mode: Mode) => {
         inputBorder: t.palette.inputBorder,
         tabBorder: t.palette.tabBorder,
         errorLightBg: t.palette.errorLightBg,
+        successLightBg: t.palette.successLightBg,
         sidebarBg: t.palette.sidebarBg,
         sidebarIcon: t.palette.sidebarIcon,
         // Currency-specific colors

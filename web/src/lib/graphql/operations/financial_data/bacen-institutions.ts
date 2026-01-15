@@ -25,8 +25,8 @@ export const BACEN_INSTITUTION_REPORT_DETAILS = gql`
         name
         accounts {
           group
-          accountNumber
-          columnName
+          id
+          name
           valuesByQuarter {
             quarter
             value

@@ -18,7 +18,7 @@ export type BacenInstitutionReportDetailsQueryVariables = Types.Exact<{
 }>;
 
 
-export type BacenInstitutionReportDetailsQuery = { bacenFinanceInstitution: { __typename: 'BacenFinanceInstitution', id: string, reportDetails: { __typename: 'ReportDetails', reportId: string, name: string | null, accounts: Array<{ __typename: 'ReportAccount', group: string | null, accountNumber: string | null, columnName: string | null, valuesByQuarter: Array<{ __typename: 'QuarterValue', quarter: string, value: number | null }> }> } } | null };
+export type BacenInstitutionReportDetailsQuery = { bacenFinanceInstitution: { __typename: 'BacenFinanceInstitution', id: string, reportDetails: { __typename: 'ReportDetails', reportId: string, name: string | null, accounts: Array<{ __typename: 'ReportAccount', group: string | null, id: string | null, name: string | null, valuesByQuarter: Array<{ __typename: 'QuarterValue', quarter: string, value: number | null }> }> } } | null };
 
 export type BacenInstitutionsQueryVariables = Types.Exact<{
   query?: Types.InputMaybe<Types.Scalars['String']['input']>;
@@ -98,8 +98,8 @@ export const BacenInstitutionReportDetailsDocument = gql`
       name
       accounts {
         group
-        accountNumber
-        columnName
+        id
+        name
         valuesByQuarter {
           quarter
           value

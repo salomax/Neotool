@@ -2,6 +2,15 @@ import '@testing-library/jest-dom';
 import { afterEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 
+// Mock ResizeObserver for Recharts ResponsiveContainer
+class ResizeObserverMock {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
+global.ResizeObserver = ResizeObserverMock as any;
+
 // Automatically cleanup after each test to prevent memory leaks
 // This is especially important when running tests in parallel
 afterEach(async () => {

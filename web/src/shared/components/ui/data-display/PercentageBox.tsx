@@ -125,7 +125,10 @@ export const PercentageBox: React.FC<PercentageBoxProps> = ({
 
   if (isLoading) {
     return (
-      <Paper variant="outlined" sx={{ p: 2, height: "100%" }}>
+      <Paper
+        variant="outlined"
+        sx={{ p: 2, height: "100%", boxShadow: "0 10px 30px rgba(15, 23, 42, 0.06)" }}
+      >
         <Skeleton width="60%" height={20} sx={{ mb: 1 }} />
         <Skeleton width="40%" height={40} sx={{ mb: 1 }} />
         <Skeleton width="100%" height={10} />
@@ -133,112 +136,127 @@ export const PercentageBox: React.FC<PercentageBoxProps> = ({
     );
   }
 
+  // Threshold colors
+  const thresholdColors = {
+    bad: "#F99797", // red
+    regular: "#FAD957", // yellow
+    good: "#61D48A", // green
+  };
+
   return (
     <Paper 
       variant="outlined" 
       sx={{ 
         p: 2, 
-        height: "100%", 
-        bgcolor: currentColors.bg,
-        borderColor: status === 'neutral' ? undefined : 'transparent'
+        height: "100%",
+        boxShadow: "0 10px 30px rgba(15, 23, 42, 0.06)",
+        position: "relative",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
       }}
     >
-      <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
-        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontWeight: 600 }}>
-          {label}
+      <Box>
+        <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+          <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontWeight: 600 }}>
+            {label}
+          </Typography>
+          {status === 'good' && <CheckCircleIcon sx={{ color: currentColors.icon }} />}
+          {status === 'regular' && <WarningIcon sx={{ color: currentColors.icon }} />}
+          {status === 'bad' && <ErrorIcon sx={{ color: currentColors.icon }} />}
+        </Stack>
+
+        <Typography variant="h4" sx={{ fontWeight: "bold", my: 1 }}>
+          {value != null ? value.toLocaleString(locale, { maximumFractionDigits: 1 }) : "-"}%
         </Typography>
-        {status === 'good' && <CheckCircleIcon sx={{ color: currentColors.icon }} />}
-        {status === 'regular' && <WarningIcon sx={{ color: currentColors.icon }} />}
-        {status === 'bad' && <ErrorIcon sx={{ color: currentColors.icon }} />}
-      </Stack>
+      </Box>
 
-      <Typography variant="h4" sx={{ fontWeight: "bold", my: 1 }}>
-        {value != null ? value.toLocaleString(locale, { maximumFractionDigits: 1 }) : "-"}%
-      </Typography>
-
-      <Box sx={{ position: 'relative', mt: 2 }}>
-        {/* Segmented Scale Indicator */}
-        <Box 
-          sx={{ 
-            height: 8, 
-            borderRadius: 4, 
-            overflow: 'hidden',
-            position: 'relative',
-            display: 'flex'
-          }}
-        >
-          {inverse ? (
-            <>
-              {/* Good segment (left) */}
-              <Box 
-                sx={{ 
-                  height: '100%', 
-                  width: `${segmentWidths.good}%`,
-                  bgcolor: theme.palette.success.main,
-                }} 
-              />
-              {/* Regular segment (middle) */}
-              <Box 
-                sx={{ 
-                  height: '100%', 
-                  width: `${segmentWidths.regular}%`,
-                  bgcolor: theme.palette.warning.main,
-                }} 
-              />
-              {/* Bad segment (right) */}
-              <Box 
-                sx={{ 
-                  height: '100%', 
-                  width: `${segmentWidths.bad}%`,
-                  bgcolor: theme.palette.error.main,
-                }} 
-              />
-            </>
-          ) : (
-            <>
-              {/* Bad segment (left) */}
-              <Box 
-                sx={{ 
-                  height: '100%', 
-                  width: `${segmentWidths.bad}%`,
-                  bgcolor: theme.palette.error.main,
-                }} 
-              />
-              {/* Regular segment (middle) */}
-              <Box 
-                sx={{ 
-                  height: '100%', 
-                  width: `${segmentWidths.regular}%`,
-                  bgcolor: theme.palette.warning.main,
-                }} 
-              />
-              {/* Good segment (right) */}
-              <Box 
-                sx={{ 
-                  height: '100%', 
-                  width: `${segmentWidths.good}%`,
-                  bgcolor: theme.palette.success.main,
-                }} 
-              />
-            </>
+      <Box sx={{ mt: 2 }}>
+        <Box sx={{ position: 'relative' }}>
+          <Box 
+            sx={{ 
+              height: 8, 
+              borderRadius: 4, 
+              overflow: 'hidden',
+              position: 'relative',
+              display: 'flex'
+            }}
+          >
+            {inverse ? (
+              <>
+                {/* Good segment (left) */}
+                <Box 
+                  sx={{ 
+                    height: '100%', 
+                    width: `${segmentWidths.good}%`,
+                    bgcolor: thresholdColors.good,
+                  }} 
+                />
+                {/* Regular segment (middle) */}
+                <Box 
+                  sx={{ 
+                    height: '100%', 
+                    width: `${segmentWidths.regular}%`,
+                    bgcolor: thresholdColors.regular,
+                  }} 
+                />
+                {/* Bad segment (right) */}
+                <Box 
+                  sx={{ 
+                    height: '100%', 
+                    width: `${segmentWidths.bad}%`,
+                    bgcolor: thresholdColors.bad,
+                  }} 
+                />
+              </>
+            ) : (
+              <>
+                {/* Bad segment (left) */}
+                <Box 
+                  sx={{ 
+                    height: '100%', 
+                    width: `${segmentWidths.bad}%`,
+                    bgcolor: thresholdColors.bad,
+                  }} 
+                />
+                {/* Regular segment (middle) */}
+                <Box 
+                  sx={{ 
+                    height: '100%', 
+                    width: `${segmentWidths.regular}%`,
+                    bgcolor: thresholdColors.regular,
+                  }} 
+                />
+                {/* Good segment (right) */}
+                <Box 
+                  sx={{ 
+                    height: '100%', 
+                    width: `${segmentWidths.good}%`,
+                    bgcolor: thresholdColors.good,
+                  }} 
+                />
+              </>
+            )}
+          </Box>
+          
+          {value != null && status !== "neutral" && (
+            <Box
+              sx={{
+                position: "absolute",
+                left: `${progressValue}%`,
+                top: -6,
+                width: 0,
+                height: 0,
+                borderLeft: "5px solid transparent",
+                borderRight: "5px solid transparent",
+                borderBottom: `6px solid ${thresholdColors[status as "bad" | "regular" | "good"]}`,
+                transform: "translateX(-50%)",
+                zIndex: 1,
+              }}
+            />
           )}
         </Box>
-        
-        {/* Scale Indicator (Arrow) */}
-        <Box 
-          sx={{ 
-            position: 'absolute', 
-            left: `${Math.min(progressValue, 100)}%`, 
-            top: 8,
-            transform: 'translateX(-50%)',
-            width: 0, 
-            height: 0, 
-            borderLeft: '5px solid transparent',
-            borderRight: '5px solid transparent',
-            borderTop: `5px solid ${theme.palette.text.primary}`,
-            mt: 0.5
-          }} 
-        />
       </Box>
     </Paper>
   );

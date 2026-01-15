@@ -1,6 +1,5 @@
 import * as React from "react";
 import { Box } from "@mui/material";
-import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 
 import { useQuery } from "@apollo/client/react";
 import { BACEN_INSTITUTION_REPORT_DETAILS, BACEN_INSTITUTION } from "@/lib/graphql/operations/financial_data/bacen-institutions";
@@ -15,7 +14,7 @@ interface BacenInstitutionBalanceSummaryGridProps {
   institutionId: string;
 }
 
-// --- Main Component ---
+const REPORT_ID_RESUMO = "1";
 
 export const BacenInstitutionBalanceSummaryGrid: React.FC<BacenInstitutionBalanceSummaryGridProps> = ({ institutionId }) => {
   const { t } = useTranslation(financialDataTranslations);
@@ -24,8 +23,8 @@ export const BacenInstitutionBalanceSummaryGrid: React.FC<BacenInstitutionBalanc
   const { data: reportData, loading: reportLoading } = useQuery(BACEN_INSTITUTION_REPORT_DETAILS, {
     variables: {
       id: institutionId,
-      reportId: "1", // Resumo
-      range: { last: 1 }, // Latest available
+      reportId: REPORT_ID_RESUMO, // Resumo
+      range: { last: 5 * 4 }, // 5 years * 4 quarters per year
     },
     skip: !institutionId,
   });
@@ -42,15 +41,44 @@ export const BacenInstitutionBalanceSummaryGrid: React.FC<BacenInstitutionBalanc
   const accounts = (reportData as any)?.bacenFinanceInstitution?.reportDetails?.accounts || [];
   const institution = (institutionData as any)?.bacenFinanceInstitution;
 
-  // Helper to get value by account number
-  const getValue = (accountNumber: string): number | null => {
-    const account = accounts.find((a: any) => a.accountNumber === accountNumber);
+  const getMetricData = (accountName: string): { actualValue: number | null; historical: number[]; growthPercentage: number | null } => {
+    const account = accounts.find((a: any) => a.id === accountName);
+    const valuesByQuarter = account?.valuesByQuarter ?? [];
+
+    const latestRaw = valuesByQuarter[0]?.value;
+    const actualValue =
+      typeof latestRaw === "number" && Number.isFinite(latestRaw) ? latestRaw : null;
+
+    const historical = valuesByQuarter
+      .map((entry: any) => entry?.value)
+      .filter(
+        (value: any): value is number =>
+          typeof value === "number" && Number.isFinite(value)
+      );
+
+    let growthPercentage: number | null = null;
+    const baseRaw = valuesByQuarter[1]?.value;
+    if (
+      typeof latestRaw === "number" &&
+      typeof baseRaw === "number" &&
+      Number.isFinite(latestRaw) &&
+      Number.isFinite(baseRaw) &&
+      baseRaw !== 0
+    ) {
+      growthPercentage = latestRaw / baseRaw - 1;
+    }
+
+    return { actualValue, historical, growthPercentage };
+  };
+
+  const getLatestValue = (accountName: string): number | null => {
+    const account = accounts.find((a: any) => a.id === accountName);
     if (!account?.valuesByQuarter?.length) return null;
-    return account.valuesByQuarter[0].value;
+    const latest = account.valuesByQuarter[0]?.value;
+    return typeof latest === "number" && Number.isFinite(latest) ? latest : null;
   };
   
-  // Basileia
-  const basileiaValue = getValue("79664");
+  const basileiaValue = getLatestValue("INDICE_DE_BASILEIA");
   const basileiaThresholds = {
     bad: (v: number) => v < BASILEIA_THRESHOLDS.critical,
     regular: (v: number) => v >= BASILEIA_THRESHOLDS.critical && v <= BASILEIA_THRESHOLDS.warning,
@@ -62,8 +90,7 @@ export const BacenInstitutionBalanceSummaryGrid: React.FC<BacenInstitutionBalanc
     good: 100
   };
 
-  // Imobilizacao
-  const imobilizacaoValue = getValue("79662");
+  const imobilizacaoValue = getLatestValue("INDICE_DE_IMOBILIZACAO");
   const imobilizacaoThresholds = {
     bad: (v: number) => v > IMMOBILIZATION_THRESHOLDS.warning,
     regular: (v: number) => v >= IMMOBILIZATION_THRESHOLDS.good && v <= IMMOBILIZATION_THRESHOLDS.warning,
@@ -75,70 +102,103 @@ export const BacenInstitutionBalanceSummaryGrid: React.FC<BacenInstitutionBalanc
     good: IMMOBILIZATION_THRESHOLDS.good
   };
 
-  // Grid items in the exact order from the mock:
-  // Row 1: Basileia Index, Ativo Total, Captações, Carteira de Crédito, Patrimônio Líquido
-  // Row 2: Índice de Imobilização, Patrimônio de Ref., Lucro Líquido, Nº de Agências, Nº de Pontos Atend.
-  const gridItems: MetricGridItem[] = [
-    // Row 1
-    ...(basileiaValue != null ? [{
-      type: 'percentage' as const,
-      label: t("lastBalanceSummary.baselIndex"),
-      value: basileiaValue,
-      thresholds: basileiaThresholds,
-      thresholdValues: basileiaThresholdValues,
-      inverse: false
-    }] : []),
-    { 
-      type: 'metric' as const,
-      label: t("lastBalanceSummary.totalAssets"),
-      value: getValue("140220") ?? getValue("78182"),
-    },
-    { 
-      type: 'metric' as const,
-      label: t("lastBalanceSummary.funding"),
-      value: getValue("140239") ?? getValue("78185"),
-    },
-    { 
-      type: 'metric' as const,
-      label: t("lastBalanceSummary.creditPortfolio"),
-      value: getValue("141873") ?? getValue("78183"),
-    },
-    { 
-      type: 'metric' as const,
-      label: t("lastBalanceSummary.netEquity"),
-      value: getValue("140246") ?? getValue("78186"),
-    },
-    // Row 2
-    ...(imobilizacaoValue != null ? [{
-      type: 'percentage' as const,
-      label: t("lastBalanceSummary.fixedAssetsIndex"),
-      value: imobilizacaoValue,
-      thresholds: imobilizacaoThresholds,
-      thresholdValues: imobilizacaoThresholdValues,
-      inverse: true
-    }] : []),
-    { 
-      type: 'metric' as const,
-      label: t("lastBalanceSummary.referenceEquity"),
-      value: institution?.rwaReferenceEquity ?? null,
-    },
-    { 
-      type: 'metric' as const,
-      label: t("lastBalanceSummary.netProfit"),
-      value: getValue("141870") ?? getValue("78187"),
-    },
-    { 
-      type: 'metric' as const,
-      label: t("lastBalanceSummary.numberOfBranches"),
-      value: null, // Not available in data model yet
-      isNumber: true
-    },
-    { 
-      type: 'metric' as const,
-      label: t("lastBalanceSummary.numberOfServicePoints"),
-      value: null, // Not available in data model yet
-      isNumber: true
-    },
+  const totalAssets = getMetricData("ATIVO_TOTAL");
+  const funding = getMetricData("CAPTACOES");
+  const creditPortfolio = getMetricData("CARTEIRA_DE_CREDITO");
+  const netEquity = getMetricData("PATRIMONIO_LIQUIDO");
+  const netProfit = getMetricData("LUCRO_LIQUIDO");
+  const referenceEquity = getMetricData("PATRIMONIO_DE_REFERENCIA");
+
+  const netProfitItem: MetricGridItem = {
+    type: 'metric',
+    label: t("lastBalanceSummary.netProfit"),
+    actualValue: netProfit.actualValue,
+    valueType: 'currency',
+    growthPercentage: netProfit.growthPercentage,
+    historical: netProfit.historical.reverse(),
+  };
+
+  const basileiaItem: MetricGridItem | null =
+    basileiaValue != null
+      ? {
+          type: 'percentage',
+          label: t("lastBalanceSummary.baselIndex"),
+          value: basileiaValue * 100,
+          thresholds: basileiaThresholds,
+          thresholdValues: basileiaThresholdValues,
+          inverse: false,
+        }
+      : null;
+
+  const imobilizacaoItem: MetricGridItem | null =
+    imobilizacaoValue != null
+      ? {
+          type: 'percentage',
+          label: t("lastBalanceSummary.fixedAssetsIndex"),
+          value: imobilizacaoValue * 100,
+          thresholds: imobilizacaoThresholds,
+          thresholdValues: imobilizacaoThresholdValues,
+          inverse: true,
+        }
+      : null;
+
+  const totalAssetsItem: MetricGridItem = {
+    type: 'metric',
+    label: t("lastBalanceSummary.totalAssets"),
+    actualValue: totalAssets.actualValue,
+    valueType: 'currency',
+    growthPercentage: totalAssets.growthPercentage,
+    historical: totalAssets.historical.reverse(),
+  };
+
+  const fundingItem: MetricGridItem = {
+    type: 'metric',
+    label: t("lastBalanceSummary.funding"),
+    actualValue: funding.actualValue,
+    valueType: 'currency',
+    growthPercentage: funding.growthPercentage,
+    historical: funding.historical.reverse(),
+  };
+
+  const creditPortfolioItem: MetricGridItem = {
+    type: 'metric',
+    label: t("lastBalanceSummary.creditPortfolio"),
+    actualValue: creditPortfolio.actualValue,
+    valueType: 'currency',
+    growthPercentage: creditPortfolio.growthPercentage,
+    historical: creditPortfolio.historical.reverse(),
+  };
+
+  const netEquityItem: MetricGridItem = {
+    type: 'metric',
+    label: t("lastBalanceSummary.netEquity"),
+    actualValue: netEquity.actualValue,
+    valueType: 'currency',
+    growthPercentage: netEquity.growthPercentage,
+    historical: netEquity.historical.reverse(),
+  };
+
+  const referenceEquityItem: MetricGridItem = {
+    type: 'metric',
+    label: t("lastBalanceSummary.referenceEquity"),
+    actualValue: institution?.rwaReferenceEquity ?? null,
+    valueType: 'currency',
+    growthPercentage: referenceEquity.growthPercentage,
+    historical: referenceEquity.historical.reverse(),
+  };
+
+  const primaryGridItems: MetricGridItem[] = [
+    netProfitItem,
+    ...(basileiaItem ? [basileiaItem] : []),
+    ...(imobilizacaoItem ? [imobilizacaoItem] : []),
+  ];
+
+  const secondaryGridItems: MetricGridItem[] = [
+    totalAssetsItem,
+    fundingItem,
+    creditPortfolioItem,
+    netEquityItem,
+    referenceEquityItem,
   ];
 
   if (!institutionId) return null;
@@ -148,15 +208,28 @@ export const BacenInstitutionBalanceSummaryGrid: React.FC<BacenInstitutionBalanc
       <MetricGrid
         header={{
           title: t("lastBalanceSummary.title"),
-          icon: <TrendingUpIcon color="primary" />,
           tooltip: t("lastBalanceSummary.tooltip")
         }}
-        items={gridItems}
+        items={primaryGridItems}
         loading={loading}
-        columns={{ xs: 1, sm: 2, md: 5 }}
+        templateColumns={{
+          xs: "repeat(1, 1fr)",
+          sm: "repeat(1, 1fr)",
+          md: "4fr 3fr 3fr",
+          lg: "4fr 3fr 3fr",
+        }}
         gap={2}
-        skeletonHeights={{ metric: 120, percentage: 140 }}
+        skeletonHeights={{ metric: 140, percentage: 140 }}
       />
+      <Box sx={{ mt: 2 }}>
+        <MetricGrid
+          items={secondaryGridItems}
+          loading={loading}
+          columns={{ xs: 1, sm: 2, md: 5 }}
+          gap={2}
+          skeletonHeights={{ metric: 140, percentage: 140 }}
+        />
+      </Box>
     </Box>
   );
 };

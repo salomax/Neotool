@@ -535,17 +535,10 @@ class FinancialDataWiringFactory(
                         },
                     )
                     .dataFetcher(
-                        "accountNumber",
+                        "id",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
                             val descriptor = env.getSource<ReportDescriptorDTO>()
-                            descriptor?.accountNumber
-                        },
-                    )
-                    .dataFetcher(
-                        "columnName",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val descriptor = env.getSource<ReportDescriptorDTO>()
-                            descriptor?.columnName
+                            descriptor?.accountId
                         },
                     )
             }
@@ -583,17 +576,17 @@ class FinancialDataWiringFactory(
                     },
                 )
                     .dataFetcher(
-                        "accountNumber",
+                        "id",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
                             val account = env.getSource<ReportAccountDTO>()
-                            account?.accountNumber
+                            account?.accountId
                         },
                     )
                     .dataFetcher(
-                        "columnName",
+                        "name",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
                             val account = env.getSource<ReportAccountDTO>()
-                            account?.columnName
+                            account?.accountName
                         },
                     )
                     .dataFetcher(

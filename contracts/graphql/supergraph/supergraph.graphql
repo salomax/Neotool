@@ -548,8 +548,8 @@ type ReportAccount
   @join__type(graph: FINANCIALDATA)
 {
   group: String
-  accountNumber: String
-  columnName: String
+  id: String
+  name: String
   valuesByQuarter: [QuarterValue!]!
 }
 
@@ -559,8 +559,7 @@ type ReportDescriptor
   reportId: ID!
   name: String
   group: String
-  accountNumber: String
-  columnName: String
+  id: String
 }
 
 type ReportDetails

@@ -3,12 +3,12 @@
 import * as React from "react";
 import { Box, Stack, Typography, Tooltip, IconButton, Skeleton } from "@mui/material";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import { MetricBox, MetricBoxProps } from "./MetricBox";
+import { MetricCard, MetricCardProps } from "./MetricCard";
 import { PercentageBox, PercentageBoxProps } from "./PercentageBox";
 import type { ResponsiveValue } from "../layout/types";
 
 export type MetricGridItem = 
-  | ({ type: 'metric' } & Omit<MetricBoxProps, 'isLoading'>)
+  | ({ type: 'metric' } & MetricCardProps)
   | ({ type: 'percentage' } & Omit<PercentageBoxProps, 'isLoading'>);
 
 export interface MetricGridHeaderProps {
@@ -31,10 +31,14 @@ export interface MetricGridProps {
    */
   loading?: boolean;
   /**
-   * Number of columns or responsive column configuration
-   * @default { xs: 1, sm: 2, md: 5 }
-   */
+  * Number of columns or responsive column configuration
+  * @default { xs: 1, sm: 2, md: 5 }
+  */
   columns?: number | ResponsiveValue<number>;
+  /**
+   * Explicit gridTemplateColumns definition. When provided, overrides columns.
+   */
+  templateColumns?: ResponsiveValue<string>;
   /**
    * Gap between grid items
    * @default 2
@@ -83,12 +87,21 @@ export const MetricGrid: React.FC<MetricGridProps> = ({
   header,
   loading = false,
   columns = { xs: 1, sm: 2, md: 5 },
+  templateColumns,
   gap = 2,
   loadingComponent,
   skeletonCount,
   skeletonHeights = { metric: 120, percentage: 140 }
 }) => {
   const defaultSkeletonCount = skeletonCount ?? items.length ?? 10;
+
+  const resolvedSkeletonHeights = React.useMemo(
+    () => ({
+      metric: skeletonHeights.metric ?? 120,
+      percentage: skeletonHeights.percentage ?? 140,
+    }),
+    [skeletonHeights]
+  );
 
   // Convert columns to responsive format if needed
   const gridColumns = React.useMemo(() => {
@@ -99,6 +112,9 @@ export const MetricGrid: React.FC<MetricGridProps> = ({
   }, [columns]);
 
   const gridTemplateColumns = React.useMemo(() => {
+    if (templateColumns) {
+      return templateColumns;
+    }
     const cols: { [key: string]: string } = {};
     if (gridColumns.xs !== undefined) cols.xs = `repeat(${gridColumns.xs}, 1fr)`;
     if (gridColumns.sm !== undefined) cols.sm = `repeat(${gridColumns.sm}, 1fr)`;
@@ -106,7 +122,7 @@ export const MetricGrid: React.FC<MetricGridProps> = ({
     if (gridColumns.lg !== undefined) cols.lg = `repeat(${gridColumns.lg}, 1fr)`;
     if (gridColumns.xl !== undefined) cols.xl = `repeat(${gridColumns.xl}, 1fr)`;
     return cols;
-  }, [gridColumns]);
+  }, [gridColumns, templateColumns]);
 
   return (
     <Box>
@@ -143,8 +159,8 @@ export const MetricGrid: React.FC<MetricGridProps> = ({
               // Alternate between metric and percentage skeletons
               const isPercentage = i % 6 === 0 || i % 6 === 5;
               const height = isPercentage 
-                ? skeletonHeights.percentage 
-                : skeletonHeights.metric;
+                ? resolvedSkeletonHeights.percentage 
+                : resolvedSkeletonHeights.metric;
               
               return (
                 <Skeleton 
@@ -158,20 +174,29 @@ export const MetricGrid: React.FC<MetricGridProps> = ({
           )
         ) : (
           items.map((item, index) => (
-            <Box key={index}>
+            <Box
+              key={index}
+              sx={{
+                height: '100%',
+                minHeight:
+                  item.type === 'percentage'
+                    ? resolvedSkeletonHeights.percentage
+                    : resolvedSkeletonHeights.metric,
+              }}
+            >
               {item.type === 'percentage' ? (
-                <PercentageBox
-                  {...item}
-                  isLoading={loading}
-                />
+                <PercentageBox {...item} isLoading={loading} />
               ) : (
-                <MetricBox 
+                <MetricCard
                   {...item}
-                  isLoading={loading}
+                  sx={{
+                    ...(item.sx || {}),
+                    height: '100%',
+                  }}
                 />
               )}
             </Box>
-          ))
+          )) 
         )}
       </Box>
     </Box>

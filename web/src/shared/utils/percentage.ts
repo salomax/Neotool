@@ -30,7 +30,7 @@ export function formatPercentageWithSign(
 
   const { decimals = 0, showZeroSign = false } = options || {};
   const percentage = value * 100;
-  const sign = percentage > 0 ? "+" : percentage < 0 ? "-" : showZeroSign ? "+" : "";
+  const sign = percentage > 0 ? "" : percentage < 0 ? "-" : showZeroSign ? "+" : "";
   const formatted = Math.abs(percentage).toFixed(decimals);
   return `${sign}${formatted}%`;
 }

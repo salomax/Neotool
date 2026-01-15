@@ -56,6 +56,7 @@ export interface DesignTokens {
     warning: string;
     error: string;
     errorLightBg: string;
+    successLightBg: string;
     info: string;
     bg: string;
     bgPaper: string;
@@ -115,7 +116,8 @@ export const tokens: Record<Mode, DesignTokens> = {
       success: "#16a34a",
       warning: "#f59e0b",
       error: "#dc2626",
-      errorLightBg: "rgba(220, 38, 38, 0.1)",
+      errorLightBg: "#FDEFF0",
+      successLightBg: "#EFF9F3",
       info: "#0284c7",
       bg: "#f8fafc",
       bgPaper: "#ffffff",
@@ -173,7 +175,8 @@ export const tokens: Record<Mode, DesignTokens> = {
       success: "#22c55e",
       warning: "#fbbf24",
       error: "#ef4444",
-      errorLightBg: "rgba(239, 68, 68, 0.15)",
+      errorLightBg: "#FDEFF0",
+      successLightBg: "#EFF9F3",
       info: "#38bdf8",
       bg: "#0b1220",
       bgPaper: "#0f172a",

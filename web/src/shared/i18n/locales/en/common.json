@@ -59,5 +59,13 @@
     "billionsLong": "billions",
     "millionsLong": "millions",
     "trillionsLong": "trillions"
+  },
+  "calendar": {
+    "month": "Month",
+    "quarter": "Quarter",
+    "year": "Year",
+    "monthly": "Monthly",
+    "quarterly": "Quarterly",
+    "yearly": "Yearly"
   }
 }
