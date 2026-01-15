@@ -1,0 +1,34 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: neotool-web
+  namespace: production
+  labels:
+    app: neotool-web
+    component: web
+  annotations:
+    # Traefik annotations
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    # Cert-manager for automatic TLS
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    # Security headers
+    traefik.ingress.kubernetes.io/router.middlewares: production-security-headers@kubernetescrd
+spec:
+  ingressClassName: traefik
+  rules:
+    # TODO: Replace yourdomain.com with your actual domain
+    - host: yourdomain.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: neotool-web
+                port:
+                  number: 3000
+  tls:
+    - hosts:
+        - yourdomain.com
+      secretName: neotool-web-tls
