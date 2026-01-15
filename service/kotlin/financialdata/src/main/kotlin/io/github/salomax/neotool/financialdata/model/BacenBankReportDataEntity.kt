@@ -31,6 +31,8 @@ open class BacenBankReportDataEntity(
     open var descricaoColuna: String? = null,
     @Column(name = "saldo", columnDefinition = "NUMERIC")
     open var saldo: BigDecimal? = null,
+    @Column(name = "saldo_ajustado", columnDefinition = "NUMERIC")
+    open var saldoAjustado: BigDecimal? = null,
     @Column(name = "created_at", nullable = false)
     open var createdAt: Instant = Instant.now(),
     @Column(name = "updated_at", nullable = false)
@@ -45,6 +47,7 @@ open class BacenBankReportDataEntity(
             nomeColuna = this.nomeColuna,
             descricaoColuna = this.descricaoColuna,
             saldo = this.saldo,
+            saldoAjustado = this.saldoAjustado,
             createdAt = this.createdAt,
             updatedAt = this.updatedAt,
         )

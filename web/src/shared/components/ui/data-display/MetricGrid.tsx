@@ -4,12 +4,9 @@ import * as React from "react";
 import { Box, Stack, Typography, Tooltip, IconButton, Skeleton } from "@mui/material";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { MetricCard, MetricCardProps } from "./MetricCard";
-import { PercentageBox, PercentageBoxProps } from "./PercentageBox";
 import type { ResponsiveValue } from "../layout/types";
 
-export type MetricGridItem = 
-  | ({ type: 'metric' } & MetricCardProps)
-  | ({ type: 'percentage' } & Omit<PercentageBoxProps, 'isLoading'>);
+export type MetricGridItem = MetricCardProps & { type?: 'metric' };
 
 export interface MetricGridHeaderProps {
   title: string;
@@ -156,17 +153,11 @@ export const MetricGrid: React.FC<MetricGridProps> = ({
           loadingComponent || (
             // Default Loading Skeletons
             Array.from({ length: defaultSkeletonCount }).map((_, i) => {
-              // Alternate between metric and percentage skeletons
-              const isPercentage = i % 6 === 0 || i % 6 === 5;
-              const height = isPercentage 
-                ? resolvedSkeletonHeights.percentage 
-                : resolvedSkeletonHeights.metric;
-              
               return (
                 <Skeleton 
                   key={i}
                   variant="rectangular" 
-                  height={height} 
+                  height={resolvedSkeletonHeights.metric} 
                   sx={{ borderRadius: 1 }} 
                 />
               );
@@ -178,23 +169,16 @@ export const MetricGrid: React.FC<MetricGridProps> = ({
               key={index}
               sx={{
                 height: '100%',
-                minHeight:
-                  item.type === 'percentage'
-                    ? resolvedSkeletonHeights.percentage
-                    : resolvedSkeletonHeights.metric,
+                minHeight: resolvedSkeletonHeights.metric,
               }}
             >
-              {item.type === 'percentage' ? (
-                <PercentageBox {...item} isLoading={loading} />
-              ) : (
-                <MetricCard
-                  {...item}
-                  sx={{
-                    ...(item.sx || {}),
-                    height: '100%',
-                  }}
-                />
-              )}
+              <MetricCard
+                {...item}
+                sx={{
+                  ...(item.sx || {}),
+                  height: '100%',
+                }}
+              />
             </Box>
           )) 
         )}

@@ -71,36 +71,8 @@ export const BacenInstitutionBalanceSummaryGrid: React.FC<BacenInstitutionBalanc
     return { actualValue, historical, growthPercentage };
   };
 
-  const getLatestValue = (accountName: string): number | null => {
-    const account = accounts.find((a: any) => a.id === accountName);
-    if (!account?.valuesByQuarter?.length) return null;
-    const latest = account.valuesByQuarter[0]?.value;
-    return typeof latest === "number" && Number.isFinite(latest) ? latest : null;
-  };
-  
-  const basileiaValue = getLatestValue("INDICE_DE_BASILEIA");
-  const basileiaThresholds = {
-    bad: (v: number) => v < BASILEIA_THRESHOLDS.critical,
-    regular: (v: number) => v >= BASILEIA_THRESHOLDS.critical && v <= BASILEIA_THRESHOLDS.warning,
-    good: (v: number) => v > BASILEIA_THRESHOLDS.warning
-  };
-  const basileiaThresholdValues = {
-    bad: BASILEIA_THRESHOLDS.critical,
-    regular: BASILEIA_THRESHOLDS.warning,
-    good: 100
-  };
-
-  const imobilizacaoValue = getLatestValue("INDICE_DE_IMOBILIZACAO");
-  const imobilizacaoThresholds = {
-    bad: (v: number) => v > IMMOBILIZATION_THRESHOLDS.warning,
-    regular: (v: number) => v >= IMMOBILIZATION_THRESHOLDS.good && v <= IMMOBILIZATION_THRESHOLDS.warning,
-    good: (v: number) => v < IMMOBILIZATION_THRESHOLDS.good
-  };
-  const imobilizacaoThresholdValues = {
-    bad: IMMOBILIZATION_THRESHOLDS.critical,
-    regular: IMMOBILIZATION_THRESHOLDS.warning,
-    good: IMMOBILIZATION_THRESHOLDS.good
-  };
+  const basileiaData = getMetricData("INDICE_DE_BASILEIA");
+  const imobilizacaoData = getMetricData("INDICE_DE_IMOBILIZACAO");
 
   const totalAssets = getMetricData("ATIVO_TOTAL");
   const funding = getMetricData("CAPTACOES");
@@ -119,26 +91,38 @@ export const BacenInstitutionBalanceSummaryGrid: React.FC<BacenInstitutionBalanc
   };
 
   const basileiaItem: MetricGridItem | null =
-    basileiaValue != null
+    basileiaData.actualValue != null
       ? {
-          type: 'percentage',
+          type: 'metric',
           label: t("lastBalanceSummary.baselIndex"),
-          value: basileiaValue * 100,
-          thresholds: basileiaThresholds,
-          thresholdValues: basileiaThresholdValues,
-          inverse: false,
+          actualValue: basileiaData.actualValue,
+          valueType: 'percentage',
+          growthPercentage: basileiaData.growthPercentage,
+          historical: basileiaData.historical.reverse(),
+          percentageThresholdValues: {
+            bad: BASILEIA_THRESHOLDS.critical,
+            regular: BASILEIA_THRESHOLDS.warning,
+            good: 100,
+          },
+          percentageThresholdInverse: false,
         }
       : null;
 
   const imobilizacaoItem: MetricGridItem | null =
-    imobilizacaoValue != null
+    imobilizacaoData.actualValue != null
       ? {
-          type: 'percentage',
+          type: 'metric',
           label: t("lastBalanceSummary.fixedAssetsIndex"),
-          value: imobilizacaoValue * 100,
-          thresholds: imobilizacaoThresholds,
-          thresholdValues: imobilizacaoThresholdValues,
-          inverse: true,
+          actualValue: imobilizacaoData.actualValue,
+          valueType: 'percentage',
+          growthPercentage: imobilizacaoData.growthPercentage,
+          historical: imobilizacaoData.historical.reverse(),
+          percentageThresholdValues: {
+            bad: IMMOBILIZATION_THRESHOLDS.critical,
+            regular: IMMOBILIZATION_THRESHOLDS.warning,
+            good: IMMOBILIZATION_THRESHOLDS.good,
+          },
+          percentageThresholdInverse: true,
         }
       : null;
 

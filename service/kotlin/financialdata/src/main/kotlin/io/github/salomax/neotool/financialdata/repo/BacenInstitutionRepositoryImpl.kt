@@ -357,7 +357,7 @@ open class BacenInstitutionRepositoryImpl(
                 fi.trade_name,
                 MAX(fi.tipo_consolidado_bancario) as tipo_consolidado_bancario,
                 MAX(CASE 
-                    WHEN bra.conta = '78187' THEN brd.saldo     
+                    WHEN bra.conta = '78187' THEN COALESCE(brd.saldo_ajustado, brd.saldo)
                     WHEN bra.conta = '141870' THEN brd.saldo   
                     ELSE NULL 
                 END) as profit,

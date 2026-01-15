@@ -13,6 +13,7 @@ data class BacenBankReportData(
     val nomeColuna: String? = null,
     val descricaoColuna: String? = null,
     val saldo: BigDecimal? = null,
+    val saldoAjustado: BigDecimal? = null,
     val createdAt: Instant = Instant.now(),
     val updatedAt: Instant = Instant.now(),
 ) {
@@ -26,6 +27,7 @@ data class BacenBankReportData(
             nomeColuna = this.nomeColuna,
             descricaoColuna = this.descricaoColuna,
             saldo = this.saldo,
+            saldoAjustado = this.saldoAjustado,
             createdAt = this.createdAt,
             updatedAt = this.updatedAt,
         )

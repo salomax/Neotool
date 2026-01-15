@@ -34,6 +34,12 @@ export interface MetricCardProps extends Omit<CardProps, "children"> {
   growthPercentage?: number | null;
   growthLabel?: string;
   contentSx?: SxProps<Theme>;
+  percentageThresholdValues?: {
+    bad: number;
+    regular: number;
+    good: number;
+  };
+  percentageThresholdInverse?: boolean;
 }
 
 interface NumberParts {
@@ -121,6 +127,8 @@ export function MetricCard({
   growthPercentage,
   growthLabel,
   contentSx,
+  percentageThresholdValues,
+  percentageThresholdInverse = false,
   sx,
   ...rest
 }: MetricCardProps) {
@@ -255,6 +263,105 @@ export function MetricCard({
   );
 
   const showChart = chartData.length > 1;
+
+  const rawPercentageValue =
+    valueType === "percentage" &&
+    typeof actualValue === "number" &&
+    Number.isFinite(actualValue)
+      ? actualValue * 100
+      : null;
+
+  const hasPercentageThresholdBar =
+    rawPercentageValue != null && !!percentageThresholdValues;
+
+  const segmentWidths = React.useMemo(() => {
+    if (
+      !hasPercentageThresholdBar ||
+      !percentageThresholdValues
+    ) {
+      return { bad: 0, regular: 0, good: 100 };
+    }
+
+    if (percentageThresholdInverse) {
+      const goodWidth = percentageThresholdValues.good;
+      const regularWidth =
+        percentageThresholdValues.regular - percentageThresholdValues.good;
+      const badWidth = 100 - percentageThresholdValues.regular;
+      return {
+        bad: Math.max(0, Math.min(100, badWidth)),
+        regular: Math.max(0, Math.min(100, regularWidth)),
+        good: Math.max(0, Math.min(100, goodWidth)),
+      };
+    }
+
+    const badWidth = percentageThresholdValues.bad;
+    const regularWidth =
+      percentageThresholdValues.regular - percentageThresholdValues.bad;
+    const goodWidth = 100 - percentageThresholdValues.regular;
+    return {
+      bad: Math.max(0, Math.min(100, badWidth)),
+      regular: Math.max(0, Math.min(100, regularWidth)),
+      good: Math.max(0, Math.min(100, goodWidth)),
+    };
+  }, [
+    hasPercentageThresholdBar,
+    percentageThresholdValues,
+    percentageThresholdInverse,
+  ]);
+
+  const progressValue = React.useMemo(() => {
+    if (!hasPercentageThresholdBar || rawPercentageValue == null) {
+      return 0;
+    }
+    const clamped = Math.min(Math.max(rawPercentageValue, 0), 100);
+    return clamped;
+  }, [hasPercentageThresholdBar, rawPercentageValue]);
+
+  const percentageStatus = React.useMemo<
+    "good" | "regular" | "bad" | "neutral"
+  >(() => {
+    if (
+      !hasPercentageThresholdBar ||
+      rawPercentageValue == null ||
+      !percentageThresholdValues
+    ) {
+      return "neutral";
+    }
+
+    const value = rawPercentageValue;
+
+    if (percentageThresholdInverse) {
+      if (value < percentageThresholdValues.good) {
+        return "good";
+      }
+      if (value <= percentageThresholdValues.regular) {
+        return "regular";
+      }
+      if (value > percentageThresholdValues.regular) {
+        return "bad";
+      }
+      return "neutral";
+    }
+
+    if (value < percentageThresholdValues.bad) {
+      return "bad";
+    }
+    if (value <= percentageThresholdValues.regular) {
+      return "regular";
+    }
+    return "good";
+  }, [
+    hasPercentageThresholdBar,
+    rawPercentageValue,
+    percentageThresholdValues,
+    percentageThresholdInverse,
+  ]);
+
+  const thresholdColors = {
+    bad: "#F99797",
+    regular: "#FAD957",
+    good: "#61D48A",
+  } as const;
 
   const growthFormatted = React.useMemo(() => {
     if (!hasGrowth) {
@@ -433,6 +540,93 @@ export function MetricCard({
                 {growthLabel}
               </Typography>
             ) : null}
+          </Box>
+        )}
+
+        {hasPercentageThresholdBar && (
+          <Box sx={{ mt: 1 }}>
+            <Box sx={{ position: "relative" }}>
+              <Box
+                sx={{
+                  height: 8,
+                  borderRadius: 4,
+                  overflow: "hidden",
+                  position: "relative",
+                  display: "flex",
+                }}
+              >
+                {percentageThresholdInverse ? (
+                  <>
+                    <Box
+                      sx={{
+                        height: "100%",
+                        width: `${segmentWidths.good}%`,
+                        bgcolor: thresholdColors.good,
+                      }}
+                    />
+                    <Box
+                      sx={{
+                        height: "100%",
+                        width: `${segmentWidths.regular}%`,
+                        bgcolor: thresholdColors.regular,
+                      }}
+                    />
+                    <Box
+                      sx={{
+                        height: "100%",
+                        width: `${segmentWidths.bad}%`,
+                        bgcolor: thresholdColors.bad,
+                      }}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <Box
+                      sx={{
+                        height: "100%",
+                        width: `${segmentWidths.bad}%`,
+                        bgcolor: thresholdColors.bad,
+                      }}
+                    />
+                    <Box
+                      sx={{
+                        height: "100%",
+                        width: `${segmentWidths.regular}%`,
+                        bgcolor: thresholdColors.regular,
+                      }}
+                    />
+                    <Box
+                      sx={{
+                        height: "100%",
+                        width: `${segmentWidths.good}%`,
+                        bgcolor: thresholdColors.good,
+                      }}
+                    />
+                  </>
+                )}
+              </Box>
+
+              {percentageStatus !== "neutral" && (
+                <Box
+                  sx={{
+                    position: "absolute",
+                    left: `${progressValue}%`,
+                    top: -8,
+                    width: 0,
+                    height: 0,
+                    borderLeft: "10px solid transparent",
+                    borderRight: "10px solid transparent",
+                    borderBottom: `8px solid ${
+                      thresholdColors[
+                        percentageStatus as "bad" | "regular" | "good"
+                      ]
+                    }`,
+                    transform: "translateX(-50%)",
+                    zIndex: 1,
+                  }}
+                />
+              )}
+            </Box>
           </Box>
         )}
       </Box>

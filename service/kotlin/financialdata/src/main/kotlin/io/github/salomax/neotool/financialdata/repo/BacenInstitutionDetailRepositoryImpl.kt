@@ -119,7 +119,7 @@ open class BacenInstitutionDetailRepositoryImpl(
                 bra.grupo,
                 bra.conta,
                 bra.nome_coluna,
-                brd.saldo
+                COALESCE(brd.saldo_ajustado, brd.saldo) as saldo
             FROM financial_data.bacen_institution bi
                 INNER JOIN financial_data.bacen_bank_report br
                     ON bi.bacen_cod_inst = br.cod_inst
@@ -141,7 +141,8 @@ open class BacenInstitutionDetailRepositoryImpl(
                 bra.grupo,
                 bra.conta,
                 bra.nome_coluna,
-                brd.saldo
+                brd.saldo,
+                brd.saldo_ajustado
             ORDER BY
                 bi.bacen_cod_inst,
                 bi.ano_mes_ref,
@@ -278,7 +279,7 @@ open class BacenInstitutionDetailRepositoryImpl(
                 bra.grupo as account_group,
                 TRIM('_' FROM UPPER(regexp_replace(regexp_replace(regexp_replace(regexp_replace(financial_data.unaccent(bra.nome_coluna), '[\n\r].*', '', 'g'), '\(([^)]+)\)', '\1', 'g'), '\s+', '_', 'g'), '[/-]_', '', 'g'))) as account_id,
                 TRIM(regexp_replace(bra.nome_coluna, '[\n\r].*', '', 'g')) as account_name,
-                brd.saldo as value
+                COALESCE(brd.saldo_ajustado, brd.saldo) value
             FROM financial_data.bacen_bank_report br
                 INNER JOIN financial_data.bacen_bank_report_catalog brc
                     ON brc.numero_relatorio = br.numero_relatorio
