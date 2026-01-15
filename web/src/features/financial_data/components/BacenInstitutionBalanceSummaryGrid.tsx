@@ -188,12 +188,8 @@ export const BacenInstitutionBalanceSummaryGrid: React.FC<BacenInstitutionBalanc
   if (!institutionId) return null;
 
   return (
-    <Box sx={{ mt: 4 }}>
+    <Box>
       <MetricGrid
-        header={{
-          title: t("lastBalanceSummary.title"),
-          tooltip: t("lastBalanceSummary.tooltip")
-        }}
         items={primaryGridItems}
         loading={loading}
         templateColumns={{

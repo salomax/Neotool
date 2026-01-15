@@ -1,28 +1,17 @@
 "use client";
 
 import * as React from "react";
-import { Box, Stack, Typography, Tooltip, IconButton, Skeleton } from "@mui/material";
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import { Box, Skeleton } from "@mui/material";
 import { MetricCard, MetricCardProps } from "./MetricCard";
 import type { ResponsiveValue } from "../layout/types";
 
 export type MetricGridItem = MetricCardProps & { type?: 'metric' };
-
-export interface MetricGridHeaderProps {
-  title: string;
-  icon?: React.ReactNode;
-  tooltip?: string;
-}
 
 export interface MetricGridProps {
   /**
    * Array of metric items to display
    */
   items: MetricGridItem[];
-  /**
-   * Header configuration
-   */
-  header?: MetricGridHeaderProps;
   /**
    * Loading state
    */
@@ -65,11 +54,6 @@ export interface MetricGridProps {
  * @example
  * ```tsx
  * <MetricGrid
- *   header={{
- *     title: "Last Balance Summary",
- *     icon: <TrendingUpIcon />,
- *     tooltip: "Latest available data"
- *   }}
  *   items={[
  *     { type: 'metric', label: "Total Assets", value: 1000000000 },
  *     { type: 'percentage', label: "Basel Index", value: 15.5, thresholds: {...} }
@@ -81,7 +65,6 @@ export interface MetricGridProps {
  */
 export const MetricGrid: React.FC<MetricGridProps> = ({
   items,
-  header,
   loading = false,
   columns = { xs: 1, sm: 2, md: 5 },
   templateColumns,
@@ -123,25 +106,6 @@ export const MetricGrid: React.FC<MetricGridProps> = ({
 
   return (
     <Box>
-      {/* Header */}
-      {header && (
-        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-          {header.icon}
-          <Typography variant="h6" component="h2" sx={{ fontWeight: 600 }}>
-            {header.title}
-          </Typography>
-          <Box sx={{ flexGrow: 1 }} />
-          {header.tooltip && (
-            <Tooltip title={header.tooltip}>
-              <IconButton size="small">
-                <InfoOutlinedIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          )}
-        </Stack>
-      )}
-
-      {/* Grid Layout */}
       <Box
         sx={{
           display: 'grid',

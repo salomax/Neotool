@@ -8,6 +8,7 @@ export { Inline } from './Inline';
 export { Cluster } from './Cluster';
 export { Grid } from './Grid';
 export { PageHeader } from './PageHeader';
+export { SectionHeader } from './SectionHeader';
 export { PageLayout } from './PageLayout';
 export { PageTitle } from './PageTitle';
 export { Cover } from './Cover';

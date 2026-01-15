@@ -4,15 +4,16 @@ import * as React from "react";
 import { useQuery } from "@apollo/client/react";
 import { useParams } from "next/navigation";
 import { SidebarLayout } from "@/shared/components/ui/layout/SidebarLayout";
-import { Page } from "@/shared/components/ui/layout";
-import { Box, Typography, Avatar, Stack, List, ListItemButton, ListItemText, CircularProgress, Divider } from "@mui/material";
+import { Page, SectionHeader } from "@/shared/components/ui/layout";
+import { Box, Typography, Stack, List, ListItemButton, ListItemText, CircularProgress, Tooltip, IconButton } from "@mui/material";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { BACEN_INSTITUTION, BACEN_INSTITUTION_REPORTS, BACEN_INSTITUTION_REPORT_DETAILS } from "@/lib/graphql/operations/financial_data/bacen-institutions";
 import { usePageTitle } from "@/shared/hooks/ui/usePageTitle";
 import { useTranslation } from "@/shared/i18n";
 import { financialDataTranslations } from "@/features/financial_data/i18n";
 import { safeDecodeId } from "@/shared/utils/idObfuscation";
 import { useBreadcrumbLabel } from "@/shared/hooks/ui/useBreadcrumbLabel";
-import { CurrencyDisplay } from "@/shared/components/ui/data-display";
+import { CurrencyDisplay, LineChart } from "@/shared/components/ui/data-display";
 import { BacenInstitutionSummaryPaper } from "@/features/financial_data/components/BacenInstitutionSummaryPaper";
 import { BacenInstitutionBalanceSummaryGrid } from "@/features/financial_data/components/BacenInstitutionBalanceSummaryGrid";
 
@@ -155,7 +156,19 @@ export default function BacenInstitutionDetailPage() {
       <Page>
         <Box sx={{ mb: 4 }}>
           <BacenInstitutionSummaryPaper institution={institution} />
-          <BacenInstitutionBalanceSummaryGrid institutionId={institution.id} />
+          <Box sx={{ mt: 4 }}>
+            <SectionHeader
+              title={t("lastBalanceSummary.title")}
+              actions={
+                <Tooltip title={t("lastBalanceSummary.tooltip")}>
+                  <IconButton size="small">
+                    <InfoOutlinedIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              }
+            />
+            <BacenInstitutionBalanceSummaryGrid institutionId={institution.id} />
+          </Box>
         </Box>
 
         {loadingReport ? (
@@ -191,22 +204,27 @@ export default function BacenInstitutionDetailPage() {
                     </Box>
                     
                     {account.valuesByQuarter && account.valuesByQuarter.length > 0 ? (
-                      <Stack spacing={2}>
-                        {account.valuesByQuarter.map((val: any) => (
-                          <Box key={val.quarter} sx={{ p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
-                            <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-                              {val.quarter}
-                            </Typography>
-                            <Typography variant="h6">
-                              <CurrencyDisplay
-                                value={val.value}
-                                currency="BRL"
-                                locale="pt-BR"
-                              />
-                            </Typography>
-                          </Box>
-                        ))}
-                      </Stack>
+                      <LineChart
+                        data={account.valuesByQuarter}
+                        xKey="quarter"
+                        height={300}
+                        series={[
+                          {
+                            id: 'value',
+                            name: t("value") || "Valor",
+                            dataKey: 'value',
+                            yAxisId: 'left-axis'
+                          }
+                        ]}
+                        axes={[
+                          {
+                            id: 'left-axis',
+                            side: 'left',
+                            format: 'currency',
+                            currency: 'BRL'
+                          }
+                        ]}
+                      />
                     ) : (
                       <Typography variant="body2" color="text.secondary">
                         {t("messages.noReportData")}
@@ -230,3 +248,4 @@ export default function BacenInstitutionDetailPage() {
     </SidebarLayout>
   );
 }
+
