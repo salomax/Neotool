@@ -12,11 +12,21 @@ import jakarta.persistence.EntityManager
 open class QuarterRepositoryImpl(
     private val entityManager: EntityManager,
 ) : QuarterRepositoryCustom {
+    /**
+     * This query ensures the returned quarter is 
+     * fully processed and ready for use.
+     */
     @ReadOnly
     override fun getLatestQuarter(): String? {
         val sql = """
-            SELECT MAX(ano_mes_ref) 
-            FROM financial_data.bacen_institution
+            SELECT MAX(bi.ano_mes_ref)
+            FROM financial_data.bacen_institution bi
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM financial_data.bacen_ifdata_extract_task task
+                WHERE task.ano_mes = bi.ano_mes_ref
+                  AND task.status NOT IN ('SUCCESS', 'EMPTY')
+            )
         """.trimIndent()
         val nativeQuery = entityManager.createNativeQuery(sql)
         val result = nativeQuery.singleResult as? String

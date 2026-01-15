@@ -12,7 +12,8 @@ data class BacenBankReportDataResult(
     val reportNumber: String, // numero_relatorio
     val reportName: String?, // nome_relatorio
     val group: String?,
-    val account: String?,
+    val account: String?, // Original account number (conta) - kept for backward compatibility
+    val canonicalAccountName: String?, // Normalized canonical account name
     val columnName: String?,
     val balance: BigDecimal?, // saldo
 )

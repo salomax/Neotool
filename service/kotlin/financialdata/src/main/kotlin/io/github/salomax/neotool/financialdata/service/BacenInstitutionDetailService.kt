@@ -4,6 +4,7 @@ import io.github.salomax.neotool.financialdata.domain.BacenControlType
 import io.github.salomax.neotool.financialdata.domain.BacenFinanceInstitution
 import io.github.salomax.neotool.financialdata.domain.BacenInstitutionBankType
 import io.github.salomax.neotool.financialdata.domain.BacenInstitutionType
+import io.github.salomax.neotool.financialdata.domain.CanonicalAccountNames
 import io.github.salomax.neotool.financialdata.domain.QuarterRange
 import io.github.salomax.neotool.financialdata.domain.QuarterReports
 import io.github.salomax.neotool.financialdata.domain.QuarterValue
@@ -98,34 +99,44 @@ open class BacenInstitutionDetailService(
 
     /**
      * Extract financial metrics from report data.
-     * Maps account numbers to specific financial metrics.
+     * Maps canonical account names to specific financial metrics.
      */
     private fun extractFinancialMetrics(
         reportData: List<io.github.salomax.neotool.financialdata.repo.result.BacenBankReportDataResult>,
         anoMes: String?,
     ): FinancialMetrics {
-        // Group by account number for easier lookup
-        val accountMap = reportData.associateBy { it.account }
+        // Group by canonical account name for easier lookup
+        // Prefer canonical account name, fallback to account number for backward compatibility
+        val accountMap = reportData.associateBy { it.canonicalAccountName ?: it.account }
 
-        // Expected account numbers for financial metrics
-        val expectedAccounts = setOf("78187", "78186", "79664", "79665", "78188", "78189", "78190", "78191")
+        // Expected canonical account names for financial metrics
+        val expectedAccounts = setOf(
+            CanonicalAccountNames.LUCRO_LIQUIDO,
+            CanonicalAccountNames.PATRIMONIO_LIQUIDO,
+            CanonicalAccountNames.INDICE_DE_BASILEIA,
+            CanonicalAccountNames.INDICE_DE_IMOBILIZACAO,
+            CanonicalAccountNames.ATIVO_TOTAL,
+            CanonicalAccountNames.CAPTACOES,
+            CanonicalAccountNames.CARTEIRA_DE_CREDITO,
+            CanonicalAccountNames.PATRIMONIO_DE_REFERENCIA,
+        )
         val missingAccounts = expectedAccounts.filter { it !in accountMap }
         if (missingAccounts.isNotEmpty()) {
-            logger.debug { "Missing expected account numbers in report data: $missingAccounts" }
+            logger.debug { "Missing expected canonical account names in report data: $missingAccounts" }
         }
 
-        val profit = accountMap["78187"]?.balance
-        val equity = accountMap["78186"]?.balance
-        val basileiaIndex = accountMap["79664"]?.balance
-        val mobilizacaoIndex = accountMap["79665"]?.balance
-        val totalAssets = accountMap["78188"]?.balance
-        val funding = accountMap["78189"]?.balance
-        val loanPortfolio = accountMap["78190"]?.balance
-        val rwaReferenceEquity = accountMap["78191"]?.balance
+        val profit = accountMap[CanonicalAccountNames.LUCRO_LIQUIDO]?.balance
+        val equity = accountMap[CanonicalAccountNames.PATRIMONIO_LIQUIDO]?.balance
+        val basileiaIndex = accountMap[CanonicalAccountNames.INDICE_DE_BASILEIA]?.balance
+        val mobilizacaoIndex = accountMap[CanonicalAccountNames.INDICE_DE_IMOBILIZACAO]?.balance
+        val totalAssets = accountMap[CanonicalAccountNames.ATIVO_TOTAL]?.balance
+        val funding = accountMap[CanonicalAccountNames.CAPTACOES]?.balance
+        val loanPortfolio = accountMap[CanonicalAccountNames.CARTEIRA_DE_CREDITO]?.balance
+        val rwaReferenceEquity = accountMap[CanonicalAccountNames.PATRIMONIO_DE_REFERENCIA]?.balance
 
         // Calculate year-over-year equity growth
         // TODO: Implement YoY equity growth calculation
-        // This requires comparing current period equity (account 78186) with equity from the same period
+        // This requires comparing current period equity (PATRIMONIO_LIQUIDO) with equity from the same period
         // a year ago. This would need a separate query to fetch historical data or modification of
         // the repository to support year-over-year comparisons.
         val yoyEquityGrowth: java.math.BigDecimal? = null

@@ -118,6 +118,7 @@ open class BacenInstitutionDetailRepositoryImpl(
                 bbrc.nome_relatorio,
                 bra.grupo,
                 bra.conta,
+                brac.normalized_name as canonical_account_name,
                 bra.nome_coluna,
                 COALESCE(brd.saldo_ajustado, brd.saldo) as saldo
             FROM financial_data.bacen_institution bi
@@ -128,6 +129,8 @@ open class BacenInstitutionDetailRepositoryImpl(
                     ON br.id = brd.bank_report_id
                 INNER JOIN financial_data.bacen_bank_report_account bra
                     ON brd.account_id = bra.id
+                LEFT JOIN financial_data.bacen_bank_report_account_canonical brac
+                    ON brac.id = bra.canonical_account_id
                 INNER JOIN financial_data.bacen_bank_report_catalog bbrc
                     ON bbrc.numero_relatorio = br.numero_relatorio
             WHERE 1=1
@@ -140,6 +143,7 @@ open class BacenInstitutionDetailRepositoryImpl(
                 bbrc.nome_relatorio,
                 bra.grupo,
                 bra.conta,
+                brac.normalized_name,
                 bra.nome_coluna,
                 brd.saldo,
                 brd.saldo_ajustado
@@ -166,8 +170,9 @@ open class BacenInstitutionDetailRepositoryImpl(
             "nome_relatorio" to 3,
             "grupo" to 4,
             "conta" to 5,
-            "nome_coluna" to 6,
-            "saldo" to 7,
+            "canonical_account_name" to 6,
+            "nome_coluna" to 7,
+            "saldo" to 8,
         )
 
         return results.map { row ->
@@ -179,6 +184,7 @@ open class BacenInstitutionDetailRepositoryImpl(
                 reportName = mapper.getString("nome_relatorio"),
                 group = mapper.getString("grupo"),
                 account = mapper.getString("conta"),
+                canonicalAccountName = mapper.getString("canonical_account_name"),
                 columnName = mapper.getString("nome_coluna"),
                 balance = mapper.getNumber("saldo"),
             )

@@ -17,9 +17,7 @@ import mu.KotlinLogging
  */
 @Singleton
 open class InstitutionSearchService(
-    private val bacenInstitutionRepository: BacenInstitutionRepository,
-    private val institutionSearchRepository: BacenInstitutionRepositoryCustom,
-    private val objectMapper: ObjectMapper,
+    private val institutionSearchRepository: BacenInstitutionRepositoryCustom
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -81,7 +79,7 @@ open class InstitutionSearchService(
         logger.debug { "Searching institutions: query='$query', anoMes=$anoMes, first=$first, after=$after" }
 
         // Validate and normalize pagination
-        val pageSize = validatePageSize(first)
+        val pageSize = PaginationConstants.validatePageSize(first)
 
         // Decode cursor (bacen_cod_inst is String, so we decode without type validation)
         val afterCompositeCursor: CompositeCursor? =
@@ -152,23 +150,6 @@ open class InstitutionSearchService(
         } catch (e: Exception) {
             logger.error(e) { "Error during institution search: query='$query', anoMes=$anoMes" }
             throw e
-        }
-    }
-
-    /**
-     * Validate and normalize page size parameter.
-     *
-     * @param first Requested page size
-     * @return Validated page size
-     * @throws IllegalArgumentException if page size is invalid
-     */
-    private fun validatePageSize(first: Int): Int {
-        return when {
-            first < 1 -> throw IllegalArgumentException("Parameter 'first' must be at least 1, got: $first")
-            first > PaginationConstants.MAX_PAGE_SIZE -> throw IllegalArgumentException(
-                "Parameter 'first' must be at most ${PaginationConstants.MAX_PAGE_SIZE}, got: $first",
-            )
-            else -> first
         }
     }
 }
