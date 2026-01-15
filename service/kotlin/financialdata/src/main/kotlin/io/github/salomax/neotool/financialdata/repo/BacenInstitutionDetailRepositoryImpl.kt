@@ -1,20 +1,16 @@
 package io.github.salomax.neotool.financialdata.repo
 
-import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.github.salomax.neotool.financialdata.domain.QuarterRange
 import io.github.salomax.neotool.financialdata.repo.result.BacenBankReportDataResult
 import io.github.salomax.neotool.financialdata.repo.result.FinancialInstitutionDataResult
 import io.github.salomax.neotool.financialdata.repo.result.ReportDescriptorResult
 import io.github.salomax.neotool.financialdata.repo.result.ReportValueResult
-import io.github.salomax.neotool.financialdata.service.QuarterService
 import io.micronaut.transaction.annotation.ReadOnly
 import jakarta.inject.Singleton
 import jakarta.persistence.EntityManager
-import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import java.util.UUID
 
 /**
  * Custom repository implementation for BacenInstitution detail operations.
@@ -24,13 +20,11 @@ import java.util.UUID
 open class BacenInstitutionDetailRepositoryImpl(
     private val entityManager: EntityManager,
     private val objectMapper: ObjectMapper,
-    private val quarterService: QuarterService,
 ) : BacenInstitutionDetailRepositoryCustom {
 
     @ReadOnly
     override fun getFinancialInstitutionData(id: String, anoMes: String?): FinancialInstitutionDataResult? {
-        // Resolve quarter: use provided anoMes or latest quarter globally
-        val targetAnoMes = anoMes ?: quarterService.getLatestQuarter() ?: return null
+        val targetAnoMes = anoMes ?: return null
 
         val sql = """
             SELECT
@@ -107,8 +101,7 @@ open class BacenInstitutionDetailRepositoryImpl(
 
     @ReadOnly
     override fun getBacenBankReportData(id: String, anoMes: String?): List<BacenBankReportDataResult> {
-        // Resolve quarter: use provided anoMes or latest quarter globally
-        val targetAnoMes = anoMes ?: quarterService.getLatestQuarter() ?: return emptyList()
+        val targetAnoMes = anoMes ?: return emptyList()
 
         val sql = """
             SELECT

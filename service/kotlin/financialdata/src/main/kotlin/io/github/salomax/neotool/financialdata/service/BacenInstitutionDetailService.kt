@@ -22,6 +22,7 @@ import mu.KotlinLogging
 @Singleton
 open class BacenInstitutionDetailService(
     private val institutionDetailRepository: BacenInstitutionDetailRepositoryCustom,
+    private val quarterService: QuarterService,
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -36,21 +37,27 @@ open class BacenInstitutionDetailService(
     fun getBacenFinanceInstitution(id: String, anoMes: String? = null): BacenFinanceInstitution? {
         logger.debug { "Fetching BacenFinanceInstitution for id=$id, anoMes=$anoMes" }
 
+        val targetAnoMes = anoMes ?: quarterService.getLatestQuarter()
+        if (targetAnoMes == null) {
+            logger.debug { "Latest quarter not available for id=$id" }
+            return null
+        }
+
         // Get financial institution data
-        val financialData = institutionDetailRepository.getFinancialInstitutionData(id, anoMes)
+        val financialData = institutionDetailRepository.getFinancialInstitutionData(id, targetAnoMes)
         if (financialData == null) {
             logger.debug { "Financial institution not found for id=$id, anoMes=$anoMes" }
             return null
         }
 
         // Get BACEN bank report data
-        val reportData = institutionDetailRepository.getBacenBankReportData(id, anoMes)
+        val reportData = institutionDetailRepository.getBacenBankReportData(id, targetAnoMes)
         if (reportData.isEmpty()) {
             logger.debug { "No report data found for id=$id, anoMes=$anoMes" }
         }
 
         // Extract financial metrics from report data
-        val financialMetrics = extractFinancialMetrics(reportData, anoMes)
+        val financialMetrics = extractFinancialMetrics(reportData, targetAnoMes)
 
         // Map control type
         val controlType = mapControlType(financialData.tipoControle)

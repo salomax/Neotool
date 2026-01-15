@@ -1,13 +1,10 @@
 package io.github.salomax.neotool.financialdata.service
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.common.graphql.pagination.Connection
 import io.github.salomax.neotool.common.graphql.pagination.ConnectionBuilder
 import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import io.github.salomax.neotool.financialdata.domain.BacenInstitutionSummary
-import io.github.salomax.neotool.financialdata.repo.BacenInstitutionRepository
 import io.github.salomax.neotool.financialdata.repo.BacenInstitutionRepositoryCustom
 import jakarta.inject.Singleton
 import mu.KotlinLogging
@@ -17,7 +14,8 @@ import mu.KotlinLogging
  */
 @Singleton
 open class InstitutionSearchService(
-    private val institutionSearchRepository: BacenInstitutionRepositoryCustom
+    private val institutionSearchRepository: BacenInstitutionRepositoryCustom,
+    private val quarterService: QuarterService,
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -45,9 +43,19 @@ open class InstitutionSearchService(
             throw IllegalArgumentException("Query cannot be empty for autocomplete search")
         }
 
+        val targetAnoMes = anoMes ?: quarterService.getLatestQuarter()
+        if (targetAnoMes == null) {
+            return emptyList()
+        }
+
         return try {
             // Query repository - returns List<String> of institution names
-            val results = institutionSearchRepository.searchBacenInstitutionsAutocomplete(query.trim(), anoMes, limit)
+            val results =
+                institutionSearchRepository.searchBacenInstitutionsAutocomplete(
+                    query.trim(),
+                    targetAnoMes,
+                    limit,
+                )
             logger.debug { "Autocomplete search returned ${results.size} results" }
             results
         } catch (e: Exception) {
@@ -97,19 +105,29 @@ open class InstitutionSearchService(
         val normalizedQuery =
             if (query.isNullOrBlank()) null else query.trim()
 
+        val targetAnoMes = anoMes ?: quarterService.getLatestQuarter()
+        if (targetAnoMes == null) {
+            return ConnectionBuilder.buildConnection(
+                items = emptyList(),
+                hasMore = false,
+                encodeCursor = { _ -> "" },
+                totalCount = 0,
+            )
+        }
+
         return try {
             // Query repository (one extra to check for more results)
             val results =
                 institutionSearchRepository.bacenInstitutions(
                     normalizedQuery,
-                    anoMes,
+                    targetAnoMes,
                     pageSize + 1,
                     afterCompositeCursor,
                 )
             val hasMore = results.size > pageSize
 
             // Always get total count
-            val totalCount = institutionSearchRepository.countBacenInstitutions(normalizedQuery, anoMes)
+            val totalCount = institutionSearchRepository.countBacenInstitutions(normalizedQuery, targetAnoMes)
 
             // Take only requested number and convert to domain
             val institutions =

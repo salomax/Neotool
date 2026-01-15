@@ -2,75 +2,18 @@ package io.github.salomax.neotool.financialdata.repo
 
 import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.financialdata.domain.BacenInstitutionType
-import io.github.salomax.neotool.financialdata.model.BacenInstitutionEntity
-import io.github.salomax.neotool.financialdata.model.FinancialInstitutionEntity
-import io.github.salomax.neotool.financialdata.service.QuarterService
 import io.micronaut.transaction.annotation.ReadOnly
 import jakarta.inject.Singleton
 import jakarta.persistence.EntityManager
-import jakarta.persistence.TypedQuery
-import jakarta.persistence.criteria.CriteriaBuilder
-import jakarta.persistence.criteria.Predicate
-import jakarta.persistence.criteria.Root
 
 /**
  * Custom repository implementation for BacenInstitution search operations.
- * Uses JPA Criteria API for simple queries and native SQL for complex aggregations.
+ * Uses native SQL for aggregation and pagination queries.
  */
 @Singleton
 open class BacenInstitutionRepositoryImpl(
     private val entityManager: EntityManager,
-    private val quarterService: QuarterService,
 ) : BacenInstitutionRepositoryCustom {
-    /**
-     * Builds a search filter predicate for querying institutions by name or code.
-     * Excludes codes starting with 'C'.
-     */
-    private fun buildSearchFilterPredicate(
-        root: Root<BacenInstitutionEntity>,
-        criteriaBuilder: CriteriaBuilder,
-        query: String?,
-    ): Predicate? {
-        val normalizedQuery = query?.trim()?.takeIf { it.isNotBlank() }
-
-        if (normalizedQuery == null) {
-            return null
-        }
-
-        val likePattern = "%${normalizedQuery.lowercase()}%"
-
-        val nomeInstituicaoPath = root.get<String?>("nomeInstituicao")
-        val bacenCodInstPath = root.get<String>("bacenCodInst")
-
-        // Search on nome_instituicao (case-insensitive)
-        val nomePredicate =
-            criteriaBuilder.like(
-                criteriaBuilder
-                    .lower(
-                        criteriaBuilder.coalesce(nomeInstituicaoPath, criteriaBuilder.literal("")),
-                    ),
-                likePattern,
-            )
-
-        // Search on bacen_cod_inst (case-insensitive, excluding codes starting with 'C')
-        val codInstPredicate =
-            criteriaBuilder
-                .and(
-                    criteriaBuilder.like(
-                        criteriaBuilder.lower(bacenCodInstPath),
-                        likePattern,
-                    ),
-                    criteriaBuilder.not(
-                        criteriaBuilder.like(
-                            criteriaBuilder.lower(bacenCodInstPath),
-                            "c%",
-                        ),
-                    ),
-                )
-
-        return criteriaBuilder.or(nomePredicate, codInstPredicate)
-    }
-
     @ReadOnly
     override fun searchBacenInstitutionsAutocomplete(
         query: String,
@@ -80,8 +23,7 @@ open class BacenInstitutionRepositoryImpl(
         val normalizedQuery = query.trim().takeIf { it.isNotBlank() }
             ?: return emptyList()
 
-        // Resolve quarter: use provided anoMes or latest quarter globally
-        val targetAnoMes = anoMes ?: quarterService.getLatestQuarter() ?: return emptyList()
+        val targetAnoMes = anoMes ?: return emptyList()
 
         val likePattern = "%${normalizedQuery.lowercase()}%"
 
@@ -125,8 +67,7 @@ open class BacenInstitutionRepositoryImpl(
         first: Int,
         after: CompositeCursor?,
     ): List<InstitutionSearchResult> {
-        // Resolve quarter: use provided anoMes or latest quarter globally
-        val targetAnoMes = anoMes ?: quarterService.getLatestQuarter() ?: return emptyList()
+        val targetAnoMes = anoMes ?: return emptyList()
 
         // Build native SQL query for complex aggregation
         val sql = buildSearchQuery(query, targetAnoMes, after)
@@ -464,8 +405,7 @@ open class BacenInstitutionRepositoryImpl(
 
     @ReadOnly
     override fun countBacenInstitutions(query: String?, anoMes: String?): Long {
-        // Resolve quarter: use provided anoMes or latest quarter globally
-        val targetAnoMes = anoMes ?: quarterService.getLatestQuarter() ?: return 0
+        val targetAnoMes = anoMes ?: return 0
 
         // Use native SQL for consistency with search query and to handle quarter filtering
         val hasQuery = query != null && query.isNotBlank()

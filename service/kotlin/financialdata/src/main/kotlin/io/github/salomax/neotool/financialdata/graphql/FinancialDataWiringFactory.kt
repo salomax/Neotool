@@ -465,7 +465,7 @@ class FinancialDataWiringFactory(
                         },
                     )
                     .dataFetcher(
-                        "RWAReferenceEquity",
+                        "rwaReferenceEquity",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
                             val institution = env.getSource<BacenFinanceInstitutionDTO>()
                             institution?.rwaReferenceEquity

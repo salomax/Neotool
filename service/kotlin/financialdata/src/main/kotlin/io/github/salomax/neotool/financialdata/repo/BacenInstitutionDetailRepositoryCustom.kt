@@ -13,7 +13,7 @@ import io.github.salomax.neotool.financialdata.repo.result.ReportValueResult
 interface BacenInstitutionDetailRepositoryCustom {
     /**
      * Get financial institution data from financial_data.financial_institution table.
-     * Filters by quarter (ano_mes_ref). If anoMes is null, uses latest quarter globally.
+     * Filters by quarter (ano_mes_ref). Caller must resolve anoMes before invoking.
      *
      * @param id Institution ID (bacen_cod_inst)
      * @param anoMes Quarter filter (YYYYMM format). If null, uses latest quarter globally.
@@ -23,7 +23,7 @@ interface BacenInstitutionDetailRepositoryCustom {
 
     /**
      * Get BACEN bank report data from bacen_bank_report and related tables.
-     * Filters by quarter (ano_mes_ref). If anoMes is null, uses latest quarter globally.
+     * Filters by quarter (ano_mes_ref). Caller must resolve anoMes before invoking.
      *
      * @param id Institution ID (bacen_cod_inst)
      * @param anoMes Quarter filter (YYYYMM format). If null, uses latest quarter globally.
