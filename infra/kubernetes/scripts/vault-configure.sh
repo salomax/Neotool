@@ -55,7 +55,7 @@ EOF
 
 echo '5. Creating Kubernetes role...'
 vault write auth/kubernetes/role/app \
-    bound_service_account_names=default \
+    bound_service_account_names=external-secrets-vault-auth \
     bound_service_account_namespaces=$NAMESPACE \
     policies=app-policy \
     ttl=24h

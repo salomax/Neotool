@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
   - postgres/statefulset.yaml
   - pgbouncer/deployment.yaml
+  - pgbouncer/secrets.yaml

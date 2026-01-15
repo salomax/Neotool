@@ -8,12 +8,14 @@ tags: [infrastructure, deployment, operations, kubernetes, docker, terraform]
 ai_optimized: true
 search_keywords: [infrastructure, deployment, operations, kubernetes, docker, devops, sre]
 related:
-  - 11-infrastructure/INFRASTRUCTURE-GUIDE.md
+  - 11-infrastructure/architecture.md
+  - 11-infrastructure/k8s-runbook.md
+  - 11-infrastructure/hostinger-runbook.md
   - 02-architecture/infrastructure-architecture.md
   - 08-workflows/deployment-workflow.md
   - 10-observability/observability-overview.md
   - 92-adr/0002-containerized-architecture.md
-last_updated: 2026-01-13
+last_updated: 2026-01-15
 ---
 
 # Infrastructure & Operations
@@ -22,20 +24,16 @@ last_updated: 2026-01-13
 
 ## 🚀 Start Here
 
-**New to Neotool infrastructure?** Start with the complete guide:
+**New to Neotool infrastructure?** Start with these three focused guides:
 
-### **📖 [Infrastructure & Hostinger Runbook](./infra-hostinger-runbook.md)** - Complete End-to-End Guide
+### **📐 [Infrastructure Architecture](./architecture.md)** - High-Level Overview
+Understanding the system design, technology choices, and component relationships.
 
-This is your **single source of truth** for Neotool infrastructure. It covers:
-- Infrastructure summary and architecture
-- Terraform platform provisioning (SSH-based K3S installation)
-- K3S cluster setup on Hostinger VPS
-- Kubernetes & GitOps with Flux CD
-- Complete deployment workflow (7 phases)
-- Operations & maintenance
-- Cleanup procedures
+### **☸️ [Kubernetes Operations Runbook](./k8s-runbook.md)** - Day-to-Day Kubernetes Operations
+Complete guide for GitOps workflows, pod management, database access, monitoring, and troubleshooting.
 
-**This guide consolidates all infrastructure knowledge in one place.**
+### **🖥️ [Hostinger Infrastructure Runbook](./hostinger-runbook.md)** - VPS Provisioning & K3S Setup
+Terraform automation, K3S cluster management, and VPS-level operations.
 
 ---
 
@@ -47,9 +45,10 @@ This section provides **operational documentation** for deploying, managing, and
 
 ```
 docs/11-infrastructure/
-├── README.md                        # This file (navigation)
-├── infra-hostinger-runbook.md       # Complete infrastructure guide
-└── operations-runbook.md            # Daily kubectl commands reference
+├── README.md                  # This file (navigation)
+├── architecture.md            # High-level infrastructure overview
+├── k8s-runbook.md            # Kubernetes operations & troubleshooting
+└── hostinger-runbook.md      # VPS provisioning & K3S management
 ```
 
 ---
@@ -58,42 +57,41 @@ docs/11-infrastructure/
 
 ### For DevOps/SRE
 
-**🎯 Complete Deployment Guide**:
-1. **[Infrastructure & Hostinger Runbook](./infra-hostinger-runbook.md)** - Complete end-to-end deployment
-   - How to create VPS on Hostinger
-   - Terraform setup and K3S installation
-   - Flux GitOps bootstrap
-   - Vault configuration
-   - Application deployment
+**📐 Architecture Understanding**:
+1. **[Infrastructure Architecture](./architecture.md)** - System design and components
+   - Architecture patterns (GitOps, layered)
+   - Technology stack and rationale
+   - Component architecture
+   - Network, storage, and security architecture
 
-**🛠️ Daily Operations Reference**:
-2. **[Operations Runbook](./operations-runbook.md)** - Day-to-day kubectl commands
-   - View logs (kubectl, stern, Loki)
-   - Manage pods and deployments
-   - Database access and queries
-   - Port forwarding
-   - Scaling and resource management
-   - ConfigMaps and Secrets
-   - Troubleshooting common issues
+**🖥️ Infrastructure Provisioning**:
+2. **[Hostinger Infrastructure Runbook](./hostinger-runbook.md)** - VPS and K3S setup
+   - VPS creation and SSH setup
+   - Terraform provisioning automation
+   - K3S cluster management
+   - VPS operations and troubleshooting
 
-**🔄 GitOps Deep Dive**:
-3. **[Kubernetes GitOps README](../../infra/kubernetes/README.md)** - Flux CD technical details
-   - Flux architecture and components
-   - GitOps workflow
-   - Kustomizations and HelmReleases
-   - Testing and maintenance
+**☸️ Kubernetes Operations**:
+3. **[Kubernetes Operations Runbook](./k8s-runbook.md)** - Daily operations
+   - GitOps with Flux CD
+   - Pod and deployment management
+   - Database operations (PostgreSQL, PgBouncer)
+   - Secrets management (Vault)
+   - Monitoring and logs
+   - Comprehensive troubleshooting
 
 ### For Developers
 
-**Deployment**:
-- **[Infrastructure & Hostinger Runbook](./infra-hostinger-runbook.md)** - Complete deployment guide
-- **[GitOps Guide](../../infra/kubernetes/README.md)** - GitOps workflow with Flux CD
-- [Local Development Setup](../01-overview/getting-started.md) - Docker Compose local env
+**Understanding Infrastructure**:
+- [Infrastructure Architecture](./architecture.md) - High-level overview
+- [Kubernetes Operations Runbook](./k8s-runbook.md) - Day-to-day operations
 
-**Daily Operations**:
-- [View Logs](./operations-runbook.md#viewing-logs) - kubectl logs, stern, Loki queries
-- [Database Access](./operations-runbook.md#database-access) - psql, pg_dump, queries
-- [Port Forwarding](./operations-runbook.md#port-forwarding) - Access services locally
+**Common Tasks**:
+- [Deploy via GitOps](./k8s-runbook.md#deploying-applications-via-gitops) - Push to Git → Auto-deploy
+- [View Logs](./k8s-runbook.md#logs--debugging) - kubectl logs, stern, Loki queries
+- [Database Access](./k8s-runbook.md#database-operations) - psql, pg_dump, queries
+- [Port Forwarding](./k8s-runbook.md#port-forwarding) - Access services locally
+- [Local Development](../01-overview/getting-started.md) - Docker Compose local env
 
 ---
 
@@ -103,8 +101,8 @@ docs/11-infrastructure/
 
 | Task | Documentation | Frequency |
 |------|--------------|-----------|
-| **Deploy via GitOps** | **[GitOps Guide](../../infra/kubernetes/README.md)** | **On every Git push** |
-| Initial setup | [Infrastructure Runbook](./infra-hostinger-runbook.md) | One-time |
+| **Deploy via GitOps** | [K8S Runbook - GitOps](./k8s-runbook.md#gitops-with-flux-cd) | **On every Git push** |
+| Initial infrastructure setup | [Hostinger Runbook](./hostinger-runbook.md) | One-time |
 | Update application | Edit manifests in Git → Push → Flux auto-deploys | Per feature |
 | Rollback deployment | `git revert` → Push → Flux auto-reverts | As needed |
 
@@ -112,20 +110,21 @@ docs/11-infrastructure/
 
 | Task | Documentation | Frequency |
 |------|--------------|-----------|
-| View application logs | [Operations Runbook](./operations-runbook.md#viewing-logs) | Daily |
-| Scale pods | [Operations Runbook](./operations-runbook.md#scaling) | As needed |
-| Database backup | [Operations Runbook](./operations-runbook.md#database-backups) | Daily |
-| Database access | [Operations Runbook](./operations-runbook.md#database-access) | As needed |
-| Port forwarding | [Operations Runbook](./operations-runbook.md#port-forwarding) | Daily |
+| View application logs | [K8S Runbook - Logs](./k8s-runbook.md#logs--debugging) | Daily |
+| Scale pods | [K8S Runbook - Scaling](./k8s-runbook.md#pod--deployment-management) | As needed |
+| Database backup | [K8S Runbook - Database](./k8s-runbook.md#database-backups) | Daily |
+| Database access | [K8S Runbook - Database](./k8s-runbook.md#database-operations) | As needed |
+| Port forwarding | [K8S Runbook - Port Forwarding](./k8s-runbook.md#port-forwarding) | Daily |
 
 ### Troubleshooting
 
 | Issue | Documentation | Priority |
 |-------|--------------|----------|
-| Flux not syncing | [Infrastructure Runbook](./infra-hostinger-runbook.md#troubleshooting) | High |
-| Pods not starting | [Operations Runbook](./operations-runbook.md#pod-not-starting) | High |
-| Vault sealed | [Infrastructure Runbook](./infra-hostinger-runbook.md#vault-sealed-after-restart) | High |
-| Database connectivity | [Operations Runbook](./operations-runbook.md#database-connection-issues) | High |
+| Flux not syncing | [K8S Runbook - Troubleshooting](./k8s-runbook.md#flux-not-syncing) | High |
+| Pods not starting | [K8S Runbook - Troubleshooting](./k8s-runbook.md#pod-not-starting) | High |
+| Vault sealed | [K8S Runbook - Vault](./k8s-runbook.md#vault-issues) | High |
+| Database connectivity | [K8S Runbook - Database Issues](./k8s-runbook.md#database-connection-issues) | High |
+| VPS/K3S issues | [Hostinger Runbook - Troubleshooting](./hostinger-runbook.md#troubleshooting) | High |
 
 ---
 
@@ -137,7 +136,7 @@ docs/11-infrastructure/
 |-------------|----------------|-------------------|--------|
 | **Production** | K3S on Hostinger VPS (single node) | **GitOps (Flux CD)** | ✅ Active |
 
-**See**: [Infrastructure & Hostinger Runbook](./infra-hostinger-runbook.md) for complete setup guide.
+**See**: [Hostinger Infrastructure Runbook](./hostinger-runbook.md) for complete setup guide.
 
 ### Environment Details
 
@@ -233,7 +232,7 @@ All components are deployed in a **single namespace**: `production`
 | **helm** | Kubernetes package manager | [Install Helm](https://helm.sh/docs/intro/install/) |
 | **stern** | Multi-pod log tailing | `brew install stern` |
 
-**See**: [Operations Runbook](./operations-runbook.md) for tool usage.
+**See**: [Kubernetes Operations Runbook](./k8s-runbook.md) for tool usage.
 
 ---
 
@@ -256,7 +255,7 @@ kubectl port-forward -n production svc/prometheus 9090:9090
 # Open: http://localhost:9090
 ```
 
-**See**: [Operations Runbook](./operations-runbook.md#monitoring) for monitoring tasks.
+**See**: [Kubernetes Operations Runbook](./k8s-runbook.md#monitoring--metrics) for monitoring tasks.
 
 ---
 
@@ -283,9 +282,9 @@ kubectl port-forward -n production svc/prometheus 9090:9090
 ## Related Documentation
 
 ### Core Guides
-- **[Infrastructure & Hostinger Runbook](./infra-hostinger-runbook.md)** - Complete deployment guide
-- **[Operations Runbook](./operations-runbook.md)** - Daily operations reference
-- **[Kubernetes GitOps README](../../infra/kubernetes/README.md)** - Flux CD deep dive
+- **[Infrastructure Architecture](./architecture.md)** - High-level system design
+- **[Kubernetes Operations Runbook](./k8s-runbook.md)** - Daily K8S operations
+- **[Hostinger Infrastructure Runbook](./hostinger-runbook.md)** - VPS provisioning & K3S setup
 
 ### Architecture
 - [Infrastructure Architecture](../02-architecture/infrastructure-architecture.md) - System design
@@ -328,12 +327,12 @@ flux reconcile source git flux-system
 flux reconcile kustomization infrastructure
 ```
 
-**See**: [Operations Runbook](./operations-runbook.md) for complete command reference.
+**See**: [Kubernetes Operations Runbook](./k8s-runbook.md#quick-reference) for complete command reference.
 
 ---
 
-**Version**: 2.0.0 (2026-01-13)
+**Version**: 3.0.0 (2026-01-15)
 **Maintained By**: DevOps Team
-**Last Updated**: Infrastructure documentation consolidated and simplified
+**Last Updated**: Simplified to 3 focused documents: Architecture, K8S Runbook, Hostinger Runbook
 
 *Simple infrastructure. GitOps deployments. Production-ready.*
