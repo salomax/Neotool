@@ -11,7 +11,7 @@ import {
   ResponsiveContainer,
   Line,
 } from "recharts";
-import { Box, Paper, Typography, useTheme } from "@mui/material";
+import { Box, Typography, useTheme } from "@mui/material";
 
 type AxisType = "number" | "category";
 
@@ -43,10 +43,13 @@ export interface LineChartProps {
   xKey?: string;
   xIsDate?: boolean;
   xDateFormat?: (value: any) => string;
+  xLabel?: string;
   axes?: LineChartAxisConfig[];
   series: LineChartSeries[];
   showXAxis?: boolean;
   showYAxis?: boolean;
+  showXAxisTitle?: boolean;
+  showYAxisTitles?: boolean;
   showGrid?: boolean;
   showDots?: boolean;
   showValueLabels?: boolean;
@@ -54,6 +57,10 @@ export interface LineChartProps {
   showLegend?: boolean;
   strokeWidth?: number;
   showArea?: boolean;
+  scale?: boolean;
+  scaleMinPadding?: number;
+  scaleMaxPadding?: number;
+  consolidateDecimal?: boolean;
   colors?: string[];
   margin?: {
     top?: number;
@@ -120,24 +127,33 @@ export const LineChart: React.FC<LineChartProps> = ({
   xKey = "name",
   xIsDate = false,
   xDateFormat,
+  xLabel,
   axes,
   series,
   showXAxis = true,
   showYAxis = true,
+  showXAxisTitle = false,
+  showYAxisTitles = false,
   showGrid = true,
   showDots = true,
   showValueLabels = false,
   showTooltip = true,
   showLegend = true,
   strokeWidth = 2,
-  showArea = false,
+  showArea = true,
+  scale = false,
+  scaleMinPadding = 0.1,
+  scaleMaxPadding = 0.1,
+  consolidateDecimal = true,
   colors,
-  margin = { top: 5, right: 40, left: 40, bottom: 20 },
+  margin = { top: 0, right: 56, left: 32, bottom: 24 },
   sx,
 }) => {
   const theme = useTheme();
 
   const palette = colors && colors.length > 0 ? colors : defaultPalette(theme);
+
+  const axisPadding = { top: 16, bottom: 4 };
 
   const leftAxes = (axes || []).filter((axis) => axis.side === "left");
   const rightAxes = (axes || []).filter((axis) => axis.side === "right");
@@ -150,31 +166,244 @@ export const LineChart: React.FC<LineChartProps> = ({
     return axes?.find((axis) => axis.id === id);
   };
 
-  const xTickFormatter = xIsDate
-    ? (value: any) => {
-        if (xDateFormat) {
-          return xDateFormat(value);
+  const axisStats = React.useMemo(() => {
+    const stats = new Map<
+      string,
+      { min: number; max: number; maxAbs: number }
+    >();
+
+    if (!data || data.length === 0 || !series || series.length === 0) {
+      return stats;
+    }
+
+    for (const row of data) {
+      for (const serie of series) {
+        const axisId = serie.yAxisId || "default";
+        const raw = row[serie.dataKey];
+        const numericValue =
+          typeof raw === "number"
+            ? raw
+            : raw === null || raw === undefined
+            ? NaN
+            : Number(raw);
+
+        if (!Number.isFinite(numericValue)) {
+          continue;
         }
 
-        const date = value instanceof Date ? value : new Date(value);
-        if (Number.isNaN(date.getTime())) {
-          return value;
-        }
+        const abs = Math.abs(numericValue);
+        const existing = stats.get(axisId);
 
-        return new Intl.DateTimeFormat("pt-BR", {
-          year: "2-digit",
-          month: "2-digit",
-        }).format(date);
+        if (!existing) {
+          stats.set(axisId, {
+            min: numericValue,
+            max: numericValue,
+            maxAbs: abs,
+          });
+        } else {
+          if (numericValue < existing.min) {
+            existing.min = numericValue;
+          }
+          if (numericValue > existing.max) {
+            existing.max = numericValue;
+          }
+          if (abs > existing.maxAbs) {
+            existing.maxAbs = abs;
+          }
+        }
       }
-    : undefined;
+    }
+
+    return stats;
+  }, [data, series]);
+
+  const consolidationByAxis = React.useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        divisor: number;
+        suffix: string;
+      }
+    >();
+
+    if (!consolidateDecimal) {
+      return map;
+    }
+
+    axisStats.forEach((stats, axisId) => {
+      const axisConfig =
+        axes && axes.length > 0
+          ? axes.find((axis) => axis.id === axisId) || axes[0]
+          : undefined;
+
+      if (!axisConfig) {
+        return;
+      }
+
+      if (
+        axisConfig.format !== "currency" &&
+        axisConfig.format !== "number"
+      ) {
+        return;
+      }
+
+      const abs = stats.maxAbs;
+
+      if (!abs || abs < 1000) {
+        map.set(axisId, { divisor: 1, suffix: "" });
+        return;
+      }
+
+      let divisor = 1;
+      let suffix = "";
+
+      if (abs >= 1_000_000_000_000) {
+        divisor = 1_000_000_000_000;
+        suffix = "T";
+      } else if (abs >= 1_000_000_000) {
+        divisor = 1_000_000_000;
+        suffix = "B";
+      } else if (abs >= 1_000_000) {
+        divisor = 1_000_000;
+        suffix = "M";
+      } else if (abs >= 1_000) {
+        divisor = 1_000;
+        suffix = "K";
+      }
+
+      map.set(axisId, { divisor, suffix });
+    });
+
+    return map;
+  }, [axisStats, axes, consolidateDecimal]);
+
+  const getAxisDomain = (axisId: string | undefined) => {
+    if (!scale) {
+      return undefined;
+    }
+
+    const key = axisId || "default";
+    const stats = axisStats.get(key);
+
+    if (!stats) {
+      return undefined;
+    }
+
+    const { min, max, maxAbs } = stats;
+
+    if (!Number.isNaN(min) && !Number.isNaN(max)) {
+      if (min === max) {
+        const baseRange = maxAbs || Math.abs(max) || 1;
+        const padding = baseRange * (scaleMinPadding + scaleMaxPadding);
+
+        return [min - padding, max + padding] as [number, number];
+      }
+
+      const range = max - min;
+      const lower = min - range * scaleMinPadding;
+      const upper = max + range * scaleMaxPadding;
+
+      return [lower, upper] as [number, number];
+    }
+
+    return undefined;
+  };
 
   const locale =
     typeof window !== "undefined" && window.navigator?.language
       ? window.navigator.language
       : "pt-BR";
 
+  const getTickFormatter = (axisId: string | undefined) => {
+    const axisConfig = getAxis(axisId);
+    const baseFormatter = buildTickFormatter(axisConfig, locale);
+
+    if (!consolidateDecimal) {
+      return baseFormatter;
+    }
+
+    const key = axisConfig?.id || "default";
+    const consolidation = consolidationByAxis.get(key);
+
+    if (!consolidation || consolidation.divisor === 1) {
+      return baseFormatter;
+    }
+
+    return (value: number) => {
+      const scaled = value / consolidation.divisor;
+      const axisFormat = axisConfig?.format;
+
+      if (axisFormat === "currency" && axisConfig) {
+        const formatter = new Intl.NumberFormat(locale, {
+          style: "currency",
+          currency: axisConfig.currency ?? "BRL",
+          minimumFractionDigits: 1,
+          maximumFractionDigits: 1,
+        });
+        const formatted = formatter.format(scaled ?? 0);
+        return consolidation.suffix
+          ? `${formatted}\u00A0${consolidation.suffix}`
+          : formatted;
+      }
+
+      if (axisFormat === "number") {
+        const formatter = new Intl.NumberFormat(locale, {
+          minimumFractionDigits: 1,
+          maximumFractionDigits: 1,
+        });
+        const formatted = formatter.format(scaled ?? 0);
+        return consolidation.suffix
+          ? `${formatted}\u00A0${consolidation.suffix}`
+          : formatted;
+      }
+
+      const formatted = baseFormatter
+        ? baseFormatter(scaled)
+        : String(scaled ?? 0);
+
+      return consolidation.suffix
+        ? `${formatted}\u00A0${consolidation.suffix}`
+        : formatted;
+    };
+  };
+
+  const tooltipFormatter = (value: any, _name: any, tooltipProps: any) => {
+    const serie = series.find(
+      (s) => s.dataKey === tooltipProps?.dataKey || s.name === _name
+    );
+    const formatter = getTickFormatter(serie?.yAxisId);
+    const numeric =
+      typeof value === "number"
+        ? value
+        : value === null || value === undefined
+        ? NaN
+        : Number(value);
+
+    if (!formatter || !Number.isFinite(numeric)) {
+      return value;
+    }
+
+    return formatter(numeric);
+  };
+
+  const xTickFormatter =
+    xDateFormat ||
+    (xIsDate
+      ? (value: any) => {
+          const date = value instanceof Date ? value : new Date(value);
+          if (Number.isNaN(date.getTime())) {
+            return value;
+          }
+
+          return new Intl.DateTimeFormat("pt-BR", {
+            year: "2-digit",
+            month: "2-digit",
+          }).format(date);
+        }
+      : undefined);
+
   return (
-    <Paper sx={{ p: 2, ...sx }}>
+    <Box sx={{ p: 2, ...sx }}>
       {title && (
         <Typography variant="h6" component="h3" gutterBottom>
           {title}
@@ -191,12 +420,43 @@ export const LineChart: React.FC<LineChartProps> = ({
               bottom: margin?.bottom ?? 20,
             }}
           >
+            {showArea && (
+              <defs>
+                {series.map((serie, index) => {
+                  const color = serie.color || palette[index % palette.length];
+                  const gradientId = `linechart-gradient-${serie.id}`;
+
+                  return (
+                    <linearGradient
+                      key={gradientId}
+                      id={gradientId}
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
+                      <stop offset="5%" stopColor={color} stopOpacity={0.2} />
+                      <stop offset="95%" stopColor={color} stopOpacity={0} />
+                    </linearGradient>
+                  );
+                })}
+              </defs>
+            )}
             {showGrid && <CartesianGrid strokeDasharray="3 3" />}
 
             {showXAxis && (
               <XAxis
                 dataKey={xKey}
                 tickFormatter={xTickFormatter}
+                tick={{ fontSize: 11, fontStyle: "italic" }}
+                label={
+                  xLabel && showXAxisTitle
+                    ? {
+                        value: xLabel,
+                        position: "insideBottom",
+                      }
+                    : undefined
+                }
               />
             )}
 
@@ -208,8 +468,9 @@ export const LineChart: React.FC<LineChartProps> = ({
                       key={axis.id}
                       yAxisId={axis.id}
                       orientation="left"
+                      padding={axisPadding}
                       label={
-                        axis.label
+                        axis.label && showYAxisTitles
                           ? {
                               value: axis.label,
                               angle: -90,
@@ -217,7 +478,9 @@ export const LineChart: React.FC<LineChartProps> = ({
                             }
                           : undefined
                       }
-                      tickFormatter={buildTickFormatter(axis, locale)}
+                      tick={{ fontSize: 11, fontStyle: "italic" }}
+                      tickFormatter={getTickFormatter(axis.id)}
+                      domain={getAxisDomain(axis.id)}
                     />
                   ))}
                   {rightAxes.map((axis) => (
@@ -225,8 +488,9 @@ export const LineChart: React.FC<LineChartProps> = ({
                       key={axis.id}
                       yAxisId={axis.id}
                       orientation="right"
+                      padding={axisPadding}
                       label={
-                        axis.label
+                        axis.label && showYAxisTitles
                           ? {
                               value: axis.label,
                               angle: -90,
@@ -234,15 +498,27 @@ export const LineChart: React.FC<LineChartProps> = ({
                             }
                           : undefined
                       }
-                      tickFormatter={buildTickFormatter(axis, locale)}
+                      tick={{ fontSize: 11, fontStyle: "italic" }}
+                      tickFormatter={getTickFormatter(axis.id)}
+                      domain={getAxisDomain(axis.id)}
                     />
                   ))}
                 </>
               ) : (
-                <YAxis />
+                <YAxis
+                  padding={axisPadding}
+                  tick={{ fontSize: 11, fontStyle: "italic" }}
+                  domain={getAxisDomain(undefined)}
+                />
               ))}
 
-            {showTooltip && <Tooltip />}
+            {showTooltip && (
+              <Tooltip
+                formatter={tooltipFormatter}
+                labelFormatter={xTickFormatter}
+                labelStyle={{ color: theme.palette.text.primary }}
+              />
+            )}
             {showLegend && <Legend />}
 
             {series.map((serie, index) => {
@@ -260,19 +536,10 @@ export const LineChart: React.FC<LineChartProps> = ({
                   dot={showDots}
                   isAnimationActive={true}
                   connectNulls={true}
-                  label={
-                    showValueLabels
-                      ? {
-                          position: "top",
-                          formatter: (value: number) =>
-                            new Intl.NumberFormat(locale, {
-                              maximumFractionDigits: 2,
-                            }).format(value ?? 0),
-                        }
-                      : undefined
+                  label={showValueLabels}
+                  fill={
+                    showArea ? `url(#linechart-gradient-${serie.id})` : undefined
                   }
-                  fill={showArea ? color : undefined}
-                  fillOpacity={showArea ? 0.1 : undefined}
                 />
               );
             })}
@@ -296,9 +563,8 @@ export const LineChart: React.FC<LineChartProps> = ({
         ]}
       />
       */}
-    </Paper>
+    </Box>
   );
 };
 
 export default LineChart;
-

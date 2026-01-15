@@ -5,7 +5,7 @@ import { useQuery } from "@apollo/client/react";
 import { useParams } from "next/navigation";
 import { SidebarLayout } from "@/shared/components/ui/layout/SidebarLayout";
 import { Page, SectionHeader } from "@/shared/components/ui/layout";
-import { Box, Typography, Stack, List, ListItemButton, ListItemText, CircularProgress, Tooltip, IconButton } from "@mui/material";
+import { Box, Paper, Typography, Stack, List, ListItemButton, ListItemText, CircularProgress, Tooltip, IconButton } from "@mui/material";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { BACEN_INSTITUTION, BACEN_INSTITUTION_REPORTS, BACEN_INSTITUTION_REPORT_DETAILS } from "@/lib/graphql/operations/financial_data/bacen-institutions";
 import { usePageTitle } from "@/shared/hooks/ui/usePageTitle";
@@ -13,7 +13,7 @@ import { useTranslation } from "@/shared/i18n";
 import { financialDataTranslations } from "@/features/financial_data/i18n";
 import { safeDecodeId } from "@/shared/utils/idObfuscation";
 import { useBreadcrumbLabel } from "@/shared/hooks/ui/useBreadcrumbLabel";
-import { CurrencyDisplay, LineChart } from "@/shared/components/ui/data-display";
+import { LineChart } from "@/shared/components/ui/data-display";
 import { BacenInstitutionSummaryPaper } from "@/features/financial_data/components/BacenInstitutionSummaryPaper";
 import { BacenInstitutionBalanceSummaryGrid } from "@/features/financial_data/components/BacenInstitutionBalanceSummaryGrid";
 
@@ -184,15 +184,10 @@ export default function BacenInstitutionDetailPage() {
             {reportDetails.accounts && reportDetails.accounts.length > 0 ? (
               <Stack spacing={4}>
                 {reportDetails.accounts.map((account: any, accountIndex: number) => (
-                  <Box key={accountIndex} sx={{ p: 3, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+                  <Paper key={accountIndex} sx={{ p: 3, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
                     <Box sx={{ mb: 2 }}>
-                      {account.id && (
-                        <Typography variant="h6" sx={{ mb: 0.5 }}>
-                          {account.id}
-                        </Typography>
-                      )}
                       {account.name && (
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                        <Typography variant="h6" sx={{ mb: 0.5 }}>
                           {account.name}
                         </Typography>
                       )}
@@ -207,11 +202,20 @@ export default function BacenInstitutionDetailPage() {
                       <LineChart
                         data={account.valuesByQuarter}
                         xKey="quarter"
+                        xDateFormat={(value: any) => {
+                          const str = String(value);
+                          if (str.length !== 6) {
+                            return str;
+                          }
+                          const year = str.slice(0, 4);
+                          const month = str.slice(4, 6);
+                          return `${month}/${year}`;
+                        }}
                         height={300}
                         series={[
                           {
                             id: 'value',
-                            name: t("value") || "Valor",
+                            name: account.name || t("value") || "Valor",
                             dataKey: 'value',
                             yAxisId: 'left-axis'
                           }
@@ -220,17 +224,23 @@ export default function BacenInstitutionDetailPage() {
                           {
                             id: 'left-axis',
                             side: 'left',
-                            format: 'currency',
+                            label: account.name,
+                            format: (account.name?.toLowerCase().includes("basileia") || account.name?.toLowerCase().includes("índice")) ? "percent" : "currency",
                             currency: 'BRL'
                           }
                         ]}
+                        scale
+                        scaleMinPadding={0.05}
+                        scaleMaxPadding={0.15}
+                        consolidateDecimal
+                        showArea
                       />
                     ) : (
                       <Typography variant="body2" color="text.secondary">
                         {t("messages.noReportData")}
                       </Typography>
                     )}
-                  </Box>
+                  </Paper>
                 ))}
               </Stack>
             ) : (
@@ -248,4 +258,3 @@ export default function BacenInstitutionDetailPage() {
     </SidebarLayout>
   );
 }
-

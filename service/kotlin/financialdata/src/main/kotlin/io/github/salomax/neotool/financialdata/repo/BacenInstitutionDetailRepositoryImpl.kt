@@ -186,26 +186,6 @@ open class BacenInstitutionDetailRepositoryImpl(
     }
 
     @ReadOnly
-    override fun getLatestQuarter(id: String): String? {
-        val sql = """
-            SELECT DISTINCT ON (cod_inst)
-                ano_mes
-            FROM financial_data.bacen_bank_report
-            WHERE cod_inst = ?
-            ORDER BY cod_inst, ano_mes DESC
-            LIMIT 1
-        """.trimIndent()
-
-        val query = entityManager.createNativeQuery(sql)
-        query.setParameter(1, id)
-
-        @Suppress("UNCHECKED_CAST")
-        val result = query.singleResult as? String
-
-        return result
-    }
-
-    @ReadOnly
     override fun getReportsByQuarterRange(
         id: String,
         range: QuarterRange,

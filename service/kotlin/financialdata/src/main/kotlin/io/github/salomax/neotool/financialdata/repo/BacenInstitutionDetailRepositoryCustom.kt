@@ -32,14 +32,6 @@ interface BacenInstitutionDetailRepositoryCustom {
     fun getBacenBankReportData(id: String, anoMes: String? = null): List<BacenBankReportDataResult>
 
     /**
-     * Get latest quarter (ano_mes) for an institution.
-     *
-     * @param id Institution ID (bacen_cod_inst)
-     * @return Latest quarter in "YYYYMM" format or null if no reports exist
-     */
-    fun getLatestQuarter(id: String): String?
-
-    /**
      * Get available reports grouped by quarter for an institution within a quarter range.
      * Returns only metadata (no detailed values) for performance.
      *
