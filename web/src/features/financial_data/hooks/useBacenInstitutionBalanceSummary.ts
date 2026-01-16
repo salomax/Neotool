@@ -73,6 +73,12 @@ export function useBacenInstitutionBalanceSummary(institutionId: string) {
   const referenceEquity = getMetricData(
     "PATRIMONIO_DE_REFERENCIA_PARA_COMPARACAO_COM_O_RWA"
   );
+  const classifiedCreditPortfolio = getMetricData("CARTEIRA_DE_CREDITO_CLASSIFICADA");
+  const currentAndLongTermLiabilities = getMetricData(
+    "PASSIVO_CIRCULANTE_E_EXIGIVEL_A_LONGO_PRAZO_E_RESULTADOS_DE_EXERCICIOS_FUTUROS"
+  );
+  const liabilities = getMetricData("PASSIVO_EXIGIVEL");
+  const securities = getMetricData("TITULOS_E_VALORES_MOBILIARIOS");
 
   const netProfitItem: MetricGridItem = {
     type: "metric",
@@ -164,19 +170,56 @@ export function useBacenInstitutionBalanceSummary(institutionId: string) {
     historical: referenceEquity.historical.reverse(),
   };
 
-  const primaryGridItems: MetricGridItem[] = [
+  const classifiedCreditPortfolioItem: MetricGridItem = {
+    type: "metric",
+    label: t("lastBalanceSummary.classifiedCreditPortfolio"),
+    actualValue: classifiedCreditPortfolio.actualValue,
+    valueType: "currency",
+    growthPercentage: classifiedCreditPortfolio.growthPercentage,
+    historical: classifiedCreditPortfolio.historical.reverse(),
+  };
+
+  const currentAndLongTermLiabilitiesItem: MetricGridItem = {
+    type: "metric",
+    label: t("lastBalanceSummary.currentAndLongTermLiabilities"),
+    actualValue: currentAndLongTermLiabilities.actualValue,
+    valueType: "currency",
+    growthPercentage: currentAndLongTermLiabilities.growthPercentage,
+    historical: currentAndLongTermLiabilities.historical.reverse(),
+  };
+
+  const liabilitiesItem: MetricGridItem = {
+    type: "metric",
+    label: t("lastBalanceSummary.liabilities"),
+    actualValue: liabilities.actualValue,
+    valueType: "currency",
+    growthPercentage: liabilities.growthPercentage,
+    historical: liabilities.historical.reverse(),
+  };
+
+  const securitiesItem: MetricGridItem = {
+    type: "metric",
+    label: t("lastBalanceSummary.securities"),
+    actualValue: securities.actualValue,
+    valueType: "currency",
+    growthPercentage: securities.growthPercentage,
+    historical: securities.historical.reverse(),
+  };
+
+  const gridItems: MetricGridItem[] = [
     netProfitItem,
     ...(basileiaItem ? [basileiaItem] : []),
     ...(imobilizacaoItem ? [imobilizacaoItem] : []),
-  ];
-
-  const secondaryGridItems: MetricGridItem[] = [
     totalAssetsItem,
     fundingItem,
     creditPortfolioItem,
     netEquityItem,
     referenceEquityItem,
+    classifiedCreditPortfolioItem,
+    currentAndLongTermLiabilitiesItem,
+    liabilitiesItem,
+    securitiesItem,
   ];
 
-  return { primaryGridItems, secondaryGridItems, loading };
+  return { gridItems, loading };
 }

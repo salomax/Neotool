@@ -75,6 +75,8 @@
     "baselIndex": "Basel Index",
     "fixedAssetsIndex": "Fixed Assets Index",
     "referenceEquity": "Reference Equity",
+    "classifiedCreditPortfolio": "Classified Credit Portfolio",
+    "currentAndLongTermLiabilities": "Current and Long-term Liabilities and Future Results",
     "numberOfBranches": "Number of Branches",
     "numberOfServicePoints": "Number of Service Points"
   }

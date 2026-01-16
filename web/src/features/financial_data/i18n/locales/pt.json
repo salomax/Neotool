@@ -75,6 +75,8 @@
     "baselIndex": "Índice Basileia",
     "fixedAssetsIndex": "Índice de Imobilização",
     "referenceEquity": "Patrimônio de Ref.",
+    "classifiedCreditPortfolio": "Carteira de Crédito Classificada",
+    "currentAndLongTermLiabilities": "Passivo Circulante e Exigível a Longo Prazo e Resultados de Exercícios Futuros",
     "numberOfBranches": "Nº de Agências",
     "numberOfServicePoints": "Nº de Pontos Atend."
   }
