@@ -1,0 +1,61 @@
+# Asset Service Test Configuration
+# Test-specific configuration for integration tests
+
+namespaces:
+  user-profiles:
+    description: "User profile images"
+    visibility: PRIVATE
+    keyTemplate: "{namespace}/{ownerId}/{assetId}"  
+    maxSizeBytes: 2097152  # 2 MB
+    allowedMimeTypes:  
+      - image/jpeg
+      - image/png
+      - image/webp
+      - image/gif
+    uploadTtlSeconds: 900  # 15 minutes
+
+  group-assets:
+    description: "Institution/organization branding assets"
+    visibility: PUBLIC
+    keyTemplate: "{namespace}/{assetId}"
+    maxSizeBytes: 2097152  # 2 MB
+    allowedMimeTypes:
+      - image/jpeg
+      - image/png
+      - image/webp
+      - image/svg+xml
+    uploadTtlSeconds: 900  # 15 minutes
+
+  attachments:
+    description: "Generic file attachments (documents, PDFs, etc.)"
+    visibility: PRIVATE
+    keyTemplate: "{namespace}/{ownerId}/{assetId}"
+    maxSizeBytes: 2097152  # 2 MB
+    allowedMimeTypes:
+      - image/jpeg
+      - image/png
+      - image/webp
+      - application/pdf
+      - application/msword
+      - application/vnd.openxmlformats-officedocument.wordprocessingml.document
+      - application/vnd.ms-excel
+      - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+      - application/vnd.ms-powerpoint
+      - application/vnd.openxmlformats-officedocument.presentationml.presentation
+      - text/plain
+      - text/csv
+    uploadTtlSeconds: 900  # 15 minutes
+
+  default:
+    description: "Fallback for undefined namespaces"
+    visibility: PRIVATE
+    keyTemplate: "{namespace}/{ownerId}/{assetId}"
+    maxSizeBytes: 2097152  # 2 MB
+    allowedMimeTypes:
+      - image/jpeg
+      - image/png
+
+rateLimit:
+  uploadsPerHour: 100
+  uploadsPerDay: 1000
+  storageQuotaBytes: 1073741824  # 1 GB
