@@ -8,6 +8,10 @@ coverage/
 .env
 .env.*
 venv
+# Compiled binaries
+/cronjob
+/cli
+/retry-worker
 
 *.code-workspace
 .idea
