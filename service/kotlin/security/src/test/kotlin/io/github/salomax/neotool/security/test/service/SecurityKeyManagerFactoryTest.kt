@@ -17,7 +17,7 @@ class SecurityKeyManagerFactoryTest {
     @Test
     fun `should return FileKeyManager when Vault is not configured`() {
         val vaultConfig = VaultConfig(enabled = false)
-        val fileKeyManager = FileKeyManager(JwtConfig())
+        val fileKeyManager = FileKeyManager(JwtConfig(), null)
 
         val factory =
             SecurityKeyManagerFactory(
@@ -37,7 +37,7 @@ class SecurityKeyManagerFactoryTest {
         val vaultConfig = VaultConfig(enabled = true, token = "test-token")
         val vaultClient = mock<VaultClient>()
         whenever(vaultClient.isAvailable()).thenReturn(false)
-        val fileKeyManager = FileKeyManager(JwtConfig())
+        val fileKeyManager = FileKeyManager(JwtConfig(), null)
 
         val factory =
             SecurityKeyManagerFactory(
@@ -57,7 +57,7 @@ class SecurityKeyManagerFactoryTest {
         val vaultConfig = VaultConfig(enabled = true, token = "test-token")
         val vaultClient = mock<VaultClient>()
         whenever(vaultClient.isAvailable()).thenReturn(true)
-        val fileKeyManager = FileKeyManager(JwtConfig())
+        val fileKeyManager = FileKeyManager(JwtConfig(), null)
         val vaultKeyManager = mock<VaultKeyManager>()
 
         val factory =
