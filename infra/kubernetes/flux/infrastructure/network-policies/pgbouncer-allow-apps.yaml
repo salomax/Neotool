@@ -1,0 +1,54 @@
+---
+# Network Policy: PgBouncer - Allow connections from applications
+#
+# This policy allows applications (services, web) to connect to PgBouncer.
+# PgBouncer acts as a connection pooler between applications and PostgreSQL.
+#
+# Security benefit: Centralized connection management and rate limiting.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: pgbouncer-allow-apps
+  namespace: production
+  labels:
+    app: pgbouncer
+    component: database
+spec:
+  podSelector:
+    matchLabels:
+      app: pgbouncer
+  policyTypes:
+  - Ingress
+  ingress:
+  # PgBouncer can connect to itself (for health checks)
+  - from:
+    - podSelector:
+        matchLabels:
+          app: pgbouncer
+    ports:
+    - protocol: TCP
+      port: 6432
+  # Services (Kotlin microservices) can connect
+  - from:
+    - podSelector:
+        matchLabels:
+          component: service
+    ports:
+    - protocol: TCP
+      port: 6432
+  # Web components (Next.js, Apollo Router) can connect
+  - from:
+    - podSelector:
+        matchLabels:
+          component: web
+    ports:
+    - protocol: TCP
+      port: 6432
+  # Allow health checks from kubelet
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: TCP
+      port: 6432

@@ -300,6 +300,11 @@ open class AssetService(
                 .findById(assetId)
                 .orElse(null)
 
+        // Return null if asset not found
+        if (entity == null) {
+            return null
+        }
+
         // Visibility-based authorization
         when (entity.visibility) {
             AssetVisibility.PUBLIC -> {
@@ -382,6 +387,11 @@ open class AssetService(
             assetRepository
                 .findById(assetId)
                 .orElse(null)
+
+        // Return false if asset not found
+        if (entity == null) {
+            return false
+        }
 
         // Authorization check
         if (entity.ownerId != ownerId) {
