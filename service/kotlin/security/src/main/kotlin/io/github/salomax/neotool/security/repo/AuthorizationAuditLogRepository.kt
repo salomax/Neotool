@@ -5,10 +5,17 @@ import io.micronaut.data.annotation.Query
 import io.micronaut.data.annotation.Repository
 import io.micronaut.data.jpa.repository.JpaRepository
 import java.time.Instant
+import java.util.Optional
 import java.util.UUID
 
 @Repository
 interface AuthorizationAuditLogRepository : JpaRepository<AuthorizationAuditLogEntity, UUID> {
+    /**
+     * Find audit log by ID.
+     * Explicitly overridden to help KSP generate correct implementation.
+     */
+    override fun findById(id: UUID): Optional<AuthorizationAuditLogEntity>
+
     /**
      * Find all audit logs for a user.
      */

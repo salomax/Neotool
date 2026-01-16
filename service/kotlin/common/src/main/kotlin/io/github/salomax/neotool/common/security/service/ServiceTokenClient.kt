@@ -6,6 +6,7 @@ import io.micronaut.http.MediaType
 import io.micronaut.http.client.HttpClient
 import io.micronaut.http.client.exceptions.HttpClientResponseException
 import jakarta.inject.Singleton
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import mu.KotlinLogging
@@ -32,6 +33,10 @@ class ServiceTokenClient(
 
     private val tokenCache = ConcurrentHashMap<String, CachedToken>()
     private val cacheLock = ReentrantLock()
+
+    // Track in-flight fetches: map from audience to deferred result
+    // This allows concurrent requests to wait for the same fetch
+    private val inFlightFetches = ConcurrentHashMap<String, CompletableDeferred<String>>()
 
     /**
      * Cached token with expiration time.
@@ -74,28 +79,68 @@ class ServiceTokenClient(
      */
     suspend fun getServiceToken(targetAudience: String): String =
         withContext(Dispatchers.IO) {
-            // Check cache first
             val cacheKey = targetAudience
-            cacheLock.withLock {
-                val cached = tokenCache[cacheKey]
-                if (cached != null && !cached.isExpired()) {
-                    logger.debug { "Returning cached token for audience: $targetAudience" }
-                    return@withContext cached.token
+
+            // Fast path: check cache without lock
+            val cached = tokenCache[cacheKey]
+            if (cached != null && !cached.isExpired()) {
+                logger.debug { "Returning cached token for audience: $targetAudience" }
+                return@withContext cached.token
+            }
+
+            // Check if a fetch is already in progress for this audience
+            val inFlightDeferred = inFlightFetches[cacheKey]
+            if (inFlightDeferred != null) {
+                // Another coroutine is fetching, wait for it to complete
+                logger.debug { "Waiting for in-flight token fetch for audience: $targetAudience" }
+                val token = inFlightDeferred.await()
+                // Double-check cache after waiting (it should be populated now)
+                val cachedAfterWait = tokenCache[cacheKey]
+                if (cachedAfterWait != null && !cachedAfterWait.isExpired()) {
+                    return@withContext cachedAfterWait.token
                 }
+                return@withContext token
             }
 
-            // Fetch new token
-            logger.debug { "Fetching new token for audience: $targetAudience" }
-            val (token, expiresIn) = fetchTokenFromSecurityService(targetAudience)
+            // Create a deferred for this fetch
+            val fetchDeferred = CompletableDeferred<String>()
+            val existingDeferred = inFlightFetches.putIfAbsent(cacheKey, fetchDeferred)
 
-            // Cache token
-            cacheLock.withLock {
-                // Use expires_in from response, with 60 second buffer
-                val expiresAt = System.currentTimeMillis() + (expiresIn * 1000)
-                tokenCache[cacheKey] = CachedToken(token, expiresAt)
+            if (existingDeferred != null) {
+                // Another coroutine started fetching between our check and put, wait for it
+                logger.debug { "Another coroutine started fetching, waiting for audience: $targetAudience" }
+                val token = existingDeferred.await()
+                val cachedAfterWait = tokenCache[cacheKey]
+                if (cachedAfterWait != null && !cachedAfterWait.isExpired()) {
+                    return@withContext cachedAfterWait.token
+                }
+                return@withContext token
             }
 
-            token
+            try {
+                // Fetch new token (suspend function, outside blocking locks)
+                logger.debug { "Fetching new token for audience: $targetAudience" }
+                val (token, expiresIn) = fetchTokenFromSecurityService(targetAudience)
+
+                // Cache token (use cache lock for thread-safe cache update)
+                cacheLock.withLock {
+                    // Use expires_in from response, with 60 second buffer
+                    val expiresAt = System.currentTimeMillis() + (expiresIn * 1000)
+                    tokenCache[cacheKey] = CachedToken(token, expiresAt)
+                }
+
+                // Complete the deferred so waiting coroutines get the token
+                fetchDeferred.complete(token)
+                // Remove from in-flight map after successful completion
+                inFlightFetches.remove(cacheKey)
+                token
+            } catch (e: Exception) {
+                // Complete with exception so waiting coroutines get the error
+                fetchDeferred.completeExceptionally(e)
+                // Remove from in-flight map
+                inFlightFetches.remove(cacheKey)
+                throw e
+            }
         }
 
     /**
