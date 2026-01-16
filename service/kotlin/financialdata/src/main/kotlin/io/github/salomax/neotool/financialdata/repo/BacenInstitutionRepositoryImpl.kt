@@ -20,8 +20,9 @@ open class BacenInstitutionRepositoryImpl(
         anoMes: String?,
         limit: Int,
     ): List<String> {
-        val normalizedQuery = query.trim().takeIf { it.isNotBlank() }
-            ?: return emptyList()
+        val normalizedQuery =
+            query.trim().takeIf { it.isNotBlank() }
+                ?: return emptyList()
 
         val targetAnoMes = anoMes ?: return emptyList()
 
@@ -29,7 +30,8 @@ open class BacenInstitutionRepositoryImpl(
 
         // Build native SQL query to get nome_instituicao ordered by similarity score
         // Filter by ano_mes_ref to get institutions from specific quarter
-        val sql = """
+        val sql =
+            """
             SELECT 
                 bi.nome_instituicao,
                 financial_data.similarity(
@@ -42,7 +44,7 @@ open class BacenInstitutionRepositoryImpl(
                    OR (bi.bacen_cod_inst ILIKE ? AND bi.bacen_cod_inst NOT ILIKE 'c%'))
             ORDER BY similarity_score DESC, bi.nome_instituicao ASC
             LIMIT ?
-        """.trimIndent()
+            """.trimIndent()
 
         val nativeQuery = entityManager.createNativeQuery(sql)
         nativeQuery.setParameter(1, normalizedQuery)
@@ -204,7 +206,9 @@ open class BacenInstitutionRepositoryImpl(
         // Build ORDER BY clause
         val orderByClause =
             if (hasQuery) {
-                "ORDER BY fi.similarity_score DESC, (fi.bacen_cod_inst = fi.cod_conglomerado_prudencial) DESC, (fi.bacen_cod_inst = fi.cod_conglomerado_financeiro) DESC"
+                "ORDER BY fi.similarity_score DESC, " +
+                    "(fi.bacen_cod_inst = fi.cod_conglomerado_prudencial) DESC, " +
+                    "(fi.bacen_cod_inst = fi.cod_conglomerado_financeiro) DESC"
             } else {
                 "ORDER BY fi.bacen_cod_inst ASC"
             }
@@ -404,22 +408,30 @@ open class BacenInstitutionRepositoryImpl(
     }
 
     @ReadOnly
-    override fun countBacenInstitutions(query: String?, anoMes: String?): Long {
+    override fun countBacenInstitutions(
+        query: String?,
+        anoMes: String?,
+    ): Long {
         val targetAnoMes = anoMes ?: return 0
 
         // Use native SQL for consistency with search query and to handle quarter filtering
         val hasQuery = query != null && query.isNotBlank()
         val likePattern = if (hasQuery) "%${query!!.lowercase()}%" else ""
 
-        val sql = """
+        val sql =
+            """
             SELECT COUNT(DISTINCT bi.bacen_cod_inst)
             FROM financial_data.bacen_institution bi
             WHERE bi.ano_mes_ref = ?
-            ${if (hasQuery) """
+            ${if (hasQuery) {
+                """
               AND (bi.nome_instituicao ILIKE ?
                    OR (bi.bacen_cod_inst ILIKE ? AND bi.bacen_cod_inst NOT ILIKE 'c%'))
-            """.trimIndent() else ""}
-        """.trimIndent()
+            """.trimIndent()
+            } else {
+                ""
+            }}
+            """.trimIndent()
 
         val nativeQuery = entityManager.createNativeQuery(sql)
         nativeQuery.setParameter(1, targetAnoMes)

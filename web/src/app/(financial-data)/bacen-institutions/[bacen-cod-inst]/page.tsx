@@ -108,9 +108,17 @@ export default function BacenInstitutionDetailPage() {
         </Box>
       }
     >
+
+
       <Page>
         <Box sx={{ mb: 4 }}>
           <BacenInstitutionSummaryPaper institution={institution} />
+        </Box>
+        {loadingReport ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+            <CircularProgress />
+          </Box>
+        ) : selectedReportId === "1" ? (
           <Box sx={{ mt: 4 }}>
             <SectionHeader
               title={t("lastBalanceSummary.title")}
@@ -123,12 +131,6 @@ export default function BacenInstitutionDetailPage() {
               }
             />
             <BacenInstitutionBalanceSummaryGrid institutionId={institution.id} />
-          </Box>
-        </Box>
-
-        {loadingReport ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-            <CircularProgress />
           </Box>
         ) : reportDetails ? (
           <Box>

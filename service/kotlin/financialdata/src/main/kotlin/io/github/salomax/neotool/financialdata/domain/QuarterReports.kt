@@ -8,7 +8,6 @@ data class QuarterReports(
      * Quarter in "YYYYMM" format
      */
     val quarter: String,
-
     /**
      * List of report descriptors available for this quarter
      */

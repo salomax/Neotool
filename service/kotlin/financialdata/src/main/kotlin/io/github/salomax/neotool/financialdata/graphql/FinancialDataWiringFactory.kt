@@ -63,8 +63,9 @@ class FinancialDataWiringFactory(
             .dataFetcher(
                 "bacenFinanceInstitution",
                 createValidatedDataFetcher { env ->
-                    val id = env.getArgument<String>("id")
-                        ?: throw IllegalArgumentException("id parameter is required")
+                    val id =
+                        env.getArgument<String>("id")
+                            ?: throw IllegalArgumentException("id parameter is required")
                     val anoMes = env.getArgument<String?>("anoMes")
                     institutionDetailResolver.bacenFinanceInstitution(id, anoMes)
                 },
@@ -367,12 +368,12 @@ class FinancialDataWiringFactory(
                     )
                     // New fields specific to BacenFinanceInstitution
                     .dataFetcher(
-                    "quarter",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val institution = env.getSource<BacenFinanceInstitutionDTO>()
-                        institution?.quarter
-                    },
-                )
+                        "quarter",
+                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                            val institution = env.getSource<BacenFinanceInstitutionDTO>()
+                            institution?.quarter
+                        },
+                    )
                     .dataFetcher(
                         "asset",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->

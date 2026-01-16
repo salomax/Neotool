@@ -9,17 +9,14 @@ data class ReportAccount(
      * Group from bacen_bank_report_account
      */
     val group: String?,
-
     /**
      * Account id (canonical normalized name like "ATIVO_TOTAL") from bacen_bank_report_account_canonical
      */
     val accountId: String?,
-
     /**
      * Account name (display name from canonical account) from bacen_bank_report_account_canonical
      */
     val accountName: String?,
-
     /**
      * Values by quarter for this account
      */

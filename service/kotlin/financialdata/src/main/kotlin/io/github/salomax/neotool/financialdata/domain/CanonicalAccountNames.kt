@@ -19,7 +19,7 @@ object CanonicalAccountNames {
     const val PATRIMONIO_LIQUIDO = "PATRIMONIO_LIQUIDO"
 
     /**
-     * Índice de Basileia (Basel Index)
+     * Índice de Basileia (Basileia Index)
      * Previously mapped from account number: 79664
      */
     const val INDICE_DE_BASILEIA = "INDICE_DE_BASILEIA"

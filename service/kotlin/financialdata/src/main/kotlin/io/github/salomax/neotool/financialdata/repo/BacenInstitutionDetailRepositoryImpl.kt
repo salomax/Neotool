@@ -21,12 +21,15 @@ open class BacenInstitutionDetailRepositoryImpl(
     private val entityManager: EntityManager,
     private val objectMapper: ObjectMapper,
 ) : BacenInstitutionDetailRepositoryCustom {
-
     @ReadOnly
-    override fun getFinancialInstitutionData(id: String, anoMes: String?): FinancialInstitutionDataResult? {
+    override fun getFinancialInstitutionData(
+        id: String,
+        anoMes: String?,
+    ): FinancialInstitutionDataResult? {
         val targetAnoMes = anoMes ?: return null
 
-        val sql = """
+        val sql =
+            """
             SELECT
                 bi.nome_instituicao,
                 bi.tipo_controle,
@@ -46,7 +49,7 @@ open class BacenInstitutionDetailRepositoryImpl(
                     ON fi.id = fibi.financial_institution_id
             WHERE bi.bacen_cod_inst = ?
               AND bi.ano_mes_ref = ?
-        """.trimIndent()
+            """.trimIndent()
 
         val query = entityManager.createNativeQuery(sql)
         query.setParameter(1, id)
@@ -76,11 +79,13 @@ open class BacenInstitutionDetailRepositoryImpl(
         val mapper = SqlResultMapper(row, columnIndices)
 
         // Parse social_network JSON
-        val socialNetworksJson = mapper.getValue("social_network") as? String
+        val socialNetworksJson =
+            mapper.getValue("social_network") as? String
         val socialNetworks = parseSocialNetworks(socialNetworksJson)
 
         // Parse receita_data JSON
-        val receitaDataJson = mapper.getValue("receita_data") as? String
+        val receitaDataJson =
+            mapper.getValue("receita_data") as? String
         val (mainActivity, address, founded) = parseReceitaData(receitaDataJson)
 
         return FinancialInstitutionDataResult(
@@ -100,10 +105,14 @@ open class BacenInstitutionDetailRepositoryImpl(
     }
 
     @ReadOnly
-    override fun getBacenBankReportData(id: String, anoMes: String?): List<BacenBankReportDataResult> {
+    override fun getBacenBankReportData(
+        id: String,
+        anoMes: String?,
+    ): List<BacenBankReportDataResult> {
         val targetAnoMes = anoMes ?: return emptyList()
 
-        val sql = """
+        val sql =
+            """
             SELECT
                 bi.bacen_cod_inst,
                 bi.ano_mes_ref,
@@ -147,14 +156,15 @@ open class BacenInstitutionDetailRepositoryImpl(
                 br.numero_relatorio,
                 bra.grupo,
                 bra.conta
-        """.trimIndent()
+            """.trimIndent()
 
         val query = entityManager.createNativeQuery(sql)
         query.setParameter(1, id)
         query.setParameter(2, targetAnoMes)
 
         @Suppress("UNCHECKED_CAST")
-        val results = query.resultList as? List<Array<Any?>> ?: return emptyList()
+        val results =
+            query.resultList as? List<Array<Any?>> ?: return emptyList()
 
         val columnIndices = mapOf(
             "bacen_cod_inst" to 0,
@@ -195,8 +205,10 @@ open class BacenInstitutionDetailRepositoryImpl(
             return emptyList()
         }
 
-        val quartersPlaceholder = quarters.joinToString(",") { "?" }
-        val sql = """
+        val quartersPlaceholder =
+            quarters.joinToString(",") { "?" }
+        val sql =
+            """
             SELECT DISTINCT
                 br.ano_mes as quarter,
                 br.numero_relatorio as report_id,
@@ -207,7 +219,7 @@ open class BacenInstitutionDetailRepositoryImpl(
             WHERE br.cod_inst = ?
                 AND br.ano_mes IN ($quartersPlaceholder)
             ORDER BY br.ano_mes DESC, br.numero_relatorio
-        """.trimIndent()
+            """.trimIndent()
 
         val query = entityManager.createNativeQuery(sql)
         query.setParameter(1, id)
@@ -216,7 +228,8 @@ open class BacenInstitutionDetailRepositoryImpl(
         }
 
         @Suppress("UNCHECKED_CAST")
-        val results = query.resultList as? List<Array<Any?>> ?: return emptyList()
+        val results =
+            query.resultList as? List<Array<Any?>> ?: return emptyList()
 
         val columnIndices = mapOf(
             "quarter" to 0,
@@ -230,9 +243,12 @@ open class BacenInstitutionDetailRepositoryImpl(
                 quarter = mapper.getString("quarter") ?: "",
                 reportId = mapper.getString("report_id") ?: "",
                 name = mapper.getString("name"),
-                group = null,  // Not available in summary - only in reportDetails
-                accountId = null,  // Not available in summary - only in reportDetails
-                accountName = null,  // Not available in summary - only in reportDetails
+                // Not available in summary - only in reportDetails
+                group = null,
+                // Not available in summary - only in reportDetails
+                accountId = null,
+                // Not available in summary - only in reportDetails
+                accountName = null,
             )
         }
     }
@@ -275,7 +291,7 @@ open class BacenInstitutionDetailRepositoryImpl(
                 account_name, 
                 br.ano_mes DESC, 
                 bra.grupo
-        """.trimIndent()
+            """.trimIndent()
 
         val query = entityManager.createNativeQuery(sql)
         query.setParameter(1, id)
@@ -285,7 +301,8 @@ open class BacenInstitutionDetailRepositoryImpl(
         }
 
         @Suppress("UNCHECKED_CAST")
-        val results = query.resultList as? List<Array<Any?>> ?: return emptyList()
+        val results =
+            query.resultList as? List<Array<Any?>> ?: return emptyList()
 
         val columnIndices = mapOf(
             "quarter" to 0,
@@ -315,17 +332,21 @@ open class BacenInstitutionDetailRepositoryImpl(
      * Calculate the list of quarters based on the range specification for a specific institution.
      * Returns quarters in descending order (most recent first).
      */
-    private fun calculateQuarterRange(id: String, range: QuarterRange): List<String> {
+    private fun calculateQuarterRange(
+        id: String,
+        range: QuarterRange,
+    ): List<String> {
         return when {
             range.last != null -> {
                 // Get last N quarters for this specific institution
-                val sql = """
+                val sql =
+                    """
                     SELECT DISTINCT ano_mes
                     FROM financial_data.bacen_bank_report
                     WHERE cod_inst = ?
                     ORDER BY ano_mes DESC
                     LIMIT ?
-                """.trimIndent()
+                    """.trimIndent()
 
                 val query = entityManager.createNativeQuery(sql)
                 query.setParameter(1, id)

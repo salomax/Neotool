@@ -79,6 +79,10 @@ export const createAppTheme = (mode: Mode) => {
         currencyPositive: t.palette.currencyPositive,
         currencyNegative: t.palette.currencyNegative,
         currencyNeutral: t.palette.currencyNeutral,
+        // Threshold colors for percentage indicators
+        thresholdBad: t.palette.thresholdBad,
+        thresholdRegular: t.palette.thresholdRegular,
+        thresholdGood: t.palette.thresholdGood,
       },
     },
   } as ThemeOptions & { custom?: { layout: typeof t.layout } };

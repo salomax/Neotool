@@ -29,7 +29,10 @@ class InstitutionSearchResolver(
      * @return BacenInstitutionAutocompleteConnectionDTO
      * @throws IllegalArgumentException if query is null or empty
      */
-    fun searchBacenInstitutionsAutocomplete(query: String, anoMes: String?): BacenInstitutionAutocompleteConnectionDTO {
+    fun searchBacenInstitutionsAutocomplete(
+        query: String,
+        anoMes: String?,
+    ): BacenInstitutionAutocompleteConnectionDTO {
         // Validate query
         if (query.isBlank()) {
             throw IllegalArgumentException("Query cannot be empty for autocomplete search")

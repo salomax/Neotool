@@ -10,13 +10,11 @@ data class QuarterRange(
      * Used when from/to is specified
      */
     val from: String? = null,
-
     /**
      * End quarter in "YYYYMM" format (inclusive)
      * Used when from/to is specified
      */
     val to: String? = null,
-
     /**
      * Number of most recent quarters to include
      * Used when last is specified

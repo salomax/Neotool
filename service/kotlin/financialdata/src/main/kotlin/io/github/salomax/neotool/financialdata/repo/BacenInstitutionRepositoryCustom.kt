@@ -1,7 +1,6 @@
 package io.github.salomax.neotool.financialdata.repo
 
 import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
-import io.github.salomax.neotool.financialdata.model.BacenInstitutionEntity
 
 /**
  * Custom query contract for BacenInstitution search operations.
@@ -60,5 +59,8 @@ interface BacenInstitutionRepositoryCustom {
      * @param anoMes Quarter filter (YYYYMM format). If null, uses latest quarter globally.
      * @return Total count of matching institutions (or all institutions if query is null/empty)
      */
-    fun countBacenInstitutions(query: String?, anoMes: String? = null): Long
+    fun countBacenInstitutions(
+        query: String?,
+        anoMes: String? = null,
+    ): Long
 }

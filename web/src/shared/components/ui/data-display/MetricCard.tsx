@@ -9,6 +9,7 @@ import {
   Area,
   ResponsiveContainer,
   XAxis,
+  YAxis,
 } from "recharts";
 import Card, {
   CardProps,
@@ -134,6 +135,7 @@ export function MetricCard({
 }: MetricCardProps) {
   const { t: tCommon } = useReactI18nTranslation("common");
   const theme = useTheme();
+  const chartId = React.useId().replace(/:/g, "_");
 
   const { variant, hoverable, onClick, ...cardRest } = rest;
 
@@ -262,6 +264,22 @@ export function MetricCard({
     [historical]
   );
 
+  const chartDomain = React.useMemo(() => {
+    if (!historical || historical.length === 0) return ["auto", "auto"];
+    const values = historical;
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+
+    const range = max - min;
+    if (range === 0) {
+      const margin = Math.abs(min) * 0.2 || 1;
+      return [min - margin, max + margin];
+    }
+
+    const margin = range * 0.2;
+    return [min - margin, max + margin];
+  }, [historical]);
+
   const showChart = chartData.length > 1;
 
   const rawPercentageValue =
@@ -357,11 +375,14 @@ export function MetricCard({
     percentageThresholdInverse,
   ]);
 
-  const thresholdColors = {
-    bad: "#F99797",
-    regular: "#FAD957",
-    good: "#61D48A",
-  } as const;
+  const thresholdColors = React.useMemo(() => {
+    const customTheme = theme as any;
+    return {
+      bad: customTheme.custom?.palette?.thresholdBad || "#F99797",
+      regular: customTheme.custom?.palette?.thresholdRegular || "#FAD957",
+      good: customTheme.custom?.palette?.thresholdGood || "#61D48A",
+    };
+  }, [theme]);
 
   const growthFormatted = React.useMemo(() => {
     if (!hasGrowth) {
@@ -398,7 +419,7 @@ export function MetricCard({
         justifyContent: "space-between",
         position: "relative",
         overflow: "hidden",
-        minHeight: 168,
+        minHeight: (theme) => (theme as any).custom?.layout?.metricCard?.minHeight ?? 168,
         ...sx,
       }}
       {...cardRest}
@@ -410,9 +431,8 @@ export function MetricCard({
             left: 0,
             right: 0,
             bottom: 0,
-            height: 60,
+            height: (theme) => (theme as any).custom?.layout?.metricCard?.chartHeight ?? 100,
             pointerEvents: "none",
-            opacity: 0.35,
           }}
         >
           <ResponsiveContainer width="100%" height="100%">
@@ -420,6 +440,18 @@ export function MetricCard({
               data={chartData}
               margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
             >
+              <defs>
+                <linearGradient id={`${chartId}-stroke`} x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor={growthColor} stopOpacity={0} />
+                  <stop offset="50%" stopColor={growthColor} stopOpacity={0.1} />
+                  <stop offset="100%" stopColor={growthColor} stopOpacity={0.3} />
+                </linearGradient>
+                <linearGradient id={`${chartId}-fill`} x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor={growthColor} stopOpacity={0} />
+                  <stop offset="50%" stopColor={growthColor} stopOpacity={0.02} />
+                  <stop offset="100%" stopColor={growthColor} stopOpacity={0.1} />
+                </linearGradient>
+              </defs>
               <XAxis
                 dataKey="index"
                 type="number"
@@ -429,12 +461,14 @@ export function MetricCard({
                 axisLine={false}
                 tickLine={false}
               />
+              <YAxis domain={chartDomain} hide />
               <Area
                 type="monotone"
                 dataKey="value"
-                stroke={chartStrokeColor}
-                fill={chartFillColor}
+                stroke={`url(#${chartId}-stroke)`}
+                fill={`url(#${chartId}-fill)`}
                 strokeWidth={2}
+                baseValue={chartDomain[0] as number}
                 isAnimationActive
               />
             </RechartsAreaChart>
@@ -493,7 +527,7 @@ export function MetricCard({
             <Typography
               variant="body1"
               component="span"
-              sx={{ fontWeight: 500, color: "text.secondary", opacity: 0.5  }}
+              sx={{ fontWeight: 500, color: "text.secondary", opacity: 0.5 }}
             >
               {mainValueParts.suffix}
             </Typography>

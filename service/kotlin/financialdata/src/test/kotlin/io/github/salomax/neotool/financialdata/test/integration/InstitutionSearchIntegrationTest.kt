@@ -9,6 +9,7 @@ import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.common.test.json.read
 import io.github.salomax.neotool.financialdata.model.BacenInstitutionEntity
+import io.github.salomax.neotool.financialdata.model.BacenInstitutionId
 import io.github.salomax.neotool.financialdata.repo.BacenInstitutionRepository
 import io.micronaut.http.HttpRequest
 import io.micronaut.http.MediaType
@@ -47,22 +48,28 @@ class InstitutionSearchIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
         // Create test institutions for integration tests
         val testInstitutions = listOf(
             BacenInstitutionEntity(
-                bacenCodInst = "001",
-                anoMesRef = "202403",
+                id = BacenInstitutionId(
+                    bacenCodInst = "001",
+                    anoMesRef = "202403",
+                ),
                 sourceHash = calculateHash("001", "Banco do Brasil", "202403"),
                 nomeInstituicao = "Banco do Brasil S.A.",
                 situacao = 'A',
             ),
             BacenInstitutionEntity(
-                bacenCodInst = "033",
-                anoMesRef = "202403",
+                id = BacenInstitutionId(
+                    bacenCodInst = "033",
+                    anoMesRef = "202403",
+                ),
                 sourceHash = calculateHash("033", "Banco Santander", "202403"),
                 nomeInstituicao = "Banco Santander (Brasil) S.A.",
                 situacao = 'A',
             ),
             BacenInstitutionEntity(
-                bacenCodInst = "104",
-                anoMesRef = "202403",
+                id = BacenInstitutionId(
+                    bacenCodInst = "104",
+                    anoMesRef = "202403",
+                ),
                 sourceHash = calculateHash("104", "Caixa Econômica Federal", "202403"),
                 nomeInstituicao = "Caixa Econômica Federal",
                 situacao = 'A',

@@ -25,10 +25,11 @@ data class BacenInstitution(
 ) {
     fun toEntity(): BacenInstitutionEntity {
         return BacenInstitutionEntity(
-            id = BacenInstitutionId(
-                bacenCodInst = this.bacenCodInst,
-                anoMesRef = this.anoMesRef,
-            ),
+            id =
+                BacenInstitutionId(
+                    bacenCodInst = this.bacenCodInst,
+                    anoMesRef = this.anoMesRef,
+                ),
             sourceHash = this.sourceHash,
             nomeInstituicao = this.nomeInstituicao,
             situacao = this.situacao,

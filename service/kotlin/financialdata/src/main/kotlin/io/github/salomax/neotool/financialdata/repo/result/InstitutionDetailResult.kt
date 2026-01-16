@@ -20,17 +20,22 @@ data class InstitutionDetailResult(
     val basileiaIndex: BigDecimal?,
     val bacenInstitutionType: Int?,
     val tipoConsolidadoBancario: String?,
-    val institutionType: String?, // "I" or "C"
-
+    // "I" or "C"
+    val institutionType: String?,
     // Enriched fields
-    val quarter: String?, // Latest ano_mes
+    // Latest ano_mes
+    val quarter: String?,
     val website: String?,
     val socialNetworks: List<String>?,
     val mainActivity: String?,
-    val address: String?, // Formatted as "city, state"
-    val founded: String?, // Formatted date
-    val tipoControle: String?, // "1", "2", or "3"
-    val tipoConsolidadoBancarioCode: String?, // "b1", "B2", etc.
+    // Formatted as "city, state"
+    val address: String?,
+    // Formatted date
+    val founded: String?,
+    // "1", "2", or "3"
+    val tipoControle: String?,
+    // "b1", "B2", etc.
+    val tipoConsolidadoBancarioCode: String?,
     val mobilizacaoIndex: BigDecimal?,
     val totalAssets: BigDecimal?,
     val funding: BigDecimal?,

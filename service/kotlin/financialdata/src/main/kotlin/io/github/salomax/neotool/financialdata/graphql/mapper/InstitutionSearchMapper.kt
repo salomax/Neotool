@@ -38,12 +38,13 @@ class InstitutionSearchMapper {
                             cursor = edge.cursor,
                         )
                     },
-            pageInfo = PageInfoDTO(
-                hasNextPage = connection.pageInfo.hasNextPage,
-                hasPreviousPage = connection.pageInfo.hasPreviousPage,
-                startCursor = connection.pageInfo.startCursor,
-                endCursor = connection.pageInfo.endCursor,
-            ),
+            pageInfo =
+                PageInfoDTO(
+                    hasNextPage = connection.pageInfo.hasNextPage,
+                    hasPreviousPage = connection.pageInfo.hasPreviousPage,
+                    startCursor = connection.pageInfo.startCursor,
+                    endCursor = connection.pageInfo.endCursor,
+                ),
             totalCount = connection.totalCount?.toInt(),
         )
     }

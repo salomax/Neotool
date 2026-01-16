@@ -10,7 +10,6 @@ data class QuarterValue(
      * Quarter in "YYYYMM" format
      */
     val quarter: String,
-
     /**
      * Value for this quarter (saldo from bacen_bank_report_data)
      */

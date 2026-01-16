@@ -6,11 +6,15 @@ import java.math.BigDecimal
  * Result object for report value queries.
  */
 data class ReportValueResult(
-    val quarter: String, // "YYYYMM"
-    val reportId: String, // numero_relatorio
-    val name: String?, // nome_relatorio from catalog
+    // "YYYYMM"
+    val quarter: String,
+    // numero_relatorio
+    val reportId: String,
+    // nome_relatorio from catalog
+    val name: String?,
     val accountGroup: String?,
     val accountId: String?,
     val accountName: String?,
-    val value: BigDecimal?, // saldo from bacen_bank_report_data
+    // saldo from bacen_bank_report_data
+    val value: BigDecimal?,
 )

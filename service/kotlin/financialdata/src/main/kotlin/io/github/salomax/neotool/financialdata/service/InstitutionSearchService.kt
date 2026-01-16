@@ -151,7 +151,10 @@ open class InstitutionSearchService(
                         )
                     }
 
-            logger.debug { "Institution search returned ${institutions.size} results, totalCount=$totalCount, hasMore=$hasMore" }
+            logger.debug {
+                "Institution search returned ${institutions.size} results, " +
+                    "totalCount=$totalCount, hasMore=$hasMore"
+            }
 
             // Build connection with composite cursor encoding (using bacen_cod_inst)
             ConnectionBuilder.buildConnection(

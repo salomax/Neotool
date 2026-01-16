@@ -13,12 +13,13 @@ open class QuarterRepositoryImpl(
     private val entityManager: EntityManager,
 ) : QuarterRepositoryCustom {
     /**
-     * This query ensures the returned quarter is 
+     * This query ensures the returned quarter is
      * fully processed and ready for use.
      */
     @ReadOnly
     override fun getLatestQuarter(): String? {
-        val sql = """
+        val sql =
+            """
             SELECT MAX(bi.ano_mes_ref)
             FROM financial_data.bacen_institution bi
             WHERE NOT EXISTS (
@@ -27,7 +28,7 @@ open class QuarterRepositoryImpl(
                 WHERE task.ano_mes = bi.ano_mes_ref
                   AND task.status NOT IN ('SUCCESS', 'EMPTY')
             )
-        """.trimIndent()
+            """.trimIndent()
         val nativeQuery = entityManager.createNativeQuery(sql)
         val result = nativeQuery.singleResult as? String
         return result

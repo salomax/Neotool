@@ -9,11 +9,16 @@ import java.math.BigDecimal
 data class BacenBankReportDataResult(
     val bacenCodInst: String,
     val anoMesRef: String,
-    val reportNumber: String, // numero_relatorio
-    val reportName: String?, // nome_relatorio
+    // numero_relatorio
+    val reportNumber: String,
+    // nome_relatorio
+    val reportName: String?,
     val group: String?,
-    val account: String?, // Original account number (conta) - kept for backward compatibility
-    val canonicalAccountName: String?, // Normalized canonical account name
+    // Original account number (conta) - kept for backward compatibility
+    val account: String?,
+    // Normalized canonical account name
+    val canonicalAccountName: String?,
     val columnName: String?,
-    val balance: BigDecimal?, // saldo
+    // saldo
+    val balance: BigDecimal?,
 )

@@ -19,7 +19,10 @@ interface BacenInstitutionDetailRepositoryCustom {
      * @param anoMes Quarter filter (YYYYMM format). If null, uses latest quarter globally.
      * @return FinancialInstitutionDataResult or null if not found
      */
-    fun getFinancialInstitutionData(id: String, anoMes: String? = null): FinancialInstitutionDataResult?
+    fun getFinancialInstitutionData(
+        id: String,
+        anoMes: String? = null,
+    ): FinancialInstitutionDataResult?
 
     /**
      * Get BACEN bank report data from bacen_bank_report and related tables.
@@ -29,7 +32,10 @@ interface BacenInstitutionDetailRepositoryCustom {
      * @param anoMes Quarter filter (YYYYMM format). If null, uses latest quarter globally.
      * @return List of BacenBankReportDataResult, empty list if no data found
      */
-    fun getBacenBankReportData(id: String, anoMes: String? = null): List<BacenBankReportDataResult>
+    fun getBacenBankReportData(
+        id: String,
+        anoMes: String? = null,
+    ): List<BacenBankReportDataResult>
 
     /**
      * Get available reports grouped by quarter for an institution within a quarter range.

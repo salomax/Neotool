@@ -31,8 +31,9 @@ class SqlResultMapper(
      * Gets the raw value from the specified column.
      */
     fun getValue(columnName: String): Any? {
-        val index = columnIndices[columnName]
-            ?: throw IllegalArgumentException("Column '$columnName' not found in column indices")
+        val index =
+            columnIndices[columnName]
+                ?: throw IllegalArgumentException("Column '$columnName' not found in column indices")
         return row[index]
     }
 
@@ -96,13 +97,13 @@ class SqlResultMapper(
         val value = getValue(columnName) ?: return null
         return when (value) {
             is UUID -> value
-            is String -> try {
-                UUID.fromString(value)
-            } catch (e: IllegalArgumentException) {
-                null
-            }
+            is String ->
+                try {
+                    UUID.fromString(value)
+                } catch (e: IllegalArgumentException) {
+                    null
+                }
             else -> null
         }
     }
 }
-

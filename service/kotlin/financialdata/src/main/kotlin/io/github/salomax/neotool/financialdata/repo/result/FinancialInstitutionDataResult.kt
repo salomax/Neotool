@@ -9,9 +9,12 @@ import java.util.UUID
 data class FinancialInstitutionDataResult(
     // From bacen_institution
     val nomeInstituicao: String?,
-    val tipoControle: String?, // "1", "2", or "3"
-    val tipoConsolidacao: String?, // "I" or "C"
-    val tipoConsolidadoBancario: String?, // "b1", "B2", etc.
+    // "1", "2", or "3"
+    val tipoControle: String?,
+    // "I" or "C"
+    val tipoConsolidacao: String?,
+    // "b1", "B2", etc.
+    val tipoConsolidadoBancario: String?,
     // From financial_institution
     val legalName: String?,
     val tradeName: String?,

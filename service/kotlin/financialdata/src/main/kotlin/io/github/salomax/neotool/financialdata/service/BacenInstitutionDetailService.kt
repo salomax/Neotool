@@ -34,7 +34,10 @@ open class BacenInstitutionDetailService(
      * @param anoMes Quarter filter (YYYYMM format). If null, uses latest quarter globally.
      * @return BacenFinanceInstitution or null if not found
      */
-    fun getBacenFinanceInstitution(id: String, anoMes: String? = null): BacenFinanceInstitution? {
+    fun getBacenFinanceInstitution(
+        id: String,
+        anoMes: String? = null,
+    ): BacenFinanceInstitution? {
         logger.debug { "Fetching BacenFinanceInstitution for id=$id, anoMes=$anoMes" }
 
         val targetAnoMes = anoMes ?: quarterService.getLatestQuarter()
@@ -66,12 +69,15 @@ open class BacenInstitutionDetailService(
         val institutionBankType = mapInstitutionBankType(financialData.tipoConsolidadoBancario)
 
         // Map institution type
-        val institutionType = mapInstitutionType(
-            tipoConsolidacao = financialData.tipoConsolidacao,
-            bacenCodInst = id,
-            codConglomeradoPrudencial = null, // Not available in detail result
-            codConglomeradoFinanceiro = null, // Not available in detail result
-        )
+        val institutionType =
+            mapInstitutionType(
+                tipoConsolidacao = financialData.tipoConsolidacao,
+                bacenCodInst = id,
+                // Not available in detail result
+                codConglomeradoPrudencial = null,
+                // Not available in detail result
+                codConglomeradoFinanceiro = null,
+            )
 
         // Get latest quarter from report data
         val latestQuarter = reportData.firstOrNull()?.anoMesRef
@@ -117,11 +123,12 @@ open class BacenInstitutionDetailService(
         val accountMap = reportData.associateBy { it.canonicalAccountName ?: it.account }
 
         // Expected canonical account names for financial metrics
-        val expectedAccounts = setOf(
-            CanonicalAccountNames.LUCRO_LIQUIDO,
-            CanonicalAccountNames.PATRIMONIO_LIQUIDO,
-            CanonicalAccountNames.INDICE_DE_BASILEIA,
-            CanonicalAccountNames.INDICE_DE_IMOBILIZACAO,
+        val expectedAccounts =
+            setOf(
+                CanonicalAccountNames.LUCRO_LIQUIDO,
+                CanonicalAccountNames.PATRIMONIO_LIQUIDO,
+                CanonicalAccountNames.INDICE_DE_BASILEIA,
+                CanonicalAccountNames.INDICE_DE_IMOBILIZACAO,
             CanonicalAccountNames.ATIVO_TOTAL,
             CanonicalAccountNames.CAPTACOES,
             CanonicalAccountNames.CARTEIRA_DE_CREDITO,
@@ -185,23 +192,28 @@ open class BacenInstitutionDetailService(
      * @param range Quarter range filter
      * @return ReportsAvailability with quarters and their reports
      */
-    fun getReportsSummary(id: String, range: QuarterRange): ReportsAvailability {
+    fun getReportsSummary(
+        id: String,
+        range: QuarterRange,
+    ): ReportsAvailability {
         val reports = institutionDetailRepository.getReportsByQuarterRange(id, range)
 
         // Group by quarter
         val quartersMap = reports.groupBy { it.quarter }
 
-        val quarterReports = quartersMap.map { (quarter, reports) ->
-            // Deduplicate by reportId (defensive - SQL DISTINCT should handle this)
-            val uniqueReports = reports.distinctBy { it.reportId }
+        val quarterReports =
+            quartersMap.map { (quarter, reports) ->
+                // Deduplicate by reportId (defensive - SQL DISTINCT should handle this)
+                val uniqueReports = reports.distinctBy { it.reportId }
 
-            QuarterReports(
-                quarter = quarter,
-                reports = uniqueReports.map { report ->
-                    ReportDescriptor(
-                        reportId = report.reportId,
-                        name = report.name,
-                        // group, accountId, accountName not set (default to null)
+                QuarterReports(
+                    quarter = quarter,
+                    reports =
+                        uniqueReports.map { report ->
+                            ReportDescriptor(
+                                reportId = report.reportId,
+                                name = report.name,
+                                // group, accountId, accountName not set (default to null)
                         // These fields are only available in reportDetails
                     )
                 },
@@ -220,10 +232,15 @@ open class BacenInstitutionDetailService(
      * @param range Quarter range filter
      * @return ReportDetails or null if report not found
      */
-    fun getReportDetails(id: String, reportId: String, range: QuarterRange): ReportDetails? {
+    fun getReportDetails(
+        id: String,
+        reportId: String,
+        range: QuarterRange,
+    ): ReportDetails? {
         logger.debug { "Fetching report details for id=$id, reportId=$reportId, range=$range" }
 
-        val values = institutionDetailRepository.getReportDetailsByQuarterRange(id, reportId, range)
+        val values =
+            institutionDetailRepository.getReportDetailsByQuarterRange(id, reportId, range)
 
         if (values.isEmpty()) {
             logger.debug { "No report details found for id=$id, reportId=$reportId, range=$range" }
@@ -234,12 +251,13 @@ open class BacenInstitutionDetailService(
         val first = values.first()
 
         // Group values by account (composite key: accountGroup, accountId, accountName)
-        val accountsMap = values.groupBy { value ->
-            Triple(
-                value.accountGroup,
-                value.accountId,
-                value.accountName,
-            )
+        val accountsMap =
+            values.groupBy { value ->
+                Triple(
+                    value.accountGroup,
+                    value.accountId,
+                    value.accountName,
+                )
         }
 
         // Create ReportAccount for each unique account
@@ -263,7 +281,7 @@ open class BacenInstitutionDetailService(
         }.sortedWith(
             // Sort accounts consistently: by accountId then group
             compareBy<ReportAccount> { it.accountId ?: "" }
-                .thenBy { it.group ?: "" }
+                .thenBy { it.group ?: "" },
         )
 
         return ReportDetails(
@@ -335,7 +353,10 @@ open class BacenInstitutionDetailService(
                 BacenInstitutionType.INDIVIDUAL_INSTITUTION
             }
             else -> {
-                logger.debug { "Could not determine institution type for bacenCodInst=$bacenCodInst, tipoConsolidacao=$tipoConsolidacao" }
+                logger.debug {
+                    "Could not determine institution type for " +
+                        "bacenCodInst=$bacenCodInst, tipoConsolidacao=$tipoConsolidacao"
+                }
                 null
             }
         }

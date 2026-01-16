@@ -23,7 +23,7 @@
     "netProfit": "Net Profit",
     "equity": "Equity",
     "yoyGrowth": "YoY Growth",
-    "baselIndex": "Basel Index"
+    "baselIndex": "Basileia Index"
   },
   "institutionSummary": {
     "cnpj": "CNPJ",
@@ -72,7 +72,7 @@
     "securities": "Securities",
     "netProfit": "Net Profit",
     "liabilities": "Liabilities",
-    "baselIndex": "Basel Index",
+    "baselIndex": "Basileia Index",
     "fixedAssetsIndex": "Fixed Assets Index",
     "referenceEquity": "Reference Equity",
     "classifiedCreditPortfolio": "Classified Credit Portfolio",

@@ -17,13 +17,11 @@ export function BacenInstitutionBalanceSummaryGrid({
 
   if (!institutionId) return null;
 
-  // Split items into three lines:
+  // Split items:
   // First line: Items 0-2 (Net Profit, Basel Index, Fixed Assets Index)
-  // Second line: Items 3-7 (Total Assets, Funding, Credit Portfolio, Net Equity, Reference Equity)
-  // Third line: Items 8-11 (Classified Credit Portfolio, Current and Long-term Liabilities, Liabilities, Securities)
+  // Remaining lines: All other items (Total Assets, Funding, etc.) - Dynamic grid
   const firstLineItems = gridItems.slice(0, 3);
-  const secondLineItems = gridItems.slice(3, 8);
-  const thirdLineItems = gridItems.slice(8, 12);
+  const remainingItems = gridItems.slice(3);
 
   return (
     <Box>
@@ -41,18 +39,12 @@ export function BacenInstitutionBalanceSummaryGrid({
       />
       <Box sx={{ mt: 2 }}>
         <MetricGrid
-          items={secondLineItems}
+          items={remainingItems}
           loading={loading}
-          columns={{ xs: 1, sm: 2, md: 5 }}
-          gap={2}
-          skeletonHeights={{ metric: 140, percentage: 140 }}
-        />
-      </Box>
-      <Box sx={{ mt: 2 }}>
-        <MetricGrid
-          items={thirdLineItems}
-          loading={loading}
-          columns={{ xs: 1, sm: 2, md: 4 }}
+          templateColumns={{
+            xs: "1fr",
+            sm: "repeat(auto-fill, minmax(240px, 1fr))",
+          }}
           gap={2}
           skeletonHeights={{ metric: 140, percentage: 140 }}
         />

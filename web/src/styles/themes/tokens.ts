@@ -34,6 +34,10 @@ export interface DesignTokens {
     stack: {
       gap: number;
     };
+    metricCard: {
+      minHeight: number;
+      chartHeight: number;
+    };
   };
   typography: {
     fontFamily: string;
@@ -71,6 +75,10 @@ export interface DesignTokens {
     currencyPositive: string;
     currencyNegative: string;
     currencyNeutral: string;
+    // Threshold colors for percentage indicators
+    thresholdBad: string;
+    thresholdRegular: string;
+    thresholdGood: string;
   };
 }
 
@@ -94,6 +102,10 @@ export const tokens: Record<Mode, DesignTokens> = {
       },
       stack: {
         gap: 2,
+      },
+      metricCard: {
+        minHeight: 168,
+        chartHeight: 100,
       },
     },
     typography: {
@@ -132,6 +144,10 @@ export const tokens: Record<Mode, DesignTokens> = {
       currencyPositive: "#16a34a", // success color for positive values
       currencyNegative: "#dc2626", // error color for negative values  
       currencyNeutral: "#0f172a", // text color for neutral values
+      // Threshold colors for percentage indicators
+      thresholdBad: "#F99797",
+      thresholdRegular: "#FAD957",
+      thresholdGood: "#61D48A",
     },
   },
   dark: {
@@ -153,6 +169,10 @@ export const tokens: Record<Mode, DesignTokens> = {
       },
       stack: {
         gap: 2,
+      },
+      metricCard: {
+        minHeight: 168,
+        chartHeight: 100,
       },
     },
     typography: {
@@ -191,6 +211,10 @@ export const tokens: Record<Mode, DesignTokens> = {
       currencyPositive: "#22c55e", // success color for positive values
       currencyNegative: "#ef4444", // error color for negative values  
       currencyNeutral: "#e5e7eb", // text color for neutral values
+      // Threshold colors for percentage indicators
+      thresholdBad: "#F99797",
+      thresholdRegular: "#FAD957",
+      thresholdGood: "#61D48A",
     },
   },
 };

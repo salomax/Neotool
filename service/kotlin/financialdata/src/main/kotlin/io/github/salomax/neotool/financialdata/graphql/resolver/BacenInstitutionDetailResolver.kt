@@ -29,7 +29,10 @@ class BacenInstitutionDetailResolver(
      * @param anoMes Quarter filter (YYYYMM format). If null, uses latest quarter globally.
      * @return BacenFinanceInstitutionDTO or null if not found
      */
-    fun bacenFinanceInstitution(id: String, anoMes: String?): BacenFinanceInstitutionDTO? {
+    fun bacenFinanceInstitution(
+        id: String,
+        anoMes: String?,
+    ): BacenFinanceInstitutionDTO? {
         val institution = institutionDetailService.getBacenFinanceInstitution(id, anoMes)
         return institution?.let { mapper.toBacenFinanceInstitutionDTO(it) }
     }
@@ -42,10 +45,12 @@ class BacenInstitutionDetailResolver(
      * @return ReportsAvailabilityDTO
      */
     fun reportsSummary(environment: DataFetchingEnvironment): ReportsAvailabilityDTO {
-        val institution = environment.getSource<BacenFinanceInstitutionDTO>()
-            ?: throw IllegalStateException("Institution source is required")
-        val rangeInput = environment.getArgument<Map<String, Any?>>("range")
-            ?: throw IllegalArgumentException("range parameter is required")
+        val institution =
+            environment.getSource<BacenFinanceInstitutionDTO>()
+                ?: throw IllegalStateException("Institution source is required")
+        val rangeInput =
+            environment.getArgument<Map<String, Any?>>("range")
+                ?: throw IllegalArgumentException("range parameter is required")
 
         val range = parseQuarterRange(rangeInput)
         val availability = institutionDetailService.getReportsSummary(institution.id, range)
@@ -60,16 +65,20 @@ class BacenInstitutionDetailResolver(
      * @return ReportDetailsDTO
      */
     fun reportDetails(environment: DataFetchingEnvironment): ReportDetailsDTO {
-        val institution = environment.getSource<BacenFinanceInstitutionDTO>()
-            ?: throw IllegalStateException("Institution source is required")
-        val reportId = environment.getArgument<String>("reportId")
-            ?: throw IllegalArgumentException("reportId parameter is required")
-        val rangeInput = environment.getArgument<Map<String, Any?>>("range")
-            ?: throw IllegalArgumentException("range parameter is required")
+        val institution =
+            environment.getSource<BacenFinanceInstitutionDTO>()
+                ?: throw IllegalStateException("Institution source is required")
+        val reportId =
+            environment.getArgument<String>("reportId")
+                ?: throw IllegalArgumentException("reportId parameter is required")
+        val rangeInput =
+            environment.getArgument<Map<String, Any?>>("range")
+                ?: throw IllegalArgumentException("range parameter is required")
 
         val range = parseQuarterRange(rangeInput)
-        val details = institutionDetailService.getReportDetails(institution.id, reportId, range)
-            ?: throw IllegalArgumentException("Report not found: $reportId")
+        val details =
+            institutionDetailService.getReportDetails(institution.id, reportId, range)
+                ?: throw IllegalArgumentException("Report not found: $reportId")
 
         return mapper.toReportDetailsDTO(details)
     }
