@@ -3,34 +3,53 @@ title: Infrastructure & Operations
 type: infrastructure
 category: deployment
 status: current
-version: 1.0.0
+version: 2.0.0
 tags: [infrastructure, deployment, operations, kubernetes, docker, terraform]
 ai_optimized: true
 search_keywords: [infrastructure, deployment, operations, kubernetes, docker, devops, sre]
 related:
+  - 11-infrastructure/architecture.md
+  - 11-infrastructure/k8s-runbook.md
+  - 11-infrastructure/hostinger-runbook.md
   - 02-architecture/infrastructure-architecture.md
   - 08-workflows/deployment-workflow.md
   - 10-observability/observability-overview.md
   - 92-adr/0002-containerized-architecture.md
-last_updated: 2026-01-02
+last_updated: 2026-01-15
 ---
 
 # Infrastructure & Operations
 
 > **Purpose**: Operational guides, deployment procedures, runbooks, and infrastructure management for NeoTool in production.
 
+## 🚀 Start Here
+
+**New to Neotool infrastructure?** Start with these three focused guides:
+
+### **📐 [Infrastructure Architecture](./architecture.md)** - High-Level Overview
+Understanding the system design, technology choices, and component relationships.
+
+### **☸️ [Kubernetes Operations Runbook](./k8s-runbook.md)** - Day-to-Day Kubernetes Operations
+Complete guide for GitOps workflows, pod management, database access, monitoring, and troubleshooting.
+
+### **🖥️ [Hostinger Infrastructure Runbook](./hostinger-runbook.md)** - VPS Provisioning & K3S Setup
+Terraform automation, K3S cluster management, and VPS-level operations.
+
+---
+
 ## Overview
 
 This section provides **operational documentation** for deploying, managing, and troubleshooting NeoTool infrastructure. While [Infrastructure Architecture](../02-architecture/infrastructure-architecture.md) describes the **design**, this section covers the **operations**.
 
-### What's Here
+### Documentation Structure
 
-- **Deployment Guides**: Step-by-step deployment procedures
-- **Operations Runbooks**: Common operational tasks and procedures
-- **Troubleshooting**: Issue diagnosis and resolution
-- **Disaster Recovery**: Backup, restore, and failover procedures
-- **Scaling Guides**: Horizontal and vertical scaling procedures
-- **Maintenance**: Routine maintenance and update procedures
+```
+docs/11-infrastructure/
+├── README.md                  # This file (navigation)
+├── architecture.md            # High-level infrastructure overview
+├── k8s-runbook.md            # Kubernetes operations & troubleshooting
+└── hostinger-runbook.md      # VPS provisioning & K3S management
+```
 
 ---
 
@@ -38,55 +57,41 @@ This section provides **operational documentation** for deploying, managing, and
 
 ### For DevOps/SRE
 
-**First Day**:
-1. [K3S Setup Guide](./k3s-setup.md) - Set up K3S cluster
-2. [K8S Deployment Runbook](./k8s-deployment-runbook.md) - Deploy to Kubernetes
-3. [Hostinger VPC Runbook](./hostinger-vpc-runbook.md) - Deploy to Hostinger VPC
-4. [Operations Runbook](./operations-runbook.md) - Day-to-day operations
-5. [Monitoring Setup](./monitoring-setup.md) - Configure observability
+**📐 Architecture Understanding**:
+1. **[Infrastructure Architecture](./architecture.md)** - System design and components
+   - Architecture patterns (GitOps, layered)
+   - Technology stack and rationale
+   - Component architecture
+   - Network, storage, and security architecture
 
-**Ongoing**:
-- [Troubleshooting Guide](./troubleshooting-guide.md) - Diagnose issues
-- [Incident Response](./incident-response.md) - Handle outages
-- [Scaling Guide](./scaling-guide.md) - Scale resources
+**🖥️ Infrastructure Provisioning**:
+2. **[Hostinger Infrastructure Runbook](./hostinger-runbook.md)** - VPS and K3S setup
+   - VPS creation and SSH setup
+   - Terraform provisioning automation
+   - K3S cluster management
+   - VPS operations and troubleshooting
+
+**☸️ Kubernetes Operations**:
+3. **[Kubernetes Operations Runbook](./k8s-runbook.md)** - Daily operations
+   - GitOps with Flux CD
+   - Pod and deployment management
+   - Database operations (PostgreSQL, PgBouncer)
+   - Secrets management (Vault)
+   - Monitoring and logs
+   - Comprehensive troubleshooting
 
 ### For Developers
 
-**Deployment**:
-- [Local Development Setup](../01-overview/getting-started.md)
-- [K3S Setup](./k3s-setup.md) - Set up local K3S cluster
-- [K8S Deployment](./k8s-deployment-runbook.md) - Deploy to Kubernetes
-- [Hostinger Setup](./hostinger-setup-guide.md) - Configure Hostinger VPC
-- [Hostinger Deployment](./hostinger-vpc-runbook.md) - Deploy to Hostinger VPC
-- [Deploy to Staging](./deployment-guide.md#staging) - Docker Compose staging
-- [Deploy to Production](./k8s-deployment-runbook.md#production-vpc-deployment) - K3S production
+**Understanding Infrastructure**:
+- [Infrastructure Architecture](./architecture.md) - High-level overview
+- [Kubernetes Operations Runbook](./k8s-runbook.md) - Day-to-day operations
 
-**Debugging**:
-- [Access Logs](./operations-runbook.md#viewing-logs)
-- [Database Access](./operations-runbook.md#database-access)
-- [Port Forwarding](./operations-runbook.md#port-forwarding)
-
----
-
-## Documentation Structure
-
-```
-11-infrastructure/
-├── README.md                    # This file (navigation)
-├── deployment-guide.md          # Deployment procedures (Docker Compose)
-├── k8s-deployment-runbook.md    # Kubernetes/K3S deployment procedures
-├── k3s-setup.md                 # K3S installation and configuration
-├── terraform-guide.md            # Terraform infrastructure management
-├── hostinger-setup-guide.md     # Hostinger VPC setup and configuration
-├── hostinger-vpc-runbook.md     # Hostinger VPC deployment runbook
-├── operations-runbook.md        # Day-to-day operations
-├── troubleshooting-guide.md     # Issue resolution
-├── monitoring-setup.md          # Observability configuration
-├── disaster-recovery.md         # Backup and restore
-├── scaling-guide.md             # Resource scaling
-├── security-operations.md       # Security procedures
-└── maintenance-guide.md         # Routine maintenance
-```
+**Common Tasks**:
+- [Deploy via GitOps](./k8s-runbook.md#deploying-applications-via-gitops) - Push to Git → Auto-deploy
+- [View Logs](./k8s-runbook.md#logs--debugging) - kubectl logs, stern, Loki queries
+- [Database Access](./k8s-runbook.md#database-operations) - psql, pg_dump, queries
+- [Port Forwarding](./k8s-runbook.md#port-forwarding) - Access services locally
+- [Local Development](../01-overview/getting-started.md) - Docker Compose local env
 
 ---
 
@@ -96,89 +101,77 @@ This section provides **operational documentation** for deploying, managing, and
 
 | Task | Documentation | Frequency |
 |------|--------------|-----------|
-| Deploy to staging | [Deployment Guide](./deployment-guide.md#staging) | Per PR |
-| Deploy to production | [Deployment Guide](./deployment-guide.md#production) | Weekly |
-| Rollback deployment | [Deployment Guide](./deployment-guide.md#rollback) | As needed |
-| Blue-green deployment | [Deployment Guide](./deployment-guide.md#blue-green) | Major releases |
+| **Deploy via GitOps** | [K8S Runbook - GitOps](./k8s-runbook.md#gitops-with-flux-cd) | **On every Git push** |
+| Initial infrastructure setup | [Hostinger Runbook](./hostinger-runbook.md) | One-time |
+| Update application | Edit manifests in Git → Push → Flux auto-deploys | Per feature |
+| Rollback deployment | `git revert` → Push → Flux auto-reverts | As needed |
 
 ### Operations
 
 | Task | Documentation | Frequency |
 |------|--------------|-----------|
-| View application logs | [Operations Runbook](./operations-runbook.md#logs) | Daily |
-| Scale pods | [Scaling Guide](./scaling-guide.md#horizontal) | As needed |
-| Database backup | [Disaster Recovery](./disaster-recovery.md#backup) | Daily (automated) |
-| Certificate renewal | [Maintenance Guide](./maintenance-guide.md#certificates) | Quarterly |
-| Security updates | [Maintenance Guide](./maintenance-guide.md#updates) | Monthly |
+| View application logs | [K8S Runbook - Logs](./k8s-runbook.md#logs--debugging) | Daily |
+| Scale pods | [K8S Runbook - Scaling](./k8s-runbook.md#pod--deployment-management) | As needed |
+| Database backup | [K8S Runbook - Database](./k8s-runbook.md#database-backups) | Daily |
+| Database access | [K8S Runbook - Database](./k8s-runbook.md#database-operations) | As needed |
+| Port forwarding | [K8S Runbook - Port Forwarding](./k8s-runbook.md#port-forwarding) | Daily |
 
 ### Troubleshooting
 
 | Issue | Documentation | Priority |
 |-------|--------------|----------|
-| Service down | [Incident Response](./incident-response.md#service-down) | P0 |
-| Database connectivity | [Troubleshooting Guide](./troubleshooting-guide.md#database) | P1 |
-| High latency | [Troubleshooting Guide](./troubleshooting-guide.md#latency) | P2 |
-| Memory leak | [Troubleshooting Guide](./troubleshooting-guide.md#memory) | P2 |
+| Flux not syncing | [K8S Runbook - Troubleshooting](./k8s-runbook.md#flux-not-syncing) | High |
+| Pods not starting | [K8S Runbook - Troubleshooting](./k8s-runbook.md#pod-not-starting) | High |
+| Vault sealed | [K8S Runbook - Vault](./k8s-runbook.md#vault-issues) | High |
+| Database connectivity | [K8S Runbook - Database Issues](./k8s-runbook.md#database-connection-issues) | High |
+| VPS/K3S issues | [Hostinger Runbook - Troubleshooting](./hostinger-runbook.md#troubleshooting) | High |
 
 ---
 
-## Environments
+## Environment
 
-### Environment Overview
+### Current Setup
 
-| Environment | Purpose | Infrastructure | Auto-Deploy | URL |
-|-------------|---------|----------------|-------------|-----|
-| **Development** | Local dev | Docker Compose | No | localhost:* |
-| **Staging** | Pre-production testing | Kubernetes (small) | Yes (on PR merge) | staging.neotool.io |
-| **Production** | Live system | Kubernetes (full) | Manual approval | neotool.io |
-| **Hostinger VPC** | Production on Hostinger | K3S on Hostinger VPS | Manual approval | neotool.io |
+| Environment | Infrastructure | Deployment Method | Status |
+|-------------|----------------|-------------------|--------|
+| **Production** | K3S on Hostinger VPS (single node) | **GitOps (Flux CD)** | ✅ Active |
 
-**See**: [Deployment Guide](./deployment-guide.md) for environment-specific procedures.
+**See**: [Hostinger Infrastructure Runbook](./hostinger-runbook.md) for complete setup guide.
 
-### Environment Parity
+### Environment Details
 
-All environments use the **same Docker images** and **Kubernetes manifests** (with environment-specific overlays via Kustomize/Helm).
-
-**Differences**:
-- **Replicas**: Dev (1), Staging (2), Prod (3+)
-- **Resources**: Dev (minimal), Staging (medium), Prod (production-grade)
-- **Auto-scaling**: Staging (limited), Prod (full)
-- **Monitoring**: Staging (basic), Prod (full + alerts)
+- **Infrastructure**: Single Hostinger VPS
+- **Kubernetes**: K3S (lightweight Kubernetes)
+- **Deployment**: GitOps with Flux CD
+- **Storage**: K3S local-path provisioner
+- **Secrets**: HashiCorp Vault
+- **Monitoring**: Prometheus, Grafana, Loki
 
 ---
 
-## Architecture Components
+## Architecture Overview
 
-### Infrastructure Stack
+### Simple Architecture
 
-```mermaid
-graph TB
-    subgraph Cloud["Cloud Provider (AWS/GCP/Azure)"]
-        subgraph K8s["Kubernetes Cluster"]
-            subgraph Namespaces
-                AppNS[neotool-prod<br/>Application Services]
-                DataNS[neotool-data<br/>Databases]
-                ObsNS[observability<br/>Monitoring]
-            end
-        end
-
-        LB[Load Balancer]
-        DNS[DNS Zone]
-        Storage[Persistent Storage]
-    end
-
-    Users[Users] --> DNS
-    DNS --> LB
-    LB --> AppNS
-    AppNS --> DataNS
-    DataNS --> Storage
-    AppNS -.-> ObsNS
-    DataNS -.-> ObsNS
-
-    style K8s fill:#326CE5
-    style AppNS fill:#7f52ff
-    style DataNS fill:#336791
-    style ObsNS fill:#e6522c
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     GitHub Repository                        │
+│            (Single Source of Truth - GitOps)                 │
+└──────────────────────┬──────────────────────────────────────┘
+                       │ Flux CD Auto-Sync (1 min)
+                       ▼
+┌─────────────────────────────────────────────────────────────┐
+│              K3S Cluster (Hostinger VPS)                     │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │ production namespace                                 │   │
+│  │  • Vault (Secrets)                                   │   │
+│  │  • PostgreSQL + PgBouncer (Database)                 │   │
+│  │  • Kafka (Streaming)                                 │   │
+│  │  • Prometheus, Grafana, Loki (Monitoring)            │   │
+│  │  • Kotlin Services (Apps)                            │   │
+│  │  • Next.js (Web)                                     │   │
+│  └──────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 **See**: [Infrastructure Architecture](../02-architecture/infrastructure-architecture.md) for detailed design.
@@ -206,28 +199,24 @@ All infrastructure components use pinned versions for reproducibility:
 
 **Production Storage**: Cloudflare R2 (S3-compatible) instead of MinIO.
 
-### Kubernetes Namespaces
+### Kubernetes Namespace
 
-The infrastructure is organized into the following namespaces:
+All components are deployed in a **single namespace**: `production`
 
 | Namespace | Purpose | Components |
 |-----------|---------|------------|
-| `neotool-app` | Application services | Kotlin microservices (App, Security, Assets, Assistant) |
-| `neotool-web` | Frontend | Next.js frontend |
-| `neotool-data` | Databases | PostgreSQL, PgBouncer |
-| `neotool-messaging` | Message queue | Kafka |
-| `neotool-storage` | Object storage | MinIO (dev only) |
-| `neotool-security` | Security | Vault, JWT key management |
-| `neotool-workflows` | Workflows | CronJobs, scheduled tasks |
-| `neotool-observability` | Monitoring | Prometheus, Grafana, Loki, Promtail |
+| `production` | All application components | Vault, PostgreSQL, PgBouncer, Kafka, Prometheus, Grafana, Loki, Kotlin services, Next.js |
 
-### Production Specifications
+**Note**: Single namespace simplifies management for single-node cluster.
+
+### Current Specifications
 
 **K3S Cluster**:
-- **Node Spec**: 8 CPU / 32GB RAM per node
-- **Storage**: Cloudflare R2 (S3-compatible)
-- **Deployment**: K3S in VPC (not cloud-managed K8S)
-- **Security**: HashiCorp Vault for JWT key management
+- **Nodes**: 1 (single-node cluster)
+- **Storage**: K3S local-path provisioner
+- **Infrastructure**: Hostinger VPS (manually provisioned)
+- **Deployment**: GitOps with Flux CD
+- **Secrets**: HashiCorp Vault
 
 ---
 
@@ -238,221 +227,112 @@ The infrastructure is organized into the following namespaces:
 | Tool | Purpose | Installation |
 |------|---------|-------------|
 | **kubectl** | Kubernetes CLI | [Install kubectl](https://kubernetes.io/docs/tasks/tools/) |
-| **docker** | Container runtime | [Install Docker](https://docs.docker.com/get-docker/) |
 | **terraform** | Infrastructure as Code | [Install Terraform](https://www.terraform.io/downloads) |
+| **flux** | GitOps CLI | `brew install fluxcd/tap/flux` |
 | **helm** | Kubernetes package manager | [Install Helm](https://helm.sh/docs/intro/install/) |
 | **stern** | Multi-pod log tailing | `brew install stern` |
-| **k9s** | Kubernetes TUI | `brew install k9s` |
 
-**See**: [Operations Runbook](./operations-runbook.md#tools) for tool usage.
-
-### Access & Permissions
-
-**Production Access** (restricted):
-- **Read-only**: All engineers (logs, metrics, dashboards)
-- **Deployments**: SRE team + approved deployers
-- **Database admin**: DBAs only
-- **Infrastructure changes**: SRE lead approval required
-
-**See**: [Security Operations](./security-operations.md) for access control.
+**See**: [Kubernetes Operations Runbook](./k8s-runbook.md) for tool usage.
 
 ---
 
-## Monitoring & Alerting
+## Monitoring & Observability
 
-### Key Metrics Dashboard
+### Available Dashboards
 
-**Application Health**:
-- Request rate (RPS)
-- Error rate (%)
-- Latency (p50, p95, p99)
-- Availability (uptime %)
+- **Grafana**: Metrics visualization (Prometheus data)
+- **Loki**: Log aggregation and search
+- **Prometheus**: Direct metrics queries
 
-**Infrastructure Health**:
-- CPU utilization
-- Memory usage
-- Disk I/O
-- Network traffic
+**Access**:
+```bash
+# Grafana
+kubectl port-forward -n production svc/grafana 3000:80
+# Open: http://localhost:3000
 
-**Business Metrics**:
-- Active users
-- API calls per user
-- Feature usage
-- Error trends
+# Prometheus
+kubectl port-forward -n production svc/prometheus 9090:9090
+# Open: http://localhost:9090
+```
 
-**See**: [Monitoring Setup](./monitoring-setup.md) for configuration.
-
-### Alert Severity
-
-| Level | Response Time | Examples |
-|-------|--------------|----------|
-| **P0** | Immediate | Service completely down, data loss |
-| **P1** | < 15 minutes | Partial outage, high error rate (>5%) |
-| **P2** | < 1 hour | Degraded performance, elevated errors (>1%) |
-| **P3** | Next business day | Minor issues, low-priority bugs |
-
-**See**: [Incident Response](./incident-response.md) for procedures.
+**See**: [Kubernetes Operations Runbook](./k8s-runbook.md#monitoring--metrics) for monitoring tasks.
 
 ---
 
 ## Best Practices
 
-### Deployment
+### GitOps Deployment
 
 ✅ **Do**:
-- Deploy during low-traffic windows
-- Test in staging first
-- Monitor for 30 minutes post-deployment
-- Keep rollback plan ready
-- Document changes in changelog
+- All changes via Git (infrastructure as code)
+- Use feature branches for testing
+- Monitor Flux reconciliation after pushing
+- Keep Vault credentials backed up
+- Document environment-specific configs
 
 ❌ **Don't**:
-- Deploy on Fridays (unless critical)
-- Skip staging validation
-- Deploy without backup
+- Apply manifests directly with `kubectl apply` (use GitOps)
 - Make manual changes in production
-- Ignore monitoring during deployment
-
-### Operations
-
-✅ **Do**:
-- Use automation (Terraform, Kubernetes manifests)
-- Document all manual interventions
-- Review logs regularly
-- Maintain runbooks up-to-date
-- Practice disaster recovery procedures
-
-❌ **Don't**:
-- SSH into production pods (use kubectl exec)
-- Modify resources manually (use GitOps)
-- Ignore alerts
-- Skip backups
-- Make changes without peer review
-
----
-
-## Disaster Recovery
-
-### Recovery Time Objectives (RTO)
-
-| Component | RTO | RPO | Backup Frequency |
-|-----------|-----|-----|------------------|
-| **Application** | < 5 minutes | 0 (stateless) | N/A |
-| **Database** | < 30 minutes | < 5 minutes | Continuous WAL + hourly snapshots |
-| **Configuration** | < 5 minutes | 0 (Git) | Every commit |
-| **Secrets** | < 10 minutes | 0 (Vault backup) | Daily |
-
-**See**: [Disaster Recovery](./disaster-recovery.md) for procedures.
-
-### Backup Strategy
-
-**Automated Backups**:
-- Database: Continuous WAL archiving + hourly snapshots
-- Configuration: Git repository (version controlled)
-- Secrets: Encrypted backup to S3 (daily)
-- Persistent volumes: Daily snapshots
-
-**Retention**:
-- Hourly: 7 days
-- Daily: 30 days
-- Weekly: 90 days
-- Monthly: 1 year
-
----
-
-## Security
-
-### Security Checklist
-
-- [x] TLS/HTTPS everywhere
-- [x] Secrets in Kubernetes Secrets (encrypted at rest)
-- [x] Network policies (pod-to-pod restrictions)
-- [x] RBAC (role-based access control)
-- [x] Image scanning (Trivy, Snyk)
-- [x] Pod Security Standards
-- [x] Audit logging enabled
-- [x] Intrusion detection (planned)
-
-**See**: [Security Operations](./security-operations.md)
+- Skip testing in development first
+- Commit secrets to Git (use Vault)
+- Force push to main branch
 
 ---
 
 ## Related Documentation
 
+### Core Guides
+- **[Infrastructure Architecture](./architecture.md)** - High-level system design
+- **[Kubernetes Operations Runbook](./k8s-runbook.md)** - Daily K8S operations
+- **[Hostinger Infrastructure Runbook](./hostinger-runbook.md)** - VPS provisioning & K3S setup
+
 ### Architecture
-- [Infrastructure Architecture](../02-architecture/infrastructure-architecture.md) - Design and components
-- [System Architecture](../02-architecture/system-architecture.md) - Overall system design
+- [Infrastructure Architecture](../02-architecture/infrastructure-architecture.md) - System design
+- [System Architecture](../02-architecture/system-architecture.md) - Overall architecture
 
 ### Workflows
 - [Deployment Workflow](../08-workflows/deployment-workflow.md) - Deployment process
 - [Feature Development](../08-workflows/feature-development.md) - Development workflow
 
 ### Observability
-- [Observability Overview](../10-observability/observability-overview.md) - Monitoring setup
-- [Metrics & Dashboards](../10-observability/) - Grafana dashboards
-
-### Security
-- [Security Overview](../09-security/) - Security practices
-- [Authentication](../09-security/authentication.md) - Auth mechanisms
-
----
-
-## Contributing
-
-### Updating Runbooks
-
-When operational procedures change:
-1. Update relevant runbook document
-2. Test procedure in staging
-3. Create PR with changes
-4. Get SRE team approval
-5. Update operator training materials
-
-### Adding New Procedures
-
-1. Create document in `11-infrastructure/`
-2. Follow [Documentation Standards](../12-specification-driven-dev/documentation-standards.md)
-3. Include:
-   - Prerequisites
-   - Step-by-step instructions
-   - Expected outcomes
-   - Troubleshooting steps
-   - Rollback procedure
-4. Review with SRE team
-5. Add to this README index
+- [Observability Overview](../10-observability/observability-overview.md) - Monitoring stack
 
 ---
 
 ## Quick Reference
 
-### Useful Commands
+### Most Used Commands
 
 ```bash
+# Set kubeconfig
+export KUBECONFIG=~/.kube/config-hostinger
+
 # View pod logs
-kubectl logs -f deployment/backend -n neotool-prod
+kubectl logs -f deployment/my-service -n production
 
 # Port forward to service
-kubectl port-forward svc/backend 8080:8080 -n neotool-prod
+kubectl port-forward svc/my-service 8080:8080 -n production
 
 # Scale deployment
-kubectl scale deployment/backend --replicas=5 -n neotool-prod
+kubectl scale deployment/my-service --replicas=3 -n production
 
 # Restart deployment
-kubectl rollout restart deployment/backend -n neotool-prod
+kubectl rollout restart deployment/my-service -n production
 
-# View recent events
-kubectl get events -n neotool-prod --sort-by='.lastTimestamp'
+# Check Flux status
+flux get all
 
-# Database backup (manual)
-kubectl exec -it postgresql-0 -n neotool-data -- pg_dump neotool > backup.sql
+# Force Flux reconciliation
+flux reconcile source git flux-system
+flux reconcile kustomization infrastructure
 ```
 
-**See**: [Operations Runbook](./operations-runbook.md) for complete command reference.
+**See**: [Kubernetes Operations Runbook](./k8s-runbook.md#quick-reference) for complete command reference.
 
 ---
 
-**Version**: 1.0.0 (2026-01-02)
-**Maintained By**: SRE Team
-**Review Frequency**: Monthly or after incidents
+**Version**: 3.0.0 (2026-01-15)
+**Maintained By**: DevOps Team
+**Last Updated**: Simplified to 3 focused documents: Architecture, K8S Runbook, Hostinger Runbook
 
-*Reliable infrastructure. Smooth operations. Happy users.*
+*Simple infrastructure. GitOps deployments. Production-ready.*
