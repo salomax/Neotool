@@ -2,6 +2,7 @@ package io.github.salomax.neotool.assets.config
 
 import io.github.salomax.neotool.assets.domain.AssetVisibility
 import io.micronaut.core.io.ResourceLoader
+import io.micronaut.context.annotation.Property
 import jakarta.inject.Singleton
 import mu.KotlinLogging
 import org.yaml.snakeyaml.Yaml
@@ -15,6 +16,8 @@ import java.io.InputStream
 @Singleton
 class AssetConfigProperties(
     private val resourceLoader: ResourceLoader,
+    @Property(name = "assets.config.file", defaultValue = "asset-config.yml")
+    private val configFileName: String,
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -36,12 +39,12 @@ class AssetConfigProperties(
      * Load configuration from asset-config.yml.
      */
     private fun loadConfig(): AssetConfig {
-        logger.info { "Loading asset configuration from asset-config.yml" }
+        logger.info { "Loading asset configuration from $configFileName" }
 
         val inputStream: InputStream =
             resourceLoader
-                .getResourceAsStream("classpath:asset-config.yml")
-                .orElseThrow { IllegalStateException("asset-config.yml not found in classpath") }
+                .getResourceAsStream("classpath:$configFileName")
+                .orElseThrow { IllegalStateException("$configFileName not found in classpath") }
 
         val yaml = Yaml()
         val configMap = yaml.load<Map<String, Any>>(inputStream)

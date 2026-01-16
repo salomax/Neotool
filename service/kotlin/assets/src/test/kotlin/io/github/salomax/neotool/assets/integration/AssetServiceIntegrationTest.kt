@@ -58,6 +58,8 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
         val props = super.getProperties()
         // Enable mock storage client instead of real S3/MinIO
         props["test.use-mock-storage"] = "true"
+        // Use test-specific config file
+        props["assets.config.file"] = "asset-config-test.yml"
         return props
     }
 
