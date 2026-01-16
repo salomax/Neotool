@@ -1,14 +1,11 @@
 package io.github.salomax.neotool.security.test.graphql
 
-import io.github.salomax.neotool.common.graphql.pagination.Connection
 import io.github.salomax.neotool.common.graphql.pagination.ConnectionBuilder
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import io.github.salomax.neotool.security.domain.rbac.Group
 import io.github.salomax.neotool.security.domain.rbac.Permission
 import io.github.salomax.neotool.security.domain.rbac.Role
 import io.github.salomax.neotool.security.domain.rbac.User
-import io.github.salomax.neotool.security.graphql.dto.RoleDTO
-import io.github.salomax.neotool.security.graphql.dto.UpdateUserInputDTO
 import io.github.salomax.neotool.security.graphql.dto.UserConnectionDTO
 import io.github.salomax.neotool.security.graphql.dto.UserDTO
 import io.github.salomax.neotool.security.graphql.mapper.UserManagementMapper
@@ -22,7 +19,6 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
-import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
@@ -419,10 +415,11 @@ class UserManagementResolverTest {
                     encodeCursor = { it.id?.toString() ?: "" },
                     totalCount = 0L,
                 )
-            val pageInfo = io.github.salomax.neotool.security.graphql.dto.PageInfoDTO(
-                hasNextPage = false,
-                hasPreviousPage = false,
-            )
+            val pageInfo =
+                io.github.salomax.neotool.security.graphql.dto.PageInfoDTO(
+                    hasNextPage = false,
+                    hasPreviousPage = false,
+                )
             val connectionDTO = UserConnectionDTO(edges = emptyList(), pageInfo = pageInfo, totalCount = 0)
 
             whenever(mapper.toUserOrderByList(null)).thenReturn(emptyList())
@@ -578,7 +575,7 @@ class UserManagementResolverTest {
                 )
             val roles = listOf(role1, role2)
 
-            whenever(authorizationService.getUserRoles(userId, any<Instant>())).thenReturn(roles)
+            whenever(authorizationService.getUserRoles(any(), any())).thenReturn(roles)
 
             // Act
             val result = userManagementResolver.resolveUserRoles(userId.toString())
@@ -587,7 +584,7 @@ class UserManagementResolverTest {
             assertThat(result).hasSize(2)
             assertThat(result[0].name).isEqualTo("admin")
             assertThat(result[1].name).isEqualTo("editor")
-            verify(authorizationService).getUserRoles(userId, any<Instant>())
+            verify(authorizationService).getUserRoles(any(), any())
         }
 
         @Test
@@ -625,7 +622,7 @@ class UserManagementResolverTest {
                 )
             val permissions = listOf(permission1, permission2)
 
-            whenever(authorizationService.getUserPermissions(userId, any<Instant>())).thenReturn(permissions)
+            whenever(authorizationService.getUserPermissions(any(), any())).thenReturn(permissions)
 
             // Act
             val result = userManagementResolver.resolveUserPermissions(userId.toString())
@@ -634,7 +631,7 @@ class UserManagementResolverTest {
             assertThat(result).hasSize(2)
             assertThat(result[0].name).isEqualTo("transaction:read")
             assertThat(result[1].name).isEqualTo("transaction:write")
-            verify(authorizationService).getUserPermissions(userId, any<Instant>())
+            verify(authorizationService).getUserPermissions(any(), any())
         }
 
         @Test

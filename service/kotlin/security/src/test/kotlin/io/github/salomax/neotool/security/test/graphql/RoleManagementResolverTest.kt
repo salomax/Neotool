@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.security.test.graphql
 
-import io.github.salomax.neotool.common.graphql.pagination.Connection
 import io.github.salomax.neotool.common.graphql.pagination.ConnectionBuilder
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import io.github.salomax.neotool.security.domain.rbac.Group
@@ -22,7 +21,6 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
-import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
@@ -276,10 +274,11 @@ class RoleManagementResolverTest {
                     encodeCursor = { it.id?.toString() ?: "" },
                     totalCount = 0L,
                 )
-            val pageInfo = io.github.salomax.neotool.security.graphql.dto.PageInfoDTO(
-                hasNextPage = false,
-                hasPreviousPage = false,
-            )
+            val pageInfo =
+                io.github.salomax.neotool.security.graphql.dto.PageInfoDTO(
+                    hasNextPage = false,
+                    hasPreviousPage = false,
+                )
             val connectionDTO = RoleConnectionDTO(edges = emptyList(), pageInfo = pageInfo, totalCount = 0)
 
             whenever(mapper.toRoleOrderByList(null)).thenReturn(emptyList())
