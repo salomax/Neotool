@@ -6,6 +6,4 @@ import io.micronaut.data.jpa.repository.JpaRepository
 import java.util.UUID
 
 @Repository
-interface BacenBankReportDataRepository : JpaRepository<BacenBankReportDataEntity, UUID> {
-    fun findByBankReportId(bankReportId: UUID): List<BacenBankReportDataEntity>
-}
+interface BacenBankReportDataRepository : JpaRepository<BacenBankReportDataEntity, UUID>

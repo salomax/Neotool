@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.financialdata.service
 
+import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.common.graphql.pagination.Connection
 import io.github.salomax.neotool.common.graphql.pagination.ConnectionBuilder
 import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder

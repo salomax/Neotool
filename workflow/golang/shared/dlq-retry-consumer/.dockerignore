@@ -1,0 +1,36 @@
+# Binaries
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test files
+*_test.go
+coverage.out
+*.test
+
+# Development
+.git/
+.gitignore
+.env
+.env.*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Documentation
+docs/
+README.md
+*.md
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Build artifacts
+vendor/
