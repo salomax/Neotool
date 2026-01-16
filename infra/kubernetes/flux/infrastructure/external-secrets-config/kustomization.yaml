@@ -1,0 +1,8 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  # External Secrets configuration (requires operator CRDs to be installed first)
+  - service-account.yaml
+  - secret-store.yaml
+  - postgres-external-secret.yaml

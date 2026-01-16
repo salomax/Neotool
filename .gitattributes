@@ -6,3 +6,4 @@ web/public/favicon.ico merge=ours
 web/public/images/logos/** merge=ours
 design/assets/logos/** merge=ours
 workflows/** merge=ours
+contracts/graphql/supergraph/** merge=ours

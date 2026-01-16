@@ -6,7 +6,6 @@ import io.micronaut.data.annotation.Query
 import io.micronaut.data.annotation.Repository
 import io.micronaut.data.jpa.repository.JpaRepository
 import java.time.Instant
-import java.util.Optional
 import java.util.UUID
 
 /**
@@ -18,7 +17,6 @@ import java.util.UUID
  */
 @Repository
 interface AssetRepository : JpaRepository<AssetEntity, UUID> {
-
     /**
      * Find asset by storage key.
      * Storage key is unique across all assets.

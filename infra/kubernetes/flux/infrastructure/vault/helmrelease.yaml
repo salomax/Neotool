@@ -1,0 +1,107 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: vault
+  namespace: flux-system
+spec:
+  releaseName: vault
+  targetNamespace: production
+  interval: 30m
+  chart:
+    spec:
+      chart: vault
+      version: '0.27.0'
+      sourceRef:
+        kind: HelmRepository
+        name: hashicorp
+        namespace: flux-system
+      interval: 12h
+  install:
+    createNamespace: false
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    global:
+      enabled: true
+      tlsDisable: true  # TODO: Enable TLS in production
+
+    injector:
+      enabled: false  # We'll use External Secrets Operator instead
+
+    server:
+      # Production mode (not dev!)
+      dev:
+        enabled: false
+
+      # Standalone mode (single instance)
+      ha:
+        enabled: false
+
+      # Data storage
+      dataStorage:
+        enabled: true
+        size: 1Gi
+        storageClass: local-path
+        accessMode: ReadWriteOnce
+
+      # Resources
+      resources:
+        requests:
+          memory: 256Mi
+          cpu: 100m
+        limits:
+          memory: 512Mi
+          cpu: 200m
+
+      # Security context
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+        runAsGroup: 1000
+        fsGroup: 1000
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+          add:
+            - IPC_LOCK  # Required for mlock (memory locking)
+
+      # Service configuration
+      service:
+        enabled: true
+        type: ClusterIP
+        port: 8200
+
+      # Readiness/Liveness probes
+      readinessProbe:
+        enabled: true
+        path: /v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204
+      livenessProbe:
+        enabled: true
+        path: /v1/sys/health?standbyok=true
+        initialDelaySeconds: 60
+
+      # Vault configuration
+      config: |
+        ui = true
+
+        listener "tcp" {
+          tls_disable = 1
+          address = "[::]:8200"
+          cluster_address = "[::]:8201"
+        }
+
+        storage "file" {
+          path = "/vault/data"
+        }
+
+        # Disable mlock for containers
+        disable_mlock = true
+
+    ui:
+      enabled: true
+      serviceType: ClusterIP
