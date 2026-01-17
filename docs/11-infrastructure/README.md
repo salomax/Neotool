@@ -47,6 +47,7 @@ This section provides **operational documentation** for deploying, managing, and
 docs/11-infrastructure/
 ├── README.md                  # This file (navigation)
 ├── architecture.md            # High-level infrastructure overview
+├── feature-flags-unleash.md   # Feature flags with Unleash
 ├── k8s-runbook.md            # Kubernetes operations & troubleshooting
 └── hostinger-runbook.md      # VPS provisioning & K3S management
 ```
@@ -85,6 +86,7 @@ docs/11-infrastructure/
 **Understanding Infrastructure**:
 - [Infrastructure Architecture](./architecture.md) - High-level overview
 - [Kubernetes Operations Runbook](./k8s-runbook.md) - Day-to-day operations
+- [Feature Flags with Unleash](./feature-flags-unleash.md) - Feature flag system setup
 
 **Common Tasks**:
 - [Deploy via GitOps](./k8s-runbook.md#deploying-applications-via-gitops) - Push to Git → Auto-deploy

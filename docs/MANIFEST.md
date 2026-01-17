@@ -191,9 +191,10 @@ Quick lookup and reference materials:
 
 | Document | Path | Type | Category | Keywords |
 |----------|------|------|----------|----------|
-| Infrastructure | `11-infrastructure/` | placeholder | infrastructure | infrastructure, deployment, kubernetes, docker |
+| Infrastructure | `11-infrastructure/` | index | infrastructure | infrastructure, deployment, kubernetes, docker |
+| Feature Flags with Unleash | `11-infrastructure/feature-flags-unleash.md` | guide | infrastructure | feature-flags, unleash, rollout, canary, postgres |
 
-*Note: This section is a placeholder for future infrastructure documentation.*
+*Note: This section contains operational infrastructure guides.*
 
 ## Specification-Driven Development (12-specification-driven-dev)
 

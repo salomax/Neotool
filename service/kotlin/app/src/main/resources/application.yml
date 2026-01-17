@@ -82,6 +82,24 @@ vault:
   # Can be set via VAULT_READ_TIMEOUT environment variable
   read-timeout: ${VAULT_READ_TIMEOUT:5000}
 
+# Unleash Feature Flags Configuration
+unleash:
+  # Unleash server URL (REQUIRED)
+  # Must be set via UNLEASH_URL environment variable
+  url: ${UNLEASH_URL:}
+  # Unleash API token (server token for backend services) (REQUIRED)
+  # Must be set via UNLEASH_API_TOKEN environment variable
+  api-token: ${UNLEASH_API_TOKEN:}
+  # Application name for Unleash (REQUIRED)
+  # Must be set via UNLEASH_APP_NAME environment variable
+  app-name: ${UNLEASH_APP_NAME:}
+  # Instance ID (optional, auto-generated if not provided)
+  # Can be set via UNLEASH_INSTANCE_ID environment variable
+  instance-id: ${UNLEASH_INSTANCE_ID:}
+  # Refresh interval in seconds (default: 15)
+  # Can be set via UNLEASH_REFRESH_INTERVAL environment variable
+  refresh-interval: ${UNLEASH_REFRESH_INTERVAL:15}
+
 datasources:
   default:
     url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:6432}/${POSTGRES_DB:neotool_db}

@@ -92,6 +92,9 @@ dependencies {
     // Kafka - api for other modules (needed for batch processing)
     api("io.micronaut.kafka:micronaut-kafka")
 
+    // Feature Flags - Unleash SDK
+    api("io.getunleash:unleash-client-java:9.3.0")
+
     // Utilities - api for other modules
     api("org.apache.commons:commons-lang3:3.18.0")
     api("commons-codec:commons-codec:1.17.1")
