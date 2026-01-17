@@ -28,15 +28,15 @@ func NewBankReportAccountRepository(pool *pgxpool.Pool, logger *slog.Logger) *Ba
 
 // UpsertAccount inserts or updates a bank report account (idempotent)
 // Uses ON CONFLICT to handle unique constraint on (grupo, conta, nome_coluna, descricao_coluna)
-func (r *BankReportAccountRepository) UpsertAccount(ctx context.Context, account *domain.BankReportAccount) error {
+func (r *BankReportAccountRepository) UpsertAccount(ctx context.Context, account *domain.InstitutionReportAccount) error {
 	query := `
-		INSERT INTO financial_data.bacen_bank_report_account (
+		INSERT INTO financial_data.bacen_inst_report_account (
 			id, canonical_account_id, grupo, conta, nome_coluna, descricao_coluna
 		) VALUES ($1, $2, $3, $4, $5, $6)
 		ON CONFLICT (grupo, conta, nome_coluna, descricao_coluna) 
 		DO UPDATE SET
 			canonical_account_id = COALESCE(
-				financial_data.bacen_bank_report_account.canonical_account_id,
+				financial_data.bacen_inst_report_account.canonical_account_id,
 				EXCLUDED.canonical_account_id
 			),
 			updated_at = NOW()
@@ -75,10 +75,10 @@ func (r *BankReportAccountRepository) FindByKey(
 	conta *string,
 	nomeColuna *string,
 	descricaoColuna *string,
-) (*domain.BankReportAccount, error) {
+) (*domain.InstitutionReportAccount, error) {
 	query := `
 		SELECT id, canonical_account_id, grupo, conta, nome_coluna, descricao_coluna, created_at, updated_at
-		FROM financial_data.bacen_bank_report_account
+		FROM financial_data.bacen_inst_report_account
 		WHERE COALESCE(grupo, '') = COALESCE($1, '')
 		  AND COALESCE(conta, '') = COALESCE($2, '')
 		  AND COALESCE(nome_coluna, '') = COALESCE($3, '')
@@ -86,7 +86,7 @@ func (r *BankReportAccountRepository) FindByKey(
 		LIMIT 1
 	`
 
-	var account domain.BankReportAccount
+	var account domain.InstitutionReportAccount
 	err := r.pool.QueryRow(ctx, query, grupo, conta, nomeColuna, descricaoColuna).Scan(
 		&account.ID,
 		&account.CanonicalAccountID,
@@ -117,7 +117,7 @@ func (r *BankReportAccountRepository) GetOrCreateAccount(
 	nomeColuna *string,
 	descricaoColuna *string,
 	canonicalAccountID *string,
-) (*domain.BankReportAccount, error) {
+) (*domain.InstitutionReportAccount, error) {
 	// Try to find existing account
 	account, err := r.FindByKey(ctx, grupo, conta, nomeColuna, descricaoColuna)
 	if err != nil {
@@ -136,7 +136,7 @@ func (r *BankReportAccountRepository) GetOrCreateAccount(
 	}
 
 	// Otherwise, create a new one
-	newAccount := &domain.BankReportAccount{
+	newAccount := &domain.InstitutionReportAccount{
 		CanonicalAccountID: canonicalAccountID,
 		Grupo:              grupo,
 		Conta:              conta,

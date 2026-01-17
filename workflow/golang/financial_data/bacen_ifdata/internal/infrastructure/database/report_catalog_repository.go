@@ -30,7 +30,7 @@ func (r *ReportCatalogRepository) UpsertReportCatalog(ctx context.Context, repor
 	}
 
 	query := `
-		INSERT INTO financial_data.bacen_bank_report_catalog (
+		INSERT INTO financial_data.bacen_inst_report_catalog (
 			numero_relatorio, nome_relatorio
 		) VALUES ($1, $2)
 		ON CONFLICT (numero_relatorio) DO UPDATE SET

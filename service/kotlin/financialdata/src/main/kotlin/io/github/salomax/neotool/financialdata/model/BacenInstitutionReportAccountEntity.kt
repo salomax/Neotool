@@ -11,8 +11,8 @@ import java.time.Instant
 import java.util.UUID
 
 @Entity
-@Table(name = "bacen_bank_report_account", schema = "financial_data")
-open class BacenBankReportAccountEntity(
+@Table(name = "bacen_inst_report_account", schema = "financial_data")
+open class BacenInstitutionReportAccountEntity(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(columnDefinition = "uuid")

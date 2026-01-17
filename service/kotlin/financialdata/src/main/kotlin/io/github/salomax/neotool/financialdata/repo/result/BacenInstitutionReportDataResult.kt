@@ -3,10 +3,10 @@ package io.github.salomax.neotool.financialdata.repo.result
 import java.math.BigDecimal
 
 /**
- * Result object for bacen_bank_report data queries.
- * Contains structured report data from bacen_bank_report and related tables.
+ * Result object for bacen_inst_report data queries.
+ * Contains structured report data from bacen_inst_report and related tables.
  */
-data class BacenBankReportDataResult(
+data class BacenInstitutionReportDataResult(
     val bacenCodInst: String,
     val anoMesRef: String,
     // numero_relatorio

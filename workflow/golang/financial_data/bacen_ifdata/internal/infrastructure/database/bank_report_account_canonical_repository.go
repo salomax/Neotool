@@ -30,14 +30,14 @@ func (r *BankReportAccountCanonicalRepository) GetOrCreateByName(
 	ctx context.Context,
 	nomeColuna *string,
 	conta *string,
-) (*domain.BankReportAccountCanonical, error) {
+) (*domain.InstitutionReportAccountCanonical, error) {
 	displayName := normalizeCanonicalDisplayName(nomeColuna, conta)
 	if displayName == nil {
 		return nil, nil
 	}
 
 	query := `
-		INSERT INTO financial_data.bacen_bank_report_account_canonical (
+		INSERT INTO financial_data.bacen_inst_report_account_canonical (
 			id, normalized_name, display_name
 		) VALUES ($1, financial_data.normalize_report_account_name($2), financial_data.clean_report_account_display_name($2))
 		ON CONFLICT (normalized_name)
@@ -45,7 +45,7 @@ func (r *BankReportAccountCanonicalRepository) GetOrCreateByName(
 		RETURNING id, normalized_name, display_name, created_at, updated_at
 	`
 
-	canonical := &domain.BankReportAccountCanonical{}
+	canonical := &domain.InstitutionReportAccountCanonical{}
 	canonical.ID = uuid.New().String()
 
 	err := r.pool.QueryRow(ctx, query, canonical.ID, *displayName).Scan(

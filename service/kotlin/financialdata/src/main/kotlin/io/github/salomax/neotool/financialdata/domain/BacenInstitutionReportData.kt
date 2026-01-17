@@ -1,13 +1,13 @@
 package io.github.salomax.neotool.financialdata.domain
 
-import io.github.salomax.neotool.financialdata.model.BacenBankReportDataEntity
+import io.github.salomax.neotool.financialdata.model.BacenInstitutionReportDataEntity
 import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
 
-data class BacenBankReportData(
+data class BacenInstitutionReportData(
     val id: UUID? = null,
-    val bankReportId: UUID,
+    val instReportId: UUID,
     val grupo: String? = null,
     val conta: String? = null,
     val nomeColuna: String? = null,
@@ -17,11 +17,11 @@ data class BacenBankReportData(
     val createdAt: Instant = Instant.now(),
     val updatedAt: Instant = Instant.now(),
 ) {
-    fun toEntity(): BacenBankReportDataEntity {
-        return BacenBankReportDataEntity(
+    fun toEntity(): BacenInstitutionReportDataEntity {
+        return BacenInstitutionReportDataEntity(
             // null for new entities, DB generates UUID v7
             id = this.id,
-            bankReportId = this.bankReportId,
+            instReportId = this.instReportId,
             grupo = this.grupo,
             conta = this.conta,
             nomeColuna = this.nomeColuna,

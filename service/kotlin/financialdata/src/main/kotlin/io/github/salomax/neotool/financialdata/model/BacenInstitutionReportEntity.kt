@@ -1,7 +1,7 @@
 package io.github.salomax.neotool.financialdata.model
 
 import io.github.salomax.neotool.common.entity.BaseEntity
-import io.github.salomax.neotool.financialdata.domain.BacenBankReport
+import io.github.salomax.neotool.financialdata.domain.BacenInstitutionReport
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.GeneratedValue
@@ -12,8 +12,8 @@ import java.time.Instant
 import java.util.UUID
 
 @Entity
-@Table(name = "bacen_bank_report", schema = "financial_data")
-open class BacenBankReportEntity(
+@Table(name = "bacen_inst_report", schema = "financial_data")
+open class BacenInstitutionReportEntity(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(columnDefinition = "uuid")
@@ -33,8 +33,8 @@ open class BacenBankReportEntity(
     @Column(name = "updated_at", nullable = false)
     open var updatedAt: Instant = Instant.now(),
 ) : BaseEntity<UUID?>(id) {
-    fun toDomain(): BacenBankReport {
-        return BacenBankReport(
+    fun toDomain(): BacenInstitutionReport {
+        return BacenInstitutionReport(
             id = this.id,
             codInst = this.codInst,
             anoMes = this.anoMes,

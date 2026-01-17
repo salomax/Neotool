@@ -149,9 +149,6 @@ class InstitutionSearchIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                         node {
                             id
                             name
-                            logoAsset {
-                          publicUrl
-                        }
                             profit
                             equity
                             yoyEquityGrowth

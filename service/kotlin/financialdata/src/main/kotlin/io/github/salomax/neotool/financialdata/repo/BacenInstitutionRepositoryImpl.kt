@@ -224,6 +224,14 @@ open class BacenInstitutionRepositoryImpl(
                 ""
             }
 
+        // Build similarity_score calculation - only when there's a query
+        val similarityScoreExpression =
+            if (hasQuery) {
+                "financial_data.similarity(\n                        coalesce(bacen_institutions_and_groups.nome_instituicao, fi_data.legal_name, fi_data.trade_name)::TEXT, \n                        ?::TEXT) as similarity_score"
+            } else {
+                "0.0::REAL as similarity_score"
+            }
+
         return """
             WITH 
             bacen_institutions AS (
@@ -278,9 +286,7 @@ open class BacenInstitutionRepositoryImpl(
                     bacen_institutions_and_groups.cnpj_instituicao_lider,
                     bacen_institutions_and_groups.cod_conglomerado_prudencial,
                     bacen_institutions_and_groups.cod_conglomerado_financeiro,
-                    financial_data.similarity(
-                        coalesce(bacen_institutions_and_groups.nome_instituicao, fi_data.legal_name, fi_data.trade_name)::TEXT, 
-                        ?::TEXT) as similarity_score
+                    $similarityScoreExpression
                 FROM bacen_institutions_and_groups
                     LEFT JOIN financial_data.financial_institution_bacen_institution fibi
                         ON fibi.bacen_cod_inst = bacen_institutions_and_groups.bacen_cod_inst
@@ -335,27 +341,27 @@ open class BacenInstitutionRepositoryImpl(
                 END) as basileia_index,
                 MAX(br.tipo_instituicao) as tipo_instituicao
             FROM financial_institutions fi
-                INNER JOIN financial_data.bacen_bank_report br 
+                INNER JOIN financial_data.bacen_inst_report br 
                     ON br.cod_inst = fi.bacen_cod_inst 
                     AND br.ano_mes = ?
-                INNER JOIN financial_data.bacen_bank_report_data brd 
-                    ON brd.bank_report_id = br.id
-                INNER JOIN financial_data.bacen_bank_report_account bra 
+                INNER JOIN financial_data.bacen_inst_report_data brd 
+                    ON brd.inst_report_id = br.id
+                INNER JOIN financial_data.bacen_inst_report_account bra 
                     ON bra.id = brd.account_id
-                INNER JOIN financial_data.bacen_bank_report_account_canonical brac
+                INNER JOIN financial_data.bacen_inst_report_account_canonical brac
                     ON brac.id = bra.canonical_account_id
                     AND brac.normalized_name IN (
                         'LUCRO_LIQUIDO',
                         'PATRIMONIO_LIQUIDO',
                         'INDICE_DE_BASILEIA')
-                LEFT JOIN financial_data.bacen_bank_report br_year_ago
+                LEFT JOIN financial_data.bacen_inst_report br_year_ago
                     ON br_year_ago.cod_inst = fi.bacen_cod_inst 
                     AND br_year_ago.ano_mes = (LPAD((CAST(SUBSTRING(?::TEXT, 1, 4) AS INTEGER) - 1)::TEXT, 4, '0') || SUBSTRING(?::TEXT, 5, 2))
-                LEFT JOIN financial_data.bacen_bank_report_data brd_year_ago 
-                    ON brd_year_ago.bank_report_id = br_year_ago.id
-                LEFT JOIN financial_data.bacen_bank_report_account bra_year_ago 
+                LEFT JOIN financial_data.bacen_inst_report_data brd_year_ago 
+                    ON brd_year_ago.inst_report_id = br_year_ago.id
+                LEFT JOIN financial_data.bacen_inst_report_account bra_year_ago 
                     ON bra_year_ago.id = brd_year_ago.account_id
-                LEFT JOIN financial_data.bacen_bank_report_account_canonical brac_year_ago
+                LEFT JOIN financial_data.bacen_inst_report_account_canonical brac_year_ago
                     ON brac_year_ago.id = bra_year_ago.canonical_account_id
                     AND brac_year_ago.normalized_name IN ('PATRIMONIO_LIQUIDO')
                 LEFT JOIN financial_data.bacen_institution bi 

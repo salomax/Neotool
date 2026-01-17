@@ -42,9 +42,9 @@ var flowAccountMonths = map[string][]string{
 }
 
 // UpsertBankReport inserts or updates a bank report (parent)
-func (r *BankReportRepository) UpsertBankReport(ctx context.Context, report *domain.BankReport) error {
+func (r *BankReportRepository) UpsertBankReport(ctx context.Context, report *domain.InstitutionReport) error {
 	query := `
-		INSERT INTO financial_data.bacen_bank_report (
+		INSERT INTO financial_data.bacen_inst_report (
 			id, cod_inst, ano_mes, numero_relatorio, tipo_instituicao
 		) VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT (cod_inst, ano_mes, numero_relatorio, tipo_instituicao) DO UPDATE SET
@@ -78,18 +78,18 @@ func (r *BankReportRepository) UpsertBankReport(ctx context.Context, report *dom
 
 // UpsertBankReportData inserts or updates bank report data (child)
 // Uses a check-then-insert/update pattern since there's no unique constraint on (bank_report_id, account_id)
-func (r *BankReportRepository) UpsertBankReportData(ctx context.Context, data *domain.BankReportData) error {
-	// First, check if a record exists with the same bank_report_id and account_id
+func (r *BankReportRepository) UpsertBankReportData(ctx context.Context, data *domain.InstitutionReportData) error {
+	// First, check if a record exists with the same inst_report_id and account_id
 	checkQuery := `
 		SELECT id, created_at, updated_at
-		FROM financial_data.bacen_bank_report_data
-		WHERE bank_report_id = $1 AND account_id = $2
+		FROM financial_data.bacen_inst_report_data
+		WHERE inst_report_id = $1 AND account_id = $2
 		LIMIT 1
 	`
 
 	var existingID string
 	var existingCreatedAt, existingUpdatedAt time.Time
-	err := r.pool.QueryRow(ctx, checkQuery, data.BankReportID, data.AccountID).Scan(
+	err := r.pool.QueryRow(ctx, checkQuery, data.InstReportID, data.AccountID).Scan(
 		&existingID, &existingCreatedAt, &existingUpdatedAt)
 
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
@@ -99,7 +99,7 @@ func (r *BankReportRepository) UpsertBankReportData(ctx context.Context, data *d
 	if err == nil {
 		// Record exists, update it
 		updateQuery := `
-			UPDATE financial_data.bacen_bank_report_data
+			UPDATE financial_data.bacen_inst_report_data
 			SET
 				saldo = $1,
 				saldo_ajustado = $2,
@@ -126,15 +126,15 @@ func (r *BankReportRepository) UpsertBankReportData(ctx context.Context, data *d
 	}
 
 	insertQuery := `
-		INSERT INTO financial_data.bacen_bank_report_data (
-			id, bank_report_id, account_id, saldo, saldo_ajustado
+		INSERT INTO financial_data.bacen_inst_report_data (
+			id, inst_report_id, account_id, saldo, saldo_ajustado
 		) VALUES ($1, $2, $3, $4, $5)
 		RETURNING id, created_at, updated_at
 	`
 
 	err = r.pool.QueryRow(
 		ctx, insertQuery,
-		data.ID, data.BankReportID, data.AccountID, data.Saldo, data.SaldoAjustado,
+		data.ID, data.InstReportID, data.AccountID, data.Saldo, data.SaldoAjustado,
 	).Scan(&data.ID, &data.CreatedAt, &data.UpdatedAt)
 
 	if err != nil {
@@ -178,8 +178,8 @@ func (r *BankReportRepository) getPriorQuarterBalance(
 	// Query for prior quarter balance
 	query := `
 		SELECT brd.saldo
-		FROM financial_data.bacen_bank_report br
-		INNER JOIN financial_data.bacen_bank_report_data brd ON brd.bank_report_id = br.id
+		FROM financial_data.bacen_inst_report br
+		INNER JOIN financial_data.bacen_inst_report_data brd ON brd.inst_report_id = br.id
 		WHERE br.cod_inst = $1
 		  AND br.ano_mes = $2
 		  AND br.numero_relatorio = $3
@@ -288,8 +288,8 @@ func (r *BankReportRepository) PromoteRawData(
 			continue
 		}
 
-		// Create/update bank_report (parent)
-		report := &domain.BankReport{
+		// Create/update inst_report (parent)
+		report := &domain.InstitutionReport{
 			CodInst:         codInst,
 			AnoMes:          anoMes,
 			NumeroRelatorio: numeroRelatorio,
@@ -372,9 +372,9 @@ func (r *BankReportRepository) PromoteRawData(
 				// If priorSaldo is nil, saldo_ajustado remains nil (prior quarter data not found)
 			}
 
-			// Create bank_report_data (child) with account_id FK
-			data := &domain.BankReportData{
-				BankReportID:  report.ID,
+			// Create inst_report_data (child) with account_id FK
+			data := &domain.InstitutionReportData{
+				InstReportID:  report.ID,
 				AccountID:     account.ID,
 				Saldo:         saldo,
 				SaldoAjustado: saldoAjustado,
@@ -462,8 +462,8 @@ func (r *BankReportRepository) CountPromotedRecords(
 ) (int, error) {
 	query := `
 		SELECT COUNT(*)
-		FROM financial_data.bacen_bank_report_data brd
-		INNER JOIN financial_data.bacen_bank_report br ON brd.bank_report_id = br.id
+		FROM financial_data.bacen_inst_report_data brd
+		INNER JOIN financial_data.bacen_inst_report br ON brd.inst_report_id = br.id
 		WHERE br.ano_mes = $1
 		  AND br.numero_relatorio = $2
 	`

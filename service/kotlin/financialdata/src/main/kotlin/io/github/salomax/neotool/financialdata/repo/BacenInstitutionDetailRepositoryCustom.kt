@@ -1,7 +1,7 @@
 package io.github.salomax.neotool.financialdata.repo
 
 import io.github.salomax.neotool.financialdata.domain.QuarterRange
-import io.github.salomax.neotool.financialdata.repo.result.BacenBankReportDataResult
+import io.github.salomax.neotool.financialdata.repo.result.BacenInstitutionReportDataResult
 import io.github.salomax.neotool.financialdata.repo.result.FinancialInstitutionDataResult
 import io.github.salomax.neotool.financialdata.repo.result.ReportDescriptorResult
 import io.github.salomax.neotool.financialdata.repo.result.ReportValueResult
@@ -25,17 +25,17 @@ interface BacenInstitutionDetailRepositoryCustom {
     ): FinancialInstitutionDataResult?
 
     /**
-     * Get BACEN bank report data from bacen_bank_report and related tables.
+     * Get BACEN institution report data from bacen_inst_report and related tables.
      * Filters by quarter (ano_mes_ref). Caller must resolve anoMes before invoking.
      *
      * @param id Institution ID (bacen_cod_inst)
      * @param anoMes Quarter filter (YYYYMM format). If null, uses latest quarter globally.
-     * @return List of BacenBankReportDataResult, empty list if no data found
+     * @return List of BacenInstitutionReportDataResult, empty list if no data found
      */
-    fun getBacenBankReportData(
+    fun getBacenInstitutionReportData(
         id: String,
         anoMes: String? = null,
-    ): List<BacenBankReportDataResult>
+    ): List<BacenInstitutionReportDataResult>
 
     /**
      * Get available reports grouped by quarter for an institution within a quarter range.

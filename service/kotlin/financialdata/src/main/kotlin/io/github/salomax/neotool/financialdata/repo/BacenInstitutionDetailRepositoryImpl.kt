@@ -2,7 +2,7 @@ package io.github.salomax.neotool.financialdata.repo
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.github.salomax.neotool.financialdata.domain.QuarterRange
-import io.github.salomax.neotool.financialdata.repo.result.BacenBankReportDataResult
+import io.github.salomax.neotool.financialdata.repo.result.BacenInstitutionReportDataResult
 import io.github.salomax.neotool.financialdata.repo.result.FinancialInstitutionDataResult
 import io.github.salomax.neotool.financialdata.repo.result.ReportDescriptorResult
 import io.github.salomax.neotool.financialdata.repo.result.ReportValueResult
@@ -105,10 +105,10 @@ open class BacenInstitutionDetailRepositoryImpl(
     }
 
     @ReadOnly
-    override fun getBacenBankReportData(
+    override fun getBacenInstitutionReportData(
         id: String,
         anoMes: String?,
-    ): List<BacenBankReportDataResult> {
+    ): List<BacenInstitutionReportDataResult> {
         val targetAnoMes = anoMes ?: return emptyList()
 
         val sql =
@@ -124,16 +124,16 @@ open class BacenInstitutionDetailRepositoryImpl(
                 bra.nome_coluna,
                 COALESCE(brd.saldo_ajustado, brd.saldo) as saldo
             FROM financial_data.bacen_institution bi
-                INNER JOIN financial_data.bacen_bank_report br
+                INNER JOIN financial_data.bacen_inst_report br
                     ON bi.bacen_cod_inst = br.cod_inst
                     AND bi.ano_mes_ref = br.ano_mes
-                INNER JOIN financial_data.bacen_bank_report_data brd
-                    ON br.id = brd.bank_report_id
-                INNER JOIN financial_data.bacen_bank_report_account bra
+                INNER JOIN financial_data.bacen_inst_report_data brd
+                    ON br.id = brd.inst_report_id
+                INNER JOIN financial_data.bacen_inst_report_account bra
                     ON brd.account_id = bra.id
-                LEFT JOIN financial_data.bacen_bank_report_account_canonical brac
+                LEFT JOIN financial_data.bacen_inst_report_account_canonical brac
                     ON brac.id = bra.canonical_account_id
-                INNER JOIN financial_data.bacen_bank_report_catalog bbrc
+                INNER JOIN financial_data.bacen_inst_report_catalog bbrc
                     ON bbrc.numero_relatorio = br.numero_relatorio
             WHERE 1=1
                 AND bi.bacen_cod_inst = ?
@@ -180,7 +180,7 @@ open class BacenInstitutionDetailRepositoryImpl(
 
         return results.map { row ->
             val mapper = SqlResultMapper(row, columnIndices)
-            BacenBankReportDataResult(
+            BacenInstitutionReportDataResult(
                 bacenCodInst = mapper.getString("bacen_cod_inst") ?: id,
                 anoMesRef = mapper.getString("ano_mes_ref") ?: targetAnoMes,
                 reportNumber = mapper.getString("numero_relatorio") ?: "",
@@ -213,8 +213,8 @@ open class BacenInstitutionDetailRepositoryImpl(
                 br.ano_mes as quarter,
                 br.numero_relatorio as report_id,
                 brc.nome_relatorio as name
-            FROM financial_data.bacen_bank_report br
-                INNER JOIN financial_data.bacen_bank_report_catalog brc
+            FROM financial_data.bacen_inst_report br
+                INNER JOIN financial_data.bacen_inst_report_catalog brc
                     ON brc.numero_relatorio = br.numero_relatorio
             WHERE br.cod_inst = ?
                 AND br.ano_mes IN ($quartersPlaceholder)
@@ -275,14 +275,14 @@ open class BacenInstitutionDetailRepositoryImpl(
                 brac.normalized_name as account_id,
                 brac.display_name as account_name,
                 COALESCE(brd.saldo_ajustado, brd.saldo) value
-            FROM financial_data.bacen_bank_report br
-                INNER JOIN financial_data.bacen_bank_report_catalog brc
+            FROM financial_data.bacen_inst_report br
+                INNER JOIN financial_data.bacen_inst_report_catalog brc
                     ON brc.numero_relatorio = br.numero_relatorio
-                INNER JOIN financial_data.bacen_bank_report_data brd
-                    ON brd.bank_report_id = br.id
-                INNER JOIN financial_data.bacen_bank_report_account bra
+                INNER JOIN financial_data.bacen_inst_report_data brd
+                    ON brd.inst_report_id = br.id
+                INNER JOIN financial_data.bacen_inst_report_account bra
                     ON bra.id = brd.account_id
-                LEFT JOIN financial_data.bacen_bank_report_account_canonical brac
+                LEFT JOIN financial_data.bacen_inst_report_account_canonical brac
                     ON brac.id = bra.canonical_account_id
             WHERE br.cod_inst = ?
                 AND br.numero_relatorio = ?
@@ -342,7 +342,7 @@ open class BacenInstitutionDetailRepositoryImpl(
                 val sql =
                     """
                     SELECT DISTINCT ano_mes
-                    FROM financial_data.bacen_bank_report
+                    FROM financial_data.bacen_inst_report
                     WHERE cod_inst = ?
                     ORDER BY ano_mes DESC
                     LIMIT ?

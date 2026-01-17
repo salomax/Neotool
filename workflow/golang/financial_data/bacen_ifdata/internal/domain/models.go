@@ -88,8 +88,8 @@ type IFDataRaw struct {
 	UpdatedAt       time.Time
 }
 
-// BankReport represents a normalized bank report (parent)
-type BankReport struct {
+// InstitutionReport represents a normalized institution report (parent)
+type InstitutionReport struct {
 	ID              string // UUID
 	CodInst         string
 	AnoMes          string
@@ -99,8 +99,8 @@ type BankReport struct {
 	UpdatedAt       time.Time
 }
 
-// BankReportAccount represents normalized account metadata
-type BankReportAccount struct {
+// InstitutionReportAccount represents normalized account metadata
+type InstitutionReportAccount struct {
 	ID                 string // UUID
 	CanonicalAccountID *string // UUID - Foreign key to canonical account
 	Grupo              *string
@@ -111,8 +111,8 @@ type BankReportAccount struct {
 	UpdatedAt          time.Time
 }
 
-// BankReportAccountCanonical represents a canonical account used to group account variants
-type BankReportAccountCanonical struct {
+// InstitutionReportAccountCanonical represents a canonical account used to group account variants
+type InstitutionReportAccountCanonical struct {
 	ID             string // UUID
 	NormalizedName string
 	DisplayName    *string
@@ -120,11 +120,11 @@ type BankReportAccountCanonical struct {
 	UpdatedAt      time.Time
 }
 
-// BankReportData represents individual report data rows (child)
-type BankReportData struct {
+// InstitutionReportData represents individual report data rows (child)
+type InstitutionReportData struct {
 	ID            string // UUID
-	BankReportID  string
-	AccountID     string // UUID - Foreign key to BankReportAccount
+	InstReportID  string
+	AccountID     string // UUID - Foreign key to InstitutionReportAccount
 	Saldo         *float64
 	SaldoAjustado *float64 // Quarter-adjusted balance for cumulative accounts (e.g., 78187 in months 06/12)
 	CreatedAt     time.Time

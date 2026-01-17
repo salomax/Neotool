@@ -53,8 +53,8 @@ open class BacenInstitutionDetailService(
             return null
         }
 
-        // Get BACEN bank report data
-        val reportData = institutionDetailRepository.getBacenBankReportData(id, targetAnoMes)
+        // Get BACEN institution report data
+        val reportData = institutionDetailRepository.getBacenInstitutionReportData(id, targetAnoMes)
         if (reportData.isEmpty()) {
             logger.debug { "No report data found for id=$id, anoMes=$anoMes" }
         }
@@ -115,7 +115,7 @@ open class BacenInstitutionDetailService(
      * Maps canonical account names to specific financial metrics.
      */
     private fun extractFinancialMetrics(
-        reportData: List<io.github.salomax.neotool.financialdata.repo.result.BacenBankReportDataResult>,
+        reportData: List<io.github.salomax.neotool.financialdata.repo.result.BacenInstitutionReportDataResult>,
         anoMes: String?,
     ): FinancialMetrics {
         // Group by canonical account name for easier lookup
