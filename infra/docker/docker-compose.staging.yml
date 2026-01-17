@@ -85,6 +85,10 @@ services:
       MICRONAUT_SERVER_PORT: 8080
       POSTGRES_HOST: pgbouncer
       POSTGRES_PORT: 6432
+      # Unleash Feature Flags Configuration (REQUIRED)
+      UNLEASH_URL: ${UNLEASH_URL:-}
+      UNLEASH_API_TOKEN: ${UNLEASH_API_TOKEN:-}
+      UNLEASH_APP_NAME: ${UNLEASH_APP_NAME:-neotool-security}
     depends_on:
       pgbouncer:
         condition: service_healthy
@@ -101,6 +105,10 @@ services:
       MICRONAUT_SERVER_PORT: 8080
       POSTGRES_HOST: pgbouncer
       POSTGRES_PORT: 6432
+      # Unleash Feature Flags Configuration (REQUIRED)
+      UNLEASH_URL: ${UNLEASH_URL:-}
+      UNLEASH_API_TOKEN: ${UNLEASH_API_TOKEN:-}
+      UNLEASH_APP_NAME: ${UNLEASH_APP_NAME:-neotool-app}
     depends_on:
       pgbouncer:
         condition: service_healthy
@@ -119,6 +127,10 @@ services:
       MICRONAUT_SERVER_PORT: 8080
       POSTGRES_HOST: pgbouncer
       POSTGRES_PORT: 6432
+      # Unleash Feature Flags Configuration (REQUIRED)
+      UNLEASH_URL: ${UNLEASH_URL:-}
+      UNLEASH_API_TOKEN: ${UNLEASH_API_TOKEN:-}
+      UNLEASH_APP_NAME: ${UNLEASH_APP_NAME:-neotool-assistant}
     depends_on:
       pgbouncer:
         condition: service_healthy
@@ -137,6 +149,11 @@ services:
     environment:
       NEXT_PUBLIC_GRAPHQL_URL: ${NEXT_PUBLIC_GRAPHQL_URL:-http://router:4000/graphql}
       GRAPHQL_SCHEMA_PATH: ../contracts/graphql/supergraph/supergraph.graphql
+      # Unleash Feature Flags Configuration (REQUIRED)
+      UNLEASH_SERVER_URL: ${UNLEASH_SERVER_URL:-}
+      UNLEASH_SERVER_API_TOKEN: ${UNLEASH_SERVER_API_TOKEN:-}
+      NEXT_PUBLIC_UNLEASH_PROXY_URL: ${NEXT_PUBLIC_UNLEASH_PROXY_URL:-}
+      NEXT_PUBLIC_UNLEASH_CLIENT_TOKEN: ${NEXT_PUBLIC_UNLEASH_CLIENT_TOKEN:-}
     ports:
       - "3000:3000"
 

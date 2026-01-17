@@ -4,21 +4,28 @@ import * as React from "react";
 import { AppThemeProvider } from "@/styles/themes/AppThemeProvider";
 import { AppQueryProvider } from "@/lib/api/AppQueryProvider";
 import { GraphQLProvider } from "@/lib/graphql/GraphQLProvider";
-import { ToastProvider, AuthProvider, AuthorizationProvider } from "@/shared/providers";
+import { ToastProvider, AuthProvider, AuthorizationProvider, FeatureFlagsProvider } from "@/shared/providers";
 import "@/shared/i18n/config";
 
-export default function Providers({ children }: { children: React.ReactNode }) {
+type ProvidersProps = {
+  children: React.ReactNode;
+  featureFlagsBootstrap?: Record<string, boolean>;
+};
+
+export default function Providers({ children, featureFlagsBootstrap }: ProvidersProps) {
   return (
     <AppThemeProvider>
       <AppQueryProvider>
         <GraphQLProvider>
-          <AuthProvider>
-            <AuthorizationProvider>
-              <ToastProvider>
-                {children}
-              </ToastProvider>
-            </AuthorizationProvider>
-          </AuthProvider>
+          <FeatureFlagsProvider bootstrap={featureFlagsBootstrap}>
+            <AuthProvider>
+              <AuthorizationProvider>
+                <ToastProvider>
+                  {children}
+                </ToastProvider>
+              </AuthorizationProvider>
+            </AuthProvider>
+          </FeatureFlagsProvider>
         </GraphQLProvider>
       </AppQueryProvider>
     </AppThemeProvider>
