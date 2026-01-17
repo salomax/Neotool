@@ -44,6 +44,14 @@ spec:
     ports:
     - protocol: TCP
       port: 6432
+  # Unleash server can connect
+  - from:
+    - podSelector:
+        matchLabels:
+          app: unleash
+    ports:
+    - protocol: TCP
+      port: 6432
   # Allow health checks from kubelet
   - from:
     - namespaceSelector:
