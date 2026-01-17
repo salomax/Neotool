@@ -1,0 +1,102 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: unleash-server
+  namespace: flux-system
+spec:
+  releaseName: unleash-server
+  targetNamespace: production
+  interval: 30m
+  dependsOn:
+    - name: unleash-db-init
+  chart:
+    spec:
+      chart: unleash
+      version: '5.0.0'  # Check for latest version
+      sourceRef:
+        kind: HelmRepository
+        name: unleash
+        namespace: flux-system
+      interval: 12h
+  install:
+    createNamespace: false
+    timeout: 10m
+    remediation:
+      retries: 3
+  upgrade:
+    timeout: 10m
+    remediation:
+      retries: 3
+  values:
+    # Database configuration (via PgBouncer)
+    database:
+      host: pgbouncer.production.svc.cluster.local
+      port: 6432
+      name:
+        valueFrom:
+          secretKeyRef:
+            name: unleash-credentials
+            key: UNLEASH_DB
+      user:
+        valueFrom:
+          secretKeyRef:
+            name: unleash-credentials
+            key: UNLEASH_USER
+      password:
+        valueFrom:
+          secretKeyRef:
+            name: unleash-credentials
+            key: UNLEASH_PASSWORD
+    
+    # API token (for server-to-server communication)
+    apiTokens:
+      - name: server-token
+        valueFrom:
+          secretKeyRef:
+            name: unleash-server-token
+            key: UNLEASH_SERVER_API_TOKEN
+    
+    # Service configuration
+    service:
+      type: ClusterIP
+      port: 4242
+    
+    # Resources
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "256Mi"
+      limits:
+        cpu: "500m"
+        memory: "512Mi"
+    
+    # Security context
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      fsGroup: 1000
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+    
+    # Ingress (optional - for admin UI access)
+    ingress:
+      enabled: true
+      className: nginx
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-prod
+      hosts:
+        - host: unleash.example.com  # Update with your domain
+          paths:
+            - path: /
+              pathType: Prefix
+      tls:
+        - secretName: unleash-tls
+          hosts:
+            - unleash.example.com  # Update with your domain
+    
+    # UI enabled
+    ui:
+      enabled: true
