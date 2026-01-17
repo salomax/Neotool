@@ -1,0 +1,83 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: unleash-edge
+  namespace: flux-system
+spec:
+  releaseName: unleash-edge
+  targetNamespace: production
+  interval: 30m
+  dependsOn:
+    - name: unleash-server
+  chart:
+    spec:
+      chart: unleash-edge
+      version: '1.0.0'  # Check for latest version
+      sourceRef:
+        kind: HelmRepository
+        name: unleash
+        namespace: flux-system
+      interval: 12h
+  install:
+    createNamespace: false
+    timeout: 10m
+    remediation:
+      retries: 3
+  upgrade:
+    timeout: 10m
+    remediation:
+      retries: 3
+  values:
+    # Unleash Server connection
+    unleash:
+      url: http://unleash-server.production.svc.cluster.local:4242
+      clientToken:
+        valueFrom:
+          secretKeyRef:
+            name: unleash-proxy-token
+            key: UNLEASH_PROXY_CLIENT_TOKEN
+    
+    # Service configuration
+    service:
+      type: ClusterIP
+      port: 3063
+    
+    # Resources
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "256Mi"
+        cpu: "200m"
+    
+    # Security context
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      fsGroup: 1000
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+    
+    # Cache configuration
+    cache:
+      ttl: 30  # Cache TTL in seconds
+    
+    # Ingress (optional - for client access)
+    ingress:
+      enabled: true
+      className: nginx
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-prod
+      hosts:
+        - host: unleash-api.example.com  # Update with your domain
+          paths:
+            - path: /
+              pathType: Prefix
+      tls:
+        - secretName: unleash-edge-tls
+          hosts:
+            - unleash-api.example.com  # Update with your domain

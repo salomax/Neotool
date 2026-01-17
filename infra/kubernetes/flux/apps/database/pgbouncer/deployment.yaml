@@ -7,6 +7,7 @@ data:
   pgbouncer.ini.tpl: |
     [databases]
     neotool_db = host=postgres-headless port=5432 dbname=${POSTGRES_DB} user=${POSTGRES_USER} password=${POSTGRES_PASSWORD}
+    unleash_db = host=postgres-headless port=5432 dbname=${UNLEASH_DB} user=${UNLEASH_USER} password=${UNLEASH_PASSWORD}
 
     [pgbouncer]
     listen_addr = 0.0.0.0
@@ -98,6 +99,21 @@ spec:
                 secretKeyRef:
                   name: pgbouncer-credentials
                   key: POSTGRES_DB
+            - name: UNLEASH_USER
+              valueFrom:
+                secretKeyRef:
+                  name: unleash-credentials
+                  key: UNLEASH_USER
+            - name: UNLEASH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: unleash-credentials
+                  key: UNLEASH_PASSWORD
+            - name: UNLEASH_DB
+              valueFrom:
+                secretKeyRef:
+                  name: unleash-credentials
+                  key: UNLEASH_DB
           volumeMounts:
             - name: pgbouncer-config-rendered
               mountPath: /config
