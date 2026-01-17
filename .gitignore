@@ -44,6 +44,9 @@ web/public/robots.txt
 # sitemap.xml: ssitemap files containing URLs with metadata (lastmod, changefreq, priority)
 web/public/sitemap*.xml
 
+# PgBouncer credentials (generated from template)
+infra/pgbouncer/userlist.txt
+
 # Terraform
 *.tfstate
 *.tfstate.*
