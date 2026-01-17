@@ -1,8 +1,8 @@
 package io.github.salomax.neotool.assets.config
 
 import io.github.salomax.neotool.assets.domain.AssetVisibility
-import io.micronaut.core.io.ResourceLoader
 import io.micronaut.context.annotation.Property
+import io.micronaut.core.io.ResourceLoader
 import jakarta.inject.Singleton
 import mu.KotlinLogging
 import org.yaml.snakeyaml.Yaml

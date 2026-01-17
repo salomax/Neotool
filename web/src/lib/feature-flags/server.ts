@@ -64,11 +64,9 @@ async function waitForReady(timeoutMs: number = 5000): Promise<boolean> {
 
   return Promise.race([
     new Promise<boolean>((resolve) => {
-      if (client.isReady()) {
-        resolve(true);
-        return;
-      }
-
+      // Listen for ready event - in v6, this means local cache is ready
+      // For server sync, we'd listen to 'synchronized' event, but for bootstrap
+      // 'ready' is sufficient as we have bootstrap data
       client.once('ready', () => {
         resolve(true);
       });

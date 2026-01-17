@@ -60,6 +60,11 @@ Commands:
     Subcommands: import, list, enable, disable
     Run '$0 flags --help' for more information.
 
+  $(log "pgbouncer" "$GREEN") <subcommand>
+    Manage PgBouncer configuration and credentials.
+    Subcommands: credential-md5
+    Run '$0 pgbouncer --help' for more information.
+
 Options:
   -v, --version    Check system requirements (Node.js, Docker, JVM)
 
@@ -83,6 +88,8 @@ Examples:
   $0 flags import infra/unleash/flags.yaml
   $0 flags enable security/login/enabled
   $0 flags disable assistant/enable --env production
+  $0 pgbouncer credential-md5 neotool neotool
+  $0 pgbouncer credential-md5 --from-env
   $0 --version
 
 For more information about a specific command, run it with --help.
@@ -154,6 +161,12 @@ main() {
     # Handle flags command (has subcommands)
     if [[ "$command" == "flags" ]]; then
         execute_command "flags" "$@"
+        exit $?
+    fi
+    
+    # Handle pgbouncer command (has subcommands)
+    if [[ "$command" == "pgbouncer" ]]; then
+        execute_command "pgbouncer" "$@"
         exit $?
     fi
     

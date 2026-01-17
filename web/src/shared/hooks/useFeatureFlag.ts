@@ -1,6 +1,6 @@
 "use client";
 
-import { useFlag, useFlags } from "@unleash/proxy-client-react";
+import { useFlag, useFlags, type IToggle } from "@unleash/proxy-client-react";
 import { useFeatureFlagsContext } from "@/shared/providers/FeatureFlagsProvider";
 import type { FeatureFlagEvaluationResult } from "@/shared/types/unleash";
 
@@ -44,7 +44,18 @@ export function useFeatureFlags(): Record<string, boolean> {
     return {};
   }
 
-  return flags;
+  // Convert IToggle[] to Record<string, boolean>
+  const flagsRecord: Record<string, boolean> = {};
+  if (Array.isArray(flags)) {
+    (flags as IToggle[]).forEach((toggle) => {
+      flagsRecord[toggle.name] = toggle.enabled;
+    });
+  } else if (flags && typeof flags === 'object') {
+    // Handle case where flags might already be a record
+    return flags as Record<string, boolean>;
+  }
+
+  return flagsRecord;
 }
 
 /**

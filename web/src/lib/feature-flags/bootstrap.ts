@@ -21,7 +21,7 @@ export async function getBootstrapFlags(): Promise<Record<string, boolean>> {
       ? {
           userId: user.id,
           tenantId: user.tenantId,
-          role: user.role,
+          role: user.role || (user.roles && user.roles.length > 0 ? user.roles[0].name : undefined),
           plan: user.plan,
           environment: process.env.NEXT_PUBLIC_ENV || 'production',
         }
