@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { FlagProvider, useFlagsStatus } from "@unleash/proxy-client-react";
+import { FlagProvider, useFlagsStatus, type IToggle, type IConfig } from "@unleash/proxy-client-react";
 import { logger } from "@/shared/utils/logger";
 
 type FeatureFlagsContextType = {
@@ -42,12 +42,20 @@ export const FeatureFlagsProvider: React.FC<FeatureFlagsProviderProps> = ({
     throw new Error("NEXT_PUBLIC_UNLEASH_CLIENT_TOKEN environment variable is required");
   }
 
-  const config = {
+  // Convert bootstrap Record<string, boolean> to IToggle[] format
+  const bootstrapToggles: IToggle[] = Object.entries(bootstrap).map(([name, enabled]) => ({
+    name,
+    enabled,
+    variant: { name: 'disabled', enabled: false }, // Default variant when not specified
+    impressionData: false, // No impression data for bootstrap
+  }));
+
+  const config: IConfig = {
     url: unleashProxyUrl,
     clientKey: unleashClientToken,
     appName: "neotool-web",
     refreshInterval: 30, // Refresh every 30 seconds
-    bootstrap: bootstrap, // Use bootstrap data to avoid flicker
+    bootstrap: bootstrapToggles, // Use bootstrap data to avoid flicker
     environment: process.env.NEXT_PUBLIC_ENV || "production",
   };
 
