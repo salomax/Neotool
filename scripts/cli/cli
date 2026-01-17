@@ -55,6 +55,11 @@ Commands:
     Subcommands: register
     Run '$0 service --help' for more information.
 
+  $(log "flags" "$GREEN") <subcommand>
+    Manage Unleash feature flags.
+    Subcommands: import, list, enable, disable
+    Run '$0 flags --help' for more information.
+
 Options:
   -v, --version    Check system requirements (Node.js, Docker, JVM)
 
@@ -74,6 +79,10 @@ Examples:
   $0 vault create-secret kid-2 --key-bits 2048
   $0 service register service-x
   $0 service register service-x --permissions "asset:read,asset:list"
+  $0 flags list
+  $0 flags import infra/unleash/flags.yaml
+  $0 flags enable security/login/enabled
+  $0 flags disable assistant/enable --env production
   $0 --version
 
 For more information about a specific command, run it with --help.
@@ -139,6 +148,12 @@ main() {
     # Handle service command (has subcommands)
     if [[ "$command" == "service" ]]; then
         execute_command "service" "$@"
+        exit $?
+    fi
+    
+    # Handle flags command (has subcommands)
+    if [[ "$command" == "flags" ]]; then
+        execute_command "flags" "$@"
         exit $?
     fi
     

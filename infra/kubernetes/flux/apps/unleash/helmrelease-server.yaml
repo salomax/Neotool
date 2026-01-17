@@ -29,10 +29,10 @@ spec:
     remediation:
       retries: 3
   values:
-    # Database configuration
+    # Database configuration (via PgBouncer)
     database:
-      host: postgres-headless.production.svc.cluster.local
-      port: 5432
+      host: pgbouncer.production.svc.cluster.local
+      port: 6432
       name:
         valueFrom:
           secretKeyRef:

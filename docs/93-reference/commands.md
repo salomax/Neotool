@@ -86,6 +86,65 @@ search_keywords: [commands, cli, reference]
 
 **Note**: This command automatically generates RSA key pairs and stores them in Vault. It works with both local Vault CLI installations and Docker containers. Perfect for local development setup.
 
+### Feature Flags Management
+```bash
+./neotool flags list                                       # List all feature flags
+./neotool flags list --format json                         # List flags in JSON format
+./neotool flags list --format yaml                         # List flags in YAML format
+./neotool flags import <file>                              # Import flags from YAML file
+./neotool flags import <file> --dry-run                    # Preview import without making changes
+./neotool flags import <file> --force                      # Update existing flags
+./neotool flags enable <flag-name>                         # Enable flag in default environment
+./neotool flags enable <flag-name> --env <env>             # Enable flag in specific environment
+./neotool flags disable <flag-name>                        # Disable flag in default environment
+./neotool flags disable <flag-name> --env <env>            # Disable flag in specific environment
+```
+
+**Flags Options**:
+- `--url <url>`: Unleash server URL (default: `http://unleash:4242` or `http://localhost:4242`)
+- `--token <token>`: API token (default: from `UNLEASH_SERVER_API_TOKEN` env var)
+- `--format <fmt>`: Output format for list: `table`, `json`, `yaml` (default: `table`)
+- `--env <env>`: Environment for enable/disable: `development`, `staging`, `production` (default: `development`)
+- `--dry-run`: Preview import without making changes
+- `--force`: Update existing flags during import
+- `--yes`, `-y`: Skip confirmation prompt (for production operations)
+- `--quiet`, `-q`: Minimal output
+- Environment variables: `UNLEASH_SERVER_API_TOKEN`
+
+**Flags Examples**:
+```bash
+# List all flags
+./neotool flags list
+
+# List flags in JSON format
+./neotool flags list --format json
+
+# Import flags from YAML file
+./neotool flags import infra/unleash/flags.yaml
+
+# Preview import (dry run)
+./neotool flags import infra/unleash/flags.yaml --dry-run
+
+# Import to remote server
+./neotool flags import infra/unleash/flags.yaml \
+  --url https://unleash.example.com \
+  --token $UNLEASH_SERVER_API_TOKEN
+
+# Enable a flag in development
+./neotool flags enable security/login/enabled
+
+# Enable a flag in production (with confirmation)
+./neotool flags enable assistant/enable --env production
+
+# Disable a flag in staging
+./neotool flags disable security/login/enabled --env staging
+
+# Skip confirmation for scripts
+./neotool flags enable feature/new-dashboard --env production --yes
+```
+
+**Note**: This command manages Unleash feature flags via the Admin API. It supports importing flags from YAML files, listing existing flags, and enabling/disabling flags across different environments. The CLI automatically prompts for confirmation when operating on production environments (unless `--yes` is used). Requires `yq` for YAML parsing and `jq` for JSON output formatting.
+
 ### Service Registration
 ```bash
 ./neotool service register <service-id>                    # Register a new service

@@ -2,21 +2,32 @@
 
 import { useFlag, useFlags } from "@unleash/proxy-client-react";
 import { useFeatureFlagsContext } from "@/shared/providers/FeatureFlagsProvider";
+import type { FeatureFlagEvaluationResult } from "@/shared/types/unleash";
 
 /**
- * Hook to check if a specific feature flag is enabled
+ * Hook to check if a specific feature flag is enabled with loading state
+ * @param flagName - The name of the feature flag
+ * @returns Object with enabled state, loading state, and error
+ */
+export function useFeatureFlag(flagName: string): FeatureFlagEvaluationResult {
+  const { isReady, flagsError } = useFeatureFlagsContext();
+  const enabled = useFlag(flagName);
+
+  return {
+    enabled: isReady ? enabled : false,
+    loading: !isReady,
+    error: flagsError,
+  };
+}
+
+/**
+ * Simple hook that returns only the boolean enabled state
+ * Use this when you don't need loading/error states
  * @param flagName - The name of the feature flag
  * @returns boolean indicating if the flag is enabled
  */
-export function useFeatureFlag(flagName: string): boolean {
-  const { isReady } = useFeatureFlagsContext();
-  const enabled = useFlag(flagName);
-
-  // Return false if flags are not ready yet (prevents flicker)
-  if (!isReady) {
-    return false;
-  }
-
+export function useFeatureFlagEnabled(flagName: string): boolean {
+  const { enabled } = useFeatureFlag(flagName);
   return enabled;
 }
 
@@ -50,7 +61,7 @@ export function useFeatureFlagWithContext(
     plan?: string;
     region?: string;
   }
-): boolean {
+): FeatureFlagEvaluationResult {
   // Client-side proxy doesn't support context in the same way
   // For context-based targeting, use server-side evaluation
   return useFeatureFlag(flagName);

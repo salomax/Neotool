@@ -31,18 +31,20 @@ export const FeatureFlagsProvider: React.FC<FeatureFlagsProviderProps> = ({
   const [isReady, setIsReady] = React.useState(false);
   const [flagsError, setFlagsError] = React.useState<Error | null>(null);
 
-  const unleashProxyUrl =
-    process.env.NEXT_PUBLIC_UNLEASH_PROXY_URL ||
-    "http://unleash-edge.production.svc.cluster.local:3063/proxy";
+  const unleashProxyUrl = process.env.NEXT_PUBLIC_UNLEASH_PROXY_URL;
   const unleashClientToken = process.env.NEXT_PUBLIC_UNLEASH_CLIENT_TOKEN;
 
+  if (!unleashProxyUrl) {
+    throw new Error("NEXT_PUBLIC_UNLEASH_PROXY_URL environment variable is required");
+  }
+
   if (!unleashClientToken) {
-    logger.warn("NEXT_PUBLIC_UNLEASH_CLIENT_TOKEN not set, feature flags will be disabled");
+    throw new Error("NEXT_PUBLIC_UNLEASH_CLIENT_TOKEN environment variable is required");
   }
 
   const config = {
     url: unleashProxyUrl,
-    clientKey: unleashClientToken || "",
+    clientKey: unleashClientToken,
     appName: "neotool-web",
     refreshInterval: 30, // Refresh every 30 seconds
     bootstrap: bootstrap, // Use bootstrap data to avoid flicker
