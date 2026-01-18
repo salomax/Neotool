@@ -63,18 +63,19 @@ open class BacenInstitutionDetailRepositoryImpl(
         }
 
         val row = results[0]
-        val columnIndices = mapOf(
-            "nome_instituicao" to 0,
-            "tipo_controle" to 1,
-            "tipo_consolidacao" to 2,
-            "tipo_consolidado_bancario" to 3,
-            "legal_name" to 4,
-            "trade_name" to 5,
-            "asset_id" to 6,
-            "website" to 7,
-            "social_network" to 8,
-            "receita_data" to 9,
-        )
+        val columnIndices =
+            mapOf(
+                "nome_instituicao" to 0,
+                "tipo_controle" to 1,
+                "tipo_consolidacao" to 2,
+                "tipo_consolidado_bancario" to 3,
+                "legal_name" to 4,
+                "trade_name" to 5,
+                "asset_id" to 6,
+                "website" to 7,
+                "social_network" to 8,
+                "receita_data" to 9,
+            )
 
         val mapper = SqlResultMapper(row, columnIndices)
 
@@ -166,17 +167,18 @@ open class BacenInstitutionDetailRepositoryImpl(
         val results =
             query.resultList as? List<Array<Any?>> ?: return emptyList()
 
-        val columnIndices = mapOf(
-            "bacen_cod_inst" to 0,
-            "ano_mes_ref" to 1,
-            "numero_relatorio" to 2,
-            "nome_relatorio" to 3,
-            "grupo" to 4,
-            "conta" to 5,
-            "canonical_account_name" to 6,
-            "nome_coluna" to 7,
-            "saldo" to 8,
-        )
+        val columnIndices =
+            mapOf(
+                "bacen_cod_inst" to 0,
+                "ano_mes_ref" to 1,
+                "numero_relatorio" to 2,
+                "nome_relatorio" to 3,
+                "grupo" to 4,
+                "conta" to 5,
+                "canonical_account_name" to 6,
+                "nome_coluna" to 7,
+                "saldo" to 8,
+            )
 
         return results.map { row ->
             val mapper = SqlResultMapper(row, columnIndices)
@@ -231,11 +233,12 @@ open class BacenInstitutionDetailRepositoryImpl(
         val results =
             query.resultList as? List<Array<Any?>> ?: return emptyList()
 
-        val columnIndices = mapOf(
-            "quarter" to 0,
-            "report_id" to 1,
-            "name" to 2,
-        )
+        val columnIndices =
+            mapOf(
+                "quarter" to 0,
+                "report_id" to 1,
+                "name" to 2,
+            )
 
         return results.map { row ->
             val mapper = SqlResultMapper(row, columnIndices)
@@ -266,7 +269,8 @@ open class BacenInstitutionDetailRepositoryImpl(
         }
 
         val quartersPlaceholder = quarters.joinToString(",") { "?" }
-        val sql = """
+        val sql =
+            """
             SELECT DISTINCT
                 br.ano_mes as quarter,
                 br.numero_relatorio as report_id,
@@ -287,9 +291,9 @@ open class BacenInstitutionDetailRepositoryImpl(
             WHERE br.cod_inst = ?
                 AND br.numero_relatorio = ?
                 AND br.ano_mes IN ($quartersPlaceholder)
-            ORDER BY 
-                account_name, 
-                br.ano_mes DESC, 
+            ORDER BY
+                account_name,
+                br.ano_mes DESC,
                 bra.grupo
             """.trimIndent()
 
@@ -304,15 +308,16 @@ open class BacenInstitutionDetailRepositoryImpl(
         val results =
             query.resultList as? List<Array<Any?>> ?: return emptyList()
 
-        val columnIndices = mapOf(
-            "quarter" to 0,
-            "report_id" to 1,
-            "name" to 2,
-            "account_group" to 3,
-            "account_id" to 4,
-            "account_name" to 5,
-            "value" to 6,
-        )
+        val columnIndices =
+            mapOf(
+                "quarter" to 0,
+                "report_id" to 1,
+                "name" to 2,
+                "account_group" to 3,
+                "account_id" to 4,
+                "account_name" to 5,
+                "value" to 6,
+            )
 
         return results.map { row ->
             val mapper = SqlResultMapper(row, columnIndices)
@@ -416,11 +421,12 @@ open class BacenInstitutionDetailRepositoryImpl(
             val addressNode = node.get("address")
             val city = addressNode?.get("city")?.asText()
             val state = addressNode?.get("state")?.asText()
-            val address = if (city != null && state != null) {
-                "$city, $state"
-            } else {
-                null
-            }
+            val address =
+                if (city != null && state != null) {
+                    "$city, $state"
+                } else {
+                    null
+                }
             val foundedStr = node.get("founded")?.asText()
             val founded = foundedStr?.let { formatDate(it) }
 

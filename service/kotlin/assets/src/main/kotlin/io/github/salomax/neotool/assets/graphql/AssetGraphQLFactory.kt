@@ -55,27 +55,28 @@ class AssetGraphQLFactory(
                     }
 
                     // Batch load all assets in one query
-                    val assetsMap = if (assetIds.isNotEmpty()) {
-                        assetRepository.findByIdIn(assetIds)
-                            .mapNotNull { entity ->
-                                // For federation, only return PUBLIC assets (no authorization required)
-                                // PRIVATE assets require ownership checks which we can't do in federation context
-                                if (entity.visibility == AssetVisibility.PUBLIC) {
-                                    val asset = entity.toDomain()
-                                    asset.id?.let { assetId ->
-                                        assetId to assetMapper.toAssetDTO(asset)
+                    val assetsMap =
+                        if (assetIds.isNotEmpty()) {
+                            assetRepository.findByIdIn(assetIds)
+                                .mapNotNull { entity ->
+                                    // For federation, only return PUBLIC assets (no authorization required)
+                                    // PRIVATE assets require ownership checks which we can't do in federation context
+                                    if (entity.visibility == AssetVisibility.PUBLIC) {
+                                        val asset = entity.toDomain()
+                                        asset.id?.let { assetId ->
+                                            assetId to assetMapper.toAssetDTO(asset)
+                                        }
+                                    } else {
+                                        logger.debug(
+                                            "Skipping PRIVATE asset in federation: ${entity.id}",
+                                        )
+                                        null
                                     }
-                                } else {
-                                    logger.debug(
-                                        "Skipping PRIVATE asset in federation: ${entity.id}",
-                                    )
-                                    null
                                 }
-                            }
-                            .toMap()
-                    } else {
-                        emptyMap()
-                    }
+                                .toMap()
+                        } else {
+                            emptyMap()
+                        }
 
                     // Map results back to original representation order
                     reps.mapIndexed { index, rep ->

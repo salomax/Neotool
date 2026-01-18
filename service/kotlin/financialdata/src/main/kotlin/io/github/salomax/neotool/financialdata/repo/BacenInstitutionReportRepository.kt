@@ -13,8 +13,8 @@ interface BacenInstitutionReportRepository : JpaRepository<BacenInstitutionRepor
         numeroRelatorio: String,
         tipoInstituicao: Int,
     ): BacenInstitutionReportEntity?
-    
+
     fun findByCodInst(codInst: String): List<BacenInstitutionReportEntity>
-    
+
     fun findByAnoMes(anoMes: String): List<BacenInstitutionReportEntity>
 }

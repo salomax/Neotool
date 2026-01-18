@@ -129,11 +129,11 @@ open class BacenInstitutionDetailService(
                 CanonicalAccountNames.PATRIMONIO_LIQUIDO,
                 CanonicalAccountNames.INDICE_DE_BASILEIA,
                 CanonicalAccountNames.INDICE_DE_IMOBILIZACAO,
-            CanonicalAccountNames.ATIVO_TOTAL,
-            CanonicalAccountNames.CAPTACOES,
-            CanonicalAccountNames.CARTEIRA_DE_CREDITO,
-            CanonicalAccountNames.PATRIMONIO_DE_REFERENCIA,
-        )
+                CanonicalAccountNames.ATIVO_TOTAL,
+                CanonicalAccountNames.CAPTACOES,
+                CanonicalAccountNames.CARTEIRA_DE_CREDITO,
+                CanonicalAccountNames.PATRIMONIO_DE_REFERENCIA,
+            )
         val missingAccounts = expectedAccounts.filter { it !in accountMap }
         if (missingAccounts.isNotEmpty()) {
             logger.debug { "Missing expected canonical account names in report data: $missingAccounts" }
@@ -214,11 +214,11 @@ open class BacenInstitutionDetailService(
                                 reportId = report.reportId,
                                 name = report.name,
                                 // group, accountId, accountName not set (default to null)
-                        // These fields are only available in reportDetails
-                    )
-                },
-            )
-        }.sortedByDescending { it.quarter } // Most recent first
+                                // These fields are only available in reportDetails
+                            )
+                        },
+                )
+            }.sortedByDescending { it.quarter } // Most recent first
 
         return ReportsAvailability(quarters = quarterReports)
     }
@@ -258,31 +258,33 @@ open class BacenInstitutionDetailService(
                     value.accountId,
                     value.accountName,
                 )
-        }
+            }
 
         // Create ReportAccount for each unique account
-        val accounts = accountsMap.map { (accountKey, accountValues) ->
-            val (group, accountId, accountName) = accountKey
+        val accounts =
+            accountsMap.map { (accountKey, accountValues) ->
+                val (group, accountId, accountName) = accountKey
 
-            // Aggregate valuesByQuarter per account, sorted descending (most recent first)
-            val quarterValues = accountValues.map { value ->
-                QuarterValue(
-                    quarter = value.quarter,
-                    value = value.value,
+                // Aggregate valuesByQuarter per account, sorted descending (most recent first)
+                val quarterValues =
+                    accountValues.map { value ->
+                        QuarterValue(
+                            quarter = value.quarter,
+                            value = value.value,
+                        )
+                    }.sortedByDescending { it.quarter }
+
+                ReportAccount(
+                    group = group,
+                    accountId = accountId,
+                    accountName = accountName,
+                    valuesByQuarter = quarterValues,
                 )
-            }.sortedByDescending { it.quarter }
-
-            ReportAccount(
-                group = group,
-                accountId = accountId,
-                accountName = accountName,
-                valuesByQuarter = quarterValues,
+            }.sortedWith(
+                // Sort accounts consistently: by accountId then group
+                compareBy<ReportAccount> { it.accountId ?: "" }
+                    .thenBy { it.group ?: "" },
             )
-        }.sortedWith(
-            // Sort accounts consistently: by accountId then group
-            compareBy<ReportAccount> { it.accountId ?: "" }
-                .thenBy { it.group ?: "" },
-        )
 
         return ReportDetails(
             reportId = first.reportId,

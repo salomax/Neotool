@@ -227,7 +227,10 @@ open class BacenInstitutionRepositoryImpl(
         // Build similarity_score calculation - only when there's a query
         val similarityScoreExpression =
             if (hasQuery) {
-                "financial_data.similarity(\n                        coalesce(bacen_institutions_and_groups.nome_instituicao, fi_data.legal_name, fi_data.trade_name)::TEXT, \n                        ?::TEXT) as similarity_score"
+                "financial_data.similarity(\n" +
+                    "                        coalesce(bacen_institutions_and_groups.nome_instituicao, " +
+                    "fi_data.legal_name, fi_data.trade_name)::TEXT, \n" +
+                    "                        ?::TEXT) as similarity_score"
             } else {
                 "0.0::REAL as similarity_score"
             }
@@ -424,19 +427,20 @@ open class BacenInstitutionRepositoryImpl(
         val hasQuery = query != null && query.isNotBlank()
         val likePattern = if (hasQuery) "%${query!!.lowercase()}%" else ""
 
+        val queryFilter =
+            if (hasQuery) {
+                "            AND (bi.nome_instituicao ILIKE ?\n" +
+                    "                   OR (bi.bacen_cod_inst ILIKE ? AND bi.bacen_cod_inst NOT ILIKE 'c%'))"
+            } else {
+                ""
+            }
+
         val sql =
             """
             SELECT COUNT(DISTINCT bi.bacen_cod_inst)
             FROM financial_data.bacen_institution bi
             WHERE bi.ano_mes_ref = ?
-            ${if (hasQuery) {
-                """
-              AND (bi.nome_instituicao ILIKE ?
-                   OR (bi.bacen_cod_inst ILIKE ? AND bi.bacen_cod_inst NOT ILIKE 'c%'))
-            """.trimIndent()
-            } else {
-                ""
-            }}
+            $queryFilter
             """.trimIndent()
 
         val nativeQuery = entityManager.createNativeQuery(sql)

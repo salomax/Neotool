@@ -39,42 +39,45 @@ import java.security.MessageDigest
 @Tag("financial-data")
 @TestMethodOrder(MethodOrderer.Random::class)
 class InstitutionSearchIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTest {
-
     @Inject
     lateinit var bacenInstitutionRepository: BacenInstitutionRepository
 
     @BeforeEach
     fun setUpTestData() {
         // Create test institutions for integration tests
-        val testInstitutions = listOf(
-            BacenInstitutionEntity(
-                id = BacenInstitutionId(
-                    bacenCodInst = "001",
-                    anoMesRef = "202403",
+        val testInstitutions =
+            listOf(
+                BacenInstitutionEntity(
+                    id =
+                        BacenInstitutionId(
+                            bacenCodInst = "001",
+                            anoMesRef = "202403",
+                        ),
+                    sourceHash = calculateHash("001", "Banco do Brasil", "202403"),
+                    nomeInstituicao = "Banco do Brasil S.A.",
+                    situacao = 'A',
                 ),
-                sourceHash = calculateHash("001", "Banco do Brasil", "202403"),
-                nomeInstituicao = "Banco do Brasil S.A.",
-                situacao = 'A',
-            ),
-            BacenInstitutionEntity(
-                id = BacenInstitutionId(
-                    bacenCodInst = "033",
-                    anoMesRef = "202403",
+                BacenInstitutionEntity(
+                    id =
+                        BacenInstitutionId(
+                            bacenCodInst = "033",
+                            anoMesRef = "202403",
+                        ),
+                    sourceHash = calculateHash("033", "Banco Santander", "202403"),
+                    nomeInstituicao = "Banco Santander (Brasil) S.A.",
+                    situacao = 'A',
                 ),
-                sourceHash = calculateHash("033", "Banco Santander", "202403"),
-                nomeInstituicao = "Banco Santander (Brasil) S.A.",
-                situacao = 'A',
-            ),
-            BacenInstitutionEntity(
-                id = BacenInstitutionId(
-                    bacenCodInst = "104",
-                    anoMesRef = "202403",
+                BacenInstitutionEntity(
+                    id =
+                        BacenInstitutionId(
+                            bacenCodInst = "104",
+                            anoMesRef = "202403",
+                        ),
+                    sourceHash = calculateHash("104", "Caixa Econômica Federal", "202403"),
+                    nomeInstituicao = "Caixa Econômica Federal",
+                    situacao = 'A',
                 ),
-                sourceHash = calculateHash("104", "Caixa Econômica Federal", "202403"),
-                nomeInstituicao = "Caixa Econômica Federal",
-                situacao = 'A',
-            ),
-        )
+            )
 
         testInstitutions.forEach { institution ->
             bacenInstitutionRepository.save(institution)
@@ -90,20 +93,28 @@ class InstitutionSearchIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
         }
     }
 
-    private fun calculateHash(bacenCodInst: String, nomeInstituicao: String, anoMesRef: String): String {
+    private fun calculateHash(
+        bacenCodInst: String,
+        nomeInstituicao: String,
+        anoMesRef: String,
+    ): String {
         val data = "$bacenCodInst|$nomeInstituicao|$anoMesRef"
         val digest = MessageDigest.getInstance("SHA-256")
         val hashBytes = digest.digest(data.toByteArray())
         return hashBytes.joinToString("") { "%02x".format(it) }
     }
 
-    private fun graphQLQuery(query: String, variables: Map<String, Any>? = null): Map<String, Any> {
+    private fun graphQLQuery(
+        query: String,
+        variables: Map<String, Any>? = null,
+    ): Map<String, Any> {
         return mapOf("query" to query) + if (variables != null) mapOf("variables" to variables) else emptyMap()
     }
 
     @Test
     fun `should search institutions autocomplete via GraphQL`() {
-        val query = """
+        val query =
+            """
             query SearchAutocomplete(${'$'}query: String!) {
                 searchBacenInstitutionsAutocomplete(query: ${'$'}query) {
                     suggestions {
@@ -111,7 +122,7 @@ class InstitutionSearchIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                     }
                 }
             }
-        """.trimIndent()
+            """.trimIndent()
 
         val request =
             HttpRequest.POST(
@@ -142,7 +153,8 @@ class InstitutionSearchIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
 
     @Test
     fun `should search institutions with full search via GraphQL`() {
-        val query = """
+        val query =
+            """
             query SearchInstitutions(${'$'}query: String, ${'$'}first: Int, ${'$'}after: String) {
                 bacenInstitutions(query: ${'$'}query, first: ${'$'}first, after: ${'$'}after) {
                     edges {
@@ -168,7 +180,7 @@ class InstitutionSearchIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                     totalCount
                 }
             }
-        """.trimIndent()
+            """.trimIndent()
 
         val request =
             HttpRequest.POST(
@@ -207,7 +219,8 @@ class InstitutionSearchIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
 
     @Test
     fun `should search all institutions when query is null`() {
-        val query = """
+        val query =
+            """
             query SearchAllInstitutions(${'$'}first: Int) {
                 bacenInstitutions(query: null, first: ${'$'}first) {
                     edges {
@@ -223,7 +236,7 @@ class InstitutionSearchIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                     totalCount
                 }
             }
-        """.trimIndent()
+            """.trimIndent()
 
         val request =
             HttpRequest.POST(
@@ -253,7 +266,8 @@ class InstitutionSearchIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
 
     @Test
     fun `should paginate institutions with cursor`() {
-        val query = """
+        val query =
+            """
             query SearchInstitutions(${'$'}first: Int, ${'$'}after: String) {
                 bacenInstitutions(first: ${'$'}first, after: ${'$'}after) {
                     edges {
@@ -269,7 +283,7 @@ class InstitutionSearchIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                     }
                 }
             }
-        """.trimIndent()
+            """.trimIndent()
 
         // First page
         val firstRequest =
@@ -286,7 +300,7 @@ class InstitutionSearchIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
         firstPayload["errors"].assertNoErrors()
 
         val firstData = firstPayload["data"]
-            val firstConnection = firstData["bacenInstitutions"]
+        val firstConnection = firstData["bacenInstitutions"]
         val firstPageInfo = firstConnection["pageInfo"]
         val endCursor = firstPageInfo["endCursor"]
 
@@ -318,7 +332,8 @@ class InstitutionSearchIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
 
     @Test
     fun `should handle invalid pagination parameters`() {
-        val query = """
+        val query =
+            """
             query SearchInstitutions(${'$'}first: Int) {
                 bacenInstitutions(first: ${'$'}first) {
                     edges {
@@ -329,7 +344,7 @@ class InstitutionSearchIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                     }
                 }
             }
-        """.trimIndent()
+            """.trimIndent()
 
         // Test with first = 0 (invalid)
         val request =
@@ -351,7 +366,8 @@ class InstitutionSearchIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
 
     @Test
     fun `should handle invalid cursor`() {
-        val query = """
+        val query =
+            """
             query SearchInstitutions(${'$'}after: String) {
                 bacenInstitutions(after: ${'$'}after) {
                     edges {
@@ -362,7 +378,7 @@ class InstitutionSearchIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                     }
                 }
             }
-        """.trimIndent()
+            """.trimIndent()
 
         val request =
             HttpRequest.POST(
@@ -382,7 +398,8 @@ class InstitutionSearchIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
 
     @Test
     fun `should handle empty autocomplete query`() {
-        val query = """
+        val query =
+            """
             query SearchAutocomplete(${'$'}query: String!) {
                 searchBacenInstitutionsAutocomplete(query: ${'$'}query) {
                     suggestions {
@@ -390,7 +407,7 @@ class InstitutionSearchIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                     }
                 }
             }
-        """.trimIndent()
+            """.trimIndent()
 
         val request =
             HttpRequest.POST(
@@ -410,7 +427,8 @@ class InstitutionSearchIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
 
     @Test
     fun `should return financial metrics in search results`() {
-        val query = """
+        val query =
+            """
             query SearchInstitutions(${'$'}query: String) {
                 bacenInstitutions(query: ${'$'}query, first: 10) {
                     edges {
@@ -427,7 +445,7 @@ class InstitutionSearchIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                     }
                 }
             }
-        """.trimIndent()
+            """.trimIndent()
 
         val request =
             HttpRequest.POST(
@@ -459,7 +477,8 @@ class InstitutionSearchIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
 
     @Test
     fun `should respect max page size limit`() {
-        val query = """
+        val query =
+            """
             query SearchInstitutions(${'$'}first: Int) {
                 bacenInstitutions(first: ${'$'}first) {
                     edges {
@@ -469,7 +488,7 @@ class InstitutionSearchIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                     }
                 }
             }
-        """.trimIndent()
+            """.trimIndent()
 
         // Test with first > MAX_PAGE_SIZE (100)
         val request =
@@ -488,4 +507,3 @@ class InstitutionSearchIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
         assertThat(errors.isArray).isTrue()
     }
 }
-
