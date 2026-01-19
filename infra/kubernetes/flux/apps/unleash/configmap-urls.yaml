@@ -1,0 +1,18 @@
+---
+# ConfigMap for Unleash URLs (not secrets, but configuration)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: unleash-server-url
+  namespace: production
+data:
+  URL: "http://unleash-server.production.svc.cluster.local:4242"
+---
+# ConfigMap for Unleash Edge/Proxy URL
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: unleash-proxy-url
+  namespace: production
+data:
+  URL: "http://unleash-edge.production.svc.cluster.local:3063/proxy"

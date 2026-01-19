@@ -43,6 +43,27 @@ spec:
             # GraphQL API endpoint (replace with your actual backend service)
             - name: NEXT_PUBLIC_GRAPHQL_ENDPOINT
               value: "http://neotool-backend.production.svc.cluster.local:8080/graphql"
+            # Unleash Feature Flags Configuration (REQUIRED)
+            - name: UNLEASH_SERVER_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: unleash-server-url
+                  key: URL
+            - name: UNLEASH_SERVER_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: unleash-server-token
+                  key: UNLEASH_SERVER_API_TOKEN
+            - name: NEXT_PUBLIC_UNLEASH_PROXY_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: unleash-proxy-url
+                  key: URL
+            - name: NEXT_PUBLIC_UNLEASH_CLIENT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: unleash-proxy-token
+                  key: UNLEASH_PROXY_CLIENT_TOKEN
             # Add other environment variables as needed
             # For secrets, use ExternalSecrets (see external-secret.yaml.example)
           livenessProbe:
