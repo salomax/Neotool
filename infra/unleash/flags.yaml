@@ -1,0 +1,13 @@
+# Feature flags definition
+# Import with: neotool flags import infra/unleash/flags.yaml
+
+flags:
+  - name: security/login/enabled
+    description: Enable/disable login functionality
+    type: release  # release | experiment | operational | permission
+    enabled: true  # initial state when importing
+
+  - name: assistant/enable
+    description: Enable AI assistant features
+    type: release
+    enabled: false

@@ -1,0 +1,3 @@
+# infra/pgbouncer/userlist.txt.template
+"neotool" "md5PLACEHOLDER_FOR_NEOTOOL"
+"unleash_app" "md5PLACEHOLDER_FOR_UNLEASH"

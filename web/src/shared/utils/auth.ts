@@ -35,6 +35,25 @@ export function getRefreshToken(): string | null {
 }
 
 /**
+ * Gets the authenticated user from storage
+ * Checks both localStorage and sessionStorage
+ * @returns The user object or null if not found
+ */
+export function getAuthUser(): any | null {
+  if (typeof window === 'undefined') return null;
+  
+  const userStr = localStorage.getItem(USER_KEY) || sessionStorage.getItem(USER_KEY);
+  if (!userStr) return null;
+  
+  try {
+    return JSON.parse(userStr);
+  } catch (error) {
+    logger.error('[Auth] Failed to parse user data from storage', error);
+    return null;
+  }
+}
+
+/**
  * Updates the authentication token in storage
  * Updates in the same storage location where it was originally stored
  */
