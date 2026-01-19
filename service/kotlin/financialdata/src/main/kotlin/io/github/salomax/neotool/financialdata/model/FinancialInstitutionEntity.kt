@@ -31,8 +31,8 @@ open class FinancialInstitutionEntity(
     open var emailDomain: String? = null,
     @Column(name = "website")
     open var website: String? = null,
-    @Column(name = "logo_storage_key")
-    open var logoStorageKey: String? = null,
+    @Column(name = "asset_id", columnDefinition = "uuid")
+    open var assetId: UUID? = null,
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "social_network", columnDefinition = "jsonb")
     open var socialNetwork: JsonNode? = null,
@@ -52,7 +52,7 @@ open class FinancialInstitutionEntity(
             tradeName = this.tradeName,
             emailDomain = this.emailDomain,
             website = this.website,
-            logoStorageKey = this.logoStorageKey,
+            assetId = this.assetId,
             socialNetwork = this.socialNetwork,
             receitaData = this.receitaData,
             createdAt = this.createdAt,

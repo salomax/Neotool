@@ -1,0 +1,39 @@
+---
+# Network Policy: PostgreSQL - Only PgBouncer can connect
+# 
+# This policy ensures that only PgBouncer can connect to PostgreSQL.
+# All other pods (including applications) must connect through PgBouncer.
+#
+# Security benefit: Even if an application pod is compromised, it cannot
+# directly access the database, only through the connection pooler.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-allow-pgbouncer-only
+  namespace: production
+  labels:
+    app: postgres
+    component: database
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres
+  policyTypes:
+  - Ingress
+  ingress:
+  # Only PgBouncer can connect to PostgreSQL
+  - from:
+    - podSelector:
+        matchLabels:
+          app: pgbouncer
+    ports:
+    - protocol: TCP
+      port: 5432
+  # Allow health checks from kubelet (optional, but recommended)
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: TCP
+      port: 5432

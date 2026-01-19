@@ -22,19 +22,24 @@ class InstitutionSearchResolver(
     /**
      * Autocomplete search for institutions.
      * Returns suggestions as user types.
+     * Filters by quarter (ano_mes_ref). If anoMes is null, uses latest quarter globally.
      *
      * @param query Search query (required)
+     * @param anoMes Quarter filter (YYYYMM format). If null, uses latest quarter globally.
      * @return BacenInstitutionAutocompleteConnectionDTO
      * @throws IllegalArgumentException if query is null or empty
      */
-    fun searchBacenInstitutionsAutocomplete(query: String): BacenInstitutionAutocompleteConnectionDTO {
+    fun searchBacenInstitutionsAutocomplete(
+        query: String,
+        anoMes: String?,
+    ): BacenInstitutionAutocompleteConnectionDTO {
         // Validate query
         if (query.isBlank()) {
             throw IllegalArgumentException("Query cannot be empty for autocomplete search")
         }
 
         // Call service
-        val suggestions = institutionSearchService.searchBacenInstitutionsAutocomplete(query)
+        val suggestions = institutionSearchService.searchBacenInstitutionsAutocomplete(query, anoMes)
 
         // Convert to DTO
         return mapper.toBacenInstitutionAutocompleteConnectionDTO(suggestions)
@@ -42,8 +47,10 @@ class InstitutionSearchResolver(
 
     /**
      * Full search for institutions with financial metrics and Relay pagination.
+     * Filters by quarter (ano_mes_ref). If anoMes is null, uses latest quarter globally.
      *
      * @param query Optional search query
+     * @param anoMes Quarter filter (YYYYMM format). If null, uses latest quarter globally.
      * @param first Maximum number of results (default: 20, min: 1, max: 100)
      * @param after Cursor for pagination
      * @return BacenInstitutionConnectionDTO
@@ -51,24 +58,18 @@ class InstitutionSearchResolver(
      */
     fun bacenInstitutions(
         query: String?,
+        anoMes: String?,
         first: Int?,
         after: String?,
     ): BacenInstitutionConnectionDTO {
         // Validate pagination parameter
-        val pageSize =
-            when {
-                first == null -> PaginationConstants.DEFAULT_PAGE_SIZE
-                first < 1 -> throw IllegalArgumentException("Parameter 'first' must be at least 1, got: $first")
-                first > PaginationConstants.MAX_PAGE_SIZE -> throw IllegalArgumentException(
-                    "Parameter 'first' must be at most ${PaginationConstants.MAX_PAGE_SIZE}, got: $first",
-                )
-                else -> first
-            }
+        val pageSize = PaginationConstants.validatePageSize(first)
 
         // Call service - propagate any exceptions (will be converted to GraphQL errors)
         val connection =
             institutionSearchService.bacenInstitutions(
                 query,
+                anoMes,
                 pageSize,
                 after,
             )

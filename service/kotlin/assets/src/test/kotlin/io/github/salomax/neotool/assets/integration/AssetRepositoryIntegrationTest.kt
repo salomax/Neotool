@@ -160,7 +160,7 @@ open class AssetRepositoryIntegrationTest : BaseIntegrationTest(), PostgresInteg
 
             // Assert
             val deleted = assetRepository.findById(asset.id!!)
-            Assertions.assertThat(deleted).isEmpty
+            Assertions.assertThat(deleted).isEmpty()
         }
     }
 
@@ -177,9 +177,9 @@ open class AssetRepositoryIntegrationTest : BaseIntegrationTest(), PostgresInteg
             val found = assetRepository.findByStorageKey(storageKey)
 
             // Assert
-            Assertions.assertThat(found).isPresent
-            Assertions.assertThat(found.get().id).isEqualTo(asset.id)
-            Assertions.assertThat(found.get().storageKey).isEqualTo(storageKey)
+            Assertions.assertThat(found).isNotNull()
+            Assertions.assertThat(found!!.id).isEqualTo(asset.id)
+            Assertions.assertThat(found.storageKey).isEqualTo(storageKey)
         }
 
         @Test
@@ -188,7 +188,7 @@ open class AssetRepositoryIntegrationTest : BaseIntegrationTest(), PostgresInteg
             val found = assetRepository.findByStorageKey("non-existent-key")
 
             // Assert
-            Assertions.assertThat(found).isEmpty
+            Assertions.assertThat(found).isNull()
         }
     }
 
@@ -310,9 +310,9 @@ open class AssetRepositoryIntegrationTest : BaseIntegrationTest(), PostgresInteg
             val found = assetRepository.findByOwnerIdAndIdempotencyKey(ownerId, idempotencyKey)
 
             // Assert
-            Assertions.assertThat(found).isPresent
-            Assertions.assertThat(found.get().id).isEqualTo(asset.id)
-            Assertions.assertThat(found.get().idempotencyKey).isEqualTo(idempotencyKey)
+            Assertions.assertThat(found).isNotNull()
+            Assertions.assertThat(found!!.id).isEqualTo(asset.id)
+            Assertions.assertThat(found.idempotencyKey).isEqualTo(idempotencyKey)
         }
 
         @Test
@@ -321,7 +321,7 @@ open class AssetRepositoryIntegrationTest : BaseIntegrationTest(), PostgresInteg
             val found = assetRepository.findByOwnerIdAndIdempotencyKey("owner-123", "non-existent-key")
 
             // Assert
-            Assertions.assertThat(found).isEmpty
+            Assertions.assertThat(found).isNull()
         }
     }
 

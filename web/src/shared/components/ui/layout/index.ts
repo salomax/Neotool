@@ -1,4 +1,5 @@
 // Layout - Components for structuring and organizing content
+export { Page } from './Page';
 export { Stack } from './Stack';
 export { Paper } from './Paper';
 export { Frame } from './Frame';
@@ -7,6 +8,7 @@ export { Inline } from './Inline';
 export { Cluster } from './Cluster';
 export { Grid } from './Grid';
 export { PageHeader } from './PageHeader';
+export { SectionHeader } from './SectionHeader';
 export { PageLayout } from './PageLayout';
 export { PageTitle } from './PageTitle';
 export { Cover } from './Cover';

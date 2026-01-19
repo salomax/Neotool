@@ -1,0 +1,75 @@
+meta {
+  name: Get Institution Report Details
+  type: graphql
+  seq: 6
+}
+
+post {
+  url: http://{{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  query GetInstitutionReportDetails($id: ID!, $anoMes: String, $reportId: ID!, $range: QuarterRangeInput!) {
+    bacenFinanceInstitution(id: $id, anoMes: $anoMes) {
+      id
+      name
+      reportDetails(reportId: $reportId, range: $range) {
+        reportId
+        name
+        accounts {
+          group
+          accountNumber
+          columnName
+          valuesByQuarter {
+            quarter
+            value
+          }
+        }
+      }
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "id": "00000000",
+    "anoMes": "202509",
+    "reportId": "1",
+    "range": {
+      "last": 20
+    }
+  }
+}
+
+tests {
+  test("status 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Has report details", function() {
+    const data = res.getBody();
+    expect(data.data.bacenFinanceInstitution.reportDetails).to.be.an('object');
+  });
+  
+  test("Has accounts array", function() {
+    const data = res.getBody();
+    expect(data.data.bacenFinanceInstitution.reportDetails.accounts).to.be.an('array');
+    expect(data.data.bacenFinanceInstitution.reportDetails.accounts.length).to.be.greaterThan(0);
+  });
+  
+  test("Each account has required fields", function() {
+    const data = res.getBody();
+    const accounts = data.data.bacenFinanceInstitution.reportDetails.accounts;
+    accounts.forEach((account) => {
+      expect(account).to.have.property('accountNumber');
+      expect(account).to.have.property('valuesByQuarter');
+      expect(account.valuesByQuarter).to.be.an('array');
+    });
+  });
+}

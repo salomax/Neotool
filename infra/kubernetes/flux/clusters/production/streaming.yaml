@@ -1,0 +1,18 @@
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: streaming
+  namespace: flux-system
+spec:
+  dependsOn:
+    - name: infrastructure
+  interval: 5m0s
+  retryInterval: 1m0s
+  timeout: 5m0s
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  path: ./infra/kubernetes/flux/apps/streaming
+  prune: true
+  wait: true

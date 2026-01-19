@@ -181,7 +181,7 @@ EOF
     response=$(curl "${curl_opts[@]}" "${security_url}/api/internal/services/register" 2>&1)
     http_code=$(echo "$response" | tail -n1)
     local response_body
-    response_body=$(echo "$response" | head -n -1)
+    response_body=$(echo "$response" | sed '$d')
     
     rm -f "$temp_json"
     

@@ -22,77 +22,78 @@ directive @link(url: String, as: String, for: link__Purpose, import: [link__Impo
 
 """Asset metadata and access information."""
 type Asset
-  @join__type(graph: ASSETS)
+  @join__type(graph: ASSETS, key: "id")
+  @join__type(graph: FINANCIALDATA, key: "id")
 {
   """Unique identifier (UUID v7)"""
   id: ID!
 
   """User or system that owns this asset"""
-  ownerId: String!
+  ownerId: String! @join__field(graph: ASSETS)
 
   """Logical grouping (e.g., user-profiles, group-assets)"""
-  namespace: String!
+  namespace: String! @join__field(graph: ASSETS)
 
   """Visibility level - determines access control and URL generation"""
-  visibility: AssetVisibility!
+  visibility: AssetVisibility! @join__field(graph: ASSETS)
 
   """Unique key in S3/R2 storage"""
-  storageKey: String!
+  storageKey: String! @join__field(graph: ASSETS)
 
   """Storage region"""
-  storageRegion: String!
+  storageRegion: String! @join__field(graph: ASSETS)
 
   """Storage bucket name"""
-  storageBucket: String!
+  storageBucket: String! @join__field(graph: ASSETS)
 
   """MIME type (e.g., image/jpeg, application/pdf)"""
-  mimeType: String!
+  mimeType: String! @join__field(graph: ASSETS)
 
   """File size in bytes (null until upload confirmed)"""
-  sizeBytes: Long
+  sizeBytes: Long @join__field(graph: ASSETS)
 
   """SHA-256 checksum for integrity verification"""
-  checksum: String
+  checksum: String @join__field(graph: ASSETS)
 
   """Original filename from client upload"""
-  originalFilename: String
+  originalFilename: String @join__field(graph: ASSETS)
 
   """
   Pre-signed upload URL (temporary, only available for PENDING assets).
   Client uploads file directly to this URL.
   """
-  uploadUrl: String
+  uploadUrl: String @join__field(graph: ASSETS)
 
   """When the upload URL expires"""
-  uploadExpiresAt: DateTime
+  uploadExpiresAt: DateTime @join__field(graph: ASSETS)
 
   """
   Public CDN URL for accessing the asset.
   Only available for READY PUBLIC assets. Returns null for PRIVATE assets (use downloadUrl instead).
   """
-  publicUrl: String
+  publicUrl: String @join__field(graph: ASSETS)
 
   """
   Presigned download URL for PRIVATE assets.
   Returns null for PUBLIC assets (use publicUrl instead).
   @param ttlSeconds Time-to-live for the presigned URL (default: 3600 seconds / 1 hour)
   """
-  downloadUrl(ttlSeconds: Int = 3600): String
+  downloadUrl(ttlSeconds: Int = 3600): String @join__field(graph: ASSETS)
 
   """Upload status"""
-  status: AssetStatus!
+  status: AssetStatus! @join__field(graph: ASSETS)
 
   """Client-provided key to prevent duplicate uploads (optional)"""
-  idempotencyKey: String
+  idempotencyKey: String @join__field(graph: ASSETS)
 
   """Timestamp when asset record was created"""
-  createdAt: DateTime!
+  createdAt: DateTime! @join__field(graph: ASSETS)
 
   """Timestamp when asset record was last updated"""
-  updatedAt: DateTime!
+  updatedAt: DateTime! @join__field(graph: ASSETS)
 
   """Timestamp when asset was deleted (null if active)"""
-  deletedAt: DateTime
+  deletedAt: DateTime @join__field(graph: ASSETS)
 }
 
 """Asset upload lifecycle status."""
@@ -130,6 +131,38 @@ type AuthorizationResult
   reason: String!
 }
 
+enum BacenControlType
+  @join__type(graph: FINANCIALDATA)
+{
+  PUBLIC @join__enumValue(graph: FINANCIALDATA)
+  PRIVATE_DOMESTIC @join__enumValue(graph: FINANCIALDATA)
+  PRIVATE_FOREIGN_CONTROL @join__enumValue(graph: FINANCIALDATA)
+}
+
+type BacenFinanceInstitution
+  @join__type(graph: FINANCIALDATA)
+{
+  id: ID!
+  quarter: String
+  name: String!
+  asset: Asset
+  legalName: String
+  tradeName: String
+  logoAsset: Asset
+  institutionType: BacenInstitutionType
+  controlType: BacenControlType
+  institutionBankType: BacenInstitutionBankType
+  tipoConsolidadoBancario: BacenInstitutionBankType
+  website: String
+  socialNetworks: [String!]
+  mainActivity: String
+  address: String
+  founded: String
+  rwaReferenceEquity: Float
+  reportsSummary(range: QuarterRangeInput!): ReportsAvailability!
+  reportDetails(reportId: ID!, range: QuarterRangeInput!): ReportDetails!
+}
+
 type BacenInstitutionAutocompleteConnection
   @join__type(graph: FINANCIALDATA)
 {
@@ -139,12 +172,20 @@ type BacenInstitutionAutocompleteConnection
 type BacenInstitutionAutocompleteItem
   @join__type(graph: FINANCIALDATA)
 {
-  id: ID!
   name: String!
-  cnpj: String
-  legalName: String
-  tradeName: String
-  logoUrl: String
+}
+
+enum BacenInstitutionBankType
+  @join__type(graph: FINANCIALDATA)
+{
+  B1 @join__enumValue(graph: FINANCIALDATA)
+  B2 @join__enumValue(graph: FINANCIALDATA)
+  B3S @join__enumValue(graph: FINANCIALDATA)
+  B3C @join__enumValue(graph: FINANCIALDATA)
+  B4 @join__enumValue(graph: FINANCIALDATA)
+  N1 @join__enumValue(graph: FINANCIALDATA)
+  N2 @join__enumValue(graph: FINANCIALDATA)
+  N4 @join__enumValue(graph: FINANCIALDATA)
 }
 
 type BacenInstitutionConnection
@@ -169,7 +210,7 @@ type BacenInstitutionSummaryItem
   name: String!
   legalName: String
   tradeName: String
-  logoUrl: String
+  logoAsset: Asset
   profit: Float
   equity: Float
   yoyEquityGrowth: Float
@@ -293,7 +334,6 @@ enum join__Graph {
   ASSETS @join__graph(name: "assets", url: "http://host.docker.internal:8083/graphql")
   FINANCIALDATA @join__graph(name: "financialdata", url: "http://host.docker.internal:8091/graphql")
   SECURITY @join__graph(name: "security", url: "http://host.docker.internal:8080/graphql")
-  ASSETS @join__graph(name: "assets", url: "http://host.docker.internal:8082/graphql")
 }
 
 scalar link__Import
@@ -452,6 +492,28 @@ type PermissionEdge
   cursor: String!
 }
 
+input QuarterRangeInput
+  @join__type(graph: FINANCIALDATA)
+{
+  from: String
+  to: String
+  last: Int
+}
+
+type QuarterReports
+  @join__type(graph: FINANCIALDATA)
+{
+  quarter: String!
+  reports: [ReportDescriptor!]!
+}
+
+type QuarterValue
+  @join__type(graph: FINANCIALDATA)
+{
+  quarter: String!
+  value: Float
+}
+
 type Query
   @join__type(graph: ASSETS)
   @join__type(graph: FINANCIALDATA)
@@ -462,8 +524,9 @@ type Query
   Returns null if asset not found or user doesn't have access.
   """
   asset(id: ID!): Asset @join__field(graph: ASSETS)
-  searchBacenInstitutionsAutocomplete(query: String!): BacenInstitutionAutocompleteConnection! @join__field(graph: FINANCIALDATA)
-  bacenInstitutions(query: String, first: Int, after: String): BacenInstitutionConnection! @join__field(graph: FINANCIALDATA)
+  searchBacenInstitutionsAutocomplete(query: String!, anoMes: String): BacenInstitutionAutocompleteConnection! @join__field(graph: FINANCIALDATA)
+  bacenInstitutions(query: String, anoMes: String, first: Int, after: String): BacenInstitutionConnection! @join__field(graph: FINANCIALDATA)
+  bacenFinanceInstitution(id: ID!, anoMes: String): BacenFinanceInstitution @join__field(graph: FINANCIALDATA)
   currentUser: User @join__field(graph: SECURITY)
   checkPermission(userId: ID!, permission: String!, resourceId: ID): AuthorizationResult! @join__field(graph: SECURITY)
   user(id: ID!): User @join__field(graph: SECURITY)
@@ -479,6 +542,38 @@ input RefreshAccessTokenInput
   @join__type(graph: SECURITY)
 {
   refreshToken: String!
+}
+
+type ReportAccount
+  @join__type(graph: FINANCIALDATA)
+{
+  group: String
+  id: String
+  name: String
+  valuesByQuarter: [QuarterValue!]!
+}
+
+type ReportDescriptor
+  @join__type(graph: FINANCIALDATA)
+{
+  reportId: ID!
+  name: String
+  group: String
+  id: String
+}
+
+type ReportDetails
+  @join__type(graph: FINANCIALDATA)
+{
+  reportId: ID!
+  name: String
+  accounts: [ReportAccount!]!
+}
+
+type ReportsAvailability
+  @join__type(graph: FINANCIALDATA)
+{
+  quarters: [QuarterReports!]!
 }
 
 input RequestPasswordResetInput

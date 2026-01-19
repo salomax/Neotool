@@ -47,7 +47,7 @@ Commands:
 
   $(log "vault" "$GREEN") <subcommand>
     Manage HashiCorp Vault secrets for JWT keys.
-    Subcommands: create-secret
+    Subcommands: create-secret, backup, restore
     Run '$0 vault --help' for more information.
 
   $(log "service" "$GREEN") <subcommand>

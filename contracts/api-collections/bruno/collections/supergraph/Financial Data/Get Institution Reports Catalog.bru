@@ -1,0 +1,59 @@
+meta {
+  name: Get Institution Reports Catalog
+  type: graphql
+  seq: 5
+}
+
+post {
+  url: http://{{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  query GetInstitutionReportsSummary($id: ID!, $anoMes: String, $range: QuarterRangeInput!) {
+    bacenFinanceInstitution(id: $id, anoMes: $anoMes) {
+      id
+      name
+      reportsSummary(range: $range) {
+        quarters {
+          quarter
+          reports {
+            reportId
+            name
+          }
+        }
+      }
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "id": "C0080075",
+    "anoMes": null,
+    "range": {
+      "last": 1
+    }
+  }
+}
+
+tests {
+  test("status 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Has reports summary", function() {
+    const data = res.getBody();
+    expect(data.data.bacenFinanceInstitution.reportsSummary).to.be.an('object');
+  });
+  
+  test("Has quarters", function() {
+    const data = res.getBody();
+    expect(data.data.bacenFinanceInstitution.reportsSummary.quarters).to.be.an('array');
+  });
+}

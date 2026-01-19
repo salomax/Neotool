@@ -1,0 +1,42 @@
+meta {
+  name: Search Bacen Institutions Autocomplete
+  type: graphql
+  seq: 2
+}
+
+post {
+  url: http://{{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  query SearchBacenInstitutionsAutocomplete($query: String!) {
+    searchBacenInstitutionsAutocomplete(query: $query) {
+      suggestions {
+        name
+      }
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "query": "Banco do Brasil"
+  }
+}
+
+tests {
+  test("status 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Has suggestions", function() {
+    const data = res.getBody();
+    expect(data.data.searchBacenInstitutionsAutocomplete.suggestions).to.be.an('array');
+  });
+}

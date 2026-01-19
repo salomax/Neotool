@@ -15,6 +15,6 @@ data class BacenInstitutionAutocomplete(
     val legalName: String?,
     // trade_name from financial_institution
     val tradeName: String?,
-    // Derived from financial_institution.logo_storage_key (if linked)
-    val logoUrl: String?,
+    // asset_id from financial_institution (if linked) - used for GraphQL federation
+    val assetId: java.util.UUID?,
 )

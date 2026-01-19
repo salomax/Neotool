@@ -51,5 +51,21 @@
     "searchCouldNotBeCompleted": "A busca não pôde ser concluída. Por favor, tente novamente.",
     "retry": "Tentar novamente",
     "loadMore": "Carregar mais"
+  },
+  "currency": {
+    "billions": "bi",
+    "millions": "mi",
+    "trillions": "tri",
+    "billionsLong": "bilhões",
+    "millionsLong": "milhões",
+    "trillionsLong": "trilhões"
+  },
+  "calendar": {
+    "month": "Mês",
+    "quarter": "Trimestre",
+    "year": "Ano",
+    "monthly": "Mensal",
+    "quarterly": "Trimestral",
+    "yearly": "Anual"
   }
 }

@@ -1,0 +1,55 @@
+version: "1.0"
+
+# Global default settings applied to all DLQs unless overridden
+defaults:
+  retry_strategy:
+    max_retries: 3
+    backoff:
+      - retry_count: 0
+        delay: 1h
+      - retry_count: 1
+        delay: 6h
+      - retry_count: 2
+        delay: 24h
+
+  error_categorization:
+    # Patterns that indicate transient (retryable) errors
+    transient_patterns:
+      - "timeout"
+      - "deadline exceeded"
+      - "connection refused"
+      - "connection reset"
+      - "connection pool exhausted"
+      - "rate limit"
+      - "too many requests"
+      - "429"
+      - "503"
+      - "502"
+      - "504"
+      - "temporary failure"
+      - "service unavailable"
+      - "database pool exhausted"
+
+    # Patterns that indicate permanent (non-retryable) errors
+    permanent_patterns:
+      - "validation"
+      - "invalid"
+      - "malformed"
+      - "400"
+      - "401"
+      - "403"
+      - "404"
+      - "not found"
+      - "unauthorized"
+      - "forbidden"
+      - "bad request"
+
+# DLQ mappings - list of DLQs to monitor
+dlq_mappings:
+  # Institution Enhancement Service
+  - name: institution-enhancement
+    enabled: true
+    dlq_topic: financial-data.institution.upserted.enhancement.dlq
+    original_topic: financial-data.institution.upserted
+    consumer_group: dlq-retry-consumer-institution-enhancement
+    description: "Retries failed institution enhancement messages"

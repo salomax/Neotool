@@ -1,0 +1,71 @@
+meta {
+  name: Bacen Institutions
+  type: graphql
+  seq: 3
+}
+
+post {
+  url: http://{{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  query BacenInstitutions($query: String, $first: Int, $after: String) {
+    bacenInstitutions(query: $query, first: $first, after: $after) {
+      edges {
+        node {
+          id
+          name
+          legalName
+          tradeName
+          logoAsset {
+            id
+          }
+          profit
+          equity
+          yoyEquityGrowth
+          basileiaIndex
+          institutionType
+          tipoConsolidadoBancario
+        }
+        cursor
+      }
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+        startCursor
+        endCursor
+      }
+      totalCount
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "query": "bradesco",
+    "first": 10,
+    "after": null
+  }
+}
+
+tests {
+  test("status 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Has edges", function() {
+    const data = res.getBody();
+    expect(data.data.bacenInstitutions.edges).to.be.an('array');
+  });
+  
+  test("Has pageInfo", function() {
+    const data = res.getBody();
+    expect(data.data.bacenInstitutions.pageInfo).to.be.an('object');
+  });
+}

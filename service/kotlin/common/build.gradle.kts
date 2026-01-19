@@ -35,7 +35,7 @@ dependencies {
     api("org.jetbrains.kotlin:kotlin-stdlib")
     api("org.jetbrains.kotlin:kotlin-reflect")
     api("com.fasterxml.jackson.module:jackson-module-kotlin")
-    
+
     // Kotlin Coroutines - api for other modules
     api("org.jetbrains.kotlinx:kotlinx-coroutines-core")
     api("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8")

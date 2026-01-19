@@ -2,23 +2,26 @@
 -- Version: V1_2
 -- Description: Create financial_data.bacen_institution table for BACEN institution registry with change detection
 -- 
--- This migration creates the bacen_institution table that stores the current-state BACEN registry.
--- The table supports hash-based change detection and Kafka event publishing for NEW/CHANGED institutions.
+-- This migration creates the bacen_institution table that stores historical quarterly snapshots
+-- of the BACEN institution registry. The table supports hash-based change detection and
+-- Kafka event publishing for NEW/CHANGED institutions.
 -- 
 -- Key features:
--- - Natural primary key: bacen_cod_inst (TEXT to preserve leading zeros)
+-- - Composite primary key: (bacen_cod_inst, ano_mes_ref) for historical tracking
 -- - Change detection: source_hash (CHAR(64)) for detecting NEW/CHANGED/UNCHANGED institutions
 -- - Audit trail: created_at, updated_at timestamps
 -- - Indexes for common query patterns
+--
+-- Note: This migration consolidates V1_11 (make_bacen_institution_historical) by creating
+-- the table with composite primary key from the start.
 
 SET search_path TO financial_data, public;
 
 -- Create bacen_institution table
 CREATE TABLE IF NOT EXISTS financial_data.bacen_institution (
-    -- Primary key: BACEN institution code (TEXT to preserve leading zeros)
-    bacen_cod_inst TEXT NOT NULL PRIMARY KEY,
-    
-    -- Reference quarter: last snapshot quarter that updated this row (format: YYYYMM)
+    -- Composite primary key: BACEN institution code and reference quarter
+    -- TEXT to preserve leading zeros in institution code
+    bacen_cod_inst TEXT NOT NULL,
     ano_mes_ref CHAR(6) NOT NULL,
     
     -- Institution name fields
@@ -48,10 +51,17 @@ CREATE TABLE IF NOT EXISTS financial_data.bacen_institution (
     
     -- Audit timestamps
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    
+    -- Composite primary key constraint
+    CONSTRAINT bacen_institution_pkey PRIMARY KEY (bacen_cod_inst, ano_mes_ref)
 );
 
 -- Create indexes for common query patterns
+
+-- Composite index for efficient lookups by (bacen_cod_inst, ano_mes_ref)
+CREATE INDEX IF NOT EXISTS idx_bacen_institution_cod_inst_ano_mes 
+    ON financial_data.bacen_institution(bacen_cod_inst, ano_mes_ref);
 
 -- Index on ano_mes_ref for querying institutions by quarter
 CREATE INDEX IF NOT EXISTS idx_bacen_institution_ano_mes_ref 
@@ -65,7 +75,13 @@ CREATE INDEX IF NOT EXISTS idx_bacen_institution_situacao
 CREATE INDEX IF NOT EXISTS idx_bacen_institution_source_hash 
     ON financial_data.bacen_institution(source_hash);
 
--- Add comments for consolidation fields
+-- Add comments for documentation
+COMMENT ON TABLE financial_data.bacen_institution IS 
+    'Historical quarterly snapshots of BACEN institution registry. Each row represents an institution snapshot for a specific quarter (ano_mes_ref). Primary key is composite (bacen_cod_inst, ano_mes_ref).';
+
+COMMENT ON COLUMN financial_data.bacen_institution.ano_mes_ref IS 
+    'Reference quarter (format: YYYYMM). Part of composite primary key. Represents the quarter this institution snapshot belongs to.';
+
 COMMENT ON COLUMN financial_data.bacen_institution.tipo_consolidado_bancario IS 'Banking consolidated type (TCB): b1=Commercial bank/Caixas, B2=Multiple/Investment, B3S=Singular cooperative, B3C=Central cooperative, b4=Development, N1=Non-bank credit, n2=Non-bank capital markets, N4=Payment institutions';
 COMMENT ON COLUMN financial_data.bacen_institution.tipo_consolidacao IS 'Consolidation type (TD): I=Independent institution, C=Conglomerate';
 COMMENT ON COLUMN financial_data.bacen_institution.tipo_controle IS 'Control type (TC): 1=Public, 2=Private national, 3=Private foreign control';

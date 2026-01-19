@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: neotool-web
+  namespace: production
+  labels:
+    app: neotool-web
+    component: web
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: neotool-web
+  template:
+    metadata:
+      labels:
+        app: neotool-web
+        component: web  # Required for NetworkPolicy - allows access to PgBouncer and Kafka
+    spec:
+      containers:
+        - name: nextjs
+          # TODO: Replace USERNAME with your GitHub username
+          image: ghcr.io/USERNAME/neotool-web:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+              name: http
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: NEXT_TELEMETRY_DISABLED
+              value: "1"
+            - name: PORT
+              value: "3000"
+            - name: HOSTNAME
+              value: "0.0.0.0"
+            # GraphQL API endpoint (replace with your actual backend service)
+            - name: NEXT_PUBLIC_GRAPHQL_ENDPOINT
+              value: "http://neotool-backend.production.svc.cluster.local:8080/graphql"
+            # Add other environment variables as needed
+            # For secrets, use ExternalSecrets (see external-secret.yaml.example)
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            runAsGroup: 1001
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop:
+                - ALL
+      # Uncomment if using private registry (GitHub Container Registry with private repos)
+      # imagePullSecrets:
+      #   - name: ghcr-credentials
+      restartPolicy: Always

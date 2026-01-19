@@ -11,13 +11,23 @@ scalar UUID
 # Service Schema - financialdata
 # ============================================================================
 
-directive @key(fields: String!) repeatable on OBJECT | INTERFACE
+# External type reference - Asset is defined in the assets subgraph
+# This is a stub type for federation - the full type is defined in the assets subgraph
+# The id field is provided by this subgraph (from assetId in our data), and federation
+# will use it to resolve the full Asset entity from the assets subgraph
+type Asset @key(fields: "id") {
+  id: ID!
+}
 
 # Query type for financial data operations
-type Query {
+extend type Query {
   # Institution search queries
-  searchBacenInstitutionsAutocomplete(query: String!): BacenInstitutionAutocompleteConnection!
-  bacenInstitutions(query: String, first: Int, after: String): BacenInstitutionConnection!
+  # anoMes: Quarter filter (YYYYMM format). If not provided, uses latest quarter globally.
+  searchBacenInstitutionsAutocomplete(query: String!, anoMes: String): BacenInstitutionAutocompleteConnection!
+  bacenInstitutions(query: String, anoMes: String, first: Int, after: String): BacenInstitutionConnection!
+  # Institution detail query
+  # anoMes: Quarter filter (YYYYMM format). If not provided, uses latest quarter globally.
+  bacenFinanceInstitution(id: ID!, anoMes: String): BacenFinanceInstitution
 }
 
 # Enums
@@ -27,18 +37,30 @@ enum BacenInstitutionType {
   FINANCIAL_GROUP
 }
 
+enum BacenControlType {
+  PUBLIC
+  PRIVATE_DOMESTIC
+  PRIVATE_FOREIGN_CONTROL
+}
+
+enum BacenInstitutionBankType {
+  B1
+  B2
+  B3S
+  B3C
+  B4
+  N1
+  N2
+  N4
+}
+
 # Institution search types
 type BacenInstitutionAutocompleteConnection {
   suggestions: [BacenInstitutionAutocompleteItem!]!
 }
 
 type BacenInstitutionAutocompleteItem {
-  id: ID!
   name: String!
-  cnpj: String
-  legalName: String
-  tradeName: String
-  logoUrl: String
 }
 
 type BacenInstitutionConnection {
@@ -57,7 +79,7 @@ type BacenInstitutionSummaryItem {
   name: String!
   legalName: String
   tradeName: String
-  logoUrl: String
+  logoAsset: Asset
   profit: Float
   equity: Float
   yoyEquityGrowth: Float
@@ -72,5 +94,71 @@ type PageInfo {
   hasPreviousPage: Boolean!
   startCursor: String
   endCursor: String
+}
+
+# Institution detail types
+type BacenFinanceInstitution {
+  id: ID!
+  quarter: String
+  name: String!
+  asset: Asset
+  legalName: String
+  tradeName: String
+  logoAsset: Asset
+  institutionType: BacenInstitutionType
+  controlType: BacenControlType
+  institutionBankType: BacenInstitutionBankType
+  tipoConsolidadoBancario: BacenInstitutionBankType
+  website: String
+  socialNetworks: [String!]
+  mainActivity: String
+  address: String
+  founded: String
+  rwaReferenceEquity: Float
+
+  # Reports
+  reportsSummary(range: QuarterRangeInput!): ReportsAvailability!
+  reportDetails(reportId: ID!, range: QuarterRangeInput!): ReportDetails!
+}
+
+input QuarterRangeInput {
+  from: String # "YYYYMM"
+  to: String   # "YYYYMM"
+  last: Int
+}
+
+type ReportsAvailability {
+  quarters: [QuarterReports!]!
+}
+
+type QuarterReports {
+  quarter: String! # "YYYYMM"
+  reports: [ReportDescriptor!]!
+}
+
+type ReportDescriptor {
+  reportId: ID!
+  name: String
+  # Optional fields - only present in reportDetails, not in reportsSummary
+  group: String
+  id: String
+}
+
+type ReportDetails {
+  reportId: ID!
+  name: String
+  accounts: [ReportAccount!]!
+}
+
+type ReportAccount {
+  group: String
+  id: String
+  name: String
+  valuesByQuarter: [QuarterValue!]!
+}
+
+type QuarterValue {
+  quarter: String! # "YYYYMM"
+  value: Float
 }
 

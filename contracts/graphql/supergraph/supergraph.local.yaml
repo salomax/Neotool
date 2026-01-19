@@ -12,4 +12,3 @@ subgraphs:
     routing_url: http://host.docker.internal:8091/graphql
     schema:
       file: ../subgraphs/financialdata/schema.graphqls
-

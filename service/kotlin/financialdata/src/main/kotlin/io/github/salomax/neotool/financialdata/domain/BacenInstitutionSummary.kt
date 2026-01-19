@@ -15,8 +15,8 @@ data class BacenInstitutionSummary(
     val legalName: String?,
     // trade_name from financial_institution
     val tradeName: String?,
-    // Derived from financial_institution.logo_storage_key
-    val logoUrl: String?,
+    // asset_id from financial_institution - used for GraphQL federation
+    val assetId: java.util.UUID?,
     // Lucro Líquido (conta 78187) from bacen_bank_report_data
     val profit: BigDecimal?,
     // Patrimônio Líquido (conta 78186) from bacen_bank_report_data

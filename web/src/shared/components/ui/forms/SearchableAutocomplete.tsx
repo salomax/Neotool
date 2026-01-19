@@ -210,8 +210,10 @@ export function SearchableAutocomplete<
 }: SearchableAutocompleteProps<TOption, TSelected, TQueryData, TQueryVariables>) {
   // Local input value (what the user is typing)
   const [inputValue, setInputValue] = useState("");
+  const [open, setOpen] = useState(false);
   // Track if we just selected an option to avoid double-triggering search
   const justSelectedOptionRef = React.useRef(false);
+  const navigatedWithKeyboardRef = React.useRef(false);
   // Debounced value used for querying
   const debouncedSearch = useDebounce(inputValue, debounceMs);
 
@@ -414,28 +416,12 @@ export function SearchableAutocomplete<
       }
       // Keep the selected label visible in the input for single-select UX
       setInputValue(getOptionLabel(nextValue as TOption));
+      setOpen(false);
+      navigatedWithKeyboardRef.current = false;
       // Reset the flag after a short delay
       setTimeout(() => {
         justSelectedOptionRef.current = false;
       }, 100);
-    }
-  };
-
-  // Handle Enter key press to trigger search
-  // Note: We prevent default to stop autocomplete from clearing the input
-  // If no option is selected, we trigger search with the input value and keep it visible
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Enter" && inputValue.trim() && onSearch) {
-      // If we just selected an option, don't trigger search again
-      if (justSelectedOptionRef.current) {
-        return;
-      }
-      // Prevent default to stop autocomplete from clearing the input
-      event.preventDefault();
-      event.stopPropagation();
-      // Trigger search with the current input value
-      onSearch(inputValue.trim());
-      // Keep the input value visible (don't clear it)
     }
   };
 
@@ -450,6 +436,12 @@ export function SearchableAutocomplete<
   return (
     <Autocomplete
       multiple={multiple}
+      open={open}
+      onOpen={() => setOpen(true)}
+      onClose={() => {
+        setOpen(false);
+        navigatedWithKeyboardRef.current = false;
+      }}
       options={allOptions}
       value={currentValue as any}
       onChange={handleChange}
@@ -460,13 +452,10 @@ export function SearchableAutocomplete<
         // Don't clear on "reset" or "blur" to keep the search term visible
         if (reason === "input" || reason === "clear") {
           setInputValue(newInputValue);
+          navigatedWithKeyboardRef.current = false;
         }
         // For "reset" or "blur", keep the current input value to preserve search term
         // This keeps the search term visible after Enter is pressed
-      }}
-      onClose={(_event, reason) => {
-        // When closing due to Enter key, don't clear the input
-        // The input value should persist
       }}
       autoHighlight
       // UX: show dropdown arrow in eager mode, hide in lazy mode
@@ -503,7 +492,51 @@ export function SearchableAutocomplete<
               {...(helperTextValue && { helperText: helperTextValue })}
               fullWidth
               variant={variant}
-              onKeyDown={handleKeyDown}
+              inputProps={{
+                ...params.inputProps,
+                onKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => {
+                  const key = event.key;
+
+                  if (
+                    key === "ArrowDown" ||
+                    key === "ArrowUp" ||
+                    key === "Home" ||
+                    key === "End" ||
+                    key === "PageDown" ||
+                    key === "PageUp"
+                  ) {
+                    navigatedWithKeyboardRef.current = true;
+                    (params.inputProps as any)?.onKeyDown?.(event);
+                    return;
+                  }
+
+                  if (key !== "Enter" || multiple) {
+                    (params.inputProps as any)?.onKeyDown?.(event);
+                    return;
+                  }
+
+                  if (!inputValue.trim() || !onSearch) {
+                    (params.inputProps as any)?.onKeyDown?.(event);
+                    return;
+                  }
+
+                  if (justSelectedOptionRef.current) {
+                    (params.inputProps as any)?.onKeyDown?.(event);
+                    return;
+                  }
+
+                  if (open && navigatedWithKeyboardRef.current) {
+                    (params.inputProps as any)?.onKeyDown?.(event);
+                    return;
+                  }
+
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onSearch(inputValue.trim());
+                  setOpen(false);
+                  navigatedWithKeyboardRef.current = false;
+                },
+              }}
               InputProps={{
                 ...params.InputProps,
                 startAdornment: (
@@ -591,5 +624,4 @@ export function SearchableAutocomplete<
     />
   );
 }
-
 

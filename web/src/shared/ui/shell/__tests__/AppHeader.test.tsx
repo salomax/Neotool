@@ -5,12 +5,13 @@ import userEvent from '@testing-library/user-event';
 import { AppHeader } from '../AppHeader';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
 
-// Mock Next.js router
+// Mock Next.js router and navigation
 const mockPush = vi.fn();
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: mockPush,
   }),
+  usePathname: () => '/',
 }));
 
 // Mock theme mode hook

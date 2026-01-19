@@ -1,7 +1,6 @@
 package io.github.salomax.neotool.financialdata.graphql.mapper
 
 import io.github.salomax.neotool.common.graphql.pagination.Connection
-import io.github.salomax.neotool.financialdata.domain.BacenInstitutionAutocomplete
 import io.github.salomax.neotool.financialdata.domain.BacenInstitutionSummary
 import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionAutocompleteConnectionDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionAutocompleteItemDTO
@@ -14,19 +13,14 @@ import jakarta.inject.Singleton
 @Singleton
 class InstitutionSearchMapper {
     fun toBacenInstitutionAutocompleteConnectionDTO(
-        suggestions: List<BacenInstitutionAutocomplete>,
+        suggestions: List<String>,
     ): BacenInstitutionAutocompleteConnectionDTO {
         return BacenInstitutionAutocompleteConnectionDTO(
             suggestions =
                 suggestions
-                    .map { suggestion ->
+                    .map { name ->
                         BacenInstitutionAutocompleteItemDTO(
-                            id = suggestion.id,
-                            name = suggestion.name,
-                            cnpj = suggestion.cnpj,
-                            legalName = suggestion.legalName,
-                            tradeName = suggestion.tradeName,
-                            logoUrl = suggestion.logoUrl,
+                            name = name,
                         )
                     },
         )
@@ -44,12 +38,13 @@ class InstitutionSearchMapper {
                             cursor = edge.cursor,
                         )
                     },
-            pageInfo = PageInfoDTO(
-                hasNextPage = connection.pageInfo.hasNextPage,
-                hasPreviousPage = connection.pageInfo.hasPreviousPage,
-                startCursor = connection.pageInfo.startCursor,
-                endCursor = connection.pageInfo.endCursor,
-            ),
+            pageInfo =
+                PageInfoDTO(
+                    hasNextPage = connection.pageInfo.hasNextPage,
+                    hasPreviousPage = connection.pageInfo.hasPreviousPage,
+                    startCursor = connection.pageInfo.startCursor,
+                    endCursor = connection.pageInfo.endCursor,
+                ),
             totalCount = connection.totalCount?.toInt(),
         )
     }
@@ -60,7 +55,7 @@ class InstitutionSearchMapper {
             name = summary.name,
             legalName = summary.legalName,
             tradeName = summary.tradeName,
-            logoUrl = summary.logoUrl,
+            assetId = summary.assetId?.toString(),
             profit = summary.profit?.toDouble(),
             equity = summary.equity?.toDouble(),
             yoyEquityGrowth = summary.yoyEquityGrowth?.toDouble(),

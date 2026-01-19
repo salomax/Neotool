@@ -4,58 +4,101 @@ import com.apollographql.federation.graphqljava.Federation
 import graphql.analysis.MaxQueryComplexityInstrumentation
 import graphql.analysis.MaxQueryDepthInstrumentation
 import graphql.schema.idl.TypeDefinitionRegistry
+import io.github.salomax.neotool.assets.domain.AssetVisibility
 import io.github.salomax.neotool.assets.graphql.dto.AssetDTO
+import io.github.salomax.neotool.assets.graphql.mapper.AssetGraphQLMapper
+import io.github.salomax.neotool.assets.repository.AssetRepository
 import io.micronaut.context.annotation.Factory
 import jakarta.inject.Singleton
+import mu.KotlinLogging
+import java.util.UUID
 
 @Factory
 class AssetGraphQLFactory(
     private val registry: TypeDefinitionRegistry,
     private val wiringFactory: AssetWiringFactory,
+    private val assetRepository: AssetRepository,
+    private val assetMapper: AssetGraphQLMapper,
 ) {
+    private val logger = KotlinLogging.logger {}
+
     @Singleton
     fun graphQL(): graphql.GraphQL {
         val runtimeWiring = wiringFactory.build()
 
         // Federation requires fetchEntities and resolveEntityType even if not actively used.
-        // NOTE: fetchEntities is currently a placeholder. To implement proper federation support:
-        // 1. Inject AssetService or AssetRepository into this factory
-        // 2. Extract asset ID from representations and fetch from service
-        // 3. Convert domain Asset to AssetDTO using AssetGraphQLMapper
-        // 4. Return the DTO for federation to resolve references from other services
-        // For now, this returns null which means federation references to Asset will not resolve.
-        // This is acceptable if the assets service is not part of a federated supergraph.
+        // Implements batch loading to avoid N+1 queries when resolving multiple Asset references.
         val federatedSchema =
             Federation.transform(registry, runtimeWiring)
                 .fetchEntities { env ->
                     val reps = env.getArgument<List<Map<String, Any>>>("representations")
-                    reps?.map { rep ->
-                        val id = rep["id"]
-                        if (id == null) {
-                            null
-                        } else {
-                            try {
-                                when (rep["__typename"]) {
-                                    "Asset" -> {
-                                        // TODO: Implement federation entity fetching
-                                        // This requires injecting AssetService/AssetRepository and AssetGraphQLMapper
-                                        // Example implementation:
-                                        // val assetId = UUID.fromString(id.toString())
-                                        // val asset = assetService.getAsset(assetId, null) // No requester for federation
-                                        // asset?.let { mapper.toAssetDTO(it) }
+                    if (reps.isNullOrEmpty()) {
+                        return@fetchEntities emptyList<AssetDTO?>()
+                    }
+
+                    // Extract all Asset IDs for batch loading
+                    val assetIds = mutableListOf<UUID>()
+                    val assetIdToIndex = mutableMapOf<UUID, Int>()
+
+                    reps.forEachIndexed { index, rep ->
+                        if (rep["__typename"] == "Asset") {
+                            val id = rep["id"]
+                            if (id != null) {
+                                try {
+                                    val assetId = UUID.fromString(id.toString())
+                                    assetIds.add(assetId)
+                                    assetIdToIndex[assetId] = index
+                                } catch (e: Exception) {
+                                    logger.debug("Failed to parse asset ID for federation: {}", id, e)
+                                }
+                            }
+                        }
+                    }
+
+                    // Batch load all assets in one query
+                    val assetsMap =
+                        if (assetIds.isNotEmpty()) {
+                            assetRepository.findByIdIn(assetIds)
+                                .mapNotNull { entity ->
+                                    // For federation, only return PUBLIC assets (no authorization required)
+                                    // PRIVATE assets require ownership checks which we can't do in federation context
+                                    if (entity.visibility == AssetVisibility.PUBLIC) {
+                                        val asset = entity.toDomain()
+                                        asset.id?.let { assetId ->
+                                            assetId to assetMapper.toAssetDTO(asset)
+                                        }
+                                    } else {
+                                        logger.debug(
+                                            "Skipping PRIVATE asset in federation: ${entity.id}",
+                                        )
                                         null
                                     }
-                                    else -> null
                                 }
-                            } catch (e: Exception) {
-                                // Log and return null if ID conversion fails
-                                val logger = org.slf4j.LoggerFactory.getLogger(AssetGraphQLFactory::class.java)
-                                logger.debug(
-                                    "Failed to fetch entity for federation: ${rep["__typename"]} with id: $id",
-                                    e,
-                                )
+                                .toMap()
+                        } else {
+                            emptyMap()
+                        }
+
+                    // Map results back to original representation order
+                    reps.mapIndexed { index, rep ->
+                        if (rep["__typename"] == "Asset") {
+                            val id = rep["id"]
+                            if (id != null) {
+                                try {
+                                    val assetId = UUID.fromString(id.toString())
+                                    assetsMap[assetId]
+                                } catch (e: Exception) {
+                                    logger.debug(
+                                        "Failed to fetch entity for federation: ${rep["__typename"]} with id: $id",
+                                        e,
+                                    )
+                                    null
+                                }
+                            } else {
                                 null
                             }
+                        } else {
+                            null
                         }
                     }
                 }
