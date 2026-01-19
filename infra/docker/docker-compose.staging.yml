@@ -272,7 +272,76 @@ services:
     command: -config.file=/etc/promtail/config.yml
     depends_on:
       - loki
-      
+
+  # -------------------------------------------------------------
+  # Feature Flags Stack (Unleash)
+  # Profile: feature-flags
+  # -------------------------------------------------------------
+  unleash:
+    image: unleashorg/unleash-server:latest
+    container_name: neotool-unleash
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Database configuration (via PgBouncer)
+      DATABASE_URL: postgres://${UNLEASH_USER:-neotool}:${UNLEASH_PASSWORD:-neotool}@pgbouncer:6432/${UNLEASH_DB:-unleash_db}?sslmode=disable
+      DATABASE_HOST: pgbouncer
+      DATABASE_PORT: 6432
+      DATABASE_NAME: ${UNLEASH_DB:-unleash_db}
+      DATABASE_USER: ${UNLEASH_USER:-neotool}
+      DATABASE_PASSWORD: ${UNLEASH_PASSWORD:-neotool}
+      # Server configuration
+      UNLEASH_URL: http://localhost:4242
+      PORT: 4242
+      # Initial admin user (for first-time setup)
+      INIT_ADMIN_API_TOKENS: ${UNLEASH_SERVER_API_TOKEN}
+      # Enable UI
+      UI_ENABLED: "true"
+    ports:
+      - "4242:4242"
+    networks:
+      - default
+      - postgres-internal
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:4242/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    profiles:
+      - feature-flags
+
+  unleash-edge:
+    image: unleashorg/unleash-edge:latest
+    container_name: neotool-unleash-edge
+    restart: unless-stopped
+    env_file: .env
+    command:
+      - edge
+      - --upstream-url=http://unleash:4242
+      - --tokens=${UNLEASH_PROXY_CLIENT_TOKEN}
+    environment:
+      # Edge configuration
+      PORT: 3063
+      # CORS configuration
+      CORS_ORIGIN: "*"
+      CORS_HEADERS: "Authorization,Content-Type"
+    ports:
+      - "3063:3063"
+    depends_on:
+      unleash:
+        condition: service_healthy
+    networks:
+      - default
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3063/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    profiles:
+      - feature-flags
+
 volumes:
   pgdata:
   loki-data:
