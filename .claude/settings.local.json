@@ -68,7 +68,13 @@
       "Bash(python3:*)",
       "Bash(pnpm eslint:*)",
       "Bash(kubectl kustomize:*)",
-      "Bash(ln:*)"
+      "Bash(ln:*)",
+      "Bash(docker logs:*)",
+      "Bash(docker compose:*)",
+      "Bash(docker restart:*)",
+      "Bash(docker stop:*)",
+      "Bash(docker rm:*)",
+      "Bash(docker network:*)"
     ]
   }
 }
