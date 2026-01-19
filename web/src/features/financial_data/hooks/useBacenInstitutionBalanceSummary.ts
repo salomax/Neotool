@@ -23,13 +23,12 @@ export function useBacenInstitutionBalanceSummary(institutionId: string) {
     }
   );
 
-  const accounts =
-    (reportData as any)?.bacenFinanceInstitution?.reportDetails?.accounts || [];
-
   const getMetricData = React.useCallback(
     (
       accountName: string
     ): { actualValue: number | null; historical: number[]; growthPercentage: number | null } => {
+      const accounts =
+        (reportData as any)?.bacenFinanceInstitution?.reportDetails?.accounts || [];
       const account = accounts.find((a: any) => a.id === accountName);
       const valuesByQuarter = account?.valuesByQuarter ?? [];
 
@@ -60,7 +59,7 @@ export function useBacenInstitutionBalanceSummary(institutionId: string) {
 
       return { actualValue, historical, growthPercentage };
     },
-    [accounts]
+    [reportData]
   );
 
   const basileiaData = getMetricData("INDICE_DE_BASILEIA");

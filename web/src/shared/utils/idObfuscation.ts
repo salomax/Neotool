@@ -30,7 +30,7 @@ export function encodeId(id: string): string {
   try {
     // Convert string to base64
     let base64: string;
-    
+
     if (typeof Buffer !== 'undefined') {
       // Node.js environment
       base64 = Buffer.from(id, 'utf8').toString('base64');
@@ -59,6 +59,11 @@ export function encodeId(id: string): string {
 export function decodeId(encodedId: string): string {
   if (!encodedId) {
     throw new Error("Encoded ID cannot be empty");
+  }
+
+  // Validate characters (base64url or base64)
+  if (!/^[a-zA-Z0-9\-_+/=]+$/.test(encodedId)) {
+    throw new Error("Invalid encoded ID");
   }
 
   try {

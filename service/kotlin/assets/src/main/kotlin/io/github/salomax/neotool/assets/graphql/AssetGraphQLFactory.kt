@@ -21,6 +21,7 @@ class AssetGraphQLFactory(
     private val assetMapper: AssetGraphQLMapper,
 ) {
     private val logger = KotlinLogging.logger {}
+
     @Singleton
     fun graphQL(): graphql.GraphQL {
         val runtimeWiring = wiringFactory.build()

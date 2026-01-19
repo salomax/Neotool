@@ -18,7 +18,7 @@ export type { CurrencyDisplayProps } from '../CurrencyDisplay';
 export type { MetricBoxProps } from './MetricBox';
 export type { MetricCardProps, MetricValueType } from './MetricCard';
 export type { PercentageBoxProps, PercentageThresholds, PercentageThresholdValues } from './PercentageBox';
-export type { MetricGridProps, MetricGridItem, MetricGridHeaderProps } from './MetricGrid';
+export type { MetricGridProps, MetricGridItem } from './MetricGrid';
 export type { TrendIndicatorProps } from './TrendIndicator';
 export type { StatusIndicatorProps } from './StatusIndicator';
 export type { FinancialMetricItemProps } from './FinancialMetricItem';

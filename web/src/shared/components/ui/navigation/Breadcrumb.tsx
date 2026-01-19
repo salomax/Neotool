@@ -5,8 +5,7 @@ import { usePathname } from "next/navigation";
 import { useTheme, SxProps, Theme } from "@mui/material/styles";
 import { useMediaQuery } from "@mui/material";
 import { Breadcrumbs as MuiBreadcrumbs, Typography, Box } from "@/shared/ui/mui-imports";
-import HomeIcon from "@mui/icons-material/Home";
-import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import { ChevronRight as ChevronRightIcon } from "@mui/icons-material";
 import { Link } from "./Link";
 import { getTestIdProps } from "@/shared/utils/testid";
 import { useBreadcrumbLabels } from "@/shared/hooks/ui/useBreadcrumbLabel";
@@ -100,7 +99,7 @@ function generateBreadcrumbsFromPathname(
 
     // Check for custom label from context first
     if (customLabels && segment in customLabels) {
-      label = customLabels[segment];
+      label = customLabels[segment] ?? segment;
     } else if (routeConfig) {
       // Try exact match first
       let matchedConfig = routeConfig.find((config) => config.path === currentPath);
@@ -235,13 +234,7 @@ export const Breadcrumb = React.forwardRef<HTMLElement, BreadcrumbProps>(
     const testIdProps = getTestIdProps("Breadcrumb", name, dataTestId);
     
     // Get custom labels from context (if available)
-    let customLabels: Record<string, string> | undefined;
-    try {
-      customLabels = useBreadcrumbLabels();
-    } catch {
-      // Context not available, that's okay - breadcrumbs will work without it
-      customLabels = undefined;
-    }
+    const customLabels = useBreadcrumbLabels();
 
     // Determine which items to use
     const items = React.useMemo(() => {
@@ -400,10 +393,6 @@ export const Breadcrumb = React.forwardRef<HTMLElement, BreadcrumbProps>(
       }
     }, [variant]);
 
-    if (displayItems.length === 0) {
-      return null;
-    }
-
     // Compute margin: halve any existing margin from sx prop
     const computedSx = React.useMemo(() => {
       const baseStyles = {
@@ -413,8 +402,11 @@ export const Breadcrumb = React.forwardRef<HTMLElement, BreadcrumbProps>(
       // If sx is provided, merge it and halve any horizontal margin
       if (sx) {
         const sxValue = typeof sx === 'function' ? sx(theme) : sx;
-        const merged = { ...baseStyles, ...sxValue };
-        
+        const sxObj = (typeof sxValue === 'object' && sxValue !== null && !Array.isArray(sxValue))
+          ? (sxValue as Record<string, unknown>)
+          : {};
+        const merged: Record<string, unknown> = { ...baseStyles, ...sxObj };
+
         // Halve horizontal margin if it exists
         if (merged.mx !== undefined) {
           if (typeof merged.mx === 'number') {
@@ -429,7 +421,7 @@ export const Breadcrumb = React.forwardRef<HTMLElement, BreadcrumbProps>(
           // Handle separate left/right margins
           if (merged.ml !== undefined) {
             if (typeof merged.ml === 'number') {
-              merged.ml = merged.ml / 2;
+              merged.ml = (merged.ml as number) / 2;
             } else if (typeof merged.ml === 'string' && merged.ml.endsWith('px')) {
               const pxValue = parseFloat(merged.ml);
               if (!isNaN(pxValue)) {
@@ -439,7 +431,7 @@ export const Breadcrumb = React.forwardRef<HTMLElement, BreadcrumbProps>(
           }
           if (merged.mr !== undefined) {
             if (typeof merged.mr === 'number') {
-              merged.mr = merged.mr / 2;
+              merged.mr = (merged.mr as number) / 2;
             } else if (typeof merged.mr === 'string' && merged.mr.endsWith('px')) {
               const pxValue = parseFloat(merged.mr);
               if (!isNaN(pxValue)) {
@@ -448,13 +440,17 @@ export const Breadcrumb = React.forwardRef<HTMLElement, BreadcrumbProps>(
             }
           }
         }
-        
-        return merged;
+
+        return merged as SxProps<Theme>;
       }
-      
+
       // No sx provided, return base styles (no margin modification)
       return baseStyles;
     }, [variantStyles, sx, theme]);
+
+    if (displayItems.length === 0) {
+      return null;
+    }
 
     return (
       <MuiBreadcrumbs

@@ -5,7 +5,7 @@ import MuiCard from "@mui/material/Card";
 import type { CardProps as MuiCardProps } from "@mui/material/Card";
 import type { SxProps, Theme } from "@mui/material/styles";
 
-export interface CardProps extends Omit<MuiCardProps, 'sx'> {
+export interface CardProps extends Omit<MuiCardProps, 'sx' | 'variant'> {
   /**
    * Children to render inside the card
    */
@@ -15,7 +15,7 @@ export interface CardProps extends Omit<MuiCardProps, 'sx'> {
    */
   onClick?: () => void;
   /**
-   * Card variant
+   * Card variant. "elevated" maps to MUI's "elevation".
    * @default "outlined"
    */
   variant?: "outlined" | "elevated";
@@ -58,7 +58,7 @@ export function Card({
   const isClickable = !!onClick;
 
   const combinedSx: SxProps<Theme> = React.useMemo(() => {
-    const baseStyles: SxProps<Theme> = {
+    const baseStyles: Record<string, unknown> = {
       borderRadius: 2,
       boxShadow:
         variant === "outlined"
@@ -90,12 +90,12 @@ export function Card({
       };
     }
 
-    return [baseStyles, sx];
+    return (sx != null ? [baseStyles as SxProps<Theme>, sx] : baseStyles) as SxProps<Theme>;
   }, [hoverable, isClickable, variant, sx]);
 
   return (
     <MuiCard
-      variant={variant}
+      variant={variant === 'elevated' ? 'elevation' : variant}
       onClick={onClick}
       sx={combinedSx}
       {...props}

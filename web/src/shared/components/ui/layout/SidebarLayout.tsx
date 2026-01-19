@@ -119,7 +119,6 @@ export const SidebarLayout = React.forwardRef<HTMLDivElement, SidebarLayoutProps
   const isLeft = side === 'left';
   const sidebarEdge = isLeft ? 'left' : 'right';
   const contentOffset = size === 'full' ? 0 : (typeof sidebarWidth === 'number' ? `${sidebarWidth}px` : sidebarWidth);
-  const edgePosition: Partial<React.CSSProperties> = isLeft ? { left: `${RAIL_W}px` } : { right: `${RAIL_W}px` };
   
   // Get sidebar background color from theme (same as SidebarRail)
   const sidebarBg = (theme as any).custom?.palette?.sidebarBg || '#ffffff';
@@ -132,18 +131,22 @@ export const SidebarLayout = React.forwardRef<HTMLDivElement, SidebarLayoutProps
   }), [style]);
   
   // Sidebar styles
-  const sidebarStyles: React.CSSProperties = React.useMemo(() => ({
-    position: 'fixed',
-    top: typeof effectiveHeaderHeight === 'number' ? `${effectiveHeaderHeight}px` : effectiveHeaderHeight,
-    bottom: 0,
-    ...edgePosition,
-    width: typeof sidebarWidth === 'number' ? `${sidebarWidth}px` : sidebarWidth,
-    overflow: 'auto',
-    // Ensure sidebar sits below the app bar so the header's bottom border is visible
-    zIndex: (theme.zIndex?.appBar || 1100) - 1,
-    ...(isLeft ? { borderRight: '1px solid' } : { borderLeft: '1px solid' }),
-    borderColor: theme.palette.divider,
-  }), [effectiveHeaderHeight, edgePosition, sidebarWidth, theme.zIndex?.appBar, isLeft, theme.palette.divider]);
+  const sidebarStyles: React.CSSProperties = React.useMemo(() => {
+    const edgePosition: Partial<React.CSSProperties> = isLeft ? { left: `${RAIL_W}px` } : { right: `${RAIL_W}px` };
+    
+    return {
+      position: 'fixed',
+      top: typeof effectiveHeaderHeight === 'number' ? `${effectiveHeaderHeight}px` : effectiveHeaderHeight,
+      bottom: 0,
+      ...edgePosition,
+      width: typeof sidebarWidth === 'number' ? `${sidebarWidth}px` : sidebarWidth,
+      overflow: 'auto',
+      // Ensure sidebar sits below the app bar so the header's bottom border is visible
+      zIndex: (theme.zIndex?.appBar || 1100) - 1,
+      ...(isLeft ? { borderRight: '1px solid' } : { borderLeft: '1px solid' }),
+      borderColor: theme.palette.divider,
+    };
+  }, [effectiveHeaderHeight, isLeft, sidebarWidth, theme.zIndex?.appBar, theme.palette.divider]);
   
   // Main content area container styles
   // We don't need separate styles as they are applied to the wrapper
@@ -183,6 +186,7 @@ export const SidebarLayout = React.forwardRef<HTMLDivElement, SidebarLayoutProps
         data-testid={generatedTestId ? `${generatedTestId}-content` : undefined}
       >
         <Container
+          disableGutters
           // Don't use fullHeight prop as it adds overflow: hidden.
           // Instead manually add flex properties to support full height children.
           sx={{

@@ -56,7 +56,9 @@ export function useBreadcrumbLabels(): Record<string, string> {
   const context = React.useContext(BreadcrumbLabelContext);
   
   if (!context) {
-    throw new Error("useBreadcrumbLabels must be used within BreadcrumbLabelProvider");
+    // Return empty record if used outside provider, to allow usage in components 
+    // that might not be wrapped (e.g. tests or isolated usage)
+    return {};
   }
 
   return context.labels;

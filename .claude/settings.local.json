@@ -64,7 +64,9 @@
       "Bash(kubectl delete:*)",
       "Bash(git revert:*)",
       "Bash(flux get helmreleases:*)",
-      "Bash(export KUBECONFIG=/etc/rancher/k3s/k3s.yaml:*)"
+      "Bash(export KUBECONFIG=/etc/rancher/k3s/k3s.yaml:*)",
+      "Bash(python3:*)",
+      "Bash(pnpm eslint:*)"
     ]
   }
 }

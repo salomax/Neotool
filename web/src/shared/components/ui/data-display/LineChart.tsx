@@ -119,6 +119,83 @@ const defaultPalette = (theme: any): string[] => [
   theme.palette.error.main,
 ];
 
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: any[];
+  label?: any;
+  theme: any;
+  palette: string[];
+  xTickFormatter?: (value: any) => string;
+  tooltipFormatter: (value: any, name: any, tooltipProps: any) => [string, string];
+}
+
+const CustomTooltip: React.FC<CustomTooltipProps> = ({
+  active,
+  payload,
+  label,
+  theme,
+  palette,
+  xTickFormatter,
+  tooltipFormatter,
+}) => {
+  if (!active || !payload || payload.length === 0) {
+    return null;
+  }
+
+  const formattedLabel = xTickFormatter ? xTickFormatter(label) : label;
+
+  return (
+    <Box
+      sx={{
+        bgcolor: theme.palette.background.paper,
+        border: `1px solid ${theme.palette.divider}`,
+        p: 1.5,
+      }}
+    >
+      <Typography variant="caption" color="text.secondary">
+        {formattedLabel}
+      </Typography>
+      {payload.map((entry: any, index: number) => {
+        const [formattedValue] = tooltipFormatter(
+          entry.value,
+          entry.name,
+          entry
+        );
+        const color = entry.color || palette[index % palette.length];
+
+        return (
+          <Box
+            key={entry.dataKey || index}
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              mt: index === 0 ? 0.5 : 0.25,
+            }}
+          >
+            <Box
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                bgcolor: color,
+                mr: 1,
+              }}
+            />
+            <Typography variant="body2">
+              {entry.name && (
+                <Box component="span" sx={{ mr: 0.5 }}>
+                  {entry.name}
+                </Box>
+              )}
+              {formattedValue}
+            </Typography>
+          </Box>
+        );
+      })}
+    </Box>
+  );
+};
+
 export const LineChart: React.FC<LineChartProps> = ({
   data,
   title,
@@ -378,7 +455,7 @@ export const LineChart: React.FC<LineChartProps> = ({
     };
   };
 
-  const tooltipFormatter = (value: any, name: any, tooltipProps: any) => {
+  const tooltipFormatter = (value: any, name: any, tooltipProps: any): [string, string] => {
     const serie = series.find(
       (s) => s.dataKey === tooltipProps?.dataKey || s.name === name
     );
@@ -429,65 +506,6 @@ export const LineChart: React.FC<LineChartProps> = ({
         }
       : undefined);
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (!active || !payload || payload.length === 0) {
-      return null;
-    }
-
-    const formattedLabel = xTickFormatter ? xTickFormatter(label) : label;
-
-    return (
-      <Box
-        sx={{
-          bgcolor: theme.palette.background.paper,
-          border: `1px solid ${theme.palette.divider}`,
-          p: 1.5,
-        }}
-      >
-        <Typography variant="caption" color="text.secondary">
-          {formattedLabel}
-        </Typography>
-        {payload.map((entry: any, index: number) => {
-          const [formattedValue] = tooltipFormatter(
-            entry.value,
-            entry.name,
-            entry
-          );
-          const color = entry.color || palette[index % palette.length];
-
-          return (
-            <Box
-              key={entry.dataKey || index}
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                mt: index === 0 ? 0.5 : 0.25,
-              }}
-            >
-              <Box
-                sx={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: "50%",
-                  bgcolor: color,
-                  mr: 1,
-                }}
-              />
-              <Typography variant="body2">
-                {entry.name && (
-                  <Box component="span" sx={{ mr: 0.5 }}>
-                    {entry.name}
-                  </Box>
-                )}
-                {formattedValue}
-              </Typography>
-            </Box>
-          );
-        })}
-      </Box>
-    );
-  };
-
   return (
     <Box sx={{ p: 2, ...sx }}>
       {title && (
@@ -495,7 +513,7 @@ export const LineChart: React.FC<LineChartProps> = ({
           {title}
         </Typography>
       )}
-      <Box sx={{ width, height }}>
+      <Box sx={{ width, height }} data-testid="line-chart-responsive-container">
         <ResponsiveContainer width="100%" height="100%">
           <RechartsLineChart
             data={data}
@@ -598,7 +616,19 @@ export const LineChart: React.FC<LineChartProps> = ({
                 />
               ))}
 
-            {showTooltip && <Tooltip content={<CustomTooltip />} />}
+            {showTooltip && (
+              <Tooltip
+                content={(props) => (
+                  <CustomTooltip
+                    {...props}
+                    theme={theme}
+                    palette={palette}
+                    xTickFormatter={xTickFormatter}
+                    tooltipFormatter={tooltipFormatter}
+                  />
+                )}
+              />
+            )}
             {showLegend && <Legend />}
 
             {series.map((serie, index) => {

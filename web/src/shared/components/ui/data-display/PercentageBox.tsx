@@ -115,7 +115,7 @@ export const PercentageBox: React.FC<PercentageBoxProps> = ({
         good: Math.max(0, Math.min(100, goodWidth))
       };
     }
-  }, [thresholdValues, maxScale, inverse]);
+  }, [thresholdValues, maxScale, inverse, value]);
 
   // Progress Value (normalized to 0-100 for positioning)
   const progressValue = React.useMemo(() => {

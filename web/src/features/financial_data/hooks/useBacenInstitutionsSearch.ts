@@ -95,9 +95,10 @@ export function useBacenInstitutionsSearch() {
 
   const handleSelectionChange = React.useCallback(
     (items: BacenInstitutionSearchOption[]) => {
-      if (items.length > 0) {
-        setSelectedInstitution(items[0]);
-        handleSearchChange(items[0].name);
+      const first = items[0];
+      if (first) {
+        setSelectedInstitution(first);
+        handleSearchChange(first.name);
       } else {
         setSelectedInstitution(null);
         handleSearchChange("");

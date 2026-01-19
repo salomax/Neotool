@@ -21,8 +21,8 @@ vi.mock('../Container', () => ({
   },
 }));
 
-vi.mock('../Box', () => ({
-  Box: React.forwardRef(({ children, fullHeight, sx, className, style, 'data-testid': dataTestId, ...props }: any, ref: any) => {
+vi.mock('../Box', () => {
+  const Box = React.forwardRef(({ children, fullHeight, sx, className, style, 'data-testid': dataTestId, ...props }: any, ref: any) => {
     return (
       <div
         ref={ref}
@@ -35,8 +35,10 @@ vi.mock('../Box', () => ({
         {children}
       </div>
     );
-  }),
-}));
+  });
+  Box.displayName = 'Box';
+  return { Box };
+});
 
 // Run sequentially to avoid concurrent renders leaking between tests
 describe.sequential('SidebarLayout', () => {
@@ -67,10 +69,10 @@ describe.sequential('SidebarLayout', () => {
       expect(sidebar).toHaveStyle({ right: `${RAIL_W}px` });
       expect(sidebar).toHaveStyle({ position: 'fixed' });
 
-      // Check content has paddingRight
+      // Check content has marginRight to account for sidebar (default md size is 600px)
       const mainContainer = screen.getByTestId('sidebarlayout-content');
-      // Default md size is 600px
-      expect(mainContainer).toHaveStyle({ paddingRight: '600px' });
+      expect(mainContainer).toHaveStyle({ marginRight: '600px' });
+      expect(mainContainer).toHaveStyle({ width: 'calc(100% - 600px)' });
     });
 
     it('renders sidebar on left side by default', () => {
@@ -85,10 +87,10 @@ describe.sequential('SidebarLayout', () => {
       expect(sidebar).toHaveStyle({ left: `${RAIL_W}px` });
       expect(sidebar).toHaveStyle({ position: 'fixed' });
 
-      // Check content has paddingLeft
+      // Check content has marginLeft to account for sidebar (default md size is 600px)
       const mainContainer = screen.getByTestId('sidebarlayout-content');
-      // Default md size is 600px
-      expect(mainContainer).toHaveStyle({ paddingLeft: '600px' });
+      expect(mainContainer).toHaveStyle({ marginLeft: '600px' });
+      expect(mainContainer).toHaveStyle({ width: 'calc(100% - 600px)' });
     });
   });
 
@@ -194,8 +196,8 @@ describe.sequential('SidebarLayout', () => {
       // Verify the container has the expected structure by checking computed styles
       // The inner Box with overflow: auto is verified through the component's behavior
       const containerStyles = window.getComputedStyle(mainContainer);
-      // Main container should have width 100%
-      expect(containerStyles.width).toBe('100%');
+      // Main container width accounts for sidebar (default md size is 600px)
+      expect(containerStyles.width).toBe('calc(100% - 600px)');
     });
 
     it('does not render inner scrollable Box when fullHeight={false}', () => {
@@ -234,7 +236,9 @@ describe.sequential('SidebarLayout', () => {
 
       const mainContainer = screen.getByTestId('sidebarlayout-content');
       expect(mainContainer).toBeInTheDocument();
-      expect(mainContainer).toHaveAttribute('data-disablegutters', 'true');
+      // Container is inside the content Box; SidebarLayout passes disableGutters to it
+      const container = within(mainContainer).getByTestId('container');
+      expect(container).toHaveAttribute('data-disablegutters', 'true');
     });
 
     it('renders children content correctly', () => {
@@ -331,7 +335,8 @@ describe.sequential('SidebarLayout', () => {
 
       const mainContainer = screen.getByTestId('sidebarlayout-content');
       expect(mainContainer).toHaveStyle({ minWidth: '0' });
-      expect(mainContainer).toHaveStyle({ width: '100%' });
+      // Width accounts for sidebar (default md size is 600px)
+      expect(mainContainer).toHaveStyle({ width: 'calc(100% - 600px)' });
     });
   });
 
@@ -388,15 +393,14 @@ describe.sequential('SidebarLayout', () => {
 
     it('calculates header height dynamically when not provided', () => {
       // Mock document.querySelector to return a fake header
-      const originalQuerySelector = document.querySelector;
-      document.querySelector = vi.fn().mockImplementation((selector) => {
+      const querySelectorSpy = vi.spyOn(document, 'querySelector').mockImplementation((selector: any) => {
         if (selector === 'header') {
           return { 
             getBoundingClientRect: () => ({ height: 80 }),
             offsetHeight: 80 
-          };
+          } as unknown as Element;
         }
-        return originalQuerySelector(selector);
+        return null;
       });
 
       render(
@@ -409,21 +413,19 @@ describe.sequential('SidebarLayout', () => {
       expect(sidebar).toHaveStyle({ top: '80px' });
 
       // Restore
-      document.querySelector = originalQuerySelector;
+      querySelectorSpy.mockRestore();
     });
 
     it('uses custom headerSelector to find header element', () => {
       // Mock document.querySelector to return a fake header
-      const originalQuerySelector = document.querySelector;
-      const mockQuerySelector = vi.fn().mockImplementation((selector) => {
+      const querySelectorSpy = vi.spyOn(document, 'querySelector').mockImplementation((selector: any) => {
         if (selector === '#custom-header') {
           return { 
             getBoundingClientRect: () => ({ height: 120 }),
-          };
+          } as unknown as Element;
         }
         return null;
       });
-      document.querySelector = mockQuerySelector;
 
       render(
         <SidebarLayout sidebar={mockSidebar} headerSelector="#custom-header">
@@ -433,10 +435,10 @@ describe.sequential('SidebarLayout', () => {
       
       const sidebar = screen.getByTestId('sidebarlayout-sidebar');
       expect(sidebar).toHaveStyle({ top: '120px' });
-      expect(mockQuerySelector).toHaveBeenCalledWith('#custom-header');
+      expect(querySelectorSpy).toHaveBeenCalledWith('#custom-header');
 
       // Restore
-      document.querySelector = originalQuerySelector;
+      querySelectorSpy.mockRestore();
     });
   });
 

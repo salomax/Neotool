@@ -1,10 +1,20 @@
 import React from "react";
-import { render } from "@testing-library/react";
+import { render, cleanup, within } from "@testing-library/react";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { LineChart, LineChartAxisConfig } from "../LineChart";
+import { afterEach, beforeEach } from "vitest";
+
+beforeEach(() => {
+  cleanup();
+});
+
+afterEach(() => {
+  cleanup();
+});
+
+const theme = createTheme();
 
 const renderWithTheme = (ui: React.ReactElement) => {
-  const theme = createTheme();
   return render(<ThemeProvider theme={theme}>{ui}</ThemeProvider>);
 };
 
@@ -48,7 +58,8 @@ describe("LineChart", () => {
         />
       );
 
-      expect(container.querySelector("h3")).not.toBeInTheDocument();
+      const scoped = within(container);
+      expect(scoped.queryByRole("heading", { level: 3 })).not.toBeInTheDocument();
     });
 
     it("renders with custom width and height", () => {
@@ -64,7 +75,8 @@ describe("LineChart", () => {
         />
       );
 
-      const box = container.querySelector('[style*="width"]');
+      const scoped = within(container);
+      const box = scoped.getByTestId("line-chart-responsive-container");
       expect(box).toBeInTheDocument();
     });
   });

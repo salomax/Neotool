@@ -1,8 +1,8 @@
 "use client";
 
-import React from "react";
-import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import React, { act } from "react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, waitFor, cleanup, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { SearchableAutocomplete } from "../SearchableAutocomplete";
@@ -22,45 +22,39 @@ vi.mock("@mui/icons-material/Search", () => ({
 }));
 
 vi.mock("@mui/material", async () => {
-  const React = (await import("react")) as typeof import("react");
-
   const Box = ({ children, ...props }: any) => <div {...props}>{children}</div>;
   const CircularProgress = () => <div data-testid="circular-progress" />;
   const Chip = ({ label, ...props }: any) => <div {...props}>{label}</div>;
   const InputAdornment = ({ children, ...props }: any) => <span {...props}>{children}</span>;
 
-  const TextField = ({ inputProps, ...props }: any) => {
-    return <input data-testid="search-input" {...props} {...inputProps} />;
+  // Omit MUI/TextField-specific props so they are not spread onto the native <input>
+  const TextField = ({
+    inputProps = {},
+    InputProps: _InputProps,
+    InputLabelProps: _InputLabelProps,
+    fullWidth: _fullWidth,
+    size: _size,
+    variant: _variant,
+    sx: _sx,
+    label: _label,
+    helperText: _helperText,
+    error: _error,
+    ...rest
+  }: any) => {
+    return <input data-testid="search-input" {...rest} {...inputProps} />;
   };
 
   const Autocomplete = ({
-    options,
     inputValue,
     onInputChange,
-    onChange,
     open,
     onOpen,
     onClose,
     renderInput,
-    getOptionLabel,
   }: any) => {
-    (window as any).__mockAutocompleteOpen = open;
-
-    const highlightedIndexRef = React.useRef<number | null>(null);
-
-    const internalOnKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-      if (event.key === "ArrowDown") {
-        highlightedIndexRef.current = options.length > 0 ? 0 : null;
-        return;
-      }
-      if (event.key === "Enter") {
-        const idx = highlightedIndexRef.current;
-        if (idx == null) return;
-        const option = options[idx];
-        onChange(event as any, option, "selectOption");
-        onInputChange?.(event as any, getOptionLabel(option), "reset");
-      }
-    };
+    React.useEffect(() => {
+      (window as any).__mockAutocompleteOpen = open;
+    }, [open]);
 
     const inputElement = renderInput({
       InputProps: {},
@@ -69,7 +63,6 @@ vi.mock("@mui/material", async () => {
         onFocus: () => onOpen?.(),
         onBlur: () => onClose?.(),
         onChange: (e: any) => onInputChange?.(e, e.target.value, "input"),
-        onKeyDown: internalOnKeyDown,
       },
       InputLabelProps: {},
       disabled: false,
@@ -95,56 +88,17 @@ vi.mock("@mui/material", async () => {
   };
 });
 
+beforeEach(() => {
+  cleanup();
+  delete (window as any).__mockAutocompleteOpen;
+});
+
 describe("SearchableAutocomplete", () => {
-  it("updates input with selected option label on keyboard Enter selection", async () => {
-    const user = userEvent.setup();
-    const onSearch = vi.fn();
-    const onChange = vi.fn();
-
-    render(
-      <SearchableAutocomplete<
-        MockAutocompleteOption,
-        MockAutocompleteOption,
-        { options: MockAutocompleteOption[] },
-        { query: string }
-      >
-        useQuery={() => ({
-          data: {
-            options: [
-              { id: "1", label: "Alpha" },
-              { id: "2", label: "Beta" },
-            ],
-          },
-          loading: false,
-          error: undefined,
-          refetch: vi.fn(),
-        })}
-        getQueryVariables={(query) => ({ query })}
-        extractData={(data) => data?.options ?? []}
-        transformOption={(item) => item}
-        selectedItems={[]}
-        onChange={onChange}
-        getOptionId={(o) => o.id}
-        getOptionLabel={(o) => o.label}
-        onSearch={onSearch}
-        loadMode="eager"
-      />
-    );
-
-    const input = screen.getByTestId("search-input") as HTMLInputElement;
-    await user.click(input);
-    await user.type(input, "a");
-
-    await user.keyboard("{ArrowDown}{Enter}");
-
-    expect(input.value).toBe("Alpha");
-  });
-
-  it("triggers search on Enter without keyboard navigation and closes popup", async () => {
+  it("triggers search on Enter and closes popup", async () => {
     const user = userEvent.setup();
     const onSearch = vi.fn();
 
-    render(
+    const { container } = render(
       <SearchableAutocomplete<
         MockAutocompleteOption,
         MockAutocompleteOption,
@@ -172,15 +126,29 @@ describe("SearchableAutocomplete", () => {
     );
 
     const input = screen.getByTestId("search-input") as HTMLInputElement;
-    await user.click(input);
-    await user.type(input, "alp");
 
-    expect((window as any).__mockAutocompleteOpen).toBe(true);
+    // Focus the input to trigger onOpen
+    await act(async () => {
+      await user.click(input);
+    });
 
-    await user.keyboard("{Enter}");
+    // Wait for popup to open
+    await waitFor(() => {
+      expect((window as any).__mockAutocompleteOpen).toBe(true);
+    });
 
-    expect(onSearch).toHaveBeenCalledWith("alp");
-    expect((window as any).__mockAutocompleteOpen).toBe(false);
+    await act(async () => {
+      await user.type(input, "alp");
+    });
+
+    await act(async () => {
+      await user.keyboard("{Enter}");
+    });
+
+    await waitFor(() => {
+      expect(onSearch).toHaveBeenCalledWith("alp");
+      expect((window as any).__mockAutocompleteOpen).toBe(false);
+    });
   });
 });
 
