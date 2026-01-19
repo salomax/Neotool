@@ -10,7 +10,7 @@ services:
     container_name: neotool-postgres
     restart: unless-stopped
     env_file: ../.env.local
-    ports: ["5432:5432"]      
+    ports: ["5432:5432"]
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:
@@ -20,6 +20,26 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    profiles:
+      - database
+
+  # Database initializer - runs on every 'docker compose up', idempotent
+  postgres-init:
+    image: postgres:18rc1
+    container_name: neotool-postgres-init
+    env_file: ../.env.local
+    volumes:
+      - ../postgres/init-databases.sh:/init-databases.sh:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - postgres-internal
+    entrypoint: ["/bin/bash", "/init-databases.sh"]
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+    restart: "no"
     profiles:
       - database
 
@@ -358,12 +378,12 @@ services:
     env_file: ../.env.local
     environment:
       # Database configuration (via PgBouncer)
-      DATABASE_URL: postgres://${UNLEASH_USER:-unleash_app}:${UNLEASH_PASSWORD:-unleash_password}@pgbouncer:6432/${UNLEASH_DB:-unleash}
+      DATABASE_URL: postgres://${UNLEASH_USER:-neotool}:${UNLEASH_PASSWORD:-neotool}@pgbouncer:6432/${UNLEASH_DB:-unleash_db}?sslmode=disable
       DATABASE_HOST: pgbouncer
       DATABASE_PORT: 6432
-      DATABASE_NAME: ${UNLEASH_DB:-unleash}
-      DATABASE_USER: ${UNLEASH_USER:-unleash_app}
-      DATABASE_PASSWORD: ${UNLEASH_PASSWORD:-unleash_password}
+      DATABASE_NAME: ${UNLEASH_DB:-unleash_db}
+      DATABASE_USER: ${UNLEASH_USER:-neotool}
+      DATABASE_PASSWORD: ${UNLEASH_PASSWORD:-neotool}
       # Server configuration
       UNLEASH_URL: http://localhost:4242
       PORT: 4242
