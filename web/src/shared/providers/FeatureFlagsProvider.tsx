@@ -31,6 +31,14 @@ export const FeatureFlagsProvider: React.FC<FeatureFlagsProviderProps> = ({
   const [isReady, setIsReady] = React.useState(false);
   const [flagsError, setFlagsError] = React.useState<Error | null>(null);
 
+  const handleReady = React.useCallback(() => {
+    setIsReady(true);
+  }, []);
+
+  const handleError = React.useCallback((error: Error) => {
+    setFlagsError(error);
+  }, []);
+
   const unleashProxyUrl = process.env.NEXT_PUBLIC_UNLEASH_PROXY_URL;
   const unleashClientToken = process.env.NEXT_PUBLIC_UNLEASH_CLIENT_TOKEN;
 
@@ -62,8 +70,8 @@ export const FeatureFlagsProvider: React.FC<FeatureFlagsProviderProps> = ({
   return (
     <FlagProvider config={config}>
       <FeatureFlagsStatusHandler
-        onReady={() => setIsReady(true)}
-        onError={(error) => setFlagsError(error)}
+        onReady={handleReady}
+        onError={handleError}
       />
       <FeatureFlagsContext.Provider value={{ isReady, flagsError }}>
         {children}

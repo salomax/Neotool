@@ -6,9 +6,10 @@ pnpm-lock.yaml.#*
 .eslintcache
 .DS_Store
 
-# Env (mantenha só exemplos)
+# Env (keep .env.example and .env.development)
 .env*
 !.env.example
+!.env.development
 
 # Next.js (projeto em web/)
 .next

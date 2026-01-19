@@ -234,38 +234,6 @@ export type CreateAssetUploadInput = {
   sizeBytes: Scalars['Long']['input'];
 };
 
-/** Input for confirming an asset upload. */
-export type ConfirmAssetUploadInput = {
-  /** ID of the asset to confirm */
-  assetId: Scalars['ID']['input'];
-  /**
-   * Optional SHA-256 checksum to verify file integrity.
-   * If provided, server will validate against actual file checksum.
-   */
-  checksum?: InputMaybe<Scalars['String']['input']>;
-};
-
-/** Input for creating a new asset upload. */
-export type CreateAssetUploadInput = {
-  /** Original filename */
-  filename: Scalars['String']['input'];
-  /**
-   * Optional idempotency key to prevent duplicate uploads.
-   * If provided, subsequent calls with the same key within 24 hours
-   * will return the existing asset instead of creating a new one.
-   */
-  idempotencyKey?: InputMaybe<Scalars['String']['input']>;
-  /** MIME type of the file */
-  mimeType: Scalars['String']['input'];
-  /**
-   * Logical namespace for the asset (e.g., "user-profiles", "group-assets").
-   * Determines validation rules (allowed MIME types, max file size), visibility, and storage key template.
-   */
-  namespace: Scalars['String']['input'];
-  /** File size in bytes */
-  sizeBytes: Scalars['Long']['input'];
-};
-
 export type CreateGroupInput = {
   description?: InputMaybe<Scalars['String']['input']>;
   name: Scalars['String']['input'];
