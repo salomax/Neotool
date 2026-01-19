@@ -147,6 +147,13 @@ interface AssetRepository : JpaRepository<AssetEntity, UUID> {
     fun sumBytesByNamespace(namespace: String): Long
 
     /**
+     * Find assets by IDs (batch loading).
+     * Used for federation entity fetching and batch operations.
+     * Returns assets in the same order as the input IDs (where found).
+     */
+    fun findByIdIn(ids: List<UUID>): List<AssetEntity>
+
+    /**
      * Delete assets by IDs.
      * Used for hard deletion of legacy soft-deleted assets.
      * Note: Assets are now hard-deleted immediately, so this is primarily for legacy data cleanup.

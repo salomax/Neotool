@@ -37,15 +37,29 @@ export function Grid({
   const gapValue = getResponsiveValue(gap, spacingToCSS);
   
   // Handle columns - either explicit cols or minColWidth
-  const getColumnsValue = () => {
+  const getColumnsValue = (): ResponsiveValue<string> | string => {
     if (cols) {
-      return typeof cols === 'object' 
-        ? cols.sm || '1fr'
-        : `repeat(${cols}, 1fr)`;
+      if (typeof cols === 'object' && cols !== null) {
+        // Convert responsive number object to responsive string object
+        const responsiveCols: { [key: string]: string } = {};
+        const colsObj = cols as { [key: string]: number | undefined };
+        if (colsObj.xs !== undefined) responsiveCols.xs = `repeat(${colsObj.xs}, 1fr)`;
+        if (colsObj.sm !== undefined) responsiveCols.sm = `repeat(${colsObj.sm}, 1fr)`;
+        if (colsObj.md !== undefined) responsiveCols.md = `repeat(${colsObj.md}, 1fr)`;
+        if (colsObj.lg !== undefined) responsiveCols.lg = `repeat(${colsObj.lg}, 1fr)`;
+        if (colsObj.xl !== undefined) responsiveCols.xl = `repeat(${colsObj.xl}, 1fr)`;
+        // If no breakpoints defined, use sm as default
+        if (Object.keys(responsiveCols).length === 0) {
+          return `repeat(${colsObj.sm || 1}, 1fr)`;
+        }
+        return responsiveCols as ResponsiveValue<string>;
+      }
+      // Single number value
+      return `repeat(${cols}, 1fr)`;
     }
     
     const minWidth = typeof minColWidth === 'object' 
-      ? minColWidth.sm || '250px'
+      ? (minColWidth as { [key: string]: string | number | undefined }).sm || '250px'
       : typeof minColWidth === 'number' 
         ? `${minColWidth}px` 
         : minColWidth;

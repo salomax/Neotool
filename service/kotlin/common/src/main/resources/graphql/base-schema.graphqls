@@ -2,6 +2,7 @@
 # This contains common types and directives used across all modules
 
 directive @key(fields: String!) repeatable on OBJECT | INTERFACE
+directive @external on FIELD_DEFINITION
 
 # Common scalar types
 scalar Long

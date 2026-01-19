@@ -93,7 +93,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trigger_assets_updated_at
+CREATE OR REPLACE TRIGGER trigger_assets_updated_at
     BEFORE UPDATE ON assets.assets
     FOR EACH ROW
     EXECUTE FUNCTION assets.update_assets_updated_at();

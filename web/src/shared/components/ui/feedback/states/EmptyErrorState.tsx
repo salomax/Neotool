@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Box, Typography, Button, Stack, CircularProgress } from "@mui/material";
+import SearchOffIcon from "@mui/icons-material/SearchOff";
 
 export interface EmptyStateProps {
   title: string;
@@ -21,7 +22,16 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   return (
     <Box textAlign="center" p={4}>
       <Stack spacing={2} alignItems="center">
-        <Box>{illustration ?? <span style={{ fontSize: 40 }}>🗂️</span>}</Box>
+        <Box>
+          {illustration ?? (
+            <SearchOffIcon
+              sx={{
+                fontSize: 48,
+                color: "text.disabled",
+              }}
+            />
+          )}
+        </Box>
         <Typography variant="h6">{title}</Typography>
         {description && (
           <Typography variant="body2" color="text.secondary" maxWidth={420}>

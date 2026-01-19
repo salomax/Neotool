@@ -40,6 +40,10 @@ dependencies {
     api("org.jetbrains.kotlinx:kotlinx-coroutines-core")
     api("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8")
 
+    // Kotlin Coroutines - api for other modules
+    api("org.jetbrains.kotlinx:kotlinx-coroutines-core")
+    api("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8")
+
     // Validation - api for other modules
     api("io.micronaut.validation:micronaut-validation")
 

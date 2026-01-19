@@ -12,10 +12,8 @@ import { useTranslation } from 'react-i18next';
 import { LogoMark } from '@/shared/ui/brand/LogoMark';
 import { useAuthorization } from '@/shared/providers';
 
-import DesignServicesRoundedIcon from '@mui/icons-material/DesignServicesRounded';
-import CodeRoundedIcon from '@mui/icons-material/CodeRounded';
-import MenuBookRoundedIcon from '@mui/icons-material/MenuBookRounded';
 import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
+import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 
 type NavItem = { href: string; label: string; icon: React.ElementType };
 
@@ -41,15 +39,20 @@ export function SidebarRail() {
   ]);
 
   const NAV_TOP: NavItem[] = [
-    { href: '/design-system', label: 'Design System', icon: DesignServicesRoundedIcon },
-    { href: '/examples', label: t('routes.examples'), icon: CodeRoundedIcon },
-    { href: '/documentation', label: 'Documentation', icon: MenuBookRoundedIcon },
+    {
+      href: '/bacen-institutions',
+      label: t('routes.financialInstitutions'),
+      icon: AccountBalanceIcon,
+    },
   ];
 
   // Only show Settings if user has authorization permissions
   const NAV_BOTTOM: NavItem[] = hasAuthorizationAccess
     ? [{ href: '/settings', label: t('routes.settings'), icon: SettingsRoundedIcon }]
     : [];
+
+  const sidebarBg = (theme as any).custom?.palette?.sidebarBg || '#ffffff';
+  const sidebarIcon = (theme as any).custom?.palette?.sidebarIcon || '#728096';
 
   return (
     <Box
@@ -60,15 +63,16 @@ export function SidebarRail() {
         top: 0,
         height: '100vh',
         width: RAIL_W,
-        bgcolor: theme.palette.primary.main,
-        color: theme.palette.primary.contrastText,
+        bgcolor: sidebarBg,
+        color: sidebarIcon,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         py: 2,
         gap: 1,
-        boxShadow: '2px 0 12px rgba(0,0,0,0.20), inset -1px 0 0 rgba(255,255,255,0.10)',
         zIndex: (t) => t.zIndex.drawer + 1,
+        borderRight: '1px solid',
+        borderColor: 'divider',
       }}
     >
       {/* Logo */}
@@ -83,12 +87,12 @@ export function SidebarRail() {
             borderRadius: '50%',
             display: 'grid',
             placeItems: 'center',
-            bgcolor: alpha(theme.palette.primary.contrastText, 0.12),
+            bgcolor: alpha(sidebarIcon, 0.12),
             mt: 0.5,
             cursor: 'pointer',
             transition: 'background-color 0.2s',
             '&:hover': {
-              bgcolor: alpha(theme.palette.primary.contrastText, 0.18),
+              bgcolor: alpha(sidebarIcon, 0.18),
             },
           }}
           aria-label="Go to home page"
@@ -97,7 +101,7 @@ export function SidebarRail() {
         </Box>
       </Tooltip>
 
-      <Divider sx={{ my: 2, width: '56%', borderColor: alpha(theme.palette.primary.contrastText, 0.25) }} />
+      <Divider sx={{ my: 2, width: '56%', borderColor: alpha(sidebarIcon, 0.25) }} />
 
       {/* Top navigation items */}
       <Stack spacing={{ xs: 1.2, sm: 1.6 }} sx={{ mt: 0.5 }}>
@@ -116,7 +120,7 @@ export function SidebarRail() {
                 size="large"
                 sx={{
                   position: 'relative',
-                  color: theme.palette.primary.contrastText,
+                  color: sidebarIcon,
                   opacity: active ? 1 : 0.85,
                   '&:hover': { bgcolor: alpha(theme.palette.common.black, 0.18), opacity: 1 },
                   bgcolor: active ? alpha(theme.palette.common.black, 0.15) : 'transparent',
@@ -132,7 +136,7 @@ export function SidebarRail() {
                       width: 3,
                       height: 22,
                       borderRadius: 8,
-                      bgcolor: theme.palette.primary.contrastText,
+                      bgcolor: sidebarIcon,
                     }}
                   />
                 )}
@@ -164,7 +168,7 @@ export function SidebarRail() {
                   size="large"
                   sx={{
                     position: 'relative',
-                    color: theme.palette.primary.contrastText,
+                    color: sidebarIcon,
                     opacity: active ? 1 : 0.85,
                     '&:hover': { bgcolor: alpha(theme.palette.common.black, 0.18), opacity: 1 },
                     bgcolor: active ? alpha(theme.palette.common.black, 0.15) : 'transparent',
@@ -180,7 +184,7 @@ export function SidebarRail() {
                         width: 3,
                         height: 22,
                         borderRadius: 8,
-                        bgcolor: theme.palette.primary.contrastText,
+                        bgcolor: sidebarIcon,
                       }}
                     />
                   )}

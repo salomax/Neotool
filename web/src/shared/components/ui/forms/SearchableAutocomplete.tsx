@@ -7,7 +7,9 @@ import {
   CircularProgress,
   Box,
   Chip,
+  InputAdornment,
 } from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
 import { useDebounce } from "@/shared/hooks/ui/useDebounce";
 import { ErrorAlert } from "@/shared/components/ui/feedback";
 
@@ -136,6 +138,12 @@ export interface SearchableAutocompleteProps<
    * @default "lazy"
    */
   loadMode?: "lazy" | "eager";
+
+  /**
+   * Callback fired when user presses Enter to search
+   * Receives the current input value
+   */
+  onSearch?: (searchQuery: string) => void;
 }
 
 /**
@@ -198,9 +206,14 @@ export function SearchableAutocomplete<
   debounceMs = 300,
   variant = "outlined",
   loadMode = "lazy",
+  onSearch,
 }: SearchableAutocompleteProps<TOption, TSelected, TQueryData, TQueryVariables>) {
   // Local input value (what the user is typing)
   const [inputValue, setInputValue] = useState("");
+  const [open, setOpen] = useState(false);
+  // Track if we just selected an option to avoid double-triggering search
+  const justSelectedOptionRef = React.useRef(false);
+  const navigatedWithKeyboardRef = React.useRef(false);
   // Debounced value used for querying
   const debouncedSearch = useDebounce(inputValue, debounceMs);
 
@@ -390,8 +403,25 @@ export function SearchableAutocomplete<
     }
 
     onChange(nextArray);
-    if (nextArray.length > 0 && reason === "selectOption") {
+    if (nextArray.length === 0) {
       setInputValue("");
+      return;
+    }
+    if (nextArray.length > 0 && reason === "selectOption") {
+      // Mark that we just selected an option
+      justSelectedOptionRef.current = true;
+      // Trigger search when option is selected
+      if (onSearch) {
+        onSearch(getOptionLabel(nextValue as TOption));
+      }
+      // Keep the selected label visible in the input for single-select UX
+      setInputValue(getOptionLabel(nextValue as TOption));
+      setOpen(false);
+      navigatedWithKeyboardRef.current = false;
+      // Reset the flag after a short delay
+      setTimeout(() => {
+        justSelectedOptionRef.current = false;
+      }, 100);
     }
   };
 
@@ -406,6 +436,12 @@ export function SearchableAutocomplete<
   return (
     <Autocomplete
       multiple={multiple}
+      open={open}
+      onOpen={() => setOpen(true)}
+      onClose={() => {
+        setOpen(false);
+        navigatedWithKeyboardRef.current = false;
+      }}
       options={allOptions}
       value={currentValue as any}
       onChange={handleChange}
@@ -413,9 +449,13 @@ export function SearchableAutocomplete<
       onInputChange={(_event, newInputValue, reason) => {
         // Preserve the current search text across option selection and other non-input changes.
         // We only update when the user is actively typing or explicitly clearing the field.
+        // Don't clear on "reset" or "blur" to keep the search term visible
         if (reason === "input" || reason === "clear") {
           setInputValue(newInputValue);
+          navigatedWithKeyboardRef.current = false;
         }
+        // For "reset" or "blur", keep the current input value to preserve search term
+        // This keeps the search term visible after Enter is pressed
       }}
       autoHighlight
       // UX: show dropdown arrow in eager mode, hide in lazy mode
@@ -452,14 +492,86 @@ export function SearchableAutocomplete<
               {...(helperTextValue && { helperText: helperTextValue })}
               fullWidth
               variant={variant}
+              inputProps={{
+                ...params.inputProps,
+                onKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => {
+                  const key = event.key;
+
+                  if (
+                    key === "ArrowDown" ||
+                    key === "ArrowUp" ||
+                    key === "Home" ||
+                    key === "End" ||
+                    key === "PageDown" ||
+                    key === "PageUp"
+                  ) {
+                    navigatedWithKeyboardRef.current = true;
+                    (params.inputProps as any)?.onKeyDown?.(event);
+                    return;
+                  }
+
+                  if (key !== "Enter" || multiple) {
+                    (params.inputProps as any)?.onKeyDown?.(event);
+                    return;
+                  }
+
+                  if (!inputValue.trim() || !onSearch) {
+                    (params.inputProps as any)?.onKeyDown?.(event);
+                    return;
+                  }
+
+                  if (justSelectedOptionRef.current) {
+                    (params.inputProps as any)?.onKeyDown?.(event);
+                    return;
+                  }
+
+                  if (open && navigatedWithKeyboardRef.current) {
+                    (params.inputProps as any)?.onKeyDown?.(event);
+                    return;
+                  }
+
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onSearch(inputValue.trim());
+                  setOpen(false);
+                  navigatedWithKeyboardRef.current = false;
+                },
+              }}
               InputProps={{
                 ...params.InputProps,
+                startAdornment: (
+                  <>
+                    <InputAdornment position="start">
+                      <SearchIcon fontSize="small" sx={{ color: "text.secondary" }} />
+                    </InputAdornment>
+                    {params.InputProps?.startAdornment}
+                  </>
+                ),
                 endAdornment: (
                   <>
                     {loading ? <CircularProgress size={16} /> : null}
                     {params.InputProps?.endAdornment}
                   </>
                 ),
+              }}
+              sx={{
+                // Remove underline for standard variant
+                "& .MuiInput-underline:before": {
+                  display: "none",
+                },
+                "& .MuiInput-underline:after": {
+                  display: "none",
+                },
+                "& .MuiInput-underline:hover:not(.Mui-disabled):before": {
+                  display: "none",
+                },
+                // Set background to paper color to match other input fields
+                "& .MuiOutlinedInput-root": {
+                  backgroundColor: "background.paper",
+                  "&::after": {
+                    display: "none",
+                  },
+                },
               }}
             />
           {error && (
@@ -512,6 +624,4 @@ export function SearchableAutocomplete<
     />
   );
 }
-
-
 
