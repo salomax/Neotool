@@ -193,6 +193,7 @@ Quick lookup and reference materials:
 |----------|------|------|----------|----------|
 | Infrastructure | `11-infrastructure/` | index | infrastructure | infrastructure, deployment, kubernetes, docker |
 | Feature Flags with Unleash | `11-infrastructure/feature-flags-unleash.md` | guide | infrastructure | feature-flags, unleash, rollout, canary, postgres |
+| Local Staging Runbook | `11-infrastructure/local-staging-runbook.md` | runbook | infrastructure | staging, local, docker-compose, supergraph, router |
 
 *Note: This section contains operational infrastructure guides.*
 

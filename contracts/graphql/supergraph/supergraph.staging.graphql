@@ -1,0 +1,753 @@
+schema
+  @link(url: "https://specs.apollo.dev/link/v1.0")
+  @link(url: "https://specs.apollo.dev/join/v0.3", for: EXECUTION)
+{
+  query: Query
+  mutation: Mutation
+}
+
+directive @join__enumValue(graph: join__Graph!) repeatable on ENUM_VALUE
+
+directive @join__field(graph: join__Graph, requires: join__FieldSet, provides: join__FieldSet, type: String, external: Boolean, override: String, usedOverridden: Boolean) repeatable on FIELD_DEFINITION | INPUT_FIELD_DEFINITION
+
+directive @join__graph(name: String!, url: String!) on ENUM_VALUE
+
+directive @join__implements(graph: join__Graph!, interface: String!) repeatable on OBJECT | INTERFACE
+
+directive @join__type(graph: join__Graph!, key: join__FieldSet, extension: Boolean! = false, resolvable: Boolean! = true, isInterfaceObject: Boolean! = false) repeatable on OBJECT | INTERFACE | UNION | ENUM | INPUT_OBJECT | SCALAR
+
+directive @join__unionMember(graph: join__Graph!, member: String!) repeatable on UNION
+
+directive @link(url: String, as: String, for: link__Purpose, import: [link__Import]) repeatable on SCHEMA
+
+"""Asset metadata and access information."""
+type Asset
+  @join__type(graph: ASSETS, key: "id")
+  @join__type(graph: FINANCIALDATA, key: "id")
+{
+  """Unique identifier (UUID v7)"""
+  id: ID!
+
+  """User or system that owns this asset"""
+  ownerId: String! @join__field(graph: ASSETS)
+
+  """Logical grouping (e.g., user-profiles, group-assets)"""
+  namespace: String! @join__field(graph: ASSETS)
+
+  """Visibility level - determines access control and URL generation"""
+  visibility: AssetVisibility! @join__field(graph: ASSETS)
+
+  """Unique key in S3/R2 storage"""
+  storageKey: String! @join__field(graph: ASSETS)
+
+  """Storage region"""
+  storageRegion: String! @join__field(graph: ASSETS)
+
+  """Storage bucket name"""
+  storageBucket: String! @join__field(graph: ASSETS)
+
+  """MIME type (e.g., image/jpeg, application/pdf)"""
+  mimeType: String! @join__field(graph: ASSETS)
+
+  """File size in bytes (null until upload confirmed)"""
+  sizeBytes: Long @join__field(graph: ASSETS)
+
+  """SHA-256 checksum for integrity verification"""
+  checksum: String @join__field(graph: ASSETS)
+
+  """Original filename from client upload"""
+  originalFilename: String @join__field(graph: ASSETS)
+
+  """
+  Pre-signed upload URL (temporary, only available for PENDING assets).
+  Client uploads file directly to this URL.
+  """
+  uploadUrl: String @join__field(graph: ASSETS)
+
+  """When the upload URL expires"""
+  uploadExpiresAt: DateTime @join__field(graph: ASSETS)
+
+  """
+  Public CDN URL for accessing the asset.
+  Only available for READY PUBLIC assets. Returns null for PRIVATE assets (use downloadUrl instead).
+  """
+  publicUrl: String @join__field(graph: ASSETS)
+
+  """
+  Presigned download URL for PRIVATE assets.
+  Returns null for PUBLIC assets (use publicUrl instead).
+  @param ttlSeconds Time-to-live for the presigned URL (default: 3600 seconds / 1 hour)
+  """
+  downloadUrl(ttlSeconds: Int = 3600): String @join__field(graph: ASSETS)
+
+  """Upload status"""
+  status: AssetStatus! @join__field(graph: ASSETS)
+
+  """Client-provided key to prevent duplicate uploads (optional)"""
+  idempotencyKey: String @join__field(graph: ASSETS)
+
+  """Timestamp when asset record was created"""
+  createdAt: DateTime! @join__field(graph: ASSETS)
+
+  """Timestamp when asset record was last updated"""
+  updatedAt: DateTime! @join__field(graph: ASSETS)
+
+  """Timestamp when asset was deleted (null if active)"""
+  deletedAt: DateTime @join__field(graph: ASSETS)
+}
+
+"""Asset upload lifecycle status."""
+enum AssetStatus
+  @join__type(graph: ASSETS)
+{
+  """Upload URL generated, waiting for client upload"""
+  PENDING @join__enumValue(graph: ASSETS)
+
+  """File uploaded and confirmed, ready for use"""
+  READY @join__enumValue(graph: ASSETS)
+
+  """Upload failed or expired"""
+  FAILED @join__enumValue(graph: ASSETS)
+
+  """Asset deleted"""
+  DELETED @join__enumValue(graph: ASSETS)
+}
+
+"""Asset visibility level - determines access control and URL generation."""
+enum AssetVisibility
+  @join__type(graph: ASSETS)
+{
+  """Public asset - accessible without owner check, uses stable CDN URLs"""
+  PUBLIC @join__enumValue(graph: ASSETS)
+
+  """Private asset - requires ownership check, uses presigned download URLs"""
+  PRIVATE @join__enumValue(graph: ASSETS)
+}
+
+type AuthorizationResult
+  @join__type(graph: SECURITY)
+{
+  allowed: Boolean!
+  reason: String!
+}
+
+enum BacenControlType
+  @join__type(graph: FINANCIALDATA)
+{
+  PUBLIC @join__enumValue(graph: FINANCIALDATA)
+  PRIVATE_DOMESTIC @join__enumValue(graph: FINANCIALDATA)
+  PRIVATE_FOREIGN_CONTROL @join__enumValue(graph: FINANCIALDATA)
+}
+
+type BacenFinanceInstitution
+  @join__type(graph: FINANCIALDATA)
+{
+  id: ID!
+  quarter: String
+  name: String!
+  asset: Asset
+  legalName: String
+  tradeName: String
+  logoAsset: Asset
+  institutionType: BacenInstitutionType
+  controlType: BacenControlType
+  institutionBankType: BacenInstitutionBankType
+  tipoConsolidadoBancario: BacenInstitutionBankType
+  website: String
+  socialNetworks: [String!]
+  mainActivity: String
+  address: String
+  founded: String
+  rwaReferenceEquity: Float
+  reportsSummary(range: QuarterRangeInput!): ReportsAvailability!
+  reportDetails(reportId: ID!, range: QuarterRangeInput!): ReportDetails!
+}
+
+type BacenInstitutionAutocompleteConnection
+  @join__type(graph: FINANCIALDATA)
+{
+  suggestions: [BacenInstitutionAutocompleteItem!]!
+}
+
+type BacenInstitutionAutocompleteItem
+  @join__type(graph: FINANCIALDATA)
+{
+  name: String!
+}
+
+enum BacenInstitutionBankType
+  @join__type(graph: FINANCIALDATA)
+{
+  B1 @join__enumValue(graph: FINANCIALDATA)
+  B2 @join__enumValue(graph: FINANCIALDATA)
+  B3S @join__enumValue(graph: FINANCIALDATA)
+  B3C @join__enumValue(graph: FINANCIALDATA)
+  B4 @join__enumValue(graph: FINANCIALDATA)
+  N1 @join__enumValue(graph: FINANCIALDATA)
+  N2 @join__enumValue(graph: FINANCIALDATA)
+  N4 @join__enumValue(graph: FINANCIALDATA)
+}
+
+type BacenInstitutionConnection
+  @join__type(graph: FINANCIALDATA)
+{
+  edges: [BacenInstitutionEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
+
+type BacenInstitutionEdge
+  @join__type(graph: FINANCIALDATA)
+{
+  node: BacenInstitutionSummaryItem!
+  cursor: String!
+}
+
+type BacenInstitutionSummaryItem
+  @join__type(graph: FINANCIALDATA)
+{
+  id: ID!
+  name: String!
+  legalName: String
+  tradeName: String
+  logoAsset: Asset
+  profit: Float
+  equity: Float
+  yoyEquityGrowth: Float
+  basileiaIndex: Float
+  bacenInstitutionType: String
+  institutionType: BacenInstitutionType
+  tipoConsolidadoBancario: String
+}
+
+enum BacenInstitutionType
+  @join__type(graph: FINANCIALDATA)
+{
+  INDIVIDUAL_INSTITUTION @join__enumValue(graph: FINANCIALDATA)
+  PRUDENTIAL_GROUP @join__enumValue(graph: FINANCIALDATA)
+  FINANCIAL_GROUP @join__enumValue(graph: FINANCIALDATA)
+}
+
+"""Input for confirming an asset upload."""
+input ConfirmAssetUploadInput
+  @join__type(graph: ASSETS)
+{
+  """ID of the asset to confirm"""
+  assetId: ID!
+
+  """
+  Optional SHA-256 checksum to verify file integrity.
+  If provided, server will validate against actual file checksum.
+  """
+  checksum: String
+}
+
+"""Input for creating a new asset upload."""
+input CreateAssetUploadInput
+  @join__type(graph: ASSETS)
+{
+  """
+  Logical namespace for the asset (e.g., "user-profiles", "group-assets").
+  Determines validation rules (allowed MIME types, max file size), visibility, and storage key template.
+  """
+  namespace: String!
+
+  """Original filename"""
+  filename: String!
+
+  """MIME type of the file"""
+  mimeType: String!
+
+  """File size in bytes"""
+  sizeBytes: Long!
+
+  """
+  Optional idempotency key to prevent duplicate uploads.
+  If provided, subsequent calls with the same key within 24 hours
+  will return the existing asset instead of creating a new one.
+  """
+  idempotencyKey: String
+}
+
+input CreateGroupInput
+  @join__type(graph: SECURITY)
+{
+  name: String!
+  description: String
+  userIds: [ID!]
+}
+
+input CreateRoleInput
+  @join__type(graph: SECURITY)
+{
+  name: String!
+}
+
+scalar DateTime
+  @join__type(graph: ASSETS)
+  @join__type(graph: FINANCIALDATA)
+  @join__type(graph: SECURITY)
+
+type Group
+  @join__type(graph: SECURITY, key: "id")
+{
+  id: ID!
+  name: String!
+  description: String
+  createdAt: String!
+  updatedAt: String!
+  roles: [Role!]!
+  members: [User!]!
+}
+
+type GroupConnection
+  @join__type(graph: SECURITY)
+{
+  edges: [GroupEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
+
+type GroupEdge
+  @join__type(graph: SECURITY)
+{
+  node: Group!
+  cursor: String!
+}
+
+input GroupOrderByInput
+  @join__type(graph: SECURITY)
+{
+  field: GroupOrderField!
+  direction: OrderDirection!
+}
+
+enum GroupOrderField
+  @join__type(graph: SECURITY)
+{
+  NAME @join__enumValue(graph: SECURITY)
+}
+
+scalar join__FieldSet
+
+enum join__Graph {
+  ASSETS @join__graph(name: "assets", url: "http://assets-service:8080/graphql")
+  FINANCIALDATA @join__graph(name: "financialdata", url: "http://neotool-financial-data-service:8080/graphql")
+  SECURITY @join__graph(name: "security", url: "http://neotool-security:8080/graphql")
+}
+
+scalar link__Import
+
+enum link__Purpose {
+  """
+  `SECURITY` features provide metadata necessary to securely resolve fields.
+  """
+  SECURITY
+
+  """
+  `EXECUTION` features provide metadata necessary for operation execution.
+  """
+  EXECUTION
+}
+
+scalar Long
+  @join__type(graph: ASSETS)
+  @join__type(graph: FINANCIALDATA)
+  @join__type(graph: SECURITY)
+
+type Mutation
+  @join__type(graph: ASSETS)
+  @join__type(graph: SECURITY)
+{
+  """
+  Step 1: Create asset upload and get pre-signed URL.
+  
+  This mutation:
+  1. Validates MIME type and file size against namespace configuration
+  2. Creates PENDING asset record in database
+  3. Generates pre-signed S3/R2 upload URL (valid for 15 minutes)
+  4. Returns asset with uploadUrl
+  
+  Client should then:
+  - Upload file directly to S3/R2 using the uploadUrl (PUT request)
+  - Call confirmAssetUpload mutation after upload completes
+  
+  Example usage:
+  ```graphql
+  mutation {
+  createAssetUpload(input: {
+  namespace: "user-profiles"
+  filename: "avatar.jpg"
+  mimeType: "image/jpeg"
+  sizeBytes: 1048576
+  idempotencyKey: "unique-key-123"
+  }) {
+  id
+  uploadUrl
+  uploadExpiresAt
+  status
+  visibility
+  storageKey
+  }
+  }
+  ```
+  """
+  createAssetUpload(input: CreateAssetUploadInput!): Asset! @join__field(graph: ASSETS)
+
+  """
+  Step 2: Confirm asset upload after client completes file upload.
+  
+  This mutation:
+  1. Verifies file exists in S3/R2 storage
+  2. Optionally validates checksum if provided
+  3. Updates asset status to READY
+  4. Generates public CDN URL
+  5. Returns updated asset with publicUrl
+  
+  Example usage:
+  ```graphql
+  mutation {
+  confirmAssetUpload(input: {
+  assetId: "01234567-89ab-cdef-0123-456789abcdef"
+  checksum: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }) {
+  id
+  status
+  publicUrl
+  }
+  }
+  ```
+  """
+  confirmAssetUpload(input: ConfirmAssetUploadInput!): Asset! @join__field(graph: ASSETS)
+
+  """
+  Delete an asset.
+  
+  This mutation:
+  1. Deletes the file from S3/R2 storage
+  2. Hard-deletes the asset record from the database
+  
+  Only the asset owner can delete the asset.
+  """
+  deleteAsset(assetId: ID!): Boolean! @join__field(graph: ASSETS)
+  signIn(input: SignInInput!): SignInPayload! @join__field(graph: SECURITY)
+  signInWithOAuth(input: SignInWithOAuthInput!): SignInPayload! @join__field(graph: SECURITY)
+  signUp(input: SignUpInput!): SignUpPayload! @join__field(graph: SECURITY)
+  refreshAccessToken(input: RefreshAccessTokenInput!): SignInPayload! @join__field(graph: SECURITY)
+  requestPasswordReset(input: RequestPasswordResetInput!): RequestPasswordResetPayload! @join__field(graph: SECURITY)
+  resetPassword(input: ResetPasswordInput!): ResetPasswordPayload! @join__field(graph: SECURITY)
+  enableUser(userId: ID!): User! @join__field(graph: SECURITY)
+  disableUser(userId: ID!): User! @join__field(graph: SECURITY)
+  updateUser(userId: ID!, input: UpdateUserInput!): User! @join__field(graph: SECURITY)
+  createGroup(input: CreateGroupInput!): Group! @join__field(graph: SECURITY)
+  updateGroup(groupId: ID!, input: UpdateGroupInput!): Group! @join__field(graph: SECURITY)
+  deleteGroup(groupId: ID!): Boolean! @join__field(graph: SECURITY)
+  createRole(input: CreateRoleInput!): Role! @join__field(graph: SECURITY)
+  updateRole(roleId: ID!, input: UpdateRoleInput!): Role! @join__field(graph: SECURITY)
+  deleteRole(roleId: ID!): Boolean! @join__field(graph: SECURITY)
+  assignPermissionToRole(roleId: ID!, permissionId: ID!): Role! @join__field(graph: SECURITY)
+  removePermissionFromRole(roleId: ID!, permissionId: ID!): Role! @join__field(graph: SECURITY)
+  assignGroupToUser(userId: ID!, groupId: ID!): User! @join__field(graph: SECURITY)
+  removeGroupFromUser(userId: ID!, groupId: ID!): User! @join__field(graph: SECURITY)
+  assignRoleToGroup(groupId: ID!, roleId: ID!): Group! @join__field(graph: SECURITY)
+  removeRoleFromGroup(groupId: ID!, roleId: ID!): Group! @join__field(graph: SECURITY)
+}
+
+enum OrderDirection
+  @join__type(graph: SECURITY)
+{
+  ASC @join__enumValue(graph: SECURITY)
+  DESC @join__enumValue(graph: SECURITY)
+}
+
+type PageInfo
+  @join__type(graph: FINANCIALDATA)
+  @join__type(graph: SECURITY)
+{
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+}
+
+type Permission
+  @join__type(graph: SECURITY, key: "id")
+{
+  id: ID!
+  name: String!
+  roles: [Role!]!
+}
+
+type PermissionConnection
+  @join__type(graph: SECURITY)
+{
+  edges: [PermissionEdge!]!
+  pageInfo: PageInfo!
+}
+
+type PermissionEdge
+  @join__type(graph: SECURITY)
+{
+  node: Permission!
+  cursor: String!
+}
+
+input QuarterRangeInput
+  @join__type(graph: FINANCIALDATA)
+{
+  from: String
+  to: String
+  last: Int
+}
+
+type QuarterReports
+  @join__type(graph: FINANCIALDATA)
+{
+  quarter: String!
+  reports: [ReportDescriptor!]!
+}
+
+type QuarterValue
+  @join__type(graph: FINANCIALDATA)
+{
+  quarter: String!
+  value: Float
+}
+
+type Query
+  @join__type(graph: ASSETS)
+  @join__type(graph: FINANCIALDATA)
+  @join__type(graph: SECURITY)
+{
+  """
+  Get asset by ID.
+  Returns null if asset not found or user doesn't have access.
+  """
+  asset(id: ID!): Asset @join__field(graph: ASSETS)
+  searchBacenInstitutionsAutocomplete(query: String!, anoMes: String): BacenInstitutionAutocompleteConnection! @join__field(graph: FINANCIALDATA)
+  bacenInstitutions(query: String, anoMes: String, first: Int, after: String): BacenInstitutionConnection! @join__field(graph: FINANCIALDATA)
+  bacenFinanceInstitution(id: ID!, anoMes: String): BacenFinanceInstitution @join__field(graph: FINANCIALDATA)
+  currentUser: User @join__field(graph: SECURITY)
+  checkPermission(userId: ID!, permission: String!, resourceId: ID): AuthorizationResult! @join__field(graph: SECURITY)
+  user(id: ID!): User @join__field(graph: SECURITY)
+  users(first: Int, after: String, query: String, orderBy: [UserOrderByInput!]): UserConnection! @join__field(graph: SECURITY)
+  group(id: ID!): Group @join__field(graph: SECURITY)
+  groups(first: Int, after: String, query: String, orderBy: [GroupOrderByInput!]): GroupConnection! @join__field(graph: SECURITY)
+  role(id: ID!): Role @join__field(graph: SECURITY)
+  roles(first: Int, after: String, query: String, orderBy: [RoleOrderByInput!]): RoleConnection! @join__field(graph: SECURITY)
+  permissions(first: Int, after: String, query: String): PermissionConnection! @join__field(graph: SECURITY)
+}
+
+input RefreshAccessTokenInput
+  @join__type(graph: SECURITY)
+{
+  refreshToken: String!
+}
+
+type ReportAccount
+  @join__type(graph: FINANCIALDATA)
+{
+  group: String
+  id: String
+  name: String
+  valuesByQuarter: [QuarterValue!]!
+}
+
+type ReportDescriptor
+  @join__type(graph: FINANCIALDATA)
+{
+  reportId: ID!
+  name: String
+  group: String
+  id: String
+}
+
+type ReportDetails
+  @join__type(graph: FINANCIALDATA)
+{
+  reportId: ID!
+  name: String
+  accounts: [ReportAccount!]!
+}
+
+type ReportsAvailability
+  @join__type(graph: FINANCIALDATA)
+{
+  quarters: [QuarterReports!]!
+}
+
+input RequestPasswordResetInput
+  @join__type(graph: SECURITY)
+{
+  email: String!
+  locale: String
+}
+
+type RequestPasswordResetPayload
+  @join__type(graph: SECURITY)
+{
+  success: Boolean!
+  message: String!
+}
+
+input ResetPasswordInput
+  @join__type(graph: SECURITY)
+{
+  token: String!
+  newPassword: String!
+}
+
+type ResetPasswordPayload
+  @join__type(graph: SECURITY)
+{
+  success: Boolean!
+  message: String!
+}
+
+type Role
+  @join__type(graph: SECURITY, key: "id")
+{
+  id: ID!
+  name: String!
+  createdAt: String!
+  updatedAt: String!
+  groups: [Group!]!
+  permissions: [Permission!]!
+}
+
+type RoleConnection
+  @join__type(graph: SECURITY)
+{
+  edges: [RoleEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
+
+type RoleEdge
+  @join__type(graph: SECURITY)
+{
+  node: Role!
+  cursor: String!
+}
+
+input RoleOrderByInput
+  @join__type(graph: SECURITY)
+{
+  field: RoleOrderField!
+  direction: OrderDirection!
+}
+
+enum RoleOrderField
+  @join__type(graph: SECURITY)
+{
+  NAME @join__enumValue(graph: SECURITY)
+}
+
+input SignInInput
+  @join__type(graph: SECURITY)
+{
+  email: String!
+  password: String!
+  rememberMe: Boolean
+}
+
+type SignInPayload
+  @join__type(graph: SECURITY)
+{
+  token: String!
+  refreshToken: String
+  user: User!
+}
+
+input SignInWithOAuthInput
+  @join__type(graph: SECURITY)
+{
+  provider: String!
+  idToken: String!
+  rememberMe: Boolean
+}
+
+input SignUpInput
+  @join__type(graph: SECURITY)
+{
+  name: String!
+  email: String!
+  password: String!
+}
+
+type SignUpPayload
+  @join__type(graph: SECURITY)
+{
+  token: String!
+  refreshToken: String
+  user: User!
+}
+
+input UpdateGroupInput
+  @join__type(graph: SECURITY)
+{
+  name: String!
+  description: String
+  userIds: [ID!]
+}
+
+input UpdateRoleInput
+  @join__type(graph: SECURITY)
+{
+  name: String!
+}
+
+input UpdateUserInput
+  @join__type(graph: SECURITY)
+{
+  displayName: String
+}
+
+type User
+  @join__type(graph: SECURITY, key: "id")
+{
+  id: ID!
+  email: String!
+  displayName: String
+  avatarUrl: String
+  enabled: Boolean!
+  createdAt: String!
+  updatedAt: String!
+  roles: [Role!]!
+  groups: [Group!]!
+  permissions: [Permission!]!
+}
+
+type UserConnection
+  @join__type(graph: SECURITY)
+{
+  edges: [UserEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
+
+type UserEdge
+  @join__type(graph: SECURITY)
+{
+  node: User!
+  cursor: String!
+}
+
+input UserOrderByInput
+  @join__type(graph: SECURITY)
+{
+  field: UserOrderField!
+  direction: OrderDirection!
+}
+
+enum UserOrderField
+  @join__type(graph: SECURITY)
+{
+  DISPLAY_NAME @join__enumValue(graph: SECURITY)
+  EMAIL @join__enumValue(graph: SECURITY)
+}
+
+scalar UUID
+  @join__type(graph: ASSETS)
+  @join__type(graph: FINANCIALDATA)
+  @join__type(graph: SECURITY)

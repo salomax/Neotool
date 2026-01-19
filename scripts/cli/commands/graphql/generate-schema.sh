@@ -44,6 +44,7 @@ run_rover_docker() {
     echo "Using Docker-based rover..."
     generate_with_docker "supergraph.yaml" "supergraph.graphql" "production"
     generate_with_docker "supergraph.local.yaml" "supergraph.local.graphql" "development"
+    generate_with_docker "supergraph.staging.yaml" "supergraph.staging.graphql" "staging"
 }
 
 # Function to run rover locally (for development)
@@ -68,6 +69,7 @@ run_rover_local() {
     # Generate both supergraph schemas
     generate_with_local "supergraph.yaml" "supergraph.graphql" "production"
     generate_with_local "supergraph.local.yaml" "supergraph.local.graphql" "development"
+    generate_with_local "supergraph.staging.yaml" "supergraph.staging.graphql" "staging"
 }
 
 # Check if we should use Docker (CI environment or explicit flag)
@@ -85,4 +87,6 @@ fi
 if [[ -f "$SUPERGRAPH_DIR/supergraph.local.graphql" ]]; then
     echo "  📄 Development: $SUPERGRAPH_DIR/supergraph.local.graphql ($(wc -c < "$SUPERGRAPH_DIR/supergraph.local.graphql") bytes)"
 fi
-
+if [[ -f "$SUPERGRAPH_DIR/supergraph.staging.graphql" ]]; then
+    echo "  📄 Staging: $SUPERGRAPH_DIR/supergraph.staging.graphql ($(wc -c < "$SUPERGRAPH_DIR/supergraph.staging.graphql") bytes)"
+fi

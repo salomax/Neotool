@@ -23,6 +23,26 @@ services:
     profiles:
       - database
 
+  # Database initializer - runs on every 'docker compose up', idempotent
+  postgres-init:
+    image: postgres:18rc1
+    container_name: neotool-postgres-init
+    env_file: ../.env.local
+    volumes:
+      - ../postgres/init-databases.sh:/init-databases.sh:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - postgres-internal
+    entrypoint: ["/bin/bash", "/init-databases.sh"]
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+    restart: "no"
+    profiles:
+      - database
+
   pgbouncer:
     image: edoburu/pgbouncer:v1.25.1-p0
     container_name: neotool-pgbouncer
