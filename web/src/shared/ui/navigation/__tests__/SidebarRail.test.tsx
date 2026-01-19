@@ -53,7 +53,7 @@ vi.mock('@/shared/providers/AuthorizationProvider', () => ({
     roles: [],
     loading: false,
     has: vi.fn((permission: string) => permission === 'security:user:view' || permission === 'security:role:view'),
-    hasAny: vi.fn((permissions: string[]) => 
+    hasAny: vi.fn((permissions: string[]) =>
       permissions.some(p => p === 'security:user:view' || p === 'security:role:view')
     ),
     hasAll: vi.fn(() => true),
@@ -101,18 +101,18 @@ describe.sequential('SidebarRail', () => {
   describe('Rendering', () => {
     it('renders sidebar rail', () => {
       renderSidebarRail();
-      
+
       const sidebar = screen.getByRole('complementary');
       expect(sidebar).toBeInTheDocument();
     });
 
     it('renders logo with home link', () => {
       renderSidebarRail();
-      
+
       const logoLink = screen.getByTestId('sidebar-rail-home-link');
       expect(logoLink).toBeInTheDocument();
       expect(logoLink).toHaveAttribute('href', '/');
-      
+
       const logo = screen.getByTestId('logo-mark');
       expect(logo).toBeInTheDocument();
       expect(logo).toHaveAttribute('data-variant', 'white');
@@ -120,50 +120,49 @@ describe.sequential('SidebarRail', () => {
 
     it('renders all navigation items', () => {
       renderSidebarRail();
-      
-      expect(screen.getByLabelText('Design System')).toBeInTheDocument();
-      expect(screen.getByLabelText('routes.examples')).toBeInTheDocument();
-      expect(screen.getByLabelText('Documentation')).toBeInTheDocument();
+
+      expect(screen.getByLabelText('routes.financialInstitutions')).toBeInTheDocument();
+      expect(screen.getByLabelText('routes.settings')).toBeInTheDocument();
     });
 
     it('renders navigation items with correct hrefs', () => {
       renderSidebarRail();
-      
+
       // IconButton with LinkComponent wraps the button in a link
-      const designSystemButton = screen.getByLabelText('Design System');
-      const examplesButton = screen.getByLabelText('routes.examples');
-      const documentationButton = screen.getByLabelText('Documentation');
-      
-      expect(designSystemButton).toBeInTheDocument();
-      expect(examplesButton).toBeInTheDocument();
-      expect(documentationButton).toBeInTheDocument();
+      const financialInstitutionsButton = screen.getByLabelText('routes.financialInstitutions');
+      const settingsButton = screen.getByLabelText('routes.settings');
+
+      expect(financialInstitutionsButton).toBeInTheDocument();
+      expect(financialInstitutionsButton).toHaveAttribute('href', '/bacen-institutions');
+      expect(settingsButton).toBeInTheDocument();
+      expect(settingsButton).toHaveAttribute('href', '/settings');
     });
   });
 
   describe('Active state logic', () => {
     it('marks item as active when pathname exactly matches href', () => {
-      mockPathname.mockReturnValue('/design-system');
+      mockPathname.mockReturnValue('/bacen-institutions');
       renderSidebarRail();
-      
-      const designSystemButton = screen.getByLabelText('Design System');
-      
+
+      const financialInstitutionsButton = screen.getByLabelText('routes.financialInstitutions');
+
       // The button should be present (IconButton with LinkComponent renders as anchor)
-      expect(designSystemButton).toBeInTheDocument();
+      expect(financialInstitutionsButton).toBeInTheDocument();
     });
 
     it('marks item as active when pathname starts with href (non-root)', () => {
-      mockPathname.mockReturnValue('/design-system/components');
+      mockPathname.mockReturnValue('/bacen-institutions/details');
       renderSidebarRail();
-      
-      const designSystemButton = screen.getByLabelText('Design System');
-      
-      expect(designSystemButton).toBeInTheDocument();
+
+      const financialInstitutionsButton = screen.getByLabelText('routes.financialInstitutions');
+
+      expect(financialInstitutionsButton).toBeInTheDocument();
     });
 
     it('does not mark root item as active when pathname starts with other href', () => {
-      mockPathname.mockReturnValue('/design-system');
+      mockPathname.mockReturnValue('/bacen-institutions');
       renderSidebarRail();
-      
+
       // Root path should not be active
       const logoLink = screen.getByLabelText('Go to home page');
       expect(logoLink).toBeInTheDocument();
@@ -172,58 +171,57 @@ describe.sequential('SidebarRail', () => {
     it('marks root as active when pathname is exactly "/"', () => {
       mockPathname.mockReturnValue('/');
       renderSidebarRail();
-      
+
       // When on root, no nav items should be active (they're not root)
-      const designSystemButton = screen.getByLabelText('Design System');
-      
+      const financialInstitutionsButton = screen.getByLabelText('routes.financialInstitutions');
+
       // Should be present but not necessarily active
-      expect(designSystemButton).toBeInTheDocument();
+      expect(financialInstitutionsButton).toBeInTheDocument();
     });
 
     it('handles null pathname gracefully', () => {
       mockPathname.mockReturnValue(null);
       renderSidebarRail();
-      
+
       // Should render without errors
       expect(screen.getByRole('complementary')).toBeInTheDocument();
-      expect(screen.getByLabelText('Design System')).toBeInTheDocument();
+      expect(screen.getByLabelText('routes.financialInstitutions')).toBeInTheDocument();
     });
 
     it('does not mark item as active when pathname does not match', () => {
       mockPathname.mockReturnValue('/other-page');
       renderSidebarRail();
-      
-      const designSystemButton = screen.getByLabelText('Design System');
-      
+
+      const financialInstitutionsButton = screen.getByLabelText('routes.financialInstitutions');
+
       // Should be present
-      expect(designSystemButton).toBeInTheDocument();
+      expect(financialInstitutionsButton).toBeInTheDocument();
     });
 
     it('handles subpath matching correctly for non-root items', () => {
-      mockPathname.mockReturnValue('/examples/code-samples');
+      mockPathname.mockReturnValue('/settings/profile');
       renderSidebarRail();
-      
-      const examplesButton = screen.getByLabelText('routes.examples');
-      
-      expect(examplesButton).toBeInTheDocument();
+
+      const settingsButton = screen.getByLabelText('routes.settings');
+
+      expect(settingsButton).toBeInTheDocument();
     });
   });
 
   describe('Tooltips', () => {
     it('shows tooltip for logo', () => {
       renderSidebarRail();
-      
+
       const logoLink = screen.getByLabelText('Go to home page');
       expect(logoLink).toBeInTheDocument();
     });
 
     it('shows tooltips for navigation items', () => {
       renderSidebarRail();
-      
+
       // Tooltips are rendered by MUI, we can check the aria-labels
-      expect(screen.getByLabelText('Design System')).toBeInTheDocument();
-      expect(screen.getByLabelText('routes.examples')).toBeInTheDocument();
-      expect(screen.getByLabelText('Documentation')).toBeInTheDocument();
+      expect(screen.getByLabelText('routes.financialInstitutions')).toBeInTheDocument();
+      expect(screen.getByLabelText('routes.settings')).toBeInTheDocument();
     });
   });
 
@@ -233,7 +231,7 @@ describe.sequential('SidebarRail', () => {
 
     it('navigates to home when logo is clicked', async () => {
       renderSidebarRail();
-      
+
       const logoLink = screen.getByTestId('sidebar-rail-home-link');
       // Verify the link is clickable and has correct href
       expect(logoLink).toHaveAttribute('href', '/');
@@ -243,26 +241,26 @@ describe.sequential('SidebarRail', () => {
 
     it('navigates to correct page when nav item is clicked', async () => {
       renderSidebarRail();
-      
-      const designSystemButton = screen.getByLabelText('Design System');
-      
+
+      const financialInstitutionsButton = screen.getByLabelText('routes.financialInstitutions');
+
       // Button should be clickable
-      expect(designSystemButton).toBeInTheDocument();
-      await user.click(designSystemButton);
+      expect(financialInstitutionsButton).toBeInTheDocument();
+      await user.click(financialInstitutionsButton);
     });
   });
 
   describe('Styling and layout', () => {
     it('applies correct width constant', () => {
       renderSidebarRail();
-      
+
       const sidebar = screen.getByRole('complementary');
       expect(sidebar).toHaveStyle({ width: '84px' });
     });
 
     it('renders with fixed positioning', () => {
       renderSidebarRail();
-      
+
       const sidebar = screen.getByRole('complementary');
       expect(sidebar).toHaveStyle({ position: 'fixed' });
     });

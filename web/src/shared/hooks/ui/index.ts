@@ -4,3 +4,4 @@ export * from './usePageTitle';
 export * from './useDebounce';
 export * from './useStableCallback';
 export * from './useCombinedRef';
+export * from './useElementHeight';

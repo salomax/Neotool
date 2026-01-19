@@ -20,6 +20,7 @@ import { ChatDrawer } from "@/shared/components/ui/feedback/Chat";
 import { useAuth } from "@/shared/providers";
 import { Button } from "@/shared/components/ui/primitives/Button";
 import { usePageTitleValue } from "@/shared/hooks/ui/usePageTitle";
+import { Breadcrumb } from "@/shared/components/ui/navigation/Breadcrumb";
 
 export function AppHeader() {
   const { mode, toggle } = useThemeMode();
@@ -101,22 +102,31 @@ export function AppHeader() {
             gap: 2,
           }}
         >
-          {/* Page Title - Left aligned */}
+          {/* Page Title and Breadcrumb - Left aligned */}
           {pageTitle && (
-            <Typography
-              variant="h4"
-              component="h1"
+            <Box
               sx={{
-                fontWeight: 600,
+                display: "flex",
+                flexDirection: "column",
                 flex: "0 1 auto",
                 minWidth: 0, // Allow text truncation
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
+                gap: 0.5,
               }}
             >
-              {pageTitle}
-            </Typography>
+              <Typography
+                variant="h4"
+                component="h1"
+                sx={{
+                  fontWeight: 600,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {pageTitle}
+              </Typography>
+              <Breadcrumb />
+            </Box>
           )}
 
           {/* Actions - Right aligned */}

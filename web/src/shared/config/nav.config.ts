@@ -8,7 +8,6 @@ export type NavItem = {
 };
 
 export const NAV: NavItem[] = [
-  { label: "Dashboard", href: "/dashboard" },
   { label: "Users", href: "/users" },
   { label: "Profile", href: "/profile" },
 ];

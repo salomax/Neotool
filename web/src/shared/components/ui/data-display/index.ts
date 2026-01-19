@@ -1,7 +1,24 @@
 // Data Display - Components for displaying data and visualizations
 export { Chart } from './Chart';
+export { LineChart } from './LineChart';
 export { DataTable } from './DataTable';
 export { DataTableSkeleton } from './DataTableSkeleton';
 export { Table } from './Table';
+export { MetricCard } from './MetricCard';
+export { CurrencyDisplay } from '../CurrencyDisplay';
+export { MetricBox } from './MetricBox';
+export { PercentageBox } from './PercentageBox';
+export { MetricGrid } from './MetricGrid';
+export { TrendIndicator } from './TrendIndicator';
+export { StatusIndicator } from './StatusIndicator';
+export { FinancialMetricItem } from './FinancialMetricItem';
 export type { ColDef, ColGroupDef } from './DataTable';
 export type { TableProps } from './Table';
+export type { CurrencyDisplayProps } from '../CurrencyDisplay';
+export type { MetricBoxProps } from './MetricBox';
+export type { MetricCardProps, MetricValueType } from './MetricCard';
+export type { PercentageBoxProps, PercentageThresholds, PercentageThresholdValues } from './PercentageBox';
+export type { MetricGridProps, MetricGridItem } from './MetricGrid';
+export type { TrendIndicatorProps } from './TrendIndicator';
+export type { StatusIndicatorProps } from './StatusIndicator';
+export type { FinancialMetricItemProps } from './FinancialMetricItem';

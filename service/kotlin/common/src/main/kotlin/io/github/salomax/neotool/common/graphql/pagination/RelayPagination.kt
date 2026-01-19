@@ -260,6 +260,65 @@ object CursorEncoder {
             throw IllegalArgumentException("Invalid composite cursor format: $cursor", e)
         }
     }
+
+    /**
+     * Encode a composite cursor (field values + String id) to a base64 URL-safe cursor string.
+     * Uses JSON encoding for the composite cursor structure.
+     *
+     * @param fieldValues Map of field names to their values from the ordered fields
+     * @param id The String id of the entity
+     * @return Base64 URL-safe encoded cursor string
+     */
+    fun encodeCompositeCursor(
+        fieldValues: Map<String, Any?>,
+        id: String,
+    ): String {
+        val composite =
+            CompositeCursor(
+                fieldValues = fieldValues,
+                id = id,
+            )
+        val json = objectMapper.writeValueAsString(composite)
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(
+            json.toByteArray(),
+        )
+    }
+
+    /**
+     * Decode a base64 URL-safe cursor string to a composite cursor with String id.
+     *
+     * @param cursor The cursor string to decode
+     * @return Decoded CompositeCursor with String id
+     * @throws IllegalArgumentException if the cursor is invalid
+     */
+    fun decodeCompositeCursorToString(cursor: String): CompositeCursor {
+        return try {
+            val decoded = Base64.getUrlDecoder().decode(cursor)
+            val json = String(decoded)
+            // Read as Map first, then construct CompositeCursor manually to handle Any? types
+
+            @Suppress("UNCHECKED_CAST")
+            val map =
+                objectMapper.readValue(json, Map::class.java) as Map<String, Any?>
+            val fieldValues =
+                (map["fieldValues"] as? Map<*, *>)?.mapKeys { it.key.toString() }
+                    ?.mapValues { it.value } as? Map<String, Any?> ?: emptyMap()
+            val id =
+                map["id"] as? String ?: throw IllegalArgumentException("Missing id in cursor")
+            CompositeCursor(
+                fieldValues = fieldValues,
+                id = id,
+            )
+        } catch (e: IllegalArgumentException) {
+            // Preserve the original message if it's about missing id
+            if (e.message?.contains("Missing id in cursor") == true) {
+                throw e
+            }
+            throw IllegalArgumentException("Invalid composite cursor format: $cursor", e)
+        } catch (e: Exception) {
+            throw IllegalArgumentException("Invalid composite cursor format: $cursor", e)
+        }
+    }
 }
 
 /**
