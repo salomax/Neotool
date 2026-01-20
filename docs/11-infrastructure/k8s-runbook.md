@@ -24,6 +24,7 @@ last_updated: 2026-01-15
 
 1. [Quick Reference](#quick-reference)
 2. [GitOps with Flux CD](#gitops-with-flux-cd)
+   - [Production Release via GH Actions + Flux Image Automation](#production-release-via-gh-actions--flux-image-automation)
 3. [Pod & Deployment Management](#pod--deployment-management)
 4. [Database Operations](#database-operations)
 5. [Secrets Management](#secrets-management)
@@ -296,6 +297,76 @@ git commit -m "Rollback my-service"
 git push
 
 # Flux automatically rolls back!
+```
+
+### Production Release via GH Actions + Flux Image Automation
+
+**Goal**: Tag/release triggers a GHCR image publish, Flux detects the new tag, updates the manifest, and rolls out in `production`.
+
+#### Preconditions
+
+- Flux is pointing to the correct branch (currently `main`)
+- Image automation objects exist in `flux-system`
+- Deployment manifest has the `"$imagepolicy"` marker on the `image:` line
+
+#### Release Flow (neotool-web)
+
+1) **Create a version tag**
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+2) **GitHub Actions builds and pushes to GHCR**
+   - Workflow: `.github/workflows/production.yml`
+   - Image: `ghcr.io/invistus/neotool-web:v0.1.0`
+
+3) **Flux Image Automation updates the manifest**
+   - `ImageRepository` detects new tag
+   - `ImagePolicy` selects `v0.1.0`
+   - `ImageUpdateAutomation` commits the change to `main`
+
+4) **Flux reconciles and rolls out**
+
+```bash
+flux get imagepolicies -n flux-system
+flux get imageupdateautomations -n flux-system
+kubectl -n production rollout status deploy/neotool-web
+```
+
+#### Validation Checklist
+
+```bash
+# Flux health
+flux check
+flux get sources git
+
+# Kustomizations
+flux get kustomizations -A
+
+# Image automation
+flux get imagerepositories -n flux-system
+flux get imagepolicies -n flux-system
+flux get imageupdateautomations -n flux-system
+
+# Deployment status
+kubectl -n production get deploy neotool-web
+kubectl -n production describe deploy neotool-web
+kubectl -n production rollout status deploy/neotool-web
+```
+
+#### Troubleshooting Quick Fixes
+
+```bash
+# Force Git source sync
+flux reconcile source git flux-system --with-source
+
+# Force image automation run
+flux reconcile image update neotool-web -n flux-system
+
+# Force app reconcile
+flux reconcile kustomization web --with-source
 ```
 
 ---

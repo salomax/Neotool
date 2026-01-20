@@ -24,8 +24,7 @@ spec:
     spec:
       containers:
         - name: nextjs
-          # TODO: Replace USERNAME with your GitHub username
-          image: ghcr.io/USERNAME/neotool-web:latest
+          image: ghcr.io/invistus/neotool-web:latest # {"$imagepolicy": "flux-system:neotool-web"}
           imagePullPolicy: Always
           ports:
             - containerPort: 3000

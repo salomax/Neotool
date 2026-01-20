@@ -1,0 +1,14 @@
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImagePolicy
+metadata:
+  name: neotool-web
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: neotool-web
+  filterTags:
+    pattern: '^v(?P<version>\\d+\\.\\d+\\.\\d+)$'
+    extract: '$version'
+  policy:
+    semver:
+      range: '>=0.0.0'
