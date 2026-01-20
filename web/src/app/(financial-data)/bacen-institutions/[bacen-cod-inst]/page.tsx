@@ -10,7 +10,7 @@ import { usePageTitle } from "@/shared/hooks/ui/usePageTitle";
 import { useTranslation } from "@/shared/i18n";
 import { financialDataTranslations } from "@/features/financial_data/i18n";
 import { useBreadcrumbLabel } from "@/shared/hooks/ui/useBreadcrumbLabel";
-import { LineChart, CurrencyDisplay } from "@/shared/components/ui/data-display";
+import { LineChart, CurrencyDisplay, MetricLineChart } from "@/shared/components/ui/data-display";
 import { BacenInstitutionSummaryPaper } from "@/features/financial_data/components/BacenInstitutionSummaryPaper";
 import { BacenInstitutionBalanceSummaryGrid } from "@/features/financial_data/components/BacenInstitutionBalanceSummaryGrid";
 import { useBacenInstitutionDetail } from "@/features/financial_data/hooks/useBacenInstitutionDetail";
@@ -243,61 +243,10 @@ export default function BacenInstitutionDetailPage() {
                           )}
 
                           {account.valuesByQuarter && account.valuesByQuarter.length > 0 ? (
-                            <LineChart
-                              data={
-                                account.id === "INDICE_DE_BASILEIA" ||
-                                account.id === "INDICE_DE_IMOBILIZACAO"
-                                  ? account.valuesByQuarter.map((item: any) => ({
-                                      ...item,
-                                      value:
-                                        item.value === null ||
-                                        item.value === undefined
-                                          ? item.value
-                                          : Number(item.value) * 100,
-                                    }))
-                                  : account.valuesByQuarter
-                              }
-                              xKey="quarter"
-                              xDateFormat={(value: any) => {
-                                const str = String(value);
-                                if (str.length !== 6) {
-                                  return str;
-                                }
-                                const year = str.slice(0, 4);
-                                const month = str.slice(4, 6);
-                                return `${month}/${year}`;
-                              }}
-                              height={300}
-                              series={[
-                                {
-                                  id: 'value',
-                                  name: account.name || t("value") || "Valor",
-                                  dataKey: 'value',
-                                  yAxisId: 'left-axis',
-                                },
-                              ]}
-                              axes={[
-                                {
-                                  id: 'left-axis',
-                                  side: 'left',
-                                  label: account.name,
-                                  format:
-                                    account.name
-                                      ?.toLowerCase()
-                                      .includes("basileia") ||
-                                    account.name
-                                      ?.toLowerCase()
-                                      .includes("índice")
-                                      ? "percent"
-                                      : "currency",
-                                  currency: 'BRL',
-                                },
-                              ]}
-                              scale
-                              scaleMinPadding={0.05}
-                              scaleMaxPadding={0.15}
-                              consolidateDecimal
-                              showArea
+                            <MetricLineChart
+                              data={account.valuesByQuarter}
+                              label={account.name}
+                              valueType={isPercentageMetric ? "percentage" : "currency"}
                             />
                           ) : (
                             <Typography variant="body2" color="text.secondary">

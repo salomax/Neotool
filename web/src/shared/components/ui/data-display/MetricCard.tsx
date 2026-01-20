@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Box, Typography, Chip } from "@mui/material";
+import { Box, Typography, Chip, IconButton } from "@mui/material";
 import { useTheme, alpha } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import {
@@ -18,6 +18,8 @@ import { parseCurrencyValue, type CurrencyLabels } from "@/shared/utils/currency
 import { formatPercentageWithSign } from "@/shared/utils/percentage";
 import ArrowDropUpIcon from "@mui/icons-material/ArrowDropUp";
 import { useTranslation as useReactI18nTranslation } from "react-i18next";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import { GrowthChip } from "./GrowthChip";
 
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 
@@ -41,6 +43,11 @@ export interface MetricCardProps extends Omit<CardProps, "children"> {
     good: number;
   };
   percentageThresholdInverse?: boolean;
+  /**
+   * Callback when the open/external link icon is clicked.
+   * If provided, an icon will be displayed at the top right.
+   */
+  onOpen?: () => void;
 }
 
 interface NumberParts {
@@ -131,6 +138,7 @@ export function MetricCard({
   percentageThresholdValues,
   percentageThresholdInverse = false,
   sx,
+  onOpen,
   ...rest
 }: MetricCardProps) {
   const { t: tCommon } = useReactI18nTranslation("common");
@@ -424,6 +432,23 @@ export function MetricCard({
       }}
       {...cardRest}
     >
+      {onOpen && (
+        <Box
+          sx={{
+            position: "absolute",
+            top: 8,
+            right: 8,
+            zIndex: 10,
+          }}
+        >
+          <IconButton onClick={(e) => {
+            e.stopPropagation();
+            onOpen();
+          }} size="small">
+            <OpenInNewIcon fontSize="small" />
+          </IconButton>
+        </Box>
+      )}
       {showChart && (
         <Box
           sx={{
@@ -542,33 +567,7 @@ export function MetricCard({
               gap: 1,
             }}
           >
-            <Chip
-              icon={
-                <GrowthIcon
-                  sx={{
-                    fontSize: 18,
-                  }}
-                />
-              }
-              label={growthFormatted}
-              sx={{
-                bgcolor: growthBgColor,
-                color: growthColor,
-                fontWeight: 700,
-                fontSize: 13,
-                height: "auto",
-                "& .MuiChip-label": {
-                  px: 0.5,
-                  py: 0.25,
-                  fontSize: 13,
-                  fontWeight: 700,
-                },
-                "& .MuiChip-icon": {
-                  color: growthColor,
-                  fontSize: 18,
-                },
-              }}
-            />
+            <GrowthChip growthPercentage={growthPercentage} />
             {growthLabel ? (
               <Typography variant="body2" sx={{ color: "text.secondary" }}>
                 {growthLabel}

@@ -17,7 +17,7 @@ export function useBacenInstitutionBalanceSummary(institutionId: string) {
       variables: {
         id: institutionId,
         reportId: REPORT_ID_RESUMO,
-        range: { last: 5 * 4 },
+        range: { last: 5 * 4 + 1 },
       },
       skip: !institutionId,
     }
@@ -26,7 +26,7 @@ export function useBacenInstitutionBalanceSummary(institutionId: string) {
   const getMetricData = React.useCallback(
     (
       accountName: string
-    ): { actualValue: number | null; historical: number[]; growthPercentage: number | null } => {
+    ): { actualValue: number | null; historical: number[]; growthPercentage: number | null; chartData: any[] } => {
       const accounts =
         (reportData as any)?.bacenFinanceInstitution?.reportDetails?.accounts || [];
       const account = accounts.find((a: any) => a.id === accountName);
@@ -45,6 +45,9 @@ export function useBacenInstitutionBalanceSummary(institutionId: string) {
             typeof value === "number" && Number.isFinite(value)
         );
 
+      // Clone and reverse for chart (oldest to newest)
+      const chartData = [...valuesByQuarter].reverse();
+
       let growthPercentage: number | null = null;
       const baseRaw = valuesByQuarter[1]?.value;
       if (
@@ -57,7 +60,7 @@ export function useBacenInstitutionBalanceSummary(institutionId: string) {
         growthPercentage = latestRaw / baseRaw - 1;
       }
 
-      return { actualValue, historical, growthPercentage };
+      return { actualValue, historical, growthPercentage, chartData };
     },
     [reportData]
   );
@@ -86,6 +89,7 @@ export function useBacenInstitutionBalanceSummary(institutionId: string) {
     valueType: "currency",
     growthPercentage: netProfit.growthPercentage,
     historical: netProfit.historical.reverse(),
+    chartData: netProfit.chartData,
   };
 
   const basileiaItem: MetricGridItem | null =
@@ -103,6 +107,7 @@ export function useBacenInstitutionBalanceSummary(institutionId: string) {
             good: 100,
           },
           percentageThresholdInverse: false,
+          chartData: basileiaData.chartData,
         }
       : null;
 
@@ -121,6 +126,7 @@ export function useBacenInstitutionBalanceSummary(institutionId: string) {
             good: IMMOBILIZATION_THRESHOLDS.good,
           },
           percentageThresholdInverse: true,
+          chartData: imobilizacaoData.chartData,
         }
       : null;
 
@@ -131,6 +137,7 @@ export function useBacenInstitutionBalanceSummary(institutionId: string) {
     valueType: "currency",
     growthPercentage: totalAssets.growthPercentage,
     historical: totalAssets.historical.reverse(),
+    chartData: totalAssets.chartData,
   };
 
   const fundingItem: MetricGridItem = {
@@ -140,6 +147,7 @@ export function useBacenInstitutionBalanceSummary(institutionId: string) {
     valueType: "currency",
     growthPercentage: funding.growthPercentage,
     historical: funding.historical.reverse(),
+    chartData: funding.chartData,
   };
 
   const creditPortfolioItem: MetricGridItem = {
@@ -149,6 +157,7 @@ export function useBacenInstitutionBalanceSummary(institutionId: string) {
     valueType: "currency",
     growthPercentage: creditPortfolio.growthPercentage,
     historical: creditPortfolio.historical.reverse(),
+    chartData: creditPortfolio.chartData,
   };
 
   const netEquityItem: MetricGridItem = {
@@ -158,6 +167,7 @@ export function useBacenInstitutionBalanceSummary(institutionId: string) {
     valueType: "currency",
     growthPercentage: netEquity.growthPercentage,
     historical: netEquity.historical.reverse(),
+    chartData: netEquity.chartData,
   };
 
   const referenceEquityItem: MetricGridItem = {
@@ -167,6 +177,7 @@ export function useBacenInstitutionBalanceSummary(institutionId: string) {
     valueType: "currency",
     growthPercentage: referenceEquity.growthPercentage,
     historical: referenceEquity.historical.reverse(),
+    chartData: referenceEquity.chartData,
   };
 
   const classifiedCreditPortfolioItem: MetricGridItem = {
@@ -176,6 +187,7 @@ export function useBacenInstitutionBalanceSummary(institutionId: string) {
     valueType: "currency",
     growthPercentage: classifiedCreditPortfolio.growthPercentage,
     historical: classifiedCreditPortfolio.historical.reverse(),
+    chartData: classifiedCreditPortfolio.chartData,
   };
 
   const currentAndLongTermLiabilitiesItem: MetricGridItem = {
@@ -185,6 +197,7 @@ export function useBacenInstitutionBalanceSummary(institutionId: string) {
     valueType: "currency",
     growthPercentage: currentAndLongTermLiabilities.growthPercentage,
     historical: currentAndLongTermLiabilities.historical.reverse(),
+    chartData: currentAndLongTermLiabilities.chartData,
   };
 
   const liabilitiesItem: MetricGridItem = {
@@ -194,6 +207,7 @@ export function useBacenInstitutionBalanceSummary(institutionId: string) {
     valueType: "currency",
     growthPercentage: liabilities.growthPercentage,
     historical: liabilities.historical.reverse(),
+    chartData: liabilities.chartData,
   };
 
   const securitiesItem: MetricGridItem = {
@@ -203,6 +217,7 @@ export function useBacenInstitutionBalanceSummary(institutionId: string) {
     valueType: "currency",
     growthPercentage: securities.growthPercentage,
     historical: securities.historical.reverse(),
+    chartData: securities.chartData,
   };
 
   const gridItems: MetricGridItem[] = [

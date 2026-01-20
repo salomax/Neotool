@@ -341,8 +341,9 @@ services:
       # Edge configuration
       PORT: 3063
       # CORS configuration
-      CORS_ORIGIN: "*"
-      CORS_HEADERS: "Authorization,Content-Type"
+      CORS_ORIGIN: "http://localhost:3000"
+      CORS_ALLOWED_HEADERS: "Authorization,Content-Type,unleash-appname,unleash-instanceid,unleash-connection-id,unleash-sdk"
+      CORS_METHODS: "GET,POST,OPTIONS,HEAD,OPTIONS"
     ports:
       - "3063:3063"
     depends_on:
