@@ -6,3 +6,6 @@ metadata:
 spec:
   image: ghcr.io/invistus/neotool-web
   interval: 1m0s
+  secretRef:
+    name: ghcr-credentials
+    

@@ -369,6 +369,41 @@ flux reconcile image update neotool-web -n flux-system
 flux reconcile kustomization web --with-source
 ```
 
+#### GHCR Authentication (Private Packages)
+
+If the ImageRepository reports `UNAUTHORIZED`, GHCR access credentials are missing.
+
+1) **Create the registry secret in `flux-system`**
+
+```bash
+kubectl -n flux-system create secret docker-registry ghcr-credentials \
+  --docker-server=ghcr.io \
+  --docker-username=YOUR_GITHUB_USER_OR_ORG \
+  --docker-password=YOUR_GHCR_TOKEN \
+  --docker-email=YOUR_EMAIL
+```
+
+2) **Reference the secret in the ImageRepository**
+
+```yaml
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageRepository
+metadata:
+  name: neotool-web
+  namespace: flux-system
+spec:
+  image: ghcr.io/invistus/neotool-web
+  interval: 1m0s
+  secretRef:
+    name: ghcr-credentials
+```
+
+3) **Verify**
+
+```bash
+kubectl -n flux-system get imagerepositories
+```
+
 ---
 
 ## Pod & Deployment Management
