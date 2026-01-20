@@ -1,0 +1,25 @@
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageUpdateAutomation
+metadata:
+  name: neotool-web
+  namespace: flux-system
+spec:
+  interval: 1m0s
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  git:
+    checkout:
+      ref:
+        branch: "main"
+    commit:
+      author:
+        name: flux-bot
+        email: flux-bot@invistus.com
+      messageTemplate: "chore(flux): update neotool-web image to {{range .Updated.Images}}{{.Tag}}{{end}}"
+    push:
+      branch: "main"
+  update:
+    path: ./infra/kubernetes/flux/apps/web
+    strategy: Setters
+  suspend: false

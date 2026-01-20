@@ -26,20 +26,45 @@ services:
       timeout: 5s
       retries: 5
 
+  # Vault initializer - runs on every 'docker compose up', idempotent
+  vault-init:
+    image: hashicorp/vault:1.18.0
+    container_name: neotool-vault-init
+    depends_on:
+      vault:
+        condition: service_healthy
+    environment:
+      VAULT_ADDR: ${VAULT_ADDRESS:-http://vault:8200}
+      VAULT_TOKEN: ${VAULT_TOKEN}
+      VAULT_MOUNT_PATH: ${VAULT_MOUNT_PATH:-secret}
+      VAULT_SECRET_PATH: ${VAULT_SECRET_PATH:-secret/jwt/keys}
+      JWT_KEY_ID: ${JWT_KEY_ID:-kid-1}
+      VAULT_INIT_GENERATE_KEYS: ${VAULT_INIT_GENERATE_KEYS:-true}
+      VAULT_INIT_INSTALL_OPENSSL: ${VAULT_INIT_INSTALL_OPENSSL:-false}
+      VAULT_INIT_PRIVATE_KEY_FILE: ${VAULT_INIT_PRIVATE_KEY_FILE:-/vault-keys/private-key.pem}
+      VAULT_INIT_PUBLIC_KEY_FILE: ${VAULT_INIT_PUBLIC_KEY_FILE:-/vault-keys/public-key.pem}
+    volumes:
+      - ../vault/init-vault.sh:/vault-init/init-vault.sh:ro
+    entrypoint: [ "/bin/sh", "/vault-init/init-vault.sh" ]
+    restart: "no"
+
   # -------------------------------------------------------------
   # Tooling Stack (database)
   # Profile: database
   # -------------------------------------------------------------
   postgres:
-    image: postgres:18rc1
+    image: postgres:18.1-alpine
     container_name: neotool-postgres
     restart: unless-stopped
-    env_file: ../.env.local
     ports: [ "5432:5432" ]
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:
       - postgres-internal
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER" ]
       interval: 10s
@@ -48,9 +73,8 @@ services:
 
   # Database initializer - runs on every 'docker compose up', idempotent
   postgres-init:
-    image: postgres:18rc1
+    image: postgres:18.1-alpine
     container_name: neotool-postgres-init
-    env_file: ../.env.local
     volumes:
       - ../postgres/init-databases.sh:/init-databases.sh:ro
     depends_on:
@@ -60,28 +84,36 @@ services:
       - postgres-internal
     entrypoint: [ "/bin/bash", "/init-databases.sh" ]
     environment:
-      PGHOST: postgres
-      PGPORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      PGHOST: neotool-postgres
+      PGPORT: ${POSTGRES_PORT:-5432}
     restart: "no"
 
   pgbouncer:
     image: edoburu/pgbouncer:v1.25.1-p0
     container_name: neotool-pgbouncer
-    env_file: ../.env.local
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      PGHOST: neotool-postgres
+      PGPORT: ${POSTGRES_PORT:-5432}
     depends_on:
       postgres:
         condition: service_healthy
     restart: unless-stopped
     ports: [ "6432:6432" ]
     volumes:
-      - ../pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
+      - ../pgbouncer/pgbouncer-staging.ini:/etc/pgbouncer/pgbouncer.ini:ro
       - ../pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
     command: [ "pgbouncer", "/etc/pgbouncer/pgbouncer.ini" ]
     networks:
       - default
       - postgres-internal
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -h localhost -p 6432 -U $$POSTGRES_USER" ]
+      test: [ "CMD-SHELL", "pg_isready -h $$PGHOST -p $$PGPORT -U $$POSTGRES_USER" ]
       interval: 5s
       timeout: 5s
       retries: 30
@@ -128,18 +160,31 @@ services:
     build:
       context: ../../service/kotlin
       dockerfile: security/Dockerfile
-    container_name: neotool-security
-    env_file: ../.env.local
+    container_name: neotool-security-service
     environment:
       MICRONAUT_ENVIRONMENTS: docker
       MICRONAUT_SERVER_PORT: 8080
-      POSTGRES_HOST: pgbouncer
-      POSTGRES_PORT: 6432
-      VAULT_ADDRESS: http://vault:8200
+      POSTGRES_HOST: neotool-pgbouncer
+      POSTGRES_PORT: ${PGBOUNCER_PORT:-6432} 
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}        
+      VAULT_ENABLED: ${VAULT_ENABLED:-true}
+      VAULT_ADDRESS: ${VAULT_ADDRESS:-http://vault:8200}
+      VAULT_TOKEN: ${VAULT_TOKEN}
+      VAULT_SECRET_PATH: ${VAULT_SECRET_PATH:-secret/jwt/keys}
+      VAULT_ENGINE_VERSION: ${VAULT_ENGINE_VERSION:-2}
+      JWT_KEY_ID: ${JWT_KEY_ID:-kid-1}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-RS256}
+      JWT_JWKS_ENABLED: ${JWT_JWKS_ENABLED:-true}
+      JWT_ACCESS_TOKEN_EXPIRATION_SECONDS: ${JWT_ACCESS_TOKEN_EXPIRATION_SECONDS:-900}
+      JWT_REFRESH_TOKEN_EXPIRATION_SECONDS: ${JWT_REFRESH_TOKEN_EXPIRATION_SECONDS:-604800}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_ISSUER: ${GOOGLE_ISSUER:-https://accounts.google.com}
       # Unleash Feature Flags Configuration (REQUIRED)
       UNLEASH_URL: ${UNLEASH_URL:-}
       UNLEASH_API_TOKEN: ${UNLEASH_API_TOKEN:-}
-      UNLEASH_APP_NAME: ${UNLEASH_APP_NAME:-neotool-security}
+      UNLEASH_APP_NAME: ${UNLEASH_APP_NAME:-neotool-security-service}
     depends_on:
       pgbouncer:
         condition: service_healthy
@@ -156,14 +201,21 @@ services:
     build:
       context: ../../service/kotlin
       dockerfile: assets/Dockerfile
-    container_name: assets-service
-    env_file: ../.env.local
+    container_name: neotool-assets-service
     environment:
       MICRONAUT_ENVIRONMENTS: docker
       MICRONAUT_SERVER_PORT: 8080
-      POSTGRES_HOST: pgbouncer
-      POSTGRES_PORT: 6432
-      JWT_JWKS_URL: http://neotool-security:8080/.well-known/jwks.json
+      POSTGRES_HOST: neotool-pgbouncer
+      POSTGRES_PORT: ${PGBOUNCER_PORT:-6432} 
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}        
+      VAULT_ADDRESS: http://vault:8200
+      # Unleash Feature Flags Configuration (REQUIRED)
+      UNLEASH_URL: ${UNLEASH_URL:-}
+      UNLEASH_API_TOKEN: ${UNLEASH_API_TOKEN:-}
+      UNLEASH_APP_NAME: ${UNLEASH_APP_NAME:-neotool-security-service}
+      JWT_JWKS_URL: http://neotool-security-service:8080/.well-known/jwks.json
       STORAGE_HOSTNAME: minio
       STORAGE_PORT: 9000
       STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY:-minioadmin}
@@ -193,13 +245,20 @@ services:
       context: ../../service/kotlin
       dockerfile: financialdata/Dockerfile
     container_name: neotool-financial-data-service
-    env_file: ../.env.local
     environment:
       MICRONAUT_ENVIRONMENTS: docker
       MICRONAUT_SERVER_PORT: 8080
-      POSTGRES_HOST: pgbouncer
-      POSTGRES_PORT: 6432
-      JWT_JWKS_URL: http://neotool-security:8080/.well-known/jwks.json
+      POSTGRES_HOST: neotool-pgbouncer
+      POSTGRES_PORT: ${PGBOUNCER_PORT:-6432} 
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}        
+      VAULT_ADDRESS: http://vault:8200
+      # Unleash Feature Flags Configuration (REQUIRED)
+      UNLEASH_URL: ${UNLEASH_URL:-}
+      UNLEASH_API_TOKEN: ${UNLEASH_API_TOKEN:-}
+      UNLEASH_APP_NAME: ${UNLEASH_APP_NAME:-neotool-security-service}
+      JWT_JWKS_URL: http://neotool-security-service:8080/.well-known/jwks.json
     depends_on:
       pgbouncer:
         condition: service_healthy
@@ -224,16 +283,19 @@ services:
     build:
       context: ../../web
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_UNLEASH_PROXY_URL: ${NEXT_PUBLIC_UNLEASH_PROXY_URL}
+        NEXT_PUBLIC_UNLEASH_CLIENT_TOKEN: ${NEXT_PUBLIC_UNLEASH_CLIENT_TOKEN}
+        NEXT_PUBLIC_ENV: ${NEXT_PUBLIC_ENV:-staging}
     container_name: neotool-web
-    env_file: ../.env.local
     environment:
       NEXT_PUBLIC_GRAPHQL_URL: ${NEXT_PUBLIC_GRAPHQL_URL:-http://router:4000/graphql}
       GRAPHQL_SCHEMA_PATH: ../contracts/graphql/supergraph/supergraph.graphql
       # Unleash Feature Flags Configuration (REQUIRED)
-      UNLEASH_SERVER_URL: ${UNLEASH_SERVER_URL:-}
-      UNLEASH_SERVER_API_TOKEN: ${UNLEASH_SERVER_API_TOKEN:-}
-      NEXT_PUBLIC_UNLEASH_PROXY_URL: ${NEXT_PUBLIC_UNLEASH_PROXY_URL:-}
-      NEXT_PUBLIC_UNLEASH_CLIENT_TOKEN: ${NEXT_PUBLIC_UNLEASH_CLIENT_TOKEN:-}
+      UNLEASH_SERVER_URL: ${UNLEASH_SERVER_URL}
+      UNLEASH_SERVER_API_TOKEN: ${UNLEASH_SERVER_API_TOKEN}
+      NEXT_PUBLIC_UNLEASH_PROXY_URL: ${NEXT_PUBLIC_UNLEASH_PROXY_URL}
+      NEXT_PUBLIC_UNLEASH_CLIENT_TOKEN: ${NEXT_PUBLIC_UNLEASH_CLIENT_TOKEN}
     ports:
       - "3000:3000"
     healthcheck:
@@ -255,7 +317,7 @@ services:
       - "9091:9090" # Metrics port (changed to avoid conflict with Prometheus)
     volumes:
       - ../../contracts/graphql/supergraph/supergraph.staging.graphql:/dist/supergraph.graphql:ro
-      - ../../infra/router/router.yaml:/dist/router.yaml:ro
+      - ../../infra/router/router.staging.yaml:/dist/router.yaml:ro
     command: [ "--supergraph", "/dist/supergraph.graphql", "--config", "/dist/router.yaml" ]
     environment:
       - APOLLO_ROUTER_LISTEN_ADDRESS=0.0.0.0:4000
@@ -298,7 +360,7 @@ services:
     image: unleashorg/unleash-server:latest
     container_name: neotool-unleash
     restart: unless-stopped
-    env_file: .env
+    env_file: .env.staging
     environment:
       # Database configuration (via PgBouncer)
       DATABASE_URL: postgres://${UNLEASH_USER:-neotool}:${UNLEASH_PASSWORD:-neotool}@pgbouncer:6432/${UNLEASH_DB:-unleash_db}?sslmode=disable
@@ -320,7 +382,7 @@ services:
       - default
       - postgres-internal
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:4242/health || exit 1"]
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:4242/health || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -332,7 +394,7 @@ services:
     image: unleashorg/unleash-edge:latest
     container_name: neotool-unleash-edge
     restart: unless-stopped
-    env_file: .env
+    env_file: .env.staging
     command:
       - edge
       - --upstream-url=http://unleash:4242
@@ -351,7 +413,7 @@ services:
     networks:
       - default
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3063/health || exit 1"]
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3063/health || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 5

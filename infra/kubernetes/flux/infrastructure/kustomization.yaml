@@ -16,3 +16,6 @@ resources:
 
   # 5. External Secrets Operator (syncs Vault → K8s)
   - external-secrets/
+
+  # 6. Image automation (GitOps image updates)
+  - image-automation/
