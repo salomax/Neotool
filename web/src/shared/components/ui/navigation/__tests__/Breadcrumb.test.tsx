@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, within, cleanup } from "@testing-library/react";
 import { Breadcrumb, BreadcrumbItem, RouteConfig } from "../Breadcrumb";
 import { AppThemeProvider } from "@/styles/themes/AppThemeProvider";
+import { BreadcrumbLabelProvider, useBreadcrumbLabel } from "@/shared/hooks/ui/useBreadcrumbLabel";
 
 // Mock Next.js navigation
 const mockPathname = vi.fn();
@@ -762,6 +763,35 @@ describe.sequential("Breadcrumb", () => {
       expect(screen.getByText("Home")).toBeInTheDocument();
       expect(screen.getByText("Auto")).toBeInTheDocument();
       expect(screen.getByText("Path")).toBeInTheDocument();
+    });
+  });
+
+  describe("Loading state", () => {
+    it("renders skeleton when label is null", () => {
+      mockPathname.mockReturnValue("/products/123");
+
+      const TestComponent = () => {
+        useBreadcrumbLabel("123", null);
+        return <Breadcrumb autoGenerate />;
+      };
+
+      render(
+        <AppThemeProvider>
+          <BreadcrumbLabelProvider>
+            <TestComponent />
+          </BreadcrumbLabelProvider>
+        </AppThemeProvider>
+      );
+
+      // "Products" should be visible (auto generated from "products")
+      expect(screen.getByText("Products")).toBeInTheDocument();
+      
+      // "123" should NOT be visible
+      expect(screen.queryByText("123")).not.toBeInTheDocument();
+
+      // Skeleton should be visible
+      const skeletons = document.querySelectorAll(".MuiSkeleton-root");
+      expect(skeletons.length).toBeGreaterThan(0);
     });
   });
 });

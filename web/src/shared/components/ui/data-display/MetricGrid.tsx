@@ -5,7 +5,10 @@ import { Box, Skeleton } from "@mui/material";
 import { MetricCard, MetricCardProps } from "./MetricCard";
 import type { ResponsiveValue } from "../layout/types";
 
-export type MetricGridItem = MetricCardProps & { type?: 'metric' };
+export type MetricGridItem = MetricCardProps & { 
+  type?: 'metric';
+  chartData?: any[];
+};
 
 export interface MetricGridProps {
   /**

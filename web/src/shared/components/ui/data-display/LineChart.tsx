@@ -223,7 +223,7 @@ export const LineChart: React.FC<LineChartProps> = ({
   scaleMaxPadding = 0.1,
   consolidateDecimal = true,
   colors,
-  margin = { top: 0, right: 56, left: 32, bottom: 24 },
+  margin = { top: 0, right: 24, left: 0, bottom: 24 },
   sx,
 }) => {
   const theme = useTheme();

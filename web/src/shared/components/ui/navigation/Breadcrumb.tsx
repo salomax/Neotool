@@ -4,14 +4,14 @@ import * as React from "react";
 import { usePathname } from "next/navigation";
 import { useTheme, SxProps, Theme } from "@mui/material/styles";
 import { useMediaQuery } from "@mui/material";
-import { Breadcrumbs as MuiBreadcrumbs, Typography, Box } from "@/shared/ui/mui-imports";
+import { Breadcrumbs as MuiBreadcrumbs, Typography, Box, Skeleton } from "@/shared/ui/mui-imports";
 import { ChevronRight as ChevronRightIcon } from "@mui/icons-material";
 import { Link } from "./Link";
 import { getTestIdProps } from "@/shared/utils/testid";
 import { useBreadcrumbLabels } from "@/shared/hooks/ui/useBreadcrumbLabel";
 
 export interface BreadcrumbItem {
-  label: string;
+  label: string | React.ReactNode;
   href?: string;
   icon?: React.ReactNode;
   disabled?: boolean;
@@ -73,7 +73,7 @@ function generateBreadcrumbsFromPathname(
   homeLabel: string = "Home",
   homeHref?: string,
   homeIcon?: React.ReactNode,
-  customLabels?: Record<string, string>
+  customLabels?: Record<string, string | null>
 ): BreadcrumbItem[] {
   if (!pathname || pathname === "/") {
     return homeHref ? [{ label: homeLabel, href: homeHref, icon: homeIcon }] : [];
@@ -94,12 +94,17 @@ function generateBreadcrumbsFromPathname(
     const isLast = index === segments.length - 1;
 
     // Try to find matching route config
-    let label = segment;
+    let label: string | React.ReactNode = segment;
     let icon: React.ReactNode | undefined;
 
     // Check for custom label from context first
     if (customLabels && segment in customLabels) {
-      label = customLabels[segment] ?? segment;
+      const customLabel = customLabels[segment];
+      if (customLabel === null) {
+        label = <Skeleton width={100} />;
+      } else {
+        label = customLabel;
+      }
     } else if (routeConfig) {
       // Try exact match first
       let matchedConfig = routeConfig.find((config) => config.path === currentPath);
@@ -335,7 +340,7 @@ export const Breadcrumb = React.forwardRef<HTMLElement, BreadcrumbProps>(
                 color: "text.primary",
               },
             }}
-            aria-label={item.label}
+            aria-label={typeof item.label === "string" ? item.label : undefined}
           >
             {content}
           </Link>
@@ -461,11 +466,19 @@ export const Breadcrumb = React.forwardRef<HTMLElement, BreadcrumbProps>(
         sx={computedSx}
         {...testIdProps}
       >
-        {displayItems.map((item, index) => (
-          <React.Fragment key={`${item.label}-${index}`}>
-            {renderBreadcrumbItem(item, index)}
-          </React.Fragment>
-        ))}
+        {displayItems.map((item, index) => {
+          const content = renderBreadcrumbItem(item, index);
+          
+          if (React.isValidElement(content)) {
+            return React.cloneElement(content, { key: `${item.label}-${index}` } as any);
+          }
+          
+          return (
+            <span key={`${item.label}-${index}`}>
+              {content}
+            </span>
+          );
+        })}
       </MuiBreadcrumbs>
     );
   }

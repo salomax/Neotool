@@ -87,12 +87,12 @@ export function SidebarRail() {
             borderRadius: '50%',
             display: 'grid',
             placeItems: 'center',
-            bgcolor: alpha(sidebarIcon, 0.12),
+            bgcolor: 'primary.main',
             mt: 0.5,
             cursor: 'pointer',
             transition: 'background-color 0.2s',
             '&:hover': {
-              bgcolor: alpha(sidebarIcon, 0.18),
+              bgcolor: 'primary.dark',
             },
           }}
           aria-label="Go to home page"
