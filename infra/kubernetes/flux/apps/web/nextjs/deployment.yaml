@@ -97,7 +97,6 @@ spec:
             capabilities:
               drop:
                 - ALL
-      # Uncomment if using private registry (GitHub Container Registry with private repos)
-      # imagePullSecrets:
-      #   - name: ghcr-credentials
+      imagePullSecrets:
+        - name: ghcr-credentials
       restartPolicy: Always
