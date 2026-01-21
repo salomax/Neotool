@@ -16,7 +16,7 @@ spec:
       author:
         name: flux-bot
         email: flux-bot@invistus.com
-      messageTemplate: "chore(flux): update neotool-web image to {{range .Changed.Images}}{{.Tag}}{{end}}"
+      messageTemplate: "chore(flux): update neotool-web image tag"
     push:
       branch: "main"
   update:
