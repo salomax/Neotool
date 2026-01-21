@@ -31,7 +31,6 @@ jobs:
                 labels: [label],
               });
             }
-
             const query = `
               mutation($pullRequestId: ID!, $mergeMethod: PullRequestMergeMethod!) {
                 enablePullRequestAutoMerge(input: {pullRequestId: $pullRequestId, mergeMethod: $mergeMethod}) {
