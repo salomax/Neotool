@@ -315,6 +315,40 @@ kubectl get nodes
 kubectl get pods -n kube-system
 ```
 
+### Step 5: Flux Bootstrap (GitHub App Recommended)
+
+Some organizations disable deploy keys. In this case, use the GitHub App mode in the bootstrap script.
+
+**Requirements**:
+- GitHub App ID
+- GitHub App Installation ID
+- GitHub App private key (`.pem`)
+- A temporary PAT to run the initial bootstrap (HTTPS)
+
+**Run**:
+
+```bash
+./infra/kubernetes/flux/bootstrap.sh
+# Choose option 5: GitHub App
+```
+
+**Example inputs**:
+
+```
+GitHub owner/org: invistus
+Repository name: invistus
+Is this a personal repo? [y/N]: N
+GitHub App ID: 123456
+GitHub App Installation ID: 987654
+GitHub App private key file path: ~/.ssh/invistus-flux.private-key.pem
+GitHub PAT (hidden, used only for bootstrap): ********
+```
+
+**Outcome**:
+- Flux is installed in `flux-system`
+- GitRepository is created for `main`
+- Auth secret is switched to GitHub App credentials
+
 ### Terraform Outputs
 
 View Terraform outputs:

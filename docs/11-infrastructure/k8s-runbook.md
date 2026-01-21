@@ -404,6 +404,14 @@ spec:
 kubectl -n flux-system get imagerepositories
 ```
 
+#### GitHub App Auth (Org Policy)
+
+Some orgs disable deploy keys. In that case, use GitHub App credentials for Flux.
+
+See the Hostinger runbook for the bootstrap flow:
+
+- `docs/11-infrastructure/hostinger-runbook.md`
+
 ---
 
 ## Pod & Deployment Management

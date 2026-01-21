@@ -49,12 +49,13 @@ echo "  Bootstrap Options"
 echo "================================================"
 echo ""
 echo "Choose bootstrap method:"
-echo "  1. GitHub (Recommended - auto-sync from Git)"
+echo "  1. GitHub (PAT over HTTPS)"
+echo "  5. GitHub App (Recommended for org policy / no deploy keys)"
 echo "  2. GitLab"
 echo "  3. Generic Git"
 echo "  4. Local (no Git sync)"
 echo ""
-read -p "Enter choice [1-4]: " choice
+read -p "Enter choice [1-5]: " choice
 
 case $choice in
   1)
@@ -62,25 +63,79 @@ case $choice in
     echo "GitHub Bootstrap"
     echo "================"
     echo ""
-    echo "You need a GitHub Personal Access Token with 'repo' scope."
+    echo "You need a GitHub Personal Access Token (PAT) with repo access."
+    echo "Note: This uses HTTPS auth (no deploy keys)."
     echo "Create one at: https://github.com/settings/tokens"
     echo ""
-    read -p "GitHub username: " GITHUB_USER
+    read -p "GitHub owner/org: " GITHUB_OWNER
     read -p "Repository name (e.g., Neotool): " GITHUB_REPO
+    read -p "Is this a personal repo? [y/N]: " GITHUB_PERSONAL
     read -sp "GitHub token (hidden): " GITHUB_TOKEN
     echo ""
     echo ""
 
     export GITHUB_TOKEN
+    PERSONAL_FLAG=""
+    if [[ "$GITHUB_PERSONAL" =~ ^[Yy]$ ]]; then
+      PERSONAL_FLAG="--personal"
+    fi
 
     flux bootstrap github \
-      --owner="$GITHUB_USER" \
+      --token-auth \
+      --owner="$GITHUB_OWNER" \
       --repository="$GITHUB_REPO" \
       --branch=main \
       --path=infra/kubernetes/flux/clusters/production \
-      --personal \
+      $PERSONAL_FLAG \
       --components-extra=image-reflector-controller,image-automation-controller
 
+    ;;
+
+  5)
+    echo ""
+    echo "GitHub App Bootstrap"
+    echo "===================="
+    echo ""
+    echo "This bootstraps with a PAT, then replaces the Flux secret with GitHub App auth."
+    echo "You need:"
+    echo "  - GitHub App ID"
+    echo "  - GitHub App Installation ID"
+    echo "  - GitHub App private key file (.pem)"
+    echo ""
+    read -p "GitHub owner/org: " GITHUB_OWNER
+    read -p "Repository name (e.g., Neotool): " GITHUB_REPO
+    read -p "Is this a personal repo? [y/N]: " GITHUB_PERSONAL
+    read -p "GitHub App ID: " GITHUB_APP_ID
+    read -p "GitHub App Installation ID: " GITHUB_APP_INSTALLATION_ID
+    read -p "GitHub App private key file path: " GITHUB_APP_PRIVATE_KEY
+    read -sp "GitHub PAT (hidden, used only for bootstrap): " GITHUB_TOKEN
+    echo ""
+    echo ""
+
+    export GITHUB_TOKEN
+    PERSONAL_FLAG=""
+    if [[ "$GITHUB_PERSONAL" =~ ^[Yy]$ ]]; then
+      PERSONAL_FLAG="--personal"
+    fi
+
+    flux bootstrap github \
+      --token-auth \
+      --owner="$GITHUB_OWNER" \
+      --repository="$GITHUB_REPO" \
+      --branch=main \
+      --path=infra/kubernetes/flux/clusters/production \
+      $PERSONAL_FLAG \
+      --components-extra=image-reflector-controller,image-automation-controller
+
+    echo ""
+    echo "Switching GitRepository auth to GitHub App..."
+    flux create secret githubapp flux-system \
+      --app-id="$GITHUB_APP_ID" \
+      --app-installation-id="$GITHUB_APP_INSTALLATION_ID" \
+      --app-private-key="$GITHUB_APP_PRIVATE_KEY" \
+      -n flux-system
+
+    echo "✓ GitHub App secret applied (flux-system)"
     ;;
 
   2)
