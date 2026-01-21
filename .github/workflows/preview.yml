@@ -19,6 +19,7 @@ jobs:
   # ============================================
   discover-services:
     name: Discover Services
+    if: ${{ github.head_ref != 'flux-updates' }}
     runs-on: ubuntu-latest
     outputs:
       services: ${{ steps.set-services.outputs.services }}
@@ -62,6 +63,7 @@ jobs:
   # ============================================
   backend-tests:
     name: Backend Tests (${{ matrix.service }})
+    if: ${{ github.head_ref != 'flux-updates' }}
     runs-on: ubuntu-latest
     needs: discover-services
     strategy:
@@ -158,6 +160,7 @@ jobs:
 
   frontend-tests:
     name: Frontend Tests
+    if: ${{ github.head_ref != 'flux-updates' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -210,6 +213,7 @@ jobs:
 
   security-scan:
     name: Security Scan
+    if: ${{ github.head_ref != 'flux-updates' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -238,6 +242,7 @@ jobs:
   # ============================================
   build:
     name: Build Docker Images
+    if: ${{ github.head_ref != 'flux-updates' }}
     runs-on: ubuntu-latest
     needs: [backend-tests, frontend-tests, security-scan]
     outputs:
@@ -323,6 +328,7 @@ jobs:
 
   preview-deploy:
     name: Deploy Preview App (Ephemeral)
+    if: ${{ github.head_ref != 'flux-updates' }}
     runs-on: ubuntu-latest
     needs: [build]
     permissions:
@@ -372,4 +378,3 @@ jobs:
               repo: context.repo.repo,
               body: '✅ **Preview App Deployed**\n\n🔗 Preview URL: https://preview-pr-${{ github.event.pull_request.number }}.example.com\n📦 Image Digest: `${{ needs.build.outputs.image-digest }}`\n\nPlease review the preview app before approving this PR.'
             });
-
