@@ -1,84 +1,11 @@
 import * as React from "react";
-import { Box, Typography, useTheme } from "@mui/material";
-import { parseCurrencyValue, type CurrencyLabels } from "@/shared/utils/currency";
+import { Box, Typography } from "@mui/material";
+import { useTranslation } from "react-i18next";
+import { type CurrencyLabels } from "@/shared/utils/currency";
+import { formatMetricValue, type MetricValueType } from "@/shared/utils/formatMetricValue";
 import { GrowthChip } from "./GrowthChip";
 
-// --- Types duplicated from MetricCard.tsx or local ---
-
-export type MetricValueType = "currency" | "number" | "percentage";
-
-interface NumberParts {
-  number: string;
-  totalizer: string | null;
-}
-
-function parseNumberValue(
-  value: number,
-  locale: string,
-  labels: CurrencyLabels,
-  totalizerFormat: "short" | "long"
-): NumberParts {
-  const isNegative = value < 0;
-  const absValue = Math.abs(value);
-
-  const trillionsLabel =
-    totalizerFormat === "long"
-      ? labels.trillionsLong || "trilhões"
-      : labels.trillions || "tri";
-  const billionsLabel =
-    totalizerFormat === "long"
-      ? labels.billionsLong || "bilhões"
-      : labels.billions || "bi";
-  const millionsLabel =
-    totalizerFormat === "long"
-      ? labels.millionsLong || "milhões"
-      : labels.millions || "mi";
-
-  const trillions = absValue / 1_000_000_000_000;
-  if (trillions >= 1) {
-    const numberStr = trillions.toLocaleString(locale, {
-      minimumFractionDigits: 1,
-      maximumFractionDigits: 1,
-    });
-    return {
-      number: isNegative ? `-${numberStr}` : numberStr,
-      totalizer: trillionsLabel,
-    };
-  }
-
-  const billions = absValue / 1_000_000_000;
-  if (billions >= 1) {
-    const numberStr = billions.toLocaleString(locale, {
-      minimumFractionDigits: 1,
-      maximumFractionDigits: 1,
-    });
-    return {
-      number: isNegative ? `-${numberStr}` : numberStr,
-      totalizer: billionsLabel,
-    };
-  }
-
-  const millions = absValue / 1_000_000;
-  if (millions >= 1) {
-    const numberStr = millions.toLocaleString(locale, {
-      minimumFractionDigits: 1,
-      maximumFractionDigits: 1,
-    });
-    return {
-      number: isNegative ? `-${numberStr}` : numberStr,
-      totalizer: millionsLabel,
-    };
-  }
-
-  const numberStr = absValue.toLocaleString(locale, {
-    maximumFractionDigits: 0,
-  });
-
-  return {
-    number: isNegative ? `-${numberStr}` : numberStr,
-    totalizer: null,
-  };
-}
+export type { MetricValueType };
 
 export interface MetricValueDisplayProps {
   actualValue: number | null | undefined;
@@ -89,6 +16,7 @@ export interface MetricValueDisplayProps {
   currencyLabels?: CurrencyLabels;
   growthPercentage?: number | null;
   align?: "left" | "right" | "center";
+  valueVariant?: "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "subtitle1" | "subtitle2" | "body1" | "body2" | "caption" | "overline";
 }
 
 export function MetricValueDisplay({
@@ -100,93 +28,37 @@ export function MetricValueDisplay({
   currencyLabels: providedCurrencyLabels,
   growthPercentage,
   align = "right",
+  valueVariant = "h5",
 }: MetricValueDisplayProps) {
-  const { t: tCommon } = { t: (key: string) => key }; // Mock tCommon if not available, or use a hook. 
-  // Wait, I need real translation if possible. But MetricCard uses useTranslation.
-  // I will skip translation for now and use hardcoded defaults or simple mock as shown in MetricCard if it uses tCommon("currency.billions").
-  // Actually MetricCard uses: const { t: tCommon } = useReactI18nTranslation("common");
-  // I should do the same.
+  const { t: tCommon } = useTranslation("common");
 
-  // Re-implementing useMemo for currencyLabels to avoid hook issues if I don't import useTranslation
-  // But better to be consistent.
-  
   const currencyLabels = React.useMemo<CurrencyLabels>(() => {
     if (providedCurrencyLabels) {
       return providedCurrencyLabels;
     }
     return {
-      billions: "bi",
-      millions: "mi",
-      trillions: "tri",
-      billionsLong: "bilhões",
-      millionsLong: "milhões",
-      trillionsLong: "trilhões",
+      billions: tCommon("currency.billions"),
+      millions: tCommon("currency.millions"),
+      trillions: tCommon("currency.trillions"),
+      billionsLong: tCommon("currency.billionsLong"),
+      millionsLong: tCommon("currency.millionsLong"),
+      trillionsLong: tCommon("currency.trillionsLong"),
     };
-  }, [providedCurrencyLabels]);
+  }, [providedCurrencyLabels, tCommon]);
 
   const mainValueParts = React.useMemo(() => {
-    if (typeof actualValue !== "number" || !Number.isFinite(actualValue)) {
-      return {
-        prefix: "",
-        main: "-",
-        suffix: "",
-      };
-    }
+    return formatMetricValue(actualValue, valueType, {
+      currency,
+      locale,
+      currencyLabels,
+      totalizerFormat,
+    });
+  }, [actualValue, valueType, currency, locale, currencyLabels, totalizerFormat]);
 
-    if (valueType === "currency") {
-      const parts = parseCurrencyValue(
-        actualValue,
-        currency,
-        locale,
-        currencyLabels,
-        totalizerFormat
-      );
-      return {
-        prefix: parts.symbol,
-        main: parts.number,
-        suffix: parts.totalizer ?? "",
-      };
-    }
-
-    if (valueType === "number") {
-      const parts = parseNumberValue(
-        actualValue,
-        locale,
-        currencyLabels,
-        totalizerFormat
-      );
-      return {
-        prefix: "",
-        main: parts.number,
-        suffix: parts.totalizer ?? "",
-      };
-    }
-
-    if (valueType === "percentage") {
-      const percentageValue = actualValue * 100;
-      const formatted = percentageValue.toLocaleString(locale, {
-        maximumFractionDigits: 1,
-      });
-      return {
-        prefix: "",
-        main: formatted,
-        suffix: "%",
-      };
-    }
-
-    return {
-      prefix: "",
-      main: String(actualValue),
-      suffix: "",
-    };
-  }, [
-    actualValue,
-    valueType,
-    currency,
-    locale,
-    currencyLabels,
-    totalizerFormat,
-  ]);
+  const isNegative = typeof actualValue === 'number' && actualValue < 0;
+  const contentColor = isNegative ? "error.main" : "text.primary";
+  const suffixPrefixColor = isNegative ? "error.main" : "text.secondary";
+  const suffixPrefixOpacity = isNegative ? 1 : 0.7;
 
   return (
     <Box
@@ -206,27 +78,23 @@ export function MetricValueDisplay({
       >
         {mainValueParts.prefix ? (
           <Typography
-            variant="body1"
+            variant={valueVariant}
             component="span"
-            sx={{ fontWeight: 500, color: "text.secondary", opacity: 0.5 }}
+            sx={{ fontWeight: 500, color: suffixPrefixColor, opacity: suffixPrefixOpacity, fontSize: '0.8em' }}
           >
             {mainValueParts.prefix}
           </Typography>
         ) : null}
 
-        <Typography
-          variant="h4"
-          component="span"
-          sx={{ fontWeight: 800, fontSize: "2.1em", letterSpacing: "-0.06em", lineHeight: 0.8 }}
-        >
+        <Typography variant={valueVariant} fontWeight={700} color={contentColor}>
           {mainValueParts.main}
         </Typography>
 
         {mainValueParts.suffix ? (
           <Typography
-            variant="body1"
+            variant={valueVariant}
             component="span"
-            sx={{ fontWeight: 500, color: "text.secondary", opacity: 0.5 }}
+            sx={{ fontWeight: 500, color: suffixPrefixColor, opacity: suffixPrefixOpacity, fontSize: '0.8em' }}
           >
             {mainValueParts.suffix}
           </Typography>

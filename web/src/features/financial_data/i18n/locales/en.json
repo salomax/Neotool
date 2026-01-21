@@ -4,6 +4,16 @@
     "placeholder": "Search by name or CNPJ...",
     "label": "Financial Institutions"
   },
+  "actions": {
+    "searchMetrics": "Search metrics...",
+    "viewDetails": "View details",
+    "loading": "Loading..."
+  },
+  "periods": {
+    "1y": "1 Year",
+    "3y": "3 Years",
+    "5y": "5 Years"
+  },
   "messages": {
     "noInstitutionsFound": "No institutions found",
     "unableToLoadInstitutions": "Unable to load institutions. Please try again.",
@@ -12,7 +22,8 @@
     "institutionNotFound": "Institution not found",
     "noReportData": "No data available for this report",
     "selectReport": "Select a report to view details",
-    "clickToViewDetails": "Click to view details"
+    "clickToViewDetails": "Click to view details",
+    "noResults": "No results found."
   },
   "institutionTypes": {
     "individualInstitution": "Individual Institution",

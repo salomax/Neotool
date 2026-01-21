@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Box, Typography, Chip, IconButton } from "@mui/material";
-import { useTheme, alpha } from "@mui/material/styles";
+import { Box, Typography, IconButton } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import {
   AreaChart as RechartsAreaChart,
@@ -14,16 +14,13 @@ import {
 import Card, {
   CardProps,
 } from "@/shared/components/ui/primitives/Card";
-import { parseCurrencyValue, type CurrencyLabels } from "@/shared/utils/currency";
-import { formatPercentageWithSign } from "@/shared/utils/percentage";
-import ArrowDropUpIcon from "@mui/icons-material/ArrowDropUp";
+import { type CurrencyLabels } from "@/shared/utils/currency";
+import { formatMetricValue, type MetricValueType } from "@/shared/utils/formatMetricValue";
 import { useTranslation as useReactI18nTranslation } from "react-i18next";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { GrowthChip } from "./GrowthChip";
 
-import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
-
-export type MetricValueType = "currency" | "number" | "percentage";
+export type { MetricValueType };
 
 export interface MetricCardProps extends Omit<CardProps, "children"> {
   label: string;
@@ -50,79 +47,6 @@ export interface MetricCardProps extends Omit<CardProps, "children"> {
   onOpen?: () => void;
 }
 
-interface NumberParts {
-  number: string;
-  totalizer: string | null;
-}
-
-function parseNumberValue(
-  value: number,
-  locale: string,
-  labels: CurrencyLabels,
-  totalizerFormat: "short" | "long"
-): NumberParts {
-  const isNegative = value < 0;
-  const absValue = Math.abs(value);
-
-  const trillionsLabel =
-    totalizerFormat === "long"
-      ? labels.trillionsLong || "trilhões"
-      : labels.trillions || "tri";
-  const billionsLabel =
-    totalizerFormat === "long"
-      ? labels.billionsLong || "bilhões"
-      : labels.billions || "bi";
-  const millionsLabel =
-    totalizerFormat === "long"
-      ? labels.millionsLong || "milhões"
-      : labels.millions || "mi";
-
-  const trillions = absValue / 1_000_000_000_000;
-  if (trillions >= 1) {
-    const numberStr = trillions.toLocaleString(locale, {
-      minimumFractionDigits: 1,
-      maximumFractionDigits: 1,
-    });
-    return {
-      number: isNegative ? `-${numberStr}` : numberStr,
-      totalizer: trillionsLabel,
-    };
-  }
-
-  const billions = absValue / 1_000_000_000;
-  if (billions >= 1) {
-    const numberStr = billions.toLocaleString(locale, {
-      minimumFractionDigits: 1,
-      maximumFractionDigits: 1,
-    });
-    return {
-      number: isNegative ? `-${numberStr}` : numberStr,
-      totalizer: billionsLabel,
-    };
-  }
-
-  const millions = absValue / 1_000_000;
-  if (millions >= 1) {
-    const numberStr = millions.toLocaleString(locale, {
-      minimumFractionDigits: 1,
-      maximumFractionDigits: 1,
-    });
-    return {
-      number: isNegative ? `-${numberStr}` : numberStr,
-      totalizer: millionsLabel,
-    };
-  }
-
-  const numberStr = absValue.toLocaleString(locale, {
-    maximumFractionDigits: 0,
-  });
-
-  return {
-    number: isNegative ? `-${numberStr}` : numberStr,
-    totalizer: null,
-  };
-}
-
 export function MetricCard({
   label,
   actualValue,
@@ -145,7 +69,10 @@ export function MetricCard({
   const theme = useTheme();
   const chartId = React.useId().replace(/:/g, "_");
 
-  const { variant, hoverable, onClick, ...cardRest } = rest;
+  const { variant, hoverable, onClick, ...restProps } = rest;
+  // Filter out props that shouldn't be passed to the DOM/Card
+  // chartData and type come from MetricGridItem spreading but aren't part of MetricCardProps
+  const { chartData: _ignoredChartData, type: _ignoredType, ...cardRest } = restProps as any;
 
   const currencyLabels = React.useMemo<CurrencyLabels>(() => {
     if (providedCurrencyLabels) {
@@ -162,72 +89,17 @@ export function MetricCard({
   }, [providedCurrencyLabels, tCommon]);
 
   const mainValueParts = React.useMemo(() => {
-    if (typeof actualValue !== "number" || !Number.isFinite(actualValue)) {
-      return {
-        prefix: "",
-        main: "-",
-        suffix: "",
-      };
-    }
-
-    if (valueType === "currency") {
-      const parts = parseCurrencyValue(
-        actualValue,
-        currency,
-        locale,
-        currencyLabels,
-        totalizerFormat
-      );
-      return {
-        prefix: parts.symbol,
-        main: parts.number,
-        suffix: parts.totalizer ?? "",
-      };
-    }
-
-    if (valueType === "number") {
-      const parts = parseNumberValue(
-        actualValue,
-        locale,
-        currencyLabels,
-        totalizerFormat
-      );
-      return {
-        prefix: "",
-        main: parts.number,
-        suffix: parts.totalizer ?? "",
-      };
-    }
-
-    if (valueType === "percentage") {
-      const percentageValue = actualValue * 100;
-      const formatted = percentageValue.toLocaleString(locale, {
-        maximumFractionDigits: 1,
-      });
-      return {
-        prefix: "",
-        main: formatted,
-        suffix: "%",
-      };
-    }
-
-    // Fallback (should not reach here)
-    return {
-      prefix: "",
-      main: String(actualValue),
-      suffix: "",
-    };
-  }, [
-    actualValue,
-    valueType,
-    currency,
-    locale,
-    currencyLabels,
-    totalizerFormat,
-  ]);
+    return formatMetricValue(actualValue, valueType, {
+      currency,
+      locale,
+      currencyLabels,
+      totalizerFormat,
+    });
+  }, [actualValue, valueType, currency, locale, currencyLabels, totalizerFormat]);
 
   const hasGrowth = growthPercentage != null;
 
+  // Determine growth color for chart gradient
   const growthColor = React.useMemo(() => {
     if (!hasGrowth) {
       return theme.palette.primary.main;
@@ -240,28 +112,6 @@ export function MetricCard({
     }
     return theme.palette.text.secondary;
   }, [growthPercentage, hasGrowth, theme.palette]);
-
-  const growthBgColor = React.useMemo(() => {
-    if (!hasGrowth) {
-      return theme.palette.primary.light;
-    }
-    if ((growthPercentage ?? 0) > 0) {
-      return (theme as any).custom?.palette?.successLightBg;
-    }
-    if ((growthPercentage ?? 0) < 0) {
-      return (theme as any).custom?.palette?.errorLightBg;
-    }
-    return theme.palette.action.hover;
-  }, [growthPercentage, hasGrowth, theme]);
-
-  const chartStrokeColor = React.useMemo(
-    () => alpha(growthColor, 0.5),
-    [growthColor]
-  );
-  const chartFillColor = React.useMemo(
-    () => alpha(growthColor, 0.06),
-    [growthColor]
-  );
 
   const chartData = React.useMemo(
     () =>
@@ -392,29 +242,6 @@ export function MetricCard({
     };
   }, [theme]);
 
-  const growthFormatted = React.useMemo(() => {
-    if (!hasGrowth) {
-      return "";
-    }
-    return formatPercentageWithSign(growthPercentage ?? 0, {
-      decimals: 1,
-      showZeroSign: false,
-    });
-  }, [growthPercentage, hasGrowth]);
-
-  const GrowthIcon = React.useMemo(() => {
-    if (!hasGrowth) {
-      return null;
-    }
-    if ((growthPercentage ?? 0) > 0) {
-      return ArrowDropUpIcon;
-    }
-    if ((growthPercentage ?? 0) < 0) {
-      return ArrowDropDownIcon;
-    }
-    return null;
-  }, [growthPercentage, hasGrowth]);
-
   return (
     <Card
       variant={variant ?? "outlined"}
@@ -441,10 +268,14 @@ export function MetricCard({
             zIndex: 10,
           }}
         >
-          <IconButton onClick={(e) => {
-            e.stopPropagation();
-            onOpen();
-          }} size="small">
+          <IconButton
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpen();
+            }}
+            size="small"
+            aria-label={tCommon("actions.openDetails", "Open details")}
+          >
             <OpenInNewIcon fontSize="small" />
           </IconButton>
         </Box>
@@ -559,7 +390,7 @@ export function MetricCard({
           ) : null}
         </Box>
 
-        {hasGrowth && GrowthIcon && (
+        {hasGrowth && (
           <Box
             sx={{
               display: "flex",

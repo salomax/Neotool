@@ -13,6 +13,7 @@ import { useBreadcrumbLabel } from "@/shared/hooks/ui/useBreadcrumbLabel";
 import { LineChart, CurrencyDisplay, MetricLineChart } from "@/shared/components/ui/data-display";
 import { BacenInstitutionSummaryPaper } from "@/features/financial_data/components/BacenInstitutionSummaryPaper";
 import { BacenInstitutionBalanceSummaryGrid } from "@/features/financial_data/components/BacenInstitutionBalanceSummaryGrid";
+import { BacenInstitutionReportDetail } from "@/features/financial_data/components/BacenInstitutionReportDetail";
 import { useBacenInstitutionDetail } from "@/features/financial_data/hooks/useBacenInstitutionDetail";
 
 export default function BacenInstitutionDetailPage() {
@@ -133,138 +134,7 @@ export default function BacenInstitutionDetailPage() {
             <BacenInstitutionBalanceSummaryGrid institutionId={institution.id} />
           </Box>
         ) : reportDetails ? (
-          <Box>
-            <Typography variant="h5" sx={{ mb: 3 }}>
-              {reportDetails.name}
-            </Typography>
-
-            {reportDetails.accounts && reportDetails.accounts.length > 0 ? (
-              <Stack spacing={2}>
-                {reportDetails.accounts.map((account: any, accountIndex: number) => {
-                  const latestEntry = account.valuesByQuarter?.[0];
-                  const rawValue = latestEntry?.value;
-
-                  const isPercentageMetric =
-                    account.id === "INDICE_DE_BASILEIA" ||
-                    account.id === "INDICE_DE_IMOBILIZACAO" ||
-                    account.name?.toLowerCase().includes("basileia") ||
-                    account.name?.toLowerCase().includes("índice") ||
-                    account.name?.toLowerCase().includes("indice");
-
-                  const percentageValue =
-                    rawValue == null
-                      ? null
-                      : typeof rawValue === 'number'
-                      ? rawValue * 100
-                      : Number(rawValue) * 100;
-
-                  return (
-                    <Accordion
-                      key={account.id || accountIndex}
-                      disableGutters
-                      elevation={0}
-                      sx={{
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        borderRadius: 2,
-                        '&:before': { display: 'none' },
-                        '&.Mui-expanded': {
-                          margin: 0,
-                        },
-                      }}
-                    >
-                      <AccordionSummary
-                        expandIcon={<ExpandMoreIcon />}
-                        sx={{
-                          px: 2,
-                          minHeight: 56,
-                          '& .MuiAccordionSummary-content': {
-                            m: 0,
-                          },
-                        }}
-                      >
-                        <Box
-                          sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            width: '100%',
-                            justifyContent: 'space-between',
-                            gap: 2,
-                          }}
-                        >
-                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                            {account.name}
-                          </Typography>
-                          <Box
-                            sx={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 1,
-                            }}
-                          >
-                            {rawValue == null ? (
-                              <Typography variant="body2" color="text.secondary">
-                                {t("messages.noReportData")}
-                              </Typography>
-                            ) : isPercentageMetric ? (
-                              <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                                {percentageValue?.toLocaleString('pt-BR', {
-                                  minimumFractionDigits: 1,
-                                  maximumFractionDigits: 1,
-                                })}
-                                %
-                              </Typography>
-                            ) : (
-                              <CurrencyDisplay
-                                value={
-                                  typeof rawValue === 'number'
-                                    ? rawValue
-                                    : Number(rawValue)
-                                }
-                                currency="BRL"
-                                locale="pt-BR"
-                                format="large"
-                                variant="body2"
-                              />
-                            )}
-                          </Box>
-                        </Box>
-                      </AccordionSummary>
-                      <AccordionDetails sx={{ px: 2, pb: 2 }}>
-                        <Box sx={{ mt: 1 }}>
-                          {account.group && (
-                            <Typography
-                              variant="caption"
-                              color="text.secondary"
-                              sx={{ mb: 2, display: 'block' }}
-                            >
-                              Grupo: {account.group}
-                            </Typography>
-                          )}
-
-                          {account.valuesByQuarter && account.valuesByQuarter.length > 0 ? (
-                            <MetricLineChart
-                              data={account.valuesByQuarter}
-                              label={account.name}
-                              valueType={isPercentageMetric ? "percentage" : "currency"}
-                            />
-                          ) : (
-                            <Typography variant="body2" color="text.secondary">
-                              {t("messages.noReportData")}
-                            </Typography>
-                          )}
-                        </Box>
-                      </AccordionDetails>
-                    </Accordion>
-                  );
-                })}
-              </Stack>
-            ) : (
-              <Typography color="text.secondary">
-                {t("messages.noReportData")}
-              </Typography>
-            )}
-          </Box>
+          <BacenInstitutionReportDetail reportDetails={reportDetails} />
         ) : (
           <Typography color="text.secondary">
             {t("messages.selectReport")}

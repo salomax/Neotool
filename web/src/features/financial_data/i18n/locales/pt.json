@@ -4,6 +4,16 @@
     "placeholder": "Buscar por nome ou CNPJ...",
     "label": "Instituições Financeiras"
   },
+  "actions": {
+    "searchMetrics": "Buscar métrica...",
+    "viewDetails": "Ver detalhes",
+    "loading": "Carregando..."
+  },
+  "periods": {
+    "1y": "1 Ano",
+    "3y": "3 Anos",
+    "5y": "5 Anos"
+  },
   "messages": {
     "noInstitutionsFound": "Nenhuma instituição encontrada",
     "unableToLoadInstitutions": "Não foi possível carregar as instituições. Por favor, tente novamente.",
@@ -12,7 +22,8 @@
     "institutionNotFound": "Instituição não encontrada",
     "noReportData": "Nenhum dado disponível para este relatório",
     "selectReport": "Selecione um relatório para ver os detalhes",
-    "clickToViewDetails": "Clique para ver detalhes"
+    "clickToViewDetails": "Clique para ver detalhes",
+    "noResults": "Nenhum resultado encontrado."
   },
   "institutionTypes": {
     "individualInstitution": "Instituição Individual",
