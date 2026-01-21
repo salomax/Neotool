@@ -11,14 +11,14 @@ spec:
   git:
     checkout:
       ref:
-        branch: "main"
+        branch: "flux-updates"
     commit:
       author:
         name: flux-bot
         email: flux-bot@invistus.com
       messageTemplate: "chore(flux): update neotool-web image tag"
     push:
-      branch: "main"
+      branch: "flux-updates"
   update:
     path: ./infra/kubernetes/flux/apps/web
     strategy: Setters
