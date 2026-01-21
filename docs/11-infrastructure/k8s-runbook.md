@@ -369,6 +369,21 @@ flux reconcile image update neotool-web -n flux-system
 flux reconcile kustomization web --with-source
 ```
 
+#### PR Automation (flux-updates → main)
+
+If your org does not allow direct pushes to `main`, Flux can push to `flux-updates`
+and GitHub Actions will open a PR automatically.
+
+**Flow**:
+- Flux commits image updates to `flux-updates`
+- Workflow `.github/workflows/flux-pr.yml` opens/updates a PR into `main`
+- You review and merge the PR
+
+**Verify**:
+```bash
+git log --oneline --decorate -n 5
+```
+
 #### GHCR Authentication (Private Packages)
 
 If the ImageRepository reports `UNAUTHORIZED`, GHCR access credentials are missing.
