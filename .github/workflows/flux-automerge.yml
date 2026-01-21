@@ -31,10 +31,17 @@ jobs:
                 labels: [label],
               });
             }
+            const query = `
+              mutation($pullRequestId: ID!, $mergeMethod: PullRequestMergeMethod!) {
+                enablePullRequestAutoMerge(input: {pullRequestId: $pullRequestId, mergeMethod: $mergeMethod}) {
+                  pullRequest {
+                    number
+                  }
+                }
+              }
+            `;
 
-            await github.rest.pulls.enableAutoMerge({
-              owner,
-              repo,
-              pull_number: pr.number,
-              merge_method: 'squash',
+            await github.graphql(query, {
+              pullRequestId: pr.node_id,
+              mergeMethod: 'SQUASH',
             });
