@@ -7,8 +7,8 @@ spec:
   imageRepositoryRef:
     name: neotool-web
   filterTags:
-    pattern: '^v(?P<version>\\d+\\.\\d+\\.\\d+)$'
-    extract: '$version'
+    pattern: "^v(?P<version>\\d+\\.\\d+\\.\\d+)$"
+    extract: "$version"
   policy:
     semver:
       range: '>=0.0.0'
