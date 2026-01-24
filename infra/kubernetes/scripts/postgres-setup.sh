@@ -285,8 +285,9 @@ print_step "Generating PgBouncer userlist..."
 USERLIST_CONTENT="\"$PG_ADMIN_USER\" \"$PG_ADMIN_PASSWORD\"
 \"$UNLEASH_USER\" \"$UNLEASH_PASSWORD\""
 
-# Store userlist in Vault (base64 encoded to preserve formatting)
-USERLIST_B64=$(echo "$USERLIST_CONTENT" | base64)
+print_info "Users in userlist:"
+print_info "  - $PG_ADMIN_USER"
+print_info "  - $UNLEASH_USER"
 
 store_in_vault "pgbouncer" \
     "userlist=$USERLIST_CONTENT"
