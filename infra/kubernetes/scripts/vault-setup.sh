@@ -245,102 +245,6 @@ print_success "Policy 'app-policy' created"
 print_success "Role 'app' created for External Secrets"
 
 # =============================================================================
-# Step 4: Store Secrets (interactive)
-# =============================================================================
-print_header "Step 4: Store Secrets"
-
-store_secret() {
-    local secret_path=$1
-    local secret_name=$2
-
-    echo ""
-    echo -e "${YELLOW}Configuring: $secret_name ($secret_path)${NC}"
-    echo ""
-
-    # Check if exists
-    EXISTS=$(kubectl exec -n "$NAMESPACE" "$VAULT_POD" -- sh -c "
-        export VAULT_TOKEN='$ROOT_TOKEN'
-        vault kv get secret/$secret_path > /dev/null 2>&1 && echo true || echo false
-    ")
-
-    if [ "$EXISTS" = "true" ]; then
-        print_info "Secret already exists at secret/$secret_path"
-        read -p "  Overwrite? (y/N): " -n 1 -r
-        echo ""
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            return
-        fi
-    fi
-
-    # Collect key-value pairs
-    local kv_pairs=""
-    echo "  Enter key=value pairs (empty line to finish):"
-    echo "  Example: username=admin"
-    echo ""
-
-    while true; do
-        read -p "  > " pair
-        if [ -z "$pair" ]; then
-            break
-        fi
-        if [[ "$pair" == *"="* ]]; then
-            kv_pairs="$kv_pairs $pair"
-        else
-            print_error "  Invalid format. Use: key=value"
-        fi
-    done
-
-    if [ -z "$kv_pairs" ]; then
-        print_info "  No values provided, skipping..."
-        return
-    fi
-
-    # Store in Vault
-    kubectl exec -n "$NAMESPACE" "$VAULT_POD" -- sh -c "
-        export VAULT_TOKEN='$ROOT_TOKEN'
-        vault kv put secret/$secret_path $kv_pairs
-    " > /dev/null 2>&1
-
-    print_success "Secret stored at secret/$secret_path"
-}
-
-echo "You can now store secrets in Vault."
-echo "Common secrets for Invistus environment:"
-echo ""
-echo "  1) postgres    - PostgreSQL credentials"
-echo "  2) redis       - Redis credentials (if password required)"
-echo "  3) api-keys    - External API keys"
-echo "  4) jwt         - JWT signing secret"
-echo "  5) custom      - Other custom secret"
-echo "  0) Skip        - Configure secrets later"
-echo ""
-
-while true; do
-    read -p "Choose an option (0-5): " choice
-
-    case $choice in
-        0) break ;;
-        1) store_secret "postgres" "PostgreSQL" ;;
-        2) store_secret "redis" "Redis" ;;
-        3) store_secret "api-keys" "API Keys" ;;
-        4) store_secret "jwt" "JWT Secret" ;;
-        5)
-            read -p "Secret path name: " custom_path
-            read -p "Description: " custom_name
-            store_secret "$custom_path" "$custom_name"
-            ;;
-        *) echo "Invalid option" ;;
-    esac
-
-    echo ""
-    read -p "Configure another secret? (y/N): " -n 1 -r
-    echo ""
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        break
-    fi
-done
-
-# =============================================================================
 # Summary
 # =============================================================================
 print_header "Setup Complete!"
@@ -352,6 +256,13 @@ echo ""
 echo "Credentials saved at:"
 echo "  $VAULT_CREDS_FILE"
 echo ""
+echo -e "${YELLOW}Next steps:${NC}"
+echo ""
+echo "  1. Configure database credentials:"
+echo "     ./postgres-setup.sh --namespace $NAMESPACE"
+echo ""
+echo "  2. Configure other secrets as needed"
+echo ""
 echo "Useful commands:"
 echo ""
 echo "  # List stored secrets"
@@ -362,5 +273,5 @@ echo "  $0 --namespace $NAMESPACE"
 echo ""
 echo "  # Access Vault UI (port-forward)"
 echo "  kubectl port-forward -n $NAMESPACE svc/vault 8200:8200"
-echo "  # Then open: http://localhost:8200 (use Root Token to login)"
+echo "  # Then open: http://localhost:8200 (use Root Token)"
 echo ""
