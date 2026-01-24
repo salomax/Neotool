@@ -5,8 +5,8 @@ set -e
 # This script sets up prerequisites before Flux GitOps bootstrap
 # It installs Cert-Manager and Linkerd, which are required before Flux can deploy applications
 #
-# NOTE: This is a PRE-REQUISITE script. After running this, you should bootstrap Flux:
-#   cd ../../flux && ./bootstrap.sh
+# NOTE: This is a PRE-REQUISITE script. After running this, you should bootstrap Flux
+# using the scripts in the invistus-flux repository (the GitOps source of truth).
 
 KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config-hostinger}"
 export KUBECONFIG
@@ -197,11 +197,9 @@ echo ""
 echo "1. Enable Linkerd on $ENVIRONMENT namespace:"
 echo "   kubectl annotate namespace $ENVIRONMENT linkerd.io/inject=enabled"
 echo ""
-echo "2. Bootstrap Flux GitOps:"
-echo "   cd ../../flux && ./bootstrap.sh"
-echo ""
-echo "   Or for development branch:"
-echo "   cd ../../flux && ./bootstrap-dev.sh"
+echo "2. Bootstrap Flux GitOps (from invistus-flux repo):"
+echo "   git clone https://github.com/invistus/invistus-flux.git"
+echo "   cd invistus-flux/infra/kubernetes/flux && ./bootstrap.sh"
 echo ""
 echo "3. Install Linkerd Viz (optional, for dashboard):"
 echo "   linkerd viz install | kubectl apply -f -"

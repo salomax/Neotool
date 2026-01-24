@@ -115,11 +115,13 @@ This installs:
 - Linkerd (service mesh)
 
 **Step 2: Bootstrap Flux GitOps**
+
+Use the bootstrap script in the **invistus-flux** repository (GitOps source of truth):
 ```bash
-cd ../../flux
-./bootstrap.sh  # For production branch
-# or
-./bootstrap-dev.sh  # For development branch
+# Clone the GitOps repo
+git clone https://github.com/invistus/invistus-flux.git
+cd invistus-flux/infra/kubernetes/flux
+./bootstrap.sh
 ```
 
 After Flux is bootstrapped, all deployments are managed via GitOps automatically.

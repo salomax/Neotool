@@ -2,7 +2,7 @@
 set -e
 
 # =============================================================================
-# Vault Setup - Script unificado para inicialização e configuração do Vault
+# Vault Setup - Unified script for Vault initialization and configuration
 # =============================================================================
 
 NAMESPACE="production"
@@ -59,29 +59,29 @@ done
 # =============================================================================
 print_header "Vault Setup"
 
-print_step "Verificando pré-requisitos..."
+print_step "Checking prerequisites..."
 
-command -v kubectl &> /dev/null || { print_error "kubectl não encontrado"; exit 1; }
-command -v jq &> /dev/null || { print_error "jq não encontrado"; exit 1; }
-print_success "kubectl e jq disponíveis"
+command -v kubectl &> /dev/null || { print_error "kubectl not found"; exit 1; }
+command -v jq &> /dev/null || { print_error "jq not found"; exit 1; }
+print_success "kubectl and jq available"
 
-kubectl get namespace "$NAMESPACE" &> /dev/null || { print_error "Namespace '$NAMESPACE' não existe"; exit 1; }
-print_success "Namespace '$NAMESPACE' existe"
+kubectl get namespace "$NAMESPACE" &> /dev/null || { print_error "Namespace '$NAMESPACE' not found"; exit 1; }
+print_success "Namespace '$NAMESPACE' exists"
 
 VAULT_POD=$(kubectl get pod -n "$NAMESPACE" -l app.kubernetes.io/name=vault -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
 if [ -z "$VAULT_POD" ]; then
-    print_error "Pod do Vault não encontrado"
+    print_error "Vault pod not found"
     echo ""
-    echo "Verifique o status do HelmRelease:"
+    echo "Check the HelmRelease status:"
     echo "  flux get helmrelease vault -n flux-system"
     exit 1
 fi
-print_success "Pod encontrado: $VAULT_POD"
+print_success "Pod found: $VAULT_POD"
 
 # =============================================================================
 # Check Vault status
 # =============================================================================
-print_step "Verificando status do Vault..."
+print_step "Checking Vault status..."
 
 # Try to get status (may fail if not initialized)
 VAULT_STATUS=$(kubectl exec -n "$NAMESPACE" "$VAULT_POD" -- vault status -format=json 2>/dev/null || echo '{"initialized":false,"sealed":true}')
@@ -89,29 +89,29 @@ INITIALIZED=$(echo "$VAULT_STATUS" | jq -r '.initialized')
 SEALED=$(echo "$VAULT_STATUS" | jq -r '.sealed')
 
 echo ""
-print_info "Inicializado: $INITIALIZED"
-print_info "Selado: $SEALED"
+print_info "Initialized: $INITIALIZED"
+print_info "Sealed: $SEALED"
 echo ""
 
 # =============================================================================
 # Step 1: Initialize (if needed)
 # =============================================================================
 if [ "$INITIALIZED" != "true" ]; then
-    print_header "Passo 1: Inicialização"
+    print_header "Step 1: Initialization"
 
-    echo "O Vault precisa ser inicializado. Isso irá gerar:"
-    echo "  - 5 unseal keys (necessárias 3 para desbloquear)"
-    echo "  - 1 root token (acesso administrativo)"
+    echo "Vault needs to be initialized. This will generate:"
+    echo "  - 5 unseal keys (3 required to unlock)"
+    echo "  - 1 root token (admin access)"
     echo ""
-    read -p "Continuar com a inicialização? (s/N): " -n 1 -r
+    read -p "Continue with initialization? (y/N): " -n 1 -r
     echo ""
 
-    if [[ ! $REPLY =~ ^[Ss]$ ]]; then
-        echo "Abortado."
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo "Aborted."
         exit 0
     fi
 
-    print_step "Inicializando Vault..."
+    print_step "Initializing Vault..."
 
     INIT_OUTPUT=$(kubectl exec -n "$NAMESPACE" "$VAULT_POD" -- vault operator init \
         -key-shares=5 \
@@ -129,8 +129,8 @@ if [ "$INITIALIZED" != "true" ]; then
     # Save credentials
     mkdir -p "$(dirname "$VAULT_CREDS_FILE")"
     cat > "$VAULT_CREDS_FILE" <<EOF
-# Vault Credentials - MANTENHA SEGURO!
-# Gerado em: $(date)
+# Vault Credentials - KEEP SECURE!
+# Generated: $(date)
 # Namespace: $NAMESPACE
 
 ROOT_TOKEN=$ROOT_TOKEN
@@ -143,37 +143,37 @@ UNSEAL_KEY_5=$UNSEAL_KEY_5
 EOF
     chmod 600 "$VAULT_CREDS_FILE"
 
-    print_success "Vault inicializado!"
-    print_success "Credenciais salvas em: $VAULT_CREDS_FILE"
+    print_success "Vault initialized!"
+    print_success "Credentials saved to: $VAULT_CREDS_FILE"
     echo ""
-    echo -e "${RED}⚠️  FAÇA BACKUP DESSAS CREDENCIAIS!${NC}"
-    echo -e "${RED}   Sem elas, você perderá acesso ao Vault permanentemente.${NC}"
+    echo -e "${RED}WARNING: BACKUP THESE CREDENTIALS!${NC}"
+    echo -e "${RED}         Without them, you will permanently lose access to Vault.${NC}"
     echo ""
-    read -p "Pressione Enter para continuar..."
+    read -p "Press Enter to continue..."
 
     SEALED="true"  # After init, vault is sealed
 else
-    print_success "Vault já inicializado"
+    print_success "Vault already initialized"
 fi
 
 # =============================================================================
 # Step 2: Unseal (if needed)
 # =============================================================================
 if [ "$SEALED" = "true" ]; then
-    print_header "Passo 2: Unseal"
+    print_header "Step 2: Unseal"
 
     # Load credentials
     if [ ! -f "$VAULT_CREDS_FILE" ]; then
-        print_error "Arquivo de credenciais não encontrado: $VAULT_CREDS_FILE"
+        print_error "Credentials file not found: $VAULT_CREDS_FILE"
         echo ""
-        echo "Se você tem as unseal keys, pode fazer unseal manualmente:"
+        echo "If you have the unseal keys, you can unseal manually:"
         echo "  kubectl exec -n $NAMESPACE $VAULT_POD -- vault operator unseal <KEY>"
         exit 1
     fi
 
     source "$VAULT_CREDS_FILE"
 
-    print_step "Desbloqueando Vault com 3 keys..."
+    print_step "Unsealing Vault with 3 keys..."
 
     kubectl exec -n "$NAMESPACE" "$VAULT_POD" -- vault operator unseal "$UNSEAL_KEY_1" > /dev/null 2>&1
     print_info "Key 1/3 ✓"
@@ -184,27 +184,27 @@ if [ "$SEALED" = "true" ]; then
     kubectl exec -n "$NAMESPACE" "$VAULT_POD" -- vault operator unseal "$UNSEAL_KEY_3" > /dev/null 2>&1
     print_info "Key 3/3 ✓"
 
-    print_success "Vault desbloqueado!"
+    print_success "Vault unsealed!"
 else
-    print_success "Vault já está desbloqueado"
+    print_success "Vault already unsealed"
 fi
 
 # =============================================================================
 # Step 3: Configure Kubernetes Auth
 # =============================================================================
-print_header "Passo 3: Configuração"
+print_header "Step 3: Configuration"
 
 # Load credentials if not loaded
 if [ -z "$ROOT_TOKEN" ]; then
     if [ -f "$VAULT_CREDS_FILE" ]; then
         source "$VAULT_CREDS_FILE"
     else
-        print_error "Credenciais não encontradas"
+        print_error "Credentials not found"
         exit 1
     fi
 fi
 
-print_step "Configurando Kubernetes auth e secrets engine..."
+print_step "Configuring Kubernetes auth and secrets engine..."
 
 kubectl exec -n "$NAMESPACE" "$VAULT_POD" -- sh -c "
 export VAULT_TOKEN='$ROOT_TOKEN'
@@ -239,22 +239,22 @@ vault write auth/kubernetes/role/app \
     ttl=24h
 " > /dev/null 2>&1
 
-print_success "Kubernetes auth configurado"
-print_success "KV secrets engine habilitado"
-print_success "Policy 'app-policy' criada"
-print_success "Role 'app' criada para External Secrets"
+print_success "Kubernetes auth configured"
+print_success "KV secrets engine enabled"
+print_success "Policy 'app-policy' created"
+print_success "Role 'app' created for External Secrets"
 
 # =============================================================================
 # Step 4: Store Secrets (interactive)
 # =============================================================================
-print_header "Passo 4: Armazenar Secrets"
+print_header "Step 4: Store Secrets"
 
 store_secret() {
     local secret_path=$1
     local secret_name=$2
 
     echo ""
-    echo -e "${YELLOW}Configurando: $secret_name ($secret_path)${NC}"
+    echo -e "${YELLOW}Configuring: $secret_name ($secret_path)${NC}"
     echo ""
 
     # Check if exists
@@ -264,18 +264,18 @@ store_secret() {
     ")
 
     if [ "$EXISTS" = "true" ]; then
-        print_info "Secret já existe em secret/$secret_path"
-        read -p "  Sobrescrever? (s/N): " -n 1 -r
+        print_info "Secret already exists at secret/$secret_path"
+        read -p "  Overwrite? (y/N): " -n 1 -r
         echo ""
-        if [[ ! $REPLY =~ ^[Ss]$ ]]; then
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
             return
         fi
     fi
 
     # Collect key-value pairs
     local kv_pairs=""
-    echo "  Digite os pares chave=valor (linha vazia para terminar):"
-    echo "  Exemplo: username=admin"
+    echo "  Enter key=value pairs (empty line to finish):"
+    echo "  Example: username=admin"
     echo ""
 
     while true; do
@@ -286,12 +286,12 @@ store_secret() {
         if [[ "$pair" == *"="* ]]; then
             kv_pairs="$kv_pairs $pair"
         else
-            print_error "  Formato inválido. Use: chave=valor"
+            print_error "  Invalid format. Use: key=value"
         fi
     done
 
     if [ -z "$kv_pairs" ]; then
-        print_info "  Nenhum valor fornecido, pulando..."
+        print_info "  No values provided, skipping..."
         return
     fi
 
@@ -301,22 +301,22 @@ store_secret() {
         vault kv put secret/$secret_path $kv_pairs
     " > /dev/null 2>&1
 
-    print_success "Secret armazenado em secret/$secret_path"
+    print_success "Secret stored at secret/$secret_path"
 }
 
-echo "Agora você pode armazenar secrets no Vault."
-echo "Secrets comuns para o ambiente Invistus:"
+echo "You can now store secrets in Vault."
+echo "Common secrets for Invistus environment:"
 echo ""
-echo "  1) postgres    - Credenciais do PostgreSQL"
-echo "  2) redis       - Credenciais do Redis (se houver senha)"
-echo "  3) api-keys    - Chaves de API externas"
-echo "  4) jwt         - Secret para tokens JWT"
-echo "  5) custom      - Outro secret personalizado"
-echo "  0) Pular       - Configurar secrets depois"
+echo "  1) postgres    - PostgreSQL credentials"
+echo "  2) redis       - Redis credentials (if password required)"
+echo "  3) api-keys    - External API keys"
+echo "  4) jwt         - JWT signing secret"
+echo "  5) custom      - Other custom secret"
+echo "  0) Skip        - Configure secrets later"
 echo ""
 
 while true; do
-    read -p "Escolha uma opção (0-5): " choice
+    read -p "Choose an option (0-5): " choice
 
     case $choice in
         0) break ;;
@@ -325,17 +325,17 @@ while true; do
         3) store_secret "api-keys" "API Keys" ;;
         4) store_secret "jwt" "JWT Secret" ;;
         5)
-            read -p "Nome do secret path: " custom_path
-            read -p "Descrição: " custom_name
+            read -p "Secret path name: " custom_path
+            read -p "Description: " custom_name
             store_secret "$custom_path" "$custom_name"
             ;;
-        *) echo "Opção inválida" ;;
+        *) echo "Invalid option" ;;
     esac
 
     echo ""
-    read -p "Configurar outro secret? (s/N): " -n 1 -r
+    read -p "Configure another secret? (y/N): " -n 1 -r
     echo ""
-    if [[ ! $REPLY =~ ^[Ss]$ ]]; then
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
         break
     fi
 done
@@ -343,24 +343,24 @@ done
 # =============================================================================
 # Summary
 # =============================================================================
-print_header "Setup Completo!"
+print_header "Setup Complete!"
 
-echo "Status do Vault:"
+echo "Vault status:"
 kubectl exec -n "$NAMESPACE" "$VAULT_POD" -- vault status 2>/dev/null | head -10
 
 echo ""
-echo "Credenciais salvas em:"
+echo "Credentials saved at:"
 echo "  $VAULT_CREDS_FILE"
 echo ""
-echo "Comandos úteis:"
+echo "Useful commands:"
 echo ""
-echo "  # Ver secrets armazenados"
+echo "  # List stored secrets"
 echo "  kubectl exec -n $NAMESPACE $VAULT_POD -- sh -c 'VAULT_TOKEN=\$ROOT_TOKEN vault kv list secret/'"
 echo ""
-echo "  # Unseal após restart do pod"
+echo "  # Unseal after pod restart"
 echo "  $0 --namespace $NAMESPACE"
 echo ""
-echo "  # Acessar UI do Vault (port-forward)"
+echo "  # Access Vault UI (port-forward)"
 echo "  kubectl port-forward -n $NAMESPACE svc/vault 8200:8200"
-echo "  # Acesse: http://localhost:8200 (use o Root Token para login)"
+echo "  # Then open: http://localhost:8200 (use Root Token to login)"
 echo ""
