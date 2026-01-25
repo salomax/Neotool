@@ -82,6 +82,35 @@ kubectl get nodes
 flux check
 ```
 
+### Initial Cluster Setup (After Fresh Install)
+
+After installing a fresh cluster with Flux, run these scripts in order:
+
+```bash
+cd ~/src/invistus/invistus/infra/kubernetes/scripts
+
+# 1. Initialize and configure Vault
+./vault-setup.sh
+# - Initializes Vault (generates unseal keys + root token)
+# - Unseals Vault
+# - Configures Kubernetes auth for ExternalSecrets
+# - Credentials saved to: ~/.invistus/vault-credentials.txt
+
+# 2. Setup PostgreSQL credentials
+./postgres-setup.sh
+# - Creates database users and passwords
+# - Stores in Vault: secret/postgres, secret/unleash, secret/pgbouncer
+# - Triggers ExternalSecrets sync
+
+# 3. Setup Unleash API tokens
+./unleash-setup.sh
+# - Generates secure API tokens for Unleash
+# - Stores in Vault: secret/unleash (adds server-token, proxy-token)
+# - Required for Unleash HelmRelease to succeed
+```
+
+After running the scripts, Flux will automatically deploy all components.
+
 ---
 
 ## GitOps with Flux CD
@@ -827,7 +856,7 @@ Vault seals automatically after pod restart for security.
 
 ```bash
 # Load credentials
-source ~/.neotool/vault-credentials.txt
+source ~/.invistus/vault-credentials.txt
 
 # Unseal (requires 3 of 5 keys)
 kubectl exec -n production vault-0 -- vault operator unseal "$UNSEAL_KEY_1"
@@ -835,8 +864,8 @@ kubectl exec -n production vault-0 -- vault operator unseal "$UNSEAL_KEY_2"
 kubectl exec -n production vault-0 -- vault operator unseal "$UNSEAL_KEY_3"
 
 # Or use script
-cd ~/src/Neotool/infra/kubernetes/scripts
-./vault-unseal.sh
+cd ~/src/invistus/invistus/infra/kubernetes/scripts
+./vault-setup.sh
 ```
 
 #### View Secrets in Vault
@@ -849,7 +878,7 @@ kubectl exec -n production vault-0 -- vault kv list secret/
 kubectl exec -n production vault-0 -- vault kv get secret/postgres
 
 # If permission denied, authenticate with root token:
-source ~/.neotool/vault-credentials.txt
+source ~/.invistus/vault-credentials.txt
 kubectl exec -n production vault-0 -- sh -c "VAULT_TOKEN='$ROOT_TOKEN' vault kv get secret/postgres"
 ```
 
@@ -899,7 +928,7 @@ kubectl annotate externalsecret postgres-credentials -n production force-sync="$
 
 # Or delete and recreate
 kubectl delete externalsecret postgres-credentials -n production
-kubectl apply -f ~/src/Neotool/infra/kubernetes/flux/infrastructure/external-secrets-config/postgres-external-secret.yaml
+kubectl apply -f ~/src/invistus/invistus-flux/infra/kubernetes/flux/infrastructure/external-secrets-config/postgres-external-secret.yaml
 ```
 
 ### Kubernetes Secrets
@@ -1320,8 +1349,8 @@ kubectl cp production/backend-7d8f9c5b6-xyz12:/tmp/heap.hprof ./heap.hprof
 kubectl exec -n production vault-0 -- vault status
 
 # If sealed, unseal
-source ~/.neotool/vault-credentials.txt
-./infra/kubernetes/scripts/vault-unseal.sh
+source ~/.invistus/vault-credentials.txt
+./infra/kubernetes/scripts/vault-setup.sh
 ```
 
 #### External Secrets Not Syncing
@@ -1346,7 +1375,7 @@ kubectl exec -n production vault-0 -- vault status
 **Solution**: Verify and reconfigure Vault role
 
 ```bash
-source ~/.neotool/vault-credentials.txt
+source ~/.invistus/vault-credentials.txt
 
 # Check current role
 kubectl exec -n production vault-0 -- sh -c "VAULT_TOKEN='$ROOT_TOKEN' vault read auth/kubernetes/role/app"
