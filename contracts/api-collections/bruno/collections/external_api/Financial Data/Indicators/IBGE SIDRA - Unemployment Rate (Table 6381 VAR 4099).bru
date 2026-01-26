@@ -1,0 +1,14 @@
+meta {
+  name: IBGE SIDRA - Unemployment Rate (Table 6381 VAR 4099)
+  type: http
+  seq: 32
+}
+
+get {
+  url: https://apisidra.ibge.gov.br/values/t/6381/n1/all/v/4099/p/last%20120
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}

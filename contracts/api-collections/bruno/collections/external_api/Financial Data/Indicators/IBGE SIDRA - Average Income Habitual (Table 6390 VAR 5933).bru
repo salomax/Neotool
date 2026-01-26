@@ -1,0 +1,14 @@
+meta {
+  name: IBGE SIDRA - Average Income Habitual (Table 6390 VAR 5933)
+  type: http
+  seq: 33
+}
+
+get {
+  url: https://apisidra.ibge.gov.br/values/t/6390/n1/all/v/5933/p/last%20120
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}

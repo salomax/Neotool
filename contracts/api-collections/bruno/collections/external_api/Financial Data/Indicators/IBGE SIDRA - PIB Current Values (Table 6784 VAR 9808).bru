@@ -1,0 +1,14 @@
+meta {
+  name: IBGE SIDRA - PIB Current Values (Table 6784 VAR 9808)
+  type: http
+  seq: 35
+}
+
+get {
+  url: https://apisidra.ibge.gov.br/values/t/6784/n1/all/v/9808/p/last%2010
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}

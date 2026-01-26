@@ -1,0 +1,14 @@
+meta {
+  name: IBGE SIDRA - IPCA-15 YTD (Table 3065 VAR 356)
+  type: http
+  seq: 26
+}
+
+get {
+  url: https://apisidra.ibge.gov.br/values/t/3065/n1/all/v/356/p/last%20120
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}

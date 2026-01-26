@@ -1,0 +1,14 @@
+meta {
+  name: IBGE SIDRA - INPC Monthly Variation (Table 1736 VAR 44)
+  type: http
+  seq: 28
+}
+
+get {
+  url: https://apisidra.ibge.gov.br/values/t/1736/n1/all/v/44/p/last%20120
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}

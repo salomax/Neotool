@@ -1,0 +1,14 @@
+meta {
+  name: IBGE SIDRA - INPC YTD (Table 1736 VAR 68)
+  type: http
+  seq: 29
+}
+
+get {
+  url: https://apisidra.ibge.gov.br/values/t/1736/n1/all/v/68/p/last%20120
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}

@@ -1,0 +1,14 @@
+meta {
+  name: IBGE SIDRA - IPCA YTD (Table 1737 VAR 69)
+  type: http
+  seq: 23
+}
+
+get {
+  url: https://apisidra.ibge.gov.br/values/t/1737/n1/all/v/69/p/last%20120
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}
