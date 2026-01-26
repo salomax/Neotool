@@ -20,6 +20,7 @@ import io.github.salomax.neotool.financialdata.graphql.dto.ReportDescriptorDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.ReportDetailsDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.ReportsAvailabilityDTO
 import io.github.salomax.neotool.financialdata.graphql.resolver.BacenInstitutionDetailResolver
+import io.github.salomax.neotool.financialdata.graphql.resolver.FinancialInstitutionRatingResolver
 import io.github.salomax.neotool.financialdata.graphql.resolver.InstitutionSearchResolver
 import jakarta.inject.Singleton
 
@@ -30,12 +31,14 @@ import jakarta.inject.Singleton
 class FinancialDataWiringFactory(
     private val institutionSearchResolver: InstitutionSearchResolver,
     private val institutionDetailResolver: BacenInstitutionDetailResolver,
+    private val ratingResolver: FinancialInstitutionRatingResolver,
     resolverRegistry: GraphQLResolverRegistry,
 ) : GraphQLWiringFactory() {
     init {
         // Register resolvers in the registry for cross-module access
         resolverRegistry.register("institutionSearch", institutionSearchResolver)
         resolverRegistry.register("institutionDetail", institutionDetailResolver)
+        resolverRegistry.register("ratingResolver", ratingResolver)
     }
 
     override fun registerQueryResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder {
@@ -68,6 +71,12 @@ class FinancialDataWiringFactory(
                             ?: throw IllegalArgumentException("id parameter is required")
                     val anoMes = env.getArgument<String?>("anoMes")
                     institutionDetailResolver.bacenFinanceInstitution(id, anoMes)
+                },
+            )
+            .dataFetcher(
+                "ratingIssuers",
+                createValidatedDataFetcher { env ->
+                    ratingResolver.ratingIssuers(env)
                 },
             )
     }
@@ -482,6 +491,18 @@ class FinancialDataWiringFactory(
                         "reportDetails",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
                             institutionDetailResolver.reportDetails(env)
+                        },
+                    )
+                    .dataFetcher(
+                        "ratings",
+                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                            ratingResolver.ratings(env)
+                        },
+                    )
+                    .dataFetcher(
+                        "ratingHistory",
+                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                            ratingResolver.ratingHistory(env)
                         },
                     )
             }

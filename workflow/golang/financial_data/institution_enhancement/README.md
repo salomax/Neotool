@@ -130,8 +130,11 @@ The consumer uses a **worker pool pattern** to maximize throughput while respect
 # 1. Install dependencies
 go mod download
 
-# 2. Build all binaries
+# 2. Build all binaries (Linux)
 make build
+
+# 2b. Build standalone for macOS (use your arch)
+CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o bin/standalone ./cmd/standalone
 
 # 3. Run tests
 make test
@@ -168,9 +171,12 @@ go mod download
 # Build both consumer and standalone
 make build
 
-# Or build individually
+# Or build individually (Linux)
 make build-consumer
 make build-standalone
+
+# macOS standalone build (use your arch)
+CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o bin/standalone ./cmd/standalone
 ```
 
 ## Configuration
