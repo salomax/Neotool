@@ -52,6 +52,7 @@ docs/11-infrastructure/
 ├── README.md                  # This file (navigation)
 ├── architecture.md            # High-level infrastructure overview
 ├── feature-flags-unleash.md   # Feature flags with Unleash
+├── runtime-configuration.md   # Runtime config pattern (window injection)
 ├── k8s-runbook.md            # Kubernetes operations & troubleshooting
 ├── hostinger-runbook.md      # VPS provisioning & K3S management
 └── local-staging-runbook.md  # Local staging (Docker Compose)
@@ -92,6 +93,7 @@ docs/11-infrastructure/
 - [Infrastructure Architecture](./architecture.md) - High-level overview
 - [Kubernetes Operations Runbook](./k8s-runbook.md) - Day-to-day operations
 - [Feature Flags with Unleash](./feature-flags-unleash.md) - Feature flag system setup
+- [Runtime Configuration](./runtime-configuration.md) - Frontend runtime config pattern
 - [Local Staging Runbook](./local-staging-runbook.md) - Run staging locally
 
 **Common Tasks**:
@@ -339,8 +341,8 @@ flux reconcile kustomization infrastructure
 
 ---
 
-**Version**: 3.0.0 (2026-01-15)
+**Version**: 3.1.0 (2026-01-26)
 **Maintained By**: DevOps Team
-**Last Updated**: Simplified to 3 focused documents: Architecture, K8S Runbook, Hostinger Runbook
+**Last Updated**: Added Runtime Configuration documentation for frontend env injection
 
 *Simple infrastructure. GitOps deployments. Production-ready.*

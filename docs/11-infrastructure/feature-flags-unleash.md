@@ -2,17 +2,18 @@
 title: Feature Flags with Unleash
 type: infrastructure
 category: deployment
-status: draft
-version: 1.0.0
-tags: [feature-flags, unleash, kubernetes, postgres, nextjs, kotlin]
+status: current
+version: 1.1.0
+tags: [feature-flags, unleash, kubernetes, postgres, nextjs, kotlin, runtime-config]
 ai_optimized: true
-search_keywords: [feature flags, unleash, rollout, canary, ttl, edge, proxy]
+search_keywords: [feature flags, unleash, rollout, canary, ttl, edge, proxy, runtime config]
 related:
   - 11-infrastructure/k8s-runbook.md
+  - 11-infrastructure/runtime-configuration.md
   - 07-frontend/README.md
   - 05-backend/README.md
   - 10-observability/observability-overview.md
-last_updated: 2026-01-15
+last_updated: 2026-01-26
 ---
 
 # Feature Flags with Unleash
@@ -49,6 +50,54 @@ last_updated: 2026-01-15
 3. Edge/Proxy serves client tokens and caches flags.
 4. Kotlin services use server SDK + server token.
 5. Next.js uses server SDK for SSR and Proxy client for browser.
+
+### Current Deployment (Production)
+
+#### Access URLs
+
+| Component | Internal URL | External URL |
+|-----------|-------------|--------------|
+| Unleash Server (Admin UI) | `http://unleash-server.production.svc:4242` | `https://unleash.invistus.com.br` |
+| Unleash Edge (API) | `http://unleash-edge.production.svc:3063` | `https://unleash-api.invistus.com.br` |
+
+#### Network Flow Diagram
+
+```
+                    ┌─────────────────────────────┐
+                    │       invistus.com.br       │
+                    │     (Next.js Frontend)      │
+                    └─────────────┬───────────────┘
+                                  │
+                                  │ Browser fetches flags
+                                  ▼
+┌───────────────────────────────────────────────────────────────┐
+│                unleash-api.invistus.com.br                    │
+│                    (Unleash Edge)                             │
+│  - Caches flags (TTL: 30s)                                    │
+│  - CORS: only invistus.com.br                                 │
+│  - Read-only client token                                     │
+└─────────────────────────┬─────────────────────────────────────┘
+                          │
+                          │ Internal sync
+                          ▼
+┌───────────────────────────────────────────────────────────────┐
+│            unleash-server.production.svc:4242                 │
+│                   (Unleash Server)                            │
+│  - Admin UI: https://unleash.invistus.com.br                  │
+│  - Feature flag management                                    │
+│  - Strategy configuration                                     │
+└─────────────────────────┬─────────────────────────────────────┘
+                          │
+                          │ Stores data
+                          ▼
+┌───────────────────────────────────────────────────────────────┐
+│              pgbouncer.production.svc:6432                    │
+│                      (PgBouncer)                              │
+│                          ↓                                    │
+│              postgres.production.svc:5432                     │
+│                    Database: unleash                          │
+└───────────────────────────────────────────────────────────────┘
+```
 
 ## Database Setup (Robust + Sleek)
 
@@ -98,12 +147,54 @@ END $$;
   - Unleash DB credentials
 
 ### 2) Next.js Web (Performance + TTL)
-- Add a **FeatureFlagsProvider** to `web/src/app/providers.tsx`.
-- Create a **server-only Unleash client** for SSR and route handlers.
-- Use **bootstrap** so the first client render matches SSR.
-- Configure refresh intervals:
-  - Server SDK: 15s to 30s
-  - Client Proxy SDK: 30s to 60s
+
+**Current Implementation** (using Runtime Configuration pattern):
+
+The frontend uses **window injection** to receive Unleash configuration at runtime, avoiding the need for build-time environment variables. See [Runtime Configuration](runtime-configuration.md) for details.
+
+#### Configuration Flow
+
+```
+Vault (secret/web)
+    ↓
+External Secret (web-runtime-config)
+    ↓
+Pod Environment Variables
+    ↓
+Next.js Server (reads process.env)
+    ↓
+HTML (window.__RUNTIME_CONFIG__)
+    ↓
+Browser (FeatureFlagsProvider)
+```
+
+#### Key Files
+
+| File | Purpose |
+|------|---------|
+| `web/src/shared/config/runtime-config.ts` | Config schema and loader |
+| `web/src/shared/config/RuntimeConfigScript.tsx` | Injects config into HTML |
+| `web/src/shared/providers/FeatureFlagsProvider.tsx` | Unleash client setup |
+| `web/src/app/layout.tsx` | Includes RuntimeConfigScript |
+
+#### Configuration Values
+
+| Variable | Source | Example |
+|----------|--------|---------|
+| `UNLEASH_PROXY_URL` | Vault `secret/web` | `https://unleash-api.invistus.com.br` |
+| `UNLEASH_CLIENT_TOKEN` | Vault `secret/web` | `default:production.xxx...` |
+| `RUNTIME_ENV` | Vault `secret/web` | `production` |
+
+#### Security
+
+- CORS configured on Unleash Edge to accept only `invistus.com.br`
+- Client token is read-only (cannot modify flags)
+- Token scoped to `production` environment
+
+#### Refresh Intervals
+
+- **Client Proxy SDK**: 30 seconds (configured in FeatureFlagsProvider)
+- **Edge Cache TTL**: 30 seconds (configured in helmrelease-edge.yaml)
 
 ### 3) Kotlin Services
 - Add Unleash JVM SDK dependency.
@@ -132,8 +223,40 @@ END $$;
   - SDK refresh failures
 - Add dashboards/alerts for Unleash Server and Edge/Proxy health.
 
+## Vault Secrets Structure
+
+### Unleash Server/Edge Credentials
+
+```
+secret/unleash
+├── username: unleash_app
+├── password: <db-password>
+├── database: unleash
+├── server-token: <admin-api-token>
+└── proxy-token: default:production.xxx...
+```
+
+### Web Frontend Configuration
+
+```
+secret/web
+├── runtime-env: production
+├── unleash-proxy-url: https://unleash-api.invistus.com.br
+├── unleash-client-token: default:production.xxx...
+└── graphql-endpoint: http://backend.svc/graphql
+```
+
+### External Secrets
+
+| Secret Name | Source | Used By |
+|-------------|--------|---------|
+| `unleash-credentials` | `secret/unleash` | Unleash Server |
+| `unleash-proxy-token` | `secret/unleash` | Unleash Edge |
+| `web-runtime-config` | `secret/web` | Next.js Web |
+
 ## Acceptance Criteria
 - Flags can be evaluated in both Next.js and Kotlin services.
 - Flags update within configured TTL.
 - Canary rollout works using context attributes.
 - DB isolation is in place and credentials are managed via Vault.
+- Frontend uses runtime configuration (no build-time env vars).
