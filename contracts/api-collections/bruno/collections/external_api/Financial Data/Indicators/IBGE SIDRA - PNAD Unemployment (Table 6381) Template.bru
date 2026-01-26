@@ -1,0 +1,14 @@
+meta {
+  name: IBGE SIDRA - PNAD Unemployment (Table 6381) Template
+  type: http
+  seq: 9
+}
+
+get {
+  url: https://apisidra.ibge.gov.br/values/t/6381/n1/all/v/{VAR_CODE}/p/last
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}

@@ -1,0 +1,14 @@
+meta {
+  name: BCB SGS - Public Debt GDP (Serie 13762)
+  type: http
+  seq: 4
+}
+
+get {
+  url: https://api.bcb.gov.br/dados/serie/bcdata.sgs.13762/dados?formato=json&dataInicial=01/01/2010&dataFinal=31/12/2024
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}

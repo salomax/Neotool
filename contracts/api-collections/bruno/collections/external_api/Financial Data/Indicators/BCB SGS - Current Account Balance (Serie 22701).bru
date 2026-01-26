@@ -1,0 +1,14 @@
+meta {
+  name: BCB SGS - Current Account Balance (Serie 22701)
+  type: http
+  seq: 5
+}
+
+get {
+  url: https://api.bcb.gov.br/dados/serie/bcdata.sgs.22701/dados?formato=json&dataInicial=01/01/2010&dataFinal=31/12/2024
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}

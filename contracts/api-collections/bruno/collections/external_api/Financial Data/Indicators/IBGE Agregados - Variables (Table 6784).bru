@@ -1,0 +1,14 @@
+meta {
+  name: IBGE Agregados - Variables (Table 6784)
+  type: http
+  seq: 21
+}
+
+get {
+  url: https://servicodados.ibge.gov.br/api/v3/agregados/6784/variaveis
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}

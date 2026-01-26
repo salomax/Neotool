@@ -1,0 +1,14 @@
+meta {
+  name: IBGE SIDRA - IPCA-15 (Table 3065) Template
+  type: http
+  seq: 7
+}
+
+get {
+  url: https://apisidra.ibge.gov.br/values/t/3065/n1/all/v/{VAR_CODE}/p/last
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}

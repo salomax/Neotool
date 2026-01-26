@@ -1,0 +1,14 @@
+meta {
+  name: BCB SGS - Selic Annualized 252 (Serie 1178)
+  type: http
+  seq: 2
+}
+
+get {
+  url: https://api.bcb.gov.br/dados/serie/bcdata.sgs.1178/dados?formato=json&dataInicial=01/01/2015&dataFinal=31/12/2015
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}

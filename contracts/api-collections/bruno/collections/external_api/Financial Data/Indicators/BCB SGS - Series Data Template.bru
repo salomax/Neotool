@@ -1,0 +1,14 @@
+meta {
+  name: BCB SGS - Series Data Template
+  type: http
+  seq: 13
+}
+
+get {
+  url: https://api.bcb.gov.br/dados/serie/bcdata.sgs.{SERIE_ID}/dados?formato=json&dataInicial=01/01/2015&dataFinal=31/12/2015
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}

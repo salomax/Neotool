@@ -1,0 +1,14 @@
+meta {
+  name: IBGE SIDRA - IPCA (Table 1737) Template
+  type: http
+  seq: 6
+}
+
+get {
+  url: https://apisidra.ibge.gov.br/values/t/1737/n1/all/v/{VAR_CODE}/p/last
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}

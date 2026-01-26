@@ -1,0 +1,33 @@
+meta {
+  name: Comex Stat - Trade Balance Template
+  type: http
+  seq: 11
+}
+
+post {
+  url: https://api-comexstat.mdic.gov.br/general
+  body: json
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "filter": {
+      "type": "country",
+      "country": "all"
+    },
+    "time": {
+      "period": "monthly",
+      "from": "2020-01",
+      "to": "2024-12"
+    },
+    "data": {
+      "type": "balance"
+    }
+  }
+}

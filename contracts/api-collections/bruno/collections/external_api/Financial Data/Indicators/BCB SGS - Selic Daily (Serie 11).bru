@@ -1,0 +1,21 @@
+meta {
+  name: BCB SGS - Selic Daily (Serie 11)
+  type: http
+  seq: 1
+}
+
+get {
+  url: https://api.bcb.gov.br/dados/serie/bcdata.sgs.11/dados?formato=json&dataInicial=01/01/2026&dataFinal=31/12/2026
+  body: none
+  auth: inherit
+}
+
+params:query {
+  formato: json
+  dataInicial: 01/01/2026
+  dataFinal: 31/12/2026
+}
+
+headers {
+  Accept: application/json
+}

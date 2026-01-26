@@ -1,0 +1,45 @@
+meta {
+  name: Fitch Rating
+  type: http
+  seq: 1
+}
+
+post {
+  url: https://api.fitchratings.com/
+  body: json
+  auth: inherit
+}
+
+headers {
+  Accept-Encoding: gzip, deflate, br, zstd
+  User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:146.0) Gecko/20100101 Firefox/146.0
+  Accept: */*
+  Accept-Language: pt-BR,pt;q=0.8,en-US;q=0.5,en;q=0.3
+  Referer: https://www.fitchratings.com/
+  content-type: application/json
+  Origin: https://www.fitchratings.com
+  Connection: keep-alive
+  Cookie: SSID_P=CQCEox0OAAAAAABobHFpAlJAAmhscWkCAAAAAAAAAAAAD5lxaQC335IAAANFFQAAaGxxaQIA; SSSC_P=1.G7597973240320905730.2|146.5445; SSRT_P=D5lxaQADAA; SSOD_P=ANwYAAAAEgC6AAAABgAAAGhscWkPmXFpAQAAAA; isFitchInternal=false; kndctr_EED229A963BD58F20A495FAB_AdobeOrg_identity=CiY5MDg1ODAzMDUyNTc5NTcyOTIwMjMxODA4ODIzNzE1ODU0OTQ0N1ISCI79vZi-MxABGAEqA1ZBNjAA8AGO_b2YvjM=; _swb=d40def8f-eb93-43ef-8722-36536bdf19da; _mkto_trk=id:732-CKH-767&token:_mch-fitchratings.com-36e1aefa87b2ecc0c5ef2096323cadc6; _swb_consent_=eyJjb2xsZWN0ZWRBdCI6MTc2OTA0MTE3MCwiZW52aXJvbm1lbnRDb2RlIjoicHJvZHVjdGlvbiIsImlkZW50aXRpZXMiOnsiX21rdG9fdHJrIjoiaWQ6NzMyLUNLSC03NjcmdG9rZW46X21jaC1maXRjaHJhdGluZ3MuY29tLTM2ZTFhZWZhODdiMmVjYzBjNWVmMjA5NjMyM2NhZGM2Iiwic3diX2ZpdGNoX3JhdGluZ3MiOiJkNDBkZWY4Zi1lYjkzLTQzZWYtODcyMi0zNjUzNmJkZjE5ZGEifSwianVyaXNkaWN0aW9uQ29kZSI6IkJyYXppbCIsInByb3BlcnR5Q29kZSI6ImZpdGNoX3JhdGluZ3MiLCJwdXJwb3NlcyI6eyJhZHZlcnRpc2luZyI6eyJhbGxvd2VkIjoiZmFsc2UiLCJsZWdhbEJhc2lzQ29kZSI6ImNvbnNlbnRfb3B0aW4ifSwicGVyZm9ybWFuY2UiOnsiYWxsb3dlZCI6ImZhbHNlIiwibGVnYWxCYXNpc0NvZGUiOiJjb25zZW50X29wdGluIn0sInN0cmljdGx5X25lY2Vzc2FyeSI6eyJhbGxvd2VkIjoidHJ1ZSIsImxlZ2FsQmFzaXNDb2RlIjoibGVnaXRpbWF0ZWludGVyZXN0In19fQ%3D%3D; _ketch_consent_v1_=eyJhZHZlcnRpc2luZyI6eyJzdGF0dXMiOiJkZW5pZWQiLCJjYW5vbmljYWxQdXJwb3NlcyI6WyJiZWhhdmlvcmFsX2FkdmVydGlzaW5nIl19LCJwZXJmb3JtYW5jZSI6eyJzdGF0dXMiOiJkZW5pZWQiLCJjYW5vbmljYWxQdXJwb3NlcyI6WyJhbmFseXRpY3MiXX0sInN0cmljdGx5X25lY2Vzc2FyeSI6eyJzdGF0dXMiOiJncmFudGVkIiwiY2Fub25pY2FsUHVycG9zZXMiOlsiZXNzZW50aWFsX3NlcnZpY2VzIl19fQ%3D%3D
+  Sec-Fetch-Dest: empty
+  Sec-Fetch-Mode: cors
+  Sec-Fetch-Site: same-site
+  Priority: u=4
+  Pragma: no-cache
+  Cache-Control: no-cache
+  TE: trailers
+}
+
+body:json {
+  {
+    "operationName": "Ratables",
+    "variables": {
+      "language": "",
+      "slug": "banco-btg-pactual-sa-80543465"
+    },
+    "query":"query Ratables($language: String, $slug: String\041) {\\n  getEntity(language: $language, slug: $slug) {\\n    id\\n    ratables {\\n      amount\\n      bond\\n      className\\n      commercialPaperType\\n      currency\\n      couponRate\\n      deal\\n      dealReviewDate\\n      debtLevel\\n      marketSectorVOList {\\n        name\\n        __typename\\n      }\\n      disclosures {\\n        regulatoryAgency\\n        status\\n        postBrexitRegAgency\\n        __typename\\n      }\\n      marketing {\\n        sectors {\\n          name\\n          slug\\n          __typename\\n        }\\n        translatedEntityNames {\\n          default\\n          countries {\\n            name\\n            slug\\n            __typename\\n          }\\n          language {\\n            name\\n            slug\\n            __typename\\n          }\\n          translatedValue\\n          __typename\\n        }\\n        __typename\\n      }\\n      solicitationTypeDescription\\n      exemption\\n      id\\n      identifiers {\\n        placement\\n        type\\n        value\\n        __typename\\n      }\\n      issue\\n      issuer\\n      market\\n      maturityDate\\n      placement\\n      program\\n      ratableRatings {\\n        filterInvestmentGradeType\\n        filterNationalRatingType\\n        filterRatingType\\n        orangeDisplay\\n        correctionFlag\\n        changeDate\\n        ratingActionDescription\\n        ratingActionReasonID\\n        ratingActionReasonDescription\\n        ratingAlertCode\\n        ratingCode\\n        ratingEffectiveDate\\n        ratingId\\n        ratingLocalActionDescription\\n        ratingLocalValue\\n        ratingTypeDescription\\n        recoveryEstimate\\n        recoveryRatingValue\\n        __typename\\n      }\\n      ratableTypeDescription\\n      recoveryEstimate\\n      security\\n      series\\n      size\\n      subClass\\n      subgroupName\\n      transaction\\n      transactionSecurityID\\n      type\\n      __typename\\n    }\\n    inactiveRatables {\\n      amount\\n      bond\\n      className\\n      commercialPaperType\\n      currency\\n      couponRate\\n      deal\\n      dealReviewDate\\n      debtLevel\\n      marketing {\\n        sectors {\\n          name\\n          slug\\n          __typename\\n        }\\n        __typename\\n      }\\n      disclosures {\\n        regulatoryAgency\\n        status\\n        postBrexitRegAgency\\n        __typename\\n      }\\n      marketing {\\n        sectors {\\n          name\\n          slug\\n          __typename\\n        }\\n        __typename\\n      }\\n      solicitationTypeDescription\\n      exemption\\n      id\\n      identifiers {\\n        placement\\n        type\\n        value\\n        __typename\\n      }\\n      issue\\n      issuer\\n      market\\n      maturityDate\\n      placement\\n      program\\n      ratableRatings {\\n        filterInvestmentGradeType\\n        filterNationalRatingType\\n        ratingActionReasonID\\n        ratingActionReasonDescription\\n        filterRatingType\\n        orangeDisplay\\n        correctionFlag\\n        changeDate\\n        ratingActionDescription\\n        ratingAlertCode\\n        ratingCode\\n        ratingEffectiveDate\\n        ratingId\\n        ratingLocalActionDescription\\n        ratingLocalValue\\n        ratingTypeDescription\\n        recoveryEstimate\\n        recoveryRatingValue\\n        __typename\\n      }\\n      ratableTypeDescription\\n      recoveryEstimate\\n      security\\n      series\\n      size\\n      subClass\\n      subgroupName\\n      transaction\\n      transactionSecurityID\\n      type\\n      __typename\\n    }\\n    __typename\\n  }\\n  getUspfTransaction(language: $language, slug: $slug) {\\n    id\\n    ratablesList {\\n      transactionSecurityTypeDescription\\n      transactionSecurityID\\n      issuerList {\\n        issuerName\\n        issuerBondList {\\n          bondName\\n          ratables {\\n            amount\\n            bond\\n            className\\n            currency\\n            couponRate\\n            deal\\n            debtLevel\\n            exemption\\n            issue\\n            issuer\\n            market\\n            maturityDate\\n            placement\\n            program\\n            recoveryEstimate\\n            security\\n            series\\n            size\\n            subClass\\n            transaction\\n            transactionSecurityID\\n            type\\n            commercialPaperType\\n            subgroupName\\n            ratableTypeDescription\\n            dealReviewDate\\n            marketing {\\n              sectors {\\n                name\\n                slug\\n                __typename\\n              }\\n              __typename\\n            }\\n            disclosures {\\n              regulatoryAgency\\n              status\\n              postBrexitRegAgency\\n              __typename\\n            }\\n            solicitationTypeDescription\\n            id\\n            identifiers {\\n              type\\n              value\\n              placement\\n              __typename\\n            }\\n            ratableRatings {\\n              ratingId\\n              ratingEffectiveDate\\n              ratingCode\\n              ratingAlertCode\\n              ratingActionDescription\\n              ratingActionReasonID\\n              ratingActionReasonDescription\\n              ratingTypeDescription\\n              recoveryRatingValue\\n              recoveryEstimate\\n              ratingLocalValue\\n              ratingLocalActionDescription\\n              filterRatingType\\n              filterNationalRatingType\\n              filterInvestmentGradeType\\n              orangeDisplay\\n              correctionFlag\\n              changeDate\\n              __typename\\n            }\\n            __typename\\n          }\\n          __typename\\n        }\\n        __typename\\n      }\\n      __typename\\n    }\\n    __typename\\n  }\\n}\\n"
+  }
+}
+
+settings {
+  encodeUrl: false
+}

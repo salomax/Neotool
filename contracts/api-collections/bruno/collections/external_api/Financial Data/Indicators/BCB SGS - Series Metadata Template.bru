@@ -1,0 +1,14 @@
+meta {
+  name: BCB SGS - Series Metadata Template
+  type: http
+  seq: 12
+}
+
+get {
+  url: https://www3.bcb.gov.br/sgspub/consultarmetadados/consultarMetadadosSeries.do?method=consultarMetadadosSeriesInternet&hdOidSerieSelecionada={SERIE_ID}
+  auth: inherit
+}
+
+headers {
+  Accept: text/html
+}

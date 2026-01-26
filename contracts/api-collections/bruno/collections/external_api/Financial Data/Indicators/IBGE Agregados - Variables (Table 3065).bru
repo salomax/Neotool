@@ -1,0 +1,14 @@
+meta {
+  name: IBGE Agregados - Variables (Table 3065)
+  type: http
+  seq: 15
+}
+
+get {
+  url: https://servicodados.ibge.gov.br/api/v3/agregados/3065/variaveis
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}

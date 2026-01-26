@@ -1,0 +1,14 @@
+meta {
+  name: IBGE Agregados - Variables (Table 1620)
+  type: http
+  seq: 20
+}
+
+get {
+  url: https://servicodados.ibge.gov.br/api/v3/agregados/1620/variaveis
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}

@@ -1,0 +1,14 @@
+meta {
+  name: IBGE SIDRA - PIB Quarterly (Table 1620) Template
+  type: http
+  seq: 10
+}
+
+get {
+  url: https://apisidra.ibge.gov.br/values/t/1620/n1/all/v/{VAR_CODE}/p/last
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}
