@@ -101,7 +101,7 @@ function generateBreadcrumbsFromPathname(
     if (customLabels && segment in customLabels) {
       const customLabel = customLabels[segment];
       if (customLabel === null) {
-        label = <Skeleton width={100} />;
+        label = <Skeleton width={100} data-testid="breadcrumb-skeleton" />;
       } else {
         label = customLabel;
       }
@@ -357,6 +357,7 @@ export const Breadcrumb = React.forwardRef<HTMLElement, BreadcrumbProps>(
             fontWeight: isLast ? 600 : 400,
           }}
           aria-current={isLast ? "page" : undefined}
+          data-testid={isLast ? "breadcrumb-active-item" : undefined}
         >
           {content}
         </Box>

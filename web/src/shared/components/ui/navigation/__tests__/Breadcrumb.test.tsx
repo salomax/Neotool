@@ -23,7 +23,7 @@ const renderBreadcrumb = (props?: React.ComponentProps<typeof Breadcrumb>) => {
 describe.sequential("Breadcrumb", () => {
   // Store original matchMedia before any tests run
   const originalMatchMedia = typeof window !== 'undefined' ? window.matchMedia : undefined;
-  
+
   beforeEach(() => {
     mockPathname.mockReturnValue("/");
     // Always set up matchMedia mock before each test to ensure it's available
@@ -194,11 +194,11 @@ describe.sequential("Breadcrumb", () => {
       expect(currentElement).toBeInTheDocument();
       // Verify there's an element with aria-current="page" on the page
       // (The Box wrapper around the text has the aria-current attribute)
-      const navigationElement = getByRole("navigation", { name: "breadcrumb navigation" });
-      // eslint-disable-next-line testing-library/no-node-access
-      const elementWithAriaCurrent = navigationElement.querySelector('[aria-current="page"]');
+      const { getByTestId } = within(container);
+      const elementWithAriaCurrent = getByTestId("breadcrumb-active-item");
       expect(elementWithAriaCurrent).toBeInTheDocument();
       expect(elementWithAriaCurrent).toHaveAttribute("aria-current", "page");
+      expect(elementWithAriaCurrent).toHaveTextContent("Current");
     });
 
     it("makes last item clickable when currentPageClickable is true", () => {
@@ -256,7 +256,7 @@ describe.sequential("Breadcrumb", () => {
         removeEventListener: vi.fn(),
         dispatchEvent: vi.fn(),
       }));
-      
+
       Object.defineProperty(window, "matchMedia", {
         writable: true,
         configurable: true,
@@ -785,12 +785,13 @@ describe.sequential("Breadcrumb", () => {
 
       // "Products" should be visible (auto generated from "products")
       expect(screen.getByText("Products")).toBeInTheDocument();
-      
+
       // "123" should NOT be visible
       expect(screen.queryByText("123")).not.toBeInTheDocument();
 
       // Skeleton should be visible
-      const skeletons = document.querySelectorAll(".MuiSkeleton-root");
+      // Skeleton should be visible
+      const skeletons = screen.getAllByTestId("breadcrumb-skeleton");
       expect(skeletons.length).toBeGreaterThan(0);
     });
   });
