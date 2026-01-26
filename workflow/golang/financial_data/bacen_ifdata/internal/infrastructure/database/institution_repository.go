@@ -159,6 +159,48 @@ func (r *InstitutionRepository) CountByAnoMes(ctx context.Context, anoMes string
 	return count, nil
 }
 
+// ListByAnoMes retrieves all institutions for a specific quarter
+func (r *InstitutionRepository) ListByAnoMes(ctx context.Context, anoMes string) ([]*domain.Institution, error) {
+	query := `
+		SELECT
+			bacen_cod_inst, ano_mes_ref, nome_instituicao, situacao,
+			segmento_tb, atividade, tipo_consolidado_bancario, tipo_consolidacao,
+			tipo_controle, uf, municipio, cod_conglomerado_financeiro,
+			cod_conglomerado_prudencial, cnpj_instituicao_lider, source_hash,
+			created_at, updated_at
+		FROM financial_data.bacen_institution
+		WHERE ano_mes_ref = $1
+		ORDER BY bacen_cod_inst
+	`
+
+	rows, err := r.pool.Query(ctx, query, anoMes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list institutions for %s: %w", anoMes, err)
+	}
+	defer rows.Close()
+
+	var institutions []*domain.Institution
+	for rows.Next() {
+		inst := &domain.Institution{}
+		if err := rows.Scan(
+			&inst.BacenCodInst, &inst.AnoMesRef, &inst.NomeInstituicao, &inst.Situacao,
+			&inst.SegmentoTB, &inst.Atividade, &inst.TipoConsolidadoBancario, &inst.TipoConsolidacao,
+			&inst.TipoControle, &inst.UF, &inst.Municipio, &inst.CodConglomeradoFinanceiro,
+			&inst.CodConglomeradoPrudencial, &inst.CNPJInstituicaoLider, &inst.SourceHash,
+			&inst.CreatedAt, &inst.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan institution row: %w", err)
+		}
+		institutions = append(institutions, inst)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate institutions for %s: %w", anoMes, err)
+	}
+
+	return institutions, nil
+}
+
 // GetLastExtractedAnoMes retrieves the last extracted ano_mes from load control
 func (r *InstitutionRepository) GetLastExtractedAnoMes(ctx context.Context) (string, error) {
 	query := `

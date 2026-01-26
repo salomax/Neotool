@@ -40,8 +40,8 @@ export function SidebarRail() {
 
   const NAV_TOP: NavItem[] = [
     {
-      href: '/bacen-institutions',
-      label: t('routes.financialInstitutions'),
+      href: '/financial-data',
+      label: t('routes.financialData'),
       icon: AccountBalanceIcon,
     },
   ];

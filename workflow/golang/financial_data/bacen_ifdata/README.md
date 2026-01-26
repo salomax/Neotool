@@ -122,6 +122,9 @@ export KAFKA_BROKERS=localhost:9092
 # Force registry refresh
 ./bin/cli --ano-mes 202403 --force-registry-refresh
 
+# Republish all institution events for a quarter (from DB, change_type=UPDATED)
+./bin/cli --ano-mes 202403 --republish-all
+
 # Run retry worker
 ./bin/retry-worker
 ```
