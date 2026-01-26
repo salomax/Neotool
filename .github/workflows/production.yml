@@ -56,3 +56,7 @@ jobs:
           file: ./web/Dockerfile
           push: true
           tags: ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}
+          build-args: |
+            NEXT_PUBLIC_ENV=production
+            NEXT_PUBLIC_UNLEASH_PROXY_URL=${{ secrets.NEXT_PUBLIC_UNLEASH_PROXY_URL }}
+            NEXT_PUBLIC_UNLEASH_CLIENT_TOKEN=${{ secrets.NEXT_PUBLIC_UNLEASH_CLIENT_TOKEN }}
