@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { FlagProvider, useFlagsStatus, type IToggle, type IConfig } from "@unleash/proxy-client-react";
+import { getRuntimeConfig, validateConfig } from "@/shared/config/runtime-config";
 import { logger } from "@/shared/utils/logger";
 
 type FeatureFlagsContextType = {
@@ -39,15 +40,13 @@ export const FeatureFlagsProvider: React.FC<FeatureFlagsProviderProps> = ({
     setFlagsError(error);
   }, []);
 
-  const unleashProxyUrl = process.env.NEXT_PUBLIC_UNLEASH_PROXY_URL;
-  const unleashClientToken = process.env.NEXT_PUBLIC_UNLEASH_CLIENT_TOKEN;
+  // Get configuration from runtime config (window.__RUNTIME_CONFIG__ or env vars)
+  const runtimeConfig = getRuntimeConfig();
+  const { valid, errors } = validateConfig(runtimeConfig);
 
-  if (!unleashProxyUrl) {
-    throw new Error("NEXT_PUBLIC_UNLEASH_PROXY_URL environment variable is required");
-  }
-
-  if (!unleashClientToken) {
-    throw new Error("NEXT_PUBLIC_UNLEASH_CLIENT_TOKEN environment variable is required");
+  if (!valid) {
+    logger.error("Feature flags configuration is invalid:", errors);
+    throw new Error(`Feature flags configuration is invalid: ${errors.join(", ")}`);
   }
 
   // Convert bootstrap Record<string, boolean> to IToggle[] format
@@ -59,12 +58,12 @@ export const FeatureFlagsProvider: React.FC<FeatureFlagsProviderProps> = ({
   }));
 
   const config: IConfig = {
-    url: unleashProxyUrl,
-    clientKey: unleashClientToken,
+    url: runtimeConfig.unleashProxyUrl,
+    clientKey: runtimeConfig.unleashClientToken,
     appName: "neotool-web",
     refreshInterval: 30, // Refresh every 30 seconds
     bootstrap: bootstrapToggles, // Use bootstrap data to avoid flicker
-    environment: process.env.NEXT_PUBLIC_ENV || "production",
+    environment: runtimeConfig.env,
   };
 
   return (

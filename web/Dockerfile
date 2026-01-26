@@ -26,20 +26,14 @@ RUN if [ -f pnpm-lock.yaml ]; then \
 COPY . .
 
 # Set build environment
-# --no-daemon to avoid zombie process
 ENV NODE_ENV=production
-# Disable Telemetry 
+# Disable Telemetry
 ENV NEXT_TELEMETRY_DISABLED=1
-# Build-time public envs for Next.js
-ARG NEXT_PUBLIC_UNLEASH_PROXY_URL
-ARG NEXT_PUBLIC_UNLEASH_CLIENT_TOKEN
-ARG NEXT_PUBLIC_ENV
-ENV NEXT_PUBLIC_UNLEASH_PROXY_URL=$NEXT_PUBLIC_UNLEASH_PROXY_URL
-ENV NEXT_PUBLIC_UNLEASH_CLIENT_TOKEN=$NEXT_PUBLIC_UNLEASH_CLIENT_TOKEN
-ENV NEXT_PUBLIC_ENV=$NEXT_PUBLIC_ENV
 # Set max old space size to 4GB in order to avoid OOM errors
 # Memory used by some libraries (e.g. ag-grid) is large
 ENV NODE_OPTIONS="--max-old-space-size=4096"
+# Note: Runtime configuration is injected via environment variables at runtime
+# No build-time NEXT_PUBLIC_* variables needed - using window injection pattern
 
 # Build the application
 RUN if [ -f pnpm-lock.yaml ]; then \

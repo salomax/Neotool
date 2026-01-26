@@ -3,6 +3,7 @@ import * as React from "react";
 import dynamic from "next/dynamic";
 import { Box } from "@mui/material";
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary";
+import { RuntimeConfigScript } from "@/shared/config/RuntimeConfigScript";
 import Providers from "./providers";
 
 // Lazy load AppShell to reduce initial bundle size
@@ -31,6 +32,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <RuntimeConfigScript />
+      </head>
       <body>
         <ErrorBoundary>
           <Providers>
