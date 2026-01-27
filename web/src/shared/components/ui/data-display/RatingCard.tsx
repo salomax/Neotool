@@ -1,8 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Box, Typography, IconButton, Stack, Link } from "@mui/material";
-import { useTheme } from "@mui/material/styles";
+import { Box, Typography, IconButton, Stack, Tooltip } from "@mui/material";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import Card from "@/shared/components/ui/primitives/Card";
@@ -18,7 +17,6 @@ export interface RatingCardProps {
 
 export function RatingCard({ ratings, loading }: RatingCardProps) {
   const { t } = useTranslation(financialDataTranslations);
-  const theme = useTheme();
   const [currentIndex, setCurrentIndex] = React.useState(0);
 
   // Filter and sort ratings if needed. 
@@ -91,107 +89,106 @@ export function RatingCard({ ratings, loading }: RatingCardProps) {
     <Card
       variant="outlined"
       sx={{
-        p: 3,
+        p: 2,
         height: "100%",
-        minHeight: 260,
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
         position: "relative",
       }}
     >
-      {/* Header: Issuer Name */}
-      <Box sx={{ textAlign: 'center', mb: 2 }}>
+      {/* Header: Issuer Name and Navigation */}
+      <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2} sx={{ mb: 1 }}>
         <Typography 
           variant="overline" 
           sx={{ 
             fontWeight: 700, 
             letterSpacing: '0.1em',
             color: 'text.primary',
-            fontSize: '0.75rem'
+            fontSize: '0.75rem',
+            lineHeight: 1.5, // Better alignment with buttons
+            mt: 0.5 // Slight adjustment for visual alignment
           }}
         >
           {issuerName?.toUpperCase()}
         </Typography>
-      </Box>
 
-      {/* Body: Rating Content with Arrows */}
-      <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-        
-        {/* Left Arrow */}
-        <IconButton 
-          onClick={handlePrev} 
-          disabled={sortedRatings.length <= 1}
-          sx={{ visibility: sortedRatings.length <= 1 ? 'hidden' : 'visible' }}
-        >
-          <ChevronLeftIcon />
-        </IconButton>
+        {/* Navigation Arrows */}
+        {sortedRatings.length > 1 && (
+          <Stack direction="row" spacing={0.5}>
+            <IconButton 
+              onClick={handlePrev} 
+              size="small"
+              aria-label="Previous rating"
+            >
+              <ChevronLeftIcon fontSize="small" />
+            </IconButton>
+            <IconButton 
+              onClick={handleNext} 
+              size="small"
+              aria-label="Next rating"
+            >
+              <ChevronRightIcon fontSize="small" />
+            </IconButton>
+          </Stack>
+        )}
+      </Stack>
 
-        {/* Rating Info */}
-        <Box sx={{ flex: 1, textAlign: 'center' }}>
+      {/* Body: Rating Content */}
+      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        <Tooltip title={ratingName} placement="top" arrow>
           <Typography 
             variant="caption" 
             sx={{ 
               color: 'text.secondary', 
               fontWeight: 600, 
               textTransform: 'uppercase',
-              mb: 1,
-              display: 'block'
+              mb: 0.5,
+              display: '-webkit-box',
+              overflow: 'hidden',
+              WebkitBoxOrient: 'vertical',
+              WebkitLineClamp: 1,
+              textAlign: 'left'
             }}
           >
             {ratingName}
           </Typography>
-          
-          <Typography 
-            variant="h2" 
-            sx={{ 
-              fontWeight: 700, 
-              color: 'primary.main',
-              fontSize: '2.5rem',
-              lineHeight: 1.2
-            }}
-          >
-            {currentRating.label}
-          </Typography>
-        </Box>
-
-        {/* Right Arrow */}
-        <IconButton 
-          onClick={handleNext} 
-          disabled={sortedRatings.length <= 1}
-          sx={{ visibility: sortedRatings.length <= 1 ? 'hidden' : 'visible' }}
+        </Tooltip>
+        
+        <Typography 
+          variant="h2" 
+          sx={{ 
+            fontWeight: 700, 
+            fontSize: '2rem',
+            lineHeight: 1.2,
+            textAlign: 'left'
+          }}
         >
-          <ChevronRightIcon />
-        </IconButton>
+          {currentRating.label}
+        </Typography>
       </Box>
 
       {/* Footer: Date and Dots */}
-      <Box sx={{ textAlign: 'center', mt: 2 }}>
-        <Typography 
-          variant="caption" 
-          sx={{ 
-            color: 'text.secondary', 
-            display: 'block', 
-            mb: 0.5,
-            fontSize: '0.7rem',
-            fontWeight: 600,
-            textTransform: 'uppercase'
-          }}
-        >
-          {t('ratings.lastUpdate')}
-        </Typography>
-        <Typography variant="body2" fontWeight="500">
-          {ratingDate}
-        </Typography>
+      <Box sx={{ mt: 1 }}>
+        <Stack direction="row" spacing={0.5} alignItems="center">
+            <Typography 
+            variant="caption" 
+            >
+            {t('ratings.lastUpdate')}
+            </Typography>
+            <Typography variant="caption" fontWeight="500" sx={{ textAlign: 'left' }}>
+            {ratingDate}
+            </Typography>
+        </Stack>
 
         {/* Dots Indicator */}
         {sortedRatings.length > 1 && (
-          <Stack direction="row" spacing={1} justifyContent="center" sx={{ mt: 2 }}>
+          <Stack direction="row" spacing={1} justifyContent="flex-start" sx={{ mt: 1.5 }}>
             {sortedRatings.map((_, index) => (
               <Box
                 key={index}
                 sx={{
-                  width: index === currentIndex ? 24 : 24, // Active is longer line? Image shows line
+                  width: index === currentIndex ? 24 : 24,
                   height: 4,
                   borderRadius: 2,
                   bgcolor: index === currentIndex ? 'primary.main' : 'action.disabled',
