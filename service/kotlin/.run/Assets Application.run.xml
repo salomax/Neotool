@@ -2,6 +2,8 @@
   <configuration default="false" name="Assets Application" type="JetRunConfigurationType">
     <envs>
       <env name="JWT_JWKS_URL" value="http://localhost:8080/.well-known/jwks.json" />
+      <env name="SECURITY_SERVICE_ID" value="service-test-asset" />
+      <env name="SECURITY_SERVICE_SECRET" value="vd8Z1qDquo_N4i-ITV6MiGtOxHBhC0PIMeoAiLSP3zI" />
     </envs>
     <option name="MAIN_CLASS_NAME" value="io.github.salomax.neotool.assets.Application" />
     <module name="neotool-service.assets.main" />

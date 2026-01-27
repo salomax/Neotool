@@ -293,6 +293,7 @@ open class BacenInstitutionRepositoryImpl(
                 FROM bacen_institutions_and_groups
                     LEFT JOIN financial_data.financial_institution_bacen_institution fibi
                         ON fibi.bacen_cod_inst = bacen_institutions_and_groups.bacen_cod_inst
+                       AND fibi.ano_mes_ref = '202509'
                     LEFT JOIN financial_data.financial_institution fi_data
                         ON fi_data.id = fibi.financial_institution_id
             )

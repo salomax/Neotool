@@ -112,18 +112,12 @@ export default function BacenInstitutionDetailPage() {
       }
     >
 
-
       <Page>
         <Box sx={{ mb: 4 }}>
-          <Grid container spacing={3}>
-            <Grid size={{ xs: 12, lg: institution.ratings && institution.ratings.length > 0 ? 8 : 12 }}>
+          <Grid container spacing={4}>
+            <Grid size={{ xs: 12, lg: 12 }}>
               <BacenInstitutionSummaryPaper institution={institution} />
             </Grid>
-            {institution.ratings && institution.ratings.length > 0 && (
-              <Grid size={{ xs: 12, lg: 4 }}>
-                <RatingCard ratings={institution.ratings} />
-              </Grid>
-            )}
           </Grid>
         </Box>
         {loadingReport ? (

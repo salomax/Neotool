@@ -344,6 +344,71 @@ func (r *ParentInstitutionRepository) LinkAllBacenInstitutionsByParentCNPJ(ctx c
 		"linked_count", linkedCount,
 		"unique_bacen_cod_insts", len(bacenCodInsts),
 		"bacen_cod_insts", bacenCodInsts)
-	
+
+	return nil
+}
+
+// InstitutionWithoutLogo represents a minimal institution record for logo processing
+type InstitutionWithoutLogo struct {
+	ID         string
+	ParentCNPJ string
+	Website    string
+}
+
+// FindInstitutionsWithoutLogo finds all institutions that have a website but no asset_id
+func (r *ParentInstitutionRepository) FindInstitutionsWithoutLogo(ctx context.Context) ([]InstitutionWithoutLogo, error) {
+	query := `
+		SELECT id, parent_cnpj, website
+		FROM financial_data.financial_institution
+		WHERE website IS NOT NULL
+		  AND website != ''
+		  AND asset_id IS NULL
+		ORDER BY parent_cnpj
+	`
+
+	rows, err := r.pool.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query institutions without logo: %w", err)
+	}
+	defer rows.Close()
+
+	var institutions []InstitutionWithoutLogo
+	for rows.Next() {
+		var inst InstitutionWithoutLogo
+		if err := rows.Scan(&inst.ID, &inst.ParentCNPJ, &inst.Website); err != nil {
+			return nil, fmt.Errorf("failed to scan institution: %w", err)
+		}
+		institutions = append(institutions, inst)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating rows: %w", err)
+	}
+
+	r.logger.Info("Found institutions without logo", "count", len(institutions))
+	return institutions, nil
+}
+
+// UpdateAssetID updates only the asset_id field for a given institution
+func (r *ParentInstitutionRepository) UpdateAssetID(ctx context.Context, id string, assetID string) error {
+	query := `
+		UPDATE financial_data.financial_institution
+		SET asset_id = $1, updated_at = NOW()
+		WHERE id = $2
+	`
+
+	result, err := r.pool.Exec(ctx, query, assetID, id)
+	if err != nil {
+		return fmt.Errorf("failed to update asset_id: %w", err)
+	}
+
+	if result.RowsAffected() == 0 {
+		return fmt.Errorf("no institution found with id: %s", id)
+	}
+
+	r.logger.Info("Updated asset_id for institution",
+		"id", id,
+		"asset_id", assetID)
+
 	return nil
 }
