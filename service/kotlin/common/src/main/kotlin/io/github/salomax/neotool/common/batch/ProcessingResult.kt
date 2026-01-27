@@ -19,5 +19,6 @@ sealed class ProcessingResult {
     data class Failed(
         val alreadyPublishedToDlq: Boolean,
         val retryCount: Int,
+        val lastError: Throwable? = null,
     ) : ProcessingResult()
 }
