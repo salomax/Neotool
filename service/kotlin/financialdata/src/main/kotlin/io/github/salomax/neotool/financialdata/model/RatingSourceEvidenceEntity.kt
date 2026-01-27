@@ -34,8 +34,6 @@ open class RatingSourceEvidenceEntity(
     open var contentHash: String,
     @Column(name = "created_at", nullable = false)
     open var createdAt: Instant = Instant.now(),
-    @Version
-    open var version: Long = 0,
 ) : BaseEntity<UUID?>(id) {
     fun toDomain(): RatingSourceEvidence {
         return RatingSourceEvidence(

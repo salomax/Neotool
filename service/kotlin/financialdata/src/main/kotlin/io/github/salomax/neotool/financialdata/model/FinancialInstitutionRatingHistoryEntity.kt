@@ -41,8 +41,6 @@ open class FinancialInstitutionRatingHistoryEntity(
     open var contentHash: String,
     @Column(name = "changed_at", nullable = false)
     open var changedAt: Instant = Instant.now(),
-    @Version
-    open var version: Long = 0,
 ) : BaseEntity<UUID?>(id) {
     fun toDomain(): FinancialInstitutionRatingHistory {
         return FinancialInstitutionRatingHistory(

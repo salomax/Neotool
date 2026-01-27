@@ -4,7 +4,7 @@ import React from "react";
 import { Container, Page } from "@/shared/components/ui/layout";
 import { ModuleCard } from "@/shared/components/ui/navigation/ModuleCard";
 import { useTranslation } from "@/shared/i18n";
-import { financialDataTranslations } from "./i18n";
+import { financialDataTranslations } from "@/shared/i18n/domains/financial-data";
 import { FinancialInstitutionsIcon, NationalIndicatorsIcon } from "./components/icons";
 import { Box, Typography, Grid } from "@mui/material";
 import { usePageTitle } from "@/shared/hooks/ui/usePageTitle";

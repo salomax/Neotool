@@ -3,18 +3,20 @@
 import { useParams } from "next/navigation";
 import { SidebarLayout } from "@/shared/components/ui/layout/SidebarLayout";
 import { Page, SectionHeader } from "@/shared/components/ui/layout";
-import { Box, Typography, Stack, List, ListItemButton, ListItemText, CircularProgress, Tooltip, IconButton, Accordion, AccordionSummary, AccordionDetails } from "@mui/material";
+import { Box, Typography, Stack, List, ListItemButton, ListItemText, CircularProgress, Tooltip, IconButton, Accordion, AccordionSummary, AccordionDetails, Grid } from "@mui/material";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { usePageTitle } from "@/shared/hooks/ui/usePageTitle";
 import { useTranslation } from "@/shared/i18n";
-import { financialDataTranslations } from "@/features/financial_data/i18n";
+import { financialDataTranslations } from "@/shared/i18n/domains/financial-data";
 import { useBreadcrumbLabel } from "@/shared/hooks/ui/useBreadcrumbLabel";
-import { LineChart, CurrencyDisplay, MetricLineChart } from "@/shared/components/ui/data-display";
-import { BacenInstitutionSummaryPaper } from "@/features/financial_data/components/BacenInstitutionSummaryPaper";
-import { BacenInstitutionBalanceSummaryGrid } from "@/features/financial_data/components/BacenInstitutionBalanceSummaryGrid";
-import { BacenInstitutionReportDetail } from "@/features/financial_data/components/BacenInstitutionReportDetail";
-import { useBacenInstitutionDetail } from "@/features/financial_data/hooks/useBacenInstitutionDetail";
+import { LineChart, CurrencyDisplay, MetricLineChart, RatingCard } from "@/shared/components/ui/data-display";
+import {
+  BacenInstitutionSummaryPaper,
+  BacenInstitutionBalanceSummaryGrid,
+  BacenInstitutionReportDetail,
+} from "@/widgets/financial-data";
+import { useBacenInstitutionDetail } from "@/features/financial-data/view-institution-detail";
 
 export default function BacenInstitutionDetailPage() {
   const params = useParams();
@@ -113,7 +115,16 @@ export default function BacenInstitutionDetailPage() {
 
       <Page>
         <Box sx={{ mb: 4 }}>
-          <BacenInstitutionSummaryPaper institution={institution} />
+          <Grid container spacing={3}>
+            <Grid size={{ xs: 12, lg: institution.ratings && institution.ratings.length > 0 ? 8 : 12 }}>
+              <BacenInstitutionSummaryPaper institution={institution} />
+            </Grid>
+            {institution.ratings && institution.ratings.length > 0 && (
+              <Grid size={{ xs: 12, lg: 4 }}>
+                <RatingCard ratings={institution.ratings} />
+              </Grid>
+            )}
+          </Grid>
         </Box>
         {loadingReport ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>

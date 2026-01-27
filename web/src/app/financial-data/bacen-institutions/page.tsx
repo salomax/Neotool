@@ -5,15 +5,15 @@ import { useRouter } from "next/navigation";
 import { Container, Box, Page } from "@/shared/components/ui/layout";
 import { SearchableAutocomplete } from "@/shared/components/ui/forms/SearchableAutocomplete";
 import { CardGrid } from "@/shared/components/ui/layout/CardGrid";
-import { BacenInstitutionCard, type BacenInstitution } from "@/features/financial_data/components/BacenInstitutionCard";
+import { BacenInstitutionCard, type BacenInstitution } from "@/widgets/financial-data";
 import { useTranslation } from "@/shared/i18n";
-import { financialDataTranslations } from "@/features/financial_data/i18n";
+import { financialDataTranslations } from "@/shared/i18n/domains/financial-data";
 import { usePageTitle } from "@/shared/hooks/ui/usePageTitle";
 import { encodeId } from "@/shared/utils/idObfuscation";
 import {
   useBacenInstitutionsAutocompleteQuery,
   useBacenInstitutionsSearch,
-} from "@/features/financial_data/hooks/useBacenInstitutionsSearch";
+} from "@/features/financial-data/search-institutions";
 
 export default function BacenInstitutionsPage() {
   const { t } = useTranslation(financialDataTranslations);
