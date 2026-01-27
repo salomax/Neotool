@@ -43,8 +43,6 @@ open class FinancialInstitutionRatingEntity(
     open var createdAt: Instant = Instant.now(),
     @Column(name = "updated_at", nullable = false)
     open var updatedAt: Instant = Instant.now(),
-    @Version
-    open var version: Long = 0,
 ) : BaseEntity<UUID?>(id) {
     fun toDomain(): FinancialInstitutionRating {
         return FinancialInstitutionRating(

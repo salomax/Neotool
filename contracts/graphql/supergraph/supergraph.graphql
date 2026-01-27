@@ -161,6 +161,12 @@ type BacenFinanceInstitution
   rwaReferenceEquity: Float
   reportsSummary(range: QuarterRangeInput!): ReportsAvailability!
   reportDetails(reportId: ID!, range: QuarterRangeInput!): ReportDetails!
+
+  """Current ratings from all issuers for this institution"""
+  ratings: [InstitutionRating!]
+
+  """Historical rating changes for this institution"""
+  ratingHistory(limit: Int = 50): [RatingHistory!]
 }
 
 type BacenInstitutionAutocompleteConnection
@@ -283,6 +289,11 @@ input CreateRoleInput
   name: String!
 }
 
+scalar Date
+  @join__type(graph: ASSETS)
+  @join__type(graph: FINANCIALDATA)
+  @join__type(graph: SECURITY)
+
 scalar DateTime
   @join__type(graph: ASSETS)
   @join__type(graph: FINANCIALDATA)
@@ -328,6 +339,18 @@ enum GroupOrderField
   NAME @join__enumValue(graph: SECURITY)
 }
 
+type InstitutionRating
+  @join__type(graph: FINANCIALDATA)
+{
+  id: ID!
+  name: String!
+  label: String!
+  ratingDate: Date!
+  customParams: JSON
+  issuer: RatingIssuer!
+  updatedAt: DateTime!
+}
+
 scalar join__FieldSet
 
 enum join__Graph {
@@ -335,6 +358,11 @@ enum join__Graph {
   FINANCIALDATA @join__graph(name: "financialdata", url: "http://neotool-financial-data-service:8080/graphql")
   SECURITY @join__graph(name: "security", url: "http://neotool-security:8080/graphql")
 }
+
+scalar JSON
+  @join__type(graph: ASSETS)
+  @join__type(graph: FINANCIALDATA)
+  @join__type(graph: SECURITY)
 
 scalar link__Import
 
@@ -527,6 +555,7 @@ type Query
   searchBacenInstitutionsAutocomplete(query: String!, anoMes: String): BacenInstitutionAutocompleteConnection! @join__field(graph: FINANCIALDATA)
   bacenInstitutions(query: String, anoMes: String, first: Int, after: String): BacenInstitutionConnection! @join__field(graph: FINANCIALDATA)
   bacenFinanceInstitution(id: ID!, anoMes: String): BacenFinanceInstitution @join__field(graph: FINANCIALDATA)
+  ratingIssuers: [RatingIssuer!]! @join__field(graph: FINANCIALDATA)
   currentUser: User @join__field(graph: SECURITY)
   checkPermission(userId: ID!, permission: String!, resourceId: ID): AuthorizationResult! @join__field(graph: SECURITY)
   user(id: ID!): User @join__field(graph: SECURITY)
@@ -536,6 +565,28 @@ type Query
   role(id: ID!): Role @join__field(graph: SECURITY)
   roles(first: Int, after: String, query: String, orderBy: [RoleOrderByInput!]): RoleConnection! @join__field(graph: SECURITY)
   permissions(first: Int, after: String, query: String): PermissionConnection! @join__field(graph: SECURITY)
+}
+
+type RatingHistory
+  @join__type(graph: FINANCIALDATA)
+{
+  id: ID!
+  name: String!
+  label: String!
+  ratingDate: Date!
+  customParams: JSON
+  issuerCode: String!
+  changedAt: DateTime!
+}
+
+type RatingIssuer
+  @join__type(graph: FINANCIALDATA)
+{
+  id: ID!
+  code: String!
+  name: String!
+  website: String
+  logoAssetId: String
 }
 
 input RefreshAccessTokenInput

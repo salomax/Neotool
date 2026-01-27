@@ -12,7 +12,9 @@ export type Scalars = {
   Boolean: { input: boolean; output: boolean; }
   Int: { input: number; output: number; }
   Float: { input: number; output: number; }
+  Date: { input: unknown; output: unknown; }
   DateTime: { input: unknown; output: unknown; }
+  JSON: { input: unknown; output: unknown; }
   Long: { input: unknown; output: unknown; }
   UUID: { input: unknown; output: unknown; }
   join__FieldSet: { input: unknown; output: unknown; }
@@ -126,6 +128,10 @@ export type BacenFinanceInstitution = {
   mainActivity: Maybe<Scalars['String']['output']>;
   name: Scalars['String']['output'];
   quarter: Maybe<Scalars['String']['output']>;
+  /** Historical rating changes for this institution */
+  ratingHistory: Maybe<Array<RatingHistory>>;
+  /** Current ratings from all issuers for this institution */
+  ratings: Maybe<Array<InstitutionRating>>;
   reportDetails: ReportDetails;
   reportsSummary: ReportsAvailability;
   rwaReferenceEquity: Maybe<Scalars['Float']['output']>;
@@ -133,6 +139,11 @@ export type BacenFinanceInstitution = {
   tipoConsolidadoBancario: Maybe<BacenInstitutionBankType>;
   tradeName: Maybe<Scalars['String']['output']>;
   website: Maybe<Scalars['String']['output']>;
+};
+
+
+export type BacenFinanceInstitutionRatingHistoryArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
 };
 
 
@@ -276,6 +287,17 @@ export type GroupOrderByInput = {
 export enum GroupOrderField {
   Name = 'NAME'
 }
+
+export type InstitutionRating = {
+  __typename: 'InstitutionRating';
+  customParams: Maybe<Scalars['JSON']['output']>;
+  id: Scalars['ID']['output'];
+  issuer: RatingIssuer;
+  label: Scalars['String']['output'];
+  name: Scalars['String']['output'];
+  ratingDate: Scalars['Date']['output'];
+  updatedAt: Scalars['DateTime']['output'];
+};
 
 export type Mutation = {
   __typename: 'Mutation';
@@ -564,6 +586,7 @@ export type Query = {
   group: Maybe<Group>;
   groups: GroupConnection;
   permissions: PermissionConnection;
+  ratingIssuers: Array<RatingIssuer>;
   role: Maybe<Role>;
   roles: RoleConnection;
   searchBacenInstitutionsAutocomplete: BacenInstitutionAutocompleteConnection;
@@ -647,6 +670,26 @@ export type QueryUsersArgs = {
   first?: InputMaybe<Scalars['Int']['input']>;
   orderBy?: InputMaybe<Array<UserOrderByInput>>;
   query?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type RatingHistory = {
+  __typename: 'RatingHistory';
+  changedAt: Scalars['DateTime']['output'];
+  customParams: Maybe<Scalars['JSON']['output']>;
+  id: Scalars['ID']['output'];
+  issuerCode: Scalars['String']['output'];
+  label: Scalars['String']['output'];
+  name: Scalars['String']['output'];
+  ratingDate: Scalars['Date']['output'];
+};
+
+export type RatingIssuer = {
+  __typename: 'RatingIssuer';
+  code: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  logoAssetId: Maybe<Scalars['String']['output']>;
+  name: Scalars['String']['output'];
+  website: Maybe<Scalars['String']['output']>;
 };
 
 export type RefreshAccessTokenInput = {

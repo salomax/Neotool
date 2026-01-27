@@ -790,7 +790,10 @@ describe.sequential("Breadcrumb", () => {
       expect(screen.queryByText("123")).not.toBeInTheDocument();
 
       // Skeleton should be visible
+<<<<<<< HEAD
       // Skeleton should be visible
+=======
+>>>>>>> 5d47ed9 (feat(financial-data): integrate ratings and historical data into Bacen institution components)
       const skeletons = screen.getAllByTestId("breadcrumb-skeleton");
       expect(skeletons.length).toBeGreaterThan(0);
     });

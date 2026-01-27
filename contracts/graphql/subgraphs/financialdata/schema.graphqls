@@ -4,7 +4,9 @@
 # ============================================================================
 
 scalar Long
+scalar Date
 scalar DateTime
+scalar JSON
 scalar UUID
 
 # ============================================================================
@@ -28,6 +30,8 @@ extend type Query {
   # Institution detail query
   # anoMes: Quarter filter (YYYYMM format). If not provided, uses latest quarter globally.
   bacenFinanceInstitution(id: ID!, anoMes: String): BacenFinanceInstitution
+  # Rating issuers
+  ratingIssuers: [RatingIssuer!]!
 }
 
 # Enums
@@ -119,6 +123,16 @@ type BacenFinanceInstitution {
   # Reports
   reportsSummary(range: QuarterRangeInput!): ReportsAvailability!
   reportDetails(reportId: ID!, range: QuarterRangeInput!): ReportDetails!
+
+  """
+  Current ratings from all issuers for this institution
+  """
+  ratings: [InstitutionRating!]
+
+  """
+  Historical rating changes for this institution
+  """
+  ratingHistory(limit: Int = 50): [RatingHistory!]
 }
 
 input QuarterRangeInput {
@@ -162,3 +176,31 @@ type QuarterValue {
   value: Float
 }
 
+# Ratings types
+type RatingIssuer {
+  id: ID!
+  code: String!
+  name: String!
+  website: String
+  logoAssetId: String
+}
+
+type InstitutionRating {
+  id: ID!
+  name: String!
+  label: String!
+  ratingDate: Date!
+  customParams: JSON
+  issuer: RatingIssuer!
+  updatedAt: DateTime!
+}
+
+type RatingHistory {
+  id: ID!
+  name: String!
+  label: String!
+  ratingDate: Date!
+  customParams: JSON
+  issuerCode: String!
+  changedAt: DateTime!
+}
