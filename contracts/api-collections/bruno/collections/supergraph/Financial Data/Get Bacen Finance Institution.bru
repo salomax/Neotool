@@ -35,6 +35,28 @@ body:graphql {
       mainActivity
       address
       founded
+      ratings {
+        id
+        name
+        label
+        ratingDate
+        issuer {
+          id
+          code
+          name
+          website
+          logoAssetId
+        }
+        updatedAt
+      }
+      ratingHistory(limit: 10) {
+        id
+        name
+        label
+        ratingDate
+        issuerCode
+        changedAt
+      }
     }
   }
 }
@@ -59,5 +81,15 @@ tests {
   test("Has id", function() {
     const data = res.getBody();
     expect(data.data.bacenFinanceInstitution.id).to.be.a('string');
+  });
+
+  test("Has ratings array (optional)", function() {
+    const data = res.getBody();
+    expect(data.data.bacenFinanceInstitution.ratings).to.be.an('array');
+  });
+
+  test("Has rating history array (optional)", function() {
+    const data = res.getBody();
+    expect(data.data.bacenFinanceInstitution.ratingHistory).to.be.an('array');
   });
 }

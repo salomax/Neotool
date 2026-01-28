@@ -26,29 +26,29 @@ export interface RouteConfig {
 export interface BreadcrumbProps {
   // Manual control
   items?: BreadcrumbItem[];
-  
+
   // Auto-generation
   autoGenerate?: boolean;
   routeConfig?: RouteConfig[];
   homeLabel?: string;
   homeHref?: string;
   homeIcon?: React.ReactNode;
-  
+
   // Behavior
   maxItems?: number;
   showHome?: boolean;
   currentPageClickable?: boolean;
   responsive?: boolean;
-  
+
   // Customization
   separator?: React.ReactNode;
   variant?: "default" | "compact" | "minimal";
   size?: "small" | "medium" | "large";
-  
+
   // Rendering
   renderItem?: (item: BreadcrumbItem, index: number, isLast: boolean) => React.ReactNode;
   renderSeparator?: () => React.ReactNode;
-  
+
   // Styling
   className?: string;
   sx?: SxProps<Theme>;
@@ -108,15 +108,15 @@ function generateBreadcrumbsFromPathname(
     } else if (routeConfig) {
       // Try exact match first
       let matchedConfig = routeConfig.find((config) => config.path === currentPath);
-      
+
       // Try pattern match (e.g., /users/[id])
       if (!matchedConfig) {
         matchedConfig = routeConfig.find((config) => {
           const configSegments = config.path.split("/").filter(Boolean);
           const pathSegments = currentPath.split("/").filter(Boolean);
-          
+
           if (configSegments.length !== pathSegments.length) return false;
-          
+
           return configSegments.every((configSeg, i) => {
             // Match dynamic segments like [id], [...slug]
             if (configSeg.startsWith("[") && configSeg.endsWith("]")) {
@@ -133,14 +133,14 @@ function generateBreadcrumbsFromPathname(
           const params: Record<string, string> = {};
           const configSegments = matchedConfig.path.split("/").filter(Boolean);
           const pathSegments = currentPath.split("/").filter(Boolean);
-          
+
           configSegments.forEach((configSeg, i) => {
             if (configSeg.startsWith("[") && configSeg.endsWith("]")) {
               const paramName = configSeg.slice(1, -1).replace("...", "");
               params[paramName] = pathSegments[i] || "";
             }
           });
-          
+
           label = matchedConfig.label(params);
         } else {
           label = matchedConfig.label;
@@ -237,7 +237,7 @@ export const Breadcrumb = React.forwardRef<HTMLElement, BreadcrumbProps>(
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
     const testIdProps = getTestIdProps("Breadcrumb", name, dataTestId);
-    
+
     // Get custom labels from context (if available)
     const customLabels = useBreadcrumbLabels();
 
@@ -279,10 +279,10 @@ export const Breadcrumb = React.forwardRef<HTMLElement, BreadcrumbProps>(
     }, [items, responsive, isMobile]);
 
     // Default separator
-    const defaultSeparator = separator !== undefined 
-      ? separator 
-      : variant === "minimal" 
-        ? "/" 
+    const defaultSeparator = separator !== undefined
+      ? separator
+      : variant === "minimal"
+        ? "/"
         : <ChevronRightIcon fontSize="small" />;
 
     // Size-based typography variant
@@ -469,11 +469,11 @@ export const Breadcrumb = React.forwardRef<HTMLElement, BreadcrumbProps>(
       >
         {displayItems.map((item, index) => {
           const content = renderBreadcrumbItem(item, index);
-          
+
           if (React.isValidElement(content)) {
             return React.cloneElement(content, { key: `${item.label}-${index}` } as any);
           }
-          
+
           return (
             <span key={`${item.label}-${index}`}>
               {content}

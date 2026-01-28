@@ -790,7 +790,6 @@ describe.sequential("Breadcrumb", () => {
       expect(screen.queryByText("123")).not.toBeInTheDocument();
 
       // Skeleton should be visible
-      // Skeleton should be visible
       const skeletons = screen.getAllByTestId("breadcrumb-skeleton");
       expect(skeletons.length).toBeGreaterThan(0);
     });

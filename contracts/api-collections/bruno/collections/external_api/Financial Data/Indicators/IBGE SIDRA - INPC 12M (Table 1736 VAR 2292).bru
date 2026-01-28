@@ -1,0 +1,14 @@
+meta {
+  name: IBGE SIDRA - INPC 12M (Table 1736 VAR 2292)
+  type: http
+  seq: 30
+}
+
+get {
+  url: https://apisidra.ibge.gov.br/values/t/1736/n1/all/v/2292/p/last%20120
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}

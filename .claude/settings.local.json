@@ -75,7 +75,11 @@
       "Bash(docker stop:*)",
       "Bash(docker rm:*)",
       "Bash(docker network:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(go mod tidy:*)",
+      "Bash(go build:*)",
+      "Bash(go vet:*)",
+      "Bash(npm run build:*)"
     ]
   }
 }

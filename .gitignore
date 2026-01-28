@@ -27,6 +27,7 @@ out/
 *.salive
 .run/
 
+.gocache/
 __pycache__/
 
 .expo/

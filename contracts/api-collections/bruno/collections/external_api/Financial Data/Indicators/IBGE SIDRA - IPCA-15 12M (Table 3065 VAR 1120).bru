@@ -1,0 +1,14 @@
+meta {
+  name: IBGE SIDRA - IPCA-15 12M (Table 3065 VAR 1120)
+  type: http
+  seq: 27
+}
+
+get {
+  url: https://apisidra.ibge.gov.br/values/t/3065/n1/all/v/1120/p/last%20120
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}

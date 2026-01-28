@@ -1,0 +1,14 @@
+meta {
+  name: BCB SGS - Selic Target (Serie 432)
+  type: http
+  seq: 31
+}
+
+get {
+  url: https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados?formato=json&dataInicial=01/01/2015&dataFinal=31/12/2024
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}

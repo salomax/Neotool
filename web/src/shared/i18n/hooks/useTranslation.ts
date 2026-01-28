@@ -5,8 +5,6 @@ import { useMemo } from 'react';
 import i18n from 'i18next';
 import { DomainTranslations, TranslationFunction } from '../types';
 
-// Simple registry to prevent duplicate registrations
-const registeredDomains = new Set<string>();
 
 /**
  * Register domain translations with i18next
@@ -14,19 +12,16 @@ const registeredDomains = new Set<string>();
 function registerDomain(translations: DomainTranslations) {
   const domain = translations.domain;
   
-  if (registeredDomains.has(domain)) {
-    return; // Already registered
-  }
-
   // Register each language
   Object.entries(translations).forEach(([language, translationData]) => {
     if (language !== 'domain' && typeof translationData === 'object') {
-      // Use i18next's addResourceBundle
-      i18n.addResourceBundle(language, domain, translationData, true, true);
+      // Check if resource bundle exists before adding
+      // This is safer than a side-effect Set because it checks the actual i18n instance state
+      if (!i18n.hasResourceBundle(language, domain)) {
+        i18n.addResourceBundle(language, domain, translationData, true, true);
+      }
     }
   });
-
-  registeredDomains.add(domain);
 }
 
 /**

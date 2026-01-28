@@ -4,7 +4,9 @@
 # ============================================================================
 
 scalar Long
+scalar Date
 scalar DateTime
+scalar JSON
 scalar UUID
 
 # ============================================================================
@@ -28,6 +30,12 @@ extend type Query {
   # Institution detail query
   # anoMes: Quarter filter (YYYYMM format). If not provided, uses latest quarter globally.
   bacenFinanceInstitution(id: ID!, anoMes: String): BacenFinanceInstitution
+  # Rating issuers
+  ratingIssuers: [RatingIssuer!]!
+  # Economic indicators
+  economicIndicators: [EconomicIndicator!]!
+  indicatorSeries(indicator: String!, variation: String!, range: IndicatorRangeInput, limit: Int): EconomicIndicatorSeries
+  indicatorLatest(indicator: String!, variation: String!): EconomicIndicatorPoint
 }
 
 # Enums
@@ -119,11 +127,27 @@ type BacenFinanceInstitution {
   # Reports
   reportsSummary(range: QuarterRangeInput!): ReportsAvailability!
   reportDetails(reportId: ID!, range: QuarterRangeInput!): ReportDetails!
+
+  """
+  Current ratings from all issuers for this institution
+  """
+  ratings: [InstitutionRating!]
+
+  """
+  Historical rating changes for this institution
+  """
+  ratingHistory(limit: Int = 50): [RatingHistory!]
 }
 
 input QuarterRangeInput {
   from: String # "YYYYMM"
   to: String   # "YYYYMM"
+  last: Int
+}
+
+input IndicatorRangeInput {
+  from: Date
+  to: Date
   last: Int
 }
 
@@ -162,3 +186,68 @@ type QuarterValue {
   value: Float
 }
 
+# Ratings types
+type RatingIssuer {
+  id: ID!
+  code: String!
+  name: String!
+  website: String
+  logoAssetId: String
+}
+
+type InstitutionRating {
+  id: ID!
+  name: String!
+  label: String!
+  ratingDate: Date!
+  customParams: JSON
+  issuer: RatingIssuer!
+  updatedAt: DateTime!
+}
+
+type RatingHistory {
+  id: ID!
+  name: String!
+  label: String!
+  ratingDate: Date!
+  customParams: JSON
+  issuerCode: String!
+  changedAt: DateTime!
+}
+
+# Economic indicators
+type EconomicIndicator {
+  id: ID!
+  countryCode: String!
+  label: String!
+  issuer: String!
+  description: String
+  frequency: String!
+  unit: String!
+  isActive: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  variations: [EconomicIndicatorVariation!]!
+}
+
+type EconomicIndicatorVariation {
+  id: ID!
+  label: String!
+  unit: String
+  isDefault: Boolean!
+  incrementalMonths: Int
+  incrementalYears: Int
+  incrementalDays: Int
+}
+
+type EconomicIndicatorSeries {
+  indicator: String!
+  variation: String!
+  unit: String
+  values: [EconomicIndicatorPoint!]!
+}
+
+type EconomicIndicatorPoint {
+  referenceDate: Date!
+  value: Float!
+}

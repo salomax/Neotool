@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/invistus/bacen-ifdata/internal/application"
+	"github.com/invistus/bacen-ifdata/internal/domain"
 	"github.com/invistus/bacen-ifdata/internal/infrastructure/bacen"
 	"github.com/invistus/bacen-ifdata/internal/infrastructure/database"
 	"github.com/invistus/bacen-ifdata/internal/infrastructure/kafka"
@@ -22,6 +23,7 @@ func main() {
 	forceRegistryRefresh := flag.Bool("force-registry-refresh", false, "Force registry refresh even if exists")
 	promoteOnly := flag.Bool("promote-only", false, "Only promote data (skip extraction) - requires ano-mes")
 	institutionOnly := flag.Bool("institution-only", false, "Only ingest institution registry (skip bank report extraction)")
+	republishAll := flag.Bool("republish-all", false, "Republish all institution events for ano-mes from DB")
 	flag.Parse()
 
 	// Setup logger (text output for terminal readability)
@@ -33,7 +35,8 @@ func main() {
 		"ano_mes", *anoMes,
 		"force_registry_refresh", *forceRegistryRefresh,
 		"promote_only", *promoteOnly,
-		"institution_only", *institutionOnly)
+		"institution_only", *institutionOnly,
+		"republish_all", *republishAll)
 
 	// Load configuration
 	config, err := application.LoadConfig()
@@ -108,6 +111,42 @@ func main() {
 
 	// Create health server (disabled for CLI, no Kafka in CLI mode)
 	healthServer := application.NewHealthServer(config.HealthCheck.Port, dbPool, nil, logger)
+
+	if *republishAll {
+		if *anoMes == "" {
+			log.Fatalf("ano-mes is required when using --republish-all flag")
+		}
+
+		logger.Info("republishing all institution events from database", "ano_mes", *anoMes)
+
+		institutions, err := institutionRepo.ListByAnoMes(ctx, *anoMes)
+		if err != nil {
+			log.Fatalf("Failed to list institutions: %v", err)
+		}
+		if len(institutions) == 0 {
+			log.Fatalf("No institutions found for ano_mes=%s", *anoMes)
+		}
+
+		changes := make([]domain.InstitutionChange, 0, len(institutions))
+		for _, inst := range institutions {
+			changes = append(changes, domain.InstitutionChange{
+				Institution: *inst,
+				ChangeType:  domain.ChangeTypeUpdated,
+			})
+		}
+
+		published, failed, err := kafkaPublisher.PublishChanges(ctx, changes)
+		if err != nil {
+			log.Fatalf("Failed to republish institution events: %v", err)
+		}
+
+		logger.Info("republish completed",
+			"ano_mes", *anoMes,
+			"published", published,
+			"failed", failed)
+
+		return
+	}
 
 	// Handle promote-only mode
 	if *promoteOnly {

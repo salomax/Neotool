@@ -1,0 +1,14 @@
+meta {
+  name: IBGE SIDRA - IPCA-15 Monthly Variation (Table 3065 VAR 355)
+  type: http
+  seq: 25
+}
+
+get {
+  url: https://apisidra.ibge.gov.br/values/t/3065/n1/all/v/355/p/last%20120
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}

@@ -65,7 +65,7 @@ type RawDataRepository interface {
 // BankReportRepository defines the interface for normalized bank report persistence
 type BankReportRepository interface {
 	// UpsertReport upserts a bank report (parent) and its data rows (children)
-	UpsertReport(ctx context.Context, report *BankReport, dataRows []BankReportData) error
+	UpsertReport(ctx context.Context, report *InstitutionReport, dataRows []InstitutionReportData) error
 
 	// DeleteByScope deletes reports for a specific scope
 	DeleteByScope(ctx context.Context, anoMes, nomeRelatorio, numeroRelatorio string) error

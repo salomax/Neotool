@@ -1,0 +1,50 @@
+meta {
+  name: Get Economic Indicators
+  type: graphql
+  seq: 7
+}
+
+post {
+  url: http://{{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  query EconomicIndicators {
+    economicIndicators {
+      id
+      countryCode
+      label
+      issuer
+      description
+      frequency
+      unit
+      isActive
+      variations {
+        id
+        label
+        unit
+        isDefault
+        incrementalMonths
+        incrementalYears
+        incrementalDays
+      }
+    }
+  }
+}
+
+tests {
+  test("status 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Has economicIndicators", function() {
+    const data = res.getBody();
+    expect(data.data.economicIndicators).to.be.an('array');
+  });
+}

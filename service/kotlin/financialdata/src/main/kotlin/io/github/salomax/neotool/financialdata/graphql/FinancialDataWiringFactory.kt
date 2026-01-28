@@ -12,16 +12,22 @@ import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionAutoc
 import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionConnectionDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionEdgeDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionSummaryItemDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.InstitutionRatingDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.PageInfoDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.QuarterReportsDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.QuarterValueDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.RatingHistoryDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.ReportAccountDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.ReportDescriptorDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.ReportDetailsDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.ReportsAvailabilityDTO
 import io.github.salomax.neotool.financialdata.graphql.resolver.BacenInstitutionDetailResolver
+import io.github.salomax.neotool.financialdata.graphql.resolver.FinancialInstitutionRatingResolver
+import io.github.salomax.neotool.financialdata.graphql.resolver.IndicatorResolver
+import io.github.salomax.neotool.financialdata.graphql.resolver.IndicatorValueResolver
 import io.github.salomax.neotool.financialdata.graphql.resolver.InstitutionSearchResolver
 import jakarta.inject.Singleton
+import java.time.ZoneOffset
 
 /**
  * Financial Data module wiring factory for GraphQL resolvers.
@@ -30,12 +36,18 @@ import jakarta.inject.Singleton
 class FinancialDataWiringFactory(
     private val institutionSearchResolver: InstitutionSearchResolver,
     private val institutionDetailResolver: BacenInstitutionDetailResolver,
+    private val ratingResolver: FinancialInstitutionRatingResolver,
+    private val indicatorResolver: IndicatorResolver,
+    private val indicatorValueResolver: IndicatorValueResolver,
     resolverRegistry: GraphQLResolverRegistry,
 ) : GraphQLWiringFactory() {
     init {
         // Register resolvers in the registry for cross-module access
         resolverRegistry.register("institutionSearch", institutionSearchResolver)
         resolverRegistry.register("institutionDetail", institutionDetailResolver)
+        resolverRegistry.register("ratingResolver", ratingResolver)
+        resolverRegistry.register("indicatorResolver", indicatorResolver)
+        resolverRegistry.register("indicatorValueResolver", indicatorValueResolver)
     }
 
     override fun registerQueryResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder {
@@ -68,6 +80,30 @@ class FinancialDataWiringFactory(
                             ?: throw IllegalArgumentException("id parameter is required")
                     val anoMes = env.getArgument<String?>("anoMes")
                     institutionDetailResolver.bacenFinanceInstitution(id, anoMes)
+                },
+            )
+            .dataFetcher(
+                "ratingIssuers",
+                createValidatedDataFetcher { env ->
+                    ratingResolver.ratingIssuers(env)
+                },
+            )
+            .dataFetcher(
+                "economicIndicators",
+                createValidatedDataFetcher { env ->
+                    indicatorResolver.economicIndicators(env)
+                },
+            )
+            .dataFetcher(
+                "indicatorSeries",
+                createValidatedDataFetcher { env ->
+                    indicatorValueResolver.indicatorSeries(env)
+                },
+            )
+            .dataFetcher(
+                "indicatorLatest",
+                createValidatedDataFetcher { env ->
+                    indicatorValueResolver.indicatorLatest(env)
                 },
             )
     }
@@ -484,6 +520,18 @@ class FinancialDataWiringFactory(
                             institutionDetailResolver.reportDetails(env)
                         },
                     )
+                    .dataFetcher(
+                        "ratings",
+                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                            ratingResolver.ratings(env)
+                        },
+                    )
+                    .dataFetcher(
+                        "ratingHistory",
+                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                            ratingResolver.ratingHistory(env)
+                        },
+                    )
             }
             // ReportsAvailability type resolvers
             .type("ReportsAvailability") { type ->
@@ -614,6 +662,26 @@ class FinancialDataWiringFactory(
                             value?.value
                         },
                     )
+            }
+            .type("InstitutionRating") { type ->
+                type.dataFetcher(
+                    "updatedAt",
+                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                        val rating = env.getSource<InstitutionRatingDTO>()
+                        // Convert Instant to OffsetDateTime for GraphQL DateTime scalar
+                        rating?.updatedAt?.atOffset(ZoneOffset.UTC)
+                    },
+                )
+            }
+            .type("RatingHistory") { type ->
+                type.dataFetcher(
+                    "changedAt",
+                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                        val history = env.getSource<RatingHistoryDTO>()
+                        // Convert Instant to OffsetDateTime for GraphQL DateTime scalar
+                        history?.changedAt?.atOffset(ZoneOffset.UTC)
+                    },
+                )
             }
     }
 }

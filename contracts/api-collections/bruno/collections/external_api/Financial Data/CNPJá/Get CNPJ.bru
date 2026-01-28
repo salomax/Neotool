@@ -1,0 +1,20 @@
+meta {
+  name: Get CNPJ
+  type: http
+  seq: 4
+}
+
+get {
+  url: api.cnpja.com/office/37335118000180
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: {{cnpja_token}}
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

@@ -1,0 +1,14 @@
+meta {
+  name: IBGE SIDRA - IPCA Monthly Variation (Table 1737 VAR 63)
+  type: http
+  seq: 22
+}
+
+get {
+  url: https://apisidra.ibge.gov.br/values/t/1737/n1/all/v/63/p/last%20120
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}

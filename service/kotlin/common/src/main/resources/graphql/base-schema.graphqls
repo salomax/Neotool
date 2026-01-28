@@ -6,7 +6,9 @@ directive @external on FIELD_DEFINITION
 
 # Common scalar types
 scalar Long
+scalar Date
 scalar DateTime
+scalar JSON
 scalar UUID
 
 # Common query patterns

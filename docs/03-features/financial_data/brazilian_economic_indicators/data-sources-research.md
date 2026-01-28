@@ -42,9 +42,12 @@ official sources, access methods, and practical constraints discovered.
 ## 1.1) SIDRA Table Codes (Initial Mapping)
 
 **Inflation (SIDRA / IPCA):**
-- **IPCA**: SIDRA table **1737** (IPCA - Serie Historica). Use this as the default table for IPCA time series. (Table code from IBGE SIDRA IPCA page)
-- **IPCA-15**: SIDRA table **3065** (IPCA-15 - Serie Historica). (Table code from IBGE SIDRA IPCA-15 page)
-- **INPC**: SIDRA table **1736** (INPC - Serie Historica). (Table code from IBGE SIDRA INPC page)
+- **IPCA**: SIDRA table **1737** (IPCA - Serie Historica). Numero-indice VAR_CODE **2266**.
+- **IPCA-15**: SIDRA table **3065** (IPCA-15 - Serie Historica). Numero-indice VAR_CODE **1117**.
+- **INPC**: SIDRA table **1736** (INPC - Serie Historica). Numero-indice VAR_CODE **2289**.
+  - **Monthly variation**: IPCA VAR_CODE **63**, IPCA-15 VAR_CODE **355**, INPC VAR_CODE **44**.
+  - **YTD (acumulado no ano)**: IPCA VAR_CODE **69**, IPCA-15 VAR_CODE **356**, INPC VAR_CODE **68**.
+  - **12-month (acumulado 12 meses)**: IPCA VAR_CODE **2265**, IPCA-15 VAR_CODE **1120**, INPC VAR_CODE **2292**.
 
 **PNAD Continua (SIDRA / trabalho):**
 - **Taxa de desocupacao (unemployment rate)**: SIDRA table **6381** (PNAD Continua - taxa de desocupacao). (Table code from PNADC tables list)
@@ -105,7 +108,10 @@ official sources, access methods, and practical constraints discovered.
 - **Reservas internacionais - conceito caixa - total - diaria**: SGS **13621**. Use for daily or monthly aggregation.
 
 **Resultado primario**:
-- Multiple SGS series exist for fiscal results. One example is SGS **7870** (NFSP - Resultado primario - total - INSS - % PIB). The final indicator definition must select the official series for the desired scope (e.g., setor publico consolidado).
+- Multiple SGS series exist for fiscal results. Current mapping uses SGS **4649** (NFSP - Resultado primario - total - setor publico consolidado - R$ milhoes). Confirm the scope if needed.
+
+**Selic Meta**:
+- SGS **432** is commonly referenced for Selic target rate (pending confirmation via SGS metadata lookup).
 
 > **Note**: The SGS series IDs above are verified via the BCB open data portal (SGS series pages/resources).
 > Remaining series for **Selic Meta**, **CDI**, and **DI Over** must be confirmed via SGS portal search and standardized.
@@ -127,6 +133,24 @@ official sources, access methods, and practical constraints discovered.
 **Notes**:
 - IPC-S has **weekly** collection and publication, with release typically one day after close.
 - Confirm if FGV offers an **official API** or only portal access.
+
+**Alternative (recommended for redistribution): Ipeadata (OData API)**
+
+Ipeadata provides public OData endpoints for several FGV indices. The job can use the
+series codes below and fetch directly from:
+`http://www.ipeadata.gov.br/api/odata4/ValoresSerie(SERCODIGO='{SERCODIGO}')`
+
+Mapped series (FGV via Ipeadata):
+- **IGP-M (monthly change)**: `IGP12_IGPMG12`
+- **IGP-M (index, points)**: `IGP12_IGPM12` (used to compute YTD and rolling 12m)
+- **IGP-M (YTD)**: computed from `IGP12_IGPM12` vs Dec of previous year
+- **IGP-M (rolling 12m)**: computed from `IGP12_IGPM12` vs 12 months prior
+- **IGP-DI (12m change)**: `IGP12_IGPDI12`
+- **IGP-10 (index)**: TODO (confirm Ipeadata series code)
+
+**IPC-S**: not found on Ipeadata catalog yet. If required, we can:
+- keep IPC-S pending until a valid Ipeadata series is confirmed, or
+- use another public source with redistribution rights.
 
 ---
 
@@ -210,11 +234,41 @@ Requests included:
 - BCB SGS (templates): Series metadata lookup, Series data lookup, Selic annualized 252 (serie 1178), Debt/GDP (serie 13762), Current Account (serie 22701)
 - IBGE Agregados (discovery): Variables per table for IPCA (1737), IPCA-15 (3065), INPC (1736), PNAD unemployment (6381), renda media (6387/6390), PIB quarterly (1620), PIB anual/per capita (6784)
 - IBGE SIDRA templates: IPCA (1737), IPCA-15 (3065), INPC (1736), PNAD unemployment (6381), PIB quarterly (1620)
+- IBGE SIDRA (10-year history, monthly): IPCA monthly/YTD/12M, IPCA-15 monthly/YTD/12M, INPC monthly/YTD/12M
 - Comex Stat template: Trade Balance (POST /general)
 
 SIDRA requests are **templates** and require confirmation of variable codes (`{VAR_CODE}`) via Agregados API.
+For 10-year history of monthly series, use `p/last 120`.
 
 ---
+
+## Indicator x Variacao x Bruno Request
+
+| Indicator | Variacao | Bruno request |
+| --- | --- | --- |
+| IPCA | Variação mensal | `invistus/contracts/api-collections/bruno/collections/external_api/Financial Data/Indicators/IBGE SIDRA - IPCA Monthly Variation (Table 1737 VAR 63).bru` |
+| IPCA | Acumulado no ano (YTD) | `invistus/contracts/api-collections/bruno/collections/external_api/Financial Data/Indicators/IBGE SIDRA - IPCA YTD (Table 1737 VAR 69).bru` |
+| IPCA | Acumulado 12 meses | `invistus/contracts/api-collections/bruno/collections/external_api/Financial Data/Indicators/IBGE SIDRA - IPCA 12M (Table 1737 VAR 2265).bru` |
+| IPCA-15 | Variação mensal | `invistus/contracts/api-collections/bruno/collections/external_api/Financial Data/Indicators/IBGE SIDRA - IPCA-15 Monthly Variation (Table 3065 VAR 355).bru` |
+| IPCA-15 | Acumulado no ano (YTD) | `invistus/contracts/api-collections/bruno/collections/external_api/Financial Data/Indicators/IBGE SIDRA - IPCA-15 YTD (Table 3065 VAR 356).bru` |
+| IPCA-15 | Acumulado 12 meses | `invistus/contracts/api-collections/bruno/collections/external_api/Financial Data/Indicators/IBGE SIDRA - IPCA-15 12M (Table 3065 VAR 1120).bru` |
+| INPC | Variação mensal | `invistus/contracts/api-collections/bruno/collections/external_api/Financial Data/Indicators/IBGE SIDRA - INPC Monthly Variation (Table 1736 VAR 44).bru` |
+| INPC | Acumulado no ano (YTD) | `invistus/contracts/api-collections/bruno/collections/external_api/Financial Data/Indicators/IBGE SIDRA - INPC YTD (Table 1736 VAR 68).bru` |
+| INPC | Acumulado 12 meses | `invistus/contracts/api-collections/bruno/collections/external_api/Financial Data/Indicators/IBGE SIDRA - INPC 12M (Table 1736 VAR 2292).bru` |
+| Selic | Meta (Copom) | `invistus/contracts/api-collections/bruno/collections/external_api/Financial Data/Indicators/BCB SGS - Selic Target (Serie 432).bru` |
+| Selic | Efetiva (diária) | `invistus/contracts/api-collections/bruno/collections/external_api/Financial Data/Indicators/BCB SGS - Selic Daily (Serie 11).bru` |
+| Conta Corrente | Valor (US$ mi) | `invistus/contracts/api-collections/bruno/collections/external_api/Financial Data/Indicators/BCB SGS - Current Account Balance (Serie 22701).bru` |
+| Reservas Internacionais | Valor (US$ mi) | `invistus/contracts/api-collections/bruno/collections/external_api/Financial Data/Indicators/BCB SGS - International Reserves (Serie 13621).bru` |
+| Dívida/PIB | % PIB | `invistus/contracts/api-collections/bruno/collections/external_api/Financial Data/Indicators/BCB SGS - Public Debt GDP (Serie 13762).bru` |
+| Resultado Primário | Valor (R$ mi) | `invistus/contracts/api-collections/bruno/collections/external_api/Financial Data/Indicators/BCB SGS - Primary Result (Serie 4649).bru` |
+| PIB | Valor (corrente, anual) | `invistus/contracts/api-collections/bruno/collections/external_api/Financial Data/Indicators/IBGE SIDRA - PIB Current Values (Table 6784 VAR 9808).bru` |
+| Desemprego | Taxa (%) | `invistus/contracts/api-collections/bruno/collections/external_api/Financial Data/Indicators/IBGE SIDRA - Unemployment Rate (Table 6381 VAR 4099).bru` |
+| Renda média | Habitual (R$) | `invistus/contracts/api-collections/bruno/collections/external_api/Financial Data/Indicators/IBGE SIDRA - Average Income Habitual (Table 6390 VAR 5933).bru` |
+| Renda média | Efetiva (R$) | `invistus/contracts/api-collections/bruno/collections/external_api/Financial Data/Indicators/IBGE SIDRA - Average Income Effective (Table 6387 VAR 5935).bru` |
+
+---
+
+**Note**: Selic Meta series code (432) is pending confirmation via BCB SGS metadata. PIB here uses the annual current values series from table 6784.
 
 ## Open Items / To Confirm
 

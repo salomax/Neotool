@@ -1,0 +1,14 @@
+meta {
+  name: IBGE SIDRA - Average Income Effective (Table 6387 VAR 5935)
+  type: http
+  seq: 34
+}
+
+get {
+  url: https://apisidra.ibge.gov.br/values/t/6387/n1/all/v/5935/p/last%20120
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}

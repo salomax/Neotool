@@ -6,15 +6,18 @@ services:
   # Profile: database
   # -------------------------------------------------------------
   postgres:
-    image: postgres:18rc1
+    image: postgres:18.1-alpine
     container_name: neotool-postgres
     restart: unless-stopped
-    env_file: .env
     ports: ["5432:5432"]      
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:
       - postgres-internal
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}      
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
       interval: 10s
@@ -25,9 +28,8 @@ services:
 
   # Database initializer - runs on every 'docker compose up', idempotent
   postgres-init:
-    image: postgres:18rc1
+    image: postgres:18.1-alpine
     container_name: neotool-postgres-init
-    env_file: ../.env.local
     volumes:
       - ../postgres/init-databases.sh:/init-databases.sh:ro
     depends_on:
@@ -46,7 +48,12 @@ services:
   pgbouncer:
     image: edoburu/pgbouncer:v1.25.1-p0
     container_name: neotool-pgbouncer
-    env_file: .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      PGHOST: neotool-postgres
+      PGPORT: ${POSTGRES_PORT:-5432}  
     depends_on:
       postgres:
         condition: service_healthy
@@ -102,115 +109,6 @@ services:
       retries: 5
     profiles:
       - kafka
-
-  # -------------------------------------------------------------
-  # Institution Enhancement Consumer (Go)
-  # -------------------------------------------------------------
-  institution-enhancement-consumer:
-    build:
-      context: ../../workflow/go/financial_data/institution_enhancement
-      dockerfile: deployments/docker/Dockerfile
-      target: consumer
-    container_name: neotool-institution-enhancement-consumer-go
-    env_file: .env
-    environment:
-      POSTGRES_HOST: pgbouncer
-      POSTGRES_PORT: 6432
-      KAFKA_BROKERS: kafka:9092
-      KAFKA_TOPIC: financial-data.institution.upserted
-      KAFKA_CONSUMER_GROUP: institution-enhancement-consumer-go
-      KAFKA_DLQ_TOPIC: financial-data.institution.upserted.enhancement.dlq
-      CNPJA_TIMEOUT_SECONDS: 30
-      CNPJA_RATE_LIMIT_SECONDS: 15
-      HEALTH_CHECK_ENABLED: "true"
-      HEALTH_CHECK_PORT: 8080
-      RETRY_MAX_RETRIES: 3
-      RETRY_INITIAL_DELAY_MS: 1000
-      RETRY_MAX_DELAY_MS: 30000
-      RETRY_BACKOFF_MULTIPLIER: 2.0
-      RETRY_JITTER: "true"
-      WORKER_POOL_SIZE: 5
-    restart: unless-stopped
-    ports:
-      - "8080:8080"  # Health check endpoint
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
-      start_period: 40s
-      retries: 3
-
-  # -------------------------------------------------------------
-  # Institution Enhancement DLQ Consumer (Go) - ON-DEMAND ONLY
-  # Usage: docker compose -f infra/docker/docker-compose.local.yml run --rm institution-enhancement-dlq-consumer
-  # -------------------------------------------------------------
-  institution-enhancement-dlq-consumer:
-    build:
-      context: ../../workflow/go/financial_data/institution_enhancement
-      dockerfile: deployments/docker/Dockerfile
-      target: dlq-consumer
-    env_file: .env
-    environment:
-      POSTGRES_HOST: pgbouncer
-      POSTGRES_PORT: 6432
-      KAFKA_BROKERS: kafka:9092
-      KAFKA_TOPIC: financial-data.institution.upserted
-      KAFKA_CONSUMER_GROUP: institution-enhancement-consumer-go-dlq
-      KAFKA_DLQ_TOPIC: financial-data.institution.upserted.enhancement.dlq
-      CNPJA_TIMEOUT_SECONDS: 30
-      CNPJA_RATE_LIMIT_SECONDS: 15
-      HEALTH_CHECK_ENABLED: "false"
-      RETRY_MAX_RETRIES: 3
-      RETRY_INITIAL_DELAY_MS: 1000
-      RETRY_MAX_DELAY_MS: 30000
-      RETRY_BACKOFF_MULTIPLIER: 2.0
-      RETRY_JITTER: "true"
-    profiles:
-      - tools  # Only runs when explicitly called with --profile tools or via 'run'
-
-  # -------------------------------------------------------------
-  # Institution Enhancement DLQ Inspector (Go) - ON-DEMAND ONLY
-  # Usage: docker compose -f infra/docker/docker-compose.local.yml run --rm institution-enhancement-dlq-inspector
-  # -------------------------------------------------------------
-  institution-enhancement-dlq-inspector:
-    build:
-      context: ../../workflow/go/financial_data/institution_enhancement
-      dockerfile: deployments/docker/Dockerfile
-      target: dlq-inspector
-    env_file: .env
-    environment:
-      KAFKA_BROKERS: kafka:9092
-      KAFKA_DLQ_TOPIC: financial-data.institution.upserted.enhancement.dlq
-    profiles:
-      - tools  # Only runs when explicitly called
-
-  # -------------------------------------------------------------
-  # DLQ Retry Consumer (Go) - Shared Service
-  # Automatically retries transient errors from all DLQs with cooling-off periods
-  # Can be run as:
-  #   - CronJob in K8s (recommended for production)
-  #   - On-demand: docker compose -f infra/docker/docker-compose.local.yml run --rm dlq-retry-consumer
-  #   - Scheduled daemon (use --profile dlq-retry for auto-start)
-  # -------------------------------------------------------------
-  dlq-retry-consumer:
-    build:
-      context: ../../workflow/go/shared/dlq-retry-consumer
-      dockerfile: Dockerfile
-    container_name: neotool-dlq-retry-consumer
-    env_file: .env
-    environment:
-      KAFKA_BROKERS: kafka:9092
-      DLQ_CONFIG_PATH: /app/config/dlq-mappings.yaml
-      LOG_LEVEL: info
-    volumes:
-      # Mount custom config if needed (optional - uses default if not provided)
-      - ../../workflow/go/shared/dlq-retry-consumer/config/dlq-mappings.yaml:/app/config/dlq-mappings.yaml:ro
-    depends_on:
-      kafka:
-        condition: service_healthy
-    profiles:
-      - tools  # Only runs when explicitly called or use --profile dlq-retry for auto-start
-    restart: "no"  # Don't auto-restart - designed for one-shot execution
 
   # -------------------------------------------------------------
   # API Gateway Stack
@@ -311,7 +209,6 @@ services:
   grafana:
     image: grafana/grafana:11.1.4
     container_name: neotool-grafana
-    env_file: .env
     ports:
       - "3001:3000"
     volumes:
@@ -329,7 +226,6 @@ services:
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter:latest
     container_name: neotool-postgres-exporter
-    env_file: .env
     environment:
       DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-neotool}:${POSTGRES_PASSWORD:-neotool}@pgbouncer:6432/${POSTGRES_DB:-neotool_db}?sslmode=disable"
     ports:
@@ -375,7 +271,6 @@ services:
     image: unleashorg/unleash-server:latest
     container_name: neotool-unleash
     restart: unless-stopped
-    env_file: .env
     environment:
       # Database configuration (via PgBouncer)
       DATABASE_URL: postgres://${UNLEASH_USER:-neotool}:${UNLEASH_PASSWORD:-neotool}@pgbouncer:6432/${UNLEASH_DB:-unleash_db}?sslmode=disable
@@ -409,7 +304,6 @@ services:
     image: unleashorg/unleash-edge:latest
     container_name: neotool-unleash-edge
     restart: unless-stopped
-    env_file: .env
     command:
       - edge
       - --upstream-url=http://unleash:4242

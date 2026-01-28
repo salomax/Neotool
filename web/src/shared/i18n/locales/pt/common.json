@@ -26,7 +26,12 @@
     "examples": "Exemplos",
     "forms": "Formulários",
     "settings": "Configurações",
-    "financialInstitutions": "Instituições Financeiras"
+    "financialInstitutions": "Instituições Financeiras",
+    "financialData": "Dados Financeiros"
+  },
+  "search": {
+    "placeholder": "Buscar...",
+    "label": "Buscar"
   },
   "actions": {
     "save": "Salvar",
