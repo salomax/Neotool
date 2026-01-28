@@ -23,6 +23,8 @@ import io.github.salomax.neotool.financialdata.graphql.dto.ReportDetailsDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.ReportsAvailabilityDTO
 import io.github.salomax.neotool.financialdata.graphql.resolver.BacenInstitutionDetailResolver
 import io.github.salomax.neotool.financialdata.graphql.resolver.FinancialInstitutionRatingResolver
+import io.github.salomax.neotool.financialdata.graphql.resolver.IndicatorResolver
+import io.github.salomax.neotool.financialdata.graphql.resolver.IndicatorValueResolver
 import io.github.salomax.neotool.financialdata.graphql.resolver.InstitutionSearchResolver
 import jakarta.inject.Singleton
 import java.time.ZoneOffset
@@ -35,6 +37,8 @@ class FinancialDataWiringFactory(
     private val institutionSearchResolver: InstitutionSearchResolver,
     private val institutionDetailResolver: BacenInstitutionDetailResolver,
     private val ratingResolver: FinancialInstitutionRatingResolver,
+    private val indicatorResolver: IndicatorResolver,
+    private val indicatorValueResolver: IndicatorValueResolver,
     resolverRegistry: GraphQLResolverRegistry,
 ) : GraphQLWiringFactory() {
     init {
@@ -42,6 +46,8 @@ class FinancialDataWiringFactory(
         resolverRegistry.register("institutionSearch", institutionSearchResolver)
         resolverRegistry.register("institutionDetail", institutionDetailResolver)
         resolverRegistry.register("ratingResolver", ratingResolver)
+        resolverRegistry.register("indicatorResolver", indicatorResolver)
+        resolverRegistry.register("indicatorValueResolver", indicatorValueResolver)
     }
 
     override fun registerQueryResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder {
@@ -80,6 +86,24 @@ class FinancialDataWiringFactory(
                 "ratingIssuers",
                 createValidatedDataFetcher { env ->
                     ratingResolver.ratingIssuers(env)
+                },
+            )
+            .dataFetcher(
+                "economicIndicators",
+                createValidatedDataFetcher { env ->
+                    indicatorResolver.economicIndicators(env)
+                },
+            )
+            .dataFetcher(
+                "indicatorSeries",
+                createValidatedDataFetcher { env ->
+                    indicatorValueResolver.indicatorSeries(env)
+                },
+            )
+            .dataFetcher(
+                "indicatorLatest",
+                createValidatedDataFetcher { env ->
+                    indicatorValueResolver.indicatorLatest(env)
                 },
             )
     }
@@ -634,10 +658,10 @@ class FinancialDataWiringFactory(
                     .dataFetcher(
                         "value",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val value = env.getSource<QuarterValueDTO>()
-                        value?.value
-                    },
-                )
+                            val value = env.getSource<QuarterValueDTO>()
+                            value?.value
+                        },
+                    )
             }
             .type("InstitutionRating") { type ->
                 type.dataFetcher(

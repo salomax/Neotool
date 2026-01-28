@@ -17,6 +17,10 @@ extend type Query {
   bacenFinanceInstitution(id: ID!, anoMes: String): BacenFinanceInstitution
   # Rating issuers
   ratingIssuers: [RatingIssuer!]!
+  # Economic indicators
+  economicIndicators: [EconomicIndicator!]!
+  indicatorSeries(indicator: String!, variation: String!, range: IndicatorRangeInput, limit: Int): EconomicIndicatorSeries
+  indicatorLatest(indicator: String!, variation: String!): EconomicIndicatorPoint
 }
 
 # Enums
@@ -126,6 +130,12 @@ input QuarterRangeInput {
   last: Int
 }
 
+input IndicatorRangeInput {
+  from: Date
+  to: Date
+  last: Int
+}
+
 type ReportsAvailability {
   quarters: [QuarterReports!]!
 }
@@ -188,4 +198,41 @@ type RatingHistory {
   customParams: JSON
   issuerCode: String!
   changedAt: DateTime!
+}
+
+# Economic indicators
+type EconomicIndicator {
+  id: ID!
+  countryCode: String!
+  label: String!
+  issuer: String!
+  description: String
+  frequency: String!
+  unit: String!
+  isActive: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  variations: [EconomicIndicatorVariation!]!
+}
+
+type EconomicIndicatorVariation {
+  id: ID!
+  label: String!
+  unit: String
+  isDefault: Boolean!
+  incrementalMonths: Int
+  incrementalYears: Int
+  incrementalDays: Int
+}
+
+type EconomicIndicatorSeries {
+  indicator: String!
+  variation: String!
+  unit: String
+  values: [EconomicIndicatorPoint!]!
+}
+
+type EconomicIndicatorPoint {
+  referenceDate: Date!
+  value: Float!
 }

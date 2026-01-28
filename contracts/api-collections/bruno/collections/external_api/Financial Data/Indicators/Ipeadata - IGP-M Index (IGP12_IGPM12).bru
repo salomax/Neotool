@@ -1,0 +1,15 @@
+meta {
+  name: Ipeadata - IGP-M Index (IGP12_IGPM12)
+  type: http
+  seq: 63
+}
+
+get {
+  url: http://www.ipeadata.gov.br/api/odata4/ValoresSerie(SERCODIGO='IGP12_IGPM12')
+  body: none
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}

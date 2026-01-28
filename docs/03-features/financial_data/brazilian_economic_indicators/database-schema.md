@@ -44,6 +44,9 @@ Represents a measure of an indicator (e.g., `MONTHLY_CHANGE`, `YTD`, `ROLLING_12
 - `label` (TEXT, NOT NULL) — SNAKE_CASE_UPPER
 - `unit` (TEXT, nullable) — override when different from indicator
 - `is_default` (BOOLEAN, NOT NULL, default false)
+- `incremental_months` (INT, nullable) — override for incremental window (SIDRA)
+- `incremental_years` (INT, nullable) — override for incremental window (annual series)
+- `incremental_days` (INT, nullable) — override for incremental window (daily series)
 - `created_at` (TIMESTAMPTZ, NOT NULL, default now())
 - `updated_at` (TIMESTAMPTZ, NOT NULL, default now())
 
@@ -70,6 +73,32 @@ Stores time-series values by indicator variation.
 
 **Indexes**:
 - `idx_indicator_value_variation_date` on `(indicator_variation_id, reference_date DESC)`
+
+---
+
+### 4) `financial_data.indicator_load_control`
+
+Tracks async job execution per indicator variation.
+
+**Columns**:
+- `id` (UUID, PK, default `uuidv7()`)
+- `indicator_variation_id` (UUID, FK → `financial_data.indicator_variation(id)`, ON DELETE CASCADE)
+- `run_type` (TEXT, NOT NULL) — FULL, INCREMENTAL, BACKFILL
+- `status` (TEXT, NOT NULL) — PENDING, RUNNING, SUCCESS, FAILED, SKIPPED
+- `scheduled_at` (TIMESTAMPTZ, nullable)
+- `started_at` (TIMESTAMPTZ, nullable)
+- `finished_at` (TIMESTAMPTZ, nullable)
+- `last_reference_date` (DATE, nullable)
+- `last_publication_date` (DATE, nullable)
+- `cursor` (JSONB, nullable)
+- `error_message` (TEXT, nullable)
+- `attempts` (INT, NOT NULL, default 0)
+- `created_at` (TIMESTAMPTZ, NOT NULL, default now())
+- `updated_at` (TIMESTAMPTZ, NOT NULL, default now())
+
+**Indexes**:
+- `idx_indicator_load_control_variation` on `(indicator_variation_id)`
+- `idx_indicator_load_control_status` on `(status)`
 
 ---
 
@@ -102,6 +131,9 @@ CREATE TABLE IF NOT EXISTS financial_data.indicator_variation (
     label TEXT NOT NULL,
     unit TEXT,
     is_default BOOLEAN NOT NULL DEFAULT false,
+    incremental_months INT,
+    incremental_years INT,
+    incremental_days INT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT uq_indicator_variation UNIQUE (indicator_id, label)
@@ -121,6 +153,30 @@ CREATE TABLE IF NOT EXISTS financial_data.indicator_value (
 
 CREATE INDEX IF NOT EXISTS idx_indicator_value_variation_date
     ON financial_data.indicator_value (indicator_variation_id, reference_date DESC);
+
+-- Indicator load control
+CREATE TABLE IF NOT EXISTS financial_data.indicator_load_control (
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
+    indicator_variation_id UUID NOT NULL REFERENCES financial_data.indicator_variation(id) ON DELETE CASCADE,
+    run_type TEXT NOT NULL,
+    status TEXT NOT NULL,
+    scheduled_at TIMESTAMPTZ,
+    started_at TIMESTAMPTZ,
+    finished_at TIMESTAMPTZ,
+    last_reference_date DATE,
+    last_publication_date DATE,
+    cursor JSONB,
+    error_message TEXT,
+    attempts INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_indicator_load_control_variation
+    ON financial_data.indicator_load_control (indicator_variation_id);
+
+CREATE INDEX IF NOT EXISTS idx_indicator_load_control_status
+    ON financial_data.indicator_load_control (status);
 ```
 
 ---

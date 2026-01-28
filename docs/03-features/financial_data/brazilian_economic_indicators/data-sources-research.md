@@ -108,7 +108,10 @@ official sources, access methods, and practical constraints discovered.
 - **Reservas internacionais - conceito caixa - total - diaria**: SGS **13621**. Use for daily or monthly aggregation.
 
 **Resultado primario**:
-- Multiple SGS series exist for fiscal results. One example is SGS **7870** (NFSP - Resultado primario - total - INSS - % PIB). The final indicator definition must select the official series for the desired scope (e.g., setor publico consolidado).
+- Multiple SGS series exist for fiscal results. Current mapping uses SGS **4649** (NFSP - Resultado primario - total - setor publico consolidado - R$ milhoes). Confirm the scope if needed.
+
+**Selic Meta**:
+- SGS **432** is commonly referenced for Selic target rate (pending confirmation via SGS metadata lookup).
 
 > **Note**: The SGS series IDs above are verified via the BCB open data portal (SGS series pages/resources).
 > Remaining series for **Selic Meta**, **CDI**, and **DI Over** must be confirmed via SGS portal search and standardized.
@@ -130,6 +133,24 @@ official sources, access methods, and practical constraints discovered.
 **Notes**:
 - IPC-S has **weekly** collection and publication, with release typically one day after close.
 - Confirm if FGV offers an **official API** or only portal access.
+
+**Alternative (recommended for redistribution): Ipeadata (OData API)**
+
+Ipeadata provides public OData endpoints for several FGV indices. The job can use the
+series codes below and fetch directly from:
+`http://www.ipeadata.gov.br/api/odata4/ValoresSerie(SERCODIGO='{SERCODIGO}')`
+
+Mapped series (FGV via Ipeadata):
+- **IGP-M (monthly change)**: `IGP12_IGPMG12`
+- **IGP-M (index, points)**: `IGP12_IGPM12` (used to compute YTD and rolling 12m)
+- **IGP-M (YTD)**: computed from `IGP12_IGPM12` vs Dec of previous year
+- **IGP-M (rolling 12m)**: computed from `IGP12_IGPM12` vs 12 months prior
+- **IGP-DI (12m change)**: `IGP12_IGPDI12`
+- **IGP-10 (index)**: TODO (confirm Ipeadata series code)
+
+**IPC-S**: not found on Ipeadata catalog yet. If required, we can:
+- keep IPC-S pending until a valid Ipeadata series is confirmed, or
+- use another public source with redistribution rights.
 
 ---
 
@@ -236,6 +257,10 @@ For 10-year history of monthly series, use `p/last 120`.
 | INPC | Acumulado 12 meses | `invistus/contracts/api-collections/bruno/collections/external_api/Financial Data/Indicators/IBGE SIDRA - INPC 12M (Table 1736 VAR 2292).bru` |
 | Selic | Meta (Copom) | `invistus/contracts/api-collections/bruno/collections/external_api/Financial Data/Indicators/BCB SGS - Selic Target (Serie 432).bru` |
 | Selic | Efetiva (diária) | `invistus/contracts/api-collections/bruno/collections/external_api/Financial Data/Indicators/BCB SGS - Selic Daily (Serie 11).bru` |
+| Conta Corrente | Valor (US$ mi) | `invistus/contracts/api-collections/bruno/collections/external_api/Financial Data/Indicators/BCB SGS - Current Account Balance (Serie 22701).bru` |
+| Reservas Internacionais | Valor (US$ mi) | `invistus/contracts/api-collections/bruno/collections/external_api/Financial Data/Indicators/BCB SGS - International Reserves (Serie 13621).bru` |
+| Dívida/PIB | % PIB | `invistus/contracts/api-collections/bruno/collections/external_api/Financial Data/Indicators/BCB SGS - Public Debt GDP (Serie 13762).bru` |
+| Resultado Primário | Valor (R$ mi) | `invistus/contracts/api-collections/bruno/collections/external_api/Financial Data/Indicators/BCB SGS - Primary Result (Serie 4649).bru` |
 | PIB | Valor (corrente, anual) | `invistus/contracts/api-collections/bruno/collections/external_api/Financial Data/Indicators/IBGE SIDRA - PIB Current Values (Table 6784 VAR 9808).bru` |
 | Desemprego | Taxa (%) | `invistus/contracts/api-collections/bruno/collections/external_api/Financial Data/Indicators/IBGE SIDRA - Unemployment Rate (Table 6381 VAR 4099).bru` |
 | Renda média | Habitual (R$) | `invistus/contracts/api-collections/bruno/collections/external_api/Financial Data/Indicators/IBGE SIDRA - Average Income Habitual (Table 6390 VAR 5933).bru` |
