@@ -1,10 +1,10 @@
 package io.github.salomax.neotool.comms.graphql.resolvers
 
 import graphql.GraphQLException
+import io.github.salomax.neotool.common.graphql.InputValidator
 import io.github.salomax.neotool.comms.email.dto.EmailSendRequest
 import io.github.salomax.neotool.comms.email.dto.EmailSendResult
 import io.github.salomax.neotool.comms.email.service.EmailSendService
-import io.github.salomax.neotool.common.graphql.InputValidator
 import io.micronaut.core.type.Argument
 import io.micronaut.json.JsonMapper
 import jakarta.inject.Singleton

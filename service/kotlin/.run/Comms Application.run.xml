@@ -1,0 +1,30 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Comms Application" type="JetRunConfigurationType">
+    <envs>
+      <env name="COMMS_EMAIL_PROVIDER" value="micronaut" />
+      <env name="COMMS_SMTP_HOST" value="smtp.hostinger.com" />
+      <env name="COMMS_SMTP_PORT" value="587" />
+      <env name="COMMS_SMTP_USER" value="invistus@invistus.com.br" />
+      <env name="COMMS_SMTP_PASSWORD" value="sVox&amp;@i22&amp; " />
+      <env name="COMMS_SMTP_AUTH_ENABLED" value="true" />
+      <env name="COMMS_SMTP_STARTTLS_ENABLED" value="true" />
+    </envs>
+    <option name="MAIN_CLASS_NAME" value="io.github.salomax.neotool.comms.Application" />
+    <module name="neotool-service.comms.main" />
+    <shortenClasspath name="NONE" />
+    <extension name="net.ashald.envfile">
+      <option name="IS_ENABLED" value="true" />
+      <option name="IS_SUBST" value="true" />
+      <option name="IS_PATH_MACRO_SUPPORTED" value="false" />
+      <option name="IS_IGNORE_MISSING_FILES" value="false" />
+      <option name="IS_ENABLE_EXPERIMENTAL_INTEGRATIONS" value="false" />
+      <ENTRIES>
+        <ENTRY IS_ENABLED="true" PARSER="runconfig" IS_EXECUTABLE="false" />
+        <ENTRY IS_ENABLED="true" PARSER="env" IS_EXECUTABLE="false" PATH="comms/.env.local" />
+      </ENTRIES>
+    </extension>
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

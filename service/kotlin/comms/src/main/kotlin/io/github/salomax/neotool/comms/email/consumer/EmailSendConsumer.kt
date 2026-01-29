@@ -1,13 +1,13 @@
 package io.github.salomax.neotool.comms.email.consumer
 
-import io.github.salomax.neotool.comms.email.events.EmailSendRequestedEvent
-import io.github.salomax.neotool.comms.email.kafka.EmailTopics
-import io.github.salomax.neotool.comms.email.kafka.EmailDlqPublisher
-import io.github.salomax.neotool.comms.email.metrics.EmailSendMetrics
-import io.github.salomax.neotool.comms.email.processor.EmailSendProcessor
 import io.github.salomax.neotool.common.batch.AbstractKafkaConsumer
 import io.github.salomax.neotool.common.batch.ConsumerConfig
 import io.github.salomax.neotool.common.batch.ProcessingExecutor
+import io.github.salomax.neotool.comms.email.events.EmailSendRequestedEvent
+import io.github.salomax.neotool.comms.email.kafka.EmailDlqPublisher
+import io.github.salomax.neotool.comms.email.kafka.EmailTopics
+import io.github.salomax.neotool.comms.email.metrics.EmailSendMetrics
+import io.github.salomax.neotool.comms.email.processor.EmailSendProcessor
 import io.micronaut.configuration.kafka.annotation.KafkaKey
 import io.micronaut.configuration.kafka.annotation.KafkaListener
 import io.micronaut.configuration.kafka.annotation.KafkaPartition

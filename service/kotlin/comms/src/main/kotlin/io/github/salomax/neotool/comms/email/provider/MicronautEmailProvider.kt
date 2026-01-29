@@ -18,24 +18,26 @@ class MicronautEmailProvider(
 
     override fun send(request: EmailSendRequestedPayload): EmailProviderResult {
         val content = request.content
-        val email = when (content.kind) {
-            EmailContentKind.RAW -> {
-                // subject and body are guaranteed non-null after validation
-                val subject = requireNotNull(content.subject) { EmailContentValidator.SUBJECT_REQUIRED }
-                val body = requireNotNull(content.body) { EmailContentValidator.BODY_REQUIRED }
+        val email =
+            when (content.kind) {
+                EmailContentKind.RAW -> {
+                    // subject and body are guaranteed non-null after validation
+                    val subject = requireNotNull(content.subject) { EmailContentValidator.SUBJECT_REQUIRED }
+                    val body = requireNotNull(content.body) { EmailContentValidator.BODY_REQUIRED }
 
-                val builder = Email.builder()
-                    .from(config.from)
-                    .to(request.to)
-                    .subject(subject)
-                // HTML handling will be added with the template engine
-                builder.body(body)
-                builder
+                    val builder =
+                        Email.builder()
+                            .from(config.from)
+                            .to(request.to)
+                            .subject(subject)
+                    // HTML handling will be added with the template engine
+                    builder.body(body)
+                    builder
+                }
+                EmailContentKind.TEMPLATE -> {
+                    throw IllegalStateException(EmailContentValidator.TEMPLATE_NOT_SUPPORTED)
+                }
             }
-            EmailContentKind.TEMPLATE -> {
-                throw IllegalStateException(EmailContentValidator.TEMPLATE_NOT_SUPPORTED)
-            }
-        }
 
         emailSender.send(email)
         return EmailProviderResult(providerId = id, messageId = null)

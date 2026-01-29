@@ -11,7 +11,11 @@ subgraphs:
   assets:
     routing_url: http://neotool-assets:8080/graphql
     schema:
-      file: ../subgraphs/assets/schema.graphqls      
+      file: ../subgraphs/assets/schema.graphqls
+  comms:
+    routing_url: http://neotool-comms:8080/graphql
+    schema:
+      file: ../subgraphs/comms/schema.graphqls
 # new modules...
 #  module:
 #    routing_url: http://module:8080/graphql

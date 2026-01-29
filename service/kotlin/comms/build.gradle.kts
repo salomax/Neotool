@@ -51,6 +51,7 @@ dependencies {
 
     // Email
     implementation("io.micronaut.email:micronaut-email-javamail")
+    implementation("com.sun.mail:jakarta.mail:2.0.1")
 
     // GraphQL
     implementation("io.micronaut.graphql:micronaut-graphql")
