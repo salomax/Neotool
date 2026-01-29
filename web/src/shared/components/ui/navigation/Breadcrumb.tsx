@@ -5,10 +5,10 @@ import { usePathname } from "next/navigation";
 import { useTheme, SxProps, Theme } from "@mui/material/styles";
 import { useMediaQuery } from "@mui/material";
 import { Breadcrumbs as MuiBreadcrumbs, Typography, Box } from "@/shared/ui/mui-imports";
-import HomeIcon from "@mui/icons-material/Home";
-import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import { ChevronRight as ChevronRightIcon } from "@mui/icons-material";
 import { Link } from "./Link";
 import { getTestIdProps } from "@/shared/utils/testid";
+import { useBreadcrumbLabels } from "@/shared/hooks/ui/useBreadcrumbLabel";
 
 export interface BreadcrumbItem {
   label: string;
@@ -72,7 +72,8 @@ function generateBreadcrumbsFromPathname(
   routeConfig?: RouteConfig[],
   homeLabel: string = "Home",
   homeHref?: string,
-  homeIcon?: React.ReactNode
+  homeIcon?: React.ReactNode,
+  customLabels?: Record<string, string>
 ): BreadcrumbItem[] {
   if (!pathname || pathname === "/") {
     return homeHref ? [{ label: homeLabel, href: homeHref, icon: homeIcon }] : [];
@@ -96,7 +97,10 @@ function generateBreadcrumbsFromPathname(
     let label = segment;
     let icon: React.ReactNode | undefined;
 
-    if (routeConfig) {
+    // Check for custom label from context first
+    if (customLabels && segment in customLabels) {
+      label = customLabels[segment] ?? segment;
+    } else if (routeConfig) {
       // Try exact match first
       let matchedConfig = routeConfig.find((config) => config.path === currentPath);
       
@@ -207,7 +211,7 @@ export const Breadcrumb = React.forwardRef<HTMLElement, BreadcrumbProps>(
       routeConfig,
       homeLabel = "Home",
       homeHref = "/",
-      homeIcon = <HomeIcon fontSize="small" />,
+      homeIcon = undefined,
       maxItems = 5,
       showHome = true,
       currentPageClickable = false,
@@ -228,6 +232,9 @@ export const Breadcrumb = React.forwardRef<HTMLElement, BreadcrumbProps>(
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
     const testIdProps = getTestIdProps("Breadcrumb", name, dataTestId);
+    
+    // Get custom labels from context (if available)
+    const customLabels = useBreadcrumbLabels();
 
     // Determine which items to use
     const items = React.useMemo(() => {
@@ -241,7 +248,8 @@ export const Breadcrumb = React.forwardRef<HTMLElement, BreadcrumbProps>(
           routeConfig,
           homeLabel,
           showHome ? homeHref : undefined,
-          showHome ? homeIcon : undefined
+          showHome ? homeIcon : undefined,
+          customLabels
         );
 
         // Apply maxItems truncation
@@ -253,7 +261,7 @@ export const Breadcrumb = React.forwardRef<HTMLElement, BreadcrumbProps>(
       }
 
       return [];
-    }, [manualItems, autoGenerate, pathname, routeConfig, homeLabel, homeHref, homeIcon, showHome, maxItems]);
+    }, [manualItems, autoGenerate, pathname, routeConfig, homeLabel, homeHref, homeIcon, showHome, maxItems, customLabels]);
 
     // Responsive: collapse on mobile
     const displayItems = React.useMemo(() => {
@@ -385,6 +393,61 @@ export const Breadcrumb = React.forwardRef<HTMLElement, BreadcrumbProps>(
       }
     }, [variant]);
 
+    // Compute margin: halve any existing margin from sx prop
+    const computedSx = React.useMemo(() => {
+      const baseStyles = {
+        ...variantStyles,
+      };
+
+      // If sx is provided, merge it and halve any horizontal margin
+      if (sx) {
+        const sxValue = typeof sx === 'function' ? sx(theme) : sx;
+        const sxObj = (typeof sxValue === 'object' && sxValue !== null && !Array.isArray(sxValue))
+          ? (sxValue as Record<string, unknown>)
+          : {};
+        const merged: Record<string, unknown> = { ...baseStyles, ...sxObj };
+
+        // Halve horizontal margin if it exists
+        if (merged.mx !== undefined) {
+          if (typeof merged.mx === 'number') {
+            merged.mx = merged.mx / 2;
+          } else if (typeof merged.mx === 'string' && merged.mx.endsWith('px')) {
+            const pxValue = parseFloat(merged.mx);
+            if (!isNaN(pxValue)) {
+              merged.mx = `${pxValue / 2}px`;
+            }
+          }
+        } else if (merged.ml !== undefined || merged.mr !== undefined) {
+          // Handle separate left/right margins
+          if (merged.ml !== undefined) {
+            if (typeof merged.ml === 'number') {
+              merged.ml = (merged.ml as number) / 2;
+            } else if (typeof merged.ml === 'string' && merged.ml.endsWith('px')) {
+              const pxValue = parseFloat(merged.ml);
+              if (!isNaN(pxValue)) {
+                merged.ml = `${pxValue / 2}px`;
+              }
+            }
+          }
+          if (merged.mr !== undefined) {
+            if (typeof merged.mr === 'number') {
+              merged.mr = (merged.mr as number) / 2;
+            } else if (typeof merged.mr === 'string' && merged.mr.endsWith('px')) {
+              const pxValue = parseFloat(merged.mr);
+              if (!isNaN(pxValue)) {
+                merged.mr = `${pxValue / 2}px`;
+              }
+            }
+          }
+        }
+
+        return merged as SxProps<Theme>;
+      }
+
+      // No sx provided, return base styles (no margin modification)
+      return baseStyles;
+    }, [variantStyles, sx, theme]);
+
     if (displayItems.length === 0) {
       return null;
     }
@@ -395,10 +458,7 @@ export const Breadcrumb = React.forwardRef<HTMLElement, BreadcrumbProps>(
         separator={renderBreadcrumbSeparator()}
         aria-label="breadcrumb navigation"
         className={className}
-        sx={{
-          ...variantStyles,
-          ...sx,
-        }}
+        sx={computedSx}
         {...testIdProps}
       >
         {displayItems.map((item, index) => (

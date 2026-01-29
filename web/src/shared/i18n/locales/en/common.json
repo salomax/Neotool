@@ -25,7 +25,8 @@
     "profile": "Profile",
     "examples": "Examples",
     "forms": "Forms",
-    "settings": "Settings"
+    "settings": "Settings",
+    "financialInstitutions": "Financial Institutions"
   },
   "actions": {
     "save": "Save",
@@ -43,5 +44,28 @@
     "serviceUnavailable": "The service is temporarily unavailable. Please try again in a few moments.",
     "gatewayTimeout": "The server is taking too long to respond. Please try again later.",
     "default": "An error occurred"
+  },
+  "cardGrid": {
+    "noResultsFound": "No results found",
+    "unableToLoadResults": "Unable to load results",
+    "searchCouldNotBeCompleted": "The search could not be completed. Please try again.",
+    "retry": "Retry",
+    "loadMore": "Load More"
+  },
+  "currency": {
+    "billions": "bi",
+    "millions": "mi",
+    "trillions": "tr",
+    "billionsLong": "billions",
+    "millionsLong": "millions",
+    "trillionsLong": "trillions"
+  },
+  "calendar": {
+    "month": "Month",
+    "quarter": "Quarter",
+    "year": "Year",
+    "monthly": "Monthly",
+    "quarterly": "Quarterly",
+    "yearly": "Yearly"
   }
 }

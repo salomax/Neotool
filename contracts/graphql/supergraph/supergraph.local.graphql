@@ -22,7 +22,7 @@ directive @link(url: String, as: String, for: link__Purpose, import: [link__Impo
 
 """Asset metadata and access information."""
 type Asset
-  @join__type(graph: ASSETS)
+  @join__type(graph: ASSETS, key: "id")
 {
   """Unique identifier (UUID v7)"""
   id: ID!
@@ -222,7 +222,54 @@ enum CustomerStatus
 scalar DateTime
   @join__type(graph: APP)
   @join__type(graph: ASSETS)
+  @join__type(graph: COMMS)
   @join__type(graph: SECURITY)
+
+enum EmailBodyFormat
+  @join__type(graph: COMMS)
+{
+  TEXT @join__enumValue(graph: COMMS)
+  HTML @join__enumValue(graph: COMMS)
+}
+
+input EmailContentInput
+  @join__type(graph: COMMS)
+{
+  kind: EmailContentKind!
+  format: EmailBodyFormat = TEXT
+  subject: String
+  body: String
+  templateKey: String
+  locale: String
+  variables: JSON
+}
+
+enum EmailContentKind
+  @join__type(graph: COMMS)
+{
+  RAW @join__enumValue(graph: COMMS)
+  TEMPLATE @join__enumValue(graph: COMMS)
+}
+
+input EmailSendRequestInput
+  @join__type(graph: COMMS)
+{
+  to: String!
+  content: EmailContentInput!
+}
+
+type EmailSendResult
+  @join__type(graph: COMMS)
+{
+  requestId: ID!
+  status: EmailSendStatus!
+}
+
+enum EmailSendStatus
+  @join__type(graph: COMMS)
+{
+  QUEUED @join__enumValue(graph: COMMS)
+}
 
 type Group
   @join__type(graph: SECURITY, key: "id")
@@ -269,8 +316,12 @@ scalar join__FieldSet
 enum join__Graph {
   APP @join__graph(name: "app", url: "http://host.docker.internal:8081/graphql")
   ASSETS @join__graph(name: "assets", url: "http://host.docker.internal:8083/graphql")
+  COMMS @join__graph(name: "comms", url: "http://host.docker.internal:8084/graphql")
   SECURITY @join__graph(name: "security", url: "http://host.docker.internal:8080/graphql")
 }
+
+scalar JSON
+  @join__type(graph: COMMS)
 
 scalar link__Import
 
@@ -289,11 +340,13 @@ enum link__Purpose {
 scalar Long
   @join__type(graph: APP)
   @join__type(graph: ASSETS)
+  @join__type(graph: COMMS)
   @join__type(graph: SECURITY)
 
 type Mutation
   @join__type(graph: APP)
   @join__type(graph: ASSETS)
+  @join__type(graph: COMMS)
   @join__type(graph: SECURITY)
 {
   createProduct(input: ProductInput!): Product! @join__field(graph: APP)
@@ -374,6 +427,7 @@ type Mutation
   Only the asset owner can delete the asset.
   """
   deleteAsset(assetId: ID!): Boolean! @join__field(graph: ASSETS)
+  requestEmailSend(input: EmailSendRequestInput!): EmailSendResult! @join__field(graph: COMMS)
   signIn(input: SignInInput!): SignInPayload! @join__field(graph: SECURITY)
   signInWithOAuth(input: SignInWithOAuthInput!): SignInPayload! @join__field(graph: SECURITY)
   signUp(input: SignUpInput!): SignUpPayload! @join__field(graph: SECURITY)
@@ -460,6 +514,7 @@ input ProductInput
 type Query
   @join__type(graph: APP)
   @join__type(graph: ASSETS)
+  @join__type(graph: COMMS)
   @join__type(graph: SECURITY)
 {
   products: [Product!]! @join__field(graph: APP)
@@ -472,6 +527,7 @@ type Query
   Returns null if asset not found or user doesn't have access.
   """
   asset(id: ID!): Asset @join__field(graph: ASSETS)
+  _empty: String @join__field(graph: COMMS)
   currentUser: User @join__field(graph: SECURITY)
   checkPermission(userId: ID!, permission: String!, resourceId: ID): AuthorizationResult! @join__field(graph: SECURITY)
   user(id: ID!): User @join__field(graph: SECURITY)
@@ -663,4 +719,5 @@ enum UserOrderField
 scalar UUID
   @join__type(graph: APP)
   @join__type(graph: ASSETS)
+  @join__type(graph: COMMS)
   @join__type(graph: SECURITY)

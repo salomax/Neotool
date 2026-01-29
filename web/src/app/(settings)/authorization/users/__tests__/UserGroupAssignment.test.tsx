@@ -64,6 +64,7 @@ vi.mock('@mui/material', () => ({
   Box: ({ children, maxWidth, minWidth, maxHeight, minHeight, component, sx, ...props }: any) => (
     <div {...props}>{children}</div>
   ),
+  InputAdornment: ({ children, ...props }: any) => <span {...props}>{children}</span>,
   CircularProgress: ({ size }: any) => (
     <div data-testid="circular-progress" data-size={size}>
       Loading...

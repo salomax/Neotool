@@ -25,7 +25,8 @@
     "profile": "Perfil",
     "examples": "Exemplos",
     "forms": "Formulários",
-    "settings": "Configurações"
+    "settings": "Configurações",
+    "financialInstitutions": "Instituições Financeiras"
   },
   "actions": {
     "save": "Salvar",
@@ -43,5 +44,28 @@
     "serviceUnavailable": "O serviço está temporariamente indisponível. Por favor, tente novamente em alguns instantes.",
     "gatewayTimeout": "O servidor está demorando muito para responder. Por favor, tente novamente mais tarde.",
     "default": "Ocorreu um erro"
+  },
+  "cardGrid": {
+    "noResultsFound": "Nenhum resultado encontrado",
+    "unableToLoadResults": "Não foi possível carregar os resultados",
+    "searchCouldNotBeCompleted": "A busca não pôde ser concluída. Por favor, tente novamente.",
+    "retry": "Tentar novamente",
+    "loadMore": "Carregar mais"
+  },
+  "currency": {
+    "billions": "bi",
+    "millions": "mi",
+    "trillions": "tri",
+    "billionsLong": "bilhões",
+    "millionsLong": "milhões",
+    "trillionsLong": "trilhões"
+  },
+  "calendar": {
+    "month": "Mês",
+    "quarter": "Trimestre",
+    "year": "Ano",
+    "monthly": "Mensal",
+    "quarterly": "Trimestral",
+    "yearly": "Anual"
   }
 }

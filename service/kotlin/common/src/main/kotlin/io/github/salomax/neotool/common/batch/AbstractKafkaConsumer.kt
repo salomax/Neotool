@@ -420,7 +420,7 @@ abstract class AbstractKafkaConsumer<
                     val dlqSuccess =
                         handleDlqPublish(
                             message,
-                            ProcessingException("All retries exhausted"),
+                            result.lastError ?: ProcessingException("All retries exhausted"),
                             result.retryCount,
                             recordId,
                         )
@@ -448,6 +448,7 @@ abstract class AbstractKafkaConsumer<
         recordId: String,
     ): ProcessingResult {
         var attempt = 0
+        var lastError: Throwable? = null
 
         while (attempt <= config.maxRetries) {
             if (isShuttingDown.get()) {
@@ -458,6 +459,7 @@ abstract class AbstractKafkaConsumer<
                 return ProcessingResult.Failed(
                     alreadyPublishedToDlq = false,
                     retryCount = attempt,
+                    lastError = lastError,
                 )
             }
 
@@ -477,6 +479,7 @@ abstract class AbstractKafkaConsumer<
                         return ProcessingResult.Failed(
                             alreadyPublishedToDlq = false,
                             retryCount = attempt,
+                            lastError = lastError,
                         )
                     }
                     Thread.sleep(delayMs)
@@ -487,6 +490,7 @@ abstract class AbstractKafkaConsumer<
                         return ProcessingResult.Failed(
                             alreadyPublishedToDlq = false,
                             retryCount = attempt,
+                            lastError = lastError,
                         )
                     }
                 }
@@ -494,6 +498,7 @@ abstract class AbstractKafkaConsumer<
                 processor.process(message)
                 return ProcessingResult.Success
             } catch (e: ValidationException) {
+                lastError = e
                 logger.error(e) {
                     "Validation error for recordId=$recordId: ${e.message}. " +
                         "Sending to DLQ without retry."
@@ -504,8 +509,10 @@ abstract class AbstractKafkaConsumer<
                 return ProcessingResult.Failed(
                     alreadyPublishedToDlq = dlqSuccess,
                     retryCount = attempt,
+                    lastError = e,
                 )
             } catch (e: PermanentProcessingException) {
+                lastError = e
                 logger.error(e) {
                     "Permanent processing error for recordId=$recordId: ${e.message}. " +
                         "Sending to DLQ without retry."
@@ -516,8 +523,10 @@ abstract class AbstractKafkaConsumer<
                 return ProcessingResult.Failed(
                     alreadyPublishedToDlq = dlqSuccess,
                     retryCount = attempt,
+                    lastError = e,
                 )
             } catch (e: ProcessingException) {
+                lastError = e
                 attempt++
                 if (attempt > config.maxRetries) {
                     logger.error(e) {
@@ -528,6 +537,7 @@ abstract class AbstractKafkaConsumer<
                     return ProcessingResult.Failed(
                         alreadyPublishedToDlq = false,
                         retryCount = config.maxRetries,
+                        lastError = e,
                     )
                 }
                 logger.warn(e) {
@@ -535,6 +545,7 @@ abstract class AbstractKafkaConsumer<
                         "attempt $attempt/${config.maxRetries}: ${e.message}"
                 }
             } catch (e: Exception) {
+                lastError = e
                 attempt++
                 if (attempt > config.maxRetries) {
                     logger.error(e) {
@@ -545,6 +556,7 @@ abstract class AbstractKafkaConsumer<
                     return ProcessingResult.Failed(
                         alreadyPublishedToDlq = false,
                         retryCount = config.maxRetries,
+                        lastError = e,
                     )
                 }
                 logger.warn(e) {
@@ -557,6 +569,7 @@ abstract class AbstractKafkaConsumer<
         return ProcessingResult.Failed(
             alreadyPublishedToDlq = false,
             retryCount = config.maxRetries,
+            lastError = lastError,
         )
     }
 

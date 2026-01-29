@@ -1,0 +1,181 @@
+micronaut:
+  application:
+    name: neotool-comms-service
+  executors:
+    blocking:
+      virtual: true
+  server:
+    port: 8084
+    # Use blocking I/O threads for request handling (required for JPA/Hibernate blocking operations)
+    # Works with virtual threads (enabled above) to efficiently handle blocking database operations
+    thread-selection: blocking
+    cors:
+      enabled: true
+      configurations:
+        web:
+          allowed-origins:
+            - http://localhost:3000
+            - http://127.0.0.1:3000
+          allowed-methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - OPTIONS
+          allowed-headers:
+            - "*"
+          allow-credentials: true
+          max-age: 3600
+  # Micrometer Configuration for Metrics Collection
+  metrics:
+    enabled: true
+    export:
+      prometheus:
+        enabled: true
+        step: PT15S
+  observation:
+    enabled: true
+  email:
+    from:
+      email: ${EMAIL_FROM:noreply@neotool.com}
+      name: ${EMAIL_FROM_NAME:neotool}
+
+datasources:
+  default:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:6432}/${POSTGRES_DB:neotool_db}
+    driverClassName: org.postgresql.Driver
+    username: ${POSTGRES_USER:neotool}
+    password: ${POSTGRES_PASSWORD:neotool}
+    dialect: POSTGRES
+    # HikariCP Connection Pool Configuration
+    # See: https://github.com/brettwooldridge/HikariCP#configuration-knobs-baby
+    hikari:
+      # Pool sizing
+      maximum-pool-size: ${HIKARI_MAX_POOL_SIZE:20}
+      minimum-idle: ${HIKARI_MIN_IDLE:5}
+
+      # Connection lifecycle
+      connection-timeout: ${HIKARI_CONNECTION_TIMEOUT:30000} # 30 seconds
+      idle-timeout: ${HIKARI_IDLE_TIMEOUT:600000} # 10 minutes
+      max-lifetime: ${HIKARI_MAX_LIFETIME:1800000} # 30 minutes
+      leak-detection-threshold: ${HIKARI_LEAK_DETECTION:60000} # 60 seconds (0 to disable)
+
+      # Connection validation
+      connection-test-query: "SELECT 1"
+      validation-timeout: ${HIKARI_VALIDATION_TIMEOUT:5000} # 5 seconds
+
+      # Performance tuning
+      auto-commit: false # Let transactions control commit
+      read-only: false
+
+      # PostgreSQL-specific optimizations
+      data-source-properties:
+        # Connection pool name for monitoring
+        applicationName: ${micronaut.application.name:neotool-comms-service}
+        # Connection parameters
+        socketTimeout: 30
+        loginTimeout: 10
+        # Performance hints
+        prepareThreshold: 0 # Disable prepared statement caching (let Hibernate handle it)
+        tcpKeepAlive: true
+        # SSL (configure for production)
+        # ssl: true
+        # sslmode: require
+
+jpa:
+  default:
+    enabled: false
+    properties:
+      hibernate:
+        hbm2ddl:
+          auto: none
+
+flyway:
+  datasources:
+    default:
+      enabled: false
+      baseline-on-migrate: true
+      baseline-version: 0
+      table: flyway_schema_history_comms
+      schemas:
+        - public
+        - comms
+
+graphql:
+  enabled: true
+  graphiql:
+    enabled: true
+    path: /graphiql
+
+# Kafka Configuration
+kafka:
+  bootstrap:
+    servers: ${KAFKA_BROKERS}
+
+  consumers:
+    comms-email-send:
+      group-id: comms-email-send-consumer-group
+      enable-auto-commit: false
+      auto-offset-reset: earliest
+      max-poll-records: 100
+      session-timeout-ms: 30000
+      heartbeat-interval-ms: 10000
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: io.micronaut.serde.kafka.KafkaSerdeDeserializer
+
+  producers:
+    default:
+      acks: all
+      enable-idempotence: true
+      compression-type: snappy
+      linger-ms: 10
+      retries: 5
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: io.micronaut.serde.kafka.KafkaSerdeSerializer
+
+# Batch Consumer Configuration
+batch:
+  consumer:
+    max-retries: 3
+    initial-retry-delay-ms: 1000
+    max-retry-delay-ms: 10000
+    retry-backoff-multiplier: 2.0
+    commit-timeout-seconds: 5
+    enable-dlq-fallback: false
+    dlq-max-retries: 3
+    shutdown-timeout-seconds: 30
+
+comms:
+  email:
+    provider: mock
+    from: ${EMAIL_FROM:noreply@neotool.com}
+
+# JavaMail (SMTP) configuration
+javamail:
+  enabled: ${JAVAMAIL_ENABLED:true}
+  authentication:
+    enabled: ${COMMS_SMTP_AUTH_ENABLED:true}
+    username: ${COMMS_SMTP_USER:}
+    password: ${COMMS_SMTP_PASSWORD:}
+  properties:
+    mail:
+      smtp:
+        host: ${COMMS_SMTP_HOST:}
+        port: ${COMMS_SMTP_PORT:587}
+        auth: ${COMMS_SMTP_AUTH_ENABLED:true}
+        starttls:
+          enable: ${COMMS_SMTP_STARTTLS_ENABLED:true}
+
+# Management Endpoints Configuration
+endpoints:
+  all:
+    enabled: true
+  health:
+    enabled: true
+    sensitive: false
+  prometheus:
+    enabled: true
+    sensitive: false
+  metrics:
+    enabled: true
+    sensitive: false
