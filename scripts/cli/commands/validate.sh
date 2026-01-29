@@ -476,21 +476,21 @@ run_backend_validations() {
     # Compilation validation (classes - compiles main sources and catches type errors)
     add_new_task "${task_label_prefix}compile" "./gradlew ${task_prefix}classes --no-daemon"
     local task_idx=$CURRENT_TASK_INDEX
-    if ! run_command_silently "./gradlew ${task_prefix}classes --no-daemon" "${task_label_prefix}compile" "$task_idx"; then
+    if ! run_command_silently "./gradlew clean ${task_prefix}classes --no-daemon" "${task_label_prefix}compile" "$task_idx"; then
         VALIDATION_FAILED=true
     fi
     
     # Tests (unit and integration - test task runs both)
     add_new_task "${task_label_prefix}test" "./gradlew ${task_prefix}test --no-daemon"
     task_idx=$CURRENT_TASK_INDEX
-    if ! run_command_silently "./gradlew ${task_prefix}test --no-daemon" "${task_label_prefix}test" "$task_idx"; then
+    if ! run_command_silently "./gradlew clean ${task_prefix}test --no-daemon" "${task_label_prefix}test" "$task_idx"; then
         VALIDATION_FAILED=true
     fi
     
     # Lint (ktlint)
     add_new_task "${task_label_prefix}lint" "./gradlew ${task_prefix}ktlintCheck --no-daemon"
     task_idx=$CURRENT_TASK_INDEX
-    if ! run_command_silently "./gradlew ${task_prefix}ktlintCheck --no-daemon" "${task_label_prefix}lint" "$task_idx"; then
+    if ! run_command_silently "./gradlew clean ${task_prefix}ktlintCheck --no-daemon" "${task_label_prefix}lint" "$task_idx"; then
         VALIDATION_FAILED=true
     fi
     
@@ -500,9 +500,9 @@ run_backend_validations() {
         # For all services, use root kover tasks
         local coverage_cmd
         if [[ -n "$service_name" ]]; then
-            coverage_cmd="./gradlew ${task_prefix}koverXmlReport ${task_prefix}koverVerify --no-daemon"
+            coverage_cmd="./gradlew clean ${task_prefix}koverXmlReport ${task_prefix}koverVerify --no-daemon"
         else
-            coverage_cmd="./gradlew koverRootReport koverVerify --no-daemon"
+            coverage_cmd="./gradlew clean koverRootReport koverVerify --no-daemon"
         fi
         add_new_task "${task_label_prefix}coverage" "$coverage_cmd"
         task_idx=$CURRENT_TASK_INDEX

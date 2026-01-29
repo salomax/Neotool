@@ -11,7 +11,7 @@ import jakarta.inject.Singleton
 @Singleton
 @Requires(property = "comms.email.provider", value = "micronaut")
 class MicronautEmailProvider(
-    private val emailSender: EmailSender<Any, Any>,
+    private val emailSender: EmailSender<Email.Builder, Any>,
     private val config: EmailProviderConfig,
 ) : EmailProvider {
     override val id: String = "micronaut"
