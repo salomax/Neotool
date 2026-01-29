@@ -1,11 +1,13 @@
 "use client";
 
 import React from 'react';
+import { useTheme } from '@mui/material/styles';
 import { Box } from './Box';
 import { Container } from './Container';
 import { LayoutComponentProps } from './types';
 import { getTestIdProps } from '@/shared/utils/testid';
 import { RAIL_W } from '@/shared/ui/navigation/SidebarRail';
+import { useElementHeight } from '@/shared/hooks/ui';
 
 // Drawer size presets (same as Drawer component for consistency)
 export type SidebarSize = 'sm' | 'md' | 'lg' | 'full';
@@ -35,6 +37,16 @@ export interface SidebarLayoutProps extends LayoutComponentProps {
    * Default: 'left'
    */
   side?: 'left' | 'right';
+  /**
+   * Top offset for the fixed sidebar, useful when there is a fixed header.
+   * Default: 73 (AppHeader height)
+   */
+  headerHeight?: number | string;
+  /**
+   * CSS selector for the header element to measure dynamically if headerHeight is not provided.
+   * Default: 'header'
+   */
+  headerSelector?: string;
   /** 
    * When true, applies full-height layout to both outer container and main content area.
    * The main content area will have vertical scroll enabled when content overflows.
@@ -76,9 +88,11 @@ export interface SidebarLayoutProps extends LayoutComponentProps {
  * </SidebarLayout>
  * ```
  */
-export function SidebarLayout({
+export const SidebarLayout = React.forwardRef<HTMLDivElement, SidebarLayoutProps>(({
   size = 'md',
   side = 'left',
+  headerHeight,
+  headerSelector = 'header',
   fullHeight = false,
   sidebar,
   children,
@@ -87,7 +101,13 @@ export function SidebarLayout({
   name,
   'data-testid': dataTestId,
   ...props
-}: SidebarLayoutProps) {
+}, ref) => {
+  const theme = useTheme();
+  
+  // Use provided headerHeight or calculated dynamicHeaderHeight
+  const dynamicHeaderHeight = useElementHeight(headerSelector);
+  const effectiveHeaderHeight = headerHeight ?? dynamicHeaderHeight;
+
   // Generate data-testid from component name and optional name prop
   const testIdProps = getTestIdProps('SidebarLayout', name, dataTestId);
   const generatedTestId = testIdProps['data-testid'];
@@ -96,34 +116,45 @@ export function SidebarLayout({
   const sidebarWidth = getSidebarWidth(size);
   
   // Determine flex direction based on side
-  const flexDirection = side === 'left' ? 'row' : 'row-reverse';
+  const isLeft = side === 'left';
+  const sidebarEdge = isLeft ? 'left' : 'right';
+  const contentOffset = size === 'full' ? 0 : (typeof sidebarWidth === 'number' ? `${sidebarWidth}px` : sidebarWidth);
+  
+  // Get sidebar background color from theme (same as SidebarRail)
+  const sidebarBg = (theme as any).custom?.palette?.sidebarBg || '#ffffff';
   
   // Outer container styles
-  const outerStyles: React.CSSProperties = {
-    display: 'flex',
-    flexDirection,
+  const outerStyles: React.CSSProperties = React.useMemo(() => ({
+    position: 'relative',
     width: '100%',
     ...style,
-  };
+  }), [style]);
   
   // Sidebar styles
-  const sidebarStyles: React.CSSProperties = {
-    width: typeof sidebarWidth === 'number' ? `${sidebarWidth}px` : sidebarWidth,
-    flexShrink: 0,
-    ...(fullHeight && {
-      height: '100%',
+  const sidebarStyles: React.CSSProperties = React.useMemo(() => {
+    const edgePosition: Partial<React.CSSProperties> = isLeft ? { left: `${RAIL_W}px` } : { right: `${RAIL_W}px` };
+    
+    return {
+      position: 'fixed',
+      top: typeof effectiveHeaderHeight === 'number' ? `${effectiveHeaderHeight}px` : effectiveHeaderHeight,
+      bottom: 0,
+      ...edgePosition,
+      width: typeof sidebarWidth === 'number' ? `${sidebarWidth}px` : sidebarWidth,
       overflow: 'auto',
-    }),
-  };
+      // Ensure sidebar sits below the app bar so the header's bottom border is visible
+      zIndex: (theme.zIndex?.appBar || 1100) - 1,
+      ...(isLeft ? { borderRight: '1px solid' } : { borderLeft: '1px solid' }),
+      borderColor: theme.palette.divider,
+    };
+  }, [effectiveHeaderHeight, isLeft, sidebarWidth, theme.zIndex?.appBar, theme.palette.divider]);
   
   // Main content area container styles
-  const mainContentContainerStyles: React.CSSProperties = {
-    flex: 1,
-    minWidth: 0, // Prevent flex item from overflowing
-  };
+  // We don't need separate styles as they are applied to the wrapper
+
 
   return (
     <Box
+      ref={ref}
       fullHeight={fullHeight}
       className={className}
       style={outerStyles}
@@ -132,36 +163,47 @@ export function SidebarLayout({
     >
       {/* Fixed sidebar column */}
       <Box
+        component="aside"
         style={sidebarStyles}
+        sx={{ bgcolor: sidebarBg }}
         data-testid={generatedTestId ? `${generatedTestId}-sidebar` : undefined}
       >
         {sidebar}
       </Box>
       
-      {/* Main content area - rendered as Container */}
-      <Container
+      {/* Main content wrapper - handles sidebar offset and scrolling */}
+      <Box
+        component="main"
         fullHeight={fullHeight}
-        disableGutters
-        sx={mainContentContainerStyles}
+        sx={{
+          ...(isLeft ? { marginLeft: contentOffset } : { marginRight: contentOffset }),
+          // Calculate width to fit remaining space exactly to prevent overflow in flex container
+          width: contentOffset === 0 ? '100%' : `calc(100% - ${contentOffset})`,
+          minWidth: 0,
+          // When fullHeight, this wrapper handles scrolling so the scrollbar is on the edge
+          ...(fullHeight && { overflow: 'auto' }),
+        }}
         data-testid={generatedTestId ? `${generatedTestId}-content` : undefined}
       >
-        {/* Inner Box with overflow: auto for scrolling when content overflows */}
-        {fullHeight ? (
-          <Box
-            sx={{
-              flex: 1,
-              overflow: 'auto',
-              minHeight: 0,
-            }}
-          >
-            {children}
-          </Box>
-        ) : (
-          children
-        )}
-      </Container>
+        <Container
+          disableGutters
+          // Don't use fullHeight prop as it adds overflow: hidden.
+          // Instead manually add flex properties to support full height children.
+          sx={{
+            ...(fullHeight && {
+              minHeight: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+            }),
+          }}
+        >
+          {children}
+        </Container>
+      </Box>
     </Box>
   );
-}
+});
+
+SidebarLayout.displayName = 'SidebarLayout';
 
 export default SidebarLayout;

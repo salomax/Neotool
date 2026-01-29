@@ -72,6 +72,17 @@ export const createAppTheme = (mode: Mode) => {
         inputBorder: t.palette.inputBorder,
         tabBorder: t.palette.tabBorder,
         errorLightBg: t.palette.errorLightBg,
+        successLightBg: t.palette.successLightBg,
+        sidebarBg: t.palette.sidebarBg,
+        sidebarIcon: t.palette.sidebarIcon,
+        // Currency-specific colors
+        currencyPositive: t.palette.currencyPositive,
+        currencyNegative: t.palette.currencyNegative,
+        currencyNeutral: t.palette.currencyNeutral,
+        // Threshold colors for percentage indicators
+        thresholdBad: t.palette.thresholdBad,
+        thresholdRegular: t.palette.thresholdRegular,
+        thresholdGood: t.palette.thresholdGood,
       },
     },
   } as ThemeOptions & { custom?: { layout: typeof t.layout } };

@@ -43,7 +43,7 @@ enum AssetStatus {
 """
 Asset metadata and access information.
 """
-type Asset {
+type Asset @key(fields: "id") {
   """Unique identifier (UUID v7)"""
   id: ID!
 

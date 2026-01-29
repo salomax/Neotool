@@ -5,10 +5,15 @@ import Container from "@mui/material/Container";
 import { SidebarRail } from "@/shared/ui/navigation/SidebarRail";
 import { AppHeader } from "@/shared/ui/shell/AppHeader";
 import { PageTitleProvider } from "@/shared/hooks/ui/usePageTitle";
+import { BreadcrumbLabelProvider } from "@/shared/hooks/ui/useBreadcrumbLabel";
+import { useElementHeight } from "@/shared/hooks/ui/useElementHeight";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const headerHeight = useElementHeight("header");
+
   return (
     <PageTitleProvider>
+      <BreadcrumbLabelProvider>
       <Box
         sx={{
           display: "flex",
@@ -32,14 +37,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             sx={{ 
               flex: 1,
               overflow: "auto", // Allow scrolling only in main content area
-              padding: 3,
-              marginTop: "73px", // Account for fixed header height (approximate)
+              marginTop: headerHeight ? `${headerHeight}px` : "73px", // Account for fixed header height
             }}
           >
             {children}
           </Box>
         </Box>
       </Box>
+      </BreadcrumbLabelProvider>
     </PageTitleProvider>
   );
 }

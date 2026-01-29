@@ -63,11 +63,18 @@ object PostgresTestContainer : MicronautPropsTestContainer {
 }
 
 object KafkaTestContainer : MicronautPropsTestContainer {
-    private val image = TestConfig.str("test.kafka.image", "confluentinc/cp-kafka:7.6.1")
+    private val image = TestConfig.str("test.kafka.image", "apache/kafka:3.7.0")
     private val reusable = TestConfig.bool("test.kafka.reuse", true)
 
     val container: KafkaContainer by lazy {
-        KafkaContainer(DockerImageName.parse(image))
+        val dockerImage = DockerImageName.parse(image)
+        val compatibleImage =
+            if (dockerImage.repository == "apache/kafka") {
+                dockerImage
+            } else {
+                dockerImage.asCompatibleSubstituteFor("apache/kafka")
+            }
+        KafkaContainer(compatibleImage)
             .withReuse(reusable)
             .waitingFor(
                 Wait.forListeningPort()

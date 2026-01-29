@@ -34,6 +34,10 @@ export interface DesignTokens {
     stack: {
       gap: number;
     };
+    metricCard: {
+      minHeight: number;
+      chartHeight: number;
+    };
   };
   typography: {
     fontFamily: string;
@@ -56,6 +60,7 @@ export interface DesignTokens {
     warning: string;
     error: string;
     errorLightBg: string;
+    successLightBg: string;
     info: string;
     bg: string;
     bgPaper: string;
@@ -64,6 +69,16 @@ export interface DesignTokens {
     divider: string;
     inputBorder: string;
     tabBorder: string;
+    sidebarBg: string;
+    sidebarIcon: string;
+    // Currency-specific colors
+    currencyPositive: string;
+    currencyNegative: string;
+    currencyNeutral: string;
+    // Threshold colors for percentage indicators
+    thresholdBad: string;
+    thresholdRegular: string;
+    thresholdGood: string;
   };
 }
 
@@ -88,6 +103,10 @@ export const tokens: Record<Mode, DesignTokens> = {
       stack: {
         gap: 2,
       },
+      metricCard: {
+        minHeight: 168,
+        chartHeight: 100,
+      },
     },
     typography: {
       fontFamily: `'Inter', ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial`,
@@ -109,7 +128,8 @@ export const tokens: Record<Mode, DesignTokens> = {
       success: "#16a34a",
       warning: "#f59e0b",
       error: "#dc2626",
-      errorLightBg: "rgba(220, 38, 38, 0.1)",
+      errorLightBg: "#FDEFF0",
+      successLightBg: "#EFF9F3",
       info: "#0284c7",
       bg: "#f8fafc",
       bgPaper: "#ffffff",
@@ -118,6 +138,16 @@ export const tokens: Record<Mode, DesignTokens> = {
       divider: "#e2e8f0",
       inputBorder: "rgba(0, 0, 0, 0.23)",
       tabBorder: "rgba(0, 0, 0, 0.23)",
+      sidebarBg: "#ffffff",
+      sidebarIcon: "#728096",
+      // Currency-specific colors
+      currencyPositive: "#16a34a", // success color for positive values
+      currencyNegative: "#dc2626", // error color for negative values  
+      currencyNeutral: "#0f172a", // text color for neutral values
+      // Threshold colors for percentage indicators
+      thresholdBad: "#F99797",
+      thresholdRegular: "#FAD957",
+      thresholdGood: "#61D48A",
     },
   },
   dark: {
@@ -140,6 +170,10 @@ export const tokens: Record<Mode, DesignTokens> = {
       stack: {
         gap: 2,
       },
+      metricCard: {
+        minHeight: 168,
+        chartHeight: 100,
+      },
     },
     typography: {
       fontFamily: `'Inter', ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial`,
@@ -161,7 +195,8 @@ export const tokens: Record<Mode, DesignTokens> = {
       success: "#22c55e",
       warning: "#fbbf24",
       error: "#ef4444",
-      errorLightBg: "rgba(239, 68, 68, 0.15)",
+      errorLightBg: "#FDEFF0",
+      successLightBg: "#EFF9F3",
       info: "#38bdf8",
       bg: "#0b1220",
       bgPaper: "#0f172a",
@@ -170,6 +205,16 @@ export const tokens: Record<Mode, DesignTokens> = {
       divider: "#1f2937",
       inputBorder: "rgba(255, 255, 255, 0.23)",
       tabBorder: "rgba(255, 255, 255, 0.23)",
+      sidebarBg: "#ffffff",
+      sidebarIcon: "#728096",
+      // Currency-specific colors
+      currencyPositive: "#22c55e", // success color for positive values
+      currencyNegative: "#ef4444", // error color for negative values  
+      currencyNeutral: "#e5e7eb", // text color for neutral values
+      // Threshold colors for percentage indicators
+      thresholdBad: "#F99797",
+      thresholdRegular: "#FAD957",
+      thresholdGood: "#61D48A",
     },
   },
 };

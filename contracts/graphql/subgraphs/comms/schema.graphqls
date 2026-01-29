@@ -1,0 +1,61 @@
+# ============================================================================
+# Base Schema - Common Scalars
+# Auto-included from: service/kotlin/common/src/main/resources/graphql/base-schema.graphqls
+# ============================================================================
+
+scalar Long
+scalar DateTime
+scalar UUID
+
+# ============================================================================
+# Service Schema - comms
+# ============================================================================
+
+schema {
+  query: Query
+  mutation: Mutation
+}
+
+scalar JSON
+
+type Query {
+  _empty: String
+}
+
+enum EmailBodyFormat {
+  TEXT
+  HTML
+}
+
+enum EmailContentKind {
+  RAW
+  TEMPLATE
+}
+
+enum EmailSendStatus {
+  QUEUED
+}
+
+input EmailContentInput {
+  kind: EmailContentKind!
+  format: EmailBodyFormat = TEXT
+  subject: String
+  body: String
+  templateKey: String
+  locale: String
+  variables: JSON
+}
+
+input EmailSendRequestInput {
+  to: String!
+  content: EmailContentInput!
+}
+
+type EmailSendResult {
+  requestId: ID!
+  status: EmailSendStatus!
+}
+
+type Mutation {
+  requestEmailSend(input: EmailSendRequestInput!): EmailSendResult!
+}
