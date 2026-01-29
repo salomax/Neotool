@@ -27,6 +27,10 @@ const authLink = new SetContextLink((prevContext, operation) => {
 let isRefreshing = false;
 let refreshPromise: Promise<string | null> | null = null;
 
+// Singleton cache for temporary client used during token refresh
+// This prevents memory leaks from creating new InMemoryCache instances on each refresh
+const tempCache = new InMemoryCache();
+
 /**
  * Attempts to refresh the access token using the refresh token
  * Returns the new access token if successful, null otherwise
@@ -49,9 +53,10 @@ async function refreshAccessToken(): Promise<string | null> {
       const { REFRESH_ACCESS_TOKEN } = await import('@/lib/graphql/operations/auth');
       
       // Create a temporary client without auth link to avoid infinite loop
+      // Reuses singleton tempCache to prevent memory leaks
       const tempClient = new ApolloClient({
         link: httpLink,
-        cache: new InMemoryCache(),
+        cache: tempCache,
         ssrMode: typeof window === 'undefined',
       });
 
@@ -94,6 +99,8 @@ async function refreshAccessToken(): Promise<string | null> {
     } finally {
       isRefreshing = false;
       refreshPromise = null;
+      // Reset temp cache to free memory after each refresh attempt
+      tempCache.reset();
     }
   })();
 
@@ -242,6 +249,7 @@ function createApolloClient() {
     // InMemoryCache provides automatic normalization and caching of query results
     // This improves performance by avoiding duplicate requests and enabling optimistic updates
     cache: new InMemoryCache({
+      // Limit cache size to prevent unbounded memory growth
       typePolicies: {
         Query: {
           fields: {

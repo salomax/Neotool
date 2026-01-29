@@ -2,7 +2,12 @@
 
 import * as React from "react";
 import { useAuth } from "./AuthProvider";
-import { useCurrentUserQuery } from "@/lib/graphql/operations/auth/queries.generated";
+import { useQuery } from "@apollo/client/react";
+import {
+  CurrentUserDocument,
+  type CurrentUserQuery,
+  type CurrentUserQueryVariables,
+} from "@/lib/graphql/operations/auth/queries.generated";
 
 export type Role = {
   id: string;
@@ -45,7 +50,10 @@ export const AuthorizationProvider: React.FC<AuthorizationProviderProps> = ({ ch
   const [loading, setLoading] = React.useState(true);
 
   // Fetch current user with roles and permissions when authenticated
-  const { data, loading: queryLoading, refetch } = useCurrentUserQuery({
+  const { data, loading: queryLoading, refetch } = useQuery<
+    CurrentUserQuery,
+    CurrentUserQueryVariables
+  >(CurrentUserDocument, {
     skip: !isAuthenticated,
     fetchPolicy: "cache-and-network",
   });

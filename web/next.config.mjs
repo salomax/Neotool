@@ -50,11 +50,28 @@ const nextConfig = {
       config.watchOptions = {
         poll: 1000,
         aggregateTimeout: 300,
+        // Ignore test files to reduce memory usage
+        ignored: [
+          '**/node_modules/**',
+          '**/__tests__/**',
+          '**/*.test.ts',
+          '**/*.test.tsx',
+          '**/*.spec.ts',
+          '**/*.spec.tsx',
+        ],
       }
-      
+
       // Disable source maps in development to prevent 404 errors from browser extensions
       config.devtool = false
-      
+
+      // Use filesystem cache to reduce memory usage
+      config.cache = {
+        type: 'filesystem',
+        maxMemoryGenerations: 1,
+        cacheDirectory: '.next/cache/webpack',
+      }
+
+
       // Add fallback for missing source maps
       config.resolve.fallback = {
         ...config.resolve.fallback,

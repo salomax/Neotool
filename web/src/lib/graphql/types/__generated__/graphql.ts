@@ -255,6 +255,46 @@ export type CreateRoleInput = {
   name: Scalars['String']['input'];
 };
 
+export type EconomicIndicator = {
+  __typename: 'EconomicIndicator';
+  countryCode: Scalars['String']['output'];
+  createdAt: Scalars['DateTime']['output'];
+  description: Maybe<Scalars['String']['output']>;
+  frequency: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  isActive: Scalars['Boolean']['output'];
+  issuer: Scalars['String']['output'];
+  label: Scalars['String']['output'];
+  unit: Scalars['String']['output'];
+  updatedAt: Scalars['DateTime']['output'];
+  variations: Array<EconomicIndicatorVariation>;
+};
+
+export type EconomicIndicatorPoint = {
+  __typename: 'EconomicIndicatorPoint';
+  referenceDate: Scalars['Date']['output'];
+  value: Scalars['Float']['output'];
+};
+
+export type EconomicIndicatorSeries = {
+  __typename: 'EconomicIndicatorSeries';
+  indicator: Scalars['String']['output'];
+  unit: Maybe<Scalars['String']['output']>;
+  values: Array<EconomicIndicatorPoint>;
+  variation: Scalars['String']['output'];
+};
+
+export type EconomicIndicatorVariation = {
+  __typename: 'EconomicIndicatorVariation';
+  id: Scalars['ID']['output'];
+  incrementalDays: Maybe<Scalars['Int']['output']>;
+  incrementalMonths: Maybe<Scalars['Int']['output']>;
+  incrementalYears: Maybe<Scalars['Int']['output']>;
+  isDefault: Scalars['Boolean']['output'];
+  label: Scalars['String']['output'];
+  unit: Maybe<Scalars['String']['output']>;
+};
+
 export type Group = {
   __typename: 'Group';
   createdAt: Scalars['String']['output'];
@@ -287,6 +327,12 @@ export type GroupOrderByInput = {
 export enum GroupOrderField {
   Name = 'NAME'
 }
+
+export type IndicatorRangeInput = {
+  from?: InputMaybe<Scalars['Date']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+  to?: InputMaybe<Scalars['Date']['input']>;
+};
 
 export type InstitutionRating = {
   __typename: 'InstitutionRating';
@@ -583,8 +629,11 @@ export type Query = {
   bacenInstitutions: BacenInstitutionConnection;
   checkPermission: AuthorizationResult;
   currentUser: Maybe<User>;
+  economicIndicators: Array<EconomicIndicator>;
   group: Maybe<Group>;
   groups: GroupConnection;
+  indicatorLatest: Maybe<EconomicIndicatorPoint>;
+  indicatorSeries: Maybe<EconomicIndicatorSeries>;
   permissions: PermissionConnection;
   ratingIssuers: Array<RatingIssuer>;
   role: Maybe<Role>;
@@ -631,6 +680,20 @@ export type QueryGroupsArgs = {
   first?: InputMaybe<Scalars['Int']['input']>;
   orderBy?: InputMaybe<Array<GroupOrderByInput>>;
   query?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type QueryIndicatorLatestArgs = {
+  indicator: Scalars['String']['input'];
+  variation: Scalars['String']['input'];
+};
+
+
+export type QueryIndicatorSeriesArgs = {
+  indicator: Scalars['String']['input'];
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  range?: InputMaybe<IndicatorRangeInput>;
+  variation: Scalars['String']['input'];
 };
 
 

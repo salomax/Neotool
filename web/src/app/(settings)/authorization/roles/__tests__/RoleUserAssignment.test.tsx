@@ -27,7 +27,7 @@ const mockUsers = [
   },
 ];
 
-const mockUseGetUsersQuery = vi.fn(() => ({
+const mockUseQuery = vi.fn((_document?: any, _options?: any) => ({
   data: {
     users: {
       edges: mockUsers.map((user) => ({
@@ -40,8 +40,8 @@ const mockUseGetUsersQuery = vi.fn(() => ({
   refetch: vi.fn(),
 }));
 
-vi.mock('@/lib/graphql/operations/authorization-management/queries.generated', () => ({
-  useGetUsersQuery: () => mockUseGetUsersQuery(),
+vi.mock('@apollo/client/react', () => ({
+  useQuery: (document: any, options: any) => mockUseQuery(document, options),
 }));
 
 // Mock translations
@@ -98,7 +98,7 @@ describe.sequential('RoleUserAssignment', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseGetUsersQuery.mockReturnValue({
+    mockUseQuery.mockReturnValue({
       data: {
         users: {
           edges: mockUsers.map((u) => ({ node: u })),
@@ -156,13 +156,13 @@ describe.sequential('RoleUserAssignment', () => {
       // When active is false, component returns null, so query is never called
       expect(screen.queryByText('Assigned Users')).not.toBeInTheDocument();
       // Component returns early when active is false, so useGetUsersQuery is never called
-      expect(mockUseGetUsersQuery).not.toHaveBeenCalled();
+      expect(mockUseQuery).not.toHaveBeenCalled();
     });
   });
 
   describe('Loading state', () => {
     it('should show loading spinner when loading', () => {
-      mockUseGetUsersQuery.mockReturnValue({
+      mockUseQuery.mockReturnValue({
         data: undefined as any,
         loading: true,
         error: undefined,
@@ -178,7 +178,7 @@ describe.sequential('RoleUserAssignment', () => {
   describe('Error state', () => {
     it('should show error alert when error occurs', () => {
       const mockRefetch = vi.fn();
-      mockUseGetUsersQuery.mockReturnValue({
+      mockUseQuery.mockReturnValue({
         data: undefined as any,
         loading: false,
         error: new Error('Failed to load') as any,

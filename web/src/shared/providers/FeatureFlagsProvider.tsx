@@ -50,12 +50,16 @@ export const FeatureFlagsProvider: React.FC<FeatureFlagsProviderProps> = ({
   }
 
   // Convert bootstrap Record<string, boolean> to IToggle[] format
-  const bootstrapToggles: IToggle[] = Object.entries(bootstrap).map(([name, enabled]) => ({
-    name,
-    enabled,
-    variant: { name: 'disabled', enabled: false }, // Default variant when not specified
-    impressionData: false, // No impression data for bootstrap
-  }));
+  // Memoized to prevent recalculation on every render
+  const bootstrapToggles: IToggle[] = React.useMemo(
+    () => Object.entries(bootstrap).map(([name, enabled]) => ({
+      name,
+      enabled,
+      variant: { name: 'disabled', enabled: false }, // Default variant when not specified
+      impressionData: false, // No impression data for bootstrap
+    })),
+    [bootstrap]
+  );
 
   const config: IConfig = {
     url: runtimeConfig.unleashProxyUrl,

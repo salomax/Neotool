@@ -4,14 +4,8 @@
  * This file configures how GraphQL operations are converted into type-safe TypeScript code.
  * 
  * Apollo Client 4 Compatibility Notes:
- * - The @graphql-codegen/typescript-react-apollo plugin (v4.3.3) has some compatibility
- *   issues with Apollo Client 4 that are fixed in the post-processing script:
- *   - BaseMutationOptions types are generated but don't exist in Apollo Client 4
- *   - useSuspenseQuery has type mismatches when queries have required variables
- * 
- * These issues are handled by scripts/fix-generated-types.mjs which runs after codegen.
- * 
- * See scripts/fix-generated-types.mjs for detailed documentation of the fixes.
+ * - Apollo Client 4 recommends using its own hooks with TypedDocumentNode instead of
+ *   generating hooks via @graphql-codegen/typescript-react-apollo.
  */
 import type { CodegenConfig } from '@graphql-codegen/cli';
 
@@ -62,19 +56,10 @@ const config: CodegenConfig = {
         baseTypesPath: 'lib/graphql/types/__generated__/graphql.ts',
         extension: '.generated.ts',
       },
-      plugins: ['typescript-operations', 'typescript-react-apollo'],
+      plugins: ['typescript-operations', 'typed-document-node'],
       config: {
         ...sharedTypeConfig,
-        withHooks: true,
-        reactApolloVersion: 4, // Apollo Client 4 compatibility
-        apolloReactHooksImportFrom: '@apollo/client/react',
-        apolloReactCommonImportFrom: '@apollo/client/react',
-        withMutationFn: false,
-        withComponent: false,
         addDocBlocks: true,
-        // Note: skipExportingMutationOptions could be set to true to prevent
-        // BaseMutationOptions generation, but we handle it in post-processing
-        // for better visibility and control. See scripts/fix-generated-types.mjs
       },
     },
   },

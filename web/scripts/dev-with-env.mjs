@@ -17,6 +17,12 @@ const __dirname = dirname(__filename);
 const envPath = join(__dirname, '../../infra/.env.local');
 const env = { ...process.env };
 
+// Increase Node.js memory limit to prevent heap out of memory errors
+const nodeOptions = env.NODE_OPTIONS || '';
+if (!nodeOptions.includes('max_old_space_size')) {
+  env.NODE_OPTIONS = `${nodeOptions} --max_old_space_size=2048`.trim();
+}
+
 if (existsSync(envPath)) {
   const envContent = readFileSync(envPath, 'utf-8');
   const lines = envContent.split('\n');
