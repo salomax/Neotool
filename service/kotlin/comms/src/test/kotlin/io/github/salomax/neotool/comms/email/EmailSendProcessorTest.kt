@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.comms.email
 
+import io.github.salomax.neotool.common.batch.exceptions.ValidationException
 import io.github.salomax.neotool.comms.email.dto.EmailContent
 import io.github.salomax.neotool.comms.email.dto.EmailContentKind
 import io.github.salomax.neotool.comms.email.events.EmailSendRequestedEvent
@@ -9,7 +10,6 @@ import io.github.salomax.neotool.comms.email.provider.EmailProvider
 import io.github.salomax.neotool.comms.email.provider.EmailProviderRegistry
 import io.github.salomax.neotool.comms.email.validation.EmailContentValidator
 import io.github.salomax.neotool.comms.events.CommsEventType
-import io.github.salomax.neotool.common.batch.exceptions.ValidationException
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -23,7 +23,8 @@ class EmailSendProcessorTest {
 
     @Test
     fun `throws validation error for template content`() {
-        val event = createEvent(
+        val event =
+            createEvent(
             EmailContent(
                 kind = EmailContentKind.TEMPLATE,
                 templateKey = "welcome",
@@ -39,7 +40,8 @@ class EmailSendProcessorTest {
 
     @Test
     fun `throws validation error for RAW content with blank subject`() {
-        val event = createEvent(
+        val event =
+            createEvent(
             EmailContent(
                 kind = EmailContentKind.RAW,
                 subject = "  ",
@@ -54,7 +56,8 @@ class EmailSendProcessorTest {
 
     @Test
     fun `throws validation error for RAW content with null subject`() {
-        val event = createEvent(
+        val event =
+            createEvent(
             EmailContent(
                 kind = EmailContentKind.RAW,
                 subject = null,
@@ -69,7 +72,8 @@ class EmailSendProcessorTest {
 
     @Test
     fun `throws validation error for RAW content with blank body`() {
-        val event = createEvent(
+        val event =
+            createEvent(
             EmailContent(
                 kind = EmailContentKind.RAW,
                 subject = "Hello",
@@ -87,7 +91,8 @@ class EmailSendProcessorTest {
         val provider = mockk<EmailProvider>(relaxed = true)
         every { registry.resolve() } returns provider
 
-        val event = createEvent(
+        val event =
+            createEvent(
             EmailContent(
                 kind = EmailContentKind.RAW,
                 subject = "Hello",
@@ -105,7 +110,8 @@ class EmailSendProcessorTest {
             id = "req-${System.currentTimeMillis()}",
             type = CommsEventType.EMAIL_SEND_REQUESTED,
             traceId = "trace-1",
-            payload = EmailSendRequestedPayload(
+            payload =
+                EmailSendRequestedPayload(
                 to = "user@example.com",
                 content = content,
             ),

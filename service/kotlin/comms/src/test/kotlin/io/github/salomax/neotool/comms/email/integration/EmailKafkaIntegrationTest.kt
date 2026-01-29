@@ -1,5 +1,7 @@
 package io.github.salomax.neotool.comms.email.integration
 
+import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
+import io.github.salomax.neotool.common.test.integration.KafkaIntegrationTest
 import io.github.salomax.neotool.comms.email.dto.EmailContent
 import io.github.salomax.neotool.comms.email.dto.EmailContentKind
 import io.github.salomax.neotool.comms.email.events.EmailSendRequestedEvent
@@ -7,8 +9,6 @@ import io.github.salomax.neotool.comms.email.events.EmailSendRequestedPayload
 import io.github.salomax.neotool.comms.email.kafka.EmailDlqMessage
 import io.github.salomax.neotool.comms.email.kafka.EmailTopics
 import io.github.salomax.neotool.comms.events.CommsEventType
-import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
-import io.github.salomax.neotool.common.test.integration.KafkaIntegrationTest
 import io.micronaut.configuration.kafka.annotation.KafkaClient
 import io.micronaut.configuration.kafka.annotation.KafkaKey
 import io.micronaut.configuration.kafka.annotation.KafkaListener
@@ -78,7 +78,8 @@ class EmailKafkaIntegrationTest : BaseIntegrationTest(), KafkaIntegrationTest {
                 "kafka.consumers.comms-email-send.enable-auto-commit" to "false",
                 "kafka.consumers.comms-email-send.auto-offset-reset" to "earliest",
                 "kafka.consumers.comms-email-send.key-deserializer" to StringDeserializer::class.java.name,
-                "kafka.consumers.comms-email-send.value-deserializer" to "io.micronaut.serde.kafka.KafkaSerdeDeserializer",
+                "kafka.consumers.comms-email-send.value-deserializer" to
+                    "io.micronaut.serde.kafka.KafkaSerdeDeserializer",
             )
 
         return props

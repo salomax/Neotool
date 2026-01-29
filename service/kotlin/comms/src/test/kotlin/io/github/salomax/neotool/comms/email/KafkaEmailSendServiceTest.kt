@@ -22,7 +22,8 @@ class KafkaEmailSendServiceTest {
         every { producer.send(any(), any()) } returns Unit
 
         val service = KafkaEmailSendService(producer)
-        val request = EmailSendRequest(
+        val request =
+            EmailSendRequest(
             to = "user@example.com",
             content =
                 EmailContent(

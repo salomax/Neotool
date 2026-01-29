@@ -1,10 +1,10 @@
 package io.github.salomax.neotool.comms.email.processor
 
+import io.github.salomax.neotool.common.batch.MessageProcessor
+import io.github.salomax.neotool.common.batch.exceptions.ValidationException
 import io.github.salomax.neotool.comms.email.events.EmailSendRequestedEvent
 import io.github.salomax.neotool.comms.email.provider.EmailProviderRegistry
 import io.github.salomax.neotool.comms.email.validation.EmailContentValidator
-import io.github.salomax.neotool.common.batch.MessageProcessor
-import io.github.salomax.neotool.common.batch.exceptions.ValidationException
 import jakarta.inject.Singleton
 
 @Singleton

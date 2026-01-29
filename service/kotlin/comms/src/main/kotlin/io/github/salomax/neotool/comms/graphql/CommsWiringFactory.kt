@@ -3,9 +3,9 @@ package io.github.salomax.neotool.comms.graphql
 import graphql.scalars.ExtendedScalars
 import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.TypeRuntimeWiring
-import io.github.salomax.neotool.comms.graphql.resolvers.CommsEmailResolver
 import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils
 import io.github.salomax.neotool.common.graphql.GraphQLWiringFactory
+import io.github.salomax.neotool.comms.graphql.resolvers.CommsEmailResolver
 import jakarta.inject.Singleton
 
 @Singleton

@@ -84,6 +84,7 @@ datasources:
 
 jpa:
   default:
+    enabled: false
     properties:
       hibernate:
         hbm2ddl:
@@ -92,7 +93,7 @@ jpa:
 flyway:
   datasources:
     default:
-      enabled: true
+      enabled: false
       baseline-on-migrate: true
       baseline-version: 0
       table: flyway_schema_history_comms

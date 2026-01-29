@@ -16,16 +16,18 @@ class KafkaEmailSendService(
 ) : EmailSendService {
     override fun requestSend(request: EmailSendRequest): EmailSendResult {
         val requestId = UUID.randomUUID().toString()
-        val event = CommsEvent(
-            id = requestId,
-            type = CommsEventType.EMAIL_SEND_REQUESTED,
-            traceId = requestId,
-            payload = EmailSendRequestedPayload(
-                to = request.to,
-                content = request.content,
-            ),
-            createdAt = Instant.now(),
-        )
+        val event =
+            CommsEvent(
+                id = requestId,
+                type = CommsEventType.EMAIL_SEND_REQUESTED,
+                traceId = requestId,
+                payload =
+                    EmailSendRequestedPayload(
+                        to = request.to,
+                        content = request.content,
+                    ),
+                createdAt = Instant.now(),
+            )
         producer.send(requestId, event)
         return EmailSendResult(requestId = requestId)
     }

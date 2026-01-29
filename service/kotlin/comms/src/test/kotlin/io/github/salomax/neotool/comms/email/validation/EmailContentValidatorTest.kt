@@ -8,7 +8,8 @@ import org.junit.jupiter.api.Test
 class EmailContentValidatorTest {
     @Test
     fun `validates RAW content with subject and body`() {
-        val content = EmailContent(
+        val content =
+            EmailContent(
             kind = EmailContentKind.RAW,
             subject = "Hello",
             body = "World",
@@ -21,7 +22,8 @@ class EmailContentValidatorTest {
 
     @Test
     fun `rejects RAW content with blank subject`() {
-        val content = EmailContent(
+        val content =
+            EmailContent(
             kind = EmailContentKind.RAW,
             subject = "  ",
             body = "World",
@@ -36,7 +38,8 @@ class EmailContentValidatorTest {
 
     @Test
     fun `rejects RAW content with null subject`() {
-        val content = EmailContent(
+        val content =
+            EmailContent(
             kind = EmailContentKind.RAW,
             subject = null,
             body = "World",
@@ -50,7 +53,8 @@ class EmailContentValidatorTest {
 
     @Test
     fun `rejects RAW content with blank body`() {
-        val content = EmailContent(
+        val content =
+            EmailContent(
             kind = EmailContentKind.RAW,
             subject = "Hello",
             body = "",
@@ -65,7 +69,8 @@ class EmailContentValidatorTest {
 
     @Test
     fun `rejects RAW content with both subject and body blank`() {
-        val content = EmailContent(
+        val content =
+            EmailContent(
             kind = EmailContentKind.RAW,
             subject = null,
             body = null,
@@ -78,7 +83,8 @@ class EmailContentValidatorTest {
 
     @Test
     fun `validates TEMPLATE content with templateKey and locale`() {
-        val content = EmailContent(
+        val content =
+            EmailContent(
             kind = EmailContentKind.TEMPLATE,
             templateKey = "welcome",
             locale = "en-US",
@@ -91,7 +97,8 @@ class EmailContentValidatorTest {
 
     @Test
     fun `rejects TEMPLATE content with blank templateKey`() {
-        val content = EmailContent(
+        val content =
+            EmailContent(
             kind = EmailContentKind.TEMPLATE,
             templateKey = "",
             locale = "en-US",
@@ -106,7 +113,8 @@ class EmailContentValidatorTest {
 
     @Test
     fun `rejects TEMPLATE content with blank locale`() {
-        val content = EmailContent(
+        val content =
+            EmailContent(
             kind = EmailContentKind.TEMPLATE,
             templateKey = "welcome",
             locale = null,
