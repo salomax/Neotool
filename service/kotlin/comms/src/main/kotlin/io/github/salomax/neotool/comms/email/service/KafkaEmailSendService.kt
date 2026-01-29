@@ -2,9 +2,9 @@ package io.github.salomax.neotool.comms.email.service
 
 import io.github.salomax.neotool.comms.email.dto.EmailSendRequest
 import io.github.salomax.neotool.comms.email.dto.EmailSendResult
+import io.github.salomax.neotool.comms.email.events.EmailSendRequestedEvent
 import io.github.salomax.neotool.comms.email.events.EmailSendRequestedPayload
 import io.github.salomax.neotool.comms.email.kafka.EmailSendProducer
-import io.github.salomax.neotool.comms.events.CommsEvent
 import io.github.salomax.neotool.comms.events.CommsEventType
 import jakarta.inject.Singleton
 import java.time.Instant
@@ -17,7 +17,7 @@ class KafkaEmailSendService(
     override fun requestSend(request: EmailSendRequest): EmailSendResult {
         val requestId = UUID.randomUUID().toString()
         val event =
-            CommsEvent(
+            EmailSendRequestedEvent(
                 id = requestId,
                 type = CommsEventType.EMAIL_SEND_REQUESTED,
                 traceId = requestId,

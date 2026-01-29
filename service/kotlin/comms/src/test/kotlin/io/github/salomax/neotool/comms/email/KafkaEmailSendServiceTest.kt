@@ -3,10 +3,9 @@ package io.github.salomax.neotool.comms.email
 import io.github.salomax.neotool.comms.email.dto.EmailContent
 import io.github.salomax.neotool.comms.email.dto.EmailContentKind
 import io.github.salomax.neotool.comms.email.dto.EmailSendRequest
-import io.github.salomax.neotool.comms.email.events.EmailSendRequestedPayload
+import io.github.salomax.neotool.comms.email.events.EmailSendRequestedEvent
 import io.github.salomax.neotool.comms.email.kafka.EmailSendProducer
 import io.github.salomax.neotool.comms.email.service.KafkaEmailSendService
-import io.github.salomax.neotool.comms.events.CommsEvent
 import io.github.salomax.neotool.comms.events.CommsEventType
 import io.mockk.every
 import io.mockk.mockk
@@ -24,17 +23,17 @@ class KafkaEmailSendServiceTest {
         val service = KafkaEmailSendService(producer)
         val request =
             EmailSendRequest(
-            to = "user@example.com",
-            content =
-                EmailContent(
-                    kind = EmailContentKind.RAW,
-                    subject = "Subject",
-                    body = "Body",
-                ),
-        )
+                to = "user@example.com",
+                content =
+                    EmailContent(
+                        kind = EmailContentKind.RAW,
+                        subject = "Subject",
+                        body = "Body",
+                    ),
+            )
 
         val keySlot = slot<String>()
-        val eventSlot = slot<CommsEvent<EmailSendRequestedPayload>>()
+        val eventSlot = slot<EmailSendRequestedEvent>()
 
         val result = service.requestSend(request)
 

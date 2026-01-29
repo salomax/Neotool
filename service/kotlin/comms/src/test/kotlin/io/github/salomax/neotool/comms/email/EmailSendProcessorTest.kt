@@ -25,13 +25,13 @@ class EmailSendProcessorTest {
     fun `throws validation error for template content`() {
         val event =
             createEvent(
-            EmailContent(
-                kind = EmailContentKind.TEMPLATE,
-                templateKey = "welcome",
-                locale = "en-US",
-                variables = mapOf("name" to "User"),
-            ),
-        )
+                EmailContent(
+                    kind = EmailContentKind.TEMPLATE,
+                    templateKey = "welcome",
+                    locale = "en-US",
+                    variables = mapOf("name" to "User"),
+                ),
+            )
 
         assertThatThrownBy { processor.process(event) }
             .isInstanceOf(ValidationException::class.java)
@@ -42,12 +42,12 @@ class EmailSendProcessorTest {
     fun `throws validation error for RAW content with blank subject`() {
         val event =
             createEvent(
-            EmailContent(
-                kind = EmailContentKind.RAW,
-                subject = "  ",
-                body = "World",
-            ),
-        )
+                EmailContent(
+                    kind = EmailContentKind.RAW,
+                    subject = "  ",
+                    body = "World",
+                ),
+            )
 
         assertThatThrownBy { processor.process(event) }
             .isInstanceOf(ValidationException::class.java)
@@ -58,12 +58,12 @@ class EmailSendProcessorTest {
     fun `throws validation error for RAW content with null subject`() {
         val event =
             createEvent(
-            EmailContent(
-                kind = EmailContentKind.RAW,
-                subject = null,
-                body = "World",
-            ),
-        )
+                EmailContent(
+                    kind = EmailContentKind.RAW,
+                    subject = null,
+                    body = "World",
+                ),
+            )
 
         assertThatThrownBy { processor.process(event) }
             .isInstanceOf(ValidationException::class.java)
@@ -74,12 +74,12 @@ class EmailSendProcessorTest {
     fun `throws validation error for RAW content with blank body`() {
         val event =
             createEvent(
-            EmailContent(
-                kind = EmailContentKind.RAW,
-                subject = "Hello",
-                body = "",
-            ),
-        )
+                EmailContent(
+                    kind = EmailContentKind.RAW,
+                    subject = "Hello",
+                    body = "",
+                ),
+            )
 
         assertThatThrownBy { processor.process(event) }
             .isInstanceOf(ValidationException::class.java)
@@ -93,29 +93,28 @@ class EmailSendProcessorTest {
 
         val event =
             createEvent(
-            EmailContent(
-                kind = EmailContentKind.RAW,
-                subject = "Hello",
-                body = "World",
-            ),
-        )
+                EmailContent(
+                    kind = EmailContentKind.RAW,
+                    subject = "Hello",
+                    body = "World",
+                ),
+            )
 
         processor.process(event)
 
         verify(exactly = 1) { provider.send(event.payload) }
     }
 
-    private fun createEvent(content: EmailContent): EmailSendRequestedEvent {
-        return EmailSendRequestedEvent(
+    private fun createEvent(content: EmailContent): EmailSendRequestedEvent =
+        EmailSendRequestedEvent(
             id = "req-${System.currentTimeMillis()}",
             type = CommsEventType.EMAIL_SEND_REQUESTED,
             traceId = "trace-1",
             payload =
                 EmailSendRequestedPayload(
-                to = "user@example.com",
-                content = content,
-            ),
+                    to = "user@example.com",
+                    content = content,
+                ),
             createdAt = Instant.now(),
         )
-    }
 }

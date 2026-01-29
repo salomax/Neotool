@@ -10,10 +10,10 @@ class EmailContentValidatorTest {
     fun `validates RAW content with subject and body`() {
         val content =
             EmailContent(
-            kind = EmailContentKind.RAW,
-            subject = "Hello",
-            body = "World",
-        )
+                kind = EmailContentKind.RAW,
+                subject = "Hello",
+                body = "World",
+            )
 
         val errors = EmailContentValidator.validate(content)
 
@@ -24,10 +24,10 @@ class EmailContentValidatorTest {
     fun `rejects RAW content with blank subject`() {
         val content =
             EmailContent(
-            kind = EmailContentKind.RAW,
-            subject = "  ",
-            body = "World",
-        )
+                kind = EmailContentKind.RAW,
+                subject = "  ",
+                body = "World",
+            )
 
         val errors = EmailContentValidator.validate(content)
 
@@ -40,10 +40,10 @@ class EmailContentValidatorTest {
     fun `rejects RAW content with null subject`() {
         val content =
             EmailContent(
-            kind = EmailContentKind.RAW,
-            subject = null,
-            body = "World",
-        )
+                kind = EmailContentKind.RAW,
+                subject = null,
+                body = "World",
+            )
 
         val errors = EmailContentValidator.validate(content)
 
@@ -55,10 +55,10 @@ class EmailContentValidatorTest {
     fun `rejects RAW content with blank body`() {
         val content =
             EmailContent(
-            kind = EmailContentKind.RAW,
-            subject = "Hello",
-            body = "",
-        )
+                kind = EmailContentKind.RAW,
+                subject = "Hello",
+                body = "",
+            )
 
         val errors = EmailContentValidator.validate(content)
 
@@ -71,10 +71,10 @@ class EmailContentValidatorTest {
     fun `rejects RAW content with both subject and body blank`() {
         val content =
             EmailContent(
-            kind = EmailContentKind.RAW,
-            subject = null,
-            body = null,
-        )
+                kind = EmailContentKind.RAW,
+                subject = null,
+                body = null,
+            )
 
         val errors = EmailContentValidator.validate(content)
 
@@ -85,10 +85,10 @@ class EmailContentValidatorTest {
     fun `validates TEMPLATE content with templateKey and locale`() {
         val content =
             EmailContent(
-            kind = EmailContentKind.TEMPLATE,
-            templateKey = "welcome",
-            locale = "en-US",
-        )
+                kind = EmailContentKind.TEMPLATE,
+                templateKey = "welcome",
+                locale = "en-US",
+            )
 
         val errors = EmailContentValidator.validate(content)
 
@@ -99,10 +99,10 @@ class EmailContentValidatorTest {
     fun `rejects TEMPLATE content with blank templateKey`() {
         val content =
             EmailContent(
-            kind = EmailContentKind.TEMPLATE,
-            templateKey = "",
-            locale = "en-US",
-        )
+                kind = EmailContentKind.TEMPLATE,
+                templateKey = "",
+                locale = "en-US",
+            )
 
         val errors = EmailContentValidator.validate(content)
 
@@ -115,10 +115,10 @@ class EmailContentValidatorTest {
     fun `rejects TEMPLATE content with blank locale`() {
         val content =
             EmailContent(
-            kind = EmailContentKind.TEMPLATE,
-            templateKey = "welcome",
-            locale = null,
-        )
+                kind = EmailContentKind.TEMPLATE,
+                templateKey = "welcome",
+                locale = null,
+            )
 
         val errors = EmailContentValidator.validate(content)
 
