@@ -121,7 +121,7 @@ const defaultPalette = (theme: any): string[] => [
 
 interface CustomTooltipProps {
   active?: boolean;
-  payload?: any[];
+  payload?: readonly any[];
   label?: any;
   theme: any;
   palette: string[];
