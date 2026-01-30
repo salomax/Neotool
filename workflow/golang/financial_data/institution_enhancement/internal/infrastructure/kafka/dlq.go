@@ -4,7 +4,7 @@ import (
 	"log/slog"
 
 	"github.com/IBM/sarama"
-	shareddlq "github.com/salomax/invistus/workflow/go/shared/kafka-consumer"
+	shareddlq "github.com/salomax/invistus/workflow/golang/shared/kafka-consumer"
 )
 
 // DLQPublisher wraps the shared DLQ publisher to maintain compatibility

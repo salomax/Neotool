@@ -7,8 +7,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/salomax/invistus/workflow/go/financial_data/institution_enhancement/internal/infrastructure/assets"
-	"github.com/salomax/invistus/workflow/go/financial_data/institution_enhancement/internal/infrastructure/logo"
+	"github.com/salomax/invistus/workflow/golang/financial_data/institution_enhancement/internal/infrastructure/assets"
+	"github.com/salomax/invistus/workflow/golang/financial_data/institution_enhancement/internal/infrastructure/logo"
 )
 
 // LogoProcessor handles logo download and upload

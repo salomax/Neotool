@@ -9,13 +9,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/salomax/invistus/workflow/go/financial_data/institution_enhancement/internal/application"
-	"github.com/salomax/invistus/workflow/go/financial_data/institution_enhancement/internal/infrastructure/assets"
-	"github.com/salomax/invistus/workflow/go/financial_data/institution_enhancement/internal/infrastructure/database"
-	graphqlClient "github.com/salomax/invistus/workflow/go/financial_data/institution_enhancement/internal/infrastructure/graphql"
-	"github.com/salomax/invistus/workflow/go/financial_data/institution_enhancement/internal/infrastructure/logo"
-	"github.com/salomax/invistus/workflow/go/financial_data/institution_enhancement/internal/processor"
-	"github.com/salomax/invistus/workflow/go/shared/auth"
+	"github.com/salomax/invistus/workflow/golang/financial_data/institution_enhancement/internal/application"
+	"github.com/salomax/invistus/workflow/golang/financial_data/institution_enhancement/internal/infrastructure/assets"
+	"github.com/salomax/invistus/workflow/golang/financial_data/institution_enhancement/internal/infrastructure/database"
+	graphqlClient "github.com/salomax/invistus/workflow/golang/financial_data/institution_enhancement/internal/infrastructure/graphql"
+	"github.com/salomax/invistus/workflow/golang/financial_data/institution_enhancement/internal/infrastructure/logo"
+	"github.com/salomax/invistus/workflow/golang/financial_data/institution_enhancement/internal/processor"
+	"github.com/salomax/invistus/workflow/golang/shared/auth"
 )
 
 func main() {

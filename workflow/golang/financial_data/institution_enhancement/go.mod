@@ -1,4 +1,4 @@
-module github.com/salomax/invistus/workflow/go/financial_data/institution_enhancement
+module github.com/salomax/invistus/workflow/golang/financial_data/institution_enhancement
 
 go 1.22
 
@@ -7,16 +7,16 @@ require (
 	github.com/PuerkitoBio/goquery v1.9.1
 	github.com/caarlos0/env/v10 v10.0.0
 	github.com/jackc/pgx/v5 v5.5.5
-	github.com/salomax/invistus/workflow/go/shared/auth v0.0.0
-	github.com/salomax/invistus/workflow/go/shared/health v0.0.0
-	github.com/salomax/invistus/workflow/go/shared/kafka-consumer v0.0.0
+	github.com/salomax/invistus/workflow/golang/shared/auth v0.0.0
+	github.com/salomax/invistus/workflow/golang/shared/health v0.0.0
+	github.com/salomax/invistus/workflow/golang/shared/kafka-consumer v0.0.0
 	github.com/stretchr/testify v1.9.0
 )
 
 replace (
-	github.com/salomax/invistus/workflow/go/shared/auth => ../../shared/auth
-	github.com/salomax/invistus/workflow/go/shared/health => ../../shared/health
-	github.com/salomax/invistus/workflow/go/shared/kafka-consumer => ../../shared/kafka-consumer
+	github.com/salomax/invistus/workflow/golang/shared/auth => ../../shared/auth
+	github.com/salomax/invistus/workflow/golang/shared/health => ../../shared/health
+	github.com/salomax/invistus/workflow/golang/shared/kafka-consumer => ../../shared/kafka-consumer
 )
 
 require (

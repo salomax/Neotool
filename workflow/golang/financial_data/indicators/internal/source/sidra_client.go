@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/salomax/invistus/workflow/go/financial_data/indicators/internal/domain"
+	"github.com/salomax/invistus/workflow/golang/financial_data/indicators/internal/domain"
 )
 
 // SIDRAClient fetches series from IBGE SIDRA

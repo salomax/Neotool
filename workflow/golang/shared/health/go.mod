@@ -1,4 +1,4 @@
-module github.com/salomax/invistus/workflow/go/shared/health
+module github.com/salomax/invistus/workflow/golang/shared/health
 
 go 1.22
 

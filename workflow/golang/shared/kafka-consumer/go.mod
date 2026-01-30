@@ -1,4 +1,4 @@
-module github.com/salomax/invistus/workflow/go/shared/kafka-consumer
+module github.com/salomax/invistus/workflow/golang/shared/kafka-consumer
 
 go 1.22
 

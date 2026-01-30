@@ -8,12 +8,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/salomax/invistus/workflow/go/financial_data/indicators/internal/application"
-	"github.com/salomax/invistus/workflow/go/financial_data/indicators/internal/infrastructure/database"
-	"github.com/salomax/invistus/workflow/go/financial_data/indicators/internal/processor"
-	"github.com/salomax/invistus/workflow/go/financial_data/indicators/internal/repository"
-	"github.com/salomax/invistus/workflow/go/financial_data/indicators/internal/source"
-	sharedhealth "github.com/salomax/invistus/workflow/go/shared/health"
+	"github.com/salomax/invistus/workflow/golang/financial_data/indicators/internal/application"
+	"github.com/salomax/invistus/workflow/golang/financial_data/indicators/internal/infrastructure/database"
+	"github.com/salomax/invistus/workflow/golang/financial_data/indicators/internal/processor"
+	"github.com/salomax/invistus/workflow/golang/financial_data/indicators/internal/repository"
+	"github.com/salomax/invistus/workflow/golang/financial_data/indicators/internal/source"
+	sharedhealth "github.com/salomax/invistus/workflow/golang/shared/health"
 )
 
 func main() {

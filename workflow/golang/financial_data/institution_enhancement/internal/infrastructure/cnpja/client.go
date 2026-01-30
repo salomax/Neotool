@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/salomax/invistus/workflow/go/financial_data/institution_enhancement/internal/domain"
+	"github.com/salomax/invistus/workflow/golang/financial_data/institution_enhancement/internal/domain"
 )
 
 // Client is a CNPJá API client with rate limiting

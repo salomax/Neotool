@@ -1,12 +1,12 @@
-module github.com/salomax/invistus/workflow/go/financial_data/indicators
+module github.com/salomax/invistus/workflow/golang/financial_data/indicators
 
 go 1.24.0
 
 require (
 	github.com/caarlos0/env/v10 v10.0.0
 	github.com/jackc/pgx/v5 v5.5.5
-	github.com/salomax/invistus/workflow/go/shared/health v0.0.0
-	github.com/salomax/invistus/workflow/go/shared/workerpool v0.0.0
+	github.com/salomax/invistus/workflow/golang/shared/health v0.0.0
+	github.com/salomax/invistus/workflow/golang/shared/workerpool v0.0.0
 )
 
 require (
@@ -37,6 +37,6 @@ require (
 )
 
 replace (
-	github.com/salomax/invistus/workflow/go/shared/health => ../../shared/health
-	github.com/salomax/invistus/workflow/go/shared/workerpool => ../../shared/workerpool
+	github.com/salomax/invistus/workflow/golang/shared/health => ../../shared/health
+	github.com/salomax/invistus/workflow/golang/shared/workerpool => ../../shared/workerpool
 )

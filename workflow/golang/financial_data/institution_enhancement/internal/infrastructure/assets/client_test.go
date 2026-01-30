@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/salomax/invistus/workflow/go/financial_data/institution_enhancement/internal/infrastructure/graphql"
-	"github.com/salomax/invistus/workflow/go/shared/auth"
+	"github.com/salomax/invistus/workflow/golang/financial_data/institution_enhancement/internal/infrastructure/graphql"
+	"github.com/salomax/invistus/workflow/golang/shared/auth"
 )
 
 // TestAssetUploadFlow tests the full asset upload flow with mocked services

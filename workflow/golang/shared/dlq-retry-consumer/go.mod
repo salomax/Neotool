@@ -1,4 +1,4 @@
-module github.com/salomax/invistus/workflow/go/shared/dlq-retry-consumer
+module github.com/salomax/invistus/workflow/golang/shared/dlq-retry-consumer
 
 go 1.23
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"log/slog"
 
-	httpClient "github.com/salomax/invistus/workflow/go/financial_data/institution_enhancement/internal/infrastructure/http"
+	httpClient "github.com/salomax/invistus/workflow/golang/financial_data/institution_enhancement/internal/infrastructure/http"
 )
 
 // SocialNetworkProcessor handles social network scraping

@@ -5,7 +5,7 @@ import (
 
 	"github.com/IBM/sarama"
 	"github.com/jackc/pgx/v5/pgxpool"
-	sharedhealth "github.com/salomax/invistus/workflow/go/shared/health"
+	sharedhealth "github.com/salomax/invistus/workflow/golang/shared/health"
 )
 
 // HealthServer wraps the shared health server to maintain compatibility

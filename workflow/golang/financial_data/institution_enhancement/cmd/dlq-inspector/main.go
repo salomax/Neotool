@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/IBM/sarama"
-	"github.com/salomax/invistus/workflow/go/financial_data/institution_enhancement/internal/application"
-	"github.com/salomax/invistus/workflow/go/financial_data/institution_enhancement/internal/infrastructure/kafka"
+	"github.com/salomax/invistus/workflow/golang/financial_data/institution_enhancement/internal/application"
+	"github.com/salomax/invistus/workflow/golang/financial_data/institution_enhancement/internal/infrastructure/kafka"
 )
 
 type ErrorStats struct {

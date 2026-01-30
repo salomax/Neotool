@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/salomax/invistus/workflow/go/financial_data/institution_enhancement/internal/application"
-	"github.com/salomax/invistus/workflow/go/financial_data/institution_enhancement/internal/infrastructure/database"
+	"github.com/salomax/invistus/workflow/golang/financial_data/institution_enhancement/internal/application"
+	"github.com/salomax/invistus/workflow/golang/financial_data/institution_enhancement/internal/infrastructure/database"
 )
 
 func main() {

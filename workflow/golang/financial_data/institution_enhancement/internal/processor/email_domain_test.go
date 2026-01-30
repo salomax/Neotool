@@ -3,7 +3,7 @@ package processor
 import (
 	"testing"
 
-	"github.com/salomax/invistus/workflow/go/financial_data/institution_enhancement/internal/domain"
+	"github.com/salomax/invistus/workflow/golang/financial_data/institution_enhancement/internal/domain"
 	"github.com/stretchr/testify/assert"
 )
 

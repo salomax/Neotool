@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/salomax/invistus/workflow/go/shared/dlq-retry-consumer/internal/config"
+	"github.com/salomax/invistus/workflow/golang/shared/dlq-retry-consumer/internal/config"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -15,7 +15,7 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 
-	"github.com/salomax/invistus/workflow/go/shared/dlq-retry-consumer/internal/config"
+	"github.com/salomax/invistus/workflow/golang/shared/dlq-retry-consumer/internal/config"
 )
 
 // setupKafkaContainer starts a Kafka container for integration testing

@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/salomax/invistus/workflow/go/financial_data/institution_enhancement/internal/shared"
+	"github.com/salomax/invistus/workflow/golang/financial_data/institution_enhancement/internal/shared"
 )
 
 // Client is an HTTP client with retry logic

@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/salomax/invistus/workflow/go/financial_data/institution_enhancement/internal/domain"
+	"github.com/salomax/invistus/workflow/golang/financial_data/institution_enhancement/internal/domain"
 )
 
 // Processor handles the main business logic for institution enhancement

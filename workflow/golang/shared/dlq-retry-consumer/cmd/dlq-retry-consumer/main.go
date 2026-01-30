@@ -11,8 +11,8 @@ import (
 	"syscall"
 
 	"github.com/IBM/sarama"
-	"github.com/salomax/invistus/workflow/go/shared/dlq-retry-consumer/internal/config"
-	"github.com/salomax/invistus/workflow/go/shared/dlq-retry-consumer/internal/consumer"
+	"github.com/salomax/invistus/workflow/golang/shared/dlq-retry-consumer/internal/config"
+	"github.com/salomax/invistus/workflow/golang/shared/dlq-retry-consumer/internal/consumer"
 )
 
 func main() {

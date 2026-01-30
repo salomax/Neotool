@@ -10,8 +10,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/salomax/invistus/workflow/go/financial_data/institution_enhancement/internal/infrastructure/graphql"
-	"github.com/salomax/invistus/workflow/go/shared/auth"
+	"github.com/salomax/invistus/workflow/golang/financial_data/institution_enhancement/internal/infrastructure/graphql"
+	"github.com/salomax/invistus/workflow/golang/shared/auth"
 )
 
 // Client handles asset uploads to the assets service via GraphQL

@@ -4,10 +4,10 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/salomax/invistus/workflow/go/financial_data/indicators/internal/application"
-	"github.com/salomax/invistus/workflow/go/financial_data/indicators/internal/repository"
-	"github.com/salomax/invistus/workflow/go/financial_data/indicators/internal/source"
-	"github.com/salomax/invistus/workflow/go/shared/workerpool"
+	"github.com/salomax/invistus/workflow/golang/financial_data/indicators/internal/application"
+	"github.com/salomax/invistus/workflow/golang/financial_data/indicators/internal/repository"
+	"github.com/salomax/invistus/workflow/golang/financial_data/indicators/internal/source"
+	"github.com/salomax/invistus/workflow/golang/shared/workerpool"
 )
 
 // Dispatcher coordinates worker pool execution

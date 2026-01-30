@@ -5,9 +5,9 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/salomax/invistus/workflow/go/financial_data/institution_enhancement/internal/domain"
-	httpClient "github.com/salomax/invistus/workflow/go/financial_data/institution_enhancement/internal/infrastructure/http"
-	"github.com/salomax/invistus/workflow/go/financial_data/institution_enhancement/internal/infrastructure/serper"
+	"github.com/salomax/invistus/workflow/golang/financial_data/institution_enhancement/internal/domain"
+	httpClient "github.com/salomax/invistus/workflow/golang/financial_data/institution_enhancement/internal/infrastructure/http"
+	"github.com/salomax/invistus/workflow/golang/financial_data/institution_enhancement/internal/infrastructure/serper"
 )
 
 // SpecialWebsites maps institution name keywords to their trusted websites

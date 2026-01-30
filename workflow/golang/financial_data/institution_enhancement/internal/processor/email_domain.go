@@ -3,7 +3,7 @@ package processor
 import (
 	"strings"
 
-	"github.com/salomax/invistus/workflow/go/financial_data/institution_enhancement/internal/domain"
+	"github.com/salomax/invistus/workflow/golang/financial_data/institution_enhancement/internal/domain"
 )
 
 // DomainBlacklist contains blacklisted email provider domains

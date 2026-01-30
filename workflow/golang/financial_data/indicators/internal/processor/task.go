@@ -5,9 +5,9 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/salomax/invistus/workflow/go/financial_data/indicators/internal/domain"
-	"github.com/salomax/invistus/workflow/go/financial_data/indicators/internal/repository"
-	"github.com/salomax/invistus/workflow/go/financial_data/indicators/internal/source"
+	"github.com/salomax/invistus/workflow/golang/financial_data/indicators/internal/domain"
+	"github.com/salomax/invistus/workflow/golang/financial_data/indicators/internal/repository"
+	"github.com/salomax/invistus/workflow/golang/financial_data/indicators/internal/source"
 )
 
 // Task represents one indicator variation load

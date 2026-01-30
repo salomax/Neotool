@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/IBM/sarama"
-	"github.com/salomax/invistus/workflow/go/shared/dlq-retry-consumer/internal/categorizer"
-	"github.com/salomax/invistus/workflow/go/shared/dlq-retry-consumer/internal/config"
+	"github.com/salomax/invistus/workflow/golang/shared/dlq-retry-consumer/internal/categorizer"
+	"github.com/salomax/invistus/workflow/golang/shared/dlq-retry-consumer/internal/config"
 )
 
 // RetryConsumer handles DLQ message processing and retry logic

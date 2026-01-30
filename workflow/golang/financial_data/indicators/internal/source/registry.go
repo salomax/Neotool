@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/salomax/invistus/workflow/go/financial_data/indicators/internal/domain"
+	"github.com/salomax/invistus/workflow/golang/financial_data/indicators/internal/domain"
 )
 
 // SourceType represents external source type

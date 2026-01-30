@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/salomax/invistus/workflow/go/financial_data/indicators/internal/domain"
+	"github.com/salomax/invistus/workflow/golang/financial_data/indicators/internal/domain"
 )
 
 type comexResponse struct {

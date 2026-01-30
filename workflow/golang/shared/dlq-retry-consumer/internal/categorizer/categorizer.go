@@ -3,7 +3,7 @@ package categorizer
 import (
 	"strings"
 
-	"github.com/salomax/invistus/workflow/go/shared/dlq-retry-consumer/internal/config"
+	"github.com/salomax/invistus/workflow/golang/shared/dlq-retry-consumer/internal/config"
 )
 
 // ErrorCategory represents the type of error
