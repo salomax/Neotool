@@ -63,5 +63,10 @@ terraform.tfvars
 .terraformrc
 terraform.rc
 
+# IDE settings
+.vscode/
+.claude/
+.cursor/
+
 # Drafting ideas
 docs/03-features/brainstorming
