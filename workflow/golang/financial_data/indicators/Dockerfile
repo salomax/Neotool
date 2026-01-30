@@ -4,18 +4,21 @@ WORKDIR /app
 
 RUN apk add --no-cache ca-certificates
 
-COPY go.mod go.sum ./
-RUN go mod download
-
+# Copy entire golang workspace to include shared modules
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /app/bin/cronjob ./cmd/cronjob
+# Set working directory to the service
+WORKDIR /app/financial_data/indicators
+
+RUN go mod download
+
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /bin/cronjob ./cmd/cronjob
 
 FROM gcr.io/distroless/static-debian12:nonroot
 
 WORKDIR /
 
-COPY --from=builder /app/bin/cronjob /cronjob
+COPY --from=builder /bin/cronjob /cronjob
 
 USER nonroot:nonroot
 
