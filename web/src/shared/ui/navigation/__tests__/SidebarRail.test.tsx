@@ -29,8 +29,8 @@ vi.mock('@/shared/ui/brand/LogoMark', () => ({
 }));
 
 // Mock GraphQL queries - return immediately resolved data
-vi.mock('@/lib/graphql/operations/auth/queries.generated', () => ({
-  useCurrentUserQuery: vi.fn(() => ({
+vi.mock('@apollo/client/react', () => ({
+  useQuery: vi.fn(() => ({
     data: {
       currentUser: {
         id: '1',
@@ -270,4 +270,3 @@ describe.sequential('SidebarRail', () => {
     cleanup();
   });
 });
-

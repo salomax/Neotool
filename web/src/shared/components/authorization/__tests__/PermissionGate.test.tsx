@@ -3,9 +3,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import { PermissionGate } from '../PermissionGate';
 
-// Mock useCurrentUserQuery - not needed since we're mocking providers directly
-vi.mock('@/lib/graphql/operations/auth/queries.generated', () => ({
-  useCurrentUserQuery: vi.fn(() => ({
+// Mock useQuery - not needed since we're mocking providers directly
+vi.mock('@apollo/client/react', () => ({
+  useQuery: vi.fn(() => ({
     data: {
       currentUser: {
         id: '1',

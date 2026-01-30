@@ -41,8 +41,17 @@ export function MetricBarChart({
 
   if (!data || data.length === 0) return null;
 
+  const widthProp: number | `${number}%` =
+    typeof width === "string" && width.endsWith("%")
+      ? (width as `${number}%`)
+      : (typeof width === "number" ? width : Number(width) || 120);
+  const heightProp: number | `${number}%` =
+    typeof height === "string" && String(height).endsWith("%")
+      ? (height as `${number}%`)
+      : (typeof height === "number" ? height : Number(height) || 32);
+
   return (
-    <ResponsiveContainer width={width} height={height}>
+    <ResponsiveContainer width={widthProp} height={heightProp}>
       <BarChart data={chartData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
         <Tooltip
           cursor={{ fill: 'transparent' }}

@@ -85,7 +85,7 @@ export function useOptimisticUpdate<T>(
   options: UseOptimisticUpdateOptions<T>
 ): UseOptimisticUpdateReturn<T> {
   const { value, syncOnPropChange = true } = options;
-  
+
   const [optimisticValue, setOptimisticValue] = useState(value);
   const [isUpdating, setIsUpdating] = useState(false);
   const previousValueRef = useRef(value);

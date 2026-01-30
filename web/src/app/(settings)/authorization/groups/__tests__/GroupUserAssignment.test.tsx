@@ -14,7 +14,7 @@ const mockUsers = [
   { id: '3', email: 'user3@example.com', displayName: 'User Three' },
 ];
 
-const mockUseGetUsersQuery = vi.fn(() => ({
+const mockUseQuery = vi.fn((_document?: any, _options?: any) => ({
   data: {
     users: {
       edges: mockUsers.map((user) => ({
@@ -27,8 +27,8 @@ const mockUseGetUsersQuery = vi.fn(() => ({
   refetch: vi.fn(),
 }));
 
-vi.mock('@/lib/graphql/operations/authorization-management/queries.generated', () => ({
-  useGetUsersQuery: () => mockUseGetUsersQuery(),
+vi.mock('@apollo/client/react', () => ({
+  useQuery: (document: any, options: any) => mockUseQuery(document, options),
 }));
 
 // Mock translations
@@ -93,7 +93,7 @@ describe.sequential('GroupUserAssignment', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseGetUsersQuery.mockReturnValue({
+    mockUseQuery.mockReturnValue({
       data: {
         users: {
           edges: mockUsers.map((user) => ({
@@ -120,7 +120,7 @@ describe.sequential('GroupUserAssignment', () => {
     });
 
     it('should show loading state', () => {
-      mockUseGetUsersQuery.mockReturnValue({
+      mockUseQuery.mockReturnValue({
         data: undefined as any,
         loading: true,
         error: undefined,
@@ -133,7 +133,7 @@ describe.sequential('GroupUserAssignment', () => {
     });
 
     it('should show error state', () => {
-      mockUseGetUsersQuery.mockReturnValue({
+      mockUseQuery.mockReturnValue({
         data: undefined as any,
         loading: false,
         error: new Error('Failed to load') as any,
@@ -225,7 +225,7 @@ describe.sequential('GroupUserAssignment', () => {
   describe('Error handling', () => {
     it('should show retry button in error state', async () => {
       const refetch = vi.fn();
-      mockUseGetUsersQuery.mockReturnValue({
+      mockUseQuery.mockReturnValue({
         data: undefined as any,
         loading: false,
         error: new Error('Failed to load') as any,

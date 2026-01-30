@@ -1,12 +1,26 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { useGetGroupWithRelationshipsQuery, GetGroupWithRelationshipsDocument, GetGroupsDocument } from "@/lib/graphql/operations/authorization-management/queries.generated";
+import { useQuery, useMutation } from "@apollo/client/react";
 import {
-  useAssignRoleToGroupMutation,
-  useRemoveRoleFromGroupMutation,
-  useAssignGroupToUserMutation,
-  useRemoveGroupFromUserMutation,
+  GetGroupWithRelationshipsDocument,
+  GetGroupsDocument,
+  type GetGroupWithRelationshipsQuery,
+  type GetGroupWithRelationshipsQueryVariables,
+} from "@/lib/graphql/operations/authorization-management/queries.generated";
+import {
+  AssignRoleToGroupDocument,
+  RemoveRoleFromGroupDocument,
+  AssignGroupToUserDocument,
+  RemoveGroupFromUserDocument,
+  type AssignRoleToGroupMutation,
+  type AssignRoleToGroupMutationVariables,
+  type RemoveRoleFromGroupMutation,
+  type RemoveRoleFromGroupMutationVariables,
+  type AssignGroupToUserMutation,
+  type AssignGroupToUserMutationVariables,
+  type RemoveGroupFromUserMutation,
+  type RemoveGroupFromUserMutationVariables,
 } from "@/lib/graphql/operations/authorization-management/mutations.generated";
 import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
@@ -63,7 +77,10 @@ export function useGroupDrawer(
   const toast = useToast();
 
   // Query group with relationships (only in edit mode)
-  const { data, loading, error, refetch } = useGetGroupWithRelationshipsQuery({
+  const { data, loading, error, refetch } = useQuery<
+    GetGroupWithRelationshipsQuery,
+    GetGroupWithRelationshipsQueryVariables
+  >(GetGroupWithRelationshipsDocument, {
     skip: !open || !groupId,
     variables: { id: groupId! },
     fetchPolicy: 'network-only',
@@ -98,10 +115,22 @@ export function useGroupDrawer(
   const [saving, setSaving] = useState(false);
 
   // Mutation hooks
-  const [assignRoleToGroupMutation] = useAssignRoleToGroupMutation();
-  const [removeRoleFromGroupMutation] = useRemoveRoleFromGroupMutation();
-  const [assignGroupToUserMutation] = useAssignGroupToUserMutation();
-  const [removeGroupFromUserMutation] = useRemoveGroupFromUserMutation();
+  const [assignRoleToGroupMutation] = useMutation<
+    AssignRoleToGroupMutation,
+    AssignRoleToGroupMutationVariables
+  >(AssignRoleToGroupDocument);
+  const [removeRoleFromGroupMutation] = useMutation<
+    RemoveRoleFromGroupMutation,
+    RemoveRoleFromGroupMutationVariables
+  >(RemoveRoleFromGroupDocument);
+  const [assignGroupToUserMutation] = useMutation<
+    AssignGroupToUserMutation,
+    AssignGroupToUserMutationVariables
+  >(AssignGroupToUserDocument);
+  const [removeGroupFromUserMutation] = useMutation<
+    RemoveGroupFromUserMutation,
+    RemoveGroupFromUserMutationVariables
+  >(RemoveGroupFromUserDocument);
 
   // Initialize form state when group data loads
   useEffect(() => {

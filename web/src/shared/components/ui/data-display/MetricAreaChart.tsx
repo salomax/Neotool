@@ -55,8 +55,17 @@ export function MetricAreaChart({
   const lastValue = values[values.length - 1];
   const isNegative = values.length > 0 && lastValue !== undefined && lastValue < 0;
 
+  const widthProp: number | `${number}%` =
+    typeof width === "string" && width.endsWith("%")
+      ? (width as `${number}%`)
+      : (typeof width === "number" ? width : Number(width) || 120);
+  const heightProp: number | `${number}%` =
+    typeof height === "string" && String(height).endsWith("%")
+      ? (height as `${number}%`)
+      : (typeof height === "number" ? height : Number(height) || 32);
+
   return (
-    <ResponsiveContainer width={width} height={height}>
+    <ResponsiveContainer width={widthProp} height={heightProp}>
       <AreaChart data={chartData} margin={{ top: 2, right: 0, bottom: 2, left: 0 }}>
         <defs>
           <linearGradient id={uniqueId} x1="0" y1="0" x2="0" y2="1">

@@ -15,22 +15,26 @@ import { TextField } from "@/shared/components/ui/primitives";
 import { CloseIcon } from "@/shared/ui/mui-imports";
 import { LoadingState, ErrorAlert } from "@/shared/components/ui/feedback";
 import { useForm, FormProvider } from "react-hook-form";
-import { useGetGroupWithRelationshipsQuery, GetGroupWithRelationshipsDocument } from "@/lib/graphql/operations/authorization-management/queries.generated";
-import { 
-  useCreateGroupMutation,
-  useUpdateGroupMutation,
+import { useMutation } from "@apollo/client/react";
+import {
+  CreateGroupDocument,
+  UpdateGroupDocument,
+  type CreateGroupMutation,
+  type CreateGroupMutationVariables,
+  type UpdateGroupMutation,
+  type UpdateGroupMutationVariables,
 } from "@/lib/graphql/operations/authorization-management/mutations.generated";
+import { GetGroupWithRelationshipsDocument } from "@/lib/graphql/operations/authorization-management/queries.generated";
 import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
 import { useGroupMutations } from "@/shared/hooks/authorization/useGroupMutations";
-import { useGroupManagement, type GroupFormData } from "@/shared/hooks/authorization/useGroupManagement";
+import { type GroupFormData } from "@/shared/hooks/authorization/useGroupManagement";
 import { useGroupDrawer } from "@/shared/hooks/authorization/useGroupDrawer";
 import { GroupRoleAssignment } from "./GroupRoleAssignment";
 import { GroupUserAssignment, type User as GroupUser } from "./GroupUserAssignment";
 import { GroupForm } from "./GroupForm";
 import { useToast } from "@/shared/providers";
 import { extractErrorMessage } from "@/shared/utils/error";
-import { GetGroupsDocument } from "@/lib/graphql/operations/authorization-management/queries.generated";
 import { PermissionGate } from "@/shared/components/authorization";
 import { useKeyboardFormSubmit, useDrawerAutoFocus } from "@/shared/hooks/forms";
 
@@ -79,13 +83,19 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
   });
 
   // Use mutation directly for create to get the created group ID
-  const [createGroupMutation, { loading: createLoading }] = useCreateGroupMutation({
+  const [createGroupMutation, { loading: createLoading }] = useMutation<
+    CreateGroupMutation,
+    CreateGroupMutationVariables
+  >(CreateGroupDocument, {
     refetchQueries: ['GetGroups'],
     awaitRefetchQueries: true,
   });
 
   // Direct mutation for updating group name/description only (without userIds)
-  const [updateGroupMutation] = useUpdateGroupMutation();
+  const [updateGroupMutation] = useMutation<
+    UpdateGroupMutation,
+    UpdateGroupMutationVariables
+  >(UpdateGroupDocument);
 
   // Form setup with react-hook-form
   const methods = useForm<GroupFormData>({
@@ -481,4 +491,3 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
     </Drawer>
   );
 };
-

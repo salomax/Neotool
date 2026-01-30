@@ -1,12 +1,23 @@
 "use client";
 
 import { useCallback } from "react";
+import { useMutation } from "@apollo/client/react";
 import {
-  useCreateGroupMutation,
-  useUpdateGroupMutation,
-  useDeleteGroupMutation,
-  useAssignRoleToGroupMutation,
-  useRemoveRoleFromGroupMutation,
+  CreateGroupDocument,
+  UpdateGroupDocument,
+  DeleteGroupDocument,
+  AssignRoleToGroupDocument,
+  RemoveRoleFromGroupDocument,
+  type CreateGroupMutation,
+  type CreateGroupMutationVariables,
+  type UpdateGroupMutation,
+  type UpdateGroupMutationVariables,
+  type DeleteGroupMutation,
+  type DeleteGroupMutationVariables,
+  type AssignRoleToGroupMutation,
+  type AssignRoleToGroupMutationVariables,
+  type RemoveRoleFromGroupMutation,
+  type RemoveRoleFromGroupMutationVariables,
 } from '@/lib/graphql/operations/authorization-management/mutations.generated';
 import { CreateGroupInput, UpdateGroupInput } from '@/lib/graphql/types/__generated__/graphql';
 import { extractErrorMessage } from '@/shared/utils/error';
@@ -96,11 +107,28 @@ export function useGroupMutations(
   } = options;
 
   // Mutation hooks
-  const [createGroupMutation, { loading: createLoading }] = useCreateGroupMutation();
-  const [updateGroupMutation, { loading: updateLoading }] = useUpdateGroupMutation();
-  const [deleteGroupMutation, { loading: deleteLoading }] = useDeleteGroupMutation();
-  const [assignRoleToGroupMutation, { loading: assignRoleLoading }] = useAssignRoleToGroupMutation();
-  const [removeRoleFromGroupMutation, { loading: removeRoleLoading }] = useRemoveRoleFromGroupMutation();
+  const [createGroupMutation, { loading: createLoading }] = useMutation<
+    CreateGroupMutation,
+    CreateGroupMutationVariables
+  >(CreateGroupDocument);
+  const [updateGroupMutation, { loading: updateLoading }] = useMutation<
+    UpdateGroupMutation,
+    UpdateGroupMutationVariables
+  >(UpdateGroupDocument);
+  const [deleteGroupMutation, { loading: deleteLoading }] = useMutation<
+    DeleteGroupMutation,
+    DeleteGroupMutationVariables
+  >(DeleteGroupDocument);
+  const [assignRoleToGroupMutation, { loading: assignRoleLoading }] =
+    useMutation<
+      AssignRoleToGroupMutation,
+      AssignRoleToGroupMutationVariables
+    >(AssignRoleToGroupDocument);
+  const [removeRoleFromGroupMutation, { loading: removeRoleLoading }] =
+    useMutation<
+      RemoveRoleFromGroupMutation,
+      RemoveRoleFromGroupMutationVariables
+    >(RemoveRoleFromGroupDocument);
 
   // Mutation hook with refetch
   const { executeMutation } = useMutationWithRefetch({
@@ -212,4 +240,3 @@ export function useGroupMutations(
     removeRoleLoading,
   };
 }
-

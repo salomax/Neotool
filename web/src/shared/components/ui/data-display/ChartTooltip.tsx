@@ -5,7 +5,7 @@ import { useTheme } from "@mui/material";
 
 export interface ChartTooltipProps {
   active?: boolean;
-  payload?: Array<{ value: number | string }>;
+  payload?: ReadonlyArray<{ value: number | string }>;
   locale?: string;
   formatValue?: (value: number | string) => string;
 }
@@ -64,7 +64,7 @@ export function createChartTooltipContent(
     payload,
   }: {
     active?: boolean;
-    payload?: Array<{ value: number | string }>;
+    payload?: ReadonlyArray<{ value: number | string }>;
   }) {
     return (
       <ChartTooltip
