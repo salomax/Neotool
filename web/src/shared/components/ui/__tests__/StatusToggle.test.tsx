@@ -25,10 +25,8 @@ describe.sequential("StatusToggle", () => {
       <StatusToggle value={true} onChange={vi.fn()} data-testid="st-2" />,
       { wrapper }
     );
-    const toggle = screen.getByTestId("st-2");
-    const input = toggle.querySelector('input');
-    expect(input).toBeTruthy();
-    expect((input as HTMLInputElement).checked).toBe(true);
+    const switchEl = screen.getByRole("switch");
+    expect(switchEl).toBeChecked();
   });
 
   it("should call onChange when toggled", async () => {
@@ -37,10 +35,8 @@ describe.sequential("StatusToggle", () => {
       <StatusToggle value={false} onChange={onChange} data-testid="st-3" />,
       { wrapper }
     );
-    const toggle = screen.getByTestId("st-3");
-    const input = toggle.querySelector('input');
-    expect(input).toBeTruthy();
-    fireEvent.click(input!);
+    const switchEl = screen.getByRole("switch");
+    fireEvent.click(switchEl);
     expect(onChange).toHaveBeenCalledWith(true);
   });
 });

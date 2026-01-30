@@ -32,13 +32,12 @@ describe("Container", () => {
   });
 
   it("should accept maxWidth prop", () => {
-    const { container } = render(
+    render(
       <Container maxWidth="lg" data-testid="c1">
         Content
       </Container>,
       { wrapper }
     );
-    const el = container.querySelector('.MuiContainer-maxWidthLg');
-    expect(el).toBeTruthy();
+    expect(screen.getByTestId("c1")).toHaveClass("MuiContainer-maxWidthLg");
   });
 });
