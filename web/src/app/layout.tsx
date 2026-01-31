@@ -3,6 +3,7 @@ import * as React from "react";
 import dynamic from "next/dynamic";
 import { Box } from "@mui/material";
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary";
+import { CloudflareAnalytics } from "@/shared/analytics/CloudflareAnalytics";
 import { RuntimeConfigScript } from "@/shared/config/RuntimeConfigScript";
 import Providers from "./providers";
 
@@ -34,6 +35,7 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <RuntimeConfigScript />
+        <CloudflareAnalytics />
       </head>
       <body>
         <ErrorBoundary>
