@@ -5,10 +5,26 @@ import { ErrorLink } from '@apollo/client/link/error';
 import { CombinedGraphQLErrors, CombinedProtocolErrors } from '@apollo/client/errors';
 import { getAuthToken, clearAuthStorage, isAuthenticationError, getRefreshToken, updateAuthToken, updateAuthUser } from '@/shared/utils/auth';
 import { logger } from '@/shared/utils/logger';
+import { getRuntimeConfig } from '@/shared/config/runtime-config';
+
+/**
+ * Get GraphQL endpoint URL from runtime config or environment
+ * Supports both runtime injection (production) and build-time config (development)
+ */
+function getGraphQLEndpoint(): string {
+  // Try runtime config first (for production with Vault/Kubernetes injection)
+  const runtimeConfig = getRuntimeConfig();
+  if (runtimeConfig.graphqlEndpoint) {
+    return runtimeConfig.graphqlEndpoint;
+  }
+
+  // Fall back to build-time environment variable (for development)
+  return process.env.NEXT_PUBLIC_GRAPHQL_URL || 'http://localhost:4000/graphql';
+}
 
 // HTTP Link configuration - defines how Apollo Client communicates with the GraphQL server
 const httpLink = new HttpLink({
-  uri: process.env.NEXT_PUBLIC_GRAPHQL_URL || 'http://localhost:4000/graphql',
+  uri: getGraphQLEndpoint(),
 });
 
 // Auth link to add token to requests
