@@ -63,13 +63,12 @@ show_schema_sources_menu() {
     echo "📋 Found ${#schema_sources[@]} schema source(s):"
     echo ""
     
-    # Display schema sources with numbers
-    for i in "${!schema_sources[@]}"; do
-        local rel_path="${schema_sources[$i]#$SERVICE_DIR/}"
-        echo "  [$((i+1))] $rel_path"
+    # Display schema sources without numbers (auto-sync all)
+    for source in "${schema_sources[@]}"; do
+        local rel_path="${source#$SERVICE_DIR/}"
+        echo "  - $rel_path"
     done
     
-    echo "  [ALL] Sync all schemas"
     echo ""
 }
 
@@ -198,81 +197,38 @@ interactive_sync() {
     
     show_schema_sources_menu
     
-    # Get schema source selection
-    echo -n "Select schema source (1-${#schema_sources[@]}, or ALL): "
-    read -r source_choice
+    echo "🔄 Syncing all schemas with auto-detected subgraphs..."
+    echo ""
     
-    # Handle ALL option (case-insensitive)
-    local source_choice_upper=$(echo "$source_choice" | tr '[:lower:]' '[:upper:]')
-    if [[ "$source_choice_upper" == "ALL" ]]; then
-        echo ""
-        echo "🔄 Syncing all schemas with auto-detected subgraphs..."
-        echo ""
+    local sync_errors=0
+    local sync_success=0
+    
+    for source in "${schema_sources[@]}"; do
+        local rel_path="${source#$SERVICE_DIR/}"
+        local detected_subgraph=""
         
-        local sync_errors=0
-        local sync_success=0
-        
-        for source in "${schema_sources[@]}"; do
-            local rel_path="${source#$SERVICE_DIR/}"
-            local detected_subgraph=""
-            
-            if detected_subgraph=$(auto_detect_subgraph_name "$source"); then
-                echo "📋 Processing: $rel_path → subgraphs/$detected_subgraph/schema.graphqls"
-                if sync_single_schema "$source"; then
-                    ((sync_success++))
-                else
-                    ((sync_errors++))
-                fi
-                echo ""
+        if detected_subgraph=$(auto_detect_subgraph_name "$source"); then
+            echo "📋 Processing: $rel_path → subgraphs/$detected_subgraph/schema.graphqls"
+            if sync_single_schema "$source"; then
+                ((sync_success++))
             else
-                echo "❌ Could not auto-detect subgraph for: $rel_path"
                 ((sync_errors++))
-                echo ""
             fi
-        done
-        
-        echo "================================="
-        if [[ $sync_errors -eq 0 ]]; then
-            echo "🎉 All schemas synchronized successfully! ($sync_success schema(s))"
-            return 0
+            echo ""
         else
-            echo "⚠️  Completed with errors: $sync_success successful, $sync_errors failed"
-            return 1
+            echo "❌ Could not auto-detect subgraph for: $rel_path"
+            ((sync_errors++))
+            echo ""
         fi
-    fi
+    done
     
-    # Handle numeric selection
-    if ! [[ "$source_choice" =~ ^[0-9]+$ ]] || [[ "$source_choice" -lt 1 ]] || [[ "$source_choice" -gt ${#schema_sources[@]} ]]; then
-        echo "❌ Invalid selection: $source_choice"
-        return 1
-    fi
-    
-    local selected_source="${schema_sources[$((source_choice-1))]}"
-    local detected_subgraph=""
-    
-    # Auto-detect subgraph name
-    if ! detected_subgraph=$(auto_detect_subgraph_name "$selected_source"); then
-        echo "❌ Could not auto-detect subgraph name for: ${selected_source#$SERVICE_DIR/}"
-        return 1
-    fi
-    
-    # Show what will be synced
-    echo ""
-    echo "🔄 Ready to sync:"
-    echo "   From: ${selected_source#$SERVICE_DIR/}"
-    echo "   To:   subgraphs/$detected_subgraph/schema.graphqls"
-    echo ""
-    echo -n "Continue? (y/N): "
-    read -r confirm
-    
-    if [[ "$confirm" =~ ^[Yy]$ ]]; then
-        if sync_single_schema "$selected_source"; then
-            echo "🎉 Schema synchronization completed!"
-        else
-            return 1
-        fi
+    echo "================================="
+    if [[ $sync_errors -eq 0 ]]; then
+        echo "🎉 All schemas synchronized successfully! ($sync_success schema(s))"
+        return 0
     else
-        echo "❌ Synchronization cancelled"
+        echo "⚠️  Completed with errors: $sync_success successful, $sync_errors failed"
+        return 1
     fi
 }
 
@@ -403,4 +359,3 @@ case "${1:-sync}" in
         exit 1
         ;;
 esac
-
