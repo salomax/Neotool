@@ -934,9 +934,9 @@ export enum UserOrderField {
 }
 
 export enum Join__Graph {
-  Security = 'SECURITY',
   Assets = 'ASSETS',
-  Financialdata = 'FINANCIALDATA'
+  Financialdata = 'FINANCIALDATA',
+  Security = 'SECURITY'
 }
 
 export enum Link__Purpose {
