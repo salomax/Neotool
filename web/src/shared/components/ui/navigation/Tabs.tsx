@@ -8,7 +8,9 @@ import {
   Chip,
   Fade,
   useTheme,
-  useMediaQuery
+  useMediaQuery,
+  SxProps,
+  Theme
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -44,6 +46,7 @@ export interface TabsProps {
   maxTabs?: number;
   className?: string;
   'data-testid'?: string;
+  sx?: SxProps<Theme>;
 }
 
 const Tabs: React.FC<TabsProps> = ({
@@ -60,8 +63,9 @@ const Tabs: React.FC<TabsProps> = ({
   textColor = 'primary',
   showBadges = true,
   maxTabs = 10,
-  className,
-  'data-testid': testId
+ className,
+  'data-testid': testId = 'tabs',
+  sx
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));

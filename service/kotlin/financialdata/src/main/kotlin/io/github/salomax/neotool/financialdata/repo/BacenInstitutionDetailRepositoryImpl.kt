@@ -80,14 +80,10 @@ open class BacenInstitutionDetailRepositoryImpl(
         val mapper = SqlResultMapper(row, columnIndices)
 
         // Parse social_network JSON
-        val socialNetworksJson =
-            mapper.getValue("social_network") as? String
-        val socialNetworks = parseSocialNetworks(socialNetworksJson)
+        val socialNetworks = parseSocialNetworks(mapper.getValue("social_network"))
 
         // Parse receita_data JSON
-        val receitaDataJson =
-            mapper.getValue("receita_data") as? String
-        val (mainActivity, address, founded) = parseReceitaData(receitaDataJson)
+        val (mainActivity, address, founded) = parseReceitaData(mapper.getValue("receita_data"))
 
         return FinancialInstitutionDataResult(
             nomeInstituicao = mapper.getString("nome_instituicao"),
@@ -389,7 +385,8 @@ open class BacenInstitutionDetailRepositoryImpl(
     /**
      * Parse social_network JSON array to List<String>.
      */
-    private fun parseSocialNetworks(json: String?): List<String>? {
+    private fun parseSocialNetworks(raw: Any?): List<String>? {
+        val json = raw?.toString()
         if (json.isNullOrBlank()) {
             return null
         }
@@ -410,7 +407,8 @@ open class BacenInstitutionDetailRepositoryImpl(
      * Parse receita_data JSON to extract mainActivity, address, and founded.
      * Returns triple: (mainActivity, address, founded)
      */
-    private fun parseReceitaData(json: String?): Triple<String?, String?, String?> {
+    private fun parseReceitaData(raw: Any?): Triple<String?, String?, String?> {
+        val json = raw?.toString()
         if (json.isNullOrBlank()) {
             return Triple(null, null, null)
         }

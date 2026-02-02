@@ -14,7 +14,7 @@ if (!i18n.isInitialized) {
         en: { common: en },
         pt: { common: pt },
       },
-      lng: "en",
+      lng: "pt",
       fallbackLng: "en",
       ns: ["common"],
       defaultNS: "common",

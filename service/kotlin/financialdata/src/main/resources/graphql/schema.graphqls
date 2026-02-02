@@ -21,6 +21,7 @@ extend type Query {
   economicIndicators: [EconomicIndicator!]!
   indicatorSeries(indicator: String!, variation: String!, range: IndicatorRangeInput, limit: Int): EconomicIndicatorSeries
   indicatorLatest(indicator: String!, variation: String!): EconomicIndicatorPoint
+  indicatorsLatest: [EconomicIndicatorLatest!]!
 }
 
 # Enums
@@ -235,4 +236,11 @@ type EconomicIndicatorSeries {
 type EconomicIndicatorPoint {
   referenceDate: Date!
   value: Float!
+}
+
+type EconomicIndicatorLatest {
+  indicator: String!
+  variation: String!
+  unit: String!
+  latest: EconomicIndicatorPoint
 }

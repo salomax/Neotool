@@ -1,9 +1,8 @@
 package io.github.salomax.neotool.financialdata.test.unit.service
 
-import io.github.salomax.neotool.financialdata.model.IndicatorEntity
-import io.github.salomax.neotool.financialdata.model.IndicatorVariationEntity
-import io.github.salomax.neotool.financialdata.repo.IndicatorRepository
-import io.github.salomax.neotool.financialdata.repo.IndicatorVariationRepository
+import io.github.salomax.neotool.financialdata.domain.Indicator
+import io.github.salomax.neotool.financialdata.domain.IndicatorVariation
+import io.github.salomax.neotool.financialdata.repo.IndicatorReadRepository
 import io.github.salomax.neotool.financialdata.service.IndicatorService
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -14,20 +13,19 @@ import java.time.Instant
 import java.util.UUID
 
 class IndicatorServiceTest {
-    private val indicatorRepository: IndicatorRepository = mock()
-    private val variationRepository: IndicatorVariationRepository = mock()
+    private val indicatorReadRepository: IndicatorReadRepository = mock()
     private lateinit var service: IndicatorService
 
     @BeforeEach
     fun setUp() {
-        service = IndicatorService(indicatorRepository, variationRepository)
+        service = IndicatorService(indicatorReadRepository)
     }
 
     @Test
     fun `getActiveIndicators returns indicators with variations`() {
         val indicatorId = UUID.randomUUID()
         val indicator =
-            IndicatorEntity(
+            Indicator(
                 id = indicatorId,
                 countryCode = "BR",
                 label = "IPCA",
@@ -40,7 +38,7 @@ class IndicatorServiceTest {
                 updatedAt = Instant.now(),
             )
         val variation =
-            IndicatorVariationEntity(
+            IndicatorVariation(
                 id = UUID.randomUUID(),
                 indicatorId = indicatorId,
                 label = "MONTHLY_CHANGE",
@@ -53,8 +51,8 @@ class IndicatorServiceTest {
                 updatedAt = Instant.now(),
             )
 
-        whenever(indicatorRepository.findByIsActiveTrueOrderByLabelAsc()).thenReturn(listOf(indicator))
-        whenever(variationRepository.findByIndicatorIdIn(listOf(indicatorId))).thenReturn(listOf(variation))
+        whenever(indicatorReadRepository.findActiveIndicatorsWithVariations())
+            .thenReturn(mapOf(indicator to listOf(variation)))
 
         val result = service.getActiveIndicators()
 
@@ -67,7 +65,7 @@ class IndicatorServiceTest {
 
     @Test
     fun `getActiveIndicators returns empty map when no indicators`() {
-        whenever(indicatorRepository.findByIsActiveTrueOrderByLabelAsc()).thenReturn(emptyList())
+        whenever(indicatorReadRepository.findActiveIndicatorsWithVariations()).thenReturn(emptyMap())
 
         val result = service.getActiveIndicators()
 

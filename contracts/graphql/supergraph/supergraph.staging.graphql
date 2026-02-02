@@ -315,6 +315,15 @@ type EconomicIndicator
   variations: [EconomicIndicatorVariation!]!
 }
 
+type EconomicIndicatorLatest
+  @join__type(graph: FINANCIALDATA)
+{
+  indicator: String!
+  variation: String!
+  unit: String!
+  latest: EconomicIndicatorPoint
+}
+
 type EconomicIndicatorPoint
   @join__type(graph: FINANCIALDATA)
 {
@@ -611,6 +620,7 @@ type Query
   economicIndicators: [EconomicIndicator!]! @join__field(graph: FINANCIALDATA)
   indicatorSeries(indicator: String!, variation: String!, range: IndicatorRangeInput, limit: Int): EconomicIndicatorSeries @join__field(graph: FINANCIALDATA)
   indicatorLatest(indicator: String!, variation: String!): EconomicIndicatorPoint @join__field(graph: FINANCIALDATA)
+  indicatorsLatest: [EconomicIndicatorLatest!]! @join__field(graph: FINANCIALDATA)
   currentUser: User @join__field(graph: SECURITY)
   checkPermission(userId: ID!, permission: String!, resourceId: ID): AuthorizationResult! @join__field(graph: SECURITY)
   user(id: ID!): User @join__field(graph: SECURITY)

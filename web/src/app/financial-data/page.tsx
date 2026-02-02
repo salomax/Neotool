@@ -44,7 +44,7 @@ export default function FinancialDataPage() {
               title={t("cards.nationalIndicators.title")}
               description={t("cards.nationalIndicators.description")}
               icon={<NationalIndicatorsIcon size="sm" />}
-              disabled
+              href="/financial-data/national-indicators"
               actionLabel={t("actions.accessModule")}
             />
           </Grid>

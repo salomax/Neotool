@@ -1,6 +1,6 @@
 package io.github.salomax.neotool.financialdata.domain
 
-import io.github.salomax.neotool.financialdata.model.IndicatorVariationEntity
+import io.github.salomax.neotool.financialdata.model.ValueFormat
 import io.micronaut.serde.annotation.Serdeable
 import java.time.Instant
 import java.util.UUID
@@ -15,21 +15,7 @@ data class IndicatorVariation(
     val incrementalMonths: Int? = null,
     val incrementalYears: Int? = null,
     val incrementalDays: Int? = null,
+    val valueFormat: ValueFormat = ValueFormat.ABSOLUTE,
     val createdAt: Instant = Instant.now(),
     val updatedAt: Instant = Instant.now(),
-) {
-    fun toEntity(): IndicatorVariationEntity {
-        return IndicatorVariationEntity(
-            id = this.id,
-            indicatorId = this.indicatorId,
-            label = this.label,
-            unit = this.unit,
-            isDefault = this.isDefault,
-            incrementalMonths = this.incrementalMonths,
-            incrementalYears = this.incrementalYears,
-            incrementalDays = this.incrementalDays,
-            createdAt = this.createdAt,
-            updatedAt = this.updatedAt,
-        )
-    }
-}
+)

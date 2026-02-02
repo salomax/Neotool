@@ -4,6 +4,52 @@
   },
   "title": "Dados Financeiros",
   "subtitle": "Explore os indicadores nacionais e acompanhe os balanços trimestrais das instituições financeiras com dados atualizados e precisos.",
+  "nationalIndicators": {
+    "pageTitle": "Indicadores Nacionais",
+    "search": {
+      "placeholder": "Buscar indicadores...",
+      "label": "Indicadores"
+    },
+    "tabs": {
+      "all": "Tudo",
+      "inflation": "Inflação",
+      "interest": "Juros",
+      "activity": "Atividade",
+      "income": "Renda",
+      "external": "Externo",
+      "fiscal": "Fiscal"
+    },
+    "variations": {
+      "MONTHLY_CHANGE": "Mensal",
+      "ROLLING_12M": "12 Meses",
+      "YTD": "Acumulado Ano",
+      "ANNUAL": "Anual",
+      "QUARTERLY": "Trimestral",
+      "TARGET_RATE": "Meta",
+      "EFFECTIVE_RATE": "Efetivo",
+      "HABITUAL": "Habitual",
+      "EFFECTIVE": "Efetivo"
+    },
+    "indicators": {
+      "IPCA": "IPCA",
+      "IPCA_15": "IPCA-15",
+      "INPC": "INPC",
+      "IGP_M": "IGP-M",
+      "IGP_DI": "IGP-DI",
+      "IGP_10": "IGP-10",
+      "SELIC": "Taxa Selic",
+      "CDI": "CDI",
+      "DI_OVER": "DI Over",
+      "GDP": "PIB",
+      "UNEMPLOYMENT": "Taxa de Desemprego",
+      "AVERAGE_INCOME": "Renda Média Real",
+      "TRADE_BALANCE": "Balança Comercial",
+      "CURRENT_ACCOUNT": "Transações Correntes",
+      "INTERNATIONAL_RESERVES": "Reservas Internacionais",
+      "PUBLIC_DEBT_GDP": "Dívida Pública Líquida (% PIB)",
+      "PRIMARY_RESULT": "Resultado Primário"
+    }
+  },
   "cards": {
     "financialInstitutions": {
       "title": "Instituições Financeiras",
@@ -125,6 +171,8 @@
     }
   },
   "footer": {
-    "source": "Dados atualizados regularmente com fontes oficiais"
+    "source": "Dados atualizados regularmente com fontes oficiais",
+    "ifDataSource": "Fonte: IFData — Banco Central do Brasil (Portal de Dados Abertos).",
+    "ratingSource": "Ratings de crédito fornecidos por Fitch Ratings®, com base em informações públicas disponibilizadas pela agência."
   }
 }

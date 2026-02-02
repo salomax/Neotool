@@ -1,7 +1,5 @@
 package io.github.salomax.neotool.financialdata.domain
 
-import io.github.salomax.neotool.financialdata.model.BacenInstitutionEntity
-import io.github.salomax.neotool.financialdata.model.BacenInstitutionId
 import java.time.Instant
 
 data class BacenInstitution(
@@ -22,29 +20,4 @@ data class BacenInstitution(
     val tipoConsolidacao: Char? = null,
     val createdAt: Instant = Instant.now(),
     val updatedAt: Instant = Instant.now(),
-) {
-    fun toEntity(): BacenInstitutionEntity {
-        return BacenInstitutionEntity(
-            id =
-                BacenInstitutionId(
-                    bacenCodInst = this.bacenCodInst,
-                    anoMesRef = this.anoMesRef,
-                ),
-            sourceHash = this.sourceHash,
-            nomeInstituicao = this.nomeInstituicao,
-            situacao = this.situacao,
-            segmentoTb = this.segmentoTb,
-            atividade = this.atividade,
-            tipoControle = this.tipoControle,
-            uf = this.uf,
-            municipio = this.municipio,
-            codConglomeradoFinanceiro = this.codConglomeradoFinanceiro,
-            codConglomeradoPrudencial = this.codConglomeradoPrudencial,
-            cnpjInstituicaoLider = this.cnpjInstituicaoLider,
-            tipoConsolidadoBancario = this.tipoConsolidadoBancario,
-            tipoConsolidacao = this.tipoConsolidacao,
-            createdAt = this.createdAt,
-            updatedAt = this.updatedAt,
-        )
-    }
-}
+)

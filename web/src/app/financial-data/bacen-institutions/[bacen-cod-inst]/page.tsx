@@ -1,26 +1,29 @@
 "use client";
 
 import { useParams } from "next/navigation";
+import { extractIdFromSemanticPath } from "@/shared/utils/url";
 import { SidebarLayout } from "@/shared/components/ui/layout/SidebarLayout";
 import { Page, SectionHeader } from "@/shared/components/ui/layout";
 import { Box, Typography, Stack, List, ListItemButton, ListItemText, CircularProgress, Tooltip, IconButton, Accordion, AccordionSummary, AccordionDetails, Grid } from "@mui/material";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { usePageTitle } from "@/shared/hooks/ui/usePageTitle";
 import { useTranslation } from "@/shared/i18n";
 import { financialDataTranslations } from "@/shared/i18n/domains/financial-data";
 import { useBreadcrumbLabel } from "@/shared/hooks/ui/useBreadcrumbLabel";
-import { LineChart, CurrencyDisplay, MetricLineChart, RatingCard } from "@/shared/components/ui/data-display";
 import {
   BacenInstitutionSummaryPaper,
   BacenInstitutionBalanceSummaryGrid,
   BacenInstitutionReportDetail,
+  BacenDataFooter,
 } from "@/widgets/financial-data";
 import { useBacenInstitutionDetail } from "@/features/financial-data/view-institution-detail";
 
 export default function BacenInstitutionDetailPage() {
   const params = useParams();
-  const encodedId = params["bacen-cod-inst"] as string;
+  const rawParam = params["bacen-cod-inst"] as string;
+
+  const encodedId = extractIdFromSemanticPath(rawParam);
+
   const { t } = useTranslation(financialDataTranslations);
   const {
     bacenCodInst,
@@ -38,7 +41,7 @@ export default function BacenInstitutionDetailPage() {
   
   // Set breadcrumb label to institution name instead of obfuscated code
   // Use the actual encoded segment value from the URL as the key
-  useBreadcrumbLabel(encodedId, institution?.name || null);
+  useBreadcrumbLabel(rawParam, institution?.name || null);
 
   if (!bacenCodInst) {
     return (
@@ -93,8 +96,8 @@ export default function BacenInstitutionDetailPage() {
                 selected={selectedReportId === report.reportId}
                 onClick={() => setSelectedReportId(report.reportId)}
                 sx={{ 
+                  mb: .5,
                   borderRadius: 1, 
-                  mb: 0.5,
                   '&.Mui-selected': {
                     bgcolor: 'action.selected',
                     fontWeight: 'medium'
@@ -145,6 +148,7 @@ export default function BacenInstitutionDetailPage() {
             {t("messages.selectReport")}
           </Typography>
         )}
+        <BacenDataFooter />
       </Page>
     </SidebarLayout>
   );

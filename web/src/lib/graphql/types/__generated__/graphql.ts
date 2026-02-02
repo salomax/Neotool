@@ -270,6 +270,14 @@ export type EconomicIndicator = {
   variations: Array<EconomicIndicatorVariation>;
 };
 
+export type EconomicIndicatorLatest = {
+  __typename: 'EconomicIndicatorLatest';
+  indicator: Scalars['String']['output'];
+  latest: Maybe<EconomicIndicatorPoint>;
+  unit: Scalars['String']['output'];
+  variation: Scalars['String']['output'];
+};
+
 export type EconomicIndicatorPoint = {
   __typename: 'EconomicIndicatorPoint';
   referenceDate: Scalars['Date']['output'];
@@ -634,6 +642,7 @@ export type Query = {
   groups: GroupConnection;
   indicatorLatest: Maybe<EconomicIndicatorPoint>;
   indicatorSeries: Maybe<EconomicIndicatorSeries>;
+  indicatorsLatest: Array<EconomicIndicatorLatest>;
   permissions: PermissionConnection;
   ratingIssuers: Array<RatingIssuer>;
   role: Maybe<Role>;

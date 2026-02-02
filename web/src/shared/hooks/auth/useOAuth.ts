@@ -1,5 +1,5 @@
 import * as React from "react";
-import { signInWithGoogle, loadGoogleIdentityServices } from "@/lib/auth/oauth/google";
+import { signInWithGoogle, loadGoogleIdentityServices } from "@/shared/utils/auth/oauth";
 import { logger } from "@/shared/utils/logger";
 import { getRuntimeConfig } from "@/shared/config/runtime-config";
 

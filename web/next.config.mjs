@@ -1,3 +1,5 @@
+import path from 'path'
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Enable standalone output for Docker optimization (production only)
@@ -16,7 +18,12 @@ const nextConfig = {
   },
   // Handle images
   images: {
-    domains: ['localhost'],
+    remotePatterns: [
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+      },
+    ],
   },
   // Configure source maps
   productionBrowserSourceMaps: false,
@@ -43,7 +50,9 @@ const nextConfig = {
       },
     ]
   },
-  // Webpack configuration
+  // Turbopack configuration (Next.js 16 default)
+  turbopack: {},
+  // Webpack configuration (used when --webpack flag is passed)
   webpack: (config, { dev, isServer }) => {
     // Optimize for development
     if (dev) {
@@ -68,7 +77,7 @@ const nextConfig = {
       config.cache = {
         type: 'filesystem',
         maxMemoryGenerations: 1,
-        cacheDirectory: '.next/cache/webpack',
+        cacheDirectory: path.resolve(process.cwd(), '.next', 'cache', 'webpack'),
       }
 
 

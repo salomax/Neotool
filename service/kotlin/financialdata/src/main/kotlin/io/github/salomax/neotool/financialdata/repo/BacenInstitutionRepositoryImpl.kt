@@ -81,10 +81,11 @@ open class BacenInstitutionRepositoryImpl(
         // 2-3: Query pattern for bacen_institutions (if hasQuery): nome_instituicao and bacen_cod_inst
         // 4: ano_mes_ref for UNION part in bacen_institutions_and_groups CTE
         // 5: Query pattern for similarity_score calculation in financial_institutions CTE (if hasQuery)
-        // 6: ano_mes for bank report join
-        // 7-8: ano_mes for year_ago calculation (two occurrences)
-        // 9: ano_mes_ref for final join with bacen_institution
-        // 10: Cursor value (if hasAfter)
+        // 6: ano_mes_ref for financial_institution_bacen_institution join
+        // 7: ano_mes for bank report join
+        // 8-9: ano_mes for year_ago calculation (two occurrences)
+        // 10: ano_mes_ref for final join with bacen_institution
+        // 11: Cursor value (if hasAfter)
         var paramIndex = 1
         val likePattern = if (query != null && query.isNotBlank()) "%$query%" else ""
         // anoMes for bacen_institutions CTE
@@ -100,6 +101,8 @@ open class BacenInstitutionRepositoryImpl(
             // Parameter for similarity_score calculation in financial_institutions CTE (uses the pattern with %)
             nativeQuery.setParameter(paramIndex++, likePattern)
         }
+        // anoMes for financial_institution_bacen_institution join
+        nativeQuery.setParameter(paramIndex++, targetAnoMes)
         // anoMes for bank report join
         nativeQuery.setParameter(paramIndex++, targetAnoMes)
         // anoMes for year_ago calculation (two occurrences)
@@ -293,7 +296,7 @@ open class BacenInstitutionRepositoryImpl(
                 FROM bacen_institutions_and_groups
                     LEFT JOIN financial_data.financial_institution_bacen_institution fibi
                         ON fibi.bacen_cod_inst = bacen_institutions_and_groups.bacen_cod_inst
-                       AND fibi.ano_mes_ref = '202509'
+                       AND fibi.ano_mes_ref = ?
                     LEFT JOIN financial_data.financial_institution fi_data
                         ON fi_data.id = fibi.financial_institution_id
             )

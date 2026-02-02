@@ -1,6 +1,6 @@
 SET search_path TO financial_data, public;
 
-CREATE TABLE IF NOT EXISTS financial_data.indicator (
+CREATE TABLE IF NOT EXISTS financial_data.economic_indicator (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
     country_code CHAR(2) NOT NULL,
     label TEXT NOT NULL,
@@ -14,9 +14,9 @@ CREATE TABLE IF NOT EXISTS financial_data.indicator (
     CONSTRAINT uq_indicator_country_label UNIQUE (country_code, label)
 );
 
-CREATE TABLE IF NOT EXISTS financial_data.indicator_variation (
+CREATE TABLE IF NOT EXISTS financial_data.economic_indicator_variation (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
-    indicator_id UUID NOT NULL REFERENCES financial_data.indicator(id) ON DELETE CASCADE,
+    indicator_id UUID NOT NULL REFERENCES financial_data.economic_indicator(id) ON DELETE CASCADE,
     label TEXT NOT NULL,
     unit TEXT,
     is_default BOOLEAN NOT NULL DEFAULT false,
@@ -25,26 +25,27 @@ CREATE TABLE IF NOT EXISTS financial_data.indicator_variation (
     incremental_days INT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT uq_indicator_variation UNIQUE (indicator_id, label)
+    CONSTRAINT uq_economic_indicator_variation UNIQUE (indicator_id, label)
 );
 
-CREATE TABLE IF NOT EXISTS financial_data.indicator_value (
-    indicator_variation_id UUID NOT NULL REFERENCES financial_data.indicator_variation(id) ON DELETE CASCADE,
+CREATE TABLE IF NOT EXISTS financial_data.economic_indicator_value (
+    indicator_variation_id UUID NOT NULL REFERENCES financial_data.economic_indicator_variation(id) ON DELETE CASCADE,
     reference_date DATE NOT NULL,
     publication_date DATE,
-    value NUMERIC(18,6) NOT NULL,
+    raw_value NUMERIC(18,6) NOT NULL,
+    adjusted_value NUMERIC(18,6),
     source_meta JSONB,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT pk_indicator_value PRIMARY KEY (indicator_variation_id, reference_date)
+    CONSTRAINT pk_economic_indicator_value PRIMARY KEY (indicator_variation_id, reference_date)
 );
 
-CREATE INDEX IF NOT EXISTS idx_indicator_value_variation_date
-    ON financial_data.indicator_value (indicator_variation_id, reference_date DESC);
+CREATE INDEX IF NOT EXISTS idx_economic_indicator_value_variation_date
+    ON financial_data.economic_indicator_value (indicator_variation_id, reference_date DESC);
 
-CREATE TABLE IF NOT EXISTS financial_data.indicator_load_control (
+CREATE TABLE IF NOT EXISTS financial_data.economic_indicator_load_control (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
-    indicator_variation_id UUID NOT NULL REFERENCES financial_data.indicator_variation(id) ON DELETE CASCADE,
+    indicator_variation_id UUID NOT NULL REFERENCES financial_data.economic_indicator_variation(id) ON DELETE CASCADE,
     run_type TEXT NOT NULL,
     status TEXT NOT NULL,
     scheduled_at TIMESTAMPTZ,
@@ -59,8 +60,8 @@ CREATE TABLE IF NOT EXISTS financial_data.indicator_load_control (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_indicator_load_control_variation
-    ON financial_data.indicator_load_control (indicator_variation_id);
+CREATE INDEX IF NOT EXISTS idx_economic_indicator_load_control_variation
+    ON financial_data.economic_indicator_load_control (indicator_variation_id);
 
-CREATE INDEX IF NOT EXISTS idx_indicator_load_control_status
-    ON financial_data.indicator_load_control (status);
+CREATE INDEX IF NOT EXISTS idx_economic_indicator_load_control_status
+    ON financial_data.economic_indicator_load_control (status);

@@ -13,7 +13,7 @@ All labels use **SNAKE_CASE_UPPER**.
 
 ## Tables
 
-### 1) `financial_data.indicator`
+### 1) `financial_data.economic_indicator`
 
 Represents the indicator itself (e.g., `IPCA`, `SELIC`, `GDP`).
 
@@ -34,13 +34,13 @@ Represents the indicator itself (e.g., `IPCA`, `SELIC`, `GDP`).
 
 ---
 
-### 2) `financial_data.indicator_variation`
+### 2) `financial_data.economic_indicator_variation`
 
 Represents a measure of an indicator (e.g., `MONTHLY_CHANGE`, `YTD`, `ROLLING_12M`, `TARGET_RATE`).
 
 **Columns**:
 - `id` (UUID, PK, default `uuidv7()`)
-- `indicator_id` (UUID, FK → `financial_data.indicator(id)`, ON DELETE CASCADE)
+- `indicator_id` (UUID, FK → `financial_data.economic_indicator(id)`, ON DELETE CASCADE)
 - `label` (TEXT, NOT NULL) — SNAKE_CASE_UPPER
 - `unit` (TEXT, nullable) — override when different from indicator
 - `is_default` (BOOLEAN, NOT NULL, default false)
@@ -55,15 +55,16 @@ Represents a measure of an indicator (e.g., `MONTHLY_CHANGE`, `YTD`, `ROLLING_12
 
 ---
 
-### 3) `financial_data.indicator_value`
+### 3) `financial_data.economic_indicator_value`
 
 Stores time-series values by indicator variation.
 
 **Columns**:
-- `indicator_variation_id` (UUID, FK → `financial_data.indicator_variation(id)`, ON DELETE CASCADE)
+- `indicator_variation_id` (UUID, FK → `financial_data.economic_indicator_variation(id)`, ON DELETE CASCADE)
 - `reference_date` (DATE, NOT NULL)
 - `publication_date` (DATE, nullable)
-- `value` (NUMERIC(18,6), NOT NULL)
+- `raw_value` (NUMERIC(18,6), NOT NULL)
+- `adjusted_value` (NUMERIC(18,6), nullable)
 - `source_meta` (JSONB, nullable) — evidence (URL, retrieval timestamp, params)
 - `created_at` (TIMESTAMPTZ, NOT NULL, default now())
 - `updated_at` (TIMESTAMPTZ, NOT NULL, default now())
@@ -72,17 +73,17 @@ Stores time-series values by indicator variation.
 - Primary Key: `(indicator_variation_id, reference_date)`
 
 **Indexes**:
-- `idx_indicator_value_variation_date` on `(indicator_variation_id, reference_date DESC)`
+- `idx_economic_indicator_value_variation_date` on `(indicator_variation_id, reference_date DESC)`
 
 ---
 
-### 4) `financial_data.indicator_load_control`
+### 4) `financial_data.economic_indicator_load_control`
 
 Tracks async job execution per indicator variation.
 
 **Columns**:
 - `id` (UUID, PK, default `uuidv7()`)
-- `indicator_variation_id` (UUID, FK → `financial_data.indicator_variation(id)`, ON DELETE CASCADE)
+- `indicator_variation_id` (UUID, FK → `financial_data.economic_indicator_variation(id)`, ON DELETE CASCADE)
 - `run_type` (TEXT, NOT NULL) — FULL, INCREMENTAL, BACKFILL
 - `status` (TEXT, NOT NULL) — PENDING, RUNNING, SUCCESS, FAILED, SKIPPED
 - `scheduled_at` (TIMESTAMPTZ, nullable)
@@ -97,8 +98,8 @@ Tracks async job execution per indicator variation.
 - `updated_at` (TIMESTAMPTZ, NOT NULL, default now())
 
 **Indexes**:
-- `idx_indicator_load_control_variation` on `(indicator_variation_id)`
-- `idx_indicator_load_control_status` on `(status)`
+- `idx_economic_indicator_load_control_variation` on `(indicator_variation_id)`
+- `idx_economic_indicator_load_control_status` on `(status)`
 
 ---
 
@@ -110,7 +111,7 @@ CREATE SCHEMA IF NOT EXISTS financial_data;
 SET search_path TO financial_data, public;
 
 -- Indicator
-CREATE TABLE IF NOT EXISTS financial_data.indicator (
+CREATE TABLE IF NOT EXISTS financial_data.economic_indicator (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
     country_code CHAR(2) NOT NULL,
     label TEXT NOT NULL,
@@ -125,9 +126,9 @@ CREATE TABLE IF NOT EXISTS financial_data.indicator (
 );
 
 -- Indicator variation
-CREATE TABLE IF NOT EXISTS financial_data.indicator_variation (
+CREATE TABLE IF NOT EXISTS financial_data.economic_indicator_variation (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
-    indicator_id UUID NOT NULL REFERENCES financial_data.indicator(id) ON DELETE CASCADE,
+    indicator_id UUID NOT NULL REFERENCES financial_data.economic_indicator(id) ON DELETE CASCADE,
     label TEXT NOT NULL,
     unit TEXT,
     is_default BOOLEAN NOT NULL DEFAULT false,
@@ -136,28 +137,29 @@ CREATE TABLE IF NOT EXISTS financial_data.indicator_variation (
     incremental_days INT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT uq_indicator_variation UNIQUE (indicator_id, label)
+    CONSTRAINT uq_economic_indicator_variation UNIQUE (indicator_id, label)
 );
 
 -- Indicator values
-CREATE TABLE IF NOT EXISTS financial_data.indicator_value (
-    indicator_variation_id UUID NOT NULL REFERENCES financial_data.indicator_variation(id) ON DELETE CASCADE,
+CREATE TABLE IF NOT EXISTS financial_data.economic_indicator_value (
+    indicator_variation_id UUID NOT NULL REFERENCES financial_data.economic_indicator_variation(id) ON DELETE CASCADE,
     reference_date DATE NOT NULL,
     publication_date DATE,
-    value NUMERIC(18,6) NOT NULL,
+    raw_value NUMERIC(18,6) NOT NULL,
+    adjusted_value NUMERIC(18,6),
     source_meta JSONB,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT pk_indicator_value PRIMARY KEY (indicator_variation_id, reference_date)
+    CONSTRAINT pk_economic_indicator_value PRIMARY KEY (indicator_variation_id, reference_date)
 );
 
-CREATE INDEX IF NOT EXISTS idx_indicator_value_variation_date
-    ON financial_data.indicator_value (indicator_variation_id, reference_date DESC);
+CREATE INDEX IF NOT EXISTS idx_economic_indicator_value_variation_date
+    ON financial_data.economic_indicator_value (indicator_variation_id, reference_date DESC);
 
 -- Indicator load control
-CREATE TABLE IF NOT EXISTS financial_data.indicator_load_control (
+CREATE TABLE IF NOT EXISTS financial_data.economic_indicator_load_control (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
-    indicator_variation_id UUID NOT NULL REFERENCES financial_data.indicator_variation(id) ON DELETE CASCADE,
+    indicator_variation_id UUID NOT NULL REFERENCES financial_data.economic_indicator_variation(id) ON DELETE CASCADE,
     run_type TEXT NOT NULL,
     status TEXT NOT NULL,
     scheduled_at TIMESTAMPTZ,
@@ -172,11 +174,11 @@ CREATE TABLE IF NOT EXISTS financial_data.indicator_load_control (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_indicator_load_control_variation
-    ON financial_data.indicator_load_control (indicator_variation_id);
+CREATE INDEX IF NOT EXISTS idx_economic_indicator_load_control_variation
+    ON financial_data.economic_indicator_load_control (indicator_variation_id);
 
-CREATE INDEX IF NOT EXISTS idx_indicator_load_control_status
-    ON financial_data.indicator_load_control (status);
+CREATE INDEX IF NOT EXISTS idx_economic_indicator_load_control_status
+    ON financial_data.economic_indicator_load_control (status);
 ```
 
 ---
@@ -187,7 +189,7 @@ CREATE INDEX IF NOT EXISTS idx_indicator_load_control_status
 SET search_path TO financial_data, public;
 
 -- Indicators (Brazil)
-INSERT INTO financial_data.indicator
+INSERT INTO financial_data.economic_indicator
     (country_code, label, issuer, description, frequency, unit)
 VALUES
     ('BR', 'IPCA', 'IBGE', 'Indice Nacional de Precos ao Consumidor Amplo', 'monthly', '%'),
@@ -200,85 +202,85 @@ VALUES
 ON CONFLICT (country_code, label) DO NOTHING;
 
 -- Variations: IPCA
-INSERT INTO financial_data.indicator_variation (indicator_id, label, unit, is_default)
+INSERT INTO financial_data.economic_indicator_variation (indicator_id, label, unit, is_default)
 SELECT id, 'MONTHLY_CHANGE', '%', true
-FROM financial_data.indicator WHERE country_code = 'BR' AND label = 'IPCA'
+FROM financial_data.economic_indicator WHERE country_code = 'BR' AND label = 'IPCA'
 ON CONFLICT (indicator_id, label) DO NOTHING;
 
-INSERT INTO financial_data.indicator_variation (indicator_id, label, unit)
+INSERT INTO financial_data.economic_indicator_variation (indicator_id, label, unit)
 SELECT id, 'YTD', '%'
-FROM financial_data.indicator WHERE country_code = 'BR' AND label = 'IPCA'
+FROM financial_data.economic_indicator WHERE country_code = 'BR' AND label = 'IPCA'
 ON CONFLICT (indicator_id, label) DO NOTHING;
 
-INSERT INTO financial_data.indicator_variation (indicator_id, label, unit)
+INSERT INTO financial_data.economic_indicator_variation (indicator_id, label, unit)
 SELECT id, 'ROLLING_12M', '%'
-FROM financial_data.indicator WHERE country_code = 'BR' AND label = 'IPCA'
+FROM financial_data.economic_indicator WHERE country_code = 'BR' AND label = 'IPCA'
 ON CONFLICT (indicator_id, label) DO NOTHING;
 
 -- Variations: IPCA-15
-INSERT INTO financial_data.indicator_variation (indicator_id, label, unit, is_default)
+INSERT INTO financial_data.economic_indicator_variation (indicator_id, label, unit, is_default)
 SELECT id, 'MONTHLY_CHANGE', '%', true
-FROM financial_data.indicator WHERE country_code = 'BR' AND label = 'IPCA_15'
+FROM financial_data.economic_indicator WHERE country_code = 'BR' AND label = 'IPCA_15'
 ON CONFLICT (indicator_id, label) DO NOTHING;
 
-INSERT INTO financial_data.indicator_variation (indicator_id, label, unit)
+INSERT INTO financial_data.economic_indicator_variation (indicator_id, label, unit)
 SELECT id, 'YTD', '%'
-FROM financial_data.indicator WHERE country_code = 'BR' AND label = 'IPCA_15'
+FROM financial_data.economic_indicator WHERE country_code = 'BR' AND label = 'IPCA_15'
 ON CONFLICT (indicator_id, label) DO NOTHING;
 
-INSERT INTO financial_data.indicator_variation (indicator_id, label, unit)
+INSERT INTO financial_data.economic_indicator_variation (indicator_id, label, unit)
 SELECT id, 'ROLLING_12M', '%'
-FROM financial_data.indicator WHERE country_code = 'BR' AND label = 'IPCA_15'
+FROM financial_data.economic_indicator WHERE country_code = 'BR' AND label = 'IPCA_15'
 ON CONFLICT (indicator_id, label) DO NOTHING;
 
 -- Variations: INPC
-INSERT INTO financial_data.indicator_variation (indicator_id, label, unit, is_default)
+INSERT INTO financial_data.economic_indicator_variation (indicator_id, label, unit, is_default)
 SELECT id, 'MONTHLY_CHANGE', '%', true
-FROM financial_data.indicator WHERE country_code = 'BR' AND label = 'INPC'
+FROM financial_data.economic_indicator WHERE country_code = 'BR' AND label = 'INPC'
 ON CONFLICT (indicator_id, label) DO NOTHING;
 
-INSERT INTO financial_data.indicator_variation (indicator_id, label, unit)
+INSERT INTO financial_data.economic_indicator_variation (indicator_id, label, unit)
 SELECT id, 'YTD', '%'
-FROM financial_data.indicator WHERE country_code = 'BR' AND label = 'INPC'
+FROM financial_data.economic_indicator WHERE country_code = 'BR' AND label = 'INPC'
 ON CONFLICT (indicator_id, label) DO NOTHING;
 
-INSERT INTO financial_data.indicator_variation (indicator_id, label, unit)
+INSERT INTO financial_data.economic_indicator_variation (indicator_id, label, unit)
 SELECT id, 'ROLLING_12M', '%'
-FROM financial_data.indicator WHERE country_code = 'BR' AND label = 'INPC'
+FROM financial_data.economic_indicator WHERE country_code = 'BR' AND label = 'INPC'
 ON CONFLICT (indicator_id, label) DO NOTHING;
 
 -- Variations: SELIC
-INSERT INTO financial_data.indicator_variation (indicator_id, label, unit, is_default)
+INSERT INTO financial_data.economic_indicator_variation (indicator_id, label, unit, is_default)
 SELECT id, 'TARGET_RATE', '%', true
-FROM financial_data.indicator WHERE country_code = 'BR' AND label = 'SELIC'
+FROM financial_data.economic_indicator WHERE country_code = 'BR' AND label = 'SELIC'
 ON CONFLICT (indicator_id, label) DO NOTHING;
 
-INSERT INTO financial_data.indicator_variation (indicator_id, label, unit)
+INSERT INTO financial_data.economic_indicator_variation (indicator_id, label, unit)
 SELECT id, 'EFFECTIVE_RATE', '%'
-FROM financial_data.indicator WHERE country_code = 'BR' AND label = 'SELIC'
+FROM financial_data.economic_indicator WHERE country_code = 'BR' AND label = 'SELIC'
 ON CONFLICT (indicator_id, label) DO NOTHING;
 
 -- Variations: GDP
-INSERT INTO financial_data.indicator_variation (indicator_id, label, unit, is_default)
+INSERT INTO financial_data.economic_indicator_variation (indicator_id, label, unit, is_default)
 SELECT id, 'VALUE', 'BRL', true
-FROM financial_data.indicator WHERE country_code = 'BR' AND label = 'GDP'
+FROM financial_data.economic_indicator WHERE country_code = 'BR' AND label = 'GDP'
 ON CONFLICT (indicator_id, label) DO NOTHING;
 
 -- Variations: UNEMPLOYMENT
-INSERT INTO financial_data.indicator_variation (indicator_id, label, unit, is_default)
+INSERT INTO financial_data.economic_indicator_variation (indicator_id, label, unit, is_default)
 SELECT id, 'RATE', '%', true
-FROM financial_data.indicator WHERE country_code = 'BR' AND label = 'UNEMPLOYMENT'
+FROM financial_data.economic_indicator WHERE country_code = 'BR' AND label = 'UNEMPLOYMENT'
 ON CONFLICT (indicator_id, label) DO NOTHING;
 
 -- Variations: AVERAGE_INCOME
-INSERT INTO financial_data.indicator_variation (indicator_id, label, unit, is_default)
+INSERT INTO financial_data.economic_indicator_variation (indicator_id, label, unit, is_default)
 SELECT id, 'HABITUAL', 'BRL', true
-FROM financial_data.indicator WHERE country_code = 'BR' AND label = 'AVERAGE_INCOME'
+FROM financial_data.economic_indicator WHERE country_code = 'BR' AND label = 'AVERAGE_INCOME'
 ON CONFLICT (indicator_id, label) DO NOTHING;
 
-INSERT INTO financial_data.indicator_variation (indicator_id, label, unit)
+INSERT INTO financial_data.economic_indicator_variation (indicator_id, label, unit)
 SELECT id, 'EFFECTIVE', 'BRL'
-FROM financial_data.indicator WHERE country_code = 'BR' AND label = 'AVERAGE_INCOME'
+FROM financial_data.economic_indicator WHERE country_code = 'BR' AND label = 'AVERAGE_INCOME'
 ON CONFLICT (indicator_id, label) DO NOTHING;
 ```
 

@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.financialdata.service
 
+import io.github.salomax.neotool.financialdata.graphql.dto.EconomicIndicatorLatestDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.EconomicIndicatorPointDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.EconomicIndicatorSeriesDTO
 import io.github.salomax.neotool.financialdata.repo.IndicatorValueRepositoryCustom
@@ -34,18 +35,24 @@ open class IndicatorValueService(
             limit,
         )
 
-        val unit =
-            repository.findUnit(indicator, variation)
+        val metadata =
+            repository.findMetadata(indicator, variation)
                 ?: throw IllegalArgumentException("Unknown indicator/variation: $indicator/$variation")
         val values = repository.findSeries(indicator, variation, from, to, limit)
-        val points = values.map { EconomicIndicatorPointDTO(it.referenceDate, it.value) }
+        val points =
+            values.map {
+                EconomicIndicatorPointDTO(
+                    it.referenceDate,
+                    metadata.valueFormat.normalize(it.value),
+                )
+            }
 
         log.debug("Found {} data points for indicator={}, variation={}", points.size, indicator, variation)
 
         return EconomicIndicatorSeriesDTO(
             indicator = indicator,
             variation = variation,
-            unit = unit,
+            unit = metadata.unit,
             values = points,
         )
     }
@@ -59,8 +66,9 @@ open class IndicatorValueService(
 
         log.debug("Fetching latest value for indicator={}, variation={}", indicator, variation)
 
-        repository.findUnit(indicator, variation)
-            ?: throw IllegalArgumentException("Unknown indicator/variation: $indicator/$variation")
+        val metadata =
+            repository.findMetadata(indicator, variation)
+                ?: throw IllegalArgumentException("Unknown indicator/variation: $indicator/$variation")
         val latest = repository.findLatest(indicator, variation)
 
         if (latest == null) {
@@ -74,7 +82,36 @@ open class IndicatorValueService(
             variation,
             latest.referenceDate,
         )
-        return EconomicIndicatorPointDTO(latest.referenceDate, latest.value)
+        return EconomicIndicatorPointDTO(
+            latest.referenceDate,
+            metadata.valueFormat.normalize(latest.value),
+        )
+    }
+
+    @Transactional(readOnly = true)
+    open fun getAllLatest(): List<EconomicIndicatorLatestDTO> {
+        log.debug("Fetching all latest indicator values")
+
+        val results = repository.findAllLatest()
+
+        log.debug("Found {} indicator/variation pairs with latest values", results.size)
+
+        return results.map { result ->
+            EconomicIndicatorLatestDTO(
+                indicator = result.indicator,
+                variation = result.variation,
+                unit = result.unit,
+                latest =
+                    if (result.referenceDate != null && result.value != null) {
+                        EconomicIndicatorPointDTO(
+                            result.referenceDate,
+                            result.valueFormat.normalize(result.value),
+                        )
+                    } else {
+                        null
+                    },
+            )
+        }
     }
 
     private fun validateInputs(

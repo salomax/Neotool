@@ -91,6 +91,10 @@ class BacenInstitutionDetailResolver(
         val to = rangeInput["to"] as? String
         val last = (rangeInput["last"] as? Number)?.toInt()
 
+        if (last != null && last <= 0) {
+            throw IllegalArgumentException("range.last must be greater than 0")
+        }
+
         return QuarterRange(
             from = from,
             to = to,

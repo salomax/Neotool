@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.financialdata.graphql.resolver
 
 import graphql.schema.DataFetchingEnvironment
+import io.github.salomax.neotool.financialdata.graphql.dto.EconomicIndicatorLatestDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.EconomicIndicatorPointDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.EconomicIndicatorSeriesDTO
 import io.github.salomax.neotool.financialdata.service.IndicatorValueService
@@ -37,6 +38,10 @@ class IndicatorValueResolver(
             env.getArgument<String>("variation")
                 ?: throw IllegalArgumentException("variation is required")
         return indicatorValueService.getLatest(indicator, variation)
+    }
+
+    fun indicatorsLatest(): List<EconomicIndicatorLatestDTO> {
+        return indicatorValueService.getAllLatest()
     }
 
     private fun parseDate(value: Any?): LocalDate? {

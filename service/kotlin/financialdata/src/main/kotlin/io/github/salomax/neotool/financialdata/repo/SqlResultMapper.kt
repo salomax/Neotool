@@ -51,8 +51,13 @@ class SqlResultMapper(
      * so we extract the first character from the string.
      * Returns null if the value is null, empty, or cannot be converted.
      */
-    fun getChar(columnName: String): Character? {
-        return (getValue(columnName) as? Character)
+    fun getChar(columnName: String): Char? {
+        val value = getValue(columnName) ?: return null
+        return when (value) {
+            is Char -> value
+            is String -> value.firstOrNull()
+            else -> null
+        }
     }
 
     /**

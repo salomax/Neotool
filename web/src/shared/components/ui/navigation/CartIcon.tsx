@@ -4,7 +4,7 @@ import * as React from "react";
 import { IconButton, IconButtonProps } from "@/shared/components/ui/primitives";
 import { Badge as MuiBadge } from "@mui/material";
 import { ShoppingCartIcon } from "@/shared/ui/mui-imports";
-import { useCart } from "@/lib/hooks/cart/useCart";
+import { useCart } from "@/shared/hooks/cart";
 
 export interface CartIconProps extends Omit<IconButtonProps, "onClick"> {
   onClick?: () => void;

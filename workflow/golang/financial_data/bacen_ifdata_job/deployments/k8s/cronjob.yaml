@@ -1,0 +1,56 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: bacen-ifdata-cronjob
+  namespace: production
+  labels:
+    app: bacen-ifdata-cronjob
+spec:
+  # Every Saturday at 10:00 AM (Sao Paulo timezone)
+  schedule: "0 10 * * 6"
+  timeZone: "America/Sao_Paulo"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    metadata:
+      labels:
+        app: bacen-ifdata-cronjob
+    spec:
+      # Maximum time for job to complete (2 hours)
+      activeDeadlineSeconds: 7200
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app: bacen-ifdata-cronjob
+        spec:
+          containers:
+            - name: cronjob
+              image: ghcr.io/invistus/neotool-bacen-ifdata-cronjob:latest # {"$imagepolicy": "flux-system:neotool-bacen-ifdata-cronjob"}
+              imagePullPolicy: Always
+              resources:
+                requests:
+                  memory: "256Mi"
+                  cpu: "200m"
+                limits:
+                  memory: "512Mi"
+                  cpu: "500m"
+              envFrom:
+                - configMapRef:
+                    name: bacen-ifdata-config
+                - secretRef:
+                    name: bacen-ifdata-secrets
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 1000
+                runAsGroup: 1000
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+          restartPolicy: OnFailure
+          terminationGracePeriodSeconds: 30
+          imagePullSecrets:
+            - name: ghcr-credentials

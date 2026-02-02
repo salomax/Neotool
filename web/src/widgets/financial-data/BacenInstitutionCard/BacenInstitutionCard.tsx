@@ -215,8 +215,8 @@ export function BacenInstitutionCard({
           {/* Basel Index */}
           <FinancialMetricItem label={t("financialMetrics.baselIndex")}>
             <StatusIndicator
-              color={basileiaIndexColor}
-              label={formatPercentage(institution.basileiaIndex, { decimals: 1 })}
+              color={institution.basileiaIndex ? basileiaIndexColor : 'none'}
+              label={institution.basileiaIndex ? formatPercentage(institution.basileiaIndex, { decimals: 1 }) : '-'}
               ariaLabel={`Índice Basileia: ${formatPercentage(institution.basileiaIndex ?? 0, { decimals: 1 })}`}
               variant="body2"
             />

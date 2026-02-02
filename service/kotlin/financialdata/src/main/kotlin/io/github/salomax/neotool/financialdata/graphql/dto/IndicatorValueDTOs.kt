@@ -17,3 +17,11 @@ data class EconomicIndicatorPointDTO(
     val referenceDate: LocalDate,
     val value: BigDecimal,
 )
+
+@Introspected
+data class EconomicIndicatorLatestDTO(
+    val indicator: String,
+    val variation: String,
+    val unit: String,
+    val latest: EconomicIndicatorPointDTO?,
+)

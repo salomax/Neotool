@@ -9,3 +9,4 @@ export { BacenInstitutionCard, type BacenInstitution, type BacenInstitutionCardP
 export { BacenInstitutionSummaryPaper, type BacenInstitutionSummaryPaperProps } from "./BacenInstitutionSummaryPaper";
 export { BacenInstitutionBalanceSummaryGrid } from "./BacenInstitutionBalanceSummaryGrid";
 export { BacenInstitutionReportDetail } from "./BacenInstitutionReportDetail";
+export { BacenDataFooter } from "./BacenDataFooter";

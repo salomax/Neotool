@@ -8,7 +8,7 @@
 
 Single Go-based async job with **goroutine concurrency**, aligned with existing workflows in
 `invistus/workflow/golang/financial_data`. The job is **metadata-driven**, idempotent, and
-records execution state in `indicator_load_control`.
+records execution state in `economic_indicator_load_control`.
 
 ---
 
@@ -17,7 +17,7 @@ records execution state in `indicator_load_control`.
 **One job, multi-threaded**:
 - A single cronjob binary runs periodically.
 - It dispatches multiple indicator-variation tasks concurrently via worker pool.
-- Each task is isolated (indicator_variation + period range).
+- Each task is isolated (economic_indicator_variation + period range).
 
 **Idempotency**:
 - Writes are upserts on `(indicator_variation_id, reference_date)`.
@@ -27,7 +27,7 @@ records execution state in `indicator_load_control`.
 
 ## Control Table
 
-**Table**: `financial_data.indicator_load_control`
+**Table**: `financial_data.economic_indicator_load_control`
 
 Purpose:
 - Track what already ran per indicator variation
@@ -67,9 +67,9 @@ Leverage patterns from `bacen_ifdata`:
 ## Core Flow (High-Level)
 
 1. **Discover tasks**:
-   - Read active `indicator_variation` rows
+   - Read active `economic_indicator_variation` rows
    - Decide run_type and period range (incremental vs backfill)
-   - Insert a row into `indicator_load_control` with `PENDING`
+   - Insert a row into `economic_indicator_load_control` with `PENDING`
 
 2. **Dispatch workers**:
    - Fan-out tasks into a buffered channel
@@ -85,7 +85,7 @@ Leverage patterns from `bacen_ifdata`:
    - Set `publication_date` when known
 
 5. **Upsert**:
-   - Insert/Update `indicator_value`
+   - Insert/Update `economic_indicator_value`
    - Store `source_meta` (URL, params, retrieved_at)
 
 6. **Finalize**:

@@ -106,6 +106,12 @@ class FinancialDataWiringFactory(
                     indicatorValueResolver.indicatorLatest(env)
                 },
             )
+            .dataFetcher(
+                "indicatorsLatest",
+                createValidatedDataFetcher {
+                    indicatorValueResolver.indicatorsLatest()
+                },
+            )
     }
 
     override fun registerMutationResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder {
@@ -662,6 +668,46 @@ class FinancialDataWiringFactory(
                             value?.value
                         },
                     )
+            }
+            .type("InstitutionRating") { type ->
+                type.dataFetcher(
+                    "updatedAt",
+                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                        val rating = env.getSource<InstitutionRatingDTO>()
+                        // Convert Instant to OffsetDateTime for GraphQL DateTime scalar
+                        rating?.updatedAt?.atOffset(ZoneOffset.UTC)
+                    },
+                )
+            }
+            .type("RatingHistory") { type ->
+                type.dataFetcher(
+                    "changedAt",
+                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                        val history = env.getSource<RatingHistoryDTO>()
+                        // Convert Instant to OffsetDateTime for GraphQL DateTime scalar
+                        history?.changedAt?.atOffset(ZoneOffset.UTC)
+                    },
+                )
+            }
+            .type("InstitutionRating") { type ->
+                type.dataFetcher(
+                    "updatedAt",
+                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                        val rating = env.getSource<InstitutionRatingDTO>()
+                        // Convert Instant to OffsetDateTime for GraphQL DateTime scalar
+                        rating?.updatedAt?.atOffset(ZoneOffset.UTC)
+                    },
+                )
+            }
+            .type("RatingHistory") { type ->
+                type.dataFetcher(
+                    "changedAt",
+                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                        val history = env.getSource<RatingHistoryDTO>()
+                        // Convert Instant to OffsetDateTime for GraphQL DateTime scalar
+                        history?.changedAt?.atOffset(ZoneOffset.UTC)
+                    },
+                )
             }
             .type("InstitutionRating") { type ->
                 type.dataFetcher(

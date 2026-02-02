@@ -18,6 +18,7 @@ export interface FormatMetricValueOptions {
   locale?: string;
   currencyLabels?: CurrencyLabels;
   totalizerFormat?: "short" | "long";
+  decimals?: number;
 }
 
 /**
@@ -47,6 +48,7 @@ export function formatMetricValue(
     locale = "pt-BR",
     currencyLabels,
     totalizerFormat = "short",
+    decimals,
   } = options;
 
   if (typeof value !== "number" || !Number.isFinite(value)) {
@@ -89,7 +91,8 @@ export function formatMetricValue(
   if (valueType === "percentage") {
     const percentageValue = value * 100;
     const formatted = percentageValue.toLocaleString(locale, {
-      maximumFractionDigits: 1,
+      minimumFractionDigits: decimals !== undefined ? decimals : 0,
+      maximumFractionDigits: decimals !== undefined ? decimals : 1,
     });
     return {
       prefix: "",

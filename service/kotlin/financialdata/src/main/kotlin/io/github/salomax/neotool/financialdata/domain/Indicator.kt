@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.financialdata.domain
 
-import io.github.salomax.neotool.financialdata.model.IndicatorEntity
 import io.micronaut.serde.annotation.Serdeable
 import java.time.Instant
 import java.util.UUID
@@ -17,19 +16,4 @@ data class Indicator(
     val isActive: Boolean = true,
     val createdAt: Instant = Instant.now(),
     val updatedAt: Instant = Instant.now(),
-) {
-    fun toEntity(): IndicatorEntity {
-        return IndicatorEntity(
-            id = this.id,
-            countryCode = this.countryCode,
-            label = this.label,
-            issuer = this.issuer,
-            description = this.description,
-            frequency = this.frequency,
-            unit = this.unit,
-            isActive = this.isActive,
-            createdAt = this.createdAt,
-            updatedAt = this.updatedAt,
-        )
-    }
-}
+)

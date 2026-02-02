@@ -9,7 +9,7 @@ import { BacenInstitutionCard, type BacenInstitution } from "@/widgets/financial
 import { useTranslation } from "@/shared/i18n";
 import { financialDataTranslations } from "@/shared/i18n/domains/financial-data";
 import { usePageTitle } from "@/shared/hooks/ui/usePageTitle";
-import { encodeId } from "@/shared/utils/idObfuscation";
+import { createSemanticPath } from "@/shared/utils/url";
 import {
   useBacenInstitutionsAutocompleteQuery,
   useBacenInstitutionsSearch,
@@ -30,11 +30,12 @@ export default function BacenInstitutionsPage() {
     selectedInstitution,
     handleSelectionChange,
     handleAutocompleteSearch,
+    shouldSkipQuery,
   } = useBacenInstitutionsSearch();
 
   const handleCardClick = React.useCallback(
     (institution: BacenInstitution) => {
-      router.push(`/financial-data/bacen-institutions/${encodeId(institution.id)}`);
+      router.push(`/financial-data/bacen-institutions/${createSemanticPath(institution.name, institution.id)}`);
     },
     [router]
   );
@@ -92,7 +93,8 @@ export default function BacenInstitutionsPage() {
           loading={loading}
           error={error}
           onRetry={() => refetch()}
-          emptyMessage={t("messages.noInstitutionsFound")}
+          emptyMessage={!shouldSkipQuery ? t("messages.noInstitutionsFound") : undefined}
+          emptyComponent={shouldSkipQuery ? <></> : undefined}
           errorMessage={t("messages.unableToLoadInstitutions")}
         />
       </Container>

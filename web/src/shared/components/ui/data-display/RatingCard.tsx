@@ -159,7 +159,7 @@ export function RatingCard({ ratings, loading }: RatingCardProps) {
           variant="h2" 
           sx={{ 
             fontWeight: 700, 
-            fontSize: '2rem',
+            fontSize: '1.8rem',
             lineHeight: 1.2,
             textAlign: 'left'
           }}

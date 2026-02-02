@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.financialdata.repo
 
+import io.github.salomax.neotool.financialdata.model.ValueFormat
 import jakarta.inject.Singleton
 import jakarta.persistence.EntityManager
 import jakarta.persistence.PersistenceContext
@@ -47,10 +48,10 @@ open class IndicatorValueRepositoryImpl(
 
         val baseSql =
             """
-            SELECT iv.reference_date, iv.value
-            FROM financial_data.indicator_value iv
-            JOIN financial_data.indicator_variation v ON v.id = iv.indicator_variation_id
-            JOIN financial_data.indicator i ON i.id = v.indicator_id
+            SELECT iv.reference_date, COALESCE(iv.adjusted_value, iv.raw_value) AS value
+            FROM financial_data.economic_indicator_value iv
+            JOIN financial_data.economic_indicator_variation v ON v.id = iv.indicator_variation_id
+            JOIN financial_data.economic_indicator i ON i.id = v.indicator_id
             WHERE ${conditions.joinToString(" AND ")}
             """.trimIndent()
 
@@ -97,10 +98,10 @@ open class IndicatorValueRepositoryImpl(
 
         val sql =
             """
-            SELECT iv.reference_date, iv.value
-            FROM financial_data.indicator_value iv
-            JOIN financial_data.indicator_variation v ON v.id = iv.indicator_variation_id
-            JOIN financial_data.indicator i ON i.id = v.indicator_id
+            SELECT iv.reference_date, COALESCE(iv.adjusted_value, iv.raw_value)
+            FROM financial_data.economic_indicator_value iv
+            JOIN financial_data.economic_indicator_variation v ON v.id = iv.indicator_variation_id
+            JOIN financial_data.economic_indicator i ON i.id = v.indicator_id
             WHERE i.label = :indicator
               AND v.label = :variation
               AND i.is_active = true
@@ -133,8 +134,8 @@ open class IndicatorValueRepositoryImpl(
         val sql =
             """
             SELECT COALESCE(v.unit, i.unit)
-            FROM financial_data.indicator_variation v
-            JOIN financial_data.indicator i ON i.id = v.indicator_id
+            FROM financial_data.economic_indicator_variation v
+            JOIN financial_data.economic_indicator i ON i.id = v.indicator_id
             WHERE i.label = :indicator AND v.label = :variation
               AND i.is_active = true
             LIMIT 1
@@ -146,5 +147,84 @@ open class IndicatorValueRepositoryImpl(
 
         log.trace("findUnit: result={}", unit)
         return unit
+    }
+
+    override fun findMetadata(
+        indicatorLabel: String,
+        variationLabel: String,
+    ): IndicatorMetadata? {
+        log.trace("findMetadata: indicator={}, variation={}", indicatorLabel, variationLabel)
+
+        val sql =
+            """
+            SELECT COALESCE(v.unit, i.unit), v.value_format
+            FROM financial_data.economic_indicator_variation v
+            JOIN financial_data.economic_indicator i ON i.id = v.indicator_id
+            WHERE i.label = :indicator AND v.label = :variation
+              AND i.is_active = true
+            LIMIT 1
+            """.trimIndent()
+        val query = entityManager.createNativeQuery(sql)
+        query.setParameter("indicator", indicatorLabel)
+        query.setParameter("variation", variationLabel)
+        val row = query.resultList.firstOrNull() as? Array<*>
+
+        if (row == null) {
+            log.trace("findMetadata: not found")
+            return null
+        }
+
+        val unit = row.getOrNull(0) as? String ?: return null
+        val formatStr = row.getOrNull(1) as? String
+        val valueFormat = ValueFormat.fromString(formatStr)
+
+        log.trace("findMetadata: unit={}, valueFormat={}", unit, valueFormat)
+        return IndicatorMetadata(unit, valueFormat)
+    }
+
+    override fun findAllLatest(): List<IndicatorLatestValue> {
+        log.trace("findAllLatest: fetching all latest indicator values")
+
+        val sql =
+            """
+            SELECT DISTINCT ON (i.label, v.label)
+                i.label as indicator,
+                v.label as variation,
+                COALESCE(v.unit, i.unit) as unit,
+                v.value_format,
+                iv.reference_date,
+                COALESCE(iv.adjusted_value, iv.raw_value)
+            FROM financial_data.economic_indicator i
+            JOIN financial_data.economic_indicator_variation v ON v.indicator_id = i.id
+            LEFT JOIN financial_data.economic_indicator_value iv ON iv.indicator_variation_id = v.id
+            WHERE i.is_active = true
+            ORDER BY i.label, v.label, iv.reference_date DESC NULLS LAST
+            """.trimIndent()
+
+        val query = entityManager.createNativeQuery(sql)
+        val rows = query.resultList
+
+        val results =
+            rows.mapNotNull { raw ->
+                val row = raw as? Array<*> ?: return@mapNotNull null
+                val indicator = row.getOrNull(0) as? String ?: return@mapNotNull null
+                val variation = row.getOrNull(1) as? String ?: return@mapNotNull null
+                val unit = row.getOrNull(2) as? String ?: return@mapNotNull null
+                val formatStr = row.getOrNull(3) as? String
+                val date = (row.getOrNull(4) as? Date)?.toLocalDate()
+                val value = row.getOrNull(5) as? BigDecimal
+
+                IndicatorLatestValue(
+                    indicator = indicator,
+                    variation = variation,
+                    unit = unit,
+                    valueFormat = ValueFormat.fromString(formatStr),
+                    referenceDate = date,
+                    value = value,
+                )
+            }
+
+        log.trace("findAllLatest: returned {} indicator/variation pairs", results.size)
+        return results
     }
 }
