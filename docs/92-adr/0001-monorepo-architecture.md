@@ -3,11 +3,12 @@ title: ADR-0001 Monorepo Architecture
 type: adr
 category: architecture
 status: accepted
-version: 1.0.0
-tags: [monorepo, architecture, repository-structure, organization]
+version: 2.0.0
+tags: [monorepo, architecture, repository-structure, organization, nx]
 related:
   - ARCHITECTURE_OVERVIEW.md
   - adr/0002-containerized-architecture.md
+  - adr/0003-nx-monorepo-tooling.md
 ---
 
 # ADR-0001: Monorepo Architecture
@@ -26,19 +27,32 @@ The key challenge is how to organize and manage these different components while
 - Clear separation of concerns
 
 ## Decision
-We will use a **monorepo architecture** to organize all NeoTool components under a single repository.
+We will use a **monorepo architecture** powered by **Nx** to organize all NeoTool components under a single repository.
 
 The monorepo structure includes:
 ```
 neotool/
-├── service/        # Kotlin backend modules (gateway, common, app)
-├── web/            # Web frontend (Next.js)
-├── mobile/         # Mobile app (React Native / Expo)
-├── infra/          # Docker, K8s, GitOps, observability
-├── contracts/      # GraphQL + OpenAPI contracts
-├── docs/           # ADRs and docs site
+├── apps/
+│   ├── web/            # Next.js application
+│   └── mobile/         # React Native / Expo mobile app
+├── services/
+│   ├── security/       # Kotlin authentication service
+│   ├── assets/         # Kotlin assets management service
+│   ├── financialdata/  # Kotlin financial data service
+│   └── indicators/     # Go indicators processing service
+├── libs/               # Shared libraries
+│   ├── kotlin-common/  # Common Kotlin utilities
+│   ├── ts-utils/       # TypeScript utilities
+│   └── go-shared/      # Go shared packages
+├── infra/              # Docker, K8s, GitOps, observability
+├── contracts/          # GraphQL + OpenAPI contracts
+├── docs/               # ADRs and docs site
+├── nx.json             # Nx workspace configuration
+├── package.json        # Root package.json with Nx
 └── README.md
 ```
+
+**Tooling**: We use **Nx** as our monorepo build system to manage dependencies, orchestrate tasks, and provide intelligent caching across our polyglot codebase (TypeScript, Kotlin, Go). See [ADR-0003](./0003-nx-monorepo-tooling.md) for detailed rationale.
 
 ## Consequences
 
@@ -50,6 +64,9 @@ neotool/
 - **Code reuse**: Common utilities, types, and configurations can be shared easily
 - **Consistent tooling**: Single set of linting, formatting, and testing tools across all components
 - **Easier local development**: Single `docker-compose` setup for the entire stack
+- **Intelligent builds with Nx**: Only affected projects are built/tested, dramatically reducing CI time
+- **Remote caching**: Nx Cloud provides free remote caching, avoiding redundant builds across team members
+- **Dependency graph**: Visual representation of project dependencies helps understand system architecture
 
 ### Negative
 - **Repository size**: Can grow large over time, potentially affecting clone times
@@ -63,10 +80,12 @@ neotool/
 - **Git performance**: Large repositories can impact git operations
 
 ### Mitigation Strategies
-- **Clear boundaries**: Enforce clear module boundaries and API contracts
-- **Incremental builds**: Use build tools that support incremental compilation
-- **Modular deployment**: Deploy components independently despite shared repository
+- **Clear boundaries**: Enforce clear module boundaries and API contracts using Nx project tags and constraints
+- **Incremental builds**: Nx provides affected detection based on dependency graph analysis
+- **Modular deployment**: Deploy components independently despite shared repository using independent versioning
 - **Regular cleanup**: Periodically review and remove unused code to keep repository size manageable
+- **Build optimization**: Nx computation caching (local + remote) ensures fast builds even in large codebases
+- **CI optimization**: Use `nx affected` commands to run only necessary tests/builds in CI pipeline
 
 ## Alternatives Considered
 

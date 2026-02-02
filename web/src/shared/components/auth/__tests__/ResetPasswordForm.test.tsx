@@ -29,8 +29,8 @@ vi.mock('@/shared/providers', async () => {
 
 // Mock GraphQL mutation
 const mockResetPassword = vi.fn();
-vi.mock('@/lib/graphql/operations/auth/mutations.generated', () => ({
-  useResetPasswordMutation: vi.fn(() => [mockResetPassword]),
+vi.mock('@apollo/client/react', () => ({
+  useMutation: vi.fn(() => [mockResetPassword]),
 }));
 
 // Mock Next.js router

@@ -113,6 +113,11 @@ NeoTool's specification is comprehensive and RAG-optimized. This document provid
 - `docs/07-frontend/patterns/testing-pattern.md` (if frontend)
 - `docs/07-frontend/patterns/e2e-testing-pattern.md` (if E2E)
 
+#### Kafka Consumer add-on (Kafka consumers/batch processing):
+- `docs/04-patterns/backend-patterns/kafka-consumer-pattern.md` (Kotlin consumers)
+- `docs/05-standards/workflow-standards/kafka-consumer-standard.md` (MANDATORY for all consumers)
+- `docs/05-standards/workflow-standards/batch-workflow-standard.md` (batch workflows)
+
 #### Common Conditional Standards (Load When Needed)
 - **Security/authentication/authorization**: `docs/09-security/authentication.md`
 - **Linting / quality checks**: `docs/05-backend/kotlin/linting-standards.md`
@@ -256,6 +261,15 @@ flowchart TD
     ServiceValidate -->|Yes| UnloadService[Unload Service Specs]
     UnloadService --> CheckPhase
     
+    %% Kafka Consumer Phase
+    CheckPhase -->|Kafka Consumer| KafkaPhase[Kafka Consumer Phase]
+    KafkaPhase --> LoadKafka[Load Kafka Consumer Specs<br/>Kafka Consumer Pattern<br/>Kafka Consumer Retry Standard<br/>Batch Workflow Standard]
+    LoadKafka --> KafkaTasks[Kafka Consumer Tasks<br/>1. Implement Consumer<br/>2. Implement Retry Logic<br/>3. Implement Error Classification<br/>4. Implement DLQ Publisher<br/>5. Configure Exponential Backoff<br/>6. Add Metrics<br/>7. Review Consumer Code]
+    KafkaTasks --> KafkaValidate{Valid?}
+    KafkaValidate -->|No| KafkaTasks
+    KafkaValidate -->|Yes| UnloadKafka[Unload Kafka Specs]
+    UnloadKafka --> CheckPhase
+    
     %% Backend GraphQL Phase
     CheckPhase -->|Backend GraphQL| GraphQLPhase[Backend GraphQL Phase]
     GraphQLPhase --> LoadGraphQL[Load GraphQL Specs<br/>Resolver Pattern<br/>Mapper Pattern<br/>GraphQL Federation<br/>GraphQL Standards]
@@ -317,6 +331,7 @@ flowchart TD
     style DomainPhase fill:#e1ffe1
     style RepoPhase fill:#e1ffe1
     style ServicePhase fill:#e1ffe1
+    style KafkaPhase fill:#e1ffe1
     style GraphQLPhase fill:#e1ffe1
     style FrontendPhase fill:#e1ffe1
     style TestingPhase fill:#ffe1e1
@@ -343,12 +358,13 @@ flowchart TD
 1. **Domain Phase**: Database migrations, domain objects
 2. **Backend Repository**: JPA entities, repositories, conversions
 3. **Backend Service**: Business logic, security, validation
-4. **Backend GraphQL**: Schema, resolvers, mappers, federation
-5. **Frontend**: GraphQL operations, hooks, components, design system
-6. **Testing**: Unit, integration, E2E tests with coverage validation
-7. **Quality Assurance**: Linting, checklists, spec compliance
-8. **Observability**: Metrics, logging, dashboards
-9. **Documentation**: API docs, breaking changes
+4. **Kafka Consumer**: Consumer implementation, retry logic, error classification, DLQ handling (MANDATORY for all consumers)
+5. **Backend GraphQL**: Schema, resolvers, mappers, federation
+6. **Frontend**: GraphQL operations, hooks, components, design system
+7. **Testing**: Unit, integration, E2E tests with coverage validation
+8. **Quality Assurance**: Linting, checklists, spec compliance
+9. **Observability**: Metrics, logging, dashboards
+10. **Documentation**: API docs, breaking changes
 
 **Context Management**:
 - Load phase-specific specs only when entering phase
@@ -400,7 +416,36 @@ flowchart TD
 - Add checklist docs
 - Compare against patterns
 
-### Workflow 3: Bug Fix
+### Workflow 3: Kafka Consumer Development
+
+**Step 1: Initial Context**
+- MANIFEST.md
+- Architecture overview
+- Feature file (if part of feature)
+- Batch workflow standard
+
+**Step 2: Kafka Consumer Phase**
+- Keep Step 1 context
+- Add Kafka Consumer Pattern (Kotlin) or workflow consumer pattern (Python)
+- **MANDATORY**: Add Kafka Consumer Retry Standard
+- Add Batch Workflow Standard
+- Add Observability Standards (for metrics)
+
+**Step 3: Implementation**
+- Implement consumer with retry logic
+- Implement error classification
+- Implement DLQ publisher
+- Configure exponential backoff
+- Add required metrics
+
+**Step 4: Validation**
+- Verify retry logic implementation
+- Verify error classification
+- Verify DLQ routing
+- Verify metrics exposure
+- Verify compliance with retry standard
+
+### Workflow 4: Bug Fix
 
 **Step 1: Minimal Context**
 - Architecture overview
@@ -422,6 +467,7 @@ flowchart TD
 5. **Unload after phase**: Remove specs when phase complete
 6. **Load patterns, not examples**: Patterns are more concise
 7. **Chunk large docs**: Load specific sections when possible
+8. **Kafka Consumer Retry Standard**: **MANDATORY** for all Kafka consumers - always load when implementing or modifying consumers
 
 ### Don'ts ❌
 
@@ -429,7 +475,8 @@ flowchart TD
 2. **Don't copy full examples**: Reference example paths instead
 3. **Don't ignore MANIFEST**: It's optimized for quick lookup
 4. **Don't load unrelated specs**: Only load what's needed
-5. **Don't skip feature context**: Always load feature guide and task breakdown
+5. **Don't skip feature context**: Always load feature file and memory
+6. **Don't skip Kafka Consumer Retry Standard**: All Kafka consumers MUST implement retry logic with exponential backoff per standard
 
 ## Context Loading Guidelines
 
@@ -439,6 +486,7 @@ flowchart TD
 | Feature | Feature work | Feature guide (`.md`), task breakdown |
 | Domain Phase | Domain implementation | Schema, entity, UUID patterns |
 | Backend Phase | Backend implementation | Repository, service, resolver patterns |
+| Kafka Consumer Phase | Kafka consumer implementation | **MANDATORY**: Kafka Consumer Retry Standard, Kafka Consumer Pattern, Batch Workflow Standard |
 | Frontend Phase | Frontend implementation | Component, query, mutation patterns |
 | Testing Phase | Testing | Testing standards and patterns |
 | Standards | When needed | Linting, security, observability |

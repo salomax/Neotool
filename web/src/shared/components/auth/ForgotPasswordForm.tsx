@@ -19,7 +19,12 @@ import { useToast } from "@/shared/providers";
 import { useTranslation } from "@/shared/i18n/hooks/useTranslation";
 import { forgotPasswordTranslations } from "@/app/(authentication)/forgot-password/i18n";
 import { extractErrorMessage } from "@/shared/utils/error";
-import { useRequestPasswordResetMutation } from "@/lib/graphql/operations/auth/mutations.generated";
+import { useMutation } from "@apollo/client/react";
+import {
+  RequestPasswordResetDocument,
+  type RequestPasswordResetMutation,
+  type RequestPasswordResetMutationVariables,
+} from "@/lib/graphql/operations/auth/mutations.generated";
 import { useRouter } from "next/navigation";
 
 const forgotPasswordSchema = z.object({
@@ -40,7 +45,10 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({ onSucces
   const [error, setError] = React.useState<string | null>(null);
   const [success, setSuccess] = React.useState(false);
 
-  const [requestPasswordReset] = useRequestPasswordResetMutation();
+  const [requestPasswordReset] = useMutation<
+    RequestPasswordResetMutation,
+    RequestPasswordResetMutationVariables
+  >(RequestPasswordResetDocument);
 
   const methods = useForm<ForgotPasswordFormData>({
     resolver: zodResolver(forgotPasswordSchema),
@@ -157,4 +165,3 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({ onSucces
     </FormProvider>
   );
 };
-

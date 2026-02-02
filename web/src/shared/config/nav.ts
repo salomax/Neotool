@@ -8,22 +8,10 @@ export type NavItem = {
 
 export const NAV: NavItem[] = [
   {
-    id: "dashboard",
-    i18nKey: "routes.dashboard",
-    href: "/dashboard",
-    icon: "Dashboard",
-  },
-  {
     id: "profile",
     i18nKey: "routes.profile",
     href: "/profile",
     icon: "Person",
-  },
-  {
-    id: "examples",
-    i18nKey: "routes.examples",
-    href: "/examples",
-    icon: "Science",
   },
   {
     id: "settings",

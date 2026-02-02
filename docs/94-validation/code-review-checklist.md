@@ -111,8 +111,8 @@ related:
 - [ ] Migration sets search path and uses explicit schema qualification
 - [ ] Migration is idempotent (uses `IF NOT EXISTS`, `IF EXISTS`)
 - [ ] Migration creates schema if needed: `CREATE SCHEMA IF NOT EXISTS {schema}`
-- [ ] **Migration uses UUID v7 for UUID primary keys** (see `docs/05-backend/patterns/uuid-v7-pattern.md`)
-  - [ ] Migration installs extension: `CREATE EXTENSION IF NOT EXISTS pg_uuidv7;`
+- [ ] **Migration uses UUID v7 for UUID primary keys** (see `docs/04-patterns/backend-patterns/uuid-v7-pattern.md`)
+  - [ ] **PostgreSQL 18+**: No extension needed, `uuidv7()` is built-in
   - [ ] Tables with UUID primary keys use `DEFAULT uuidv7()`
   - [ ] No use of `gen_random_uuid()` or `UUID.randomUUID()` for primary keys
 - [ ] Migration creates indexes on foreign keys
@@ -217,6 +217,15 @@ related:
 - [ ] Tests written for components with business logic
 - [ ] Tests follow testing patterns
 - [ ] Coverage meets requirements (with exclusions for thin wrappers and presentational components)
+
+### Workflow Tests (Python/Pytest)
+
+- [ ] Tests follow pytest patterns and conventions
+- [ ] Warning suppression is configured in `tests/conftest.py` (NOT in `pytest.ini`)
+- [ ] `pytest.ini` contains only basic configuration (paths, markers)
+- [ ] All warning filters are documented with comments explaining why they're suppressed
+- [ ] Only third-party library warnings are suppressed (never our own code warnings)
+- [ ] Tests use proper fixtures and test isolation
 
 ## Infrastructure
 

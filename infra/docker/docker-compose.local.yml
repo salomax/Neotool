@@ -6,15 +6,18 @@ services:
   # Profile: database
   # -------------------------------------------------------------
   postgres:
-    image: postgres:18rc1
+    image: postgres:18.1-alpine
     container_name: neotool-postgres
     restart: unless-stopped
-    env_file: ../.env.local
     ports: ["5432:5432"]      
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:
       - postgres-internal
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}      
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
       interval: 10s
@@ -23,10 +26,34 @@ services:
     profiles:
       - database
 
+  # Database initializer - runs on every 'docker compose up', idempotent
+  postgres-init:
+    image: postgres:18.1-alpine
+    container_name: neotool-postgres-init
+    volumes:
+      - ../postgres/init-databases.sh:/init-databases.sh:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - postgres-internal
+    entrypoint: ["/bin/bash", "/init-databases.sh"]
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+    restart: "no"
+    profiles:
+      - database
+
   pgbouncer:
     image: edoburu/pgbouncer:v1.25.1-p0
     container_name: neotool-pgbouncer
-    env_file: ../.env.local
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      PGHOST: neotool-postgres
+      PGPORT: ${POSTGRES_PORT:-5432}  
     depends_on:
       postgres:
         condition: service_healthy
@@ -56,17 +83,17 @@ services:
     container_name: neotool-kafka
     restart: unless-stopped
     ports:
-      - "9092:9092"
-      - "9093:9093"
+    - "9092:9092"  # Internal Docker network
+    - "9094:9094"  # External access (host machine)
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:9094,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
@@ -74,10 +101,14 @@ services:
       CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
     volumes:
       - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
     profiles:
       - kafka
-
-
 
   # -------------------------------------------------------------
   # API Gateway Stack
@@ -178,7 +209,6 @@ services:
   grafana:
     image: grafana/grafana:11.1.4
     container_name: neotool-grafana
-    env_file: ../.env.local
     ports:
       - "3001:3000"
     volumes:
@@ -196,17 +226,12 @@ services:
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter:latest
     container_name: neotool-postgres-exporter
-    env_file: ../.env.local
     environment:
       DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-neotool}:${POSTGRES_PASSWORD:-neotool}@pgbouncer:6432/${POSTGRES_DB:-neotool_db}?sslmode=disable"
     ports:
       - "9187:9187"
-    depends_on:
-      pgbouncer:
-        condition: service_healthy
     profiles:
       - observability
-      - database  # Also available when database profile is active
 
   # Loki - Log aggregation system
   loki:
@@ -246,20 +271,19 @@ services:
     image: unleashorg/unleash-server:latest
     container_name: neotool-unleash
     restart: unless-stopped
-    env_file: ../.env.local
     environment:
       # Database configuration (via PgBouncer)
-      DATABASE_URL: postgres://${UNLEASH_USER:-unleash_app}:${UNLEASH_PASSWORD:-unleash_password}@pgbouncer:6432/${UNLEASH_DB:-unleash}
+      DATABASE_URL: postgres://${UNLEASH_USER:-neotool}:${UNLEASH_PASSWORD:-neotool}@pgbouncer:6432/${UNLEASH_DB:-unleash_db}?sslmode=disable
       DATABASE_HOST: pgbouncer
       DATABASE_PORT: 6432
-      DATABASE_NAME: ${UNLEASH_DB:-unleash}
-      DATABASE_USER: ${UNLEASH_USER:-unleash_app}
-      DATABASE_PASSWORD: ${UNLEASH_PASSWORD:-unleash_password}
+      DATABASE_NAME: ${UNLEASH_DB:-unleash_db}
+      DATABASE_USER: ${UNLEASH_USER:-neotool}
+      DATABASE_PASSWORD: ${UNLEASH_PASSWORD:-neotool}
       # Server configuration
       UNLEASH_URL: http://localhost:4242
       PORT: 4242
       # Initial admin user (for first-time setup)
-      INIT_ADMIN_API_TOKENS: ${UNLEASH_SERVER_API_TOKEN:-default:development.unleash-insecure-api-token}
+      INIT_ADMIN_API_TOKENS: ${UNLEASH_SERVER_API_TOKEN}
       # Enable UI
       UI_ENABLED: "true"
     ports:
@@ -280,14 +304,17 @@ services:
     image: unleashorg/unleash-edge:latest
     container_name: neotool-unleash-edge
     restart: unless-stopped
-    env_file: ../.env.local
+    command:
+      - edge
+      - --upstream-url=http://unleash:4242
+      - --tokens=${UNLEASH_PROXY_CLIENT_TOKEN}
     environment:
-      # Unleash Server connection
-      UNLEASH_SERVER_URL: http://unleash:4242
-      UNLEASH_SERVER_API_TOKEN: ${UNLEASH_PROXY_CLIENT_TOKEN:-default:development.unleash-insecure-api-token}
       # Edge configuration
       PORT: 3063
-      CACHE_TTL: 30
+      # CORS configuration
+      CORS_ORIGIN: "http://localhost:3000"
+      CORS_ALLOWED_HEADERS: "Authorization,Content-Type,unleash-appname,unleash-instanceid,unleash-connection-id,unleash-sdk,if-none-match"
+      CORS_METHODS: "GET,POST,OPTIONS,HEAD"
     ports:
       - "3063:3063"
     depends_on:
@@ -317,3 +344,4 @@ networks:
   postgres-internal:
     driver: bridge
     internal: false  # Set to true if you want complete isolation (no internet access)
+

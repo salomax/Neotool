@@ -38,7 +38,8 @@ For detailed explanations, see the related pattern documents linked above.
 -- V1_1__create_products_table.sql
 SET search_path TO app, public;
 
--- Install UUID v7 extension
+-- Install UUID v7 extension (PostgreSQL < 18 only)
+-- Note: PostgreSQL 18+ has uuidv7() built-in, no extension needed
 CREATE EXTENSION IF NOT EXISTS pg_uuidv7;
 
 -- Create schema if needed
@@ -223,7 +224,9 @@ migration_1.sql
 -- ✅ Correct - Always include:
 SET search_path TO {schema}, public;
 
-CREATE EXTENSION IF NOT EXISTS pg_uuidv7;  -- For UUID v7 tables
+-- Install UUID v7 extension (PostgreSQL < 18 only)
+-- Note: PostgreSQL 18+ has uuidv7() built-in, no extension needed
+CREATE EXTENSION IF NOT EXISTS pg_uuidv7;  -- For PostgreSQL < 18
 
 CREATE TABLE IF NOT EXISTS {schema}.{table} (
     -- columns
@@ -541,7 +544,8 @@ CREATE INDEX idx_orders_customer_id ON app.orders(customer_id);
 
 - [ ] Migration file named: `V{version}__{description}.sql`
 - [ ] Sets search path: `SET search_path TO {schema}, public;`
-- [ ] Installs `pg_uuidv7` extension if using UUID v7
+- [ ] **PostgreSQL 18+**: No extension needed, `uuidv7()` is built-in
+- [ ] **PostgreSQL < 18**: Installs `pg_uuidv7` extension if using UUID v7
 - [ ] Creates schema if needed: `CREATE SCHEMA IF NOT EXISTS {schema};`
 - [ ] Table in named schema (not `public`): `CREATE TABLE IF NOT EXISTS {schema}.{table}`
 - [ ] UUID v7 primary key: `id UUID PRIMARY KEY DEFAULT uuidv7()`

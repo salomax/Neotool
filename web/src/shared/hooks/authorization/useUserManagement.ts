@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useMemo, useCallback, useEffect, useRef, startTransition } from "react";
+import { useQuery } from "@apollo/client/react";
 import {
-  useGetUsersQuery,
   GetUsersDocument,
-  GetUsersQueryVariables,
+  type GetUsersQuery,
+  type GetUsersQueryVariables,
 } from '@/lib/graphql/operations/authorization-management/queries.generated';
 import { extractErrorMessage } from '@/shared/utils/error';
 import { hasAuthToken, isAuthenticationError } from '@/shared/utils/auth';
@@ -193,7 +194,10 @@ export function useUserManagement(options: UseUserManagementOptions = {}): UseUs
   }, [firstState, after, searchQuery, graphQLOrderBy]);
 
   // GraphQL hooks - skip query if not authenticated or if we've seen an auth error
-  const { data: usersData, loading, error, refetch } = useGetUsersQuery({
+  const { data: usersData, loading, error, refetch } = useQuery<
+    GetUsersQuery,
+    GetUsersQueryVariables
+  >(GetUsersDocument, {
     variables: queryVariables,
     skip: shouldSkipQuery, // Skip if not authenticated, no token, auth error, or awaiting page size
     notifyOnNetworkStatusChange: true, // Keep loading state accurate during transitions

@@ -6,11 +6,11 @@ import { CartIcon } from '../CartIcon';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
 
 // Mock the hook to control cart state
-vi.mock('@/lib/hooks/cart/useCart', () => ({
+vi.mock('@/shared/hooks/cart', () => ({
   useCart: vi.fn(),
 }));
 
-import { useCart } from '@/lib/hooks/cart/useCart';
+import { useCart } from '@/shared/hooks/cart';
 
 const mockUseCart = vi.mocked(useCart);
 

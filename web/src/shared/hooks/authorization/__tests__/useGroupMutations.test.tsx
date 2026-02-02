@@ -1,27 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import { useMutation } from '@apollo/client/react';
 import { useGroupMutations } from '../useGroupMutations';
 
-// Mock the GraphQL operations
-vi.mock('@/lib/graphql/operations/authorization-management/mutations.generated', () => ({
-  useCreateGroupMutation: vi.fn(),
-  useUpdateGroupMutation: vi.fn(),
-  useDeleteGroupMutation: vi.fn(),
-  useAssignRoleToGroupMutation: vi.fn(),
-  useRemoveRoleFromGroupMutation: vi.fn(),
+vi.mock('@apollo/client/react', () => ({
+  useMutation: vi.fn(),
 }));
 
 vi.mock('@/shared/hooks/mutations', () => ({
   useMutationWithRefetch: vi.fn(),
 }));
 
-import {
-  useCreateGroupMutation,
-  useUpdateGroupMutation,
-  useDeleteGroupMutation,
-  useAssignRoleToGroupMutation,
-  useRemoveRoleFromGroupMutation,
-} from '@/lib/graphql/operations/authorization-management/mutations.generated';
 import { useMutationWithRefetch } from '@/shared/hooks/mutations';
 
 // Run sequentially to avoid overlapping hook executions across threads
@@ -31,34 +20,51 @@ describe.sequential('useGroupMutations', () => {
   const mockOnGroupSaved = vi.fn();
   const mockOnGroupDeleted = vi.fn();
 
+  let mockCreateGroupMutation: any;
+  let mockUpdateGroupMutation: any;
+  let mockDeleteGroupMutation: any;
+  let mockAssignRoleToGroupMutation: any;
+  let mockRemoveRoleFromGroupMutation: any;
+
+  const setupUseMutationChain = (overrides?: {
+    createLoading?: boolean;
+    updateLoading?: boolean;
+    deleteLoading?: boolean;
+    assignRoleLoading?: boolean;
+    removeRoleLoading?: boolean;
+  }) => {
+    mockCreateGroupMutation = vi.fn();
+    mockUpdateGroupMutation = vi.fn();
+    mockDeleteGroupMutation = vi.fn();
+    mockAssignRoleToGroupMutation = vi.fn();
+    mockRemoveRoleFromGroupMutation = vi.fn();
+
+    (useMutation as any)
+      .mockReturnValueOnce([
+        mockCreateGroupMutation,
+        { loading: overrides?.createLoading ?? false },
+      ])
+      .mockReturnValueOnce([
+        mockUpdateGroupMutation,
+        { loading: overrides?.updateLoading ?? false },
+      ])
+      .mockReturnValueOnce([
+        mockDeleteGroupMutation,
+        { loading: overrides?.deleteLoading ?? false },
+      ])
+      .mockReturnValueOnce([
+        mockAssignRoleToGroupMutation,
+        { loading: overrides?.assignRoleLoading ?? false },
+      ])
+      .mockReturnValueOnce([
+        mockRemoveRoleFromGroupMutation,
+        { loading: overrides?.removeRoleLoading ?? false },
+      ]);
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
-
-    // Default mock implementations
-    (useCreateGroupMutation as any).mockReturnValue([
-      vi.fn(),
-      { loading: false },
-    ]);
-
-    (useUpdateGroupMutation as any).mockReturnValue([
-      vi.fn(),
-      { loading: false },
-    ]);
-
-    (useDeleteGroupMutation as any).mockReturnValue([
-      vi.fn(),
-      { loading: false },
-    ]);
-
-    (useAssignRoleToGroupMutation as any).mockReturnValue([
-      vi.fn(),
-      { loading: false },
-    ]);
-
-    (useRemoveRoleFromGroupMutation as any).mockReturnValue([
-      vi.fn(),
-      { loading: false },
-    ]);
+    setupUseMutationChain();
 
     (useMutationWithRefetch as any).mockImplementation((options: any) => {
       const executeMutation = async (...args: any[]) => {
@@ -93,12 +99,6 @@ describe.sequential('useGroupMutations', () => {
   });
 
   it('should create group successfully', async () => {
-    const mockCreateGroupMutation = vi.fn();
-    (useCreateGroupMutation as any).mockReturnValue([
-      mockCreateGroupMutation,
-      { loading: false },
-    ]);
-
     mockExecuteMutation.mockResolvedValue({
       data: {
         createGroup: {
@@ -136,12 +136,6 @@ describe.sequential('useGroupMutations', () => {
   });
 
   it('should update group successfully', async () => {
-    const mockUpdateGroupMutation = vi.fn();
-    (useUpdateGroupMutation as any).mockReturnValue([
-      mockUpdateGroupMutation,
-      { loading: false },
-    ]);
-
     mockExecuteMutation.mockResolvedValue({
       data: {
         updateGroup: {
@@ -181,12 +175,6 @@ describe.sequential('useGroupMutations', () => {
   });
 
   it('should delete group successfully', async () => {
-    const mockDeleteGroupMutation = vi.fn();
-    (useDeleteGroupMutation as any).mockReturnValue([
-      mockDeleteGroupMutation,
-      { loading: false },
-    ]);
-
     mockExecuteMutation.mockResolvedValue({
       data: {
         deleteGroup: {
@@ -214,12 +202,6 @@ describe.sequential('useGroupMutations', () => {
   });
 
   it('should assign role to group', async () => {
-    const mockAssignRoleMutation = vi.fn();
-    (useAssignRoleToGroupMutation as any).mockReturnValue([
-      mockAssignRoleMutation,
-      { loading: false },
-    ]);
-
     mockExecuteMutation.mockResolvedValue({
       data: {
         assignRoleToGroup: {
@@ -235,7 +217,7 @@ describe.sequential('useGroupMutations', () => {
     });
 
     expect(mockExecuteMutation).toHaveBeenCalledWith(
-      mockAssignRoleMutation,
+      mockAssignRoleToGroupMutation,
       { groupId: 'group-1', roleId: 'role-1' },
       'assign-role-group-1-role-1'
     );
@@ -248,9 +230,7 @@ describe.sequential('useGroupMutations', () => {
 
     await act(async () => {
       // extractErrorMessage might return the original error message or the fallback
-      await expect(
-        result.current.createGroup({ name: 'Test Group' })
-      ).rejects.toThrow();
+      await expect(result.current.createGroup({ name: 'Test Group' })).rejects.toThrow();
     });
   });
 

@@ -1,3 +1,5 @@
+import path from 'path'
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Enable standalone output for Docker optimization (production only)
@@ -16,7 +18,12 @@ const nextConfig = {
   },
   // Handle images
   images: {
-    domains: ['localhost'],
+    remotePatterns: [
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+      },
+    ],
   },
   // Configure source maps
   productionBrowserSourceMaps: false,
@@ -43,18 +50,37 @@ const nextConfig = {
       },
     ]
   },
-  // Webpack configuration
+  // Turbopack configuration (Next.js 16 default)
+  turbopack: {},
+  // Webpack configuration (used when --webpack flag is passed)
   webpack: (config, { dev, isServer }) => {
     // Optimize for development
     if (dev) {
       config.watchOptions = {
         poll: 1000,
         aggregateTimeout: 300,
+        // Ignore test files to reduce memory usage
+        ignored: [
+          '**/node_modules/**',
+          '**/__tests__/**',
+          '**/*.test.ts',
+          '**/*.test.tsx',
+          '**/*.spec.ts',
+          '**/*.spec.tsx',
+        ],
       }
-      
+
       // Disable source maps in development to prevent 404 errors from browser extensions
       config.devtool = false
-      
+
+      // Use filesystem cache to reduce memory usage
+      config.cache = {
+        type: 'filesystem',
+        maxMemoryGenerations: 1,
+        cacheDirectory: path.resolve(process.cwd(), '.next', 'cache', 'webpack'),
+      }
+
+
       // Add fallback for missing source maps
       config.resolve.fallback = {
         ...config.resolve.fallback,

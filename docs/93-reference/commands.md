@@ -54,16 +54,30 @@ search_keywords: [commands, cli, reference]
 ./neotool vault create-secret <key-name>              # Create a new JWT key pair in Vault
 ./neotool vault create-secret <key-name> --key-bits <bits>  # Create with custom key size
 ./neotool vault create-secret <key-name> --force      # Overwrite existing secret
-./neotool vault create-secret <key-name> --vault-address <url>  # Use custom Vault address
-./neotool vault create-secret <key-name> --vault-token <token>   # Use custom Vault token
+./neotool vault backup [key-name]                     # Backup keys from Vault to local file
+./neotool vault restore [key-name]                    # Restore keys from backup to Vault
 ```
 
-**Vault Options**:
+**Create Secret Options**:
 - `--key-bits <bits>`: RSA key size in bits (default: 4096)
 - `--secret-path <path>`: Vault secret path prefix (default: `secret/jwt/keys`)
 - `--vault-address <url>`: Vault server address (default: `http://localhost:8200`)
 - `--vault-token <token>`: Vault authentication token (default: from `VAULT_TOKEN` env or `myroot`)
 - `--force`: Overwrite existing secret if it exists
+
+**Backup Options**:
+- `--secret-path <path>`: Vault secret path prefix (default: `secret/jwt/keys`)
+- `--vault-address <url>`: Vault server address (default: `http://localhost:8200`)
+- `--vault-token <token>`: Vault authentication token (default: from `VAULT_TOKEN` env or `myroot`)
+- `--output <file>`: Output file path (default: `~/.vault-keys/backup.json`)
+
+**Restore Options**:
+- `--secret-path <path>`: Vault secret path prefix (default: `secret/jwt/keys`)
+- `--vault-address <url>`: Vault server address (default: `http://localhost:8200`)
+- `--vault-token <token>`: Vault authentication token (default: from `VAULT_TOKEN` env or `myroot`)
+- `--input <file>`: Input backup file path (default: `~/.vault-keys/backup.json`)
+- `--force`: Overwrite existing keys in Vault
+
 - Environment variables: `VAULT_ADDRESS`, `VAULT_TOKEN`
 
 **Vault Examples**:
@@ -77,6 +91,18 @@ search_keywords: [commands, cli, reference]
 # Overwrite existing secret
 ./neotool vault create-secret kid-1 --force
 
+# Backup all keys before restarting Vault (important for local dev!)
+./neotool vault backup
+
+# Backup a specific key
+./neotool vault backup kid-1
+
+# Restore all keys after Vault restart
+./neotool vault restore
+
+# Restore a specific key with force
+./neotool vault restore kid-1 --force
+
 # Use custom Vault address (e.g., when Vault is in Docker)
 ./neotool vault create-secret kid-1 --vault-address http://vault:8200
 
@@ -84,7 +110,9 @@ search_keywords: [commands, cli, reference]
 ./neotool vault create-secret kid-1 --vault-token my-custom-token
 ```
 
-**Note**: This command automatically generates RSA key pairs and stores them in Vault. It works with both local Vault CLI installations and Docker containers. Perfect for local development setup.
+**Note**: 
+- The `create-secret` command automatically generates RSA key pairs and stores them in Vault. It works with both local Vault CLI installations and Docker containers. Perfect for local development setup.
+- **Important for local development**: Vault in dev mode uses in-memory storage. Always backup your keys before restarting the Vault container, then restore them after restart. The backup file is stored at `~/.vault-keys/backup.json`.
 
 ### Feature Flags Management
 ```bash

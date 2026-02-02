@@ -1,0 +1,178 @@
+{
+  "routes": {
+    "financialData": "Dados Financeiros"
+  },
+  "title": "Dados Financeiros",
+  "subtitle": "Explore os indicadores nacionais e acompanhe os balanços trimestrais das instituições financeiras com dados atualizados e precisos.",
+  "nationalIndicators": {
+    "pageTitle": "Indicadores Nacionais",
+    "search": {
+      "placeholder": "Buscar indicadores...",
+      "label": "Indicadores"
+    },
+    "tabs": {
+      "all": "Tudo",
+      "inflation": "Inflação",
+      "interest": "Juros",
+      "activity": "Atividade",
+      "income": "Renda",
+      "external": "Externo",
+      "fiscal": "Fiscal"
+    },
+    "variations": {
+      "MONTHLY_CHANGE": "Mensal",
+      "ROLLING_12M": "12 Meses",
+      "YTD": "Acumulado Ano",
+      "ANNUAL": "Anual",
+      "QUARTERLY": "Trimestral",
+      "TARGET_RATE": "Meta",
+      "EFFECTIVE_RATE": "Efetivo",
+      "HABITUAL": "Habitual",
+      "EFFECTIVE": "Efetivo"
+    },
+    "indicators": {
+      "IPCA": "IPCA",
+      "IPCA_15": "IPCA-15",
+      "INPC": "INPC",
+      "IGP_M": "IGP-M",
+      "IGP_DI": "IGP-DI",
+      "IGP_10": "IGP-10",
+      "SELIC": "Taxa Selic",
+      "CDI": "CDI",
+      "DI_OVER": "DI Over",
+      "GDP": "PIB",
+      "UNEMPLOYMENT": "Taxa de Desemprego",
+      "AVERAGE_INCOME": "Renda Média Real",
+      "TRADE_BALANCE": "Balança Comercial",
+      "CURRENT_ACCOUNT": "Transações Correntes",
+      "INTERNATIONAL_RESERVES": "Reservas Internacionais",
+      "PUBLIC_DEBT_GDP": "Dívida Pública Líquida (% PIB)",
+      "PRIMARY_RESULT": "Resultado Primário"
+    }
+  },
+  "cards": {
+    "financialInstitutions": {
+      "title": "Instituições Financeiras",
+      "description": "Balanços trimestrais consolidados e Ratings de crédito sob supervisão do BACEN."
+    },
+    "nationalIndicators": {
+      "title": "Indicadores Nacionais",
+      "description": "Séries históricas de IPCA, IGP-M, INPC e projeções macroeconômicas."
+    }
+  },
+  "pageTitle": "Instituições Financeiras",
+  "search": {
+    "placeholder": "Buscar por nome ou CNPJ...",
+    "label": "Instituições Financeiras"
+  },
+  "actions": {
+    "searchMetrics": "Buscar métrica...",
+    "viewDetails": "Ver detalhes",
+    "loading": "Carregando...",
+    "accessModule": "Acessar"
+  },
+  "periods": {
+    "1y": "1 Ano",
+    "3y": "3 Anos",
+    "5y": "5 Anos"
+  },
+  "messages": {
+    "noInstitutionsFound": "Nenhuma instituição encontrada",
+    "unableToLoadInstitutions": "Não foi possível carregar as instituições. Por favor, tente novamente.",
+    "unableToLoadInstitution": "Não foi possível carregar a instituição",
+    "invalidInstitutionId": "ID da instituição inválido",
+    "institutionNotFound": "Instituição não encontrada",
+    "noReportData": "Nenhum dado disponível para este relatório",
+    "selectReport": "Selecione um relatório para ver os detalhes",
+    "clickToViewDetails": "Clique para ver detalhes",
+    "noResults": "Nenhum resultado encontrado."
+  },
+  "institutionTypes": {
+    "individualInstitution": "Instituição Individual",
+    "prudentialGroup": "Grupo Prudencial",
+    "financialGroup": "Grupo Financeiro"
+  },
+  "financialMetrics": {
+    "netProfit": "Lucro Líquido",
+    "equity": "Patrimônio",
+    "yoyGrowth": "Cresc. YoY",
+    "baselIndex": "Ind. Basileia"
+  },
+  "institutionSummary": {
+    "cnpj": "CNPJ",
+    "tradeName": "Nome Fantasia",
+    "founded": "Data de Abertura",
+    "shareholdingControl": "Controle Acionário",
+    "headOffice": "Matriz / Endereço",
+    "website": "Site oficial",
+    "consolidation": "Consolidação",
+    "institutionType": "Tipo da Instituição",
+    "controlType": {
+      "PUBLIC": "Público",
+      "PRIVATE_DOMESTIC": "Privado nacional",
+      "PRIVATE_FOREIGN_CONTROL": "Privado com controle estrangeiro"
+    },
+    "bankType": {
+      "B1": "Banco comercial, Banco múltiplo com carteira comercial ou caixas econômicas",
+      "B2": "Banco múltiplo sem carteira comercial ou banco de câmbio ou banco de investimento",
+      "B3S": "Cooperativa de crédito singular",
+      "B3C": "Central e confederação de cooperativas de crédito",
+      "B4": "Banco de desenvolvimento",
+      "N1": "Não bancário de crédito",
+      "N2": "Não bancário do mercado de capitais",
+      "N4": "Instituições de pagamento"
+    },
+    "consolidationType": {
+      "INDIVIDUAL_INSTITUTION": "Instituição independente/individual",
+      "PRUDENTIAL_GROUP": "Conglomerado/Group",
+      "FINANCIAL_GROUP": "Conglomerado/Group"
+    }
+  },
+  "reports": "Relatórios",
+  "currency": {
+    "billions": "bi",
+    "millions": "mi",
+    "billionsLong": "bilhões",
+    "millionsLong": "milhões"
+  },
+  "lastBalanceSummary": {
+    "title": "Resumo do Último Balanço",
+    "tooltip": "Dados consolidados do último balancete disponível no Bacen.",
+    "totalAssets": "Ativo Total",
+    "funding": "Captações",
+    "creditPortfolio": "Carteira de Crédito",
+    "netEquity": "Patrimônio Líquido",
+    "securities": "Títulos e Val. Mob.",
+    "netProfit": "Lucro Líquido",
+    "liabilities": "Passivo Exigível",
+    "baselIndex": "Índice Basileia",
+    "fixedAssetsIndex": "Índice de Imobilização",
+    "referenceEquity": "Patrimônio de Ref.",
+    "classifiedCreditPortfolio": "Carteira de Crédito Classificada",
+    "currentAndLongTermLiabilities": "Passivo Circulante e Exigível a Longo Prazo e Resultados de Exercícios Futuros",
+    "numberOfBranches": "Nº de Agências",
+    "numberOfServicePoints": "Nº de Pontos Atend."
+  },
+  "ratings": {
+    "title": "Ratings",
+    "lastUpdate": "ÚLTIMA ATUALIZAÇÃO",
+    "issuer": {
+      "FITCH": "Fitch Ratings"
+    },
+    "type": {
+      "NATIONAL_LONG_TERM_RATING": "Rating de Longo Prazo Nacional",
+      "LONG_TERM_ISSUER_DEFAULT_RATING": "Rating de Risco do Emissor de Longo Prazo",
+      "SHORT_TERM_ISSUER_DEFAULT_RATING": "Rating de Risco do Emissor de Curto Prazo",
+      "GOVERNMENT_SUPPORT_RATING": "Rating de Suporte Governamental",
+      "LOCAL_CURRENCY_SHORT_TERM_ISSUER_DEFAULT_RATING": "Rating de Risco do Emissor de Curto Prazo em Moeda Local",
+      "LOCAL_CURRENCY_LONG_TERM_ISSUER_DEFAULT_RATING": "Rating de Risco do Emissor de Longo Prazo em Moeda Local",
+      "VIABILITY_RATING": "Rating de Viabilidade",
+      "NATIONAL_SHORT_TERM_RATING": "Rating de Curto Prazo Nacional"
+    }
+  },
+  "footer": {
+    "source": "Dados atualizados regularmente com fontes oficiais",
+    "ifDataSource": "Fonte: IFData — Banco Central do Brasil (Portal de Dados Abertos).",
+    "ratingSource": "Ratings de crédito fornecidos por Fitch Ratings®, com base em informações públicas disponibilizadas pela agência."
+  }
+}

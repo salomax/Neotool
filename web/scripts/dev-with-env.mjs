@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Development script that loads environment variables from infra/.env.local
+ * Development script that loads environment variables from .env.local
  * and then starts Next.js dev server
  */
 
@@ -14,7 +14,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Path to infra/.env.local relative to this script
-const envPath = join(__dirname, '../../infra/.env.local');
+const envPath = join(__dirname, '../.env.local');
 const env = { ...process.env };
 
 if (existsSync(envPath)) {
