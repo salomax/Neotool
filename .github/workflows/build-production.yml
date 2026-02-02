@@ -3,7 +3,7 @@ name: Production Build
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - "v*.*.*"
 
 concurrency:
   group: production-${{ github.ref }}

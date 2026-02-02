@@ -8,6 +8,7 @@ coverage/
 .env
 .env.*
 venv
+.next/
 # Compiled binaries
 /cronjob
 /cli

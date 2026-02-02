@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Development script that loads environment variables from infra/.env.local
+ * Development script that loads environment variables from .env.local
  * and then starts Next.js dev server
  */
 
@@ -14,14 +14,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Path to infra/.env.local relative to this script
-const envPath = join(__dirname, '../../infra/.env.local');
+const envPath = join(__dirname, '../.env.local');
 const env = { ...process.env };
-
-// Increase Node.js memory limit to prevent heap out of memory errors
-const nodeOptions = env.NODE_OPTIONS || '';
-if (!nodeOptions.includes('max_old_space_size')) {
-  env.NODE_OPTIONS = `${nodeOptions} --max_old_space_size=2048`.trim();
-}
 
 if (existsSync(envPath)) {
   const envContent = readFileSync(envPath, 'utf-8');
