@@ -29,8 +29,8 @@ vi.mock('@/shared/ui/brand/LogoMark', () => ({
 }));
 
 // Mock GraphQL queries - return immediately resolved data
-vi.mock('@/lib/graphql/operations/auth/queries.generated', () => ({
-  useCurrentUserQuery: vi.fn(() => ({
+vi.mock('@apollo/client/react', () => ({
+  useQuery: vi.fn(() => ({
     data: {
       currentUser: {
         id: '1',
@@ -121,7 +121,7 @@ describe.sequential('SidebarRail', () => {
     it('renders all navigation items', () => {
       renderSidebarRail();
 
-      expect(screen.getByLabelText('routes.financialInstitutions')).toBeInTheDocument();
+      expect(screen.getByLabelText('routes.financialData')).toBeInTheDocument();
       expect(screen.getByLabelText('routes.settings')).toBeInTheDocument();
     });
 
@@ -129,11 +129,11 @@ describe.sequential('SidebarRail', () => {
       renderSidebarRail();
 
       // IconButton with LinkComponent wraps the button in a link
-      const financialInstitutionsButton = screen.getByLabelText('routes.financialInstitutions');
+      const financialInstitutionsButton = screen.getByLabelText('routes.financialData');
       const settingsButton = screen.getByLabelText('routes.settings');
 
       expect(financialInstitutionsButton).toBeInTheDocument();
-      expect(financialInstitutionsButton).toHaveAttribute('href', '/bacen-institutions');
+      expect(financialInstitutionsButton).toHaveAttribute('href', '/financial-data');
       expect(settingsButton).toBeInTheDocument();
       expect(settingsButton).toHaveAttribute('href', '/settings');
     });
@@ -141,26 +141,26 @@ describe.sequential('SidebarRail', () => {
 
   describe('Active state logic', () => {
     it('marks item as active when pathname exactly matches href', () => {
-      mockPathname.mockReturnValue('/bacen-institutions');
+      mockPathname.mockReturnValue('/financial-data');
       renderSidebarRail();
 
-      const financialInstitutionsButton = screen.getByLabelText('routes.financialInstitutions');
+      const financialInstitutionsButton = screen.getByLabelText('routes.financialData');
 
       // The button should be present (IconButton with LinkComponent renders as anchor)
       expect(financialInstitutionsButton).toBeInTheDocument();
     });
 
     it('marks item as active when pathname starts with href (non-root)', () => {
-      mockPathname.mockReturnValue('/bacen-institutions/details');
+      mockPathname.mockReturnValue('/financial-data/details');
       renderSidebarRail();
 
-      const financialInstitutionsButton = screen.getByLabelText('routes.financialInstitutions');
+      const financialInstitutionsButton = screen.getByLabelText('routes.financialData');
 
       expect(financialInstitutionsButton).toBeInTheDocument();
     });
 
     it('does not mark root item as active when pathname starts with other href', () => {
-      mockPathname.mockReturnValue('/bacen-institutions');
+      mockPathname.mockReturnValue('/financial-data');
       renderSidebarRail();
 
       // Root path should not be active
@@ -173,7 +173,7 @@ describe.sequential('SidebarRail', () => {
       renderSidebarRail();
 
       // When on root, no nav items should be active (they're not root)
-      const financialInstitutionsButton = screen.getByLabelText('routes.financialInstitutions');
+      const financialInstitutionsButton = screen.getByLabelText('routes.financialData');
 
       // Should be present but not necessarily active
       expect(financialInstitutionsButton).toBeInTheDocument();
@@ -185,14 +185,14 @@ describe.sequential('SidebarRail', () => {
 
       // Should render without errors
       expect(screen.getByRole('complementary')).toBeInTheDocument();
-      expect(screen.getByLabelText('routes.financialInstitutions')).toBeInTheDocument();
+      expect(screen.getByLabelText('routes.financialData')).toBeInTheDocument();
     });
 
     it('does not mark item as active when pathname does not match', () => {
       mockPathname.mockReturnValue('/other-page');
       renderSidebarRail();
 
-      const financialInstitutionsButton = screen.getByLabelText('routes.financialInstitutions');
+      const financialInstitutionsButton = screen.getByLabelText('routes.financialData');
 
       // Should be present
       expect(financialInstitutionsButton).toBeInTheDocument();
@@ -220,7 +220,7 @@ describe.sequential('SidebarRail', () => {
       renderSidebarRail();
 
       // Tooltips are rendered by MUI, we can check the aria-labels
-      expect(screen.getByLabelText('routes.financialInstitutions')).toBeInTheDocument();
+      expect(screen.getByLabelText('routes.financialData')).toBeInTheDocument();
       expect(screen.getByLabelText('routes.settings')).toBeInTheDocument();
     });
   });
@@ -242,7 +242,7 @@ describe.sequential('SidebarRail', () => {
     it('navigates to correct page when nav item is clicked', async () => {
       renderSidebarRail();
 
-      const financialInstitutionsButton = screen.getByLabelText('routes.financialInstitutions');
+      const financialInstitutionsButton = screen.getByLabelText('routes.financialData');
 
       // Button should be clickable
       expect(financialInstitutionsButton).toBeInTheDocument();
@@ -270,4 +270,3 @@ describe.sequential('SidebarRail', () => {
     cleanup();
   });
 });
-

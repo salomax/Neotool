@@ -1,33 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor, act } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
+import { useMutation } from '@apollo/client/react';
 import { useRoleMutations } from '../useRoleMutations';
 
-// Mock the GraphQL operations
-vi.mock('@/lib/graphql/operations/authorization-management/mutations.generated', () => ({
-  useCreateRoleMutation: vi.fn(),
-  useUpdateRoleMutation: vi.fn(),
-  useDeleteRoleMutation: vi.fn(),
-  useAssignPermissionToRoleMutation: vi.fn(),
-  useRemovePermissionFromRoleMutation: vi.fn(),
-  useAssignRoleToUserMutation: vi.fn(),
-  useRemoveRoleFromUserMutation: vi.fn(),
-  useAssignRoleToGroupMutation: vi.fn(),
-  useRemoveRoleFromGroupMutation: vi.fn(),
+vi.mock('@apollo/client/react', () => ({
+  useMutation: vi.fn(),
 }));
 
 vi.mock('@/shared/hooks/mutations', () => ({
   useMutationWithRefetch: vi.fn(),
 }));
 
-import {
-  useCreateRoleMutation,
-  useUpdateRoleMutation,
-  useDeleteRoleMutation,
-  useAssignPermissionToRoleMutation,
-  useRemovePermissionFromRoleMutation,
-  useAssignRoleToGroupMutation,
-  useRemoveRoleFromGroupMutation,
-} from '@/lib/graphql/operations/authorization-management/mutations.generated';
 import { useMutationWithRefetch } from '@/shared/hooks/mutations';
 
 // Run sequentially to avoid overlapping hook executions across threads
@@ -37,45 +20,65 @@ describe.sequential('useRoleMutations', () => {
   const mockOnRoleSaved = vi.fn();
   const mockOnRoleDeleted = vi.fn();
 
+  let mockCreateRoleMutation: any;
+  let mockUpdateRoleMutation: any;
+  let mockDeleteRoleMutation: any;
+  let mockAssignPermissionMutation: any;
+  let mockRemovePermissionMutation: any;
+  let mockAssignRoleToGroupMutation: any;
+  let mockRemoveRoleFromGroupMutation: any;
+
+  const setupUseMutationChain = (overrides?: {
+    createLoading?: boolean;
+    updateLoading?: boolean;
+    deleteLoading?: boolean;
+    assignPermissionLoading?: boolean;
+    removePermissionLoading?: boolean;
+    assignRoleToGroupLoading?: boolean;
+    removeRoleFromGroupLoading?: boolean;
+  }) => {
+    mockCreateRoleMutation = vi.fn();
+    mockUpdateRoleMutation = vi.fn();
+    mockDeleteRoleMutation = vi.fn();
+    mockAssignPermissionMutation = vi.fn();
+    mockRemovePermissionMutation = vi.fn();
+    mockAssignRoleToGroupMutation = vi.fn();
+    mockRemoveRoleFromGroupMutation = vi.fn();
+
+    (useMutation as any)
+      .mockReturnValueOnce([
+        mockCreateRoleMutation,
+        { loading: overrides?.createLoading ?? false },
+      ])
+      .mockReturnValueOnce([
+        mockUpdateRoleMutation,
+        { loading: overrides?.updateLoading ?? false },
+      ])
+      .mockReturnValueOnce([
+        mockDeleteRoleMutation,
+        { loading: overrides?.deleteLoading ?? false },
+      ])
+      .mockReturnValueOnce([
+        mockAssignPermissionMutation,
+        { loading: overrides?.assignPermissionLoading ?? false },
+      ])
+      .mockReturnValueOnce([
+        mockRemovePermissionMutation,
+        { loading: overrides?.removePermissionLoading ?? false },
+      ])
+      .mockReturnValueOnce([
+        mockAssignRoleToGroupMutation,
+        { loading: overrides?.assignRoleToGroupLoading ?? false },
+      ])
+      .mockReturnValueOnce([
+        mockRemoveRoleFromGroupMutation,
+        { loading: overrides?.removeRoleFromGroupLoading ?? false },
+      ]);
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
-
-    // Default mock implementations
-    (useCreateRoleMutation as any).mockReturnValue([
-      vi.fn(),
-      { loading: false },
-    ]);
-
-    (useUpdateRoleMutation as any).mockReturnValue([
-      vi.fn(),
-      { loading: false },
-    ]);
-
-    (useDeleteRoleMutation as any).mockReturnValue([
-      vi.fn(),
-      { loading: false },
-    ]);
-
-    (useAssignPermissionToRoleMutation as any).mockReturnValue([
-      vi.fn(),
-      { loading: false },
-    ]);
-
-    (useRemovePermissionFromRoleMutation as any).mockReturnValue([
-      vi.fn(),
-      { loading: false },
-    ]);
-
-
-    (useAssignRoleToGroupMutation as any).mockReturnValue([
-      vi.fn(),
-      { loading: false },
-    ]);
-
-    (useRemoveRoleFromGroupMutation as any).mockReturnValue([
-      vi.fn(),
-      { loading: false },
-    ]);
+    setupUseMutationChain();
 
     (useMutationWithRefetch as any).mockImplementation((options: any) => {
       const executeMutation = async (...args: any[]) => {
@@ -110,12 +113,6 @@ describe.sequential('useRoleMutations', () => {
   });
 
   it('should create role successfully', async () => {
-    const mockCreateRoleMutation = vi.fn();
-    (useCreateRoleMutation as any).mockReturnValue([
-      mockCreateRoleMutation,
-      { loading: false },
-    ]);
-
     mockExecuteMutation.mockResolvedValue({
       data: {
         createRole: {
@@ -148,12 +145,6 @@ describe.sequential('useRoleMutations', () => {
   });
 
   it('should update role successfully', async () => {
-    const mockUpdateRoleMutation = vi.fn();
-    (useUpdateRoleMutation as any).mockReturnValue([
-      mockUpdateRoleMutation,
-      { loading: false },
-    ]);
-
     mockExecuteMutation.mockResolvedValue({
       data: {
         updateRole: {
@@ -182,12 +173,6 @@ describe.sequential('useRoleMutations', () => {
   });
 
   it('should delete role successfully', async () => {
-    const mockDeleteRoleMutation = vi.fn();
-    (useDeleteRoleMutation as any).mockReturnValue([
-      mockDeleteRoleMutation,
-      { loading: false },
-    ]);
-
     mockExecuteMutation.mockResolvedValue({
       data: {
         deleteRole: {
@@ -215,12 +200,6 @@ describe.sequential('useRoleMutations', () => {
   });
 
   it('should assign permission to role', async () => {
-    const mockAssignPermissionMutation = vi.fn();
-    (useAssignPermissionToRoleMutation as any).mockReturnValue([
-      mockAssignPermissionMutation,
-      { loading: false },
-    ]);
-
     mockExecuteMutation.mockResolvedValue({
       data: {
         assignPermissionToRole: {
@@ -243,12 +222,6 @@ describe.sequential('useRoleMutations', () => {
   });
 
   it('should remove permission from role', async () => {
-    const mockRemovePermissionMutation = vi.fn();
-    (useRemovePermissionFromRoleMutation as any).mockReturnValue([
-      mockRemovePermissionMutation,
-      { loading: false },
-    ]);
-
     mockExecuteMutation.mockResolvedValue({
       data: {
         removePermissionFromRole: {
@@ -277,9 +250,7 @@ describe.sequential('useRoleMutations', () => {
 
     await act(async () => {
       // extractErrorMessage might return the original error message or the fallback
-      await expect(
-        result.current.createRole({ name: 'Test Role' })
-      ).rejects.toThrow();
+      await expect(result.current.createRole({ name: 'Test Role' })).rejects.toThrow();
     });
   });
 
@@ -307,10 +278,8 @@ describe.sequential('useRoleMutations', () => {
   });
 
   it('should return correct loading states', () => {
-    (useCreateRoleMutation as any).mockReturnValue([
-      vi.fn(),
-      { loading: true },
-    ]);
+    (useMutation as any).mockReset();
+    setupUseMutationChain({ createLoading: true });
 
     const { result } = renderHook(() => useRoleMutations());
 

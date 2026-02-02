@@ -19,13 +19,13 @@ export function LogoMark({
   ...props 
 }: LogoMarkProps) {
   const logoSrc = variant === 'white' 
-    ? '/images/logos/neotool-logo-white.svg'
-    : '/images/logos/neotool-logo-blue.svg';
+    ? '/images/logos/invistus-logo-white-transparent.svg'
+    : '/images/logos/invistus-logo-blue-transparent.svg';
 
   return (
     <Image
       src={logoSrc}
-      alt="neotool"
+      alt="Invistus"
       width={width}
       height={height}
       className={className}

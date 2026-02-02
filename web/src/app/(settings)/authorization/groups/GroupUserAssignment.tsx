@@ -2,12 +2,27 @@
 
 import React, { useMemo } from "react";
 import { ListItem, Typography, Box } from "@mui/material";
-import { useGetUsersQuery, type GetUsersQuery, type GetUsersQueryVariables } from "@/lib/graphql/operations/authorization-management/queries.generated";
+import { useQuery } from "@apollo/client/react";
+import {
+  GetUsersDocument,
+  type GetUsersQuery,
+  type GetUsersQueryVariables,
+} from "@/lib/graphql/operations/authorization-management/queries.generated";
 import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
 import { useAuth } from "@/shared/providers/AuthProvider";
 import { SearchableAutocomplete } from "@/shared/components/ui/forms/SearchableAutocomplete";
 import { useFormContext } from "react-hook-form";
+
+// Custom hook wrapper to satisfy ESLint rules-of-hooks
+function useUsersQuery(options?: {
+  variables?: GetUsersQueryVariables;
+  skip?: boolean;
+  fetchPolicy?: "cache-first" | "network-only" | "cache-only" | "no-cache" | "standby";
+  notifyOnNetworkStatusChange?: boolean;
+}) {
+  return useQuery<GetUsersQuery, GetUsersQueryVariables>(GetUsersDocument, options);
+}
 
 export type User = {
   id: string;
@@ -97,7 +112,7 @@ export const GroupUserAssignment: React.FC<GroupUserAssignmentProps> = ({
       GetUsersQuery,
       GetUsersQueryVariables
     >
-      useQuery={useGetUsersQuery}
+      useQuery={useUsersQuery}
       getQueryVariables={(searchQuery) => ({
         first: 5,
         query: searchQuery || undefined,
@@ -146,4 +161,3 @@ export const GroupUserAssignment: React.FC<GroupUserAssignmentProps> = ({
     />
   );
 };
-

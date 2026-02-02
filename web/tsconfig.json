@@ -17,9 +17,9 @@
     "moduleResolution": "Bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "allowJs": true,
-    "incremental": false,
+    "incremental": true,
     "composite": false,
     "plugins": [
       {
@@ -71,10 +71,10 @@
     "next-env.d.ts",
     "src/**/*.ts",
     "src/**/*.tsx",
-    "src/**/__tests__/**/*.{ts,tsx}",
     ".next/types/**/*.ts",
     ".storybook/**/*.ts",
-    ".storybook/**/*.tsx"
+    ".storybook/**/*.tsx",
+    ".next/dev/types/**/*.ts"
   ],
   "exclude": [
     "**/*.spec.ts",

@@ -3,13 +3,24 @@
 import React, { useMemo, useCallback } from "react";
 import { Box, Typography, Chip } from "@mui/material";
 import {
-  useGetGroupsQuery,
+  GetGroupsDocument,
   type GetGroupsQuery,
   type GetGroupsQueryVariables,
 } from "@/lib/graphql/operations/authorization-management/queries.generated";
+import { useQuery } from "@apollo/client/react";
 import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
 import { SearchableAutocomplete } from "@/shared/components/ui/forms/SearchableAutocomplete";
+
+// Custom hook wrapper to satisfy ESLint rules-of-hooks
+function useGroupsQuery(options?: {
+  variables?: GetGroupsQueryVariables;
+  skip?: boolean;
+  fetchPolicy?: "cache-first" | "network-only" | "cache-only" | "no-cache" | "standby";
+  notifyOnNetworkStatusChange?: boolean;
+}) {
+  return useQuery<GetGroupsQuery, GetGroupsQueryVariables>(GetGroupsDocument, options);
+}
 
 export interface Group {
   id: string;
@@ -67,7 +78,7 @@ export const UserGroupAssignment: React.FC<UserGroupAssignmentProps> = ({
     <Box data-testid="user-group-assignment">
       <SearchableAutocomplete<GroupOption, GroupOption, GetGroupsQuery, GetGroupsQueryVariables>
         multiple
-        useQuery={useGetGroupsQuery}
+        useQuery={useGroupsQuery}
         getQueryVariables={(search) => ({
           first: 5,
           query: search || undefined,
@@ -109,4 +120,3 @@ export const UserGroupAssignment: React.FC<UserGroupAssignmentProps> = ({
     </Box>
   );
 };
-

@@ -34,8 +34,8 @@ export function Logo({
   const logoHeight = height || dimensions.height;
 
   const logoSrc = variant === 'white' 
-    ? '/images/logos/neotool-logo-white.svg'
-    : '/images/logos/neotool-logo-blue.svg';
+    ? '/images/logos/invistus-logo-white-transparent.svg'
+    : '/images/logos/invistus-logo-blue-transparent.svg';
 
   return (
     <Box
@@ -49,7 +49,7 @@ export function Logo({
     >
       <Image
         src={logoSrc}
-        alt="neotool"
+        alt="Invistus"
         width={logoWidth}
         height={logoHeight}
         priority
@@ -63,7 +63,7 @@ export function Logo({
             color: variant === 'white' ? 'white' : 'text.primary',
           }}
         >
-          neotool
+          Invistus
         </Box>
       )}
     </Box>

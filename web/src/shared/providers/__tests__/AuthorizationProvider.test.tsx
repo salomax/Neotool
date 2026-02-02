@@ -5,10 +5,10 @@ import { AuthProvider } from '../AuthProvider';
 import { AuthorizationProvider, useAuthorization } from '../AuthorizationProvider';
 
 // Use vi.hoisted() to define variables that need to be available in mock factories
-const { mockPush, mockQuery, mockUseCurrentUserQuery, mockUser, defaultMockAuthContext, mockAuthContextRef, mockUseAuth } = vi.hoisted(() => {
+const { mockPush, mockQuery, mockUseQuery, mockUser, defaultMockAuthContext, mockAuthContextRef, mockUseAuth } = vi.hoisted(() => {
   const mockPush = vi.fn();
   const mockQuery = vi.fn();
-  const mockUseCurrentUserQuery = vi.fn();
+  const mockUseQuery = vi.fn();
   const mockUser = { id: '1', email: 'test@example.com', displayName: 'Test User' };
   const defaultMockAuthContext = {
     user: mockUser,
@@ -27,7 +27,7 @@ const { mockPush, mockQuery, mockUseCurrentUserQuery, mockUser, defaultMockAuthC
   return {
     mockPush,
     mockQuery,
-    mockUseCurrentUserQuery,
+    mockUseQuery,
     mockUser,
     defaultMockAuthContext,
     mockAuthContextRef,
@@ -49,9 +49,8 @@ vi.mock('@/lib/graphql/client', () => ({
   },
 }));
 
-// Mock useCurrentUserQuery
-vi.mock('@/lib/graphql/operations/auth/queries.generated', () => ({
-  useCurrentUserQuery: (options: any) => mockUseCurrentUserQuery(options),
+vi.mock('@apollo/client/react', () => ({
+  useQuery: (...args: any[]) => mockUseQuery(...args),
 }));
 
 // Mock AuthProvider's useAuth
@@ -68,7 +67,7 @@ describe('AuthorizationProvider', () => {
     vi.clearAllMocks();
     // Reset mock auth context to default
     mockAuthContextRef.current = { ...defaultMockAuthContext };
-    mockUseCurrentUserQuery.mockReturnValue({
+    mockUseQuery.mockReturnValue({
       data: {
         currentUser: {
           id: '1',
@@ -123,7 +122,7 @@ describe('AuthorizationProvider', () => {
     });
 
     it('should handle empty permissions and roles', async () => {
-      mockUseCurrentUserQuery.mockReturnValue({
+      mockUseQuery.mockReturnValue({
         data: {
           currentUser: {
             id: '1',
@@ -156,7 +155,7 @@ describe('AuthorizationProvider', () => {
         isAuthenticated: false,
       };
 
-      mockUseCurrentUserQuery.mockReturnValue({
+      mockUseQuery.mockReturnValue({
         data: null,
         loading: false,
         refetch: vi.fn(),
@@ -223,7 +222,7 @@ describe('AuthorizationProvider', () => {
         },
       });
 
-      mockUseCurrentUserQuery.mockReturnValue({
+      mockUseQuery.mockReturnValue({
         data: {
           currentUser: {
             id: '1',

@@ -37,19 +37,28 @@ UUID v7 is a timestamp-based UUID format that provides:
 
 ## Database Migration Pattern
 
-### 1. Install Extension
+### 1. PostgreSQL Version Requirements
 
-All migrations that create tables with UUID primary keys MUST install the `pg_uuidv7` extension:
+**PostgreSQL 18+**: `uuidv7()` is built-in and available without any extension.
+
+**PostgreSQL < 18**: Requires `pg_uuidv7` extension to be installed.
+
+### 2. Extension Installation (PostgreSQL < 18 only)
+
+For PostgreSQL versions before 18, migrations MUST install the `pg_uuidv7` extension:
 
 ```sql
 -- Set search path to schema
 SET search_path TO {schema}, public;
 
--- Install uuidv7 extension if not exists
+-- Install uuidv7 extension if not exists (PostgreSQL < 18 only)
+-- Note: PostgreSQL 18+ has uuidv7() built-in, no extension needed
 CREATE EXTENSION IF NOT EXISTS pg_uuidv7;
 ```
 
-### 2. Table Definition
+**For PostgreSQL 18+**: Skip the extension installation step entirely. The `uuidv7()` function is built-in.
+
+### 3. Table Definition
 
 Tables with UUID primary keys MUST use `uuidv7()` as the default:
 
@@ -219,7 +228,8 @@ fun createUser(email: String, name: String): User {
 
 When creating or modifying tables with UUID primary keys:
 
-- [ ] Extension installed: `CREATE EXTENSION IF NOT EXISTS pg_uuidv7;`
+- [ ] **PostgreSQL version checked**: If PostgreSQL < 18, extension installed: `CREATE EXTENSION IF NOT EXISTS pg_uuidv7;`
+- [ ] **PostgreSQL 18+**: No extension needed, `uuidv7()` is built-in
 - [ ] Default set: `DEFAULT uuidv7()`
 - [ ] Entity uses nullable `UUID?`
 - [ ] Entity uses `@GeneratedValue(strategy = GenerationType.IDENTITY)`
@@ -274,8 +284,43 @@ For existing tables with UUID v4:
 - [Database Standards](../05-standards/database-standards/schema-standards.md)
 - [Code Review Checklist](../11-validation/code-review-checklist.md)
 
+## PostgreSQL Version Notes
+
+### PostgreSQL 18+
+
+PostgreSQL 18 includes `uuidv7()` as a built-in function. No extension installation is required:
+
+```sql
+-- ✅ Correct for PostgreSQL 18+
+SET search_path TO {schema}, public;
+
+-- No extension needed, uuidv7() is built-in
+CREATE TABLE IF NOT EXISTS {schema}.{table} (
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
+    -- other columns
+);
+```
+
+### PostgreSQL < 18
+
+For PostgreSQL versions before 18, the `pg_uuidv7` extension must be installed:
+
+```sql
+-- ✅ Correct for PostgreSQL < 18
+SET search_path TO {schema}, public;
+
+-- Install extension for PostgreSQL < 18
+CREATE EXTENSION IF NOT EXISTS pg_uuidv7;
+
+CREATE TABLE IF NOT EXISTS {schema}.{table} (
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
+    -- other columns
+);
+```
+
 ## References
 
 - [RFC 4122 Draft - UUID Version 7](https://datatracker.ietf.org/doc/html/draft-ietf-uuidrev-rfc4122bis)
-- [PostgreSQL pg_uuidv7 Extension](https://github.com/pg-uuidv7/pg_uuidv7)
+- [PostgreSQL pg_uuidv7 Extension](https://github.com/pg-uuidv7/pg_uuidv7) (for PostgreSQL < 18)
+- [PostgreSQL 18 Release Notes](https://www.postgresql.org/docs/18/release-18.html) - uuidv7() built-in
 

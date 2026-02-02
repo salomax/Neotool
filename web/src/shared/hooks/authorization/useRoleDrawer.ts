@@ -1,12 +1,25 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { useGetRoleWithRelationshipsQuery } from "@/lib/graphql/operations/authorization-management/queries.generated";
+import { useQuery, useMutation } from "@apollo/client/react";
 import {
-  useAssignRoleToGroupMutation,
-  useRemoveRoleFromGroupMutation,
-  useAssignPermissionToRoleMutation,
-  useRemovePermissionFromRoleMutation,
+  GetRoleWithRelationshipsDocument,
+  type GetRoleWithRelationshipsQuery,
+  type GetRoleWithRelationshipsQueryVariables,
+} from "@/lib/graphql/operations/authorization-management/queries.generated";
+import {
+  AssignRoleToGroupDocument,
+  RemoveRoleFromGroupDocument,
+  AssignPermissionToRoleDocument,
+  RemovePermissionFromRoleDocument,
+  type AssignRoleToGroupMutation,
+  type AssignRoleToGroupMutationVariables,
+  type RemoveRoleFromGroupMutation,
+  type RemoveRoleFromGroupMutationVariables,
+  type AssignPermissionToRoleMutation,
+  type AssignPermissionToRoleMutationVariables,
+  type RemovePermissionFromRoleMutation,
+  type RemovePermissionFromRoleMutationVariables,
 } from "@/lib/graphql/operations/authorization-management/mutations.generated";
 import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
@@ -59,12 +72,16 @@ export function useRoleDrawer(
   const toast = useToast();
 
   // Query role with groups and permissions by id (used for edit mode)
-  const { data: roleData, loading: roleLoading, error: roleError, refetch: refetchRole } = useGetRoleWithRelationshipsQuery({
-    skip: !open || !roleId,
-    variables: roleId ? { id: roleId } : undefined as any,
-    fetchPolicy: 'network-only',
-    notifyOnNetworkStatusChange: false, // Prevent loading state during refetches to avoid drawer blink
-  });
+  const { data: roleData, loading: roleLoading, error: roleError, refetch: refetchRole } =
+    useQuery<GetRoleWithRelationshipsQuery, GetRoleWithRelationshipsQueryVariables>(
+      GetRoleWithRelationshipsDocument,
+      {
+        skip: !open || !roleId,
+        variables: roleId ? { id: roleId } : (undefined as any),
+        fetchPolicy: 'network-only',
+        notifyOnNetworkStatusChange: false, // Prevent loading state during refetches to avoid drawer blink
+      }
+    );
 
   // Extract role from roleId using role query
   const role = useMemo(() => {
@@ -101,10 +118,22 @@ export function useRoleDrawer(
   const [saving, setSaving] = useState(false);
 
   // Mutation hooks
-  const [assignRoleToGroupMutation] = useAssignRoleToGroupMutation();
-  const [removeRoleFromGroupMutation] = useRemoveRoleFromGroupMutation();
-  const [assignPermissionToRoleMutation] = useAssignPermissionToRoleMutation();
-  const [removePermissionFromRoleMutation] = useRemovePermissionFromRoleMutation();
+  const [assignRoleToGroupMutation] = useMutation<
+    AssignRoleToGroupMutation,
+    AssignRoleToGroupMutationVariables
+  >(AssignRoleToGroupDocument);
+  const [removeRoleFromGroupMutation] = useMutation<
+    RemoveRoleFromGroupMutation,
+    RemoveRoleFromGroupMutationVariables
+  >(RemoveRoleFromGroupDocument);
+  const [assignPermissionToRoleMutation] = useMutation<
+    AssignPermissionToRoleMutation,
+    AssignPermissionToRoleMutationVariables
+  >(AssignPermissionToRoleDocument);
+  const [removePermissionFromRoleMutation] = useMutation<
+    RemovePermissionFromRoleMutation,
+    RemovePermissionFromRoleMutationVariables
+  >(RemovePermissionFromRoleDocument);
 
   // Initialize form state when role data loads
   useEffect(() => {

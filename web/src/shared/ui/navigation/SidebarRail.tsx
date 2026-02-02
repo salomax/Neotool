@@ -40,8 +40,8 @@ export function SidebarRail() {
 
   const NAV_TOP: NavItem[] = [
     {
-      href: '/bacen-institutions',
-      label: t('routes.financialInstitutions'),
+      href: '/financial-data',
+      label: t('routes.financialData'),
       icon: AccountBalanceIcon,
     },
   ];
@@ -53,6 +53,8 @@ export function SidebarRail() {
 
   const sidebarBg = (theme as any).custom?.palette?.sidebarBg || '#ffffff';
   const sidebarIcon = (theme as any).custom?.palette?.sidebarIcon || '#728096';
+  // Use 'lg' radius (12px) from tokens if available, otherwise fallback to 12
+  const borderRadius = (theme as any).custom?.radius?.lg ? `${(theme as any).custom.radius.lg}px` : '12px';
 
   return (
     <Box
@@ -84,20 +86,24 @@ export function SidebarRail() {
           sx={{
             width: 48,
             height: 48,
-            borderRadius: '50%',
+            borderRadius: borderRadius,
             display: 'grid',
             placeItems: 'center',
-            bgcolor: alpha(sidebarIcon, 0.12),
+            bgcolor: theme.palette.mode === 'dark' ? 'transparent' : 'primary.main',
             mt: 0.5,
             cursor: 'pointer',
             transition: 'background-color 0.2s',
             '&:hover': {
-              bgcolor: alpha(sidebarIcon, 0.18),
+              bgcolor: theme.palette.mode === 'dark' ? 'transparent' : 'primary.dark',
             },
           }}
           aria-label="Go to home page"
         >
-          <LogoMark variant="white" width={32} height={30} />
+          <LogoMark 
+            variant="white"
+            width={32} 
+            height={30} 
+          />
         </Box>
       </Tooltip>
 
@@ -120,12 +126,18 @@ export function SidebarRail() {
                 size="large"
                 sx={{
                   position: 'relative',
-                  color: sidebarIcon,
+                  color: active ? 'primary.main' : sidebarIcon,
                   opacity: active ? 1 : 0.85,
-                  '&:hover': { bgcolor: alpha(theme.palette.common.black, 0.18), opacity: 1 },
-                  bgcolor: active ? alpha(theme.palette.common.black, 0.15) : 'transparent',
+                  '&:hover': {
+                    bgcolor: active
+                      ? alpha(theme.palette.primary.main, 0.16)
+                      : alpha(theme.palette.text.primary, 0.08),
+                    opacity: 1,
+                  },
+                  bgcolor: active ? alpha(theme.palette.primary.main, 0.12) : 'transparent',
                   width: 48,
                   height: 48,
+                  borderRadius: borderRadius,
                 }}
               >
                 {active && (
@@ -136,7 +148,7 @@ export function SidebarRail() {
                       width: 3,
                       height: 22,
                       borderRadius: 8,
-                      bgcolor: sidebarIcon,
+                      bgcolor: 'primary.main',
                     }}
                   />
                 )}
@@ -167,27 +179,33 @@ export function SidebarRail() {
                   aria-label={item.label}
                   size="large"
                   sx={{
-                    position: 'relative',
-                    color: sidebarIcon,
-                    opacity: active ? 1 : 0.85,
-                    '&:hover': { bgcolor: alpha(theme.palette.common.black, 0.18), opacity: 1 },
-                    bgcolor: active ? alpha(theme.palette.common.black, 0.15) : 'transparent',
-                    width: 48,
-                    height: 48,
-                  }}
-                >
-                  {active && (
-                    <Box
-                      sx={{
-                        position: 'absolute',
-                        right: -((RAIL_W - 48) / 2) + 2,
-                        width: 3,
-                        height: 22,
-                        borderRadius: 8,
-                        bgcolor: sidebarIcon,
-                      }}
-                    />
-                  )}
+                  position: 'relative',
+                  color: active ? 'primary.main' : sidebarIcon,
+                  opacity: active ? 1 : 0.85,
+                  '&:hover': {
+                    bgcolor: active
+                      ? alpha(theme.palette.primary.main, 0.16)
+                      : alpha(theme.palette.text.primary, 0.08),
+                    opacity: 1,
+                  },
+                  bgcolor: active ? alpha(theme.palette.primary.main, 0.12) : 'transparent',
+                  width: 48,
+                  height: 48,
+                  borderRadius: borderRadius,
+                }}
+              >
+                {active && (
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      right: -((RAIL_W - 48) / 2) + 2,
+                      width: 3,
+                      height: 22,
+                      borderRadius: 8,
+                      bgcolor: 'primary.main',
+                    }}
+                  />
+                )}
                   <Icon fontSize="medium" />
                 </IconButton>
               </Tooltip>

@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useQuery } from "@apollo/client/react";
 import {
-  useGetPermissionsQuery,
+  GetPermissionsDocument,
+  type GetPermissionsQuery,
+  type GetPermissionsQueryVariables,
 } from '@/lib/graphql/operations/authorization-management/queries.generated';
 import { extractErrorMessage } from '@/shared/utils/error';
 
@@ -104,7 +107,10 @@ export function usePermissionManagement(options: UsePermissionManagementOptions 
   const waitingForData = options.skip ?? false;
 
   // GraphQL hooks
-  const { data: permissionsData, loading, error, refetch } = useGetPermissionsQuery({
+  const { data: permissionsData, loading, error, refetch } = useQuery<
+    GetPermissionsQuery,
+    GetPermissionsQueryVariables
+  >(GetPermissionsDocument, {
     variables: {
       first,
       after: after || undefined,

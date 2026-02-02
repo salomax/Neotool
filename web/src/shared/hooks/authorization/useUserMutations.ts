@@ -1,11 +1,20 @@
 "use client";
 
 import { useCallback } from "react";
+import { useMutation } from "@apollo/client/react";
 import {
-  useEnableUserMutation,
-  useDisableUserMutation,
-  useAssignGroupToUserMutation,
-  useRemoveGroupFromUserMutation,
+  EnableUserDocument,
+  DisableUserDocument,
+  AssignGroupToUserDocument,
+  RemoveGroupFromUserDocument,
+  type EnableUserMutation,
+  type EnableUserMutationVariables,
+  type DisableUserMutation,
+  type DisableUserMutationVariables,
+  type AssignGroupToUserMutation,
+  type AssignGroupToUserMutationVariables,
+  type RemoveGroupFromUserMutation,
+  type RemoveGroupFromUserMutationVariables,
 } from '@/lib/graphql/operations/authorization-management/mutations.generated';
 import { useMutationWithRefetch } from '@/shared/hooks/mutations';
 import type { DocumentNode } from '@apollo/client';
@@ -80,10 +89,24 @@ export function useUserMutations(
   } = options;
 
   // Mutation hooks
-  const [enableUserMutation, { loading: enableLoading }] = useEnableUserMutation();
-  const [disableUserMutation, { loading: disableLoading }] = useDisableUserMutation();
-  const [assignGroupToUserMutation, { loading: assignGroupLoading }] = useAssignGroupToUserMutation();
-  const [removeGroupFromUserMutation, { loading: removeGroupLoading }] = useRemoveGroupFromUserMutation();
+  const [enableUserMutation, { loading: enableLoading }] = useMutation<
+    EnableUserMutation,
+    EnableUserMutationVariables
+  >(EnableUserDocument);
+  const [disableUserMutation, { loading: disableLoading }] = useMutation<
+    DisableUserMutation,
+    DisableUserMutationVariables
+  >(DisableUserDocument);
+  const [assignGroupToUserMutation, { loading: assignGroupLoading }] =
+    useMutation<
+      AssignGroupToUserMutation,
+      AssignGroupToUserMutationVariables
+    >(AssignGroupToUserDocument);
+  const [removeGroupFromUserMutation, { loading: removeGroupLoading }] =
+    useMutation<
+      RemoveGroupFromUserMutation,
+      RemoveGroupFromUserMutationVariables
+    >(RemoveGroupFromUserDocument);
 
   // Mutation hook with refetch
   const { executeMutation } = useMutationWithRefetch({
@@ -146,4 +169,3 @@ export function useUserMutations(
     removeGroupLoading,
   };
 }
-

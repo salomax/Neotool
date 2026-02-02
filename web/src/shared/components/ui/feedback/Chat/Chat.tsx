@@ -5,7 +5,12 @@ import { Box, TextField, IconButton } from "@mui/material";
 import { SxProps, Theme } from "@mui/material/styles";
 import SendIcon from "@mui/icons-material/Send";
 import { ChatMessage, ChatMessageData } from "./ChatMessage";
-import { useChatMutation } from "@/lib/graphql/operations/assistant/mutations.generated";
+import { useMutation } from "@apollo/client/react";
+import {
+  ChatDocument,
+  type ChatMutation,
+  type ChatMutationVariables,
+} from "@/lib/graphql/operations/assistant/mutations.generated";
 
 export interface ChatProps {
   sessionId?: string;
@@ -58,7 +63,9 @@ export const Chat: React.FC<ChatProps> = ({
   const messagesContainerRef = React.useRef<HTMLDivElement>(null);
 
   // GraphQL mutation hook
-  const [sendMessage] = useChatMutation();
+  const [sendMessage] = useMutation<ChatMutation, ChatMutationVariables>(
+    ChatDocument
+  );
 
   // Notify parent of session changes
   React.useEffect(() => {
@@ -237,4 +244,3 @@ export const Chat: React.FC<ChatProps> = ({
     </Box>
   );
 };
-

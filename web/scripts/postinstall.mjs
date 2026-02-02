@@ -50,13 +50,6 @@ try {
     env: { ...process.env, PATH: process.env.PATH },
   });
   console.log('✅ GraphQL code generation completed successfully');
-  
-  console.log('🔧 Running post-processing fixes...');
-  execSync('node scripts/fix-generated-types.mjs', {
-    cwd: webDir,
-    stdio: 'inherit',
-    env: { ...process.env, PATH: process.env.PATH },
-  });
 } catch (error) {
   console.error('❌ GraphQL code generation failed');
   console.error('💡 You can run "pnpm codegen" manually to retry');

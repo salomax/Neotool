@@ -12,8 +12,10 @@ export type Scalars = {
   Boolean: { input: boolean; output: boolean; }
   Int: { input: number; output: number; }
   Float: { input: number; output: number; }
+  Date: { input: unknown; output: unknown; }
   DateTime: { input: unknown; output: unknown; }
-  Long: { input: unknown; output: unknown; }
+  JSON: { input: unknown; output: unknown; }
+   Long: { input: unknown; output: unknown; }
   UUID: { input: unknown; output: unknown; }
   join__FieldSet: { input: unknown; output: unknown; }
   link__Import: { input: unknown; output: unknown; }
@@ -752,9 +754,9 @@ export enum UserOrderField {
 }
 
 export enum Join__Graph {
-  App = 'APP',
+  Security = 'SECURITY',
   Assets = 'ASSETS',
-  Security = 'SECURITY'
+  App = 'APP'
 }
 
 export enum Link__Purpose {

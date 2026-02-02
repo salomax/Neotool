@@ -1,27 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import { useMutation } from '@apollo/client/react';
 import { useUserMutations } from '../useUserMutations';
 
-// Mock the GraphQL operations
-vi.mock('@/lib/graphql/operations/authorization-management/mutations.generated', () => ({
-  useEnableUserMutation: vi.fn(),
-  useDisableUserMutation: vi.fn(),
-  useAssignGroupToUserMutation: vi.fn(),
-  useRemoveGroupFromUserMutation: vi.fn(),
-  useAssignRoleToUserMutation: vi.fn(),
-  useRemoveRoleFromUserMutation: vi.fn(),
+vi.mock('@apollo/client/react', () => ({
+  useMutation: vi.fn(),
 }));
 
 vi.mock('@/shared/hooks/mutations', () => ({
   useMutationWithRefetch: vi.fn(),
 }));
 
-import {
-  useEnableUserMutation,
-  useDisableUserMutation,
-  useAssignGroupToUserMutation,
-  useRemoveGroupFromUserMutation,
-} from '@/lib/graphql/operations/authorization-management/mutations.generated';
 import { useMutationWithRefetch } from '@/shared/hooks/mutations';
 
 // Run sequentially to avoid overlapping hook executions across threads
@@ -29,30 +18,44 @@ describe.sequential('useUserMutations', () => {
   const mockExecuteMutation = vi.fn();
   const mockOnRefetch = vi.fn();
 
+  let mockEnableUserMutation: any;
+  let mockDisableUserMutation: any;
+  let mockAssignGroupToUserMutation: any;
+  let mockRemoveGroupFromUserMutation: any;
+
+  const setupUseMutationChain = (overrides?: {
+    enableLoading?: boolean;
+    disableLoading?: boolean;
+    assignGroupLoading?: boolean;
+    removeGroupLoading?: boolean;
+  }) => {
+    mockEnableUserMutation = vi.fn();
+    mockDisableUserMutation = vi.fn();
+    mockAssignGroupToUserMutation = vi.fn();
+    mockRemoveGroupFromUserMutation = vi.fn();
+
+    (useMutation as any)
+      .mockReturnValueOnce([
+        mockEnableUserMutation,
+        { loading: overrides?.enableLoading ?? false },
+      ])
+      .mockReturnValueOnce([
+        mockDisableUserMutation,
+        { loading: overrides?.disableLoading ?? false },
+      ])
+      .mockReturnValueOnce([
+        mockAssignGroupToUserMutation,
+        { loading: overrides?.assignGroupLoading ?? false },
+      ])
+      .mockReturnValueOnce([
+        mockRemoveGroupFromUserMutation,
+        { loading: overrides?.removeGroupLoading ?? false },
+      ]);
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
-
-    // Default mock implementations
-    (useEnableUserMutation as any).mockReturnValue([
-      vi.fn(),
-      { loading: false },
-    ]);
-
-    (useDisableUserMutation as any).mockReturnValue([
-      vi.fn(),
-      { loading: false },
-    ]);
-
-    (useAssignGroupToUserMutation as any).mockReturnValue([
-      vi.fn(),
-      { loading: false },
-    ]);
-
-    (useRemoveGroupFromUserMutation as any).mockReturnValue([
-      vi.fn(),
-      { loading: false },
-    ]);
-
+    setupUseMutationChain();
 
     (useMutationWithRefetch as any).mockImplementation((options: any) => {
       const executeMutation = async (...args: any[]) => {
@@ -85,12 +88,6 @@ describe.sequential('useUserMutations', () => {
   });
 
   it('should enable user successfully', async () => {
-    const mockEnableUserMutation = vi.fn();
-    (useEnableUserMutation as any).mockReturnValue([
-      mockEnableUserMutation,
-      { loading: false },
-    ]);
-
     mockExecuteMutation.mockResolvedValue({
       data: {
         enableUser: {
@@ -113,12 +110,6 @@ describe.sequential('useUserMutations', () => {
   });
 
   it('should disable user successfully', async () => {
-    const mockDisableUserMutation = vi.fn();
-    (useDisableUserMutation as any).mockReturnValue([
-      mockDisableUserMutation,
-      { loading: false },
-    ]);
-
     mockExecuteMutation.mockResolvedValue({
       data: {
         disableUser: {
@@ -141,12 +132,6 @@ describe.sequential('useUserMutations', () => {
   });
 
   it('should assign group to user', async () => {
-    const mockAssignGroupMutation = vi.fn();
-    (useAssignGroupToUserMutation as any).mockReturnValue([
-      mockAssignGroupMutation,
-      { loading: false },
-    ]);
-
     mockExecuteMutation.mockResolvedValue({
       data: {
         assignGroupToUser: {
@@ -162,7 +147,7 @@ describe.sequential('useUserMutations', () => {
     });
 
     expect(mockExecuteMutation).toHaveBeenCalledWith(
-      mockAssignGroupMutation,
+      mockAssignGroupToUserMutation,
       { userId: 'user-1', groupId: 'group-1' },
       'assign-group-user-1-group-1'
     );

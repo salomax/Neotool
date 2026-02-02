@@ -2,12 +2,27 @@
 
 import React, { useMemo, useCallback } from "react";
 import { Box, Typography, Chip } from "@mui/material";
-import { useGetRolesQuery, type GetRolesQuery, type GetRolesQueryVariables } from "@/lib/graphql/operations/authorization-management/queries.generated";
+import { useQuery } from "@apollo/client/react";
+import {
+  GetRolesDocument,
+  type GetRolesQuery,
+  type GetRolesQueryVariables,
+} from "@/lib/graphql/operations/authorization-management/queries.generated";
 import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
 import { useToast } from "@/shared/providers";
 import { extractErrorMessage } from "@/shared/utils/error";
 import { SearchableAutocomplete } from "@/shared/components/ui/forms/SearchableAutocomplete";
+
+// Custom hook wrapper to satisfy ESLint rules-of-hooks
+function useRolesQuery(options?: {
+  variables?: GetRolesQueryVariables;
+  skip?: boolean;
+  fetchPolicy?: "cache-first" | "network-only" | "cache-only" | "no-cache" | "standby";
+  notifyOnNetworkStatusChange?: boolean;
+}) {
+  return useQuery<GetRolesQuery, GetRolesQueryVariables>(GetRolesDocument, options);
+}
 
 export interface Role {
   id: string;
@@ -144,7 +159,7 @@ export const GroupRoleAssignment: React.FC<GroupRoleAssignmentProps> = ({
         GetRolesQuery,
         GetRolesQueryVariables
       >
-        useQuery={useGetRolesQuery}
+        useQuery={useRolesQuery}
         getQueryVariables={(searchQuery) => ({
           first: 5,
           query: searchQuery || undefined,
@@ -205,4 +220,3 @@ export const GroupRoleAssignment: React.FC<GroupRoleAssignmentProps> = ({
     </Box>
   );
 };
-

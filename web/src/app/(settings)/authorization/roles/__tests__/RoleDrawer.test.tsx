@@ -9,8 +9,7 @@ import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
 const {
   mockPush,
   mockReplace,
-  mockUseCreateRoleMutation,
-  mockUseUpdateRoleMutation,
+  mockUseMutation,
   mockUseGetRoleWithUsersAndGroupsQuery,
   mockUseGetRoleWithRelationshipsQuery,
   mockUseRoleMutations,
@@ -20,8 +19,7 @@ const {
 } = vi.hoisted(() => {
   const mockPush = vi.fn();
   const mockReplace = vi.fn();
-  const mockUseCreateRoleMutation = vi.fn();
-  const mockUseUpdateRoleMutation = vi.fn();
+  const mockUseMutation = vi.fn();
   
   // Mock query functions
   const mockUseGetRoleWithUsersAndGroupsQuery = vi.fn();
@@ -42,8 +40,7 @@ const {
   return {
     mockPush,
     mockReplace,
-    mockUseCreateRoleMutation,
-    mockUseUpdateRoleMutation,
+    mockUseMutation,
     mockUseGetRoleWithUsersAndGroupsQuery,
     mockUseGetRoleWithRelationshipsQuery,
     mockUseRoleMutations,
@@ -61,17 +58,9 @@ vi.mock('next/navigation', () => ({
   }),
 }));
 
-// Mock GraphQL mutations
-vi.mock('@/lib/graphql/operations/authorization-management/mutations.generated', () => ({
-  useCreateRoleMutation: mockUseCreateRoleMutation,
-  useUpdateRoleMutation: mockUseUpdateRoleMutation,
+vi.mock('@apollo/client/react', () => ({
+  useMutation: (...args: any[]) => mockUseMutation(...args),
 }));
-
-// Import after mocks to avoid hoisting issues
-import {
-  useCreateRoleMutation,
-  useUpdateRoleMutation,
-} from '@/lib/graphql/operations/authorization-management/mutations.generated';
 
 // Mock Drawer component
 vi.mock('@/shared/components/ui/layout/Drawer', () => {
@@ -342,19 +331,32 @@ const renderRoleDrawer = (props = {}) => {
 describe.sequential('RoleDrawer', () => {
   const user = userEvent.setup();
 
+  const setupUseMutation = (overrides?: { createLoading?: boolean; updateLoading?: boolean }) => {
+    let callIndex = 0;
+    mockUseMutation.mockImplementation(() => {
+      if (callIndex === 0) {
+        callIndex += 1;
+        return [
+          vi.fn().mockResolvedValue({ data: { createRole: { id: 'role-2', name: 'New Role' } } }),
+          { loading: overrides?.createLoading ?? false },
+        ];
+      }
+      if (callIndex === 1) {
+        callIndex += 1;
+        return [
+          vi.fn().mockResolvedValue({ data: { updateRole: { id: 'role-1', name: 'Updated Role' } } }),
+          { loading: overrides?.updateLoading ?? false },
+        ];
+      }
+      return [vi.fn(), { loading: false }];
+    });
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
     
     // Mock mutation hooks
-    (useCreateRoleMutation as any).mockReturnValue([
-      vi.fn().mockResolvedValue({ data: { createRole: { id: 'role-2', name: 'New Role' } } }),
-      { loading: false },
-    ]);
-    
-    (useUpdateRoleMutation as any).mockReturnValue([
-      vi.fn().mockResolvedValue({ data: { updateRole: { id: 'role-1', name: 'Updated Role' } } }),
-      { loading: false },
-    ]);
+    setupUseMutation();
     
     mockUseGetRoleWithRelationshipsQuery.mockReturnValue({
       data: {
@@ -406,12 +408,12 @@ describe.sequential('RoleDrawer', () => {
       assignRoleToGroupLoading: false,
       removeRoleFromGroupLoading: false,
     });
-    mockUseRoleDrawer.mockReturnValue({
-      role: mockRole,
+    mockUseRoleDrawer.mockImplementation((roleId: string | null, _open?: boolean) => ({
+      role: roleId ? mockRole : null,
       loading: false,
       error: undefined,
-      selectedGroups: mockGroups,
-      selectedPermissions: mockRole.permissions,
+      selectedGroups: roleId ? mockGroups : [],
+      selectedPermissions: roleId ? mockRole.permissions : [],
       hasChanges: false,
       saving: false,
       updateSelectedGroups: vi.fn(),
@@ -420,10 +422,10 @@ describe.sequential('RoleDrawer', () => {
       resetChanges: vi.fn(),
       refetch: vi.fn().mockResolvedValue({
         data: {
-          role: mockRole,
+          role: roleId ? mockRole : null,
         },
       }),
-    });
+    }));
   });
 
   describe('Create mode (roleId === null)', () => {
@@ -553,10 +555,25 @@ describe.sequential('RoleDrawer', () => {
     });
 
     it('should disable buttons when saving', () => {
-      (useCreateRoleMutation as any).mockReturnValue([
-        vi.fn(),
-        { loading: true },
-      ]);
+      // Setup mock with loading state
+      // useMutation is called multiple times due to re-renders, so we need to track
+      // which mutation document is being requested and return consistent values
+      // Odd calls (1, 3, 5...) are CreateRoleDocument, even calls (2, 4, 6...) are UpdateRoleDocument
+      let callCount = 0;
+      mockUseMutation.mockImplementation(() => {
+        callCount++;
+        const isCreateMutation = callCount % 2 === 1;
+        if (isCreateMutation) {
+          return [
+            vi.fn().mockResolvedValue({ data: { createRole: { id: 'role-2', name: 'New Role' } } }),
+            { loading: true },
+          ];
+        }
+        return [
+          vi.fn().mockResolvedValue({ data: { updateRole: { id: 'role-1', name: 'Updated Role' } } }),
+          { loading: false },
+        ];
+      });
 
       const view = renderRoleDrawer({ roleId: null });
 

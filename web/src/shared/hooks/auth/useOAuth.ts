@@ -1,6 +1,7 @@
 import * as React from "react";
-import { signInWithGoogle, loadGoogleIdentityServices } from "@/lib/auth/oauth/google";
+import { signInWithGoogle, loadGoogleIdentityServices } from "@/shared/utils/auth/oauth";
 import { logger } from "@/shared/utils/logger";
+import { getRuntimeConfig } from "@/shared/config/runtime-config";
 
 export type OAuthProvider = "google";
 
@@ -41,7 +42,8 @@ export function useOAuth(options: UseOAuthOptions = {}): UseOAuthReturn {
 
         switch (provider) {
           case "google": {
-            const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+            const runtimeConfig = getRuntimeConfig();
+            const clientId = runtimeConfig.googleClientId || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
             if (!clientId) {
               throw new Error("Google OAuth client ID is not configured");
             }
@@ -72,4 +74,3 @@ export function useOAuth(options: UseOAuthOptions = {}): UseOAuthReturn {
     error,
   };
 }
-

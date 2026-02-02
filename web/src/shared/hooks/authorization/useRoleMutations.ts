@@ -1,14 +1,29 @@
 "use client";
 
 import { useCallback } from "react";
+import { useMutation } from "@apollo/client/react";
 import {
-  useCreateRoleMutation,
-  useUpdateRoleMutation,
-  useDeleteRoleMutation,
-  useAssignPermissionToRoleMutation,
-  useRemovePermissionFromRoleMutation,
-  useAssignRoleToGroupMutation,
-  useRemoveRoleFromGroupMutation,
+  CreateRoleDocument,
+  DeleteRoleDocument,
+  UpdateRoleDocument,
+  AssignPermissionToRoleDocument,
+  RemovePermissionFromRoleDocument,
+  AssignRoleToGroupDocument,
+  RemoveRoleFromGroupDocument,
+  type CreateRoleMutation,
+  type CreateRoleMutationVariables,
+  type UpdateRoleMutation,
+  type UpdateRoleMutationVariables,
+  type DeleteRoleMutation,
+  type DeleteRoleMutationVariables,
+  type AssignPermissionToRoleMutation,
+  type AssignPermissionToRoleMutationVariables,
+  type RemovePermissionFromRoleMutation,
+  type RemovePermissionFromRoleMutationVariables,
+  type AssignRoleToGroupMutation,
+  type AssignRoleToGroupMutationVariables,
+  type RemoveRoleFromGroupMutation,
+  type RemoveRoleFromGroupMutationVariables,
 } from '@/lib/graphql/operations/authorization-management/mutations.generated';
 import { CreateRoleInput, UpdateRoleInput } from '@/lib/graphql/types/__generated__/graphql';
 import { extractErrorMessage } from '@/shared/utils/error';
@@ -104,13 +119,38 @@ export function useRoleMutations(
   } = options;
 
   // Mutation hooks
-  const [createRoleMutation, { loading: createLoading }] = useCreateRoleMutation();
-  const [updateRoleMutation, { loading: updateLoading }] = useUpdateRoleMutation();
-  const [deleteRoleMutation, { loading: deleteLoading }] = useDeleteRoleMutation();
-  const [assignPermissionMutation, { loading: assignPermissionLoading }] = useAssignPermissionToRoleMutation();
-  const [removePermissionMutation, { loading: removePermissionLoading }] = useRemovePermissionFromRoleMutation();
-  const [assignRoleToGroupMutation, { loading: assignRoleToGroupLoading }] = useAssignRoleToGroupMutation();
-  const [removeRoleFromGroupMutation, { loading: removeRoleFromGroupLoading }] = useRemoveRoleFromGroupMutation();
+  const [createRoleMutation, { loading: createLoading }] = useMutation<
+    CreateRoleMutation,
+    CreateRoleMutationVariables
+  >(CreateRoleDocument);
+  const [updateRoleMutation, { loading: updateLoading }] = useMutation<
+    UpdateRoleMutation,
+    UpdateRoleMutationVariables
+  >(UpdateRoleDocument);
+  const [deleteRoleMutation, { loading: deleteLoading }] = useMutation<
+    DeleteRoleMutation,
+    DeleteRoleMutationVariables
+  >(DeleteRoleDocument);
+  const [assignPermissionMutation, { loading: assignPermissionLoading }] =
+    useMutation<
+      AssignPermissionToRoleMutation,
+      AssignPermissionToRoleMutationVariables
+    >(AssignPermissionToRoleDocument);
+  const [removePermissionMutation, { loading: removePermissionLoading }] =
+    useMutation<
+      RemovePermissionFromRoleMutation,
+      RemovePermissionFromRoleMutationVariables
+    >(RemovePermissionFromRoleDocument);
+  const [assignRoleToGroupMutation, { loading: assignRoleToGroupLoading }] =
+    useMutation<
+      AssignRoleToGroupMutation,
+      AssignRoleToGroupMutationVariables
+    >(AssignRoleToGroupDocument);
+  const [removeRoleFromGroupMutation, { loading: removeRoleFromGroupLoading }] =
+    useMutation<
+      RemoveRoleFromGroupMutation,
+      RemoveRoleFromGroupMutationVariables
+    >(RemoveRoleFromGroupDocument);
 
   // Mutation hook with refetch
   const { executeMutation } = useMutationWithRefetch({
@@ -250,4 +290,3 @@ export function useRoleMutations(
     removeRoleFromGroupLoading,
   };
 }
-

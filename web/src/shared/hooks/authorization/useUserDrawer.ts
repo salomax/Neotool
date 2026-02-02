@@ -1,11 +1,23 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { useGetUserWithRelationshipsQuery, GetUserWithRelationshipsDocument, GetUsersDocument } from "@/lib/graphql/operations/authorization-management/queries.generated";
+import { useQuery, useMutation } from "@apollo/client/react";
 import {
-  useAssignGroupToUserMutation,
-  useRemoveGroupFromUserMutation,
-  useUpdateUserMutation,
+  GetUserWithRelationshipsDocument,
+  GetUsersDocument,
+  type GetUserWithRelationshipsQuery,
+  type GetUserWithRelationshipsQueryVariables,
+} from "@/lib/graphql/operations/authorization-management/queries.generated";
+import {
+  AssignGroupToUserDocument,
+  RemoveGroupFromUserDocument,
+  UpdateUserDocument,
+  type AssignGroupToUserMutation,
+  type AssignGroupToUserMutationVariables,
+  type RemoveGroupFromUserMutation,
+  type RemoveGroupFromUserMutationVariables,
+  type UpdateUserMutation,
+  type UpdateUserMutationVariables,
 } from "@/lib/graphql/operations/authorization-management/mutations.generated";
 import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
@@ -56,7 +68,10 @@ export function useUserDrawer(
   const toast = useToast();
 
   // Query user with relationships
-  const { data, loading, error, refetch } = useGetUserWithRelationshipsQuery({
+  const { data, loading, error, refetch } = useQuery<
+    GetUserWithRelationshipsQuery,
+    GetUserWithRelationshipsQueryVariables
+  >(GetUserWithRelationshipsDocument, {
     skip: !open || !userId,
     variables: { id: userId! },
     fetchPolicy: 'network-only',
@@ -94,9 +109,18 @@ export function useUserDrawer(
   const [saving, setSaving] = useState(false);
 
   // Mutation hooks
-  const [assignGroupToUserMutation] = useAssignGroupToUserMutation();
-  const [removeGroupFromUserMutation] = useRemoveGroupFromUserMutation();
-  const [updateUserMutation] = useUpdateUserMutation();
+  const [assignGroupToUserMutation] = useMutation<
+    AssignGroupToUserMutation,
+    AssignGroupToUserMutationVariables
+  >(AssignGroupToUserDocument);
+  const [removeGroupFromUserMutation] = useMutation<
+    RemoveGroupFromUserMutation,
+    RemoveGroupFromUserMutationVariables
+  >(RemoveGroupFromUserDocument);
+  const [updateUserMutation] = useMutation<
+    UpdateUserMutation,
+    UpdateUserMutationVariables
+  >(UpdateUserDocument);
 
   // Initialize form state when user data loads
   useEffect(() => {

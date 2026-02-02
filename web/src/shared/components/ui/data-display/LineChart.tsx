@@ -121,7 +121,7 @@ const defaultPalette = (theme: any): string[] => [
 
 interface CustomTooltipProps {
   active?: boolean;
-  payload?: any[];
+  payload?: readonly any[];
   label?: any;
   theme: any;
   palette: string[];
@@ -223,7 +223,7 @@ export const LineChart: React.FC<LineChartProps> = ({
   scaleMaxPadding = 0.1,
   consolidateDecimal = true,
   colors,
-  margin = { top: 0, right: 56, left: 32, bottom: 24 },
+  margin = { top: 0, right: 24, left: 0, bottom: 24 },
   sx,
 }) => {
   const theme = useTheme();
@@ -546,18 +546,27 @@ export const LineChart: React.FC<LineChartProps> = ({
                 })}
               </defs>
             )}
-            {showGrid && <CartesianGrid strokeDasharray="3 3" />}
+            {showGrid && (
+              <CartesianGrid 
+                strokeDasharray="3 3" 
+                stroke={theme.palette.divider}
+                vertical={false}
+              />
+            )}
 
             {showXAxis && (
               <XAxis
                 dataKey={xKey}
                 tickFormatter={xTickFormatter}
-                tick={{ fontSize: 11, fontStyle: "italic" }}
+                tick={{ fontSize: 11, fill: theme.palette.text.secondary }}
+                axisLine={{ stroke: theme.palette.divider }}
+                tickLine={{ stroke: theme.palette.divider }}
                 label={
                   xLabel && showXAxisTitle
                     ? {
                         value: xLabel,
                         position: "insideBottom",
+                        fill: theme.palette.text.secondary,
                       }
                     : undefined
                 }
@@ -573,16 +582,19 @@ export const LineChart: React.FC<LineChartProps> = ({
                       yAxisId={axis.id}
                       orientation="left"
                       padding={axisPadding}
+                      axisLine={{ stroke: theme.palette.divider }}
+                      tickLine={{ stroke: theme.palette.divider }}
                       label={
                         axis.label && showYAxisTitles
                           ? {
                               value: axis.label,
                               angle: -90,
                               position: "insideLeft",
+                              fill: theme.palette.text.secondary,
                             }
                           : undefined
                       }
-                      tick={{ fontSize: 11, fontStyle: "italic" }}
+                      tick={{ fontSize: 11, fill: theme.palette.text.secondary }}
                       tickFormatter={getTickFormatter(axis.id)}
                       domain={getAxisDomain(axis.id)}
                     />
@@ -593,16 +605,19 @@ export const LineChart: React.FC<LineChartProps> = ({
                       yAxisId={axis.id}
                       orientation="right"
                       padding={axisPadding}
+                      axisLine={{ stroke: theme.palette.divider }}
+                      tickLine={{ stroke: theme.palette.divider }}
                       label={
                         axis.label && showYAxisTitles
                           ? {
                               value: axis.label,
                               angle: -90,
                               position: "insideRight",
+                              fill: theme.palette.text.secondary,
                             }
                           : undefined
                       }
-                      tick={{ fontSize: 11, fontStyle: "italic" }}
+                      tick={{ fontSize: 11, fill: theme.palette.text.secondary }}
                       tickFormatter={getTickFormatter(axis.id)}
                       domain={getAxisDomain(axis.id)}
                     />
@@ -611,7 +626,9 @@ export const LineChart: React.FC<LineChartProps> = ({
               ) : (
                 <YAxis
                   padding={axisPadding}
-                  tick={{ fontSize: 11, fontStyle: "italic" }}
+                  axisLine={{ stroke: theme.palette.divider }}
+                  tickLine={{ stroke: theme.palette.divider }}
+                  tick={{ fontSize: 11, fill: theme.palette.text.secondary }}
                   domain={getAxisDomain(undefined)}
                 />
               ))}

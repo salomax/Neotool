@@ -195,18 +195,18 @@ export const tokens: Record<Mode, DesignTokens> = {
       success: "#22c55e",
       warning: "#fbbf24",
       error: "#ef4444",
-      errorLightBg: "#FDEFF0",
-      successLightBg: "#EFF9F3",
+      errorLightBg: "rgba(239, 68, 68, 0.16)",
+      successLightBg: "rgba(34, 197, 94, 0.16)",
       info: "#38bdf8",
       bg: "#0b1220",
       bgPaper: "#0f172a",
-      text: "#e5e7eb",
+      text: "#f1f5f9",
       textMuted: "#94a3b8",
       divider: "#1f2937",
       inputBorder: "rgba(255, 255, 255, 0.23)",
       tabBorder: "rgba(255, 255, 255, 0.23)",
-      sidebarBg: "#ffffff",
-      sidebarIcon: "#728096",
+      sidebarBg: "#111729",
+      sidebarIcon: "#94a3b8",
       // Currency-specific colors
       currencyPositive: "#22c55e", // success color for positive values
       currencyNegative: "#ef4444", // error color for negative values  
