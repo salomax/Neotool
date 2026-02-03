@@ -4,6 +4,7 @@
   "name": "Nome",
   "email": "E-mail",
   "password": "Senha",
+  "confirmPassword": "Confirmar Senha",
   "passwordRequirements": "Requisitos da senha:",
   "passwordRules": {
     "0": "Pelo menos 8 caracteres",
@@ -19,6 +20,7 @@
     "required": "Este campo é obrigatório",
     "invalidEmail": "Por favor, insira um e-mail válido",
     "invalidPassword": "A senha não atende aos requisitos",
+    "passwordsDoNotMatch": "As senhas não coincidem",
     "emailExists": "E-mail já existe",
     "networkError": "Erro de rede. Por favor, tente novamente.",
     "unknownError": "Ocorreu um erro inesperado. Por favor, tente novamente."

@@ -12,6 +12,12 @@ class ValidEmailSendRequestValidatorTest {
     private val context = mockk<jakarta.validation.ConstraintValidatorContext>(relaxed = true)
 
     @Test
+    fun `accepts null value`() {
+        val isValid = validator.isValid(null, context)
+        assertThat(isValid).isTrue()
+    }
+
+    @Test
     fun `accepts valid RAW content`() {
         val request =
             EmailSendRequest(

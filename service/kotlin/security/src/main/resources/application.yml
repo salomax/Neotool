@@ -99,8 +99,38 @@ email:
   from: ${EMAIL_FROM:noreply@neotool.com}
   # Frontend URL for generating reset links
   # Can be set via FRONTEND_URL environment variable
-  frontend-url: ${FRONTEND_URL:http://localhost:3000}
-  # Note: Uses MockEmailService which logs emails to console/logs for testing
+  frontend-url: ${FRONTEND_URL}
+  # Delivery: mock (default, logs to console) or comms (via Apollo Router to Comms service).
+  # For comms, also set graphql.router.url and security.service.id/secret (see docs/09-security/service-to-service-auth.md).
+  delivery: ${EMAIL_DELIVERY:mock}
+
+# Email verification (signup flow)
+app:
+  verification:
+    enabled: ${EMAIL_VERIFICATION_ENABLED:true}
+    code-expiration-hours: ${VERIFICATION_CODE_EXPIRATION_HOURS:8}
+    max-attempts: ${VERIFICATION_MAX_ATTEMPTS:5}
+    resend-rate-limit-per-hour: ${VERIFICATION_RESEND_RATE_LIMIT:3}
+    unverified-account-ttl-days: ${UNVERIFIED_ACCOUNT_TTL_DAYS:7}
+    grandfather-existing-users: ${GRANDFATHER_EXISTING_USERS:true}
+    grandfather-cutoff-date: ${GRANDFATHER_CUTOFF_DATE:2026-02-15T00:00:00Z}
+    verification-email-template: "auth.verify-email"
+    deletion-warning-template: "auth.account-deletion-warning"
+    verification-link-base-url: ${APP_BASE_URL:http://localhost:3000}/verify-email-link
+
+# GraphQL Router (for service-to-service: e.g. requestEmailSend via Comms).
+# Required when email.delivery=comms.
+graphql:
+  router:
+    url: ${GRAPHQL_ROUTER_URL:}
+
+# Service principal credentials (for outbound service-to-service calls, e.g. to Apollo Router).
+# Required when email.delivery=comms. Register via: neotool service register neotool-security-service --permissions ... --output-env
+security:
+  service:
+    url: ${SECURITY_SERVICE_URL:}
+    id: ${SECURITY_SERVICE_ID:}
+    secret: ${SECURITY_SERVICE_SECRET:}
 
 # OAuth Configuration
 oauth:

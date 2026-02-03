@@ -32,9 +32,30 @@ abstract class EmailService(
     )
 
     /**
+     * Send email verification (magic link) after signup.
+     *
+     * @param to Recipient email
+     * @param userName Display name for greeting
+     * @param token UUID for magic link
+     * @param expiresAt When the link expires
+     * @param locale Locale for template (default: "en")
+     */
+    abstract fun sendVerificationEmail(
+        to: String,
+        userName: String,
+        token: java.util.UUID,
+        expiresAt: java.time.Instant,
+        locale: String = "en",
+    )
+
+    /**
      * Load email template for given locale.
      * Falls back to English if locale template not found.
+     *
+     * @deprecated Use Comms template engine (auth.password-reset via TemplateService) instead.
+     *             Kept for MockEmailService and tests. Will be removed in a future release.
      */
+    @Deprecated("Use TemplateService with auth.password-reset template. Kept for MockEmailService.")
     protected fun loadEmailTemplate(locale: String): String {
         val templatePath = "/emails/password-reset/$locale.html"
         val fallbackPath = "/emails/password-reset/en.html"
@@ -53,7 +74,10 @@ abstract class EmailService(
 
     /**
      * Get email subject for given locale.
+     *
+     * @deprecated Subject now comes from template.yml (auth.password-reset). Kept for MockEmailService.
      */
+    @Deprecated("Use TemplateService; subject is in template.yml. Kept for MockEmailService.")
     protected fun getSubject(locale: String): String =
         when (locale.lowercase()) {
             "pt" -> "Redefinir sua senha"
@@ -70,7 +94,10 @@ abstract class EmailService(
 
     /**
      * Default email template (fallback).
+     *
+     * @deprecated Use Comms template engine. Kept for MockEmailService fallback.
      */
+    @Deprecated("Use TemplateService. Kept for MockEmailService fallback.")
     protected fun getDefaultTemplate(): String =
         """
         <!DOCTYPE html>

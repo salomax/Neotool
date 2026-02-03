@@ -1,0 +1,14 @@
+{
+  "title": "Verifique seu e-mail",
+  "loading": "Verificando…",
+  "success": "E-mail verificado com sucesso!",
+  "redirectNotice": "Redirecionando em 3 segundos…",
+  "errors": {
+    "invalidLink": "Link inválido ou ausente",
+    "unknownError": "Algo deu errado. Tente novamente."
+  },
+  "resendCode": "Reenviar código",
+  "tryAgain": "Tentar novamente",
+  "linkToVerifyEmail": "Solicitar novo link",
+  "linkToSignIn": "Entrar"
+}

@@ -30,8 +30,8 @@ export function Wordmark({
   const logoHeight = height || dimensions.height;
 
   const logoSrc = variant === 'white' 
-    ? '/images/logos/wordmark-white-transparent.svg'
-    : '/images/logos/wordmark-blue-transparent.svg';
+    ? '/images/logos/neotool-wordmark-white.svg'
+    : '/images/logos/neotool-wordmark-blue.svg';
 
   return (
     <Box

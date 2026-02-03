@@ -1,9 +1,6 @@
 import * as Types from '../../types/__generated__/graphql';
 
-import { gql } from '@apollo/client';
-import * as ApolloReactCommon from '@apollo/client/react';
-import * as ApolloReactHooks from '@apollo/client/react';
-const defaultOptions = {} as const;
+import { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-node/core';
 export type GetCustomersQueryVariables = Types.Exact<{ [key: string]: never; }>;
 
 
@@ -17,92 +14,5 @@ export type GetCustomerQueryVariables = Types.Exact<{
 export type GetCustomerQuery = { customer: { __typename: 'Customer', id: string, name: string, email: string, status: string, createdAt: string | null, updatedAt: string | null } | null };
 
 
-export const GetCustomersDocument = gql`
-    query GetCustomers {
-  customers {
-    id
-    name
-    email
-    status
-    createdAt
-    updatedAt
-  }
-}
-    `;
-
-/**
- * __useGetCustomersQuery__
- *
- * To run a query within a React component, call `useGetCustomersQuery` and pass it any options that fit your needs.
- * When your component renders, `useGetCustomersQuery` returns an object from Apollo Client that contains loading, error, and data properties
- * you can use to render your UI.
- *
- * @param baseOptions options that will be passed into the query, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options;
- *
- * @example
- * const { data, loading, error } = useGetCustomersQuery({
- *   variables: {
- *   },
- * });
- */
-export function useGetCustomersQuery(baseOptions?: ApolloReactHooks.QueryHookOptions<GetCustomersQuery, GetCustomersQueryVariables>) {
-        const options = {...defaultOptions, ...baseOptions}
-        return ApolloReactHooks.useQuery<GetCustomersQuery, GetCustomersQueryVariables>(GetCustomersDocument, options);
-      }
-export function useGetCustomersLazyQuery(baseOptions?: ApolloReactHooks.LazyQueryHookOptions<GetCustomersQuery, GetCustomersQueryVariables>) {
-          const options = {...defaultOptions, ...baseOptions}
-          return ApolloReactHooks.useLazyQuery<GetCustomersQuery, GetCustomersQueryVariables>(GetCustomersDocument, options);
-        }
-export function useGetCustomersSuspenseQuery(baseOptions?: ApolloReactHooks.SkipToken | ApolloReactHooks.SuspenseQueryHookOptions<GetCustomersQuery, GetCustomersQueryVariables>) {
-          const options = baseOptions === ApolloReactHooks.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
-          return ApolloReactHooks.useSuspenseQuery<GetCustomersQuery, GetCustomersQueryVariables>(GetCustomersDocument, options);
-        }
-export type GetCustomersQueryHookResult = ReturnType<typeof useGetCustomersQuery>;
-export type GetCustomersLazyQueryHookResult = ReturnType<typeof useGetCustomersLazyQuery>;
-export type GetCustomersSuspenseQueryHookResult = ReturnType<typeof useGetCustomersSuspenseQuery>;
-export type GetCustomersQueryResult = ApolloReactCommon.QueryResult<GetCustomersQuery, GetCustomersQueryVariables>;
-export const GetCustomerDocument = gql`
-    query GetCustomer($id: ID!) {
-  customer(id: $id) {
-    id
-    name
-    email
-    status
-    createdAt
-    updatedAt
-  }
-}
-    `;
-
-/**
- * __useGetCustomerQuery__
- *
- * To run a query within a React component, call `useGetCustomerQuery` and pass it any options that fit your needs.
- * When your component renders, `useGetCustomerQuery` returns an object from Apollo Client that contains loading, error, and data properties
- * you can use to render your UI.
- *
- * @param baseOptions options that will be passed into the query, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options;
- *
- * @example
- * const { data, loading, error } = useGetCustomerQuery({
- *   variables: {
- *      id: // value for 'id'
- *   },
- * });
- */
-export function useGetCustomerQuery(baseOptions: ApolloReactHooks.QueryHookOptions<GetCustomerQuery, GetCustomerQueryVariables> & ({ variables: GetCustomerQueryVariables; skip?: boolean; } | { skip: boolean; }) ) {
-        const options = {...defaultOptions, ...baseOptions}
-        return ApolloReactHooks.useQuery<GetCustomerQuery, GetCustomerQueryVariables>(GetCustomerDocument, options);
-      }
-export function useGetCustomerLazyQuery(baseOptions?: ApolloReactHooks.LazyQueryHookOptions<GetCustomerQuery, GetCustomerQueryVariables>) {
-          const options = {...defaultOptions, ...baseOptions}
-          return ApolloReactHooks.useLazyQuery<GetCustomerQuery, GetCustomerQueryVariables>(GetCustomerDocument, options);
-        }
-export function useGetCustomerSuspenseQuery(baseOptions?: ApolloReactHooks.SkipToken | ApolloReactHooks.SuspenseQueryHookOptions<GetCustomerQuery, GetCustomerQueryVariables>) {
-          const options = baseOptions === ApolloReactHooks.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
-          return ApolloReactHooks.useSuspenseQuery<GetCustomerQuery, GetCustomerQueryVariables>(GetCustomerDocument, options as ApolloReactHooks.SkipToken | ApolloReactHooks.useSuspenseQuery.Options<GetCustomerQueryVariables>);
-        }
-export type GetCustomerQueryHookResult = ReturnType<typeof useGetCustomerQuery>;
-export type GetCustomerLazyQueryHookResult = ReturnType<typeof useGetCustomerLazyQuery>;
-export type GetCustomerSuspenseQueryHookResult = ReturnType<typeof useGetCustomerSuspenseQuery>;
-export type GetCustomerQueryResult = ApolloReactCommon.QueryResult<GetCustomerQuery, GetCustomerQueryVariables>;
+export const GetCustomersDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetCustomers"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"customers"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"email"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}}]}}]}}]} as unknown as DocumentNode<GetCustomersQuery, GetCustomersQueryVariables>;
+export const GetCustomerDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetCustomer"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"customer"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"email"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}}]}}]}}]} as unknown as DocumentNode<GetCustomerQuery, GetCustomerQueryVariables>;

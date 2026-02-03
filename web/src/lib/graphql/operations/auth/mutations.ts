@@ -52,10 +52,13 @@ export const SIGN_UP = gql`
     signUp(input: $input) {
       token
       refreshToken
+      requiresVerification
       user {
         id
         email
         displayName
+        emailVerified
+        emailVerifiedAt
         roles {
           id
           name
@@ -85,6 +88,34 @@ export const RESET_PASSWORD = gql`
     resetPassword(input: $input) {
       success
       message
+    }
+  }
+`;
+
+// Verify email with magic link token
+export const VERIFY_EMAIL_WITH_TOKEN = gql`
+  mutation VerifyEmailWithToken($token: String!) {
+    verifyEmailWithToken(token: $token) {
+      success
+      message
+      user {
+        id
+        email
+        displayName
+        emailVerified
+        emailVerifiedAt
+      }
+    }
+  }
+`;
+
+// Resend verification email
+export const RESEND_VERIFICATION_EMAIL = gql`
+  mutation ResendVerificationEmail {
+    resendVerificationEmail {
+      success
+      message
+      canResendAt
     }
   }
 `;

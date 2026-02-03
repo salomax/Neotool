@@ -5,6 +5,7 @@ import io.micronaut.http.HttpRequest
 import io.micronaut.http.MediaType
 import io.micronaut.http.client.HttpClient
 import io.micronaut.http.client.exceptions.HttpClientResponseException
+import io.micronaut.serde.annotation.Serdeable
 import jakarta.inject.Singleton
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -14,6 +15,27 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
+
+/**
+ * Token request DTO for OAuth2 client credentials flow.
+ */
+@Serdeable
+internal data class TokenRequest(
+    val grant_type: String = "client_credentials",
+    val client_id: String,
+    val client_secret: String,
+    val audience: String? = null,
+)
+
+/**
+ * Token response DTO from Security Service.
+ */
+@Serdeable
+internal data class TokenResponse(
+    val access_token: String,
+    val token_type: String,
+    val expires_in: Long,
+)
 
 /**
  * HTTP client for services to obtain service tokens from Security Service.
@@ -48,25 +70,6 @@ class ServiceTokenClient(
         fun isExpired(bufferSeconds: Long = 60): Boolean =
             System.currentTimeMillis() > (expiresAt - bufferSeconds * 1000)
     }
-
-    /**
-     * Token request DTO.
-     */
-    private data class TokenRequest(
-        val grant_type: String = "client_credentials",
-        val client_id: String,
-        val client_secret: String,
-        val audience: String? = null,
-    )
-
-    /**
-     * Token response DTO.
-     */
-    private data class TokenResponse(
-        val access_token: String,
-        val token_type: String,
-        val expires_in: Long,
-    )
 
     /**
      * Get a service token for the specified target audience.
@@ -159,13 +162,12 @@ class ServiceTokenClient(
         targetAudience: String,
         userId: UUID,
         userPermissions: List<String>,
-    ): String {
+    ): String =
         throw UnsupportedOperationException(
             "User context propagation is not yet implemented. " +
                 "This requires a separate OAuth2 endpoint that accepts both service credentials and user tokens. " +
                 "Use getServiceToken() for service-only tokens.",
         )
-    }
 
     /**
      * Fetch token from Security Service.
@@ -185,7 +187,8 @@ class ServiceTokenClient(
 
         try {
             val httpRequest =
-                HttpRequest.POST("$securityServiceUrl/oauth/token", request)
+                HttpRequest
+                    .POST("$securityServiceUrl/oauth/token", request)
                     .contentType(MediaType.APPLICATION_JSON)
 
             val response = httpClient.toBlocking().exchange(httpRequest, TokenResponse::class.java)

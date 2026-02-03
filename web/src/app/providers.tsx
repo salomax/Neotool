@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { AppThemeProvider } from "@/styles/themes/AppThemeProvider";
-import { AppQueryProvider } from "@/lib/api/AppQueryProvider";
+import { AppQueryProvider } from "@/shared/providers";
 import { GraphQLProvider } from "@/lib/graphql/GraphQLProvider";
 import { ToastProvider, AuthProvider, AuthorizationProvider, FeatureFlagsProvider } from "@/shared/providers";
 import "@/shared/i18n/config";

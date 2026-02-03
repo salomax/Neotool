@@ -164,11 +164,13 @@ class SecurityAuthResolver(
             val name = input["name"] as? String ?: throw IllegalArgumentException("Name is required")
             val email = input["email"] as? String ?: throw IllegalArgumentException("Email is required")
             val password = input["password"] as? String ?: throw IllegalArgumentException("Password is required")
+            val locale = (input["locale"] as? String)?.takeIf { it.isNotBlank() } ?: "en"
 
             logger.debug { "Sign up attempt for email: $email" }
 
-            // Register user (validates email uniqueness and password strength)
-            val user = authenticationService.registerUser(name, email, password)
+            // Register user (validates email uniqueness and password strength; may initiate email verification)
+            val result = authenticationService.registerUser(name, email, password, locale)
+            val user = result.user
 
             // Build authentication context (loads roles and permissions)
             val authContext = authContextFactory.build(user)
@@ -181,13 +183,14 @@ class SecurityAuthResolver(
             // Use new refresh token service with rotation support
             val refreshToken = refreshTokenService.createRefreshToken(userId)
 
-            logger.info { "User signed up successfully: ${user.email}" }
+            logger.info { "User signed up successfully: ${user.email} (requiresVerification=${result.requiresVerification})" }
 
             val payload =
                 SignUpPayloadDTO(
                     token = token,
                     refreshToken = refreshToken,
                     user = mapper.userToDTO(user),
+                    requiresVerification = result.requiresVerification,
                 )
 
             GraphQLPayloadFactory.success(payload)

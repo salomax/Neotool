@@ -133,7 +133,7 @@ class EmailContentValidatorTest {
     }
 
     @Test
-    fun `TEMPLATE kind is not supported`() {
-        assertThat(EmailContentValidator.isKindSupported(EmailContentKind.TEMPLATE)).isFalse()
+    fun `TEMPLATE kind is supported`() {
+        assertThat(EmailContentValidator.isKindSupported(EmailContentKind.TEMPLATE)).isTrue()
     }
 }
