@@ -12,10 +12,9 @@ export type Scalars = {
   Boolean: { input: boolean; output: boolean; }
   Int: { input: number; output: number; }
   Float: { input: number; output: number; }
-  Date: { input: unknown; output: unknown; }
   DateTime: { input: unknown; output: unknown; }
   JSON: { input: unknown; output: unknown; }
-   Long: { input: unknown; output: unknown; }
+  Long: { input: unknown; output: unknown; }
   UUID: { input: unknown; output: unknown; }
   join__FieldSet: { input: unknown; output: unknown; }
   link__Import: { input: unknown; output: unknown; }
@@ -177,6 +176,41 @@ export enum CustomerStatus {
   Pending = 'PENDING'
 }
 
+export enum EmailBodyFormat {
+  Html = 'HTML',
+  Text = 'TEXT'
+}
+
+export type EmailContentInput = {
+  body?: InputMaybe<Scalars['String']['input']>;
+  format?: InputMaybe<EmailBodyFormat>;
+  kind: EmailContentKind;
+  locale?: InputMaybe<Scalars['String']['input']>;
+  subject?: InputMaybe<Scalars['String']['input']>;
+  templateKey?: InputMaybe<Scalars['String']['input']>;
+  variables?: InputMaybe<Scalars['JSON']['input']>;
+};
+
+export enum EmailContentKind {
+  Raw = 'RAW',
+  Template = 'TEMPLATE'
+}
+
+export type EmailSendRequestInput = {
+  content: EmailContentInput;
+  to: Scalars['String']['input'];
+};
+
+export type EmailSendResult = {
+  __typename: 'EmailSendResult';
+  requestId: Scalars['ID']['output'];
+  status: EmailSendStatus;
+};
+
+export enum EmailSendStatus {
+  Queued = 'QUEUED'
+}
+
 export type Group = {
   __typename: 'Group';
   createdAt: Scalars['String']['output'];
@@ -298,7 +332,9 @@ export type Mutation = {
   removeGroupFromUser: User;
   removePermissionFromRole: Role;
   removeRoleFromGroup: Group;
+  requestEmailSend: EmailSendResult;
   requestPasswordReset: RequestPasswordResetPayload;
+  resendVerificationEmail: ResendVerificationEmailPayload;
   resetPassword: ResetPasswordPayload;
   signIn: SignInPayload;
   signInWithOAuth: SignInPayload;
@@ -308,6 +344,7 @@ export type Mutation = {
   updateProduct: Product;
   updateRole: Role;
   updateUser: User;
+  verifyEmailWithToken: VerifyEmailPayload;
 };
 
 
@@ -417,6 +454,11 @@ export type MutationRemoveRoleFromGroupArgs = {
 };
 
 
+export type MutationRequestEmailSendArgs = {
+  input: EmailSendRequestInput;
+};
+
+
 export type MutationRequestPasswordResetArgs = {
   input: RequestPasswordResetInput;
 };
@@ -469,6 +511,11 @@ export type MutationUpdateRoleArgs = {
 export type MutationUpdateUserArgs = {
   input: UpdateUserInput;
   userId: Scalars['ID']['input'];
+};
+
+
+export type MutationVerifyEmailWithTokenArgs = {
+  token: Scalars['String']['input'];
 };
 
 export enum OrderDirection {
@@ -524,6 +571,7 @@ export type ProductInput = {
 
 export type Query = {
   __typename: 'Query';
+  _empty: Maybe<Scalars['String']['output']>;
   /**
    * Get asset by ID.
    * Returns null if asset not found or user doesn't have access.
@@ -535,6 +583,7 @@ export type Query = {
   customers: Array<Customer>;
   group: Maybe<Group>;
   groups: GroupConnection;
+  myVerificationStatus: Maybe<VerificationStatus>;
   permissions: PermissionConnection;
   product: Maybe<Product>;
   products: Array<Product>;
@@ -627,6 +676,13 @@ export type RequestPasswordResetPayload = {
   success: Scalars['Boolean']['output'];
 };
 
+export type ResendVerificationEmailPayload = {
+  __typename: 'ResendVerificationEmailPayload';
+  canResendAt: Maybe<Scalars['String']['output']>;
+  message: Maybe<Scalars['String']['output']>;
+  success: Scalars['Boolean']['output'];
+};
+
 export type ResetPasswordInput = {
   newPassword: Scalars['String']['input'];
   token: Scalars['String']['input'];
@@ -691,6 +747,7 @@ export type SignInWithOAuthInput = {
 
 export type SignUpInput = {
   email: Scalars['String']['input'];
+  locale?: InputMaybe<Scalars['String']['input']>;
   name: Scalars['String']['input'];
   password: Scalars['String']['input'];
 };
@@ -698,6 +755,7 @@ export type SignUpInput = {
 export type SignUpPayload = {
   __typename: 'SignUpPayload';
   refreshToken: Maybe<Scalars['String']['output']>;
+  requiresVerification: Scalars['Boolean']['output'];
   token: Scalars['String']['output'];
   user: User;
 };
@@ -722,6 +780,8 @@ export type User = {
   createdAt: Scalars['String']['output'];
   displayName: Maybe<Scalars['String']['output']>;
   email: Scalars['String']['output'];
+  emailVerified: Scalars['Boolean']['output'];
+  emailVerifiedAt: Maybe<Scalars['String']['output']>;
   enabled: Scalars['Boolean']['output'];
   groups: Array<Group>;
   id: Scalars['ID']['output'];
@@ -753,10 +813,29 @@ export enum UserOrderField {
   Email = 'EMAIL'
 }
 
+export type VerificationStatus = {
+  __typename: 'VerificationStatus';
+  canResendCode: Scalars['Boolean']['output'];
+  emailVerified: Scalars['Boolean']['output'];
+  emailVerifiedAt: Maybe<Scalars['String']['output']>;
+  nextResendAvailableAt: Maybe<Scalars['String']['output']>;
+  verificationCodeExpiresAt: Maybe<Scalars['String']['output']>;
+  verificationCodeSentAt: Maybe<Scalars['String']['output']>;
+};
+
+export type VerifyEmailPayload = {
+  __typename: 'VerifyEmailPayload';
+  attemptsRemaining: Maybe<Scalars['Int']['output']>;
+  message: Maybe<Scalars['String']['output']>;
+  success: Scalars['Boolean']['output'];
+  user: Maybe<User>;
+};
+
 export enum Join__Graph {
-  Security = 'SECURITY',
+  App = 'APP',
   Assets = 'ASSETS',
-  App = 'APP'
+  Comms = 'COMMS',
+  Security = 'SECURITY'
 }
 
 export enum Link__Purpose {

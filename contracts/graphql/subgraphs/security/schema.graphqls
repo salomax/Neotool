@@ -18,6 +18,8 @@ type User @key(fields: "id") {
   displayName: String
   avatarUrl: String
   enabled: Boolean!
+  emailVerified: Boolean!
+  emailVerifiedAt: String
   createdAt: String!
   updatedAt: String!
   roles: [Role!]!
@@ -29,6 +31,7 @@ type User @key(fields: "id") {
 extend type Query {
   # Authentication queries
   currentUser: User
+  myVerificationStatus: VerificationStatus
 
   # Authorization queries
   checkPermission(userId: ID!, permission: String!, resourceId: ID): AuthorizationResult!
@@ -52,6 +55,8 @@ extend type Mutation {
   refreshAccessToken(input: RefreshAccessTokenInput!): SignInPayload!
   requestPasswordReset(input: RequestPasswordResetInput!): RequestPasswordResetPayload!
   resetPassword(input: ResetPasswordInput!): ResetPasswordPayload!
+  verifyEmailWithToken(token: String!): VerifyEmailPayload!
+  resendVerificationEmail: ResendVerificationEmailPayload!
 
   # Authorization management mutations
   enableUser(userId: ID!): User!
@@ -95,12 +100,37 @@ input SignUpInput {
   name: String!
   email: String!
   password: String!
+  locale: String
 }
 
 type SignUpPayload {
   token: String!
   refreshToken: String
   user: User!
+  requiresVerification: Boolean!
+}
+
+# Email verification
+type VerifyEmailPayload {
+  success: Boolean!
+  user: User
+  message: String
+  attemptsRemaining: Int
+}
+
+type ResendVerificationEmailPayload {
+  success: Boolean!
+  message: String
+  canResendAt: String
+}
+
+type VerificationStatus {
+  emailVerified: Boolean!
+  emailVerifiedAt: String
+  verificationCodeSentAt: String
+  verificationCodeExpiresAt: String
+  canResendCode: Boolean!
+  nextResendAvailableAt: String
 }
 
 # Password reset input types

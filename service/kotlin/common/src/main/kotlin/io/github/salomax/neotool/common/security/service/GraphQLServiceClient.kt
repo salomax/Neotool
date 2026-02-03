@@ -5,40 +5,45 @@ import io.micronaut.http.HttpRequest
 import io.micronaut.http.MediaType
 import io.micronaut.http.client.HttpClient
 import io.micronaut.http.client.exceptions.HttpClientResponseException
+import io.micronaut.serde.annotation.Serdeable
 import jakarta.inject.Singleton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import mu.KotlinLogging
 
 /**
+ * GraphQL request DTO.
+ */
+@Serdeable
+data class GraphQLRequest(
+    val query: String,
+    val variables: Map<String, Any>? = null,
+    val operationName: String? = null,
+)
+
+/**
+ * GraphQL response DTO.
+ */
+@Serdeable
+data class GraphQLResponse(
+    val data: Map<String, Any>? = null,
+    val errors: List<Map<String, Any>>? = null,
+)
+
+/**
  * HTTP client for services to call Apollo Router with service tokens.
  * Automatically injects Authorization header with service token.
+ *
+ * Class is open to allow mocking in tests (e.g. @MockBean in Micronaut tests).
  */
 @Singleton
-class GraphQLServiceClient(
+open class GraphQLServiceClient(
     @Property(name = "graphql.router.url", defaultValue = "http://localhost:4000/graphql")
     private val routerUrl: String,
     private val serviceTokenClient: ServiceTokenClient,
     private val httpClient: HttpClient,
 ) {
     private val logger = KotlinLogging.logger {}
-
-    /**
-     * GraphQL request DTO.
-     */
-    data class GraphQLRequest(
-        val query: String,
-        val variables: Map<String, Any>? = null,
-        val operationName: String? = null,
-    )
-
-    /**
-     * GraphQL response DTO.
-     */
-    data class GraphQLResponse(
-        val data: Map<String, Any>? = null,
-        val errors: List<Map<String, Any>>? = null,
-    )
 
     /**
      * Execute a GraphQL query with automatic service token injection.

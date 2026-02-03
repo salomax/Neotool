@@ -60,7 +60,8 @@ class CommsGraphQLIntegrationTest : BaseIntegrationTest(), KafkaIntegrationTest 
         val response =
             httpClient.toBlocking().exchange(
                 HttpRequest.POST("/graphql", body)
-                    .contentType(MediaType.APPLICATION_JSON),
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header("Authorization", "Bearer test-token"),
                 Map::class.java,
             )
 

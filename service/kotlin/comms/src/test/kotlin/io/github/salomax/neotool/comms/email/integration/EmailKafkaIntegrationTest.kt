@@ -113,11 +113,11 @@ class EmailKafkaIntegrationTest : BaseIntegrationTest(), KafkaIntegrationTest {
 
         val dlqMessage = waitForDlqMessage(requestId, timeoutMs = 20000L)
 
-        assertThat(dlqMessage).isNotNull
+        assertThat(dlqMessage).isNotNull()
         dlqMessage?.let {
             assertThat(it.originalMessage.id).isEqualTo(requestId)
             assertThat(it.errorType).contains("ValidationException")
-            assertThat(it.errorMessage).contains("Template content is not supported")
+            assertThat(it.errorMessage).contains("TEMPLATE content should be rendered before sending")
             assertThat(it.retryCount).isEqualTo(0)
             assertThat(it.failedAt).isNotBlank
         }

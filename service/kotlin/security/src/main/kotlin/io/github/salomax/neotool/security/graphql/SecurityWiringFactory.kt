@@ -29,8 +29,11 @@ import io.github.salomax.neotool.security.graphql.dto.PermissionConnectionDTO
 import io.github.salomax.neotool.security.graphql.dto.PermissionDTO
 import io.github.salomax.neotool.security.graphql.dto.PermissionEdgeDTO
 import io.github.salomax.neotool.security.graphql.dto.RequestPasswordResetPayloadDTO
+import io.github.salomax.neotool.security.graphql.dto.ResendVerificationEmailPayloadDTO
 import io.github.salomax.neotool.security.graphql.dto.ResetPasswordPayloadDTO
 import io.github.salomax.neotool.security.graphql.dto.RoleConnectionDTO
+import io.github.salomax.neotool.security.graphql.dto.VerificationStatusDTO
+import io.github.salomax.neotool.security.graphql.dto.VerifyEmailPayloadDTO
 import io.github.salomax.neotool.security.graphql.dto.RoleDTO
 import io.github.salomax.neotool.security.graphql.dto.RoleEdgeDTO
 import io.github.salomax.neotool.security.graphql.dto.SignInPayloadDTO
@@ -54,6 +57,7 @@ import java.util.concurrent.CompletableFuture
 @Singleton
 class SecurityWiringFactory(
     private val authResolver: SecurityAuthResolver,
+    private val emailVerificationResolver: EmailVerificationResolver,
     private val authorizationResolver: io.github.salomax.neotool.security.graphql.resolver.AuthorizationResolver,
     private val userManagementResolver: UserManagementResolver,
     private val groupManagementResolver: GroupManagementResolver,
@@ -148,6 +152,13 @@ class SecurityWiringFactory(
                             null
                         }
                     authResolver.getCurrentUser(token)
+                },
+            ).dataFetcher(
+                "myVerificationStatus",
+                createValidatedDataFetcher(emptyList()) { env ->
+                    val principal = env.principal()
+                    val userId = principal.userId ?: throw IllegalArgumentException("User ID required")
+                    emailVerificationResolver.myVerificationStatus(userId)
                 },
             ).dataFetcher(
                 "checkPermission",
@@ -275,6 +286,22 @@ class SecurityWiringFactory(
                 "resetPassword",
                 createMutationDataFetcher<ResetPasswordPayloadDTO>("resetPassword") { input ->
                     authResolver.resetPassword(input)
+                },
+            ).dataFetcher(
+                "verifyEmailWithToken",
+                createValidatedDataFetcher(listOf("token")) { env ->
+                    val tokenStr = getRequiredString(env, "token")
+                    val token = java.util.UUID.fromString(tokenStr)
+                    val ip = env.graphQlContext.getOrEmpty<String>("clientIp").orElse("unknown")
+                    emailVerificationResolver.verifyEmailWithToken(token, ip)
+                },
+            ).dataFetcher(
+                "resendVerificationEmail",
+                createValidatedDataFetcher(emptyList()) { env ->
+                    val principal = env.principal()
+                    val userId = principal.userId ?: throw IllegalArgumentException("User ID required")
+                    val locale = env.getArgument<String>("locale") ?: "en"
+                    emailVerificationResolver.resendVerificationEmail(userId, locale)
                 },
             ).dataFetcher(
                 "enableUser",

@@ -46,6 +46,7 @@ data class SignUpPayloadDTO(
     val token: String,
     val refreshToken: String? = null,
     val user: UserDTO,
+    val requiresVerification: Boolean = false,
 )
 
 @Introspected
@@ -56,6 +57,8 @@ data class UserDTO(
     val displayName: String? = null,
     val avatarUrl: String? = null,
     val enabled: Boolean? = null,
+    val emailVerified: Boolean? = null,
+    val emailVerifiedAt: String? = null,
     val createdAt: String? = null,
     val updatedAt: String? = null,
 )
@@ -90,6 +93,34 @@ data class ResetPasswordInputDTO(
 data class ResetPasswordPayloadDTO(
     val success: Boolean,
     val message: String,
+)
+
+@Introspected
+@Serdeable
+data class VerifyEmailPayloadDTO(
+    val success: Boolean,
+    val user: UserDTO? = null,
+    val message: String? = null,
+    val attemptsRemaining: Int? = null,
+)
+
+@Introspected
+@Serdeable
+data class ResendVerificationEmailPayloadDTO(
+    val success: Boolean,
+    val message: String? = null,
+    val canResendAt: String? = null,
+)
+
+@Introspected
+@Serdeable
+data class VerificationStatusDTO(
+    val emailVerified: Boolean,
+    val emailVerifiedAt: String? = null,
+    val verificationCodeSentAt: String? = null,
+    val verificationCodeExpiresAt: String? = null,
+    val canResendCode: Boolean,
+    val nextResendAvailableAt: String? = null,
 )
 
 // Authorization DTOs

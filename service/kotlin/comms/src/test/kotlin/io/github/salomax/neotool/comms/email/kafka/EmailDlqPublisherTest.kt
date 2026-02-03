@@ -14,6 +14,13 @@ import java.time.Instant
 
 class EmailDlqPublisherTest {
     @Test
+    fun `getDlqTopic returns send dlq topic`() {
+        val producer = mockk<EmailDlqProducer>(relaxed = true)
+        val publisher = EmailDlqPublisher(producer)
+        assertThat(publisher.getDlqTopic()).isEqualTo(EmailTopics.SEND_DLQ)
+    }
+
+    @Test
     fun `publishes to dlq successfully`() {
         val producer = mockk<EmailDlqProducer>(relaxed = true)
         val publisher = EmailDlqPublisher(producer)

@@ -1,0 +1,44 @@
+key: auth.verify-email
+channel: EMAIL
+metadata:
+  name: "Email Verification"
+  description: "Sent after signup with magic link"
+  owner: "security-team"
+
+variables:
+  - name: userName
+    type: STRING
+    required: true
+  - name: verificationLink
+    type: URL
+    required: true
+  - name: expirationHours
+    type: INTEGER
+    required: false
+    default: 8
+  - name: supportEmail
+    type: STRING
+    required: false
+    default: "support@neotool.io"
+  - name: logoUrl
+    type: URL
+    required: false
+
+locales:
+  en:
+    subject: "Verify your email - NeoTool"
+    bodyPath: "body.en.html"
+  pt:
+    subject: "Verifique seu e-mail - NeoTool"
+    bodyPath: "body.pt.html"
+  pt-BR:
+    subject: "Verifique seu e-mail - NeoTool"
+    bodyPath: "body.pt-BR.html"
+
+defaultLocale: en
+
+channelConfig:
+  email:
+    format: HTML
+    inlineCss: true
+    trackOpens: false

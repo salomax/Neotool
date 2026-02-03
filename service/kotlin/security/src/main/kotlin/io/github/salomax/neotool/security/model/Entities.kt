@@ -41,6 +41,10 @@ open class UserEntity(
     open var avatarProvider: String? = null,
     @Column(name = "avatar_updated_at")
     open var avatarUpdatedAt: Instant? = null,
+    @Column(name = "email_verified", nullable = false)
+    open var emailVerified: Boolean = false,
+    @Column(name = "email_verified_at")
+    open var emailVerifiedAt: Instant? = null,
     @Column(name = "created_at", nullable = false)
     open var createdAt: Instant = Instant.now(),
     @Column(name = "updated_at", nullable = false)
