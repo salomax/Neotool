@@ -18,6 +18,7 @@ micronaut {
 dependencies {
     // Project dependencies
     implementation(project(":common"))
+    testImplementation(testFixtures(project(":common")))
 
     // Security-specific dependencies
     implementation("jakarta.annotation:jakarta.annotation-api")

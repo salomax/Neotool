@@ -7,9 +7,14 @@ import io.github.salomax.neotool.security.model.UserEntity
  */
 sealed class VerificationResult {
     data class Success(val user: UserEntity) : VerificationResult()
+
     object InvalidToken : VerificationResult()
+
     object NotFound : VerificationResult()
+
     object Expired : VerificationResult()
+
     object TooManyAttempts : VerificationResult()
+
     object AlreadyVerified : VerificationResult()
 }

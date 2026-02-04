@@ -4,7 +4,6 @@ import io.github.salomax.neotool.security.domain.EmailVerification
 import io.github.salomax.neotool.security.domain.ResendResult
 import io.github.salomax.neotool.security.domain.VerificationResult
 import io.github.salomax.neotool.security.model.EmailVerificationEntity
-import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.repo.EmailVerificationRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.email.EmailService

@@ -74,7 +74,7 @@ open class GraphQLServiceClient(
      * @param targetAudience Target service audience for token (default: "apollo-router")
      * @return GraphQL response
      */
-    suspend fun mutation(
+    open suspend fun mutation(
         mutation: String,
         variables: Map<String, Any>? = null,
         targetAudience: String = "apollo-router",

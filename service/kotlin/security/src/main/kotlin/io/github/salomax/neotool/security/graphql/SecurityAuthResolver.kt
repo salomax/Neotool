@@ -183,7 +183,9 @@ class SecurityAuthResolver(
             // Use new refresh token service with rotation support
             val refreshToken = refreshTokenService.createRefreshToken(userId)
 
-            logger.info { "User signed up successfully: ${user.email} (requiresVerification=${result.requiresVerification})" }
+            logger.info {
+                "User signed up successfully: ${user.email} (requiresVerification=${result.requiresVerification})"
+            }
 
             val payload =
                 SignUpPayloadDTO(

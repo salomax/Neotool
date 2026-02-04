@@ -29,9 +29,10 @@ internal data class TokenRequest(
 
 /**
  * Token response DTO from Security Service.
+ * Public for testing; production code uses it only via ServiceTokenClient.
  */
 @Serdeable
-internal data class TokenResponse(
+data class TokenResponse(
     val access_token: String,
     val token_type: String,
     val expires_in: Long,

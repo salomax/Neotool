@@ -9,12 +9,24 @@ export interface StackProps extends Omit<LayoutComponentProps, 'justify'> {
   justify?: 'start' | 'center' | 'end' | 'between' | 'around' | 'evenly' | 'stretch';
 }
 
+function directionToCSS(direction: string | undefined): React.CSSProperties['flexDirection'] {
+  if (!direction) return 'column';
+  return direction as React.CSSProperties['flexDirection'];
+}
+
+function flexWrapToCSS(flexWrap: string | undefined): React.CSSProperties['flexWrap'] {
+  if (!flexWrap) return undefined;
+  return flexWrap as React.CSSProperties['flexWrap'];
+}
+
 export function Stack({
   as: Component = 'div',
   children,
   gap,
   align,
   justify,
+  direction,
+  flexWrap,
   className,
   style,
   name,
@@ -38,10 +50,13 @@ export function Stack({
   const gapValue = spacingToCSS(effectiveGap);
   const alignValue = align ? alignToCSS(align) : undefined;
   const justifyValue = justify ? justifyToCSS(justify) : undefined;
+  const directionValue = typeof direction === 'object' ? undefined : directionToCSS(direction);
+  const flexWrapValue = typeof flexWrap === 'object' ? undefined : flexWrapToCSS(flexWrap);
 
   const stackStyles: React.CSSProperties = {
     display: 'flex',
-    flexDirection: 'column',
+    flexDirection: directionValue ?? 'column',
+    flexWrap: flexWrapValue,
     gap: gapValue,
     ...(alignValue && { alignItems: alignValue }),
     ...(justifyValue && { justifyContent: justifyValue }),

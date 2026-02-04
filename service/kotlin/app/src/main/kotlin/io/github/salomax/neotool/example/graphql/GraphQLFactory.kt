@@ -5,13 +5,13 @@ import graphql.analysis.MaxQueryComplexityInstrumentation
 import graphql.analysis.MaxQueryDepthInstrumentation
 import graphql.schema.idl.TypeDefinitionRegistry
 import io.github.salomax.neotool.common.exception.GraphQLOptimisticLockExceptionHandler
-import io.github.salomax.neotool.common.util.toUUID
 import io.github.salomax.neotool.example.domain.Customer
 import io.github.salomax.neotool.example.domain.Product
 import io.github.salomax.neotool.example.service.CustomerService
 import io.github.salomax.neotool.example.service.ProductService
 import io.micronaut.context.annotation.Factory
 import jakarta.inject.Singleton
+import java.util.UUID
 
 @Factory
 class GraphQLFactory(
@@ -20,6 +20,8 @@ class GraphQLFactory(
     private val productService: ProductService,
     private val customerService: CustomerService,
 ) {
+    private fun toUUID(value: Any?): UUID = UUID.fromString(value.toString())
+
     @Singleton
     fun graphQL(): graphql.GraphQL {
         val runtimeWiring = wiringFactory.build()

@@ -61,7 +61,10 @@ class PasswordResetTemplateTest : TestPropertyProvider {
             )
 
         assertNotNull(rendered.subject)
-        assertTrue(rendered.body.contains("app.neotool.io") || rendered.body.contains("reset"), "Body should contain reset URL: ${rendered.body.take(400)}")
+        assertTrue(
+            rendered.body.contains("app.neotool.io") || rendered.body.contains("reset"),
+            "Body should contain reset URL: ${rendered.body.take(400)}",
+        )
         assertTrue(rendered.body.contains("minutes"), "Body should contain expiration text: ${rendered.body.take(400)}")
     }
 
