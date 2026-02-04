@@ -7,5 +7,6 @@ import java.time.Instant
  */
 sealed class ResendResult {
     object Success : ResendResult()
+
     data class RateLimited(val canResendAt: Instant) : ResendResult()
 }

@@ -9,7 +9,6 @@ import java.util.UUID
 
 @Repository
 interface EmailVerificationRepository : JpaRepository<EmailVerificationEntity, UUID> {
-
     /**
      * Find active (non-invalidated) verification record for user.
      */
@@ -34,7 +33,10 @@ interface EmailVerificationRepository : JpaRepository<EmailVerificationEntity, U
         ORDER BY ev.createdAt DESC
         """,
     )
-    fun findRecentByUserId(userId: UUID, since: Instant): List<EmailVerificationEntity>
+    fun findRecentByUserId(
+        userId: UUID,
+        since: Instant,
+    ): List<EmailVerificationEntity>
 
     /**
      * Find by token hash (for magic link verification).

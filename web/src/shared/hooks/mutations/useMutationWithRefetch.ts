@@ -86,8 +86,6 @@ export function useMutationWithRefetch<TData, TVariables>(
     errorMessage = "Failed to execute mutation",
   } = options;
 
-  console.log('useMutationWithRefetch: entered');
-
   // Ref to track in-flight mutations to prevent race conditions
   const mutationInFlightRef = useRef<Set<string>>(new Set());
 

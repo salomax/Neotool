@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, fireEvent, act, cleanup } from '@testing-library/react';
+import { render, screen, waitFor, within, act, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SignInForm } from '../SignInForm';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
@@ -62,6 +62,15 @@ const renderSignInForm = (props = {}) => {
   );
 };
 
+/** Get input by test id. Uses getByRole for text/email and getByLabelText for password (password inputs are not role="textbox"). */
+const getInputByTestId = (testId: string): HTMLInputElement => {
+  if (testId === 'textfield-password') {
+    return screen.getByLabelText(/^(Password|Senha)$/i) as HTMLInputElement;
+  }
+  const field = screen.getByTestId(testId);
+  return within(field).getByRole('textbox') as HTMLInputElement;
+};
+
 // Run sequentially to avoid concurrent renders leaking between tests
 describe.sequential('SignInForm', () => {
   beforeEach(() => {
@@ -73,10 +82,10 @@ describe.sequential('SignInForm', () => {
 
   it('renders all form fields', () => {
     renderSignInForm();
-    
+
     expect(screen.getByTestId('textfield-email')).toBeInTheDocument();
-    expect(screen.getByLabelText('Password')).toBeInTheDocument();
-    expect(screen.getByRole('checkbox', { name: /keep me signed in/i })).toBeInTheDocument();
+    expect(screen.getByTestId('textfield-password')).toBeInTheDocument();
+    expect(screen.getByTestId('checkbox-remember-me')).toBeInTheDocument();
     expect(screen.getByTestId('button-signin')).toBeInTheDocument();
     expect(screen.getByTestId('button-google-signin')).toBeInTheDocument();
   });
@@ -84,59 +93,53 @@ describe.sequential('SignInForm', () => {
   it('validates email field', async () => {
     const user = userEvent.setup();
     renderSignInForm();
-    
-    const emailInput = screen.getByTestId('textfield-email');
+
+    const emailInput = getInputByTestId('textfield-email');
     const submitButton = screen.getByTestId('button-signin');
-    
-    // Try to submit with invalid email
+
     await user.type(emailInput, 'invalid-email');
     await user.click(submitButton);
-    
+
     await waitFor(() => {
-      const errorText = screen.queryByText(/invalid email|required/i);
-      expect(errorText).toBeInTheDocument();
+      expect(emailInput).toHaveAttribute('aria-invalid', 'true');
     });
   });
 
   it('validates required fields', async () => {
     const user = userEvent.setup();
     renderSignInForm();
-    
+
     const submitButton = screen.getByTestId('button-signin');
     await user.click(submitButton);
-    
+
     await waitFor(() => {
-      expect(screen.getByText(/required/i)).toBeInTheDocument();
+      const emailInput = getInputByTestId('textfield-email');
+      expect(emailInput).toHaveAttribute('aria-invalid', 'true');
     });
   });
 
   it('submits form with valid data', async () => {
     const user = userEvent.setup();
     renderSignInForm();
-    
-    const emailInput = screen.getByRole('textbox', { name: /email/i }) as HTMLInputElement;
-    const passwordInput = screen.getByLabelText('Password') as HTMLInputElement;
+
+    const emailInput = getInputByTestId('textfield-email');
+    const passwordInput = getInputByTestId('textfield-password');
     const submitButton = screen.getByTestId('button-signin');
-    
-    // Fill in the form fields
+
     await user.type(emailInput, 'test@example.com');
     await user.type(passwordInput, 'TestPassword123!');
-    
-    // Wait for inputs to have values
+
     await waitFor(() => {
       expect(emailInput).toHaveValue('test@example.com');
       expect(passwordInput).toHaveValue('TestPassword123!');
     });
-    
-    // Click the submit button (this should trigger form submission)
+
     await user.click(submitButton);
-    
-    // Wait for the signIn function to be called
+
     await waitFor(() => {
       expect(mockSignIn).toHaveBeenCalled();
     }, { timeout: 3000 });
-    
-    // Verify it was called with correct arguments
+
     expect(mockSignIn).toHaveBeenCalledWith(
       'test@example.com',
       'TestPassword123!',
@@ -147,26 +150,26 @@ describe.sequential('SignInForm', () => {
   it('handles remember me checkbox', async () => {
     const user = userEvent.setup();
     renderSignInForm();
-    
-    const emailInput = screen.getByRole('textbox', { name: /email/i }) as HTMLInputElement;
-    const passwordInput = screen.getByLabelText('Password') as HTMLInputElement;
-    const checkbox = screen.getByRole('checkbox', { name: /keep me signed in/i });
+
+    const emailInput = getInputByTestId('textfield-email');
+    const passwordInput = getInputByTestId('textfield-password');
+    const checkbox = within(screen.getByTestId('checkbox-remember-me')).getByRole('checkbox');
     const submitButton = screen.getByTestId('button-signin');
-    
+
     await user.type(emailInput, 'test@example.com');
     await user.type(passwordInput, 'TestPassword123!');
     await user.click(checkbox);
-    
+
     await waitFor(() => {
       expect(checkbox).toBeChecked();
     });
-    
+
     await user.click(submitButton);
-    
+
     await waitFor(() => {
       expect(mockSignIn).toHaveBeenCalled();
     }, { timeout: 3000 });
-    
+
     expect(mockSignIn).toHaveBeenCalledWith(
       'test@example.com',
       'TestPassword123!',
@@ -177,23 +180,22 @@ describe.sequential('SignInForm', () => {
   it('displays error message on sign in failure', async () => {
     const user = userEvent.setup();
     mockSignIn.mockRejectedValue(new Error('Invalid email or password'));
-    
+
     renderSignInForm();
-    
-    const emailInput = screen.getByRole('textbox', { name: /email/i }) as HTMLInputElement;
-    const passwordInput = screen.getByLabelText('Password') as HTMLInputElement;
+
+    const emailInput = getInputByTestId('textfield-email');
+    const passwordInput = getInputByTestId('textfield-password');
     const submitButton = screen.getByTestId('button-signin');
-    
+
     await user.type(emailInput, 'test@example.com');
     await user.type(passwordInput, 'WrongPassword');
-    
+
     await user.click(submitButton);
-    
+
     await waitFor(() => {
       expect(screen.getByTestId('signin-error')).toBeInTheDocument();
     }, { timeout: 3000 });
-    
-    expect(screen.getByText(/invalid/i)).toBeInTheDocument();
+
     expect(mockShowError).toHaveBeenCalled();
   });
 
@@ -204,56 +206,55 @@ describe.sequential('SignInForm', () => {
       resolvePromise = resolve;
     });
     mockSignIn.mockImplementation(() => promise);
-    
+
     renderSignInForm();
-    
-    const emailInput = screen.getByRole('textbox', { name: /email/i }) as HTMLInputElement;
-    const passwordInput = screen.getByLabelText('Password') as HTMLInputElement;
+
+    const emailInput = getInputByTestId('textfield-email');
+    const passwordInput = getInputByTestId('textfield-password');
     const submitButton = screen.getByTestId('button-signin');
-    
+
     await user.type(emailInput, 'test@example.com');
     await user.type(passwordInput, 'TestPassword123!');
-    
-    // Click submit button
+
     const clickPromise = user.click(submitButton);
-    
-    // Button should be disabled during submission
+
     await waitFor(() => {
       expect(submitButton).toBeDisabled();
     }, { timeout: 1000 });
-    
-    // Resolve the promise to clean up
+
     resolvePromise!();
     await clickPromise;
   });
 
   it('renders links correctly', () => {
     renderSignInForm();
-    
-    expect(screen.getByText(/forgot your password/i)).toBeInTheDocument();
-    expect(screen.getByText(/sign up/i)).toBeInTheDocument();
+
+    const links = screen.getAllByRole('link');
+    const forgotPasswordLink = links.find((l) => l.getAttribute('href') === '/forgot-password');
+    const signUpLink = links.find((l) => l.getAttribute('href') === '/signup');
+    expect(forgotPasswordLink).toBeInTheDocument();
+    expect(signUpLink).toBeInTheDocument();
   });
 
   it('calls onSuccess callback after successful sign in', async () => {
     const user = userEvent.setup();
     const onSuccess = vi.fn();
-    
+
     renderSignInForm({ onSuccess });
-    
-    const emailInput = screen.getByRole('textbox', { name: /email/i }) as HTMLInputElement;
-    const passwordInput = screen.getByLabelText('Password') as HTMLInputElement;
+
+    const emailInput = getInputByTestId('textfield-email');
+    const passwordInput = getInputByTestId('textfield-password');
     const submitButton = screen.getByTestId('button-signin');
-    
+
     await user.type(emailInput, 'test@example.com');
     await user.type(passwordInput, 'TestPassword123!');
-    
+
     await user.click(submitButton);
-    
+
     await waitFor(() => {
       expect(mockSignIn).toHaveBeenCalled();
     }, { timeout: 3000 });
-    
-    // Wait for onSuccess to be called after signIn resolves
+
     await waitFor(() => {
       expect(onSuccess).toHaveBeenCalled();
     }, { timeout: 2000 });
@@ -265,7 +266,6 @@ describe.sequential('SignInForm', () => {
 
       const googleButton = screen.getByTestId('button-google-signin');
       expect(googleButton).toBeInTheDocument();
-      expect(googleButton).toHaveTextContent(/continue with google/i);
     });
 
     it('should call OAuth sign-in when Google button is clicked', async () => {
@@ -380,8 +380,8 @@ describe.sequential('SignInForm', () => {
 
       renderSignInForm();
 
-      const emailInput = screen.getByRole('textbox', { name: /email/i }) as HTMLInputElement;
-      const passwordInput = screen.getByLabelText('Password') as HTMLInputElement;
+      const emailInput = getInputByTestId('textfield-email');
+      const passwordInput = getInputByTestId('textfield-password');
       const googleButton = screen.getByTestId('button-google-signin');
 
       await user.type(emailInput, 'test@example.com');

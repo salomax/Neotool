@@ -19,7 +19,7 @@ open class RateLimitService(
 ) {
     private val logger = KotlinLogging.logger {}
 
-    private val maxAttemptsPerHour = 100
+    private val maxAttemptsPerHour = 3
     private val rateLimitWindowHours = 1L
 
     /**

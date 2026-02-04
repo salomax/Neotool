@@ -13,7 +13,7 @@ import { useTranslation } from "@/shared/i18n/hooks/useTranslation";
 import { verifyEmailLinkTranslations } from "./i18n";
 import { extractErrorMessage } from "@/shared/utils/error";
 import { useMutation } from "@apollo/client/react";
-import { VERIFY_EMAIL_WITH_TOKEN } from "@/lib/graphql/operations/auth/mutations";
+import { VerifyEmailWithTokenDocument } from "@/lib/graphql/operations/auth/mutations.generated";
 
 export default function VerifyEmailLinkPage() {
   const { t } = useTranslation(verifyEmailLinkTranslations);
@@ -25,7 +25,7 @@ export default function VerifyEmailLinkPage() {
   const token = searchParams.get("token");
   const hasValidToken = Boolean(token?.trim());
 
-  const [verifyEmailWithToken, { loading, data, error }] = useMutation(VERIFY_EMAIL_WITH_TOKEN, {
+  const [verifyEmailWithToken, { loading, data, error }] = useMutation(VerifyEmailWithTokenDocument, {
     onCompleted: (result) => {
       if (result?.verifyEmailWithToken?.success) {
         const user = result.verifyEmailWithToken.user;
@@ -106,7 +106,7 @@ export default function VerifyEmailLinkPage() {
               {!hasValidToken ? (
                 <>
                   <ErrorAlert error={t("errors.invalidLink")} />
-                  <Stack direction="row" gap={2} justifyContent="center" flexWrap="wrap">
+                  <Stack direction="row" gap={2} justify="center" flexWrap="wrap">
                     <Link href="/verify-email" component={Typography}>
                       {t("linkToVerifyEmail")}
                     </Link>
@@ -130,7 +130,7 @@ export default function VerifyEmailLinkPage() {
               ) : errorMessage ? (
                 <>
                   <ErrorAlert error={errorMessage} />
-                  <Stack direction="row" gap={2} justifyContent="center" flexWrap="wrap">
+                  <Stack direction="row" gap={2} justify="center" flexWrap="wrap">
                     <Button component={Link} href="/verify-email" variant="outlined" size="small">
                       {t("resendCode")}
                     </Button>

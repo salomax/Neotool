@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Box, Typography, Button, CircularProgress } from "@mui/material";
 import { useMutation } from "@apollo/client/react";
-import { RESEND_VERIFICATION_EMAIL } from "@/lib/graphql/operations/auth/mutations";
+import { ResendVerificationEmailDocument } from "@/lib/graphql/operations/auth/mutations.generated";
 import { useToast } from "@/shared/providers";
 import { useTranslation } from "@/shared/i18n/hooks/useTranslation";
 import { verifyEmailTranslations } from "@/app/(authentication)/verify-email/i18n";
@@ -19,7 +19,7 @@ export function VerificationPrompt({ email }: VerificationPromptProps) {
   const { t } = useTranslation(verifyEmailTranslations);
   const router = useRouter();
   const { success: showSuccess, error: showError } = useToast();
-  const [resendVerification, { loading: resending }] = useMutation(RESEND_VERIFICATION_EMAIL, {
+  const [resendVerification, { loading: resending }] = useMutation(ResendVerificationEmailDocument, {
     onCompleted: (data) => {
       if (data?.resendVerificationEmail?.success) {
         showSuccess(t("resendSuccess"));

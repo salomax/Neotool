@@ -10,7 +10,6 @@ import io.github.salomax.neotool.security.repo.EmailVerificationRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.EmailVerificationService
 import jakarta.inject.Singleton
-import java.time.Instant
 import java.util.UUID
 
 /**
@@ -23,8 +22,10 @@ class EmailVerificationResolver(
     private val userRepository: UserRepository,
     private val mapper: SecurityGraphQLMapper,
 ) {
-
-    fun verifyEmailWithToken(token: UUID, ipAddress: String): VerifyEmailPayloadDTO {
+    fun verifyEmailWithToken(
+        token: UUID,
+        ipAddress: String,
+    ): VerifyEmailPayloadDTO {
         return when (val result = emailVerificationService.verifyWithToken(token, ipAddress)) {
             is VerificationResult.Success ->
                 VerifyEmailPayloadDTO(
@@ -55,9 +56,20 @@ class EmailVerificationResolver(
         }
     }
 
-    fun resendVerificationEmail(userId: UUID, locale: String = "en"): ResendVerificationEmailPayloadDTO {
+    fun resendVerificationEmail(
+        userId: UUID,
+        locale: String = "en",
+    ): ResendVerificationEmailPayloadDTO {
         val user = userRepository.findById(userId).orElseThrow { IllegalStateException("User not found: $userId") }
-        return when (val result = emailVerificationService.resendVerification(userId, user.email, user.displayName ?: "", locale)) {
+        return when (
+            val result =
+                emailVerificationService.resendVerification(
+                    userId,
+                    user.email,
+                    user.displayName ?: "",
+                    locale,
+                )
+        ) {
             ResendResult.Success ->
                 ResendVerificationEmailPayloadDTO(
                     success = true,
@@ -73,17 +85,19 @@ class EmailVerificationResolver(
     }
 
     fun myVerificationStatus(userId: UUID): VerificationStatusDTO {
-        val user = userRepository.findById(userId).orElse(null) ?: return VerificationStatusDTO(
-            emailVerified = false,
-            canResendCode = false,
-        )
+        val user =
+            userRepository.findById(userId).orElse(null) ?: return VerificationStatusDTO(
+                emailVerified = false,
+                canResendCode = false,
+            )
         val active = emailVerificationRepository.findActiveByUserId(userId)
+        // Resend mutation enforces rate limit and returns canResendAt when limited
         return VerificationStatusDTO(
             emailVerified = user.emailVerified,
             emailVerifiedAt = user.emailVerifiedAt?.toString(),
             verificationCodeSentAt = active?.createdAt?.toString(),
             verificationCodeExpiresAt = active?.expiresAt?.toString(),
-            canResendCode = true, // Resend mutation enforces rate limit and returns canResendAt when limited
+            canResendCode = true,
             nextResendAvailableAt = null,
         )
     }

@@ -34,14 +34,15 @@ import { z } from "zod";
 import { useTranslation } from '@/shared/i18n';
 import { productsTranslations } from './i18n';
 import { Button } from "@/shared/components/ui/primitives";
+import { useQuery, useMutation } from '@apollo/client/react';
 import {
-  useGetProductsQuery,
-  GetProductsDocument
+  GetProductsDocument,
+  type GetProductsQuery,
 } from '@/lib/graphql/operations/product/queries.generated';
 import {
-  useCreateProductMutation,
-  useUpdateProductMutation,
-  useDeleteProductMutation
+  CreateProductDocument,
+  UpdateProductDocument,
+  DeleteProductDocument,
 } from '@/lib/graphql/operations/product/mutations.generated';
 import { ProductInput } from '@/lib/graphql/types/__generated__/graphql';
 
@@ -54,10 +55,10 @@ export default function ProductsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<any>(null);
 
   // Apollo Client hooks
-  const { data: productsData, loading, error, refetch } = useGetProductsQuery();
-  const [createProduct] = useCreateProductMutation();
-  const [updateProduct] = useUpdateProductMutation();
-  const [deleteProduct] = useDeleteProductMutation();
+  const { data: productsData, loading, error, refetch } = useQuery<GetProductsQuery>(GetProductsDocument);
+  const [createProduct] = useMutation(CreateProductDocument);
+  const [updateProduct] = useMutation(UpdateProductDocument);
+  const [deleteProduct] = useMutation(DeleteProductDocument);
 
   // Dynamic schema validation with translations
   const productSchema = z.object({

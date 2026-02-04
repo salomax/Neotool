@@ -7,8 +7,15 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import Card from "@/shared/components/ui/primitives/Card";
 import { useTranslation, i18n } from "@/shared/i18n";
 import { financialDataTranslations } from "@/shared/i18n/domains/financial-data";
-import { InstitutionRating } from "@/lib/graphql/types/__generated__/graphql";
 import { formatDate } from "@/shared/utils/date";
+
+/** Rating shape for institution ratings (not in generated GraphQL types) */
+export interface InstitutionRating {
+  name?: string | null;
+  label?: string | null;
+  ratingDate?: string | null;
+  issuer?: { code?: string | null; name?: string | null } | null;
+}
 
 export interface RatingCardProps {
   ratings: InstitutionRating[];

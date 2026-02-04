@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SignUpForm } from '../SignUpForm';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
@@ -49,6 +49,32 @@ const renderSignUpForm = (props = {}) => {
   );
 };
 
+/** Get input by test id. Uses getByLabelText for password fields (password inputs are not role="textbox"). */
+const getInputByTestId = (testId: string): HTMLInputElement => {
+  if (testId === 'textfield-password') {
+    return screen.getByLabelText(/^(Password|Senha)$/i) as HTMLInputElement;
+  }
+  if (testId === 'textfield-confirm-password') {
+    return screen.getByLabelText(/^(Confirm Password|Confirmar senha)$/i) as HTMLInputElement;
+  }
+  const field = screen.getByTestId(testId);
+  return within(field).getByRole('textbox') as HTMLInputElement;
+};
+
+const fillRequiredFields = async (user: ReturnType<typeof userEvent.setup>) => {
+  const nameInput = getInputByTestId('textfield-name');
+  const emailInput = getInputByTestId('textfield-email');
+  const passwordInput = getInputByTestId('textfield-password');
+  const confirmPasswordInput = getInputByTestId('textfield-confirm-password');
+
+  await user.type(nameInput, 'John Doe');
+  await user.type(emailInput, 'john@example.com');
+  await user.type(passwordInput, 'ValidPass123!');
+  await user.type(confirmPasswordInput, 'ValidPass123!');
+
+  return { nameInput, emailInput, passwordInput, confirmPasswordInput };
+};
+
 // Run sequentially to avoid multiple rendered forms across parallel threads
 describe.sequential('SignUpForm', () => {
   beforeEach(() => {
@@ -74,8 +100,8 @@ describe.sequential('SignUpForm', () => {
     await user.click(submitButton);
 
     await waitFor(() => {
-      const errorMessages = screen.getAllByText(/required/i);
-      expect(errorMessages.length).toBeGreaterThan(0);
+      const nameInput = getInputByTestId('textfield-name');
+      expect(nameInput).toHaveAttribute('aria-invalid', 'true');
     });
   });
 
@@ -83,15 +109,14 @@ describe.sequential('SignUpForm', () => {
     const user = userEvent.setup();
     renderSignUpForm();
 
-    const emailInput = screen.getByRole('textbox', { name: /email/i });
+    const emailInput = getInputByTestId('textfield-email');
     const submitButton = screen.getByTestId('button-signup');
 
     await user.type(emailInput, 'invalid-email');
     await user.click(submitButton);
 
     await waitFor(() => {
-      const errorMessages = screen.getAllByText(/invalid email|required/i);
-      expect(errorMessages.length).toBeGreaterThan(0);
+      expect(emailInput).toHaveAttribute('aria-invalid', 'true');
     });
   });
 
@@ -99,16 +124,14 @@ describe.sequential('SignUpForm', () => {
     const user = userEvent.setup();
     renderSignUpForm();
 
-    const passwordInputs = screen.getAllByLabelText(/password/i);
-    const passwordInput = passwordInputs.find((el) => el.tagName === 'INPUT') as HTMLInputElement;
+    const passwordInput = getInputByTestId('textfield-password');
     const submitButton = screen.getByTestId('button-signup');
 
     await user.type(passwordInput, 'weak');
     await user.click(submitButton);
 
     await waitFor(() => {
-      const errorMessages = screen.getAllByText(/invalid password|required/i);
-      expect(errorMessages.length).toBeGreaterThan(0);
+      expect(passwordInput).toHaveAttribute('aria-invalid', 'true');
     });
   });
 
@@ -116,8 +139,7 @@ describe.sequential('SignUpForm', () => {
     const user = userEvent.setup();
     renderSignUpForm();
 
-    const passwordInputs = screen.getAllByLabelText(/password/i);
-    const passwordInput = passwordInputs.find((el) => el.tagName === 'INPUT') as HTMLInputElement;
+    const passwordInput = getInputByTestId('textfield-password');
 
     await user.type(passwordInput, 'test');
 
@@ -130,8 +152,7 @@ describe.sequential('SignUpForm', () => {
     const user = userEvent.setup();
     renderSignUpForm();
 
-    const passwordInputs = screen.getAllByLabelText(/password/i);
-    const passwordInput = passwordInputs.find((el) => el.tagName === 'INPUT') as HTMLInputElement;
+    const passwordInput = getInputByTestId('textfield-password');
 
     await user.type(passwordInput, 'test');
 
@@ -149,22 +170,9 @@ describe.sequential('SignUpForm', () => {
     const onSuccess = vi.fn();
     renderSignUpForm({ onSuccess });
 
-    const nameInput = screen.getByRole('textbox', { name: /name/i });
-    const emailInput = screen.getByRole('textbox', { name: /email/i });
-    const passwordInputs = screen.getAllByLabelText(/password/i);
-    const passwordInput = passwordInputs.find((el) => el.tagName === 'INPUT') as HTMLInputElement;
+    await fillRequiredFields(user);
     const submitButton = screen.getByTestId('button-signup');
 
-    await user.type(nameInput, 'John Doe');
-    await user.type(emailInput, 'john@example.com');
-    await user.type(passwordInput, 'ValidPass123!');
-    
-    await waitFor(() => {
-      expect(nameInput).toHaveValue('John Doe');
-      expect(emailInput).toHaveValue('john@example.com');
-      expect(passwordInput).toHaveValue('ValidPass123!');
-    });
-    
     await user.click(submitButton);
 
     await waitFor(() => {
@@ -177,22 +185,9 @@ describe.sequential('SignUpForm', () => {
     const onSuccess = vi.fn();
     renderSignUpForm({ onSuccess });
 
-    const nameInput = screen.getByRole('textbox', { name: /name/i });
-    const emailInput = screen.getByRole('textbox', { name: /email/i });
-    const passwordInputs = screen.getAllByLabelText(/password/i);
-    const passwordInput = passwordInputs.find((el) => el.tagName === 'INPUT') as HTMLInputElement;
+    await fillRequiredFields(user);
     const submitButton = screen.getByTestId('button-signup');
 
-    await user.type(nameInput, 'John Doe');
-    await user.type(emailInput, 'john@example.com');
-    await user.type(passwordInput, 'ValidPass123!');
-    
-    await waitFor(() => {
-      expect(nameInput).toHaveValue('John Doe');
-      expect(emailInput).toHaveValue('john@example.com');
-      expect(passwordInput).toHaveValue('ValidPass123!');
-    });
-    
     await user.click(submitButton);
 
     await waitFor(() => {
@@ -206,22 +201,9 @@ describe.sequential('SignUpForm', () => {
 
     renderSignUpForm();
 
-    const nameInput = screen.getByRole('textbox', { name: /name/i });
-    const emailInput = screen.getByRole('textbox', { name: /email/i });
-    const passwordInputs = screen.getAllByLabelText(/password/i);
-    const passwordInput = passwordInputs.find((el) => el.tagName === 'INPUT') as HTMLInputElement;
+    await fillRequiredFields(user);
     const submitButton = screen.getByTestId('button-signup');
 
-    await user.type(nameInput, 'John Doe');
-    await user.type(emailInput, 'john@example.com');
-    await user.type(passwordInput, 'ValidPass123!');
-    
-    await waitFor(() => {
-      expect(nameInput).toHaveValue('John Doe');
-      expect(emailInput).toHaveValue('john@example.com');
-      expect(passwordInput).toHaveValue('ValidPass123!');
-    });
-    
     await user.click(submitButton);
 
     await waitFor(() => {
@@ -240,22 +222,9 @@ describe.sequential('SignUpForm', () => {
 
     renderSignUpForm();
 
-    const nameInput = screen.getByRole('textbox', { name: /name/i });
-    const emailInput = screen.getByRole('textbox', { name: /email/i });
-    const passwordInputs = screen.getAllByLabelText(/password/i);
-    const passwordInput = passwordInputs.find((el) => el.tagName === 'INPUT') as HTMLInputElement;
+    await fillRequiredFields(user);
     const submitButton = screen.getByTestId('button-signup');
 
-    await user.type(nameInput, 'John Doe');
-    await user.type(emailInput, 'john@example.com');
-    await user.type(passwordInput, 'ValidPass123!');
-    
-    await waitFor(() => {
-      expect(nameInput).toHaveValue('John Doe');
-      expect(emailInput).toHaveValue('john@example.com');
-      expect(passwordInput).toHaveValue('ValidPass123!');
-    });
-    
     await user.click(submitButton);
 
     await waitFor(() => {
@@ -267,18 +236,16 @@ describe.sequential('SignUpForm', () => {
     const user = userEvent.setup();
     renderSignUpForm();
 
-    const nameInput = screen.getByRole('textbox', { name: /name/i });
-    const emailInput = screen.getByRole('textbox', { name: /email/i });
-    const passwordInputs = screen.getAllByLabelText(/password/i);
-    const passwordInput = passwordInputs.find((el) => el.tagName === 'INPUT');
-    if (!passwordInput) {
-      throw new Error('Password input not found');
-    }
+    const nameInput = getInputByTestId('textfield-name');
+    const emailInput = getInputByTestId('textfield-email');
+    const passwordInput = getInputByTestId('textfield-password');
+    const confirmPasswordInput = getInputByTestId('textfield-confirm-password');
     const submitButton = screen.getByTestId('button-signup');
 
     await user.type(nameInput, '  John Doe  ');
     await user.type(emailInput, '  john@example.com  ');
     await user.type(passwordInput as HTMLInputElement, 'ValidPass123!');
+    await user.type(confirmPasswordInput, 'ValidPass123!');
     
     // Wait for password input to have value
     await waitFor(() => {

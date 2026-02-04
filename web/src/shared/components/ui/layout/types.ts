@@ -29,6 +29,11 @@ export type AlignValue = 'start' | 'center' | 'end' | 'stretch';
 export type JustifyValue = 'start' | 'center' | 'end' | 'between' | 'around' | 'evenly';
 
 /**
+ * Flex direction for Stack
+ */
+export type DirectionValue = 'row' | 'column' | 'row-reverse' | 'column-reverse';
+
+/**
  * Base props for all layout components
  */
 export interface LayoutComponentProps {
@@ -38,6 +43,10 @@ export interface LayoutComponentProps {
   align?: ResponsiveValue<AlignValue>;
   /** Main-axis justification */
   justify?: ResponsiveValue<JustifyValue>;
+  /** Flex direction (for Stack) */
+  direction?: ResponsiveValue<DirectionValue>;
+  /** Flex wrap */
+  flexWrap?: ResponsiveValue<'wrap' | 'nowrap' | 'wrap-reverse'>;
   /** HTML element to render as */
   as?: React.ElementType;
   /** Additional CSS class name */

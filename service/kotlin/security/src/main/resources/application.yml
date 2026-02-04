@@ -99,7 +99,7 @@ email:
   from: ${EMAIL_FROM:noreply@neotool.com}
   # Frontend URL for generating reset links
   # Can be set via FRONTEND_URL environment variable
-  frontend-url: ${FRONTEND_URL}
+  frontend-url: ${FRONTEND_URL:http://localhost:3000}
   # Delivery: mock (default, logs to console) or comms (via Apollo Router to Comms service).
   # For comms, also set graphql.router.url and security.service.id/secret (see docs/09-security/service-to-service-auth.md).
   delivery: ${EMAIL_DELIVERY:mock}

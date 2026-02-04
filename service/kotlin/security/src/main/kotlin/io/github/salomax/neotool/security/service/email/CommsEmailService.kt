@@ -155,7 +155,8 @@ class CommsEmailService(
             val data = response.data?.get("requestEmailSend") as? Map<*, *>
             if (data != null) {
                 logger.info {
-                    "Verification email sent via Comms for $to: requestId=${data["requestId"]}, status=${data["status"]}"
+                    "Verification email sent via Comms for $to: " +
+                        "requestId=${data["requestId"]}, status=${data["status"]}"
                 }
             } else {
                 logger.warn { "requestEmailSend (verification) returned no data for $to" }

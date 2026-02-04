@@ -9,13 +9,13 @@ import io.github.salomax.neotool.security.model.PrincipalEntity
 import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.UserRepository
-import io.github.salomax.neotool.security.service.email.EmailService
 import io.github.salomax.neotool.security.service.EmailVerificationService
-import io.micronaut.context.annotation.Value
+import io.github.salomax.neotool.security.service.email.EmailService
 import io.github.salomax.neotool.security.service.jwt.JwtTokenIssuer
 import io.github.salomax.neotool.security.service.jwt.RefreshTokenService
 import io.github.salomax.neotool.security.service.oauth.OAuthProviderRegistry
 import io.github.salomax.neotool.security.service.rate.RateLimitService
+import io.micronaut.context.annotation.Value
 import jakarta.inject.Singleton
 import jakarta.transaction.Transactional
 import mu.KotlinLogging

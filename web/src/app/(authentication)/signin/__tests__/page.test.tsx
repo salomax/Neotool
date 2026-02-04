@@ -65,18 +65,16 @@ describe.sequential('SignInPage', () => {
 
   it('renders signin page', () => {
     renderSignInPage();
-    
+
     expect(screen.getByTestId('signin-screen')).toBeInTheDocument();
     expect(screen.getByTestId('signin-form')).toBeInTheDocument();
   });
 
-  it('displays welcome title and subtitle', () => {
+  it('displays title and subtitle', () => {
     renderSignInPage();
-    
-    // Use getAllByText and get first element to handle multiple renders
-    const welcomeElements = screen.getAllByText(/welcome back/i);
-    expect(welcomeElements[0]).toBeInTheDocument();
-    expect(screen.getByText(/sign in to your account/i)).toBeInTheDocument();
+
+    expect(screen.getByTestId('signin-title')).toBeInTheDocument();
+    expect(screen.getByTestId('signin-subtitle')).toBeInTheDocument();
   });
 
   it('redirects if already authenticated', () => {
@@ -96,10 +94,10 @@ describe.sequential('SignInPage', () => {
       isAuthenticated: false,
       isLoading: true,
     });
-    
+
     renderSignInPage();
-    
-    expect(screen.getByText(/loading/i)).toBeInTheDocument();
+
+    expect(screen.getByTestId('signin-loading')).toBeInTheDocument();
   });
 
   it('does not redirect while loading', () => {
