@@ -83,6 +83,7 @@ Quick lookup and reference materials:
 |----------|------|------|----------|----------|
 | Assets Service - Specification | `03-features/assets/asset-service/README.md` | feature | assets | assets, upload, cdn, storage, cloudflare-r2, s3, minio |
 | Assets Service - Decisions | `03-features/assets/asset-service/decisions.md` | feature | assets | assets, adr, decisions, trade-offs |
+| Billing Module Blueprint | `03-features/billing/README.md` | feature | billing | billing, subscriptions, payments, plans, entitlements |
 | Security Overview | `03-features/security/README.md` | feature | security | security, authentication, authorization |
 | Authentication Features | `03-features/security/authentication/README.md` | feature | authentication | authentication, signin, signup, jwt |
 | Authorization Features | `03-features/security/authorization/README.md` | feature | authorization | authorization, rbac, permissions |
