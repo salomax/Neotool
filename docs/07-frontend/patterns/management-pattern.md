@@ -843,7 +843,7 @@ import { UserSearch } from "./UserSearch";
 import { UserList } from "./UserList";
 import { UserDrawer } from "./UserDrawer";
 import { useTranslation } from "@/shared/i18n";
-import { authorizationManagementTranslations } from "@/app/(neotool)/settings/i18n";
+import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
 
 export const UserManagement: React.FC<UserManagementProps> = ({
   initialSearchQuery = "",
@@ -1065,7 +1065,7 @@ Generic table component with declarative column definitions, loading states, pag
 ```typescript
 import { ManagementTable, type Column } from "@/shared/components/management";
 import { useTranslation } from "@/shared/i18n";
-import { authorizationManagementTranslations } from "@/app/(neotool)/settings/i18n";
+import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
 
 function UserList({ users, loading, onEdit, onToggleStatus, orderBy, onSortChange, ...props }) {
   const { t } = useTranslation(authorizationManagementTranslations);

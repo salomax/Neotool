@@ -3,9 +3,12 @@
 import * as React from "react";
 import { Box, Skeleton } from "@mui/material";
 import { MetricCard, MetricCardProps } from "./MetricCard";
+import { RatingCard, RatingCardProps } from "./RatingCard";
 import type { ResponsiveValue } from "../layout/types";
 
-export type MetricGridItem = MetricCardProps & { type?: 'metric' };
+export type MetricGridItem = 
+  | (MetricCardProps & { type?: 'metric'; chartData?: any[] })
+  | (RatingCardProps & { type: 'rating' });
 
 export interface MetricGridProps {
   /**
@@ -128,23 +131,39 @@ export const MetricGrid: React.FC<MetricGridProps> = ({
             })
           )
         ) : (
-          items.map((item, index) => (
-            <Box
-              key={index}
-              sx={{
-                height: '100%',
-                minHeight: resolvedSkeletonHeights.metric,
-              }}
-            >
-              <MetricCard
-                {...item}
+          items.map((item, index) => {
+            if (item.type === 'rating') {
+              return (
+                <Box
+                  key={index}
+                  sx={{
+                    height: '100%',
+                    minHeight: resolvedSkeletonHeights.metric,
+                  }}
+                >
+                  <RatingCard {...item} />
+                </Box>
+              );
+            }
+
+            return (
+              <Box
+                key={index}
                 sx={{
-                  ...(item.sx || {}),
                   height: '100%',
+                  minHeight: resolvedSkeletonHeights.metric,
                 }}
-              />
-            </Box>
-          )) 
+              >
+                <MetricCard
+                  {...item}
+                  sx={{
+                    ...(item.sx || {}),
+                    height: '100%',
+                  }}
+                />
+              </Box>
+            );
+          }) 
         )}
       </Box>
     </Box>

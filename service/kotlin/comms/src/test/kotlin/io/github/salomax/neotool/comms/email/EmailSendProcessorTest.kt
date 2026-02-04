@@ -35,7 +35,7 @@ class EmailSendProcessorTest {
 
         assertThatThrownBy { processor.process(event) }
             .isInstanceOf(ValidationException::class.java)
-            .hasMessage(EmailContentValidator.TEMPLATE_NOT_SUPPORTED)
+            .hasMessage(EmailContentValidator.TEMPLATE_MUST_BE_RENDERED)
     }
 
     @Test

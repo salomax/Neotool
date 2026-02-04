@@ -48,6 +48,6 @@ class MicronautEmailProviderTest {
 
         assertThatThrownBy { provider.send(payload) }
             .isInstanceOf(IllegalStateException::class.java)
-            .hasMessageContaining("Template content is not supported")
+            .hasMessageContaining("TEMPLATE content should be rendered before reaching provider")
     }
 }

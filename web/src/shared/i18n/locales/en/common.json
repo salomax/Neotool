@@ -26,7 +26,12 @@
     "examples": "Examples",
     "forms": "Forms",
     "settings": "Settings",
-    "financialInstitutions": "Financial Institutions"
+    "financialInstitutions": "Financial Institutions",
+    "financialData": "Financial Data"
+  },
+  "search": {
+    "placeholder": "Search...",
+    "label": "Search"
   },
   "actions": {
     "save": "Save",

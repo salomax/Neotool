@@ -1,18 +1,18 @@
 import type { Metadata } from 'next';
 
 const baseMetadata: Metadata = {
-  title: { default: 'neotool', template: '%s • neotool' },
-  description: 'neotool Web App',
-  applicationName: 'neotool',
+  title: { default: 'Invistus', template: '%s • invistus' },
+  description: 'Invistus Web App',
+  applicationName: 'Invistus',
   openGraph: {
-    title: 'neotool',
-    description: 'neotool Web App',
+    title: 'Invistus',
+    description: 'Invistus Web App',
     url: '/',
-    siteName: 'neotool',
+    siteName: 'Invistus',
     locale: 'pt_BR',
     type: 'website',
   },
-  twitter: { card: 'summary_large_image', title: 'neotool', description: 'neotool Web App' },
+  twitter: { card: 'summary_large_image', title: 'invistus', description: 'invistus Web App' },
   icons: {
     icon: [
       { url: '/favicon.ico' },

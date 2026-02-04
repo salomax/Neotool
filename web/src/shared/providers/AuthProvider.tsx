@@ -19,6 +19,7 @@ type AuthContextType = {
   signInWithOAuth: (provider: string, idToken: string, rememberMe?: boolean) => Promise<void>;
   signUp: (name: string, email: string, password: string) => Promise<void>;
   signOut: () => void;
+  setUser: (user: User | null) => void;
   isAuthenticated: boolean;
 };
 
@@ -191,21 +192,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       });
 
       if (result.data && typeof result.data === 'object' && result.data !== null && 'signUp' in result.data && result.data.signUp) {
-        const { token: newToken, refreshToken, user: newUser } = result.data.signUp as { token: string; refreshToken: string | null; user: any };
-        
+        const payload = result.data.signUp as { token: string; refreshToken: string | null; user: any; requiresVerification?: boolean };
+        const { token: newToken, refreshToken, user: newUser, requiresVerification } = payload;
+
         setToken(newToken);
         setUser(newUser);
 
         // Store in localStorage (signup users are automatically signed in)
         localStorage.setItem(TOKEN_KEY, newToken);
         localStorage.setItem(USER_KEY, JSON.stringify(newUser));
-        
+
         if (refreshToken) {
           localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
         }
 
-        // Redirect to home
-        router.push("/");
+        if (requiresVerification && newUser?.email) {
+          sessionStorage.setItem("pendingVerificationEmail", newUser.email);
+          router.push("/verify-email");
+        } else {
+          router.push("/");
+        }
       }
     } catch (error: any) {
       // Log technical errors (network failures, GraphQL errors)
@@ -239,6 +245,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signInWithOAuth,
     signUp,
     signOut,
+    setUser,
     isAuthenticated: !!user && !!token,
   };
 

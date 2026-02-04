@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { toSearchString, parseNumberParam } from '../url';
+import { toSearchString, parseNumberParam, toSlug, createSemanticPath, extractIdFromSemanticPath } from '../url';
+import { encodeId } from '../idObfuscation';
 
 describe('url utilities', () => {
   describe('toSearchString', () => {
@@ -117,5 +118,63 @@ describe('url utilities', () => {
       expect(parseNumberParam('  123  ')).toBe(123);
     });
   });
-});
 
+  describe('toSlug', () => {
+    it('should handle simple text', () => {
+      expect(toSlug('Hello World')).toBe('hello-world');
+    });
+
+    it('should handle accents', () => {
+      expect(toSlug('Olá Mundo')).toBe('ola-mundo');
+      expect(toSlug('Ação')).toBe('acao');
+    });
+
+    it('should handle special characters', () => {
+      expect(toSlug('Hello @ World!')).toBe('hello-world');
+    });
+
+    it('should handle multiple spaces', () => {
+      expect(toSlug('Hello   World')).toBe('hello-world');
+    });
+
+    it('should handle empty string', () => {
+      expect(toSlug('')).toBe('');
+    });
+  });
+
+  describe('createSemanticPath', () => {
+    it('should create path with slug only', () => {
+      expect(createSemanticPath('Bank Name')).toBe('bank-name');
+    });
+
+    it('should create path with slug and encoded id', () => {
+      const id = '123';
+      const path = createSemanticPath('Bank Name', id);
+      const encoded = encodeId(id);
+      expect(path).toBe(`bank-name.${encoded}`);
+    });
+  });
+
+  describe('extractIdFromSemanticPath', () => {
+    it('should extract id from semantic path', () => {
+      const id = '123';
+      const encoded = encodeId(id);
+      const path = `bank-name.${encoded}`;
+      expect(extractIdFromSemanticPath(path)).toBe(encoded);
+    });
+
+    it('should handle path without slug (just id)', () => {
+      const id = '123';
+      const encoded = encodeId(id);
+      expect(extractIdFromSemanticPath(encoded)).toBe(encoded);
+    });
+
+    it('should fallback to hyphen separator (legacy support)', () => {
+      // Note: This relies on encoded ID not containing hyphens, which is true for Hashids but not always for Base64URL
+      // Hashids uses alphanumeric alphabet by default
+      const encoded = 'abc123XYZ'; 
+      const path = `bank-name-${encoded}`;
+      expect(extractIdFromSemanticPath(path)).toBe(encoded);
+    });
+  });
+});

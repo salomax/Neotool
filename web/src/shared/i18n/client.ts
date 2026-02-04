@@ -9,8 +9,8 @@ if (typeof window !== "undefined" && !i18n.isInitialized) {
     .use(LanguageDetector)
     .use(initReactI18next)
     .init({
-      fallbackLng: "en-US",
-      supportedLngs: ["en-US", "pt-BR"],
+      fallbackLng: "pt-BR",
+      supportedLngs: ["pt-BR", "en-US"],
       interpolation: { escapeValue: false },
       backend: { loadPath: "/locales/{{lng}}/common.json" },
     });

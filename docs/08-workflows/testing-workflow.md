@@ -217,6 +217,7 @@ npm run test:e2e
 - [ ] Tests are readable and maintainable
 - [ ] Tests use proper test data
 - [ ] Tests are isolated and independent
+- [ ] Tests are language-agnostic: avoid asserting translated strings unless testing i18n; prefer stable selectors (test IDs, roles without locale-dependent names)
 
 ## Context Strategy for Testing
 
@@ -297,4 +298,3 @@ pnpm test:watch
 - [Frontend Testing Pattern](../04-patterns/frontend-patterns/testing-pattern.md) - Frontend test patterns
 - [E2E Testing Pattern](../04-patterns/frontend-patterns/e2e-testing-pattern.md) - E2E test patterns
 - [Spec Context Strategy](./spec-context-strategy.md) - Context optimization
-

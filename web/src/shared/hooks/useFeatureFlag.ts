@@ -45,13 +45,21 @@ export function useFeatureFlags(): Record<string, boolean> {
   }
 
   // Convert IToggle[] to Record<string, boolean>
+  // Convert IToggle[] to Record<string, boolean>
   const flagsRecord: Record<string, boolean> = {};
+
+  // The unleash proxy client typically returns an array of IToggle objects
   if (Array.isArray(flags)) {
-    (flags as IToggle[]).forEach((toggle) => {
-      flagsRecord[toggle.name] = toggle.enabled;
+    flags.forEach((toggle) => {
+      if (toggle && typeof toggle === 'object' && 'name' in toggle) {
+        flagsRecord[toggle.name] = toggle.enabled;
+      }
     });
-  } else if (flags && typeof flags === 'object') {
-    // Handle case where flags might already be a record
+    return flagsRecord;
+  }
+
+  // Handle case where flags might already be a record (unlikely with this library but good fallback)
+  if (flags && typeof flags === 'object') {
     return flags as Record<string, boolean>;
   }
 

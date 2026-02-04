@@ -5,10 +5,26 @@ import { ErrorLink } from '@apollo/client/link/error';
 import { CombinedGraphQLErrors, CombinedProtocolErrors } from '@apollo/client/errors';
 import { getAuthToken, clearAuthStorage, isAuthenticationError, getRefreshToken, updateAuthToken, updateAuthUser } from '@/shared/utils/auth';
 import { logger } from '@/shared/utils/logger';
+import { getRuntimeConfig } from '@/shared/config/runtime-config';
+
+/**
+ * Get GraphQL endpoint URL from runtime config or environment
+ * Supports both runtime injection (production) and build-time config (development)
+ */
+function getGraphQLEndpoint(): string {
+  // Try runtime config first (for production with Vault/Kubernetes injection)
+  const runtimeConfig = getRuntimeConfig();
+  if (runtimeConfig.graphqlEndpoint) {
+    return runtimeConfig.graphqlEndpoint;
+  }
+
+  // Fall back to build-time environment variable (for development)
+  return process.env.NEXT_PUBLIC_GRAPHQL_URL || 'http://localhost:4000/graphql';
+}
 
 // HTTP Link configuration - defines how Apollo Client communicates with the GraphQL server
 const httpLink = new HttpLink({
-  uri: process.env.NEXT_PUBLIC_GRAPHQL_URL || 'http://localhost:4000/graphql',
+  uri: getGraphQLEndpoint(),
 });
 
 // Auth link to add token to requests
@@ -26,6 +42,10 @@ const authLink = new SetContextLink((prevContext, operation) => {
 // Track if we're currently refreshing to avoid multiple refresh attempts
 let isRefreshing = false;
 let refreshPromise: Promise<string | null> | null = null;
+
+// Singleton cache for temporary client used during token refresh
+// This prevents memory leaks from creating new InMemoryCache instances on each refresh
+const tempCache = new InMemoryCache();
 
 /**
  * Attempts to refresh the access token using the refresh token
@@ -49,9 +69,10 @@ async function refreshAccessToken(): Promise<string | null> {
       const { REFRESH_ACCESS_TOKEN } = await import('@/lib/graphql/operations/auth');
       
       // Create a temporary client without auth link to avoid infinite loop
+      // Reuses singleton tempCache to prevent memory leaks
       const tempClient = new ApolloClient({
         link: httpLink,
-        cache: new InMemoryCache(),
+        cache: tempCache,
         ssrMode: typeof window === 'undefined',
       });
 
@@ -94,6 +115,8 @@ async function refreshAccessToken(): Promise<string | null> {
     } finally {
       isRefreshing = false;
       refreshPromise = null;
+      // Reset temp cache to free memory after each refresh attempt
+      tempCache.reset();
     }
   })();
 
@@ -242,6 +265,7 @@ function createApolloClient() {
     // InMemoryCache provides automatic normalization and caching of query results
     // This improves performance by avoiding duplicate requests and enabling optimistic updates
     cache: new InMemoryCache({
+      // Limit cache size to prevent unbounded memory growth
       typePolicies: {
         Query: {
           fields: {

@@ -208,7 +208,7 @@ This will create:
    export UNLEASH_TOKEN=$(vault kv get -field=server-token secret/unleash)
 
    # Create each flag individually
-   curl -X POST https://unleash.example.com/api/admin/projects/default/features \
+   curl -X POST http://localhost:4242/api/admin/projects/default/features \
      -H "Authorization: $UNLEASH_TOKEN" \
      -H "Content-Type: application/json" \
      -d '{

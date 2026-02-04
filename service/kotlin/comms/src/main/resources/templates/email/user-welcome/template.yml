@@ -1,0 +1,37 @@
+key: user.welcome
+channel: EMAIL
+metadata:
+  name: "User Welcome Email"
+  description: "Sent when user completes signup"
+  owner: "authentication-team"
+
+variables:
+  - name: userName
+    type: STRING
+    required: true
+  - name: verificationUrl
+    type: URL
+    required: true
+  - name: expiresInHours
+    type: INTEGER
+    required: false
+    default: 24
+
+locales:
+  en:
+    subject: "Welcome to Neotool, {{userName}}!"
+    bodyPath: "body.en.html"
+  pt-BR:
+    subject: "Bem-vindo ao Neotool, {{userName}}!"
+    bodyPath: "body.pt-BR.html"
+  pt:
+    subject: "Bem-vindo ao Neotool, {{userName}}!"
+    bodyPath: "body.pt.html"
+
+defaultLocale: en
+
+channelConfig:
+  email:
+    format: HTML
+    inlineCss: true
+    trackOpens: false

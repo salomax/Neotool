@@ -1,12 +1,11 @@
 "use client";
 
 import { useState, useMemo, useCallback, useEffect, useRef, startTransition } from "react";
+import { useQuery } from "@apollo/client/react";
 import {
-  useGetGroupsQuery,
   GetGroupsDocument,
-  GetUserWithRelationshipsDocument,
-  GetGroupsQueryVariables,
-  GetGroupsQuery,
+  type GetGroupsQueryVariables,
+  type GetGroupsQuery,
 } from '@/lib/graphql/operations/authorization-management/queries.generated';
 import { GroupOrderByInput } from '@/lib/graphql/types/__generated__/graphql';
 import { extractErrorMessage } from '@/shared/utils/error';
@@ -193,7 +192,10 @@ export function useGroupManagement(options: UseGroupManagementOptions = {}): Use
   // GraphQL hooks
   // Note: orderBy is added to the query but generated types may not include it yet
   // Type assertion is used until GraphQL types are regenerated
-  const { data: groupsData, loading, error, refetch } = useGetGroupsQuery({
+  const { data: groupsData, loading, error, refetch } = useQuery<
+    GetGroupsQuery,
+    GetGroupsQueryVariables
+  >(GetGroupsDocument, {
     variables: queryVariables,
     skip: waitingForPageSize,
     notifyOnNetworkStatusChange: true, // Keep loading state accurate during transitions

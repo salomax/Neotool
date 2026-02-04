@@ -1,0 +1,178 @@
+{
+  "routes": {
+    "financialData": "Financial Data"
+  },
+  "title": "Financial Data",
+  "subtitle": "Explore national indicators and track quarterly balance sheets of financial institutions with updated and accurate data.",
+  "nationalIndicators": {
+    "pageTitle": "National Indicators",
+    "search": {
+      "placeholder": "Search indicators...",
+      "label": "Indicators"
+    },
+    "tabs": {
+      "all": "All",
+      "inflation": "Inflation",
+      "interest": "Interest",
+      "activity": "Activity",
+      "income": "Income",
+      "external": "External",
+      "fiscal": "Fiscal"
+    },
+    "variations": {
+      "MONTHLY_CHANGE": "Monthly",
+      "ROLLING_12M": "12 Months",
+      "ACCUMULATED_YEAR": "YTD",
+      "ANNUAL": "Annual",
+      "QUARTERLY": "Quarterly",
+      "TARGET_RATE": "Target Rate",
+      "EFFECTIVE_RATE": "Effective Rate",
+      "HABITUAL": "Habitual",
+      "EFFECTIVE": "Effective"
+    },
+    "indicators": {
+      "IPCA": "IPCA",
+      "IPCA_15": "IPCA-15",
+      "INPC": "INPC",
+      "IGP_M": "IGP-M",
+      "IGP_DI": "IGP-DI",
+      "IGP_10": "IGP-10",
+      "SELIC": "Selic Rate",
+      "CDI": "CDI",
+      "DI_OVER": "DI Over",
+      "GDP": "GDP",
+      "UNEMPLOYMENT": "Unemployment Rate",
+      "AVERAGE_INCOME": "Average Real Income",
+      "TRADE_BALANCE": "Trade Balance",
+      "CURRENT_ACCOUNT": "Current Account",
+      "INTERNATIONAL_RESERVES": "International Reserves",
+      "PUBLIC_DEBT_GDP": "Net Public Debt (% GDP)",
+      "PRIMARY_RESULT": "Primary Result"
+    }
+  },
+  "cards": {
+    "financialInstitutions": {
+      "title": "Financial Institutions",
+      "description": "Consolidated quarterly balance sheets and credit ratings under BACEN supervision."
+    },
+    "nationalIndicators": {
+      "title": "National Indicators",
+      "description": "Historical series of IPCA, IGP-M, INPC and macroeconomic projections."
+    }
+  },
+  "pageTitle": "Financial Institutions",
+  "search": {
+    "placeholder": "Search by name or CNPJ...",
+    "label": "Financial Institutions"
+  },
+  "actions": {
+    "searchMetrics": "Search metrics...",
+    "viewDetails": "View details",
+    "loading": "Loading...",
+    "accessModule": "Access"
+  },
+  "periods": {
+    "1y": "1 Year",
+    "3y": "3 Years",
+    "5y": "5 Years"
+  },
+  "messages": {
+    "noInstitutionsFound": "No institutions found",
+    "unableToLoadInstitutions": "Unable to load institutions. Please try again.",
+    "unableToLoadInstitution": "Unable to load institution",
+    "invalidInstitutionId": "Invalid institution ID",
+    "institutionNotFound": "Institution not found",
+    "noReportData": "No data available for this report",
+    "selectReport": "Select a report to view details",
+    "clickToViewDetails": "Click to view details",
+    "noResults": "No results found."
+  },
+  "institutionTypes": {
+    "individualInstitution": "Individual Institution",
+    "prudentialGroup": "Prudential Group",
+    "financialGroup": "Financial Group"
+  },
+  "financialMetrics": {
+    "netProfit": "Net Profit",
+    "equity": "Equity",
+    "yoyGrowth": "YoY Growth",
+    "baselIndex": "Basileia Index"
+  },
+  "ratings": {
+    "title": "Ratings",
+    "lastUpdate": "LAST UPDATE",
+    "issuer": {
+      "FITCH": "Fitch Ratings"
+    },
+    "type": {
+      "NATIONAL_LONG_TERM_RATING": "National Long Term Rating",
+      "LONG_TERM_ISSUER_DEFAULT_RATING": "Long-Term Issuer Default Rating",
+      "SHORT_TERM_ISSUER_DEFAULT_RATING": "Short-Term Issuer Default Rating",
+      "GOVERNMENT_SUPPORT_RATING": "Government Support Rating",
+      "LOCAL_CURRENCY_SHORT_TERM_ISSUER_DEFAULT_RATING": "Local Currency Short-Term Issuer Default Rating",
+      "LOCAL_CURRENCY_LONG_TERM_ISSUER_DEFAULT_RATING": "Local Currency Long-Term Issuer Default Rating",
+      "VIABILITY_RATING": "Viability Rating",
+      "NATIONAL_SHORT_TERM_RATING": "National Short Term Rating"
+    }
+  },
+  "institutionSummary": {
+    "cnpj": "CNPJ",
+    "tradeName": "Trade Name",
+    "founded": "Founded Date",
+    "shareholdingControl": "Shareholding Control",
+    "headOffice": "Head Office / Address",
+    "website": "Website",
+    "consolidation": "Consolidation",
+    "institutionType": "Institution Type",
+    "controlType": {
+      "PUBLIC": "Public",
+      "PRIVATE_DOMESTIC": "Private Domestic",
+      "PRIVATE_FOREIGN_CONTROL": "Private Foreign Control"
+    },
+    "bankType": {
+      "B1": "Commercial Bank, Multiple Bank with commercial portfolio or savings bank",
+      "B2": "Multiple Bank without commercial portfolio or exchange bank or investment bank",
+      "B3S": "Single Credit Cooperative",
+      "B3C": "Central Credit Cooperative",
+      "B4": "Development Bank",
+      "N1": "Non-banking Credit Institution",
+      "N2": "Non-banking Capital Market Institution",
+      "N4": "Payment Institution"
+    },
+    "consolidationType": {
+      "INDIVIDUAL_INSTITUTION": "Individual Institution",
+      "PRUDENTIAL_GROUP": "Conglomerado/Group",
+      "FINANCIAL_GROUP": "Conglomerado/Group"
+    }
+  },
+  "reports": "Reports",
+  "currency": {
+    "billions": "bi",
+    "millions": "mi",
+    "billionsLong": "billions",
+    "millionsLong": "millions"
+  },
+  "lastBalanceSummary": {
+    "title": "Last Balance Summary",
+    "tooltip": "Consolidated data from the latest available balance sheet at Bacen.",
+    "totalAssets": "Total Assets",
+    "funding": "Funding",
+    "creditPortfolio": "Credit Portfolio",
+    "netEquity": "Net Equity",
+    "securities": "Securities",
+    "netProfit": "Net Profit",
+    "liabilities": "Liabilities",
+    "baselIndex": "Basileia Index",
+    "fixedAssetsIndex": "Fixed Assets Index",
+    "referenceEquity": "Reference Equity",
+    "classifiedCreditPortfolio": "Classified Credit Portfolio",
+    "currentAndLongTermLiabilities": "Current and Long-term Liabilities and Future Results",
+    "numberOfBranches": "Number of Branches",
+    "numberOfServicePoints": "Number of Service Points"
+  },
+  "footer": {
+    "source": "Data updated regularly with official sources",
+    "ifDataSource": "Source: IFData — Banco Central do Brasil (Portal de Dados Abertos).",
+    "ratingSource": "Credit ratings provided by Fitch Ratings®, based on publicly available information published by the agency."
+  }
+}

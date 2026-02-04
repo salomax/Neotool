@@ -15,6 +15,7 @@ export * from './data-display';
 
 // Forms - Components for form input and validation
 export * from './forms';
+export * from './inputs';
 
 // Feedback - Components for user feedback and notifications
 export * from './feedback';

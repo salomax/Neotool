@@ -24,7 +24,7 @@ const mockGroups = [
   },
 ];
 
-const mockUseGetGroupsQuery = vi.fn(() => ({
+const mockUseQuery = vi.fn((_document?: any, _options?: any) => ({
   data: {
     groups: {
       edges: mockGroups.map((group) => ({
@@ -37,8 +37,8 @@ const mockUseGetGroupsQuery = vi.fn(() => ({
   refetch: vi.fn(),
 }));
 
-vi.mock('@/lib/graphql/operations/authorization-management/queries.generated', () => ({
-  useGetGroupsQuery: () => mockUseGetGroupsQuery(),
+vi.mock('@apollo/client/react', () => ({
+  useQuery: (document: any, options: any) => mockUseQuery(document, options),
 }));
 
 // Mock translations
@@ -87,7 +87,7 @@ describe.sequential('RoleGroupAssignment', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseGetGroupsQuery.mockReturnValue({
+    mockUseQuery.mockReturnValue({
       data: {
         groups: {
           edges: mockGroups.map((g) => ({ node: g })),
@@ -144,13 +144,13 @@ describe.sequential('RoleGroupAssignment', () => {
       expect(screen.queryByText('Assigned Groups')).not.toBeInTheDocument();
       // When active is false, component returns null early, so query is never called
       // The test expectation was incorrect - when component returns null, no query is made
-      expect(mockUseGetGroupsQuery).not.toHaveBeenCalled();
+      expect(mockUseQuery).not.toHaveBeenCalled();
     });
   });
 
   describe('Loading state', () => {
     it('should show loading spinner when loading', () => {
-      mockUseGetGroupsQuery.mockReturnValue({
+      mockUseQuery.mockReturnValue({
         data: undefined as any,
         loading: true,
         error: undefined,
@@ -166,7 +166,7 @@ describe.sequential('RoleGroupAssignment', () => {
   describe('Error state', () => {
     it('should show error alert when error occurs', () => {
       const mockRefetch = vi.fn();
-      mockUseGetGroupsQuery.mockReturnValue({
+      mockUseQuery.mockReturnValue({
         data: undefined as any,
         loading: false,
         error: new Error('Failed to load') as any,

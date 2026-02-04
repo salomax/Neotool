@@ -143,6 +143,10 @@ const DrawerComponent: React.FC<DrawerProps> = ({
       width: anchor === 'left' || anchor === 'right' ? drawerWidth : '100%',
       height: anchor === 'top' || anchor === 'bottom' ? height : '100%',
       borderRadius: 0,
+      bgcolor: theme.palette.mode === 'dark' 
+        ? (theme as any).custom?.palette?.sidebarBg || '#111729'
+        : 'background.paper',
+      backgroundImage: theme.palette.mode === 'dark' ? 'none' : undefined,
     },
     ...sx,
   };

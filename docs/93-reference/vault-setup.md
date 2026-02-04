@@ -98,6 +98,39 @@ If needed, enable KV v2:
 vault secrets enable -version=2 -path=secret kv
 ```
 
+### Step 4: Backup and Restore Keys (Important for Local Development)
+
+**⚠️ Important**: Vault in dev mode uses in-memory storage. When you restart the Vault container, all keys are lost. Use the backup/restore commands to persist your keys.
+
+**Backup keys before restarting Vault:**
+```bash
+# Backup all keys to ~/.vault-keys/backup.json
+./neotool vault backup
+
+# Backup a specific key
+./neotool vault backup kid-1
+```
+
+**Restore keys after Vault restart:**
+```bash
+# Restore all keys from backup
+./neotool vault restore
+
+# Restore a specific key
+./neotool vault restore kid-1
+
+# Restore with force (overwrite existing keys)
+./neotool vault restore --force
+```
+
+**Recommended workflow:**
+1. Create your keys: `./neotool vault create-secret kid-1`
+2. **Before restarting Vault**: `./neotool vault backup`
+3. Restart Vault container: `docker-compose restart vault`
+4. **After Vault is back up**: `./neotool vault restore`
+
+The backup file is stored at `~/.vault-keys/backup.json` and persists across Vault restarts.
+
 ---
 
 ## Creating Secrets Manually
@@ -484,6 +517,7 @@ curl http://localhost:8200/v1/sys/health
 - Secret doesn't exist
 - Wrong path
 - Wrong key ID
+- **Keys lost after Vault restart (dev mode only)**
 
 **Solutions:**
 ```bash
@@ -495,6 +529,22 @@ vault kv get secret/jwt/keys/kid-1
 
 # Check key ID matches
 echo $JWT_KEY_ID
+
+# If keys were lost after Vault restart (dev mode):
+# Restore from backup if you have one
+./neotool vault restore
+
+# If no backup exists, recreate the keys
+./neotool vault create-secret kid-1
+```
+
+**Prevention:** Always backup keys before restarting Vault in dev mode:
+```bash
+# Before restarting
+./neotool vault backup
+
+# After restarting
+./neotool vault restore
 ```
 
 ### Issue: "Authentication failed"

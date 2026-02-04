@@ -369,8 +369,9 @@ class SecurityAuthResolverTest {
                     "New User",
                     "newuser@example.com",
                     "password123",
+                    "en",
                 ),
-            ).thenReturn(user)
+            ).thenReturn(AuthenticationService.RegisterUserResult(user = user, requiresVerification = false))
             whenever(authContextFactory.build(user)).thenReturn(authContext)
             whenever(authenticationService.generateAccessToken(eq(authContext))).thenReturn("access-token")
             whenever(refreshTokenService.createRefreshToken(user.id!!)).thenReturn("refresh-token")
@@ -384,7 +385,8 @@ class SecurityAuthResolverTest {
             val payload = result.data as SignUpPayloadDTO
             assertThat(payload.token).isEqualTo("access-token")
             assertThat(payload.refreshToken).isEqualTo("refresh-token")
-            verify(authenticationService).registerUser("New User", "newuser@example.com", "password123")
+            assertThat(payload.requiresVerification).isFalse()
+            verify(authenticationService).registerUser("New User", "newuser@example.com", "password123", "en")
             verify(authContextFactory).build(user)
             verify(refreshTokenService).createRefreshToken(user.id!!)
         }
@@ -669,8 +671,9 @@ class SecurityAuthResolverTest {
                     "New User",
                     "newuser@example.com",
                     "password123",
+                    "en",
                 ),
-            ).thenReturn(user)
+            ).thenReturn(AuthenticationService.RegisterUserResult(user = user, requiresVerification = false))
             whenever(authContextFactory.build(user)).thenReturn(authContext)
             whenever(authenticationService.generateAccessToken(eq(authContext))).thenReturn("access-token")
             whenever(refreshTokenService.createRefreshToken(user.id!!)).thenReturn("refresh-token")

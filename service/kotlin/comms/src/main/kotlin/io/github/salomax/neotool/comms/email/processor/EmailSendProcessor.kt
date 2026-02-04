@@ -15,6 +15,11 @@ class EmailSendProcessor(
         val payload = message.payload
         val content = payload.content
 
+        // Events must contain rendered (RAW) content; reject unrendered TEMPLATE
+        if (content.kind == io.github.salomax.neotool.comms.email.dto.EmailContentKind.TEMPLATE) {
+            throw ValidationException(EmailContentValidator.TEMPLATE_MUST_BE_RENDERED)
+        }
+
         if (!EmailContentValidator.isKindSupported(content.kind)) {
             throw ValidationException(EmailContentValidator.TEMPLATE_NOT_SUPPORTED)
         }

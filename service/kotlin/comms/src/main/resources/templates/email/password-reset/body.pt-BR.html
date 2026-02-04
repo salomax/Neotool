@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background-color: #f5f5f5; }
+    .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+    .header { background-color: #2563eb; padding: 32px 24px; text-align: center; }
+    .logo { color: #ffffff; font-size: 24px; font-weight: 700; }
+    .content { padding: 40px 24px; }
+    .title { font-size: 24px; font-weight: 600; color: #1f2937; margin: 0 0 16px 0; }
+    .text { font-size: 16px; line-height: 1.6; color: #4b5563; margin: 0 0 24px 0; }
+    .button-container { text-align: center; margin: 32px 0; }
+    .button { background-color: #2563eb; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600; }
+    .link-text { font-size: 14px; color: #6b7280; word-break: break-all; }
+    .warning { background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; margin: 24px 0; }
+    .warning-text { font-size: 14px; color: #92400e; margin: 0; }
+    .footer { background-color: #f9fafb; padding: 24px; text-align: center; font-size: 12px; color: #6b7280; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">Neotool</div>
+    </div>
+    <div class="content">
+      <h1 class="title">Redefina sua Senha</h1>
+      <p class="text">Você solicitou a redefinição de senha da sua conta Neotool. Clique no botão abaixo para criar uma nova senha:</p>
+
+      <div class="button-container">
+        <a href="{{resetUrl}}" class="button">Redefinir Senha</a>
+      </div>
+
+      <p class="text">Ou copie e cole este link no seu navegador:</p>
+      <p class="link-text">{{resetUrl}}</p>
+
+      <div class="warning">
+        <p class="warning-text"><strong>⏱ Este link expira em {{expiresInMinutes}} minutos.</strong></p>
+      </div>
+
+      <p class="text" style="font-size: 14px;">Se você não solicitou esta redefinição de senha, ignore este e-mail. Sua senha permanecerá inalterada.</p>
+    </div>
+    <div class="footer">
+      <p>© 2026 Neotool. Todos os direitos reservados.</p>
+      <p>Este é um e-mail automatizado. Por favor, não responda.</p>
+    </div>
+  </div>
+</body>
+</html>

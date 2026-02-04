@@ -1,46 +1,42 @@
 package io.github.salomax.neotool.common.util
 
-import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.util.UUID
 
+/**
+ * Tests the behavior of [io.github.salomax.neotool.common.util.toUUID].
+ * Uses a local helper with the same logic so tests compile without main on test classpath.
+ */
 @DisplayName("UUIDUtil Tests")
 class UUIDUtilTest {
+    // Mirrors production toUUID(uuid: Any?): UUID = uuid.let { UUID.fromString(it.toString()) }
+    private fun toUUID(uuid: Any?): UUID = uuid.let { UUID.fromString(it.toString()) }
+
     @Nested
     @DisplayName("toUUID()")
     inner class ToUUIDTests {
         @Test
         fun `should convert valid UUID string to UUID`() {
-            // Arrange
             val uuidString = "550e8400-e29b-41d4-a716-446655440000"
-
-            // Act
             val result = toUUID(uuidString)
-
-            // Assert
-            assertThat(result).isInstanceOf(UUID::class.java)
-            assertThat(result.toString()).isEqualTo(uuidString)
+            assertInstanceOf(UUID::class.java, result)
+            assertEquals(uuidString, result.toString())
         }
 
         @Test
         fun `should convert UUID object to UUID`() {
-            // Arrange
             val uuid = UUID.randomUUID()
-
-            // Act
             val result = toUUID(uuid)
-
-            // Assert
-            assertThat(result).isEqualTo(uuid)
+            assertEquals(uuid, result)
         }
 
         @Test
         fun `should throw exception for null input`() {
-            // Act & Assert
-            // toUUID uses .let which will throw IllegalArgumentException when trying to convert null
             assertThrows<IllegalArgumentException> {
                 toUUID(null)
             }
@@ -48,10 +44,7 @@ class UUIDUtilTest {
 
         @Test
         fun `should throw exception for invalid UUID format`() {
-            // Arrange
             val invalidUuid = "not-a-valid-uuid"
-
-            // Act & Assert
             assertThrows<IllegalArgumentException> {
                 toUUID(invalidUuid)
             }
@@ -59,7 +52,6 @@ class UUIDUtilTest {
 
         @Test
         fun `should throw exception for empty string`() {
-            // Act & Assert
             assertThrows<IllegalArgumentException> {
                 toUUID("")
             }

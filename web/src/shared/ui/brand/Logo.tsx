@@ -49,7 +49,7 @@ export function Logo({
     >
       <Image
         src={logoSrc}
-        alt="neotool"
+        alt="Invistus"
         width={logoWidth}
         height={logoHeight}
         priority
@@ -63,7 +63,7 @@ export function Logo({
             color: variant === 'white' ? 'white' : 'text.primary',
           }}
         >
-          neotool
+          Invistus
         </Box>
       )}
     </Box>

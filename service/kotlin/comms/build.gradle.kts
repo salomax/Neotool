@@ -67,6 +67,11 @@ dependencies {
     // Jackson for JSON
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
 
+    // Template Engine
+    implementation("com.github.spullara.mustache.java:compiler:0.9.14")
+    implementation("org.jsoup:jsoup:1.17.2")
+    implementation("com.helger:ph-css:8.1.1")
+
     // Logging
     runtimeOnly("ch.qos.logback:logback-classic")
 
@@ -157,4 +162,12 @@ tasks.register<Test>("testIntegration") {
 // Enable ZIP64 support for all JAR tasks to handle more than 65535 entries
 tasks.withType<Jar> {
     isZip64 = true
+}
+
+// Workaround for KSP configuration cache issue
+// KSP tasks are not fully compatible with Gradle configuration cache
+tasks.all {
+    if (name.startsWith("ksp") || name.contains("Ksp")) {
+        notCompatibleWithConfigurationCache("KSP tasks are not compatible with configuration cache")
+    }
 }

@@ -2,6 +2,7 @@
 # Managed by: ./neotool upstream command
 
 project.config.json merge=ours
+web/src/styles/themes/tokens.ts merge=ours
 web/public/favicon.ico merge=ours
 web/public/images/logos/** merge=ours
 design/assets/logos/** merge=ours

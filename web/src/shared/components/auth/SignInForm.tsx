@@ -150,6 +150,7 @@ export const SignInForm: React.FC<SignInFormProps> = ({ onSuccess }) => {
                 component={NextLink}
                 href="/forgot-password"
                 name="forgot-password"
+                data-testid="link-forgot-password"
                 sx={{ fontSize: "0.875rem" }}
               >
                 {t("forgotPassword")}
@@ -206,7 +207,7 @@ export const SignInForm: React.FC<SignInFormProps> = ({ onSuccess }) => {
             <Typography variant="body2" color="text.secondary" component="span">
               {t("dontHaveAccount")}{" "}
             </Typography>
-            <Link component={NextLink} href="/signup" name="signup-link">
+            <Link component={NextLink} href="/signup" name="signup-link" data-testid="link-signup">
               {t("signUp")}
             </Link>
           </Box>

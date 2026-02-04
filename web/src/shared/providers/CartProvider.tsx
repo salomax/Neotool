@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { CartItem, Cart, CartItemInput } from "@/lib/hooks/cart/types";
+import { CartItem, Cart, CartItemInput } from "@/shared/hooks/cart/types";
 import { logger } from "@/shared/utils/logger";
 
 type CartContextType = {

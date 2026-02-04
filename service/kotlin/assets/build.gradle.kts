@@ -25,6 +25,7 @@ repositories { mavenCentral() }
 dependencies {
     // Project dependencies
     implementation(project(":common"))
+    testImplementation(testFixtures(project(":common")))
 
     // Add Micronaut Data KSP processor
     ksp("io.micronaut.data:micronaut-data-processor")

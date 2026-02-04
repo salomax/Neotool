@@ -4,6 +4,7 @@ import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { GroupDrawer } from '../GroupDrawer';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
+import { useMutation } from '@apollo/client/react';
 
 // Mock Next.js navigation
 vi.mock('next/navigation', () => ({
@@ -62,47 +63,35 @@ const mockGroup = {
   ],
 };
 
-const mockUseGetGroupWithRelationshipsQuery = vi.fn(() => ({
-  data: { group: mockGroup },
-  loading: false,
-  error: undefined,
-  refetch: vi.fn().mockResolvedValue({ data: { group: mockGroup } }),
-}));
-
-const mockUseCreateGroupMutation = vi.fn(() => [
-  vi.fn().mockResolvedValue({
-    data: {
-      createGroup: {
-        id: '2',
-        name: 'New Group',
-        description: 'New Description',
-      },
+const mockCreateGroupMutation = vi.fn().mockResolvedValue({
+  data: {
+    createGroup: {
+      id: '2',
+      name: 'New Group',
+      description: 'New Description',
     },
-  }),
-  { loading: false },
-]);
+  },
+});
 
-const mockUseUpdateGroupMutation = vi.fn(() => [
-  vi.fn().mockResolvedValue({
-    data: {
-      updateGroup: {
-        id: '1',
-        name: 'Updated Group',
-        description: 'Updated Description',
-      },
+const mockUpdateGroupMutation = vi.fn().mockResolvedValue({
+  data: {
+    updateGroup: {
+      id: '1',
+      name: 'Updated Group',
+      description: 'Updated Description',
     },
-  }),
-  { loading: false },
-]);
+  },
+});
 
-vi.mock('@/lib/graphql/operations/authorization-management/queries.generated', () => ({
-  useGetGroupWithRelationshipsQuery: () => mockUseGetGroupWithRelationshipsQuery(),
-  GetGroupsDocument: {},
-}));
+// Use vi.hoisted to define the mock function that needs to be available in mock factories
+const { mockUseMutation } = vi.hoisted(() => {
+  return {
+    mockUseMutation: vi.fn(),
+  };
+});
 
-vi.mock('@/lib/graphql/operations/authorization-management/mutations.generated', () => ({
-  useCreateGroupMutation: () => mockUseCreateGroupMutation(),
-  useUpdateGroupMutation: () => mockUseUpdateGroupMutation(),
+vi.mock('@apollo/client/react', () => ({
+  useMutation: mockUseMutation,
 }));
 
 // Mock useGroupMutations hook
@@ -244,42 +233,28 @@ const renderGroupDrawer = (props = {}) => {
   );
 };
 
+// Helper to setup useMutation mock - must be called before each test
+const setupUseMutationMock = (options?: { createLoading?: boolean; updateLoading?: boolean }) => {
+  let callCount = 0;
+  mockUseMutation.mockImplementation(() => {
+    callCount++;
+    if (callCount === 1) {
+      // First call is CreateGroupDocument
+      return [mockCreateGroupMutation, { loading: options?.createLoading ?? false }];
+    }
+    // Second call is UpdateGroupDocument
+    return [mockUpdateGroupMutation, { loading: options?.updateLoading ?? false }];
+  });
+};
+
 // Run sequentially to avoid concurrent renders leaking between tests
 describe.sequential('GroupDrawer', () => {
   const user = userEvent.setup();
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseGetGroupWithRelationshipsQuery.mockReturnValue({
-      data: { group: mockGroup },
-      loading: false,
-      error: undefined,
-      refetch: vi.fn().mockResolvedValue({ data: { group: mockGroup } }),
-    });
-    mockUseCreateGroupMutation.mockReturnValue([
-      vi.fn().mockResolvedValue({
-        data: {
-          createGroup: {
-            id: '2',
-            name: 'New Group',
-            description: 'New Description',
-          },
-        },
-      }),
-      { loading: false },
-    ]);
-    mockUseUpdateGroupMutation.mockReturnValue([
-      vi.fn().mockResolvedValue({
-        data: {
-          updateGroup: {
-            id: '1',
-            name: 'Updated Group',
-            description: 'Updated Description',
-          },
-        },
-      }),
-      { loading: false },
-    ]);
+    // Reset useMutation state for each test
+    setupUseMutationMock();
     mockUseGroupMutations.mockReturnValue({
       updateGroup: vi.fn().mockResolvedValue(undefined),
       assignRoleToGroup: vi.fn().mockResolvedValue(undefined),
@@ -339,7 +314,16 @@ describe.sequential('GroupDrawer', () => {
           },
         },
       });
-      mockUseCreateGroupMutation.mockReturnValue([createMutation, { loading: false }]);
+
+      // Setup custom mutation mock for this test
+      let callCount = 0;
+      (useMutation as any).mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          return [createMutation, { loading: false }];
+        }
+        return [mockUpdateGroupMutation, { loading: false }];
+      });
 
       const onClose = vi.fn();
       renderGroupDrawer({ groupId: null, onClose });
@@ -478,10 +462,19 @@ describe.sequential('GroupDrawer', () => {
     });
 
     it('should disable buttons when saving', () => {
-      mockUseCreateGroupMutation.mockReturnValue([
-        vi.fn(),
-        { loading: true },
-      ]);
+      // Setup mock with loading state
+      // useMutation is called multiple times due to re-renders, so we need to track
+      // which mutation document is being requested and return consistent values
+      // Odd calls (1, 3, 5...) are CreateGroupDocument, even calls (2, 4, 6...) are UpdateGroupDocument
+      let callCount = 0;
+      mockUseMutation.mockImplementation(() => {
+        callCount++;
+        const isCreateMutation = callCount % 2 === 1;
+        if (isCreateMutation) {
+          return [mockCreateGroupMutation, { loading: true }];
+        }
+        return [mockUpdateGroupMutation, { loading: false }];
+      });
 
       renderGroupDrawer({ groupId: null });
 

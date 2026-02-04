@@ -1,11 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
+import { useQuery } from '@apollo/client/react';
 import { useUserManagement } from '../useUserManagement';
 
-// Mock the GraphQL operations
-vi.mock('@/lib/graphql/operations/authorization-management/queries.generated', () => ({
-  useGetUsersQuery: vi.fn(),
-  GetUsersDocument: {}, // Mock document for refetch
+vi.mock('@apollo/client/react', () => ({
+  useQuery: vi.fn(),
 }));
 
 vi.mock('@/shared/hooks/authorization/useUserMutations', () => ({
@@ -25,7 +24,6 @@ vi.mock('@/shared/utils/auth', () => ({
   isAuthenticationError: vi.fn(() => false),
 }));
 
-import { useGetUsersQuery } from '@/lib/graphql/operations/authorization-management/queries.generated';
 import { useUserMutations } from '@/shared/hooks/authorization/useUserMutations';
 import { useRelayPagination } from '@/shared/hooks/pagination';
 import { useAuth } from '@/shared/providers/AuthProvider';
@@ -76,7 +74,7 @@ describe('useUserManagement', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Clear mock call history to prevent memory accumulation
-    (useGetUsersQuery as any).mockClear();
+    (useQuery as any).mockClear();
     mockRefetch.mockClear();
     (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({ isAuthenticated: true });
     (hasAuthToken as unknown as ReturnType<typeof vi.fn>).mockReturnValue(true);
@@ -86,7 +84,7 @@ describe('useUserManagement', () => {
     // Default mock implementations - return stable response object
     // Note: We return a new object with the same structure to avoid state leaks,
     // but reuse the nested data structures to reduce memory
-    (useGetUsersQuery as any).mockImplementation((args: any) => {
+    (useQuery as any).mockImplementation((_doc: any, args: any) => {
       lastQueryArgs = args;
       return {
         ...baseMockResponse,
@@ -131,11 +129,11 @@ describe('useUserManagement', () => {
 
       // When orderBy is null, it's not included in variables (not set to undefined)
       // Check that the variables object doesn't have orderBy property
-      const lastCall = (useGetUsersQuery as any).mock.calls[
-        (useGetUsersQuery as any).mock.calls.length - 1
+      const lastCall = (useQuery as any).mock.calls[
+        (useQuery as any).mock.calls.length - 1
       ];
-      expect(lastCall[0].variables).not.toHaveProperty('orderBy');
-      expect(lastCall[0].variables).toHaveProperty('first');
+      expect(lastCall[1].variables).not.toHaveProperty('orderBy');
+      expect(lastCall[1].variables).toHaveProperty('first');
     });
 
     it('should pass orderBy to GraphQL query when sort state is set', async () => {
@@ -219,11 +217,11 @@ describe('useUserManagement', () => {
       // When after is null, it's not included in variables (not set to undefined)
       // We verify this by checking that the last call doesn't have after in variables
       await waitFor(() => {
-        const lastCall = (useGetUsersQuery as any).mock.calls[
-          (useGetUsersQuery as any).mock.calls.length - 1
+        const lastCall = (useQuery as any).mock.calls[
+          (useQuery as any).mock.calls.length - 1
         ];
-        expect(lastCall[0].variables).not.toHaveProperty('after');
-        expect(lastCall[0].variables).toHaveProperty('orderBy');
+        expect(lastCall[1].variables).not.toHaveProperty('after');
+        expect(lastCall[1].variables).toHaveProperty('orderBy');
       });
 
       // Explicitly unmount to ensure cleanup

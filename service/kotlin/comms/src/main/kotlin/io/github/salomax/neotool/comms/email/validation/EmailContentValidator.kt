@@ -10,6 +10,9 @@ import io.github.salomax.neotool.comms.email.dto.EmailContentKind
  */
 object EmailContentValidator {
     const val TEMPLATE_NOT_SUPPORTED = "Template content is not supported yet"
+
+    /** Event payload must contain rendered (RAW) content; TEMPLATE must be rendered before sending. */
+    const val TEMPLATE_MUST_BE_RENDERED = "TEMPLATE content should be rendered before sending"
     const val SUBJECT_REQUIRED = "subject must not be blank"
     const val BODY_REQUIRED = "body must not be blank"
     const val TEMPLATE_KEY_REQUIRED = "templateKey must not be blank"
@@ -48,7 +51,7 @@ object EmailContentValidator {
      * Checks if the content kind is currently supported.
      */
     fun isKindSupported(kind: EmailContentKind): Boolean {
-        return kind == EmailContentKind.RAW
+        return kind == EmailContentKind.RAW || kind == EmailContentKind.TEMPLATE
     }
 
     data class ValidationError(

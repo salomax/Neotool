@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
-import { useCart } from "@/lib/hooks/cart/useCart";
+import { useCart } from "@/shared/hooks/cart";
+import type { CartItem } from "@/shared/hooks/cart/types";
 import { Box, Typography, Button, Divider, IconButton, Stack } from "@mui/material";
 import { DeleteIcon } from "@/shared/ui/mui-imports";
 
@@ -65,7 +66,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           </Box>
         ) : (
           <Stack spacing={2}>
-            {items.map((item) => (
+            {items.map((item: CartItem) => (
               <Box key={item.id}>
                 <Box
                   sx={{

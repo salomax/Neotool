@@ -3,7 +3,7 @@ import { renderHook, waitFor, act, cleanup } from '@testing-library/react';
 import { useOAuth } from '@/shared/hooks/auth';
 
 // Mock the Google OAuth module
-vi.mock('@/lib/auth/oauth/google', () => ({
+vi.mock('@/shared/utils/auth/oauth', () => ({
   signInWithGoogle: vi.fn(),
   loadGoogleIdentityServices: vi.fn(() => Promise.resolve()),
 }));
@@ -30,7 +30,7 @@ describe.sequential('useOAuth', () => {
   });
 
   it('should call signInWithGoogle for google provider', async () => {
-    const { signInWithGoogle } = await import('@/lib/auth/oauth/google');
+    const { signInWithGoogle } = await import('@/shared/utils/auth/oauth');
     vi.mocked(signInWithGoogle).mockResolvedValue('test-id-token');
 
     const onSuccess = vi.fn();
@@ -53,7 +53,7 @@ describe.sequential('useOAuth', () => {
   });
 
   it('should handle errors from OAuth provider', async () => {
-    const { signInWithGoogle } = await import('@/lib/auth/oauth/google');
+    const { signInWithGoogle } = await import('@/shared/utils/auth/oauth');
     const error = new Error('OAuth error');
     vi.mocked(signInWithGoogle).mockRejectedValue(error);
 
@@ -103,7 +103,7 @@ describe.sequential('useOAuth', () => {
   });
 
   it('should set loading state during sign in', async () => {
-    const { signInWithGoogle } = await import('@/lib/auth/oauth/google');
+    const { signInWithGoogle } = await import('@/shared/utils/auth/oauth');
     let resolvePromise: (value: string) => void;
     const promise = new Promise<string>((resolve) => {
       resolvePromise = resolve;
@@ -125,7 +125,7 @@ describe.sequential('useOAuth', () => {
   });
 
   it('should return null on error', async () => {
-    const { signInWithGoogle } = await import('@/lib/auth/oauth/google');
+    const { signInWithGoogle } = await import('@/shared/utils/auth/oauth');
     vi.mocked(signInWithGoogle).mockRejectedValue(new Error('OAuth error'));
 
     const { result } = renderHook(() => useOAuth());

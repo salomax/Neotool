@@ -11,12 +11,12 @@ import { CustomerForm } from './components';
 import { z } from "zod";
 import { useTranslation } from '@/shared/i18n';
 import { customersTranslations } from './i18n';
-import { useCustomers, CustomerFormData, Customer } from '@/lib/hooks/customer/useCustomers';
+import { useCustomers, CustomerFormData, Customer } from '@/shared/hooks/customer';
 import { useToast } from '@/shared/providers';
 import { Button, ErrorBoundary, Skeleton } from '@/shared/components/ui/primitives';
 import { formatDateTime, getCurrentLocale } from '@/shared/utils/date';
 import { CUSTOMER_STATUSES, CUSTOMER_STATUS_OPTIONS, DEFAULT_CUSTOMER_STATUS } from './constants';
-import { extractErrorMessage } from '@/lib/hooks/customer/utils';
+import { extractErrorMessage } from '@/shared/utils/error';
 
 
 function CustomersPageContent() {
@@ -139,7 +139,8 @@ function CustomersPageContent() {
       },
     },
     {
-      field: 'actions' as keyof Customer, // Actions column doesn't map to a real field
+      field: 'id', // ag-grid requires a valid field; we use id but render actions
+      colId: 'actions',
       headerName: t('actions'),
       width: 120,
       sortable: false,
