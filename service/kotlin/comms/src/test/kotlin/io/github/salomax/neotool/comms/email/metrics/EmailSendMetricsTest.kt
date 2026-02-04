@@ -51,4 +51,25 @@ class EmailSendMetricsTest {
         val count = registry.find("comms.email.dlq.publish.failure").counter()?.count() ?: 0.0
         assertThat(count).isEqualTo(1.0)
     }
+
+    @Test
+    fun `increments error counter without type`() {
+        metrics.incrementError()
+
+        val count =
+            registry.find("comms.email.error.count")
+                .tag("type", "processing")
+                .counter()
+                ?.count() ?: 0.0
+        assertThat(count).isEqualTo(1.0)
+    }
+
+    @Test
+    fun `records processing duration`() {
+        metrics.recordProcessingDuration(150.0)
+
+        val timer = registry.find("comms.email.processing.duration").timer()
+        assertThat(timer).isNotNull
+        assertThat(timer!!.totalTime(java.util.concurrent.TimeUnit.MILLISECONDS)).isEqualTo(150.0)
+    }
 }

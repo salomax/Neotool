@@ -11,6 +11,7 @@ related:
   - 11-infrastructure/architecture.md
   - 11-infrastructure/k8s-runbook.md
   - 11-infrastructure/hostinger-runbook.md
+  - 11-infrastructure/local-staging-runbook.md
   - 02-architecture/infrastructure-architecture.md
   - 08-workflows/deployment-workflow.md
   - 10-observability/observability-overview.md
@@ -35,6 +36,9 @@ Complete guide for GitOps workflows, pod management, database access, monitoring
 ### **🖥️ [Hostinger Infrastructure Runbook](./hostinger-runbook.md)** - VPS Provisioning & K3S Setup
 Terraform automation, K3S cluster management, and VPS-level operations.
 
+### **🧪 [Local Staging Runbook](./local-staging-runbook.md)** - Run Staging Locally
+Step-by-step guide to run the staging stack locally (Docker Compose) and validate services.
+
 ---
 
 ## Overview
@@ -48,8 +52,10 @@ docs/11-infrastructure/
 ├── README.md                  # This file (navigation)
 ├── architecture.md            # High-level infrastructure overview
 ├── feature-flags-unleash.md   # Feature flags with Unleash
+├── runtime-configuration.md   # Runtime config pattern (window injection)
 ├── k8s-runbook.md            # Kubernetes operations & troubleshooting
-└── hostinger-runbook.md      # VPS provisioning & K3S management
+├── hostinger-runbook.md      # VPS provisioning & K3S management
+└── local-staging-runbook.md  # Local staging (Docker Compose)
 ```
 
 ---
@@ -87,6 +93,8 @@ docs/11-infrastructure/
 - [Infrastructure Architecture](./architecture.md) - High-level overview
 - [Kubernetes Operations Runbook](./k8s-runbook.md) - Day-to-day operations
 - [Feature Flags with Unleash](./feature-flags-unleash.md) - Feature flag system setup
+- [Runtime Configuration](./runtime-configuration.md) - Frontend runtime config pattern
+- [Local Staging Runbook](./local-staging-runbook.md) - Run staging locally
 
 **Common Tasks**:
 - [Deploy via GitOps](./k8s-runbook.md#deploying-applications-via-gitops) - Push to Git → Auto-deploy
@@ -333,8 +341,8 @@ flux reconcile kustomization infrastructure
 
 ---
 
-**Version**: 3.0.0 (2026-01-15)
+**Version**: 3.1.0 (2026-01-26)
 **Maintained By**: DevOps Team
-**Last Updated**: Simplified to 3 focused documents: Architecture, K8S Runbook, Hostinger Runbook
+**Last Updated**: Added Runtime Configuration documentation for frontend env injection
 
 *Simple infrastructure. GitOps deployments. Production-ready.*

@@ -8,6 +8,11 @@ coverage/
 .env
 .env.*
 venv
+.next/
+# Compiled binaries
+/cronjob
+/cli
+/retry-worker
 
 *.code-workspace
 .idea
@@ -21,7 +26,9 @@ out/
 # Kotlin compiler session files
 .kotlin/
 *.salive
+.run/
 
+.gocache/
 __pycache__/
 
 .expo/
@@ -56,3 +63,11 @@ terraform.tfvars
 *.tfvars.backup
 .terraformrc
 terraform.rc
+
+# IDE settings
+.vscode/
+.claude/
+.cursor/
+
+# Drafting ideas
+docs/03-features/brainstorming

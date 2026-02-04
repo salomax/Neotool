@@ -106,13 +106,13 @@ export function useMutationWithRefetch<TData, TVariables>(
           variables,
           ...(refetchQuery && refetchVariables
             ? {
-                refetchQueries: [
-                  {
-                    query: refetchQuery,
-                    variables: refetchVariables,
-                  },
-                ],
-              }
+              refetchQueries: [
+                {
+                  query: refetchQuery,
+                  variables: refetchVariables,
+                },
+              ],
+            }
             : {}),
         });
 

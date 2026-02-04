@@ -149,6 +149,10 @@ comms:
   email:
     provider: mock
     from: ${EMAIL_FROM:noreply@neotool.com}
+  template:
+    directory: templates
+    default-locale: ${COMMS_DEFAULT_LOCALE:en}
+    hot-reload: ${COMMS_TEMPLATE_HOT_RELOAD:false}
 
 # JavaMail (SMTP) configuration
 javamail:

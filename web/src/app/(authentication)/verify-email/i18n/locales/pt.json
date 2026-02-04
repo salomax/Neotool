@@ -1,0 +1,12 @@
+{
+  "title": "Verifique seu e-mail",
+  "description": "Enviamos um link de verificação para {{email}}. Clique no link no e-mail para verificar sua conta. Não recebeu? Reenvie o link abaixo.",
+  "resend": "Reenviar link de verificação",
+  "resendSuccess": "Novo link de verificação enviado!",
+  "resendRateLimit": "Aguarde antes de solicitar outro link.",
+  "success": "E-mail verificado com sucesso!",
+  "skip": "Pular por agora (Acesso limitado)",
+  "errors": {
+    "unknownError": "Algo deu errado. Tente novamente."
+  }
+}

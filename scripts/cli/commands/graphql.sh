@@ -44,6 +44,10 @@ Subcommands:
 
 Options:
   --docker    Use Docker for rover (useful for CI/CD)
+  --production   Generate only the production supergraph (default)
+  --all          Generate production + local + staging supergraphs
+  --sync-flux    Copy production supergraph files into the Flux repo (default)
+  --no-sync-flux Skip copying production supergraph files into Flux
   --help      Show this help message
 
 Environment variables:
@@ -55,6 +59,8 @@ Examples:
   $0 validate
   $0 generate
   $0 generate --docker
+  $0 generate --all
+  $0 generate --no-sync-flux
   $0 all
 
 For more information, see: scripts/cli/commands/graphql/sync-schemas.sh
@@ -94,12 +100,14 @@ execute_validate() {
 # Execute generate command
 execute_generate() {
     local use_docker=false
+    local -a forward_args=()
     
     # Check for --docker flag
     for arg in "$@"; do
         if [[ "$arg" == "--docker" ]]; then
             use_docker=true
-            break
+        else
+            forward_args+=("$arg")
         fi
     done
     
@@ -114,21 +122,31 @@ execute_generate() {
     fi
     
     if [[ "$use_docker" == true ]]; then
-        USE_DOCKER_ROVER=true "$GENERATE_SCRIPT"
+        if ((${#forward_args[@]})); then
+            USE_DOCKER_ROVER=true "$GENERATE_SCRIPT" "${forward_args[@]}"
+        else
+            USE_DOCKER_ROVER=true "$GENERATE_SCRIPT"
+        fi
     else
-        "$GENERATE_SCRIPT"
+        if ((${#forward_args[@]})); then
+            "$GENERATE_SCRIPT" "${forward_args[@]}"
+        else
+            "$GENERATE_SCRIPT"
+        fi
     fi
 }
 
 # Execute all command
 execute_all() {
     local use_docker=false
+    local -a forward_args=()
     
     # Check for --docker flag
     for arg in "$@"; do
         if [[ "$arg" == "--docker" ]]; then
             use_docker=true
-            break
+        else
+            forward_args+=("$arg")
         fi
     done
     
@@ -150,9 +168,17 @@ execute_all() {
     # Generate
     log "Step 3/3: Generating supergraph..." "$BLUE"
     if [[ "$use_docker" == true ]]; then
-        execute_generate --docker
+        if ((${#forward_args[@]})); then
+            execute_generate --docker "${forward_args[@]}"
+        else
+            execute_generate --docker
+        fi
     else
-        execute_generate
+        if ((${#forward_args[@]})); then
+            execute_generate "${forward_args[@]}"
+        else
+            execute_generate
+        fi
     fi
     
     log "\n🎉 Full GraphQL schema management completed!" "$BRIGHT"
@@ -195,4 +221,3 @@ main() {
 
 # Run main function
 main "$@"
-

@@ -10,14 +10,14 @@ import java.time.Instant
  */
 @Serdeable
 data class PeopleMessage(
-    @JsonProperty("batch_id")
+    @field:JsonProperty("batch_id")
     val batchId: String,
-    @JsonProperty("record_id")
+    @field:JsonProperty("record_id")
     val recordId: String,
     // ISO 8601 format
-    @JsonProperty("ingested_at")
+    @field:JsonProperty("ingested_at")
     val ingestedAt: String,
-    @JsonProperty("payload")
+    @field:JsonProperty("payload")
     val payload: PeoplePayload,
 ) {
     /**
@@ -36,16 +36,16 @@ data class PeoplePayload(
     val name: String,
     val height: String?,
     val mass: String?,
-    @JsonProperty("hair_color")
+    @field:JsonProperty("hair_color")
     val hairColor: String?,
-    @JsonProperty("skin_color")
+    @field:JsonProperty("skin_color")
     val skinColor: String?,
-    @JsonProperty("eye_color")
+    @field:JsonProperty("eye_color")
     val eyeColor: String?,
-    @JsonProperty("birth_year")
+    @field:JsonProperty("birth_year")
     val birthYear: String?,
     val gender: String?,
-    @JsonProperty("homeworld_url")
+    @field:JsonProperty("homeworld_url")
     val homeworldUrl: String?,
     val films: List<String> = emptyList(),
     val species: List<String> = emptyList(),

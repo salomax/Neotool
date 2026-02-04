@@ -9,11 +9,13 @@ import io.github.salomax.neotool.security.model.PrincipalEntity
 import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.UserRepository
+import io.github.salomax.neotool.security.service.EmailVerificationService
 import io.github.salomax.neotool.security.service.email.EmailService
 import io.github.salomax.neotool.security.service.jwt.JwtTokenIssuer
 import io.github.salomax.neotool.security.service.jwt.RefreshTokenService
 import io.github.salomax.neotool.security.service.oauth.OAuthProviderRegistry
 import io.github.salomax.neotool.security.service.rate.RateLimitService
+import io.micronaut.context.annotation.Value
 import jakarta.inject.Singleton
 import jakarta.transaction.Transactional
 import mu.KotlinLogging
@@ -37,6 +39,8 @@ open class AuthenticationService(
     private val rateLimitService: RateLimitService,
     private val oauthProviderRegistry: OAuthProviderRegistry,
     private val refreshTokenService: RefreshTokenService,
+    private val emailVerificationService: EmailVerificationService,
+    @param:Value("\${app.verification.enabled:true}") private val emailVerificationEnabled: Boolean,
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -414,10 +418,13 @@ open class AuthenticationService(
      * - Email format (handled by DTO validation)
      * - Password strength
      *
+     * When email verification is enabled, initiates verification and returns requiresVerification = true.
+     *
      * @param name The user's display name
      * @param email The user's email (must be unique)
      * @param password The plain text password (will be hashed)
-     * @return UserEntity if registration succeeds
+     * @param locale Locale for verification email (default: "en")
+     * @return RegisterUserResult with user and requiresVerification flag
      * @throws IllegalArgumentException if email already exists or password is invalid
      */
     @Transactional
@@ -425,7 +432,8 @@ open class AuthenticationService(
         name: String,
         email: String,
         password: String,
-    ): UserEntity {
+        locale: String = "en",
+    ): RegisterUserResult {
         // Check if email already exists
         val existingUser = userRepository.findByEmail(email)
         if (existingUser != null) {
@@ -444,12 +452,13 @@ open class AuthenticationService(
         // Hash password
         val passwordHash = hashPassword(password)
 
-        // Create user entity
+        // Create user entity (emailVerified = false by default)
         val user =
             UserEntity(
                 email = email,
                 displayName = name,
                 passwordHash = passwordHash,
+                emailVerified = false,
             )
 
         // Save user
@@ -459,9 +468,33 @@ open class AuthenticationService(
         val userId = requireNotNull(savedUser.id) { "User ID is required after save" }
         ensureUserPrincipalExists(userId, enabled = true)
 
-        logger.info { "User registered successfully: $email" }
-        return savedUser
+        var requiresVerification = false
+        if (emailVerificationEnabled) {
+            try {
+                emailVerificationService.initiateVerification(
+                    userId = userId,
+                    userEmail = email,
+                    userName = name,
+                    locale = locale,
+                    ipAddress = null,
+                )
+                requiresVerification = true
+            } catch (e: Exception) {
+                logger.error(e) { "Failed to send verification email for $email; user created" }
+            }
+        }
+
+        logger.info { "User registered successfully: $email (requiresVerification=$requiresVerification)" }
+        return RegisterUserResult(user = savedUser, requiresVerification = requiresVerification)
     }
+
+    /**
+     * Result of user registration (includes verification requirement).
+     */
+    data class RegisterUserResult(
+        val user: UserEntity,
+        val requiresVerification: Boolean,
+    )
 
     @Transactional
     open fun saveUser(user: UserEntity): UserEntity = userRepository.save(user)

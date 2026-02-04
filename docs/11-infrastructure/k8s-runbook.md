@@ -24,6 +24,7 @@ last_updated: 2026-01-15
 
 1. [Quick Reference](#quick-reference)
 2. [GitOps with Flux CD](#gitops-with-flux-cd)
+   - [Production Release via GH Actions + Flux Image Automation](#production-release-via-gh-actions--flux-image-automation)
 3. [Pod & Deployment Management](#pod--deployment-management)
 4. [Database Operations](#database-operations)
 5. [Secrets Management](#secrets-management)
@@ -80,6 +81,35 @@ kubectl get nodes
 # Check Flux health
 flux check
 ```
+
+### Initial Cluster Setup (After Fresh Install)
+
+After installing a fresh cluster with Flux, run these scripts in order:
+
+```bash
+cd ~/src/invistus/invistus/infra/kubernetes/scripts
+
+# 1. Initialize and configure Vault
+./vault-setup.sh
+# - Initializes Vault (generates unseal keys + root token)
+# - Unseals Vault
+# - Configures Kubernetes auth for ExternalSecrets
+# - Credentials saved to: ~/.invistus/vault-credentials.txt
+
+# 2. Setup PostgreSQL credentials
+./postgres-setup.sh
+# - Creates database users and passwords
+# - Stores in Vault: secret/postgres, secret/unleash, secret/pgbouncer
+# - Triggers ExternalSecrets sync
+
+# 3. Setup Unleash API tokens
+./unleash-setup.sh
+# - Generates secure API tokens for Unleash
+# - Stores in Vault: secret/unleash (adds server-token, proxy-token)
+# - Required for Unleash HelmRelease to succeed
+```
+
+After running the scripts, Flux will automatically deploy all components.
 
 ---
 
@@ -297,6 +327,134 @@ git push
 
 # Flux automatically rolls back!
 ```
+
+### Production Release via GH Actions + Flux Image Automation
+
+**Goal**: Tag/release triggers a GHCR image publish, Flux detects the new tag, updates the manifest, and rolls out in `production`.
+
+#### Preconditions
+
+- Flux is pointing to the correct branch (currently `main`)
+- Image automation objects exist in `flux-system`
+- Deployment manifest has the `"$imagepolicy"` marker on the `image:` line
+
+#### Release Flow (neotool-web)
+
+1) **Create a version tag**
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+2) **GitHub Actions builds and pushes to GHCR**
+   - Workflow: `.github/workflows/production.yml`
+   - Image: `ghcr.io/invistus/neotool-web:v0.1.0`
+
+3) **Flux Image Automation updates the manifest**
+   - `ImageRepository` detects new tag
+   - `ImagePolicy` selects `v0.1.0`
+   - `ImageUpdateAutomation` commits the change to `main`
+
+4) **Flux reconciles and rolls out**
+
+```bash
+flux get imagepolicies -n flux-system
+flux get imageupdateautomations -n flux-system
+kubectl -n production rollout status deploy/neotool-web
+```
+
+#### Validation Checklist
+
+```bash
+# Flux health
+flux check
+flux get sources git
+
+# Kustomizations
+flux get kustomizations -A
+
+# Image automation
+flux get imagerepositories -n flux-system
+flux get imagepolicies -n flux-system
+flux get imageupdateautomations -n flux-system
+
+# Deployment status
+kubectl -n production get deploy neotool-web
+kubectl -n production describe deploy neotool-web
+kubectl -n production rollout status deploy/neotool-web
+```
+
+#### Troubleshooting Quick Fixes
+
+```bash
+# Force Git source sync
+flux reconcile source git flux-system --with-source
+
+# Force image automation run
+flux reconcile image update neotool-web -n flux-system
+
+# Force app reconcile
+flux reconcile kustomization web --with-source
+```
+
+#### PR Automation (flux-updates → main)
+
+If your org does not allow direct pushes to `main`, Flux can push to `flux-updates`
+and GitHub Actions will open a PR automatically.
+
+**Flow**:
+- Flux commits image updates to `flux-updates`
+- Workflow `.github/workflows/flux-pr.yml` opens/updates a PR into `main`
+- You review and merge the PR
+
+**Verify**:
+```bash
+git log --oneline --decorate -n 5
+```
+
+#### GHCR Authentication (Private Packages)
+
+If the ImageRepository reports `UNAUTHORIZED`, GHCR access credentials are missing.
+
+1) **Create the registry secret in `flux-system`**
+
+```bash
+kubectl -n flux-system create secret docker-registry ghcr-credentials \
+  --docker-server=ghcr.io \
+  --docker-username=YOUR_GITHUB_USER_OR_ORG \
+  --docker-password=YOUR_GHCR_TOKEN \
+  --docker-email=YOUR_EMAIL
+```
+
+2) **Reference the secret in the ImageRepository**
+
+```yaml
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageRepository
+metadata:
+  name: neotool-web
+  namespace: flux-system
+spec:
+  image: ghcr.io/invistus/neotool-web
+  interval: 1m0s
+  secretRef:
+    name: ghcr-credentials
+```
+
+3) **Verify**
+
+```bash
+kubectl -n flux-system get imagerepositories
+```
+
+#### GitHub App Auth (Org Policy)
+
+Some orgs disable deploy keys. In that case, use GitHub App credentials for Flux.
+
+See the Hostinger runbook for the bootstrap flow:
+
+- `docs/11-infrastructure/hostinger-runbook.md`
 
 ---
 
@@ -698,7 +856,7 @@ Vault seals automatically after pod restart for security.
 
 ```bash
 # Load credentials
-source ~/.neotool/vault-credentials.txt
+source ~/.invistus/vault-credentials.txt
 
 # Unseal (requires 3 of 5 keys)
 kubectl exec -n production vault-0 -- vault operator unseal "$UNSEAL_KEY_1"
@@ -706,8 +864,8 @@ kubectl exec -n production vault-0 -- vault operator unseal "$UNSEAL_KEY_2"
 kubectl exec -n production vault-0 -- vault operator unseal "$UNSEAL_KEY_3"
 
 # Or use script
-cd ~/src/Neotool/infra/kubernetes/scripts
-./vault-unseal.sh
+cd ~/src/invistus/invistus/infra/kubernetes/scripts
+./vault-setup.sh
 ```
 
 #### View Secrets in Vault
@@ -720,7 +878,7 @@ kubectl exec -n production vault-0 -- vault kv list secret/
 kubectl exec -n production vault-0 -- vault kv get secret/postgres
 
 # If permission denied, authenticate with root token:
-source ~/.neotool/vault-credentials.txt
+source ~/.invistus/vault-credentials.txt
 kubectl exec -n production vault-0 -- sh -c "VAULT_TOKEN='$ROOT_TOKEN' vault kv get secret/postgres"
 ```
 
@@ -770,7 +928,7 @@ kubectl annotate externalsecret postgres-credentials -n production force-sync="$
 
 # Or delete and recreate
 kubectl delete externalsecret postgres-credentials -n production
-kubectl apply -f ~/src/Neotool/infra/kubernetes/flux/infrastructure/external-secrets-config/postgres-external-secret.yaml
+kubectl apply -f ~/src/invistus/invistus-flux/infra/kubernetes/flux/infrastructure/external-secrets-config/postgres-external-secret.yaml
 ```
 
 ### Kubernetes Secrets
@@ -1191,8 +1349,8 @@ kubectl cp production/backend-7d8f9c5b6-xyz12:/tmp/heap.hprof ./heap.hprof
 kubectl exec -n production vault-0 -- vault status
 
 # If sealed, unseal
-source ~/.neotool/vault-credentials.txt
-./infra/kubernetes/scripts/vault-unseal.sh
+source ~/.invistus/vault-credentials.txt
+./infra/kubernetes/scripts/vault-setup.sh
 ```
 
 #### External Secrets Not Syncing
@@ -1217,7 +1375,7 @@ kubectl exec -n production vault-0 -- vault status
 **Solution**: Verify and reconfigure Vault role
 
 ```bash
-source ~/.neotool/vault-credentials.txt
+source ~/.invistus/vault-credentials.txt
 
 # Check current role
 kubectl exec -n production vault-0 -- sh -c "VAULT_TOKEN='$ROOT_TOKEN' vault read auth/kubernetes/role/app"

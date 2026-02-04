@@ -1,0 +1,39 @@
+key: order.confirmation
+channel: EMAIL
+metadata:
+  name: "Order Confirmation Email"
+  description: "Sent when an order is confirmed"
+  owner: "commerce-team"
+
+variables:
+  - name: orderNumber
+    type: STRING
+    required: true
+  - name: customerName
+    type: STRING
+    required: true
+  - name: orderTotal
+    type: STRING
+    required: true
+  - name: orderDate
+    type: DATE
+    required: true
+  - name: orderItems
+    type: JSON
+    required: false
+
+locales:
+  en:
+    subject: "Order Confirmation - {{orderNumber}}"
+    bodyPath: "body.en.html"
+  pt-BR:
+    subject: "Confirmação de Pedido - {{orderNumber}}"
+    bodyPath: "body.pt-BR.html"
+
+defaultLocale: en
+
+channelConfig:
+  email:
+    format: HTML
+    inlineCss: true
+    trackOpens: false

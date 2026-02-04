@@ -1,0 +1,34 @@
+key: auth.password-reset
+channel: EMAIL
+metadata:
+  name: "Password Reset Email"
+  description: "Sent when user requests password reset"
+  owner: "security-team"
+
+variables:
+  - name: resetUrl
+    type: URL
+    required: true
+  - name: expiresInMinutes
+    type: INTEGER
+    required: false
+    default: 60
+
+locales:
+  en:
+    subject: "Reset your Neotool password"
+    bodyPath: "body.en.html"
+  pt:
+    subject: "Redefina sua senha do Neotool"
+    bodyPath: "body.pt.html"
+  pt-BR:
+    subject: "Redefina sua senha do Neotool"
+    bodyPath: "body.pt-BR.html"
+
+defaultLocale: en
+
+channelConfig:
+  email:
+    format: HTML
+    inlineCss: true
+    trackOpens: false

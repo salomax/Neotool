@@ -3,8 +3,8 @@
 import * as React from "react";
 
 type BreadcrumbLabelContextType = {
-  labels: Record<string, string>;
-  setLabel: (path: string, label: string | null) => void;
+  labels: Record<string, string | null>;
+  setLabel: (path: string, label: string | null | undefined) => void;
 };
 
 const BreadcrumbLabelContext = React.createContext<BreadcrumbLabelContextType | null>(null);
@@ -13,7 +13,7 @@ const BreadcrumbLabelContext = React.createContext<BreadcrumbLabelContextType | 
  * Hook to set a custom label for a specific breadcrumb path segment.
  * 
  * @param path - The path segment to customize (e.g., "bacen-cod-inst")
- * @param label - The label to display, or null to clear it
+ * @param label - The label to display. Pass null to show a loading state (skeleton).
  * 
  * @example
  * ```tsx
@@ -39,7 +39,7 @@ export function useBreadcrumbLabel(path: string, label: string | null): void {
     setLabel(path, label);
     // Cleanup: clear label when component unmounts
     return () => {
-      setLabel(path, null);
+      setLabel(path, undefined);
     };
   }, [path, label, setLabel]);
 }
@@ -52,7 +52,7 @@ export function useBreadcrumbLabel(path: string, label: string | null): void {
  * 
  * @throws {Error} If used outside of BreadcrumbLabelProvider
  */
-export function useBreadcrumbLabels(): Record<string, string> {
+export function useBreadcrumbLabels(): Record<string, string | null> {
   const context = React.useContext(BreadcrumbLabelContext);
   
   if (!context) {
@@ -71,11 +71,11 @@ export function useBreadcrumbLabels(): Record<string, string> {
  * @param children - React children to wrap with the provider
  */
 export function BreadcrumbLabelProvider({ children }: { children: React.ReactNode }) {
-  const [labels, setLabels] = React.useState<Record<string, string>>({});
+  const [labels, setLabels] = React.useState<Record<string, string | null>>({});
 
-  const setLabel = React.useCallback((path: string, label: string | null) => {
+  const setLabel = React.useCallback((path: string, label: string | null | undefined) => {
     setLabels((prev) => {
-      if (label === null) {
+      if (label === undefined) {
         const { [path]: _, ...rest } = prev;
         return rest;
       } else {

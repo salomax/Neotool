@@ -53,6 +53,35 @@ This standard applies to every job that runs under `workflow/` or `pipelines/` a
 ### 2.3 Concurrency Controls
 - **Rule**: Set Prefect concurrency limits (tags or concurrency key) to prevent overlapping runs per environment.
 
+### 2.4 Database Migrations (Python Workflows)
+- **Rule**: Python-based workflows using pyway for database migrations MUST follow these requirements:
+  - **Migration Tool**: Use `pyway` (Python migration tool) for database schema management
+  - **Config File**: Place `pyway.conf` or `pyway.yaml` in the workflow root directory (e.g., `workflow/{domain}/`)
+  - **Migration Directory**: Store migrations in `workflow/{domain}/migrations/` directory
+  - **Naming Convention**: Follow format `V{version}__{description}.sql` (e.g., `V1_1__create_schema.sql`)
+  - **Running Migrations**: 
+    - Always run pyway from the directory containing `pyway.conf` (workflow root)
+    - Use `-c pyway.conf` flag to explicitly specify config file: `pyway -c pyway.conf migrate`
+    - Check status with: `pyway -c pyway.conf info`
+  - **History Table Naming**: Pyway history tables MUST follow the pattern `pyway_schema_history_{domain}` (e.g., `pyway_schema_history_financial_data`). This distinguishes them from Flyway history tables which use `flyway_schema_history_{service}` (e.g., `flyway_schema_history_app`). The table should be in the `public` schema: `public.pyway_schema_history_{domain}`
+  - **Schema Bootstrap**: If pyway's tracking table is configured in a custom schema (e.g., `financial_data.pyway`), the schema MUST exist before running migrations. For first-time setup:
+    - Create the schema manually first (one-time bootstrap)
+    - Then run migrations normally
+    - Migrations themselves use `IF NOT EXISTS` for idempotency
+    - **Note**: Using `public.pyway_schema_history_{domain}` for the tracking table eliminates the need for schema bootstrap, as the `public` schema always exists in PostgreSQL
+  - **Idempotency**: All migrations MUST use `IF NOT EXISTS` / `IF EXISTS` clauses to be safely re-runnable
+  - **Schema Organization**: Follow [Database Schema Standards](../database-standards/schema-standards.md) - all tables must be in named schemas, never in `public`
+  - **Example Structure**:
+    ```
+    workflow/{domain}/
+    ├── pyway.conf              # Pyway configuration
+    ├── migrations/              # Migration files
+    │   ├── V1_1__create_schema.sql
+    │   └── V1_2__create_table.sql
+    └── {workflow_name}/         # Python workflow code
+    ```
+- **Rationale**: Ensures consistent database setup across environments and prevents migration execution errors.
+
 ## 3. Task Design
 
 ### 3.1 Observability
@@ -92,12 +121,107 @@ This standard applies to every job that runs under `workflow/` or `pipelines/` a
 - Required configs: `acks=all`, `enable.idempotence=true`, `compression.type=zstd|snappy`, `linger.ms<=10`.
 - Retries MUST be enabled (`retries>=5`) and errors forwarded to fallback storage.
 
-### 4.4 Consumer Requirements (Kotlin)
+### 4.4 Consumer Requirements
+
+**Python Consumers** (for batch processing):
+- Consumers live in `workflow/<domain>/<feature>/` as installable packages.
+- MUST use the shared `neotool-common` package for retry logic and DLQ handling.
+- MUST be structured as proper Python packages with `pyproject.toml`.
+- MUST use dedicated consumer groups per job.
+- Manual commits only after successful processing.
+- Implement retry logic using `neotool_common.consumer_base.KafkaConsumerRunner`.
+- Hard failures (poison messages) go to DLQ topic and raise alerts.
+- **All consumer implementations MUST comply with the [Kafka Consumer Standard](./kafka-consumer-standard.md).**
+
+**Kotlin Consumers** (for real-time processing):
 - Consumers live in `service/kotlin/<module>/batch/**`.
 - MUST use dedicated consumer groups per job.
 - Manual commits only after successful processing.
-- Implement retry-withbackoff inside consumer (Resilience4j or manual).
+- Implement retry-with-backoff inside consumer (Resilience4j or manual).
 - Hard failures (poison messages) go to DLQ topic and raise alerts.
+- **All consumer implementations MUST comply with the [Kafka Consumer Standard](./kafka-consumer-standard.md).**
+
+### 4.5 Python Package Structure (Required for Python Consumers)
+
+All Python batch consumers MUST follow this package structure:
+
+```
+workflow/<domain>/<feature>/
+├── pyproject.toml              # Package configuration with dependencies
+├── Dockerfile                  # Docker deployment configuration
+├── .dockerignore               # Docker build exclusions
+├── pytest.ini                  # Test configuration (no pythonpath needed)
+├── requirements.txt            # Optional: can use pyproject.toml instead
+├── src/                        # Source code directory
+│   └── <package_name>/         # Package namespace
+│       ├── __init__.py         # Package initialization
+│       ├── flows/              # Consumer entry points
+│       │   └── consumer.py     # Main consumer loop
+│       └── tasks/              # Business logic modules
+│           ├── message.py      # Message data classes
+│           ├── processor.py    # Processing logic
+│           ├── config.py       # Configuration
+│           └── ...             # Other task modules
+└── tests/                      # Test files
+    └── test_*.py
+```
+
+**Key Requirements**:
+- Package name in `pyproject.toml` MUST depend on `neotool-common`
+- Source code MUST be under `src/<package_name>/` (src layout)
+- NO `PYTHONPATH` manipulation - use proper package imports
+- Imports MUST use fully qualified names: `from <package_name>.tasks.processor import ...`
+- Imports from common: `from neotool_common.consumer_base import KafkaConsumerRunner`
+- Entry points MUST be defined in `pyproject.toml` [project.scripts] section
+- Dockerfile MUST install `neotool-common` first, then the consumer package
+
+**Example `pyproject.toml`**:
+```toml
+[project]
+name = "institution-enhancement"
+version = "0.1.0"
+dependencies = [
+    "neotool-common",
+    "kafka-python>=2.0.0",
+    "psycopg2-binary>=2.9.0",
+    # ... other dependencies
+]
+
+[project.scripts]
+institution-enhancement-consumer = "institution_enhancement.flows.consumer:main"
+```
+
+**Example Dockerfile**:
+```dockerfile
+FROM python:3.14-alpine
+WORKDIR /app
+
+# Install neotool-common from local path
+COPY --chown=consumer:consumer ../../common /tmp/neotool-common/
+RUN pip install --no-cache-dir /tmp/neotool-common && rm -rf /tmp/neotool-common
+
+# Copy and install application
+COPY --chown=consumer:consumer . /app/
+RUN pip install --no-cache-dir /app
+
+ENTRYPOINT ["<package-name>-consumer"]
+```
+
+**Development Setup**:
+```bash
+# Install neotool-common (one-time)
+cd workflow/python/common
+pip install -e ".[dev]"
+
+# Install consumer package (editable mode)
+cd ../financial_data/<feature>
+pip install -e ".[dev]"
+
+# Run consumer (no PYTHONPATH needed)
+<package-name>-consumer
+```
+
+**Rationale**: Proper package structure eliminates PYTHONPATH hacks, enables proper dependency management, improves IDE support, and follows Python packaging best practices.
 
 ## 5. Testing & Validation
 

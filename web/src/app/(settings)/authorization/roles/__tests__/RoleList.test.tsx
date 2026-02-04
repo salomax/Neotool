@@ -1,10 +1,11 @@
 
 
 import React from 'react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { RoleList } from '../RoleList';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
+import i18n from '@/shared/i18n/config';
 
 // Minimal ManagementTable mock to render headers and rows
 vi.mock('@/shared/components/management', () => ({
@@ -64,6 +65,10 @@ const renderRoleList = (props = {}) => {
 
 // Run sequentially to avoid parallel render interference
 describe.sequential('RoleList', () => {
+  beforeEach(async () => {
+    await i18n.changeLanguage('en');
+  });
+
   it('renders role data', () => {
     renderRoleList();
 

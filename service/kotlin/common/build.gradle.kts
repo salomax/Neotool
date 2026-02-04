@@ -2,6 +2,7 @@ plugins {
     id("org.jetbrains.kotlin.jvm")
     id("io.micronaut.library")
     id("com.google.devtools.ksp")
+    id("java-test-fixtures")
 }
 
 repositories { mavenCentral() }

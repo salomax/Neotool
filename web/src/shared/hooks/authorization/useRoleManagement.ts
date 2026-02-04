@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useMemo, useCallback, useEffect, useRef, startTransition } from "react";
+import { useQuery } from "@apollo/client/react";
 import {
-  useGetRolesQuery,
   GetRolesDocument,
-  GetRolesQueryVariables,
+  type GetRolesQuery,
+  type GetRolesQueryVariables,
 } from '@/lib/graphql/operations/authorization-management/queries.generated';
 import { RoleOrderByInput } from '@/lib/graphql/types/__generated__/graphql';
 import { extractErrorMessage } from '@/shared/utils/error';
@@ -200,7 +201,10 @@ export function useRoleManagement(options: UseRoleManagementOptions = {}): UseRo
   }, [firstState, after, searchQuery, graphQLOrderBy]);
 
   // GraphQL hooks
-  const { data: rolesData, loading, error, refetch } = useGetRolesQuery({
+  const { data: rolesData, loading, error, refetch } = useQuery<
+    GetRolesQuery,
+    GetRolesQueryVariables
+  >(GetRolesDocument, {
     variables: queryVariables,
     skip: waitingForPageSize,
     notifyOnNetworkStatusChange: true, // Keep loading state accurate during transitions

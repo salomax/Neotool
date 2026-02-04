@@ -43,6 +43,10 @@ const signUpSchema = z.object({
         message: "errors.invalidPassword",
       }
     ),
+  confirmPassword: z.string().min(1, "errors.required"),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "errors.passwordsDoNotMatch",
+  path: ["confirmPassword"],
 });
 
 type SignUpFormData = z.infer<typeof signUpSchema>;
@@ -64,6 +68,7 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onSuccess }) => {
       name: "",
       email: "",
       password: "",
+      confirmPassword: "",
     },
   });
 
@@ -225,6 +230,13 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onSuccess }) => {
               </Box>
             )}
           </Box>
+
+          <PasswordField
+            name="confirmPassword"
+            label={t("confirmPassword")}
+            translateError={(key) => t(key)}
+            data-testid="textfield-confirm-password"
+          />
 
           <Button
             type="submit"

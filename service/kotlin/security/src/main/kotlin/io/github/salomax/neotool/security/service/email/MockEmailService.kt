@@ -2,6 +2,8 @@ package io.github.salomax.neotool.security.service.email
 
 import io.github.salomax.neotool.security.config.EmailConfig
 import jakarta.inject.Singleton
+import java.time.Instant
+import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -30,6 +32,19 @@ class MockEmailService(
         val subject: String,
         val htmlContent: String,
     )
+
+    /**
+     * Data class to store verification email (for tests).
+     */
+    data class SentVerificationEmail(
+        val to: String,
+        val userName: String,
+        val token: UUID,
+        val expiresAt: Instant,
+        val locale: String,
+    )
+
+    private val sentVerificationEmails = ConcurrentHashMap<String, MutableList<SentVerificationEmail>>()
 
     override fun sendPasswordResetEmail(
         email: String,
@@ -68,6 +83,27 @@ class MockEmailService(
             // Don't throw - we want to return success even if email fails (security best practice)
         }
     }
+
+    override fun sendVerificationEmail(
+        to: String,
+        userName: String,
+        token: UUID,
+        expiresAt: Instant,
+        locale: String,
+    ) {
+        sentVerificationEmails
+            .computeIfAbsent(to) { mutableListOf() }
+            .add(SentVerificationEmail(to, userName, token, expiresAt, locale))
+        logger.info {
+            "MOCK: Verification email to $to token=$token expiresAt=$expiresAt"
+        }
+    }
+
+    fun getSentVerificationEmails(email: String): List<SentVerificationEmail> =
+        sentVerificationEmails[email]?.toList() ?: emptyList()
+
+    fun getLastSentVerificationEmail(email: String): SentVerificationEmail? =
+        sentVerificationEmails[email]?.lastOrNull()
 
     /**
      * Get all emails sent to a specific address.

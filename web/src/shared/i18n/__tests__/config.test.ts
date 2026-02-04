@@ -5,13 +5,13 @@ import i18n from '../config';
 describe("I18n Configuration", () => {
   beforeEach(async () => {
     // Reset i18n state before each test
-    await i18n.changeLanguage('en');
+    await i18n.changeLanguage('pt');
   });
 
   describe("Initialization", () => {
     it("should initialize i18n with correct configuration", () => {
       expect(i18n.isInitialized).toBe(true);
-      expect(i18n.language).toBe('en');
+      expect(i18n.language).toBe('pt');
       expect(i18n.options.fallbackLng).toEqual(['en']);
       expect(i18n.options.defaultNS).toBe('common');
     });
@@ -37,8 +37,8 @@ describe("I18n Configuration", () => {
       expect(i18n.hasResourceBundle('pt', 'common')).toBe(true);
     });
 
-    it("should have English as default language", () => {
-      expect(i18n.language).toBe('en');
+    it("should have Portuguese as default language", () => {
+      expect(i18n.language).toBe('pt');
     });
 
     it("should have English as fallback language", () => {
@@ -67,24 +67,24 @@ describe("I18n Configuration", () => {
 
   describe("Language Switching", () => {
     it("should change language correctly", async () => {
-      expect(i18n.language).toBe('en');
+      expect(i18n.language).toBe('pt');
       
-      await i18n.changeLanguage('pt');
+      await i18n.changeLanguage('en');
       await waitFor(() => {
         expect(i18n.language).toBeDefined();
       });
       
-      await i18n.changeLanguage('en');
-      await waitFor(() => expect(i18n.language).toBe('en'));
+      await i18n.changeLanguage('pt');
+      await waitFor(() => expect(i18n.language).toBe('pt'));
     });
 
     it("should emit languageChanged event", async () => {
       const callback = vi.fn();
       i18n.on('languageChanged', callback);
       
-      await i18n.changeLanguage('pt');
+      await i18n.changeLanguage('en');
       
-      expect(callback).toHaveBeenCalledWith('pt');
+      expect(callback).toHaveBeenCalledWith('en');
       i18n.off('languageChanged', callback);
     });
 

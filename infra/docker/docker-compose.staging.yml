@@ -1,184 +1,6 @@
 services:
 
   # -------------------------------------------------------------
-  # Tooling Stack (database)
-  # Profile: database
-  # -------------------------------------------------------------
-  postgres:
-    image: postgres:18rc1
-    container_name: neotool-postgres
-    restart: unless-stopped
-    env_file: ../.env
-    ports: ["5432:5432"]      
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    networks:
-      - postgres-internal
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  pgbouncer:
-    image: edoburu/pgbouncer:latest
-    container_name: neotool-pgbouncer
-    env_file: ../.env
-    depends_on:
-      postgres:
-        condition: service_healthy
-    restart: unless-stopped
-    ports: ["6432:6432"]
-    volumes:
-      - ../pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
-      - ../pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
-    command: ["pgbouncer", "/etc/pgbouncer/pgbouncer.ini"]
-    networks:
-      - default
-      - postgres-internal
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -h localhost -p 6432 -U $$POSTGRES_USER"]
-      interval: 5s
-      timeout: 5s
-      retries: 30
-
-  # -------------------------------------------------------------
-  # Kafka Stack (KRaft mode - no Zookeeper needed)
-  # Profile: kafka
-  # -------------------------------------------------------------
-  kafka:
-    image: apache/kafka:3.7.0
-    container_name: neotool-kafka
-    restart: unless-stopped
-    ports:
-      - "9092:9092"
-      - "9093:9093"
-    environment:
-      KAFKA_NODE_ID: 1
-      KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
-      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_LOG_DIRS: /var/lib/kafka/data
-      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
-    volumes:
-      - kafka-data:/var/lib/kafka/data
-
-  # -------------------------------------------------------------
-  # Service Stack
-  # Profile: services
-  # -------------------------------------------------------------
-  security:
-    build:
-      context: ../../service/kotlin
-      dockerfile: security/Dockerfile
-    container_name: neotool-security
-    env_file: ../.env
-    environment:
-      MICRONAUT_ENVIRONMENTS: docker
-      MICRONAUT_SERVER_PORT: 8080
-      POSTGRES_HOST: pgbouncer
-      POSTGRES_PORT: 6432
-      # Unleash Feature Flags Configuration (REQUIRED)
-      UNLEASH_URL: ${UNLEASH_URL:-}
-      UNLEASH_API_TOKEN: ${UNLEASH_API_TOKEN:-}
-      UNLEASH_APP_NAME: ${UNLEASH_APP_NAME:-neotool-security}
-    depends_on:
-      pgbouncer:
-        condition: service_healthy
-    expose: ["8080"]
-
-  app:
-    build:
-      context: ../../service/kotlin
-      dockerfile: app/Dockerfile
-    container_name: neotool-app
-    env_file: ../.env
-    environment:
-      MICRONAUT_ENVIRONMENTS: docker
-      MICRONAUT_SERVER_PORT: 8080
-      POSTGRES_HOST: pgbouncer
-      POSTGRES_PORT: 6432
-      # Unleash Feature Flags Configuration (REQUIRED)
-      UNLEASH_URL: ${UNLEASH_URL:-}
-      UNLEASH_API_TOKEN: ${UNLEASH_API_TOKEN:-}
-      UNLEASH_APP_NAME: ${UNLEASH_APP_NAME:-neotool-app}
-    depends_on:
-      pgbouncer:
-        condition: service_healthy
-    expose: ["8080"]
-    profiles:
-      - services
-
-  assistant:
-    build:
-      context: ../../service/kotlin
-      dockerfile: assistant/Dockerfile
-    container_name: neotool-assistant
-    env_file: ../.env
-    environment:
-      MICRONAUT_ENVIRONMENTS: docker
-      MICRONAUT_SERVER_PORT: 8080
-      POSTGRES_HOST: pgbouncer
-      POSTGRES_PORT: 6432
-      # Unleash Feature Flags Configuration (REQUIRED)
-      UNLEASH_URL: ${UNLEASH_URL:-}
-      UNLEASH_API_TOKEN: ${UNLEASH_API_TOKEN:-}
-      UNLEASH_APP_NAME: ${UNLEASH_APP_NAME:-neotool-assistant}
-    depends_on:
-      pgbouncer:
-        condition: service_healthy
-    expose: ["8080"]
-
-  # -------------------------------------------------------------
-  # Frontend Stack
-  # Profile: frontend
-  # -------------------------------------------------------------
-  web:
-    build:
-      context: ../../web
-      dockerfile: Dockerfile
-    container_name: neotool-web
-    env_file: ../.env
-    environment:
-      NEXT_PUBLIC_GRAPHQL_URL: ${NEXT_PUBLIC_GRAPHQL_URL:-http://router:4000/graphql}
-      GRAPHQL_SCHEMA_PATH: ../contracts/graphql/supergraph/supergraph.graphql
-      # Unleash Feature Flags Configuration (REQUIRED)
-      UNLEASH_SERVER_URL: ${UNLEASH_SERVER_URL:-}
-      UNLEASH_SERVER_API_TOKEN: ${UNLEASH_SERVER_API_TOKEN:-}
-      NEXT_PUBLIC_UNLEASH_PROXY_URL: ${NEXT_PUBLIC_UNLEASH_PROXY_URL:-}
-      NEXT_PUBLIC_UNLEASH_CLIENT_TOKEN: ${NEXT_PUBLIC_UNLEASH_CLIENT_TOKEN:-}
-    ports:
-      - "3000:3000"
-
-  # -------------------------------------------------------------
-  # API Gateway Stack
-  # Profile: gateway
-  # -------------------------------------------------------------
-  router:
-    image: ghcr.io/apollographql/router:v2.7.0
-    container_name: neotool-graphql-router
-    ports:
-      - "4000:4000"
-      - "8088:8088"  # Health check port
-      - "9091:9090"  # Metrics port (changed to avoid conflict with Prometheus)
-    volumes:
-      - ../../contracts/graphql/supergraph/supergraph.graphql:/dist/supergraph.graphql:ro
-      - ../../infra/router/router.yaml:/dist/router.yaml:ro
-    command: ["--supergraph", "/dist/supergraph.graphql", "--config", "/dist/router.yaml"]
-    environment:
-      - APOLLO_ROUTER_LISTEN_ADDRESS=0.0.0.0:4000
-      - APOLLO_ROUTER_TELEMETRY_METRICS_PROMETHEUS_ENABLED=true
-      - APOLLO_ROUTER_TELEMETRY_METRICS_PROMETHEUS_LISTEN=0.0.0.0:9090
-      - APOLLO_ROUTER_TELEMETRY_METRICS_PROMETHEUS_PATH=/metrics
-
-  # -------------------------------------------------------------
   # Secrets Stack (Vault)
   # Profile: secrets
   # -------------------------------------------------------------
@@ -197,91 +19,418 @@ services:
     volumes:
       - vault-data:/vault/data
       - vault-logs:/vault/logs
-    command: ["vault", "server", "-dev"]
+    command: [ "vault", "server", "-dev" ]
     healthcheck:
-      test: ["CMD", "vault", "status"]
+      test: [ "CMD", "vault", "status" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Vault initializer - runs on every 'docker compose up', idempotent
+  vault-init:
+    image: hashicorp/vault:1.18.0
+    container_name: neotool-vault-init
+    depends_on:
+      vault:
+        condition: service_healthy
+    environment:
+      VAULT_ADDR: ${VAULT_ADDRESS:-http://vault:8200}
+      VAULT_TOKEN: ${VAULT_TOKEN}
+      VAULT_MOUNT_PATH: ${VAULT_MOUNT_PATH:-secret}
+      VAULT_SECRET_PATH: ${VAULT_SECRET_PATH:-secret/jwt/keys}
+      JWT_KEY_ID: ${JWT_KEY_ID:-kid-1}
+      VAULT_INIT_GENERATE_KEYS: ${VAULT_INIT_GENERATE_KEYS:-true}
+      VAULT_INIT_INSTALL_OPENSSL: ${VAULT_INIT_INSTALL_OPENSSL:-false}
+      VAULT_INIT_PRIVATE_KEY_FILE: ${VAULT_INIT_PRIVATE_KEY_FILE:-/vault-keys/private-key.pem}
+      VAULT_INIT_PUBLIC_KEY_FILE: ${VAULT_INIT_PUBLIC_KEY_FILE:-/vault-keys/public-key.pem}
+    volumes:
+      - ../vault/init-vault.sh:/vault-init/init-vault.sh:ro
+    entrypoint: [ "/bin/sh", "/vault-init/init-vault.sh" ]
+    restart: "no"
+
+  # -------------------------------------------------------------
+  # Tooling Stack (database)
+  # Profile: database
+  # -------------------------------------------------------------
+  postgres:
+    image: postgres:18.1-alpine
+    container_name: neotool-postgres
+    restart: unless-stopped
+    ports: [ "5432:5432" ]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - postgres-internal
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Database initializer - runs on every 'docker compose up', idempotent
+  postgres-init:
+    image: postgres:18.1-alpine
+    container_name: neotool-postgres-init
+    volumes:
+      - ../postgres/init-databases.sh:/init-databases.sh:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - postgres-internal
+    entrypoint: [ "/bin/bash", "/init-databases.sh" ]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      PGHOST: neotool-postgres
+      PGPORT: ${POSTGRES_PORT:-5432}
+    restart: "no"
+
+  pgbouncer:
+    image: edoburu/pgbouncer:v1.25.1-p0
+    container_name: neotool-pgbouncer
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      PGHOST: neotool-postgres
+      PGPORT: ${POSTGRES_PORT:-5432}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    ports: [ "6432:6432" ]
+    volumes:
+      - ../pgbouncer/pgbouncer-staging.ini:/etc/pgbouncer/pgbouncer.ini:ro
+      - ../pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
+    command: [ "pgbouncer", "/etc/pgbouncer/pgbouncer.ini" ]
+    networks:
+      - default
+      - postgres-internal
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -h $$PGHOST -p $$PGPORT -U $$POSTGRES_USER" ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  # -------------------------------------------------------------
+  # Kafka Stack (KRaft mode - no Zookeeper needed)
+  # Profile: kafka
+  # -------------------------------------------------------------
+  kafka:
+    image: apache/kafka:3.7.0
+    container_name: neotool-kafka
+    restart: unless-stopped
+    ports:
+      - "9092:9092" # Internal Docker network
+      - "9094:9094" # External access (host machine)
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:9094,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: [ "CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+
+  # -------------------------------------------------------------
+  # Service Stack
+  # Profile: services
+  # -------------------------------------------------------------
+  security:
+    build:
+      context: ../../service/kotlin
+      dockerfile: security/Dockerfile
+    container_name: neotool-security-service
+    environment:
+      MICRONAUT_ENVIRONMENTS: docker
+      MICRONAUT_SERVER_PORT: 8080
+      POSTGRES_HOST: neotool-pgbouncer
+      POSTGRES_PORT: ${PGBOUNCER_PORT:-6432} 
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}        
+      VAULT_ENABLED: ${VAULT_ENABLED:-true}
+      VAULT_ADDRESS: ${VAULT_ADDRESS:-http://vault:8200}
+      VAULT_TOKEN: ${VAULT_TOKEN}
+      VAULT_SECRET_PATH: ${VAULT_SECRET_PATH:-secret/jwt/keys}
+      VAULT_ENGINE_VERSION: ${VAULT_ENGINE_VERSION:-2}
+      JWT_KEY_ID: ${JWT_KEY_ID:-kid-1}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-RS256}
+      JWT_JWKS_ENABLED: ${JWT_JWKS_ENABLED:-true}
+      JWT_ACCESS_TOKEN_EXPIRATION_SECONDS: ${JWT_ACCESS_TOKEN_EXPIRATION_SECONDS:-900}
+      JWT_REFRESH_TOKEN_EXPIRATION_SECONDS: ${JWT_REFRESH_TOKEN_EXPIRATION_SECONDS:-604800}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_ISSUER: ${GOOGLE_ISSUER:-https://accounts.google.com}
+      # Unleash Feature Flags Configuration (REQUIRED)
+      UNLEASH_URL: ${UNLEASH_URL:-}
+      UNLEASH_API_TOKEN: ${UNLEASH_API_TOKEN:-}
+      UNLEASH_APP_NAME: ${UNLEASH_APP_NAME:-neotool-security-service}
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+      vault:
+        condition: service_healthy
+    expose: [ "8080" ]
+    healthcheck:
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  assets:
+    build:
+      context: ../../service/kotlin
+      dockerfile: assets/Dockerfile
+    container_name: neotool-assets-service
+    environment:
+      MICRONAUT_ENVIRONMENTS: docker
+      MICRONAUT_SERVER_PORT: 8080
+      POSTGRES_HOST: neotool-pgbouncer
+      POSTGRES_PORT: ${PGBOUNCER_PORT:-6432} 
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}        
+      VAULT_ADDRESS: http://vault:8200
+      # Unleash Feature Flags Configuration (REQUIRED)
+      UNLEASH_URL: ${UNLEASH_URL:-}
+      UNLEASH_API_TOKEN: ${UNLEASH_API_TOKEN:-}
+      UNLEASH_APP_NAME: ${UNLEASH_APP_NAME:-neotool-security-service}
+      JWT_JWKS_URL: http://neotool-security-service:8080/.well-known/jwks.json
+      STORAGE_HOSTNAME: minio
+      STORAGE_PORT: 9000
+      STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY:-minioadmin}
+      STORAGE_SECRET: ${STORAGE_SECRET:-minioadmin}
+      STORAGE_FORCE_PATH_STYLE: "true"
+      STORAGE_USE_HTTPS: "false"
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      security:
+        condition: service_healthy
+    expose: [ "8080" ]
+    healthcheck:
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      default:
+        aliases:
+          - assets-service
+
+  financialdata:
+    build:
+      context: ../../service/kotlin
+      dockerfile: financialdata/Dockerfile
+    container_name: neotool-financial-data-service
+    environment:
+      MICRONAUT_ENVIRONMENTS: docker
+      MICRONAUT_SERVER_PORT: 8080
+      POSTGRES_HOST: neotool-pgbouncer
+      POSTGRES_PORT: ${PGBOUNCER_PORT:-6432} 
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}        
+      VAULT_ADDRESS: http://vault:8200
+      # Unleash Feature Flags Configuration (REQUIRED)
+      UNLEASH_URL: ${UNLEASH_URL:-}
+      UNLEASH_API_TOKEN: ${UNLEASH_API_TOKEN:-}
+      UNLEASH_APP_NAME: ${UNLEASH_APP_NAME:-neotool-security-service}
+      JWT_JWKS_URL: http://neotool-security-service:8080/.well-known/jwks.json
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+      security:
+        condition: service_healthy
+    expose: [ "8080" ]
+    healthcheck:
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      default:
+        aliases:
+          - neotool-financial-data-service
+
+  # -------------------------------------------------------------
+  # Frontend Stack
+  # Profile: frontend
+  # -------------------------------------------------------------
+  web:
+    build:
+      context: ../../web
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_UNLEASH_PROXY_URL: ${NEXT_PUBLIC_UNLEASH_PROXY_URL}
+        NEXT_PUBLIC_UNLEASH_CLIENT_TOKEN: ${NEXT_PUBLIC_UNLEASH_CLIENT_TOKEN}
+        NEXT_PUBLIC_ENV: ${NEXT_PUBLIC_ENV:-staging}
+    container_name: neotool-web
+    environment:
+      NEXT_PUBLIC_GRAPHQL_URL: ${NEXT_PUBLIC_GRAPHQL_URL:-http://router:4000/graphql}
+      GRAPHQL_SCHEMA_PATH: ../contracts/graphql/supergraph/supergraph.graphql
+      # Unleash Feature Flags Configuration (REQUIRED)
+      UNLEASH_SERVER_URL: ${UNLEASH_SERVER_URL}
+      UNLEASH_SERVER_API_TOKEN: ${UNLEASH_SERVER_API_TOKEN}
+      NEXT_PUBLIC_UNLEASH_PROXY_URL: ${NEXT_PUBLIC_UNLEASH_PROXY_URL}
+      NEXT_PUBLIC_UNLEASH_CLIENT_TOKEN: ${NEXT_PUBLIC_UNLEASH_CLIENT_TOKEN}
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000 || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 5
 
   # -------------------------------------------------------------
-  # Observability Stack
-  # Profile: observability
+  # API Gateway Stack
+  # Profile: gateway
   # -------------------------------------------------------------
-  prometheus:
-    image: prom/prometheus:v2.55.1
-    container_name: neotool-prometheus
+  router:
+    image: ghcr.io/apollographql/router:v2.7.0
+    container_name: neotool-graphql-router
+    ports:
+      - "4000:4000"
+      - "8088:8088" # Health check port
+      - "9091:9090" # Metrics port (changed to avoid conflict with Prometheus)
+    volumes:
+      - ../../contracts/graphql/supergraph/supergraph.staging.graphql:/dist/supergraph.graphql:ro
+      - ../../infra/router/router.staging.yaml:/dist/router.yaml:ro
+    command: [ "--supergraph", "/dist/supergraph.graphql", "--config", "/dist/router.yaml" ]
+    environment:
+      - APOLLO_ROUTER_LISTEN_ADDRESS=0.0.0.0:4000
+      - APOLLO_ROUTER_TELEMETRY_METRICS_PROMETHEUS_ENABLED=true
+      - APOLLO_ROUTER_TELEMETRY_METRICS_PROMETHEUS_LISTEN=0.0.0.0:9090
+      - APOLLO_ROUTER_TELEMETRY_METRICS_PROMETHEUS_PATH=/metrics
+    healthcheck:
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8088/health || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # -------------------------------------------------------------
+  # Storage Stack (MinIO for Assets)
+  # -------------------------------------------------------------
+  minio:
+    image: minio/minio:latest
+    container_name: neotool-minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000" # S3 API
+      - "9001:9001" # Console UI
+    environment:
+      MINIO_ROOT_USER: ${STORAGE_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${STORAGE_SECRET:-minioadmin}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # -------------------------------------------------------------
+  # Feature Flags Stack (Unleash)
+  # Profile: feature-flags
+  # -------------------------------------------------------------
+  unleash:
+    image: unleashorg/unleash-server:latest
+    container_name: neotool-unleash
+    restart: unless-stopped
+    env_file: .env.staging
+    environment:
+      # Database configuration (via PgBouncer)
+      DATABASE_URL: postgres://${UNLEASH_USER:-neotool}:${UNLEASH_PASSWORD:-neotool}@pgbouncer:6432/${UNLEASH_DB:-unleash_db}?sslmode=disable
+      DATABASE_HOST: pgbouncer
+      DATABASE_PORT: 6432
+      DATABASE_NAME: ${UNLEASH_DB:-unleash_db}
+      DATABASE_USER: ${UNLEASH_USER:-neotool}
+      DATABASE_PASSWORD: ${UNLEASH_PASSWORD:-neotool}
+      # Server configuration
+      UNLEASH_URL: http://localhost:4242
+      PORT: 4242
+      # Initial admin user (for first-time setup)
+      INIT_ADMIN_API_TOKENS: ${UNLEASH_SERVER_API_TOKEN}
+      # Enable UI
+      UI_ENABLED: "true"
+    ports:
+      - "4242:4242"
+    networks:
+      - default
+      - postgres-internal
+    healthcheck:
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:4242/health || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    profiles:
+      - feature-flags
+
+  unleash-edge:
+    image: unleashorg/unleash-edge:latest
+    container_name: neotool-unleash-edge
+    restart: unless-stopped
+    env_file: .env.staging
     command:
-      - --config.file=/etc/prometheus/prometheus.yml
-      - --web.enable-lifecycle
-    volumes:
-      - ../observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-    ports:
-      - "9090:9090"
-
-  grafana:
-    image: grafana/grafana:11.1.4
-    container_name: neotool-grafana
-    env_file: ../.env
-    ports:
-      - "3001:3000"
-    volumes:
-      - ../observability/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ../observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
-      - grafana-data:/var/lib/grafana
+      - edge
+      - --upstream-url=http://unleash:4242
+      - --tokens=${UNLEASH_PROXY_CLIENT_TOKEN}
     environment:
-      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
-      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
-
-  # PostgreSQL Exporter - monitors database metrics via pgbouncer
-  postgres-exporter:
-    image: prometheuscommunity/postgres-exporter:latest
-    container_name: neotool-postgres-exporter
-    env_file: ../.env
-    environment:
-      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-neotool}:${POSTGRES_PASSWORD:-neotool}@pgbouncer:6432/${POSTGRES_DB:-neotool_db}?sslmode=disable"
+      # Edge configuration
+      PORT: 3063
+      # CORS configuration
+      CORS_ORIGIN: "http://localhost:3000"
+      CORS_ALLOWED_HEADERS: "Authorization,Content-Type,unleash-appname,unleash-instanceid,unleash-connection-id,unleash-sdk"
+      CORS_METHODS: "GET,POST,OPTIONS,HEAD,OPTIONS"
     ports:
-      - "9187:9187"
+      - "3063:3063"
     depends_on:
-      pgbouncer:
+      unleash:
         condition: service_healthy
+    networks:
+      - default
+    healthcheck:
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3063/health || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    profiles:
+      - feature-flags
 
-  # Loki - Log aggregation system
-  loki:
-    image: grafana/loki:2.9.0
-    container_name: neotool-loki
-    ports:
-      - "3100:3100"
-    command: -config.file=/etc/loki/local-config.yaml
-    volumes:
-      - ../observability/loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
-      - loki-data:/loki
-    depends_on:
-      - prometheus
-
-  # Promtail - Log collection agent
-  promtail:
-    image: grafana/promtail:2.9.0
-    container_name: neotool-promtail
-    volumes:
-      - ../observability/promtail/promtail-config.yaml:/etc/promtail/config.yml:ro
-      - /var/log:/var/log:ro
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    command: -config.file=/etc/promtail/config.yml
-    depends_on:
-      - loki
-      
 volumes:
   pgdata:
-  loki-data:
-  grafana-data:
+  minio-data:
   kafka-data:
   vault-data:
   vault-logs:
 
+
 networks:
   postgres-internal:
     driver: bridge
-    internal: false  # Set to true if you want complete isolation (no internet access)
+    internal: false # Set to true if you want complete isolation (no internet access)

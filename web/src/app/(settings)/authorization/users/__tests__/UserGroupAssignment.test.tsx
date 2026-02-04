@@ -13,7 +13,7 @@ const mockGroups = [
   { id: '3', name: 'Guest Group', description: null },
 ];
 
-const mockUseGetGroupsQuery = vi.fn(() => ({
+const mockUseQuery = vi.fn((_document?: any, _options?: any) => ({
   data: {
     groups: {
       edges: mockGroups.map((group) => ({ node: group })),
@@ -30,8 +30,8 @@ const mockUseGetGroupsQuery = vi.fn(() => ({
   }),
 }));
 
-vi.mock('@/lib/graphql/operations/authorization-management/queries.generated', () => ({
-  useGetGroupsQuery: () => mockUseGetGroupsQuery(),
+vi.mock('@apollo/client/react', () => ({
+  useQuery: (document: any, options: any) => mockUseQuery(document, options),
 }));
 
 // Mock translations
@@ -206,7 +206,7 @@ describe.sequential('UserGroupAssignment', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (window as any).__autocompleteProps = undefined;
-    mockUseGetGroupsQuery.mockReturnValue({
+    mockUseQuery.mockReturnValue({
       data: {
         groups: {
           edges: mockGroups.map((group) => ({ node: group })),
@@ -228,16 +228,16 @@ describe.sequential('UserGroupAssignment', () => {
     it('should call useGetGroupsQuery with correct variables', () => {
       renderUserGroupAssignment();
 
-      expect(mockUseGetGroupsQuery).toHaveBeenCalled();
+      expect(mockUseQuery).toHaveBeenCalled();
       // Verify the query is called (skip is false)
-      expect(mockUseGetGroupsQuery).toHaveBeenCalled();
+      expect(mockUseQuery).toHaveBeenCalled();
     });
 
     it('should not skip query', () => {
       renderUserGroupAssignment();
 
       // Query should be called (skip: false)
-      expect(mockUseGetGroupsQuery).toHaveBeenCalled();
+      expect(mockUseQuery).toHaveBeenCalled();
     });
   });
 
@@ -330,7 +330,7 @@ describe.sequential('UserGroupAssignment', () => {
 
   describe('Loading state', () => {
     it('should show CircularProgress when groupsLoading is true', () => {
-      mockUseGetGroupsQuery.mockReturnValue({
+      mockUseQuery.mockReturnValue({
         data: undefined as any,
         loading: true,
         error: undefined,
@@ -347,7 +347,7 @@ describe.sequential('UserGroupAssignment', () => {
     });
 
     it('should show loading indicator during loading', () => {
-      mockUseGetGroupsQuery.mockReturnValue({
+      mockUseQuery.mockReturnValue({
         data: undefined as any,
         loading: true,
         error: undefined,
@@ -367,7 +367,7 @@ describe.sequential('UserGroupAssignment', () => {
   describe('Error state', () => {
     it('should show error alert when query fails', () => {
       const mockRefetch = vi.fn();
-      mockUseGetGroupsQuery.mockReturnValue({
+      mockUseQuery.mockReturnValue({
         data: undefined as any,
         loading: false,
         error: new Error('Failed to load') as any,
@@ -392,7 +392,7 @@ describe.sequential('UserGroupAssignment', () => {
           },
         },
       });
-      mockUseGetGroupsQuery.mockReturnValue({
+      mockUseQuery.mockReturnValue({
         data: undefined as any,
         loading: false,
         error: new Error('Failed to load') as any,

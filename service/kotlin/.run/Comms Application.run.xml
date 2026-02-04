@@ -1,14 +1,5 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Comms Application" type="JetRunConfigurationType">
-    <envs>
-      <env name="COMMS_EMAIL_PROVIDER" value="micronaut" />
-      <env name="COMMS_SMTP_HOST" value="smtp.hostinger.com" />
-      <env name="COMMS_SMTP_PORT" value="587" />
-      <env name="COMMS_SMTP_USER" value="invistus@invistus.com.br" />
-      <env name="COMMS_SMTP_PASSWORD" value="sVox&amp;@i22&amp; " />
-      <env name="COMMS_SMTP_AUTH_ENABLED" value="true" />
-      <env name="COMMS_SMTP_STARTTLS_ENABLED" value="true" />
-    </envs>
     <option name="MAIN_CLASS_NAME" value="io.github.salomax.neotool.comms.Application" />
     <module name="neotool-service.comms.main" />
     <shortenClasspath name="NONE" />

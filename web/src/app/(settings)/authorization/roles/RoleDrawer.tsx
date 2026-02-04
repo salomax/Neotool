@@ -14,7 +14,15 @@ import { useForm, FormProvider } from "react-hook-form";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { CloseIcon } from "@/shared/ui/mui-imports";
 import { LoadingState, ErrorAlert } from "@/shared/components/ui/feedback";
-import { useCreateRoleMutation, useUpdateRoleMutation } from "@/lib/graphql/operations/authorization-management/mutations.generated";
+import { useMutation } from "@apollo/client/react";
+import {
+  CreateRoleDocument,
+  UpdateRoleDocument,
+  type CreateRoleMutation,
+  type CreateRoleMutationVariables,
+  type UpdateRoleMutation,
+  type UpdateRoleMutationVariables,
+} from "@/lib/graphql/operations/authorization-management/mutations.generated";
 import { useRoleMutations } from "@/shared/hooks/authorization/useRoleMutations";
 import { useRoleDrawer } from "@/shared/hooks/authorization/useRoleDrawer";
 import { useTranslation } from "@/shared/i18n";
@@ -99,12 +107,18 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
 
   // Use mutation directly for create and update to get refetchQueries
   // Using query name as string to refetch all active queries regardless of variables
-  const [createRoleMutation, { loading: createLoading }] = useCreateRoleMutation({
+  const [createRoleMutation, { loading: createLoading }] = useMutation<
+    CreateRoleMutation,
+    CreateRoleMutationVariables
+  >(CreateRoleDocument, {
     refetchQueries: ['GetRoles'],
     awaitRefetchQueries: true,
   });
 
-  const [updateRoleMutation, { loading: updateLoading }] = useUpdateRoleMutation({
+  const [updateRoleMutation, { loading: updateLoading }] = useMutation<
+    UpdateRoleMutation,
+    UpdateRoleMutationVariables
+  >(UpdateRoleDocument, {
     refetchQueries: ['GetRoles'],
     awaitRefetchQueries: true,
   });
