@@ -1,0 +1,54 @@
+{
+  "common": {
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "delete": "Excluir",
+    "edit": "Editar",
+    "create": "Criar",
+    "update": "Atualizar",
+    "submit": "Enviar",
+    "loading": "Carregando...",
+    "error": "Erro",
+    "success": "Sucesso",
+    "notFound": "Não Encontrado",
+    "notFoundMessage": "Esta tela não existe.",
+    "goHome": "Ir para tela inicial",
+    "backToLogin": "Voltar para Login"
+  },
+  "auth": {
+    "login": "Entrar",
+    "signup": "Cadastrar",
+    "logout": "Sair",
+    "email": "E-mail",
+    "password": "Senha",
+    "forgotPassword": "Esqueceu a senha?",
+    "loginSubtitle": "Bem-vindo de volta! Faça login para continuar.",
+    "signupSubtitle": "Crie sua conta para começar.",
+    "forgotPasswordSubtitle": "Digite seu e-mail para redefinir sua senha.",
+    "dontHaveAccount": "Não tem uma conta?",
+    "alreadyHaveAccount": "Já tem uma conta?"
+  },
+  "tabs": {
+    "dashboard": "Painel",
+    "profile": "Perfil",
+    "settings": "Configurações"
+  },
+  "dashboard": {
+    "welcome": "Bem-vindo, {{name}}!",
+    "overview": "Visão Geral"
+  },
+  "profile": {
+    "information": "Informações do Perfil"
+  },
+  "settings": {
+    "appearance": "Aparência",
+    "darkMode": "Modo Escuro",
+    "language": "Idioma"
+  },
+  "errors": {
+    "generic": "Algo deu errado. Por favor, tente novamente.",
+    "network": "Erro de rede. Verifique sua conexão.",
+    "unauthorized": "Você não está autorizado a realizar esta ação.",
+    "notFound": "O recurso solicitado não foi encontrado."
+  }
+}

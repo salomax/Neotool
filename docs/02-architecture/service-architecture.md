@@ -99,6 +99,7 @@ graph TB
 | **App Service** | Core business logic | User management, application features, business workflows | 8080 | app_db |
 | **Security Service** | Authentication & Authorization | Login, signup, JWT management, RBAC, refresh tokens | 8081 | security_db |
 | **Asset Service** | File & media management | Upload, download, bucket management, visibility control | 8082 | asset_db |
+| **LLM Orchestrator Service** | AI & LLM orchestration | Prompt management, model routing, tool calling, caching, cost tracking | 8090 | llm_orchestrator_db |
 
 **Future Services** (planned):
 - **Notification Service**: Email, SMS, push notifications
