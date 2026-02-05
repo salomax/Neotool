@@ -21,6 +21,8 @@ jobs:
     outputs:
       kotlin: ${{ steps.filter.outputs.kotlin }}
       kotlin-common: ${{ steps.filter.outputs.kotlin-common }}
+      kotlin-common-batch: ${{ steps.filter.outputs.kotlin-common-batch }}
+      kotlin-common-features: ${{ steps.filter.outputs.kotlin-common-features }}
       kotlin-security: ${{ steps.filter.outputs.kotlin-security }}
       kotlin-assets: ${{ steps.filter.outputs.kotlin-assets }}
       kotlin-financialdata: ${{ steps.filter.outputs.kotlin-financialdata }}
@@ -36,9 +38,15 @@ jobs:
               - 'service/kotlin/**'
             kotlin-common:
               - 'service/kotlin/common/**'
+              - 'service/kotlin/common-batch/**'
+              - 'service/kotlin/common-features/**'
               - 'service/kotlin/build.gradle.kts'
               - 'service/kotlin/settings.gradle.kts'
               - 'service/kotlin/gradle/**'
+            kotlin-common-batch:
+              - 'service/kotlin/common-batch/**'
+            kotlin-common-features:
+              - 'service/kotlin/common-features/**'
             kotlin-security:
               - 'service/kotlin/security/**'
             kotlin-assets:
@@ -57,6 +65,10 @@ jobs:
       matrix:
         include:
           - service: common
+            run-integration: false
+          - service: common-batch
+            run-integration: false
+          - service: common-features
             run-integration: false
           - service: security
             run-integration: true
