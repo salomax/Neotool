@@ -1,0 +1,74 @@
+import { ExpoConfig, ConfigContext } from 'expo/config';
+
+export default ({ config }: ConfigContext): ExpoConfig => ({
+  ...config,
+  name: 'NeoTool',
+  slug: 'neotool',
+  version: '1.0.0',
+  orientation: 'portrait',
+  icon: './assets/icon.png',
+  userInterfaceStyle: 'automatic',
+  scheme: 'neotool',
+  splash: {
+    image: './assets/splash.png',
+    resizeMode: 'contain',
+    backgroundColor: '#ffffff',
+  },
+  assetBundlePatterns: ['**/*'],
+  ios: {
+    supportsTablet: true,
+    bundleIdentifier: 'com.neotool.app',
+    infoPlist: {
+      NSCameraUsageDescription: 'Allow NeoTool to access your camera to upload photos',
+      NSPhotoLibraryUsageDescription: 'Allow NeoTool to access your photo library to upload images',
+      NSFaceIDUsageDescription: 'Allow NeoTool to use Face ID for secure authentication',
+    },
+  },
+  android: {
+    adaptiveIcon: {
+      foregroundImage: './assets/adaptive-icon.png',
+      backgroundColor: '#ffffff',
+    },
+    package: 'com.neotool.app',
+    permissions: [
+      'android.permission.CAMERA',
+      'android.permission.READ_EXTERNAL_STORAGE',
+      'android.permission.WRITE_EXTERNAL_STORAGE',
+      'android.permission.USE_BIOMETRIC',
+      'android.permission.USE_FINGERPRINT',
+    ],
+  },
+  web: {
+    favicon: './assets/favicon.png',
+    bundler: 'metro',
+  },
+  plugins: [
+    'expo-router',
+    'expo-secure-store',
+    'expo-localization',
+    [
+      'expo-notifications',
+      {
+        icon: './assets/notification-icon.png',
+        color: '#ffffff',
+      },
+    ],
+    [
+      'expo-local-authentication',
+      {
+        faceIDPermission: 'Allow NeoTool to use Face ID for secure authentication',
+      },
+    ],
+  ],
+  experiments: {
+    typedRoutes: true,
+  },
+  extra: {
+    router: {
+      origin: false,
+    },
+    eas: {
+      projectId: process.env.EXPO_PUBLIC_PROJECT_ID || '',
+    },
+  },
+});

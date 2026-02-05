@@ -161,7 +161,33 @@ NeoTool's architecture follows these guiding principles:
 
 ---
 
-### 6. [Infrastructure Architecture](./infrastructure-architecture.md)
+### 6. [Mobile Architecture](./mobile-architecture.md)
+**React Native + Expo architecture for iOS and Android**
+
+**What's Inside**:
+- React Native + Expo architecture
+- Code sharing strategy with web application
+- Navigation patterns (Expo Router / React Navigation)
+- State management (Zustand + Apollo Client)
+- Offline support and sync
+- Native features (secure storage, push notifications, biometrics)
+- Performance optimization for mobile
+
+**When to Read**:
+- ✅ Building mobile applications
+- ✅ Understanding code sharing with web
+- ✅ Implementing offline support
+- ✅ Integrating native features
+- ✅ Optimizing mobile performance
+
+**Related**:
+- [ADR-0010: React Native + Expo Mobile](../92-adr/0010-react-native-expo-mobile.md)
+- [Frontend Architecture](./frontend-architecture.md)
+- [API Architecture](./api-architecture.md)
+
+---
+
+### 7. [Infrastructure Architecture](./infrastructure-architecture.md)
 **Docker, Kubernetes, Terraform, and deployment infrastructure**
 
 **What's Inside**:
@@ -205,6 +231,12 @@ NeoTool's architecture follows these guiding principles:
 1. Start: [Frontend Architecture](./frontend-architecture.md)
 2. API: [API Architecture](./api-architecture.md)
 3. Patterns: [Frontend Patterns](../07-frontend/patterns/)
+
+#### Mobile Developer
+1. Start: [Mobile Architecture](./mobile-architecture.md)
+2. Web: [Frontend Architecture](./frontend-architecture.md) (for code sharing)
+3. API: [API Architecture](./api-architecture.md)
+4. Patterns: [Frontend Patterns](../07-frontend/patterns/)
 
 #### DevOps Engineer
 1. Start: [Infrastructure Architecture](./infrastructure-architecture.md)
@@ -260,6 +292,13 @@ All major architectural decisions are documented with rationale:
 - [ADR-0006: Frontend Authorization Layer](../92-adr/0006-frontend-authorization-layer.md)
 - [ADR-0007: Asset Service Cloudflare R2](../92-adr/0007-asset-service-cloudflare-r2.md)
 - [ADR-0008: Interservice Security](../92-adr/0008-interservice-security.md)
+- [ADR-0009: Resource Ownership Strategy](../92-adr/0009-resource-ownership-strategy.md)
+
+### Mobile
+- [ADR-0010: React Native + Expo Mobile](../92-adr/0010-react-native-expo-mobile.md)
+
+### AI & LLM
+- [ADR-0011: LLM Orchestrator Service](../92-adr/0011-llm-orchestrator-service.md)
 
 **See**: [All ADRs](../92-adr/) for complete decision history.
 
@@ -320,6 +359,14 @@ All architecture documents include **Mermaid diagrams** for visual clarity:
 - **Styling**: Material-UI (MUI)
 - **State**: React Context + Hooks
 
+### Mobile
+- **Framework**: React Native + Expo
+- **Language**: TypeScript
+- **Navigation**: React Navigation / Expo Router
+- **API Client**: Apollo Client
+- **UI Library**: React Native Paper
+- **State**: Zustand + React Context
+
 ### Infrastructure
 - **Containers**: Docker
 - **Orchestration**: Kubernetes
@@ -343,6 +390,7 @@ All architecture documents include **Mermaid diagrams** for visual clarity:
 **Day 2**: Dive into your area
 - Backend: [Service Architecture](./service-architecture.md) + [Data Architecture](./data-architecture.md)
 - Frontend: [Frontend Architecture](./frontend-architecture.md) + [API Architecture](./api-architecture.md)
+- Mobile: [Mobile Architecture](./mobile-architecture.md) + [Frontend Architecture](./frontend-architecture.md)
 - DevOps: [Infrastructure Architecture](./infrastructure-architecture.md)
 
 **Week 1**: Study patterns and examples
@@ -450,8 +498,8 @@ All architecture documents include **Mermaid diagrams** for visual clarity:
 
 ---
 
-**Version**: 3.0.0 (2026-01-02)
-**Documents**: 6 architecture deep-dives + this navigation hub
+**Version**: 3.1.0 (2026-02-05)
+**Documents**: 7 architecture deep-dives + this navigation hub
 **Philosophy**: Document architecture decisions. Make them visible. Keep them current.
 
 *Navigate with confidence. Build with clarity.*
