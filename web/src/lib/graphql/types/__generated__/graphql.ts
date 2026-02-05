@@ -119,6 +119,7 @@ export type BacenFinanceInstitution = {
   address: Maybe<Scalars['String']['output']>;
   asset: Maybe<Asset>;
   controlType: Maybe<BacenControlType>;
+  dataRestriction: Maybe<DataRestriction>;
   founded: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
   institutionBankType: Maybe<BacenInstitutionBankType>;
@@ -138,6 +139,7 @@ export type BacenFinanceInstitution = {
   socialNetworks: Maybe<Array<Scalars['String']['output']>>;
   tipoConsolidadoBancario: Maybe<BacenInstitutionBankType>;
   tradeName: Maybe<Scalars['String']['output']>;
+  updatedAt: Maybe<Scalars['DateTime']['output']>;
   website: Maybe<Scalars['String']['output']>;
 };
 
@@ -195,6 +197,7 @@ export type BacenInstitutionSummaryItem = {
   __typename: 'BacenInstitutionSummaryItem';
   bacenInstitutionType: Maybe<Scalars['String']['output']>;
   basileiaIndex: Maybe<Scalars['Float']['output']>;
+  dataRestriction: Maybe<DataRestriction>;
   equity: Maybe<Scalars['Float']['output']>;
   id: Scalars['ID']['output'];
   institutionType: Maybe<BacenInstitutionType>;
@@ -255,6 +258,16 @@ export type CreateRoleInput = {
   name: Scalars['String']['input'];
 };
 
+export type DataRestriction = {
+  __typename: 'DataRestriction';
+  isRestricted: Scalars['Boolean']['output'];
+  reason: Maybe<DataRestrictionReason>;
+};
+
+export enum DataRestrictionReason {
+  InstitutionRequest = 'INSTITUTION_REQUEST'
+}
+
 export type EconomicIndicator = {
   __typename: 'EconomicIndicator';
   countryCode: Scalars['String']['output'];
@@ -270,26 +283,15 @@ export type EconomicIndicator = {
   variations: Array<EconomicIndicatorVariation>;
 };
 
-export type EconomicIndicatorLatest = {
-  __typename: 'EconomicIndicatorLatest';
-  indicator: Scalars['String']['output'];
-  latest: Maybe<EconomicIndicatorPoint>;
-  unit: Scalars['String']['output'];
-  variation: Scalars['String']['output'];
+
+export type EconomicIndicatorVariationsArgs = {
+  label?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type EconomicIndicatorPoint = {
   __typename: 'EconomicIndicatorPoint';
   referenceDate: Scalars['Date']['output'];
   value: Scalars['Float']['output'];
-};
-
-export type EconomicIndicatorSeries = {
-  __typename: 'EconomicIndicatorSeries';
-  indicator: Scalars['String']['output'];
-  unit: Maybe<Scalars['String']['output']>;
-  values: Array<EconomicIndicatorPoint>;
-  variation: Scalars['String']['output'];
 };
 
 export type EconomicIndicatorVariation = {
@@ -300,7 +302,20 @@ export type EconomicIndicatorVariation = {
   incrementalYears: Maybe<Scalars['Int']['output']>;
   isDefault: Scalars['Boolean']['output'];
   label: Scalars['String']['output'];
+  series: Maybe<EconomicIndicatorVariationSeries>;
   unit: Maybe<Scalars['String']['output']>;
+};
+
+
+export type EconomicIndicatorVariationSeriesArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  range?: InputMaybe<IndicatorRangeInput>;
+};
+
+export type EconomicIndicatorVariationSeries = {
+  __typename: 'EconomicIndicatorVariationSeries';
+  unit: Maybe<Scalars['String']['output']>;
+  values: Array<EconomicIndicatorPoint>;
 };
 
 export type Group = {
@@ -640,9 +655,6 @@ export type Query = {
   economicIndicators: Array<EconomicIndicator>;
   group: Maybe<Group>;
   groups: GroupConnection;
-  indicatorLatest: Maybe<EconomicIndicatorPoint>;
-  indicatorSeries: Maybe<EconomicIndicatorSeries>;
-  indicatorsLatest: Array<EconomicIndicatorLatest>;
   permissions: PermissionConnection;
   ratingIssuers: Array<RatingIssuer>;
   role: Maybe<Role>;
@@ -679,6 +691,11 @@ export type QueryCheckPermissionArgs = {
 };
 
 
+export type QueryEconomicIndicatorsArgs = {
+  label?: InputMaybe<Scalars['String']['input']>;
+};
+
+
 export type QueryGroupArgs = {
   id: Scalars['ID']['input'];
 };
@@ -689,20 +706,6 @@ export type QueryGroupsArgs = {
   first?: InputMaybe<Scalars['Int']['input']>;
   orderBy?: InputMaybe<Array<GroupOrderByInput>>;
   query?: InputMaybe<Scalars['String']['input']>;
-};
-
-
-export type QueryIndicatorLatestArgs = {
-  indicator: Scalars['String']['input'];
-  variation: Scalars['String']['input'];
-};
-
-
-export type QueryIndicatorSeriesArgs = {
-  indicator: Scalars['String']['input'];
-  limit?: InputMaybe<Scalars['Int']['input']>;
-  range?: InputMaybe<IndicatorRangeInput>;
-  variation: Scalars['String']['input'];
 };
 
 

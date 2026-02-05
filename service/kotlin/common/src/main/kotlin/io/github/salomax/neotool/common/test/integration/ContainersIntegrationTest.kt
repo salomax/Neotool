@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.common.test.integration
 
-import org.apache.kafka.common.serialization.StringSerializer
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.containers.wait.strategy.Wait
@@ -82,7 +81,7 @@ object KafkaTestContainer : MicronautPropsTestContainer {
             "kafka.enabled" to "true",
             "kafka.bootstrap.servers" to container.bootstrapServers,
             "kafka.producers.default.bootstrap.servers" to container.bootstrapServers,
-            "kafka.producers.default.key-serializer" to StringSerializer::class.java.name,
+            "kafka.producers.default.key-serializer" to "org.apache.kafka.common.serialization.StringSerializer",
             "kafka.producers.default.value-serializer" to "io.micronaut.serde.kafka.KafkaSerdeSerializer",
         )
 }

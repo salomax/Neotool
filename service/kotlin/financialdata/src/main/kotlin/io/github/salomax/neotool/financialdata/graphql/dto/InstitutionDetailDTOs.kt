@@ -3,8 +3,17 @@ package io.github.salomax.neotool.financialdata.graphql.dto
 import io.github.salomax.neotool.financialdata.domain.BacenControlType
 import io.github.salomax.neotool.financialdata.domain.BacenInstitutionBankType
 import io.github.salomax.neotool.financialdata.domain.BacenInstitutionType
+import io.github.salomax.neotool.financialdata.domain.DataRestrictionReason
 import io.micronaut.core.annotation.Introspected
 import io.micronaut.serde.annotation.Serdeable
+import java.time.Instant
+
+@Introspected
+@Serdeable
+data class DataRestrictionDTO(
+    val isRestricted: Boolean,
+    val reason: DataRestrictionReason?,
+)
 
 @Introspected
 @Serdeable
@@ -21,6 +30,7 @@ data class BacenFinanceInstitutionDTO(
     val institutionType: BacenInstitutionType?,
     val tipoConsolidadoBancario: BacenInstitutionBankType?,
     val quarter: String?,
+    val updatedAt: Instant?,
     val website: String?,
     val socialNetworks: List<String>?,
     val mainActivity: String?,
@@ -33,6 +43,7 @@ data class BacenFinanceInstitutionDTO(
     val funding: Double?,
     val loanPortfolio: Double?,
     val rwaReferenceEquity: Double?,
+    val dataRestriction: DataRestrictionDTO?,
 )
 
 @Introspected

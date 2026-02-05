@@ -53,6 +53,7 @@ const renderSignUpForm = (props = {}) => {
 describe.sequential('SignUpForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    i18n.changeLanguage('en');
     mockSignUp.mockResolvedValue(undefined);
   });
 
@@ -83,7 +84,7 @@ describe.sequential('SignUpForm', () => {
     const user = userEvent.setup();
     renderSignUpForm();
 
-    const emailInput = screen.getByRole('textbox', { name: /email/i });
+    const emailInput = screen.getByRole('textbox', { name: /e-?mail/i });
     const submitButton = screen.getByTestId('button-signup');
 
     await user.type(emailInput, 'invalid-email');
@@ -149,8 +150,8 @@ describe.sequential('SignUpForm', () => {
     const onSuccess = vi.fn();
     renderSignUpForm({ onSuccess });
 
-    const nameInput = screen.getByRole('textbox', { name: /name/i });
-    const emailInput = screen.getByRole('textbox', { name: /email/i });
+    const nameInput = screen.getByRole('textbox', { name: /name|nome/i });
+    const emailInput = screen.getByRole('textbox', { name: /e-?mail/i });
     const passwordInputs = screen.getAllByLabelText(/password/i);
     const passwordInput = passwordInputs.find((el) => el.tagName === 'INPUT') as HTMLInputElement;
     const submitButton = screen.getByTestId('button-signup');
@@ -177,8 +178,8 @@ describe.sequential('SignUpForm', () => {
     const onSuccess = vi.fn();
     renderSignUpForm({ onSuccess });
 
-    const nameInput = screen.getByRole('textbox', { name: /name/i });
-    const emailInput = screen.getByRole('textbox', { name: /email/i });
+    const nameInput = screen.getByRole('textbox', { name: /name|nome/i });
+    const emailInput = screen.getByRole('textbox', { name: /e-?mail/i });
     const passwordInputs = screen.getAllByLabelText(/password/i);
     const passwordInput = passwordInputs.find((el) => el.tagName === 'INPUT') as HTMLInputElement;
     const submitButton = screen.getByTestId('button-signup');
@@ -206,8 +207,8 @@ describe.sequential('SignUpForm', () => {
 
     renderSignUpForm();
 
-    const nameInput = screen.getByRole('textbox', { name: /name/i });
-    const emailInput = screen.getByRole('textbox', { name: /email/i });
+    const nameInput = screen.getByRole('textbox', { name: /name|nome/i });
+    const emailInput = screen.getByRole('textbox', { name: /e-?mail/i });
     const passwordInputs = screen.getAllByLabelText(/password/i);
     const passwordInput = passwordInputs.find((el) => el.tagName === 'INPUT') as HTMLInputElement;
     const submitButton = screen.getByTestId('button-signup');
@@ -240,8 +241,8 @@ describe.sequential('SignUpForm', () => {
 
     renderSignUpForm();
 
-    const nameInput = screen.getByRole('textbox', { name: /name/i });
-    const emailInput = screen.getByRole('textbox', { name: /email/i });
+    const nameInput = screen.getByRole('textbox', { name: /name|nome/i });
+    const emailInput = screen.getByRole('textbox', { name: /e-?mail/i });
     const passwordInputs = screen.getAllByLabelText(/password/i);
     const passwordInput = passwordInputs.find((el) => el.tagName === 'INPUT') as HTMLInputElement;
     const submitButton = screen.getByTestId('button-signup');
@@ -267,8 +268,8 @@ describe.sequential('SignUpForm', () => {
     const user = userEvent.setup();
     renderSignUpForm();
 
-    const nameInput = screen.getByRole('textbox', { name: /name/i });
-    const emailInput = screen.getByRole('textbox', { name: /email/i });
+    const nameInput = screen.getByRole('textbox', { name: /name|nome/i });
+    const emailInput = screen.getByRole('textbox', { name: /e-?mail/i });
     const passwordInputs = screen.getAllByLabelText(/password/i);
     const passwordInput = passwordInputs.find((el) => el.tagName === 'INPUT');
     if (!passwordInput) {

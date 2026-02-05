@@ -4,7 +4,7 @@ This job ingests Brazilian economic indicators into the `financial_data` schema.
 
 ## What this job does (high level)
 
-- **Collects** series from official sources (IBGE/SIDRA, BCB/SGS, MDIC/ComexStat).
+- **Collects** series from official sources (IBGE/SIDRA, BCB/SGS, MDIC/ComexStat, IPEA).
 - **Normalizes** raw values to a consistent schema and time reference (monthly, daily, annual).
 - **Stores** values in `economic_indicator_value` and run metadata in `economic_indicator_load_control`.
 - **Supports** incremental runs based on the last loaded date to reduce API usage.
@@ -15,8 +15,8 @@ This job ingests Brazilian economic indicators into the `financial_data` schema.
 These indicators are seeded in the database and mapped to source requests in code:
 
 - **Inflation**: IPCA, IPCA-15, INPC (monthly change, YTD, rolling 12m), IGP-M, IGP-DI, IGP-10
-- **Interest rates**: Selic target (Copom), Selic effective (daily), CDI, DI Over
-- **Macro**: GDP (annual), unemployment rate (monthly), average income (habitual/effective, monthly)
+- **Interest rates**: Selic (monthly change, YTD, rolling 12m), CDI (monthly change, YTD, rolling 12m), TR (monthly change, YTD, rolling 12m)
+- **Macro**: GDP (quarterly), unemployment rate (monthly), average income (habitual/effective, monthly)
 - **External sector**: Trade balance (monthly, computed as export − import), current account (monthly), international reserves (monthly)
 - **Fiscal**: Public debt / GDP (monthly), primary result (monthly)
 
@@ -38,11 +38,14 @@ These indicators are seeded in the database and mapped to source requests in cod
 | IGP_M | ROLLING_12M | Monthly | Percentage (%) | Ipeadata (IGP12_IGPM12, computed) |
 | IGP_DI | ROLLING_12M | Monthly | Percentage (%) | Ipeadata (IGP12_IGPDI12) |
 | IGP_10 | VALUE | Monthly | Index | Ipeadata (FGV) |
-| SELIC | EFFECTIVE_RATE | Daily | Percentage (% annualized) | BCB/SGS |
-| SELIC | TARGET_RATE | Decision-based | Percentage (% annualized) | BCB/SGS |
-| CDI | RATE | Daily | Percentage (%) | BCB/SGS |
-| DI_OVER | RATE | Daily | Percentage (%) | BCB/SGS |
-| GDP | VALUE | Annual | BRL (millions) | IBGE/SIDRA |
+| SELIC | TARGET_RATE | Monthly | Percentage (% a.a.) | BCB/SGS (432, last of month) |
+| CDI | MONTHLY_CHANGE | Monthly | Percentage (%) | BCB/SGS (4391) |
+| CDI | YTD | Monthly | Percentage (%) | BCB/SGS (4391, computed) |
+| CDI | ROLLING_12M | Monthly | Percentage (%) | BCB/SGS (4391, computed) |
+| TR | MONTHLY_CHANGE | Monthly | Percentage (%) | BCB/SGS (7812) |
+| TR | YTD | Monthly | Percentage (%) | BCB/SGS (7812, computed) |
+| TR | ROLLING_12M | Monthly | Percentage (%) | BCB/SGS (7812, computed) |
+| GDP | VALUE | Quarterly | BRL (millions) | Ipeadata (PAN4_PIBPMV4) |
 | UNEMPLOYMENT | RATE | Monthly | Percentage (%) | IBGE/SIDRA |
 | AVERAGE_INCOME | HABITUAL | Monthly | BRL | IBGE/SIDRA |
 | AVERAGE_INCOME | EFFECTIVE | Monthly | BRL | IBGE/SIDRA |
@@ -55,7 +58,7 @@ These indicators are seeded in the database and mapped to source requests in cod
 ## Data flow (step-by-step)
 
 1. **Load variations** from DB (`economic_indicator_variation` + `economic_indicator`).
-2. **Resolve source request** (SIDRA/SGS/ComexStat) based on indicator + variation.
+2. **Resolve source request** (SIDRA/SGS/ComexStat/Ipeadata) based on indicator + variation.
 3. **Determine period**:
    - If there is no previous successful run → backfill window.
    - If there is a recent run → incremental window.
@@ -84,10 +87,27 @@ Each variation can override incremental windows in `economic_indicator_variation
 ## Data sources
 
 ### SIDRA (IBGE)
-Used for inflation, unemployment, and income series.
+Used for inflation (IPCA, IPCA-15, INPC), unemployment, and income series.
 
 ### SGS (BCB)
 Used for interest rates, fiscal, and external sector series.
+
+**SELIC** uses series `432` (Meta SELIC - target rate from COPOM):
+- `TARGET_RATE` → Meta SELIC (% a.a.), aggregated to monthly using last value of each month
+
+> **Note:** SELIC represents the COPOM policy rate. For actual market returns (monthly, YTD, rolling 12m), use CDI which tracks SELIC closely but is the standard benchmark for investments.
+
+**CDI** uses series `4391` (monthly accumulated rate %):
+- `MONTHLY_CHANGE` → raw monthly rate from series 4391
+- `YTD` → computed: `(∏(1 + r_i/100) - 1) * 100` from January to current month
+- `ROLLING_12M` → computed: `(∏(1 + r_i/100) - 1) * 100` for the last 12 months
+
+> **Note:** CDI tracks closely with SELIC. Both series 4390 and 4391 return nearly identical monthly values.
+
+**TR** uses series `7812` (monthly accumulated rate %):
+- `MONTHLY_CHANGE` → raw monthly rate from series 7812
+- `YTD` → computed: `(∏(1 + r_i/100) - 1) * 100` from January to current month
+- `ROLLING_12M` → computed: `(∏(1 + r_i/100) - 1) * 100` for the last 12 months
 
 ### ComexStat (MDIC)
 Used for **trade balance**, computed as:
@@ -98,9 +118,12 @@ balance = export (FOB) - import (FOB)
 
 ComexStat has strict rate limits and can return 429 (Too Many Requests). Throttling and retry are built-in and configurable.
 
-### Ipeadata (IPEA, FGV indices)
+### Ipeadata (IPEA, FGV indices, GDP)
 
-Used for FGV inflation indices (IGP-M, IGP-DI, IGP-10). Ipeadata provides public OData endpoints per series code.  
+Used for FGV inflation indices (IGP-M, IGP-DI, IGP-10) and GDP. Ipeadata provides public OData endpoints per series code.
+
+**GDP** uses series `PAN4_PIBPMV4` (PIB nominal em valores correntes, trimestral). Data available from 1996 Q1, updated by IBGE/SCN Trimestral.
+
 IGP-M uses two series:
 
 - `IGP12_IGPMG12` → monthly variation (%)

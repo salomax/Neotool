@@ -60,13 +60,49 @@ func NewComexStatClient(timeout time.Duration, minInterval time.Duration, maxRet
 	}
 }
 
-// FetchValues fetches and normalizes Comex Stat values
+// FetchValues fetches and normalizes Comex Stat values.
+//
+// The ComexStat API returns incorrect partial results when the 'to' period is
+// in a year that has no data yet (e.g. requesting up to 2026-02 when only 2025
+// data exists returns only January/February from prior years). To work around
+// this, when the request spans into a newer year we split it: first fetch up to
+// December of the previous year (safe, complete data), then try the latest year
+// separately (returns empty harmlessly if no data is published yet).
 func (c *ComexStatClient) FetchValues(ctx context.Context, variationID string, url string, body []byte) ([]domain.ValueRecord, error) {
 	var reqPayload comexRequest
 	if err := json.Unmarshal(body, &reqPayload); err != nil {
 		return nil, fmt.Errorf("comexstat request decode failed: %w", err)
 	}
 
+	toDate, toErr := time.Parse("2006-01", reqPayload.Period.To)
+	fromDate, fromErr := time.Parse("2006-01", reqPayload.Period.From)
+
+	// If the range spans into a newer year, split to avoid the API quirk.
+	if toErr == nil && fromErr == nil && toDate.Year() > fromDate.Year() {
+		// 1. Fetch up to December of the year before 'to' (guaranteed correct).
+		safeReq := reqPayload
+		safeReq.Period.To = fmt.Sprintf("%d-12", toDate.Year()-1)
+		values, err := c.fetchAndMerge(ctx, variationID, url, safeReq)
+		if err != nil {
+			return nil, err
+		}
+
+		// 2. Try the 'to' year separately (may return empty if no data yet).
+		latestYearReq := reqPayload
+		latestYearReq.Period.From = fmt.Sprintf("%d-01", toDate.Year())
+		latestYearReq.Period.To = fmt.Sprintf("%d-12", toDate.Year())
+		latestValues, err := c.fetchAndMerge(ctx, variationID, url, latestYearReq)
+		if err == nil && len(latestValues) > 0 {
+			values = append(values, latestValues...)
+		}
+
+		return values, nil
+	}
+
+	return c.fetchAndMerge(ctx, variationID, url, reqPayload)
+}
+
+func (c *ComexStatClient) fetchAndMerge(ctx context.Context, variationID string, url string, reqPayload comexRequest) ([]domain.ValueRecord, error) {
 	if reqPayload.Flow == "balance" {
 		exportReq := reqPayload
 		exportReq.Flow = "export"

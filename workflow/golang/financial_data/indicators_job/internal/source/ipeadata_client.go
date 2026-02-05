@@ -35,7 +35,8 @@ func NewIpeadataClient(timeout time.Duration, baseURL string) *IpeadataClient {
 }
 
 // FetchValues fetches and normalizes Ipeadata values
-func (c *IpeadataClient) FetchValues(ctx context.Context, variationID string, seriesCode string, start *time.Time, end *time.Time, calcType string) ([]domain.ValueRecord, error) {
+// If quarterlyAdjust is true, dates are adjusted to the last month of the quarter (03, 06, 09, 12)
+func (c *IpeadataClient) FetchValues(ctx context.Context, variationID string, seriesCode string, start *time.Time, end *time.Time, calcType string, quarterlyAdjust bool) ([]domain.ValueRecord, error) {
 	if seriesCode == "" {
 		return nil, fmt.Errorf("ipeadata series code is empty")
 	}
@@ -91,9 +92,14 @@ func (c *IpeadataClient) FetchValues(ctx context.Context, variationID string, se
 			continue
 		}
 
+		finalDate := refDate
+		if quarterlyAdjust {
+			finalDate = adjustToQuarterEnd(refDate)
+		}
+
 		values = append(values, domain.ValueRecord{
 			IndicatorVariationID: variationID,
-			ReferenceDate:        refDate.UTC(),
+			ReferenceDate:        finalDate.UTC(),
 			PublicationDate:      nil,
 			Value:                normalizeDecimal(valueStr),
 			AdjustedValue:        nil,
@@ -217,5 +223,22 @@ func parseIpeadataValue(val any) string {
 		return v.String()
 	default:
 		return ""
+	}
+}
+
+// adjustToQuarterEnd converts a quarter-start date (01, 04, 07, 10) to quarter-end (03, 06, 09, 12)
+func adjustToQuarterEnd(t time.Time) time.Time {
+	month := t.Month()
+	switch month {
+	case time.January:
+		return time.Date(t.Year(), time.March, 1, 0, 0, 0, 0, time.UTC)
+	case time.April:
+		return time.Date(t.Year(), time.June, 1, 0, 0, 0, 0, time.UTC)
+	case time.July:
+		return time.Date(t.Year(), time.September, 1, 0, 0, 0, 0, time.UTC)
+	case time.October:
+		return time.Date(t.Year(), time.December, 1, 0, 0, 0, 0, time.UTC)
+	default:
+		return t // Not a quarter-start month, return as-is
 	}
 }

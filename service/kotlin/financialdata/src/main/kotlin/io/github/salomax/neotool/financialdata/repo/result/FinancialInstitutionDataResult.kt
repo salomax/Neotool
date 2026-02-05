@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.financialdata.repo.result
 
+import java.time.Instant
 import java.util.UUID
 
 /**
@@ -24,4 +25,5 @@ data class FinancialInstitutionDataResult(
     val mainActivity: String?,
     val address: String?,
     val founded: String?,
+    val updatedAt: Instant?,
 )

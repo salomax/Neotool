@@ -5,9 +5,7 @@ import java.math.BigDecimal
 import java.time.LocalDate
 
 @Introspected
-data class EconomicIndicatorSeriesDTO(
-    val indicator: String,
-    val variation: String,
+data class EconomicIndicatorVariationSeriesDTO(
     val unit: String?,
     val values: List<EconomicIndicatorPointDTO>,
 )
@@ -18,8 +16,18 @@ data class EconomicIndicatorPointDTO(
     val value: BigDecimal,
 )
 
+/** Root-level series result for indicatorSeries query. */
 @Introspected
-data class EconomicIndicatorLatestDTO(
+data class EconomicIndicatorSeriesRootDTO(
+    val indicator: String,
+    val variation: String,
+    val unit: String?,
+    val values: List<EconomicIndicatorPointDTO>,
+)
+
+/** Root-level latest result for indicatorsLatest query. */
+@Introspected
+data class EconomicIndicatorLatestRootDTO(
     val indicator: String,
     val variation: String,
     val unit: String,

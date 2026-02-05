@@ -1,21 +1,17 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Assets Application" type="JetRunConfigurationType">
-    <envs>
-      <env name="JWT_JWKS_URL" value="http://localhost:8080/.well-known/jwks.json" />
-      <env name="SECURITY_SERVICE_ID" value="service-test-asset" />
-      <env name="SECURITY_SERVICE_SECRET" value="vd8Z1qDquo_N4i-ITV6MiGtOxHBhC0PIMeoAiLSP3zI" />
-    </envs>
     <option name="MAIN_CLASS_NAME" value="io.github.salomax.neotool.assets.Application" />
     <module name="neotool-service.assets.main" />
     <shortenClasspath name="NONE" />
     <extension name="net.ashald.envfile">
-      <option name="IS_ENABLED" value="false" />
-      <option name="IS_SUBST" value="false" />
+      <option name="IS_ENABLED" value="true" />
+      <option name="IS_SUBST" value="true" />
       <option name="IS_PATH_MACRO_SUPPORTED" value="false" />
       <option name="IS_IGNORE_MISSING_FILES" value="false" />
       <option name="IS_ENABLE_EXPERIMENTAL_INTEGRATIONS" value="false" />
       <ENTRIES>
         <ENTRY IS_ENABLED="true" PARSER="runconfig" IS_EXECUTABLE="false" />
+        <ENTRY IS_ENABLED="true" PARSER="env" IS_EXECUTABLE="false" PATH="assets/.env.local" />
       </ENTRIES>
     </extension>
     <method v="2">

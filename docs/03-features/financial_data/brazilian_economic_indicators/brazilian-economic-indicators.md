@@ -169,3 +169,18 @@ This feature is focused on **data acquisition, normalization, and storage** of o
 - Forecasting or predictive analytics of indicators
 - Proprietary paid data sources
 - Real-time streaming for market quotes
+
+---
+
+## Indicator UI Refactor Requirements
+
+- Ensure the national indicators view fetches the full indicator series (not just the latest value) to support background sparkline rendering.
+- Update `invistus/web/src/features/financial-data/national-indicators/components/IndicatorCard.tsx` to match `invistus/web/src/shared/components/ui/data-display/MetricCard.tsx` for:
+  - Background chart behavior and styling.
+  - Link behavior to open the Detailed Metric Drawer.
+
+## Backlog Tasks
+
+- Verify the data fetching layer returns the series needed for the background chart in national indicators.
+- Align `IndicatorCard` UI structure and styles with `MetricCard` for the background chart.
+- Wire the Detailed Metric Drawer link in `IndicatorCard` to match `MetricCard` behavior.

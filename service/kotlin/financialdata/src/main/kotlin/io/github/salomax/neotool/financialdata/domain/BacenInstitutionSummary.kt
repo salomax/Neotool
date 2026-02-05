@@ -31,4 +31,6 @@ data class BacenInstitutionSummary(
     val institutionType: BacenInstitutionType?,
     // tipo_consolidado_bancario from bacen_institution
     val tipoConsolidadoBancario: String?,
+    /** When present and isRestricted=true, financial metrics are null. */
+    val dataRestriction: DataRestriction = DataRestriction.NOT_RESTRICTED,
 )

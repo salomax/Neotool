@@ -31,6 +31,10 @@ export const BACEN_INSTITUTIONS = gql`
           yoyEquityGrowth
           basileiaIndex
           institutionType
+          dataRestriction {
+            isRestricted
+            reason
+          }
         }
         cursor
       }

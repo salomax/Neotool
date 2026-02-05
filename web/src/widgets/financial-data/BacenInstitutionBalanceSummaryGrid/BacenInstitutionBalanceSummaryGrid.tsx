@@ -19,7 +19,7 @@ type MetricItem = MetricCardProps & { type?: 'metric'; chartData?: any[] };
 export function BacenInstitutionBalanceSummaryGrid({
   institutionId,
 }: BacenInstitutionBalanceSummaryGridProps) {
-  const { t } = useTranslation("common");
+  const { t, i18n } = useTranslation("common");
   const [selectedMetric, setSelectedMetric] = useState<MetricItem | null>(null);
   const [period, setPeriod] = useState<string>("5Y");
   const { gridItems, loading } =
@@ -35,7 +35,11 @@ export function BacenInstitutionBalanceSummaryGrid({
   // Use the shared hook for period filtering
   const { filteredData: chartData, periodGrowth } = useChartPeriodFilter(
     selectedMetric?.chartData,
-    period
+    period,
+    {
+      valueType: selectedMetric?.valueType,
+      disablePercentageScaling: selectedMetric?.disablePercentageScaling,
+    }
   );
 
   if (!institutionId) return null;
@@ -91,7 +95,7 @@ export function BacenInstitutionBalanceSummaryGrid({
         open={!!selectedMetric}
         onClose={() => setSelectedMetric(null)}
         title={selectedMetric?.label || t("actions.details", "Details")}
-        metric={selectedMetric}
+        metric={selectedMetric ? { ...selectedMetric, locale: i18n.language } : null}
         growth={periodGrowth}
         chartData={chartData}
         period={period}
@@ -101,6 +105,7 @@ export function BacenInstitutionBalanceSummaryGrid({
           { value: "3Y", label: t("periods.3y", "3Y") },
           { value: "5Y", label: t("periods.5y", "5Y") },
         ]}
+        historyTablePeriodLabel={t("calendar.quarter", "Quarter")}
       />
     </Box>
   );

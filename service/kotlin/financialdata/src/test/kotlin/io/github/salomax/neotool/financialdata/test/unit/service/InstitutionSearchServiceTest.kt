@@ -4,6 +4,7 @@ import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.financialdata.domain.BacenInstitutionType
 import io.github.salomax.neotool.financialdata.repo.BacenInstitutionRepositoryCustom
 import io.github.salomax.neotool.financialdata.repo.InstitutionSearchResult
+import io.github.salomax.neotool.financialdata.service.InstitutionDataRestrictionService
 import io.github.salomax.neotool.financialdata.service.InstitutionSearchService
 import io.github.salomax.neotool.financialdata.service.QuarterService
 import org.assertj.core.api.Assertions.assertThat
@@ -22,11 +23,13 @@ import java.util.UUID
 class InstitutionSearchServiceTest {
     private val institutionSearchRepository: BacenInstitutionRepositoryCustom = mock()
     private val quarterService: QuarterService = mock()
+    private val restrictionService: InstitutionDataRestrictionService = mock()
     private lateinit var service: InstitutionSearchService
 
     @BeforeEach
     fun setUp() {
-        service = InstitutionSearchService(institutionSearchRepository, quarterService)
+        whenever(restrictionService.getRestrictionsForInstitutions(any())).thenReturn(emptyMap())
+        service = InstitutionSearchService(institutionSearchRepository, quarterService, restrictionService)
     }
 
     @Test

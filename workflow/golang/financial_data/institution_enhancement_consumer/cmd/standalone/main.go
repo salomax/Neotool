@@ -6,6 +6,7 @@ import (
 	"log"
 	"log/slog"
 	"os"
+	"regexp"
 	"time"
 
 	"github.com/salomax/invistus/workflow/golang/financial_data/institution_enhancement/internal/application"
@@ -44,7 +45,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	logger.Info("Processing CNPJ", "cnpj", cnpj)
+	digitsOnly := onlyDigits(cnpj)
+	bacenCodInst := digitsOnly[:8] // Bacen code is the 8-digit CNPJ root
+
+	logger.Info("Processing CNPJ", "cnpj", cnpj, "bacen_cod_inst", bacenCodInst)
 
 	// Load configuration
 	config, err := application.LoadConfig()
@@ -183,9 +187,9 @@ func main() {
 		EventID:        fmt.Sprintf("standalone-%d", time.Now().Unix()),
 		OccurredAt:     now,
 		Source:         "STANDALONE",
-		BacenCodInst:   "",  // Will use provided CNPJ as parent_cnpj directly
+		BacenCodInst:   bacenCodInst,
 		ChangeType:     "UPDATED",
-		CnpjInstituicaoLider: &cnpj, // Use provided CNPJ
+		CnpjInstituicaoLider: &cnpj, // Used only if bacen_cod_inst starts with 'C'
 	}
 
 	// Process message
@@ -223,4 +227,9 @@ func main() {
 	}
 
 	fmt.Println("\nProcessing complete!")
+}
+
+func onlyDigits(value string) string {
+	re := regexp.MustCompile(`\D`)
+	return re.ReplaceAllString(value, "")
 }

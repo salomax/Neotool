@@ -48,6 +48,9 @@ class BacenInstitutionDetailResolver(
         val institution =
             environment.getSource<BacenFinanceInstitutionDTO>()
                 ?: throw IllegalStateException("Institution source is required")
+        if (institution.dataRestriction?.isRestricted == true) {
+            return ReportsAvailabilityDTO(quarters = emptyList())
+        }
         val rangeInput =
             environment.getArgument<Map<String, Any?>>("range")
                 ?: throw IllegalArgumentException("range parameter is required")
@@ -71,6 +74,9 @@ class BacenInstitutionDetailResolver(
         val reportId =
             environment.getArgument<String>("reportId")
                 ?: throw IllegalArgumentException("reportId parameter is required")
+        if (institution.dataRestriction?.isRestricted == true) {
+            return ReportDetailsDTO(reportId = reportId, name = null, accounts = emptyList())
+        }
         val rangeInput =
             environment.getArgument<Map<String, Any?>>("range")
                 ?: throw IllegalArgumentException("range parameter is required")

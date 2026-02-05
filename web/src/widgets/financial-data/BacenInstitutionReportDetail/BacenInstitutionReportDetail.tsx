@@ -42,6 +42,7 @@ interface ReportDetails {
 
 interface BacenInstitutionReportDetailProps {
   reportDetails: ReportDetails;
+  quarterMessage?: string | null;
 }
 
 /**
@@ -55,9 +56,10 @@ function isPercentageMetric(account: ReportAccount | null): boolean {
 
 export function BacenInstitutionReportDetail({
   reportDetails,
+  quarterMessage,
 }: BacenInstitutionReportDetailProps) {
   const theme = useTheme();
-  const { t } = useTranslation(financialDataTranslations);
+  const { t, tCommon } = useTranslation(financialDataTranslations);
   const [filterValue, setFilterValue] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState("");
   const [selectedAccount, setSelectedAccount] = useState<ReportAccount | null>(null);
@@ -72,7 +74,10 @@ export function BacenInstitutionReportDetail({
   // Use the shared hook for period filtering
   const { filteredData: drawerChartData, periodGrowth: drawerGrowth } = useChartPeriodFilter(
     drawerChartDataRaw,
-    period
+    period,
+    {
+      valueType: isPercentageMetric(selectedAccount) ? "percentage" : "currency",
+    }
   );
 
   const accounts = useMemo(() => {
@@ -261,44 +266,51 @@ export function BacenInstitutionReportDetail({
           {reportDetails.name}
         </Typography>
 
-        <Box sx={{ maxWidth: 400, mb: 3 }}>
-          <Autocomplete
-            freeSolo
-            filterOptions={(options, params) => {
-              const { inputValue } = params;
-              if (!inputValue) return options;
+        <Box sx={{ mb: 3, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
+          <Box sx={{ maxWidth: 400, flex: 1 }}>
+            <Autocomplete
+              freeSolo
+              filterOptions={(options, params) => {
+                const { inputValue } = params;
+                if (!inputValue) return options;
 
-              const normalize = (str: string) =>
-                str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                const normalize = (str: string) =>
+                  str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-              const input = normalize(inputValue);
+                const input = normalize(inputValue);
 
-              return options
-                .filter((option) => normalize(option as string).includes(input))
-                .sort((a, b) => (a as string).localeCompare(b as string));
-            }}
-            options={searchOptions}
-            value={filterValue}
-            onChange={(_, newValue) => setFilterValue(newValue as string | null)}
-            inputValue={inputValue}
-            onInputChange={(_, newInputValue) => setInputValue(newInputValue)}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                placeholder={t("actions.searchMetrics")}
-                size="small"
-                sx={{ bgcolor: "background.paper" }}
-                InputProps={{
-                  ...params.InputProps,
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon color="action" />
-                    </InputAdornment>
-                  ),
-                }}
-              />
-            )}
-          />
+                return options
+                  .filter((option) => normalize(option as string).includes(input))
+                  .sort((a, b) => (a as string).localeCompare(b as string));
+              }}
+              options={searchOptions}
+              value={filterValue}
+              onChange={(_, newValue) => setFilterValue(newValue as string | null)}
+              inputValue={inputValue}
+              onInputChange={(_, newInputValue) => setInputValue(newInputValue)}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  placeholder={t("actions.searchMetrics")}
+                  size="small"
+                  sx={{ bgcolor: "background.paper" }}
+                  InputProps={{
+                    ...params.InputProps,
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              )}
+            />
+          </Box>
+          {quarterMessage && (
+            <Typography variant="caption" color="text.secondary">
+              {quarterMessage}
+            </Typography>
+          )}
         </Box>
 
         <Paper variant="outlined">
@@ -365,6 +377,7 @@ export function BacenInstitutionReportDetail({
           { value: "3Y", label: t("periods.3y") },
           { value: "5Y", label: t("periods.5y") },
         ]}
+        historyTablePeriodLabel={tCommon("calendar.quarter", "Quarter")}
       />
     </Box>
   );

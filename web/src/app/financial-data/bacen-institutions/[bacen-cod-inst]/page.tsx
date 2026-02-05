@@ -1,155 +1,157 @@
-"use client";
-
-import { useParams } from "next/navigation";
-import { extractIdFromSemanticPath } from "@/shared/utils/url";
-import { SidebarLayout } from "@/shared/components/ui/layout/SidebarLayout";
-import { Page, SectionHeader } from "@/shared/components/ui/layout";
-import { Box, Typography, Stack, List, ListItemButton, ListItemText, CircularProgress, Tooltip, IconButton, Accordion, AccordionSummary, AccordionDetails, Grid } from "@mui/material";
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import { usePageTitle } from "@/shared/hooks/ui/usePageTitle";
-import { useTranslation } from "@/shared/i18n";
-import { financialDataTranslations } from "@/shared/i18n/domains/financial-data";
-import { useBreadcrumbLabel } from "@/shared/hooks/ui/useBreadcrumbLabel";
+import type { Metadata } from 'next';
+import { getApolloClient } from '@/lib/graphql/client';
+import { extractIdFromSemanticPath, createSemanticPath } from '@/shared/utils/url';
 import {
-  BacenInstitutionSummaryPaper,
-  BacenInstitutionBalanceSummaryGrid,
-  BacenInstitutionReportDetail,
-  BacenDataFooter,
-} from "@/widgets/financial-data";
-import { useBacenInstitutionDetail } from "@/features/financial-data/view-institution-detail";
+  BacenInstitutionDocument,
+  type BacenInstitutionQuery,
+  type BacenInstitutionQueryVariables,
+} from '@/features/financial-data/view-institution-detail/api/index.generated';
+import {
+  BacenInstitutionsDocument,
+  type BacenInstitutionsQuery,
+  type BacenInstitutionsQueryVariables,
+} from '@/features/financial-data/search-institutions/api/index.generated';
+import BacenInstitutionDetailClient from './client';
 
-export default function BacenInstitutionDetailPage() {
-  const params = useParams();
-  const rawParam = params["bacen-cod-inst"] as string;
+type Props = {
+  params: Promise<{ 'bacen-cod-inst': string }>;
+};
 
+/**
+ * Generates dynamic metadata for SEO based on the institution data.
+ * This runs on the server and ensures search engines see proper meta tags.
+ */
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { 'bacen-cod-inst': rawParam } = await params;
   const encodedId = extractIdFromSemanticPath(rawParam);
 
-  const { t } = useTranslation(financialDataTranslations);
-  const {
-    bacenCodInst,
-    institution,
-    loadingInstitution,
-    errorInstitution,
-    reports,
-    selectedReportId,
-    setSelectedReportId,
-    reportDetails,
-    loadingReport,
-  } = useBacenInstitutionDetail(encodedId);
+  try {
+    const client = getApolloClient();
+    const { data } = await client.query<BacenInstitutionQuery, BacenInstitutionQueryVariables>({
+      query: BacenInstitutionDocument,
+      variables: { id: encodedId },
+    });
 
-  usePageTitle(institution?.name || t("pageTitle"));
-  
-  // Set breadcrumb label to institution name instead of obfuscated code
-  // Use the actual encoded segment value from the URL as the key
-  useBreadcrumbLabel(rawParam, institution?.name || null);
+    const institution = data?.bacenFinanceInstitution;
 
-  if (!bacenCodInst) {
-    return (
-      <Page>
-        <Typography color="error">
-          {t("messages.invalidInstitutionId")}
-        </Typography>
-      </Page>
-    );
+    if (!institution) {
+      return {
+        title: 'Instituição não encontrada',
+        description: 'A instituição financeira solicitada não foi encontrada.',
+      };
+    }
+
+    const institutionName = institution.name;
+    const institutionType = institution.institutionType || 'Instituição Financeira';
+    const description = `Dados financeiros e balanços de ${institutionName}. Análise de indicadores BACEN, índice de Basileia, patrimônio líquido, lucro e informações regulatórias.`;
+
+    return {
+      title: institutionName,
+      description,
+      openGraph: {
+        title: `${institutionName} - Dados Financeiros BACEN`,
+        description,
+        type: 'article',
+        url: `/financial-data/bacen-institutions/${rawParam}`,
+        siteName: 'Invistus',
+        locale: 'pt_BR',
+        images: institution.logoAsset?.publicUrl
+          ? [{ url: institution.logoAsset.publicUrl, alt: institutionName }]
+          : undefined,
+      },
+      twitter: {
+        card: 'summary_large_image',
+        title: `${institutionName} - Dados Financeiros`,
+        description,
+        images: institution.logoAsset?.publicUrl ? [institution.logoAsset.publicUrl] : undefined,
+      },
+      alternates: {
+        canonical: `/financial-data/bacen-institutions/${rawParam}`,
+      },
+      keywords: [
+        institutionName,
+        'BACEN',
+        'dados financeiros',
+        'balanço',
+        'instituição financeira',
+        institutionType,
+        'índice de Basileia',
+        'patrimônio líquido',
+      ],
+    };
+  } catch (error) {
+    console.error('[SEO] Error fetching institution for metadata:', error);
+    return {
+      title: 'Instituição Financeira',
+      description: 'Dados financeiros de instituições reguladas pelo Banco Central do Brasil.',
+    };
+  }
+}
+
+/**
+ * Pre-generates static paths for all institutions at build time.
+ * This enables ISR (Incremental Static Regeneration) for better performance.
+ */
+async function fetchAllInstitutions(): Promise<Array<{ id: string; name: string }>> {
+  const client = getApolloClient();
+  const allInstitutions: Array<{ id: string; name: string }> = [];
+
+  // Fetch first page
+  const firstPage = await client.query<BacenInstitutionsQuery, BacenInstitutionsQueryVariables>({
+    query: BacenInstitutionsDocument,
+    variables: { first: 100 },
+  });
+
+  let edges = firstPage.data?.bacenInstitutions?.edges || [];
+  for (const edge of edges) {
+    if (edge.node) {
+      allInstitutions.push({ id: edge.node.id, name: edge.node.name });
+    }
   }
 
-  if (loadingInstitution) {
-    return (
-      <Page>
-        <Typography>{t("actions.loading")}</Typography>
-      </Page>
-    );
-  }
+  let hasNextPage = firstPage.data?.bacenInstitutions?.pageInfo?.hasNextPage ?? false;
+  let cursor = firstPage.data?.bacenInstitutions?.pageInfo?.endCursor ?? null;
 
-  if (errorInstitution) {
-    return (
-      <Page>
-        <Typography color="error">
-          {t("messages.unableToLoadInstitution")}
-        </Typography>
-      </Page>
-    );
-  }
+  // Fetch remaining pages
+  while (hasNextPage && cursor) {
+    const nextPage = await client.query<BacenInstitutionsQuery, BacenInstitutionsQueryVariables>({
+      query: BacenInstitutionsDocument,
+      variables: { first: 100, after: cursor },
+    });
 
-  if (!institution) {
-    return (
-      <Page>
-        <Typography>{t("messages.institutionNotFound")}</Typography>
-      </Page>
-    );
-  }
-
-  return (
-    <SidebarLayout
-      side="left"
-      size="sm"
-      fullHeight
-      sidebar={
-        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-          <Box sx={{ p: 3, pb: 2 }}>
-            <Typography variant="h6">{t("reports")}</Typography>
-          </Box>
-          <List sx={{ flex: 1, overflow: 'auto', px: 2 }}>
-            {reports.map((report: any) => (
-              <ListItemButton 
-                key={report.reportId}
-                selected={selectedReportId === report.reportId}
-                onClick={() => setSelectedReportId(report.reportId)}
-                sx={{ 
-                  mb: .5,
-                  borderRadius: 1, 
-                  '&.Mui-selected': {
-                    bgcolor: 'action.selected',
-                    fontWeight: 'medium'
-                  }
-                }}
-              >
-                <ListItemText 
-                  primary={report.name} 
-                  slotProps={{ primary: { variant: "body2" } }}
-                />
-              </ListItemButton>
-            ))}
-          </List>
-        </Box>
+    edges = nextPage.data?.bacenInstitutions?.edges || [];
+    for (const edge of edges) {
+      if (edge.node) {
+        allInstitutions.push({ id: edge.node.id, name: edge.node.name });
       }
-    >
+    }
 
-      <Page>
-        <Box sx={{ mb: 4 }}>
-          <Grid container spacing={4}>
-            <Grid size={{ xs: 12, lg: 12 }}>
-              <BacenInstitutionSummaryPaper institution={institution} />
-            </Grid>
-          </Grid>
-        </Box>
-        {loadingReport ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-            <CircularProgress />
-          </Box>
-        ) : selectedReportId === "1" ? (
-          <Box sx={{ mt: 4 }}>
-            <SectionHeader
-              title={t("lastBalanceSummary.title")}
-              actions={
-                <Tooltip title={t("lastBalanceSummary.tooltip")}>
-                  <IconButton size="small">
-                    <InfoOutlinedIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-              }
-            />
-            <BacenInstitutionBalanceSummaryGrid institutionId={institution.id} />
-          </Box>
-        ) : reportDetails ? (
-          <BacenInstitutionReportDetail reportDetails={reportDetails} />
-        ) : (
-          <Typography color="text.secondary">
-            {t("messages.selectReport")}
-          </Typography>
-        )}
-        <BacenDataFooter />
-      </Page>
-    </SidebarLayout>
-  );
+    hasNextPage = nextPage.data?.bacenInstitutions?.pageInfo?.hasNextPage ?? false;
+    cursor = nextPage.data?.bacenInstitutions?.pageInfo?.endCursor ?? null;
+  }
+
+  return allInstitutions;
+}
+
+export async function generateStaticParams(): Promise<Array<{ 'bacen-cod-inst': string }>> {
+  try {
+    const allInstitutions = await fetchAllInstitutions();
+
+    return allInstitutions.map((inst) => ({
+      'bacen-cod-inst': createSemanticPath(inst.name, inst.id),
+    }));
+  } catch (error) {
+    console.error('[SSG] Error generating static params for institutions:', error);
+    // Return empty array - pages will be generated on-demand
+    return [];
+  }
+}
+
+/**
+ * Server Component page that wraps the client component.
+ * This pattern allows us to use generateMetadata for SEO while
+ * keeping the interactive UI in a client component.
+ */
+export default function BacenInstitutionDetailPage() {
+  return <BacenInstitutionDetailClient />;
 }

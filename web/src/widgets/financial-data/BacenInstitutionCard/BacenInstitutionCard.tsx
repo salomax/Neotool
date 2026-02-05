@@ -14,6 +14,7 @@ import {
   FinancialMetricItem,
 } from "@/shared/components/ui/data-display";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import { useTheme } from "@mui/material/styles";
 import { useTranslation } from "@/shared/i18n";
 import { financialDataTranslations } from "@/shared/i18n/domains/financial-data";
@@ -39,6 +40,8 @@ export interface BacenInstitution {
   institutionType?: "INDIVIDUAL_INSTITUTION" | "PRUDENTIAL_GROUP" | "FINANCIAL_GROUP" | null;
   bacenInstitutionType?: string | null;
   tipoConsolidadoBancario?: string | null;
+  /** When present and isRestricted, financial metrics are not displayed */
+  dataRestriction?: { isRestricted: boolean; reason?: string | null } | null;
 }
 
 export interface BacenInstitutionCardProps {
@@ -78,6 +81,7 @@ export function BacenInstitutionCard({
   const { t } = useTranslation(financialDataTranslations);
   const theme = useTheme();
   const displayName = institution.tradeName || institution.name;
+  const isRestricted = !!institution.dataRestriction?.isRestricted;
 
   // Memoize institution type configuration
   const typeConfig = React.useMemo(
@@ -150,26 +154,43 @@ export function BacenInstitutionCard({
             <AccountBalanceIcon sx={{ fontSize: 30, color: 'text.secondary' }} />
           </Avatar>
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography
-              variant="h6"
-              sx={{
-                fontWeight: 700,
-                fontSize: theme.typography.h6.fontSize, // 18px (1.125rem)
-                lineHeight: 1.2,
-                display: "-webkit-box",
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: "vertical",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-              title={displayName}
-            >
-              {displayName}
-            </Typography>
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ flexWrap: "wrap", gap: 0.5 }}>
+              <Typography
+                variant="h6"
+                sx={{
+                  fontWeight: 700,
+                  fontSize: theme.typography.h6.fontSize, // 18px (1.125rem)
+                  lineHeight: 1.2,
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+                title={displayName}
+              >
+                {displayName}
+              </Typography>
+              {isRestricted && (
+                <Box
+                  component="span"
+                  sx={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    color: "text.secondary",
+                  }}
+                  title={t("messages.dataRestricted")}
+                  aria-label={t("messages.dataRestricted")}
+                >
+                  <LockOutlinedIcon sx={{ fontSize: 18 }} />
+                </Box>
+              )}
+            </Stack>
           </Box>
         </Stack>
 
-        {/* Financial Metrics Grid */}
+        {/* Financial Metrics Grid - hidden when data is restricted */}
+        {!isRestricted && (
         <Box
           sx={{
             display: "grid",
@@ -222,6 +243,12 @@ export function BacenInstitutionCard({
             />
           </FinancialMetricItem>
         </Box>
+        )}
+        {isRestricted && (
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            {t("messages.dataRestricted")}
+          </Typography>
+        )}
       </CardContent>
 
       {/* Footer: Institution Type */}

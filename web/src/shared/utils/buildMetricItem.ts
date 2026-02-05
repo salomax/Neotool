@@ -45,6 +45,8 @@ export interface MetricItemConfig {
   percentageThresholdValues?: PercentageThresholdValues;
   /** Whether lower values are better (inverts threshold display) */
   percentageThresholdInverse?: boolean;
+  /** Whether to disable multiplying percentage values by 100 */
+  disablePercentageScaling?: boolean;
 }
 
 /**
@@ -61,6 +63,7 @@ export interface MetricGridItem {
   chartData: TimeSeriesDataPoint[];
   percentageThresholdValues?: PercentageThresholdValues;
   percentageThresholdInverse?: boolean;
+  disablePercentageScaling?: boolean;
 }
 
 /**
@@ -83,6 +86,7 @@ export function buildMetricItem(config: MetricItemConfig): MetricGridItem {
     currency,
     percentageThresholdValues,
     percentageThresholdInverse,
+    disablePercentageScaling,
   } = config;
 
   return {
@@ -96,6 +100,7 @@ export function buildMetricItem(config: MetricItemConfig): MetricGridItem {
     chartData: data.chartData,
     percentageThresholdValues,
     percentageThresholdInverse,
+    disablePercentageScaling,
   };
 }
 

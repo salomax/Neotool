@@ -23,6 +23,8 @@ data class EconomicIndicatorDTO(
 data class EconomicIndicatorVariationDTO(
     val id: UUID,
     val label: String,
+    // Added to support batched loading
+    val indicatorLabel: String?,
     val unit: String?,
     val isDefault: Boolean,
     val incrementalMonths: Int?,

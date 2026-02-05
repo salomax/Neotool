@@ -312,7 +312,7 @@ function createApolloClient() {
         errorPolicy: 'none', // Treat GraphQL errors as errors so global handlers can react
       },
       query: {
-        fetchPolicy: 'cache-and-network' as FetchPolicy, // Check cache first, then fetch from network
+        fetchPolicy: 'network-only' as FetchPolicy, // cache-and-network is not supported for client.query
         errorPolicy: 'none', // Prevent silent failures when backend returns errors
       },
     },

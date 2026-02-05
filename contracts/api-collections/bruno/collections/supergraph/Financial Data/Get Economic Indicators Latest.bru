@@ -1,0 +1,54 @@
+meta {
+  name: Get Economic Indicators Latest
+  type: graphql
+  seq: 10
+}
+
+post {
+  url: http://{{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  query EconomicIndicatorsLatest {
+    economicIndicators {
+      label
+      variations {
+        label
+        series(limit: 1) {
+          unit
+          values {
+            referenceDate
+            value
+          }
+        }
+      }
+    }
+  }
+}
+
+tests {
+  test("status 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Has economicIndicators array", function() {
+    const data = res.getBody();
+    expect(data.data.economicIndicators).to.be.an('array');
+  });
+
+  test("Each item has required fields", function() {
+    const data = res.getBody();
+    const items = data.data.economicIndicators;
+    if (items.length > 0) {
+      const item = items[0];
+      expect(item).to.have.property('label');
+      expect(item).to.have.property('variations');
+    }
+  });
+}

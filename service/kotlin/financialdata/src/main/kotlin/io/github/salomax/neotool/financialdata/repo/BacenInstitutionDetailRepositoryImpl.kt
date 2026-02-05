@@ -35,6 +35,7 @@ open class BacenInstitutionDetailRepositoryImpl(
                 bi.tipo_controle,
                 bi.tipo_consolidacao,
                 bi.tipo_consolidado_bancario,
+                bi.updated_at,
                 fi.legal_name,
                 fi.trade_name,
                 fi.asset_id,
@@ -69,12 +70,13 @@ open class BacenInstitutionDetailRepositoryImpl(
                 "tipo_controle" to 1,
                 "tipo_consolidacao" to 2,
                 "tipo_consolidado_bancario" to 3,
-                "legal_name" to 4,
-                "trade_name" to 5,
-                "asset_id" to 6,
-                "website" to 7,
-                "social_network" to 8,
-                "receita_data" to 9,
+                "updated_at" to 4,
+                "legal_name" to 5,
+                "trade_name" to 6,
+                "asset_id" to 7,
+                "website" to 8,
+                "social_network" to 9,
+                "receita_data" to 10,
             )
 
         val mapper = SqlResultMapper(row, columnIndices)
@@ -98,6 +100,7 @@ open class BacenInstitutionDetailRepositoryImpl(
             mainActivity = mainActivity,
             address = address,
             founded = founded,
+            updatedAt = mapper.getInstant("updated_at"),
         )
     }
 

@@ -21,19 +21,20 @@ const (
 
 // Request describes a fetch request for a source
 type Request struct {
-	Source         SourceType
-	IndicatorLabel string
-	VariationLabel string
-	URL            string
-	SeriesID       int
-	SeriesCode     string
-	MetadataURL    string
-	Method         string
-	Body           []byte
-	StartDate      *time.Time
-	EndDate        *time.Time
-	CalcType       string
-	LookbackMonths int
+	Source          SourceType
+	IndicatorLabel  string
+	VariationLabel  string
+	URL             string
+	SeriesID        int
+	SeriesCode      string
+	MetadataURL     string
+	Method          string
+	Body            []byte
+	StartDate       *time.Time
+	EndDate         *time.Time
+	CalcType        string
+	LookbackMonths  int
+	QuarterlyAdjust bool // If true, adjust quarterly dates to last month of quarter (03, 06, 09, 12)
 }
 
 // Registry resolves indicator variations to source requests
@@ -86,37 +87,49 @@ func (r *Registry) Resolve(v domain.IndicatorVariation, lastReference *time.Time
 	case "AVERAGE_INCOME|EFFECTIVE":
 		return r.sidraRequest(6387, 5935, r.monthsForRun(v, isIncremental)), nil
 	case "GDP|VALUE":
-		return r.sidraRequest(6784, 9808, r.yearsForRun(v, isIncremental)), nil
-	case "SELIC|EFFECTIVE_RATE":
-		return r.sgsRequest(11, v, lastReference, isIncremental), nil
+		return r.ipeadataRequest("PAN4_PIBPMV4", v, lastReference, isIncremental, "", 0, true), nil
 	case "SELIC|TARGET_RATE":
-		return r.sgsRequest(432, v, lastReference, isIncremental), nil
-	case "CDI|RATE":
-		return r.sgsRequest(12, v, lastReference, isIncremental), nil
-	case "DI_OVER|RATE":
-		return r.sgsRequest(12, v, lastReference, isIncremental), nil
+		return r.sgsRequestWithCalc(432, v, lastReference, isIncremental, "MONTHLY_LAST", 0), nil
+	case "CDI|MONTHLY_CHANGE":
+		return r.sgsRequest(4391, v, lastReference, isIncremental), nil
+	case "CDI|YTD":
+		return r.sgsRequestWithCalc(4391, v, lastReference, isIncremental, "YTD", 12), nil
+	case "CDI|ROLLING_12M":
+		return r.sgsRequestWithCalc(4391, v, lastReference, isIncremental, "ROLLING_12M", 12), nil
+	case "TR|MONTHLY_CHANGE":
+		return r.sgsRequest(7812, v, lastReference, isIncremental), nil
+	case "TR|YTD":
+		return r.sgsRequestWithCalc(7812, v, lastReference, isIncremental, "YTD", 12), nil
+	case "TR|ROLLING_12M":
+		return r.sgsRequestWithCalc(7812, v, lastReference, isIncremental, "ROLLING_12M", 12), nil
 	case "CURRENT_ACCOUNT|VALUE":
 		return r.sgsRequest(22701, v, lastReference, isIncremental), nil
 	case "INTERNATIONAL_RESERVES|VALUE":
 		return r.sgsRequest(13621, v, lastReference, isIncremental), nil
-	case "PUBLIC_DEBT_GDP|RATE":
+	case "PUBLIC_DEBT_GDP|GROSS":
 		return r.sgsRequest(13762, v, lastReference, isIncremental), nil
-	case "PRIMARY_RESULT|VALUE":
+	case "PUBLIC_DEBT_GDP|NET":
+		return r.sgsRequest(4536, v, lastReference, isIncremental), nil
+	case "PRIMARY_RESULT|MONTHLY_CHANGE":
 		return r.sgsRequest(4649, v, lastReference, isIncremental), nil
+	case "PRIMARY_RESULT|YTD":
+		return r.sgsRequestWithCalc(4649, v, lastReference, isIncremental, "SUM_YTD", 12), nil
+	case "PRIMARY_RESULT|ROLLING_12M":
+		return r.sgsRequestWithCalc(4649, v, lastReference, isIncremental, "SUM_ROLLING_12M", 12), nil
 	case "TRADE_BALANCE|VALUE":
 		return r.comexStatRequest(lastReference)
 	case "IGP_M|MONTHLY_CHANGE":
-		return r.ipeadataRequest("IGP12_IGPMG12", v, lastReference, isIncremental, "", 0), nil
+		return r.ipeadataRequest("IGP12_IGPMG12", v, lastReference, isIncremental, "", 0, false), nil
 	case "IGP_M|YTD":
-		return r.ipeadataRequest("IGP12_IGPM12", v, lastReference, isIncremental, "YTD", 12), nil
+		return r.ipeadataRequest("IGP12_IGPM12", v, lastReference, isIncremental, "YTD", 12, false), nil
 	case "IGP_M|ROLLING_12M":
-		return r.ipeadataRequest("IGP12_IGPM12", v, lastReference, isIncremental, "ROLLING_12M", 12), nil
+		return r.ipeadataRequest("IGP12_IGPM12", v, lastReference, isIncremental, "ROLLING_12M", 12, false), nil
 	case "IGP_DI|MONTHLY_CHANGE":
-		return r.ipeadataRequest("IGP12_IGPDIG12", v, lastReference, isIncremental, "", 0), nil
+		return r.ipeadataRequest("IGP12_IGPDIG12", v, lastReference, isIncremental, "", 0, false), nil
 	case "IGP_DI|YTD":
-		return r.ipeadataRequest("IGP12_IGPDI12", v, lastReference, isIncremental, "YTD", 12), nil
+		return r.ipeadataRequest("IGP12_IGPDI12", v, lastReference, isIncremental, "YTD", 12, false), nil
 	case "IGP_DI|ROLLING_12M":
-		return r.ipeadataRequest("IGP12_IGPDI12", v, lastReference, isIncremental, "ROLLING_12M", 12), nil
+		return r.ipeadataRequest("IGP12_IGPDI12", v, lastReference, isIncremental, "ROLLING_12M", 12, false), nil
 	default:
 		return nil, fmt.Errorf("no source mapping for %s", key)
 	}
@@ -128,8 +141,21 @@ func (r *Registry) sidraRequest(table, variable, lastN int) *Request {
 }
 
 func (r *Registry) sgsRequest(seriesID int, v domain.IndicatorVariation, lastReference *time.Time, isIncremental bool) *Request {
+	return r.sgsRequestWithCalc(seriesID, v, lastReference, isIncremental, "", 0)
+}
+
+func (r *Registry) sgsRequestWithCalc(seriesID int, v domain.IndicatorVariation, lastReference *time.Time, isIncremental bool, calcType string, lookbackMonths int) *Request {
 	end := time.Now().UTC()
-	start := end.AddDate(-r.backfillYears, 0, 0)
+	// SGS API has a 10-year max window; if we need lookback, reduce backfill accordingly
+	backfillYears := r.backfillYears
+	if lookbackMonths > 0 && backfillYears >= 10 {
+		backfillYears = 10 - (lookbackMonths / 12) - 1 // Leave room for lookback
+	}
+	// For MONTHLY_LAST (daily series aggregated to monthly), limit to 5 years to avoid API rejection
+	if calcType == "MONTHLY_LAST" && backfillYears > 5 {
+		backfillYears = 5
+	}
+	start := end.AddDate(-backfillYears, 0, 0)
 	if lastReference != nil {
 		start = lastReference.AddDate(0, 0, 1)
 	}
@@ -141,6 +167,18 @@ func (r *Registry) sgsRequest(seriesID int, v domain.IndicatorVariation, lastRef
 			}
 		}
 	}
+	// For ROLLING_12M, we need extra lookback data for computation
+	if lookbackMonths > 0 {
+		lookbackStart := start.AddDate(0, -lookbackMonths, 0)
+		if lookbackStart.Before(start) {
+			start = lookbackStart
+		}
+	}
+	// Ensure we don't exceed SGS 10-year limit
+	minAllowed := end.AddDate(-10, 0, 0)
+	if start.Before(minAllowed) {
+		start = minAllowed
+	}
 	url := fmt.Sprintf(
 		"https://api.bcb.gov.br/dados/serie/bcdata.sgs.%d/dados?formato=json&dataInicial=%s&dataFinal=%s",
 		seriesID,
@@ -151,7 +189,14 @@ func (r *Registry) sgsRequest(seriesID int, v domain.IndicatorVariation, lastRef
 		"https://www3.bcb.gov.br/sgspub/consultarmetadados/consultarMetadadosSeries.do?method=consultarMetadadosSeriesInternet&hdOidSerieSelecionada=%d",
 		seriesID,
 	)
-	return &Request{Source: SourceSGS, URL: url, SeriesID: seriesID, MetadataURL: metadataURL}
+	return &Request{
+		Source:         SourceSGS,
+		URL:            url,
+		SeriesID:       seriesID,
+		MetadataURL:    metadataURL,
+		CalcType:       calcType,
+		LookbackMonths: lookbackMonths,
+	}
 }
 
 func (r *Registry) comexStatRequest(lastReference *time.Time) (*Request, error) {
@@ -181,7 +226,7 @@ func (r *Registry) comexStatRequest(lastReference *time.Time) (*Request, error) 
 	}, nil
 }
 
-func (r *Registry) ipeadataRequest(seriesCode string, v domain.IndicatorVariation, lastReference *time.Time, isIncremental bool, calcType string, lookbackMonths int) *Request {
+func (r *Registry) ipeadataRequest(seriesCode string, v domain.IndicatorVariation, lastReference *time.Time, isIncremental bool, calcType string, lookbackMonths int, quarterlyAdjust bool) *Request {
 	end := time.Now().UTC()
 	start := end.AddDate(-r.backfillYears, 0, 0)
 	if lastReference != nil {
@@ -201,12 +246,13 @@ func (r *Registry) ipeadataRequest(seriesCode string, v domain.IndicatorVariatio
 		}
 	}
 	return &Request{
-		Source:         SourceIPEADATA,
-		SeriesCode:     seriesCode,
-		StartDate:      &start,
-		EndDate:        &end,
-		CalcType:       calcType,
-		LookbackMonths: lookbackMonths,
+		Source:          SourceIPEADATA,
+		SeriesCode:      seriesCode,
+		StartDate:       &start,
+		EndDate:         &end,
+		CalcType:        calcType,
+		LookbackMonths:  lookbackMonths,
+		QuarterlyAdjust: quarterlyAdjust,
 	}
 }
 

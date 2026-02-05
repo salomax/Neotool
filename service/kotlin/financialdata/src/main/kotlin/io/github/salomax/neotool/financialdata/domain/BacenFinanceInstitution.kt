@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.financialdata.domain
 
 import java.math.BigDecimal
+import java.time.Instant
 import java.util.UUID
 
 /**
@@ -25,6 +26,8 @@ data class BacenFinanceInstitution(
     // Enriched summary fields
     // Latest ano_mes from bacen_bank_report
     val quarter: String?,
+    // from bacen_institution.updated_at for selected anoMes
+    val updatedAt: Instant?,
     // from financial_institution
     val website: String?,
     // from financial_institution.social_network (JSON array)
@@ -44,4 +47,6 @@ data class BacenFinanceInstitution(
     val funding: BigDecimal?,
     val loanPortfolio: BigDecimal?,
     val rwaReferenceEquity: BigDecimal?,
+    /** When present and isRestricted=true, financial data (reports, metrics) is not exposed. */
+    val dataRestriction: DataRestriction = DataRestriction.NOT_RESTRICTED,
 )

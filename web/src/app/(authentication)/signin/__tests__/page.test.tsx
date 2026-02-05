@@ -73,10 +73,10 @@ describe.sequential('SignInPage', () => {
   it('displays welcome title and subtitle', () => {
     renderSignInPage();
     
-    // Use getAllByText and get first element to handle multiple renders
-    const welcomeElements = screen.getAllByText(/welcome back/i);
+    // Use locale-agnostic matchers (en: Welcome back / pt: Bem-vindo de volta)
+    const welcomeElements = screen.getAllByText(/welcome back|bem-vindo de volta/i);
     expect(welcomeElements[0]).toBeInTheDocument();
-    expect(screen.getByText(/sign in to your account/i)).toBeInTheDocument();
+    expect(screen.getByText(/sign in to your account|entre na sua conta para continuar/i)).toBeInTheDocument();
   });
 
   it('redirects if already authenticated', () => {
@@ -99,7 +99,7 @@ describe.sequential('SignInPage', () => {
     
     renderSignInPage();
     
-    expect(screen.getByText(/loading/i)).toBeInTheDocument();
+    expect(screen.getByText(/loading|carregando/i)).toBeInTheDocument();
   });
 
   it('does not redirect while loading', () => {

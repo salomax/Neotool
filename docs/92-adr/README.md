@@ -23,6 +23,7 @@ search_keywords: [adr, architecture, decisions, index]
 - [ADR-0006: Frontend Authorization Layer](./0006-frontend-authorization-layer.md)
 - [ADR-0007: Asset Service with Cloudflare R2](./0007-asset-service-cloudflare-r2.md)
 - [ADR-0008: Interservice Security (Assets, Kotlin/Python)](./0008-interservice-security.md)
+- [ADR-0009: Resource Ownership Strategy](./0009-resource-ownership-strategy.md)
 
 ## Related Documentation
 

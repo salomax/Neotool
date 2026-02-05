@@ -1,11 +1,47 @@
 {
   "routes": {
-    "financialData": "Financial Data"
+    "financialData": "Financial Data",
+    "bacenInstitutions": "Financial Institutions"
   },
   "title": "Financial Data",
   "subtitle": "Explore national indicators and track quarterly balance sheets of financial institutions with updated and accurate data.",
   "nationalIndicators": {
     "pageTitle": "National Indicators",
+    "source": "Source: {{issuer}}",
+    "dataSources": {
+      "title": "Sources and methodology",
+      "description": "We collect indicators from official Brazilian open data sources via their public APIs and services. Values are normalized to consistent units and reference periods.",
+      "methodology": "Some series are derived from the base data (e.g., YTD and rolling 12-month rates, and trade balance = exports - imports).",
+      "sourcesTitle": "Sources",
+      "sources": {
+        "sidra": {
+          "label": "IBGE/SIDRA API",
+          "description": "Inflation, labor, and income series from SIDRA."
+        },
+        "sgs": {
+          "label": "BCB/SGS (BCData/SGS)",
+          "description": "Time series for interest, external, and fiscal indicators (JSON service)."
+        },
+        "comex": {
+          "label": "Comex Stat (MDIC/SECEX)",
+          "description": "Open data base used for trade balance (exports - imports)."
+        },
+        "ipea": {
+          "label": "Ipeadata (IPEA) OData API",
+          "description": "Macroeconomic series, including IGP indices (FGV) and GDP (IBGE)."
+        }
+      },
+      "openDataTitle": "Open data and usage terms",
+      "openDataDescription": "Each source publishes its own open data terms and licenses.",
+      "openData": {
+        "ibge": "IBGE Open Data (PDA)",
+        "bcb": "BCB Open Data FAQ (open license)",
+        "bcbLicense": "BCB datasets license (ODbL)",
+        "mdic": "Comex Stat open data base (MDIC/SECEX)",
+        "ipea": "Ipeadata license (CC BY 2.5 BR)"
+      },
+      "disclaimer": "Sources and methodologies are maintained by their respective institutions and may change without notice."
+    },
     "search": {
       "placeholder": "Search indicators...",
       "label": "Indicators"
@@ -31,23 +67,91 @@
       "EFFECTIVE": "Effective"
     },
     "indicators": {
-      "IPCA": "IPCA",
-      "IPCA_15": "IPCA-15",
-      "INPC": "INPC",
-      "IGP_M": "IGP-M",
-      "IGP_DI": "IGP-DI",
-      "IGP_10": "IGP-10",
-      "SELIC": "Selic Rate",
-      "CDI": "CDI",
-      "DI_OVER": "DI Over",
-      "GDP": "GDP",
-      "UNEMPLOYMENT": "Unemployment Rate",
-      "AVERAGE_INCOME": "Average Real Income",
-      "TRADE_BALANCE": "Trade Balance",
-      "CURRENT_ACCOUNT": "Current Account",
-      "INTERNATIONAL_RESERVES": "International Reserves",
-      "PUBLIC_DEBT_GDP": "Net Public Debt (% GDP)",
-      "PRIMARY_RESULT": "Primary Result"
+      "IPCA": {
+        "label": "IPCA",
+        "description": "Broad National Consumer Price Index. It is Brazil's official inflation and the main reference for the inflation target.",
+        "issuer": "IBGE"
+      },
+      "IPCA_15": {
+        "label": "IPCA-15",
+        "description": "IPCA Preview (Broad National Consumer Price Index 15). Anticipation of the official inflation trend for the month.",
+        "issuer": "IBGE"
+      },
+      "INPC": {
+        "label": "INPC",
+        "description": "National Consumer Price Index. Measures inflation for lower-income families and is used in salary adjustments.",
+        "issuer": "IBGE"
+      },
+      "IGP_M": {
+        "label": "IGP-M",
+        "description": "General Market Price Index. Measures price variation in the economy (wholesale, consumer, and construction) and is common in rental contracts.",
+        "issuer": "IPEA/FGV"
+      },
+      "IGP_DI": {
+        "label": "IGP-DI",
+        "description": "General Price Index – Internal Availability. Tracks inflation at different stages of the economy for macroeconomic analysis.",
+        "issuer": "IPEA/FGV"
+      },
+      "SELIC": {
+        "label": "Selic Rate",
+        "description": "Special System for Settlement and Custody. It is the economy's basic interest rate, used to control inflation and guide credit costs.",
+        "issuer": "BCB"
+      },
+      "CDI": {
+        "label": "CDI",
+        "description": "Interbank Deposit Certificate. Reference rate for very short-term interbank operations, the basis for many investments.",
+        "issuer": "B3"
+      },
+      "DI_OVER": {
+        "label": "DI Over",
+        "description": "Average daily rate of Interfinancial Deposits (overnight). Indicates the cost of money between banks in the very short term.",
+        "issuer": "B3"
+      },
+      "TR": {
+        "label": "Referential Rate",
+        "description": "Mainly used as a monetary correction rate. It serves to update savings balances, FGTS, capitalization bonds and calculate the cost of certain real estate financing (SFH system).",
+        "issuer": "BCB"
+      },
+      "GDP": {
+        "label": "GDP",
+        "description": "Gross Domestic Product. Sum of final goods and services produced in the country, main measure of economic activity.",
+        "issuer": "IBGE"
+      },
+      "UNEMPLOYMENT": {
+        "label": "Unemployment Rate",
+        "description": "Percentage of the workforce that is unemployed and looking for work. Measures the degree of slack in the labor market.",
+        "issuer": "IBGE"
+      },
+      "AVERAGE_INCOME": {
+        "label": "Average Real Income",
+        "description": "Average labor income adjusted for inflation. Shows the purchasing power of the employed population.",
+        "issuer": "IBGE"
+      },
+      "TRADE_BALANCE": {
+        "label": "Trade Balance",
+        "description": "Difference between exports and imports of goods. Indicates if the country sells more abroad than it buys.",
+        "issuer": "SECEX"
+      },
+      "CURRENT_ACCOUNT": {
+        "label": "Current Account",
+        "description": "Balance of transactions with the exterior in goods, services, income, and transfers. Shows external financing needs or capacity.",
+        "issuer": "BCB"
+      },
+      "INTERNATIONAL_RESERVES": {
+        "label": "International Reserves",
+        "description": "Foreign currency assets held by the Central Bank. Serve to reduce external vulnerability and provide exchange rate stability.",
+        "issuer": "BCB"
+      },
+      "PUBLIC_DEBT_GDP": {
+        "label": "Net Public Debt (% GDP)",
+        "description": "Relation between net public debt and GDP. Evaluates fiscal sustainability in the medium and long term.",
+        "issuer": "BCB"
+      },
+      "PRIMARY_RESULT": {
+        "label": "Primary Result",
+        "description": "Difference between government revenues and expenses, without considering debt interest. Indicates current fiscal effort.",
+        "issuer": "BCB"
+      }
     }
   },
   "cards": {
@@ -85,7 +189,8 @@
     "noReportData": "No data available for this report",
     "selectReport": "Select a report to view details",
     "clickToViewDetails": "Click to view details",
-    "noResults": "No results found."
+    "noResults": "No results found.",
+    "dataRestricted": "Data not available"
   },
   "institutionTypes": {
     "individualInstitution": "Individual Institution",
@@ -168,7 +273,14 @@
     "classifiedCreditPortfolio": "Classified Credit Portfolio",
     "currentAndLongTermLiabilities": "Current and Long-term Liabilities and Future Results",
     "numberOfBranches": "Number of Branches",
-    "numberOfServicePoints": "Number of Service Points"
+    "numberOfServicePoints": "Number of Service Points",
+    "lastUpdateMessage": "Data referring to the {{quarter}} quarter of {{year}}.",
+    "quarters": {
+      "1": "first",
+      "2": "second",
+      "3": "third",
+      "4": "fourth"
+    }
   },
   "footer": {
     "source": "Data updated regularly with official sources",

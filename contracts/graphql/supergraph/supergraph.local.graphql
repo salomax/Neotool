@@ -144,6 +144,7 @@ type BacenFinanceInstitution
 {
   id: ID!
   quarter: String
+  updatedAt: DateTime
   name: String!
   asset: Asset
   legalName: String
@@ -159,6 +160,7 @@ type BacenFinanceInstitution
   address: String
   founded: String
   rwaReferenceEquity: Float
+  dataRestriction: DataRestriction
   reportsSummary(range: QuarterRangeInput!): ReportsAvailability!
   reportDetails(reportId: ID!, range: QuarterRangeInput!): ReportDetails!
 
@@ -224,6 +226,7 @@ type BacenInstitutionSummaryItem
   bacenInstitutionType: String
   institutionType: BacenInstitutionType
   tipoConsolidadoBancario: String
+  dataRestriction: DataRestriction
 }
 
 enum BacenInstitutionType
@@ -289,6 +292,19 @@ input CreateRoleInput
   name: String!
 }
 
+type DataRestriction
+  @join__type(graph: FINANCIALDATA)
+{
+  isRestricted: Boolean!
+  reason: DataRestrictionReason
+}
+
+enum DataRestrictionReason
+  @join__type(graph: FINANCIALDATA)
+{
+  INSTITUTION_REQUEST @join__enumValue(graph: FINANCIALDATA)
+}
+
 scalar Date
   @join__type(graph: ASSETS)
   @join__type(graph: FINANCIALDATA)
@@ -312,16 +328,7 @@ type EconomicIndicator
   isActive: Boolean!
   createdAt: DateTime!
   updatedAt: DateTime!
-  variations: [EconomicIndicatorVariation!]!
-}
-
-type EconomicIndicatorLatest
-  @join__type(graph: FINANCIALDATA)
-{
-  indicator: String!
-  variation: String!
-  unit: String!
-  latest: EconomicIndicatorPoint
+  variations(label: String): [EconomicIndicatorVariation!]!
 }
 
 type EconomicIndicatorPoint
@@ -329,15 +336,6 @@ type EconomicIndicatorPoint
 {
   referenceDate: Date!
   value: Float!
-}
-
-type EconomicIndicatorSeries
-  @join__type(graph: FINANCIALDATA)
-{
-  indicator: String!
-  variation: String!
-  unit: String
-  values: [EconomicIndicatorPoint!]!
 }
 
 type EconomicIndicatorVariation
@@ -350,6 +348,14 @@ type EconomicIndicatorVariation
   incrementalMonths: Int
   incrementalYears: Int
   incrementalDays: Int
+  series(range: IndicatorRangeInput, limit: Int): EconomicIndicatorVariationSeries
+}
+
+type EconomicIndicatorVariationSeries
+  @join__type(graph: FINANCIALDATA)
+{
+  unit: String
+  values: [EconomicIndicatorPoint!]!
 }
 
 type Group
@@ -617,10 +623,7 @@ type Query
   bacenInstitutions(query: String, anoMes: String, first: Int, after: String): BacenInstitutionConnection! @join__field(graph: FINANCIALDATA)
   bacenFinanceInstitution(id: ID!, anoMes: String): BacenFinanceInstitution @join__field(graph: FINANCIALDATA)
   ratingIssuers: [RatingIssuer!]! @join__field(graph: FINANCIALDATA)
-  economicIndicators: [EconomicIndicator!]! @join__field(graph: FINANCIALDATA)
-  indicatorSeries(indicator: String!, variation: String!, range: IndicatorRangeInput, limit: Int): EconomicIndicatorSeries @join__field(graph: FINANCIALDATA)
-  indicatorLatest(indicator: String!, variation: String!): EconomicIndicatorPoint @join__field(graph: FINANCIALDATA)
-  indicatorsLatest: [EconomicIndicatorLatest!]! @join__field(graph: FINANCIALDATA)
+  economicIndicators(label: String): [EconomicIndicator!]! @join__field(graph: FINANCIALDATA)
   currentUser: User @join__field(graph: SECURITY)
   checkPermission(userId: ID!, permission: String!, resourceId: ID): AuthorizationResult! @join__field(graph: SECURITY)
   user(id: ID!): User @join__field(graph: SECURITY)

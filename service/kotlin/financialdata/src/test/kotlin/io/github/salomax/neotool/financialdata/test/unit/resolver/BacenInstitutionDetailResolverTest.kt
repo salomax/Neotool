@@ -224,6 +224,12 @@ class BacenInstitutionDetailResolverTest {
             funding = null,
             loanPortfolio = null,
             rwaReferenceEquity = null,
+            updatedAt = null,
+            dataRestriction =
+                io.github.salomax.neotool.financialdata.domain.DataRestriction(
+                    false,
+                    null,
+                ),
         )
 
     private fun bacenFinanceInstitutionDTO(
@@ -255,5 +261,7 @@ class BacenInstitutionDetailResolverTest {
             funding = null,
             loanPortfolio = null,
             rwaReferenceEquity = null,
+            updatedAt = null,
+            dataRestriction = null,
         )
 }

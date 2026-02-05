@@ -15,7 +15,7 @@ if (!i18n.isInitialized) {
         pt: { common: pt },
       },
       lng: "pt",
-      fallbackLng: "en",
+      fallbackLng: "pt", // Changed to pt to force Portuguese fallback
       ns: ["common"],
       defaultNS: "common",
       interpolation: { escapeValue: false },
@@ -24,6 +24,11 @@ if (!i18n.isInitialized) {
     .catch((error) => {
       logger.error("Failed to initialize i18n:", error);
     });
+} else {
+  // If already initialized, ensure language is correct
+  if (i18n.language !== "pt") {
+    i18n.changeLanguage("pt");
+  }
 }
 
 export default i18n;

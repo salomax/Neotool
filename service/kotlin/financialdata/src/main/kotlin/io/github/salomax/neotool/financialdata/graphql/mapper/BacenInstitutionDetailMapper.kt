@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.financialdata.graphql.mapper
 
 import io.github.salomax.neotool.financialdata.domain.BacenFinanceInstitution
+import io.github.salomax.neotool.financialdata.domain.DataRestriction
 import io.github.salomax.neotool.financialdata.domain.QuarterReports
 import io.github.salomax.neotool.financialdata.domain.QuarterValue
 import io.github.salomax.neotool.financialdata.domain.ReportAccount
@@ -8,6 +9,7 @@ import io.github.salomax.neotool.financialdata.domain.ReportDescriptor
 import io.github.salomax.neotool.financialdata.domain.ReportDetails
 import io.github.salomax.neotool.financialdata.domain.ReportsAvailability
 import io.github.salomax.neotool.financialdata.graphql.dto.BacenFinanceInstitutionDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.DataRestrictionDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.QuarterReportsDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.QuarterValueDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.ReportAccountDTO
@@ -32,6 +34,7 @@ class BacenInstitutionDetailMapper {
             institutionType = institution.institutionType,
             tipoConsolidadoBancario = institution.tipoConsolidadoBancario,
             quarter = institution.quarter,
+            updatedAt = institution.updatedAt,
             website = institution.website,
             socialNetworks = institution.socialNetworks,
             mainActivity = institution.mainActivity,
@@ -44,6 +47,14 @@ class BacenInstitutionDetailMapper {
             funding = institution.funding?.toDouble(),
             loanPortfolio = institution.loanPortfolio?.toDouble(),
             rwaReferenceEquity = institution.rwaReferenceEquity?.toDouble(),
+            dataRestriction = toDataRestrictionDTO(institution.dataRestriction),
+        )
+    }
+
+    fun toDataRestrictionDTO(restriction: DataRestriction): DataRestrictionDTO {
+        return DataRestrictionDTO(
+            isRestricted = restriction.isRestricted,
+            reason = restriction.reason,
         )
     }
 

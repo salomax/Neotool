@@ -19,6 +19,10 @@ CREATE TABLE IF NOT EXISTS financial_data.economic_indicator_variation (
     indicator_id UUID NOT NULL REFERENCES financial_data.economic_indicator(id) ON DELETE CASCADE,
     label TEXT NOT NULL,
     unit TEXT,
+    --   PERCENTAGE_0_100: Source provides percentage as 0-100 (e.g., 50 means 50%), needs /100 transformation
+    --   PERCENTAGE_0_1: Already normalized (e.g., 0.5 means 50%), no transformation needed
+    --   ABSOLUTE: Non-percentage value, no transformation needed
+    value_format TEXT NOT NULL DEFAULT 'ABSOLUTE',
     is_default BOOLEAN NOT NULL DEFAULT false,
     incremental_months INT,
     incremental_years INT,

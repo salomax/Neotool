@@ -21,8 +21,10 @@ import { useAuth } from "@/shared/providers";
 import { Button } from "@/shared/components/ui/primitives/Button";
 import { usePageTitleValue } from "@/shared/hooks/ui/usePageTitle";
 import { Breadcrumb } from "@/shared/components/ui/navigation/Breadcrumb";
+import { useTranslation } from "react-i18next";
 
 export function AppHeader() {
+  const { t } = useTranslation();
   const { mode, toggle } = useThemeMode();
   const isDark = mode === "dark";
   const [chatDrawerOpen, setChatDrawerOpen] = React.useState(false);
@@ -139,18 +141,18 @@ export function AppHeader() {
               flex: pageTitle ? "0 0 auto" : "1 1 auto",
             }}
           >
-            <Tooltip title={isDark ? "Switch to light mode" : "Switch to dark mode"}>
+            <Tooltip title={isDark ? t("appHeader.theme.light") : t("appHeader.theme.dark")}>
               <IconButton aria-label="toggle theme" onClick={toggle}>
                 {isDark ? <LightModeRoundedIcon /> : <DarkModeRoundedIcon />}
               </IconButton>
             </Tooltip>
-            <Tooltip title="AI Assistant">
+            <Tooltip title={t("appHeader.aiAssistant")}>
               <IconButton aria-label="Open AI assistant" onClick={handleChatIconClick}>
                 <AutoAwesomeIcon />
               </IconButton>
             </Tooltip>
             {isAuthenticated ? (
-              <Tooltip title="Account">
+              <Tooltip title={t("appHeader.account")}>
                 <IconButton 
                   aria-label="Account menu"
                   onClick={handleProfileMenuOpen}
@@ -171,12 +173,12 @@ export function AppHeader() {
                 variant="contained"
                 size="medium"
                 onClick={handleSignIn}
-                aria-label="Sign in"
+                aria-label={t("appHeader.signIn")}
                 data-testid="header-signin-button"
                 name="header-signin"
                 sx={{ height: (theme) => theme.spacing(5.5), px: 2.5 }}
               >
-                Sign In
+                {t("appHeader.signIn")}
               </Button>
             )}
           </Box>
@@ -206,7 +208,7 @@ export function AppHeader() {
         {user && [
           <Box key="user-info" sx={{ px: 2, py: 1.5 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-              {user.displayName || "User"}
+              {user.displayName || t("appHeader.defaultUser")}
             </Typography>
             <Typography variant="caption" color="text.secondary">
               {user.email}
@@ -215,7 +217,7 @@ export function AppHeader() {
           <Divider key="divider" />,
           <MenuItem key="sign-out" onClick={handleSignOut}>
             <LogoutIcon sx={{ mr: 1.5, fontSize: 20 }} />
-            Sign Out
+            {t("appHeader.signOut")}
           </MenuItem>
         ]}
       </Menu>

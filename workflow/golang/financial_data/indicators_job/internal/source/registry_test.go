@@ -42,8 +42,8 @@ func TestRegistryResolve_SGSStartDate(t *testing.T) {
 
 	variation := domain.IndicatorVariation{
 		IndicatorLabel:     "SELIC",
-		Label:              "EFFECTIVE_RATE",
-		IndicatorFrequency: "daily",
+		Label:              "TARGET_RATE",
+		IndicatorFrequency: "monthly",
 	}
 
 	recentRef := time.Now().UTC().AddDate(0, 0, -5)

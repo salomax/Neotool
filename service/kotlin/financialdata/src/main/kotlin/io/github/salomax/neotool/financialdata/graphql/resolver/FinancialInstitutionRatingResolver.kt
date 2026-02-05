@@ -28,6 +28,9 @@ class FinancialInstitutionRatingResolver(
         val source =
             env.getSource<BacenFinanceInstitutionDTO>()
                 ?: return CompletableFuture.completedFuture(emptyList())
+        if (source.dataRestriction?.isRestricted == true) {
+            return CompletableFuture.completedFuture(emptyList())
+        }
         val dataLoader =
             env.getDataLoader<String, List<InstitutionRatingDTO>>(
                 InstitutionRatingsDataLoader.KEY,
@@ -39,6 +42,9 @@ class FinancialInstitutionRatingResolver(
         val source =
             env.getSource<BacenFinanceInstitutionDTO>()
                 ?: return CompletableFuture.completedFuture(emptyList())
+        if (source.dataRestriction?.isRestricted == true) {
+            return CompletableFuture.completedFuture(emptyList())
+        }
         val limit = env.getArgument<Int>("limit") ?: 50
         val dataLoader =
             env.getDataLoader<InstitutionRatingHistoryDataLoader.RatingHistoryKey, List<RatingHistoryDTO>>(

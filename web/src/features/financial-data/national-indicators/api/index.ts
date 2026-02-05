@@ -19,13 +19,17 @@ export const GET_ECONOMIC_INDICATORS = gql`
 
 export const GET_INDICATORS_LATEST = gql`
   query IndicatorsLatest {
-    indicatorsLatest {
-      indicator
-      variation
-      unit
-      latest {
-        referenceDate
-        value
+    economicIndicators {
+      label
+      variations {
+        label
+        series(limit: 24) {
+          unit
+          values {
+            referenceDate
+            value
+          }
+        }
       }
     }
   }

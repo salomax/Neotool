@@ -81,7 +81,7 @@ export default function BacenInstitutionsPage() {
       <Container maxWidth="xl" sx={{ py: 4 }}>
         <CardGrid
           items={institutions}
-          columns={4}
+          columns={{ xs: 1, sm: 2, md: 3, lg: 4 }}
           renderItem={(institution: BacenInstitution) => (
             <BacenInstitutionCard
               institution={institution}

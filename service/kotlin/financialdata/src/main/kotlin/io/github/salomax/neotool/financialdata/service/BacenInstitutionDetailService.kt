@@ -5,6 +5,7 @@ import io.github.salomax.neotool.financialdata.domain.BacenFinanceInstitution
 import io.github.salomax.neotool.financialdata.domain.BacenInstitutionBankType
 import io.github.salomax.neotool.financialdata.domain.BacenInstitutionType
 import io.github.salomax.neotool.financialdata.domain.CanonicalAccountNames
+import io.github.salomax.neotool.financialdata.domain.DataRestriction
 import io.github.salomax.neotool.financialdata.domain.QuarterRange
 import io.github.salomax.neotool.financialdata.domain.QuarterReports
 import io.github.salomax.neotool.financialdata.domain.QuarterValue
@@ -23,6 +24,7 @@ import mu.KotlinLogging
 open class BacenInstitutionDetailService(
     private val institutionDetailRepository: BacenInstitutionDetailRepositoryCustom,
     private val quarterService: QuarterService,
+    private val restrictionService: InstitutionDataRestrictionService,
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -51,6 +53,48 @@ open class BacenInstitutionDetailService(
         if (financialData == null) {
             logger.debug { "Financial institution not found for id=$id, anoMes=$anoMes" }
             return null
+        }
+
+        val dataRestriction = restrictionService.isRestricted(id)
+        if (dataRestriction.isRestricted) {
+            // Return metadata only; no financial data or report data
+            val controlType = mapControlType(financialData.tipoControle)
+            val institutionBankType = mapInstitutionBankType(financialData.tipoConsolidadoBancario)
+            val institutionType =
+                mapInstitutionType(
+                    tipoConsolidacao = financialData.tipoConsolidacao,
+                    bacenCodInst = id,
+                    codConglomeradoPrudencial = null,
+                    codConglomeradoFinanceiro = null,
+                )
+            return BacenFinanceInstitution(
+                id = id,
+                name = financialData.nomeInstituicao ?: "Unknown",
+                legalName = financialData.legalName,
+                tradeName = financialData.tradeName,
+                assetId = financialData.assetId,
+                profit = null,
+                equity = null,
+                yoyEquityGrowth = null,
+                basileiaIndex = null,
+                institutionType = institutionType,
+                tipoConsolidadoBancario = institutionBankType,
+                quarter = null,
+                updatedAt = financialData.updatedAt,
+                website = financialData.website,
+                socialNetworks = financialData.socialNetworks,
+                mainActivity = financialData.mainActivity,
+                address = financialData.address,
+                founded = financialData.founded,
+                controlType = controlType,
+                institutionBankType = institutionBankType,
+                mobilizacaoIndex = null,
+                totalAssets = null,
+                funding = null,
+                loanPortfolio = null,
+                rwaReferenceEquity = null,
+                dataRestriction = dataRestriction,
+            )
         }
 
         // Get BACEN institution report data
@@ -95,6 +139,7 @@ open class BacenInstitutionDetailService(
             institutionType = institutionType,
             tipoConsolidadoBancario = institutionBankType,
             quarter = latestQuarter,
+            updatedAt = financialData.updatedAt,
             website = financialData.website,
             socialNetworks = financialData.socialNetworks,
             mainActivity = financialData.mainActivity,
@@ -107,6 +152,7 @@ open class BacenInstitutionDetailService(
             funding = financialMetrics.funding,
             loanPortfolio = financialMetrics.loanPortfolio,
             rwaReferenceEquity = financialMetrics.rwaReferenceEquity,
+            dataRestriction = DataRestriction.NOT_RESTRICTED,
         )
     }
 

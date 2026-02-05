@@ -26,6 +26,7 @@ body:graphql {
         id
         publicUrl
       }
+      updatedAt
       institutionType
       controlType
       institutionBankType
@@ -82,12 +83,12 @@ tests {
     const data = res.getBody();
     expect(data.data.bacenFinanceInstitution.id).to.be.a('string');
   });
-
+  
   test("Has ratings array (optional)", function() {
     const data = res.getBody();
     expect(data.data.bacenFinanceInstitution.ratings).to.be.an('array');
   });
-
+  
   test("Has rating history array (optional)", function() {
     const data = res.getBody();
     expect(data.data.bacenFinanceInstitution.ratingHistory).to.be.an('array');

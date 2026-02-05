@@ -48,6 +48,12 @@ class BacenInstitutionDetailMapperTest {
                 funding = BigDecimal("500.0"),
                 loanPortfolio = BigDecimal("400.0"),
                 rwaReferenceEquity = BigDecimal("123.0"),
+                updatedAt = java.time.Instant.now(),
+                dataRestriction =
+                    io.github.salomax.neotool.financialdata.domain.DataRestriction(
+                        isRestricted = false,
+                        reason = null,
+                    ),
             )
 
         val dto = mapper.toBacenFinanceInstitutionDTO(institution)
@@ -117,6 +123,12 @@ class BacenInstitutionDetailMapperTest {
                 funding = null,
                 loanPortfolio = null,
                 rwaReferenceEquity = null,
+                updatedAt = null,
+                dataRestriction =
+                    io.github.salomax.neotool.financialdata.domain.DataRestriction(
+                        false,
+                        null,
+                    ),
             )
 
         val dto = mapper.toBacenFinanceInstitutionDTO(institution)

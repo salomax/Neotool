@@ -6,12 +6,16 @@ import graphql.schema.idl.TypeRuntimeWiring
 import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.createValidatedDataFetcher
 import io.github.salomax.neotool.common.graphql.GraphQLResolverRegistry
 import io.github.salomax.neotool.common.graphql.GraphQLWiringFactory
+import io.github.salomax.neotool.financialdata.graphql.dataloader.IndicatorSeriesDataLoader
 import io.github.salomax.neotool.financialdata.graphql.dto.BacenFinanceInstitutionDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionAutocompleteConnectionDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionAutocompleteItemDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionConnectionDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionEdgeDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionSummaryItemDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.DataRestrictionDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.EconomicIndicatorVariationDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.EconomicIndicatorVariationSeriesDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.InstitutionRatingDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.PageInfoDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.QuarterReportsDTO
@@ -24,9 +28,9 @@ import io.github.salomax.neotool.financialdata.graphql.dto.ReportsAvailabilityDT
 import io.github.salomax.neotool.financialdata.graphql.resolver.BacenInstitutionDetailResolver
 import io.github.salomax.neotool.financialdata.graphql.resolver.FinancialInstitutionRatingResolver
 import io.github.salomax.neotool.financialdata.graphql.resolver.IndicatorResolver
-import io.github.salomax.neotool.financialdata.graphql.resolver.IndicatorValueResolver
 import io.github.salomax.neotool.financialdata.graphql.resolver.InstitutionSearchResolver
 import jakarta.inject.Singleton
+import java.time.LocalDate
 import java.time.ZoneOffset
 
 /**
@@ -38,7 +42,6 @@ class FinancialDataWiringFactory(
     private val institutionDetailResolver: BacenInstitutionDetailResolver,
     private val ratingResolver: FinancialInstitutionRatingResolver,
     private val indicatorResolver: IndicatorResolver,
-    private val indicatorValueResolver: IndicatorValueResolver,
     resolverRegistry: GraphQLResolverRegistry,
 ) : GraphQLWiringFactory() {
     init {
@@ -47,7 +50,6 @@ class FinancialDataWiringFactory(
         resolverRegistry.register("institutionDetail", institutionDetailResolver)
         resolverRegistry.register("ratingResolver", ratingResolver)
         resolverRegistry.register("indicatorResolver", indicatorResolver)
-        resolverRegistry.register("indicatorValueResolver", indicatorValueResolver)
     }
 
     override fun registerQueryResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder {
@@ -97,19 +99,19 @@ class FinancialDataWiringFactory(
             .dataFetcher(
                 "indicatorSeries",
                 createValidatedDataFetcher { env ->
-                    indicatorValueResolver.indicatorSeries(env)
+                    indicatorResolver.indicatorSeries(env)
                 },
             )
             .dataFetcher(
                 "indicatorLatest",
                 createValidatedDataFetcher { env ->
-                    indicatorValueResolver.indicatorLatest(env)
+                    indicatorResolver.indicatorLatest(env)
                 },
             )
             .dataFetcher(
                 "indicatorsLatest",
-                createValidatedDataFetcher {
-                    indicatorValueResolver.indicatorsLatest()
+                createValidatedDataFetcher { env ->
+                    indicatorResolver.indicatorsLatest(env)
                 },
             )
     }
@@ -126,6 +128,74 @@ class FinancialDataWiringFactory(
 
     override fun registerCustomTypeResolvers(builder: RuntimeWiring.Builder): RuntimeWiring.Builder {
         return builder
+            // EconomicIndicator type resolvers
+            .type("EconomicIndicator") { type ->
+                type.dataFetcher(
+                    "variations",
+                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                        indicatorResolver.variations(env)
+                    },
+                )
+            }
+            // EconomicIndicatorVariation type resolvers
+            .type("EconomicIndicatorVariation") { type ->
+                type.dataFetcher(
+                    "series",
+                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                        val source =
+                            env.getSource<EconomicIndicatorVariationDTO>()
+                                ?: throw IllegalStateException("Source is null")
+                        val indicatorLabel =
+                            source.indicatorLabel
+                                ?: throw IllegalStateException("Indicator label is missing")
+
+                        val range = env.getArgument<Map<String, Any>?>("range")
+                        val limit = env.getArgument<Int?>("limit")
+
+                        val fromDateStr = range?.get("from")
+                        val toDateStr = range?.get("to")
+
+                        val (from, to) =
+                            if (fromDateStr == null && toDateStr == null) {
+                                val now = LocalDate.now()
+                                now.minusYears(5) to now
+                            } else {
+                                val f =
+                                    if (fromDateStr is String) {
+                                        LocalDate.parse(fromDateStr)
+                                    } else {
+                                        LocalDate.of(1900, 1, 1)
+                                    }
+                                val t =
+                                    if (toDateStr is String) {
+                                        LocalDate.parse(toDateStr)
+                                    } else {
+                                        LocalDate.now()
+                                    }
+                                f to t
+                            }
+
+                        val dataLoader =
+                            env.getDataLoader<
+                                IndicatorSeriesDataLoader.Key,
+                                EconomicIndicatorVariationSeriesDTO?,
+                            >(IndicatorSeriesDataLoader.KEY)
+                                ?: throw IllegalStateException(
+                                    "DataLoader ${IndicatorSeriesDataLoader.KEY} not found",
+                                )
+
+                        dataLoader.load(
+                            IndicatorSeriesDataLoader.Key(
+                                indicator = indicatorLabel,
+                                variation = source.label,
+                                from = from,
+                                to = to,
+                                limit = limit,
+                            ),
+                        )
+                    },
+                )
+            }
             // PageInfo type resolvers
             .type("PageInfo") { type ->
                 type.dataFetcher(
@@ -265,6 +335,13 @@ class FinancialDataWiringFactory(
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
                             val item = env.getSource<BacenInstitutionSummaryItemDTO>()
                             item?.institutionType?.name
+                        },
+                    )
+                    .dataFetcher(
+                        "dataRestriction",
+                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                            val item = env.getSource<BacenInstitutionSummaryItemDTO>()
+                            item?.dataRestriction
                         },
                     )
             }
@@ -417,6 +494,13 @@ class FinancialDataWiringFactory(
                         },
                     )
                     .dataFetcher(
+                        "updatedAt",
+                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                            val institution = env.getSource<BacenFinanceInstitutionDTO>()
+                            institution?.updatedAt?.atOffset(ZoneOffset.UTC)
+                        },
+                    )
+                    .dataFetcher(
                         "asset",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
                             val institution = env.getSource<BacenFinanceInstitutionDTO>()
@@ -515,6 +599,13 @@ class FinancialDataWiringFactory(
                         },
                     )
                     .dataFetcher(
+                        "dataRestriction",
+                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                            val institution = env.getSource<BacenFinanceInstitutionDTO>()
+                            institution?.dataRestriction
+                        },
+                    )
+                    .dataFetcher(
                         "reportsSummary",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
                             institutionDetailResolver.reportsSummary(env)
@@ -536,6 +627,23 @@ class FinancialDataWiringFactory(
                         "ratingHistory",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
                             ratingResolver.ratingHistory(env)
+                        },
+                    )
+            }
+            // DataRestriction type resolvers
+            .type("DataRestriction") { type ->
+                type.dataFetcher(
+                    "isRestricted",
+                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                        val restriction = env.getSource<DataRestrictionDTO>()
+                        restriction?.isRestricted
+                    },
+                )
+                    .dataFetcher(
+                        "reason",
+                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                            val restriction = env.getSource<DataRestrictionDTO>()
+                            restriction?.reason
                         },
                     )
             }

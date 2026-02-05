@@ -83,7 +83,7 @@ describe.sequential('ForgotPasswordForm', () => {
     const user = userEvent.setup();
     renderForgotPasswordForm();
 
-    const emailInput = screen.getByRole('textbox', { name: /email/i });
+    const emailInput = screen.getByRole('textbox', { name: /e-?mail/i });
     const submitButton = screen.getByTestId('button-send-reset-link');
 
     await user.type(emailInput, 'invalid-email');
@@ -94,7 +94,7 @@ describe.sequential('ForgotPasswordForm', () => {
       // or we can check for the error state on the input
       expect(emailInput).toHaveAttribute('aria-invalid', 'true');
       // The helperText should contain the translated error message
-      const helperText = screen.getByText(/please enter a valid email address|this field is required/i);
+      const helperText = screen.getByText(/please enter a valid email address|por favor, insira um endereço de e-mail válido|this field is required|este campo é obrigatório/i);
       expect(helperText).toBeInTheDocument();
     });
   });
@@ -103,7 +103,7 @@ describe.sequential('ForgotPasswordForm', () => {
     const user = userEvent.setup();
     renderForgotPasswordForm();
 
-    const emailInput = screen.getByRole('textbox', { name: /email/i });
+    const emailInput = screen.getByRole('textbox', { name: /e-?mail/i });
     const submitButton = screen.getByTestId('button-send-reset-link');
     await user.click(submitButton);
 
@@ -113,7 +113,7 @@ describe.sequential('ForgotPasswordForm', () => {
       // The error message should be displayed as helperText in the TextField
       // For an empty email field, zod validates email() first, which shows "Please enter a valid email address"
       // instead of "This field is required" because empty string fails email validation first
-      const errorMessage = screen.getByText(/please enter a valid email address|this field is required/i);
+      const errorMessage = screen.getByText(/please enter a valid email address|por favor, insira um endereço de e-mail válido|this field is required|este campo é obrigatório/i);
       expect(errorMessage).toBeInTheDocument();
     }, { timeout: 3000 });
   });
@@ -123,7 +123,7 @@ describe.sequential('ForgotPasswordForm', () => {
     const onSuccess = vi.fn();
     renderForgotPasswordForm({ onSuccess });
 
-    const emailInput = screen.getByRole('textbox', { name: /email/i });
+    const emailInput = screen.getByRole('textbox', { name: /e-?mail/i });
     const submitButton = screen.getByTestId('button-send-reset-link');
 
     await user.type(emailInput, 'test@example.com');
@@ -150,7 +150,7 @@ describe.sequential('ForgotPasswordForm', () => {
     const user = userEvent.setup();
     renderForgotPasswordForm();
 
-    const emailInput = screen.getByRole('textbox', { name: /email/i });
+    const emailInput = screen.getByRole('textbox', { name: /e-?mail/i });
     const submitButton = screen.getByTestId('button-send-reset-link');
 
     await user.type(emailInput, 'test@example.com');
@@ -167,7 +167,7 @@ describe.sequential('ForgotPasswordForm', () => {
       const successAlert = screen.getByRole('alert');
       expect(successAlert).toBeInTheDocument();
       // Check for the translated success message
-      expect(successAlert).toHaveTextContent(/if an account with that email exists, a password reset link has been sent/i);
+      expect(successAlert).toHaveTextContent(/if an account with that email exists, a password reset link has been sent|se uma conta com esse e-mail existir, um link de redefinição de senha foi enviado/i);
     }, { timeout: 3000 });
   });
 
@@ -176,7 +176,7 @@ describe.sequential('ForgotPasswordForm', () => {
     const onSuccess = vi.fn();
     renderForgotPasswordForm({ onSuccess });
 
-    const emailInput = screen.getByRole('textbox', { name: /email/i });
+    const emailInput = screen.getByRole('textbox', { name: /e-?mail/i });
     const submitButton = screen.getByTestId('button-send-reset-link');
 
     await user.type(emailInput, 'test@example.com');
@@ -198,7 +198,7 @@ describe.sequential('ForgotPasswordForm', () => {
 
     renderForgotPasswordForm();
 
-    const emailInput = screen.getByRole('textbox', { name: /email/i });
+    const emailInput = screen.getByRole('textbox', { name: /e-?mail/i });
     const submitButton = screen.getByTestId('button-send-reset-link');
 
     await user.type(emailInput, 'test@example.com');
@@ -226,7 +226,7 @@ describe.sequential('ForgotPasswordForm', () => {
 
     renderForgotPasswordForm();
 
-    const emailInput = screen.getByRole('textbox', { name: /email/i });
+    const emailInput = screen.getByRole('textbox', { name: /e-?mail/i });
     const submitButton = screen.getByTestId('button-send-reset-link');
 
     await user.type(emailInput, 'test@example.com');
@@ -253,7 +253,7 @@ describe.sequential('ForgotPasswordForm', () => {
 
     renderForgotPasswordForm();
 
-    const emailInput = screen.getByRole('textbox', { name: /email/i });
+    const emailInput = screen.getByRole('textbox', { name: /e-?mail/i });
     const submitButton = screen.getByTestId('button-send-reset-link');
 
     await user.type(emailInput, 'test@example.com');

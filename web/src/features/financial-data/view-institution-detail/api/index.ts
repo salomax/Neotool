@@ -28,6 +28,10 @@ export const BACEN_INSTITUTION = gql`
       address
       founded
       rwaReferenceEquity
+      dataRestriction {
+        isRestricted
+        reason
+      }
       ratings {
         id
         name
@@ -62,6 +66,10 @@ export const BACEN_INSTITUTION_REPORTS = gql`
     bacenFinanceInstitution(id: $id, anoMes: $anoMes) {
       id
       name
+      dataRestriction {
+        isRestricted
+        reason
+      }
       reportsSummary(range: $range) {
         quarters {
           quarter
@@ -82,6 +90,10 @@ export const BACEN_INSTITUTION_REPORT_DETAILS = gql`
   query BacenInstitutionReportDetails($id: ID!, $reportId: ID!, $range: QuarterRangeInput!) {
     bacenFinanceInstitution(id: $id) {
       id
+      dataRestriction {
+        isRestricted
+        reason
+      }
       reportDetails(reportId: $reportId, range: $range) {
         reportId
         name

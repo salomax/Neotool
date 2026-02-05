@@ -48,6 +48,7 @@ data class BacenInstitutionSummaryItemDTO(
     val bacenInstitutionType: String?,
     val institutionType: BacenInstitutionType?,
     val tipoConsolidadoBancario: String?,
+    val dataRestriction: DataRestrictionDTO?,
 )
 
 @Introspected

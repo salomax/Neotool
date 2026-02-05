@@ -79,6 +79,30 @@ workflow/golang/financial_data/institution_enhancement_consumer/
    make build-consumer
    ```
 
+## Building on Linux and macOS
+
+The Makefile targets default to `GOOS=linux` and `GOARCH=amd64` to produce container-friendly binaries. For native builds, override `GOOS/GOARCH` or call `go build` directly.
+
+### Linux (native or cross-compiled)
+
+```bash
+# linux/amd64 (default)
+make build-consumer
+
+# linux/arm64
+GOOS=linux GOARCH=arm64 go build -o bin/consumer ./cmd/consumer
+```
+
+### macOS (native)
+
+```bash
+# Apple Silicon
+GOOS=darwin GOARCH=arm64 go build -o bin/consumer ./cmd/consumer
+
+# Intel
+GOOS=darwin GOARCH=amd64 go build -o bin/consumer ./cmd/consumer
+```
+
 ## Configuration (environment variables)
 All config is driven by env vars. Defaults are applied when shown.
 
@@ -192,6 +216,28 @@ make build-consumer
 
 ```bash
 make build-standalone
+./bin/standalone 12345678000190
+```
+
+#### Standalone examples and variations
+
+```bash
+# Build + run via Makefile
+make run-standalone CNPJ=12345678000190
+
+# Run directly from source (go run)
+go run ./cmd/standalone 12345678000190
+
+# Disable CSV website lookup
+WEBSITES_CSV_ENABLED=false ./bin/standalone 12345678000190
+
+# Enable Serper for website discovery
+SERPER_ENABLED=true SERPER_API_KEY=your_key ./bin/standalone 12345678000190
+
+# Enable logo processing (requires Assets + Security services)
+LOGO_DEV_TOKEN=token \
+SECURITY_SERVICE_ID=client_id \
+SECURITY_SERVICE_SECRET=client_secret \
 ./bin/standalone 12345678000190
 ```
 

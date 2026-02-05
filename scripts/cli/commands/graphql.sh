@@ -139,12 +139,16 @@ execute_generate() {
 # Execute all command
 execute_all() {
     local use_docker=false
+    local generate_all=false
     local -a forward_args=()
     
-    # Check for --docker flag
+    # Check for flags
     for arg in "$@"; do
         if [[ "$arg" == "--docker" ]]; then
             use_docker=true
+        elif [[ "$arg" == "--all" ]]; then
+            generate_all=true
+            forward_args+=("$arg")
         else
             forward_args+=("$arg")
         fi
@@ -165,16 +169,20 @@ execute_all() {
         log "⚠️  Validation found issues (continuing anyway)\n" "$YELLOW"
     fi
     
-    # Generate
+    # Generate - ensure --all is passed if requested
     log "Step 3/3: Generating supergraph..." "$BLUE"
     if [[ "$use_docker" == true ]]; then
-        if ((${#forward_args[@]})); then
+        if [[ "$generate_all" == true ]]; then
+            execute_generate --docker --all
+        elif ((${#forward_args[@]})); then
             execute_generate --docker "${forward_args[@]}"
         else
             execute_generate --docker
         fi
     else
-        if ((${#forward_args[@]})); then
+        if [[ "$generate_all" == true ]]; then
+            execute_generate --all
+        elif ((${#forward_args[@]})); then
             execute_generate "${forward_args[@]}"
         else
             execute_generate

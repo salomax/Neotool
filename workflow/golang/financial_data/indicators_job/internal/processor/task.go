@@ -109,11 +109,11 @@ func (t *Task) Process(ctx context.Context) error {
 			)
 			return err
 		}
-		values, err = t.sgsClient.FetchValues(ctx, t.variation.ID, req.URL)
+		values, err = t.sgsClient.FetchValuesWithCalc(ctx, t.variation.ID, req.URL, req.CalcType, req.StartDate, req.EndDate)
 	case source.SourceCOMEXSTAT:
 		values, err = t.comexClient.FetchValues(ctx, t.variation.ID, req.URL, req.Body)
 	case source.SourceIPEADATA:
-		values, err = t.ipeadataClient.FetchValues(ctx, t.variation.ID, req.SeriesCode, req.StartDate, req.EndDate, req.CalcType)
+		values, err = t.ipeadataClient.FetchValues(ctx, t.variation.ID, req.SeriesCode, req.StartDate, req.EndDate, req.CalcType, req.QuarterlyAdjust)
 	default:
 		err = nil
 	}

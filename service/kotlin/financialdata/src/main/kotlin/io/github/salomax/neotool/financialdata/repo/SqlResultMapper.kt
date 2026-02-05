@@ -1,6 +1,11 @@
 package io.github.salomax.neotool.financialdata.repo
 
 import java.math.BigDecimal
+import java.sql.Timestamp
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
+import java.time.ZoneOffset
 import java.util.UUID
 
 /**
@@ -108,6 +113,22 @@ class SqlResultMapper(
                 } catch (e: IllegalArgumentException) {
                     null
                 }
+            else -> null
+        }
+    }
+
+    /**
+     * Gets an Instant value from the specified column.
+     * Supports Instant, Timestamp, OffsetDateTime, and LocalDateTime values.
+     * Returns null if the value is null or cannot be converted.
+     */
+    fun getInstant(columnName: String): Instant? {
+        val value = getValue(columnName) ?: return null
+        return when (value) {
+            is Instant -> value
+            is Timestamp -> value.toInstant()
+            is OffsetDateTime -> value.toInstant()
+            is LocalDateTime -> value.atZone(ZoneOffset.UTC).toInstant()
             else -> null
         }
     }

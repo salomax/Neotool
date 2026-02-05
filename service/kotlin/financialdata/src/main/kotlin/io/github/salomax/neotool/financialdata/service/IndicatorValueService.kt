@@ -1,8 +1,9 @@
 package io.github.salomax.neotool.financialdata.service
 
-import io.github.salomax.neotool.financialdata.graphql.dto.EconomicIndicatorLatestDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.EconomicIndicatorLatestRootDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.EconomicIndicatorPointDTO
-import io.github.salomax.neotool.financialdata.graphql.dto.EconomicIndicatorSeriesDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.EconomicIndicatorSeriesRootDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.EconomicIndicatorVariationSeriesDTO
 import io.github.salomax.neotool.financialdata.repo.IndicatorValueRepositoryCustom
 import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton
@@ -16,101 +17,96 @@ open class IndicatorValueService(
     private val log = LoggerFactory.getLogger(IndicatorValueService::class.java)
 
     @Transactional(readOnly = true)
-    open fun getSeries(
-        indicator: String,
-        variation: String,
-        from: LocalDate?,
-        to: LocalDate?,
+    open fun getSeriesGrouped(
+        from: LocalDate,
+        to: LocalDate,
         limit: Int?,
-    ): EconomicIndicatorSeriesDTO {
-        validateInputs(indicator, variation)
-        validateLimit(limit)
-
+    ): Map<Pair<String, String>, EconomicIndicatorVariationSeriesDTO> {
         log.debug(
-            "Fetching series for indicator={}, variation={}, from={}, to={}, limit={}",
-            indicator,
-            variation,
+            "Fetching grouped series for from={}, to={}, limit={}",
             from,
             to,
             limit,
         )
 
-        val metadata =
-            repository.findMetadata(indicator, variation)
-                ?: throw IllegalArgumentException("Unknown indicator/variation: $indicator/$variation")
-        val values = repository.findSeries(indicator, variation, from, to, limit)
-        val points =
-            values.map {
-                EconomicIndicatorPointDTO(
-                    it.referenceDate,
-                    metadata.valueFormat.normalize(it.value),
-                )
-            }
+        val results = repository.findSeriesGrouped(null, null, from, to, limit)
 
-        log.debug("Found {} data points for indicator={}, variation={}", points.size, indicator, variation)
+        return results.mapValues { (key, data) ->
+            val points =
+                data.points.map {
+                    EconomicIndicatorPointDTO(
+                        it.referenceDate,
+                        it.value,
+                    )
+                }
+            EconomicIndicatorVariationSeriesDTO(
+                unit = data.unit,
+                values = points,
+            )
+        }
+    }
 
-        return EconomicIndicatorSeriesDTO(
+    /** Returns series for a single indicator+variation (root query indicatorSeries). */
+    @Transactional(readOnly = true)
+    open fun getSeries(
+        indicator: String,
+        variation: String,
+        from: LocalDate,
+        to: LocalDate,
+        limit: Int?,
+    ): EconomicIndicatorSeriesRootDTO? {
+        validateInputs(indicator, variation)
+        validateLimit(limit)
+        val results = repository.findSeriesGrouped(indicator, variation, from, to, limit)
+        val key = indicator to variation
+        val data = results[key] ?: return null
+        val points = data.points.map { EconomicIndicatorPointDTO(it.referenceDate, it.value) }
+        return EconomicIndicatorSeriesRootDTO(
             indicator = indicator,
             variation = variation,
-            unit = metadata.unit,
+            unit = data.unit,
             values = points,
         )
     }
 
+    /** Returns latest value for a single indicator+variation (root query indicatorLatest). */
     @Transactional(readOnly = true)
     open fun getLatest(
         indicator: String,
         variation: String,
     ): EconomicIndicatorPointDTO? {
         validateInputs(indicator, variation)
-
-        log.debug("Fetching latest value for indicator={}, variation={}", indicator, variation)
-
-        val metadata =
-            repository.findMetadata(indicator, variation)
-                ?: throw IllegalArgumentException("Unknown indicator/variation: $indicator/$variation")
-        val latest = repository.findLatest(indicator, variation)
-
-        if (latest == null) {
-            log.debug("No data found for indicator={}, variation={}", indicator, variation)
-            return null
-        }
-
-        log.debug(
-            "Found latest value for indicator={}, variation={}, date={}",
-            indicator,
-            variation,
-            latest.referenceDate,
-        )
-        return EconomicIndicatorPointDTO(
-            latest.referenceDate,
-            metadata.valueFormat.normalize(latest.value),
-        )
+        val now = LocalDate.now()
+        val from = now.minusYears(100)
+        val series = getSeries(indicator, variation, from, now, 1)
+        return series?.values?.lastOrNull()
     }
 
+    /** Returns latest value per indicator+variation (root query indicatorsLatest). Includes variations with no values (latest=null). */
     @Transactional(readOnly = true)
-    open fun getAllLatest(): List<EconomicIndicatorLatestDTO> {
-        log.debug("Fetching all latest indicator values")
-
-        val results = repository.findAllLatest()
-
-        log.debug("Found {} indicator/variation pairs with latest values", results.size)
-
-        return results.map { result ->
-            EconomicIndicatorLatestDTO(
-                indicator = result.indicator,
-                variation = result.variation,
-                unit = result.unit,
-                latest =
-                    if (result.referenceDate != null && result.value != null) {
-                        EconomicIndicatorPointDTO(
-                            result.referenceDate,
-                            result.valueFormat.normalize(result.value),
-                        )
-                    } else {
-                        null
-                    },
-            )
+    open fun getAllLatest(
+        activeIndicators: Map<
+            io.github.salomax.neotool.financialdata.domain.Indicator,
+            List<io.github.salomax.neotool.financialdata.domain.IndicatorVariation>,
+        >,
+    ): List<EconomicIndicatorLatestRootDTO> {
+        val now = LocalDate.now()
+        val from = now.minusYears(100)
+        val resultsWithData = repository.findSeriesGrouped(null, null, from, now, 1)
+        return activeIndicators.flatMap { (indicator, variations) ->
+            val indicatorLabel = indicator.label
+            variations.map { variation ->
+                val key = indicatorLabel to variation.label
+                val data = resultsWithData[key]
+                val point = data?.points?.lastOrNull()
+                val unit = data?.unit ?: variation.unit ?: indicator.unit ?: ""
+                EconomicIndicatorLatestRootDTO(
+                    indicator = indicatorLabel,
+                    variation = variation.label,
+                    unit = unit,
+                    latest = point?.let { EconomicIndicatorPointDTO(it.referenceDate, it.value) },
+                )
+            }
         }
     }
 

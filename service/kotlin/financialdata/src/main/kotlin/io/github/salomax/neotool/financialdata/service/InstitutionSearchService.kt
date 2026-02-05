@@ -6,6 +6,7 @@ import io.github.salomax.neotool.common.graphql.pagination.ConnectionBuilder
 import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import io.github.salomax.neotool.financialdata.domain.BacenInstitutionSummary
+import io.github.salomax.neotool.financialdata.domain.DataRestriction
 import io.github.salomax.neotool.financialdata.repo.BacenInstitutionRepositoryCustom
 import jakarta.inject.Singleton
 import mu.KotlinLogging
@@ -17,6 +18,7 @@ import mu.KotlinLogging
 open class InstitutionSearchService(
     private val institutionSearchRepository: BacenInstitutionRepositoryCustom,
     private val quarterService: QuarterService,
+    private val restrictionService: InstitutionDataRestrictionService,
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -130,26 +132,29 @@ open class InstitutionSearchService(
             // Always get total count
             val totalCount = institutionSearchRepository.countBacenInstitutions(normalizedQuery, targetAnoMes)
 
-            // Take only requested number and convert to domain
+            // Take only requested number and apply restrictions (null out financial metrics for restricted)
+            val pageResults = results.take(pageSize)
+            val restrictionMap = restrictionService.getRestrictionsForInstitutions(pageResults.map { it.bacenCodInst })
             val institutions =
-                results
-                    .take(pageSize)
-                    .map { result ->
-                        BacenInstitutionSummary(
-                            id = result.bacenCodInst,
-                            name = result.nomeInstituicao ?: "Unknown",
-                            legalName = result.legalName,
-                            tradeName = result.tradeName,
-                            assetId = result.assetId,
-                            profit = result.profit,
-                            equity = result.equity,
-                            yoyEquityGrowth = result.yoyEquityGrowth,
-                            basileiaIndex = result.basileiaIndex,
-                            bacenInstitutionType = result.bacenInstitutionType,
-                            institutionType = result.institutionType,
-                            tipoConsolidadoBancario = result.tipoConsolidadoBancario,
-                        )
-                    }
+                pageResults.map { result ->
+                    val restriction = restrictionMap[result.bacenCodInst] ?: DataRestriction.NOT_RESTRICTED
+                    val isRestricted = restriction.isRestricted
+                    BacenInstitutionSummary(
+                        id = result.bacenCodInst,
+                        name = result.nomeInstituicao ?: "Unknown",
+                        legalName = if (isRestricted) null else result.legalName,
+                        tradeName = if (isRestricted) null else result.tradeName,
+                        assetId = result.assetId,
+                        profit = if (isRestricted) null else result.profit,
+                        equity = if (isRestricted) null else result.equity,
+                        yoyEquityGrowth = if (isRestricted) null else result.yoyEquityGrowth,
+                        basileiaIndex = if (isRestricted) null else result.basileiaIndex,
+                        bacenInstitutionType = if (isRestricted) null else result.bacenInstitutionType,
+                        institutionType = if (isRestricted) null else result.institutionType,
+                        tipoConsolidadoBancario = if (isRestricted) null else result.tipoConsolidadoBancario,
+                        dataRestriction = restriction,
+                    )
+                }
 
             logger.debug {
                 "Institution search returned ${institutions.size} results, " +

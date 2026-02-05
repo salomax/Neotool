@@ -7,6 +7,7 @@ import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionAutoc
 import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionConnectionDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionEdgeDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionSummaryItemDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.DataRestrictionDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.PageInfoDTO
 import jakarta.inject.Singleton
 
@@ -63,6 +64,16 @@ class InstitutionSearchMapper {
             bacenInstitutionType = summary.bacenInstitutionType?.toString(),
             institutionType = summary.institutionType,
             tipoConsolidadoBancario = summary.tipoConsolidadoBancario,
+            dataRestriction = toDataRestrictionDTO(summary.dataRestriction),
+        )
+    }
+
+    private fun toDataRestrictionDTO(
+        restriction: io.github.salomax.neotool.financialdata.domain.DataRestriction,
+    ): DataRestrictionDTO {
+        return DataRestrictionDTO(
+            isRestricted = restriction.isRestricted,
+            reason = restriction.reason,
         )
     }
 }

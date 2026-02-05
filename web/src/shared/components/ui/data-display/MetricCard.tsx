@@ -45,6 +45,11 @@ export interface MetricCardProps extends Omit<CardProps, "children"> {
    * If provided, an icon will be displayed at the top right.
    */
   onOpen?: () => void;
+  /**
+   * Whether to disable multiplying percentage values by 100.
+   * Useful when the data is already in percentage format (e.g. 10.5 for 10.5%).
+   */
+  disablePercentageScaling?: boolean;
 }
 
 export function MetricCard({
@@ -63,6 +68,7 @@ export function MetricCard({
   percentageThresholdInverse = false,
   sx,
   onOpen,
+  disablePercentageScaling = false,
   ...rest
 }: MetricCardProps) {
   const { t: tCommon } = useReactI18nTranslation("common");
@@ -94,8 +100,9 @@ export function MetricCard({
       locale,
       currencyLabels,
       totalizerFormat,
+      disablePercentageScaling,
     });
-  }, [actualValue, valueType, currency, locale, currencyLabels, totalizerFormat]);
+  }, [actualValue, valueType, currency, locale, currencyLabels, totalizerFormat, disablePercentageScaling]);
 
   const hasGrowth = growthPercentage != null;
 

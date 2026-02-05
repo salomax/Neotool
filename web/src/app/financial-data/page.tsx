@@ -15,7 +15,6 @@ export default function FinancialDataPage() {
   const { t } = useTranslation(financialDataTranslations);
   
   usePageTitle(t("routes.financialData"));
-  useBreadcrumbLabel("financial-data", t("routes.financialData"));
 
   return (
     <Page>

@@ -1,6 +1,8 @@
 package io.github.salomax.neotool.financialdata.test.unit.service
 
 import io.github.salomax.neotool.financialdata.domain.CanonicalAccountNames
+import io.github.salomax.neotool.financialdata.domain.DataRestriction
+import io.github.salomax.neotool.financialdata.domain.DataRestrictionReason
 import io.github.salomax.neotool.financialdata.domain.QuarterRange
 import io.github.salomax.neotool.financialdata.repo.BacenInstitutionDetailRepositoryCustom
 import io.github.salomax.neotool.financialdata.repo.result.BacenInstitutionReportDataResult
@@ -8,6 +10,7 @@ import io.github.salomax.neotool.financialdata.repo.result.FinancialInstitutionD
 import io.github.salomax.neotool.financialdata.repo.result.ReportDescriptorResult
 import io.github.salomax.neotool.financialdata.repo.result.ReportValueResult
 import io.github.salomax.neotool.financialdata.service.BacenInstitutionDetailService
+import io.github.salomax.neotool.financialdata.service.InstitutionDataRestrictionService
 import io.github.salomax.neotool.financialdata.service.QuarterService
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -21,11 +24,13 @@ import java.math.BigDecimal
 class BacenInstitutionDetailServiceTest {
     private val institutionDetailRepository: BacenInstitutionDetailRepositoryCustom = mock()
     private val quarterService: QuarterService = mock()
+    private val restrictionService: InstitutionDataRestrictionService = mock()
     private lateinit var service: BacenInstitutionDetailService
 
     @BeforeEach
     fun setUp() {
-        service = BacenInstitutionDetailService(institutionDetailRepository, quarterService)
+        whenever(restrictionService.isRestricted(any())).thenReturn(DataRestriction.NOT_RESTRICTED)
+        service = BacenInstitutionDetailService(institutionDetailRepository, quarterService, restrictionService)
     }
 
     @Test
@@ -48,6 +53,26 @@ class BacenInstitutionDetailServiceTest {
         assertThat(result.name).isEqualTo("Banco Test")
         assertThat(result.profit).isEqualByComparingTo(BigDecimal("100.50"))
         assertThat(result.equity).isEqualByComparingTo(BigDecimal("500.75"))
+    }
+
+    @Test
+    fun `getBacenFinanceInstitution returns metadata only when restricted`() {
+        whenever(quarterService.getLatestQuarter()).thenReturn("202403")
+        whenever(institutionDetailRepository.getFinancialInstitutionData(eq("001"), eq("202403")))
+            .thenReturn(financialData("Banco Restricted"))
+        whenever(restrictionService.isRestricted(eq("001")))
+            .thenReturn(DataRestriction(isRestricted = true, reason = DataRestrictionReason.INSTITUTION_REQUEST))
+
+        val result = service.getBacenFinanceInstitution("001", null)
+
+        assertThat(result).isNotNull
+        assertThat(result!!.id).isEqualTo("001")
+        assertThat(result.name).isEqualTo("Banco Restricted")
+        assertThat(result.dataRestriction.isRestricted).isTrue()
+        assertThat(result.profit).isNull()
+        assertThat(result.equity).isNull()
+        assertThat(result.basileiaIndex).isNull()
+        assertThat(result.rwaReferenceEquity).isNull()
     }
 
     @Test
@@ -366,6 +391,7 @@ class BacenInstitutionDetailServiceTest {
             mainActivity = null,
             address = null,
             founded = null,
+            updatedAt = null,
         )
 
     private fun reportData(

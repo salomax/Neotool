@@ -33,10 +33,7 @@ extend type Query {
   # Rating issuers
   ratingIssuers: [RatingIssuer!]!
   # Economic indicators
-  economicIndicators: [EconomicIndicator!]!
-  indicatorSeries(indicator: String!, variation: String!, range: IndicatorRangeInput, limit: Int): EconomicIndicatorSeries
-  indicatorLatest(indicator: String!, variation: String!): EconomicIndicatorPoint
-  indicatorsLatest: [EconomicIndicatorLatest!]!
+  economicIndicators(label: String): [EconomicIndicator!]!
 }
 
 # Enums
@@ -61,6 +58,15 @@ enum BacenInstitutionBankType {
   N1
   N2
   N4
+}
+
+enum DataRestrictionReason {
+  INSTITUTION_REQUEST
+}
+
+type DataRestriction {
+  isRestricted: Boolean!
+  reason: DataRestrictionReason
 }
 
 # Institution search types
@@ -96,6 +102,7 @@ type BacenInstitutionSummaryItem {
   bacenInstitutionType: String
   institutionType: BacenInstitutionType
   tipoConsolidadoBancario: String
+  dataRestriction: DataRestriction
 }
 
 type PageInfo {
@@ -109,6 +116,7 @@ type PageInfo {
 type BacenFinanceInstitution {
   id: ID!
   quarter: String
+  updatedAt: DateTime
   name: String!
   asset: Asset
   legalName: String
@@ -124,6 +132,7 @@ type BacenFinanceInstitution {
   address: String
   founded: String
   rwaReferenceEquity: Float
+  dataRestriction: DataRestriction
 
   # Reports
   reportsSummary(range: QuarterRangeInput!): ReportsAvailability!
@@ -228,7 +237,7 @@ type EconomicIndicator {
   isActive: Boolean!
   createdAt: DateTime!
   updatedAt: DateTime!
-  variations: [EconomicIndicatorVariation!]!
+  variations(label: String): [EconomicIndicatorVariation!]!
 }
 
 type EconomicIndicatorVariation {
@@ -239,11 +248,10 @@ type EconomicIndicatorVariation {
   incrementalMonths: Int
   incrementalYears: Int
   incrementalDays: Int
+  series(range: IndicatorRangeInput, limit: Int): EconomicIndicatorVariationSeries
 }
 
-type EconomicIndicatorSeries {
-  indicator: String!
-  variation: String!
+type EconomicIndicatorVariationSeries {
   unit: String
   values: [EconomicIndicatorPoint!]!
 }
@@ -251,11 +259,4 @@ type EconomicIndicatorSeries {
 type EconomicIndicatorPoint {
   referenceDate: Date!
   value: Float!
-}
-
-type EconomicIndicatorLatest {
-  indicator: String!
-  variation: String!
-  unit: String!
-  latest: EconomicIndicatorPoint
 }
