@@ -5,15 +5,18 @@ FROM golang:1.22-alpine AS builder
 
 WORKDIR /build
 
+# Allows building from repo root by overriding APP_DIR
+ARG APP_DIR=.
+
 # Install build dependencies
 RUN apk add --no-cache git ca-certificates tzdata
 
 # Copy go.mod and go.sum for dependency caching
-COPY go.mod go.sum ./
+COPY ${APP_DIR}/go.mod ${APP_DIR}/go.sum ./
 RUN go mod download
 
 # Copy source code
-COPY . .
+COPY ${APP_DIR}/ ./
 
 # Build consumer binary
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \

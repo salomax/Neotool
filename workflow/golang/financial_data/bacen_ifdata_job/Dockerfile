@@ -9,14 +9,17 @@ RUN apk add --no-cache git ca-certificates tzdata
 
 WORKDIR /build
 
+# Allows building from repo root by overriding APP_DIR
+ARG APP_DIR=.
+
 # Copy go mod files
-COPY go.mod go.sum ./
+COPY ${APP_DIR}/go.mod ${APP_DIR}/go.sum ./
 
 # Download dependencies
 RUN go mod download
 
 # Copy source code
-COPY . .
+COPY ${APP_DIR}/ ./
 
 # Build binaries with optimizations
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
