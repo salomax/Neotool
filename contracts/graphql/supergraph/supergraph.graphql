@@ -422,7 +422,7 @@ scalar join__FieldSet
 
 enum join__Graph {
   SECURITY @join__graph(name: "security", url: "http://neotool-security.production.svc.cluster.local:8080/graphql")
-  ASSETS @join__graph(name: "assets", url: "http://neotool-assets.production.svc.cluster.local:8083/graphql")
+  ASSETS @join__graph(name: "assets", url: "http://neotool-assets.production.svc.cluster.local:8080/graphql")
   FINANCIALDATA @join__graph(name: "financialdata", url: "http://neotool-financialdata.production.svc.cluster.local:8080/graphql")
 }
 
