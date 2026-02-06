@@ -97,6 +97,19 @@ describe.sequential('ResetPasswordForm', () => {
     }, { timeout: 3000 });
   });
 
+  it('shows password validation checklist', async () => {
+    const user = userEvent.setup();
+    renderResetPasswordForm();
+
+    const passwordField = screen.getByTestId('textfield-new-password');
+    const passwordInput = within(passwordField).getByLabelText(/new password|nova senha/i) as HTMLInputElement;
+
+    await user.type(passwordInput, 'Test');
+    
+    expect(screen.getByTestId('password-validation')).toBeInTheDocument();
+    expect(screen.getAllByTestId(/password-rule-/)).toHaveLength(5);
+  });
+
   it('requires password to have uppercase, lowercase, number, and special character', async () => {
     const user = userEvent.setup();
     renderResetPasswordForm();
