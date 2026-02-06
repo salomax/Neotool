@@ -51,8 +51,8 @@ dependencies {
     runtimeOnly("org.flywaydb:flyway-database-postgresql")
 
     // AWS S3 SDK (for R2/MinIO)
-    implementation("software.amazon.awssdk:s3:2.28.29")
-    implementation("software.amazon.awssdk:sts:2.28.29")
+    implementation("software.amazon.awssdk:s3:2.26.21")
+    implementation("software.amazon.awssdk:sts:2.26.21")
 
     // Jackson for JSON
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
