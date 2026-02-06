@@ -99,7 +99,7 @@ jobs:
             app_dir: financial_data/indicators_job
           - service: institution-enhancement-consumer
             context: ./workflow/golang
-            dockerfile: ./workflow/golang/financial_data/institution_enhancement_consumer/deployments/docker/Dockerfile
+            dockerfile: ./workflow/golang/financial_data/institution_enhancement_consumer/Dockerfile
             target: consumer
             image: neotool-institution-enhancement-consumer
             app_dir: financial_data/institution_enhancement_consumer
