@@ -421,9 +421,9 @@ type InstitutionRating
 scalar join__FieldSet
 
 enum join__Graph {
-  ASSETS @join__graph(name: "assets", url: "http://neotool-assets.production.svc.cluster.local:8083/graphql")
-  FINANCIALDATA @join__graph(name: "financialdata", url: "http://neotool-financial-data-service:8080/graphql")
   SECURITY @join__graph(name: "security", url: "http://neotool-security.production.svc.cluster.local:8080/graphql")
+  ASSETS @join__graph(name: "assets", url: "http://neotool-assets.production.svc.cluster.local:8083/graphql")
+  FINANCIALDATA @join__graph(name: "financialdata", url: "http://neotool-financialdata.production.svc.cluster.local:8080/graphql")
 }
 
 scalar JSON
