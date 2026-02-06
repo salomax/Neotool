@@ -194,7 +194,7 @@ jobs:
           package-name: ${{ matrix.package }}
           package-type: container
           owner: invistus
-          min-versions-to-keep: 2
+          min-versions-to-keep: 3
 
   trigger-supergraph:
     needs: [build-kotlin, build-golang, build-web, version]
