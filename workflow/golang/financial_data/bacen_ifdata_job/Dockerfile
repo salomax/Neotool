@@ -12,14 +12,14 @@ WORKDIR /build
 # Allows building from repo root by overriding APP_DIR
 ARG APP_DIR=.
 
-# Copy go mod files
-COPY ${APP_DIR}/go.mod ${APP_DIR}/go.sum ./
+# Copy source code (full build context)
+COPY . ./
+
+# Use the app directory inside the build context
+WORKDIR /build/${APP_DIR}
 
 # Download dependencies
 RUN go mod download
-
-# Copy source code
-COPY ${APP_DIR}/ ./
 
 # Build binaries with optimizations
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \

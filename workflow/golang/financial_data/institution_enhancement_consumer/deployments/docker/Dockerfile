@@ -11,12 +11,14 @@ ARG APP_DIR=.
 # Install build dependencies
 RUN apk add --no-cache git ca-certificates tzdata
 
-# Copy go.mod and go.sum for dependency caching
-COPY ${APP_DIR}/go.mod ${APP_DIR}/go.sum ./
-RUN go mod download
+# Copy source code (full build context)
+COPY . ./
 
-# Copy source code
-COPY ${APP_DIR}/ ./
+# Use the app directory inside the build context
+WORKDIR /build/${APP_DIR}
+
+# Download dependencies
+RUN go mod download
 
 # Build consumer binary
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
