@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: financialdata-ratings-config
+  namespace: production
+  labels:
+    app: financialdata-ratings
+data:
+  # PostgreSQL via PGBouncer
+  POSTGRES_HOST: "pgbouncer.production.svc.cluster.local"
+  POSTGRES_PORT: "6432"
+  POSTGRES_SSL_MODE: "prefer"
+
+  # Fitch API Configuration
+  FITCH_API_URL: "https://api.fitchratings.com/"
+  FITCH_TIMEOUT_SECONDS: "60"
+  FITCH_THROTTLE_SECONDS: "15"
+
+  # Retry Configuration
+  RETRY_MAX_RETRIES: "3"
+
+  # Health Check Configuration
+  HEALTH_CHECK_ENABLED: "true"
+  HEALTH_CHECK_PORT: "8080"

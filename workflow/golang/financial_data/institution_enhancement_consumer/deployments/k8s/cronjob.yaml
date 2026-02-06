@@ -2,7 +2,7 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: institution-enhancement-standalone-go
-  namespace: financial-data
+  namespace: production
   labels:
     app: institution-enhancement-standalone-go
 spec:
