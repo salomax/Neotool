@@ -66,6 +66,9 @@ dependencies {
     // Micrometer - api for other modules (needed for metrics instrumentation)
     api("io.micronaut.micrometer:micronaut-micrometer-core")
 
+    // Management - api for health indicators and startup (e.g. AbstractWarmupService)
+    api("io.micronaut:micronaut-management")
+
     // Database - api for other modules
     api("io.micronaut.data:micronaut-data-jdbc")
     api("io.micronaut.data:micronaut-data-hibernate-jpa")
