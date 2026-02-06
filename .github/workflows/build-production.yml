@@ -86,19 +86,23 @@ jobs:
             dockerfile: ./workflow/golang/financial_data/bacen_ifdata_job/Dockerfile
             target: cronjob
             image: neotool-bacen-ifdata-cronjob
+            app_dir: financial_data/bacen_ifdata_job
           - service: ratings
             context: ./workflow/golang
             dockerfile: ./workflow/golang/financial_data/ratings_job/Dockerfile
             image: neotool-financialdata-ratings
+            app_dir: financial_data/ratings_job
           - service: indicators
             context: ./workflow/golang
             dockerfile: ./workflow/golang/financial_data/indicators_job/Dockerfile
             image: neotool-financialdata-indicators
+            app_dir: financial_data/indicators_job
           - service: institution-enhancement-consumer
-            context: ./workflow/golang/financial_data/institution_enhancement_consumer
+            context: ./workflow/golang
             dockerfile: ./workflow/golang/financial_data/institution_enhancement_consumer/deployments/docker/Dockerfile
             target: consumer
             image: neotool-institution-enhancement-consumer
+            app_dir: financial_data/institution_enhancement_consumer
     steps:
       - uses: actions/checkout@v4
 
@@ -119,6 +123,8 @@ jobs:
           file: ${{ matrix.dockerfile }}
           target: ${{ matrix.target || '' }}
           push: true
+          build-args: |
+            APP_DIR=${{ matrix.app_dir }}
           tags: |
             ${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:${{ needs.version.outputs.version }}
             ${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:latest

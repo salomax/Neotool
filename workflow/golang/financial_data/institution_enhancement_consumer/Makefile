@@ -103,15 +103,17 @@ tidy: ## Tidy go.mod
 docker-build-consumer: ## Build consumer Docker image
 	@echo "Building consumer Docker image..."
 	docker build --target consumer \
+		--build-arg APP_DIR=financial_data/institution_enhancement_consumer \
 		-t $(DOCKER_IMAGE_CONSUMER):$(DOCKER_TAG) \
-		-f deployments/docker/Dockerfile .
+		-f deployments/docker/Dockerfile ../..
 	@echo "Consumer image built: $(DOCKER_IMAGE_CONSUMER):$(DOCKER_TAG)"
 
 docker-build-standalone: ## Build standalone Docker image
 	@echo "Building standalone Docker image..."
 	docker build --target standalone \
+		--build-arg APP_DIR=financial_data/institution_enhancement_consumer \
 		-t $(DOCKER_IMAGE_STANDALONE):$(DOCKER_TAG) \
-		-f deployments/docker/Dockerfile .
+		-f deployments/docker/Dockerfile ../..
 	@echo "Standalone image built: $(DOCKER_IMAGE_STANDALONE):$(DOCKER_TAG)"
 
 docker-build-all: docker-build-consumer docker-build-standalone ## Build all Docker images
