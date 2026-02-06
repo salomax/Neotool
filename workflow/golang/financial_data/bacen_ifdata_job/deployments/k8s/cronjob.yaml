@@ -6,8 +6,8 @@ metadata:
   labels:
     app: bacen-ifdata-cronjob
 spec:
-  # Every Saturday at 10:00 AM (Sao Paulo timezone)
-  schedule: "0 10 * * 6"
+  # Every Saturday at 1:00 PM (Sao Paulo timezone)
+  schedule: "0 13 * * 6"
   timeZone: "America/Sao_Paulo"
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3

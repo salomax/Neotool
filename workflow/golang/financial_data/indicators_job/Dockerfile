@@ -8,7 +8,7 @@ RUN apk add --no-cache ca-certificates
 COPY . .
 
 # Set working directory to the service
-WORKDIR /app/financial_data/indicators
+WORKDIR /app/financial_data/indicators_job
 
 RUN go mod download
 

@@ -2,12 +2,13 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: institution-enhancement-consumer-go
-  namespace: financial-data
+  namespace: production
   labels:
     app: institution-enhancement-consumer-go
-    version: v1
+    component: service
 spec:
-  # IMPORTANT: Single replica required for in-memory rate limiter (15s between CNPJá API calls)
+  # IMPORTANT: Single replica max required for in-memory rate limiter (15s between CNPJá API calls)
+  # KEDA ScaledObject manages replicas (0-1) based on Kafka consumer lag
   replicas: 1
   selector:
     matchLabels:
@@ -16,12 +17,12 @@ spec:
     metadata:
       labels:
         app: institution-enhancement-consumer-go
-        version: v1
+        component: service
     spec:
       containers:
       - name: consumer
-        image: institution-enhancement-consumer-go:latest
-        imagePullPolicy: IfNotPresent
+        image: ghcr.io/invistus/neotool-institution-enhancement-consumer:latest # {"$imagepolicy": "flux-system:neotool-institution-enhancement-consumer"}
+        imagePullPolicy: Always
         resources:
           requests:
             memory: "64Mi"
@@ -69,3 +70,5 @@ spec:
             - ALL
       restartPolicy: Always
       terminationGracePeriodSeconds: 30
+      imagePullSecrets:
+        - name: ghcr-credentials
