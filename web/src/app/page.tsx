@@ -6,9 +6,13 @@ import {
   Typography,
   Container,
   Stack,
-  styled
+  styled,
+  Link
 } from "@/shared/ui/mui-imports";
-import { Wordmark } from "@/shared/ui/brand";
+import { Wordmark, Logo } from "@/shared/ui/brand";
+import { useTranslation } from "@/shared/i18n";
+import { landingTranslations } from "./i18n";
+import LinkedInIcon from "@mui/icons-material/LinkedIn";
 
 const HeroTypography = styled(Typography)(({ theme }) => ({
   fontWeight: 500,
@@ -46,30 +50,69 @@ const SubtitleTypography = styled(Typography)(({ theme }) => ({
 })) as typeof Typography;
 
 export default function WelcomePage() {
+  const { t } = useTranslation(landingTranslations);
+
   return (
     <>
-      <Container maxWidth="lg" sx={{ height: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', py: 4, position: 'relative', zIndex: 1 }}>
-        <Box sx={{ textAlign: "center", mb: 8, mt: -10 }}>
+      <Container maxWidth="lg" sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', py: 4, position: 'relative', zIndex: 1 }}>
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: "center", mb: 8, mt: -10 }}>
           <Stack alignItems="center" spacing={2} sx={{ mb: 4 }}>
-            <Wordmark variant="blue" size="large" />
+            <Wordmark variant="blue" size="medium" />
           </Stack>
           
           <HeroTypography 
-            variant="h2" 
-            component="h1"
+            variant="h3" 
+            component="h2"
           >
-            Clarity for your
+            {t("title.line1")}
             <br />
-            financial life.
+            {t("title.line2")}
           </HeroTypography>
           
           <SubtitleTypography 
             variant="h6"
           >
-            Consolidated market data and personal
+            {t("subtitle.line1")}
             <br />
-            finance, in one place.
+            {t("subtitle.line2")}
           </SubtitleTypography>
+        </Box>
+
+        <Box component="footer" sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          width: '100%', 
+          py: 3,
+          borderTop: '1px solid',
+          borderColor: 'divider',
+          flexWrap: 'wrap',
+          gap: 2
+        }}>
+          <Box>
+            <Logo size="small" /> 
+          </Box>
+
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 2, sm: 3 }} alignItems="center">
+              <Link href="mailto:contato@invistus.com.br" color="text.secondary" underline="hover" sx={{ fontSize: '0.875rem' }}>
+                  contato@invistus.com.br
+              </Link>
+              <Link 
+                  href="https://www.linkedin.com/company/invistus" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  color="text.secondary"
+                  underline="none"
+                  sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
+              >
+                  <LinkedInIcon fontSize="small" />
+                  <Typography variant="body2" fontWeight="bold">LinkedIn</Typography>
+              </Link>
+          </Stack>
+
+          <Typography variant="body2" color="text.secondary">
+            © 2026 Invistus — Todos os direitos reservados
+          </Typography>
         </Box>
       </Container>
     </>

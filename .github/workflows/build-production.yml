@@ -187,14 +187,21 @@ jobs:
           - neotool-financialdata-indicators
           - neotool-institution-enhancement-consumer
           - neotool-web
+    env:
+      KEEP: 3
     steps:
       - name: Delete old versions of ${{ matrix.package }}
-        uses: actions/delete-package-versions@v5
-        with:
-          package-name: ${{ matrix.package }}
-          package-type: container
-          owner: invistus
-          min-versions-to-keep: 3
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api -H "Accept: application/vnd.github+json" \
+            /orgs/invistus/packages/container/${{ matrix.package }}/versions \
+            --paginate --jq 'sort_by(.created_at) | reverse | .['$KEEP':] | .[].id' \
+          | while read -r id; do
+              echo "Deleting version $id"
+              gh api -X DELETE -H "Accept: application/vnd.github+json" \
+                /orgs/invistus/packages/container/${{ matrix.package }}/versions/$id
+            done
 
   trigger-supergraph:
     needs: [build-kotlin, build-golang, build-web, version]
