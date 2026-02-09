@@ -24,7 +24,6 @@ import org.mockito.kotlin.never
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
-import java.lang.reflect.Constructor
 
 @DisplayName("ServiceTokenClient Unit Tests")
 class ServiceTokenClientTest {
@@ -52,32 +51,18 @@ class ServiceTokenClientTest {
         )
 
     /**
-     * Create a TokenResponse instance using reflection since it's a private class.
+     * Create a TokenResponse instance for mocking HTTP responses.
      */
     private fun createTokenResponse(
         accessToken: String,
         tokenType: String = "Bearer",
         expiresIn: Long = 3600L,
-    ): Any =
-        try {
-            // Get the TokenResponse class using reflection
-            val tokenResponseClass =
-                Class.forName("io.github.salomax.neotool.common.security.service.ServiceTokenClient\$TokenResponse")
-            // Get the constructor
-            val constructor: Constructor<*> =
-                tokenResponseClass.getDeclaredConstructor(String::class.java, String::class.java, Long::class.java)
-            constructor.isAccessible = true
-            // Create instance
-            constructor.newInstance(accessToken, tokenType, expiresIn)
-        } catch (e: Exception) {
-            // Fallback: return a Map that matches the structure
-            // Micronaut should be able to deserialize this
-            mapOf(
-                "access_token" to accessToken,
-                "token_type" to tokenType,
-                "expires_in" to expiresIn,
-            )
-        }
+    ): TokenResponse =
+        TokenResponse(
+            access_token = accessToken,
+            token_type = tokenType,
+            expires_in = expiresIn,
+        )
 
     @Nested
     @DisplayName("Token Retrieval - Success Cases")

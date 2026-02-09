@@ -5,6 +5,7 @@ import Container from "@mui/material/Container";
 import { SidebarRail } from "@/shared/ui/navigation/SidebarRail";
 import { AppHeader } from "@/shared/ui/shell/AppHeader";
 import { PageTitleProvider } from "@/shared/hooks/ui/usePageTitle";
+import { BreadcrumbLabelProvider } from "@/shared/hooks/ui/useBreadcrumbLabel";
 import { useElementHeight } from "@/shared/hooks/ui/useElementHeight";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -12,6 +13,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <PageTitleProvider>
+      <BreadcrumbLabelProvider>
       <Box
         sx={{
           display: "flex",
@@ -42,6 +44,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </Box>
         </Box>
       </Box>
+      </BreadcrumbLabelProvider>
     </PageTitleProvider>
   );
 }

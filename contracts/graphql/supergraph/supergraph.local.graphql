@@ -356,6 +356,53 @@ type EconomicIndicatorVariationSeries
 {
   unit: String
   values: [EconomicIndicatorPoint!]!
+  @join__type(graph: COMMS)
+  @join__type(graph: SECURITY)
+
+enum EmailBodyFormat
+  @join__type(graph: COMMS)
+{
+  TEXT @join__enumValue(graph: COMMS)
+  HTML @join__enumValue(graph: COMMS)
+}
+
+input EmailContentInput
+  @join__type(graph: COMMS)
+{
+  kind: EmailContentKind!
+  format: EmailBodyFormat = TEXT
+  subject: String
+  body: String
+  templateKey: String
+  locale: String
+  variables: JSON
+}
+
+enum EmailContentKind
+  @join__type(graph: COMMS)
+{
+  RAW @join__enumValue(graph: COMMS)
+  TEMPLATE @join__enumValue(graph: COMMS)
+}
+
+input EmailSendRequestInput
+  @join__type(graph: COMMS)
+{
+  to: String!
+  content: EmailContentInput!
+}
+
+type EmailSendResult
+  @join__type(graph: COMMS)
+{
+  requestId: ID!
+  status: EmailSendStatus!
+}
+
+enum EmailSendStatus
+  @join__type(graph: COMMS)
+{
+  QUEUED @join__enumValue(graph: COMMS)
 }
 
 type Group
@@ -423,6 +470,7 @@ scalar join__FieldSet
 enum join__Graph {
   ASSETS @join__graph(name: "assets", url: "http://host.docker.internal:8083/graphql")
   FINANCIALDATA @join__graph(name: "financialdata", url: "http://host.docker.internal:8091/graphql")
+  COMMS @join__graph(name: "comms", url: "http://host.docker.internal:8084/graphql")
   SECURITY @join__graph(name: "security", url: "http://host.docker.internal:8080/graphql")
 }
 
@@ -430,6 +478,7 @@ scalar JSON
   @join__type(graph: ASSETS)
   @join__type(graph: FINANCIALDATA)
   @join__type(graph: SECURITY)
+  @join__type(graph: COMMS)
 
 scalar link__Import
 
@@ -448,10 +497,12 @@ enum link__Purpose {
 scalar Long
   @join__type(graph: ASSETS)
   @join__type(graph: FINANCIALDATA)
+  @join__type(graph: COMMS)
   @join__type(graph: SECURITY)
 
 type Mutation
   @join__type(graph: ASSETS)
+  @join__type(graph: COMMS)
   @join__type(graph: SECURITY)
 {
   """
@@ -525,12 +576,15 @@ type Mutation
   Only the asset owner can delete the asset.
   """
   deleteAsset(assetId: ID!): Boolean! @join__field(graph: ASSETS)
+  requestEmailSend(input: EmailSendRequestInput!): EmailSendResult! @join__field(graph: COMMS)
   signIn(input: SignInInput!): SignInPayload! @join__field(graph: SECURITY)
   signInWithOAuth(input: SignInWithOAuthInput!): SignInPayload! @join__field(graph: SECURITY)
   signUp(input: SignUpInput!): SignUpPayload! @join__field(graph: SECURITY)
   refreshAccessToken(input: RefreshAccessTokenInput!): SignInPayload! @join__field(graph: SECURITY)
   requestPasswordReset(input: RequestPasswordResetInput!): RequestPasswordResetPayload! @join__field(graph: SECURITY)
   resetPassword(input: ResetPasswordInput!): ResetPasswordPayload! @join__field(graph: SECURITY)
+  verifyEmailWithToken(token: String!): VerifyEmailPayload! @join__field(graph: SECURITY)
+  resendVerificationEmail: ResendVerificationEmailPayload! @join__field(graph: SECURITY)
   enableUser(userId: ID!): User! @join__field(graph: SECURITY)
   disableUser(userId: ID!): User! @join__field(graph: SECURITY)
   updateUser(userId: ID!, input: UpdateUserInput!): User! @join__field(graph: SECURITY)
@@ -612,6 +666,7 @@ type QuarterValue
 type Query
   @join__type(graph: ASSETS)
   @join__type(graph: FINANCIALDATA)
+  @join__type(graph: COMMS)
   @join__type(graph: SECURITY)
 {
   """
@@ -624,7 +679,9 @@ type Query
   bacenFinanceInstitution(id: ID!, anoMes: String): BacenFinanceInstitution @join__field(graph: FINANCIALDATA)
   ratingIssuers: [RatingIssuer!]! @join__field(graph: FINANCIALDATA)
   economicIndicators(label: String): [EconomicIndicator!]! @join__field(graph: FINANCIALDATA)
+  _empty: String @join__field(graph: COMMS)
   currentUser: User @join__field(graph: SECURITY)
+  myVerificationStatus: VerificationStatus @join__field(graph: SECURITY)
   checkPermission(userId: ID!, permission: String!, resourceId: ID): AuthorizationResult! @join__field(graph: SECURITY)
   user(id: ID!): User @join__field(graph: SECURITY)
   users(first: Int, after: String, query: String, orderBy: [UserOrderByInput!]): UserConnection! @join__field(graph: SECURITY)
@@ -707,6 +764,14 @@ type RequestPasswordResetPayload
 {
   success: Boolean!
   message: String!
+}
+
+type ResendVerificationEmailPayload
+  @join__type(graph: SECURITY)
+{
+  success: Boolean!
+  message: String
+  canResendAt: String
 }
 
 input ResetPasswordInput
@@ -792,6 +857,7 @@ input SignUpInput
   name: String!
   email: String!
   password: String!
+  locale: String
 }
 
 type SignUpPayload
@@ -800,6 +866,7 @@ type SignUpPayload
   token: String!
   refreshToken: String
   user: User!
+  requiresVerification: Boolean!
 }
 
 input UpdateGroupInput
@@ -830,6 +897,8 @@ type User
   displayName: String
   avatarUrl: String
   enabled: Boolean!
+  emailVerified: Boolean!
+  emailVerifiedAt: String
   createdAt: String!
   updatedAt: String!
   roles: [Role!]!
@@ -870,3 +939,25 @@ scalar UUID
   @join__type(graph: ASSETS)
   @join__type(graph: FINANCIALDATA)
   @join__type(graph: SECURITY)
+  @join__type(graph: COMMS)
+  @join__type(graph: SECURITY)
+
+type VerificationStatus
+  @join__type(graph: SECURITY)
+{
+  emailVerified: Boolean!
+  emailVerifiedAt: String
+  verificationCodeSentAt: String
+  verificationCodeExpiresAt: String
+  canResendCode: Boolean!
+  nextResendAvailableAt: String
+}
+
+type VerifyEmailPayload
+  @join__type(graph: SECURITY)
+{
+  success: Boolean!
+  user: User
+  message: String
+  attemptsRemaining: Int
+}

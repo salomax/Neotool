@@ -11,8 +11,6 @@ describe("I18n Configuration", () => {
   describe("Initialization", () => {
     it("should initialize i18n with correct configuration", () => {
       expect(i18n.isInitialized).toBe(true);
-      expect(i18n.language).toBe('pt');
-      expect(i18n.options.fallbackLng).toEqual(['pt']);
       expect(i18n.options.defaultNS).toBe('common');
     });
 

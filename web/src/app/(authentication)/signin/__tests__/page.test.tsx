@@ -65,12 +65,12 @@ describe.sequential('SignInPage', () => {
 
   it('renders signin page', () => {
     renderSignInPage();
-    
+
     expect(screen.getByTestId('signin-screen')).toBeInTheDocument();
     expect(screen.getByTestId('signin-form')).toBeInTheDocument();
   });
 
-  it('displays welcome title and subtitle', () => {
+  it('displays title and subtitle', () => {
     renderSignInPage();
     
     // Use locale-agnostic matchers (en: Welcome back / pt: Bem-vindo de volta)
@@ -96,10 +96,10 @@ describe.sequential('SignInPage', () => {
       isAuthenticated: false,
       isLoading: true,
     });
-    
+
     renderSignInPage();
-    
-    expect(screen.getByText(/loading|carregando/i)).toBeInTheDocument();
+
+    expect(screen.getByTestId('signin-loading')).toBeInTheDocument();
   });
 
   it('does not redirect while loading', () => {

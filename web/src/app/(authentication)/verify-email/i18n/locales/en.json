@@ -1,0 +1,12 @@
+{
+  "title": "Verify your email address",
+  "description": "We sent a verification link to {{email}}. Click the link in the email to verify your account. Didn't receive it? Resend the link below.",
+  "resend": "Resend verification link",
+  "resendSuccess": "New verification link sent!",
+  "resendRateLimit": "Please wait before requesting another link.",
+  "success": "Email verified successfully!",
+  "skip": "Skip for now (Limited access)",
+  "errors": {
+    "unknownError": "Something went wrong. Please try again."
+  }
+}

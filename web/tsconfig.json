@@ -80,6 +80,7 @@
     "**/*.spec.ts",
     "**/*.spec.tsx",
     "**/*.test.ts",
-    "node_modules"
+    "node_modules",
+    "src/shared/hooks/customer"
   ]
 }

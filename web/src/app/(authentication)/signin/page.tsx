@@ -25,7 +25,7 @@ export default function SignInPage() {
 
   if (isLoading) {
     return (
-      <Container maxWidth="sm" sx={{ py: 8 }}>
+      <Container maxWidth="sm" sx={{ py: 8 }} data-testid="signin-loading">
         <Box sx={{ textAlign: "center" }}>
           <Typography>Loading...</Typography>
         </Box>
@@ -75,6 +75,7 @@ export default function SignInPage() {
                   component="h1"
                   gutterBottom
                   sx={{ fontWeight: 600 }}
+                  data-testid="signin-title"
                 >
                   {t("title")}
                 </Typography>
@@ -82,6 +83,7 @@ export default function SignInPage() {
                   variant="body1"
                   color="text.secondary"
                   sx={{ mt: 1 }}
+                  data-testid="signin-subtitle"
                 >
                   {t("subtitle")}
                 </Typography>

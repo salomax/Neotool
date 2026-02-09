@@ -5,6 +5,7 @@ import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.repo.PasswordResetAttemptRepository
 import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.UserRepository
+import io.github.salomax.neotool.security.service.EmailVerificationService
 import io.github.salomax.neotool.security.service.authentication.AuthenticationService
 import io.github.salomax.neotool.security.service.email.EmailService
 import io.github.salomax.neotool.security.service.jwt.JwtTokenIssuer
@@ -41,6 +42,7 @@ class PasswordResetServiceTest {
     private lateinit var emailService: EmailService
     private lateinit var rateLimitService: RateLimitService
     private lateinit var authenticationService: AuthenticationService
+    private lateinit var emailVerificationService: EmailVerificationService
 
     @BeforeEach
     fun setUp() {
@@ -58,6 +60,7 @@ class PasswordResetServiceTest {
         val oauthProviderRegistry = OAuthProviderRegistry(listOf(oauthProvider))
 
         val principalRepository: PrincipalRepository = mock()
+        emailVerificationService = mock()
         authenticationService =
             AuthenticationService(
                 userRepository,
@@ -68,6 +71,8 @@ class PasswordResetServiceTest {
                 rateLimitService,
                 oauthProviderRegistry,
                 refreshTokenService,
+                emailVerificationService,
+                false,
             )
     }
 

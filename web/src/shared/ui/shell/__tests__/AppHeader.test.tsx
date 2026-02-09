@@ -109,6 +109,12 @@ vi.mock('@/shared/hooks/ui/usePageTitle', () => ({
   usePageTitleValue: () => mockUsePageTitleValue(),
 }));
 
+// Mock feature flag hook
+const mockUseFeatureFlagEnabled = vi.fn<[], boolean>(() => true);
+vi.mock('@/shared/hooks/useFeatureFlag', () => ({
+  useFeatureFlagEnabled: () => mockUseFeatureFlagEnabled(),
+}));
+
 const renderAppHeader = () => {
   return render(
     <AppThemeProvider>
@@ -135,6 +141,7 @@ describe.sequential('AppHeader', () => {
       isLoading: false,
     });
     mockUsePageTitleValue.mockReturnValue(null);
+    mockUseFeatureFlagEnabled.mockReturnValue(true);
   });
 
   describe('Rendering', () => {

@@ -1,0 +1,39 @@
+meta {
+  name: Request Email Send
+  type: graphql
+  seq: 1
+}
+
+post {
+  url: http://{{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  mutation RequestEmailSend($input: EmailSendRequestInput!) {
+    requestEmailSend(input: $input) {
+      requestId
+      status
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "input": {
+      "to": "salomao.marcos@gmail.com",
+      "content": {
+        "kind": "RAW",
+        "format": "TEXT",
+        "subject": "Hello",
+        "body": "World",
+        "variables": {}
+      }
+    }
+  }
+}

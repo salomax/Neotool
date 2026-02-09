@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    .button { background: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; font-family: Arial, sans-serif; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Welcome, {{userName}}!</h1>
+    <p>Thank you for signing up for Neotool. Click the button below to verify your account:</p>
+    <a href="{{verificationUrl}}" class="button">Verify Account</a>
+    <p>This link expires in {{expiresInHours}} hours.</p>
+  </div>
+</body>
+</html>

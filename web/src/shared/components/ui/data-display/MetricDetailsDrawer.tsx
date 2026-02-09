@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Box, Typography } from "@mui/material";
+import { Box } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import { MetricValueDisplay } from "./MetricValueDisplay";
 import { MetricLineChart } from "./MetricLineChart";
@@ -140,8 +140,8 @@ export const MetricDetailsDrawer: React.FC<MetricDetailsDrawerProps> = ({
       />
       <Drawer.Body>
         <Box sx={{ p: 2, pt: 0, display: 'flex', flexDirection: 'column' }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', mb: 4 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
+            <Box>
               {metric && (
                 <MetricValueDisplay
                   actualValue={displayValue}

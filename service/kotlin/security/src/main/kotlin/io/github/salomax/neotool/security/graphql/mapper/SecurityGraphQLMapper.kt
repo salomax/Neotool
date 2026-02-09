@@ -21,6 +21,8 @@ class SecurityGraphQLMapper {
             email = user.email,
             displayName = user.displayName,
             avatarUrl = user.avatarUrl,
+            emailVerified = user.emailVerified,
+            emailVerifiedAt = user.emailVerifiedAt?.toString(),
             createdAt = user.createdAt.toString(),
             updatedAt = user.updatedAt.toString(),
         )

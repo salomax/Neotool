@@ -36,7 +36,7 @@ This complements RBAC/ABAC which answers: _"Can this user perform THIS ACTION?"_
 | Capability | Description |
 |------------|-------------|
 | **User Ownership** | Resources tied to individual users (survives group changes) |
-| **Group Ownership** | Resources tied to groups (access lost when user leaves group) |
+| **Account Ownership** | Resources tied to accounts (access lost when user leaves group) |
 | **Efficient Filtering** | Query thousands of resources with single indexed SQL query |
 | **Resource Sharing** | Optional: Share resources with explicit grants |
 | **Time-based Access** | Optional: Temporary access with expiration |
@@ -129,21 +129,19 @@ Each microservice has its own `resource_ownership` table:
 ```sql
 -- Example: transaction_service.resource_ownership
 CREATE TABLE resource_ownership (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuid_v7(),
 
     -- Resource identification
-    resource_type VARCHAR(50) NOT NULL,   -- 'bank_transaction', 'invoice', etc.
+    resource_type TEXT NOT NULL,   -- 'bank_transaction', 'invoice', etc.
     resource_id UUID NOT NULL,
 
     -- Access grant
-    access_type VARCHAR(20) NOT NULL,     -- 'OWNER', 'SHARED'
-    principal_type VARCHAR(20) NOT NULL,  -- 'USER', 'GROUP'
-    principal_id UUID NOT NULL,           -- user_id or group_id
+    access_type TEXT NOT NULL DEFAULT 'OWNER',     -- 'OWNER', 'EDIT', 'VIEW'
+    membership TEXT NOT NULL DEFAULT 'MEMBER',  -- 'MEMBER' (direct), 'SHARED'
+    principal_type TEXT NOT NULL DEFAULT 'ACCOUNT',  -- 'USER', 'ACCOUNT'
+    principal_id UUID NOT NULL,           -- user_id or account_id
 
-    -- Optional: Fine-grained permissions
-    permissions TEXT[],                   -- ['read', 'write', 'delete']
-
-    -- Optional: Time-based access
+   -- Optional: Time-based access
     valid_from TIMESTAMPTZ,
     valid_until TIMESTAMPTZ,
 
@@ -154,6 +152,9 @@ CREATE TABLE resource_ownership (
     version BIGINT NOT NULL DEFAULT 0,
 
     -- Constraints
+    CONSTRAINT chk_access_type CHECK (access_type IN ('OWNER', 'EDIT', 'VIEW')),
+    CONSTRAINT chk_membership CHECK (membership IN ('MEMBER', 'SHARED')),
+    CONSTRAINT chk_principal_type CHECK (principal_type IN ('USER', 'ACCOUNT')),
     CONSTRAINT uq_owner_per_resource
         UNIQUE (resource_type, resource_id, access_type)
         WHERE access_type = 'OWNER'
@@ -169,6 +170,8 @@ CREATE INDEX idx_resource_ownership_resource
 CREATE INDEX idx_resource_ownership_lookup
     ON resource_ownership(resource_type, resource_id, principal_type, principal_id)
     WHERE valid_until IS NULL OR valid_until > NOW();
+
+
 ```
 
 ### Shared Interface (common/security)

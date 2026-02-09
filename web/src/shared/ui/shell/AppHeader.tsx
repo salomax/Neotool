@@ -22,6 +22,7 @@ import { Button } from "@/shared/components/ui/primitives/Button";
 import { usePageTitleValue } from "@/shared/hooks/ui/usePageTitle";
 import { Breadcrumb } from "@/shared/components/ui/navigation/Breadcrumb";
 import { useTranslation } from "react-i18next";
+import { useFeatureFlagEnabled } from "@/shared/hooks/useFeatureFlag";
 
 export function AppHeader() {
   const { t } = useTranslation();
@@ -32,6 +33,7 @@ export function AppHeader() {
   const { isAuthenticated, user, signOut, isLoading } = useAuth();
   const router = useRouter();
   const pageTitle = usePageTitleValue();
+  const isAssistantEnabled = useFeatureFlagEnabled("assistant-enable");
 
   const handleChatIconClick = () => {
     setChatDrawerOpen(true);
@@ -146,11 +148,13 @@ export function AppHeader() {
                 {isDark ? <LightModeRoundedIcon /> : <DarkModeRoundedIcon />}
               </IconButton>
             </Tooltip>
-            <Tooltip title={t("appHeader.aiAssistant")}>
-              <IconButton aria-label="Open AI assistant" onClick={handleChatIconClick}>
-                <AutoAwesomeIcon />
-              </IconButton>
-            </Tooltip>
+            {isAssistantEnabled && (
+              <Tooltip title="AI Assistant">
+                <IconButton aria-label="Open AI assistant" onClick={handleChatIconClick}>
+                  <AutoAwesomeIcon />
+                </IconButton>
+              </Tooltip>
+            )}
             {isAuthenticated ? (
               <Tooltip title={t("appHeader.account")}>
                 <IconButton 
@@ -184,7 +188,9 @@ export function AppHeader() {
           </Box>
         </Box>
       </Container>
-      <ChatDrawer open={chatDrawerOpen} onClose={handleChatDrawerClose} />
+      {isAssistantEnabled && (
+        <ChatDrawer open={chatDrawerOpen} onClose={handleChatDrawerClose} />
+      )}
       <Menu
         id="profile-menu"
         anchorEl={anchorEl}

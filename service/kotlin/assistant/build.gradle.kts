@@ -24,6 +24,7 @@ repositories {
 dependencies {
     // Project dependencies
     implementation(project(":common"))
+    testImplementation(testFixtures(project(":common")))
 
     // KSP processors
     ksp("io.micronaut:micronaut-inject-kotlin")

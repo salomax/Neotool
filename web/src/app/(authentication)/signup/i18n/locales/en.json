@@ -4,6 +4,7 @@
   "name": "Name",
   "email": "Email",
   "password": "Password",
+  "confirmPassword": "Confirm Password",
   "passwordRequirements": "Password requirements:",
   "passwordRules": {
     "0": "At least 8 characters",
@@ -19,6 +20,7 @@
     "required": "This field is required",
     "invalidEmail": "Please enter a valid email address",
     "invalidPassword": "Password does not meet requirements",
+    "passwordsDoNotMatch": "Passwords do not match",
     "emailExists": "Email already exists",
     "networkError": "Network error. Please try again.",
     "unknownError": "An unexpected error occurred. Please try again."

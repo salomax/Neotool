@@ -36,6 +36,16 @@ class EmailServiceTest {
             // Not used in these tests
         }
 
+        override fun sendVerificationEmail(
+            to: String,
+            userName: String,
+            token: java.util.UUID,
+            expiresAt: java.time.Instant,
+            locale: String,
+        ) {
+            // Not used in these tests
+        }
+
         // Expose protected method for testing
         fun testLoadEmailTemplate(locale: String): String {
             return loadEmailTemplate(locale)

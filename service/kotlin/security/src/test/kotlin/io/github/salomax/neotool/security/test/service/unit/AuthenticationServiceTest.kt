@@ -7,6 +7,7 @@ import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.repo.PasswordResetAttemptRepository
 import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.UserRepository
+import io.github.salomax.neotool.security.service.EmailVerificationService
 import io.github.salomax.neotool.security.service.authentication.AuthenticationService
 import io.github.salomax.neotool.security.service.email.EmailService
 import io.github.salomax.neotool.security.service.jwt.JwtTokenIssuer
@@ -43,6 +44,7 @@ class AuthenticationServiceTest {
     private lateinit var authenticationService: AuthenticationService
     private lateinit var oauthProvider: OAuthProvider
     private lateinit var oauthProviderRegistry: OAuthProviderRegistry
+    private lateinit var emailVerificationService: EmailVerificationService
 
     @BeforeEach
     fun setUp() {
@@ -57,6 +59,7 @@ class AuthenticationServiceTest {
         oauthProvider = mock()
         whenever(oauthProvider.getProviderName()).thenReturn("google")
         oauthProviderRegistry = OAuthProviderRegistry(listOf(oauthProvider))
+        emailVerificationService = mock()
         authenticationService =
             AuthenticationService(
                 userRepository,
@@ -67,6 +70,8 @@ class AuthenticationServiceTest {
                 rateLimitService,
                 oauthProviderRegistry,
                 refreshTokenService,
+                emailVerificationService,
+                false,
             )
     }
 
@@ -792,10 +797,11 @@ class AuthenticationServiceTest {
             val result = authenticationService.registerUser(name, email, password)
 
             assertThat(result).isNotNull()
-            assertThat(result.email).isEqualTo(email)
-            assertThat(result.displayName).isEqualTo(name)
-            assertThat(result.passwordHash).isNotBlank()
-            assertThat(result.passwordHash).startsWith("\$argon2id\$")
+            assertThat(result.user.email).isEqualTo(email)
+            assertThat(result.user.displayName).isEqualTo(name)
+            assertThat(result.user.passwordHash).isNotBlank()
+            assertThat(result.user.passwordHash).startsWith("\$argon2id\$")
+            assertThat(result.requiresVerification).isFalse()
             verify(userRepository).findByEmail(email)
             verify(userRepository).save(any())
         }
@@ -931,12 +937,13 @@ class AuthenticationServiceTest {
 
             val result = authenticationService.registerUser(name, email, password)
 
-            assertThat(result.passwordHash).isNotBlank()
-            assertThat(result.passwordHash).isNotEqualTo(password)
-            assertThat(result.passwordHash).startsWith("\$argon2id\$")
+            assertThat(result.user.passwordHash).isNotBlank()
+            assertThat(result.user.passwordHash).isNotEqualTo(password)
+            assertThat(result.user.passwordHash).startsWith("\$argon2id\$")
+            assertThat(result.requiresVerification).isFalse()
 
             // Verify password can be verified
-            val canVerify = authenticationService.verifyPassword(password, result.passwordHash)
+            val canVerify = authenticationService.verifyPassword(password, result.user.passwordHash)
             assertThat(canVerify).isTrue()
         }
     }

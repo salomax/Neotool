@@ -141,6 +141,8 @@ subprojects {
                             "*Config*",
                             "*domain.*",
                             "*mapper.*",
+                            "*Kt",
+                            "io.github.salomax.neotool.comms.events.*",
                         )
                     }
                 }

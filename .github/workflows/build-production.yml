@@ -11,7 +11,11 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
+<<<<<<< HEAD
   IMAGE_PREFIX: ghcr.io/invistus
+=======
+  IMAGE_PREFIX: ghcr.io/neotool
+>>>>>>> upstream/main
 
 jobs:
   version:
@@ -86,6 +90,12 @@ jobs:
             dockerfile: ./workflow/golang/financial_data/bacen_ifdata_job/Dockerfile
             target: cronjob
             image: neotool-bacen-ifdata-cronjob
+            app_dir: financial_data/bacen_ifdata_job
+          - service: bacen-ifdata-cli
+            context: ./workflow/golang
+            dockerfile: ./workflow/golang/financial_data/bacen_ifdata_job/Dockerfile
+            target: cli
+            image: neotool-bacen-ifdata-cli
             app_dir: financial_data/bacen_ifdata_job
           - service: ratings
             context: ./workflow/golang
@@ -183,6 +193,7 @@ jobs:
           - neotool-assets
           - neotool-financialdata
           - neotool-bacen-ifdata-cronjob
+          - neotool-bacen-ifdata-cli
           - neotool-financialdata-ratings
           - neotool-financialdata-indicators
           - neotool-institution-enhancement-consumer

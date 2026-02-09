@@ -1,0 +1,54 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "update": "Update",
+    "submit": "Submit",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "notFound": "Not Found",
+    "notFoundMessage": "This screen doesn't exist.",
+    "goHome": "Go to home screen",
+    "backToLogin": "Back to Login"
+  },
+  "auth": {
+    "login": "Login",
+    "signup": "Sign Up",
+    "logout": "Logout",
+    "email": "Email",
+    "password": "Password",
+    "forgotPassword": "Forgot Password?",
+    "loginSubtitle": "Welcome back! Please login to continue.",
+    "signupSubtitle": "Create your account to get started.",
+    "forgotPasswordSubtitle": "Enter your email to reset your password.",
+    "dontHaveAccount": "Don't have an account?",
+    "alreadyHaveAccount": "Already have an account?"
+  },
+  "tabs": {
+    "dashboard": "Dashboard",
+    "profile": "Profile",
+    "settings": "Settings"
+  },
+  "dashboard": {
+    "welcome": "Welcome, {{name}}!",
+    "overview": "Overview"
+  },
+  "profile": {
+    "information": "Profile Information"
+  },
+  "settings": {
+    "appearance": "Appearance",
+    "darkMode": "Dark Mode",
+    "language": "Language"
+  },
+  "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "network": "Network error. Please check your connection.",
+    "unauthorized": "You are not authorized to perform this action.",
+    "notFound": "The requested resource was not found."
+  }
+}

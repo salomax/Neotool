@@ -18,6 +18,7 @@ micronaut {
 dependencies {
     // Project dependencies
     implementation(project(":common"))
+    testImplementation(testFixtures(project(":common")))
 
     // Financial data-specific dependencies
     implementation("jakarta.annotation:jakarta.annotation-api")

@@ -249,52 +249,47 @@ Institution changes detected via SHA-256 hash of 13 fields:
 
 ## Deployment
 
-### Kubernetes CronJob
-```yaml
-apiVersion: batch/v1
-kind: CronJob
-metadata:
-  name: bacen-ifdata-cronjob
-spec:
-  schedule: "0 6 * * *"  # Daily at 6am UTC
-  jobTemplate:
-    spec:
-      template:
-        spec:
-          containers:
-          - name: cronjob
-            image: bacen-ifdata-cronjob:latest
-            envFrom:
-            - secretRef:
-                name: bacen-ifdata-secrets
-          restartPolicy: OnFailure
+The cronjob runs in the `production` namespace via Flux GitOps. Manifests are in [`invistus-flux/infra/kubernetes/flux/apps/services/bacen-ifdata/`](https://github.com/invistus/invistus-flux).
+
+- **Schedule**: Every Saturday at 1:00 PM BRT (`0 13 * * 6`, timezone `America/Sao_Paulo`)
+- **Image**: `ghcr.io/invistus/neotool-bacen-ifdata-cronjob:<version>`
+- **Config**: `bacen-ifdata-config` ConfigMap + `bacen-ifdata-secrets` ExternalSecret (Vault)
+
+### Manual Run
+
+```bash
+# Create a one-off job from the CronJob
+kubectl create job --from=cronjob/bacen-ifdata-cronjob bacen-ifdata-manual -n production
+
+# Follow logs
+kubectl logs -n production -l job-name=bacen-ifdata-manual -f
+
+# Stop and re-run (e.g. after a config change)
+kubectl delete job bacen-ifdata-manual -n production
+kubectl create job --from=cronjob/bacen-ifdata-cronjob bacen-ifdata-manual -n production
+
+# Check job status
+kubectl get pods -n production -l job-name=bacen-ifdata-manual
 ```
 
-### Kubernetes Deployment (Retry Worker)
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: bacen-ifdata-retry-worker
-spec:
-  replicas: 1
-  template:
-    spec:
-      containers:
-      - name: retry-worker
-        image: bacen-ifdata-retry-worker:latest
-        ports:
-        - containerPort: 8081
-          name: health
-        livenessProbe:
-          httpGet:
-            path: /live
-            port: 8081
-        readinessProbe:
-          httpGet:
-            path: /ready
-            port: 8081
+### Useful Commands
+
+```bash
+# Check CronJob schedule and status
+kubectl get cronjob bacen-ifdata-cronjob -n production
+
+# View recent job history
+kubectl get jobs -n production -l app=bacen-ifdata-cronjob
+
+# View current ConfigMap values
+kubectl get configmap bacen-ifdata-config -n production -o yaml
+
+# View ExternalSecret sync status
+kubectl get externalsecret bacen-ifdata-secrets -n production
 ```
+
+> **Note**: ConfigMap changes only take effect on the next pod creation. Running pods
+> won't pick up changes — delete and re-create the manual job to apply them.
 
 ## Monitoring
 

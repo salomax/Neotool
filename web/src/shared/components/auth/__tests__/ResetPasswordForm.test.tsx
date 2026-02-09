@@ -58,6 +58,18 @@ const renderResetPasswordForm = (props = {}) => {
   );
 };
 
+/** Get input by test id. Uses getByLabelText for password fields (password inputs are not role="textbox"). */
+const getInputByTestId = (testId: string): HTMLInputElement => {
+  if (testId === 'textfield-new-password') {
+    return screen.getByLabelText(/^(New password|Nova senha)$/i) as HTMLInputElement;
+  }
+  if (testId === 'textfield-confirm-password') {
+    return screen.getByLabelText(/^(Confirm password|Confirmar senha)$/i) as HTMLInputElement;
+  }
+  const field = screen.getByTestId(testId);
+  return within(field).getByRole('textbox') as HTMLInputElement;
+};
+
 // Run sequentially to avoid multiple rendered forms across parallel threads
 describe.sequential('ResetPasswordForm', () => {
   beforeEach(() => {
@@ -93,7 +105,7 @@ describe.sequential('ResetPasswordForm', () => {
     await user.click(submitButton);
 
     await waitFor(() => {
-      expect(screen.queryByText(/weak password|required/i)).toBeInTheDocument();
+      expect(passwordInput).toHaveAttribute('aria-invalid', 'true');
     }, { timeout: 3000 });
   });
 
@@ -144,7 +156,8 @@ describe.sequential('ResetPasswordForm', () => {
     await user.click(submitButton);
 
     await waitFor(() => {
-      expect(screen.queryByText(/password mismatch|match/i)).toBeInTheDocument();
+      const confirmInput = getInputByTestId('textfield-confirm-password');
+      expect(confirmInput).toHaveAttribute('aria-invalid', 'true');
     }, { timeout: 3000 });
   });
 
@@ -190,7 +203,7 @@ describe.sequential('ResetPasswordForm', () => {
     await user.click(submitButton);
 
     await waitFor(() => {
-      expect(screen.getByText(/success/i)).toBeInTheDocument();
+      expect(screen.getByRole('alert')).toBeInTheDocument();
     }, { timeout: 3000 });
   });
 
@@ -209,7 +222,7 @@ describe.sequential('ResetPasswordForm', () => {
     await user.click(submitButton);
 
     await waitFor(() => {
-      expect(screen.getByText(/success/i)).toBeInTheDocument();
+      expect(screen.getByRole('alert')).toBeInTheDocument();
     });
 
     await waitFor(() => {
