@@ -49,6 +49,7 @@ RUN addgroup -g 1000 consumer && \
 RUN apk add --no-cache ca-certificates tzdata wget
 
 COPY --from=builder --chown=consumer:consumer /bin/consumer /app/consumer
+COPY --from=builder --chown=consumer:consumer /app/financial_data/institution_enhancement_consumer/internal/data/websites.csv /app/internal/data/websites.csv
 
 USER consumer
 WORKDIR /app
