@@ -475,6 +475,51 @@ docker exec neotool-kafka /opt/kafka/bin/kafka-console-consumer.sh \
   --property print.timestamp=true
 ```
 
+## Redpanda Console (Kafka Web UI)
+
+Redpanda Console is deployed as a Deployment with `replicas: 0` in the `production` namespace. It provides a lightweight web UI (~100MB RAM) for browsing topics, messages, and consumer groups.
+
+**Location**: `infra/kubernetes/flux/apps/streaming/redpanda-console/deployment.yaml`
+
+### Starting Redpanda Console
+
+```bash
+# Scale up
+kubectl scale deployment redpanda-console --replicas=1 -n production
+
+# Port-forward the UI
+kubectl port-forward deploy/redpanda-console 8080:8080 -n production
+```
+
+Then open `http://localhost:8080` in your browser.
+
+### Stopping Redpanda Console
+
+```bash
+kubectl scale deployment redpanda-console --replicas=0 -n production
+```
+
+### Features
+
+- Browse topics and view messages (with key, value, headers, timestamp)
+- Inspect consumer groups and partition lag
+- View topic configuration and partition details
+- Search/filter messages by content
+
+### Quick Alternative: kcat
+
+For one-off checks without starting the UI, use `kcat` from a temporary pod:
+
+```bash
+# List topics
+kubectl run kcat --rm -it --image=edenhill/kcat:1.7.1 -n production --restart=Never -- \
+  -b kafka.production.svc.cluster.local:9092 -L
+
+# Read last 10 messages from a topic
+kubectl run kcat --rm -it --image=edenhill/kcat:1.7.1 -n production --restart=Never -- \
+  -b kafka.production.svc.cluster.local:9092 -t financial-data.institution.upserted -C -o -10 -e
+```
+
 ## Production Considerations
 
 ### Topic Configuration
