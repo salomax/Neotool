@@ -46,12 +46,12 @@ func NewClient(graphqlClient *graphql.Client, tokenClient *auth.TokenClient, htt
 	}
 }
 
-// UploadLogo uploads a logo to the assets service and returns the storage key (e.g. namespace/asset-id).
+// UploadLogo uploads a logo to the assets service and returns the asset ID (UUID).
 // Steps:
 // 1. Call createAssetUpload mutation
 // 2. Upload logo binary to presigned URL
 // 3. Call confirmAssetUpload mutation
-// 4. Return storage key (e.g. institution-logos/asset-id)
+// 4. Return asset ID (UUID)
 func (c *Client) UploadLogo(ctx context.Context, logoData []byte, filename string, mimeType string) (string, error) {
 	if len(logoData) == 0 {
 		return "", fmt.Errorf("logo data is empty")
@@ -95,7 +95,7 @@ func (c *Client) UploadLogo(ctx context.Context, logoData []byte, filename strin
 		"storage_key", confirmedAsset.StorageKey,
 		"public_url", confirmedAsset.PublicURL)
 
-	return confirmedAsset.StorageKey, nil
+	return confirmedAsset.ID, nil
 }
 
 // createAssetUpload calls the createAssetUpload GraphQL mutation

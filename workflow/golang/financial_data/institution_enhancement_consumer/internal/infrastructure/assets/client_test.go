@@ -170,15 +170,15 @@ func TestAssetUploadFlow(t *testing.T) {
 	ctx := context.Background()
 
 	// Execute upload flow
-	storageKey, err := assetsClient.UploadLogo(ctx, logoData, filename, mimeType)
+	assetID, err := assetsClient.UploadLogo(ctx, logoData, filename, mimeType)
 	if err != nil {
 		t.Fatalf("UploadLogo failed: %v", err)
 	}
 
 	// Verify results
-	expectedStorageKey := "institution-logos/test-asset-id-123"
-	if storageKey != expectedStorageKey {
-		t.Errorf("Expected storage key '%s', got '%s'", expectedStorageKey, storageKey)
+	expectedAssetID := "test-asset-id-123"
+	if assetID != expectedAssetID {
+		t.Errorf("Expected asset ID '%s', got '%s'", expectedAssetID, assetID)
 	}
 
 	// Verify service calls
