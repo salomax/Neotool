@@ -1,9 +1,52 @@
 import { createTheme, ThemeOptions } from "@mui/material/styles";
-import { tokens, Mode } from "./tokens";
+import { tokens, Mode, DesignTokens } from "./tokens";
+
+declare module "@mui/material/styles" {
+  interface Theme {
+    custom: {
+      layout: DesignTokens["layout"];
+      radius: DesignTokens["radius"];
+      border: DesignTokens["border"];
+      palette: DesignTokens["palette"];
+    };
+  }
+  interface ThemeOptions {
+    custom?: {
+      layout?: DesignTokens["layout"];
+      radius?: DesignTokens["radius"];
+      border?: DesignTokens["border"];
+      palette?: DesignTokens["palette"];
+    };
+  }
+  interface ZIndex {
+    bottomNav: number;
+  }
+  interface ZIndexOptions {
+    bottomNav?: number;
+  }
+}
 
 export const createAppTheme = (mode: Mode) => {
   const t = tokens[mode];
   const options: ThemeOptions = {
+    // Mobile Breakpoints (2026 Standard)
+    // xs: 0px    - Mobile Portrait
+    // sm: 600px  - Mobile Landscape / Small Tablet
+    // md: 960px  - Tablet Landscape / Desktop Threshold (Primary Mobile Breakpoint)
+    // lg: 1280px - Desktop
+    // xl: 1920px - Large Desktop
+    breakpoints: {
+      values: {
+        xs: 0,
+        sm: 600,
+        md: 960, 
+        lg: 1280,
+        xl: 1920,
+      },
+    },
+    zIndex: {
+      bottomNav: 1101, // Above AppBar (1100)
+    },
     palette: {
       mode,
       primary: {

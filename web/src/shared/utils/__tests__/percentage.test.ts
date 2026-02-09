@@ -15,12 +15,12 @@ describe("percentage utilities", () => {
       expect(formatPercentageWithSign(undefined)).toBe("0%");
     });
 
-    it("should format positive value without + sign when alwaysShowPlusSign is false", () => {
-      expect(formatPercentageWithSign(0.12, { alwaysShowPlusSign: false })).toBe("12%");
+    it("should format positive value without + sign (showZeroSign only affects zero)", () => {
+      expect(formatPercentageWithSign(0.12, { showZeroSign: true })).toBe("12%");
     });
 
-    it("should format positive value with + by default", () => {
-      expect(formatPercentageWithSign(0.12)).toBe("+12%");
+    it("should format positive value without + by default", () => {
+      expect(formatPercentageWithSign(0.12)).toBe("12%");
     });
 
     it("should format negative value with - sign", () => {
@@ -28,7 +28,7 @@ describe("percentage utilities", () => {
     });
 
     it("should use decimals option", () => {
-      expect(formatPercentageWithSign(0.155, { decimals: 1 })).toBe("+15.5%");
+      expect(formatPercentageWithSign(0.155, { decimals: 1 })).toBe("15.5%");
       expect(formatPercentageWithSign(-0.1234, { decimals: 2 })).toBe("-12.34%");
     });
 

@@ -12,9 +12,10 @@ export function useResponsive() {
       if (typeof window === "undefined") return;
       
       const width = window.innerWidth;
-      setIsMobile(width < 768);
-      setIsTablet(width >= 768 && width < 1024);
-      setIsDesktop(width >= 1024);
+      // Updated to match MUI md breakpoint (960px)
+      setIsMobile(width < 960);
+      setIsTablet(width >= 960 && width < 1280);
+      setIsDesktop(width >= 1280);
     };
 
     checkScreenSize();

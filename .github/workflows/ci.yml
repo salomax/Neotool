@@ -21,16 +21,22 @@ jobs:
     outputs:
       kotlin: ${{ steps.filter.outputs.kotlin }}
       kotlin-common: ${{ steps.filter.outputs.kotlin-common }}
+<<<<<<< HEAD
       kotlin-common-batch: ${{ steps.filter.outputs.kotlin-common-batch }}
       kotlin-common-features: ${{ steps.filter.outputs.kotlin-common-features }}
+=======
+>>>>>>> upstream/main
       kotlin-security: ${{ steps.filter.outputs.kotlin-security }}
       kotlin-assets: ${{ steps.filter.outputs.kotlin-assets }}
       kotlin-financialdata: ${{ steps.filter.outputs.kotlin-financialdata }}
       web: ${{ steps.filter.outputs.web }}
+<<<<<<< HEAD
       golang-bacen-ifdata: ${{ steps.filter.outputs.golang-bacen-ifdata }}
       golang-ratings: ${{ steps.filter.outputs.golang-ratings }}
       golang-indicators: ${{ steps.filter.outputs.golang-indicators }}
       golang-institution-enhancement: ${{ steps.filter.outputs.golang-institution-enhancement }}
+=======
+>>>>>>> upstream/main
     steps:
       - uses: actions/checkout@v4
 
@@ -42,6 +48,7 @@ jobs:
               - 'service/kotlin/**'
             kotlin-common:
               - 'service/kotlin/common/**'
+<<<<<<< HEAD
               - 'service/kotlin/common-batch/**'
               - 'service/kotlin/common-features/**'
               - 'service/kotlin/build.gradle.kts'
@@ -51,6 +58,11 @@ jobs:
               - 'service/kotlin/common-batch/**'
             kotlin-common-features:
               - 'service/kotlin/common-features/**'
+=======
+              - 'service/kotlin/build.gradle.kts'
+              - 'service/kotlin/settings.gradle.kts'
+              - 'service/kotlin/gradle/**'
+>>>>>>> upstream/main
             kotlin-security:
               - 'service/kotlin/security/**'
             kotlin-assets:
@@ -59,6 +71,7 @@ jobs:
               - 'service/kotlin/financialdata/**'
             web:
               - 'web/**'
+<<<<<<< HEAD
             golang-bacen-ifdata:
               - 'workflow/golang/financial_data/bacen_ifdata_job/**'
             golang-ratings:
@@ -67,6 +80,8 @@ jobs:
               - 'workflow/golang/financial_data/indicators_job/**'
             golang-institution-enhancement:
               - 'workflow/golang/financial_data/institution_enhancement_consumer/**'
+=======
+>>>>>>> upstream/main
 
   test-kotlin:
     needs: changes
@@ -78,10 +93,13 @@ jobs:
         include:
           - service: common
             run-integration: false
+<<<<<<< HEAD
           - service: common-batch
             run-integration: false
           - service: common-features
             run-integration: false
+=======
+>>>>>>> upstream/main
           - service: security
             run-integration: true
           - service: assets
@@ -174,6 +192,7 @@ jobs:
       - name: Unit tests
         run: pnpm run test:unit
 
+<<<<<<< HEAD
   test-golang:
     needs: changes
     if: >-
@@ -234,6 +253,8 @@ jobs:
           path: ${{ matrix.path }}/coverage.out
           retention-days: 7
 
+=======
+>>>>>>> upstream/main
   security-scan:
     runs-on: ubuntu-latest
     steps:
@@ -248,14 +269,21 @@ jobs:
 
   ci-success:
     runs-on: ubuntu-latest
+<<<<<<< HEAD
     needs: [test-kotlin, test-web, test-golang, security-scan]
+=======
+    needs: [test-kotlin, test-web, security-scan]
+>>>>>>> upstream/main
     if: always()
     steps:
       - name: Check all jobs
         run: |
           if [[ "${{ needs.test-kotlin.result }}" == "failure" ]] || \
              [[ "${{ needs.test-web.result }}" == "failure" ]] || \
+<<<<<<< HEAD
              [[ "${{ needs.test-golang.result }}" == "failure" ]] || \
+=======
+>>>>>>> upstream/main
              [[ "${{ needs.security-scan.result }}" == "failure" ]]; then
             echo "One or more jobs failed"
             exit 1

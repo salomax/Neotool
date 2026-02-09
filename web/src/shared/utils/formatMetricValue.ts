@@ -50,7 +50,10 @@ export function formatMetricValue(
     currencyLabels,
     totalizerFormat = "short",
     decimals,
+<<<<<<< HEAD
     disablePercentageScaling = false,
+=======
+>>>>>>> upstream/main
   } = options;
 
   if (typeof value !== "number" || !Number.isFinite(value)) {

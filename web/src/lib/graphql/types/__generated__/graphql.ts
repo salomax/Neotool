@@ -352,6 +352,41 @@ export enum EmailSendStatus {
   Queued = 'QUEUED'
 }
 
+export enum EmailBodyFormat {
+  Html = 'HTML',
+  Text = 'TEXT'
+}
+
+export type EmailContentInput = {
+  body?: InputMaybe<Scalars['String']['input']>;
+  format?: InputMaybe<EmailBodyFormat>;
+  kind: EmailContentKind;
+  locale?: InputMaybe<Scalars['String']['input']>;
+  subject?: InputMaybe<Scalars['String']['input']>;
+  templateKey?: InputMaybe<Scalars['String']['input']>;
+  variables?: InputMaybe<Scalars['JSON']['input']>;
+};
+
+export enum EmailContentKind {
+  Raw = 'RAW',
+  Template = 'TEMPLATE'
+}
+
+export type EmailSendRequestInput = {
+  content: EmailContentInput;
+  to: Scalars['String']['input'];
+};
+
+export type EmailSendResult = {
+  __typename: 'EmailSendResult';
+  requestId: Scalars['ID']['output'];
+  status: EmailSendStatus;
+};
+
+export enum EmailSendStatus {
+  Queued = 'QUEUED'
+}
+
 export type Group = {
   __typename: 'Group';
   createdAt: Scalars['String']['output'];
