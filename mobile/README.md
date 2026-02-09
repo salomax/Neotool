@@ -21,6 +21,141 @@ React Native + Expo mobile application for iOS and Android.
 - iOS Simulator (macOS only) or Android Emulator
 - Expo Go app on your physical device (optional)
 
+## Android Setup (Android Studio)
+
+If `expo start` shows `No Android connected device found`, complete this setup:
+
+### 1. Install SDK components
+
+In Android Studio:
+- Open `Settings` (or `Preferences` on macOS) -> `Android SDK`
+- Install `Android Emulator`
+- Install one Android SDK platform (for example API 34 or newer)
+- Install at least one system image (`Google APIs`, `arm64-v8a` on Apple Silicon)
+
+### 2. Create and start an emulator (AVD)
+
+- Open `Tools` -> `Device Manager`
+- Click `Create device`
+- Pick a device and a downloaded system image
+- Start the emulator once using the play button
+
+### 3. Configure environment variables (macOS, zsh)
+
+Add this to `~/.zshrc`:
+
+```bash
+export ANDROID_HOME="$HOME/Library/Android/sdk"
+export ANDROID_SDK_ROOT="$ANDROID_HOME"
+export PATH="$PATH:$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/latest/bin"
+```
+
+Reload your shell:
+
+```bash
+source ~/.zshrc
+```
+
+### 4. Verify setup
+
+```bash
+emulator -list-avds
+adb devices
+```
+
+`emulator -list-avds` should show your AVD and `adb devices` should show a running emulator like `emulator-5554`.
+
+### 5. Run the app on Android
+
+```bash
+pnpm start
+```
+
+Then press `a` in the Expo terminal.
+
+## Testing on Android Devices
+
+For comprehensive mobile testing, use multiple emulator configurations to cover common device variations.
+
+### Current Setup
+
+**Pixel_3a_API_34_extension_level_7_arm64-v8a**:
+- Screen: 5.6" (2220x1080, 441 ppi)
+- Android 14 (API 34)
+- Good for: Mid-size screen, latest Android features
+
+This is a solid starting point but insufficient for comprehensive validation.
+
+### Recommended Emulator Matrix
+
+Create these emulators to cover the most common scenarios:
+
+#### Minimum Coverage (3 emulators)
+
+1. **Pixel 3a API 34** (5.6", 1080x2220)
+   - Current setup - keep it
+   - Mid-size screen, latest Android
+
+2. **Pixel 6 or 7 API 34** (6.4", 1080x2400)
+   - Large modern screen (most common size range)
+   - Latest Android, pure Google experience
+
+3. **Medium Phone API 29** (5.5-6.0", 1080x2340)
+   - Android 10 (still widely used ~30% market share)
+   - Tests backward compatibility
+
+#### Full Coverage (4+ emulators)
+
+Add these for comprehensive testing:
+
+4. **Small Phone API 27-28** (4.7-5.0", 720x1280)
+   - Small/budget devices
+   - Older Android (7-8) for edge case testing
+
+5. **Nexus 10 or Pixel Tablet API 34** (10", 2560x1600)
+   - Tablet layout testing
+   - Different UI patterns
+
+### What to Test
+
+- **Screen Sizes**: Layouts break differently on 4.5" vs 6.7" displays
+- **API Levels**: Permission models, dark mode, behaviors change across versions
+- **Densities**: Image assets, touch targets scale differently (mdpi, hdpi, xxhdpi)
+- **Orientations**: Portrait and landscape modes
+
+### Industry Standards
+
+Popular devices in production (2024-2026):
+- Samsung Galaxy S21/S22/S23 series (6.1-6.8", high-end)
+- Samsung Galaxy A series (mid-range, large market share)
+- Google Pixel 6/7/8 (developer reference devices)
+- Xiaomi/Redmi (popular in Asia and emerging markets)
+
+### Creating Additional Emulators
+
+In Android Studio:
+1. Open `Tools` -> `Device Manager`
+2. Click `Create device`
+3. Choose device definition (e.g., "Pixel 6")
+4. Select system image (API level)
+5. Configure AVD settings
+6. Click `Finish`
+
+### Cloud Testing (Optional)
+
+For testing on real devices without physical hardware:
+- **Firebase Test Lab** - Google's device farm
+- **BrowserStack** - Real device cloud testing
+- **AWS Device Farm** - Amazon's testing infrastructure
+
+### Best Practices
+
+- Run tests on at least 2-3 emulators regularly
+- Test on both latest API and API 29-30 (Android 10-11)
+- Cover small (5"), medium (6"), and large (6.5"+) screens
+- Consider testing on 1-2 physical devices if available
+- Use cloud testing for release validation
+
 ## Getting Started
 
 ### 1. Install Dependencies
