@@ -10,6 +10,8 @@ import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import Divider from "@mui/material/Divider";
 import Typography from "@mui/material/Typography";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import { useTheme } from "@mui/material/styles";
 import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
 import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
@@ -22,9 +24,12 @@ import { Button } from "@/shared/components/ui/primitives/Button";
 import { usePageTitleValue } from "@/shared/hooks/ui/usePageTitle";
 import { Breadcrumb } from "@/shared/components/ui/navigation/Breadcrumb";
 import { useFeatureFlagEnabled } from "@/shared/hooks/useFeatureFlag";
+import { Logo } from "@/shared/ui/brand/Logo";
 
 export function AppHeader() {
   const { mode, toggle } = useThemeMode();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const isDark = mode === "dark";
   const [chatDrawerOpen, setChatDrawerOpen] = React.useState(false);
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
@@ -86,7 +91,7 @@ export function AppHeader() {
       sx={{
         position: "fixed",
         top: 0,
-        left: "84px", // Account for sidebar width
+        left: { xs: 0, md: "84px" }, // Account for sidebar width only on desktop
         right: 0,
         zIndex: (t) => t.zIndex.appBar,
         bgcolor: "background.paper",
@@ -95,41 +100,58 @@ export function AppHeader() {
         backdropFilter: "blur(6px)",
       }}
     >
-      <Container maxWidth={false} sx={{ py: 1.5 }}>
+      <Container maxWidth={false} sx={{ py: { xs: 1, md: 1.5 } }}>
         <Box
           sx={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            gap: 2,
+            gap: { xs: 1, md: 2 },
           }}
         >
-          {/* Page Title and Breadcrumb - Left aligned */}
-          {pageTitle && (
-            <Box
-              sx={{
-                display: "flex",
-                flexDirection: "column",
-                flex: "0 1 auto",
-                minWidth: 0, // Allow text truncation
-                gap: 0.5,
-              }}
-            >
-              <Typography
-                variant="h4"
-                component="h1"
+          {/* Left Section: Logo (Mobile) + Page Title */}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1.5,
+              flex: "0 1 auto",
+              minWidth: 0,
+            }}
+          >
+            {/* Mobile Logo */}
+            <Box sx={{ display: { xs: "block", md: "none" } }}>
+              <Logo size="small" />
+            </Box>
+
+            {/* Page Title and Breadcrumb */}
+            {pageTitle && (
+              <Box
                 sx={{
-                  fontWeight: 600,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 0.5,
+                  minWidth: 0, // Allow text truncation
                 }}
               >
-                {pageTitle}
-              </Typography>
-              <Breadcrumb />
-            </Box>
-          )}
+                <Typography
+                  variant={isMobile ? "h6" : "h4"}
+                  component="h1"
+                  sx={{
+                    fontWeight: 600,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {pageTitle}
+                </Typography>
+                <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+                  <Breadcrumb />
+                </Box>
+              </Box>
+            )}
+          </Box>
 
           {/* Actions - Right aligned */}
           <Box
@@ -137,8 +159,8 @@ export function AppHeader() {
               display: "flex",
               alignItems: "center",
               justifyContent: "flex-end",
-              gap: 1,
-              flex: pageTitle ? "0 0 auto" : "1 1 auto",
+              gap: { xs: 1, md: 1 },
+              flex: "0 0 auto", // Prevent actions from shrinking
             }}
           >
             <Tooltip title={isDark ? "Switch to light mode" : "Switch to dark mode"}>
@@ -147,11 +169,13 @@ export function AppHeader() {
               </IconButton>
             </Tooltip>
             {isAssistantEnabled && (
-              <Tooltip title="AI Assistant">
-                <IconButton aria-label="Open AI assistant" onClick={handleChatIconClick}>
-                  <AutoAwesomeIcon />
-                </IconButton>
-              </Tooltip>
+              <Box sx={{ display: { xs: 'none', md: 'inline-flex' } }}>
+                <Tooltip title="AI Assistant">
+                  <IconButton aria-label="Open AI assistant" onClick={handleChatIconClick}>
+                    <AutoAwesomeIcon />
+                  </IconButton>
+                </Tooltip>
+              </Box>
             )}
             {isAuthenticated ? (
               <Tooltip title="Account">
@@ -197,33 +221,16 @@ export function AppHeader() {
         onClick={handleProfileMenuClose}
         transformOrigin={{ horizontal: "right", vertical: "top" }}
         anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
-        PaperProps={{
-          elevation: 3,
-          sx: {
-            mt: 1.5,
-            minWidth: 200,
-            "& .MuiMenuItem-root": {
-              px: 2,
-              py: 1,
-            },
-          },
-        }}
       >
-        {user && [
-          <Box key="user-info" sx={{ px: 2, py: 1.5 }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-              {user.displayName || "User"}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {user.email}
-            </Typography>
-          </Box>,
-          <Divider key="divider" />,
-          <MenuItem key="sign-out" onClick={handleSignOut}>
-            <LogoutIcon sx={{ mr: 1.5, fontSize: 20 }} />
-            Sign Out
-          </MenuItem>
-        ]}
+        <MenuItem onClick={() => router.push("/profile")}>
+          <PersonIcon fontSize="small" sx={{ mr: 1.5 }} />
+          Profile
+        </MenuItem>
+        <Divider />
+        <MenuItem onClick={handleSignOut}>
+          <LogoutIcon fontSize="small" sx={{ mr: 1.5 }} />
+          Sign out
+        </MenuItem>
       </Menu>
     </Box>
   );

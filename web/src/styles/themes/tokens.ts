@@ -38,6 +38,12 @@ export interface DesignTokens {
       minHeight: number;
       chartHeight: number;
     };
+    mobile: {
+      headerHeight: number;
+      bottomNavHeight: number;
+      safeAreaBottom: number;
+      touchTarget: number;
+    };
   };
   typography: {
     fontFamily: string;
@@ -107,6 +113,12 @@ export const tokens: Record<Mode, DesignTokens> = {
         minHeight: 168,
         chartHeight: 100,
       },
+      mobile: {
+        headerHeight: 56,
+        bottomNavHeight: 64,
+        safeAreaBottom: 34,
+        touchTarget: 56,
+      },
     },
     typography: {
       fontFamily: `'Inter', ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial`,
@@ -173,6 +185,12 @@ export const tokens: Record<Mode, DesignTokens> = {
       metricCard: {
         minHeight: 168,
         chartHeight: 100,
+      },
+      mobile: {
+        headerHeight: 56,
+        bottomNavHeight: 64,
+        safeAreaBottom: 34,
+        touchTarget: 56,
       },
     },
     typography: {

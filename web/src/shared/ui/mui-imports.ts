@@ -98,7 +98,11 @@ export { default as HomeIcon } from '@mui/icons-material/Home';
 export { default as DashboardIcon } from '@mui/icons-material/Dashboard';
 export { default as PersonIcon } from '@mui/icons-material/Person';
 export { default as NotificationsIcon } from '@mui/icons-material/Notifications';
-export { default as EmailIcon } from '@mui/icons-material/Email';
+export { default as ArticleIcon } from '@mui/icons-material/Article';
+export { default as SettingsRoundedIcon } from '@mui/icons-material/SettingsRounded';
+export { default as DarkModeRoundedIcon } from '@mui/icons-material/DarkModeRounded';
+export { default as LightModeRoundedIcon } from '@mui/icons-material/LightModeRounded';
+export { default as LogoutIcon } from '@mui/icons-material/Logout';
 export { default as PhoneIcon } from '@mui/icons-material/Phone';
 export { default as LocationOnIcon } from '@mui/icons-material/LocationOn';
 export { default as CalendarTodayIcon } from '@mui/icons-material/CalendarToday';
@@ -192,6 +196,8 @@ export { default as EmojiEmotionsOutlinedIcon } from '@mui/icons-material/EmojiE
 // Additional icons for new components
 export { default as CloudUploadIcon } from '@mui/icons-material/CloudUpload';
 export { default as DragIndicatorIcon } from '@mui/icons-material/DragIndicator';
+export { default as ShowChartIcon } from '@mui/icons-material/ShowChart';
+export { default as MoreHorizIcon } from '@mui/icons-material/MoreHoriz';
 
 // Material-UI X components (only if needed)
 export { DatePicker } from '@mui/x-date-pickers/DatePicker';
