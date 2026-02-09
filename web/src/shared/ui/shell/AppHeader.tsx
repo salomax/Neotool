@@ -24,6 +24,7 @@ import { Button } from "@/shared/components/ui/primitives/Button";
 import { usePageTitleValue } from "@/shared/hooks/ui/usePageTitle";
 import { Breadcrumb } from "@/shared/components/ui/navigation/Breadcrumb";
 import { useFeatureFlagEnabled } from "@/shared/hooks/useFeatureFlag";
+import { Logo } from "@/shared/ui/brand/Logo";
 
 export function AppHeader() {
   const { mode, toggle } = useThemeMode();
@@ -108,34 +109,49 @@ export function AppHeader() {
             gap: { xs: 1, md: 2 },
           }}
         >
-          {/* Page Title and Breadcrumb - Left aligned */}
-          {pageTitle && (
-            <Box
-              sx={{
-                display: "flex",
-                flexDirection: "column",
-                flex: "0 1 auto",
-                minWidth: 0, // Allow text truncation
-                gap: 0.5,
-              }}
-            >
-              <Typography
-                variant={isMobile ? "h6" : "h4"}
-                component="h1"
+          {/* Left Section: Logo (Mobile) + Page Title */}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1.5,
+              flex: "0 1 auto",
+              minWidth: 0,
+            }}
+          >
+            {/* Mobile Logo */}
+            <Box sx={{ display: { xs: "block", md: "none" } }}>
+              <Logo size="small" />
+            </Box>
+
+            {/* Page Title and Breadcrumb */}
+            {pageTitle && (
+              <Box
                 sx={{
-                  fontWeight: 600,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 0.5,
+                  minWidth: 0, // Allow text truncation
                 }}
               >
-                {pageTitle}
-              </Typography>
-              <Box sx={{ display: { xs: 'none', md: 'block' } }}>
-                <Breadcrumb />
+                <Typography
+                  variant={isMobile ? "h6" : "h4"}
+                  component="h1"
+                  sx={{
+                    fontWeight: 600,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {pageTitle}
+                </Typography>
+                <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+                  <Breadcrumb />
+                </Box>
               </Box>
-            </Box>
-          )}
+            )}
+          </Box>
 
           {/* Actions - Right aligned */}
           <Box
@@ -144,7 +160,7 @@ export function AppHeader() {
               alignItems: "center",
               justifyContent: "flex-end",
               gap: { xs: 1, md: 1 },
-              flex: pageTitle ? "0 0 auto" : "1 1 auto",
+              flex: "0 0 auto", // Prevent actions from shrinking
             }}
           >
             <Tooltip title={isDark ? "Switch to light mode" : "Switch to dark mode"}>
