@@ -11,11 +11,7 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
-<<<<<<< HEAD
   IMAGE_PREFIX: ghcr.io/invistus
-=======
-  IMAGE_PREFIX: ghcr.io/neotool
->>>>>>> upstream/main
 
 jobs:
   version:
