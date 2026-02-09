@@ -201,6 +201,36 @@ func (r *InstitutionRepository) ListByAnoMes(ctx context.Context, anoMes string)
 	return institutions, nil
 }
 
+// ListDistinctAnoMes retrieves all distinct quarters that have institution data
+func (r *InstitutionRepository) ListDistinctAnoMes(ctx context.Context) ([]string, error) {
+	query := `
+		SELECT DISTINCT ano_mes_ref
+		FROM financial_data.bacen_institution
+		ORDER BY ano_mes_ref
+	`
+
+	rows, err := r.pool.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list distinct ano_mes: %w", err)
+	}
+	defer rows.Close()
+
+	var quarters []string
+	for rows.Next() {
+		var anoMes string
+		if err := rows.Scan(&anoMes); err != nil {
+			return nil, fmt.Errorf("failed to scan ano_mes row: %w", err)
+		}
+		quarters = append(quarters, anoMes)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate ano_mes rows: %w", err)
+	}
+
+	return quarters, nil
+}
+
 // GetLastExtractedAnoMes retrieves the last extracted ano_mes from load control
 func (r *InstitutionRepository) GetLastExtractedAnoMes(ctx context.Context) (string, error) {
 	query := `

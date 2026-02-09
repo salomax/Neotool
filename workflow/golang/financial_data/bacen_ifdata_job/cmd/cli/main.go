@@ -113,38 +113,62 @@ func main() {
 	healthServer := application.NewHealthServer(config.HealthCheck.Port, dbPool, nil, logger)
 
 	if *republishAll {
-		if *anoMes == "" {
-			log.Fatalf("ano-mes is required when using --republish-all flag")
+		// Determine quarters to republish
+		var quarters []string
+		if *anoMes != "" {
+			quarters = []string{*anoMes}
+		} else {
+			quarters, err = institutionRepo.ListDistinctAnoMes(ctx)
+			if err != nil {
+				log.Fatalf("Failed to list quarters: %v", err)
+			}
+			if len(quarters) == 0 {
+				log.Fatalf("No quarters found in database")
+			}
 		}
 
-		logger.Info("republishing all institution events from database", "ano_mes", *anoMes)
+		logger.Info("republishing institution events from database", "quarters", len(quarters))
 
-		institutions, err := institutionRepo.ListByAnoMes(ctx, *anoMes)
-		if err != nil {
-			log.Fatalf("Failed to list institutions: %v", err)
-		}
-		if len(institutions) == 0 {
-			log.Fatalf("No institutions found for ano_mes=%s", *anoMes)
-		}
+		totalPublished := 0
+		totalFailed := 0
+		for _, q := range quarters {
+			institutions, err := institutionRepo.ListByAnoMes(ctx, q)
+			if err != nil {
+				log.Fatalf("Failed to list institutions for %s: %v", q, err)
+			}
+			if len(institutions) == 0 {
+				logger.Info("no institutions found, skipping", "ano_mes", q)
+				continue
+			}
 
-		changes := make([]domain.InstitutionChange, 0, len(institutions))
-		for _, inst := range institutions {
-			changes = append(changes, domain.InstitutionChange{
-				Institution: *inst,
-				ChangeType:  domain.ChangeTypeUpdated,
-			})
-		}
+			changes := make([]domain.InstitutionChange, 0, len(institutions))
+			for _, inst := range institutions {
+				changes = append(changes, domain.InstitutionChange{
+					Institution: *inst,
+					ChangeType:  domain.ChangeTypeUpdated,
+				})
+			}
 
-		published, failed, err := kafkaPublisher.PublishChanges(ctx, changes)
-		if err != nil {
-			log.Fatalf("Failed to republish institution events: %v", err)
+			published, failed, err := kafkaPublisher.PublishChanges(ctx, changes)
+			if err != nil {
+				logger.Error("failed to republish", "ano_mes", q, "error", err)
+				totalFailed += len(changes)
+				continue
+			}
+
+			totalPublished += published
+			totalFailed += failed
+			logger.Info("quarter republished", "ano_mes", q, "published", published, "failed", failed)
 		}
 
 		logger.Info("republish completed",
-			"ano_mes", *anoMes,
-			"published", published,
-			"failed", failed)
+			"quarters_processed", len(quarters),
+			"total_published", totalPublished,
+			"total_failed", totalFailed)
 
+		if totalFailed > 0 {
+			os.Exit(1)
+		}
 		return
 	}
 
