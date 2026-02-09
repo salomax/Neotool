@@ -27,7 +27,8 @@
     "forms": "Forms",
     "settings": "Settings",
     "financialInstitutions": "Financial Institutions",
-    "financialData": "Financial Data"
+    "financialData": "Financial Data",
+    "menu": "Menu"
   },
   "search": {
     "placeholder": "Search...",
