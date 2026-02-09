@@ -14,12 +14,19 @@ RUN go mod download
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /bin/cronjob ./cmd/cronjob
 
-FROM gcr.io/distroless/static-debian12:nonroot
+FROM alpine:3.19
 
-WORKDIR /
+RUN addgroup -g 1001 cronjob && \
+    adduser -D -u 1001 -G cronjob cronjob
 
-COPY --from=builder /bin/cronjob /cronjob
+RUN apk add --no-cache ca-certificates tzdata
 
-USER nonroot:nonroot
+WORKDIR /app
 
-ENTRYPOINT ["/cronjob"]
+COPY --from=builder /bin/cronjob /app/cronjob
+
+RUN chown -R cronjob:cronjob /app
+
+USER cronjob
+
+ENTRYPOINT ["/app/cronjob"]
