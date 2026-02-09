@@ -14,10 +14,7 @@ venv
 /cronjob
 /cli
 /retry-worker
-<<<<<<< HEAD
 *.tsbuildinfo
-=======
->>>>>>> upstream/main
 
 *.code-workspace
 .idea
