@@ -125,8 +125,11 @@ export KAFKA_BROKERS=localhost:9092
 # Force registry refresh
 ./bin/cli --ano-mes 202403 --force-registry-refresh
 
-# Republish all institution events for a quarter (from DB, change_type=UPDATED)
-./bin/cli --ano-mes 202403 --republish-all
+# Republish all institution events for all quarters (from DB, change_type=UPDATED)
+./bin/cli --republish-all
+
+# Republish institution events for a specific quarter only
+./bin/cli --republish-all --ano-mes 202403
 
 # Run retry worker
 ./bin/retry-worker
@@ -271,6 +274,37 @@ kubectl create job --from=cronjob/bacen-ifdata-cronjob bacen-ifdata-manual -n pr
 # Check job status
 kubectl get pods -n production -l job-name=bacen-ifdata-manual
 ```
+
+### Republish Institution Events (One-Off Job)
+
+When institution records already exist in the database but Kafka messages need to be re-published (e.g., after a CronJob timeout or consumer reset), use the republish job. It reads all institutions from the DB and publishes them to the `financial-data.institution.upserted` Kafka topic with `change_type=UPDATED`.
+
+The job manifest is at `invistus-flux/infra/kubernetes/flux/apps/services/bacen-ifdata/republish-job.yaml`.
+
+```bash
+# 1. Ensure republish-job.yaml is listed in kustomization.yaml resources
+#    and Flux has reconciled (or apply manually):
+kubectl apply -f republish-job.yaml -n production
+
+# 2. Check pod status
+kubectl get pods -l app=bacen-ifdata-republish -n production
+
+# 3. Follow logs
+kubectl logs -f job/bacen-ifdata-republish -n production
+
+# 4. Check job completion status
+kubectl get job bacen-ifdata-republish -n production
+
+# 5. Delete the job after completion
+kubectl delete job bacen-ifdata-republish -n production
+```
+
+To republish only a specific quarter, edit the job args:
+```yaml
+args: ["-republish-all", "-ano-mes", "202403"]
+```
+
+> **Note**: The republish job pod must have the label `component: etl` to pass the PGBouncer NetworkPolicy. After the job completes, remove `republish-job.yaml` from `kustomization.yaml` to keep the Flux state clean.
 
 ### Useful Commands
 
