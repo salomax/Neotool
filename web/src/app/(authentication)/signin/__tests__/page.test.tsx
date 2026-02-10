@@ -72,9 +72,11 @@ describe.sequential('SignInPage', () => {
 
   it('displays title and subtitle', () => {
     renderSignInPage();
-
-    expect(screen.getByTestId('signin-title')).toBeInTheDocument();
-    expect(screen.getByTestId('signin-subtitle')).toBeInTheDocument();
+    
+    // Use locale-agnostic matchers (en: Welcome back / pt: Bem-vindo de volta)
+    const welcomeElements = screen.getAllByText(/welcome back|bem-vindo de volta/i);
+    expect(welcomeElements[0]).toBeInTheDocument();
+    expect(screen.getByText(/sign in to your account|entre na sua conta para continuar/i)).toBeInTheDocument();
   });
 
   it('redirects if already authenticated', () => {

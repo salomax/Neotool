@@ -7,6 +7,7 @@ import {
   maskPhoneBR,
   parseLocaleNumber,
   formatCurrency,
+  formatLargeCurrency,
 } from '../br';
 
 describe('br masks', () => {
@@ -205,6 +206,36 @@ describe('br masks', () => {
       
       const formatted2 = formatCurrency(100.1);
       expect(formatted2).toContain('10');
+    });
+  });
+
+  describe('formatLargeCurrency', () => {
+    it('should format trillions with 1 decimal by default', () => {
+      const val = 1500000000000;
+      const res = formatLargeCurrency(val);
+      expect(res).toContain('1,5');
+      expect(res).toContain('tri');
+    });
+
+    it('should format billions with 1 decimal by default', () => {
+      const val = 1500000000;
+      const res = formatLargeCurrency(val);
+      // pt-BR uses comma for decimal
+      expect(res).toContain('1,5');
+      expect(res).toContain('bi');
+    });
+
+    it('should format millions with 1 decimal by default', () => {
+      const val = 1500000;
+      const res = formatLargeCurrency(val);
+      expect(res).toContain('1,5');
+      expect(res).toContain('mi');
+    });
+
+    it('should allow custom decimals', () => {
+      const val = 1550000000;
+      const res = formatLargeCurrency(val, 'BRL', undefined, undefined, 2);
+      expect(res).toContain('1,55');
     });
   });
 });

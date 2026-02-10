@@ -23,10 +23,12 @@ import { useAuth } from "@/shared/providers";
 import { Button } from "@/shared/components/ui/primitives/Button";
 import { usePageTitleValue } from "@/shared/hooks/ui/usePageTitle";
 import { Breadcrumb } from "@/shared/components/ui/navigation/Breadcrumb";
+import { useTranslation } from "react-i18next";
 import { useFeatureFlagEnabled } from "@/shared/hooks/useFeatureFlag";
 import { Logo } from "@/shared/ui/brand/Logo";
 
 export function AppHeader() {
+  const { t } = useTranslation();
   const { mode, toggle } = useThemeMode();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
@@ -163,7 +165,7 @@ export function AppHeader() {
               flex: "0 0 auto", // Prevent actions from shrinking
             }}
           >
-            <Tooltip title={isDark ? "Switch to light mode" : "Switch to dark mode"}>
+            <Tooltip title={isDark ? t("appHeader.theme.light") : t("appHeader.theme.dark")}>
               <IconButton aria-label="toggle theme" onClick={toggle}>
                 {isDark ? <LightModeRoundedIcon /> : <DarkModeRoundedIcon />}
               </IconButton>
@@ -178,7 +180,7 @@ export function AppHeader() {
               </Box>
             )}
             {isAuthenticated ? (
-              <Tooltip title="Account">
+              <Tooltip title={t("appHeader.account")}>
                 <IconButton 
                   aria-label="Account menu"
                   onClick={handleProfileMenuOpen}
@@ -199,12 +201,12 @@ export function AppHeader() {
                 variant="contained"
                 size="medium"
                 onClick={handleSignIn}
-                aria-label="Sign in"
+                aria-label={t("appHeader.signIn")}
                 data-testid="header-signin-button"
                 name="header-signin"
                 sx={{ height: (theme) => theme.spacing(5.5), px: 2.5 }}
               >
-                Sign In
+                {t("appHeader.signIn")}
               </Button>
             )}
           </Box>

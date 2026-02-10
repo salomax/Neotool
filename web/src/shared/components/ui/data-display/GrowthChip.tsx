@@ -7,9 +7,10 @@ import { formatPercentageWithSign } from "@/shared/utils/percentage";
 
 export interface GrowthChipProps {
   growthPercentage?: number | null;
+  locale?: string;
 }
 
-export const GrowthChip: React.FC<GrowthChipProps> = ({ growthPercentage }) => {
+export const GrowthChip: React.FC<GrowthChipProps> = ({ growthPercentage, locale }) => {
   const theme = useTheme();
   const hasGrowth = growthPercentage != null;
 
@@ -46,8 +47,10 @@ export const GrowthChip: React.FC<GrowthChipProps> = ({ growthPercentage }) => {
     return formatPercentageWithSign(growthPercentage ?? 0, {
       decimals: 1,
       showZeroSign: false,
+      locale,
+      alwaysShowPlusSign: false
     });
-  }, [growthPercentage, hasGrowth]);
+  }, [growthPercentage, hasGrowth, locale]);
 
   const GrowthIcon = React.useMemo(() => {
     if (!hasGrowth) {

@@ -8,6 +8,20 @@ export interface MetricLineChartProps {
   valueType: "currency" | "percentage" | "number";
   height?: number;
   showLegend?: boolean;
+  xKey?: string;
+  xTickFormatter?: (value: any) => string;
+  /**
+   * Whether to disable multiplying percentage values by 100.
+   */
+  disablePercentageScaling?: boolean;
+  /**
+   * Currency code for formatting (e.g. "BRL", "USD")
+   */
+  currency?: string;
+  /**
+   * Locale for number formatting
+   */
+  locale?: string;
 }
 
 export function MetricLineChart({
@@ -16,6 +30,11 @@ export function MetricLineChart({
   valueType,
   height = 300,
   showLegend = true,
+  xKey = "quarter",
+  xTickFormatter,
+  disablePercentageScaling = false,
+  currency = "BRL",
+  locale,
 }: MetricLineChartProps) {
   const { t } = useTranslation("common");
 
@@ -28,13 +47,13 @@ export function MetricLineChart({
         value:
           item.value === null || item.value === undefined
             ? item.value
-            : Number(item.value) * 100,
+            : (disablePercentageScaling ? Number(item.value) : Number(item.value) * 100),
       }));
     }
     return data;
-  }, [data, isPercentage]);
+  }, [data, isPercentage, disablePercentageScaling]);
 
-  const xDateFormat = (value: any) => {
+  const defaultXDateFormat = (value: any) => {
     const str = String(value);
     if (str.length !== 6) {
       return str;
@@ -44,10 +63,12 @@ export function MetricLineChart({
     return `${month}/${year}`;
   };
 
+  const xDateFormat = xTickFormatter || defaultXDateFormat;
+
   return (
     <LineChart
       data={chartData}
-      xKey="quarter"
+      xKey={xKey}
       xDateFormat={xDateFormat}
       height={height}
       series={[
@@ -64,7 +85,7 @@ export function MetricLineChart({
           side: "left",
           label: label,
           format: isPercentage ? "percent" : "currency",
-          currency: "BRL",
+          currency: currency,
         },
       ]}
       scale
@@ -73,6 +94,13 @@ export function MetricLineChart({
       consolidateDecimal
       showArea
       showLegend={showLegend}
+      referenceLines={[
+        {
+          y: 0,
+          yAxisId: "left-axis",
+        },
+      ]}
+      locale={locale}
     />
   );
 }

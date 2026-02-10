@@ -10,6 +10,7 @@ import {
   Legend,
   ResponsiveContainer,
   Line,
+  ReferenceLine,
 } from "recharts";
 import { Box, Typography, useTheme } from "@mui/material";
 
@@ -22,6 +23,15 @@ export interface LineChartSeries {
   name: string;
   dataKey: string;
   color?: string;
+  yAxisId?: string;
+}
+
+export interface LineChartReferenceLine {
+  y?: number;
+  x?: string | number;
+  stroke?: string;
+  strokeDasharray?: string;
+  label?: string;
   yAxisId?: string;
 }
 
@@ -68,7 +78,12 @@ export interface LineChartProps {
     bottom?: number;
     left?: number;
   };
+  referenceLines?: LineChartReferenceLine[];
   sx?: any;
+  /**
+   * Locale for number formatting
+   */
+  locale?: string;
 }
 
 const buildTickFormatter = (
@@ -224,9 +239,17 @@ export const LineChart: React.FC<LineChartProps> = ({
   consolidateDecimal = true,
   colors,
   margin = { top: 0, right: 24, left: 0, bottom: 24 },
+  referenceLines,
   sx,
+  locale: localeProp,
 }) => {
   const theme = useTheme();
+
+  const locale =
+    localeProp ||
+    (typeof window !== "undefined" && window.navigator?.language
+      ? window.navigator.language
+      : "pt-BR");
 
   const palette = colors && colors.length > 0 ? colors : defaultPalette(theme);
 
@@ -396,11 +419,6 @@ export const LineChart: React.FC<LineChartProps> = ({
 
     return undefined;
   };
-
-  const locale =
-    typeof window !== "undefined" && window.navigator?.language
-      ? window.navigator.language
-      : "pt-BR";
 
   const getTickFormatter = (axisId: string | undefined) => {
     const axisConfig = getAxis(axisId);
@@ -632,6 +650,18 @@ export const LineChart: React.FC<LineChartProps> = ({
                   domain={getAxisDomain(undefined)}
                 />
               ))}
+            
+            {referenceLines?.map((ref, index) => (
+              <ReferenceLine
+                key={index}
+                y={ref.y}
+                x={ref.x}
+                stroke={ref.stroke || theme.palette.divider}
+                strokeDasharray={ref.strokeDasharray}
+                yAxisId={ref.yAxisId}
+                label={ref.label}
+              />
+            ))}
 
             {showTooltip && (
               <Tooltip

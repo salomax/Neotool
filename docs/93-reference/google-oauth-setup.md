@@ -86,17 +86,7 @@ https://www.yourdomain.com
 
 ### Authorized redirect URIs:
 
-For Google Identity Services (GIS), you typically don't need redirect URIs, but if you're using the older OAuth flow, add:
-
-**For local development:**
-```
-http://localhost:3000/auth/callback
-```
-
-**For production:**
-```
-https://yourdomain.com/auth/callback
-```
+This app uses **Google Identity Services (GIS)** with a popup flow. There is no server-side redirect: the user signs in in the popup, GIS returns an ID token to the page, and the frontend then calls your **GraphQL endpoint** with the mutation `signInWithOAuth(input: { provider: "google", idToken: "…", rememberMe })`. You do **not** need to add any redirect URIs in Google Cloud Console for this flow.
 
 4. Click **"Create"**
 5. **IMPORTANT**: Copy the **Client ID** (you'll need this in the next steps)
@@ -281,7 +271,7 @@ implementation("com.google.api-client:google-api-client:2.2.0")
 
 ### Frontend Dependencies
 
-The frontend uses Google Identity Services via a script tag (no npm package needed). The implementation is in `web/src/lib/auth/oauth/google.ts`.
+The frontend uses Google Identity Services via a script tag (no npm package needed). The implementation is in `web/src/shared/utils/auth/oauth/google.ts`.
 
 ## Step 8: Test the Setup
 
@@ -324,9 +314,9 @@ Check the backend logs for:
 - Check that the Client ID is correct in Google Cloud Console
 - Ensure the token hasn't expired (ID tokens expire after 1 hour)
 
-**"Redirect URI mismatch"**
-- Verify authorized JavaScript origins in Google Cloud Console
-- Ensure `http://localhost:3000` is added for local development
+**"Redirect URI mismatch"** (or GIS origin errors)
+- This app uses GIS popup flow, so no redirect URIs are used. Verify **Authorized JavaScript origins** in Google Cloud Console.
+- Ensure `http://localhost:3000` (and `http://127.0.0.1:3000` if needed) is added for local development.
 
 **"Access blocked: This app's request is invalid"**
 - Check OAuth consent screen configuration
@@ -363,9 +353,9 @@ Before deploying to production:
    ↓
 4. User authenticates with Google
    ↓
-5. Google returns ID token (JWT) to frontend
+5. Google returns ID token (JWT) to frontend (in-page callback; no redirect)
    ↓
-6. Frontend sends ID token to backend via GraphQL mutation
+6. Frontend calls your GraphQL endpoint with mutation `signInWithOAuth(input: { provider: "google", idToken: "…", rememberMe })`
    ↓
 7. Backend validates ID token using Google's public keys
    ↓
@@ -375,7 +365,7 @@ Before deploying to production:
    ↓
 10. Backend generates its own JWT access token and refresh token
     ↓
-11. Frontend stores tokens and redirects user
+11. Frontend stores tokens and redirects user to home
 ```
 
 ### Two-JWT Token Flow

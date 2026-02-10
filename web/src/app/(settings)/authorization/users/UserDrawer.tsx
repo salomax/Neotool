@@ -7,7 +7,6 @@ import {
   Chip,
   Stack,
   Button,
-  IconButton,
 } from "@mui/material";
 import { TextField } from "@/shared/components/ui/primitives";
 import PersonIcon from "@mui/icons-material/Person";
@@ -20,7 +19,6 @@ import { UserGroupAssignment } from "./UserGroupAssignment";
 import { UserRoleAssignment } from "./UserRoleAssignment";
 import { useUserDrawer } from "@/shared/hooks/authorization/useUserDrawer";
 import { PermissionGate } from "@/shared/components/authorization";
-import { CloseIcon } from "@/shared/ui/mui-imports";
 import { useKeyboardFormSubmit, useDrawerAutoFocus } from "@/shared/hooks/forms";
 
 export interface UserDrawerProps {
@@ -132,22 +130,10 @@ export const UserDrawer: React.FC<UserDrawerProps> = ({
       size="md"
       variant="temporary"
     >
-      <Drawer.Header>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flex: 1 }}>
-          <PersonIcon sx={{ color: "text.secondary" }} />
-          <Typography variant="h6" component="h2" sx={{ flex: 1 }} data-testid="drawer-title">
-            {t("userManagement.drawer.title")}
-          </Typography>
-        </Box>
-        <IconButton
-          onClick={onClose}
-          size="small"
-          aria-label={`Close ${t("userManagement.drawer.title")}`}
-          data-testid="drawer-close-button"
-        >
-          <CloseIcon />
-        </IconButton>
-      </Drawer.Header>
+      <Drawer.Header
+        title={t("userManagement.drawer.title")}
+        icon={<PersonIcon />}
+      />
       <Drawer.Body ref={bodyRef} data-testid="drawer-body">
         <LoadingState isLoading={loading} />
 

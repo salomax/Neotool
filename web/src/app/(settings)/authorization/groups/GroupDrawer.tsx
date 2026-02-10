@@ -7,12 +7,10 @@ import {
   Stack,
   Button,
   Alert,
-  IconButton,
 } from "@mui/material";
 import GroupIcon from "@mui/icons-material/Group";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { TextField } from "@/shared/components/ui/primitives";
-import { CloseIcon } from "@/shared/ui/mui-imports";
 import { LoadingState, ErrorAlert } from "@/shared/components/ui/feedback";
 import { useForm, FormProvider } from "react-hook-form";
 import { useMutation } from "@apollo/client/react";
@@ -338,21 +336,10 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
       size="md"
       variant="temporary"
     >
-      <Drawer.Header>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flex: 1 }}>
-          <GroupIcon sx={{ color: "text.secondary" }} />
-          <Typography variant="h6" component="h2" sx={{ flex: 1 }}>
-            {drawerTitle}
-          </Typography>
-        </Box>
-        <IconButton
-          onClick={onClose}
-          size="small"
-          aria-label={`Close ${drawerTitle}`}
-        >
-          <CloseIcon />
-        </IconButton>
-      </Drawer.Header>
+      <Drawer.Header
+        title={drawerTitle}
+        icon={<GroupIcon />}
+      />
       <Drawer.Body ref={bodyRef}>
         <FormProvider {...methods}>
           {/* Loading state for edit mode */}

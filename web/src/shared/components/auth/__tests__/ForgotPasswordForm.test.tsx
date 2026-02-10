@@ -109,6 +109,11 @@ describe.sequential('ForgotPasswordForm', () => {
 
     await waitFor(() => {
       expect(emailInput).toHaveAttribute('aria-invalid', 'true');
+      // The error message should be displayed as helperText in the TextField
+      // For an empty email field, zod validates email() first, which shows "Please enter a valid email address"
+      // instead of "This field is required" because empty string fails email validation first
+      const errorMessage = screen.getByText(/please enter a valid email address|por favor, insira um endereço de e-mail válido|this field is required|este campo é obrigatório/i);
+      expect(errorMessage).toBeInTheDocument();
     }, { timeout: 3000 });
   });
 

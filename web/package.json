@@ -29,7 +29,6 @@
     "psi:mobile": "psi http://localhost:3000 --strategy=mobile",
     "psi:desktop": "psi http://localhost:3000 --strategy=desktop",
     "sitemap": "next-sitemap",
-    "postbuild": "next-sitemap",
     "codegen": "graphql-codegen --config codegen.ts",
     "codegen:watch": "graphql-codegen --config codegen.ts --watch",
     "postinstall": "node scripts/postinstall.mjs",
@@ -139,6 +138,7 @@
   "pnpm": {
     "overrides": {
       "react-is": "^18.3.1",
+      "@isaacs/brace-expansion": "5.0.1",
       "glob": ">=10.5.0",
       "test-exclude>glob": "^7.1.4",
       "rollup": ">=3.29.5",
