@@ -85,6 +85,7 @@ type ExtractionConfig struct {
 // PromotionConfig holds promotion-specific configuration
 type PromotionConfig struct {
 	MaxWorkers           int           `env:"PROMOTION_MAX_WORKERS" envDefault:"3"`
+	ChunkSize            int           `env:"PROMOTION_CHUNK_SIZE" envDefault:"5000"`
 	WaitPollIntervalMs   int           `env:"PROMOTION_WAIT_POLL_INTERVAL_MS" envDefault:"5000"`
 	WaitPollIntervalDur  time.Duration // set in LoadConfig from WaitPollIntervalMs
 }
@@ -129,6 +130,10 @@ func (c *Config) Validate() error {
 
 	if c.Promotion.MaxWorkers < 1 {
 		return fmt.Errorf("PROMOTION_MAX_WORKERS must be at least 1")
+	}
+
+	if c.Promotion.ChunkSize < 100 {
+		return fmt.Errorf("PROMOTION_CHUNK_SIZE must be at least 100")
 	}
 
 	if c.Retry.MaxRetries < 0 {

@@ -16,6 +16,7 @@ type Promoter struct {
 	bankReportRepo  *database.BankReportRepository
 	loadControlRepo *database.LoadControlRepository
 	extractTaskRepo *database.ExtractTaskRepository
+	chunkSize       int
 	logger          *slog.Logger
 }
 
@@ -25,6 +26,7 @@ func NewPromoter(
 	bankReportRepo *database.BankReportRepository,
 	loadControlRepo *database.LoadControlRepository,
 	extractTaskRepo *database.ExtractTaskRepository,
+	chunkSize int,
 	logger *slog.Logger,
 ) *Promoter {
 	return &Promoter{
@@ -32,11 +34,13 @@ func NewPromoter(
 		bankReportRepo:  bankReportRepo,
 		loadControlRepo: loadControlRepo,
 		extractTaskRepo: extractTaskRepo,
+		chunkSize:       chunkSize,
 		logger:          logger,
 	}
 }
 
-// PromoteReport promotes raw data for a specific report to hot tables
+// PromoteReport promotes raw data for a specific report to hot tables.
+// Processes data in chunks to bound memory usage and commit progress incrementally.
 func (p *Promoter) PromoteReport(
 	ctx context.Context,
 	anoMes string,
@@ -68,13 +72,13 @@ func (p *Promoter) PromoteReport(
 		return 0, fmt.Errorf("failed to initialize load control: %w", err)
 	}
 
-	// Get raw data for promotion (only active institutions)
-	rawData, err := p.rawDataRepo.GetRawDataForPromotion(ctx, anoMes, nomeRelatorio, numeroRelatorio)
+	// Count total rows to promote (for progress tracking)
+	totalRows, err := p.rawDataRepo.CountRawDataForPromotion(ctx, anoMes, nomeRelatorio, numeroRelatorio)
 	if err != nil {
-		return 0, fmt.Errorf("failed to get raw data: %w", err)
+		return 0, fmt.Errorf("failed to count raw data: %w", err)
 	}
 
-	if len(rawData) == 0 {
+	if totalRows == 0 {
 		p.logger.Info("no raw data to promote",
 			"ano_mes", anoMes,
 			"nome_relatorio", nomeRelatorio,
@@ -91,33 +95,72 @@ func (p *Promoter) PromoteReport(
 		return 0, nil
 	}
 
-	p.logger.Info("promoting raw data",
+	p.logger.Info("starting chunked promotion",
 		"ano_mes", anoMes,
 		"nome_relatorio", nomeRelatorio,
 		"numero_relatorio", numeroRelatorio,
-		"raw_rows", len(rawData))
+		"total_rows", totalRows,
+		"chunk_size", p.chunkSize)
 
-	// Promote to bank_report and bank_report_data tables
-	rowsPromoted, err := p.bankReportRepo.PromoteRawData(ctx, anoMes, nomeRelatorio, numeroRelatorio, rawData)
-	if err != nil {
-		return 0, fmt.Errorf("failed to promote raw data: %w", err)
+	// Process in chunks: fetch page → promote → log progress
+	totalPromoted := 0
+	offset := 0
+	chunkNum := 0
+
+	for offset < totalRows {
+		// Check context cancellation between chunks
+		select {
+		case <-ctx.Done():
+			return totalPromoted, ctx.Err()
+		default:
+		}
+
+		chunkNum++
+
+		// Fetch next chunk
+		chunk, err := p.rawDataRepo.GetRawDataForPromotionPaged(ctx, anoMes, nomeRelatorio, numeroRelatorio, p.chunkSize, offset)
+		if err != nil {
+			return totalPromoted, fmt.Errorf("failed to fetch chunk %d (offset=%d): %w", chunkNum, offset, err)
+		}
+
+		if len(chunk) == 0 {
+			break
+		}
+
+		// Promote chunk to bank_report and bank_report_data tables
+		chunkPromoted, err := p.bankReportRepo.PromoteRawData(ctx, anoMes, nomeRelatorio, numeroRelatorio, chunk)
+		if err != nil {
+			return totalPromoted, fmt.Errorf("failed to promote chunk %d (offset=%d): %w", chunkNum, offset, err)
+		}
+
+		totalPromoted += chunkPromoted
+		offset += len(chunk)
+		pct := float64(offset) / float64(totalRows) * 100
+
+		p.logger.Info("chunk promoted",
+			"ano_mes", anoMes,
+			"nome_relatorio", nomeRelatorio,
+			"chunk", chunkNum,
+			"chunk_rows", len(chunk),
+			"chunk_promoted", chunkPromoted,
+			"progress", fmt.Sprintf("%d/%d (%.1f%%)", offset, totalRows, pct))
 	}
 
 	// Mark as extracted and promoted
 	if err := p.loadControlRepo.MarkExtracted(ctx, anoMes, nomeRelatorio); err != nil {
-		return 0, fmt.Errorf("failed to mark extracted: %w", err)
+		return totalPromoted, fmt.Errorf("failed to mark extracted: %w", err)
 	}
 	if err := p.loadControlRepo.MarkPromoted(ctx, anoMes, nomeRelatorio); err != nil {
-		return 0, fmt.Errorf("failed to mark promoted: %w", err)
+		return totalPromoted, fmt.Errorf("failed to mark promoted: %w", err)
 	}
 
 	p.logger.Info("successfully promoted report",
 		"ano_mes", anoMes,
 		"nome_relatorio", nomeRelatorio,
 		"numero_relatorio", numeroRelatorio,
-		"rows_promoted", rowsPromoted)
+		"rows_promoted", totalPromoted)
 
-	return rowsPromoted, nil
+	return totalPromoted, nil
 }
 
 // PromoteAllReports promotes all reports for a quarter

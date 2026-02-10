@@ -151,13 +151,44 @@ func (r *RawDataRepository) CountByScope(
 	return count, nil
 }
 
-// GetRawDataForPromotion retrieves raw data for promotion to hot tables
+// CountRawDataForPromotion counts raw data rows eligible for promotion
 // Only includes data from active institutions
-func (r *RawDataRepository) GetRawDataForPromotion(
+func (r *RawDataRepository) CountRawDataForPromotion(
 	ctx context.Context,
 	anoMes string,
 	nomeRelatorio string,
 	numeroRelatorio string,
+) (int, error) {
+	query := `
+		SELECT COUNT(*)
+		FROM financial_data.bacen_ifdata_raw r
+		INNER JOIN financial_data.bacen_institution i
+			ON r.cod_inst = i.bacen_cod_inst
+			AND r.ano_mes = i.ano_mes_ref
+		WHERE r.ano_mes = $1
+		  AND r.nome_relatorio = $2
+		  AND r.numero_relatorio = $3
+		  AND i.situacao = 'A'
+	`
+
+	var count int
+	err := r.pool.QueryRow(ctx, query, anoMes, nomeRelatorio, numeroRelatorio).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("failed to count raw data for promotion: %w", err)
+	}
+
+	return count, nil
+}
+
+// GetRawDataForPromotionPaged retrieves a page of raw data for promotion
+// Only includes data from active institutions, ordered deterministically for stable pagination
+func (r *RawDataRepository) GetRawDataForPromotionPaged(
+	ctx context.Context,
+	anoMes string,
+	nomeRelatorio string,
+	numeroRelatorio string,
+	limit int,
+	offset int,
 ) ([]domain.IFDataRaw, error) {
 	query := `
 		SELECT
@@ -172,11 +203,12 @@ func (r *RawDataRepository) GetRawDataForPromotion(
 		  AND r.numero_relatorio = $3
 		  AND i.situacao = 'A'
 		ORDER BY r.cod_inst, r.tipo_instituicao
+		LIMIT $4 OFFSET $5
 	`
 
-	rows, err := r.pool.Query(ctx, query, anoMes, nomeRelatorio, numeroRelatorio)
+	rows, err := r.pool.Query(ctx, query, anoMes, nomeRelatorio, numeroRelatorio, limit, offset)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get raw data for promotion: %w", err)
+		return nil, fmt.Errorf("failed to get raw data page for promotion: %w", err)
 	}
 	defer rows.Close()
 
@@ -196,11 +228,13 @@ func (r *RawDataRepository) GetRawDataForPromotion(
 		return nil, fmt.Errorf("error iterating raw data rows: %w", err)
 	}
 
-	r.logger.Debug("retrieved raw data for promotion",
+	r.logger.Debug("retrieved raw data page for promotion",
 		"ano_mes", anoMes,
 		"nome_relatorio", nomeRelatorio,
 		"numero_relatorio", numeroRelatorio,
-		"rows_count", len(results))
+		"limit", limit,
+		"offset", offset,
+		"rows_fetched", len(results))
 
 	return results, nil
 }

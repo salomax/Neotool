@@ -106,7 +106,7 @@ func main() {
 	catalogFetcher := processor.NewReportCatalogFetcher(bacenClient, catalogRepo, logger)
 	taskCreator := processor.NewExtractTaskCreator(extractTaskRepo, logger)
 	extractor := processor.NewExtractor(bacenClient, extractTaskRepo, rawDataRepo, config.Extraction.ToDomain(), logger)
-	promoter := processor.NewPromoter(rawDataRepo, bankReportRepo, loadControlRepo, extractTaskRepo, logger)
+	promoter := processor.NewPromoter(rawDataRepo, bankReportRepo, loadControlRepo, extractTaskRepo, config.Promotion.ChunkSize, logger)
 
 	// Create health server (with Kafka producer for health checks)
 	healthServer := application.NewHealthServer(config.HealthCheck.Port, dbPool, kafkaProducer, logger)

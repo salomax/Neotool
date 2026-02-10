@@ -275,6 +275,66 @@ kubectl create job --from=cronjob/bacen-ifdata-cronjob bacen-ifdata-manual -n pr
 kubectl get pods -n production -l job-name=bacen-ifdata-manual
 ```
 
+### Retry Worker (Manual Trigger)
+
+The retry-worker is deployed as a **suspended CronJob** — it never runs automatically. Trigger it manually to process PENDING extract tasks:
+
+```bash
+# Trigger the retry worker
+kubectl create job --from=cronjob/bacen-ifdata-retry-worker manual-retry-$(date +%s) -n production
+
+# Follow logs
+kubectl logs -f -l job-name=manual-retry-<timestamp> -n production
+
+# Check job status
+kubectl get jobs -n production -l app=bacen-ifdata-retry-worker
+```
+
+> **Note**: Tasks with `attempt_count >= EXTRACTION_MAX_TASK_RETRIES` (default: 3) will be skipped.
+> Reset attempts if needed: `UPDATE financial_data.bacen_ifdata_extract_task SET attempt_count = 0 WHERE status = 'PENDING' AND attempt_count >= 3;`
+
+### Promote Data (CLI One-Off Job)
+
+To promote already-extracted raw data to normalized tables without re-running extraction, use the CLI image with `--promote-only`:
+
+```bash
+# Promote a specific quarter
+kubectl run promote-202403 \
+  --image=ghcr.io/invistus/neotool-bacen-ifdata-cli:<version> \
+  --labels="app=bacen-ifdata-cli,component=etl" \
+  -n production --restart=Never \
+  --overrides='{
+    "spec": {
+      "containers": [{
+        "name": "promote-202403",
+        "image": "ghcr.io/invistus/neotool-bacen-ifdata-cli:<version>",
+        "args": ["--promote-only", "--ano-mes", "202403"],
+        "resources": {"requests": {"cpu": "100m", "memory": "128Mi"}, "limits": {"cpu": "300m", "memory": "256Mi"}},
+        "envFrom": [{"configMapRef": {"name": "bacen-ifdata-config"}}, {"secretRef": {"name": "bacen-ifdata-secrets"}}]
+      }],
+      "imagePullSecrets": [{"name": "ghcr-credentials"}]
+    }
+  }'
+
+# Follow logs
+kubectl logs -f promote-202403 -n production
+
+# Clean up after completion
+kubectl delete pod promote-202403 -n production
+```
+
+To find quarters that need promotion:
+
+```sql
+SELECT ano_mes,
+    COUNT(*) AS total_reports,
+    COUNT(*) FILTER (WHERE extracted) AS extracted,
+    COUNT(*) FILTER (WHERE promoted) AS promoted,
+    COUNT(*) FILTER (WHERE completed) AS completed
+FROM financial_data.bacen_ifdata_load_control
+GROUP BY ano_mes ORDER BY ano_mes;
+```
+
 ### Republish Institution Events (One-Off Job)
 
 When institution records already exist in the database but Kafka messages need to be re-published (e.g., after a CronJob timeout or consumer reset), use the republish job. It reads all institutions from the DB and publishes them to the `financial-data.institution.upserted` Kafka topic with `change_type=UPDATED`.
