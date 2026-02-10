@@ -22,7 +22,7 @@
     "@apollo/client": "^4.0.7",
     "@expo/vector-icons": "^14.0.4",
     "@react-native-async-storage/async-storage": "^2.1.0",
-    "@react-native-community/netinfo": "^11.5.3",
+    "@react-native-community/netinfo": "^11.5.2",
     "@hookform/resolvers": "^3.10.0",
     "apollo3-cache-persist": "^0.15.0",
     "expo": "~52.0.0",
@@ -76,6 +76,12 @@
     "prettier": "^3.6.2",
     "react-test-renderer": "18.3.1",
     "typescript": "^5.5.4"
+  },
+  "pnpm": {
+    "overrides": {
+      "tar": ">=7.5.7",
+      "@isaacs/brace-expansion": "5.0.1"
+    }
   },
   "packageManager": "pnpm@10.23.0",
   "engines": {
