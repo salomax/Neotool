@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"log/slog"
 	"os"
@@ -21,7 +22,7 @@ func main() {
 	// Parse command-line flags
 	anoMes := flag.String("ano-mes", "", "Target quarter (YYYYMM) - required for manual execution")
 	forceRegistryRefresh := flag.Bool("force-registry-refresh", false, "Force registry refresh even if exists")
-	promoteOnly := flag.Bool("promote-only", false, "Only promote data (skip extraction) - requires ano-mes")
+	promoteOnly := flag.Bool("promote-only", false, "Only promote data (skip extraction) - if ano-mes omitted, auto-discovers unpromoted quarters")
 	institutionOnly := flag.Bool("institution-only", false, "Only ingest institution registry (skip bank report extraction)")
 	republishAll := flag.Bool("republish-all", false, "Republish all institution events for ano-mes from DB")
 	flag.Parse()
@@ -174,11 +175,21 @@ func main() {
 
 	// Handle promote-only mode
 	if *promoteOnly {
-		if *anoMes == "" {
-			log.Fatalf("ano-mes is required when using --promote-only flag")
+		// Determine quarters to promote
+		var quarters []string
+		if *anoMes != "" {
+			quarters = []string{*anoMes}
+		} else {
+			quarters, err = loadControlRepo.GetUnpromotedQuarters(ctx)
+			if err != nil {
+				log.Fatalf("Failed to discover unpromoted quarters: %v", err)
+			}
+			if len(quarters) == 0 {
+				logger.Info("no unpromoted quarters found, nothing to do")
+				return
+			}
+			logger.Info("discovered unpromoted quarters", "quarters", quarters)
 		}
-
-		logger.Info("running in promote-only mode", "ano_mes", *anoMes)
 
 		// Fetch report catalog
 		reports, err := catalogFetcher.FetchReports(ctx)
@@ -192,25 +203,39 @@ func main() {
 
 		logger.Info("fetched report catalog", "report_count", len(reports))
 
-		// Promote all reports (with parallel workers)
-		rowsPromoted, err := promoter.PromoteAllReports(ctx, *anoMes, reports, config.Promotion.MaxWorkers)
-		if err != nil {
-			logger.Error("promotion failed", "error", err)
+		// Promote each quarter
+		totalRowsPromoted := 0
+		failedQuarters := 0
+		for i, q := range quarters {
+			logger.Info("promoting quarter", "ano_mes", q, "quarter_index", fmt.Sprintf("%d/%d", i+1, len(quarters)))
+
+			rowsPromoted, err := promoter.PromoteAllReports(ctx, q, reports, config.Promotion.MaxWorkers)
+			if err != nil {
+				logger.Error("promotion failed for quarter", "ano_mes", q, "error", err)
+				failedQuarters++
+				continue
+			}
+
+			stats, err := promoter.GetPromotionStats(ctx, q)
+			if err != nil {
+				logger.Error("failed to get promotion stats", "ano_mes", q, "error", err)
+			}
+
+			totalRowsPromoted += rowsPromoted
+			logger.Info("quarter promotion completed",
+				"ano_mes", q,
+				"rows_promoted", rowsPromoted,
+				"load_control_stats", stats)
+		}
+
+		logger.Info("promote-only completed",
+			"quarters_processed", len(quarters),
+			"total_rows_promoted", totalRowsPromoted,
+			"failed_quarters", failedQuarters)
+
+		if failedQuarters > 0 {
 			os.Exit(1)
 		}
-
-		// Get final statistics
-		stats, err := promoter.GetPromotionStats(ctx, *anoMes)
-		if err != nil {
-			logger.Error("failed to get promotion stats", "error", err)
-		}
-
-		logger.Info("promotion completed successfully",
-			"ano_mes", *anoMes,
-			"reports_processed", len(reports),
-			"rows_promoted", rowsPromoted,
-			"load_control_stats", stats)
-
 		return
 	}
 

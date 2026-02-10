@@ -212,6 +212,42 @@ func (r *LoadControlRepository) IsQuarterCompleted(ctx context.Context, anoMes s
 	return isComplete, nil
 }
 
+// GetUnpromotedQuarters returns quarters that have raw data but are not fully completed
+func (r *LoadControlRepository) GetUnpromotedQuarters(ctx context.Context) ([]string, error) {
+	query := `
+		SELECT DISTINCT r.ano_mes
+		FROM financial_data.bacen_ifdata_raw r
+		WHERE r.ano_mes NOT IN (
+			SELECT lc.ano_mes
+			FROM financial_data.bacen_ifdata_load_control lc
+			GROUP BY lc.ano_mes
+			HAVING bool_and(lc.completed)
+		)
+		ORDER BY r.ano_mes
+	`
+
+	rows, err := r.pool.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get unpromoted quarters: %w", err)
+	}
+	defer rows.Close()
+
+	var quarters []string
+	for rows.Next() {
+		var anoMes string
+		if err := rows.Scan(&anoMes); err != nil {
+			return nil, fmt.Errorf("failed to scan unpromoted quarter: %w", err)
+		}
+		quarters = append(quarters, anoMes)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating unpromoted quarters: %w", err)
+	}
+
+	return quarters, nil
+}
+
 // GetCompletionStats returns completion statistics for a quarter
 func (r *LoadControlRepository) GetCompletionStats(ctx context.Context, anoMes string) (map[string]int, error) {
 	query := `
