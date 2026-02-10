@@ -93,6 +93,12 @@ jobs:
             target: cli
             image: neotool-bacen-ifdata-cli
             app_dir: financial_data/bacen_ifdata_job
+          - service: bacen-ifdata-retry-worker
+            context: ./workflow/golang
+            dockerfile: ./workflow/golang/financial_data/bacen_ifdata_job/Dockerfile
+            target: retry-worker
+            image: neotool-bacen-ifdata-retry-worker
+            app_dir: financial_data/bacen_ifdata_job
           - service: ratings
             context: ./workflow/golang
             dockerfile: ./workflow/golang/financial_data/ratings_job/Dockerfile
@@ -190,6 +196,7 @@ jobs:
           - neotool-financialdata
           - neotool-bacen-ifdata-cronjob
           - neotool-bacen-ifdata-cli
+          - neotool-bacen-ifdata-retry-worker
           - neotool-financialdata-ratings
           - neotool-financialdata-indicators
           - neotool-institution-enhancement-consumer
