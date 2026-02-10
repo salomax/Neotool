@@ -1,6 +1,6 @@
 import React from 'react';
+import { Box } from '@mui/material';
 import { LayoutComponentProps, ResponsiveValue } from './types';
-import { getResponsiveValue, spacingToCSS } from './utils';
 import { getTestIdProps } from '@/shared/utils/testid';
 
 export interface GridProps extends LayoutComponentProps {
@@ -34,8 +34,6 @@ export function Grid({
   // Generate data-testid from component name and optional name prop
   const testIdProps = getTestIdProps('Grid', name, dataTestId);
   
-  const gapValue = getResponsiveValue(gap, spacingToCSS);
-  
   // Handle columns - either explicit cols or minColWidth
   const getColumnsValue = (): ResponsiveValue<string> | string => {
     if (cols) {
@@ -43,21 +41,42 @@ export function Grid({
         // Convert responsive number object to responsive string object
         const responsiveCols: { [key: string]: string } = {};
         const colsObj = cols as { [key: string]: number | undefined };
-        if (colsObj.xs !== undefined) responsiveCols.xs = `repeat(${colsObj.xs}, 1fr)`;
-        if (colsObj.sm !== undefined) responsiveCols.sm = `repeat(${colsObj.sm}, 1fr)`;
-        if (colsObj.md !== undefined) responsiveCols.md = `repeat(${colsObj.md}, 1fr)`;
-        if (colsObj.lg !== undefined) responsiveCols.lg = `repeat(${colsObj.lg}, 1fr)`;
-        if (colsObj.xl !== undefined) responsiveCols.xl = `repeat(${colsObj.xl}, 1fr)`;
-        // If no breakpoints defined, use sm as default
+        
+        const breakpoints = ['xs', 'sm', 'md', 'lg', 'xl'] as const;
+        breakpoints.forEach(bp => {
+          const val = colsObj[bp];
+          if (val !== undefined) {
+            responsiveCols[bp] = `repeat(${val}, 1fr)`;
+          }
+        });
+
+        // If no breakpoints defined, use sm or 1 as default
         if (Object.keys(responsiveCols).length === 0) {
           return `repeat(${colsObj.sm || 1}, 1fr)`;
         }
-        return responsiveCols as ResponsiveValue<string>;
+        return responsiveCols;
       }
       // Single number value
       return `repeat(${cols}, 1fr)`;
     }
     
+    // Logic for minColWidth with responsive support
+    if (typeof minColWidth === 'object' && minColWidth !== null) {
+      const responsiveCols: { [key: string]: string } = {};
+      const minWidthObj = minColWidth as { [key: string]: string | number | undefined };
+      
+      const breakpoints = ['xs', 'sm', 'md', 'lg', 'xl'] as const;
+      breakpoints.forEach(bp => {
+        const val = minWidthObj[bp];
+        if (val !== undefined) {
+          const width = typeof val === 'number' ? `${val}px` : val;
+          responsiveCols[bp] = `repeat(auto-fit, minmax(${width}, 1fr))`;
+        }
+      });
+      
+      if (Object.keys(responsiveCols).length > 0) return responsiveCols;
+    }
+
     const minWidth = typeof minColWidth === 'object' 
       ? (minColWidth as { [key: string]: string | number | undefined }).sm || '250px'
       : typeof minColWidth === 'number' 
@@ -67,22 +86,20 @@ export function Grid({
     return `repeat(auto-fit, minmax(${minWidth}, 1fr))`;
   };
 
-  const columnsValue = getResponsiveValue(columns || getColumnsValue());
-  const areasValue = getResponsiveValue(areas);
-  const rowsValue = getResponsiveValue(rows);
-
-  const gridStyles: React.CSSProperties = {
-    display: 'grid',
-    ...(gapValue && { gap: gapValue }),
-    ...(columnsValue && { gridTemplateColumns: columnsValue }),
-    ...(areasValue && { gridTemplateAreas: areasValue }),
-    ...(rowsValue && { gridTemplateRows: rowsValue }),
-    ...style,
-  };
-
   return (
-    <Component className={className} style={gridStyles} {...testIdProps} {...props}>
+    <Box
+      component={Component}
+      display="grid"
+      gap={gap}
+      gridTemplateColumns={columns || getColumnsValue()}
+      gridTemplateAreas={areas}
+      gridTemplateRows={rows}
+      className={className}
+      style={style}
+      {...testIdProps}
+      {...props}
+    >
       {children}
-    </Component>
+    </Box>
   );
 }

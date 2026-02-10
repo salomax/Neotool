@@ -19,6 +19,7 @@ export interface FormatMetricValueOptions {
   currencyLabels?: CurrencyLabels;
   totalizerFormat?: "short" | "long";
   decimals?: number;
+  disablePercentageScaling?: boolean;
 }
 
 /**
@@ -49,6 +50,7 @@ export function formatMetricValue(
     currencyLabels,
     totalizerFormat = "short",
     decimals,
+    disablePercentageScaling = false,
   } = options;
 
   if (typeof value !== "number" || !Number.isFinite(value)) {
@@ -89,7 +91,7 @@ export function formatMetricValue(
   }
 
   if (valueType === "percentage") {
-    const percentageValue = value * 100;
+    const percentageValue = disablePercentageScaling ? value : value * 100;
     const formatted = percentageValue.toLocaleString(locale, {
       minimumFractionDigits: decimals !== undefined ? decimals : 0,
       maximumFractionDigits: decimals !== undefined ? decimals : 1,
@@ -103,7 +105,7 @@ export function formatMetricValue(
 
   return {
     prefix: "",
-    main: String(value),
+    main: value.toString(),
     suffix: "",
   };
 }

@@ -74,6 +74,7 @@ const getInputByTestId = (testId: string): HTMLInputElement => {
 describe.sequential('ResetPasswordForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    i18n.changeLanguage('en');
     mockResetPassword.mockResolvedValue({
       data: {
         resetPassword: {
@@ -96,7 +97,8 @@ describe.sequential('ResetPasswordForm', () => {
     const user = userEvent.setup();
     renderResetPasswordForm();
 
-    const passwordInput = getInputByTestId('textfield-new-password');
+    const passwordField = screen.getByTestId('textfield-new-password');
+    const passwordInput = within(passwordField).getByLabelText(/new password|nova senha/i) as HTMLInputElement;
     const submitButton = screen.getByTestId('button-reset-password');
 
     await user.type(passwordInput, 'weak');
@@ -107,12 +109,27 @@ describe.sequential('ResetPasswordForm', () => {
     }, { timeout: 3000 });
   });
 
+  it('shows password validation checklist', async () => {
+    const user = userEvent.setup();
+    renderResetPasswordForm();
+
+    const passwordField = screen.getByTestId('textfield-new-password');
+    const passwordInput = within(passwordField).getByLabelText(/new password|nova senha/i) as HTMLInputElement;
+
+    await user.type(passwordInput, 'Test');
+    
+    expect(screen.getByTestId('password-validation')).toBeInTheDocument();
+    expect(screen.getAllByTestId(/password-rule-/)).toHaveLength(5);
+  });
+
   it('requires password to have uppercase, lowercase, number, and special character', async () => {
     const user = userEvent.setup();
     renderResetPasswordForm();
 
-    const passwordInput = getInputByTestId('textfield-new-password');
-    const confirmPasswordInput = getInputByTestId('textfield-confirm-password');
+    const passwordField = screen.getByTestId('textfield-new-password');
+    const passwordInput = within(passwordField).getByLabelText(/new password|nova senha/i) as HTMLInputElement;
+    const confirmField = screen.getByTestId('textfield-confirm-password');
+    const confirmPasswordInput = within(confirmField).getByLabelText(/confirm password|confirmar senha/i) as HTMLInputElement;
     const submitButton = screen.getByTestId('button-reset-password');
 
     await user.type(passwordInput, 'ValidPass123!');
@@ -128,8 +145,10 @@ describe.sequential('ResetPasswordForm', () => {
     const user = userEvent.setup();
     renderResetPasswordForm();
 
-    const passwordInput = getInputByTestId('textfield-new-password');
-    const confirmPasswordInput = getInputByTestId('textfield-confirm-password');
+    const passwordField = screen.getByTestId('textfield-new-password');
+    const passwordInput = within(passwordField).getByLabelText(/new password|nova senha/i) as HTMLInputElement;
+    const confirmField = screen.getByTestId('textfield-confirm-password');
+    const confirmPasswordInput = within(confirmField).getByLabelText(/confirm password|confirmar senha/i) as HTMLInputElement;
     const submitButton = screen.getByTestId('button-reset-password');
 
     await user.type(passwordInput, 'ValidPass123!');
@@ -147,8 +166,10 @@ describe.sequential('ResetPasswordForm', () => {
     const onSuccess = vi.fn();
     renderResetPasswordForm({ onSuccess });
 
-    const passwordInput = getInputByTestId('textfield-new-password');
-    const confirmPasswordInput = getInputByTestId('textfield-confirm-password');
+    const passwordField = screen.getByTestId('textfield-new-password');
+    const passwordInput = within(passwordField).getByLabelText(/new password|nova senha/i) as HTMLInputElement;
+    const confirmField = screen.getByTestId('textfield-confirm-password');
+    const confirmPasswordInput = within(confirmField).getByLabelText(/confirm password|confirmar senha/i) as HTMLInputElement;
     const submitButton = screen.getByTestId('button-reset-password');
 
     await user.type(passwordInput, 'ValidPass123!');
@@ -171,8 +192,10 @@ describe.sequential('ResetPasswordForm', () => {
     const user = userEvent.setup();
     renderResetPasswordForm();
 
-    const passwordInput = getInputByTestId('textfield-new-password');
-    const confirmPasswordInput = getInputByTestId('textfield-confirm-password');
+    const passwordField = screen.getByTestId('textfield-new-password');
+    const passwordInput = within(passwordField).getByLabelText(/new password|nova senha/i) as HTMLInputElement;
+    const confirmField = screen.getByTestId('textfield-confirm-password');
+    const confirmPasswordInput = within(confirmField).getByLabelText(/confirm password|confirmar senha/i) as HTMLInputElement;
     const submitButton = screen.getByTestId('button-reset-password');
 
     await user.type(passwordInput, 'ValidPass123!');
@@ -188,8 +211,10 @@ describe.sequential('ResetPasswordForm', () => {
     const user = userEvent.setup();
     renderResetPasswordForm();
 
-    const passwordInput = getInputByTestId('textfield-new-password');
-    const confirmPasswordInput = getInputByTestId('textfield-confirm-password');
+    const passwordField = screen.getByTestId('textfield-new-password');
+    const passwordInput = within(passwordField).getByLabelText(/new password|nova senha/i) as HTMLInputElement;
+    const confirmField = screen.getByTestId('textfield-confirm-password');
+    const confirmPasswordInput = within(confirmField).getByLabelText(/confirm password|confirmar senha/i) as HTMLInputElement;
     const submitButton = screen.getByTestId('button-reset-password');
 
     await user.type(passwordInput, 'ValidPass123!');
@@ -210,8 +235,10 @@ describe.sequential('ResetPasswordForm', () => {
     const onSuccess = vi.fn();
     renderResetPasswordForm({ onSuccess });
 
-    const passwordInput = getInputByTestId('textfield-new-password');
-    const confirmPasswordInput = getInputByTestId('textfield-confirm-password');
+    const passwordField = screen.getByTestId('textfield-new-password');
+    const passwordInput = within(passwordField).getByLabelText(/new password|nova senha/i) as HTMLInputElement;
+    const confirmField = screen.getByTestId('textfield-confirm-password');
+    const confirmPasswordInput = within(confirmField).getByLabelText(/confirm password|confirmar senha/i) as HTMLInputElement;
     const submitButton = screen.getByTestId('button-reset-password');
 
     await user.type(passwordInput, 'ValidPass123!');
@@ -229,8 +256,10 @@ describe.sequential('ResetPasswordForm', () => {
 
     renderResetPasswordForm();
 
-    const passwordInput = getInputByTestId('textfield-new-password');
-    const confirmPasswordInput = getInputByTestId('textfield-confirm-password');
+    const passwordField = screen.getByTestId('textfield-new-password');
+    const passwordInput = within(passwordField).getByLabelText(/new password|nova senha/i) as HTMLInputElement;
+    const confirmField = screen.getByTestId('textfield-confirm-password');
+    const confirmPasswordInput = within(confirmField).getByLabelText(/confirm password|confirmar senha/i) as HTMLInputElement;
     const submitButton = screen.getByTestId('button-reset-password');
 
     await user.type(passwordInput, 'ValidPass123!');
@@ -253,8 +282,10 @@ describe.sequential('ResetPasswordForm', () => {
 
     renderResetPasswordForm();
 
-    const passwordInput = getInputByTestId('textfield-new-password');
-    const confirmPasswordInput = getInputByTestId('textfield-confirm-password');
+    const passwordField = screen.getByTestId('textfield-new-password');
+    const passwordInput = within(passwordField).getByLabelText(/new password|nova senha/i) as HTMLInputElement;
+    const confirmField = screen.getByTestId('textfield-confirm-password');
+    const confirmPasswordInput = within(confirmField).getByLabelText(/confirm password|confirmar senha/i) as HTMLInputElement;
     const submitButton = screen.getByTestId('button-reset-password');
 
     await user.type(passwordInput, 'ValidPass123!');

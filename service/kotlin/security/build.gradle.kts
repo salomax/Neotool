@@ -20,6 +20,9 @@ dependencies {
     implementation(project(":common"))
     testImplementation(testFixtures(project(":common")))
 
+    // Vault client for secret management (used by security only)
+    implementation("com.bettercloud:vault-java-driver:5.1.0")
+
     // Security-specific dependencies
     implementation("jakarta.annotation:jakarta.annotation-api")
     implementation("jakarta.persistence:jakarta.persistence-api:3.1.0")

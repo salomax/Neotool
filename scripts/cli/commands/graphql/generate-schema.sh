@@ -100,7 +100,16 @@ run_rover_local() {
 }
 
 # Check if we should use Docker (CI environment or explicit flag)
-if [[ "${CI:-false}" == "true" ]] || [[ "${USE_DOCKER_ROVER:-false}" == "true" ]] || [[ "${1:-}" == "--docker" ]]; then
+# Check all arguments for --docker flag, not just $1
+use_docker_flag=false
+for arg in "$@"; do
+    if [[ "$arg" == "--docker" ]]; then
+        use_docker_flag=true
+        break
+    fi
+done
+
+if [[ "${CI:-false}" == "true" ]] || [[ "${USE_DOCKER_ROVER:-false}" == "true" ]] || [[ "$use_docker_flag" == true ]]; then
     run_rover_docker
 else
     run_rover_local

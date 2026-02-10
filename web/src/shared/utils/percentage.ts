@@ -4,15 +4,15 @@
 
 /**
  * Format percentage with sign
- * Converts decimal ratio (0.12) to percentage string with sign (+12%)
- * 
+ * Converts decimal ratio (0.12) to percentage string; negative values get "-", positive no sign by default.
+ *
  * @param value - Decimal ratio (0.12 = 12%)
  * @param options - Formatting options
- * @returns Formatted percentage string (e.g., "+12%", "-5%")
- * 
+ * @returns Formatted percentage string (e.g., "12%", "-5%")
+ *
  * @example
  * ```ts
- * formatPercentageWithSign(0.12) // "+12%"
+ * formatPercentageWithSign(0.12) // "12%"
  * formatPercentageWithSign(-0.05) // "-5%"
  * formatPercentageWithSign(null) // "0%"
  * ```
@@ -22,16 +22,32 @@ export function formatPercentageWithSign(
   options?: {
     decimals?: number;
     showZeroSign?: boolean;
+    locale?: string;
+    alwaysShowPlusSign?: boolean;
   }
 ): string {
   if (value == null) {
     return "0%";
   }
 
-  const { decimals = 0, showZeroSign = false } = options || {};
+  const { decimals = 0, showZeroSign = false, locale = "en-US", alwaysShowPlusSign = false } = options || {};
   const percentage = value * 100;
-  const sign = percentage > 0 ? "" : percentage < 0 ? "-" : showZeroSign ? "+" : "";
-  const formatted = Math.abs(percentage).toFixed(decimals);
+  
+  let sign = "";
+  if (percentage > 0) {
+    sign = alwaysShowPlusSign ? "+" : "";
+  } else if (percentage < 0) {
+    sign = "-";
+  } else if (showZeroSign) {
+    sign = "+";
+  }
+  
+  // Use toLocaleString for locale-aware number formatting
+  const formatted = Math.abs(percentage).toLocaleString(locale, {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+  
   return `${sign}${formatted}%`;
 }
 

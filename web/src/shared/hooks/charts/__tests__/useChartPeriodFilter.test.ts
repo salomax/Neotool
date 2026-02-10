@@ -62,7 +62,8 @@ describe("useChartPeriodFilter", () => {
       { quarter: "Q5", value: 150 },
     ];
     const { result } = renderHook(() => useChartPeriodFilter(data, "1Y"));
-    expect(result.current.periodGrowth).toBe(0.5); // (150 - 100) / 100, comparisonIndex = 0
+    // Filtered data is last 4: Q2=110, Q3=120, Q4=130, Q5=150; growth = (150 - 110) / 110
+    expect(result.current.periodGrowth).toBe(40 / 110);
   });
 
   it("should return null periodGrowth when comparison value is zero", () => {

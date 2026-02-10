@@ -60,6 +60,33 @@ function ProductDetailPage() {
 - `/products/electronics` → `Home > Products > Electronics`
 - `/products/electronics/123` → `Home > Products > Electronics > 123`
 
+### Customizing Labels via Hook (Recommended)
+
+To provide custom or translated labels for specific route segments, use the `useBreadcrumbLabel` hook. This is the standard approach for i18n support.
+
+**⚠️ Important Rule**: Always use this hook in `layout.tsx`, NEVER in `page.tsx`.
+
+```typescript
+// src/app/financial-data/layout.tsx
+import { useBreadcrumbLabel } from "@/shared/hooks/ui/useBreadcrumbLabel";
+import { useTranslation } from "@/shared/i18n/hooks/useTranslation";
+import { financialDataTranslations } from "./i18n";
+
+export default function FinancialDataLayout({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation(financialDataTranslations);
+  
+  // Register label for this route segment
+  // First arg: route segment (e.g., "financial-data")
+  // Second arg: label to display
+  useBreadcrumbLabel("financial-data", t("routes.financialData"));
+
+  return children;
+}
+```
+
+**Why Layouts?**
+Layouts persist when navigating between child routes, ensuring the breadcrumb label remains active. If used in `page.tsx`, the label will be removed when navigating to a child page (as the parent page component unmounts), causing the breadcrumb to revert to the raw URL segment or disappear.
+
 ### Manual Items
 
 For custom navigation flows or when URL structure doesn't match the logical hierarchy, use manual items:
@@ -324,7 +351,10 @@ Limit breadcrumb depth to 4-5 levels maximum:
 <Breadcrumb maxItems={10} />
 ```
 
-### 4. Use Meaningful Labels
+### 7. Manage Labels in Layouts
+When defining a custom label for a route segment (especially for i18n), **always** call `useBreadcrumbLabel` in the segment's `layout.tsx`, not `page.tsx`. This ensures the label persists during navigation to child routes.
+
+### 8. Use Meaningful Labels
 
 Provide clear, user-friendly labels:
 
@@ -342,7 +372,7 @@ const routeConfig: RouteConfig[] = [
 ];
 ```
 
-### 5. Don't Show Breadcrumbs on Home Page
+### 9. Don't Show Breadcrumbs on Home Page
 
 Breadcrumbs are unnecessary on the root/home page:
 
@@ -359,7 +389,7 @@ function HomePage() {
 }
 ```
 
-### 6. Use Route Config for Dynamic Routes
+### 10. Use Route Config for Dynamic Routes
 
 Always provide route configuration for dynamic routes to show meaningful labels:
 
