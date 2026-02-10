@@ -31,7 +31,7 @@ Commands:
 
   $(log "validate" "$GREEN") [options]
     Run all validations (web and services).
-    Includes: lint, typecheck, test/testIntegration, and coverage.
+    Includes: lint, typecheck, test/testIntegration, coverage, and Trivy scan (if installed).
     Options: --web, --service [name], --skip-coverage
     Run '$0 validate --help' for more information.
 
@@ -188,4 +188,3 @@ main() {
 
 # Run main function
 main "$@"
-
