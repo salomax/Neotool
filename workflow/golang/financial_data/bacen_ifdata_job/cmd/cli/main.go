@@ -191,23 +191,26 @@ func main() {
 			logger.Info("discovered unpromoted quarters", "quarters", quarters)
 		}
 
-		// Fetch report catalog
-		reports, err := catalogFetcher.FetchReports(ctx)
-		if err != nil {
-			log.Fatalf("Failed to fetch report catalog: %v", err)
-		}
-
-		if len(reports) == 0 {
-			log.Fatalf("No reports found in catalog")
-		}
-
-		logger.Info("fetched report catalog", "report_count", len(reports))
-
-		// Promote each quarter
+		// Promote each quarter (reports discovered from raw data in DB, no BACEN API needed)
 		totalRowsPromoted := 0
 		failedQuarters := 0
 		for i, q := range quarters {
 			logger.Info("promoting quarter", "ano_mes", q, "quarter_index", fmt.Sprintf("%d/%d", i+1, len(quarters)))
+
+			// Discover reports from raw data already in the database
+			reports, err := rawDataRepo.GetDistinctReports(ctx, q)
+			if err != nil {
+				logger.Error("failed to get reports from raw data", "ano_mes", q, "error", err)
+				failedQuarters++
+				continue
+			}
+
+			if len(reports) == 0 {
+				logger.Info("no raw data found for quarter, skipping", "ano_mes", q)
+				continue
+			}
+
+			logger.Info("discovered reports from raw data", "ano_mes", q, "report_count", len(reports))
 
 			rowsPromoted, err := promoter.PromoteAllReports(ctx, q, reports, config.Promotion.MaxWorkers)
 			if err != nil {

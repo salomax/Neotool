@@ -151,6 +151,37 @@ func (r *RawDataRepository) CountByScope(
 	return count, nil
 }
 
+// GetDistinctReports returns distinct report names/numbers from raw data for a quarter
+func (r *RawDataRepository) GetDistinctReports(ctx context.Context, anoMes string) ([]domain.Report, error) {
+	query := `
+		SELECT DISTINCT nome_relatorio, numero_relatorio
+		FROM financial_data.bacen_ifdata_raw
+		WHERE ano_mes = $1
+		ORDER BY nome_relatorio
+	`
+
+	rows, err := r.pool.Query(ctx, query, anoMes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get distinct reports: %w", err)
+	}
+	defer rows.Close()
+
+	var reports []domain.Report
+	for rows.Next() {
+		var report domain.Report
+		if err := rows.Scan(&report.NomeRelatorio, &report.NumeroRelatorio); err != nil {
+			return nil, fmt.Errorf("failed to scan report: %w", err)
+		}
+		reports = append(reports, report)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating reports: %w", err)
+	}
+
+	return reports, nil
+}
+
 // CountRawDataForPromotion counts raw data rows eligible for promotion
 // Only includes data from active institutions
 func (r *RawDataRepository) CountRawDataForPromotion(
