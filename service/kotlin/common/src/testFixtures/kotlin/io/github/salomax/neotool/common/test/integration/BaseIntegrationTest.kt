@@ -17,7 +17,6 @@ import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Testcontainers
 import org.testcontainers.kafka.KafkaContainer
 import java.sql.DriverManager
-import kotlin.reflect.full.isSuperclassOf
 
 /**
  * Base integration test class that sets up Testcontainers and provides common utilities
@@ -25,20 +24,24 @@ import kotlin.reflect.full.isSuperclassOf
 @Testcontainers
 @TestInstance(TestInstance.Lifecycle.PER_CLASS) // keep container running per class
 abstract class BaseIntegrationTest : TestPropertyProvider {
+
+    /** True if this test class implements the given interface (e.g. PostgresIntegrationTest). */
+    private fun implementsMarker(interfaceClass: Class<*>) = interfaceClass.isAssignableFrom(this::class.java)
+
     override fun getProperties(): MutableMap<String, String> {
         val props = mutableMapOf<String, String>()
 
-        if (PostgresIntegrationTest::class.isSuperclassOf(this::class)) {
+        if (implementsMarker(PostgresIntegrationTest::class.java)) {
             val postgres = PostgresTestContainer.container // init container
             props += PostgresTestContainer.micronautProps()
         }
 
-        if (KafkaIntegrationTest::class.isSuperclassOf(this::class)) {
+        if (implementsMarker(KafkaIntegrationTest::class.java)) {
             val kafka = KafkaTestContainer.container // init container
             props += KafkaTestContainer.micronautProps()
         }
 
-        if (MinIOIntegrationTest::class.isSuperclassOf(this::class)) {
+        if (implementsMarker(MinIOIntegrationTest::class.java)) {
             val minio = MinIOTestContainer.container // init container
             props += MinIOTestContainer.micronautProps()
         }
@@ -71,7 +74,7 @@ abstract class BaseIntegrationTest : TestPropertyProvider {
     @BeforeEach
     open fun setUp() {
         // Test PG test container
-        if (PostgresIntegrationTest::class.isSuperclassOf(this::class)) {
+        if (implementsMarker(PostgresIntegrationTest::class.java)) {
             val pgContainer = PostgresTestContainer.container
             assertThat(pgContainer.isRunning).isTrue()
             assertThat(pgContainer.jdbcUrl).isNotNull()
@@ -89,7 +92,7 @@ abstract class BaseIntegrationTest : TestPropertyProvider {
         }
 
         // Test Kafka test container
-        if (KafkaIntegrationTest::class.isSuperclassOf(this::class)) {
+        if (implementsMarker(KafkaIntegrationTest::class.java)) {
             val kafkaContainer = KafkaTestContainer.container
             assertThat(kafkaContainer.isRunning).isTrue()
             assertThat(kafkaContainer.bootstrapServers).isNotNull()
@@ -98,7 +101,7 @@ abstract class BaseIntegrationTest : TestPropertyProvider {
         }
 
         // Test MinIO test container
-        if (MinIOIntegrationTest::class.isSuperclassOf(this::class)) {
+        if (implementsMarker(MinIOIntegrationTest::class.java)) {
             val minioContainer = MinIOTestContainer.container
             assertThat(minioContainer.isRunning).isTrue()
             assertThat(minioContainer.host).isNotNull()
