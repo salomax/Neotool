@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
+import i18n from '@/shared/i18n/config';
 import { cleanErrorMessage, extractErrorMessage } from '../error';
 
 describe('error utilities', () => {
@@ -57,6 +58,10 @@ describe('error utilities', () => {
   });
 
   describe('extractErrorMessage', () => {
+    beforeAll(async () => {
+      await i18n.changeLanguage('en');
+    });
+
     it('should return default message for null error', () => {
       expect(extractErrorMessage(null)).toBe('An error occurred');
     });

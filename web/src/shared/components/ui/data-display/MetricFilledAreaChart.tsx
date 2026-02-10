@@ -1,8 +1,8 @@
 import * as React from "react";
-import { LineChart } from "./LineChart";
+import { AreaChart } from "./AreaChart";
 import { useTranslation } from "react-i18next";
 
-export interface MetricLineChartProps {
+export interface MetricFilledAreaChartProps {
   data: any[];
   label: string;
   valueType: "currency" | "percentage" | "number";
@@ -14,17 +14,9 @@ export interface MetricLineChartProps {
    * Whether to disable multiplying percentage values by 100.
    */
   disablePercentageScaling?: boolean;
-  /**
-   * Currency code for formatting (e.g. "BRL", "USD")
-   */
-  currency?: string;
-  /**
-   * Locale for number formatting
-   */
-  locale?: string;
 }
 
-export function MetricLineChart({
+export function MetricFilledAreaChart({
   data,
   label,
   valueType,
@@ -33,9 +25,7 @@ export function MetricLineChart({
   xKey = "quarter",
   xTickFormatter,
   disablePercentageScaling = false,
-  currency = "BRL",
-  locale,
-}: MetricLineChartProps) {
+}: MetricFilledAreaChartProps) {
   const { t } = useTranslation("common");
 
   const isPercentage = valueType === "percentage";
@@ -66,7 +56,7 @@ export function MetricLineChart({
   const xDateFormat = xTickFormatter || defaultXDateFormat;
 
   return (
-    <LineChart
+    <AreaChart
       data={chartData}
       xKey={xKey}
       xDateFormat={xDateFormat}
@@ -85,7 +75,7 @@ export function MetricLineChart({
           side: "left",
           label: label,
           format: isPercentage ? "percent" : "currency",
-          currency: currency,
+          currency: "BRL",
         },
       ]}
       scale
@@ -94,13 +84,6 @@ export function MetricLineChart({
       consolidateDecimal
       showArea
       showLegend={showLegend}
-      referenceLines={[
-        {
-          y: 0,
-          yAxisId: "left-axis",
-        },
-      ]}
-      locale={locale}
     />
   );
 }

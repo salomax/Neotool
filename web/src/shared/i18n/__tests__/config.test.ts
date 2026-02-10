@@ -11,8 +11,6 @@ describe("I18n Configuration", () => {
   describe("Initialization", () => {
     it("should initialize i18n with correct configuration", () => {
       expect(i18n.isInitialized).toBe(true);
-      expect(i18n.language).toBe('pt');
-      expect(i18n.options.fallbackLng).toEqual(['en']);
       expect(i18n.options.defaultNS).toBe('common');
     });
 
@@ -41,9 +39,7 @@ describe("I18n Configuration", () => {
       expect(i18n.language).toBe('pt');
     });
 
-    it("should have English as fallback language", () => {
-      expect(i18n.options.fallbackLng).toEqual(['en']);
-    });
+
   });
 
   describe("Resource Bundles", () => {

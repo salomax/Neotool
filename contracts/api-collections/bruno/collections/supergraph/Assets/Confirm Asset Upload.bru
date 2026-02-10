@@ -5,7 +5,7 @@ meta {
 }
 
 post {
-  url: http://{{router}}/graphql
+  url: {{router}}/graphql
   body: graphql
   auth: bearer
 }
@@ -27,7 +27,7 @@ body:graphql {
 body:graphql:vars {
   {
     "input": {
-      "assetId": "{{assetId}}"
+      "assetId": "{{asset_id}}"
     }
   }
 }

@@ -2,10 +2,10 @@ name: CI
 
 on:
   pull_request:
-    branches: ['**']
+    branches: ["**"]
     paths-ignore:
-      - '**.md'
-      - 'docs/**'
+      - "**.md"
+      - "docs/**"
 
 concurrency:
   group: ci-${{ github.event.pull_request.number }}
@@ -21,10 +21,14 @@ jobs:
     outputs:
       kotlin: ${{ steps.filter.outputs.kotlin }}
       kotlin-common: ${{ steps.filter.outputs.kotlin-common }}
+      kotlin-common-batch: ${{ steps.filter.outputs.kotlin-common-batch }}
+      kotlin-common-features: ${{ steps.filter.outputs.kotlin-common-features }}
       kotlin-security: ${{ steps.filter.outputs.kotlin-security }}
       kotlin-assets: ${{ steps.filter.outputs.kotlin-assets }}
       kotlin-financialdata: ${{ steps.filter.outputs.kotlin-financialdata }}
       web: ${{ steps.filter.outputs.web }}
+      # golang-job: ${{ steps.filter.outputs.golang-job }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -36,9 +40,15 @@ jobs:
               - 'service/kotlin/**'
             kotlin-common:
               - 'service/kotlin/common/**'
+              - 'service/kotlin/common-batch/**'
+              - 'service/kotlin/common-features/**'
               - 'service/kotlin/build.gradle.kts'
               - 'service/kotlin/settings.gradle.kts'
               - 'service/kotlin/gradle/**'
+            kotlin-common-batch:
+              - 'service/kotlin/common-batch/**'
+            kotlin-common-features:
+              - 'service/kotlin/common-features/**'
             kotlin-security:
               - 'service/kotlin/security/**'
             kotlin-assets:
@@ -47,6 +57,8 @@ jobs:
               - 'service/kotlin/financialdata/**'
             web:
               - 'web/**'
+            # golang-job:
+            #   - 'workflow/golang/golang_job/**'
 
   test-kotlin:
     needs: changes
@@ -57,6 +69,10 @@ jobs:
       matrix:
         include:
           - service: common
+            run-integration: false
+          - service: common-batch
+            run-integration: false
+          - service: common-features
             run-integration: false
           - service: security
             run-integration: true
@@ -70,7 +86,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: "21"
 
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v3
@@ -134,8 +150,8 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'pnpm'
+          node-version: "20"
+          cache: "pnpm"
           cache-dependency-path: web/pnpm-lock.yaml
 
       - name: Install dependencies
@@ -150,6 +166,58 @@ jobs:
       - name: Unit tests
         run: pnpm run test:unit
 
+  # test-golang:
+  #   needs: changes
+  #   if: >-
+  #     needs.changes.outputs.golang-bacen-ifdata == 'true' ||
+  #     needs.changes.outputs.golang-ratings == 'true' ||
+  #     needs.changes.outputs.golang-indicators == 'true' ||
+  #     needs.changes.outputs.golang-institution-enhancement == 'true'
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       include:
+  #         - service: golang-job
+  #           path: workflow/golang/golang-job
+  #           change-key: golang-job
+
+  #   steps:
+  #     - uses: actions/checkout@v4
+
+  #     - uses: actions/setup-go@v5
+  #       with:
+  #         go-version: '1.24'
+  #         cache-dependency-path: ${{ matrix.path }}/go.sum
+
+  #     - name: Check if service changed
+  #       id: should-run
+  #       run: |
+  #         CHANGED="${{ needs.changes.outputs[matrix.change-key] }}"
+  #         if [[ "$CHANGED" == "true" ]]; then
+  #           echo "run=true" >> $GITHUB_OUTPUT
+  #         else
+  #           echo "run=false" >> $GITHUB_OUTPUT
+  #         fi
+
+  #     - name: Run vet
+  #       if: steps.should-run.outputs.run == 'true'
+  #       working-directory: ./${{ matrix.path }}
+  #       run: go vet ./...
+
+  #     - name: Run tests
+  #       if: steps.should-run.outputs.run == 'true'
+  #       working-directory: ./${{ matrix.path }}
+  #       run: go test -race -coverprofile=coverage.out ./...
+
+  #     - name: Upload coverage
+  #       if: always() && steps.should-run.outputs.run == 'true'
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: coverage-${{ matrix.service }}
+  #         path: ${{ matrix.path }}/coverage.out
+  #         retention-days: 7
+
   security-scan:
     runs-on: ubuntu-latest
     steps:
@@ -157,10 +225,10 @@ jobs:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          scan-type: 'fs'
-          format: 'table'
-          severity: 'CRITICAL,HIGH'
-          exit-code: '1'
+          scan-type: "fs"
+          format: "table"
+          severity: "CRITICAL,HIGH"
+          exit-code: "1"
 
   ci-success:
     runs-on: ubuntu-latest
@@ -171,6 +239,7 @@ jobs:
         run: |
           if [[ "${{ needs.test-kotlin.result }}" == "failure" ]] || \
              [[ "${{ needs.test-web.result }}" == "failure" ]] || \
+             [[ "${{ needs.test-golang.result }}" == "failure" ]] || \
              [[ "${{ needs.security-scan.result }}" == "failure" ]]; then
             echo "One or more jobs failed"
             exit 1

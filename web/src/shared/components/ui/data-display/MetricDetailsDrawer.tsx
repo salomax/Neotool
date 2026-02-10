@@ -1,8 +1,7 @@
 "use client";
 
 import React from "react";
-import { Box, Typography, IconButton } from "@mui/material";
-import CloseIcon from "@mui/icons-material/Close";
+import { Box } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import { MetricValueDisplay } from "./MetricValueDisplay";
 import { MetricLineChart } from "./MetricLineChart";
@@ -65,6 +64,30 @@ export interface MetricDetailsDrawerProps {
    * @default "lg"
    */
   size?: 'sm' | 'md' | 'lg' | 'full';
+  /**
+   * Title for the history table
+   */
+  historyTableTitle?: string;
+  /**
+   * Column header for the period/date column in history table
+   */
+  historyTablePeriodLabel?: string;
+  /**
+   * Custom formatter for the period/date column
+   */
+  onFormatHistoryPeriod?: (value: string) => React.ReactNode;
+  /**
+   * Key for the X-axis in the chart (defaults to "quarter")
+   */
+  chartXKey?: string;
+  /**
+   * Custom formatter for the chart X-axis ticks
+   */
+  chartXTickFormatter?: (value: any) => string;
+  /**
+   * Whether to disable multiplying percentage values by 100.
+   */
+  disablePercentageScaling?: boolean;
 }
 
 /**
@@ -82,8 +105,17 @@ export const MetricDetailsDrawer: React.FC<MetricDetailsDrawerProps> = ({
   onPeriodChange,
   periodOptions,
   size = "lg",
+  historyTableTitle,
+  historyTablePeriodLabel,
+  onFormatHistoryPeriod,
+  chartXKey,
+  chartXTickFormatter,
+  disablePercentageScaling: disablePercentageScalingProp,
 }) => {
   const { t } = useTranslation("common");
+
+  // Determine effective disablePercentageScaling
+  const disablePercentageScaling = disablePercentageScalingProp ?? (metric as any)?.disablePercentageScaling ?? false;
 
   const displayTitle = title || metric?.label || "Details";
   
@@ -100,16 +132,12 @@ export const MetricDetailsDrawer: React.FC<MetricDetailsDrawerProps> = ({
       size={size}
       anchor="right"
     >
-      <Drawer.Header>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Typography variant="h6" sx={{ textTransform: 'uppercase', fontWeight: 700 }}>
-            {displayTitle}
-          </Typography>
-        </Box>
-        <IconButton onClick={onClose}>
-          <CloseIcon />
-        </IconButton>
-      </Drawer.Header>
+      <Drawer.Header
+        title={displayTitle}
+        titleTypographyProps={{
+          sx: { textTransform: 'uppercase', fontWeight: 700, flex: 1 }
+        }}
+      />
       <Drawer.Body>
         <Box sx={{ p: 2, pt: 0, display: 'flex', flexDirection: 'column' }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
@@ -123,37 +151,46 @@ export const MetricDetailsDrawer: React.FC<MetricDetailsDrawerProps> = ({
                   totalizerFormat={metric.totalizerFormat}
                   currencyLabels={metric.currencyLabels}
                   align="left"
+                  disablePercentageScaling={disablePercentageScaling}
+                  valueVariant="h3"
                 />
               )}
-            </Box>
-            <Box>
               {growth != null && (
                 <GrowthChip growthPercentage={growth} />
               )}
             </Box>
+            {metric && chartData && chartData.length > 0 && period && onPeriodChange && periodOptions && (
+              <Box>
+                <SegmentedControl
+                  value={period}
+                  onChange={onPeriodChange}
+                  options={periodOptions}
+                />
+              </Box>
+            )}
           </Box>
           {metric && chartData && chartData.length > 0 && (
-            <Box sx={{ width: '100%', mt: 4, display: 'flex', flexDirection: 'column' }}>
-              {period && onPeriodChange && periodOptions && (
-                <Box sx={{ mb: 2 }}>
-                  <SegmentedControl
-                    value={period}
-                    onChange={onPeriodChange}
-                    options={periodOptions}
-                    fullWidth
-                  />
-                </Box>
-              )}
+            <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
               <MetricLineChart
                 data={chartData}
                 label={metric.label || displayTitle}
                 valueType={valueType}
                 showLegend={false}
+                xKey={chartXKey}
+                xTickFormatter={chartXTickFormatter}
+                disablePercentageScaling={disablePercentageScaling}
+                currency={metric.currency}
+                locale={metric.locale}
               />
               <MetricHistoryTable
                 data={chartData}
                 valueType={valueType}
                 currency={metric.currency}
+                title={historyTableTitle}
+                periodLabel={historyTablePeriodLabel}
+                locale={metric.locale}
+                onFormatPeriod={onFormatHistoryPeriod}
+                disablePercentageScaling={disablePercentageScaling}
               />
             </Box>
           )}

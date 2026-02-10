@@ -7,7 +7,14 @@ import { z } from "zod";
 import {
   Box,
   Alert,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  Typography,
 } from "@mui/material";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import CancelIcon from "@mui/icons-material/Cancel";
 import { ErrorAlert } from "@/shared/components/ui/feedback";
 import { PasswordField } from "@/shared/components/ui/forms/form/PasswordField";
 import { Button } from "@/shared/components/ui/primitives/Button";
@@ -17,6 +24,7 @@ import { Link } from "@/shared/components/ui/navigation/Link";
 import { useToast } from "@/shared/providers";
 import { useTranslation } from "@/shared/i18n/hooks/useTranslation";
 import { resetPasswordTranslations } from "@/app/(authentication)/reset-password/i18n";
+import { validatePassword, passwordValidationRules } from "@/shared/utils/passwordValidation";
 import { extractErrorMessage } from "@/shared/utils/error";
 import { useMutation } from "@apollo/client/react";
 import {
@@ -27,16 +35,18 @@ import {
 import { useRouter } from "next/navigation";
 
 const resetPasswordSchema = z.object({
-  newPassword: z.string().min(8, "errors.weakPassword").refine(
-    (password) => {
-      const hasUppercase = /[A-Z]/.test(password);
-      const hasLowercase = /[a-z]/.test(password);
-      const hasNumber = /[0-9]/.test(password);
-      const hasSpecialChar = /[^A-Za-z0-9]/.test(password);
-      return hasUppercase && hasLowercase && hasNumber && hasSpecialChar;
-    },
-    { message: "errors.weakPassword" }
-  ),
+  newPassword: z
+    .string()
+    .min(1, "errors.required")
+    .refine(
+      (password) => {
+        const validation = validatePassword(password);
+        return validation.isValid;
+      },
+      {
+        message: "errors.weakPassword",
+      }
+    ),
   confirmPassword: z.string().min(1, "errors.required"),
 }).refine((data) => data.newPassword === data.confirmPassword, {
   message: "errors.passwordMismatch",
@@ -70,6 +80,14 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({ token, onS
       confirmPassword: "",
     },
   });
+
+  const passwordValue = methods.watch("newPassword");
+  const passwordValidation = React.useMemo(() => {
+    if (!passwordValue || passwordValue.length === 0) {
+      return null;
+    }
+    return validatePassword(passwordValue);
+  }, [passwordValue]);
 
   const onSubmit = async (data: ResetPasswordFormData) => {
     try {
@@ -133,12 +151,77 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({ token, onS
         <Stack gap={3} name="reset-password-form-stack">
           <ErrorAlert error={error} data-testid="reset-password-error" />
 
-          <PasswordField
-            name="newPassword"
-            label={t("newPassword")}
-            translateError={(key) => t(key)}
-            data-testid="textfield-new-password"
-          />
+          <Box>
+            <PasswordField
+              name="newPassword"
+              label={t("newPassword")}
+              translateError={(key) => t(key)}
+              data-testid="textfield-new-password"
+            />
+            {passwordValidation && (
+              <Box
+                sx={{
+                  mt: 1.5,
+                  p: 1.5,
+                  borderRadius: 1,
+                  bgcolor: "background.paper",
+                  border: 1,
+                  borderColor: "divider",
+                }}
+                data-testid="password-validation"
+              >
+                <Typography
+                  variant="caption"
+                  sx={{ fontWeight: 600, mb: 1, display: "block" }}
+                >
+                  {t("passwordRequirements")}
+                </Typography>
+                <List dense sx={{ py: 0 }}>
+                  {passwordValidation.rules.map((rule, index) => {
+                    const ruleKey = `passwordRules.${index}`;
+                    const translatedLabel = t(ruleKey);
+                    // Fallback to original label if translation not found
+                    const displayLabel =
+                      translatedLabel !== ruleKey ? translatedLabel : rule.label;
+
+                    return (
+                      <ListItem
+                        key={index}
+                        sx={{ py: 0.5, px: 0 }}
+                        data-testid={`password-rule-${index}`}
+                      >
+                        <ListItemIcon sx={{ minWidth: 32 }}>
+                          {rule.isValid ? (
+                            <CheckCircleIcon
+                              sx={{ color: "success.main", fontSize: 18 }}
+                              aria-label="Valid"
+                            />
+                          ) : (
+                            <CancelIcon
+                              sx={{ color: "error.main", fontSize: 18 }}
+                              aria-label="Invalid"
+                            />
+                          )}
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                color: rule.isValid ? "success.main" : "error.main",
+                              }}
+                            >
+                              {displayLabel}
+                            </Typography>
+                          }
+                        />
+                      </ListItem>
+                    );
+                  })}
+                </List>
+              </Box>
+            )}
+          </Box>
 
           <PasswordField
             name="confirmPassword"

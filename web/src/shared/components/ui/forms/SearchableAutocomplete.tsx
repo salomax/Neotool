@@ -144,6 +144,12 @@ export interface SearchableAutocompleteProps<
    * Receives the current input value
    */
   onSearch?: (searchQuery: string) => void;
+
+  /**
+   * Optional ID for the autocomplete component.
+   * If not provided, a unique ID will be generated automatically.
+   */
+  id?: string;
 }
 
 /**
@@ -207,6 +213,7 @@ export function SearchableAutocomplete<
   variant = "outlined",
   loadMode = "lazy",
   onSearch,
+  id,
 }: SearchableAutocompleteProps<TOption, TSelected, TQueryData, TQueryVariables>) {
   // Local input value (what the user is typing)
   const [inputValue, setInputValue] = useState("");
@@ -435,6 +442,7 @@ export function SearchableAutocomplete<
 
   return (
     <Autocomplete
+      {...(id && { id })}
       multiple={multiple}
       open={open}
       onOpen={() => setOpen(true)}
@@ -457,7 +465,8 @@ export function SearchableAutocomplete<
         // For "reset" or "blur", keep the current input value to preserve search term
         // This keeps the search term visible after Enter is pressed
       }}
-      autoHighlight
+      // Only autoHighlight when there are options to highlight
+      autoHighlight={allOptions.length > 0}
       // UX: show dropdown arrow in eager mode, hide in lazy mode
       popupIcon={loadMode === "eager" ? undefined : null}
       forcePopupIcon={loadMode === "eager"}

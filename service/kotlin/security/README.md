@@ -92,7 +92,7 @@ cat public-key.pem
 
 1. **Create OAuth 2.0 credentials** in [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
    - Application type: Web application
-   - Authorized redirect URIs: `http://localhost:3000/auth/google/callback` (adjust for your frontend)
+   - **Authorized JavaScript origins**: Add your app origin (e.g. `http://localhost:3000`). No redirect URIs are used—the app uses Google Identity Services (GIS) with a popup; after sign-in the frontend sends the ID token to the backend via the GraphQL mutation `signInWithOAuth`.
 2. **Copy Client ID** and set environment variables:
 
 ```bash

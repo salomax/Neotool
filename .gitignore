@@ -5,6 +5,7 @@ dist/
 build/
 bin/
 coverage/
+coverage.out
 .env
 .env.*
 venv
@@ -13,6 +14,7 @@ venv
 /cronjob
 /cli
 /retry-worker
+web/tsconfig.tsbuildinfo
 
 *.code-workspace
 .idea

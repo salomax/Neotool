@@ -17,8 +17,8 @@ CREATE INDEX IF NOT EXISTS idx_users_email ON security.users(email);
 INSERT INTO security.users (id, email, display_name, password_hash)
 VALUES (
     uuidv7(),
-    'admin@example.com',
-    'admin',
-    '$argon2id$v=19$m=65536,t=3,p=1$xmdmHNUKPVO0PGYDh7U4CQ$O3xjDII/BKIKmneSB+ptDZ88lEPcDftwnA4Ls7u3KWM'
+    'admin@invistus.com.br',
+    'Admin',
+    '$argon2id$v=19$m=48128,t=1,p=1$as0B8ZdUaNBUkfYAw43txQ$zZQ3q2POS2q8481zRH/FnxayzbtRY+LezdBYLb5kx+A'
 )
 ON CONFLICT (email) DO NOTHING;

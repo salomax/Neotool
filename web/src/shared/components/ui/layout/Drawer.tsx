@@ -8,6 +8,7 @@ import {
   IconButton,
   Divider,
   Typography,
+  TypographyProps,
   useTheme,
   useMediaQuery,
 } from "@mui/material";
@@ -62,6 +63,10 @@ export interface DrawerProps extends Omit<MUIDrawerProps, 'open'> {
 export interface DrawerHeaderProps {
   /** Title text displayed in the header */
   title?: string;
+  /** Icon displayed before the title */
+  icon?: React.ReactNode;
+  /** Props forwarded to the title Typography component */
+  titleTypographyProps?: TypographyProps;
   /** Show close button. Default: true */
   showCloseButton?: boolean;
   /** Show menu button. Default: false */
@@ -217,6 +222,8 @@ const DrawerComponent: React.FC<DrawerProps> = ({
  */
 const Header: React.FC<DrawerHeaderProps> = ({
   title,
+  icon,
+  titleTypographyProps,
   showCloseButton = true,
   showMenuButton = false,
   onMenuClick,
@@ -244,7 +251,7 @@ const Header: React.FC<DrawerHeaderProps> = ({
   }
 
   // Default header with title and buttons
-  if (!title && !showCloseButton && !showMenuButton) {
+  if (!title && !showCloseButton && !showMenuButton && !icon) {
     return null;
   }
 
@@ -271,8 +278,18 @@ const Header: React.FC<DrawerHeaderProps> = ({
             <MenuIcon />
           </IconButton>
         )}
+        {icon && (
+          <Box sx={{ display: 'flex', color: 'text.secondary' }}>
+            {icon}
+          </Box>
+        )}
         {title && (
-          <Typography variant="h6" component="h2" sx={{ flex: 1 }}>
+          <Typography 
+            variant="h5" 
+            component="h2" 
+            sx={{ flex: 1 }}
+            {...titleTypographyProps}
+          >
             {title}
           </Typography>
         )}

@@ -1,4 +1,15 @@
 {
+  "appHeader": {
+    "account": "Account",
+    "signIn": "Sign In",
+    "signOut": "Sign Out",
+    "defaultUser": "User",
+    "aiAssistant": "AI Assistant",
+    "theme": {
+      "light": "Switch to light mode",
+      "dark": "Switch to dark mode"
+    }
+  },
   "signIn": {
     "title": "Welcome",
     "subtitle": "Sign in to continue",
@@ -72,6 +83,24 @@
     "year": "Year",
     "monthly": "Monthly",
     "quarterly": "Quarterly",
-    "yearly": "Yearly"
-  }
+    "yearly": "Yearly",
+    "quarters": {
+      "q1": "Q1",
+      "q2": "Q2",
+      "q3": "Q3",
+      "q4": "Q4"
+    }
+  },
+  "periods": {
+    "1y": "1Y",
+    "3y": "3Y",
+    "5y": "5Y"
+  },
+  "quarterlySummary": "Quarterly Summary",
+  "summary": "Summary",
+  "value": "Value",
+  "evolution": "Evolution %",
+  "variation": "Variation",
+  "date": "Date",
+  "yearly": "Yearly"
 }

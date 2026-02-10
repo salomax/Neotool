@@ -357,6 +357,17 @@ If a key is not found in any domain, the key itself is returned.
 }
 ```
 
+### Route/Breadcrumb Labels
+
+When translating route segments for breadcrumbs, use the `useBreadcrumbLabel` hook within the route's **layout** file.
+
+```typescript
+// layout.tsx
+useBreadcrumbLabel("segment-name", t("routes.segmentName"));
+```
+
+*See [Breadcrumb Pattern](./breadcrumb-pattern.md) for detailed implementation rules.*
+
 ## Best Practices
 
 ### ✅ DO

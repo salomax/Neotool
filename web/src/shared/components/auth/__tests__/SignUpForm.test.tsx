@@ -79,6 +79,7 @@ const fillRequiredFields = async (user: ReturnType<typeof userEvent.setup>) => {
 describe.sequential('SignUpForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    i18n.changeLanguage('en');
     mockSignUp.mockResolvedValue(undefined);
   });
 
@@ -187,7 +188,6 @@ describe.sequential('SignUpForm', () => {
 
     await fillRequiredFields(user);
     const submitButton = screen.getByTestId('button-signup');
-
     await user.click(submitButton);
 
     await waitFor(() => {
@@ -203,7 +203,6 @@ describe.sequential('SignUpForm', () => {
 
     await fillRequiredFields(user);
     const submitButton = screen.getByTestId('button-signup');
-
     await user.click(submitButton);
 
     await waitFor(() => {
@@ -224,7 +223,6 @@ describe.sequential('SignUpForm', () => {
 
     await fillRequiredFields(user);
     const submitButton = screen.getByTestId('button-signup');
-
     await user.click(submitButton);
 
     await waitFor(() => {
@@ -244,7 +242,7 @@ describe.sequential('SignUpForm', () => {
 
     await user.type(nameInput, '  John Doe  ');
     await user.type(emailInput, '  john@example.com  ');
-    await user.type(passwordInput as HTMLInputElement, 'ValidPass123!');
+    await user.type(passwordInput, 'ValidPass123!');
     await user.type(confirmPasswordInput, 'ValidPass123!');
     
     // Wait for password input to have value

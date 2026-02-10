@@ -173,6 +173,7 @@ Quick lookup and reference materials:
 | Feature Development (Legacy) | `08-workflows/feature-development.md` | workflow | development | feature-development, workflow, spec-driven, sdd, deprecated |
 | Code Review | `08-workflows/code-review.md` | workflow | review | code-review, workflow, spec-compliance |
 | Testing Workflow | `08-workflows/testing-workflow.md` | workflow | testing | testing, workflow, spec-driven, coverage |
+| Performance Testing | `08-workflows/performance-testing.md` | workflow | testing | performance-testing, load-testing, stress-testing, spike, soak |
 | Deployment Workflow | `08-workflows/deployment-workflow.md` | workflow | deployment | deployment, workflow, ci-cd |
 | Spec Context Strategy (Legacy) | `08-workflows/spec-context-strategy.md` | workflow | development | context, ai, optimization, spec, navigation, rag, deprecated |
 

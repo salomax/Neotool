@@ -5,6 +5,8 @@ import LanguageSwitcher from "@/shared/i18n/LanguageSwitcher";
 
 describe("LanguageSwitcher", () => {
   it("switches between en and pt using data-testid", async () => {
+    const { default: i18n } = await import("@/shared/i18n/config");
+    await i18n.changeLanguage("en");
     render(<LanguageSwitcher />);
     const current = screen.getByTestId("lang-current");
 

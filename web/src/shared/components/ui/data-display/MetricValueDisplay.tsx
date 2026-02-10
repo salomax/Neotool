@@ -17,6 +17,7 @@ export interface MetricValueDisplayProps {
   growthPercentage?: number | null;
   align?: "left" | "right" | "center";
   valueVariant?: "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "subtitle1" | "subtitle2" | "body1" | "body2" | "caption" | "overline";
+  disablePercentageScaling?: boolean;
 }
 
 export function MetricValueDisplay({
@@ -28,7 +29,8 @@ export function MetricValueDisplay({
   currencyLabels: providedCurrencyLabels,
   growthPercentage,
   align = "right",
-  valueVariant = "h5",
+  valueVariant = "h2",
+  disablePercentageScaling = false,
 }: MetricValueDisplayProps) {
   const { t: tCommon } = useTranslation("common");
 
@@ -52,8 +54,9 @@ export function MetricValueDisplay({
       locale,
       currencyLabels,
       totalizerFormat,
+      disablePercentageScaling,
     });
-  }, [actualValue, valueType, currency, locale, currencyLabels, totalizerFormat]);
+  }, [actualValue, valueType, currency, locale, currencyLabels, totalizerFormat, disablePercentageScaling]);
 
   const isNegative = typeof actualValue === 'number' && actualValue < 0;
   const contentColor = isNegative ? "error.main" : "text.primary";

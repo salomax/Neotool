@@ -75,6 +75,7 @@ const getInputByTestId = (testId: string): HTMLInputElement => {
 describe.sequential('SignInForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    i18n.changeLanguage('en');
     mockSignIn.mockResolvedValue(undefined);
     mockSignInWithOAuth.mockResolvedValue(undefined);
     mockSignInOAuth.mockResolvedValue('test-id-token');
@@ -84,8 +85,8 @@ describe.sequential('SignInForm', () => {
     renderSignInForm();
 
     expect(screen.getByTestId('textfield-email')).toBeInTheDocument();
-    expect(screen.getByTestId('textfield-password')).toBeInTheDocument();
-    expect(screen.getByTestId('checkbox-remember-me')).toBeInTheDocument();
+    expect(screen.getByLabelText(/^(password|senha)$/i)).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /keep me signed in|manter-me conectado/i })).toBeInTheDocument();
     expect(screen.getByTestId('button-signin')).toBeInTheDocument();
     expect(screen.getByTestId('button-google-signin')).toBeInTheDocument();
   });
@@ -121,9 +122,9 @@ describe.sequential('SignInForm', () => {
   it('submits form with valid data', async () => {
     const user = userEvent.setup();
     renderSignInForm();
-
-    const emailInput = getInputByTestId('textfield-email');
-    const passwordInput = getInputByTestId('textfield-password');
+    
+    const emailInput = screen.getByRole('textbox', { name: /e-?mail/i }) as HTMLInputElement;
+    const passwordInput = screen.getByLabelText(/^(password|senha)$/i) as HTMLInputElement;
     const submitButton = screen.getByTestId('button-signin');
 
     await user.type(emailInput, 'test@example.com');
@@ -150,10 +151,10 @@ describe.sequential('SignInForm', () => {
   it('handles remember me checkbox', async () => {
     const user = userEvent.setup();
     renderSignInForm();
-
-    const emailInput = getInputByTestId('textfield-email');
-    const passwordInput = getInputByTestId('textfield-password');
-    const checkbox = within(screen.getByTestId('checkbox-remember-me')).getByRole('checkbox');
+    
+    const emailInput = screen.getByRole('textbox', { name: /e-?mail/i }) as HTMLInputElement;
+    const passwordInput = screen.getByLabelText(/^(password|senha)$/i) as HTMLInputElement;
+    const checkbox = screen.getByRole('checkbox', { name: /keep me signed in|manter-me conectado/i });
     const submitButton = screen.getByTestId('button-signin');
 
     await user.type(emailInput, 'test@example.com');
@@ -182,9 +183,9 @@ describe.sequential('SignInForm', () => {
     mockSignIn.mockRejectedValue(new Error('Invalid email or password'));
 
     renderSignInForm();
-
-    const emailInput = getInputByTestId('textfield-email');
-    const passwordInput = getInputByTestId('textfield-password');
+    
+    const emailInput = screen.getByRole('textbox', { name: /e-?mail/i }) as HTMLInputElement;
+    const passwordInput = screen.getByLabelText(/^(password|senha)$/i) as HTMLInputElement;
     const submitButton = screen.getByTestId('button-signin');
 
     await user.type(emailInput, 'test@example.com');
@@ -208,9 +209,9 @@ describe.sequential('SignInForm', () => {
     mockSignIn.mockImplementation(() => promise);
 
     renderSignInForm();
-
-    const emailInput = getInputByTestId('textfield-email');
-    const passwordInput = getInputByTestId('textfield-password');
+    
+    const emailInput = screen.getByRole('textbox', { name: /e-?mail/i }) as HTMLInputElement;
+    const passwordInput = screen.getByLabelText(/^(password|senha)$/i) as HTMLInputElement;
     const submitButton = screen.getByTestId('button-signin');
 
     await user.type(emailInput, 'test@example.com');
@@ -241,9 +242,9 @@ describe.sequential('SignInForm', () => {
     const onSuccess = vi.fn();
 
     renderSignInForm({ onSuccess });
-
-    const emailInput = getInputByTestId('textfield-email');
-    const passwordInput = getInputByTestId('textfield-password');
+    
+    const emailInput = screen.getByRole('textbox', { name: /e-?mail/i }) as HTMLInputElement;
+    const passwordInput = screen.getByLabelText(/^(password|senha)$/i) as HTMLInputElement;
     const submitButton = screen.getByTestId('button-signin');
 
     await user.type(emailInput, 'test@example.com');
