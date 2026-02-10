@@ -21,6 +21,7 @@ related:
 - [Feature Development](./feature-development.md) - Complete Spec-Driven feature development workflow from idea to production
 - [Code Review](./code-review.md) - Spec-Driven code review process ensuring spec compliance
 - [Testing Workflow](./testing-workflow.md) - Spec-Driven testing workflow with coverage requirements
+- [Performance Testing](./performance-testing.md) - Load/stress/spike/soak testing options and recommendations
 - [Deployment Workflow](./deployment-workflow.md) - Spec-Driven deployment workflow with validation gates
 
 ## Context Strategy
@@ -43,6 +44,7 @@ All workflows follow **Spec-Driven Development (SDD)** principles:
 - **Starting a Feature**: [Feature Development](./feature-development.md)
 - **Reviewing Code**: [Code Review](./code-review.md)
 - **Writing Tests**: [Testing Workflow](./testing-workflow.md)
+- **Performance Testing**: [Performance Testing](./performance-testing.md)
 - **Deploying**: [Deployment Workflow](./deployment-workflow.md)
 
 ### For AI Assistants

@@ -2,15 +2,14 @@
 
 import React from "react";
 import {
-  LineChart as RechartsLineChart,
+  AreaChart as RechartsAreaChart,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   Legend,
   ResponsiveContainer,
-  Line,
-  ReferenceLine,
+  Area,
 } from "recharts";
 import { Box, Typography, useTheme } from "@mui/material";
 
@@ -18,7 +17,7 @@ type AxisType = "number" | "category";
 
 type AxisFormat = "number" | "currency" | "percent";
 
-export interface LineChartSeries {
+export interface AreaChartSeries {
   id: string;
   name: string;
   dataKey: string;
@@ -26,16 +25,7 @@ export interface LineChartSeries {
   yAxisId?: string;
 }
 
-export interface LineChartReferenceLine {
-  y?: number;
-  x?: string | number;
-  stroke?: string;
-  strokeDasharray?: string;
-  label?: string;
-  yAxisId?: string;
-}
-
-export interface LineChartAxisConfig {
+export interface AreaChartAxisConfig {
   id: string;
   side: "left" | "right";
   label?: string;
@@ -45,7 +35,7 @@ export interface LineChartAxisConfig {
   tickFormatter?: (value: number) => string;
 }
 
-export interface LineChartProps {
+export interface AreaChartProps {
   data: Array<Record<string, any>>;
   title?: string;
   width?: number | string;
@@ -54,8 +44,8 @@ export interface LineChartProps {
   xIsDate?: boolean;
   xDateFormat?: (value: any) => string;
   xLabel?: string;
-  axes?: LineChartAxisConfig[];
-  series: LineChartSeries[];
+  axes?: AreaChartAxisConfig[];
+  series: AreaChartSeries[];
   showXAxis?: boolean;
   showYAxis?: boolean;
   showXAxisTitle?: boolean;
@@ -78,16 +68,11 @@ export interface LineChartProps {
     bottom?: number;
     left?: number;
   };
-  referenceLines?: LineChartReferenceLine[];
   sx?: any;
-  /**
-   * Locale for number formatting
-   */
-  locale?: string;
 }
 
 const buildTickFormatter = (
-  axis: LineChartAxisConfig | undefined,
+  axis: AreaChartAxisConfig | undefined,
   locale: string
 ) => {
   if (!axis) {
@@ -211,7 +196,7 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({
   );
 };
 
-export const LineChart: React.FC<LineChartProps> = ({
+export const AreaChart: React.FC<AreaChartProps> = ({
   data,
   title,
   width = "100%",
@@ -239,17 +224,9 @@ export const LineChart: React.FC<LineChartProps> = ({
   consolidateDecimal = true,
   colors,
   margin = { top: 0, right: 24, left: 0, bottom: 24 },
-  referenceLines,
   sx,
-  locale: localeProp,
 }) => {
   const theme = useTheme();
-
-  const locale =
-    localeProp ||
-    (typeof window !== "undefined" && window.navigator?.language
-      ? window.navigator.language
-      : "pt-BR");
 
   const palette = colors && colors.length > 0 ? colors : defaultPalette(theme);
 
@@ -257,7 +234,7 @@ export const LineChart: React.FC<LineChartProps> = ({
     () =>
       series.map((serie, index) => ({
         value: serie.name,
-        type: "line",
+        type: "rect",
         id: serie.id,
         color: serie.color || palette[index % palette.length],
       })),
@@ -269,7 +246,7 @@ export const LineChart: React.FC<LineChartProps> = ({
   const leftAxes = (axes || []).filter((axis) => axis.side === "left");
   const rightAxes = (axes || []).filter((axis) => axis.side === "right");
 
-  const getAxis = (id: string | undefined): LineChartAxisConfig | undefined => {
+  const getAxis = (id: string | undefined): AreaChartAxisConfig | undefined => {
     if (!id) {
       return axes && axes.length > 0 ? axes[0] : undefined;
     }
@@ -420,6 +397,11 @@ export const LineChart: React.FC<LineChartProps> = ({
     return undefined;
   };
 
+  const locale =
+    typeof window !== "undefined" && window.navigator?.language
+      ? window.navigator.language
+      : "pt-BR";
+
   const getTickFormatter = (axisId: string | undefined) => {
     const axisConfig = getAxis(axisId);
     const baseFormatter = buildTickFormatter(axisConfig, locale);
@@ -531,9 +513,9 @@ export const LineChart: React.FC<LineChartProps> = ({
           {title}
         </Typography>
       )}
-      <Box sx={{ width, height }} data-testid="line-chart-responsive-container">
+      <Box sx={{ width, height }} data-testid="area-chart-responsive-container">
         <ResponsiveContainer width="100%" height="100%">
-          <RechartsLineChart
+          <RechartsAreaChart
             data={data}
             margin={{
               top: margin?.top ?? 5,
@@ -546,7 +528,7 @@ export const LineChart: React.FC<LineChartProps> = ({
               <defs>
                 {series.map((serie, index) => {
                   const color = serie.color || palette[index % palette.length];
-                  const gradientId = `linechart-gradient-${serie.id}`;
+                  const gradientId = `areachart-gradient-${serie.id}`;
 
                   return (
                     <linearGradient
@@ -650,18 +632,6 @@ export const LineChart: React.FC<LineChartProps> = ({
                   domain={getAxisDomain(undefined)}
                 />
               ))}
-            
-            {referenceLines?.map((ref, index) => (
-              <ReferenceLine
-                key={index}
-                y={ref.y}
-                x={ref.x}
-                stroke={ref.stroke || theme.palette.divider}
-                strokeDasharray={ref.strokeDasharray}
-                yAxisId={ref.yAxisId}
-                label={ref.label}
-              />
-            ))}
 
             {showTooltip && (
               <Tooltip
@@ -681,14 +651,16 @@ export const LineChart: React.FC<LineChartProps> = ({
             {series.map((serie, index) => {
               const color = serie.color || palette[index % palette.length];
               const yAxisKey = getAxis(serie.yAxisId)?.id;
+              const gradientId = `areachart-gradient-${serie.id}`;
 
               return (
                 <React.Fragment key={serie.id}>
-                  <Line
+                  <Area
                     type="monotone"
                     dataKey={serie.dataKey}
                     name={serie.name}
                     stroke={color}
+                    fill={showArea ? `url(#${gradientId})` : "none"}
                     strokeWidth={strokeWidth}
                     yAxisId={yAxisKey}
                     dot={showDots}
@@ -699,28 +671,11 @@ export const LineChart: React.FC<LineChartProps> = ({
                 </React.Fragment>
               );
             })}
-          </RechartsLineChart>
+          </RechartsAreaChart>
         </ResponsiveContainer>
       </Box>
-
-      {/* Usage example:
-      <LineChart
-        data={data}
-        title="Performance"
-        xKey="date"
-        xIsDate
-        axes={[
-          { id: "left-currency", side: "left", label: "Amount", format: "currency" },
-          { id: "right-percent", side: "right", label: "Rate", format: "percent" },
-        ]}
-        series={[
-          { id: "revenue", name: "Revenue", dataKey: "revenue", yAxisId: "left-currency" },
-          { id: "margin", name: "Margin %", dataKey: "marginPercent", yAxisId: "right-percent" },
-        ]}
-      />
-      */}
     </Box>
   );
 };
 
-export default LineChart;
+export default AreaChart;

@@ -5,11 +5,12 @@ meta {
 }
 
 get {
-  url: http://{{security_host}}/.well-known/jwks.json
+  url: {{security_host}}/.well-known/jwks.json
   body: none
   auth: inherit
 }
 
 settings {
   encodeUrl: true
+  timeout: 0
 }

@@ -1,4 +1,15 @@
 {
+  "appHeader": {
+    "account": "Conta",
+    "signIn": "Entrar",
+    "signOut": "Sair",
+    "defaultUser": "Usuário",
+    "aiAssistant": "Assistente IA",
+    "theme": {
+      "light": "Alternar para modo claro",
+      "dark": "Alternar para modo escuro"
+    }
+  },
   "signIn": {
     "title": "Bem-vindo",
     "subtitle": "Entre para continuar",
@@ -72,6 +83,24 @@
     "year": "Ano",
     "monthly": "Mensal",
     "quarterly": "Trimestral",
-    "yearly": "Anual"
-  }
+    "yearly": "Anual",
+    "quarters": {
+      "q1": "1º Tri",
+      "q2": "2º Tri",
+      "q3": "3º Tri",
+      "q4": "4º Tri"
+    }
+  },
+  "periods": {
+    "1y": "1 ano",
+    "3y": "3 anos",
+    "5y": "5 anos"
+  },
+  "quarterlySummary": "Resumo Trimestral",
+  "summary": "Resumo",
+  "value": "Valor",
+  "evolution": "Evolução %",
+  "variation": "Variação",
+  "date": "Data",
+  "yearly": "Anual"
 }

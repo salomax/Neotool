@@ -88,13 +88,15 @@ export function formatCurrency(
  * @param currency - ISO currency code (default: "BRL")
  * @param locale - Locale string (default: "pt-BR" for BRL, otherwise undefined)
  * @param labels - Object with "billions" and "millions" labels for compact format
+ * @param decimals - Number of decimal places for large numbers (default: 1)
  * @returns Formatted currency string
  */
 export function formatLargeCurrency(
   value: number | null | undefined,
   currency = "BRL",
   locale?: string,
-  labels?: { billions: string; millions: string },
+  labels?: { billions: string; millions: string; trillions?: string },
+  decimals = 1,
 ): string {
   if (value == null || value === 0) {
     return formatCurrency(0, currency, locale);
@@ -106,6 +108,26 @@ export function formatLargeCurrency(
   const defaultLocale = locale || (currency === "BRL" ? "pt-BR" : undefined);
   const billionsLabel = labels?.billions || "bi";
   const millionsLabel = labels?.millions || "mi";
+  const trillionsLabel = labels?.trillions || "tri";
+
+  const trillions = absValue / 1_000_000_000_000;
+  if (trillions >= 1) {
+    // Extract currency symbol using formatToParts
+    const parts = new Intl.NumberFormat(defaultLocale, {
+      style: "currency",
+      currency,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).formatToParts(1);
+    const currencySymbol = parts.find((p) => p.type === "currency")?.value || "";
+
+    const formattedNumber = trillions.toLocaleString(defaultLocale, {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    });
+    const formatted = `${currencySymbol} ${formattedNumber} ${trillionsLabel}`;
+    return isNegative ? `-${formatted}` : formatted;
+  }
 
   const billions = absValue / 1_000_000_000;
 
@@ -119,7 +141,11 @@ export function formatLargeCurrency(
     }).formatToParts(1);
     const currencySymbol = parts.find((p) => p.type === "currency")?.value || "";
 
-    const formatted = `${currencySymbol} ${billions.toFixed(0)} ${billionsLabel}`;
+    const formattedNumber = billions.toLocaleString(defaultLocale, {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    });
+    const formatted = `${currencySymbol} ${formattedNumber} ${billionsLabel}`;
     return isNegative ? `-${formatted}` : formatted;
   }
 
@@ -134,7 +160,11 @@ export function formatLargeCurrency(
     }).formatToParts(1);
     const currencySymbol = parts.find((p) => p.type === "currency")?.value || "";
 
-    const formatted = `${currencySymbol} ${millions.toFixed(1)} ${millionsLabel}`;
+    const formattedNumber = millions.toLocaleString(defaultLocale, {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    });
+    const formatted = `${currencySymbol} ${formattedNumber} ${millionsLabel}`;
     return isNegative ? `-${formatted}` : formatted;
   }
 

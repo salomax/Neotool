@@ -5,7 +5,7 @@ meta {
 }
 
 post {
-  url: http://{{router}}/graphql
+  url: {{router}}/graphql
   body: graphql
   auth: bearer
 }
@@ -31,10 +31,28 @@ body:graphql {
 body:graphql:vars {
   {
     "input": {
-      "namespace": "user-profiles",
-      "filename": "avatar.jpg",
+      "namespace": "institution-logos",
+      "filename": "bb1.png",
       "mimeType": "image/jpeg",
-      "sizeBytes": 1024
+      "sizeBytes": 41253
     }
   }
+}
+
+tests {
+  test("status 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Valid login", function() {
+    const data = res.getBody();
+    bru.setVar("asset_id", data.data.createAssetUpload.id);
+  });
+  
+  test("Valid upload url", function() {
+    const data = res.getBody();
+    bru.setVar("asset_upload_url", data.data.createAssetUpload.uploadUrl);
+  });
+  
+  
 }

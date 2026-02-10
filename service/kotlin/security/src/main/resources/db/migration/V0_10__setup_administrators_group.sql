@@ -43,6 +43,6 @@ SELECT
     0
 FROM security.users u
 CROSS JOIN security.groups g
-WHERE u.email = 'admin@example.com'
+WHERE u.email = 'admin@invistus.com.br'
   AND g.name = 'Administrators'
 ON CONFLICT (user_id, group_id) DO NOTHING;

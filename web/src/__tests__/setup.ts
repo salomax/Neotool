@@ -151,6 +151,7 @@ console.error = (...args: unknown[]) => {
     (
       message.includes('TestComponent') ||
       message.includes('IntegrationComponent') ||
+      message.includes('CartProvider') ||
       message.includes('__tests__') ||
       message.includes('.test.') ||
       message.includes('.spec.')
@@ -158,6 +159,15 @@ console.error = (...args: unknown[]) => {
   
   if (isTestComponentWarning) {
     // Suppress act() warnings from test components
+    return;
+  }
+  
+  // Suppress Recharts ResponsiveContainer width/height warnings in jsdom
+  // In tests there is no real layout, so width/height are 0 or -1; Recharts logs this to stderr
+  const isRechartsSizeWarning =
+    message.includes('of chart should be greater than 0') &&
+    (message.includes('width') || message.includes('height'));
+  if (isRechartsSizeWarning) {
     return;
   }
   
@@ -179,4 +189,27 @@ console.error = (...args: unknown[]) => {
   
   // Keep all other warnings, including act() warnings from user code
   originalError.call(console, ...args);
+};
+
+// Suppress known noisy console.log from tests (e.g. debug logs from hooks under test)
+const originalLog = console.log;
+console.log = (...args: unknown[]) => {
+  const message = args.map(String).join(' ');
+  if (message.includes('useMutationWithRefetch: entered')) {
+    return;
+  }
+  originalLog.call(console, ...args);
+};
+
+// Suppress Recharts size warnings via console.warn (library may use warn instead of error)
+const originalWarn = console.warn;
+console.warn = (...args: unknown[]) => {
+  const message = args.map(String).join(' ');
+  const isRechartsSizeWarning =
+    message.includes('of chart should be greater than 0') &&
+    (message.includes('width') || message.includes('height'));
+  if (isRechartsSizeWarning) {
+    return;
+  }
+  originalWarn.call(console, ...args);
 };

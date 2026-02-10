@@ -74,7 +74,12 @@ vi.mock('@/shared/components/ui/layout/Drawer', () => {
       </div>
     ) : null;
   
-  const Header = ({ children }: any) => <div data-testid="drawer-header-content">{children}</div>;
+  const Header = ({ children, title }: any) => (
+    <div data-testid="drawer-header-content">
+      {title}
+      {children}
+    </div>
+  );
   Header.displayName = 'Drawer.Header';
   DrawerComponent.Header = Header;
   

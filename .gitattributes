@@ -1,10 +1,19 @@
 # Upstream merge strategy - always keep our version
 # Managed by: ./neotool upstream command
 
+.github/workflows/** merge=ours
+design/assets/logos/** merge=ours
 project.config.json merge=ours
+contracts/graphql/supergraph/** merge=ours
 web/src/styles/themes/tokens.ts merge=ours
 web/public/favicon.ico merge=ours
 web/public/images/logos/** merge=ours
-design/assets/logos/** merge=ours
+web/src/app/** merge=ours
+web/src/app/page.tsx merge=ours
+web/src/styles/themes/tokens.ts merge=ours
+web/src/shared/ui/brand/** merge=ours
+web/src/shared/i18n/config.ts merge=ours
+web/src/shared/i18n/domains/** merge=ours
 workflows/** merge=ours
-contracts/graphql/supergraph/** merge=ours
+service/kotlin/settings.gradle.kts merge=ours
+service/kotlin/app/** merge=ours

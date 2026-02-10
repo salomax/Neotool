@@ -67,6 +67,7 @@ export const CurrencyDisplay: React.FC<CurrencyDisplayProps> = ({
   return (
     <Typography
       sx={{
+        fontWeight: 700,
         color,
         ...sx,
       }}

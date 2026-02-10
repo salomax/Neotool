@@ -6,13 +6,11 @@ import {
   Button,
   Stack,
   Typography,
-  IconButton,
 } from "@mui/material";
 import { TextField } from "@/shared/components/ui/primitives";
 import { ShieldCheckIcon } from "@/shared/components/ui/icons/ShieldCheckIcon";
 import { useForm, FormProvider } from "react-hook-form";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
-import { CloseIcon } from "@/shared/ui/mui-imports";
 import { LoadingState, ErrorAlert } from "@/shared/components/ui/feedback";
 import { useMutation } from "@apollo/client/react";
 import {
@@ -306,21 +304,10 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
       size="md"
       variant="temporary"
     >
-      <Drawer.Header>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flex: 1 }}>
-          <ShieldCheckIcon sx={{ color: "text.secondary" }} />
-          <Typography variant="h6" component="h2" sx={{ flex: 1 }}>
-            {drawerTitle}
-          </Typography>
-        </Box>
-        <IconButton
-          onClick={onClose}
-          size="small"
-          aria-label={`Close ${drawerTitle}`}
-        >
-          <CloseIcon />
-        </IconButton>
-      </Drawer.Header>
+      <Drawer.Header
+        title={drawerTitle}
+        icon={<ShieldCheckIcon />}
+      />
       <Drawer.Body ref={bodyRef}>
         <FormProvider {...methods}>
           {/* Loading state for edit mode */}

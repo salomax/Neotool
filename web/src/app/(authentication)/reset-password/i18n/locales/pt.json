@@ -3,6 +3,14 @@
   "subtitle": "Digite sua nova senha abaixo",
   "newPassword": "Nova senha",
   "confirmPassword": "Confirmar senha",
+  "passwordRequirements": "Requisitos da senha:",
+  "passwordRules": {
+    "0": "Pelo menos 8 caracteres",
+    "1": "Pelo menos uma letra maiúscula",
+    "2": "Pelo menos uma letra minúscula",
+    "3": "Pelo menos um número",
+    "4": "Pelo menos um caractere especial"
+  },
   "resetPassword": "Redefinir senha",
   "backToSignIn": "Voltar para entrar",
   "successMessage": "Senha redefinida com sucesso. Agora você pode entrar com sua nova senha.",

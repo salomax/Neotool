@@ -7,6 +7,17 @@ import { RoleList } from '../RoleList';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
 import i18n from '@/shared/i18n/config';
 
+vi.mock('@/shared/i18n', () => ({
+  useTranslation: () => ({
+    t: (key: string) => {
+      if (key === 'roleManagement.table.name') return 'Name';
+      if (key === 'roleManagement.table.actions') return 'Actions';
+      if (key === 'roleManagement.editRole') return 'Edit Role';
+      return key;
+    },
+  }),
+}));
+
 // Minimal ManagementTable mock to render headers and rows
 vi.mock('@/shared/components/management', () => ({
   ManagementTable: ({ columns, data, renderActions }: any) => (

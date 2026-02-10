@@ -2,9 +2,9 @@
 
 import * as React from "react";
 import { AppThemeProvider } from "@/styles/themes/AppThemeProvider";
-import { AppQueryProvider } from "@/shared/providers";
 import { GraphQLProvider } from "@/lib/graphql/GraphQLProvider";
-import { ToastProvider, AuthProvider, AuthorizationProvider, FeatureFlagsProvider } from "@/shared/providers";
+import { AppQueryProvider, ToastProvider, AuthProvider, AuthorizationProvider, FeatureFlagsProvider } from "@/shared/providers";
+import { BreadcrumbLabelProvider } from "@/shared/hooks/ui/useBreadcrumbLabel";
 import "@/shared/i18n/config";
 
 type ProvidersProps = {
@@ -20,9 +20,11 @@ export default function Providers({ children, featureFlagsBootstrap }: Providers
           <FeatureFlagsProvider bootstrap={featureFlagsBootstrap}>
             <AuthProvider>
               <AuthorizationProvider>
-                <ToastProvider>
-                  {children}
-                </ToastProvider>
+                <BreadcrumbLabelProvider>
+                  <ToastProvider>
+                    {children}
+                  </ToastProvider>
+                </BreadcrumbLabelProvider>
               </AuthorizationProvider>
             </AuthProvider>
           </FeatureFlagsProvider>
