@@ -1,0 +1,34 @@
+{
+  "flags": [
+    {
+      "name": "security/login/enabled",
+      "description": "Enable/disable login functionality",
+      "type": "release",
+      "impressionData": false,
+      "enabled": true,
+      "strategies": []
+    },
+    {
+      "name": "assistant/enable",
+      "description": "Enable/disable assistant features",
+      "type": "release",
+      "impressionData": false,
+      "enabled": false,
+      "strategies": []
+    }
+  ],
+  "environmentDefaults": {
+    "development": {
+      "security/login/enabled": true,
+      "assistant/enable": false
+    },
+    "staging": {
+      "security/login/enabled": true,
+      "assistant/enable": false
+    },
+    "production": {
+      "security/login/enabled": true,
+      "assistant/enable": false
+    }
+  }
+}
