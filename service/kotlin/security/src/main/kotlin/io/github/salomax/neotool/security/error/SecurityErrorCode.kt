@@ -68,4 +68,9 @@ enum class SecurityErrorCode(
     TARGET_NOT_ELIGIBLE("TARGET_NOT_ELIGIBLE", "Target does not meet criteria for this operation", 403),
     SOLE_OWNER_CANNOT_LEAVE("SOLE_OWNER_CANNOT_LEAVE", "Owner cannot leave without transferring ownership first", 403),
     NOT_PENDING_INVITATION("NOT_PENDING_INVITATION", "Invitation is not in pending status", 400),
+
+    // Invitation (FR-4)
+    ALREADY_MEMBER("ALREADY_MEMBER", "User is already a member of this account", 409),
+    MEMBER_LIMIT_REACHED("MEMBER_LIMIT_REACHED", "Account has reached maximum members for its type", 409),
+    INVITATION_EXPIRED("INVITATION_EXPIRED", "Invitation has expired", 400),
 }

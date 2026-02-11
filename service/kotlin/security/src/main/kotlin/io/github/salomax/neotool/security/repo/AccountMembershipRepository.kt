@@ -67,4 +67,12 @@ interface AccountMembershipRepository : JpaRepository<AccountMembershipEntity, U
         accountId: UUID,
         accountRole: AccountRole,
     ): Long
+
+    /**
+     * Count memberships for an account with status in the given set (e.g. ACTIVE + PENDING for member limit).
+     */
+    fun countByAccountIdAndMembershipStatusIn(
+        accountId: UUID,
+        membershipStatus: List<MembershipStatus>,
+    ): Long
 }
