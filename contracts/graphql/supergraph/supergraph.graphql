@@ -936,7 +936,6 @@ enum UserOrderField
 scalar UUID
   @join__type(graph: ASSETS)
   @join__type(graph: FINANCIALDATA)
-  @join__type(graph: SECURITY)
   @join__type(graph: COMMS)
   @join__type(graph: SECURITY)
 

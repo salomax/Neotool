@@ -10,6 +10,7 @@ set -euo pipefail
 # - Tests (test - includes unit and integration)
 # - Lint (ktlint)
 # - Coverage (kover)
+# - Security scan (trivy fs, if available)
 # Frontend validation order:
 # - Typecheck (tsc)
 # - Tests (vitest)
@@ -78,6 +79,7 @@ Runs all validations for both frontend and backend:
   - Typecheck (frontend: tsc, backend: compile classes)
   - Tests (frontend: vitest, backend: test - includes unit and integration)
   - Coverage (frontend: vitest coverage, backend: kover)
+  - Security scan (trivy fs, same as CI, when trivy is installed)
 
 Options:
   --web              Run only web (frontend) validations
@@ -512,6 +514,23 @@ run_backend_validations() {
     fi
 }
 
+# Run security validation (same baseline as CI)
+run_security_validation() {
+    cd "$PROJECT_ROOT"
+
+    if ! command -v trivy >/dev/null 2>&1; then
+        log "⚠️  trivy command not found in PATH - skipping security scan" "$YELLOW"
+        return 0
+    fi
+
+    local trivy_cmd="trivy fs --format table --severity CRITICAL,HIGH --exit-code 1 ."
+    add_new_task "security scan (trivy)" "$trivy_cmd"
+    local task_idx=$CURRENT_TASK_INDEX
+    if ! run_command_silently "$trivy_cmd" "security scan (trivy)" "$task_idx"; then
+        VALIDATION_FAILED=true
+    fi
+}
+
 # Main function
 main() {
     local web_only=false
@@ -590,9 +609,10 @@ main() {
     elif [[ "$service_only" == true ]]; then
         run_backend_validations "$skip_coverage" "$service_name"
     else
-        # Run both frontend and backend
+        # Run full validation set (frontend, backend, and security scan)
         run_frontend_validations "$skip_coverage"
         run_backend_validations "$skip_coverage" "$service_name"
+        run_security_validation
     fi
     
     # Summary

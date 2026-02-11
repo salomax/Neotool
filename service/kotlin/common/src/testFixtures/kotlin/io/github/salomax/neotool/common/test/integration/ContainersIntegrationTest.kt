@@ -34,8 +34,9 @@ object PostgresTestContainer : MicronautPropsTestContainer {
             .withUsername(username)
             .withPassword(password)
             .withReuse(reusable)
+            .withCommand("postgres", "-c", "max_connections=200")
             .waitingFor(
-                Wait.forListeningPort()
+                Wait.forLogMessage(".*ready to accept connections.*", 1)
                     .withStartupTimeout(Duration.ofSeconds(60)),
             )
             .withStartupAttempts(3)
@@ -49,6 +50,8 @@ object PostgresTestContainer : MicronautPropsTestContainer {
             "datasources.default.username" to username,
             "datasources.default.password" to password,
             "datasources.default.driverClassName" to "org.postgresql.Driver",
+            // Keep pool small so many test classes can share one Postgres container
+            "datasources.default.maximum-pool-size" to "2",
             "jpa.default.properties.dialect" to "org.hibernate.dialect.PostgreSQLDialect",
             // Use Flyway instead of Hibernate validation
             "jpa.default.properties.hibernate.hbm2ddl.auto" to "none",
