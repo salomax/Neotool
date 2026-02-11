@@ -7,6 +7,8 @@ import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.common.test.transaction.runTransaction
 import io.github.salomax.neotool.security.model.PrincipalEntity
 import io.github.salomax.neotool.security.model.UserEntity
+import io.github.salomax.neotool.security.repo.AccountMembershipRepository
+import io.github.salomax.neotool.security.repo.AccountRepository
 import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.RefreshTokenRepository
 import io.github.salomax.neotool.security.repo.UserRepository
@@ -49,6 +51,12 @@ class RefreshTokenServiceIntegrationTest :
     lateinit var principalRepository: PrincipalRepository
 
     @Inject
+    lateinit var accountRepository: AccountRepository
+
+    @Inject
+    lateinit var accountMembershipRepository: AccountMembershipRepository
+
+    @Inject
     lateinit var authenticationService: AuthenticationService
 
     @Inject
@@ -65,6 +73,8 @@ class RefreshTokenServiceIntegrationTest :
         try {
             entityManager.runTransaction {
                 refreshTokenRepository.deleteAll()
+                accountMembershipRepository.deleteAll()
+                accountRepository.deleteAll()
                 principalRepository.deleteAll()
                 userRepository.deleteAll()
                 entityManager.flush()
@@ -80,6 +90,8 @@ class RefreshTokenServiceIntegrationTest :
         try {
             entityManager.runTransaction {
                 refreshTokenRepository.deleteAll()
+                accountMembershipRepository.deleteAll()
+                accountRepository.deleteAll()
                 principalRepository.deleteAll()
                 userRepository.deleteAll()
                 entityManager.flush()
