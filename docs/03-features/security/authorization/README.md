@@ -20,6 +20,7 @@ The Authorization feature implements a **hybrid RBAC (Role-Based Access Control)
 - **RBAC**: Defines *who* can perform certain *actions* through roles and permissions
 - **ABAC**: Defines *under which conditions* an action can be performed *on a specific resource* using attribute-based policies
 - **Hybrid Model**: RBAC is evaluated first; if allowed, ABAC policies are then evaluated. Explicit deny from ABAC overrides allow.
+- **Account-Owned Resources (Phase 1)**: For account-scoped data, validate account context + active membership before RBAC/ABAC. See `../resource-ownership/account-resource-ownership-requirements.md` and `../resource-ownership/resource-ownership.md`.
 
 ### Design Principles
 
@@ -973,7 +974,6 @@ For questions or issues:
 **Last Updated**: 2024
 **Version**: 1.0
 **Status**: Active Development
-
 
 
 
