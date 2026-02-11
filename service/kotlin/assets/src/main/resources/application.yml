@@ -49,21 +49,21 @@ datasources:
       # Pool sizing
       maximum-pool-size: ${HIKARI_MAX_POOL_SIZE:20}
       minimum-idle: ${HIKARI_MIN_IDLE:5}
-      
+
       # Connection lifecycle
       connection-timeout: ${HIKARI_CONNECTION_TIMEOUT:30000} # 30 seconds
       idle-timeout: ${HIKARI_IDLE_TIMEOUT:600000} # 10 minutes
       max-lifetime: ${HIKARI_MAX_LIFETIME:1800000} # 30 minutes
       leak-detection-threshold: ${HIKARI_LEAK_DETECTION:60000} # 60 seconds (0 to disable)
-      
+
       # Connection validation
       connection-test-query: "SELECT 1"
       validation-timeout: ${HIKARI_VALIDATION_TIMEOUT:5000} # 5 seconds
-      
+
       # Performance tuning
       auto-commit: false # Let transactions control commit
       read-only: false
-      
+
       # PostgreSQL-specific optimizations
       data-source-properties:
         # Connection pool name for monitoring
@@ -107,10 +107,6 @@ jwt:
   # Algorithm: RS256 (RSA-SHA256) - only supported algorithm
   # Can be set via JWT_ALGORITHM environment variable
   algorithm: ${JWT_ALGORITHM:RS256}
-  # Key ID for multi-key support (default: kid-1)
-  # Can be set via JWT_KEY_ID environment variable
-  key-id: ${JWT_KEY_ID:kid-1}
-  # JWKS URL for fetching public keys from security service (required)
   # Can be set via JWT_JWKS_URL environment variable
   # Example: http://security-service:8080/.well-known/jwks.json
   # When configured, the service will fetch public keys from the JWKS endpoint for JWT validation

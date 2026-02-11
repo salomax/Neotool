@@ -64,11 +64,11 @@ dependencies {
     api("io.jsonwebtoken:jjwt-impl:0.12.5")
     api("io.jsonwebtoken:jjwt-jackson:0.12.5")
 
-    // Vault client for secret management
-    api("com.bettercloud:vault-java-driver:5.1.0")
-
     // Micrometer - api for other modules (needed for metrics instrumentation)
     api("io.micronaut.micrometer:micronaut-micrometer-core")
+
+    // Management - api for health indicators and startup (e.g. AbstractWarmupService)
+    api("io.micronaut:micronaut-management")
 
     // Database - api for other modules
     api("io.micronaut.data:micronaut-data-jdbc")
@@ -94,12 +94,6 @@ dependencies {
     // Database drivers - api so other modules can use them
     api("org.postgresql:postgresql:42.7.7")
 
-    // Kafka - api for other modules (needed for batch processing)
-    api("io.micronaut.kafka:micronaut-kafka")
-
-    // Feature Flags - Unleash SDK
-    api("io.getunleash:unleash-client-java:9.3.0")
-
     // Utilities - api for other modules
     api("org.apache.commons:commons-lang3:3.18.0")
     api("commons-codec:commons-codec:1.17.1")
@@ -107,9 +101,10 @@ dependencies {
 
     // Logging - api for other modules
     api("io.github.microutils:kotlin-logging:3.0.5")
-    api("net.logstash.logback:logstash-logback-encoder:7.4")
     api("ch.qos.logback:logback-classic:1.5.23")
-    api("com.github.loki4j:loki-logback-appender:1.4.0")
+    // Used declaratively in logback.xml, not in Kotlin code
+    implementation("com.github.loki4j:loki-logback-appender:1.4.0")
+    implementation("net.logstash.logback:logstash-logback-encoder:7.4")
 
     // KSP processors
     ksp("io.micronaut:micronaut-inject-kotlin")
@@ -121,7 +116,7 @@ dependencies {
     api("org.assertj:assertj-core:3.27.3")
     api("org.testcontainers:junit-jupiter:1.20.6")
     api("org.testcontainers:postgresql:1.20.6")
-    api("org.testcontainers:kafka:1.20.6")
+    api("org.testcontainers:kafka:1.20.6") // For BaseIntegrationTest / KafkaTestContainer (test infra in main)
     api("org.testcontainers:testcontainers:1.20.6")
     api("org.junit.jupiter:junit-jupiter:5.12.2")
     api("org.mockito.kotlin:mockito-kotlin:3.2.0")

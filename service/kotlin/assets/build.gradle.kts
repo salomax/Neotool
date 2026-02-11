@@ -80,7 +80,7 @@ dependencies {
 }
 
 application {
-    mainClass = "io.github.salomax.neotool.assets.ApplicationKt"
+    mainClass = "io.github.salomax.neotool.assets.Application"
 }
 
 java {

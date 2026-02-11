@@ -50,12 +50,14 @@ class S3StorageClient(
         return try {
             val presigner = createPresigner()
 
+            // Content-Type is intentionally not signed in the presigned URL due to
+            // Cloudflare R2 incompatibility with signed content-type headers (SignatureDoesNotMatch).
+            // Content-type validation is enforced during upload confirmation instead.
             val putRequest =
                 PutObjectRequest
                     .builder()
                     .bucket(bucket)
                     .key(storageKey)
-                    .contentType(mimeType)
                     .build()
 
             val presignRequest =

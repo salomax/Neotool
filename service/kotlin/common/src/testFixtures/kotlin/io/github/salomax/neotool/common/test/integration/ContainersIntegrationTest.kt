@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.common.test.integration
 
-import org.apache.kafka.common.serialization.StringSerializer
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.containers.wait.strategy.Wait
@@ -35,8 +34,9 @@ object PostgresTestContainer : MicronautPropsTestContainer {
             .withUsername(username)
             .withPassword(password)
             .withReuse(reusable)
+            .withCommand("postgres", "-c", "max_connections=200")
             .waitingFor(
-                Wait.forListeningPort()
+                Wait.forLogMessage(".*ready to accept connections.*", 1)
                     .withStartupTimeout(Duration.ofSeconds(60)),
             )
             .withStartupAttempts(3)
@@ -50,6 +50,8 @@ object PostgresTestContainer : MicronautPropsTestContainer {
             "datasources.default.username" to username,
             "datasources.default.password" to password,
             "datasources.default.driverClassName" to "org.postgresql.Driver",
+            // Keep pool small so many test classes can share one Postgres container
+            "datasources.default.maximum-pool-size" to "2",
             "jpa.default.properties.dialect" to "org.hibernate.dialect.PostgreSQLDialect",
             // Use Flyway instead of Hibernate validation
             "jpa.default.properties.hibernate.hbm2ddl.auto" to "none",
@@ -89,7 +91,7 @@ object KafkaTestContainer : MicronautPropsTestContainer {
             "kafka.enabled" to "true",
             "kafka.bootstrap.servers" to container.bootstrapServers,
             "kafka.producers.default.bootstrap.servers" to container.bootstrapServers,
-            "kafka.producers.default.key-serializer" to StringSerializer::class.java.name,
+            "kafka.producers.default.key-serializer" to "org.apache.kafka.common.serialization.StringSerializer",
             "kafka.producers.default.value-serializer" to "io.micronaut.serde.kafka.KafkaSerdeSerializer",
         )
 }
