@@ -73,8 +73,8 @@ The system shall support the following account types:
 | Attribute | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `id` | UUID | Yes | Unique identifier |
-| `name` | String | Yes | Display name (e.g., "Smith Family", "Acme Corp") |
-| `type` | Enum | Yes | PERSONAL, FAMILY, BUSINESS |
+| `name` | String | Yes | Display name (e.g., "Smith Family", "Acme Corp") (DB column: `account_name`) |
+| `type` | Enum | Yes | PERSONAL, FAMILY, BUSINESS (DB column: `account_type`) |
 | `status` | Enum | Yes | ACTIVE, SUSPENDED, DELETED (DB column: `account_status`) |
 | `owner_user_id` | UUID | No | User who created the account (for personal accounts) |
 | `created_at` | Timestamp | Yes | Creation timestamp |
@@ -761,11 +761,11 @@ type Mutation {
 ### New Tables
 
 ```sql
--- Accounts table (account_status avoids reserved word "status")
+-- Accounts table (account_name, account_type, account_status avoid reserved words "name", "type", "status")
 CREATE TABLE security.accounts (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
-    name VARCHAR(100) NOT NULL,
-    type VARCHAR(20) NOT NULL CHECK (type IN ('PERSONAL', 'FAMILY', 'BUSINESS')),
+    account_name VARCHAR(100) NOT NULL,
+    account_type VARCHAR(20) NOT NULL CHECK (account_type IN ('PERSONAL', 'FAMILY', 'BUSINESS')),
     account_status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE' CHECK (account_status IN ('ACTIVE', 'SUSPENDED', 'DELETED')),
     owner_user_id UUID REFERENCES security.users(id),
     deleted_at TIMESTAMPTZ,
@@ -810,6 +810,10 @@ CREATE UNIQUE INDEX uq_memberships_default_per_user
 -- (Already supports it, just documenting)
 -- principal_type: 'ACCOUNT', 'USER', 'GROUP'
 ```
+
+### Persistence conventions (JPA entities)
+
+For tables whose primary key is defined with **`DEFAULT uuidv7()`** in migration DDL, JPA entities must follow the [Database-generated UUID (uuidv7)](../../../05-backend/patterns/entity-pattern.md#database-generated-uuid-uuidv7) convention in the Entity Pattern. Reference implementations: `AccountEntity` and `AccountMembershipEntity` (security module).
 
 ### Schema Changes to Existing Tables
 

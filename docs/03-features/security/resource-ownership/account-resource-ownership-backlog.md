@@ -238,7 +238,8 @@ Rollback trigger thresholds and response owner for production are detailed in M6
 - Introduce persistence models for account and membership lifecycle.
 
 **How to Implement**
-1. Add entities in security module model package:
+1. Follow the [Database-generated UUID (uuidv7)](../../../05-backend/patterns/entity-pattern.md#database-generated-uuid-uuidv7) convention in the Entity Pattern for id (DB-generated uuidv7; do not use `UUID.randomUUID()` for tables with `DEFAULT uuidv7()` in the migration).
+2. Add entities in security module model package:
    - `AccountEntity`
    - `AccountMembershipEntity`
 2. Add enums:
