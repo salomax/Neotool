@@ -59,4 +59,13 @@ enum class SecurityErrorCode(
     // Ownership errors
     NOT_ACCOUNT_OWNER("NOT_ACCOUNT_OWNER", "Only account owner can perform this action", 403),
     OWNERSHIP_REQUIRED("OWNERSHIP_REQUIRED", "Resource ownership required", 403),
+
+    // Membership policy (FR-3, FR-6) – used by MembershipPolicyEngine
+    NOT_ACCOUNT_MEMBER("NOT_ACCOUNT_MEMBER", "User has no active membership in this account", 403),
+    ACCOUNT_ROLE_INSUFFICIENT("ACCOUNT_ROLE_INSUFFICIENT", "Account role does not allow this operation", 403),
+    SELF_OPERATION_FORBIDDEN("SELF_OPERATION_FORBIDDEN", "Operation on self is not allowed", 403),
+    TARGET_ROLE_TOO_HIGH("TARGET_ROLE_TOO_HIGH", "Target member's role cannot be changed or removed by caller", 403),
+    TARGET_NOT_ELIGIBLE("TARGET_NOT_ELIGIBLE", "Target does not meet criteria for this operation", 403),
+    SOLE_OWNER_CANNOT_LEAVE("SOLE_OWNER_CANNOT_LEAVE", "Owner cannot leave without transferring ownership first", 403),
+    NOT_PENDING_INVITATION("NOT_PENDING_INVITATION", "Invitation is not in pending status", 400),
 }

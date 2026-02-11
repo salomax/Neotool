@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.security.service.management
 
+import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.security.domain.AccountManagement
 import io.github.salomax.neotool.security.domain.account.Account
 import io.github.salomax.neotool.security.model.account.AccountEntity
@@ -10,6 +11,10 @@ import io.github.salomax.neotool.security.model.account.AccountType
 import io.github.salomax.neotool.security.model.account.MembershipStatus
 import io.github.salomax.neotool.security.repo.AccountMembershipRepository
 import io.github.salomax.neotool.security.repo.AccountRepository
+import io.github.salomax.neotool.security.service.management.membership.ActorMembershipContext
+import io.github.salomax.neotool.security.service.management.membership.MembershipOperation
+import io.github.salomax.neotool.security.service.management.membership.MembershipPolicyEngine
+import io.github.salomax.neotool.security.service.management.membership.MembershipPolicyResult
 import jakarta.inject.Singleton
 import jakarta.transaction.Transactional
 import mu.KotlinLogging
@@ -24,6 +29,7 @@ import java.util.UUID
 open class AccountService(
     private val accountRepository: AccountRepository,
     private val accountMembershipRepository: AccountMembershipRepository,
+    private val membershipPolicyEngine: MembershipPolicyEngine,
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -77,7 +83,11 @@ open class AccountService(
         require(account.accountStatus != AccountStatus.DELETED) {
             "Cannot update deleted account"
         }
-        requireOwner(command.accountId, command.actorUserId)
+        requirePolicyAllowed(
+            MembershipOperation.UPDATE_ACCOUNT,
+            command.accountId,
+            command.actorUserId,
+        )
 
         account.accountName = command.accountName
         account.updatedAt = Instant.now()
@@ -101,7 +111,11 @@ open class AccountService(
         require(account.accountStatus != AccountStatus.DELETED) {
             "Account is already deleted"
         }
-        requireOwner(command.accountId, command.actorUserId)
+        requirePolicyAllowed(
+            MembershipOperation.DELETE_ACCOUNT,
+            command.accountId,
+            command.actorUserId,
+        )
 
         if (account.accountType == AccountType.PERSONAL) {
             val otherActiveCount =
@@ -130,15 +144,25 @@ open class AccountService(
         logger.info { "Account soft-deleted (ID: ${command.accountId})" }
     }
 
-    private fun requireOwner(
+    private fun requirePolicyAllowed(
+        operation: MembershipOperation,
         accountId: UUID,
         actorUserId: UUID,
     ) {
-        val membership =
-            accountMembershipRepository.findOneByAccountIdAndUserId(accountId, actorUserId)
-                .orElseThrow { IllegalArgumentException("Not account owner or not a member") }
-        require(membership.accountRole == AccountRole.OWNER) {
-            "Not account owner (role: ${membership.accountRole})"
+        val actor =
+            accountMembershipRepository
+                .findOneByAccountIdAndUserId(accountId, actorUserId)
+                .map { ActorMembershipContext(it.accountRole, it.membershipStatus) }
+                .orElse(null)
+        val result = membershipPolicyEngine.evaluate(operation, actor)
+        when (result) {
+            is MembershipPolicyResult.Allowed -> { /* proceed */ }
+            is MembershipPolicyResult.Denied ->
+                throw ValidationException(
+                    errorCode = result.errorCode,
+                    field = null,
+                    parameters = result.message?.let { mapOf("reason" to it) } ?: emptyMap(),
+                )
         }
     }
 }

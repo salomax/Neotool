@@ -7,9 +7,12 @@ import io.github.salomax.neotool.security.model.account.AccountRole
 import io.github.salomax.neotool.security.model.account.AccountStatus
 import io.github.salomax.neotool.security.model.account.AccountType
 import io.github.salomax.neotool.security.model.account.MembershipStatus
+import io.github.salomax.neotool.common.error.ValidationException
+import io.github.salomax.neotool.security.error.SecurityErrorCode
 import io.github.salomax.neotool.security.repo.AccountMembershipRepository
 import io.github.salomax.neotool.security.repo.AccountRepository
 import io.github.salomax.neotool.security.service.management.AccountService
+import io.github.salomax.neotool.security.service.management.membership.MembershipPolicyEngine
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -37,7 +40,7 @@ class AccountServiceTest {
     fun setUp() {
         accountRepository = mock()
         accountMembershipRepository = mock()
-        accountService = AccountService(accountRepository, accountMembershipRepository)
+        accountService = AccountService(accountRepository, accountMembershipRepository, MembershipPolicyEngine())
     }
 
     @Nested
@@ -133,15 +136,14 @@ class AccountServiceTest {
 
         @Test
         fun `should throw when account type is PERSONAL`() {
-            assertThrows<IllegalArgumentException> {
+            assertThrows<ValidationException> {
                 AccountManagement.CreateAccountCommand(
                     accountName = "Personal",
                     accountType = AccountType.PERSONAL,
                     ownerUserId = UUID.randomUUID(),
                 )
             }.also { ex ->
-                assertThat(ex.message).contains("FAMILY")
-                assertThat(ex.message).contains("BUSINESS")
+                assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.ACCOUNT_TYPE_MUST_BE_FAMILY_OR_BUSINESS)
             }
             verify(accountRepository, never()).save(any())
             verify(accountMembershipRepository, never()).save(any())
@@ -149,24 +151,24 @@ class AccountServiceTest {
 
         @Test
         fun `should throw when account name is blank`() {
-            assertThrows<IllegalArgumentException> {
+            assertThrows<ValidationException> {
                 AccountManagement.CreateAccountCommand(
                     accountName = "   ",
                     accountType = AccountType.BUSINESS,
                     ownerUserId = UUID.randomUUID(),
                 )
-            }
+            }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.ACCOUNT_NAME_REQUIRED) }
         }
 
         @Test
         fun `should throw when account name exceeds 100 characters`() {
-            assertThrows<IllegalArgumentException> {
+            assertThrows<ValidationException> {
                 AccountManagement.CreateAccountCommand(
                     accountName = "a".repeat(101),
                     accountType = AccountType.BUSINESS,
                     ownerUserId = UUID.randomUUID(),
                 )
-            }
+            }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.ACCOUNT_NAME_TOO_LONG) }
         }
     }
 
@@ -250,9 +252,9 @@ class AccountServiceTest {
                 actorUserId = otherUserId,
             )
 
-            assertThrows<IllegalArgumentException> {
+            assertThrows<ValidationException> {
                 accountService.update(command)
-            }.also { ex -> assertThat(ex.message).contains("owner") }
+            }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.ACCOUNT_ROLE_INSUFFICIENT) }
             verify(accountRepository, never()).update(any())
         }
 
@@ -336,9 +338,9 @@ class AccountServiceTest {
                 .thenReturn(Optional.empty())
             val command = AccountManagement.DeleteAccountCommand(accountId = accountId, actorUserId = otherUserId)
 
-            assertThrows<IllegalArgumentException> {
+            assertThrows<ValidationException> {
                 accountService.delete(command)
-            }.also { ex -> assertThat(ex.message).contains("owner") }
+            }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.NOT_ACCOUNT_MEMBER) }
             verify(accountRepository, never()).update(any())
         }
 
