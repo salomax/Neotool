@@ -8,10 +8,10 @@ import jakarta.persistence.Enumerated
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 import jakarta.persistence.Version
-import java.time.Instant
-import java.util.UUID
 import org.hibernate.annotations.Generated
 import org.hibernate.generator.EventType
+import java.time.Instant
+import java.util.UUID
 
 /**
  * JPA entity for security.account_memberships.

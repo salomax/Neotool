@@ -12,7 +12,6 @@ import java.util.UUID
  */
 @Repository
 interface AccountRepository : JpaRepository<AccountEntity, UUID> {
-
     /**
      * Find all accounts owned by the given user.
      * Uses index idx_accounts_owner.

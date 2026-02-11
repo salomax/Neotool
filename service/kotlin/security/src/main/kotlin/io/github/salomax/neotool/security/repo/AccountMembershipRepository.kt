@@ -15,7 +15,6 @@ import java.util.UUID
  */
 @Repository
 interface AccountMembershipRepository : JpaRepository<AccountMembershipEntity, UUID> {
-
     /**
      * Find all memberships for an account.
      * Uses index idx_memberships_account when combined with status filter in service.

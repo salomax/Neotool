@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.security.model.account
 
 import io.github.salomax.neotool.common.entity.BaseEntity
+import io.github.salomax.neotool.security.domain.account.Account
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
@@ -8,10 +9,10 @@ import jakarta.persistence.Enumerated
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 import jakarta.persistence.Version
-import java.time.Instant
-import java.util.UUID
 import org.hibernate.annotations.Generated
 import org.hibernate.generator.EventType
+import java.time.Instant
+import java.util.UUID
 
 /**
  * JPA entity for security.accounts.
@@ -43,4 +44,17 @@ open class AccountEntity(
     open var updatedAt: Instant = Instant.now(),
     @Version
     open var version: Long = 0,
-) : BaseEntity<UUID?>(id)
+) : BaseEntity<UUID?>(id) {
+    fun toDomain(): Account =
+        Account(
+            id = this.id,
+            accountName = this.accountName,
+            accountType = this.accountType,
+            accountStatus = this.accountStatus,
+            ownerUserId = this.ownerUserId,
+            deletedAt = this.deletedAt,
+            createdAt = this.createdAt,
+            updatedAt = this.updatedAt,
+            version = this.version,
+        )
+}

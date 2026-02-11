@@ -24,7 +24,6 @@ import java.sql.DriverManager
 @Testcontainers
 @TestInstance(TestInstance.Lifecycle.PER_CLASS) // keep container running per class
 abstract class BaseIntegrationTest : TestPropertyProvider {
-
     /** True if this test class implements the given interface (e.g. PostgresIntegrationTest). */
     private fun implementsMarker(interfaceClass: Class<*>) = interfaceClass.isAssignableFrom(this::class.java)
 
