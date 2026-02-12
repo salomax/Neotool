@@ -50,7 +50,6 @@ jobs:
       - name: Configure Docker
         run: |
           mkdir -p "$DOCKER_CONFIG"
-          echo '{"credsStore":""}' > "$DOCKER_CONFIG/config.json"
           if [ -S "$HOME/.colima/default/docker.sock" ]; then
             echo "DOCKER_HOST=unix://$HOME/.colima/default/docker.sock" >> $GITHUB_ENV
           fi
@@ -60,6 +59,15 @@ jobs:
 
       - name: Login to GHCR
         run: |
+          python3 -c "
+          import json, os
+          cfg_path = os.path.join(os.environ['DOCKER_CONFIG'], 'config.json')
+          try:
+              with open(cfg_path) as f: cfg = json.load(f)
+          except: cfg = {}
+          cfg['credsStore'] = ''
+          with open(cfg_path, 'w') as f: json.dump(cfg, f)
+          "
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Build and push ${{ matrix.service }}
@@ -133,7 +141,6 @@ jobs:
       - name: Configure Docker
         run: |
           mkdir -p "$DOCKER_CONFIG"
-          echo '{"credsStore":""}' > "$DOCKER_CONFIG/config.json"
           if [ -S "$HOME/.colima/default/docker.sock" ]; then
             echo "DOCKER_HOST=unix://$HOME/.colima/default/docker.sock" >> $GITHUB_ENV
           fi
@@ -143,6 +150,15 @@ jobs:
 
       - name: Login to GHCR
         run: |
+          python3 -c "
+          import json, os
+          cfg_path = os.path.join(os.environ['DOCKER_CONFIG'], 'config.json')
+          try:
+              with open(cfg_path) as f: cfg = json.load(f)
+          except: cfg = {}
+          cfg['credsStore'] = ''
+          with open(cfg_path, 'w') as f: json.dump(cfg, f)
+          "
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Build and push ${{ matrix.service }}
@@ -181,7 +197,6 @@ jobs:
       - name: Configure Docker
         run: |
           mkdir -p "$DOCKER_CONFIG"
-          echo '{"credsStore":""}' > "$DOCKER_CONFIG/config.json"
           if [ -S "$HOME/.colima/default/docker.sock" ]; then
             echo "DOCKER_HOST=unix://$HOME/.colima/default/docker.sock" >> $GITHUB_ENV
           fi
@@ -191,6 +206,15 @@ jobs:
 
       - name: Login to GHCR
         run: |
+          python3 -c "
+          import json, os
+          cfg_path = os.path.join(os.environ['DOCKER_CONFIG'], 'config.json')
+          try:
+              with open(cfg_path) as f: cfg = json.load(f)
+          except: cfg = {}
+          cfg['credsStore'] = ''
+          with open(cfg_path, 'w') as f: json.dump(cfg, f)
+          "
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Build and push web
