@@ -103,6 +103,8 @@ email:
   # Delivery: mock (default, logs to console) or comms (via Apollo Router to Comms service).
   # For comms, also set graphql.router.url and security.service.id/secret (see docs/09-security/service-to-service-auth.md).
   delivery: ${EMAIL_DELIVERY:mock}
+  # Comms template key for account invitation emails (variables: inviterDisplayName, accountName, acceptLink, expiryDays, role).
+  invitation-template: "account.invitation"
 
 # Email verification (signup flow)
 app:

@@ -19,6 +19,7 @@ import io.github.salomax.neotool.security.service.management.membership.Membersh
 import io.github.salomax.neotool.security.service.management.membership.MembershipPolicyEngine
 import io.github.salomax.neotool.security.service.management.membership.MembershipPolicyResult
 import io.github.salomax.neotool.security.service.management.membership.TargetMemberContext
+import io.github.salomax.neotool.security.service.email.EmailService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -45,6 +46,7 @@ class AccountMembershipServiceTest {
     private lateinit var accountMembershipRepository: AccountMembershipRepository
     private lateinit var userRepository: UserRepository
     private lateinit var membershipPolicyEngine: MembershipPolicyEngine
+    private lateinit var emailService: EmailService
     private lateinit var accountMembershipService: AccountMembershipService
 
     @BeforeEach
@@ -53,11 +55,14 @@ class AccountMembershipServiceTest {
         accountMembershipRepository = mock()
         userRepository = mock()
         membershipPolicyEngine = mock()
+        emailService = mock()
+        whenever(emailService.buildInvitationAcceptUrl(any())).thenReturn("http://localhost:3000/invitations/accept?token=test")
         accountMembershipService = AccountMembershipService(
             accountRepository,
             accountMembershipRepository,
             userRepository,
             membershipPolicyEngine,
+            emailService,
         )
     }
 

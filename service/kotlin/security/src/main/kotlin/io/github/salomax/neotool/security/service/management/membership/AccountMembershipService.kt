@@ -11,6 +11,7 @@ import io.github.salomax.neotool.security.model.account.MembershipStatus
 import io.github.salomax.neotool.security.repo.AccountMembershipRepository
 import io.github.salomax.neotool.security.repo.AccountRepository
 import io.github.salomax.neotool.security.repo.UserRepository
+import io.github.salomax.neotool.security.service.email.EmailService
 import jakarta.inject.Singleton
 import jakarta.transaction.Transactional
 import mu.KotlinLogging
@@ -40,6 +41,7 @@ open class AccountMembershipService(
     private val accountMembershipRepository: AccountMembershipRepository,
     private val userRepository: UserRepository,
     private val membershipPolicyEngine: MembershipPolicyEngine,
+    private val emailService: EmailService,
 ) {
     private val logger = KotlinLogging.logger {}
     private val secureRandom = SecureRandom()
@@ -117,6 +119,23 @@ open class AccountMembershipService(
                 invitationExpiresAt = expiresAt,
             )
         val saved = accountMembershipRepository.save(membership)
+
+        try {
+            val inviter = userRepository.findById(command.inviterUserId).orElse(null)
+            val inviterDisplayName = inviter?.displayName?.takeIf { it.isNotBlank() } ?: inviter?.email
+            val acceptLink = emailService.buildInvitationAcceptUrl(token)
+            emailService.sendAccountInvitationEmail(
+                to = command.inviteeEmail.trim(),
+                inviterDisplayName = inviterDisplayName,
+                accountName = account.accountName,
+                acceptLink = acceptLink,
+                expiryDays = INVITATION_EXPIRY_DAYS,
+                role = command.role.name,
+                locale = "en",
+            )
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to send invitation email to ${command.inviteeEmail}; membership already created" }
+        }
 
         logger.info { "Invitation issued: account=${command.accountId}, invitee=${command.inviteeEmail}, role=${command.role}" }
         return AccountMembership.InvitationResult(
