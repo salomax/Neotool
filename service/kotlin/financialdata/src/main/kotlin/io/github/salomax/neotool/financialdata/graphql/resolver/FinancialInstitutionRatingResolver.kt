@@ -12,6 +12,7 @@ import io.github.salomax.neotool.financialdata.repo.BacenInstitutionRepository
 import io.github.salomax.neotool.financialdata.service.FinancialInstitutionRatingService
 import io.github.salomax.neotool.financialdata.service.RatingIssuerService
 import jakarta.inject.Singleton
+import mu.KotlinLogging
 import java.util.concurrent.CompletableFuture
 
 @Singleton
@@ -20,6 +21,8 @@ class FinancialInstitutionRatingResolver(
     private val ratingIssuerService: RatingIssuerService,
     private val bacenInstitutionRepository: BacenInstitutionRepository,
 ) {
+    private val logger = KotlinLogging.logger {}
+
     fun ratingIssuers(env: DataFetchingEnvironment): List<RatingIssuerDTO> {
         return ratingIssuerService.getEnabledIssuers().map { it.toDTO() }
     }
@@ -74,14 +77,24 @@ class FinancialInstitutionRatingResolver(
             val institutionId =
                 bacenToInstitutionId[bacenCodInst] ?: return@associateWith emptyList()
             val ratings = ratingsByInstitutionId[institutionId].orEmpty()
-            ratings.map { rating ->
+            ratings.mapNotNull { rating ->
                 val issuer =
-                    issuersById[rating.issuerId]
-                        ?: throw IllegalStateException(
-                            "Issuer not found for rating ${rating.id}",
-                        )
+                    issuersById[rating.issuerId] ?: run {
+                        logger.warn {
+                            "Skipping rating with missing issuer. " +
+                                "bacenCodInst=$bacenCodInst institutionId=$institutionId issuerId=${rating.issuerId} ratingId=${rating.id}"
+                        }
+                        return@mapNotNull null
+                    }
+                val ratingId = rating.id ?: run {
+                    logger.warn {
+                        "Skipping rating with null id. " +
+                            "bacenCodInst=$bacenCodInst institutionId=$institutionId issuerId=${rating.issuerId}"
+                    }
+                    return@mapNotNull null
+                }
                 InstitutionRatingDTO(
-                    id = rating.id ?: throw IllegalStateException("Rating ID cannot be null"),
+                    id = ratingId,
                     name = rating.name,
                     label = rating.label,
                     ratingDate = rating.ratingDate,
@@ -114,10 +127,17 @@ class FinancialInstitutionRatingResolver(
         return bacenCodInsts.associateWith { bacenCodInst ->
             val institutionId = bacenToInstitutionId[bacenCodInst] ?: return@associateWith emptyList()
             val histories = historyByInstitutionId[institutionId].orEmpty()
-            histories.map { history ->
+            histories.mapNotNull { history ->
+                val historyId = history.id ?: run {
+                    logger.warn {
+                        "Skipping rating history with null id. " +
+                            "bacenCodInst=$bacenCodInst institutionId=$institutionId issuerId=${history.issuerId}"
+                    }
+                    return@mapNotNull null
+                }
                 val issuer = issuersById[history.issuerId]
                 RatingHistoryDTO(
-                    id = history.id ?: throw IllegalStateException("History ID cannot be null"),
+                    id = historyId,
                     name = history.name,
                     label = history.label,
                     ratingDate = history.ratingDate,

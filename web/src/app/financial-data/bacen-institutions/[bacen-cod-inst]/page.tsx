@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getApolloClient } from '@/lib/graphql/client';
 import { extractIdFromSemanticPath, createSemanticPath } from '@/shared/utils/url';
+import { safeDecodeId } from '@/shared/utils/idObfuscation';
 import {
   BacenInstitutionDocument,
   type BacenInstitutionQuery,
@@ -24,12 +25,13 @@ type Props = {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { 'bacen-cod-inst': rawParam } = await params;
   const encodedId = extractIdFromSemanticPath(rawParam);
+  const institutionId = safeDecodeId(encodedId) ?? encodedId;
 
   try {
     const client = getApolloClient();
     const { data } = await client.query<BacenInstitutionQuery, BacenInstitutionQueryVariables>({
       query: BacenInstitutionDocument,
-      variables: { id: encodedId },
+      variables: { id: institutionId },
     });
 
     const institution = data?.bacenFinanceInstitution;

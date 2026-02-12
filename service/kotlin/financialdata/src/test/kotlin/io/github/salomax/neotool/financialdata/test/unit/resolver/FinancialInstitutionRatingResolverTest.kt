@@ -136,4 +136,80 @@ class FinancialInstitutionRatingResolverTest {
         assertThat(result).hasSize(1)
         assertThat(result.getValue(bacenCodInst).first().name).isEqualTo("AAA")
     }
+
+    @Test
+    fun `resolveRatingsBatch skips ratings with missing issuer instead of throwing`() {
+        whenever(
+            bacenInstitutionRepository.findFinancialInstitutionIdsByBacenCodInsts(listOf(bacenCodInst)),
+        ).thenReturn(listOf(BacenInstitutionIdMapping(bacenCodInst, fiId)))
+
+        val ratingDomain =
+            FinancialInstitutionRating(
+                id = UUID.randomUUID(),
+                financialInstitutionId = fiId,
+                issuerId = issuerId,
+                name = "AAA",
+                label = "Stable",
+                ratingDate = LocalDate.now(),
+                customParams = emptyMap(),
+                sourceEvidenceId = UUID.randomUUID(),
+                contentHash = "hash",
+                updatedAt = Instant.now(),
+            )
+        whenever(
+            ratingService.getRatingsByInstitutionIds(listOf(fiId)),
+        ).thenReturn(mapOf(fiId to listOf(ratingDomain)))
+
+        // Issuer map intentionally missing entry
+        whenever(
+            ratingIssuerService.getIssuersByIds(listOf(issuerId)),
+        ).thenReturn(emptyMap())
+
+        val result = resolver.resolveRatingsBatch(listOf(bacenCodInst))
+
+        assertThat(result).containsKey(bacenCodInst)
+        assertThat(result.getValue(bacenCodInst)).isEmpty()
+    }
+
+    @Test
+    fun `resolveRatingHistoryBatch skips history rows with null id instead of throwing`() {
+        whenever(
+            bacenInstitutionRepository.findFinancialInstitutionIdsByBacenCodInsts(listOf(bacenCodInst)),
+        ).thenReturn(listOf(BacenInstitutionIdMapping(bacenCodInst, fiId)))
+
+        val historyWithNullId =
+            FinancialInstitutionRatingHistory(
+                id = null,
+                financialInstitutionId = fiId,
+                issuerId = issuerId,
+                name = "AAA",
+                label = "Stable",
+                ratingDate = LocalDate.now(),
+                customParams = emptyMap(),
+                sourceEvidenceId = UUID.randomUUID(),
+                contentHash = "hash1",
+                changedAt = Instant.now(),
+            )
+
+        whenever(
+            ratingService.getHistoryByInstitutionIds(listOf(fiId), 1),
+        ).thenReturn(mapOf(fiId to listOf(historyWithNullId)))
+
+        val issuerDomain =
+            RatingIssuer(
+                id = issuerId,
+                code = "FITCH",
+                name = "Fitch Ratings",
+                enabled = true,
+                config = emptyMap(),
+            )
+        whenever(
+            ratingIssuerService.getIssuersByIds(listOf(issuerId)),
+        ).thenReturn(mapOf(issuerId to issuerDomain))
+
+        val result = resolver.resolveRatingHistoryBatch(listOf(bacenCodInst), 1)
+
+        assertThat(result).containsKey(bacenCodInst)
+        assertThat(result.getValue(bacenCodInst)).isEmpty()
+    }
 }
