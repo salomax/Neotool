@@ -82,17 +82,23 @@ class FinancialInstitutionRatingResolver(
                     issuersById[rating.issuerId] ?: run {
                         logger.warn {
                             "Skipping rating with missing issuer. " +
-                                "bacenCodInst=$bacenCodInst institutionId=$institutionId issuerId=${rating.issuerId} ratingId=${rating.id}"
+                                "bacenCodInst=$bacenCodInst " +
+                                "institutionId=$institutionId " +
+                                "issuerId=${rating.issuerId} " +
+                                "ratingId=${rating.id}"
                         }
                         return@mapNotNull null
                     }
-                val ratingId = rating.id ?: run {
-                    logger.warn {
-                        "Skipping rating with null id. " +
-                            "bacenCodInst=$bacenCodInst institutionId=$institutionId issuerId=${rating.issuerId}"
+                val ratingId =
+                    rating.id ?: run {
+                        logger.warn {
+                            "Skipping rating with null id. " +
+                                "bacenCodInst=$bacenCodInst " +
+                                "institutionId=$institutionId " +
+                                "issuerId=${rating.issuerId}"
+                        }
+                        return@mapNotNull null
                     }
-                    return@mapNotNull null
-                }
                 InstitutionRatingDTO(
                     id = ratingId,
                     name = rating.name,
@@ -128,13 +134,16 @@ class FinancialInstitutionRatingResolver(
             val institutionId = bacenToInstitutionId[bacenCodInst] ?: return@associateWith emptyList()
             val histories = historyByInstitutionId[institutionId].orEmpty()
             histories.mapNotNull { history ->
-                val historyId = history.id ?: run {
-                    logger.warn {
-                        "Skipping rating history with null id. " +
-                            "bacenCodInst=$bacenCodInst institutionId=$institutionId issuerId=${history.issuerId}"
+                val historyId =
+                    history.id ?: run {
+                        logger.warn {
+                            "Skipping rating history with null id. " +
+                                "bacenCodInst=$bacenCodInst " +
+                                "institutionId=$institutionId " +
+                                "issuerId=${history.issuerId}"
+                        }
+                        return@mapNotNull null
                     }
-                    return@mapNotNull null
-                }
                 val issuer = issuersById[history.issuerId]
                 RatingHistoryDTO(
                     id = historyId,
