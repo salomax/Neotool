@@ -14,6 +14,8 @@ import {
 } from '@/features/financial-data/search-institutions/api/index.generated';
 import BacenInstitutionDetailClient from './client';
 
+export const revalidate = 3600;
+
 type Props = {
   params: Promise<{ 'bacen-cod-inst': string }>;
 };
