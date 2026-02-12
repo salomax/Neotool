@@ -1,10 +1,35 @@
 {
-  "title": {
-    "line1": "Clarity for your",
-    "line2": "financial life."
+  "hero": {
+    "titlePrefix": "Clarity for your",
+    "titleHighlight": "financial life.",
+    "subtitle": "Your investments and personal expenses in one smart tool. Better decisions start here."
   },
-  "subtitle": {
-    "line1": "Consolidated market data and personal",
-    "line2": "finance, in one place."
+  "features": {
+    "title": "What's New",
+    "subtitle": "The latest updates for your financial intelligence.",
+    "institutions": {
+      "tag": "New Feature",
+      "title": "Financial Institutions",
+      "description": "Track quarterly balance sheets and ratings of major market institutions in a simplified way.",
+      "tags": {
+        "balances": "Balances",
+        "ratings": "Ratings"
+      },
+      "cta": "Learn more"
+    },
+    "indicators": {
+      "tag": "New Feature",
+      "title": "Macroeconomic Indicators",
+      "description": "Monitor main macroeconomic Indicators.",
+      "tags": {
+        "ipca": "IPCA",
+        "selic": "Selic",
+        "pib": "GDP"
+      },
+      "cta": "Access data"
+    }
+  },
+  "footer": {
+    "copyright": "© 2026 Invistus — All rights reserved"
   }
 }

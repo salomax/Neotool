@@ -1,10 +1,35 @@
 {
-  "title": {
-    "line1": "Clareza para sua",
-    "line2": "vida financeira."
+  "hero": {
+    "titlePrefix": "Clareza para sua",
+    "titleHighlight": "vida financeira.",
+    "subtitle": "Seus investimentos e gastos pessoais em uma só ferramenta. Decisões melhores começam aqui."
   },
-  "subtitle": {
-    "line1": "Dados de mercado e finanças pessoais",
-    "line2": "consolidados em um só lugar."
+  "features": {
+    "title": "Novidades",
+    "subtitle": "As últimas atualizações para sua inteligência financeira.",
+    "institutions": {
+      "tag": "Novo Recurso",
+      "title": "Instituições Financeiras",
+      "description": "Acompanhe balanços trimestrais e ratings das principais instituições do mercado de forma simplificada.",
+      "tags": {
+        "balances": "Balanços",
+        "ratings": "Ratings"
+      },
+      "cta": "Saber mais"
+    },
+    "indicators": {
+      "tag": "Novo Recurso",
+      "title": "Indicadores Macroeconômicos",
+      "description": "Monitore os principais indicadores Macroeconômicos",
+      "tags": {
+        "ipca": "IPCA",
+        "selic": "Selic",
+        "pib": "PIB"
+      },
+      "cta": "Acessar dados"
+    }
+  },
+  "footer": {
+    "copyright": "© 2026 Invistus — Todos os direitos reservados"
   }
 }
