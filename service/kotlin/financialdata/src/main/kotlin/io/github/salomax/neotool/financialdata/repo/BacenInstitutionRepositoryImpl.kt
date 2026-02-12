@@ -211,7 +211,8 @@ open class BacenInstitutionRepositoryImpl(
         // Build similarity_score calculation - only when there's a query
         val similarityScoreExpression =
             if (hasQuery) {
-                "financial_data.similarity(coalesce(big.nome_instituicao, fi_data.legal_name, fi_data.trade_name)::TEXT, ?::TEXT) as similarity_score"
+                "financial_data.similarity(coalesce(big.nome_instituicao, fi_data.legal_name, fi_data.trade_name)" +
+                    "::TEXT, ?::TEXT) as similarity_score"
             } else {
                 "0.0::REAL as similarity_score"
             }
