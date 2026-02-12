@@ -3,6 +3,7 @@ import { StyleSheet, View, Linking, TouchableOpacity, ScrollView } from 'react-n
 import { Text, Button, useTheme as usePaperTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
 import { Wordmark, Logo } from '@/shared/components/brand';
@@ -90,7 +91,11 @@ export function LandingScreen() {
             </TouchableOpacity>
             
             <TouchableOpacity onPress={handleLinkedInPress} style={styles.linkedinLink}>
-              {/* <LinkedInIcon /> - using text for now or icon if available */}
+              <MaterialCommunityIcons 
+                name="linkedin" 
+                size={24} 
+                color={theme.colors.onSurfaceVariant} 
+              />
               <Text style={[styles.linkText, styles.boldLink, { color: theme.colors.onSurfaceVariant }]}>
                 LinkedIn
               </Text>
