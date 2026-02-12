@@ -32,7 +32,7 @@ Commands:
   $(log "validate" "$GREEN") [options]
     Run all validations (web and services).
     Includes: lint, typecheck, test/testIntegration, coverage, and Trivy scan (if installed).
-    Options: --web, --service [name], --skip-coverage
+    Options: --web, --service [name], --skip-coverage, --no-parallel
     Run '$0 validate --help' for more information.
 
   $(log "kafka" "$GREEN") [options] <command>
@@ -74,6 +74,7 @@ Examples:
   $0 validate
   $0 validate --web
   $0 validate --service security
+  $0 validate --no-parallel
   $0 kafka --topic
   $0 kafka --topic swapi.people.v1
   $0 kafka --consumer-group
