@@ -3,6 +3,7 @@ package io.github.salomax.neotool.security.test.service.unit
 import io.github.salomax.neotool.security.domain.rbac.Permission
 import io.github.salomax.neotool.security.domain.rbac.Role
 import io.github.salomax.neotool.security.model.UserEntity
+import io.github.salomax.neotool.security.repo.AccountMembershipRepository
 import io.github.salomax.neotool.security.service.authentication.AuthContextFactory
 import io.github.salomax.neotool.security.service.authorization.AuthorizationService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
@@ -13,20 +14,26 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import io.github.salomax.neotool.security.model.account.MembershipStatus
 import java.util.UUID
 
 @DisplayName("AuthContextFactory Unit Tests")
 class AuthContextFactoryTest {
     private lateinit var authorizationService: AuthorizationService
+    private lateinit var accountMembershipRepository: AccountMembershipRepository
     private lateinit var authContextFactory: AuthContextFactory
 
     @BeforeEach
     fun setUp() {
         authorizationService = mock()
-        authContextFactory = AuthContextFactory(authorizationService)
+        accountMembershipRepository = mock()
+        whenever(accountMembershipRepository.findByUserIdAndMembershipStatus(any(), eq(MembershipStatus.ACTIVE)))
+            .thenReturn(emptyList())
+        authContextFactory = AuthContextFactory(authorizationService, accountMembershipRepository)
     }
 
     @Nested
