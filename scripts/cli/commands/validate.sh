@@ -448,7 +448,8 @@ run_frontend_validations() {
 # Run frontend validations without interactive UI (used for parallel mode)
 run_frontend_validations_simple() {
     local skip_coverage="${1:-false}"
-    local failed=false
+    local first_failed_step=""
+    local first_failed_cmd=""
 
     if [[ ! -d "$WEB_DIR" ]]; then
         log_error "Error: Frontend directory not found at $WEB_DIR"
@@ -462,14 +463,44 @@ run_frontend_validations_simple() {
         return 1
     fi
 
-    pnpm run typecheck > /dev/null 2>&1 || failed=true
-    pnpm run test > /dev/null 2>&1 || failed=true
-    pnpm run lint > /dev/null 2>&1 || failed=true
+    local cmd=""
+    echo "==> web: typecheck"
+    cmd="pnpm run typecheck"
+    $cmd || {
+        first_failed_step="${first_failed_step:-web: typecheck}"
+        first_failed_cmd="${first_failed_cmd:-$cmd}"
+    }
+
+    echo ""
+    echo "==> web: test"
+    cmd="pnpm run test"
+    $cmd || {
+        first_failed_step="${first_failed_step:-web: test}"
+        first_failed_cmd="${first_failed_cmd:-$cmd}"
+    }
+
+    echo ""
+    echo "==> web: lint"
+    cmd="pnpm run lint"
+    $cmd || {
+        first_failed_step="${first_failed_step:-web: lint}"
+        first_failed_cmd="${first_failed_cmd:-$cmd}"
+    }
+
     if [[ "$skip_coverage" == "false" ]]; then
-        pnpm run test:coverage > /dev/null 2>&1 || failed=true
+        echo ""
+        echo "==> web: coverage"
+        cmd="pnpm run test:coverage"
+        $cmd || {
+            first_failed_step="${first_failed_step:-web: coverage}"
+            first_failed_cmd="${first_failed_cmd:-$cmd}"
+        }
     fi
 
-    if [[ "$failed" == true ]]; then
+    if [[ -n "$first_failed_step" ]]; then
+        echo ""
+        echo "FAILED STEP: $first_failed_step"
+        echo "FAILED COMMAND: $first_failed_cmd"
         return 1
     fi
     return 0
@@ -550,7 +581,8 @@ run_backend_validations() {
 run_backend_validations_simple() {
     local skip_coverage="${1:-false}"
     local service_name="${2:-}"
-    local failed=false
+    local first_failed_step=""
+    local first_failed_cmd=""
 
     if [[ ! -d "$BACKEND_DIR" ]]; then
         log_error "Error: Backend directory not found at $BACKEND_DIR"
@@ -573,21 +605,50 @@ run_backend_validations_simple() {
         task_prefix=":${service_name}:"
     fi
 
-    ./gradlew ${task_prefix}classes --no-daemon > /dev/null 2>&1 || failed=true
-    ./gradlew ${task_prefix}test --no-daemon > /dev/null 2>&1 || failed=true
-    ./gradlew ${task_prefix}ktlintCheck --no-daemon > /dev/null 2>&1 || failed=true
+    echo "==> service: compile (classes)"
+    local cmd=""
+    cmd="./gradlew ${task_prefix}classes --no-daemon --console=plain"
+    eval "$cmd" || {
+        first_failed_step="${first_failed_step:-service: compile (classes)}"
+        first_failed_cmd="${first_failed_cmd:-$cmd}"
+    }
+
+    echo ""
+    echo "==> service: test"
+    cmd="./gradlew ${task_prefix}test --no-daemon --console=plain"
+    eval "$cmd" || {
+        first_failed_step="${first_failed_step:-service: test}"
+        first_failed_cmd="${first_failed_cmd:-$cmd}"
+    }
+
+    echo ""
+    echo "==> service: lint (ktlintCheck)"
+    cmd="./gradlew ${task_prefix}ktlintCheck --no-daemon --console=plain"
+    eval "$cmd" || {
+        first_failed_step="${first_failed_step:-service: lint (ktlintCheck)}"
+        first_failed_cmd="${first_failed_cmd:-$cmd}"
+    }
 
     if [[ "$skip_coverage" == "false" ]]; then
-        local coverage_cmd
+        local coverage_cmd=""
         if [[ -n "$service_name" ]]; then
-            coverage_cmd="./gradlew ${task_prefix}koverXmlReport ${task_prefix}koverVerify --no-daemon"
+            coverage_cmd="./gradlew ${task_prefix}koverXmlReport ${task_prefix}koverVerify --no-daemon --console=plain"
         else
-            coverage_cmd="./gradlew koverRootReport koverVerify --no-daemon"
+            coverage_cmd="./gradlew koverRootReport koverVerify --no-daemon --console=plain"
         fi
-        eval "$coverage_cmd" > /dev/null 2>&1 || failed=true
+        echo ""
+        echo "==> service: coverage"
+        cmd="$coverage_cmd"
+        eval "$cmd" || {
+            first_failed_step="${first_failed_step:-service: coverage}"
+            first_failed_cmd="${first_failed_cmd:-$cmd}"
+        }
     fi
 
-    if [[ "$failed" == true ]]; then
+    if [[ -n "$first_failed_step" ]]; then
+        echo ""
+        echo "FAILED STEP: $first_failed_step"
+        echo "FAILED COMMAND: $first_failed_cmd"
         return 1
     fi
     return 0
@@ -618,7 +679,14 @@ run_security_validation_simple() {
         return 0
     fi
 
-    trivy fs --format table --severity CRITICAL,HIGH --exit-code 1 . > /dev/null 2>&1
+    echo "==> security: trivy fs"
+    local cmd="trivy fs --format table --severity CRITICAL,HIGH --exit-code 1 ."
+    $cmd || {
+        echo ""
+        echo "FAILED STEP: security: trivy fs"
+        echo "FAILED COMMAND: $cmd"
+        return 1
+    }
 }
 
 # Run full validation (web + backend + security scan) in parallel.
@@ -632,6 +700,11 @@ run_full_validations_parallel() {
     web_log="$(mktemp -t neotool-validate-web.XXXXXX)"
     backend_log="$(mktemp -t neotool-validate-backend.XXXXXX)"
     security_log="$(mktemp -t neotool-validate-security.XXXXXX)"
+
+    log "Logs:" "$GRAY"
+    log "  web:      $web_log" "$GRAY"
+    log "  service:  $backend_log" "$GRAY"
+    log "  security: $security_log\n" "$GRAY"
 
     local web_pid backend_pid security_pid
     ( run_frontend_validations_simple "$skip_coverage" ) >"$web_log" 2>&1 & web_pid=$!
@@ -649,6 +722,12 @@ run_full_validations_parallel() {
     if [[ $web_rc -ne 0 ]]; then
         VALIDATION_FAILED=true
         log_error "❌ web validation failed"
+        local summary
+        summary=$(grep -E '^FAILED (STEP|COMMAND):' "$web_log" 2>/dev/null | tail -n 2 || true)
+        if [[ -n "$summary" ]]; then
+            log "$summary" "$YELLOW"
+            echo ""
+        fi
         log "Last output (web):" "$YELLOW"
         tail -n 50 "$web_log" 2>/dev/null || true
         echo ""
@@ -659,8 +738,16 @@ run_full_validations_parallel() {
     if [[ $backend_rc -ne 0 ]]; then
         VALIDATION_FAILED=true
         log_error "❌ service validation failed"
+        local summary
+        summary=$(grep -E '^FAILED (STEP|COMMAND):' "$backend_log" 2>/dev/null | tail -n 2 || true)
+        if [[ -n "$summary" ]]; then
+            log "$summary" "$YELLOW"
+            echo ""
+        fi
         log "Last output (service):" "$YELLOW"
-        tail -n 50 "$backend_log" 2>/dev/null || true
+        tail -n 200 "$backend_log" 2>/dev/null || true
+        echo ""
+        log "Tip: open full log at $backend_log" "$GRAY"
         echo ""
     else
         log "✅ service validation passed" "$GREEN"
@@ -669,6 +756,12 @@ run_full_validations_parallel() {
     if [[ $security_rc -ne 0 ]]; then
         VALIDATION_FAILED=true
         log_error "❌ security scan failed"
+        local summary
+        summary=$(grep -E '^FAILED (STEP|COMMAND):' "$security_log" 2>/dev/null | tail -n 2 || true)
+        if [[ -n "$summary" ]]; then
+            log "$summary" "$YELLOW"
+            echo ""
+        fi
         log "Last output (security):" "$YELLOW"
         tail -n 50 "$security_log" 2>/dev/null || true
         echo ""
@@ -676,7 +769,11 @@ run_full_validations_parallel() {
         log "✅ security scan passed" "$GREEN"
     fi
 
-    rm -f "$web_log" "$backend_log" "$security_log" 2>/dev/null || true
+    # Only cleanup logs if everything passed.
+    # On failures, keep logs so users can inspect full output.
+    if [[ "$VALIDATION_FAILED" != true ]]; then
+        rm -f "$web_log" "$backend_log" "$security_log" 2>/dev/null || true
+    fi
 }
 
 # Main function
