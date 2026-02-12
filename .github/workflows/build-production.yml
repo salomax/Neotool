@@ -29,6 +29,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+    env:
+      DOCKER_CONFIG: /tmp/.docker-${{ github.run_id }}-kotlin-${{ strategy.job-index }}
     strategy:
       fail-fast: false
       matrix:
@@ -50,6 +52,7 @@ jobs:
 
       - name: Login to GHCR
         run: |
+          mkdir -p "$DOCKER_CONFIG"
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Build and push ${{ matrix.service }}
@@ -77,6 +80,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+    env:
+      DOCKER_CONFIG: /tmp/.docker-${{ github.run_id }}-golang-${{ strategy.job-index }}
     strategy:
       fail-fast: false
       matrix:
@@ -123,6 +128,7 @@ jobs:
 
       - name: Login to GHCR
         run: |
+          mkdir -p "$DOCKER_CONFIG"
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Build and push ${{ matrix.service }}
@@ -153,6 +159,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+    env:
+      DOCKER_CONFIG: /tmp/.docker-${{ github.run_id }}-web
     steps:
       - uses: actions/checkout@v4
 
@@ -161,6 +169,7 @@ jobs:
 
       - name: Login to GHCR
         run: |
+          mkdir -p "$DOCKER_CONFIG"
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Build and push web
