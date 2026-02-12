@@ -35,9 +35,10 @@ const authLink = setContext(async (_, { headers }) => {
 });
 
 // Error Link - Handle GraphQL and network errors
-const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
+const errorLink = onError((errorResponse: any) => {
+  const { graphQLErrors, networkError, operation } = errorResponse;
   if (graphQLErrors) {
-    graphQLErrors.forEach(({ message, locations, path, extensions }) => {
+    graphQLErrors.forEach(({ message, locations, path, extensions }: any) => {
       console.error(
         `[GraphQL error]: Message: ${message}, Location: ${locations}, Path: ${path}`
       );
@@ -85,12 +86,12 @@ const cache = new InMemoryCache({
   },
 });
 
-let apolloClient: ApolloClient<NormalizedCacheObject>;
+let apolloClient: ApolloClient;
 
 /**
  * Initialize Apollo Client with cache persistence
  */
-export async function initializeApolloClient(): Promise<ApolloClient<NormalizedCacheObject>> {
+export async function initializeApolloClient(): Promise<ApolloClient> {
   if (apolloClient) {
     return apolloClient;
   }
@@ -104,7 +105,7 @@ export async function initializeApolloClient(): Promise<ApolloClient<NormalizedC
       debug: __DEV__,
     });
   } catch (error) {
-    console.error('Error persisting cache:', error);
+    console.error('Error restoring Apollo cache:', error);
   }
 
   apolloClient = new ApolloClient({
@@ -113,26 +114,8 @@ export async function initializeApolloClient(): Promise<ApolloClient<NormalizedC
     defaultOptions: {
       watchQuery: {
         fetchPolicy: 'cache-and-network',
-        errorPolicy: 'all',
-      },
-      query: {
-        fetchPolicy: 'cache-first',
-        errorPolicy: 'all',
-      },
-      mutate: {
-        errorPolicy: 'all',
       },
     },
-  });
-
-  // Listen to network status changes
-  NetInfo.addEventListener((state) => {
-    if (state.isConnected && state.isInternetReachable) {
-      console.log('Network connected - refetching active queries');
-      apolloClient.refetchQueries({ include: 'active' }).catch((error) => {
-        console.error('Error refetching queries:', error);
-      });
-    }
   });
 
   return apolloClient;
@@ -141,7 +124,7 @@ export async function initializeApolloClient(): Promise<ApolloClient<NormalizedC
 /**
  * Get Apollo Client instance
  */
-export function getApolloClient(): ApolloClient<NormalizedCacheObject> {
+export function getApolloClient(): ApolloClient {
   if (!apolloClient) {
     throw new Error('Apollo Client not initialized. Call initializeApolloClient() first.');
   }

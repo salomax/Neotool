@@ -1,7 +1,7 @@
 import { StyleSheet, View, ScrollView } from 'react-native';
 import { Text, Card, Avatar } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/shared/hooks/useAuth';
 
 export default function ProfileScreen() {
   const { t } = useTranslation();

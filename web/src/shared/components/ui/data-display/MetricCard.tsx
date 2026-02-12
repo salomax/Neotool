@@ -4,13 +4,6 @@ import * as React from "react";
 import { Box, Typography, IconButton } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
-import {
-  AreaChart as RechartsAreaChart,
-  Area,
-  ResponsiveContainer,
-  XAxis,
-  YAxis,
-} from "recharts";
 import Card, {
   CardProps,
 } from "@/shared/components/ui/primitives/Card";
@@ -19,6 +12,8 @@ import { formatMetricValue, type MetricValueType } from "@/shared/utils/formatMe
 import { useTranslation as useReactI18nTranslation } from "react-i18next";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { GrowthChip } from "./GrowthChip";
+import { MetricSparkline } from "./MetricSparkline";
+import { MetricThresholdBar } from "./MetricThresholdBar";
 
 export type { MetricValueType };
 
@@ -73,7 +68,6 @@ export function MetricCard({
 }: MetricCardProps) {
   const { t: tCommon } = useReactI18nTranslation("common");
   const theme = useTheme();
-  const chartId = React.useId().replace(/:/g, "_");
 
   const { variant, hoverable, onClick, ...restProps } = rest;
   // Filter out props that shouldn't be passed to the DOM/Card
@@ -120,33 +114,6 @@ export function MetricCard({
     return theme.palette.text.secondary;
   }, [growthPercentage, hasGrowth, theme.palette]);
 
-  const chartData = React.useMemo(
-    () =>
-      (historical ?? []).map((value, index) => ({
-        index,
-        value,
-      })),
-    [historical]
-  );
-
-  const chartDomain = React.useMemo(() => {
-    if (!historical || historical.length === 0) return ["auto", "auto"];
-    const values = historical;
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-
-    const range = max - min;
-    if (range === 0) {
-      const margin = Math.abs(min) * 0.2 || 1;
-      return [min - margin, max + margin];
-    }
-
-    const margin = range * 0.2;
-    return [min - margin, max + margin];
-  }, [historical]);
-
-  const showChart = chartData.length > 1;
-
   const rawPercentageValue =
     valueType === "percentage" &&
     typeof actualValue === "number" &&
@@ -156,98 +123,6 @@ export function MetricCard({
 
   const hasPercentageThresholdBar =
     rawPercentageValue != null && !!percentageThresholdValues;
-
-  const segmentWidths = React.useMemo(() => {
-    if (
-      !hasPercentageThresholdBar ||
-      !percentageThresholdValues
-    ) {
-      return { bad: 0, regular: 0, good: 100 };
-    }
-
-    if (percentageThresholdInverse) {
-      const goodWidth = percentageThresholdValues.good;
-      const regularWidth =
-        percentageThresholdValues.regular - percentageThresholdValues.good;
-      const badWidth = 100 - percentageThresholdValues.regular;
-      return {
-        bad: Math.max(0, Math.min(100, badWidth)),
-        regular: Math.max(0, Math.min(100, regularWidth)),
-        good: Math.max(0, Math.min(100, goodWidth)),
-      };
-    }
-
-    const badWidth = percentageThresholdValues.bad;
-    const regularWidth =
-      percentageThresholdValues.regular - percentageThresholdValues.bad;
-    const goodWidth = 100 - percentageThresholdValues.regular;
-    return {
-      bad: Math.max(0, Math.min(100, badWidth)),
-      regular: Math.max(0, Math.min(100, regularWidth)),
-      good: Math.max(0, Math.min(100, goodWidth)),
-    };
-  }, [
-    hasPercentageThresholdBar,
-    percentageThresholdValues,
-    percentageThresholdInverse,
-  ]);
-
-  const progressValue = React.useMemo(() => {
-    if (!hasPercentageThresholdBar || rawPercentageValue == null) {
-      return 0;
-    }
-    const clamped = Math.min(Math.max(rawPercentageValue, 0), 100);
-    return clamped;
-  }, [hasPercentageThresholdBar, rawPercentageValue]);
-
-  const percentageStatus = React.useMemo<
-    "good" | "regular" | "bad" | "neutral"
-  >(() => {
-    if (
-      !hasPercentageThresholdBar ||
-      rawPercentageValue == null ||
-      !percentageThresholdValues
-    ) {
-      return "neutral";
-    }
-
-    const value = rawPercentageValue;
-
-    if (percentageThresholdInverse) {
-      if (value < percentageThresholdValues.good) {
-        return "good";
-      }
-      if (value <= percentageThresholdValues.regular) {
-        return "regular";
-      }
-      if (value > percentageThresholdValues.regular) {
-        return "bad";
-      }
-      return "neutral";
-    }
-
-    if (value < percentageThresholdValues.bad) {
-      return "bad";
-    }
-    if (value <= percentageThresholdValues.regular) {
-      return "regular";
-    }
-    return "good";
-  }, [
-    hasPercentageThresholdBar,
-    rawPercentageValue,
-    percentageThresholdValues,
-    percentageThresholdInverse,
-  ]);
-
-  const thresholdColors = React.useMemo(() => {
-    const customTheme = theme as any;
-    return {
-      bad: customTheme.custom?.palette?.thresholdBad || "#F99797",
-      regular: customTheme.custom?.palette?.thresholdRegular || "#FAD957",
-      good: customTheme.custom?.palette?.thresholdGood || "#61D48A",
-    };
-  }, [theme]);
 
   return (
     <Card
@@ -287,57 +162,15 @@ export function MetricCard({
           </IconButton>
         </Box>
       )}
-      {showChart && (
-        <Box
-          sx={{
-            position: "absolute",
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: (theme) => (theme as any).custom?.layout?.metricCard?.chartHeight ?? 100,
-            pointerEvents: "none",
-          }}
-        >
-          <ResponsiveContainer width="100%" height="100%">
-            <RechartsAreaChart
-              data={chartData}
-              margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
-            >
-              <defs>
-                <linearGradient id={`${chartId}-stroke`} x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor={growthColor} stopOpacity={0} />
-                  <stop offset="50%" stopColor={growthColor} stopOpacity={0.1} />
-                  <stop offset="100%" stopColor={growthColor} stopOpacity={0.3} />
-                </linearGradient>
-                <linearGradient id={`${chartId}-fill`} x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor={growthColor} stopOpacity={0} />
-                  <stop offset="50%" stopColor={growthColor} stopOpacity={0.02} />
-                  <stop offset="100%" stopColor={growthColor} stopOpacity={0.1} />
-                </linearGradient>
-              </defs>
-              <XAxis
-                dataKey="index"
-                type="number"
-                domain={["dataMin", "dataMax"]}
-                hide
-                padding={{ left: 0, right: 0 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis domain={chartDomain} hide />
-              <Area
-                type="monotone"
-                dataKey="value"
-                stroke={`url(#${chartId}-stroke)`}
-                fill={`url(#${chartId}-fill)`}
-                strokeWidth={2}
-                baseValue={chartDomain[0] as number}
-                isAnimationActive
-              />
-            </RechartsAreaChart>
-          </ResponsiveContainer>
-        </Box>
+
+      {historical && historical.length > 1 && (
+        <MetricSparkline
+          historical={historical}
+          color={growthColor}
+          height={(theme as any).custom?.layout?.metricCard?.chartHeight ?? 100}
+        />
       )}
+
       <Box
         sx={{
           p: 1,
@@ -400,7 +233,7 @@ export function MetricCard({
         {hasGrowth && (
           <Box
             sx={{
-              display: "flex",
+              display: { xs: "none", md: "flex" },
               alignItems: "center",
               gap: 1,
             }}
@@ -414,91 +247,12 @@ export function MetricCard({
           </Box>
         )}
 
-        {hasPercentageThresholdBar && (
-          <Box sx={{ mt: 1 }}>
-            <Box sx={{ position: "relative" }}>
-              <Box
-                sx={{
-                  height: 8,
-                  borderRadius: 4,
-                  overflow: "hidden",
-                  position: "relative",
-                  display: "flex",
-                }}
-              >
-                {percentageThresholdInverse ? (
-                  <>
-                    <Box
-                      sx={{
-                        height: "100%",
-                        width: `${segmentWidths.good}%`,
-                        bgcolor: thresholdColors.good,
-                      }}
-                    />
-                    <Box
-                      sx={{
-                        height: "100%",
-                        width: `${segmentWidths.regular}%`,
-                        bgcolor: thresholdColors.regular,
-                      }}
-                    />
-                    <Box
-                      sx={{
-                        height: "100%",
-                        width: `${segmentWidths.bad}%`,
-                        bgcolor: thresholdColors.bad,
-                      }}
-                    />
-                  </>
-                ) : (
-                  <>
-                    <Box
-                      sx={{
-                        height: "100%",
-                        width: `${segmentWidths.bad}%`,
-                        bgcolor: thresholdColors.bad,
-                      }}
-                    />
-                    <Box
-                      sx={{
-                        height: "100%",
-                        width: `${segmentWidths.regular}%`,
-                        bgcolor: thresholdColors.regular,
-                      }}
-                    />
-                    <Box
-                      sx={{
-                        height: "100%",
-                        width: `${segmentWidths.good}%`,
-                        bgcolor: thresholdColors.good,
-                      }}
-                    />
-                  </>
-                )}
-              </Box>
-
-              {percentageStatus !== "neutral" && (
-                <Box
-                  sx={{
-                    position: "absolute",
-                    left: `${progressValue}%`,
-                    top: -8,
-                    width: 0,
-                    height: 0,
-                    borderLeft: "10px solid transparent",
-                    borderRight: "10px solid transparent",
-                    borderBottom: `8px solid ${
-                      thresholdColors[
-                        percentageStatus as "bad" | "regular" | "good"
-                      ]
-                    }`,
-                    transform: "translateX(-50%)",
-                    zIndex: 1,
-                  }}
-                />
-              )}
-            </Box>
-          </Box>
+        {hasPercentageThresholdBar && percentageThresholdValues && rawPercentageValue != null && (
+          <MetricThresholdBar
+            value={rawPercentageValue}
+            thresholds={percentageThresholdValues}
+            inverse={percentageThresholdInverse}
+          />
         )}
       </Box>
     </Card>

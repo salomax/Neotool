@@ -2,8 +2,8 @@ import { StyleSheet, View, ScrollView } from 'react-native';
 import { Text, List, Switch, Button } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 import { router } from 'expo-router';
-import { useAuth } from '@/hooks/useAuth';
-import { useTheme } from '@/hooks/useTheme';
+import { useAuth } from '@/shared/hooks/useAuth';
+import { useTheme } from '@/shared/hooks/useTheme';
 
 export default function SettingsScreen() {
   const { t, i18n } = useTranslation();

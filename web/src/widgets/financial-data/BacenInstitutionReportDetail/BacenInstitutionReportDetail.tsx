@@ -12,6 +12,7 @@ import {
   Divider,
   InputAdornment,
   useTheme,
+  useMediaQuery,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
@@ -59,6 +60,7 @@ export function BacenInstitutionReportDetail({
   quarterMessage,
 }: BacenInstitutionReportDetailProps) {
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { t, tCommon } = useTranslation(financialDataTranslations);
   const [filterValue, setFilterValue] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState("");
@@ -181,7 +183,7 @@ export function BacenInstitutionReportDetail({
         key={`${account.group || 'ungrouped'}-${account.id}-${index}`}
         sx={{
           display: "grid",
-          gridTemplateColumns: "2fr 1.5fr 1fr 0.8fr 40px",
+          gridTemplateColumns: isMobile ? "1fr 1fr 40px" : "2fr 1.5fr 1fr 0.8fr 40px",
           alignItems: "center",
           gap: 2,
           py: 2,
@@ -201,17 +203,19 @@ export function BacenInstitutionReportDetail({
           </Tooltip>
         </Box>
 
-        {/* Mini Chart */}
-        <Box sx={{ height: 32, display: "flex", alignItems: "center" }}>
-          {!allZeros && (
-            <MetricAreaChart
-              data={chartData}
-              width="100%"
-              height={32}
-              color={chartColor}
-            />
-          )}
-        </Box>
+        {/* Mini Chart - Hidden on mobile */}
+        {!isMobile && (
+          <Box sx={{ height: 32, display: "flex", alignItems: "center" }}>
+            {!allZeros && (
+              <MetricAreaChart
+                data={chartData}
+                width="100%"
+                height={32}
+                color={chartColor}
+              />
+            )}
+          </Box>
+        )}
 
         {/* Value */}
         <Box sx={{ textAlign: "right" }}>
@@ -230,20 +234,22 @@ export function BacenInstitutionReportDetail({
           )}
         </Box>
 
-        {/* Growth */}
-        <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-          {growth != null ? (
-            <TrendIndicator
-              value={growth}
-              variant="body2"
-              valueSx={{ fontWeight: 600 }}
-            />
-          ) : (
-            <Typography variant="caption" color="text.secondary">
-              -
-            </Typography>
-          )}
-        </Box>
+        {/* Growth - Hidden on mobile */}
+        {!isMobile && (
+          <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+            {growth != null ? (
+              <TrendIndicator
+                value={growth}
+                variant="body2"
+                valueSx={{ fontWeight: 600 }}
+              />
+            ) : (
+              <Typography variant="caption" color="text.secondary">
+                -
+              </Typography>
+            )}
+          </Box>
+        )}
 
         {/* Action */}
         <Box sx={{ display: "flex", justifyContent: "center" }}>
@@ -266,8 +272,8 @@ export function BacenInstitutionReportDetail({
           {reportDetails.name}
         </Typography>
 
-        <Box sx={{ mb: 3, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
-          <Box sx={{ maxWidth: 400, flex: 1 }}>
+        <Box sx={{ mb: 3, display: "flex", flexDirection: { xs: "column", md: "row" }, alignItems: { xs: "stretch", md: "center" }, justifyContent: "space-between", gap: 2 }}>
+          <Box sx={{ maxWidth: { xs: "100%", md: 400 }, flex: 1 }}>
             <Autocomplete
               freeSolo
               filterOptions={(options, params) => {
@@ -307,7 +313,7 @@ export function BacenInstitutionReportDetail({
             />
           </Box>
           {quarterMessage && (
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" color="text.secondary" sx={{ textAlign: { xs: "left", md: "right" } }}>
               {quarterMessage}
             </Typography>
           )}

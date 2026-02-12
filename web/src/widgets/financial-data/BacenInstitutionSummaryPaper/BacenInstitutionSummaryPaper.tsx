@@ -20,6 +20,21 @@ import { formatDate } from "@/shared/utils/date";
 import { formatCNPJ, digitsOnly } from "@/shared/utils/br/format";
 import { isValidCNPJ } from "@/shared/utils/br/validators";
 
+const SeparatorDot = () => (
+  <Box
+    component="span"
+    sx={{
+      display: "inline-block",
+      width: 4,
+      height: 4,
+      borderRadius: "50%",
+      bgcolor: "text.secondary",
+      mx: 1,
+      verticalAlign: "middle",
+    }}
+  />
+);
+
 export interface BacenInstitutionSummaryPaperProps {
   institution: BacenFinanceInstitution;
 }
@@ -34,10 +49,6 @@ export function BacenInstitutionSummaryPaper({ institution }: BacenInstitutionSu
 
   const potentialCnpj = digitsOnly(institution.id);
   const cnpj = isValidCNPJ(potentialCnpj) ? formatCNPJ(potentialCnpj) : null;
-
-  const foundedDate = institution.founded
-    ? formatDate(institution.founded, { locale, dateStyle: 'long' })
-    : '-';
 
   const controlTypeLabel = institution.controlType
     ? t(`institutionSummary.controlType.${institution.controlType}`)
@@ -68,7 +79,11 @@ export function BacenInstitutionSummaryPaper({ institution }: BacenInstitutionSu
     (part): part is string => Boolean(part)
   );
 
-  const infoLine = infoLineParts.join(" • ");
+  const detailLabels = [
+    controlTypeLabel !== "-" && controlTypeLabel,
+    consolidationLabel !== "-" && consolidationLabel,
+    bankTypeLabel !== "-" && bankTypeLabel,
+  ].filter((label): label is string => Boolean(label));
 
   return (
     <Paper
@@ -83,98 +98,81 @@ export function BacenInstitutionSummaryPaper({ institution }: BacenInstitutionSu
     >
       <Stack
         direction="row"
-        spacing={3}
+        spacing={2}
         alignItems="flex-start"
-        justifyContent="space-between"
       >
-        <Stack direction="row" spacing={2} alignItems="center">
-          <Avatar
-            src={logoUrl || undefined}
-            alt={name}
-            sx={{
-              width: 56,
-              height: 56,
-              borderRadius: 2,
-              bgcolor: "background.default",
-            }}
-          >
-            <AccountBalanceIcon sx={{ fontSize: 28, color: "text.secondary" }} />
-          </Avatar>
+        <Avatar
+          src={logoUrl || undefined}
+          alt={name}
+          sx={{
+            width: 56,
+            height: 56,
+            borderRadius: 2,
+            bgcolor: "background.default",
+          }}
+        >
+          <AccountBalanceIcon sx={{ fontSize: 28, color: "text.secondary" }} />
+        </Avatar>
 
-          <Box>
-            <Typography variant="h6" component="h1" fontWeight="bold">
-              {name}
-            </Typography>
+        <Box sx={{ flex: 1 }}>
+          <Typography variant="h6" component="h1" fontWeight="bold">
+            {name}
+          </Typography>
 
-            {infoLine && (
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ mt: 0.5 }}
-              >
-                {infoLine}
-              </Typography>
-            )}
-
+          {infoLineParts.length > 0 && (
             <Typography
               variant="body2"
               color="text.secondary"
               sx={{ mt: 0.5 }}
             >
-              {[
-                controlTypeLabel !== "-" && controlTypeLabel,
-                consolidationLabel !== "-" && consolidationLabel,
-                bankTypeLabel !== "-" && bankTypeLabel,
-              ]
-                .filter((label): label is string => Boolean(label))
-                .map((label, index, array) => (
-                  <React.Fragment key={label}>
-                    {index > 0 && (
-                      <Box
-                        component="span"
-                        sx={{
-                          display: "inline-block",
-                          width: 4,
-                          height: 4,
-                          borderRadius: "50%",
-                          bgcolor: "text.secondary",
-                          mx: 1,
-                          verticalAlign: "middle",
-                        }}
-                      />
-                    )}
-                    {label}
-                  </React.Fragment>
-                ))}
+              {infoLineParts.map((part, index) => (
+                <React.Fragment key={part}>
+                  {index > 0 && <SeparatorDot />}
+                  {part}
+                </React.Fragment>
+              ))}
             </Typography>
-          </Box>
-        </Stack>
+          )}
 
-        {website && (
-          <Box sx={{ textAlign: "right", ml: 2 }}>
-            <Link
-              href={website.startsWith("http") ? website : `https://${website}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              underline="hover"
-              sx={{
-                fontSize: 13,
-                fontWeight: 500,
-                whiteSpace: "nowrap",
-                maxWidth: 240,
-                display: "inline-block",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
+          {detailLabels.length > 0 && (
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ mt: 0.5 }}
             >
-              {website}
-              <OpenInNewIcon
-                fontSize="inherit"
-                sx={{ ml: 0.5, verticalAlign: "text-bottom" }}
-              />
-            </Link>
-          </Box>
-        )}
+              {detailLabels.map((label, index) => (
+                <React.Fragment key={label}>
+                  {index > 0 && <SeparatorDot />}
+                  {label}
+                </React.Fragment>
+              ))}
+            </Typography>
+          )}
+
+          {website && (
+            <Box sx={{ mt: 1 }}>
+              <Link
+                href={website.startsWith("http") ? website : `https://${website}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                underline="hover"
+                sx={{
+                  fontSize: 13,
+                  fontWeight: 500,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  wordBreak: "break-all",
+                }}
+              >
+                {website}
+                <OpenInNewIcon
+                  fontSize="inherit"
+                  sx={{ ml: 0.5 }}
+                />
+              </Link>
+            </Box>
+          )}
+        </Box>
       </Stack>
     </Paper>
   );

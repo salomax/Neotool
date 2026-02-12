@@ -1,7 +1,7 @@
 import { StyleSheet, View, ScrollView } from 'react-native';
 import { Text, Card } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/shared/hooks/useAuth';
 
 export default function DashboardScreen() {
   const { t } = useTranslation();

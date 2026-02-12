@@ -7,8 +7,10 @@ import {
   Container,
   Stack,
   styled,
-  Link
+  Link,
+  useTheme
 } from "@/shared/ui/mui-imports";
+import useMediaQuery from "@mui/material/useMediaQuery";
 import { Wordmark, Logo } from "@/shared/ui/brand";
 import { useTranslation } from "@/shared/i18n";
 import { landingTranslations } from "./i18n";
@@ -51,13 +53,15 @@ const SubtitleTypography = styled(Typography)(({ theme }) => ({
 
 export default function WelcomePage() {
   const { t } = useTranslation(landingTranslations);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   return (
     <>
       <Container maxWidth="lg" sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', py: 4, position: 'relative', zIndex: 1 }}>
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: "center", mb: 8, mt: -10 }}>
           <Stack alignItems="center" spacing={2} sx={{ mb: 4 }}>
-            <Wordmark variant="blue" size="medium" />
+            <Wordmark variant="blue" size={isMobile ? "small" : "medium"} />
           </Stack>
           
           <HeroTypography 
@@ -80,14 +84,15 @@ export default function WelcomePage() {
 
         <Box component="footer" sx={{ 
           display: 'flex', 
-          justifyContent: 'space-between', 
+          justifyContent: isMobile ? 'center' : 'space-between', 
           alignItems: 'center', 
           width: '100%', 
           py: 3,
           borderTop: '1px solid',
           borderColor: 'divider',
           flexWrap: 'wrap',
-          gap: 2
+          gap: 2,
+          flexDirection: isMobile ? 'column' : 'row',
         }}>
           <Box>
             <Logo size="small" /> 

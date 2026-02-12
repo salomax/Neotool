@@ -48,7 +48,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             sx={{ 
               flex: 1,
               overflow: "auto", // Allow scrolling only in main content area
-              marginTop: headerHeight ? `${headerHeight}px` : "73px", // Account for fixed header height
+              marginTop: { xs: 0, md: headerHeight ? `${headerHeight}px` : "73px" }, // Account for fixed header height only on desktop with fallback
               paddingBottom: { xs: "80px", md: 0 }, // Add padding for bottom nav on mobile
             }}
           >

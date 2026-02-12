@@ -4,6 +4,12 @@ This section contains all frontend development documentation for NeoTool web app
 
 ## Organization
 
+### Roadmaps
+- **[Web to mobile migration roadmap](mobile-migration-roadmap.md)** — Phased plan for parity-driven migration from `web/` to `mobile/`
+- **[Phase 0 discovery baseline](mobile-phase-0-discovery-baseline.md)** — Initial parity matrix and migration priority baseline
+- **[Phase 0 P0 dependency map](mobile-phase-0-p0-dependency-map.md)** — Concrete dependency mapping for auth and financial-data P0 slices
+- **[Phase 0 P0 backlog](mobile-phase-0-p0-backlog.md)** — Detailed task-by-task execution backlog for P0
+
 ### [patterns/](patterns/)
 React and Next.js implementation patterns:
 - **GraphQL query pattern** — Apollo Client queries with caching
@@ -39,6 +45,10 @@ Frontend code quality and compliance:
 ## Quick Reference
 
 ### Common Tasks
+- **Plan web-to-mobile migration**: See [Web to Mobile Migration Roadmap](mobile-migration-roadmap.md)
+- **Start Phase 0 discovery**: See [Mobile Migration Phase 0 Discovery Baseline](mobile-phase-0-discovery-baseline.md)
+- **Map P0 dependencies**: See [Mobile Migration Phase 0 P0 Dependency Map](mobile-phase-0-p0-dependency-map.md)
+- **Execute P0 backlog**: See [Mobile Migration Phase 0 P0 Backlog](mobile-phase-0-p0-backlog.md)
 - **Fetch data with GraphQL**: See [GraphQL Query Pattern](patterns/graphql-query-pattern.md)
 - **Submit mutations**: See [GraphQL Mutation Pattern](patterns/graphql-mutation-pattern.md)
 - **Build management page**: See [Management Pattern](patterns/management-pattern.md)

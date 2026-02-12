@@ -1,5 +1,6 @@
 import { ReactNode, useEffect, useState } from 'react';
-import { ApolloProvider as BaseApolloProvider, ApolloClient, NormalizedCacheObject } from '@apollo/client';
+import { ApolloClient, NormalizedCacheObject } from '@apollo/client';
+import { ApolloProvider as BaseApolloProvider } from '@apollo/client/react';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import { initializeApolloClient } from '@/lib/apollo-client';
 
@@ -8,7 +9,7 @@ interface ApolloProviderProps {
 }
 
 export function ApolloProvider({ children }: ApolloProviderProps) {
-  const [client, setClient] = useState<ApolloClient<NormalizedCacheObject> | null>(null);
+  const [client, setClient] = useState<ApolloClient | null>(null);
 
   useEffect(() => {
     initializeApolloClient()

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Box } from "@mui/material";
+import { Box, useTheme, useMediaQuery, styled } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import { MetricValueDisplay } from "./MetricValueDisplay";
 import { MetricLineChart } from "./MetricLineChart";
@@ -12,6 +12,40 @@ import { Drawer } from "../layout/Drawer";
 
 import { type MetricValueType } from "@/shared/utils/formatMetricValue";
 import { type CurrencyLabels } from "@/shared/utils/currency";
+
+const ScrollableContainer = styled(Box)(({ theme }) => ({
+  width: "100%",
+  overflowX: "auto",
+  paddingBottom: theme.spacing(1),
+  // Hide scrollbar
+  "&::-webkit-scrollbar": { display: "none" },
+  scrollbarWidth: "none",
+  [theme.breakpoints.up("md")]: {
+    width: "auto",
+    overflowX: "visible",
+    paddingBottom: 0,
+  },
+}));
+
+const StyledSegmentedControl = styled(SegmentedControl)(({ theme }) => ({
+  minWidth: "max-content",
+  width: "auto",
+  [theme.breakpoints.up("md")]: {
+    width: "100%",
+  },
+  "& .MuiToggleButtonGroup-grouped": {
+    paddingLeft: theme.spacing(1),
+    paddingRight: theme.spacing(1),
+    whiteSpace: "nowrap",
+    fontSize: "0.75rem",
+    [theme.breakpoints.up("md")]: {
+      paddingLeft: theme.spacing(2),
+      paddingRight: theme.spacing(2),
+      minWidth: 60,
+      fontSize: "0.875rem",
+    },
+  },
+})) as typeof SegmentedControl;
 
 export interface MetricDetailsDrawerProps {
   /**
@@ -113,6 +147,14 @@ export const MetricDetailsDrawer: React.FC<MetricDetailsDrawerProps> = ({
   disablePercentageScaling: disablePercentageScalingProp,
 }) => {
   const { t } = useTranslation("common");
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
+  // Calculate drawer width logic:
+  // On mobile, force 100% width (ignoring size prop) to ensure content fits and isn't cut off.
+  // On desktop, use the provided size prop (defaults to 'lg').
+  const drawerSize = isMobile ? undefined : size;
+  const drawerWidth = isMobile ? '100%' : undefined;
 
   // Determine effective disablePercentageScaling
   const disablePercentageScaling = disablePercentageScalingProp ?? (metric as any)?.disablePercentageScaling ?? false;
@@ -129,8 +171,9 @@ export const MetricDetailsDrawer: React.FC<MetricDetailsDrawerProps> = ({
     <Drawer
       open={open}
       onClose={onClose}
-      size={size}
       anchor="right"
+      size={drawerSize}
+      width={drawerWidth}
     >
       <Drawer.Header
         title={displayTitle}
@@ -139,8 +182,22 @@ export const MetricDetailsDrawer: React.FC<MetricDetailsDrawerProps> = ({
         }}
       />
       <Drawer.Body>
-        <Box sx={{ p: 2, pt: 0, display: 'flex', flexDirection: 'column' }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
+        <Box sx={{ 
+          p: 2, 
+          pt: 0, 
+          px: { xs: 0, md: 2 }, // Zero horizontal padding on mobile for charts
+          display: 'flex', 
+          flexDirection: 'column' 
+        }}>
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: { xs: 'column', md: 'row' },
+            justifyContent: 'space-between', 
+            alignItems: { xs: 'flex-start', md: 'flex-start' },
+            width: '100%',
+            gap: { xs: 2, md: 0 },
+            px: { xs: 0, md: 0 } // Reduced padding on mobile
+          }}>
             <Box>
               {metric && (
                 <MetricValueDisplay
@@ -160,13 +217,14 @@ export const MetricDetailsDrawer: React.FC<MetricDetailsDrawerProps> = ({
               )}
             </Box>
             {metric && chartData && chartData.length > 0 && period && onPeriodChange && periodOptions && (
-              <Box>
-                <SegmentedControl
+              <ScrollableContainer>
+                <StyledSegmentedControl
                   value={period}
                   onChange={onPeriodChange}
                   options={periodOptions}
+                  fullWidth={false}
                 />
-              </Box>
+              </ScrollableContainer>
             )}
           </Box>
           {metric && chartData && chartData.length > 0 && (

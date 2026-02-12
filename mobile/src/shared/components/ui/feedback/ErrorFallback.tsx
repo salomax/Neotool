@@ -3,7 +3,7 @@ import { Text, Button } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 
 interface ErrorFallbackProps {
-  error: Error;
+  error: any;
   resetErrorBoundary: () => void;
 }
 

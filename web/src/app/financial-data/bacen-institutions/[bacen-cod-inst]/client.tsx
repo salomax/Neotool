@@ -5,7 +5,21 @@ import { useMemo } from "react";
 import { extractIdFromSemanticPath } from "@/shared/utils/url";
 import { SidebarLayout } from "@/shared/components/ui/layout/SidebarLayout";
 import { Page, SectionHeader } from "@/shared/components/ui/layout";
-import { Box, Typography, List, ListItemButton, ListItemText, CircularProgress, Tooltip, IconButton, Grid } from "@mui/material";
+import { 
+  Box, 
+  Typography, 
+  List, 
+  ListItemButton, 
+  ListItemText, 
+  CircularProgress, 
+  Tooltip, 
+  IconButton, 
+  Grid,
+  Tabs,
+  Tab,
+  useTheme,
+  useMediaQuery
+} from "@mui/material";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { usePageTitle } from "@/shared/hooks/ui/usePageTitle";
 import { useTranslation } from "@/shared/i18n";
@@ -38,6 +52,9 @@ export default function BacenInstitutionDetailClient() {
     reportDetails,
     loadingReport,
   } = useBacenInstitutionDetail(encodedId);
+
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   usePageTitle(institution?.name || t("pageTitle"));
 
@@ -127,6 +144,86 @@ export default function BacenInstitutionDetailClient() {
     );
   }
 
+  const content = (
+    <Page>
+      <Box sx={{ mb: 4, px: { xs: 2, sm: 0 }, pt: { xs: 2, sm: 0 } }}>
+        <Grid container spacing={4}>
+          <Grid size={{ xs: 12, lg: 12 }}>
+            <BacenInstitutionSummaryPaper institution={institution} />
+          </Grid>
+        </Grid>
+      </Box>
+
+      {isMobile && (
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3, mx: 0, px: 0 }}>
+          <Tabs 
+            value={selectedReportId} 
+            onChange={(_, v) => setSelectedReportId(v)}
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
+            aria-label="Report tabs"
+          >
+            {reports.map((report: any) => (
+              <Tab key={report.reportId} label={report.name} value={report.reportId} />
+            ))}
+          </Tabs>
+        </Box>
+      )}
+
+      {loadingReport ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : selectedReportId === "1" ? (
+        <Box sx={{ mt: 4, px: { xs: 2, sm: 0 } }}>
+          <SectionHeader
+            title={
+              <Box>
+                <Typography variant="h6" component="h2" sx={{ fontWeight: 600 }}>
+                  {t("lastBalanceSummary.title")}
+                </Typography>
+                {quarterMessage && (
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    {quarterMessage}
+                  </Typography>
+                )}
+              </Box>
+            }
+            actions={
+              !quarterMessage ? (
+                <Tooltip title={t("lastBalanceSummary.tooltip")}>
+                  <IconButton size="small">
+                    <InfoOutlinedIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              ) : undefined
+            }
+          />
+          <BacenInstitutionBalanceSummaryGrid institutionId={institution.id} />
+        </Box>
+      ) : reportDetails ? (
+        <Box sx={{ px: { xs: 2, sm: 0 } }}>
+          <BacenInstitutionReportDetail
+            reportDetails={reportDetails}
+            quarterMessage={quarterMessage}
+          />
+        </Box>
+      ) : (
+        <Typography color="text.secondary">
+          {t("messages.selectReport")}
+        </Typography>
+      )}
+      <Box sx={{ px: { xs: 2, sm: 0 } }}>
+        <BacenDataFooter />
+      </Box>
+    </Page>
+  );
+
+  if (isMobile) {
+    return content;
+  }
+
   return (
     <SidebarLayout
       side="left"
@@ -162,51 +259,7 @@ export default function BacenInstitutionDetailClient() {
         </Box>
       }
     >
-
-      <Page>
-        <Box sx={{ mb: 4 }}>
-          <Grid container spacing={4}>
-            <Grid size={{ xs: 12, lg: 12 }}>
-              <BacenInstitutionSummaryPaper institution={institution} />
-            </Grid>
-          </Grid>
-        </Box>
-        {loadingReport ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-            <CircularProgress />
-          </Box>
-        ) : selectedReportId === "1" ? (
-          <Box sx={{ mt: 4 }}>
-            <SectionHeader
-              title={t("lastBalanceSummary.title")}
-              actions={
-                quarterMessage ? (
-                  <Typography variant="caption" color="text.secondary">
-                    {quarterMessage}
-                  </Typography>
-                ) : (
-                  <Tooltip title={t("lastBalanceSummary.tooltip")}>
-                    <IconButton size="small">
-                      <InfoOutlinedIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                )
-              }
-            />
-            <BacenInstitutionBalanceSummaryGrid institutionId={institution.id} />
-          </Box>
-        ) : reportDetails ? (
-          <BacenInstitutionReportDetail
-            reportDetails={reportDetails}
-            quarterMessage={quarterMessage}
-          />
-        ) : (
-          <Typography color="text.secondary">
-            {t("messages.selectReport")}
-          </Typography>
-        )}
-        <BacenDataFooter />
-      </Page>
+      {content}
     </SidebarLayout>
   );
 }

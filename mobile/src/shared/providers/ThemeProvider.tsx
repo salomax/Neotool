@@ -2,8 +2,8 @@ import { ReactNode, useState, useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 import { PaperProvider } from 'react-native-paper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { lightTheme, darkTheme } from '@/theme/theme';
-import { ThemeContext } from '@/hooks/useTheme';
+import { lightTheme, darkTheme } from '@/shared/theme/theme';
+import { ThemeContext } from '@/shared/hooks/useTheme';
 
 const THEME_KEY = '@app_theme';
 

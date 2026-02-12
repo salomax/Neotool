@@ -1,6 +1,6 @@
 import { ReactNode, useState, useEffect } from 'react';
 import * as SecureStore from 'expo-secure-store';
-import { AuthContext, User } from '@/hooks/useAuth';
+import { AuthContext, User } from '@/shared/hooks/useAuth';
 import { clearApolloCache } from '@/lib/apollo-client';
 
 interface AuthProviderProps {

@@ -2,11 +2,11 @@
 
 import React, { useState, useMemo } from "react";
 import { Page, Container } from "@/shared/components/ui/layout";
-import { Box, Typography, Grid, Stack, Link } from "@/shared/ui/mui-imports";
+import { Box, Typography, Grid, Stack, Link, useTheme, Tabs as MuiTabs, Tab } from "@/shared/ui/mui-imports";
+import { useMediaQuery } from "@mui/material";
 import { useTranslation } from "@/shared/i18n";
 import { financialDataTranslations } from "@/shared/i18n/domains/financial-data";
 import { SearchField } from "@/shared/components/ui/forms/SearchField";
-import Tabs from "@/shared/components/ui/navigation/Tabs";
 import { useEconomicIndicators } from "@/features/financial-data/national-indicators/hooks/useEconomicIndicators";
 import { useIndicatorsLatest, type IndicatorLatest } from "@/features/financial-data/national-indicators/hooks/useIndicatorsLatest";
 import { IndicatorCard } from "@/features/financial-data/national-indicators/components/IndicatorCard";
@@ -16,6 +16,9 @@ import { useBreadcrumbLabel } from "@/shared/hooks/ui/useBreadcrumbLabel";
 
 export default function NationalIndicatorsPage() {
     const { t } = useTranslation(financialDataTranslations);
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+    
     usePageTitle(t("nationalIndicators.pageTitle"));
     useBreadcrumbLabel("national-indicators", t("nationalIndicators.pageTitle"));
 
@@ -157,25 +160,42 @@ export default function NationalIndicatorsPage() {
 
     return (
         <Page>
-             <Container maxWidth="xl">
-                <Stack direction="row" sx={{ mb: 2 }}>
-                    <Box sx={{ width: 400 }}>
-                        <SearchField 
-                            value={searchQuery}
-                            onChange={setSearchQuery}
-                            placeholder={t("nationalIndicators.search.placeholder")}
-                        />
+             <Container maxWidth="xl" sx={{ px: { xs: 0, sm: 3 } }}>
+                <Stack direction={isMobile ? "column" : "row"} sx={{ mb: 2 }}>
+                    {!isMobile && (
+                        <Box sx={{ width: 400 }}>
+                            <SearchField 
+                                value={searchQuery}
+                                onChange={setSearchQuery}
+                                placeholder={t("nationalIndicators.search.placeholder")}
+                            />
+                        </Box>
+                    )}
+                    <Box sx={{ 
+                        width: isMobile ? '100%' : 'auto',
+                        borderBottom: isMobile ? 1 : 0, 
+                        borderColor: 'divider',
+                        mx: 0, 
+                        px: 0,
+                        ml: !isMobile ? 2 : 0
+                    }}>
+                        <MuiTabs 
+                            value={selectedTab}
+                            onChange={(_, v) => setSelectedTab(v)}
+                            variant="scrollable"
+                            scrollButtons="auto"
+                            allowScrollButtonsMobile
+                            aria-label="Indicator tabs"
+                        >
+                            {tabItems.map((tab) => (
+                                <Tab key={tab.id} label={tab.label} value={tab.id} />
+                            ))}
+                        </MuiTabs>
                     </Box>
-                    <Tabs 
-                        tabs={tabItems}
-                        value={selectedTab}
-                        onChange={setSelectedTab}
-                        sx={{ width: 'auto' }}
-                    />
                 </Stack>
              </Container>
 
-             <Container maxWidth="xl" sx={{ py: 4 }}>
+             <Container maxWidth="xl" sx={{ py: 4, px: { xs: 2, sm: 3 } }}>
                 {loading && <Typography>{t("actions.loading")}</Typography>}
                 
                 {!loading && sections.length === 0 && (

@@ -162,7 +162,7 @@
       "description": "Balanços trimestrais consolidados e Ratings de crédito sob supervisão do BACEN."
     },
     "nationalIndicators": {
-      "title": "Indicadores Nacionais",
+      "title": "Indicadores Macroeconômicos",
       "description": "Séries históricas de IPCA, IGP-M, INPC e projeções macroeconômicas."
     }
   },
