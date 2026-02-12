@@ -111,4 +111,52 @@ object AccountMembership {
         val inviteeEmail: String,
         val role: AccountRole,
     )
+
+    // --- FR-6 member management commands ---
+
+    /**
+     * Command to change a member's role (FR-6.2). Only OWNER can change roles.
+     */
+    data class ChangeMemberRoleCommand(
+        val accountId: UUID,
+        val actorUserId: UUID,
+        val targetMembershipId: UUID,
+        val newRole: AccountRole,
+    ) {
+        init {
+            if (newRole !in INVITABLE_ROLES) {
+                throw ValidationException(
+                    errorCode = SecurityErrorCode.TARGET_NOT_ELIGIBLE,
+                    field = "newRole",
+                    parameters = mapOf("reason" to "Role must be ADMIN, MEMBER, or VIEWER"),
+                )
+            }
+        }
+    }
+
+    /**
+     * Command to remove a member from an account (FR-6.3). OWNER or ADMIN.
+     */
+    data class RemoveMemberCommand(
+        val accountId: UUID,
+        val actorUserId: UUID,
+        val targetMembershipId: UUID,
+    )
+
+    /**
+     * Command for a member to leave an account (FR-6.4). Sole OWNER cannot leave without transferring first.
+     */
+    data class LeaveAccountCommand(
+        val accountId: UUID,
+        val actorUserId: UUID,
+    )
+
+    /**
+     * Command to transfer account ownership to another member (FR-6.5). Only OWNER can transfer.
+     */
+    data class TransferOwnershipCommand(
+        val accountId: UUID,
+        val actorUserId: UUID,
+        val newOwnerUserId: UUID,
+    )
 }

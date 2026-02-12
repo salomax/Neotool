@@ -235,6 +235,210 @@ open class AccountMembershipService(
         logger.info { "Invitation declined: membershipId=${membership.id}, accountId=${membership.accountId}, userId=${command.actorUserId}" }
     }
 
+    /**
+     * Change a member's role (FR-6.2). Only OWNER can change roles; target must be ACTIVE.
+     *
+     * @throws ValidationException with NOT_ACCOUNT_MEMBER, ACCOUNT_ROLE_INSUFFICIENT,
+     *   SELF_OPERATION_FORBIDDEN, TARGET_NOT_ELIGIBLE
+     */
+    @Transactional
+    open fun changeMemberRole(command: AccountMembership.ChangeMemberRoleCommand) {
+        val account =
+            accountRepository.findById(command.accountId)
+                .orElseThrow { ValidationException(SecurityErrorCode.ACCOUNT_NOT_FOUND, field = "accountId") }
+        if (account.accountStatus != AccountStatus.ACTIVE) {
+            throw ValidationException(SecurityErrorCode.ACCOUNT_INACTIVE, field = "accountId")
+        }
+
+        val actorMembership =
+            accountMembershipRepository.findOneByAccountIdAndUserId(command.accountId, command.actorUserId)
+                .orElse(null)
+        val actor = actorMembership?.let { ActorMembershipContext(it.accountRole, it.membershipStatus) }
+
+        val targetMembership =
+            accountMembershipRepository.findById(command.targetMembershipId)
+                .orElseThrow { ValidationException(SecurityErrorCode.TARGET_NOT_ELIGIBLE, field = "targetMembershipId") }
+        if (targetMembership.accountId != command.accountId) {
+            throw ValidationException(SecurityErrorCode.TARGET_NOT_ELIGIBLE, field = "targetMembershipId")
+        }
+        if (targetMembership.membershipStatus != MembershipStatus.ACTIVE) {
+            throw ValidationException(SecurityErrorCode.TARGET_NOT_ELIGIBLE, field = "targetMembershipId")
+        }
+
+        val target = TargetMemberContext(
+            role = targetMembership.accountRole,
+            status = targetMembership.membershipStatus,
+            isSelf = targetMembership.userId == command.actorUserId,
+        )
+        val policyResult =
+            membershipPolicyEngine.evaluate(
+                MembershipOperation.CHANGE_ROLE,
+                actor,
+                target = target,
+                newRole = command.newRole,
+            )
+        when (policyResult) {
+            is MembershipPolicyResult.Allowed -> { /* proceed */ }
+            is MembershipPolicyResult.Denied ->
+                throw ValidationException(
+                    errorCode = policyResult.errorCode,
+                    field = null,
+                    parameters = policyResult.message?.let { mapOf("reason" to it) } ?: emptyMap(),
+                )
+        }
+
+        targetMembership.accountRole = command.newRole
+        accountMembershipRepository.save(targetMembership)
+        logger.info { "Member role changed: accountId=${command.accountId}, targetMembershipId=${command.targetMembershipId}, newRole=${command.newRole}" }
+    }
+
+    /**
+     * Remove a member from the account (FR-6.3). OWNER or ADMIN; sets status to REMOVED.
+     *
+     * @throws ValidationException with NOT_ACCOUNT_MEMBER, ACCOUNT_ROLE_INSUFFICIENT,
+     *   SELF_OPERATION_FORBIDDEN, TARGET_ROLE_TOO_HIGH, TARGET_NOT_ELIGIBLE
+     */
+    @Transactional
+    open fun removeMember(command: AccountMembership.RemoveMemberCommand) {
+        val account =
+            accountRepository.findById(command.accountId)
+                .orElseThrow { ValidationException(SecurityErrorCode.ACCOUNT_NOT_FOUND, field = "accountId") }
+        if (account.accountStatus != AccountStatus.ACTIVE) {
+            throw ValidationException(SecurityErrorCode.ACCOUNT_INACTIVE, field = "accountId")
+        }
+
+        val actorMembership =
+            accountMembershipRepository.findOneByAccountIdAndUserId(command.accountId, command.actorUserId)
+                .orElse(null)
+        val actor = actorMembership?.let { ActorMembershipContext(it.accountRole, it.membershipStatus) }
+
+        val targetMembership =
+            accountMembershipRepository.findById(command.targetMembershipId)
+                .orElseThrow { ValidationException(SecurityErrorCode.TARGET_NOT_ELIGIBLE, field = "targetMembershipId") }
+        if (targetMembership.accountId != command.accountId) {
+            throw ValidationException(SecurityErrorCode.TARGET_NOT_ELIGIBLE, field = "targetMembershipId")
+        }
+
+        val target = TargetMemberContext(
+            role = targetMembership.accountRole,
+            status = targetMembership.membershipStatus,
+            isSelf = targetMembership.userId == command.actorUserId,
+        )
+        val policyResult =
+            membershipPolicyEngine.evaluate(MembershipOperation.REMOVE_MEMBER, actor, target = target)
+        when (policyResult) {
+            is MembershipPolicyResult.Allowed -> { /* proceed */ }
+            is MembershipPolicyResult.Denied ->
+                throw ValidationException(
+                    errorCode = policyResult.errorCode,
+                    field = null,
+                    parameters = policyResult.message?.let { mapOf("reason" to it) } ?: emptyMap(),
+                )
+        }
+
+        val now = Instant.now()
+        targetMembership.membershipStatus = MembershipStatus.REMOVED
+        targetMembership.removedAt = now
+        targetMembership.removedBy = command.actorUserId
+        accountMembershipRepository.save(targetMembership)
+        logger.info { "Member removed: accountId=${command.accountId}, targetMembershipId=${command.targetMembershipId}" }
+    }
+
+    /**
+     * Leave the account (FR-6.4). Sole OWNER cannot leave without transferring ownership first.
+     *
+     * @throws ValidationException with NOT_ACCOUNT_MEMBER, SOLE_OWNER_CANNOT_LEAVE
+     */
+    @Transactional
+    open fun leaveAccount(command: AccountMembership.LeaveAccountCommand) {
+        val account =
+            accountRepository.findById(command.accountId)
+                .orElseThrow { ValidationException(SecurityErrorCode.ACCOUNT_NOT_FOUND, field = "accountId") }
+        if (account.accountStatus != AccountStatus.ACTIVE) {
+            throw ValidationException(SecurityErrorCode.ACCOUNT_INACTIVE, field = "accountId")
+        }
+
+        val actorMembership =
+            accountMembershipRepository.findOneByAccountIdAndUserId(command.accountId, command.actorUserId)
+                .orElseThrow { ValidationException(SecurityErrorCode.NOT_ACCOUNT_MEMBER, field = "actorUserId") }
+        if (actorMembership.membershipStatus != MembershipStatus.ACTIVE) {
+            throw ValidationException(SecurityErrorCode.NOT_ACCOUNT_MEMBER, field = "actorUserId")
+        }
+
+        val actor = ActorMembershipContext(actorMembership.accountRole, actorMembership.membershipStatus)
+        val activeOwners =
+            accountMembershipRepository.findByAccountId(command.accountId)
+                .count { it.membershipStatus == MembershipStatus.ACTIVE && it.accountRole == AccountRole.OWNER }
+        val isSoleOwner = actor.role == AccountRole.OWNER && activeOwners == 1
+
+        val policyResult =
+            membershipPolicyEngine.evaluate(MembershipOperation.LEAVE, actor, isSoleOwner = isSoleOwner)
+        when (policyResult) {
+            is MembershipPolicyResult.Allowed -> { /* proceed */ }
+            is MembershipPolicyResult.Denied ->
+                throw ValidationException(
+                    errorCode = policyResult.errorCode,
+                    field = null,
+                    parameters = policyResult.message?.let { mapOf("reason" to it) } ?: emptyMap(),
+                )
+        }
+
+        val now = Instant.now()
+        actorMembership.membershipStatus = MembershipStatus.REMOVED
+        actorMembership.removedAt = now
+        actorMembership.removedBy = null
+        accountMembershipRepository.save(actorMembership)
+        logger.info { "Member left account: accountId=${command.accountId}, userId=${command.actorUserId}" }
+    }
+
+    /**
+     * Transfer account ownership to another member (FR-6.5). Current OWNER becomes ADMIN.
+     *
+     * @throws ValidationException with NOT_ACCOUNT_MEMBER, ACCOUNT_ROLE_INSUFFICIENT, TARGET_NOT_ELIGIBLE
+     */
+    @Transactional
+    open fun transferOwnership(command: AccountMembership.TransferOwnershipCommand) {
+        val account =
+            accountRepository.findById(command.accountId)
+                .orElseThrow { ValidationException(SecurityErrorCode.ACCOUNT_NOT_FOUND, field = "accountId") }
+        if (account.accountStatus != AccountStatus.ACTIVE) {
+            throw ValidationException(SecurityErrorCode.ACCOUNT_INACTIVE, field = "accountId")
+        }
+
+        val actorMembership =
+            accountMembershipRepository.findOneByAccountIdAndUserId(command.accountId, command.actorUserId)
+                .orElse(null)
+        val actor = actorMembership?.let { ActorMembershipContext(it.accountRole, it.membershipStatus) }
+
+        val newOwnerMembership =
+            accountMembershipRepository.findOneByAccountIdAndUserId(command.accountId, command.newOwnerUserId)
+                .orElseThrow { ValidationException(SecurityErrorCode.TARGET_NOT_ELIGIBLE, field = "newOwnerUserId") }
+        if (newOwnerMembership.membershipStatus != MembershipStatus.ACTIVE) {
+            throw ValidationException(SecurityErrorCode.TARGET_NOT_ELIGIBLE, field = "newOwnerUserId")
+        }
+
+        val newOwner = NewOwnerContext(newOwnerMembership.accountRole, newOwnerMembership.membershipStatus)
+        val policyResult =
+            membershipPolicyEngine.evaluate(MembershipOperation.TRANSFER_OWNERSHIP, actor, newOwner = newOwner)
+        when (policyResult) {
+            is MembershipPolicyResult.Allowed -> { /* proceed */ }
+            is MembershipPolicyResult.Denied ->
+                throw ValidationException(
+                    errorCode = policyResult.errorCode,
+                    field = null,
+                    parameters = policyResult.message?.let { mapOf("reason" to it) } ?: emptyMap(),
+                )
+        }
+
+        account.ownerUserId = command.newOwnerUserId
+        accountRepository.update(account)
+        actorMembership!!.accountRole = AccountRole.ADMIN
+        accountMembershipRepository.save(actorMembership)
+        newOwnerMembership.accountRole = AccountRole.OWNER
+        accountMembershipRepository.save(newOwnerMembership)
+        logger.info { "Ownership transferred: accountId=${command.accountId}, newOwnerUserId=${command.newOwnerUserId}" }
+    }
+
     private fun generateSecureToken(): String {
         val bytes = ByteArray(TOKEN_BYTES)
         secureRandom.nextBytes(bytes)

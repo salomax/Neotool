@@ -31,6 +31,7 @@ import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
+import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.time.Instant
@@ -707,6 +708,695 @@ class AccountMembershipServiceTest {
                 accountMembershipService.declineInvitation(command)
             }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.NOT_PENDING_INVITATION) }
             verify(accountMembershipRepository, never()).deleteById(any())
+        }
+    }
+
+    @Nested
+    @DisplayName("Change member role (FR-6.2)")
+    inner class ChangeMemberRoleTests {
+        @Test
+        fun `changeMemberRole succeeds when OWNER changes another member to VIEWER`() {
+            val accountId = UUID.randomUUID()
+            val ownerId = UUID.randomUUID()
+            val targetMembershipId = UUID.randomUUID()
+            val targetUserId = UUID.randomUUID()
+            val account = AccountEntity(
+                id = accountId,
+                accountName = "Biz",
+                accountType = AccountType.BUSINESS,
+                accountStatus = AccountStatus.ACTIVE,
+                ownerUserId = ownerId,
+            )
+            val ownerMembership = AccountMembershipEntity(
+                accountId = accountId,
+                userId = ownerId,
+                accountRole = AccountRole.OWNER,
+                membershipStatus = MembershipStatus.ACTIVE,
+            )
+            val targetMembership = AccountMembershipEntity(
+                id = targetMembershipId,
+                accountId = accountId,
+                userId = targetUserId,
+                accountRole = AccountRole.MEMBER,
+                membershipStatus = MembershipStatus.ACTIVE,
+            )
+            whenever(accountRepository.findById(eq(accountId))).thenReturn(Optional.of(account))
+            whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(ownerId)))
+                .thenReturn(Optional.of(ownerMembership))
+            whenever(accountMembershipRepository.findById(eq(targetMembershipId)))
+                .thenReturn(Optional.of(targetMembership))
+            whenever(
+                membershipPolicyEngine.evaluate(
+                    eq(MembershipOperation.CHANGE_ROLE),
+                    any(),
+                    any(),
+                    eq(AccountRole.VIEWER),
+                    anyOrNull(),
+                    anyOrNull(),
+                ),
+            ).thenReturn(MembershipPolicyResult.Allowed)
+            whenever(accountMembershipRepository.save(any())).thenAnswer { it.getArgument(0) }
+
+            val command = AccountMembership.ChangeMemberRoleCommand(
+                accountId = accountId,
+                actorUserId = ownerId,
+                targetMembershipId = targetMembershipId,
+                newRole = AccountRole.VIEWER,
+            )
+            accountMembershipService.changeMemberRole(command)
+
+            assertThat(targetMembership.accountRole).isEqualTo(AccountRole.VIEWER)
+            verify(accountMembershipRepository).save(targetMembership)
+        }
+
+        @Test
+        fun `changeMemberRole throws ACCOUNT_ROLE_INSUFFICIENT when MEMBER actor`() {
+            val accountId = UUID.randomUUID()
+            val actorId = UUID.randomUUID()
+            val targetMembershipId = UUID.randomUUID()
+            val account = AccountEntity(
+                id = accountId,
+                accountName = "Biz",
+                accountType = AccountType.BUSINESS,
+                accountStatus = AccountStatus.ACTIVE,
+                ownerUserId = UUID.randomUUID(),
+            )
+            val actorMembership = AccountMembershipEntity(
+                accountId = accountId,
+                userId = actorId,
+                accountRole = AccountRole.MEMBER,
+                membershipStatus = MembershipStatus.ACTIVE,
+            )
+            val targetMembership = AccountMembershipEntity(
+                id = targetMembershipId,
+                accountId = accountId,
+                userId = UUID.randomUUID(),
+                accountRole = AccountRole.VIEWER,
+                membershipStatus = MembershipStatus.ACTIVE,
+            )
+            whenever(accountRepository.findById(eq(accountId))).thenReturn(Optional.of(account))
+            whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(actorId)))
+                .thenReturn(Optional.of(actorMembership))
+            whenever(accountMembershipRepository.findById(eq(targetMembershipId)))
+                .thenReturn(Optional.of(targetMembership))
+            whenever(
+                membershipPolicyEngine.evaluate(
+                    eq(MembershipOperation.CHANGE_ROLE),
+                    any(),
+                    any(),
+                    eq(AccountRole.ADMIN),
+                    anyOrNull(),
+                    anyOrNull(),
+                ),
+            ).thenReturn(MembershipPolicyResult.Denied(SecurityErrorCode.ACCOUNT_ROLE_INSUFFICIENT))
+
+            val command = AccountMembership.ChangeMemberRoleCommand(
+                accountId = accountId,
+                actorUserId = actorId,
+                targetMembershipId = targetMembershipId,
+                newRole = AccountRole.ADMIN,
+            )
+            assertThrows<ValidationException> {
+                accountMembershipService.changeMemberRole(command)
+            }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.ACCOUNT_ROLE_INSUFFICIENT) }
+            verify(accountMembershipRepository, never()).save(any())
+        }
+
+        @Test
+        fun `changeMemberRole throws SELF_OPERATION_FORBIDDEN when changing own role`() {
+            val accountId = UUID.randomUUID()
+            val ownerId = UUID.randomUUID()
+            val targetMembershipId = UUID.randomUUID()
+            val account = AccountEntity(
+                id = accountId,
+                accountName = "Biz",
+                accountType = AccountType.BUSINESS,
+                accountStatus = AccountStatus.ACTIVE,
+                ownerUserId = ownerId,
+            )
+            val ownerMembership = AccountMembershipEntity(
+                id = targetMembershipId,
+                accountId = accountId,
+                userId = ownerId,
+                accountRole = AccountRole.OWNER,
+                membershipStatus = MembershipStatus.ACTIVE,
+            )
+            whenever(accountRepository.findById(eq(accountId))).thenReturn(Optional.of(account))
+            whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(ownerId)))
+                .thenReturn(Optional.of(ownerMembership))
+            whenever(accountMembershipRepository.findById(eq(targetMembershipId)))
+                .thenReturn(Optional.of(ownerMembership))
+            whenever(
+                membershipPolicyEngine.evaluate(
+                    eq(MembershipOperation.CHANGE_ROLE),
+                    any(),
+                    any(),
+                    eq(AccountRole.ADMIN),
+                    anyOrNull(),
+                    anyOrNull(),
+                ),
+            ).thenReturn(MembershipPolicyResult.Denied(SecurityErrorCode.SELF_OPERATION_FORBIDDEN))
+
+            val command = AccountMembership.ChangeMemberRoleCommand(
+                accountId = accountId,
+                actorUserId = ownerId,
+                targetMembershipId = targetMembershipId,
+                newRole = AccountRole.ADMIN,
+            )
+            assertThrows<ValidationException> {
+                accountMembershipService.changeMemberRole(command)
+            }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.SELF_OPERATION_FORBIDDEN) }
+            verify(accountMembershipRepository, never()).save(any())
+        }
+
+        @Test
+        fun `changeMemberRole throws TARGET_NOT_ELIGIBLE when target not ACTIVE`() {
+            val accountId = UUID.randomUUID()
+            val ownerId = UUID.randomUUID()
+            val targetMembershipId = UUID.randomUUID()
+            val account = AccountEntity(
+                id = accountId,
+                accountName = "Biz",
+                accountType = AccountType.BUSINESS,
+                accountStatus = AccountStatus.ACTIVE,
+                ownerUserId = ownerId,
+            )
+            val ownerMembership = AccountMembershipEntity(
+                accountId = accountId,
+                userId = ownerId,
+                accountRole = AccountRole.OWNER,
+                membershipStatus = MembershipStatus.ACTIVE,
+            )
+            val targetMembership = AccountMembershipEntity(
+                id = targetMembershipId,
+                accountId = accountId,
+                userId = UUID.randomUUID(),
+                accountRole = AccountRole.MEMBER,
+                membershipStatus = MembershipStatus.REMOVED,
+            )
+            whenever(accountRepository.findById(eq(accountId))).thenReturn(Optional.of(account))
+            whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(ownerId)))
+                .thenReturn(Optional.of(ownerMembership))
+            whenever(accountMembershipRepository.findById(eq(targetMembershipId)))
+                .thenReturn(Optional.of(targetMembership))
+
+            val command = AccountMembership.ChangeMemberRoleCommand(
+                accountId = accountId,
+                actorUserId = ownerId,
+                targetMembershipId = targetMembershipId,
+                newRole = AccountRole.VIEWER,
+            )
+            assertThrows<ValidationException> {
+                accountMembershipService.changeMemberRole(command)
+            }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.TARGET_NOT_ELIGIBLE) }
+            verify(accountMembershipRepository, never()).save(any())
+        }
+    }
+
+    @Nested
+    @DisplayName("Remove member (FR-6.3)")
+    inner class RemoveMemberTests {
+        @Test
+        fun `removeMember succeeds when OWNER removes MEMBER`() {
+            val accountId = UUID.randomUUID()
+            val ownerId = UUID.randomUUID()
+            val targetMembershipId = UUID.randomUUID()
+            val targetUserId = UUID.randomUUID()
+            val account = AccountEntity(
+                id = accountId,
+                accountName = "Biz",
+                accountType = AccountType.BUSINESS,
+                accountStatus = AccountStatus.ACTIVE,
+                ownerUserId = ownerId,
+            )
+            val ownerMembership = AccountMembershipEntity(
+                accountId = accountId,
+                userId = ownerId,
+                accountRole = AccountRole.OWNER,
+                membershipStatus = MembershipStatus.ACTIVE,
+            )
+            val targetMembership = AccountMembershipEntity(
+                id = targetMembershipId,
+                accountId = accountId,
+                userId = targetUserId,
+                accountRole = AccountRole.MEMBER,
+                membershipStatus = MembershipStatus.ACTIVE,
+            )
+            whenever(accountRepository.findById(eq(accountId))).thenReturn(Optional.of(account))
+            whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(ownerId)))
+                .thenReturn(Optional.of(ownerMembership))
+            whenever(accountMembershipRepository.findById(eq(targetMembershipId)))
+                .thenReturn(Optional.of(targetMembership))
+            whenever(
+                membershipPolicyEngine.evaluate(
+                    eq(MembershipOperation.REMOVE_MEMBER),
+                    any(),
+                    any(),
+                    anyOrNull(),
+                    anyOrNull(),
+                    anyOrNull(),
+                ),
+            ).thenReturn(MembershipPolicyResult.Allowed)
+            whenever(accountMembershipRepository.save(any())).thenAnswer { it.getArgument(0) }
+
+            val command = AccountMembership.RemoveMemberCommand(
+                accountId = accountId,
+                actorUserId = ownerId,
+                targetMembershipId = targetMembershipId,
+            )
+            accountMembershipService.removeMember(command)
+
+            assertThat(targetMembership.membershipStatus).isEqualTo(MembershipStatus.REMOVED)
+            assertThat(targetMembership.removedAt).isNotNull()
+            assertThat(targetMembership.removedBy).isEqualTo(ownerId)
+            verify(accountMembershipRepository).save(targetMembership)
+        }
+
+        @Test
+        fun `removeMember succeeds when ADMIN removes VIEWER`() {
+            val accountId = UUID.randomUUID()
+            val adminId = UUID.randomUUID()
+            val targetMembershipId = UUID.randomUUID()
+            val account = AccountEntity(
+                id = accountId,
+                accountName = "Biz",
+                accountType = AccountType.BUSINESS,
+                accountStatus = AccountStatus.ACTIVE,
+                ownerUserId = UUID.randomUUID(),
+            )
+            val adminMembership = AccountMembershipEntity(
+                accountId = accountId,
+                userId = adminId,
+                accountRole = AccountRole.ADMIN,
+                membershipStatus = MembershipStatus.ACTIVE,
+            )
+            val targetMembership = AccountMembershipEntity(
+                id = targetMembershipId,
+                accountId = accountId,
+                userId = UUID.randomUUID(),
+                accountRole = AccountRole.VIEWER,
+                membershipStatus = MembershipStatus.ACTIVE,
+            )
+            whenever(accountRepository.findById(eq(accountId))).thenReturn(Optional.of(account))
+            whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(adminId)))
+                .thenReturn(Optional.of(adminMembership))
+            whenever(accountMembershipRepository.findById(eq(targetMembershipId)))
+                .thenReturn(Optional.of(targetMembership))
+            whenever(
+                membershipPolicyEngine.evaluate(
+                    eq(MembershipOperation.REMOVE_MEMBER),
+                    any(),
+                    any(),
+                    anyOrNull(),
+                    anyOrNull(),
+                    anyOrNull(),
+                ),
+            ).thenReturn(MembershipPolicyResult.Allowed)
+            whenever(accountMembershipRepository.save(any())).thenAnswer { it.getArgument(0) }
+
+            val command = AccountMembership.RemoveMemberCommand(
+                accountId = accountId,
+                actorUserId = adminId,
+                targetMembershipId = targetMembershipId,
+            )
+            accountMembershipService.removeMember(command)
+
+            assertThat(targetMembership.membershipStatus).isEqualTo(MembershipStatus.REMOVED)
+            verify(accountMembershipRepository).save(targetMembership)
+        }
+
+        @Test
+        fun `removeMember throws TARGET_ROLE_TOO_HIGH when ADMIN removes OWNER`() {
+            val accountId = UUID.randomUUID()
+            val adminId = UUID.randomUUID()
+            val targetMembershipId = UUID.randomUUID()
+            val account = AccountEntity(
+                id = accountId,
+                accountName = "Biz",
+                accountType = AccountType.BUSINESS,
+                accountStatus = AccountStatus.ACTIVE,
+                ownerUserId = UUID.randomUUID(),
+            )
+            val adminMembership = AccountMembershipEntity(
+                accountId = accountId,
+                userId = adminId,
+                accountRole = AccountRole.ADMIN,
+                membershipStatus = MembershipStatus.ACTIVE,
+            )
+            val targetMembership = AccountMembershipEntity(
+                id = targetMembershipId,
+                accountId = accountId,
+                userId = UUID.randomUUID(),
+                accountRole = AccountRole.OWNER,
+                membershipStatus = MembershipStatus.ACTIVE,
+            )
+            whenever(accountRepository.findById(eq(accountId))).thenReturn(Optional.of(account))
+            whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(adminId)))
+                .thenReturn(Optional.of(adminMembership))
+            whenever(accountMembershipRepository.findById(eq(targetMembershipId)))
+                .thenReturn(Optional.of(targetMembership))
+            whenever(
+                membershipPolicyEngine.evaluate(
+                    eq(MembershipOperation.REMOVE_MEMBER),
+                    any(),
+                    any(),
+                    anyOrNull(),
+                    anyOrNull(),
+                    anyOrNull(),
+                ),
+            ).thenReturn(MembershipPolicyResult.Denied(SecurityErrorCode.TARGET_ROLE_TOO_HIGH))
+
+            val command = AccountMembership.RemoveMemberCommand(
+                accountId = accountId,
+                actorUserId = adminId,
+                targetMembershipId = targetMembershipId,
+            )
+            assertThrows<ValidationException> {
+                accountMembershipService.removeMember(command)
+            }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.TARGET_ROLE_TOO_HIGH) }
+            verify(accountMembershipRepository, never()).save(any())
+        }
+
+        @Test
+        fun `removeMember throws SELF_OPERATION_FORBIDDEN when removing self`() {
+            val accountId = UUID.randomUUID()
+            val ownerId = UUID.randomUUID()
+            val targetMembershipId = UUID.randomUUID()
+            val account = AccountEntity(
+                id = accountId,
+                accountName = "Biz",
+                accountType = AccountType.BUSINESS,
+                accountStatus = AccountStatus.ACTIVE,
+                ownerUserId = ownerId,
+            )
+            val ownerMembership = AccountMembershipEntity(
+                id = targetMembershipId,
+                accountId = accountId,
+                userId = ownerId,
+                accountRole = AccountRole.OWNER,
+                membershipStatus = MembershipStatus.ACTIVE,
+            )
+            whenever(accountRepository.findById(eq(accountId))).thenReturn(Optional.of(account))
+            whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(ownerId)))
+                .thenReturn(Optional.of(ownerMembership))
+            whenever(accountMembershipRepository.findById(eq(targetMembershipId)))
+                .thenReturn(Optional.of(ownerMembership))
+            whenever(
+                membershipPolicyEngine.evaluate(
+                    eq(MembershipOperation.REMOVE_MEMBER),
+                    any(),
+                    any(),
+                    anyOrNull(),
+                    anyOrNull(),
+                    anyOrNull(),
+                ),
+            ).thenReturn(MembershipPolicyResult.Denied(SecurityErrorCode.SELF_OPERATION_FORBIDDEN))
+
+            val command = AccountMembership.RemoveMemberCommand(
+                accountId = accountId,
+                actorUserId = ownerId,
+                targetMembershipId = targetMembershipId,
+            )
+            assertThrows<ValidationException> {
+                accountMembershipService.removeMember(command)
+            }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.SELF_OPERATION_FORBIDDEN) }
+            verify(accountMembershipRepository, never()).save(any())
+        }
+    }
+
+    @Nested
+    @DisplayName("Leave account (FR-6.4)")
+    inner class LeaveAccountTests {
+        @Test
+        fun `leaveAccount succeeds when MEMBER leaves`() {
+            val accountId = UUID.randomUUID()
+            val memberId = UUID.randomUUID()
+            val account = AccountEntity(
+                id = accountId,
+                accountName = "Biz",
+                accountType = AccountType.BUSINESS,
+                accountStatus = AccountStatus.ACTIVE,
+                ownerUserId = UUID.randomUUID(),
+            )
+            val memberMembership = AccountMembershipEntity(
+                accountId = accountId,
+                userId = memberId,
+                accountRole = AccountRole.MEMBER,
+                membershipStatus = MembershipStatus.ACTIVE,
+            )
+            whenever(accountRepository.findById(eq(accountId))).thenReturn(Optional.of(account))
+            whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(memberId)))
+                .thenReturn(Optional.of(memberMembership))
+            whenever(accountMembershipRepository.findByAccountId(eq(accountId)))
+                .thenReturn(listOf(memberMembership, AccountMembershipEntity(
+                    accountId = accountId,
+                    userId = UUID.randomUUID(),
+                    accountRole = AccountRole.OWNER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )))
+            whenever(
+                membershipPolicyEngine.evaluate(
+                    eq(MembershipOperation.LEAVE),
+                    any(),
+                    anyOrNull(),
+                    anyOrNull(),
+                    anyOrNull(),
+                    eq(false),
+                ),
+            ).thenReturn(MembershipPolicyResult.Allowed)
+            whenever(accountMembershipRepository.save(any())).thenAnswer { it.getArgument(0) }
+
+            val command = AccountMembership.LeaveAccountCommand(
+                accountId = accountId,
+                actorUserId = memberId,
+            )
+            accountMembershipService.leaveAccount(command)
+
+            assertThat(memberMembership.membershipStatus).isEqualTo(MembershipStatus.REMOVED)
+            assertThat(memberMembership.removedAt).isNotNull()
+            verify(accountMembershipRepository).save(memberMembership)
+        }
+
+        @Test
+        fun `leaveAccount throws SOLE_OWNER_CANNOT_LEAVE when sole OWNER leaves`() {
+            val accountId = UUID.randomUUID()
+            val ownerId = UUID.randomUUID()
+            val account = AccountEntity(
+                id = accountId,
+                accountName = "Biz",
+                accountType = AccountType.BUSINESS,
+                accountStatus = AccountStatus.ACTIVE,
+                ownerUserId = ownerId,
+            )
+            val ownerMembership = AccountMembershipEntity(
+                accountId = accountId,
+                userId = ownerId,
+                accountRole = AccountRole.OWNER,
+                membershipStatus = MembershipStatus.ACTIVE,
+            )
+            whenever(accountRepository.findById(eq(accountId))).thenReturn(Optional.of(account))
+            whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(ownerId)))
+                .thenReturn(Optional.of(ownerMembership))
+            whenever(accountMembershipRepository.findByAccountId(eq(accountId)))
+                .thenReturn(listOf(ownerMembership))
+            whenever(
+                membershipPolicyEngine.evaluate(
+                    eq(MembershipOperation.LEAVE),
+                    any(),
+                    anyOrNull(),
+                    anyOrNull(),
+                    anyOrNull(),
+                    eq(true),
+                ),
+            ).thenReturn(MembershipPolicyResult.Denied(SecurityErrorCode.SOLE_OWNER_CANNOT_LEAVE))
+
+            val command = AccountMembership.LeaveAccountCommand(
+                accountId = accountId,
+                actorUserId = ownerId,
+            )
+            assertThrows<ValidationException> {
+                accountMembershipService.leaveAccount(command)
+            }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.SOLE_OWNER_CANNOT_LEAVE) }
+            verify(accountMembershipRepository, never()).save(any())
+        }
+
+        @Test
+        fun `leaveAccount throws NOT_ACCOUNT_MEMBER when not a member`() {
+            val accountId = UUID.randomUUID()
+            val userId = UUID.randomUUID()
+            val account = AccountEntity(
+                id = accountId,
+                accountName = "Biz",
+                accountType = AccountType.BUSINESS,
+                accountStatus = AccountStatus.ACTIVE,
+                ownerUserId = UUID.randomUUID(),
+            )
+            whenever(accountRepository.findById(eq(accountId))).thenReturn(Optional.of(account))
+            whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(userId)))
+                .thenReturn(Optional.empty())
+
+            val command = AccountMembership.LeaveAccountCommand(
+                accountId = accountId,
+                actorUserId = userId,
+            )
+            assertThrows<ValidationException> {
+                accountMembershipService.leaveAccount(command)
+            }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.NOT_ACCOUNT_MEMBER) }
+            verify(accountMembershipRepository, never()).save(any())
+        }
+    }
+
+    @Nested
+    @DisplayName("Transfer ownership (FR-6.5)")
+    inner class TransferOwnershipTests {
+        @Test
+        fun `transferOwnership succeeds when OWNER transfers to ADMIN`() {
+            val accountId = UUID.randomUUID()
+            val ownerId = UUID.randomUUID()
+            val newOwnerId = UUID.randomUUID()
+            val account = AccountEntity(
+                id = accountId,
+                accountName = "Biz",
+                accountType = AccountType.BUSINESS,
+                accountStatus = AccountStatus.ACTIVE,
+                ownerUserId = ownerId,
+            )
+            val ownerMembership = AccountMembershipEntity(
+                accountId = accountId,
+                userId = ownerId,
+                accountRole = AccountRole.OWNER,
+                membershipStatus = MembershipStatus.ACTIVE,
+            )
+            val newOwnerMembership = AccountMembershipEntity(
+                accountId = accountId,
+                userId = newOwnerId,
+                accountRole = AccountRole.ADMIN,
+                membershipStatus = MembershipStatus.ACTIVE,
+            )
+            whenever(accountRepository.findById(eq(accountId))).thenReturn(Optional.of(account))
+            whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(ownerId)))
+                .thenReturn(Optional.of(ownerMembership))
+            whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(newOwnerId)))
+                .thenReturn(Optional.of(newOwnerMembership))
+            whenever(
+                membershipPolicyEngine.evaluate(
+                    eq(MembershipOperation.TRANSFER_OWNERSHIP),
+                    any(),
+                    anyOrNull(),
+                    anyOrNull(),
+                    any(),
+                    anyOrNull(),
+                ),
+            ).thenReturn(MembershipPolicyResult.Allowed)
+            whenever(accountRepository.update(any())).thenAnswer { it.getArgument(0) }
+            whenever(accountMembershipRepository.save(any())).thenAnswer { it.getArgument(0) }
+
+            val command = AccountMembership.TransferOwnershipCommand(
+                accountId = accountId,
+                actorUserId = ownerId,
+                newOwnerUserId = newOwnerId,
+            )
+            accountMembershipService.transferOwnership(command)
+
+            assertThat(account.ownerUserId).isEqualTo(newOwnerId)
+            assertThat(ownerMembership.accountRole).isEqualTo(AccountRole.ADMIN)
+            assertThat(newOwnerMembership.accountRole).isEqualTo(AccountRole.OWNER)
+            verify(accountRepository).update(account)
+            verify(accountMembershipRepository, times(2)).save(any())
+        }
+
+        @Test
+        fun `transferOwnership throws ACCOUNT_ROLE_INSUFFICIENT when actor not OWNER`() {
+            val accountId = UUID.randomUUID()
+            val adminId = UUID.randomUUID()
+            val newOwnerId = UUID.randomUUID()
+            val account = AccountEntity(
+                id = accountId,
+                accountName = "Biz",
+                accountType = AccountType.BUSINESS,
+                accountStatus = AccountStatus.ACTIVE,
+                ownerUserId = UUID.randomUUID(),
+            )
+            val adminMembership = AccountMembershipEntity(
+                accountId = accountId,
+                userId = adminId,
+                accountRole = AccountRole.ADMIN,
+                membershipStatus = MembershipStatus.ACTIVE,
+            )
+            val newOwnerMembership = AccountMembershipEntity(
+                accountId = accountId,
+                userId = newOwnerId,
+                accountRole = AccountRole.MEMBER,
+                membershipStatus = MembershipStatus.ACTIVE,
+            )
+            whenever(accountRepository.findById(eq(accountId))).thenReturn(Optional.of(account))
+            whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(adminId)))
+                .thenReturn(Optional.of(adminMembership))
+            whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(newOwnerId)))
+                .thenReturn(Optional.of(newOwnerMembership))
+            whenever(
+                membershipPolicyEngine.evaluate(
+                    eq(MembershipOperation.TRANSFER_OWNERSHIP),
+                    any(),
+                    anyOrNull(),
+                    anyOrNull(),
+                    any(),
+                    anyOrNull(),
+                ),
+            ).thenReturn(MembershipPolicyResult.Denied(SecurityErrorCode.ACCOUNT_ROLE_INSUFFICIENT))
+
+            val command = AccountMembership.TransferOwnershipCommand(
+                accountId = accountId,
+                actorUserId = adminId,
+                newOwnerUserId = newOwnerId,
+            )
+            assertThrows<ValidationException> {
+                accountMembershipService.transferOwnership(command)
+            }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.ACCOUNT_ROLE_INSUFFICIENT) }
+            verify(accountRepository, never()).update(any())
+            verify(accountMembershipRepository, never()).save(any())
+        }
+
+        @Test
+        fun `transferOwnership throws TARGET_NOT_ELIGIBLE when new owner not ACTIVE`() {
+            val accountId = UUID.randomUUID()
+            val ownerId = UUID.randomUUID()
+            val newOwnerId = UUID.randomUUID()
+            val account = AccountEntity(
+                id = accountId,
+                accountName = "Biz",
+                accountType = AccountType.BUSINESS,
+                accountStatus = AccountStatus.ACTIVE,
+                ownerUserId = ownerId,
+            )
+            val ownerMembership = AccountMembershipEntity(
+                accountId = accountId,
+                userId = ownerId,
+                accountRole = AccountRole.OWNER,
+                membershipStatus = MembershipStatus.ACTIVE,
+            )
+            val newOwnerMembership = AccountMembershipEntity(
+                accountId = accountId,
+                userId = newOwnerId,
+                accountRole = AccountRole.MEMBER,
+                membershipStatus = MembershipStatus.REMOVED,
+            )
+            whenever(accountRepository.findById(eq(accountId))).thenReturn(Optional.of(account))
+            whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(ownerId)))
+                .thenReturn(Optional.of(ownerMembership))
+            whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(newOwnerId)))
+                .thenReturn(Optional.of(newOwnerMembership))
+
+            val command = AccountMembership.TransferOwnershipCommand(
+                accountId = accountId,
+                actorUserId = ownerId,
+                newOwnerUserId = newOwnerId,
+            )
+            assertThrows<ValidationException> {
+                accountMembershipService.transferOwnership(command)
+            }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.TARGET_NOT_ELIGIBLE) }
+            verify(accountRepository, never()).update(any())
+            verify(accountMembershipRepository, never()).save(any())
         }
     }
 }

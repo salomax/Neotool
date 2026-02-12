@@ -287,4 +287,177 @@ class AccountMembershipServiceIntegrationTest :
         assertThat(pending).isPresent
         assertThat(pending.get().membershipStatus).isEqualTo(MembershipStatus.PENDING)
     }
+
+    @Test
+    fun `change member role flow OWNER changes member to VIEWER`() {
+        val ownerEmail = uniqueEmail("chrole-owner")
+        val memberEmail = uniqueEmail("chrole-member")
+        authenticationService.registerUser("Owner", ownerEmail, "TestPassword123!")
+        authenticationService.registerUser("Member", memberEmail, "TestPassword123!")
+        val owner = userRepository.findByEmail(ownerEmail)!!
+        val member = userRepository.findByEmail(memberEmail)!!
+
+        val createCmd = AccountManagement.CreateAccountCommand(
+            accountName = "Change Role Account",
+            accountType = io.github.salomax.neotool.security.model.account.AccountType.BUSINESS,
+            ownerUserId = owner.id!!,
+        )
+        val account = accountService.create(createCmd)
+        val accountId = account.id!!
+
+        val inviteCmd = AccountMembership.InviteMemberCommand(
+            accountId = accountId,
+            inviterUserId = owner.id!!,
+            inviteeEmail = memberEmail,
+            role = AccountRole.MEMBER,
+        )
+        val invitation = accountMembershipService.invite(inviteCmd)
+        val acceptCmd = AccountMembership.AcceptInvitationCommand(
+            invitationToken = invitation.invitationToken,
+            actorUserId = member.id!!,
+        )
+        accountMembershipService.acceptInvitation(acceptCmd)
+
+        val membership = accountMembershipRepository.findOneByAccountIdAndUserId(accountId, member.id!!).get()
+        val changeCmd = AccountMembership.ChangeMemberRoleCommand(
+            accountId = accountId,
+            actorUserId = owner.id!!,
+            targetMembershipId = membership.id!!,
+            newRole = AccountRole.VIEWER,
+        )
+        accountMembershipService.changeMemberRole(changeCmd)
+
+        val updated = accountMembershipRepository.findOneByAccountIdAndUserId(accountId, member.id!!)
+        assertThat(updated).isPresent
+        assertThat(updated.get().accountRole).isEqualTo(AccountRole.VIEWER)
+        assertThat(updated.get().membershipStatus).isEqualTo(MembershipStatus.ACTIVE)
+    }
+
+    @Test
+    fun `remove member flow OWNER removes member membership becomes REMOVED`() {
+        val ownerEmail = uniqueEmail("rem-owner")
+        val memberEmail = uniqueEmail("rem-member")
+        authenticationService.registerUser("Owner", ownerEmail, "TestPassword123!")
+        authenticationService.registerUser("Member", memberEmail, "TestPassword123!")
+        val owner = userRepository.findByEmail(ownerEmail)!!
+        val member = userRepository.findByEmail(memberEmail)!!
+
+        val createCmd = AccountManagement.CreateAccountCommand(
+            accountName = "Remove Member Account",
+            accountType = io.github.salomax.neotool.security.model.account.AccountType.BUSINESS,
+            ownerUserId = owner.id!!,
+        )
+        val account = accountService.create(createCmd)
+        val accountId = account.id!!
+
+        val inviteCmd = AccountMembership.InviteMemberCommand(
+            accountId = accountId,
+            inviterUserId = owner.id!!,
+            inviteeEmail = memberEmail,
+            role = AccountRole.MEMBER,
+        )
+        val invitation = accountMembershipService.invite(inviteCmd)
+        accountMembershipService.acceptInvitation(
+            AccountMembership.AcceptInvitationCommand(invitation.invitationToken, member.id!!),
+        )
+
+        val membership = accountMembershipRepository.findOneByAccountIdAndUserId(accountId, member.id!!).get()
+        val removeCmd = AccountMembership.RemoveMemberCommand(
+            accountId = accountId,
+            actorUserId = owner.id!!,
+            targetMembershipId = membership.id!!,
+        )
+        accountMembershipService.removeMember(removeCmd)
+
+        val afterRemove = accountMembershipRepository.findOneByAccountIdAndUserId(accountId, member.id!!)
+        assertThat(afterRemove).isPresent
+        assertThat(afterRemove.get().membershipStatus).isEqualTo(MembershipStatus.REMOVED)
+        assertThat(afterRemove.get().removedAt).isNotNull()
+        assertThat(afterRemove.get().removedBy).isEqualTo(owner.id)
+    }
+
+    @Test
+    fun `leave account flow member leaves membership becomes REMOVED`() {
+        val ownerEmail = uniqueEmail("leave-owner")
+        val memberEmail = uniqueEmail("leave-member")
+        authenticationService.registerUser("Owner", ownerEmail, "TestPassword123!")
+        authenticationService.registerUser("Member", memberEmail, "TestPassword123!")
+        val owner = userRepository.findByEmail(ownerEmail)!!
+        val member = userRepository.findByEmail(memberEmail)!!
+
+        val createCmd = AccountManagement.CreateAccountCommand(
+            accountName = "Leave Account",
+            accountType = io.github.salomax.neotool.security.model.account.AccountType.BUSINESS,
+            ownerUserId = owner.id!!,
+        )
+        val account = accountService.create(createCmd)
+        val accountId = account.id!!
+
+        val inviteCmd = AccountMembership.InviteMemberCommand(
+            accountId = accountId,
+            inviterUserId = owner.id!!,
+            inviteeEmail = memberEmail,
+            role = AccountRole.MEMBER,
+        )
+        val invitation = accountMembershipService.invite(inviteCmd)
+        accountMembershipService.acceptInvitation(
+            AccountMembership.AcceptInvitationCommand(invitation.invitationToken, member.id!!),
+        )
+
+        val leaveCmd = AccountMembership.LeaveAccountCommand(
+            accountId = accountId,
+            actorUserId = member.id!!,
+        )
+        accountMembershipService.leaveAccount(leaveCmd)
+
+        val afterLeave = accountMembershipRepository.findOneByAccountIdAndUserId(accountId, member.id!!)
+        assertThat(afterLeave).isPresent
+        assertThat(afterLeave.get().membershipStatus).isEqualTo(MembershipStatus.REMOVED)
+        assertThat(afterLeave.get().removedAt).isNotNull()
+    }
+
+    @Test
+    fun `transfer ownership flow OWNER transfers to ADMIN account and roles updated`() {
+        val ownerEmail = uniqueEmail("xfer-owner")
+        val adminEmail = uniqueEmail("xfer-admin")
+        authenticationService.registerUser("Owner", ownerEmail, "TestPassword123!")
+        authenticationService.registerUser("Admin", adminEmail, "TestPassword123!")
+        val owner = userRepository.findByEmail(ownerEmail)!!
+        val admin = userRepository.findByEmail(adminEmail)!!
+
+        val createCmd = AccountManagement.CreateAccountCommand(
+            accountName = "Transfer Account",
+            accountType = io.github.salomax.neotool.security.model.account.AccountType.BUSINESS,
+            ownerUserId = owner.id!!,
+        )
+        val account = accountService.create(createCmd)
+        val accountId = account.id!!
+
+        val inviteCmd = AccountMembership.InviteMemberCommand(
+            accountId = accountId,
+            inviterUserId = owner.id!!,
+            inviteeEmail = adminEmail,
+            role = AccountRole.ADMIN,
+        )
+        val invitation = accountMembershipService.invite(inviteCmd)
+        accountMembershipService.acceptInvitation(
+            AccountMembership.AcceptInvitationCommand(invitation.invitationToken, admin.id!!),
+        )
+
+        val transferCmd = AccountMembership.TransferOwnershipCommand(
+            accountId = accountId,
+            actorUserId = owner.id!!,
+            newOwnerUserId = admin.id!!,
+        )
+        accountMembershipService.transferOwnership(transferCmd)
+
+        val updatedAccount = accountRepository.findById(accountId).get()
+        assertThat(updatedAccount.ownerUserId).isEqualTo(admin.id)
+
+        val formerOwnerMembership = accountMembershipRepository.findOneByAccountIdAndUserId(accountId, owner.id!!).get()
+        assertThat(formerOwnerMembership.accountRole).isEqualTo(AccountRole.ADMIN)
+
+        val newOwnerMembership = accountMembershipRepository.findOneByAccountIdAndUserId(accountId, admin.id!!).get()
+        assertThat(newOwnerMembership.accountRole).isEqualTo(AccountRole.OWNER)
+    }
 }
