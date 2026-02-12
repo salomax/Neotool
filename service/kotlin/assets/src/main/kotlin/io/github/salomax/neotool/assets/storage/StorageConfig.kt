@@ -62,8 +62,14 @@ data class StorageProperties(
     /**
      * Build full public base URL from hostname, port, protocol and base path.
      * Used for generating public CDN URLs for PUBLIC assets.
+     *
+     * If publicBasePath is already an absolute URL (e.g., https://assets.invistus.com.br),
+     * it is used directly. Otherwise, it is appended to the storage endpoint.
      */
     fun getPublicBaseUrl(): String {
+        if (publicBasePath.startsWith("http://") || publicBasePath.startsWith("https://")) {
+            return publicBasePath.trimEnd('/')
+        }
         val protocol = if (useHttps) "https" else "http"
         val path = publicBasePath.trim('/')
         val isDefaultPort = (useHttps && port == 443) || (!useHttps && port == 80)
