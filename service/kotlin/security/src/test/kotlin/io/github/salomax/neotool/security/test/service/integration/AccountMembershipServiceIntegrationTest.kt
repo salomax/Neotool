@@ -170,4 +170,121 @@ class AccountMembershipServiceIntegrationTest :
             accountMembershipService.invite(inviteCmd)
         }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.ALREADY_MEMBER) }
     }
+
+    @Test
+    fun `accept invitation flow invitee accepts and membership becomes ACTIVE`() {
+        val ownerEmail = uniqueEmail("accept-owner")
+        val inviteeEmail = uniqueEmail("accept-invitee")
+        authenticationService.registerUser("Owner", ownerEmail, "TestPassword123!")
+        authenticationService.registerUser("Invitee", inviteeEmail, "TestPassword123!")
+        val owner = userRepository.findByEmail(ownerEmail)!!
+        val invitee = userRepository.findByEmail(inviteeEmail)!!
+
+        val createCmd = AccountManagement.CreateAccountCommand(
+            accountName = "Accept Test Account",
+            accountType = io.github.salomax.neotool.security.model.account.AccountType.BUSINESS,
+            ownerUserId = owner.id!!,
+        )
+        val account = accountService.create(createCmd)
+        val accountId = account.id!!
+
+        val inviteCmd = AccountMembership.InviteMemberCommand(
+            accountId = accountId,
+            inviterUserId = owner.id!!,
+            inviteeEmail = inviteeEmail,
+            role = AccountRole.MEMBER,
+        )
+        val invitation = accountMembershipService.invite(inviteCmd)
+        val token = invitation.invitationToken
+
+        val acceptCmd = AccountMembership.AcceptInvitationCommand(
+            invitationToken = token,
+            actorUserId = invitee.id!!,
+        )
+        val result = accountMembershipService.acceptInvitation(acceptCmd)
+
+        assertThat(result.accountId).isEqualTo(accountId)
+        assertThat(result.membershipId).isNotNull()
+        val membership = accountMembershipRepository.findOneByAccountIdAndUserId(accountId, invitee.id!!)
+        assertThat(membership).isPresent
+        assertThat(membership.get().membershipStatus).isEqualTo(MembershipStatus.ACTIVE)
+        assertThat(membership.get().joinedAt).isNotNull()
+        assertThat(membership.get().invitationToken).isNull()
+    }
+
+    @Test
+    fun `decline invitation flow invitee declines and PENDING membership removed`() {
+        val ownerEmail = uniqueEmail("decline-owner")
+        val inviteeEmail = uniqueEmail("decline-invitee")
+        authenticationService.registerUser("Owner", ownerEmail, "TestPassword123!")
+        authenticationService.registerUser("Invitee", inviteeEmail, "TestPassword123!")
+        val owner = userRepository.findByEmail(ownerEmail)!!
+        val invitee = userRepository.findByEmail(inviteeEmail)!!
+
+        val createCmd = AccountManagement.CreateAccountCommand(
+            accountName = "Decline Test Account",
+            accountType = io.github.salomax.neotool.security.model.account.AccountType.BUSINESS,
+            ownerUserId = owner.id!!,
+        )
+        val account = accountService.create(createCmd)
+        val accountId = account.id!!
+
+        val inviteCmd = AccountMembership.InviteMemberCommand(
+            accountId = accountId,
+            inviterUserId = owner.id!!,
+            inviteeEmail = inviteeEmail,
+            role = AccountRole.MEMBER,
+        )
+        val invitation = accountMembershipService.invite(inviteCmd)
+        val token = invitation.invitationToken
+
+        val declineCmd = AccountMembership.DeclineInvitationCommand(
+            invitationToken = token,
+            actorUserId = invitee.id!!,
+        )
+        accountMembershipService.declineInvitation(declineCmd)
+
+        val afterDecline = accountMembershipRepository.findOneByAccountIdAndUserId(accountId, invitee.id!!)
+        assertThat(afterDecline).isEmpty
+    }
+
+    @Test
+    fun `accept invitation throws INVITATION_INVALID when actor is not the invitee`() {
+        val ownerEmail = uniqueEmail("wrong-owner")
+        val inviteeEmail = uniqueEmail("wrong-invitee")
+        val otherEmail = uniqueEmail("wrong-other")
+        authenticationService.registerUser("Owner", ownerEmail, "TestPassword123!")
+        authenticationService.registerUser("Invitee", inviteeEmail, "TestPassword123!")
+        authenticationService.registerUser("Other", otherEmail, "TestPassword123!")
+        val owner = userRepository.findByEmail(ownerEmail)!!
+        val invitee = userRepository.findByEmail(inviteeEmail)!!
+        val other = userRepository.findByEmail(otherEmail)!!
+
+        val createCmd = AccountManagement.CreateAccountCommand(
+            accountName = "Wrong Actor Account",
+            accountType = io.github.salomax.neotool.security.model.account.AccountType.BUSINESS,
+            ownerUserId = owner.id!!,
+        )
+        val account = accountService.create(createCmd)
+        val accountId = account.id!!
+
+        val inviteCmd = AccountMembership.InviteMemberCommand(
+            accountId = accountId,
+            inviterUserId = owner.id!!,
+            inviteeEmail = inviteeEmail,
+            role = AccountRole.MEMBER,
+        )
+        val invitation = accountMembershipService.invite(inviteCmd)
+
+        val acceptCmd = AccountMembership.AcceptInvitationCommand(
+            invitationToken = invitation.invitationToken,
+            actorUserId = other.id!!, // not the invitee
+        )
+        assertThrows<ValidationException> {
+            accountMembershipService.acceptInvitation(acceptCmd)
+        }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.INVITATION_INVALID) }
+        val pending = accountMembershipRepository.findOneByAccountIdAndUserId(accountId, invitee.id!!)
+        assertThat(pending).isPresent
+        assertThat(pending.get().membershipStatus).isEqualTo(MembershipStatus.PENDING)
+    }
 }

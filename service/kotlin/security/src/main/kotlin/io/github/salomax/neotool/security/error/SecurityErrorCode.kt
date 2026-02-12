@@ -73,4 +73,5 @@ enum class SecurityErrorCode(
     ALREADY_MEMBER("ALREADY_MEMBER", "User is already a member of this account", 409),
     MEMBER_LIMIT_REACHED("MEMBER_LIMIT_REACHED", "Account has reached maximum members for its type", 409),
     INVITATION_EXPIRED("INVITATION_EXPIRED", "Invitation has expired", 400),
+    INVITATION_INVALID("INVITATION_INVALID", "Invitation token is invalid or not for this user", 400),
 }

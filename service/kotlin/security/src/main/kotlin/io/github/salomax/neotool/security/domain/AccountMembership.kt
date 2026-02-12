@@ -58,6 +58,50 @@ object AccountMembership {
     )
 
     /**
+     * Command for the invited user to accept an invitation (FR-4.2).
+     * Only the user identified by [actorUserId] (the invitee) may accept.
+     */
+    data class AcceptInvitationCommand(
+        val invitationToken: String,
+        val actorUserId: UUID,
+    ) {
+        init {
+            if (invitationToken.isBlank()) {
+                throw ValidationException(
+                    errorCode = SecurityErrorCode.INVITATION_INVALID,
+                    field = "invitationToken",
+                )
+            }
+        }
+    }
+
+    /**
+     * Command for the invited user to decline an invitation (FR-4.3).
+     * Only the user identified by [actorUserId] (the invitee) may decline.
+     */
+    data class DeclineInvitationCommand(
+        val invitationToken: String,
+        val actorUserId: UUID,
+    ) {
+        init {
+            if (invitationToken.isBlank()) {
+                throw ValidationException(
+                    errorCode = SecurityErrorCode.INVITATION_INVALID,
+                    field = "invitationToken",
+                )
+            }
+        }
+    }
+
+    /**
+     * Result of a successful invitation acceptance (FR-4.2).
+     */
+    data class AcceptInvitationResult(
+        val membershipId: UUID,
+        val accountId: UUID,
+    )
+
+    /**
      * Result of a successful invitation issuance.
      */
     data class InvitationResult(

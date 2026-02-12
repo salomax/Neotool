@@ -481,4 +481,232 @@ class AccountMembershipServiceTest {
             verify(accountMembershipRepository, never()).deleteById(any())
         }
     }
+
+    @Nested
+    @DisplayName("Accept invitation (FR-4.2)")
+    inner class AcceptInvitationTests {
+        @Test
+        fun `acceptInvitation succeeds when invitee accepts valid token`() {
+            val accountId = UUID.randomUUID()
+            val inviteeId = UUID.randomUUID()
+            val token = "valid-token-abc"
+            val membershipId = UUID.randomUUID()
+            val membership = AccountMembershipEntity(
+                id = membershipId,
+                accountId = accountId,
+                userId = inviteeId,
+                accountRole = AccountRole.MEMBER,
+                membershipStatus = MembershipStatus.PENDING,
+                invitationToken = token,
+                invitationExpiresAt = Instant.now().plusSeconds(86400),
+            )
+            whenever(accountMembershipRepository.findOneByInvitationToken(eq(token)))
+                .thenReturn(Optional.of(membership))
+            whenever(accountMembershipRepository.save(any())).thenAnswer { it.getArgument(0) }
+
+            val command = AccountMembership.AcceptInvitationCommand(
+                invitationToken = token,
+                actorUserId = inviteeId,
+            )
+            val result = accountMembershipService.acceptInvitation(command)
+
+            assertThat(result.membershipId).isEqualTo(membershipId)
+            assertThat(result.accountId).isEqualTo(accountId)
+            assertThat(membership.membershipStatus).isEqualTo(MembershipStatus.ACTIVE)
+            assertThat(membership.joinedAt).isNotNull()
+            assertThat(membership.invitationToken).isNull()
+            assertThat(membership.invitationExpiresAt).isNull()
+            verify(accountMembershipRepository).save(membership)
+        }
+
+        @Test
+        fun `acceptInvitation throws INVITATION_INVALID when token not found`() {
+            whenever(accountMembershipRepository.findOneByInvitationToken(any())).thenReturn(Optional.empty())
+
+            val command = AccountMembership.AcceptInvitationCommand(
+                invitationToken = "unknown-token",
+                actorUserId = UUID.randomUUID(),
+            )
+            assertThrows<ValidationException> {
+                accountMembershipService.acceptInvitation(command)
+            }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.INVITATION_INVALID) }
+            verify(accountMembershipRepository, never()).save(any())
+        }
+
+        @Test
+        fun `acceptInvitation throws INVITATION_INVALID when actor is not the invitee`() {
+            val inviteeId = UUID.randomUUID()
+            val otherUserId = UUID.randomUUID()
+            val token = "valid-token"
+            val membership = AccountMembershipEntity(
+                id = UUID.randomUUID(),
+                accountId = UUID.randomUUID(),
+                userId = inviteeId,
+                accountRole = AccountRole.MEMBER,
+                membershipStatus = MembershipStatus.PENDING,
+                invitationToken = token,
+                invitationExpiresAt = Instant.now().plusSeconds(86400),
+            )
+            whenever(accountMembershipRepository.findOneByInvitationToken(eq(token)))
+                .thenReturn(Optional.of(membership))
+
+            val command = AccountMembership.AcceptInvitationCommand(
+                invitationToken = token,
+                actorUserId = otherUserId,
+            )
+            assertThrows<ValidationException> {
+                accountMembershipService.acceptInvitation(command)
+            }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.INVITATION_INVALID) }
+            verify(accountMembershipRepository, never()).save(any())
+        }
+
+        @Test
+        fun `acceptInvitation throws INVITATION_EXPIRED when token expired`() {
+            val inviteeId = UUID.randomUUID()
+            val token = "expired-token"
+            val membership = AccountMembershipEntity(
+                id = UUID.randomUUID(),
+                accountId = UUID.randomUUID(),
+                userId = inviteeId,
+                accountRole = AccountRole.MEMBER,
+                membershipStatus = MembershipStatus.PENDING,
+                invitationToken = token,
+                invitationExpiresAt = Instant.now().minusSeconds(3600),
+            )
+            whenever(accountMembershipRepository.findOneByInvitationToken(eq(token)))
+                .thenReturn(Optional.of(membership))
+
+            val command = AccountMembership.AcceptInvitationCommand(
+                invitationToken = token,
+                actorUserId = inviteeId,
+            )
+            assertThrows<ValidationException> {
+                accountMembershipService.acceptInvitation(command)
+            }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.INVITATION_EXPIRED) }
+            verify(accountMembershipRepository, never()).save(any())
+        }
+
+        @Test
+        fun `acceptInvitation throws NOT_PENDING_INVITATION when membership already ACTIVE`() {
+            val inviteeId = UUID.randomUUID()
+            val token = "used-token"
+            val membership = AccountMembershipEntity(
+                id = UUID.randomUUID(),
+                accountId = UUID.randomUUID(),
+                userId = inviteeId,
+                accountRole = AccountRole.MEMBER,
+                membershipStatus = MembershipStatus.ACTIVE,
+                invitationToken = token,
+                invitationExpiresAt = Instant.now().plusSeconds(86400),
+            )
+            whenever(accountMembershipRepository.findOneByInvitationToken(eq(token)))
+                .thenReturn(Optional.of(membership))
+
+            val command = AccountMembership.AcceptInvitationCommand(
+                invitationToken = token,
+                actorUserId = inviteeId,
+            )
+            assertThrows<ValidationException> {
+                accountMembershipService.acceptInvitation(command)
+            }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.NOT_PENDING_INVITATION) }
+            verify(accountMembershipRepository, never()).save(any())
+        }
+    }
+
+    @Nested
+    @DisplayName("Decline invitation (FR-4.3)")
+    inner class DeclineInvitationTests {
+        @Test
+        fun `declineInvitation succeeds when invitee declines`() {
+            val accountId = UUID.randomUUID()
+            val inviteeId = UUID.randomUUID()
+            val membershipId = UUID.randomUUID()
+            val token = "valid-token"
+            val membership = AccountMembershipEntity(
+                id = membershipId,
+                accountId = accountId,
+                userId = inviteeId,
+                accountRole = AccountRole.MEMBER,
+                membershipStatus = MembershipStatus.PENDING,
+                invitationToken = token,
+                invitationExpiresAt = Instant.now().plusSeconds(86400),
+            )
+            whenever(accountMembershipRepository.findOneByInvitationToken(eq(token)))
+                .thenReturn(Optional.of(membership))
+
+            val command = AccountMembership.DeclineInvitationCommand(
+                invitationToken = token,
+                actorUserId = inviteeId,
+            )
+            accountMembershipService.declineInvitation(command)
+
+            verify(accountMembershipRepository).deleteById(membershipId)
+        }
+
+        @Test
+        fun `declineInvitation throws INVITATION_INVALID when token not found`() {
+            whenever(accountMembershipRepository.findOneByInvitationToken(any())).thenReturn(Optional.empty())
+
+            val command = AccountMembership.DeclineInvitationCommand(
+                invitationToken = "unknown-token",
+                actorUserId = UUID.randomUUID(),
+            )
+            assertThrows<ValidationException> {
+                accountMembershipService.declineInvitation(command)
+            }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.INVITATION_INVALID) }
+            verify(accountMembershipRepository, never()).deleteById(any())
+        }
+
+        @Test
+        fun `declineInvitation throws INVITATION_INVALID when actor is not the invitee`() {
+            val inviteeId = UUID.randomUUID()
+            val otherUserId = UUID.randomUUID()
+            val token = "valid-token"
+            val membership = AccountMembershipEntity(
+                id = UUID.randomUUID(),
+                accountId = UUID.randomUUID(),
+                userId = inviteeId,
+                accountRole = AccountRole.MEMBER,
+                membershipStatus = MembershipStatus.PENDING,
+                invitationToken = token,
+                invitationExpiresAt = Instant.now().plusSeconds(86400),
+            )
+            whenever(accountMembershipRepository.findOneByInvitationToken(eq(token)))
+                .thenReturn(Optional.of(membership))
+
+            val command = AccountMembership.DeclineInvitationCommand(
+                invitationToken = token,
+                actorUserId = otherUserId,
+            )
+            assertThrows<ValidationException> {
+                accountMembershipService.declineInvitation(command)
+            }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.INVITATION_INVALID) }
+            verify(accountMembershipRepository, never()).deleteById(any())
+        }
+
+        @Test
+        fun `declineInvitation throws NOT_PENDING_INVITATION when membership already ACTIVE`() {
+            val inviteeId = UUID.randomUUID()
+            val token = "used-token"
+            val membership = AccountMembershipEntity(
+                id = UUID.randomUUID(),
+                accountId = UUID.randomUUID(),
+                userId = inviteeId,
+                accountRole = AccountRole.MEMBER,
+                membershipStatus = MembershipStatus.ACTIVE,
+                invitationToken = token,
+            )
+            whenever(accountMembershipRepository.findOneByInvitationToken(eq(token)))
+                .thenReturn(Optional.of(membership))
+
+            val command = AccountMembership.DeclineInvitationCommand(
+                invitationToken = token,
+                actorUserId = inviteeId,
+            )
+            assertThrows<ValidationException> {
+                accountMembershipService.declineInvitation(command)
+            }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.NOT_PENDING_INVITATION) }
+            verify(accountMembershipRepository, never()).deleteById(any())
+        }
+    }
 }

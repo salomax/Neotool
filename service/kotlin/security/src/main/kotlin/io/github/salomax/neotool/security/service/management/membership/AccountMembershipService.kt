@@ -177,6 +177,64 @@ open class AccountMembershipService(
         logger.info { "Invitation cancelled: membershipId=${command.membershipId}, account=${command.accountId}" }
     }
 
+    /**
+     * Accept an invitation as the invited user (FR-4.2).
+     * Sets membership to ACTIVE and joined_at; only the invitee may accept.
+     *
+     * @throws ValidationException with INVITATION_INVALID (token not found or wrong user),
+     *   INVITATION_EXPIRED, or NOT_PENDING_INVITATION
+     */
+    @Transactional
+    open fun acceptInvitation(command: AccountMembership.AcceptInvitationCommand): AccountMembership.AcceptInvitationResult {
+        val membership =
+            accountMembershipRepository.findOneByInvitationToken(command.invitationToken.trim())
+                .orElseThrow { ValidationException(SecurityErrorCode.INVITATION_INVALID, field = "invitationToken") }
+        if (membership.userId != command.actorUserId) {
+            throw ValidationException(SecurityErrorCode.INVITATION_INVALID, field = "actorUserId")
+        }
+        if (membership.invitationExpiresAt == null || membership.invitationExpiresAt!! < Instant.now()) {
+            throw ValidationException(SecurityErrorCode.INVITATION_EXPIRED, field = "invitationToken")
+        }
+        if (membership.membershipStatus != MembershipStatus.PENDING) {
+            throw ValidationException(SecurityErrorCode.NOT_PENDING_INVITATION, field = "invitationToken")
+        }
+
+        membership.membershipStatus = MembershipStatus.ACTIVE
+        membership.joinedAt = Instant.now()
+        membership.invitationToken = null
+        membership.invitationExpiresAt = null
+        accountMembershipRepository.save(membership)
+
+        logger.info { "Invitation accepted: membershipId=${membership.id}, accountId=${membership.accountId}, userId=${command.actorUserId}" }
+        return AccountMembership.AcceptInvitationResult(
+            membershipId = membership.id!!,
+            accountId = membership.accountId,
+        )
+    }
+
+    /**
+     * Decline an invitation as the invited user (FR-4.3).
+     * Deletes the PENDING membership; only the invitee may decline.
+     *
+     * @throws ValidationException with INVITATION_INVALID (token not found or wrong user)
+     *   or NOT_PENDING_INVITATION
+     */
+    @Transactional
+    open fun declineInvitation(command: AccountMembership.DeclineInvitationCommand) {
+        val membership =
+            accountMembershipRepository.findOneByInvitationToken(command.invitationToken.trim())
+                .orElseThrow { ValidationException(SecurityErrorCode.INVITATION_INVALID, field = "invitationToken") }
+        if (membership.userId != command.actorUserId) {
+            throw ValidationException(SecurityErrorCode.INVITATION_INVALID, field = "actorUserId")
+        }
+        if (membership.membershipStatus != MembershipStatus.PENDING) {
+            throw ValidationException(SecurityErrorCode.NOT_PENDING_INVITATION, field = "invitationToken")
+        }
+
+        accountMembershipRepository.deleteById(membership.id!!)
+        logger.info { "Invitation declined: membershipId=${membership.id}, accountId=${membership.accountId}, userId=${command.actorUserId}" }
+    }
+
     private fun generateSecureToken(): String {
         val bytes = ByteArray(TOKEN_BYTES)
         secureRandom.nextBytes(bytes)
