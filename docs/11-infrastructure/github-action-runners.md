@@ -9,6 +9,7 @@ This guide covers setting up GitHub Actions runners in two phases:
 ## Table of Contents
 - [Prerequisites](#prerequisites)
 - [Phase 1: Local Self-Hosted Runner](#phase-1-local-self-hosted-runner)
+- [Running Multiple Runners in Parallel](#running-multiple-runners-in-parallel)
 - [Phase 2: Oracle Cloud Always Free](#phase-2-oracle-cloud-always-free)
 - [Security Considerations](#security-considerations)
 - [Troubleshooting](#troubleshooting)
@@ -141,6 +142,300 @@ jobs:
 # Push a commit or manually trigger a workflow
 # Watch the runner logs:
 tail -f ~/actions-runner/_diag/Runner_*.log
+```
+
+---
+
+## Running Multiple Runners in Parallel
+
+By default, each runner handles **one job at a time**. To run multiple jobs concurrently, you need to set up **multiple runner instances**.
+
+### Understanding Runner Concurrency
+
+- **1 runner = 1 concurrent job**
+- **Multiple runners = parallel job execution**
+- **Recommendation**: 2-4 runners on a local Mac (depending on CPU cores and RAM)
+
+### Check Your System Resources
+
+```bash
+# Check CPU cores
+sysctl -n hw.ncpu
+
+# Check available RAM (in GB)
+echo "$(( $(sysctl -n hw.memsize) / 1024 / 1024 / 1024 )) GB"
+```
+
+**Recommended runner count based on resources:**
+- **8 cores, 16GB RAM**: 2-3 runners
+- **10+ cores, 32GB+ RAM**: 3-4 runners
+- **M1/M2/M3 Mac**: Can handle 2-4 runners easily
+
+### Setup Multiple Runners
+
+#### Step 1: Create Multiple Runner Directories
+
+```bash
+# Create directories for each runner (example: 3 runners)
+for i in {1..3}; do
+  mkdir -p ~/actions-runner-$i
+done
+```
+
+#### Step 2: Download and Extract Runner for Each Instance
+
+```bash
+# Download once to runner-1
+cd ~/actions-runner-1
+curl -o actions-runner-osx-arm64-2.314.1.tar.gz -L \
+  https://github.com/actions/runner/releases/download/v2.314.1/actions-runner-osx-arm64-2.314.1.tar.gz
+tar xzf ./actions-runner-osx-arm64-2.314.1.tar.gz
+
+# Copy to other runners
+for i in {2..3}; do
+  cp -r ~/actions-runner-1/* ~/actions-runner-$i/
+done
+```
+
+#### Step 3: Get Runner Tokens from GitHub
+
+For **each runner**, you need a separate token:
+
+1. Go to: **Settings** → **Actions** → **Runners**
+2. Click **"New self-hosted runner"**
+3. Copy the token
+4. Repeat for each runner (you'll need 3 tokens for 3 runners)
+
+> **Important**: Each token can only be used once.
+
+#### Step 4: Configure Each Runner
+
+```bash
+# Runner 1
+cd ~/actions-runner-1
+./config.sh --url https://github.com/YOUR_ORG/YOUR_REPO --token TOKEN_1 \
+  --name "local-runner-1" \
+  --labels "self-hosted,macOS,ARM64,worker-1"
+
+# Runner 2
+cd ~/actions-runner-2
+./config.sh --url https://github.com/YOUR_ORG/YOUR_REPO --token TOKEN_2 \
+  --name "local-runner-2" \
+  --labels "self-hosted,macOS,ARM64,worker-2"
+
+# Runner 3
+cd ~/actions-runner-3
+./config.sh --url https://github.com/YOUR_ORG/YOUR_REPO --token TOKEN_3 \
+  --name "local-runner-3" \
+  --labels "self-hosted,macOS,ARM64,worker-3"
+```
+
+#### Step 5: Install and Start All Runners
+
+```bash
+# Install all as services
+for i in {1..3}; do
+  cd ~/actions-runner-$i && sudo ./svc.sh install
+done
+
+# Start all runners
+for i in {1..3}; do
+  cd ~/actions-runner-$i && sudo ./svc.sh start
+done
+
+# Check status
+for i in {1..3}; do
+  echo "=== Runner $i ==="
+  cd ~/actions-runner-$i && sudo ./svc.sh status
+done
+```
+
+#### Step 6: Verify All Runners Are Connected
+
+Go to GitHub: **Settings** → **Actions** → **Runners**
+
+You should see:
+- ✅ `local-runner-1` - Idle
+- ✅ `local-runner-2` - Idle
+- ✅ `local-runner-3` - Idle
+
+### Managing Multiple Runners
+
+```bash
+# Start all runners
+for i in {1..3}; do cd ~/actions-runner-$i && sudo ./svc.sh start; done
+
+# Stop all runners
+for i in {1..3}; do cd ~/actions-runner-$i && sudo ./svc.sh stop; done
+
+# Check status of all runners
+for i in {1..3}; do
+  echo "=== Runner $i Status ==="
+  cd ~/actions-runner-$i && sudo ./svc.sh status
+  echo ""
+done
+
+# View logs for a specific runner
+tail -f ~/actions-runner-1/_diag/Runner_*.log
+```
+
+### How Parallel Execution Works
+
+Your workflows **don't need any changes**! Multiple runners automatically pick up jobs in parallel.
+
+**Example 1: Matrix Jobs Run in Parallel**
+
+```yaml
+jobs:
+  test-kotlin:
+    runs-on: self-hosted
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: security
+          - service: assets
+          - service: financialdata
+    steps:
+      - name: Test ${{ matrix.service }}
+        run: echo "Testing ${{ matrix.service }}"
+```
+
+With 3 runners, all 3 matrix jobs run **simultaneously**!
+
+**Example 2: Independent Jobs Run in Parallel**
+
+```yaml
+jobs:
+  test-kotlin:
+    runs-on: self-hosted
+  test-web:
+    runs-on: self-hosted
+  test-golang:
+    runs-on: self-hosted
+```
+
+With 3 runners, these 3 jobs run **simultaneously**!
+
+### Performance Benefits
+
+**Before (1 runner):**
+- Security tests: 5 minutes
+- Assets tests: 5 minutes
+- FinancialData tests: 5 minutes
+- **Total: 15 minutes** (sequential)
+
+**After (3 runners):**
+- All tests run in parallel
+- **Total: ~5 minutes** (parallel)
+
+### Monitoring Script
+
+Create a script to monitor all runners:
+
+```bash
+cat > ~/monitor-runners.sh << 'EOF'
+#!/bin/bash
+echo "GitHub Actions Runners Status"
+echo "=============================="
+for i in {1..3}; do
+  if [ -d ~/actions-runner-$i ]; then
+    echo "Runner $i:"
+    if pgrep -f "actions-runner-$i" > /dev/null; then
+      echo "  Status: ✅ Running"
+    else
+      echo "  Status: ❌ Stopped"
+    fi
+  fi
+done
+echo ""
+echo "System: $(ps aux | awk '{sum+=$3} END {print sum}')% CPU"
+docker ps --format "{{.Names}}" | wc -l | xargs echo "Docker containers:"
+EOF
+
+chmod +x ~/monitor-runners.sh
+```
+
+Run it with:
+```bash
+~/monitor-runners.sh
+
+# Or watch continuously
+watch -n 10 ~/monitor-runners.sh
+```
+
+### Maintenance for Multiple Runners
+
+#### Docker Cleanup
+
+With multiple runners, Docker usage increases. Set up automatic cleanup:
+
+```bash
+# Create cleanup script
+cat > ~/cleanup-docker-runners.sh << 'EOF'
+#!/bin/bash
+echo "Cleaning Docker for all runners..."
+docker system prune -a -f
+docker volume prune -f
+echo "Cleanup complete!"
+df -h
+EOF
+
+chmod +x ~/cleanup-docker-runners.sh
+
+# Schedule with cron (every Sunday at 2 AM)
+crontab -e
+# Add this line:
+0 2 * * 0 /Users/YOUR_USERNAME/cleanup-docker-runners.sh >> /Users/YOUR_USERNAME/cleanup.log 2>&1
+```
+
+#### Gradle Daemon Sharing
+
+If running multiple Kotlin/Gradle jobs, configure shared Gradle cache:
+
+```bash
+# Add to ~/.gradle/gradle.properties
+org.gradle.daemon=true
+org.gradle.parallel=true
+org.gradle.caching=true
+org.gradle.daemon.idletimeout=3600000
+org.gradle.workers.max=2
+```
+
+### Troubleshooting Parallel Runners
+
+**Issue**: Only one runner works, others stay idle
+
+**Solution**: Check that all runners show "Idle" status in GitHub. If any show "Offline":
+```bash
+cd ~/actions-runner-X && sudo ./svc.sh restart
+```
+
+**Issue**: High CPU/Memory usage
+
+**Solution**: Reduce number of runners or limit Gradle workers:
+```bash
+# In ~/.gradle/gradle.properties
+org.gradle.workers.max=2
+```
+
+**Issue**: Runners not picking up jobs evenly
+
+**Solution**: This is normal. GitHub distributes jobs based on availability. All runners will be utilized over time.
+
+### Removing a Runner
+
+```bash
+# Stop the service
+cd ~/actions-runner-2
+sudo ./svc.sh stop
+sudo ./svc.sh uninstall
+
+# Remove from GitHub
+./config.sh remove --token REMOVAL_TOKEN
+
+# Delete directory
+rm -rf ~/actions-runner-2
 ```
 
 ---
@@ -298,6 +593,23 @@ jobs:
   build-quick:
     runs-on: [self-hosted, local]  # Use local runner
 ```
+
+**Option C**: Run multiple runners on Oracle Cloud
+
+You can set up 2-4 runner instances on the same Oracle Cloud instance for parallel execution:
+
+```bash
+# On Oracle instance, follow the same steps as "Running Multiple Runners in Parallel"
+# Create multiple runner directories
+for i in {1..3}; do
+  mkdir -p ~/actions-runner-$i
+done
+
+# Download and configure each runner (using separate tokens)
+# The 4 OCPUs and 24GB RAM can easily handle 2-3 runners
+```
+
+This gives you **unlimited parallel CI/CD** for **$0 cost**!
 
 ### Step 11: Configure Runner to Use Labels
 
@@ -511,31 +823,63 @@ crontab -e
 
 ## Cost Breakdown
 
-### Phase 1: Local Runner
+### Phase 1: Local Runner (Single)
 - **Cost**: $0 (uses your computer)
 - **Electricity**: ~$5-10/month (if running 24/7)
+- **Concurrency**: 1 job at a time
 
-### Phase 2: Oracle Cloud
+### Phase 1: Local Multiple Runners (2-4 runners)
+- **Cost**: $0 (uses your computer)
+- **Electricity**: ~$10-20/month (if running 24/7)
+- **Concurrency**: 2-4 jobs in parallel
+- **Time savings**: 50-75% reduction in total CI time
+
+### Phase 2: Oracle Cloud (Single Runner)
 - **Cost**: $0 (Always Free tier)
 - **No credit card charges**
 - **No time limit** (truly free forever)
+- **Concurrency**: 1 job at a time
+
+### Phase 2: Oracle Cloud (Multiple Runners)
+- **Cost**: $0 (Always Free tier - 4 OCPUs can handle 2-3 runners)
+- **Concurrency**: 2-3 jobs in parallel
+- **Best value**: Unlimited parallel CI/CD for $0
 
 ### Comparison with GitHub Actions
 - **GitHub Free**: 2,000 minutes/month (~33 hours)
 - **GitHub Team**: $4/user/month + $0.008/minute
-- **Self-hosted**: Unlimited minutes, $0
+- **Self-hosted (1 runner)**: Unlimited minutes, $0, 1 job at a time
+- **Self-hosted (3 runners)**: Unlimited minutes, $0, 3 jobs in parallel
+
+**Example cost savings with 3 parallel runners:**
+- If you run 100 hours of CI/month with 3x parallelization
+- GitHub equivalent: 300 minutes of parallel time
+- GitHub Team cost: ~$2.40/month per concurrent job
+- Self-hosted cost: **$0**
 
 ---
 
 ## Next Steps
 
-1. ✅ Complete Phase 1 (local runner)
+### Quick Start Path
+1. ✅ Complete Phase 1 (local runner - single runner)
 2. ✅ Test with a simple workflow
-3. ✅ Create Oracle Cloud account
-4. ✅ Setup Phase 2 (Oracle runner)
-5. ✅ Migrate workflows to use new runner
-6. ✅ Remove local runner or keep as backup
-7. ✅ Setup monitoring and alerts
+3. ✅ Verify everything works
+
+### Performance Path (Recommended)
+1. ✅ Complete Phase 1 (local runner - single runner)
+2. ✅ Set up multiple runners (2-3) for parallel execution
+3. ✅ Test parallel job execution
+4. ✅ Monitor resource usage and adjust runner count
+
+### Production Path
+1. ✅ Complete Phase 1 locally (with multiple runners)
+2. ✅ Create Oracle Cloud account
+3. ✅ Setup Phase 2 (Oracle runner with 2-3 runner instances)
+4. ✅ Migrate workflows to Oracle runners
+5. ✅ Remove local runners or keep as backup
+6. ✅ Setup monitoring and automatic cleanup
+7. ✅ Configure alerts for failed jobs
 
 ---
 
@@ -558,5 +902,6 @@ If you encounter problems:
 ---
 
 **Created**: 2026-02-12
-**Version**: 1.0
-**Status**: Ready for Phase 1 implementation
+**Updated**: 2026-02-12
+**Version**: 2.0
+**Status**: Production ready with parallel runner support

@@ -64,8 +64,11 @@ jobs:
           tags: |
             ${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:${{ needs.version.outputs.version }}
             ${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:latest
-          cache-from: type=gha,scope=${{ matrix.service }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+          # Use local cache for self-hosted runners (much faster than GHA cache)
+          cache-from: |
+            type=local,src=/tmp/.buildx-cache/${{ matrix.service }}
+            type=registry,ref=${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:buildcache
+          cache-to: type=local,dest=/tmp/.buildx-cache/${{ matrix.service }},mode=max
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
@@ -140,8 +143,11 @@ jobs:
           tags: |
             ${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:${{ needs.version.outputs.version }}
             ${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:latest
-          cache-from: type=gha,scope=${{ matrix.service }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+          # Use local cache for self-hosted runners (much faster than GHA cache)
+          cache-from: |
+            type=local,src=/tmp/.buildx-cache/${{ matrix.service }}
+            type=registry,ref=${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:buildcache
+          cache-to: type=local,dest=/tmp/.buildx-cache/${{ matrix.service }},mode=max
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
@@ -175,8 +181,11 @@ jobs:
           tags: |
             ${{ env.IMAGE_PREFIX }}/neotool-web:${{ needs.version.outputs.version }}
             ${{ env.IMAGE_PREFIX }}/neotool-web:latest
-          cache-from: type=gha,scope=web
-          cache-to: type=gha,mode=max,scope=web
+          # Use local cache for self-hosted runners (much faster than GHA cache)
+          cache-from: |
+            type=local,src=/tmp/.buildx-cache/web
+            type=registry,ref=${{ env.IMAGE_PREFIX }}/neotool-web:buildcache
+          cache-to: type=local,dest=/tmp/.buildx-cache/web,mode=max
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
