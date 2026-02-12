@@ -12,7 +12,7 @@ WORKDIR /app/financial_data/indicators_job
 
 RUN go mod download
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /bin/cronjob ./cmd/cronjob
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOMAXPROCS=2 go build -p=1 -ldflags="-s -w" -o /bin/cronjob ./cmd/cronjob
 
 FROM alpine:3.19
 
