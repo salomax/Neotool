@@ -69,3 +69,37 @@ func TestRegistryResolve_SGSStartDate(t *testing.T) {
 		t.Fatalf("expected start >= last_reference_date + 1, got %s", startDate.Format("2006-01-02"))
 	}
 }
+
+func TestRegistryResolve_TRUsesMonthlySeries7811(t *testing.T) {
+	registry := NewRegistry(120, 10, 6, 2, 30)
+	cases := []struct {
+		variationLabel string
+		calcType       string
+	}{
+		{variationLabel: "MONTHLY_CHANGE", calcType: ""},
+		{variationLabel: "YTD", calcType: "YTD"},
+		{variationLabel: "ROLLING_12M", calcType: "ROLLING_12M"},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.variationLabel, func(t *testing.T) {
+			variation := domain.IndicatorVariation{
+				IndicatorLabel:     "TR",
+				Label:              tc.variationLabel,
+				IndicatorFrequency: "monthly",
+			}
+
+			req, err := registry.Resolve(variation, nil)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if req.SeriesID != 7811 {
+				t.Fatalf("expected TR to use SGS series 7811, got %d", req.SeriesID)
+			}
+			if tc.calcType != "" && req.CalcType != tc.calcType {
+				t.Fatalf("expected calc type %s, got %s", tc.calcType, req.CalcType)
+			}
+		})
+	}
+}

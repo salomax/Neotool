@@ -42,9 +42,9 @@ These indicators are seeded in the database and mapped to source requests in cod
 | CDI | MONTHLY_CHANGE | Monthly | Percentage (%) | BCB/SGS (4391) |
 | CDI | YTD | Monthly | Percentage (%) | BCB/SGS (4391, computed) |
 | CDI | ROLLING_12M | Monthly | Percentage (%) | BCB/SGS (4391, computed) |
-| TR | MONTHLY_CHANGE | Monthly | Percentage (%) | BCB/SGS (7812) |
-| TR | YTD | Monthly | Percentage (%) | BCB/SGS (7812, computed) |
-| TR | ROLLING_12M | Monthly | Percentage (%) | BCB/SGS (7812, computed) |
+| TR | MONTHLY_CHANGE | Monthly | Percentage (%) | BCB/SGS (7811) |
+| TR | YTD | Monthly | Percentage (%) | BCB/SGS (7811, computed) |
+| TR | ROLLING_12M | Monthly | Percentage (%) | BCB/SGS (7811, computed) |
 | GDP | VALUE | Quarterly | BRL (millions) | Ipeadata (PAN4_PIBPMV4) |
 | UNEMPLOYMENT | RATE | Monthly | Percentage (%) | IBGE/SIDRA |
 | AVERAGE_INCOME | HABITUAL | Monthly | BRL | IBGE/SIDRA |
@@ -104,10 +104,11 @@ Used for interest rates, fiscal, and external sector series.
 
 > **Note:** CDI tracks closely with SELIC. Both series 4390 and 4391 return nearly identical monthly values.
 
-**TR** uses series `7812` (monthly accumulated rate %):
-- `MONTHLY_CHANGE` → raw monthly rate from series 7812
+**TR** uses series `7811` (monthly accumulated rate %):
+- `MONTHLY_CHANGE` → raw monthly rate from series 7811
 - `YTD` → computed: `(∏(1 + r_i/100) - 1) * 100` from January to current month
 - `ROLLING_12M` → computed: `(∏(1 + r_i/100) - 1) * 100` for the last 12 months
+> **Note:** series `7812` is the annualized representation and should not be used as the monthly base.
 
 ### ComexStat (MDIC)
 Used for **trade balance**, computed as:

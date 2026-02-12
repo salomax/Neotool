@@ -97,11 +97,11 @@ func (r *Registry) Resolve(v domain.IndicatorVariation, lastReference *time.Time
 	case "CDI|ROLLING_12M":
 		return r.sgsRequestWithCalc(4391, v, lastReference, isIncremental, "ROLLING_12M", 12), nil
 	case "TR|MONTHLY_CHANGE":
-		return r.sgsRequest(7812, v, lastReference, isIncremental), nil
+		return r.sgsRequest(7811, v, lastReference, isIncremental), nil
 	case "TR|YTD":
-		return r.sgsRequestWithCalc(7812, v, lastReference, isIncremental, "YTD", 12), nil
+		return r.sgsRequestWithCalc(7811, v, lastReference, isIncremental, "YTD", 12), nil
 	case "TR|ROLLING_12M":
-		return r.sgsRequestWithCalc(7812, v, lastReference, isIncremental, "ROLLING_12M", 12), nil
+		return r.sgsRequestWithCalc(7811, v, lastReference, isIncremental, "ROLLING_12M", 12), nil
 	case "CURRENT_ACCOUNT|VALUE":
 		return r.sgsRequest(22701, v, lastReference, isIncremental), nil
 	case "INTERNATIONAL_RESERVES|VALUE":

@@ -307,11 +307,13 @@ enum DataRestrictionReason
 
 scalar Date
   @join__type(graph: ASSETS)
+  @join__type(graph: COMMS)
   @join__type(graph: FINANCIALDATA)
   @join__type(graph: SECURITY)
 
 scalar DateTime
   @join__type(graph: ASSETS)
+  @join__type(graph: COMMS)
   @join__type(graph: FINANCIALDATA)
   @join__type(graph: SECURITY)
 
@@ -356,8 +358,7 @@ type EconomicIndicatorVariationSeries
 {
   unit: String
   values: [EconomicIndicatorPoint!]!
-  @join__type(graph: COMMS)
-  @join__type(graph: SECURITY)
+}
 
 enum EmailBodyFormat
   @join__type(graph: COMMS)
@@ -469,16 +470,16 @@ scalar join__FieldSet
 
 enum join__Graph {
   ASSETS @join__graph(name: "assets", url: "http://host.docker.internal:8083/graphql")
-  FINANCIALDATA @join__graph(name: "financialdata", url: "http://host.docker.internal:8091/graphql")
   COMMS @join__graph(name: "comms", url: "http://host.docker.internal:8084/graphql")
+  FINANCIALDATA @join__graph(name: "financialdata", url: "http://host.docker.internal:8091/graphql")
   SECURITY @join__graph(name: "security", url: "http://host.docker.internal:8080/graphql")
 }
 
 scalar JSON
   @join__type(graph: ASSETS)
+  @join__type(graph: COMMS)
   @join__type(graph: FINANCIALDATA)
   @join__type(graph: SECURITY)
-  @join__type(graph: COMMS)
 
 scalar link__Import
 
@@ -496,8 +497,8 @@ enum link__Purpose {
 
 scalar Long
   @join__type(graph: ASSETS)
-  @join__type(graph: FINANCIALDATA)
   @join__type(graph: COMMS)
+  @join__type(graph: FINANCIALDATA)
   @join__type(graph: SECURITY)
 
 type Mutation
@@ -665,8 +666,8 @@ type QuarterValue
 
 type Query
   @join__type(graph: ASSETS)
-  @join__type(graph: FINANCIALDATA)
   @join__type(graph: COMMS)
+  @join__type(graph: FINANCIALDATA)
   @join__type(graph: SECURITY)
 {
   """
@@ -674,12 +675,12 @@ type Query
   Returns null if asset not found or user doesn't have access.
   """
   asset(id: ID!): Asset @join__field(graph: ASSETS)
+  _empty: String @join__field(graph: COMMS)
   searchBacenInstitutionsAutocomplete(query: String!, anoMes: String): BacenInstitutionAutocompleteConnection! @join__field(graph: FINANCIALDATA)
   bacenInstitutions(query: String, anoMes: String, first: Int, after: String): BacenInstitutionConnection! @join__field(graph: FINANCIALDATA)
   bacenFinanceInstitution(id: ID!, anoMes: String): BacenFinanceInstitution @join__field(graph: FINANCIALDATA)
   ratingIssuers: [RatingIssuer!]! @join__field(graph: FINANCIALDATA)
   economicIndicators(label: String): [EconomicIndicator!]! @join__field(graph: FINANCIALDATA)
-  _empty: String @join__field(graph: COMMS)
   currentUser: User @join__field(graph: SECURITY)
   myVerificationStatus: VerificationStatus @join__field(graph: SECURITY)
   checkPermission(userId: ID!, permission: String!, resourceId: ID): AuthorizationResult! @join__field(graph: SECURITY)
@@ -937,9 +938,9 @@ enum UserOrderField
 
 scalar UUID
   @join__type(graph: ASSETS)
+  @join__type(graph: COMMS)
   @join__type(graph: FINANCIALDATA)
   @join__type(graph: SECURITY)
-  @join__type(graph: COMMS)
 
 type VerificationStatus
   @join__type(graph: SECURITY)
