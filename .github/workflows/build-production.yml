@@ -31,6 +31,7 @@ jobs:
       packages: write
     env:
       DOCKER_CONFIG: /tmp/.docker-${{ github.run_id }}-kotlin-${{ strategy.job-index }}
+      DOCKER_HOST: unix:///Users/salomax/.colima/default/docker.sock
     strategy:
       fail-fast: false
       matrix:
@@ -82,6 +83,7 @@ jobs:
       packages: write
     env:
       DOCKER_CONFIG: /tmp/.docker-${{ github.run_id }}-golang-${{ strategy.job-index }}
+      DOCKER_HOST: unix:///Users/salomax/.colima/default/docker.sock
     strategy:
       fail-fast: false
       matrix:
@@ -161,6 +163,7 @@ jobs:
       packages: write
     env:
       DOCKER_CONFIG: /tmp/.docker-${{ github.run_id }}-web
+      DOCKER_HOST: unix:///Users/salomax/.colima/default/docker.sock
     steps:
       - uses: actions/checkout@v4
 
