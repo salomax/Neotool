@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { extractIdFromSemanticPath } from "@/shared/utils/url";
 import { SidebarLayout } from "@/shared/components/ui/layout/SidebarLayout";
 import { Page, SectionHeader } from "@/shared/components/ui/layout";
@@ -57,6 +57,22 @@ export default function BacenInstitutionDetailClient() {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   usePageTitle(institution?.name || t("pageTitle"));
+
+  // Update document title when language changes (client-side)
+  useEffect(() => {
+    if (institution?.name) {
+      const title = t('seo.institution.title', { name: institution.name });
+      // Ensure we don't set the key as title if translation fails
+      if (title && !title.startsWith('seo.')) {
+        document.title = title;
+      }
+    } else if (errorInstitution || (!loadingInstitution && !institution)) {
+      const notFound = t('seo.institution.notFoundTitle');
+      if (notFound && !notFound.startsWith('seo.')) {
+        document.title = notFound;
+      }
+    }
+  }, [institution, t, loadingInstitution, errorInstitution]);
 
   // Set breadcrumb label to institution name instead of obfuscated code
   // Use the actual encoded segment value from the URL as the key

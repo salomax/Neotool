@@ -41,6 +41,25 @@
     "financialData": "Dados Financeiros",
     "menu": "Menu"
   },
+  "seo": {
+    "default": {
+      "title": "Invistus",
+      "titleTemplate": "%s • Invistus",
+      "description": "Invistus: Clareza para sua vida financeira. Seus investimentos, gastos pessoais e dados do mercado financeiro em uma só ferramenta.",
+      "keywords": "investimentos, finanças pessoais, controle financeiro, ações, fundos imobiliários, dividendos, economia, bacen, instituições financeiras",
+      "ogTitle": "Invistus - Clareza para sua vida financeira",
+      "ogDescription": "Acompanhe seus investimentos e gastos pessoais, e monitore dados do mercado financeiro em uma só ferramenta.",
+      "twitterDescription": "Clareza para sua vida financeira. Investimentos e gastos em um só lugar."
+    },
+    "institution": {
+      "notFoundTitle": "Instituição não encontrada",
+      "title": "{{name}} - Dados Financeiros e Indicadores",
+      "description": "Veja o balanço financeiro, indicadores e histórico de {{name}}. Acompanhe lucros, patrimônio e outros dados essenciais no Invistus."
+    },
+    "landing": {
+      "jsonLdDescription": "Invistus: Clareza para sua vida financeira. Seus investimentos, gastos pessoais e dados do mercado financeiro em uma só ferramenta."
+    }
+  },
   "search": {
     "placeholder": "Buscar...",
     "label": "Buscar"

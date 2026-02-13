@@ -48,6 +48,7 @@ export function Wordmark({
         width={logoWidth}
         height={logoHeight}
         priority
+        style={{ width: '100%', height: 'auto' }}
       />
     </Box>
   );

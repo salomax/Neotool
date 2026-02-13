@@ -12,10 +12,12 @@
       "title": "Instituições Financeiras",
       "description": "Acompanhe balanços trimestrais e ratings das principais instituições do mercado de forma simplificada.",
       "tags": {
-        "balances": "Balanços",
+        "balance_results": "Resultado dos balanços",
+        "basileia": "Índice de Basileia",
+        "net_profit": "Lucro Líquido",
         "ratings": "Ratings"
       },
-      "cta": "Saber mais"
+      "cta": "Acessar dados"
     },
     "indicators": {
       "tag": "Novo Recurso",

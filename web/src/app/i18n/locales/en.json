@@ -12,7 +12,9 @@
       "title": "Financial Institutions",
       "description": "Track quarterly balance sheets and ratings of major market institutions in a simplified way.",
       "tags": {
-        "balances": "Balances",
+        "balance_results": "Balance Results",
+        "basileia": "Basel Index",
+        "net_profit": "Net Profit",
         "ratings": "Ratings"
       },
       "cta": "Learn more"

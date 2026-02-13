@@ -1,282 +1,136 @@
-"use client";
+import { Metadata } from 'next';
+import NationalIndicatorsClient from './NationalIndicatorsClient';
 
-import React, { useState, useMemo } from "react";
-import { Page, Container } from "@/shared/components/ui/layout";
-import { Box, Typography, Grid, Stack, Link, useTheme, Tabs as MuiTabs, Tab } from "@/shared/ui/mui-imports";
-import { useMediaQuery } from "@mui/material";
-import { useTranslation } from "@/shared/i18n";
-import { financialDataTranslations } from "@/shared/i18n/domains/financial-data";
-import { SearchField } from "@/shared/components/ui/forms/SearchField";
-import { useEconomicIndicators } from "@/features/financial-data/national-indicators/hooks/useEconomicIndicators";
-import { useIndicatorsLatest, type IndicatorLatest } from "@/features/financial-data/national-indicators/hooks/useIndicatorsLatest";
-import { IndicatorCard } from "@/features/financial-data/national-indicators/components/IndicatorCard";
-import { CATEGORIES, CATEGORY_MAPPING } from "@/features/financial-data/national-indicators/config";
-import { usePageTitle } from "@/shared/hooks/ui/usePageTitle";
-import { useBreadcrumbLabel } from "@/shared/hooks/ui/useBreadcrumbLabel";
+const INDICATORS_INFO = {
+  "IPCA": { 
+    "label": "IPCA", 
+    "description": "Índice Nacional de Preços ao Consumidor Amplo. É a inflação oficial do Brasil e a principal referência para a meta de inflação.", 
+    "issuer": "IBGE" 
+  }, 
+  "IPCA_15": { 
+    "label": "IPCA-15", 
+    "description": "Prévia do IPCA (Índice Nacional de Preços ao Consumidor Amplo 15). Antecipação da tendência da inflação oficial no mês.", 
+    "issuer": "IBGE" 
+  }, 
+  "INPC": { 
+    "label": "INPC", 
+    "description": "Índice Nacional de Preços ao Consumidor. Mede a inflação para famílias de menor renda e é usado em reajustes salariais.", 
+    "issuer": "IBGE" 
+  }, 
+  "IGP_M": { 
+    "label": "IGP-M", 
+    "description": "Índice Geral de Preços do Mercado. Mede variação de preços na economia (atacado, consumidor e construção) e é comum em contratos de aluguel.", 
+    "issuer": "IPEA/FGV" 
+  }, 
+  "IGP_DI": { 
+    "label": "IGP-DI", 
+    "description": "Índice Geral de Preços – Disponibilidade Interna. Acompanha a inflação em diferentes estágios da economia para análise macroeconômica.", 
+    "issuer": "IPEA/FGV" 
+  }, 
+  "SELIC": { 
+    "label": "Meta Selic", 
+    "description": "Sistema Especial de Liquidação e de Custódia. É a taxa básica de juros da economia, usada para controlar inflação e orientar o custo do crédito.", 
+    "issuer": "BCB" 
+  }, 
+  "CDI": { 
+    "label": "CDI", 
+    "description": "Certificado de Depósito Interbancário. Taxa de referência das operações entre bancos de curtíssimo prazo, base de muitos investimentos.", 
+    "issuer": "B3" 
+  }, 
+  "DI_OVER": { 
+    "label": "DI Over", 
+    "description": "Taxa média diária dos Depósitos Interfinanceiros (overnight). Indica o custo do dinheiro entre bancos no curtíssimo prazo.", 
+    "issuer": "B3" 
+  }, 
+  "TR": { 
+    "label": "Taxa Referencial", 
+    "description": "Utilizado principalmente como taxa de correção monetária. Ela serve para atualizar o saldo da poupança, FGTS, títulos de capitalização e calcular o custo de certos financiamentos imobiliários (sistema SFH).", 
+    "issuer": "BCB" 
+  }, 
+  "GDP": { 
+    "label": "PIB", 
+    "description": "Produto Interno Bruto. Soma de bens e serviços finais produzidos no país, principal medida de atividade econômica.", 
+    "issuer": "IBGE" 
+  }, 
+  "UNEMPLOYMENT": { 
+    "label": "Taxa de Desemprego", 
+    "description": "Percentual da força de trabalho que está sem emprego e procurando trabalho. Mede o grau de ociosidade do mercado de trabalho.", 
+    "issuer": "IBGE" 
+  }, 
+  "AVERAGE_INCOME": { 
+    "label": "Renda Média Real", 
+    "description": "Rendimento médio do trabalho ajustado pela inflação. Mostra o poder de compra da população ocupada.", 
+    "issuer": "IBGE" 
+  }, 
+  "TRADE_BALANCE": { 
+    "label": "Balança Comercial", 
+    "description": "Diferença entre exportações e importações de bens. Indica se o país vende ao exterior mais do que compra.", 
+    "issuer": "SECEX" 
+  }, 
+  "CURRENT_ACCOUNT": { 
+    "label": "Conta Corrente", 
+    "description": "Saldo de transações com o exterior em bens, serviços, rendas e transferências. Mostra necessidade ou capacidade de financiamento externo.", 
+    "issuer": "BCB" 
+  }, 
+  "INTERNATIONAL_RESERVES": { 
+    "label": "Reservas Internacionais", 
+    "description": "Ativos em moeda estrangeira mantidos pelo Banco Central. Servem para reduzir vulnerabilidade externa e dar estabilidade cambial.", 
+    "issuer": "BCB" 
+  }, 
+  "PUBLIC_DEBT_GDP": { 
+    "label": "Dívida Pública (% do PIB)", 
+    "description": "Endividamento do governo geral em relação ao PIB. A dívida bruta mede o total de obrigações; a líquida desconta os ativos financeiros.", 
+    "issuer": "BCB" 
+  }, 
+  "PRIMARY_RESULT": { 
+    "label": "Resultado Primário", 
+    "description": "Diferença entre receitas e despesas do governo, sem considerar juros da dívida. Indica esforço fiscal corrente.", 
+    "issuer": "BCB" 
+  } 
+};
+
+export const metadata: Metadata = {
+  title: "Indicadores Econômicos Nacionais (Brasil) - IPCA, Selic, PIB | Invistus",
+  description: "Acompanhe os principais indicadores econômicos do Brasil em tempo real: IPCA, Selic, PIB, Taxa de Desemprego, Balança Comercial e mais. Dados oficiais do IBGE, BCB e FGV.",
+  keywords: [
+    "indicadores econômicos", "economia brasil", "IPCA", "Selic", "PIB", 
+    "inflação", "taxa de juros", "desemprego", "renda média", 
+    "balança comercial", "reservas internacionais", "dívida pública"
+  ],
+  openGraph: {
+    title: "Indicadores Econômicos Nacionais (Brasil) | Invistus",
+    description: "Monitore a saúde da economia brasileira com dados atualizados de inflação (IPCA), juros (Selic), crescimento (PIB) e emprego.",
+    type: "website",
+    locale: "pt_BR",
+  }
+};
 
 export default function NationalIndicatorsPage() {
-    const { t } = useTranslation(financialDataTranslations);
-    const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-    
-    usePageTitle(t("nationalIndicators.pageTitle"));
-    useBreadcrumbLabel("national-indicators", t("nationalIndicators.pageTitle"));
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "DefinedTermSet",
+    "name": "Indicadores Econômicos Nacionais",
+    "description": "Lista dos principais indicadores macroeconômicos do Brasil monitorados pelo Invistus.",
+    "definedTerm": Object.values(INDICATORS_INFO).map((ind) => ({
+      "@type": "DefinedTerm",
+      "name": ind.label,
+      "description": ind.description,
+      "termCode": ind.label,
+      "inDefinedTermSet": {
+         "@type": "DefinedTermSet",
+         "name": "Invistus National Indicators",
+         "url": "https://invistus.com.br/financial-data/national-indicators"
+      }
+    }))
+  };
 
-    const { indicators, loading } = useEconomicIndicators();
-    const { indicatorsLatest, loading: loadingLatest, error: errorLatest } = useIndicatorsLatest();
-    const [searchQuery, setSearchQuery] = useState("");
-    const [selectedTab, setSelectedTab] = useState("all");
-
-    // Transform latest data for O(1) lookup: Map<IndicatorID, Map<VariationID, Data>>
-    const latestDataMap = useMemo(() => {
-        const map: Record<string, Record<string, IndicatorLatest>> = {};
-        if (indicatorsLatest) {
-            indicatorsLatest.forEach((item: IndicatorLatest) => {
-                const indicatorKey = item.indicator.toUpperCase();
-                if (!map[indicatorKey]) map[indicatorKey] = {};
-                map[indicatorKey][item.variation] = item;
-            });
-        }
-        return map;
-    }, [indicatorsLatest]);
-
-    // Enrich indicators with translations for search and display
-    const enrichedIndicators = useMemo(() => {
-        return indicators.map(indicator => ({
-            ...indicator,
-            translatedLabel: t(`nationalIndicators.indicators.${indicator.label}.label`, { defaultValue: indicator.label }),
-            translatedDescription: t(`nationalIndicators.indicators.${indicator.label}.description`, { defaultValue: indicator.description || undefined })
-        }));
-    }, [indicators, t]);
-
-    // Filter indicators
-    const filteredIndicators = useMemo(() => {
-        let result = enrichedIndicators;
-
-        // Filter by search
-        if (searchQuery) {
-            const query = searchQuery.toLowerCase();
-            result = result.filter(i => 
-                i.translatedLabel.toLowerCase().includes(query) || 
-                (i.translatedDescription && i.translatedDescription.toLowerCase().includes(query))
-            );
-        }
-
-        // Filter by tab (category)
-        if (selectedTab !== "all") {
-             const categoryIndicators = CATEGORY_MAPPING[selectedTab] || [];
-             result = result.filter(i => categoryIndicators.includes(i.label) || categoryIndicators.includes(i.id));
-        }
-
-        return result;
-    }, [enrichedIndicators, searchQuery, selectedTab]);
-
-    const sections = useMemo(() => {
-        if (selectedTab !== "all") {
-            return [{
-                id: selectedTab,
-                title: t(`nationalIndicators.tabs.${selectedTab}`),
-                indicators: filteredIndicators
-            }];
-        }
-        
-        return CATEGORIES.map(cat => {
-            const catIndicators = CATEGORY_MAPPING[cat] || [];
-            const indicatorsInCat = filteredIndicators.filter(i => 
-                catIndicators.includes(i.label) || catIndicators.includes(i.id)
-            );
-            return {
-                id: cat,
-                title: t(`nationalIndicators.tabs.${cat}`),
-                indicators: indicatorsInCat
-            };
-        }).filter(s => s.indicators.length > 0);
-
-    }, [selectedTab, filteredIndicators, t]);
-
-    const tabItems = useMemo(() => [
-        { id: "all", label: t("nationalIndicators.tabs.all"), content: null },
-        ...CATEGORIES.map(c => ({
-            id: c,
-            label: t(`nationalIndicators.tabs.${c}`),
-            content: null
-        }))
-    ], [t]);
-
-    const sourceLinks = useMemo(() => ([
-        {
-            key: "sidra",
-            label: t("nationalIndicators.dataSources.sources.sidra.label"),
-            description: t("nationalIndicators.dataSources.sources.sidra.description"),
-            href: "https://apisidra.ibge.gov.br/"
-        },
-        {
-            key: "sgs",
-            label: t("nationalIndicators.dataSources.sources.sgs.label"),
-            description: t("nationalIndicators.dataSources.sources.sgs.description"),
-            href: "https://dadosabertos.bcb.gov.br/dataset/22768-sgs"
-        },
-        {
-            key: "comex",
-            label: t("nationalIndicators.dataSources.sources.comex.label"),
-            description: t("nationalIndicators.dataSources.sources.comex.description"),
-            href: "https://www.gov.br/mdic/pt-br/assuntos/comercio-exterior/estatisticas/base-de-dados-bruta"
-        },
-        {
-            key: "ipea",
-            label: t("nationalIndicators.dataSources.sources.ipea.label"),
-            description: t("nationalIndicators.dataSources.sources.ipea.description"),
-            href: "https://www.ipea.gov.br/portal/categorias/2-uncategorised/1825-api"
-        }
-    ]), [t]);
-
-    const openDataLinks = useMemo(() => ([
-        {
-            key: "ibge",
-            label: t("nationalIndicators.dataSources.openData.ibge"),
-            href: "https://www.ibge.gov.br/acesso-informacao/dados-abertos.html"
-        },
-        {
-            key: "bcb",
-            label: t("nationalIndicators.dataSources.openData.bcb"),
-            href: "https://dadosabertos.bcb.gov.br/pages/perguntas-frequentes"
-        },
-        {
-            key: "bcbLicense",
-            label: t("nationalIndicators.dataSources.openData.bcbLicense"),
-            href: "https://www.bcb.gov.br/acessoinformacao/dadosabertos"
-        },
-        {
-            key: "mdic",
-            label: t("nationalIndicators.dataSources.openData.mdic"),
-            href: "https://www.gov.br/mdic/pt-br/assuntos/comercio-exterior/estatisticas/base-de-dados-bruta"
-        },
-        {
-            key: "ipea",
-            label: t("nationalIndicators.dataSources.openData.ipea"),
-            href: "https://www.ipeadata.gov.br/"
-        }
-    ]), [t]);
-
-    return (
-        <Page>
-             <Container maxWidth="xl" sx={{ px: { xs: 0, sm: 3 } }}>
-                <Stack direction={isMobile ? "column" : "row"} sx={{ mb: 2 }}>
-                    {!isMobile && (
-                        <Box sx={{ width: 400 }}>
-                            <SearchField 
-                                value={searchQuery}
-                                onChange={setSearchQuery}
-                                placeholder={t("nationalIndicators.search.placeholder")}
-                            />
-                        </Box>
-                    )}
-                    <Box sx={{ 
-                        width: isMobile ? '100%' : 'auto',
-                        borderBottom: isMobile ? 1 : 0, 
-                        borderColor: 'divider',
-                        mx: 0, 
-                        px: 0,
-                        ml: !isMobile ? 2 : 0
-                    }}>
-                        <MuiTabs 
-                            value={selectedTab}
-                            onChange={(_, v) => setSelectedTab(v)}
-                            variant="scrollable"
-                            scrollButtons="auto"
-                            allowScrollButtonsMobile
-                            aria-label="Indicator tabs"
-                        >
-                            {tabItems.map((tab) => (
-                                <Tab key={tab.id} label={tab.label} value={tab.id} />
-                            ))}
-                        </MuiTabs>
-                    </Box>
-                </Stack>
-             </Container>
-
-             <Container maxWidth="xl" sx={{ py: 4, px: { xs: 2, sm: 3 } }}>
-                {loading && <Typography>{t("actions.loading")}</Typography>}
-                
-                {!loading && sections.length === 0 && (
-                    <Typography>{t("messages.noResults")}</Typography>
-                )}
-
-                {sections.map(section => (
-                    <Box key={section.id} sx={{ mb: 6 }}>
-                        <Typography variant="overline" color="text.secondary" sx={{ mb: 2, display: "block" }}>
-                            {section.title}
-                        </Typography>
-                        <Grid container spacing={3}>
-                            {section.indicators.map(indicator => (
-                                <Grid size={{ xs: 12, md: 6, lg: 4 }} key={indicator.id}>
-                                    <IndicatorCard 
-                                        indicator={indicator} 
-                                        displayName={indicator.translatedLabel}
-                                        displayDescription={indicator.translatedDescription}
-                                        latestValues={
-                                            latestDataMap[indicator.id] || 
-                                            latestDataMap[indicator.id.toUpperCase()] || 
-                                            latestDataMap[indicator.label] || 
-                                            latestDataMap[indicator.label.toUpperCase()] || 
-                                            {}
-                                        }
-                                        loading={loadingLatest}
-                                    />
-                                </Grid>
-                            ))}
-                        </Grid>
-                    </Box>
-                ))}
-             </Container>
-
-            <Container maxWidth="xl" sx={{ pb: 6 }}>
-                <Box sx={{ mt: 2, pt: 4, borderTop: 1, borderColor: "divider" }}>
-                    <Typography variant="h6" fontWeight={600}>
-                        {t("nationalIndicators.dataSources.title")}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1, maxWidth: 920 }}>
-                        {t("nationalIndicators.dataSources.description")}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1, maxWidth: 920 }}>
-                        {t("nationalIndicators.dataSources.methodology")}
-                    </Typography>
-
-                    <Typography variant="subtitle2" sx={{ mt: 3, mb: 1 }}>
-                        {t("nationalIndicators.dataSources.sourcesTitle")}
-                    </Typography>
-                    <Stack spacing={1}>
-                        {sourceLinks.map(source => (
-                            <Typography key={source.key} variant="body2" color="text.secondary">
-                                <Link href={source.href} target="_blank" rel="noopener noreferrer" underline="hover">
-                                    {source.label}
-                                </Link>
-                                {source.description ? ` — ${source.description}` : ""}
-                            </Typography>
-                        ))}
-                    </Stack>
-
-                    <Typography variant="subtitle2" sx={{ mt: 3, mb: 1 }}>
-                        {t("nationalIndicators.dataSources.openDataTitle")}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                        {t("nationalIndicators.dataSources.openDataDescription")}
-                    </Typography>
-                    <Stack spacing={1}>
-                        {openDataLinks.map(link => (
-                            <Typography key={link.key} variant="body2" color="text.secondary">
-                                <Link href={link.href} target="_blank" rel="noopener noreferrer" underline="hover">
-                                    {link.label}
-                                </Link>
-                            </Typography>
-                        ))}
-                    </Stack>
-
-                    <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: "block" }}>
-                        {t("nationalIndicators.dataSources.disclaimer")}
-                    </Typography>
-                </Box>
-            </Container>
-        </Page>
-    );
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <NationalIndicatorsClient />
+    </>
+  );
 }

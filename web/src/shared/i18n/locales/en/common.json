@@ -41,6 +41,25 @@
     "financialData": "Financial Data",
     "menu": "Menu"
   },
+  "seo": {
+    "default": {
+      "title": "Invistus",
+      "titleTemplate": "%s • Invistus",
+      "description": "Invistus: Clarity for your financial life. Your investments, personal expenses, and financial market data in one tool.",
+      "keywords": "investments, personal finance, financial control, stocks, real estate funds, dividends, economy, central bank, financial institutions",
+      "ogTitle": "Invistus - Clarity for your financial life",
+      "ogDescription": "Track your investments and personal expenses, and monitor financial market data in one tool.",
+      "twitterDescription": "Clarity for your financial life. Investments and expenses in one place."
+    },
+    "institution": {
+      "notFoundTitle": "Institution not found",
+      "title": "{{name}} - Financial Data and Indicators",
+      "description": "View financial balance sheets, indicators, and history of {{name}}. Track profits, equity, and other essential data on Invistus."
+    },
+    "landing": {
+      "jsonLdDescription": "Invistus: Clarity for your financial life. Your investments, personal expenses, and financial market data in one tool."
+    }
+  },
   "search": {
     "placeholder": "Search...",
     "label": "Search"
