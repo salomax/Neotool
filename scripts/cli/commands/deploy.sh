@@ -25,6 +25,7 @@ INVISTUS_FLUX_DIR="${INVISTUS_FLUX_DIR:-$PROJECT_ROOT/../invistus-flux}"
 IMAGE_PREFIX="ghcr.io/invistus"
 MAIN_BRANCH="main"
 FLUX_BRANCH="flux-updates"
+DEPLOY_REVISION=""
 
 # Production scope mirrors .github/workflows/build-production.yml and excludes jobs/consumers.
 IMAGE_SPECS=(
@@ -49,7 +50,7 @@ Usage: $0 <namespace> --tag <tag> [options]
 
 Runs a local deploy flow that mirrors production CI/CD:
   1. Checkout/pull main
-  2. Run validation (web + service + security in parallel)
+  2. Run validation (web + service + security in parallel, optional)
   3. Create git tag on main
   4. Build production images (web + services)
   5. Confirm apply
@@ -64,6 +65,7 @@ Required:
   --tag <tag>       Release tag (example: v0.1.49)
 
 Options:
+  --skip-validation Skip validation before build/push
   --yes             Skip confirmation prompt and apply immediately
   --help            Show this help message
 
@@ -76,9 +78,25 @@ Environment variables:
 
 Examples:
   $0 production --tag v0.1.49
+  $0 production --tag v0.1.49 --skip-validation
   $0 production --tag v0.1.49 --yes
   INVISTUS_FLUX_DIR=../invistus-flux $0 production --tag v0.1.49
 EOF_HELP
+}
+
+format_command() {
+    local cmd_str=""
+    printf -v cmd_str '%q ' "$@"
+    echo "${cmd_str% }"
+}
+
+log_command() {
+    log "  \$ $(format_command "$@")" "$CYAN"
+}
+
+run_cmd() {
+    log_command "$@"
+    "$@"
 }
 
 require_command() {
@@ -102,8 +120,11 @@ ensure_git_repo() {
 ensure_clean_worktree() {
     local repo_dir="$1"
     local name="$2"
+    local status_output
 
-    if [[ -n "$(git -C "$repo_dir" status --porcelain)" ]]; then
+    log_command git -C "$repo_dir" status --porcelain
+    status_output="$(git -C "$repo_dir" status --porcelain)"
+    if [[ -n "$status_output" ]]; then
         log_error "Error: $name has uncommitted changes"
         log_error "Please commit/stash changes before running deploy"
         exit 1
@@ -142,11 +163,12 @@ validate_tag() {
 sync_main_branch() {
     log "\n🔄 Syncing main branch..." "$BLUE"
 
-    git -C "$PROJECT_ROOT" fetch origin "$MAIN_BRANCH"
-    git -C "$PROJECT_ROOT" checkout "$MAIN_BRANCH"
-    git -C "$PROJECT_ROOT" pull --ff-only origin "$MAIN_BRANCH"
+    run_cmd git -C "$PROJECT_ROOT" fetch origin "$MAIN_BRANCH"
+    run_cmd git -C "$PROJECT_ROOT" checkout "$MAIN_BRANCH"
+    run_cmd git -C "$PROJECT_ROOT" pull --ff-only origin "$MAIN_BRANCH"
 
     local current_branch
+    log_command git -C "$PROJECT_ROOT" rev-parse --abbrev-ref HEAD
     current_branch="$(git -C "$PROJECT_ROOT" rev-parse --abbrev-ref HEAD)"
     if [[ "$current_branch" != "$MAIN_BRANCH" ]]; then
         log_error "Error: Failed to switch to $MAIN_BRANCH"
@@ -158,19 +180,21 @@ sync_main_branch() {
 
 run_validation() {
     log "\n🔍 Running validations (web + service + security)..." "$BLUE"
-    "$PROJECT_ROOT/neotool" validate
+    run_cmd "$PROJECT_ROOT/neotool" validate
     log "✅ Validation passed" "$GREEN"
 }
 
 ensure_tag_available() {
     local tag="$1"
 
+    log_command git -C "$PROJECT_ROOT" show-ref --verify --quiet "refs/tags/$tag"
     if git -C "$PROJECT_ROOT" show-ref --verify --quiet "refs/tags/$tag"; then
         log_error "Error: Tag already exists locally: $tag"
         exit 1
     fi
 
     local remote_tag
+    log_command git -C "$PROJECT_ROOT" ls-remote --tags origin "refs/tags/$tag"
     remote_tag="$(git -C "$PROJECT_ROOT" ls-remote --tags origin "refs/tags/$tag" 2>/dev/null || true)"
     if [[ -n "$remote_tag" ]]; then
         log_error "Error: Tag already exists on origin: $tag"
@@ -182,7 +206,7 @@ create_local_tag() {
     local tag="$1"
 
     ensure_tag_available "$tag"
-    git -C "$PROJECT_ROOT" tag -a "$tag" -m "Release $tag"
+    run_cmd git -C "$PROJECT_ROOT" tag -a "$tag" -m "Release $tag"
     log "✅ Created local tag: $tag" "$GREEN"
 }
 
@@ -193,8 +217,6 @@ build_single_image() {
     local tag="$4"
 
     local full_image="$IMAGE_PREFIX/$image_name"
-    local revision
-    revision="$(git -C "$PROJECT_ROOT" rev-parse HEAD)"
 
     docker buildx build \
       --platform linux/amd64 \
@@ -203,7 +225,7 @@ build_single_image() {
       --tag "$full_image:$tag" \
       --tag "$full_image:latest" \
       --label "org.opencontainers.image.source=https://github.com/invistus/invistus" \
-      --label "org.opencontainers.image.revision=$revision" \
+      --label "org.opencontainers.image.revision=$DEPLOY_REVISION" \
       --label "org.opencontainers.image.version=$tag" \
       "$PROJECT_ROOT/$context"
 }
@@ -220,6 +242,19 @@ build_images_parallel() {
     local spec
     for spec in "${IMAGE_SPECS[@]}"; do
         IFS='|' read -r name context dockerfile image_name <<< "$spec"
+        local full_image="$IMAGE_PREFIX/$image_name"
+        local build_cmd
+        build_cmd="$(format_command \
+            docker buildx build \
+            --platform linux/amd64 \
+            --load \
+            --file "$PROJECT_ROOT/$dockerfile" \
+            --tag "$full_image:$tag" \
+            --tag "$full_image:latest" \
+            --label "org.opencontainers.image.source=https://github.com/invistus/invistus" \
+            --label "org.opencontainers.image.revision=$DEPLOY_REVISION" \
+            --label "org.opencontainers.image.version=$tag" \
+            "$PROJECT_ROOT/$context")"
 
         local log_file
         log_file="$(mktemp -t neotool-deploy-build-${name}.XXXXXX)"
@@ -232,6 +267,7 @@ build_images_parallel() {
         names+=("$name")
         logs+=("$log_file")
 
+        log "  \$ $build_cmd" "$CYAN"
         log "  started build: $name (log: $log_file)" "$GRAY"
     done
 
@@ -264,7 +300,8 @@ docker_login_ghcr_if_possible() {
 
     if [[ -n "$username" && -n "$token" ]]; then
         log "\n🔐 Logging in to GHCR as $username..." "$BLUE"
-        echo "$token" | docker login ghcr.io -u "$username" --password-stdin >/dev/null
+        log "  \$ docker login ghcr.io -u $username --password-stdin" "$CYAN"
+        docker login ghcr.io -u "$username" --password-stdin >/dev/null <<< "$token"
         log "✅ GHCR login successful" "$GREEN"
     else
         log "\nℹ️  GHCR credentials not provided in env; using existing docker auth if available" "$YELLOW"
@@ -292,6 +329,11 @@ push_images_parallel() {
     local spec
     for spec in "${IMAGE_SPECS[@]}"; do
         IFS='|' read -r name _context _dockerfile image_name <<< "$spec"
+        local full_image="$IMAGE_PREFIX/$image_name"
+        local push_cmd_tag
+        local push_cmd_latest
+        push_cmd_tag="$(format_command docker push "$full_image:$tag")"
+        push_cmd_latest="$(format_command docker push "$full_image:latest")"
 
         local log_file
         log_file="$(mktemp -t neotool-deploy-push-${name}.XXXXXX)"
@@ -304,6 +346,8 @@ push_images_parallel() {
         names+=("$name")
         logs+=("$log_file")
 
+        log "  \$ $push_cmd_tag" "$CYAN"
+        log "  \$ $push_cmd_latest" "$CYAN"
         log "  started push: $name (log: $log_file)" "$GRAY"
     done
 
@@ -356,15 +400,16 @@ confirm_apply() {
 checkout_flux_branch() {
     log "\n🌿 Preparing invistus-flux branch $FLUX_BRANCH..." "$BLUE"
 
-    git -C "$INVISTUS_FLUX_DIR" fetch origin "$MAIN_BRANCH" "$FLUX_BRANCH"
+    run_cmd git -C "$INVISTUS_FLUX_DIR" fetch origin "$MAIN_BRANCH" "$FLUX_BRANCH"
 
+    log_command git -C "$INVISTUS_FLUX_DIR" show-ref --verify --quiet "refs/heads/$FLUX_BRANCH"
     if git -C "$INVISTUS_FLUX_DIR" show-ref --verify --quiet "refs/heads/$FLUX_BRANCH"; then
-        git -C "$INVISTUS_FLUX_DIR" checkout "$FLUX_BRANCH"
+        run_cmd git -C "$INVISTUS_FLUX_DIR" checkout "$FLUX_BRANCH"
     else
-        git -C "$INVISTUS_FLUX_DIR" checkout -b "$FLUX_BRANCH" "origin/$FLUX_BRANCH"
+        run_cmd git -C "$INVISTUS_FLUX_DIR" checkout -b "$FLUX_BRANCH" "origin/$FLUX_BRANCH"
     fi
 
-    git -C "$INVISTUS_FLUX_DIR" pull --ff-only origin "$FLUX_BRANCH"
+    run_cmd git -C "$INVISTUS_FLUX_DIR" pull --ff-only origin "$FLUX_BRANCH"
 
     log "✅ invistus-flux ready on $FLUX_BRANCH" "$GREEN"
 }
@@ -384,15 +429,17 @@ update_flux_image_file() {
     local tmp_file
     tmp_file="$(mktemp -t neotool-flux-update.XXXXXX)"
 
+    log_command sed -E "s|(image:[[:space:]]+ghcr.io/invistus/${image_name}:)[^[:space:]]+|\\1${tag}|g" "$full_path"
     sed -E "s|(image:[[:space:]]+ghcr.io/invistus/${image_name}:)[^[:space:]]+|\\1${tag}|g" "$full_path" > "$tmp_file"
 
+    log_command cmp -s "$full_path" "$tmp_file"
     if cmp -s "$full_path" "$tmp_file"; then
-        rm -f "$tmp_file"
+        run_cmd rm -f "$tmp_file"
         log "  no change needed: $file_path" "$GRAY"
         return 0
     fi
 
-    mv "$tmp_file" "$full_path"
+    run_cmd mv "$tmp_file" "$full_path"
     log "  updated: $file_path" "$GREEN"
 }
 
@@ -414,9 +461,9 @@ update_flux_artifacts() {
     fi
 
     local commit_message="chore(flux): apply ${tag} to ${namespace}"
-    git -C "$INVISTUS_FLUX_DIR" add infra/kubernetes/flux/apps
-    git -C "$INVISTUS_FLUX_DIR" commit -m "$commit_message"
-    git -C "$INVISTUS_FLUX_DIR" push origin "$FLUX_BRANCH"
+    run_cmd git -C "$INVISTUS_FLUX_DIR" add infra/kubernetes/flux/apps
+    run_cmd git -C "$INVISTUS_FLUX_DIR" commit -m "$commit_message"
+    run_cmd git -C "$INVISTUS_FLUX_DIR" push origin "$FLUX_BRANCH"
 
     log "✅ Flux updates committed and pushed" "$GREEN"
 }
@@ -424,7 +471,7 @@ update_flux_artifacts() {
 push_release_tag() {
     local tag="$1"
     log "\n🏷️  Pushing tag $tag..." "$BLUE"
-    git -C "$PROJECT_ROOT" push origin "refs/tags/$tag"
+    run_cmd git -C "$PROJECT_ROOT" push origin "refs/tags/$tag"
     log "✅ Tag pushed: $tag" "$GREEN"
 }
 
@@ -432,6 +479,7 @@ main() {
     local namespace=""
     local tag=""
     local auto_yes=false
+    local skip_validation=false
 
     if [[ $# -eq 0 ]]; then
         show_help
@@ -450,6 +498,10 @@ main() {
                 ;;
             --yes)
                 auto_yes=true
+                shift
+                ;;
+            --skip-validation)
+                skip_validation=true
                 shift
                 ;;
             --help|-h)
@@ -496,7 +548,16 @@ main() {
     ensure_clean_worktree "$INVISTUS_FLUX_DIR" "invistus-flux"
 
     sync_main_branch
-    run_validation
+    log_command git -C "$PROJECT_ROOT" rev-parse HEAD
+    DEPLOY_REVISION="$(git -C "$PROJECT_ROOT" rev-parse HEAD)"
+    log "Deploy revision: $DEPLOY_REVISION" "$GRAY"
+
+    if [[ "$skip_validation" == true ]]; then
+        log "\n⏭️  Skipping validation (--skip-validation)" "$YELLOW"
+    else
+        run_validation
+    fi
+
     create_local_tag "$tag"
     build_images_parallel "$tag"
 
