@@ -10,7 +10,7 @@ search_keywords: [seo, metadata, json-ld, structured data, open graph, server co
 related:
   - 07-frontend/patterns/styling-pattern.md
   - 07-frontend/patterns/shared-components-pattern.md
----
+--
 
 # SEO Pattern
 
@@ -168,6 +168,19 @@ SEO is not just about keywords; it's about performance. We follow specific patte
 const isMobile = useMediaQuery(...);
 <Box sx={{ width: isMobile ? '100%' : '50%' }} />
 ```
+
+## Competitor SEO Strategy
+
+It is a common question whether to include competitor names in metadata keywords to capture their traffic.
+
+### Guidelines
+
+1.  **Do NOT use competitor names in `keywords` or `meta` tags**: This is considered "keyword stuffing" and can be penalized by search engines. It provides no value to the user and degrades trust.
+2.  **Use Comparison Pages**: The industry standard for ranking for competitor keywords is to create dedicated **Comparison Pages** (e.g., "Invistus vs CompetitorX").
+    *   These pages must provide *genuine, helpful comparison content*.
+    *   They should be linked from the footer or a "Comparisons" section.
+    *   The URL structure should be `/compare/invistus-vs-competitor`.
+    *   This approach targets the "alternative to [Competitor]" intent legitimately.
 
 ## Checklist
 
