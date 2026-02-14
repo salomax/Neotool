@@ -271,7 +271,6 @@ This is enabled by:
 
 **Delivers**:
 - Automated alerts (Slack/email) for CPU > 80%, memory > 85%, pod CrashLoopBackOff
-- Grafana accessible via `https://grafana.invistus.com.br` with authentication
 - Grafana credentials in Vault (via External Secrets)
 - Browser-side traces from Next.js for true end-to-end visibility
 
