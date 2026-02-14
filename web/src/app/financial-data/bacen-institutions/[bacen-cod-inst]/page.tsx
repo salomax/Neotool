@@ -39,6 +39,12 @@ export async function generateMetadata(
       variables: { id },
     });
 
+    if (!data) {
+      return {
+        title: t.notFoundTitle,
+      };
+    }
+
     const institution = data.bacenFinanceInstitution;
 
     if (!institution) {

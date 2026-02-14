@@ -33,6 +33,28 @@ const SITEMAP_INSTITUTIONS_QUERY = gql`
   }
 `;
 
+type SitemapInstitutionsQuery = {
+  bacenInstitutions: {
+    totalCount: number;
+    edges: Array<{
+      node: {
+        id: string;
+        name: string;
+        updatedAt?: string;
+      };
+    }>;
+    pageInfo: {
+      hasNextPage: boolean;
+      endCursor: string | null;
+    };
+  };
+};
+
+type SitemapInstitutionsQueryVariables = {
+  first: number;
+  after?: string;
+};
+
 type SitemapInstitution = {
   id: string;
   name: string;
@@ -52,7 +74,10 @@ const fetchAllInstitutions = unstable_cache(
     
     try {
       // Fetch first page
-      const firstPage = await client.query({
+      const firstPage = await client.query<
+        SitemapInstitutionsQuery,
+        SitemapInstitutionsQueryVariables
+      >({
         query: SITEMAP_INSTITUTIONS_QUERY,
         variables: { first: 1000 }, // Increased page size for performance
       });
@@ -73,7 +98,10 @@ const fetchAllInstitutions = unstable_cache(
 
       // Fetch remaining pages
       while (hasNextPage && cursor) {
-        const nextPage = await client.query({
+        const nextPage = await client.query<
+          SitemapInstitutionsQuery,
+          SitemapInstitutionsQueryVariables
+        >({
           query: SITEMAP_INSTITUTIONS_QUERY,
           variables: { first: 1000, after: cursor },
         });
