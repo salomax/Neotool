@@ -9,10 +9,13 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    # TODO: Uncomment when CI is re-enabled to ensure only passing code gets released
+    # if: github.event.head_commit.message != 'chore(release): publish [skip ci]'
     steps:
       - name: Generate GitHub App token
         id: app-token
@@ -39,9 +42,16 @@ jobs:
           git config user.email "${{ secrets.GH_APP_ID }}+invistusbot[bot]@users.noreply.github.com"
 
       - name: Release
-        run: npx nx release --skip-publish --verbose
+        run: npx nx release --skip-publish
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
 
-      - name: Push version commits and tags
-        run: git push && git push --tags
+      - name: Trigger builds for new tags
+        run: |
+          for TAG in $(git tag --points-at HEAD --list '*-v*'); do
+            echo "Triggering build-production for $TAG"
+            gh workflow run build-production.yml --ref "$TAG"
+            sleep 1
+          done
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
