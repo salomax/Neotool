@@ -31,11 +31,6 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-
       - run: npm ci
 
       - name: Configure git
@@ -44,7 +39,7 @@ jobs:
           git config user.email "${{ secrets.GH_APP_ID }}+invistusbot[bot]@users.noreply.github.com"
 
       - name: Release
-        run: npx nx release --skip-publish
+        run: npx nx release --skip-publish --verbose
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
 
