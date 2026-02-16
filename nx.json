@@ -39,7 +39,8 @@
     "projectsRelationship": "independent",
     "releaseTagPattern": "{projectName}-v{version}",
     "version": {
-      "conventionalCommits": true
+      "conventionalCommits": true,
+      "fallbackCurrentVersionResolver": "disk"
     },
     "changelog": {
       "workspaceChangelog": false,
