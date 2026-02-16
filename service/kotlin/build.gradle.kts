@@ -1,4 +1,5 @@
 plugins {
+    id("dev.nx.gradle.project-graph") version "0.1.12" apply false
     id("org.jetbrains.kotlin.jvm") version "2.2.20" apply false
     id("io.micronaut.application") version "4.5.4" apply false
     id("io.micronaut.aot") version "4.5.4" apply false
@@ -11,6 +12,7 @@ plugins {
 }
 
 allprojects {
+    apply(plugin = "dev.nx.gradle.project-graph")
     group = "io.github.salomax.neotool"
 
     repositories {

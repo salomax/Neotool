@@ -3,7 +3,7 @@ name: Production Build
 on:
   push:
     tags:
-      - "v*.*.*"
+      - "*-v*.*.*"
 
 concurrency:
   group: production-${{ github.ref }}
@@ -14,247 +14,153 @@ env:
   IMAGE_PREFIX: ghcr.io/invistus
 
 jobs:
-  version:
-    runs-on: self-hosted
+  resolve:
+    runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.version.outputs.version }}
+      project: ${{ steps.parse.outputs.project }}
+      version: ${{ steps.parse.outputs.version }}
+      matrix: ${{ steps.config.outputs.matrix }}
+      image_count: ${{ steps.config.outputs.image_count }}
+      package_matrix: ${{ steps.config.outputs.package_matrix }}
+      trigger_supergraph: ${{ steps.config.outputs.trigger_supergraph }}
     steps:
-      - name: Extract version from tag
-        id: version
-        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      - name: Parse tag
+        id: parse
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          PROJECT="${TAG%-v*}"
+          VERSION="v${TAG##*-v}"
+          echo "project=$PROJECT" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Parsed tag: project=$PROJECT version=$VERSION"
 
-  build-kotlin:
-    needs: version
-    runs-on: self-hosted
+      - name: Resolve build config
+        id: config
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROJECT="${{ steps.parse.outputs.project }}"
+
+          SUPERGRAPH=false
+
+          case "$PROJECT" in
+            security)
+              MATRIX='[{"context":"./service/kotlin","dockerfile":"./service/kotlin/security/Dockerfile","image":"neotool-security"}]'
+              SUPERGRAPH=true
+              ;;
+            assets)
+              MATRIX='[{"context":"./service/kotlin","dockerfile":"./service/kotlin/assets/Dockerfile","image":"neotool-assets"}]'
+              SUPERGRAPH=true
+              ;;
+            financialdata)
+              MATRIX='[{"context":"./service/kotlin","dockerfile":"./service/kotlin/financialdata/Dockerfile","image":"neotool-financialdata"}]'
+              SUPERGRAPH=true
+              ;;
+            assistant)
+              MATRIX='[{"context":"./service/kotlin","dockerfile":"./service/kotlin/assistant/Dockerfile","image":"neotool-assistant"}]'
+              SUPERGRAPH=true
+              ;;
+            bacen-ifdata-cronjob)
+              MATRIX='[
+                {"context":"./workers/golang","dockerfile":"./workers/golang/financial_data/bacen_ifdata_job/Dockerfile","target":"cronjob","image":"neotool-bacen-ifdata-cronjob"},
+                {"context":"./workers/golang","dockerfile":"./workers/golang/financial_data/bacen_ifdata_job/Dockerfile","target":"cli","image":"neotool-bacen-ifdata-cli"},
+                {"context":"./workers/golang","dockerfile":"./workers/golang/financial_data/bacen_ifdata_job/Dockerfile","target":"retry-worker","image":"neotool-bacen-ifdata-retry-worker"}
+              ]'
+              ;;
+            ratings-job)
+              MATRIX='[{"context":"./workers/golang","dockerfile":"./workers/golang/financial_data/ratings_job/Dockerfile","image":"neotool-financialdata-ratings"}]'
+              ;;
+            indicators-job)
+              MATRIX='[{"context":"./workers/golang","dockerfile":"./workers/golang/financial_data/indicators_job/Dockerfile","image":"neotool-financialdata-indicators"}]'
+              ;;
+            institution-enhancement-consumer)
+              MATRIX='[
+                {"context":"./workers/golang","dockerfile":"./workers/golang/financial_data/institution_enhancement_consumer/Dockerfile","target":"consumer","image":"neotool-institution-enhancement-consumer"},
+                {"context":"./workers/golang","dockerfile":"./workers/golang/financial_data/institution_enhancement_consumer/Dockerfile","target":"standalone","image":"neotool-institution-enhancement-standalone"}
+              ]'
+              ;;
+            neotool-web)
+              MATRIX='[{"context":"./web","dockerfile":"./web/Dockerfile","image":"neotool-web"}]'
+              SUPERGRAPH=true
+              ;;
+            *)
+              echo "::error::Unknown project '$PROJECT'. Add it to the build config in build-production.yml."
+              exit 1
+              ;;
+          esac
+
+          MATRIX="$(echo "$MATRIX" | jq -c '.')"
+          COUNT="$(echo "$MATRIX" | jq 'length')"
+          PACKAGE_MATRIX="$(echo "$MATRIX" | jq -c '[.[].image | {package: .}]')"
+
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+          echo "image_count=$COUNT" >> "$GITHUB_OUTPUT"
+          echo "package_matrix=$PACKAGE_MATRIX" >> "$GITHUB_OUTPUT"
+          echo "trigger_supergraph=$SUPERGRAPH" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### Build Plan"
+            echo "- Project: $PROJECT"
+            echo "- Version: ${{ steps.parse.outputs.version }}"
+            echo "- Images to build: $COUNT"
+            echo "- Trigger supergraph: $SUPERGRAPH"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  build:
+    needs: resolve
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-    env:
-      DOCKER_CONFIG: /tmp/.docker-${{ github.run_id }}-kotlin-${{ strategy.job-index }}
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - service: security
-            dockerfile: security/Dockerfile
-            image: neotool-security
-          - service: assets
-            dockerfile: assets/Dockerfile
-            image: neotool-assets
-          - service: financialdata
-            dockerfile: financialdata/Dockerfile
-            image: neotool-financialdata
+        include: ${{ fromJSON(needs.resolve.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Configure Docker
-        run: |
-          mkdir -p "$DOCKER_CONFIG"
-          if [ -S "$HOME/.colima/default/docker.sock" ]; then
-            echo "DOCKER_HOST=unix://$HOME/.colima/default/docker.sock" >> $GITHUB_ENV
-          fi
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Login to GHCR
-        run: |
-          python3 -c "
-          import json, os
-          cfg_path = os.path.join(os.environ['DOCKER_CONFIG'], 'config.json')
-          try:
-              with open(cfg_path) as f: cfg = json.load(f)
-          except: cfg = {}
-          cfg['credsStore'] = ''
-          with open(cfg_path, 'w') as f: json.dump(cfg, f)
-          "
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
-      - name: Build and push ${{ matrix.service }}
-        uses: docker/build-push-action@v6
+        uses: docker/login-action@v3
         with:
-          context: ./service/kotlin
-          file: ./service/kotlin/${{ matrix.dockerfile }}
-          push: true
-          tags: |
-            ${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:${{ needs.version.outputs.version }}
-            ${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:latest
-          # Use local cache for self-hosted runners (much faster than GHA cache)
-          cache-from: |
-            type=local,src=/tmp/.buildx-cache/${{ matrix.service }}
-            type=registry,ref=${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:buildcache
-          cache-to: type=local,dest=/tmp/.buildx-cache/${{ matrix.service }},mode=max
-          labels: |
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.version=${{ needs.version.outputs.version }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-  build-golang:
-    needs: version
-    runs-on: self-hosted
-    permissions:
-      contents: read
-      packages: write
-    env:
-      DOCKER_CONFIG: /tmp/.docker-${{ github.run_id }}-golang-${{ strategy.job-index }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - service: bacen-ifdata
-            context: ./workflow/golang
-            dockerfile: ./workflow/golang/financial_data/bacen_ifdata_job/Dockerfile
-            target: cronjob
-            image: neotool-bacen-ifdata-cronjob
-            app_dir: financial_data/bacen_ifdata_job
-          - service: bacen-ifdata-cli
-            context: ./workflow/golang
-            dockerfile: ./workflow/golang/financial_data/bacen_ifdata_job/Dockerfile
-            target: cli
-            image: neotool-bacen-ifdata-cli
-            app_dir: financial_data/bacen_ifdata_job
-          - service: bacen-ifdata-retry-worker
-            context: ./workflow/golang
-            dockerfile: ./workflow/golang/financial_data/bacen_ifdata_job/Dockerfile
-            target: retry-worker
-            image: neotool-bacen-ifdata-retry-worker
-            app_dir: financial_data/bacen_ifdata_job
-          - service: ratings
-            context: ./workflow/golang
-            dockerfile: ./workflow/golang/financial_data/ratings_job/Dockerfile
-            image: neotool-financialdata-ratings
-            app_dir: financial_data/ratings_job
-          - service: indicators
-            context: ./workflow/golang
-            dockerfile: ./workflow/golang/financial_data/indicators_job/Dockerfile
-            image: neotool-financialdata-indicators
-            app_dir: financial_data/indicators_job
-          - service: institution-enhancement-consumer
-            context: ./workflow/golang
-            dockerfile: ./workflow/golang/financial_data/institution_enhancement_consumer/Dockerfile
-            target: consumer
-            image: neotool-institution-enhancement-consumer
-            app_dir: financial_data/institution_enhancement_consumer
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Configure Docker
-        run: |
-          mkdir -p "$DOCKER_CONFIG"
-          if [ -S "$HOME/.colima/default/docker.sock" ]; then
-            echo "DOCKER_HOST=unix://$HOME/.colima/default/docker.sock" >> $GITHUB_ENV
-          fi
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GHCR
-        run: |
-          python3 -c "
-          import json, os
-          cfg_path = os.path.join(os.environ['DOCKER_CONFIG'], 'config.json')
-          try:
-              with open(cfg_path) as f: cfg = json.load(f)
-          except: cfg = {}
-          cfg['credsStore'] = ''
-          with open(cfg_path, 'w') as f: json.dump(cfg, f)
-          "
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
-      - name: Build and push ${{ matrix.service }}
+      - name: Build and push ${{ matrix.image }}
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
           target: ${{ matrix.target || '' }}
           push: true
-          build-args: |
-            APP_DIR=${{ matrix.app_dir }}
           tags: |
-            ${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:${{ needs.version.outputs.version }}
+            ${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:${{ needs.resolve.outputs.version }}
             ${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:latest
-          # Use local cache for self-hosted runners (much faster than GHA cache)
           cache-from: |
-            type=local,src=/tmp/.buildx-cache/${{ matrix.service }}
+            type=gha,scope=${{ matrix.image }}
             type=registry,ref=${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:buildcache
-          cache-to: type=local,dest=/tmp/.buildx-cache/${{ matrix.service }},mode=max
+          cache-to: |
+            type=gha,mode=max,scope=${{ matrix.image }}
+            type=registry,ref=${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:buildcache,mode=max
+          provenance: false
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.version=${{ needs.version.outputs.version }}
-
-  build-web:
-    needs: version
-    runs-on: self-hosted
-    permissions:
-      contents: read
-      packages: write
-    env:
-      DOCKER_CONFIG: /tmp/.docker-${{ github.run_id }}-web
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Configure Docker
-        run: |
-          mkdir -p "$DOCKER_CONFIG"
-          if [ -S "$HOME/.colima/default/docker.sock" ]; then
-            echo "DOCKER_HOST=unix://$HOME/.colima/default/docker.sock" >> $GITHUB_ENV
-          fi
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GHCR
-        run: |
-          python3 -c "
-          import json, os
-          cfg_path = os.path.join(os.environ['DOCKER_CONFIG'], 'config.json')
-          try:
-              with open(cfg_path) as f: cfg = json.load(f)
-          except: cfg = {}
-          cfg['credsStore'] = ''
-          with open(cfg_path, 'w') as f: json.dump(cfg, f)
-          "
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
-      - name: Build and push web
-        uses: docker/build-push-action@v6
-        with:
-          context: ./web
-          file: ./web/Dockerfile
-          push: true
-          tags: |
-            ${{ env.IMAGE_PREFIX }}/neotool-web:${{ needs.version.outputs.version }}
-            ${{ env.IMAGE_PREFIX }}/neotool-web:latest
-          # Use local cache for self-hosted runners (much faster than GHA cache)
-          cache-from: |
-            type=local,src=/tmp/.buildx-cache/web
-            type=registry,ref=${{ env.IMAGE_PREFIX }}/neotool-web:buildcache
-          cache-to: type=local,dest=/tmp/.buildx-cache/web,mode=max
-          labels: |
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.version=${{ needs.version.outputs.version }}
+            org.opencontainers.image.version=${{ needs.resolve.outputs.version }}
 
   cleanup-packages:
-    needs: [build-kotlin, build-golang, build-web]
-    runs-on: self-hosted
+    needs: [resolve, build]
+    if: always() && needs.build.result == 'success'
+    runs-on: ubuntu-latest
     permissions:
       packages: write
     strategy:
       fail-fast: false
       matrix:
-        package:
-          - neotool-security
-          - neotool-assets
-          - neotool-financialdata
-          - neotool-bacen-ifdata-cronjob
-          - neotool-bacen-ifdata-cli
-          - neotool-bacen-ifdata-retry-worker
-          - neotool-financialdata-ratings
-          - neotool-financialdata-indicators
-          - neotool-institution-enhancement-consumer
-          - neotool-web
+        include: ${{ fromJSON(needs.resolve.outputs.package_matrix) }}
     env:
       KEEP: 3
     steps:
@@ -272,8 +178,9 @@ jobs:
             done
 
   trigger-supergraph:
-    needs: [build-kotlin, build-golang, build-web, version]
-    runs-on: self-hosted
+    needs: [resolve, build]
+    if: always() && needs.build.result == 'success' && needs.resolve.outputs.trigger_supergraph == 'true'
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
@@ -295,32 +202,15 @@ jobs:
             -d '{
               "event_type": "service-deployed",
               "client_payload": {
-                "version": "${{ needs.version.outputs.version }}",
+                "project": "${{ needs.resolve.outputs.project }}",
+                "version": "${{ needs.resolve.outputs.version }}",
                 "environment": "production",
-                "trigger_source": "service_deployment",
-                "services": ["security", "assets", "financialdata", "web"]
+                "trigger_source": "service_deployment"
               }
             }'
 
       - name: Log supergraph trigger
         run: |
-          echo "✅ Triggered supergraph composition in invistus-flux repo"
-          echo "Version: ${{ needs.version.outputs.version }}"
-          echo "The router will automatically update with the new supergraph schema within ~10 minutes"
-
-  release:
-    needs: [build-kotlin, build-golang, build-web, version, trigger-supergraph]
-    runs-on: self-hosted
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          generate_release_notes: true
-          tag_name: ${{ needs.version.outputs.version }}
-          name: Release ${{ needs.version.outputs.version }}
+          echo "Triggered supergraph composition in invistus-flux repo"
+          echo "Project: ${{ needs.resolve.outputs.project }}"
+          echo "Version: ${{ needs.resolve.outputs.version }}"

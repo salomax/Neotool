@@ -1,0 +1,17 @@
+.git
+.gitignore
+.github
+
+.idea
+.vscode
+*.swp
+*.swo
+*~
+.DS_Store
+
+**/bin
+**/tmp
+**/*.test
+**/coverage.out
+**/coverage.*
+**/.cache

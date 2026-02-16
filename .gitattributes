@@ -14,6 +14,6 @@ web/src/styles/themes/tokens.ts merge=ours
 web/src/shared/ui/brand/ merge=ours
 web/src/shared/i18n/ merge=ours
 web/src/lib/graphql/types/ merge=ours
-workflows/** merge=ours
+workers/** merge=ours
 service/kotlin/settings.gradle.kts merge=ours
 service/kotlin/app/** merge=ours

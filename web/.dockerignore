@@ -7,3 +7,9 @@ Dockerfile
 playwright-report
 test-results
 coverage
+.turbo
+.pnpm-store
+.cache
+dist
+storybook-static
+*.log

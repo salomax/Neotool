@@ -74,3 +74,8 @@ terraform.rc
 
 # Drafting ideas
 docs/03-features/brainstorming
+
+.nx/installation
+.nx/cache
+.nx/workspace-data
+graph.json

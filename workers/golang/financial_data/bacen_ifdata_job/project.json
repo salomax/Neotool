@@ -1,0 +1,29 @@
+{
+  "tags": ["type:cronjob", "lang:go"],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "go build ./...",
+        "cwd": "{projectRoot}"
+      },
+      "configurations": {}
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "go test ./...",
+        "cwd": "{projectRoot}"
+      },
+      "configurations": {}
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "go vet ./...",
+        "cwd": "{projectRoot}"
+      },
+      "configurations": {}
+    }
+  }
+}
