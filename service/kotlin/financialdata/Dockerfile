@@ -7,7 +7,9 @@ WORKDIR /home/gradle/project
 # Copy Gradle wrapper and build files first for better layer caching
 COPY gradlew ./
 COPY gradle ./gradle
-COPY build.gradle.kts settings.gradle.kts gradle.properties ./
+COPY build.gradle.kts gradle.properties ./
+# Use Docker-only settings that include only :common and :financialdata (the only modules we copy)
+COPY financialdata/settings.docker.gradle.kts ./settings.gradle.kts
 
 # Copy common module first (shared dependency)
 COPY common/build.gradle.kts ./common/
