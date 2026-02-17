@@ -42,7 +42,12 @@ jobs:
           git config user.email "${{ secrets.GH_APP_ID }}+invistusbot[bot]@users.noreply.github.com"
 
       - name: Strip Gradle plugin for faster graph
-        run: jq '.plugins = [.plugins[] | select(.plugin != "@nx/gradle")]' nx.json > nx.tmp && mv nx.tmp nx.json
+        run: |
+          echo "Before:"
+          cat nx.json | head -15
+          jq 'if .plugins then .plugins = [.plugins[] | select(.plugin != "@nx/gradle")] else . end' nx.json > nx.tmp && mv nx.tmp nx.json
+          echo "After:"
+          cat nx.json | head -15
 
       - name: Release
         timeout-minutes: 30
