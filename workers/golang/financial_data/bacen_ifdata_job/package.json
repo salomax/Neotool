@@ -1,1 +1,5 @@
-{ "name": "bacen-ifdata-cronjob", "version": "0.1.46", "private": true }
+{
+  "name": "bacen-ifdata-cronjob",
+  "version": "0.1.47",
+  "private": true
+}

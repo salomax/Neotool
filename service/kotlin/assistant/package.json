@@ -1,1 +1,5 @@
-{ "name": "assistant", "version": "0.1.46", "private": true }
+{
+  "name": "assistant",
+  "version": "0.1.47",
+  "private": true
+}
