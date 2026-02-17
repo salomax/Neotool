@@ -1,0 +1,58 @@
+meta {
+  name: Bacen Institutions (Only Slugs)
+  type: graphql
+  seq: 4
+}
+
+post {
+  url: {{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  query SitemapInstitutionSlugs($first: Int!, $after: String, $anoMes: String) {
+    bacenInstitutionSlugs(first: $first, after: $after, anoMes: $anoMes) {
+      edges {
+        node {
+          id
+          name
+          updatedAt
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+  
+}
+
+body:graphql:vars {
+  {
+    "first": 100,
+    "after": null,
+    "anoMes": null
+  }
+}
+
+tests {
+  test("status 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Has edges", function() {
+    const data = res.getBody();
+    expect(data.data.bacenInstitutions.edges).to.be.an('array');
+  });
+  
+  test("Has pageInfo", function() {
+    const data = res.getBody();
+    expect(data.data.bacenInstitutions.pageInfo).to.be.an('object');
+  });
+}

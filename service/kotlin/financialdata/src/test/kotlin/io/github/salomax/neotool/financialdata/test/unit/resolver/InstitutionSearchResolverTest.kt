@@ -5,9 +5,11 @@ import io.github.salomax.neotool.financialdata.domain.BacenInstitutionSummary
 import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionAutocompleteConnectionDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionAutocompleteItemDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionConnectionDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionSlugConnectionDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.PageInfoDTO
 import io.github.salomax.neotool.financialdata.graphql.mapper.InstitutionSearchMapper
 import io.github.salomax.neotool.financialdata.graphql.resolver.InstitutionSearchResolver
+import io.github.salomax.neotool.financialdata.repo.InstitutionSlugResult
 import io.github.salomax.neotool.financialdata.service.InstitutionSearchService
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -135,5 +137,65 @@ class InstitutionSearchResolverTest {
         resolver.bacenInstitutions("x", "202401", 10, "c")
 
         verify(institutionSearchService).bacenInstitutions(eq("x"), eq("202401"), eq(10), eq("c"))
+    }
+
+    @Test
+    fun `bacenInstitutionSlugs returns DTO with default page size`() {
+        val connection =
+            ConnectionBuilder.buildConnection<InstitutionSlugResult>(
+                items = emptyList(),
+                hasMore = false,
+                encodeCursor = { _ -> "" },
+            )
+        whenever(
+            institutionSearchService.bacenInstitutionSlugs(eq(null), eq(20), eq(null)),
+        ).thenReturn(connection)
+        val expectedDto =
+            BacenInstitutionSlugConnectionDTO(
+                edges = emptyList(),
+                pageInfo =
+                    PageInfoDTO(
+                        hasNextPage = false,
+                        hasPreviousPage = false,
+                        startCursor = null,
+                        endCursor = null,
+                    ),
+            )
+        whenever(mapper.toBacenInstitutionSlugConnectionDTO(any())).thenReturn(expectedDto)
+
+        val result = resolver.bacenInstitutionSlugs(null, null, null)
+
+        assertThat(result).isEqualTo(expectedDto)
+        verify(institutionSearchService).bacenInstitutionSlugs(eq(null), eq(20), eq(null))
+    }
+
+    @Test
+    fun `bacenInstitutionSlugs passes all parameters to service`() {
+        val connection =
+            ConnectionBuilder.buildConnection<InstitutionSlugResult>(
+                items = emptyList(),
+                hasMore = false,
+                encodeCursor = { _ -> "" },
+            )
+        whenever(
+            institutionSearchService.bacenInstitutionSlugs(eq("202403"), eq(50), eq("cursor")),
+        ).thenReturn(connection)
+        whenever(mapper.toBacenInstitutionSlugConnectionDTO(any()))
+            .thenReturn(
+                BacenInstitutionSlugConnectionDTO(
+                    edges = emptyList(),
+                    pageInfo =
+                        PageInfoDTO(
+                            hasNextPage = false,
+                            hasPreviousPage = false,
+                            startCursor = null,
+                            endCursor = null,
+                        ),
+                ),
+            )
+
+        resolver.bacenInstitutionSlugs("202403", 50, "cursor")
+
+        verify(institutionSearchService).bacenInstitutionSlugs(eq("202403"), eq(50), eq("cursor"))
     }
 }

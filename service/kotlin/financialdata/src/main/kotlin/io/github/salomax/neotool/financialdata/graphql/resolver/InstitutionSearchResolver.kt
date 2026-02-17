@@ -3,6 +3,7 @@ package io.github.salomax.neotool.financialdata.graphql.resolver
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionAutocompleteConnectionDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionConnectionDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionSlugConnectionDTO
 import io.github.salomax.neotool.financialdata.graphql.mapper.InstitutionSearchMapper
 import io.github.salomax.neotool.financialdata.service.InstitutionSearchService
 import jakarta.inject.Singleton
@@ -76,5 +77,29 @@ class InstitutionSearchResolver(
 
         // Convert to DTO
         return mapper.toBacenInstitutionConnectionDTO(connection)
+    }
+
+    /**
+     * List institution slugs (id, name, updatedAt) for sitemap/URL building.
+     * Filters by quarter (ano_mes_ref). If anoMes is null, uses latest quarter globally.
+     *
+     * @param anoMes Quarter filter (YYYYMM format). If null, uses latest quarter globally.
+     * @param first Maximum number of results (default: 20, min: 1, max: 100)
+     * @param after Cursor for pagination
+     * @return BacenInstitutionSlugConnectionDTO
+     */
+    fun bacenInstitutionSlugs(
+        anoMes: String?,
+        first: Int?,
+        after: String?,
+    ): BacenInstitutionSlugConnectionDTO {
+        val pageSize = PaginationConstants.validatePageSize(first)
+        val connection =
+            institutionSearchService.bacenInstitutionSlugs(
+                anoMes,
+                pageSize,
+                after,
+            )
+        return mapper.toBacenInstitutionSlugConnectionDTO(connection)
     }
 }

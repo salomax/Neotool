@@ -5,19 +5,15 @@ import { gql } from '@apollo/client';
 import { unstable_cache } from 'next/cache';
 
 const SITE_URL = process.env.SITE_URL || 'https://invistus.com.br';
-const SITEMAP_CHUNK_SIZE = 10000; // Split sitemap every 10k URLs (Google limit is 50k)
 
-/**
- * Revalidate sitemap every 1 week (604800 seconds).
- * A Kubernetes CronJob can request /sitemap.xml periodically to keep cache warm.
- */
+/** Max page size allowed by the bacenInstitutionSlugs API (relay pagination). */
+const SITEMAP_PAGE_SIZE = 100;
+
 export const revalidate = 604800;
 
-// Lightweight query for sitemap generation
-const SITEMAP_INSTITUTIONS_QUERY = gql`
-  query SitemapInstitutions($first: Int!, $after: String) {
-    bacenInstitutions(first: $first, after: $after) {
-      totalCount
+const SITEMAP_INSTITUTION_SLUGS_QUERY = gql`
+  query SitemapInstitutionSlugs($first: Int!, $after: String, $anoMes: String) {
+    bacenInstitutionSlugs(first: $first, after: $after, anoMes: $anoMes) {
       edges {
         node {
           id
@@ -33,14 +29,13 @@ const SITEMAP_INSTITUTIONS_QUERY = gql`
   }
 `;
 
-type SitemapInstitutionsQuery = {
-  bacenInstitutions: {
-    totalCount: number;
+type SitemapInstitutionSlugsQuery = {
+  bacenInstitutionSlugs: {
     edges: Array<{
       node: {
         id: string;
         name: string;
-        updatedAt?: string;
+        updatedAt: string | null;
       };
     }>;
     pageInfo: {
@@ -50,108 +45,84 @@ type SitemapInstitutionsQuery = {
   };
 };
 
-type SitemapInstitutionsQueryVariables = {
+type SitemapInstitutionSlugsQueryVariables = {
   first: number;
   after?: string;
+  anoMes?: string;
 };
 
 type SitemapInstitution = {
   id: string;
   name: string;
-  updatedAt?: string;
+  updatedAt?: string | null;
 };
 
-/**
- * Fetches all institutions for sitemap generation.
- * Uses pagination to handle large datasets.
- * Cached via unstable_cache to avoid redundant DB hits during splitting.
- */
 const fetchAllInstitutions = unstable_cache(
   async (): Promise<SitemapInstitution[]> => {
-    console.log('[Sitemap] Fetching all institutions...');
     const client = getApolloClient();
     const allInstitutions: SitemapInstitution[] = [];
-    
+
     try {
-      // Fetch first page
       const firstPage = await client.query<
-        SitemapInstitutionsQuery,
-        SitemapInstitutionsQueryVariables
+        SitemapInstitutionSlugsQuery,
+        SitemapInstitutionSlugsQueryVariables
       >({
-        query: SITEMAP_INSTITUTIONS_QUERY,
-        variables: { first: 1000 }, // Increased page size for performance
+        query: SITEMAP_INSTITUTION_SLUGS_QUERY,
+        variables: { first: SITEMAP_PAGE_SIZE },
       });
 
-      let edges = firstPage.data?.bacenInstitutions?.edges || [];
+      let edges = firstPage.data?.bacenInstitutionSlugs?.edges ?? [];
       for (const edge of edges) {
         if (edge.node) {
-          allInstitutions.push({ 
-            id: edge.node.id, 
+          allInstitutions.push({
+            id: edge.node.id,
             name: edge.node.name,
-            updatedAt: edge.node.updatedAt 
+            updatedAt: edge.node.updatedAt ?? undefined,
           });
         }
       }
 
-      let hasNextPage = firstPage.data?.bacenInstitutions?.pageInfo?.hasNextPage ?? false;
-      let cursor = firstPage.data?.bacenInstitutions?.pageInfo?.endCursor ?? null;
+      let hasNextPage = firstPage.data?.bacenInstitutionSlugs?.pageInfo?.hasNextPage ?? false;
+      let cursor = firstPage.data?.bacenInstitutionSlugs?.pageInfo?.endCursor ?? null;
 
-      // Fetch remaining pages
       while (hasNextPage && cursor) {
         const nextPage = await client.query<
-          SitemapInstitutionsQuery,
-          SitemapInstitutionsQueryVariables
+          SitemapInstitutionSlugsQuery,
+          SitemapInstitutionSlugsQueryVariables
         >({
-          query: SITEMAP_INSTITUTIONS_QUERY,
-          variables: { first: 1000, after: cursor },
+          query: SITEMAP_INSTITUTION_SLUGS_QUERY,
+          variables: { first: SITEMAP_PAGE_SIZE, after: cursor },
         });
 
-        edges = nextPage.data?.bacenInstitutions?.edges || [];
+        edges = nextPage.data?.bacenInstitutionSlugs?.edges ?? [];
         for (const edge of edges) {
           if (edge.node) {
-            allInstitutions.push({ 
-              id: edge.node.id, 
+            allInstitutions.push({
+              id: edge.node.id,
               name: edge.node.name,
-              updatedAt: edge.node.updatedAt 
+              updatedAt: edge.node.updatedAt ?? undefined,
             });
           }
         }
 
-        hasNextPage = nextPage.data?.bacenInstitutions?.pageInfo?.hasNextPage ?? false;
-        cursor = nextPage.data?.bacenInstitutions?.pageInfo?.endCursor ?? null;
+        hasNextPage = nextPage.data?.bacenInstitutionSlugs?.pageInfo?.hasNextPage ?? false;
+        cursor = nextPage.data?.bacenInstitutionSlugs?.pageInfo?.endCursor ?? null;
       }
 
-      console.log(`[Sitemap] Fetched ${allInstitutions.length} institutions.`);
       return allInstitutions;
     } catch (error) {
-      console.error('[Sitemap] Error fetching institutions:', error);
+      console.error('Sitemap: failed to fetch institutions', error);
       return [];
     }
   },
   ['sitemap-institutions-list'],
-  { revalidate: 60 * 60 * 24 } // Cache for 24h
+  { revalidate: 60 * 60 * 24 }
 );
 
-export async function generateSitemaps() {
-  const institutions = await fetchAllInstitutions();
-  const totalCount = institutions.length;
-  const numberOfSitemaps = Math.ceil(totalCount / SITEMAP_CHUNK_SIZE) || 1;
-
-  // Generate IDs for each sitemap chunk (0, 1, 2...)
-  return Array.from({ length: numberOfSitemaps }, (_, i) => ({ id: i }));
-}
-
-/**
- * Generates a dynamic sitemap with all static and dynamic routes.
- * This is the native Next.js approach (recommended over next-sitemap for App Router).
- *
- * @see https://nextjs.org/docs/app/api-reference/file-conventions/metadata/sitemap
- */
-export default async function sitemap({ id }: { id: number }): Promise<MetadataRoute.Sitemap> {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
-  
-  // Only include static pages in the first sitemap chunk
-  const staticPages: MetadataRoute.Sitemap = id === 0 ? [
+
+  const staticPages: MetadataRoute.Sitemap = [
     {
       url: SITE_URL,
       lastModified: now,
@@ -176,18 +147,12 @@ export default async function sitemap({ id }: { id: number }): Promise<MetadataR
       changeFrequency: 'weekly',
       priority: 0.8,
     },
-  ] : [];
+  ];
 
-  // Dynamic institution pages
   try {
     const institutions = await fetchAllInstitutions();
-    
-    // Slice the institutions array based on the current sitemap ID
-    const start = id * SITEMAP_CHUNK_SIZE;
-    const end = start + SITEMAP_CHUNK_SIZE;
-    const chunk = institutions.slice(start, end);
 
-    const institutionPages: MetadataRoute.Sitemap = chunk.map((inst) => ({
+    const institutionPages: MetadataRoute.Sitemap = institutions.map((inst) => ({
       url: `${SITE_URL}/financial-data/bacen-institutions/${createSemanticPath(inst.name, inst.id)}`,
       lastModified: inst.updatedAt ? new Date(inst.updatedAt) : now,
       changeFrequency: 'weekly' as const,
@@ -196,9 +161,7 @@ export default async function sitemap({ id }: { id: number }): Promise<MetadataR
 
     return [...staticPages, ...institutionPages];
   } catch (error) {
-    console.error('[Sitemap] Error fetching institutions:', error);
-    // Return only static pages if dynamic fetch fails
+    console.error('Sitemap: error building sitemap', error);
     return staticPages;
   }
 }
-

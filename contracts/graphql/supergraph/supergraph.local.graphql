@@ -211,6 +211,28 @@ type BacenInstitutionEdge
   cursor: String!
 }
 
+type BacenInstitutionSlug
+  @join__type(graph: FINANCIALDATA)
+{
+  id: ID!
+  name: String!
+  updatedAt: DateTime
+}
+
+type BacenInstitutionSlugConnection
+  @join__type(graph: FINANCIALDATA)
+{
+  edges: [BacenInstitutionSlugEdge!]!
+  pageInfo: FinancialDataPageInfo!
+}
+
+type BacenInstitutionSlugEdge
+  @join__type(graph: FINANCIALDATA)
+{
+  node: BacenInstitutionSlug!
+  cursor: String!
+}
+
 type BacenInstitutionSummaryItem
   @join__type(graph: FINANCIALDATA)
 {
@@ -404,6 +426,15 @@ enum EmailSendStatus
   @join__type(graph: COMMS)
 {
   QUEUED @join__enumValue(graph: COMMS)
+}
+
+type FinancialDataPageInfo
+  @join__type(graph: FINANCIALDATA)
+{
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
 }
 
 type Group
@@ -678,6 +709,7 @@ type Query
   _empty: String @join__field(graph: COMMS)
   searchBacenInstitutionsAutocomplete(query: String!, anoMes: String): BacenInstitutionAutocompleteConnection! @join__field(graph: FINANCIALDATA)
   bacenInstitutions(query: String, anoMes: String, first: Int, after: String): BacenInstitutionConnection! @join__field(graph: FINANCIALDATA)
+  bacenInstitutionSlugs(anoMes: String, first: Int, after: String): BacenInstitutionSlugConnection! @join__field(graph: FINANCIALDATA)
   bacenFinanceInstitution(id: ID!, anoMes: String): BacenFinanceInstitution @join__field(graph: FINANCIALDATA)
   ratingIssuers: [RatingIssuer!]! @join__field(graph: FINANCIALDATA)
   economicIndicators(label: String): [EconomicIndicator!]! @join__field(graph: FINANCIALDATA)

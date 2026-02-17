@@ -193,6 +193,25 @@ export type BacenInstitutionEdge = {
   node: BacenInstitutionSummaryItem;
 };
 
+export type BacenInstitutionSlug = {
+  __typename: 'BacenInstitutionSlug';
+  id: Scalars['ID']['output'];
+  name: Scalars['String']['output'];
+  updatedAt: Maybe<Scalars['DateTime']['output']>;
+};
+
+export type BacenInstitutionSlugConnection = {
+  __typename: 'BacenInstitutionSlugConnection';
+  edges: Array<BacenInstitutionSlugEdge>;
+  pageInfo: FinancialDataPageInfo;
+};
+
+export type BacenInstitutionSlugEdge = {
+  __typename: 'BacenInstitutionSlugEdge';
+  cursor: Scalars['String']['output'];
+  node: BacenInstitutionSlug;
+};
+
 export type BacenInstitutionSummaryItem = {
   __typename: 'BacenInstitutionSummaryItem';
   bacenInstitutionType: Maybe<Scalars['String']['output']>;
@@ -317,6 +336,7 @@ export type EconomicIndicatorVariationSeries = {
   unit: Maybe<Scalars['String']['output']>;
   values: Array<EconomicIndicatorPoint>;
 };
+
 export enum EmailBodyFormat {
   Html = 'HTML',
   Text = 'TEXT'
@@ -351,6 +371,14 @@ export type EmailSendResult = {
 export enum EmailSendStatus {
   Queued = 'QUEUED'
 }
+
+export type FinancialDataPageInfo = {
+  __typename: 'FinancialDataPageInfo';
+  endCursor: Maybe<Scalars['String']['output']>;
+  hasNextPage: Scalars['Boolean']['output'];
+  hasPreviousPage: Scalars['Boolean']['output'];
+  startCursor: Maybe<Scalars['String']['output']>;
+};
 
 export type Group = {
   __typename: 'Group';
@@ -697,6 +725,7 @@ export type Query = {
    */
   asset: Maybe<Asset>;
   bacenFinanceInstitution: Maybe<BacenFinanceInstitution>;
+  bacenInstitutionSlugs: BacenInstitutionSlugConnection;
   bacenInstitutions: BacenInstitutionConnection;
   checkPermission: AuthorizationResult;
   currentUser: Maybe<User>;
@@ -722,6 +751,13 @@ export type QueryAssetArgs = {
 export type QueryBacenFinanceInstitutionArgs = {
   anoMes?: InputMaybe<Scalars['String']['input']>;
   id: Scalars['ID']['input'];
+};
+
+
+export type QueryBacenInstitutionSlugsArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  anoMes?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
 };
 
 

@@ -426,4 +426,50 @@ open class BacenInstitutionRepositoryImpl(
             else -> 0L
         }
     }
+
+    @ReadOnly
+    override fun listInstitutionSlugs(
+        anoMes: String?,
+        first: Int,
+        after: CompositeCursor?,
+    ): List<InstitutionSlugResult> {
+        val targetAnoMes = anoMes ?: return emptyList()
+
+        val hasAfter = after != null
+        val whereCursor = if (hasAfter) "AND bi.bacen_cod_inst > ?" else ""
+        val sql =
+            """
+            SELECT bi.bacen_cod_inst, bi.nome_instituicao, bi.updated_at
+            FROM financial_data.bacen_institution bi
+            WHERE bi.ano_mes_ref = ?
+            $whereCursor
+            ORDER BY bi.bacen_cod_inst ASC
+            """.trimIndent()
+
+        val nativeQuery = entityManager.createNativeQuery(sql)
+        nativeQuery.setParameter(1, targetAnoMes)
+        if (hasAfter) {
+            val cursorValue = after!!.fieldValues["id"] as? String ?: after.id
+            nativeQuery.setParameter(2, cursorValue)
+        }
+        nativeQuery.maxResults = first
+
+        val columnIndices =
+            mapOf(
+                "bacen_cod_inst" to 0,
+                "nome_instituicao" to 1,
+                "updated_at" to 2,
+            )
+
+        @Suppress("UNCHECKED_CAST")
+        val results = nativeQuery.resultList as List<Array<Any?>>
+        return results.map { row ->
+            val mapper = SqlResultMapper(row, columnIndices)
+            InstitutionSlugResult(
+                bacenCodInst = mapper.getValue("bacen_cod_inst") as String,
+                nomeInstituicao = mapper.getString("nome_instituicao"),
+                updatedAt = mapper.getInstant("updated_at"),
+            )
+        }
+    }
 }

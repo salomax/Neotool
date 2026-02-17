@@ -12,6 +12,9 @@ import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionAutoc
 import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionAutocompleteItemDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionConnectionDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionEdgeDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionSlugConnectionDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionSlugDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionSlugEdgeDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionSummaryItemDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.DataRestrictionDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.EconomicIndicatorVariationDTO
@@ -72,6 +75,15 @@ class FinancialDataWiringFactory(
                     val first = env.getArgument<Int?>("first")
                     val after = env.getArgument<String?>("after")
                     institutionSearchResolver.bacenInstitutions(query, anoMes, first, after)
+                },
+            )
+            .dataFetcher(
+                "bacenInstitutionSlugs",
+                createValidatedDataFetcher { env ->
+                    val anoMes = env.getArgument<String?>("anoMes")
+                    val first = env.getArgument<Int?>("first")
+                    val after = env.getArgument<String?>("after")
+                    institutionSearchResolver.bacenInstitutionSlugs(anoMes, first, after)
                 },
             )
             .dataFetcher(
@@ -198,6 +210,38 @@ class FinancialDataWiringFactory(
             }
             // PageInfo type resolvers
             .type("PageInfo") { type ->
+                type.dataFetcher(
+                    "hasNextPage",
+                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                        val pageInfo = env.getSource<PageInfoDTO>()
+                        pageInfo?.hasNextPage ?: false
+                    },
+                )
+                    .dataFetcher(
+                        "hasPreviousPage",
+                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                            val pageInfo = env.getSource<PageInfoDTO>()
+                            pageInfo?.hasPreviousPage ?: false
+                        },
+                    )
+                    .dataFetcher(
+                        "startCursor",
+                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                            val pageInfo = env.getSource<PageInfoDTO>()
+                            pageInfo?.startCursor
+                        },
+                    )
+                    .dataFetcher(
+                        "endCursor",
+                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                            val pageInfo = env.getSource<PageInfoDTO>()
+                            pageInfo?.endCursor
+                        },
+                    )
+            }
+            // FinancialDataPageInfo: same shape as PageInfo, used by BacenInstitutionSlugConnection
+            // so the router only calls this subgraph (no shared type with SECURITY).
+            .type("FinancialDataPageInfo") { type ->
                 type.dataFetcher(
                     "hasNextPage",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -376,6 +420,64 @@ class FinancialDataWiringFactory(
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
                             val connection = env.getSource<BacenInstitutionConnectionDTO>()
                             connection?.totalCount
+                        },
+                    )
+            }
+            // BacenInstitutionSlugConnection type resolvers
+            .type("BacenInstitutionSlugConnection") { type ->
+                type.dataFetcher(
+                    "edges",
+                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                        val connection = env.getSource<BacenInstitutionSlugConnectionDTO>()
+                        connection?.edges
+                    },
+                )
+                    .dataFetcher(
+                        "pageInfo",
+                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                            val connection = env.getSource<BacenInstitutionSlugConnectionDTO>()
+                            connection?.pageInfo
+                        },
+                    )
+            }
+            // BacenInstitutionSlugEdge type resolvers
+            .type("BacenInstitutionSlugEdge") { type ->
+                type.dataFetcher(
+                    "node",
+                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                        val edge = env.getSource<BacenInstitutionSlugEdgeDTO>()
+                        edge?.node
+                    },
+                )
+                    .dataFetcher(
+                        "cursor",
+                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                            val edge = env.getSource<BacenInstitutionSlugEdgeDTO>()
+                            edge?.cursor
+                        },
+                    )
+            }
+            // BacenInstitutionSlug type resolvers
+            .type("BacenInstitutionSlug") { type ->
+                type.dataFetcher(
+                    "id",
+                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                        val slug = env.getSource<BacenInstitutionSlugDTO>()
+                        slug?.id
+                    },
+                )
+                    .dataFetcher(
+                        "name",
+                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                            val slug = env.getSource<BacenInstitutionSlugDTO>()
+                            slug?.name
+                        },
+                    )
+                    .dataFetcher(
+                        "updatedAt",
+                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                            val slug = env.getSource<BacenInstitutionSlugDTO>()
+                            slug?.updatedAt?.atOffset(ZoneOffset.UTC)
                         },
                     )
             }

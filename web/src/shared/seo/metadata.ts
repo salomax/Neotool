@@ -4,11 +4,18 @@ import { getDictionary } from '@/shared/i18n/server';
 // Default to Portuguese since we don't have locale routing yet
 const t = getDictionary('pt').seo.default;
 
+const siteUrl =
+  process.env.SITE_URL ||
+  (process.env.NODE_ENV === 'production'
+    ? 'https://invistus.com.br'
+    : 'http://localhost:3000');
+
 const baseMetadata: Metadata = {
   title: { default: t.title, template: t.titleTemplate },
   description: t.description,
   applicationName: 'Invistus',
   keywords: t.keywords.split(', '),
+  metadataBase: new URL(siteUrl),
   openGraph: {
     title: t.ogTitle,
     description: t.ogDescription,
@@ -43,6 +50,4 @@ const baseMetadata: Metadata = {
   },
 };
 
-export const metadata: Metadata = typeof window === 'undefined' 
-  ? { ...baseMetadata, metadataBase: new URL(process.env.SITE_URL || 'http://localhost:3000') }
-  : baseMetadata;
+export const metadata: Metadata = baseMetadata;

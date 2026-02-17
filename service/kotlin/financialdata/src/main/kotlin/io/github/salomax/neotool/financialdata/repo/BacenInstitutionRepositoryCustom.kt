@@ -63,4 +63,21 @@ interface BacenInstitutionRepositoryCustom {
         query: String?,
         anoMes: String? = null,
     ): Long
+
+    /**
+     * List institution slugs (id, name, updatedAt) for sitemap/URL building.
+     * Minimal query on bacen_institution only; no report/aggregation joins.
+     * Results ordered by bacen_cod_inst ASC for deterministic cursor pagination.
+     * Caller must resolve anoMes before invoking.
+     *
+     * @param anoMes Quarter filter (YYYYMM format). If null, returns empty list.
+     * @param first Maximum number of results to return (caller typically requests pageSize + 1 to detect hasMore).
+     * @param after Composite cursor to start after (exclusive), or null for first page.
+     * @return List of slug results for the current page.
+     */
+    fun listInstitutionSlugs(
+        anoMes: String?,
+        first: Int,
+        after: CompositeCursor?,
+    ): List<InstitutionSlugResult>
 }

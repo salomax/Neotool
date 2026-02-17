@@ -4,6 +4,7 @@ import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.financialdata.domain.BacenInstitutionType
 import io.github.salomax.neotool.financialdata.repo.BacenInstitutionRepositoryCustom
 import io.github.salomax.neotool.financialdata.repo.InstitutionSearchResult
+import io.github.salomax.neotool.financialdata.repo.InstitutionSlugResult
 import io.github.salomax.neotool.financialdata.service.InstitutionDataRestrictionService
 import io.github.salomax.neotool.financialdata.service.InstitutionSearchService
 import io.github.salomax.neotool.financialdata.service.QuarterService
@@ -18,6 +19,7 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.math.BigDecimal
+import java.time.Instant
 import java.util.UUID
 
 class InstitutionSearchServiceTest {
@@ -280,6 +282,74 @@ class InstitutionSearchServiceTest {
             eq(21),
             isNull(),
         )
+    }
+
+    @Test
+    fun `bacenInstitutionSlugs returns connection with results`() {
+        whenever(quarterService.getLatestQuarter()).thenReturn("202403")
+        whenever(
+            institutionSearchRepository.listInstitutionSlugs(
+                eq("202403"),
+                eq(21),
+                isNull(),
+            ),
+        ).thenReturn(
+            listOf(
+                InstitutionSlugResult("001", "Banco do Brasil", Instant.parse("2024-01-15T10:00:00Z")),
+            ),
+        )
+
+        val connection = service.bacenInstitutionSlugs(null, 20, null)
+
+        assertThat(connection.edges).hasSize(1)
+        assertThat(connection.edges[0].node.bacenCodInst).isEqualTo("001")
+        assertThat(connection.edges[0].node.nomeInstituicao).isEqualTo("Banco do Brasil")
+        assertThat(connection.edges[0].node.updatedAt).isEqualTo(Instant.parse("2024-01-15T10:00:00Z"))
+        assertThat(connection.pageInfo.hasNextPage).isFalse()
+    }
+
+    @Test
+    fun `bacenInstitutionSlugs returns empty connection when no quarter available`() {
+        whenever(quarterService.getLatestQuarter()).thenReturn(null)
+
+        val connection = service.bacenInstitutionSlugs(null, 20, null)
+
+        assertThat(connection.edges).isEmpty()
+        assertThat(connection.pageInfo.hasNextPage).isFalse()
+    }
+
+    @Test
+    fun `bacenInstitutionSlugs validates page size`() {
+        whenever(quarterService.getLatestQuarter()).thenReturn("202403")
+
+        val ex =
+            assertThrows(IllegalArgumentException::class.java) {
+                service.bacenInstitutionSlugs(null, 101, null)
+            }
+        assertThat(ex.message).contains("Parameter 'first' must be between 1 and 100")
+    }
+
+    @Test
+    fun `bacenInstitutionSlugs correctly calculates hasMore`() {
+        whenever(quarterService.getLatestQuarter()).thenReturn("202403")
+        whenever(
+            institutionSearchRepository.listInstitutionSlugs(
+                eq("202403"),
+                eq(3),
+                isNull(),
+            ),
+        ).thenReturn(
+            listOf(
+                InstitutionSlugResult("001", "A", null),
+                InstitutionSlugResult("002", "B", null),
+                InstitutionSlugResult("003", "C", null),
+            ),
+        )
+
+        val connection = service.bacenInstitutionSlugs(null, 2, null)
+
+        assertThat(connection.edges).hasSize(2)
+        assertThat(connection.pageInfo.hasNextPage).isTrue()
     }
 
     private fun institutionSearchResult(

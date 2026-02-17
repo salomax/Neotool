@@ -1,11 +1,11 @@
 name: CI
 
 on:
-  pull_request:
-    branches: ['**']
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
+  # pull_request:
+  #   branches: ['**']
+  #   paths-ignore:
+  #     - '**.md'
+  #     - 'docs/**'
   workflow_dispatch: # allow manual trigger when re-enabling
 
 concurrency:
@@ -17,15 +17,8 @@ env:
   TESTCONTAINERS_RYUK_DISABLED: true
 
 jobs:
-  # TODO: Remove this gate to re-enable CI — temporarily suspended to focus on release workflow
-  gate:
-    if: false
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "CI suspended"
 
   detect:
-    needs: gate
     runs-on: ubuntu-latest
     outputs:
       kotlin-matrix: ${{ steps.affected.outputs.kotlin_matrix }}

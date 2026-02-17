@@ -1,0 +1,14 @@
+import * as Types from '../lib/graphql/types/__generated__/graphql';
+
+import { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-node/core';
+export type SitemapInstitutionSlugsQueryVariables = Types.Exact<{
+  first: Types.Scalars['Int']['input'];
+  after?: Types.InputMaybe<Types.Scalars['String']['input']>;
+  anoMes?: Types.InputMaybe<Types.Scalars['String']['input']>;
+}>;
+
+
+export type SitemapInstitutionSlugsQuery = { bacenInstitutionSlugs: { __typename: 'BacenInstitutionSlugConnection', edges: Array<{ __typename: 'BacenInstitutionSlugEdge', node: { __typename: 'BacenInstitutionSlug', id: string, name: string, updatedAt: unknown | null } }>, pageInfo: { __typename: 'FinancialDataPageInfo', hasNextPage: boolean, endCursor: string | null } } };
+
+
+export const SitemapInstitutionSlugsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"SitemapInstitutionSlugs"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"first"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"after"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"anoMes"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"bacenInstitutionSlugs"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"first"},"value":{"kind":"Variable","name":{"kind":"Name","value":"first"}}},{"kind":"Argument","name":{"kind":"Name","value":"after"},"value":{"kind":"Variable","name":{"kind":"Name","value":"after"}}},{"kind":"Argument","name":{"kind":"Name","value":"anoMes"},"value":{"kind":"Variable","name":{"kind":"Name","value":"anoMes"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"edges"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"node"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"pageInfo"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"hasNextPage"}},{"kind":"Field","name":{"kind":"Name","value":"endCursor"}}]}}]}}]}}]} as unknown as DocumentNode<SitemapInstitutionSlugsQuery, SitemapInstitutionSlugsQueryVariables>;

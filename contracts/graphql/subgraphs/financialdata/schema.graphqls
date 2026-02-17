@@ -27,6 +27,8 @@ extend type Query {
   # anoMes: Quarter filter (YYYYMM format). If not provided, uses latest quarter globally.
   searchBacenInstitutionsAutocomplete(query: String!, anoMes: String): BacenInstitutionAutocompleteConnection!
   bacenInstitutions(query: String, anoMes: String, first: Int, after: String): BacenInstitutionConnection!
+  # Minimal listing (id, name, updatedAt) for sitemap/URL building. Relay pagination.
+  bacenInstitutionSlugs(anoMes: String, first: Int, after: String): BacenInstitutionSlugConnection!
   # Institution detail query
   # anoMes: Quarter filter (YYYYMM format). If not provided, uses latest quarter globally.
   bacenFinanceInstitution(id: ID!, anoMes: String): BacenFinanceInstitution
@@ -103,6 +105,32 @@ type BacenInstitutionSummaryItem {
   institutionType: BacenInstitutionType
   tipoConsolidadoBancario: String
   dataRestriction: DataRestriction
+}
+
+# PageInfo type owned only by this subgraph (avoids shared PageInfo with SECURITY
+# so the router execution plan only calls FINANCIALDATA for bacenInstitutionSlugs).
+type FinancialDataPageInfo {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+}
+
+# Institution slug listing (id, name, updatedAt) for sitemap/URL building
+type BacenInstitutionSlugConnection {
+  edges: [BacenInstitutionSlugEdge!]!
+  pageInfo: FinancialDataPageInfo!
+}
+
+type BacenInstitutionSlugEdge {
+  node: BacenInstitutionSlug!
+  cursor: String!
+}
+
+type BacenInstitutionSlug {
+  id: ID!
+  name: String!
+  updatedAt: DateTime
 }
 
 type PageInfo {

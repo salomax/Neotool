@@ -51,6 +51,29 @@ data class BacenInstitutionSummaryItemDTO(
     val dataRestriction: DataRestrictionDTO?,
 )
 
+// Institution slug listing (id, name, updatedAt) for sitemap/URL building
+@Introspected
+@Serdeable
+data class BacenInstitutionSlugConnectionDTO(
+    val edges: List<BacenInstitutionSlugEdgeDTO>,
+    val pageInfo: PageInfoDTO,
+)
+
+@Introspected
+@Serdeable
+data class BacenInstitutionSlugEdgeDTO(
+    val node: BacenInstitutionSlugDTO,
+    val cursor: String,
+)
+
+@Introspected
+@Serdeable
+data class BacenInstitutionSlugDTO(
+    val id: String,
+    val name: String,
+    val updatedAt: java.time.Instant?,
+)
+
 @Introspected
 @Serdeable
 data class PageInfoDTO(

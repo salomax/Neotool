@@ -8,6 +8,7 @@ import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import io.github.salomax.neotool.financialdata.domain.BacenInstitutionSummary
 import io.github.salomax.neotool.financialdata.domain.DataRestriction
 import io.github.salomax.neotool.financialdata.repo.BacenInstitutionRepositoryCustom
+import io.github.salomax.neotool.financialdata.repo.InstitutionSlugResult
 import jakarta.inject.Singleton
 import mu.KotlinLogging
 
@@ -176,6 +177,75 @@ open class InstitutionSearchService(
             )
         } catch (e: Exception) {
             logger.error(e) { "Error during institution search: query='$query', anoMes=$anoMes" }
+            throw e
+        }
+    }
+
+    /**
+     * List institution slugs (id, name, updatedAt) for sitemap/URL building.
+     * Minimal query on bacen_institution only; Relay pagination.
+     * Filters by quarter (ano_mes_ref). If anoMes is null, uses latest quarter globally.
+     *
+     * @param anoMes Quarter filter (YYYYMM format). If null, uses latest quarter globally.
+     * @param first Maximum number of results to return (default: 20, max: 100)
+     * @param after Cursor string for pagination (base64-encoded composite cursor with bacen_cod_inst)
+     * @return Connection containing paginated institution slugs
+     */
+    fun bacenInstitutionSlugs(
+        anoMes: String? = null,
+        first: Int = PaginationConstants.DEFAULT_PAGE_SIZE,
+        after: String?,
+    ): Connection<InstitutionSlugResult> {
+        logger.debug { "Listing institution slugs: anoMes=$anoMes, first=$first, after=$after" }
+
+        val pageSize = PaginationConstants.validatePageSize(first)
+
+        val afterCompositeCursor: CompositeCursor? =
+            after?.let {
+                try {
+                    CursorEncoder.decodeCompositeCursorToString(it)
+                } catch (e: IllegalArgumentException) {
+                    throw IllegalArgumentException("Invalid cursor format: $after", e)
+                } catch (e: Exception) {
+                    throw IllegalArgumentException("Failed to decode cursor: $after", e)
+                }
+            }
+
+        val targetAnoMes = anoMes ?: quarterService.getLatestQuarter()
+        if (targetAnoMes == null) {
+            return ConnectionBuilder.buildConnection(
+                items = emptyList(),
+                hasMore = false,
+                encodeCursor = { _ -> "" },
+            )
+        }
+
+        return try {
+            val results =
+                institutionSearchRepository.listInstitutionSlugs(
+                    targetAnoMes,
+                    pageSize + 1,
+                    afterCompositeCursor,
+                )
+            val hasMore = results.size > pageSize
+            val pageResults = results.take(pageSize)
+
+            logger.debug {
+                "Institution slugs returned ${pageResults.size} results, hasMore=$hasMore"
+            }
+
+            ConnectionBuilder.buildConnection(
+                items = pageResults,
+                hasMore = hasMore,
+                encodeCursor = { slug ->
+                    CursorEncoder.encodeCompositeCursor(
+                        fieldValues = mapOf("id" to slug.bacenCodInst),
+                        id = slug.bacenCodInst,
+                    )
+                },
+            )
+        } catch (e: Exception) {
+            logger.error(e) { "Error during institution slug listing: anoMes=$anoMes" }
             throw e
         }
     }

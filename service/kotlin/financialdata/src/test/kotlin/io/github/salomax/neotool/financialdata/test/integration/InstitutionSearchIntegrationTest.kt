@@ -693,4 +693,60 @@ class InstitutionSearchIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
         assertThat(byId["002"]).isEqualTo("PRUDENTIAL_GROUP")
         assertThat(byId["003"]).isEqualTo("INDIVIDUAL_INSTITUTION")
     }
+
+    @Test
+    fun `bacenInstitutionSlugs returns id name updatedAt with relay pagination`() {
+        val query =
+            """
+            query SitemapInstitutionSlugs(${'$'}first: Int, ${'$'}after: String, ${'$'}anoMes: String) {
+                bacenInstitutionSlugs(first: ${'$'}first, after: ${'$'}after, anoMes: ${'$'}anoMes) {
+                    edges {
+                        node {
+                            id
+                            name
+                            updatedAt
+                        }
+                        cursor
+                    }
+                    pageInfo {
+                        hasNextPage
+                        endCursor
+                    }
+                }
+            }
+            """.trimIndent()
+
+        val request =
+            HttpRequest.POST(
+                "/graphql",
+                graphQLQuery(query, mapOf("first" to 5)),
+            )
+                .contentType(MediaType.APPLICATION_JSON)
+
+        val response = httpClient.exchangeAsString(request)
+        response.shouldBeSuccessful().shouldBeJson()
+
+        val payload: JsonNode = json.read(response)
+        payload["errors"].assertNoErrors()
+
+        val data = payload["data"]
+        assertThat(data).isNotNull()
+
+        val connection = data["bacenInstitutionSlugs"]
+        assertThat(connection).isNotNull()
+
+        val edges = connection["edges"]
+        assertThat(edges.isArray).isTrue()
+        assertThat(edges.size()).isGreaterThan(0)
+
+        val firstEdge = edges[0]
+        val node = firstEdge["node"]
+        assertThat(node["id"]).isNotNull()
+        assertThat(node["name"]).isNotNull()
+        assertThat(node.get("updatedAt")).isNotNull()
+        assertThat(firstEdge["cursor"]).isNotNull()
+
+        val pageInfo = connection["pageInfo"]
+        assertThat(pageInfo["hasNextPage"]).isNotNull()
+    }
 }
