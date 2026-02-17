@@ -6,15 +6,15 @@ on:
     paths-ignore:
       - '**.md'
       - 'docs/**'
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
   release:
+    if: ${{ !startsWith(github.event.head_commit.message, 'chore(release): publish') }}
     runs-on: ubuntu-latest
-    # TODO: Uncomment when CI is re-enabled to ensure only passing code gets released
-    # if: github.event.head_commit.message != 'chore(release): publish [skip ci]'
     steps:
       - name: Generate GitHub App token
         id: app-token
@@ -52,6 +52,7 @@ jobs:
         timeout-minutes: 30
         run: |
           FIRST_RELEASE=""
+
           if ! git tag --list '*-v*' | grep -q .; then
             echo "No existing release tags found — running as first release"
             FIRST_RELEASE="--first-release"
@@ -59,4 +60,3 @@ jobs:
           npx nx release $FIRST_RELEASE --skip-publish --verbose
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-

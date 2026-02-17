@@ -4,9 +4,15 @@ on:
   push:
     tags:
       - '*-v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to build (e.g., security-v0.2.0)'
+        required: true
+        type: string
 
 concurrency:
-  group: production-${{ github.ref }}
+  group: production-${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref }}
   cancel-in-progress: false
 
 env:
@@ -15,6 +21,9 @@ env:
 
 jobs:
   resolve:
+    if: |
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) ||
+      (github.event_name == 'workflow_dispatch' && contains(github.event.inputs.tag, '-v'))
     runs-on: ubuntu-latest
     outputs:
       project: ${{ steps.parse.outputs.project }}
@@ -27,7 +36,17 @@ jobs:
       - name: Parse tag
         id: parse
         run: |
-          TAG="${GITHUB_REF#refs/tags/}"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            TAG="${{ github.event.inputs.tag }}"
+          else
+            TAG="${GITHUB_REF#refs/tags/}"
+          fi
+
+          if [[ ! "$TAG" =~ -v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid tag '$TAG'. Expected format '<project>-v<major>.<minor>.<patch>'."
+            exit 1
+          fi
+
           PROJECT="${TAG%-v*}"
           VERSION="v${TAG##*-v}"
           echo "project=$PROJECT" >> "$GITHUB_OUTPUT"

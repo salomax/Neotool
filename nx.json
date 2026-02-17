@@ -51,7 +51,7 @@
     },
     "git": {
       "commit": true,
-      "commitMessage": "chore(release): publish [skip ci]",
+      "commitMessage": "chore(release): publish",
       "tag": true
     }
   }
