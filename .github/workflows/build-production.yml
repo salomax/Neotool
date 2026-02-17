@@ -1,7 +1,9 @@
 name: Production Build
 
 on:
-  workflow_dispatch: # triggered by release.yml for each tag
+  push:
+    tags:
+      - '*-v*.*.*'
 
 concurrency:
   group: production-${{ github.ref }}

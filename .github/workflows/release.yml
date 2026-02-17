@@ -9,7 +9,6 @@ on:
 
 permissions:
   contents: write
-  actions: write
 
 jobs:
   release:
@@ -61,34 +60,3 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
 
-      - name: Trigger builds for new tags
-        run: |
-          TAGS=$(git tag --points-at HEAD --list '*-v*')
-          if [ -z "$TAGS" ]; then
-            echo "No new tags found — skipping build triggers"
-            exit 0
-          fi
-          # Get workflow ID
-          WF_ID=$(curl -s -H "Authorization: Bearer $TOKEN" \
-            "https://api.github.com/repos/${{ github.repository }}/actions/workflows" \
-            | jq '.workflows[] | select(.name == "Production Build") | .id')
-          echo "Workflow ID: $WF_ID"
-          for TAG in $TAGS; do
-            echo "Triggering build-production for $TAG"
-            RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-              -H "Accept: application/vnd.github+json" \
-              -H "Authorization: Bearer $TOKEN" \
-              "https://api.github.com/repos/${{ github.repository }}/actions/workflows/$WF_ID/dispatches" \
-              -d "{\"ref\":\"$TAG\"}")
-            HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-            BODY=$(echo "$RESPONSE" | head -n -1)
-            if [ "$HTTP_CODE" = "204" ]; then
-              echo "  Success (HTTP $HTTP_CODE)"
-            else
-              echo "  Failed (HTTP $HTTP_CODE): $BODY"
-              exit 1
-            fi
-            sleep 1
-          done
-        env:
-          TOKEN: ${{ steps.app-token.outputs.token }}
