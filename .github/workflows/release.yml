@@ -41,8 +41,12 @@ jobs:
           git config user.name "invistusbot[bot]"
           git config user.email "${{ secrets.GH_APP_ID }}+invistusbot[bot]@users.noreply.github.com"
 
+      - name: Strip Gradle plugin for faster graph
+        run: jq '.plugins = [.plugins[] | select(.plugin != "@nx/gradle")]' nx.json > nx.tmp && mv nx.tmp nx.json
+
       - name: Release
-        run: npx nx release --skip-publish
+        timeout-minutes: 30
+        run: npx nx release --skip-publish --verbose
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
 
