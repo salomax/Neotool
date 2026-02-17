@@ -1,3 +1,13 @@
+## 0.2.1 (2026-02-17)
+
+### 🩹 Fixes
+
+- Add bacenInstitutionSlugs query for sitemap generation + SEO/robots updates ([#35](https://github.com/invistus/invistus/pull/35))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.2.0 (2026-02-16)
 
 ### 🚀 Features
