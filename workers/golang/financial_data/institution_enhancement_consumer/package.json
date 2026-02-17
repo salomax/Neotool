@@ -1,1 +1,5 @@
-{ "name": "institution-enhancement-consumer", "version": "0.1.46", "private": true }
+{
+  "name": "institution-enhancement-consumer",
+  "version": "0.1.47",
+  "private": true
+}
