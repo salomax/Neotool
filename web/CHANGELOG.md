@@ -1,3 +1,13 @@
+## 0.3.0 (2026-02-17)
+
+### 🚀 Features
+
+- add conventional commits configuration for refactor type ([7ff1ac1e](https://github.com/invistus/invistus/commit/7ff1ac1e))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.2.1 (2026-02-17)
 
 ### 🩹 Fixes
