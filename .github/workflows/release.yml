@@ -46,7 +46,13 @@ jobs:
 
       - name: Release
         timeout-minutes: 30
-        run: npx nx release --skip-publish --verbose
+        run: |
+          FIRST_RELEASE=""
+          if ! git tag --list '*-v*' | grep -q .; then
+            echo "No existing release tags found — running as first release"
+            FIRST_RELEASE="--first-release"
+          fi
+          npx nx release $FIRST_RELEASE --skip-publish --verbose
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
 
