@@ -10,6 +10,7 @@ import {
   InputAdornment,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
+import { useTranslation as useReactI18nTranslation } from "react-i18next";
 import { useDebounce } from "@/shared/hooks/ui/useDebounce";
 import { ErrorAlert } from "@/shared/components/ui/feedback";
 
@@ -90,6 +91,8 @@ export interface SearchableAutocompleteProps<
   error?: Error | null;
   onRetry?: () => void;
   errorMessage?: string;
+  loadingText?: string;
+  noOptionsText?: string;
   /**
    * Form field error state (for react-hook-form integration)
    */
@@ -202,6 +205,8 @@ export function SearchableAutocomplete<
   error: externalError = null,
   onRetry,
   errorMessage,
+  loadingText,
+  noOptionsText,
   fieldError = false,
   helperText,
   renderOption,
@@ -215,6 +220,7 @@ export function SearchableAutocomplete<
   onSearch,
   id,
 }: SearchableAutocompleteProps<TOption, TSelected, TQueryData, TQueryVariables>) {
+  const { t: tCommon } = useReactI18nTranslation("common");
   // Local input value (what the user is typing)
   const [inputValue, setInputValue] = useState("");
   const [open, setOpen] = useState(false);
@@ -440,6 +446,9 @@ export function SearchableAutocomplete<
     return getOptionId(option) === getOptionId(value);
   };
 
+  const effectiveLoadingText = loadingText ?? tCommon("actions.loading");
+  const effectiveNoOptionsText = noOptionsText ?? tCommon("cardGrid.noResultsFound");
+
   return (
     <Autocomplete
       {...(id && { id })}
@@ -474,6 +483,8 @@ export function SearchableAutocomplete<
       isOptionEqualToValue={defaultIsOptionEqualToValue}
       loading={loading}
       disabled={disabled}
+      loadingText={effectiveLoadingText}
+      noOptionsText={effectiveNoOptionsText}
       renderInput={(params) => {
         // MUI Autocomplete's renderInput params don't include error/helperText
         // We handle error/helperText separately below
@@ -633,4 +644,3 @@ export function SearchableAutocomplete<
     />
   );
 }
-
