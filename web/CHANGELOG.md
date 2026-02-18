@@ -1,3 +1,13 @@
+## 0.3.1 (2026-02-18)
+
+### 🩹 Fixes
+
+- enhance SearchableAutocomplete with loading and no options text props ([#43](https://github.com/invistus/invistus/pull/43))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.3.0 (2026-02-17)
 
 ### 🚀 Features
