@@ -2,7 +2,6 @@ plugins {
     id("org.jetbrains.kotlin.jvm")
     id("io.micronaut.application")
     id("io.micronaut.aot")
-    id("org.jetbrains.kotlin.plugin.jpa")
     id("com.google.devtools.ksp")
     id("com.gradleup.shadow")
 }
@@ -25,70 +24,32 @@ repositories { mavenCentral() }
 dependencies {
     // Project dependencies
     implementation(project(":common"))
+    implementation(project(":common-batch"))
+    testImplementation(testFixtures(project(":common")))
 
-    // Add Micronaut Data KSP processor
-    ksp("io.micronaut.data:micronaut-data-processor")
+    // KSP processors
     ksp("io.micronaut:micronaut-inject-kotlin")
     ksp("io.micronaut.serde:micronaut-serde-processor")
     kspTest("io.micronaut:micronaut-inject-kotlin")
 
-    // Micronaut Core
-    implementation("io.micronaut:micronaut-runtime")
-    implementation("io.micronaut.kotlin:micronaut-kotlin-runtime")
-    implementation("io.micronaut:micronaut-http-server-netty")
-    implementation("io.micronaut:micronaut-http")
-    implementation("io.micronaut:micronaut-management")
-    implementation("io.micronaut.validation:micronaut-validation")
-
-    // Kafka
-    implementation("io.micronaut.kafka:micronaut-kafka")
-
-    // Micrometer
+    // Micrometer extras not provided by :common
     implementation("io.micronaut.micrometer:micronaut-micrometer-observation")
-    implementation("io.micronaut.micrometer:micronaut-micrometer-core")
-    implementation("io.micronaut.micrometer:micronaut-micrometer-annotation")
     implementation("io.micronaut.micrometer:micronaut-micrometer-registry-prometheus")
 
     // Email
     implementation("io.micronaut.email:micronaut-email-javamail")
-    implementation("com.sun.mail:jakarta.mail:2.0.1")
+    implementation("com.sun.mail:jakarta.mail:2.0.2")
 
-    // GraphQL
+    // GraphQL integration
     implementation("io.micronaut.graphql:micronaut-graphql")
-    implementation("com.graphql-java:graphql-java-extended-scalars:21.0")
-
-    // Database
-    implementation("io.micronaut.data:micronaut-data-hibernate-jpa")
-    implementation("io.micronaut.sql:micronaut-jdbc-hikari")
-    implementation("org.postgresql:postgresql")
-    runtimeOnly("org.flywaydb:flyway-core")
-    runtimeOnly("org.flywaydb:flyway-database-postgresql")
-
-    // Jackson for JSON
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
 
     // Template Engine
     implementation("com.github.spullara.mustache.java:compiler:0.9.14")
     implementation("org.jsoup:jsoup:1.17.2")
     implementation("com.helger:ph-css:8.1.1")
 
-    // Logging
-    runtimeOnly("ch.qos.logback:logback-classic")
-
-    // Testing
-    testImplementation("io.micronaut.test:micronaut-test-junit5")
-    testImplementation("org.junit.jupiter:junit-jupiter-api")
-    testImplementation("org.junit.jupiter:junit-jupiter-params")
+    // Testing not provided by :common
     testImplementation("io.mockk:mockk:1.13.13")
-    testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
-    testImplementation("org.assertj:assertj-core:3.26.3")
-    testImplementation("io.micronaut:micronaut-http-client")
-    testImplementation("org.testcontainers:testcontainers")
-    testImplementation("org.testcontainers:postgresql")
-    testImplementation("org.testcontainers:junit-jupiter")
-    testImplementation("org.testcontainers:kafka:1.20.6")
-
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 }
 
 application {
