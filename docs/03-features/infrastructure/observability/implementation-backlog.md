@@ -94,6 +94,14 @@ This backlog defines an implementation plan for observability on a VPS running K
   - Alerts can be fired and routed
 - Provide examples of queries to confirm each goal.
 
+### Goal 8: Distributed tracing and flamegraph visualization
+
+- Implement W3C Trace Context propagation (`traceparent`, `tracestate`, `baggage`) across Router and services.
+- Add a trace backend and Grafana trace datasource (Tempo recommended).
+- Add a Grafana trace dashboard with flamegraph/waterfall-style span visualization.
+- Ensure log-to-trace correlation using `otel_trace_id`.
+- Detailed task: `invistus/docs/03-features/infrastructure/observability/trace-context-flamegraph-task.md`
+
 ## How To (Implementation Steps)
 
 ### Goal 1: Foundation and namespaces
@@ -281,6 +289,16 @@ This backlog defines an implementation plan for observability on a VPS running K
    - Alerts routed
 ```
 
+### Goal 8: Distributed tracing and flamegraph visualization
+
+```AAA
+1) Execute detailed task:
+   - File: invistus/docs/03-features/infrastructure/observability/trace-context-flamegraph-task.md
+2) Ensure Router propagates W3C trace context headers (traceparent, tracestate, baggage).
+3) Provision Tempo datasource and tracing dashboard in Grafana.
+4) Validate end-to-end trace propagation and log correlation.
+```
+
 ## Implementation Notes
 
 - Prefer Kustomize overlays where possible.
@@ -296,3 +314,4 @@ This backlog defines an implementation plan for observability on a VPS running K
 - [ ] Goal 5 complete
 - [ ] Goal 6 complete
 - [ ] Goal 7 complete
+- [ ] Goal 8 complete
