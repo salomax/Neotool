@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import i18n from '@/shared/i18n/config';
-import { cleanErrorMessage, extractErrorMessage } from '../error';
+import { cleanErrorMessage, extractErrorCode, extractErrorMessage } from '../error';
 
 describe('error utilities', () => {
   describe('cleanErrorMessage', () => {
@@ -217,5 +217,27 @@ describe('error utilities', () => {
       expect(result).not.toBe('HTTP fetch failed from security: tcp connect error');
     });
   });
-});
 
+  describe('extractErrorCode', () => {
+    it('should extract code from graphQLErrors', () => {
+      const error = {
+        graphQLErrors: [{ message: 'Invalid email or password', extensions: { code: 'INVALID_CREDENTIALS' } }],
+      };
+      expect(extractErrorCode(error)).toBe('INVALID_CREDENTIALS');
+    });
+
+    it('should extract code from response errors', () => {
+      const error = {
+        response: {
+          errors: [{ message: 'Invalid email or password', extensions: { code: 'INVALID_CREDENTIALS' } }],
+        },
+      };
+      expect(extractErrorCode(error)).toBe('INVALID_CREDENTIALS');
+    });
+
+    it('should return undefined when no code is present', () => {
+      const error = { graphQLErrors: [{ message: 'Invalid email or password' }] };
+      expect(extractErrorCode(error)).toBeUndefined();
+    });
+  });
+});

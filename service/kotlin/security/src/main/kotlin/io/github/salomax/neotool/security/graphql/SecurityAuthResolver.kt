@@ -42,20 +42,30 @@ class SecurityAuthResolver(
 ) {
     private val logger = KotlinLogging.logger {}
 
+    private companion object {
+        const val INVALID_CREDENTIALS_CODE = "INVALID_CREDENTIALS"
+    }
+
     /**
      * Sign in mutation resolver
      */
-    fun signIn(input: Map<String, Any?>): GraphQLPayload<SignInPayloadDTO> =
-        try {
+    fun signIn(input: Map<String, Any?>): GraphQLPayload<SignInPayloadDTO> {
+        return try {
             val email = input["email"] as? String ?: throw IllegalArgumentException("Email is required")
             val password = input["password"] as? String ?: throw IllegalArgumentException("Password is required")
             val rememberMe = input["rememberMe"] as? Boolean ?: false
 
             logger.debug { "Sign in attempt for email: $email" }
 
-            val user =
-                authenticationService.authenticate(email, password)
-                    ?: throw IllegalArgumentException("Invalid email or password")
+            val user = authenticationService.authenticate(email, password)
+            if (user == null) {
+                logger.warn { "Sign in failed: invalid credentials for email: $email" }
+                return GraphQLPayloadFactory.error(
+                    field = "credentials",
+                    message = "Invalid email or password",
+                    code = INVALID_CREDENTIALS_CODE,
+                )
+            }
 
             // Build authentication context (loads roles and permissions)
             val authContext = authContextFactory.build(user)
@@ -85,6 +95,7 @@ class SecurityAuthResolver(
             logger.warn { "Sign in failed: ${e.message}" }
             GraphQLPayloadFactory.error(e)
         }
+    }
 
     /**
      * Get current user from JWT access token.

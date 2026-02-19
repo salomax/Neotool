@@ -52,6 +52,38 @@ function getTranslatedError(key: string, fallback: string): string {
   return fallback;
 }
 
+function extractCodeFromErrorArray(errors: unknown): string | undefined {
+  if (!Array.isArray(errors)) return undefined;
+
+  for (const error of errors) {
+    const code = (error as any)?.extensions?.code;
+    if (typeof code === 'string' && code.trim().length > 0) {
+      return code;
+    }
+  }
+
+  return undefined;
+}
+
+/**
+ * Extracts GraphQL error code from Apollo/GraphQL error objects.
+ *
+ * @param error - The error object from Apollo Client or generic error
+ * @returns GraphQL error code (e.g. "INVALID_CREDENTIALS"), if present
+ */
+export function extractErrorCode(error: unknown): string | undefined {
+  if (!error || typeof error !== 'object') return undefined;
+
+  const err = error as any;
+
+  return (
+    extractCodeFromErrorArray(err.graphQLErrors) ??
+    extractCodeFromErrorArray(err.response?.errors) ??
+    extractCodeFromErrorArray(err.networkError?.result?.errors) ??
+    extractCodeFromErrorArray(err.errors)
+  );
+}
+
 /**
  * Detects if an error message indicates a connection/network issue.
  * 
@@ -202,4 +234,3 @@ export function extractErrorMessage(
   // Return cleaned message or default (with translation if available)
   return cleaned || getTranslatedError('errors.default', defaultMessage);
 }
-
