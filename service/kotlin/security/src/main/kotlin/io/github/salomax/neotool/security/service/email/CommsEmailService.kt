@@ -166,6 +166,81 @@ class CommsEmailService(
         }
     }
 
+    override fun sendAccountInvitationEmail(
+        to: String,
+        inviterDisplayName: String?,
+        accountName: String,
+        acceptLink: String,
+        expiryDays: Long,
+        role: String,
+        locale: String,
+    ) {
+        try {
+            val mutation =
+                """
+                mutation RequestEmailSend(${'$'}input: EmailSendRequestInput!) {
+                  requestEmailSend(input: ${'$'}input) {
+                    requestId
+                    status
+                  }
+                }
+                """.trimIndent()
+
+            val variables =
+                mapOf(
+                    "input" to
+                        mapOf(
+                            "to" to to,
+                            "content" to
+                                mapOf(
+                                    "kind" to "TEMPLATE",
+                                    "format" to "HTML",
+                                    "templateKey" to "account.invitation",
+                                    "locale" to locale,
+                                    "variables" to
+                                        mapOf(
+                                            "inviterDisplayName" to (inviterDisplayName ?: accountName),
+                                            "accountName" to accountName,
+                                            "acceptLink" to acceptLink,
+                                            "expiryDays" to expiryDays.toString(),
+                                            "role" to role,
+                                            "supportEmail" to "support@neotool.io",
+                                            "logoUrl" to "https://neotool.io/logo.png",
+                                        ),
+                                ),
+                        ),
+                )
+
+            val response =
+                runBlocking {
+                    graphQLServiceClient.mutation(
+                        mutation = mutation,
+                        variables = variables,
+                        targetAudience = "apollo-router",
+                    )
+                }
+
+            if (!response.errors.isNullOrEmpty()) {
+                logger.warn {
+                    "requestEmailSend (invitation) returned GraphQL errors for $to: ${response.errors}"
+                }
+                return
+            }
+
+            val data = response.data?.get("requestEmailSend") as? Map<*, *>
+            if (data != null) {
+                logger.info {
+                    "Invitation email sent via Comms for $to: " +
+                        "requestId=${data["requestId"]}, status=${data["status"]}"
+                }
+            } else {
+                logger.warn { "requestEmailSend (invitation) returned no data for $to" }
+            }
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to send invitation email via Comms to: $to" }
+        }
+    }
+
     private fun buildVerificationLink(token: UUID): String {
         val baseUrl = emailConfig.resolveFrontendUrl()
         return "$baseUrl/verify-email-link?token=$token"

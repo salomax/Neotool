@@ -100,20 +100,49 @@ class JwtTokenIssuer(
     /**
      * Generate a JWT access token from an AuthContext.
      *
-     * This method extracts userId, email, and permissions from the AuthContext
-     * to build the JWT token. Token issuance is agnostic of how the user authenticated.
+     * This method extracts userId, email, permissions, and optional account claims from the AuthContext.
+     * When [AuthContext.currentAccountId] or [AuthContext.accounts] is present, adds claims:
+     * - `current_account`: UUID string of the active account
+     * - `accounts`: list of { id, role } for each ACTIVE membership
+     * - `session_version`: number for revocation/freshness (when provided)
      *
-     * Access tokens are short-lived (default: 15 minutes) and used for API authentication.
+     * Backward compatible: when account fields are null, no account claims are added.
      *
-     * @param authContext The normalized authentication context containing user identity and permissions
+     * @param authContext The normalized authentication context
      * @return A signed JWT token string
      */
-    fun generateAccessToken(authContext: AuthContext): String =
-        generateAccessToken(
-            userId = authContext.userId,
-            email = authContext.email,
-            permissions = authContext.permissions,
-        )
+    fun generateAccessToken(authContext: AuthContext): String {
+        val builder =
+            Jwts
+                .builder()
+                .subject(authContext.userId.toString())
+                .claim("email", authContext.email)
+                .claim("type", "access")
+                .issuedAt(Date.from(Instant.now()))
+                .expiration(Date.from(Instant.now().plusSeconds(jwtConfig.accessTokenExpirationSeconds)))
+                .issuer("neotool-security-service")
+                .claim("permissions", authContext.permissions ?: emptyList<String>())
+
+        if (authContext.currentAccountId != null) {
+            builder.claim("current_account", authContext.currentAccountId.toString())
+        }
+        val accounts = authContext.accounts
+        if (!accounts.isNullOrEmpty()) {
+            val accountClaims =
+                accounts.map { summary ->
+                    mapOf(
+                        "id" to summary.accountId.toString(),
+                        "role" to summary.role,
+                    )
+                }
+            builder.claim("accounts", accountClaims)
+        }
+        if (authContext.sessionVersion != null) {
+            builder.claim("session_version", authContext.sessionVersion)
+        }
+
+        return signBuilder(builder).compact()
+    }
 
     /**
      * Generate a JWT refresh token for a user.

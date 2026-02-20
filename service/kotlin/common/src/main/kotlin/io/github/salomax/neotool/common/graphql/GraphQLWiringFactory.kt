@@ -24,7 +24,9 @@ abstract class GraphQLWiringFactory {
                 .type("Subscription") { type -> registerSubscriptionResolvers(type) }
                 // Always register base scalars first (foundation for all modules)
                 .scalar(ExtendedScalars.GraphQLLong)
+                .scalar(ExtendedScalars.Date)
                 .scalar(ExtendedScalars.DateTime)
+                .scalar(ExtendedScalars.Json)
                 .scalar(ExtendedScalars.UUID)
 
         // Then allow subclasses to add their custom type resolvers

@@ -4,7 +4,10 @@ import graphql.GraphQLError
 import graphql.execution.DataFetcherExceptionHandler
 import graphql.execution.DataFetcherExceptionHandlerParameters
 import graphql.execution.DataFetcherExceptionHandlerResult
+import io.github.salomax.neotool.assets.error.AssetErrorCode
 import io.github.salomax.neotool.assets.exception.StorageUnavailableException
+import io.github.salomax.neotool.common.error.CommonErrorCode
+import io.github.salomax.neotool.common.error.DomainException
 import io.github.salomax.neotool.common.exception.GraphQLOptimisticLockExceptionHandler
 import org.slf4j.LoggerFactory
 import java.util.concurrent.CompletableFuture
@@ -12,7 +15,7 @@ import java.util.concurrent.CompletableFuture
 /**
  * GraphQL-specific exception handler for asset-related exceptions.
  * Converts asset service exceptions to user-friendly GraphQL error messages
- * without exposing sensitive details.
+ * with error codes for frontend i18n translation.
  *
  * This handler delegates to GraphQLOptimisticLockExceptionHandler for
  * optimistic locking exceptions, which in turn delegates to the default
@@ -28,30 +31,44 @@ class AssetGraphQLExceptionHandler : DataFetcherExceptionHandler {
         val exception = handlerParameters.exception
 
         return when (exception) {
-            is IllegalArgumentException -> {
-                logger.debug("GraphQL validation error: ${exception.message}")
+            // Handle our custom DomainException with error codes
+            is DomainException -> {
+                logger.debug("Domain exception: ${exception.errorCode.code} - ${exception.message}")
                 buildErrorResponse(
                     handlerParameters,
-                    exception.message ?: "Validation error",
-                    "VALIDATION_ERROR",
+                    message = exception.errorCode.defaultMessage,
+                    code = exception.errorCode.code,
+                    parameters = exception.parameters,
                 )
             }
 
-            is IllegalStateException -> {
-                logger.debug("GraphQL state error: ${exception.message}")
-                buildErrorResponse(
-                    handlerParameters,
-                    exception.message ?: "Operation failed",
-                    "STATE_ERROR",
-                )
-            }
-
+            // Handle storage unavailable (legacy exception, should be converted to DomainException)
             is StorageUnavailableException -> {
                 logger.warn("Storage service unavailable: ${exception.message}", exception.cause)
                 buildErrorResponse(
                     handlerParameters,
-                    exception.message ?: "Storage service is currently unavailable. Please try again later.",
-                    "STORAGE_UNAVAILABLE",
+                    message = AssetErrorCode.STORAGE_UNAVAILABLE.defaultMessage,
+                    code = AssetErrorCode.STORAGE_UNAVAILABLE.code,
+                )
+            }
+
+            // Handle standard IllegalArgumentException
+            is IllegalArgumentException -> {
+                logger.debug("GraphQL validation error: ${exception.message}")
+                buildErrorResponse(
+                    handlerParameters,
+                    message = exception.message ?: CommonErrorCode.VALIDATION_ERROR.defaultMessage,
+                    code = CommonErrorCode.VALIDATION_ERROR.code,
+                )
+            }
+
+            // Handle IllegalStateException
+            is IllegalStateException -> {
+                logger.debug("GraphQL state error: ${exception.message}")
+                buildErrorResponse(
+                    handlerParameters,
+                    message = exception.message ?: CommonErrorCode.INVALID_STATE.defaultMessage,
+                    code = CommonErrorCode.INVALID_STATE.code,
                 )
             }
 
@@ -65,12 +82,13 @@ class AssetGraphQLExceptionHandler : DataFetcherExceptionHandler {
 
     /**
      * Builds a GraphQL error response with safe handling of optional fields.
-     * Safely sets path and location without throwing NPEs.
+     * Safely sets path, location, and extensions without throwing NPEs.
      */
     private fun buildErrorResponse(
         handlerParameters: DataFetcherExceptionHandlerParameters,
         message: String,
-        errorCode: String,
+        code: String,
+        parameters: Map<String, Any>? = null,
     ): CompletableFuture<DataFetcherExceptionHandlerResult> {
         val errorBuilder = GraphQLError.newError().message(message)
 
@@ -89,17 +107,31 @@ class AssetGraphQLExceptionHandler : DataFetcherExceptionHandler {
             logger.trace("Source location not available for error: $message")
         }
 
-        val error = errorBuilder.extensions(buildExtensions(errorCode)).build()
+        val error = errorBuilder.extensions(buildExtensions(code, parameters)).build()
 
         return CompletableFuture.completedFuture(
             DataFetcherExceptionHandlerResult.newResult().error(error).build(),
         )
     }
 
-    private fun buildExtensions(code: String): Map<String, Any?> {
-        return mapOf(
-            "code" to code,
-            "service" to "assets",
-        )
+    /**
+     * Build extensions map with error code and optional parameters.
+     */
+    private fun buildExtensions(
+        code: String,
+        parameters: Map<String, Any>? = null,
+    ): Map<String, Any?> {
+        val extensions =
+            mutableMapOf<String, Any?>(
+                "code" to code,
+                "service" to "assets",
+            )
+
+        // Add parameters if present
+        parameters?.let {
+            extensions["parameters"] = it
+        }
+
+        return extensions
     }
 }

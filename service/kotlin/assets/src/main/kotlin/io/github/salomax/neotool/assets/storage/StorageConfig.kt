@@ -55,7 +55,8 @@ data class StorageProperties(
      */
     fun getEndpoint(): String {
         val protocol = if (useHttps) "https" else "http"
-        return "$protocol://$hostname:$port"
+        val isDefaultPort = (useHttps && port == 443) || (!useHttps && port == 80)
+        return if (isDefaultPort) "$protocol://$hostname" else "$protocol://$hostname:$port"
     }
 
     /**
@@ -65,7 +66,9 @@ data class StorageProperties(
     fun getPublicBaseUrl(): String {
         val protocol = if (useHttps) "https" else "http"
         val path = publicBasePath.trim('/')
-        return "$protocol://$hostname:$port/$path"
+        val isDefaultPort = (useHttps && port == 443) || (!useHttps && port == 80)
+        val host = if (isDefaultPort) "$protocol://$hostname" else "$protocol://$hostname:$port"
+        return "$host/$path"
     }
 
     /**

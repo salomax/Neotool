@@ -3,6 +3,10 @@ package io.github.salomax.neotool.security.test.service.unit
 import io.github.salomax.neotool.security.domain.rbac.Permission
 import io.github.salomax.neotool.security.domain.rbac.Role
 import io.github.salomax.neotool.security.model.UserEntity
+import io.github.salomax.neotool.security.model.account.AccountMembershipEntity
+import io.github.salomax.neotool.security.model.account.AccountRole
+import io.github.salomax.neotool.security.model.account.MembershipStatus
+import io.github.salomax.neotool.security.repo.AccountMembershipRepository
 import io.github.salomax.neotool.security.service.authentication.AuthContextFactory
 import io.github.salomax.neotool.security.service.authorization.AuthorizationService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
@@ -13,6 +17,7 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
@@ -21,12 +26,16 @@ import java.util.UUID
 @DisplayName("AuthContextFactory Unit Tests")
 class AuthContextFactoryTest {
     private lateinit var authorizationService: AuthorizationService
+    private lateinit var accountMembershipRepository: AccountMembershipRepository
     private lateinit var authContextFactory: AuthContextFactory
 
     @BeforeEach
     fun setUp() {
         authorizationService = mock()
-        authContextFactory = AuthContextFactory(authorizationService)
+        accountMembershipRepository = mock()
+        whenever(accountMembershipRepository.findByUserIdAndMembershipStatus(any(), eq(MembershipStatus.ACTIVE)))
+            .thenReturn(emptyList())
+        authContextFactory = AuthContextFactory(authorizationService, accountMembershipRepository)
     }
 
     @Nested
@@ -169,6 +178,43 @@ class AuthContextFactoryTest {
             assertThat(authContext.displayName).isNull()
             assertThat(authContext.roles).isEmpty()
             assertThat(authContext.permissions).isEmpty()
+        }
+
+        @Test
+        fun `should build AuthContext with account claims when user has ACTIVE memberships`() {
+            val userId = UUID.randomUUID()
+            val accountId1 = UUID.randomUUID()
+            val accountId2 = UUID.randomUUID()
+            val user = SecurityTestDataBuilders.user(id = userId, email = "user@example.com", displayName = "User")
+            val membership1 =
+                AccountMembershipEntity(
+                    accountId = accountId1,
+                    userId = userId,
+                    accountRole = AccountRole.OWNER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                    isDefault = true,
+                )
+            val membership2 =
+                AccountMembershipEntity(
+                    accountId = accountId2,
+                    userId = userId,
+                    accountRole = AccountRole.MEMBER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                    isDefault = false,
+                )
+
+            whenever(authorizationService.getUserRoles(any(), any())).thenReturn(emptyList())
+            whenever(authorizationService.getUserPermissions(any(), any())).thenReturn(emptyList())
+            whenever(accountMembershipRepository.findByUserIdAndMembershipStatus(eq(userId), eq(MembershipStatus.ACTIVE)))
+                .thenReturn(listOf(membership1, membership2))
+
+            val authContext = authContextFactory.build(user)
+
+            assertThat(authContext.currentAccountId).isEqualTo(accountId1)
+            assertThat(authContext.accounts).hasSize(2)
+            assertThat(authContext.accounts!!.map { it.accountId }).containsExactlyInAnyOrder(accountId1, accountId2)
+            assertThat(authContext.accounts!!.map { it.role }).containsExactlyInAnyOrder("OWNER", "MEMBER")
+            assertThat(authContext.sessionVersion).isEqualTo(0L)
         }
 
         @Test

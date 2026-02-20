@@ -71,13 +71,17 @@ With the orchestrator:
    - Migration strategy
    - Rollout plan
 
-3. **[Implementation Backlog](./IMPLEMENTATION_BACKLOG.md)** 🚀
-   - Open-source focused implementation plan
-   - 10 phases, 90+ tasks
-   - Uses Ollama (free, local LLM inference)
-   - PostgreSQL caching (no Redis needed)
-   - $0/month cost estimate
-   - 16-week timeline (MVP in 7 weeks)
+3. **[Provider Market Analysis](./provider-market-analysis.md)** 📊
+   - Self-hosted vs cloud comparison (2026 pricing)
+   - All major providers: DeepSeek, Groq, Anthropic, Gemini, Mistral
+   - Cost scenarios at 10K / 1M / 10M requests/month
+   - **TL;DR**: Cloud APIs win — don't self-host
+
+4. **[GitHub Issues Backlog](./GITHUB_ISSUES.md)** 🚀
+   - 27 issues across 9 epics, written as GitHub stories
+   - Cloud-first approach: Groq + DeepSeek primary, Claude fallback
+   - Ollama kept for dev/test only
+   - Milestones: MVP → v1.0 → v1.1
 
 ### Related Architecture Docs
 

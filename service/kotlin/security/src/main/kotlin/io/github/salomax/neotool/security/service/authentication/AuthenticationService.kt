@@ -7,6 +7,14 @@ import io.github.salomax.neotool.common.security.principal.AuthContext
 import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.security.model.PrincipalEntity
 import io.github.salomax.neotool.security.model.UserEntity
+import io.github.salomax.neotool.security.model.account.AccountEntity
+import io.github.salomax.neotool.security.model.account.AccountMembershipEntity
+import io.github.salomax.neotool.security.model.account.AccountRole
+import io.github.salomax.neotool.security.model.account.AccountStatus
+import io.github.salomax.neotool.security.model.account.AccountType
+import io.github.salomax.neotool.security.model.account.MembershipStatus
+import io.github.salomax.neotool.security.repo.AccountMembershipRepository
+import io.github.salomax.neotool.security.repo.AccountRepository
 import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.EmailVerificationService
@@ -33,6 +41,8 @@ import java.util.UUID
 open class AuthenticationService(
     private val userRepository: UserRepository,
     private val principalRepository: PrincipalRepository,
+    private val accountRepository: AccountRepository,
+    private val accountMembershipRepository: AccountMembershipRepository,
     private val jwtTokenIssuer: JwtTokenIssuer,
     private val jwtTokenValidator: JwtTokenValidator,
     private val emailService: EmailService,
@@ -468,6 +478,9 @@ open class AuthenticationService(
         val userId = requireNotNull(savedUser.id) { "User ID is required after save" }
         ensureUserPrincipalExists(userId, enabled = true)
 
+        // Create personal account and OWNER membership (FR-2.1); same transaction as user
+        createPersonalAccountAndMembership(userId, name, email)
+
         var requiresVerification = false
         if (emailVerificationEnabled) {
             try {
@@ -722,8 +735,44 @@ open class AuthenticationService(
         val userId = requireNotNull(savedUser.id) { "User ID is required after save" }
         ensureUserPrincipalExists(userId, enabled = true)
 
+        // Create personal account and OWNER membership (FR-2.1); same transaction as user
+        createPersonalAccountAndMembership(userId, claims.name, claims.email)
+
         logger.info { "OAuth user created and signed in: ${claims.email} (new user)" }
         return savedUser
+    }
+
+    /**
+     * Default personal account name (language-agnostic): user's display name or email, 2–100 chars.
+     */
+    private fun defaultPersonalAccountName(displayName: String?, email: String): String {
+        val base = displayName?.trim()?.takeIf { it.isNotBlank() } ?: email
+        val trimmed = base.take(100)
+        return if (trimmed.length < 2) "Personal" else trimmed
+    }
+
+    /**
+     * Create PERSONAL account and OWNER membership for a new user (FR-2.1).
+     * Called from registerUser and authenticateWithOAuth; same transaction as user save.
+     */
+    private fun createPersonalAccountAndMembership(userId: UUID, displayName: String?, email: String) {
+        val accountName = defaultPersonalAccountName(displayName, email)
+        val account = AccountEntity(
+            accountName = accountName,
+            accountType = AccountType.PERSONAL,
+            accountStatus = AccountStatus.ACTIVE,
+            ownerUserId = userId,
+        )
+        val savedAccount = accountRepository.save(account)
+        val membership = AccountMembershipEntity(
+            accountId = savedAccount.id!!,
+            userId = userId,
+            accountRole = AccountRole.OWNER,
+            membershipStatus = MembershipStatus.ACTIVE,
+            joinedAt = Instant.now(),
+            isDefault = true,
+        )
+        accountMembershipRepository.save(membership)
     }
 
     /**

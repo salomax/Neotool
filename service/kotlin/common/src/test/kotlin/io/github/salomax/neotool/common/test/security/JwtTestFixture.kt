@@ -60,6 +60,9 @@ object JwtTestFixture {
      * @param audience Token audience
      * @param expirationSeconds Token expiration in seconds from now (default: 900 = 15 minutes)
      * @param issuedAt Token issued at time (default: now)
+     * @param currentAccountId Current account UUID (claim: current_account)
+     * @param accounts List of maps with "id" and "role" (claim: accounts)
+     * @param sessionVersion Session version number (claim: session_version)
      * @param customClaims Additional custom claims to include
      * @return Signed JWT token as compact string
      */
@@ -73,6 +76,9 @@ object JwtTestFixture {
         audience: String? = null,
         expirationSeconds: Long = 900,
         issuedAt: Instant = Instant.now(),
+        currentAccountId: UUID? = null,
+        accounts: List<Map<String, String>>? = null,
+        sessionVersion: Long? = null,
         customClaims: Map<String, Any> = emptyMap(),
     ): String {
         val builder =
@@ -89,6 +95,9 @@ object JwtTestFixture {
         userId?.let { builder.claim("user_id", it.toString()) }
         email?.let { builder.claim("email", it) }
         audience?.let { builder.audience().add(it) }
+        currentAccountId?.let { builder.claim("current_account", it.toString()) }
+        accounts?.let { builder.claim("accounts", it) }
+        sessionVersion?.let { builder.claim("session_version", it) }
 
         // Add custom claims
         customClaims.forEach { (key, value) ->

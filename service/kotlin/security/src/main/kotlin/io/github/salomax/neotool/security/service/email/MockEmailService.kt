@@ -44,7 +44,21 @@ class MockEmailService(
         val locale: String,
     )
 
+    /**
+     * Data class to store account invitation email (for tests).
+     */
+    data class SentInvitationEmail(
+        val to: String,
+        val inviterDisplayName: String?,
+        val accountName: String,
+        val acceptLink: String,
+        val expiryDays: Long,
+        val role: String,
+        val locale: String,
+    )
+
     private val sentVerificationEmails = ConcurrentHashMap<String, MutableList<SentVerificationEmail>>()
+    private val sentInvitationEmails = ConcurrentHashMap<String, MutableList<SentInvitationEmail>>()
 
     override fun sendPasswordResetEmail(
         email: String,
@@ -98,6 +112,53 @@ class MockEmailService(
             "MOCK: Verification email to $to token=$token expiresAt=$expiresAt"
         }
     }
+
+    override fun sendAccountInvitationEmail(
+        to: String,
+        inviterDisplayName: String?,
+        accountName: String,
+        acceptLink: String,
+        expiryDays: Long,
+        role: String,
+        locale: String,
+    ) {
+        try {
+            sentInvitationEmails
+                .computeIfAbsent(to) { mutableListOf() }
+                .add(
+                    SentInvitationEmail(
+                        to = to,
+                        inviterDisplayName = inviterDisplayName,
+                        accountName = accountName,
+                        acceptLink = acceptLink,
+                        expiryDays = expiryDays,
+                        role = role,
+                        locale = locale,
+                    ),
+                )
+            logger.info {
+                """
+                |═══════════════════════════════════════════════════════════════
+                |📧 MOCK INVITATION EMAIL SENT
+                |═══════════════════════════════════════════════════════════════
+                |To: $to
+                |Account: $accountName
+                |Role: $role
+                |Expires in: $expiryDays days
+                |Accept link: $acceptLink
+                |═══════════════════════════════════════════════════════════════
+                """.trimMargin()
+            }
+        } catch (e: Exception) {
+            logger.error(e) { "Error sending mock invitation email to: $to" }
+        }
+    }
+
+    fun getSentInvitationEmails(email: String): List<SentInvitationEmail> =
+        sentInvitationEmails[email]?.toList() ?: emptyList()
+
+    fun getLastSentInvitationEmail(email: String): SentInvitationEmail? =
+        sentInvitationEmails[email]?.lastOrNull()
 
     fun getSentVerificationEmails(email: String): List<SentVerificationEmail> =
         sentVerificationEmails[email]?.toList() ?: emptyList()

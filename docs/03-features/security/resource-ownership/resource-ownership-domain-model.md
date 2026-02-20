@@ -268,6 +268,8 @@ CREATE INDEX idx_memberships_account ON security.account_memberships(account_id)
 
 Now supports Account as principal type.
 
+For entity ID generation when the table uses `DEFAULT uuidv7()`, follow the [Entity Pattern — Database-generated UUID (uuidv7)](../../../05-backend/patterns/entity-pattern.md#database-generated-uuid-uuidv7).
+
 ```kotlin
 @Entity
 @Table(name = "resource_ownership", schema = "security")

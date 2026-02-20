@@ -49,6 +49,28 @@ abstract class EmailService(
     )
 
     /**
+     * Send account invitation email (FR-4.1). Includes secure accept link and expiry hint.
+     * Failure must not corrupt membership state; implementations should catch and log.
+     *
+     * @param to Invitee email address
+     * @param inviterDisplayName Display name of the inviter (or null to use account name)
+     * @param accountName Name of the account the user is invited to
+     * @param acceptLink Full URL for the invitee to accept (frontend + token)
+     * @param expiryDays Number of days until the invitation expires
+     * @param role Role being offered (e.g. MEMBER, ADMIN)
+     * @param locale Locale for template (default: "en")
+     */
+    abstract fun sendAccountInvitationEmail(
+        to: String,
+        inviterDisplayName: String?,
+        accountName: String,
+        acceptLink: String,
+        expiryDays: Long,
+        role: String,
+        locale: String = "en",
+    )
+
+    /**
      * Load email template for given locale.
      * Falls back to English if locale template not found.
      *
@@ -90,6 +112,15 @@ abstract class EmailService(
     protected fun buildResetUrl(token: String): String {
         val frontendUrl = emailConfig.resolveFrontendUrl()
         return "$frontendUrl/reset-password?token=${URLEncoder.encode(token, StandardCharsets.UTF_8)}"
+    }
+
+    /**
+     * Build invitation accept URL from token (for account invitation emails).
+     * Public so callers (e.g. AccountMembershipService) can pass the link to sendAccountInvitationEmail.
+     */
+    open fun buildInvitationAcceptUrl(token: String): String {
+        val frontendUrl = emailConfig.resolveFrontendUrl()
+        return "$frontendUrl/invitations/accept?token=${URLEncoder.encode(token, StandardCharsets.UTF_8)}"
     }
 
     /**

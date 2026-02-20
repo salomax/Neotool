@@ -4,6 +4,7 @@ import io.github.salomax.neotool.common.security.config.JwtConfig
 import io.github.salomax.neotool.common.security.exception.AuthenticationRequiredException
 import io.github.salomax.neotool.common.security.key.KeyManager
 import io.github.salomax.neotool.common.security.key.KeyManagerFactory
+import io.github.salomax.neotool.common.security.principal.AccountSummary
 import io.jsonwebtoken.Claims
 import io.jsonwebtoken.JwtException
 import io.jsonwebtoken.Jwts
@@ -317,5 +318,93 @@ class JwtTokenValidator(
     fun getEmailFromToken(token: String): String? {
         val claims = validateToken(token)
         return claims["email"]?.toString()
+    }
+
+    /**
+     * Extract current account ID from a validated access token (claim: current_account).
+     *
+     * @param token The JWT token string
+     * @return Current account UUID if token is access token and contains the claim, null otherwise
+     * @throws AuthenticationRequiredException if token validation fails
+     */
+    @Throws(AuthenticationRequiredException::class)
+    fun getCurrentAccountIdFromToken(token: String): UUID? {
+        val claims = validateToken(token)
+        if (claims["type"] != "access") return null
+        val value = claims["current_account"] ?: return null
+        return try {
+            UUID.fromString(value.toString())
+        } catch (e: Exception) {
+            logger.warn { "Invalid current_account claim: ${e.message}" }
+            null
+        }
+    }
+
+    /**
+     * Extract account memberships from a validated access token (claim: accounts).
+     * Expects a list of objects with "id" and "role" keys.
+     *
+     * @param token The JWT token string
+     * @return List of AccountSummary if token contains valid accounts claim, null otherwise
+     * @throws AuthenticationRequiredException if token validation fails
+     */
+    @Throws(AuthenticationRequiredException::class)
+    fun getAccountsFromToken(token: String): List<AccountSummary>? {
+        val claims = validateToken(token)
+        if (claims["type"] != "access") return null
+        val accountsClaim = claims["accounts"] ?: return null
+        return try {
+            @Suppress("UNCHECKED_CAST")
+            when (val list = accountsClaim) {
+                is List<*> -> {
+                    list.mapNotNull { item ->
+                        when (val map = item) {
+                            is Map<*, *> -> {
+                                val id = map["id"]?.toString() ?: return@mapNotNull null
+                                val role = map["role"]?.toString() ?: return@mapNotNull null
+                                try {
+                                    AccountSummary(accountId = UUID.fromString(id), role = role)
+                                } catch (e: Exception) {
+                                    logger.warn { "Invalid account entry in token: id=$id role=$role" }
+                                    null
+                                }
+                            }
+                            else -> null
+                        }
+                    }
+                }
+                else -> {
+                    logger.warn { "Invalid accounts claim type: ${accountsClaim.javaClass.name}" }
+                    null
+                }
+            }
+        } catch (e: AuthenticationRequiredException) {
+            throw e
+        } catch (e: Exception) {
+            logger.warn { "Error extracting accounts from token: ${e.message}" }
+            null
+        }
+    }
+
+    /**
+     * Extract session version from a validated token (claim: session_version).
+     *
+     * @param token The JWT token string
+     * @return Session version number if present, null otherwise
+     * @throws AuthenticationRequiredException if token validation fails
+     */
+    @Throws(AuthenticationRequiredException::class)
+    fun getSessionVersionFromToken(token: String): Long? {
+        val claims = validateToken(token)
+        val value = claims["session_version"] ?: return null
+        return when (value) {
+            is Number -> value.toLong()
+            else -> try {
+                value.toString().toLongOrNull()
+            } catch (e: Exception) {
+                logger.warn { "Invalid session_version claim: ${e.message}" }
+                null
+            }
+        }
     }
 }
