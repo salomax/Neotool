@@ -12,7 +12,9 @@ plugins {
 }
 
 allprojects {
-    apply(plugin = "dev.nx.gradle.project-graph")
+    if (project.hasProperty("workspaceRoot")) {
+        apply(plugin = "dev.nx.gradle.project-graph")
+    }
     group = "io.github.salomax.neotool"
 
     repositories {
@@ -102,11 +104,13 @@ subprojects {
         }
     }
 
-    // Mark Kover HTML report tasks as incompatible with configuration cache
+    // Mark all Kover tasks as incompatible with configuration cache.
+    // Kover modifies test JVM arguments (adds -javaagent) which are not correctly
+    // replayed by the configuration cache, causing test failures.
     // Use tasks.all to catch tasks as they're created (before afterEvaluate)
     tasks.all {
-        if (name == "koverHtmlReport") {
-            notCompatibleWithConfigurationCache("Kover HTML report tasks are not compatible with configuration cache")
+        if (name.startsWith("kover")) {
+            notCompatibleWithConfigurationCache("Kover tasks are not compatible with configuration cache")
         }
     }
 
