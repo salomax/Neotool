@@ -1,11 +1,47 @@
 {
   "routes": {
-    "financialData": "Dados Financeiros"
+    "financialData": "Dados Financeiros",
+    "bacenInstitutions": "Instituições Financeiras"
   },
   "title": "Dados Financeiros",
   "subtitle": "Explore os indicadores nacionais e acompanhe os balanços trimestrais das instituições financeiras com dados atualizados e precisos.",
   "nationalIndicators": {
     "pageTitle": "Indicadores Nacionais",
+    "source": "Fonte: {{issuer}}",
+    "dataSources": {
+      "title": "Fontes e metodologia",
+      "description": "Coletamos os indicadores em fontes oficiais de dados abertos no Brasil, por meio de APIs e serviços públicos. Os valores são normalizados para unidades e períodos de referência consistentes.",
+      "methodology": "Algumas séries são derivadas das séries base (ex.: acumulado no ano e 12 meses, e balança comercial = exportações - importações).",
+      "sourcesTitle": "Fontes",
+      "sources": {
+        "sidra": {
+          "label": "API SIDRA/IBGE",
+          "description": "Séries de inflação, mercado de trabalho e renda."
+        },
+        "sgs": {
+          "label": "BCB/SGS (BCData/SGS)",
+          "description": "Séries temporais de juros, setor externo e fiscal (serviço JSON)."
+        },
+        "comex": {
+          "label": "Comex Stat (MDIC/SECEX)",
+          "description": "Base de dados em dados abertos usada na balança comercial (exportações - importações)."
+        },
+        "ipea": {
+          "label": "Ipeadata (IPEA) OData API",
+          "description": "Séries macroeconômicas, incluindo IGPs (FGV) e PIB (IBGE)."
+        }
+      },
+      "openDataTitle": "Dados abertos e termos de uso",
+      "openDataDescription": "Cada fonte publica seus próprios termos e licenças de dados abertos.",
+      "openData": {
+        "ibge": "Dados Abertos IBGE (PDA)",
+        "bcb": "FAQ de Dados Abertos do BCB (licença aberta)",
+        "bcbLicense": "Licença dos conjuntos do BCB (ODbL)",
+        "mdic": "Base de dados abertos do Comex Stat (MDIC/SECEX)",
+        "ipea": "Licença do Ipeadata (CC BY 2.5 BR)"
+      },
+      "disclaimer": "As fontes e metodologias são mantidas pelas instituições responsáveis e podem mudar sem aviso."
+    },
     "search": {
       "placeholder": "Buscar indicadores...",
       "label": "Indicadores"
@@ -14,7 +50,7 @@
       "all": "Tudo",
       "inflation": "Inflação",
       "interest": "Juros",
-      "activity": "Atividade",
+      "activity": "Atividade Econômica",
       "income": "Renda",
       "external": "Externo",
       "fiscal": "Fiscal"
@@ -28,26 +64,96 @@
       "TARGET_RATE": "Meta",
       "EFFECTIVE_RATE": "Efetivo",
       "HABITUAL": "Habitual",
-      "EFFECTIVE": "Efetivo"
+      "EFFECTIVE": "Efetivo",
+      "GROSS": "Bruta",
+      "NET": "Líquida"
     },
     "indicators": {
-      "IPCA": "IPCA",
-      "IPCA_15": "IPCA-15",
-      "INPC": "INPC",
-      "IGP_M": "IGP-M",
-      "IGP_DI": "IGP-DI",
-      "IGP_10": "IGP-10",
-      "SELIC": "Taxa Selic",
-      "CDI": "CDI",
-      "DI_OVER": "DI Over",
-      "GDP": "PIB",
-      "UNEMPLOYMENT": "Taxa de Desemprego",
-      "AVERAGE_INCOME": "Renda Média Real",
-      "TRADE_BALANCE": "Balança Comercial",
-      "CURRENT_ACCOUNT": "Transações Correntes",
-      "INTERNATIONAL_RESERVES": "Reservas Internacionais",
-      "PUBLIC_DEBT_GDP": "Dívida Pública Líquida (% PIB)",
-      "PRIMARY_RESULT": "Resultado Primário"
+      "IPCA": {
+        "label": "IPCA",
+        "description": "Índice Nacional de Preços ao Consumidor Amplo. É a inflação oficial do Brasil e a principal referência para a meta de inflação.",
+        "issuer": "IBGE"
+      },
+      "IPCA_15": {
+        "label": "IPCA-15",
+        "description": "Prévia do IPCA (Índice Nacional de Preços ao Consumidor Amplo 15). Antecipação da tendência da inflação oficial no mês.",
+        "issuer": "IBGE"
+      },
+      "INPC": {
+        "label": "INPC",
+        "description": "Índice Nacional de Preços ao Consumidor. Mede a inflação para famílias de menor renda e é usado em reajustes salariais.",
+        "issuer": "IBGE"
+      },
+      "IGP_M": {
+        "label": "IGP-M",
+        "description": "Índice Geral de Preços do Mercado. Mede variação de preços na economia (atacado, consumidor e construção) e é comum em contratos de aluguel.",
+        "issuer": "IPEA/FGV"
+      },
+      "IGP_DI": {
+        "label": "IGP-DI",
+        "description": "Índice Geral de Preços – Disponibilidade Interna. Acompanha a inflação em diferentes estágios da economia para análise macroeconômica.",
+        "issuer": "IPEA/FGV"
+      },
+      "SELIC": {
+        "label": "Meta Selic",
+        "description": "Sistema Especial de Liquidação e de Custódia. É a taxa básica de juros da economia, usada para controlar inflação e orientar o custo do crédito.",
+        "issuer": "BCB"
+      },
+      "CDI": {
+        "label": "CDI",
+        "description": "Certificado de Depósito Interbancário. Taxa de referência das operações entre bancos de curtíssimo prazo, base de muitos investimentos.",
+        "issuer": "B3"
+      },
+      "DI_OVER": {
+        "label": "DI Over",
+        "description": "Taxa média diária dos Depósitos Interfinanceiros (overnight). Indica o custo do dinheiro entre bancos no curtíssimo prazo.",
+        "issuer": "B3"
+      },
+      "TR": {
+        "label": "Taxa Referencial",
+        "description": "Utilizado principalmente como taxa de correção monetária. Ela serve para atualizar o saldo da poupança, FGTS, títulos de capitalização e calcular o custo de certos financiamentos imobiliários (sistema SFH).",
+        "issuer": "BCB"
+      },
+      "GDP": {
+        "label": "PIB",
+        "description": "Produto Interno Bruto. Soma de bens e serviços finais produzidos no país, principal medida de atividade econômica.",
+        "issuer": "IBGE"
+      },
+      "UNEMPLOYMENT": {
+        "label": "Taxa de Desemprego",
+        "description": "Percentual da força de trabalho que está sem emprego e procurando trabalho. Mede o grau de ociosidade do mercado de trabalho.",
+        "issuer": "IBGE"
+      },
+      "AVERAGE_INCOME": {
+        "label": "Renda Média Real",
+        "description": "Rendimento médio do trabalho ajustado pela inflação. Mostra o poder de compra da população ocupada.",
+        "issuer": "IBGE"
+      },
+      "TRADE_BALANCE": {
+        "label": "Balança Comercial",
+        "description": "Diferença entre exportações e importações de bens. Indica se o país vende ao exterior mais do que compra.",
+        "issuer": "SECEX"
+      },
+      "CURRENT_ACCOUNT": {
+        "label": "Conta Corrente",
+        "description": "Saldo de transações com o exterior em bens, serviços, rendas e transferências. Mostra necessidade ou capacidade de financiamento externo.",
+        "issuer": "BCB"
+      },
+      "INTERNATIONAL_RESERVES": {
+        "label": "Reservas Internacionais",
+        "description": "Ativos em moeda estrangeira mantidos pelo Banco Central. Servem para reduzir vulnerabilidade externa e dar estabilidade cambial.",
+        "issuer": "BCB"
+      },
+      "PUBLIC_DEBT_GDP": {
+        "label": "Dívida Pública (% do PIB)",
+        "description": "Endividamento do governo geral em relação ao PIB. A dívida bruta mede o total de obrigações; a líquida desconta os ativos financeiros.",
+        "issuer": "BCB"
+      },
+      "PRIMARY_RESULT": {
+        "label": "Resultado Primário",
+        "description": "Diferença entre receitas e despesas do governo, sem considerar juros da dívida. Indica esforço fiscal corrente.",
+        "issuer": "BCB"
+      }
     }
   },
   "cards": {
@@ -56,7 +162,7 @@
       "description": "Balanços trimestrais consolidados e Ratings de crédito sob supervisão do BACEN."
     },
     "nationalIndicators": {
-      "title": "Indicadores Nacionais",
+      "title": "Indicadores Macroeconômicos",
       "description": "Séries históricas de IPCA, IGP-M, INPC e projeções macroeconômicas."
     }
   },
@@ -85,7 +191,8 @@
     "noReportData": "Nenhum dado disponível para este relatório",
     "selectReport": "Selecione um relatório para ver os detalhes",
     "clickToViewDetails": "Clique para ver detalhes",
-    "noResults": "Nenhum resultado encontrado."
+    "noResults": "Nenhum resultado encontrado.",
+    "dataRestricted": "Dados não disponíveis"
   },
   "institutionTypes": {
     "individualInstitution": "Instituição Individual",
@@ -151,7 +258,14 @@
     "classifiedCreditPortfolio": "Carteira de Crédito Classificada",
     "currentAndLongTermLiabilities": "Passivo Circulante e Exigível a Longo Prazo e Resultados de Exercícios Futuros",
     "numberOfBranches": "Nº de Agências",
-    "numberOfServicePoints": "Nº de Pontos Atend."
+    "numberOfServicePoints": "Nº de Pontos Atend.",
+    "lastUpdateMessage": "Dados referentes ao {{quarter}} trimestre de {{year}}.",
+    "quarters": {
+      "1": "primeiro",
+      "2": "segundo",
+      "3": "terceiro",
+      "4": "quarto"
+    }
   },
   "ratings": {
     "title": "Ratings",

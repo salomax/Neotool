@@ -6,7 +6,14 @@ status: current
 version: 1.0.0
 tags: [runtime-config, next.js, kubernetes, vault, environment]
 ai_optimized: true
-search_keywords: [runtime config, window injection, environment variables, vault, external secrets]
+search_keywords:
+  [
+    runtime config,
+    window injection,
+    environment variables,
+    vault,
+    external secrets,
+  ]
 related:
   - 11-infrastructure/feature-flags-unleash.md
   - 11-infrastructure/web-deployment-runbook.md
@@ -24,12 +31,12 @@ The Runtime Configuration system allows the Next.js application to receive confi
 
 ### Benefits
 
-| Aspect | Build-time (NEXT_PUBLIC_*) | Runtime (Window Injection) |
-|--------|---------------------------|---------------------------|
-| Config change | Requires rebuild | Just restart pod |
-| Secret management | GitHub Secrets | Centralized in Vault |
-| Environment parity | Different images per env | Same image, different config |
-| Deployment speed | Slow (rebuild + push) | Fast (just restart) |
+| Aspect             | Build-time (NEXT*PUBLIC*\*) | Runtime (Window Injection)   |
+| ------------------ | --------------------------- | ---------------------------- |
+| Config change      | Requires rebuild            | Just restart pod             |
+| Secret management  | GitHub Secrets              | Centralized in Vault         |
+| Environment parity | Different images per env    | Same image, different config |
+| Deployment speed   | Slow (rebuild + push)       | Fast (just restart)          |
 
 ## Architecture
 
@@ -78,11 +85,11 @@ The Runtime Configuration system allows the Next.js application to receive confi
 
 ```typescript
 export interface RuntimeConfig {
-  env: string;                    // Environment name
-  unleashProxyUrl: string;        // Feature flags proxy URL
-  unleashClientToken: string;     // Feature flags client token
-  graphqlEndpoint?: string;       // GraphQL API endpoint
-  googleClientId?: string;        // OAuth client ID
+  env: string; // Environment name
+  unleashProxyUrl: string; // Feature flags proxy URL
+  unleashClientToken: string; // Feature flags client token
+  graphqlEndpoint?: string; // GraphQL API endpoint
+  googleClientId?: string; // OAuth client ID
 }
 ```
 
@@ -115,6 +122,7 @@ export function useRuntimeConfig(): RuntimeConfig {
 ```
 
 The `getRuntimeConfig()` function checks:
+
 1. **Browser**: Returns `window.__RUNTIME_CONFIG__`
 2. **Server**: Returns values from `process.env`
 
@@ -125,7 +133,7 @@ The `getRuntimeConfig()` function checks:
 ```tsx
 <html>
   <head>
-    <RuntimeConfigScript />  {/* Injected before any JS */}
+    <RuntimeConfigScript /> {/* Injected before any JS */}
   </head>
   <body>...</body>
 </html>
@@ -138,7 +146,7 @@ The `getRuntimeConfig()` function checks:
 ```
 secret/web
 ├── runtime-env: "production"
-├── unleash-proxy-url: "https://unleash-api.invistus.com.br"
+├── unleash-proxy-url: "https://unleash-api.neotool.com.br"
 ├── unleash-client-token: "default:production.xxx..."
 └── graphql-endpoint: "http://backend.svc/graphql"
 ```
@@ -149,7 +157,7 @@ secret/web
 kubectl exec -n production vault-0 -- sh -c '
   VAULT_TOKEN=<token> vault kv put secret/web \
     runtime-env="production" \
-    unleash-proxy-url="https://unleash-api.invistus.com.br" \
+    unleash-proxy-url="https://unleash-api.neotool.com.br" \
     unleash-client-token="default:production.xxx" \
     graphql-endpoint="http://neotool-backend.production.svc.cluster.local:8080/graphql"
 '
@@ -254,7 +262,7 @@ For additional security, configure CORS on external services (like Unleash Edge)
 ```yaml
 env:
   - name: CORS_ORIGINS
-    value: "https://invistus.com.br,https://www.invistus.com.br"
+    value: "https://neotool.com.br,https://www.neotool.com.br"
 ```
 
 ## Troubleshooting
@@ -262,11 +270,13 @@ env:
 ### Config Not Loading
 
 1. Check if script is in HTML:
+
    ```bash
-   curl -s https://invistus.com.br | grep "__RUNTIME_CONFIG__"
+   curl -s https://neotool.com.br | grep "__RUNTIME_CONFIG__"
    ```
 
 2. Check pod environment:
+
    ```bash
    kubectl exec -n production deploy/neotool-web -- env | grep -E "UNLEASH|RUNTIME"
    ```
@@ -279,6 +289,7 @@ env:
 ### Config Values Empty
 
 1. Check Vault has values:
+
    ```bash
    kubectl exec -n production vault-0 -- vault kv get secret/web
    ```
@@ -291,6 +302,7 @@ env:
 ### Changes Not Reflecting
 
 1. Force External Secret refresh:
+
    ```bash
    kubectl annotate externalsecret -n production web-runtime-config \
      force-sync=$(date +%s) --overwrite
@@ -304,11 +316,13 @@ env:
 ## Adding New Configuration Values
 
 1. **Add to Vault**:
+
    ```bash
    vault kv patch secret/web new-key="new-value"
    ```
 
 2. **Update External Secret** (`web-external-secret.yaml`):
+
    ```yaml
    - secretKey: NEW_KEY
      remoteRef:
@@ -317,6 +331,7 @@ env:
    ```
 
 3. **Update Deployment** (`deployment.yaml`):
+
    ```yaml
    - name: NEW_KEY
      valueFrom:
@@ -326,6 +341,7 @@ env:
    ```
 
 4. **Update TypeScript type** (`runtime-config.ts`):
+
    ```typescript
    export interface RuntimeConfig {
      // ... existing
@@ -337,7 +353,7 @@ env:
    ```typescript
    return {
      // ... existing
-     newKey: process.env.NEW_KEY || '',
+     newKey: process.env.NEW_KEY || "",
    };
    ```
 

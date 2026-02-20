@@ -32,8 +32,13 @@ Commands:
   $(log "validate" "$GREEN") [options]
     Run all validations (web and services).
     Includes: lint, typecheck, test/testIntegration, coverage, and Trivy scan (if installed).
-    Options: --web, --service [name], --skip-coverage
+    Options: --web, --service [name], --skip-coverage, --no-parallel
     Run '$0 validate --help' for more information.
+
+  $(log "deploy" "$GREEN") <namespace> --tag <tag>
+    Run local production deployment fallback flow (mirrors CI/CD).
+    Builds and pushes production images, then updates neotool-flux.
+    Run '$0 deploy --help' for more information.
 
   $(log "kafka" "$GREEN") [options] <command>
     Manage Kafka topics and consumer groups.
@@ -74,6 +79,8 @@ Examples:
   $0 validate
   $0 validate --web
   $0 validate --service security
+  $0 validate --no-parallel
+  $0 deploy production --tag v0.1.49
   $0 kafka --topic
   $0 kafka --topic swapi.people.v1
   $0 kafka --consumer-group
@@ -171,7 +178,7 @@ main() {
     fi
     
     case "$command" in
-        version|validate)
+        version|validate|deploy)
             execute_command "$command" "$@"
             ;;
         help|--help|-h|"")

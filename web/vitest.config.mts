@@ -82,12 +82,9 @@ export default defineConfig({
     pool: "threads",
     poolOptions: {
       threads: {
-        // Minimum threads: always have at least 1 thread available
-        minThreads: 1,
-        // Maximum threads: dynamically calculated based on environment and CPU cores
-        // This balances performance with memory usage
-        // With proper cleanup in setup.ts, multiple threads are safe
-        maxThreads: getOptimalThreadCount(),
+        // minThreads 0 avoids "must not conflict" when maxThreads is 1 (e.g. when cpus().length is 0)
+        minThreads: 0,
+        maxThreads: Math.max(1, getOptimalThreadCount()),
         // Enable isolation to prevent test interference
         // Each test file runs in its own isolated context
         isolate: true,
@@ -188,7 +185,6 @@ export default defineConfig({
         'src/**/stories/**',
         'src/**/*.stories.{ts,tsx}',
         // Exclude examples and documentation
-        'src/app/(neotool)/**',
         // Exclude GraphQL schema and instrumentation components
         'src/lib/graphql/**',
         // Exclude barrel/index files (pure exports)

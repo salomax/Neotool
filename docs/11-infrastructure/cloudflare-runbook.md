@@ -7,7 +7,8 @@ status: current
 version: 1.0.0
 tags: [cloudflare, dns, cdn, https, k3s, traefik, cert-manager]
 ai_optimized: true
-search_keywords: [cloudflare, dns, cdn, https, ssl, tls, hostinger, k3s, traefik]
+search_keywords:
+  [cloudflare, dns, cdn, https, ssl, tls, hostinger, k3s, traefik]
 related:
   - 11-infrastructure/hostinger-runbook.md
   - 11-infrastructure/k8s-runbook.md
@@ -56,7 +57,7 @@ Cloudflare handles DNS and edge caching. TLS is end-to-end using **cert-manager 
 
 - Cloudflare account with access to the target zone
 - Access to the domain registrar to change nameservers
-- Access to the GitOps repo (`invistus-flux`) to update ingress host
+- Access to the GitOps repo (`neotool-flux`) to update ingress host
 - K8S access to production cluster (`kubectl get nodes` works)
 
 ---
@@ -68,7 +69,7 @@ Based on this repo:
 - Traefik is the ingress controller (K3S default)
 - cert-manager is used for TLS
 - The web ingress is in:
-  - `invistus-flux/infra/kubernetes/flux/apps/web/nextjs/ingress.yaml`
+  - `neotool-flux/infra/kubernetes/flux/apps/web/nextjs/ingress.yaml`
 - TLS secret name: `neotool-web-tls`
 - ClusterIssuer expected: `letsencrypt-prod`
 
@@ -81,7 +82,7 @@ If any of these differ, adjust the steps accordingly.
 Gather the following before proceeding:
 
 - **Domain name** (e.g., `example.com`)
-- **VPS public IP** (Hostinger): from `invistus/infra/terraform/hostinger/terraform.tfvars` → `vps_ip`
+- **VPS public IP** (Hostinger): from `neotool/infra/terraform/hostinger/terraform.tfvars` → `vps_ip`
 - **Web app ingress host** (will replace `yourdomain.com`)
 
 ---
@@ -114,12 +115,13 @@ Gather the following before proceeding:
 
 Create DNS records that point to the Hostinger VPS:
 
-| Type | Name | Value | Proxy | Notes |
-|------|------|-------|-------|-------|
-| A | `@` | `VPS_IP` | **Proxied** | Apex domain → Hostinger VPS |
-| CNAME | `www` | `@` | **Proxied** | www → apex |
+| Type  | Name  | Value    | Proxy       | Notes                       |
+| ----- | ----- | -------- | ----------- | --------------------------- |
+| A     | `@`   | `VPS_IP` | **Proxied** | Apex domain → Hostinger VPS |
+| CNAME | `www` | `@`      | **Proxied** | www → apex                  |
 
 **Notes**:
+
 - If cert-manager is issuing HTTP-01 certificates, you may need to set records to **DNS only** temporarily during first issuance. Switch back to **Proxied** after certificates are ready.
 - Keep TTL as **Auto** unless you need a faster rollback.
 
@@ -129,7 +131,7 @@ Create DNS records that point to the Hostinger VPS:
 
 Update the ingress host in the GitOps repo so Traefik routes traffic correctly.
 
-**File**: `invistus-flux/infra/kubernetes/flux/apps/web/nextjs/ingress.yaml`
+**File**: `neotool-flux/infra/kubernetes/flux/apps/web/nextjs/ingress.yaml`
 
 Replace `yourdomain.com` in both `spec.rules.host` and `spec.tls.hosts`:
 
@@ -145,16 +147,14 @@ rules:
               name: neotool-web
               port:
                 number: 3000
-
 ...
-
 tls:
   - hosts:
       - example.com
     secretName: neotool-web-tls
 ```
 
-Commit and push to the `invistus-flux` repo so Flux applies the change.
+Commit and push to the `neotool-flux` repo so Flux applies the change.
 
 ---
 
@@ -175,6 +175,7 @@ kubectl describe certificate neotool-web-tls -n production
 ```
 
 Expected:
+
 - `Ready=True` for the certificate
 - Secret `neotool-web-tls` exists in `production`
 
@@ -220,18 +221,22 @@ The origin (K3S) serves a valid Let’s Encrypt certificate via cert-manager, so
 ## Troubleshooting
 
 **Issue: Cloudflare shows 525/526 (SSL handshake / invalid cert)**
+
 - Cause: Cloudflare expects valid origin cert.
 - Fix: Ensure cert-manager issued `neotool-web-tls` and set SSL mode to **Full (strict)** only after cert is ready.
 
 **Issue: Let’s Encrypt HTTP-01 challenge fails**
+
 - Cause: Cloudflare proxy can interfere with HTTP-01.
 - Fix: Temporarily set DNS record to **DNS only**, re-issue certificate, then re-enable proxy.
 
 **Issue: 404 or wrong backend**
+
 - Cause: Ingress host mismatch.
 - Fix: Ensure `spec.rules.host` matches the DNS host exactly.
 
 **Issue: Cloudflare cached old content**
+
 - Fix: Purge cache in Cloudflare or set a development cache rule.
 
 ---
@@ -239,6 +244,5 @@ The origin (K3S) serves a valid Let’s Encrypt certificate via cert-manager, so
 ## Rollback
 
 - Switch Cloudflare DNS records to **DNS only** to bypass CDN.
-- Revert the ingress host change in `invistus-flux/infra/kubernetes/flux/apps/web/nextjs/ingress.yaml`.
+- Revert the ingress host change in `neotool-flux/infra/kubernetes/flux/apps/web/nextjs/ingress.yaml`.
 - If needed, point DNS back to the previous origin IP.
-

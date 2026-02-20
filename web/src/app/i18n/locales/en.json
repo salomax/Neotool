@@ -1,0 +1,37 @@
+{
+  "hero": {
+    "titlePrefix": "Clarity for your",
+    "titleHighlight": "financial life.",
+    "subtitle": "Your investments and personal expenses in one smart tool. Better decisions start here."
+  },
+  "features": {
+    "title": "What's New",
+    "subtitle": "The latest updates for your financial intelligence.",
+    "institutions": {
+      "tag": "New Feature",
+      "title": "Financial Institutions",
+      "description": "Track quarterly balance sheets and ratings of major market institutions in a simplified way.",
+      "tags": {
+        "balance_results": "Balance Results",
+        "basileia": "Basel Index",
+        "net_profit": "Net Profit",
+        "ratings": "Ratings"
+      },
+      "cta": "Learn more"
+    },
+    "indicators": {
+      "tag": "New Feature",
+      "title": "Macroeconomic Indicators",
+      "description": "Monitor main macroeconomic Indicators.",
+      "tags": {
+        "ipca": "IPCA",
+        "selic": "Selic",
+        "pib": "GDP"
+      },
+      "cta": "Access data"
+    }
+  },
+  "footer": {
+    "copyright": "© 2026 neotool — All rights reserved"
+  }
+}

@@ -1,4 +1,4 @@
-# Apollo Router v2.7.0 configuration
+# Apollo Router v2.7.0 configuration (local dev)
 supergraph:
   path: /graphql
 
@@ -8,6 +8,11 @@ cors:
 # Show detailed subgraph errors for debugging
 include_subgraph_errors:
   all: true
+
+# Local subgraphs (e.g. financialdata bacenInstitutionSlugs) can be slow; allow 60s
+traffic_shaping:
+  all:
+    timeout: 60s
 
 # Header propagation
 headers:

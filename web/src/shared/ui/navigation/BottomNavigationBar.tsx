@@ -6,13 +6,16 @@ import {
   Paper, 
   Typography, 
   useTheme, 
+  Avatar,
   HomeIcon,
-  ShowChartIcon,
   MenuIcon,
   PersonIcon
 } from "@/shared/ui/mui-imports";
+import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import { alpha } from "@mui/material/styles";
 import { useTranslation } from "react-i18next";
+import { useAuth } from "@/shared/providers";
+import { getInitials } from "@/shared/utils/user";
 
 export interface BottomNavItem {
   id: string;
@@ -36,6 +39,7 @@ export const BottomNavigationBar: React.FC<BottomNavigationBarProps> = ({
   const pathname = usePathname();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const { t } = useTranslation();
+  const { isAuthenticated, user, signIn } = useAuth();
 
   if (!isMobile) {
     return null;
@@ -51,15 +55,23 @@ export const BottomNavigationBar: React.FC<BottomNavigationBarProps> = ({
     {
       id: "data",
       label: t("routes.financialData", "Data"),
-      icon: <ShowChartIcon />,
+      icon: <AccountBalanceIcon />,
       path: "/financial-data",
     },
     {
       id: "profile",
-      label: t("routes.profile", "Profile"),
-      icon: <PersonIcon />,
-      // TODO: Open profile menu or navigate to profile
-      path: "/profile", 
+      label: isAuthenticated ? t("routes.profile", "Profile") : t("appHeader.signIn", "Sign In"),
+      icon: isAuthenticated ? (
+        <Avatar
+          sx={{ width: 24, height: 24, fontSize: '0.75rem' }}
+          src={user?.avatarUrl || undefined}
+        >
+          {user ? getInitials(user) : <PersonIcon sx={{ fontSize: 16 }} />}
+        </Avatar>
+      ) : (
+        <PersonIcon />
+      ),
+      path: isAuthenticated ? "/profile" : "/signin",
     },
     {
       id: "menu",
@@ -98,6 +110,7 @@ export const BottomNavigationBar: React.FC<BottomNavigationBarProps> = ({
         backgroundColor: alpha(theme.palette.background.paper, 0.8),
         backdropFilter: "blur(6px)",
         borderTop: `1px solid ${theme.palette.divider}`,
+        borderRadius: 0,
         display: "flex",
         justifyContent: "space-evenly",
         alignItems: "center",

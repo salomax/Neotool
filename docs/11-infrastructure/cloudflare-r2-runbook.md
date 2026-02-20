@@ -7,7 +7,8 @@ status: current
 version: 1.0.0
 tags: [cloudflare, r2, s3, storage, assets, minio]
 ai_optimized: true
-search_keywords: [cloudflare, r2, s3, object storage, assets, presigned url, bucket]
+search_keywords:
+  [cloudflare, r2, s3, object storage, assets, presigned url, bucket]
 related:
   - 11-infrastructure/cloudflare-runbook.md
   - 11-infrastructure/k8s-runbook.md
@@ -49,13 +50,13 @@ Production:   Cloudflare R2      → <account-id>.r2.cloudflarestorage.com
 
 **Key differences from MinIO:**
 
-| Setting | MinIO (Dev) | R2 (Prod) |
-|---------|-------------|-----------|
-| Endpoint | `localhost:9000` | `<account-id>.r2.cloudflarestorage.com` |
-| Protocol | HTTP | HTTPS (required) |
-| Region | `us-east-1` | `auto` |
-| Path Style | `true` | `false` |
-| Port | `9000` | `443` |
+| Setting    | MinIO (Dev)      | R2 (Prod)                               |
+| ---------- | ---------------- | --------------------------------------- |
+| Endpoint   | `localhost:9000` | `<account-id>.r2.cloudflarestorage.com` |
+| Protocol   | HTTP             | HTTPS (required)                        |
+| Region     | `us-east-1`      | `auto`                                  |
+| Path Style | `true`           | `false`                                 |
+| Port       | `9000`           | `443`                                   |
 
 ---
 
@@ -94,10 +95,10 @@ Private Assets:  Presigned URL (temporary, expires in 1 hour)
 
 ### Understanding Public vs Private Buckets
 
-| Bucket | Purpose | Public Access | How Files Are Accessed |
-|--------|---------|---------------|------------------------|
-| `neotool-assets-public` | Profile images, logos, shared assets | **Enabled** (custom domain) | Direct URL: `https://assets.domain.com/file.png` |
-| `neotool-assets-private` | Attachments, sensitive documents | **Disabled** (default) | Presigned URLs only (temporary, authenticated) |
+| Bucket                   | Purpose                              | Public Access               | How Files Are Accessed                           |
+| ------------------------ | ------------------------------------ | --------------------------- | ------------------------------------------------ |
+| `neotool-assets-public`  | Profile images, logos, shared assets | **Enabled** (custom domain) | Direct URL: `https://assets.domain.com/file.png` |
+| `neotool-assets-private` | Attachments, sensitive documents     | **Disabled** (default)      | Presigned URLs only (temporary, authenticated)   |
 
 > **Important**: By default, R2 buckets are private. You only need to enable public access for the public bucket.
 
@@ -146,6 +147,7 @@ Private Assets:  Presigned URL (temporary, expires in 1 hour)
 ### 2.2 Save Credentials
 
 You will see:
+
 - **Access Key ID**: `xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
 - **Secret Access Key**: `yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy`
 - **Endpoint**: `https://<account-id>.r2.cloudflarestorage.com`
@@ -155,6 +157,7 @@ You will see:
 ### 2.3 Note Your Account ID
 
 The Account ID is in the endpoint URL. You can also find it:
+
 1. Go to Cloudflare Dashboard
 2. Click on your account name (top right)
 3. Copy the **Account ID** from the URL or overview page
@@ -232,6 +235,7 @@ vault kv get secret/assets
 ```
 
 Expected output:
+
 ```
 ====== Data ======
 Key                       Value
@@ -250,21 +254,21 @@ storage-secret            xxxxxx...
 ### 5.1 Build and Push Docker Image
 
 ```bash
-cd invistus/service/kotlin
+cd neotool/service/kotlin
 
 # Build the image
-docker build -t ghcr.io/invistus/neotool-assets:v0.1.0 -f assets/Dockerfile .
+docker build -t ghcr.io/neotool/neotool-assets:v0.1.0 -f assets/Dockerfile .
 
 # Push to registry
-docker push ghcr.io/invistus/neotool-assets:v0.1.0
+docker push ghcr.io/neotool/neotool-assets:v0.1.0
 ```
 
 ### 5.2 Verify Kubernetes Manifests
 
-Ensure these files exist in `invistus-flux`:
+Ensure these files exist in `neotool-flux`:
 
 ```
-invistus-flux/infra/kubernetes/flux/
+neotool-flux/infra/kubernetes/flux/
 ├── apps/services/assets/
 │   ├── deployment.yaml
 │   ├── service.yaml
@@ -276,7 +280,7 @@ invistus-flux/infra/kubernetes/flux/
 ### 5.3 Commit and Push
 
 ```bash
-cd invistus-flux
+cd neotool-flux
 git add .
 git commit -m "Add assets service deployment with R2 configuration"
 git push
@@ -358,27 +362,27 @@ curl -X POST http://localhost:8083/graphql \
 
 ### Environment Variables
 
-| Variable | R2 Value | Description |
-|----------|----------|-------------|
-| `STORAGE_HOSTNAME` | `<account-id>.r2.cloudflarestorage.com` | R2 endpoint (without protocol) |
-| `STORAGE_PORT` | `443` | HTTPS port |
-| `STORAGE_USE_HTTPS` | `true` | Required for R2 |
-| `STORAGE_REGION` | `auto` | R2 uses "auto" region |
-| `STORAGE_ACCESS_KEY` | From Vault | R2 API Access Key ID |
-| `STORAGE_SECRET` | From Vault | R2 API Secret Access Key |
-| `STORAGE_PUBLIC_BUCKET` | `neotool-assets-public` | Public assets bucket |
-| `STORAGE_PRIVATE_BUCKET` | `neotool-assets-private` | Private assets bucket |
-| `STORAGE_FORCE_PATH_STYLE` | `false` | R2 uses virtual-hosted style |
-| `STORAGE_PUBLIC_BASE_PATH` | `https://assets.yourdomain.com` | Public URL prefix |
-| `STORAGE_UPLOAD_TTL_SECONDS` | `900` | Presigned upload URL TTL (15 min) |
+| Variable                     | R2 Value                                | Description                       |
+| ---------------------------- | --------------------------------------- | --------------------------------- |
+| `STORAGE_HOSTNAME`           | `<account-id>.r2.cloudflarestorage.com` | R2 endpoint (without protocol)    |
+| `STORAGE_PORT`               | `443`                                   | HTTPS port                        |
+| `STORAGE_USE_HTTPS`          | `true`                                  | Required for R2                   |
+| `STORAGE_REGION`             | `auto`                                  | R2 uses "auto" region             |
+| `STORAGE_ACCESS_KEY`         | From Vault                              | R2 API Access Key ID              |
+| `STORAGE_SECRET`             | From Vault                              | R2 API Secret Access Key          |
+| `STORAGE_PUBLIC_BUCKET`      | `neotool-assets-public`                 | Public assets bucket              |
+| `STORAGE_PRIVATE_BUCKET`     | `neotool-assets-private`                | Private assets bucket             |
+| `STORAGE_FORCE_PATH_STYLE`   | `false`                                 | R2 uses virtual-hosted style      |
+| `STORAGE_PUBLIC_BASE_PATH`   | `https://assets.yourdomain.com`         | Public URL prefix                 |
+| `STORAGE_UPLOAD_TTL_SECONDS` | `900`                                   | Presigned upload URL TTL (15 min) |
 
 ### Kubernetes Files
 
-| File | Purpose |
-|------|---------|
-| `apps/services/assets/deployment.yaml` | Assets service deployment |
-| `apps/services/assets/service.yaml` | ClusterIP service (port 8083) |
-| `infrastructure/external-secrets-config/assets-external-secret.yaml` | Pulls R2 creds from Vault |
+| File                                                                 | Purpose                       |
+| -------------------------------------------------------------------- | ----------------------------- |
+| `apps/services/assets/deployment.yaml`                               | Assets service deployment     |
+| `apps/services/assets/service.yaml`                                  | ClusterIP service (port 8083) |
+| `infrastructure/external-secrets-config/assets-external-secret.yaml` | Pulls R2 creds from Vault     |
 
 ---
 
@@ -389,6 +393,7 @@ curl -X POST http://localhost:8083/graphql \
 **Cause**: Bucket doesn't exist or name mismatch
 
 **Fix**:
+
 1. Verify bucket names in Cloudflare R2 dashboard
 2. Check `STORAGE_PUBLIC_BUCKET` and `STORAGE_PRIVATE_BUCKET` env vars match exactly
 
@@ -397,6 +402,7 @@ curl -X POST http://localhost:8083/graphql \
 **Cause**: Invalid credentials or insufficient permissions
 
 **Fix**:
+
 1. Verify API token is active in Cloudflare
 2. Check token has read/write access to both buckets
 3. Verify credentials in Vault are correct
@@ -410,6 +416,7 @@ curl -X POST http://localhost:8083/graphql \
 **Cause**: Incorrect secret key or encoding issue
 
 **Fix**:
+
 1. Regenerate API token in Cloudflare
 2. Update Vault secret with new credentials
 3. Restart the assets pod to pick up new secret
@@ -419,6 +426,7 @@ curl -X POST http://localhost:8083/graphql \
 **Cause**: Network issue or incorrect endpoint
 
 **Fix**:
+
 1. Verify `STORAGE_HOSTNAME` is correct (no `https://` prefix)
 2. Verify `STORAGE_PORT` is `443`
 3. Test connectivity from the cluster:
@@ -432,6 +440,7 @@ curl -X POST http://localhost:8083/graphql \
 **Cause**: Custom domain not configured or object doesn't exist
 
 **Fix**:
+
 1. Verify custom domain is connected in R2 bucket settings
 2. Check DNS resolves correctly:
    ```bash
@@ -444,6 +453,7 @@ curl -X POST http://localhost:8083/graphql \
 **Cause**: Usually missing secrets or database connection
 
 **Fix**:
+
 1. Check pod logs:
    ```bash
    kubectl logs -n production -l app=neotool-assets --previous

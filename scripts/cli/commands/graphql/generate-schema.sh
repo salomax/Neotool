@@ -116,7 +116,7 @@ else
 fi
 
 sync_flux_outputs() {
-    local flux_root="${INVISTUS_FLUX_DIR:-$PROJECT_ROOT/../invistus-flux}"
+    local flux_root="${neotool_FLUX_DIR:-$PROJECT_ROOT/../neotool-flux}"
     local flux_router_dir="$flux_root/infra/kubernetes/flux/apps/router"
 
     if [[ ! -d "$flux_router_dir" ]]; then

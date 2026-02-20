@@ -1,27 +1,40 @@
-"use client";
+import LandingPageClient from "./LandingPageClient";
+import { Metadata } from "next";
+import { getDictionary } from "@/shared/i18n/server";
 
-import React from "react";
-import { 
-  Box, 
-  Typography, 
-  Container
-} from "@/shared/ui/mui-imports";
-import { Logo, Wordmark } from "@/shared/ui/brand";
+// Default to PT
+const t = getDictionary("pt").seo;
 
-export default function WelcomePage() {
+export const metadata: Metadata = {
+  title: t.default.title,
+  description: t.default.description,
+  alternates: {
+    canonical: "https://neotool.com.br",
+  },
+};
+
+export default function LandingPage() {
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "neotool",
+    url: "https://neotool.com.br",
+    logo: "https://neotool.com.br/images/logos/neotool-logo-blue.svg",
+    sameAs: ["https://www.linkedin.com/company/neotool"],
+    description: t.landing.jsonLdDescription,
+    address: {
+      "@type": "PostalAddress",
+      addressCountry: "BR",
+    },
+  };
+
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Box sx={{ textAlign: "center", mb: 6 }}>
-        <Box sx={{ mb: 3, display: 'flex', justifyContent: 'center' }}>
-          <Logo variant="blue" size="medium" />
-        </Box>
-        <Typography variant="h2" component="h1" gutterBottom sx={{ display: 'flex', justifyContent: 'center' }}>
-          <Wordmark variant="blue" size="medium" />
-        </Typography>
-        {/* <Typography variant="h5" color="text.secondary" sx={{ mx: "auto" }}>
-          A comprehensive framework for building modern web applications
-        </Typography> */}
-      </Box>
-    </Container>
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <LandingPageClient />
+    </>
   );
 }

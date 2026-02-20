@@ -1,0 +1,17 @@
+{
+  "name": "neotool",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "nx": "nx",
+    "check:api": "nx run-many --target=check --projects=security,assets,assistant",
+    "check:workers": "nx run-many --target=build,test,lint --projects=test-job,test-consumer",
+    "check:web": "nx run-many --target=typecheck,lint,test:unit --projects=neotool-web",
+    "check:all": "nx run-many --target=check --projects=security,assets,assistant && nx run-many --target=build,test,lint --projects=test-job,test-consumer && nx run-many --target=typecheck,lint,test:unit --projects=neotool-web"
+  },
+  "devDependencies": {
+    "@nx/gradle": "^22.5.1",
+    "@nx/next": "^22.5.0",
+    "nx": "^22.5.1"
+  }
+}

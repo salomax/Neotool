@@ -3,29 +3,30 @@ import * as React from "react";
 import Image from "next/image";
 
 export interface LogoMarkProps {
-  variant?: 'white' | 'blue';
+  variant?: "white" | "blue";
   width?: number;
   height?: number;
   className?: string;
   style?: React.CSSProperties;
 }
 
-export function LogoMark({ 
-  variant = 'blue', 
-  width = 120, 
+export function LogoMark({
+  variant = "blue",
+  width = 120,
   height = 113,
   className,
   style,
-  ...props 
+  ...props
 }: LogoMarkProps) {
-  const logoSrc = variant === 'white' 
-    ? '/images/logos/neotool-logo-white.svg'
-    : '/images/logos/neotool-logo-blue.svg';
+  const logoSrc =
+    variant === "white"
+      ? "/images/logos/neotool-logo-white-transparent.svg"
+      : "/images/logos/neotool-logo-blue-transparent.svg";
 
   return (
     <Image
       src={logoSrc}
-      alt="Invistus"
+      alt="neotool"
       width={width}
       height={height}
       className={className}

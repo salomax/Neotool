@@ -1,0 +1,58 @@
+{
+  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "defaultBase": "main",
+  "cacheDirectory": ".nx/cache",
+  "plugins": [
+    {
+      "plugin": "@nx/gradle",
+      "include": ["service/kotlin/**/*"]
+    },
+    {
+      "plugin": "@nx/next/plugin",
+      "include": ["web/**/*"]
+    }
+  ],
+  "targetDefaults": {
+    "build": {
+      "cache": true,
+      "dependsOn": ["^build"]
+    },
+    "test": {
+      "cache": true
+    },
+    "lint": {
+      "cache": true
+    }
+  },
+  "release": {
+    "projects": [
+      "security",
+      "assets",
+      "financialdata",
+      "assistant",
+      "bacen-ifdata-cronjob",
+      "indicators-job",
+      "ratings-job",
+      "institution-enhancement-consumer",
+      "neotool-web"
+    ],
+    "projectsRelationship": "independent",
+    "releaseTagPattern": "{projectName}-v{version}",
+    "version": {
+      "conventionalCommits": true,
+      "fallbackCurrentVersionResolver": "disk"
+    },
+    "changelog": {
+      "automaticFromRef": true,
+      "workspaceChangelog": false,
+      "projectChangelogs": {
+        "createRelease": "github"
+      }
+    },
+    "git": {
+      "commit": true,
+      "commitMessage": "chore(release): publish",
+      "tag": true
+    }
+  }
+}

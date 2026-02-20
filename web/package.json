@@ -1,6 +1,6 @@
 {
   "name": "neotool-web",
-  "version": "0.1.0",
+  "version": "0.3.1",
   "private": true,
   "scripts": {
     "dev": "node scripts/dev-with-env.mjs",
@@ -8,7 +8,7 @@
     "build": "NODE_ENV=production next build",
     "build:dev": "next build",
     "start": "next start -p 3000",
-    "test:unit": "vitest",
+    "test:unit": "vitest run",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "typecheck": "tsc -p tsconfig.json --noEmit",

@@ -2,399 +2,161 @@
 title: Nx Configuration and Usage Guide
 category: infrastructure
 status: active
-version: 1.0.0
+version: 2.0.0
 tags: [nx, monorepo, build-system, ci-cd, developer-guide]
 related:
   - ../92-adr/0003-nx-monorepo-tooling.md
-  - ci-cd-pipeline.md
 ---
 
-# Nx Configuration and Usage Guide
+# Nx Developer Guide
 
-## Overview
+Nx is our monorepo build system. It orchestrates builds, tests, and releases across
+TypeScript (web), Kotlin (API services), and Go (workers) — all from one repository.
 
-This document provides comprehensive guidance on configuring, using, and maintaining Nx in the NeoTool monorepo. Nx serves as our build system and task orchestrator for managing a polyglot codebase (TypeScript, Kotlin, Go).
-
-**See also**: [ADR-0003: Nx as Monorepo Build System](../92-adr/0003-nx-monorepo-tooling.md) for architectural rationale.
+**See also**: [ADR-0003](../92-adr/0003-nx-monorepo-tooling.md) for the architectural rationale.
 
 ---
 
 ## Table of Contents
 
-1. [Installation & Setup](#installation--setup)
-2. [Workspace Configuration](#workspace-configuration)
-3. [Project Configuration](#project-configuration)
+1. [Quick Start](#quick-start)
+2. [Repository Layout](#repository-layout)
+3. [How Nx Discovers Projects](#how-nx-discovers-projects)
 4. [Common Commands](#common-commands)
-5. [CI/CD Integration](#cicd-integration)
-6. [Remote Caching](#remote-caching)
-7. [Dependency Graph](#dependency-graph)
-8. [Troubleshooting](#troubleshooting)
-9. [Best Practices](#best-practices)
+5. [Project Tags](#project-tags)
+6. [Releasing & Versioning](#releasing--versioning)
+7. [CI/CD Pipelines](#cicd-pipelines)
+8. [Adding a New Project](#adding-a-new-project)
+9. [Configuration Reference](#configuration-reference)
+10. [Troubleshooting](#troubleshooting)
 
 ---
 
-## Installation & Setup
-
-### Prerequisites
-- Node.js 20.x or later
-- npm or yarn
-- Git
-- Language-specific tools:
-  - Java 21 (for Kotlin services)
-  - Go 1.22+ (for Go services)
-
-### Initial Installation
+## Quick Start
 
 ```bash
-# Clone repository
-git clone git@github.com:invistus/neotool.git
-cd neotool
-
 # Install dependencies (includes Nx)
-npm install
+npm ci
 
-# Verify Nx installation
-npx nx --version
-```
+# List all projects
+npx nx show projects
 
-### First-Time Setup
-
-```bash
-# View dependency graph
+# Visualize the dependency graph
 npx nx graph
 
-# Check what's affected by your changes
-npx nx affected:graph
+# Build a specific service
+npx nx build security
 
-# Run affected tests
-npx nx affected --target=test
+# Run tests for a Go worker
+npx nx test bacen-ifdata-cronjob
+
+# See what's affected by your changes
+npx nx show projects --affected
 ```
+
+### Prerequisites
+
+- Node.js 20+
+- Java 21 (for Kotlin services — required even to resolve the project graph)
+- Go 1.24+ (for Go workers)
 
 ---
 
-## Workspace Configuration
+## Repository Layout
 
-### `nx.json` - Root Configuration
+```
+.
+├── service/kotlin/                  # Gradle multi-module project
+│   ├── build.gradle.kts             # Shared config (allprojects/subprojects)
+│   ├── settings.gradle.kts          # Includes all Kotlin modules
+│   ├── common/                      # Shared lib
+│   ├── common-batch/                # Shared lib
+│   ├── common-features/             # Shared lib
+│   ├── security/                    # API service  (Nx: security)
+│   ├── assets/                      # API service  (Nx: assets)
+│   ├── financialdata/               # API service  (Nx: financialdata)
+│   └── assistant/                   # API service  (Nx: assistant)
+├── workers/golang/                  # Go workers (each has its own go.mod)
+│   ├── shared/                      # Shared Go packages
+│   └── financial_data/
+│       ├── bacen_ifdata_job/        # CronJob      (Nx: bacen-ifdata-cronjob)
+│       ├── indicators_job/          # Job           (Nx: indicators-job)
+│       ├── ratings_job/             # Job           (Nx: ratings-job)
+│       └── institution_enhancement_consumer/  # Consumer (Nx: institution-enhancement-consumer)
+├── web/                             # Next.js app   (Nx: neotool-web)
+├── mobile/                          # React Native  (Nx: neotool-mobile)
+├── nx.json                          # Workspace config
+└── package.json                     # Root — Nx + plugins
+```
 
-Located at the repository root, this file defines workspace-wide settings:
+Key design decisions:
+
+- **`service/kotlin/`** stays as a Gradle multi-module project (shared `build.gradle.kts`)
+- **`workers/golang/`** keeps Go workers separate from API services (different runtime concerns)
+- **Nx wraps the existing tools** — it doesn't replace Gradle or `go build`
+
+---
+
+## How Nx Discovers Projects
+
+Nx discovers projects from three sources:
+
+### 1. `@nx/gradle` plugin — Kotlin projects
+
+The plugin reads `service/kotlin/settings.gradle.kts` and auto-discovers all Gradle
+modules. Projects that have a `package.json` get their name from the `"name"` field.
+Projects without one get a `:` prefix from Gradle conventions.
+
+| Module           |    Has `package.json`?     | Nx project name    |
+| ---------------- | :------------------------: | ------------------ |
+| security         | Yes (`"name": "security"`) | `security`         |
+| assets           |            Yes             | `assets`           |
+| financialdata    |            Yes             | `financialdata`    |
+| assistant        |            Yes             | `assistant`        |
+| common           |             No             | `:common`          |
+| common-batch     |             No             | `:common-batch`    |
+| common-features  |             No             | `:common-features` |
+| _(root project)_ |             —              | `neotool-service`  |
+
+### 2. `@nx/next/plugin` — Web project
+
+Auto-discovers the Next.js app in `web/`. Project name comes from `web/package.json`.
+
+### 3. `project.json` — Go workers + mobile
+
+Any directory with a `project.json` file becomes an Nx project. Go workers and the
+mobile app use this approach since there's no auto-discovery plugin for them.
+
+The `package.json` in each Go worker directory provides the Nx project name
+(e.g., `"name": "bacen-ifdata-cronjob"`). The `project.json` provides tags and
+target definitions:
 
 ```json
 {
-  "$schema": "./node_modules/nx/schemas/nx-schema.json",
-
-  "targetDefaults": {
+  "tags": ["type:cronjob", "lang:go"],
+  "targets": {
     "build": {
-      "dependsOn": ["^build"],
-      "cache": true
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "go build ./...",
+        "cwd": "{projectRoot}"
+      }
     },
     "test": {
-      "cache": true,
-      "inputs": ["default", "^production"]
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "go test ./...",
+        "cwd": "{projectRoot}"
+      }
     },
     "lint": {
-      "cache": true
-    },
-    "docker-build": {
-      "dependsOn": ["build"],
-      "cache": false
-    }
-  },
-
-  "namedInputs": {
-    "default": ["{projectRoot}/**/*", "sharedGlobals"],
-    "production": [
-      "default",
-      "!{projectRoot}/**/?(*.)+(spec|test).[jt]s?(x)?(.snap)",
-      "!{projectRoot}/tsconfig.spec.json"
-    ],
-    "sharedGlobals": []
-  },
-
-  "affected": {
-    "defaultBase": "origin/main"
-  },
-
-  "tasksRunnerOptions": {
-    "default": {
-      "runner": "nx-cloud",
+      "executor": "nx:run-commands",
       "options": {
-        "cacheableOperations": ["build", "test", "lint"],
-        "accessToken": "YOUR_NX_CLOUD_TOKEN"
-      }
-    }
-  },
-
-  "generators": {
-    "@nx/next": {
-      "application": {
-        "style": "css",
-        "linter": "eslint"
+        "command": "go vet ./...",
+        "cwd": "{projectRoot}"
       }
     }
   }
-}
-```
-
-#### Key Configuration Sections
-
-**`targetDefaults`**: Define default behavior for common tasks
-- `dependsOn: ["^build"]`: Run dependencies' build first
-- `cache: true`: Enable caching for this target
-- `inputs`: Define what affects cache invalidation
-
-**`namedInputs`**: Reusable input definitions
-- `default`: All project files
-- `production`: Exclude test files
-- `sharedGlobals`: Root-level files affecting all projects
-
-**`affected`**: Configure affected project detection
-- `defaultBase`: Git ref to compare against (usually `origin/main`)
-
-**`tasksRunnerOptions`**: Configure task execution and caching
-- `runner`: Use `nx-cloud` for remote caching
-- `cacheableOperations`: Which targets can be cached
-
----
-
-## Project Configuration
-
-### Project Types
-
-**Apps** (`apps/`): Deployable applications
-- Next.js web application
-- React Native mobile app
-
-**Services** (`services/`): Backend microservices
-- Kotlin services (security, assets, financialdata)
-- Go services (indicators)
-
-**Libraries** (`libs/`): Shared code
-- `kotlin-common`: Shared Kotlin utilities
-- `ts-utils`: TypeScript utilities
-- `go-shared`: Go shared packages
-
-### `project.json` Structure
-
-Each project has a `project.json` file defining its configuration:
-
-#### Example: Kotlin Service (`services/security/project.json`)
-
-```json
-{
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "name": "security",
-  "sourceRoot": "services/security/src",
-  "projectType": "application",
-  "targets": {
-    "build": {
-      "executor": "@nx/gradle:build",
-      "options": {
-        "task": "bootJar",
-        "args": ["--no-daemon"]
-      },
-      "configurations": {
-        "production": {
-          "args": ["--no-daemon", "-Pprofile=prod"]
-        }
-      }
-    },
-    "test": {
-      "executor": "@nx/gradle:test",
-      "options": {
-        "task": "test",
-        "args": ["--no-daemon"]
-      },
-      "outputs": ["{projectRoot}/build/reports/tests"]
-    },
-    "integration-test": {
-      "executor": "@nx/gradle:test",
-      "options": {
-        "task": "integrationTest",
-        "args": ["--no-daemon"]
-      },
-      "dependsOn": ["build"]
-    },
-    "lint": {
-      "executor": "@nx/gradle:run-task",
-      "options": {
-        "task": "ktlintCheck"
-      }
-    },
-    "docker-build": {
-      "executor": "@nx-tools/nx-container:build",
-      "options": {
-        "context": "services/security",
-        "dockerfile": "services/security/Dockerfile",
-        "tags": [
-          "ghcr.io/invistus/neotool-security:latest",
-          "ghcr.io/invistus/neotool-security:{args.version}"
-        ],
-        "push": false
-      },
-      "dependsOn": ["build"]
-    }
-  },
-  "tags": ["type:service", "lang:kotlin", "domain:security"],
-  "implicitDependencies": ["kotlin-common"]
-}
-```
-
-#### Example: Go Service (`services/indicators/project.json`)
-
-```json
-{
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "name": "indicators",
-  "sourceRoot": "services/indicators",
-  "projectType": "application",
-  "targets": {
-    "build": {
-      "executor": "@nx/go:build",
-      "options": {
-        "outputPath": "dist/services/indicators",
-        "main": "services/indicators/cmd/main.go"
-      },
-      "configurations": {
-        "production": {
-          "ldflags": ["-s", "-w"]
-        }
-      }
-    },
-    "test": {
-      "executor": "@nx/go:test",
-      "options": {
-        "coverProfile": "coverage.out",
-        "race": true
-      }
-    },
-    "lint": {
-      "executor": "@nx/go:lint",
-      "options": {
-        "linter": "golangci-lint"
-      }
-    },
-    "docker-build": {
-      "executor": "@nx-tools/nx-container:build",
-      "options": {
-        "context": "services/indicators",
-        "dockerfile": "services/indicators/Dockerfile",
-        "tags": [
-          "ghcr.io/invistus/neotool-indicators:latest"
-        ],
-        "push": false
-      },
-      "dependsOn": ["build"]
-    }
-  },
-  "tags": ["type:service", "lang:go", "domain:financialdata"]
-}
-```
-
-#### Example: Next.js App (`apps/web/project.json`)
-
-```json
-{
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "name": "web",
-  "sourceRoot": "apps/web",
-  "projectType": "application",
-  "targets": {
-    "build": {
-      "executor": "@nx/next:build",
-      "options": {
-        "outputPath": "dist/apps/web"
-      },
-      "configurations": {
-        "production": {
-          "outputPath": "dist/apps/web"
-        }
-      }
-    },
-    "serve": {
-      "executor": "@nx/next:server",
-      "options": {
-        "buildTarget": "web:build",
-        "dev": true,
-        "port": 3000
-      },
-      "configurations": {
-        "production": {
-          "buildTarget": "web:build:production",
-          "dev": false
-        }
-      }
-    },
-    "test": {
-      "executor": "@nx/jest:jest",
-      "options": {
-        "jestConfig": "apps/web/jest.config.ts",
-        "passWithNoTests": true
-      }
-    },
-    "lint": {
-      "executor": "@nx/eslint:lint",
-      "options": {
-        "lintFilePatterns": ["apps/web/**/*.{ts,tsx,js,jsx}"]
-      }
-    },
-    "docker-build": {
-      "executor": "@nx-tools/nx-container:build",
-      "options": {
-        "context": "apps/web",
-        "dockerfile": "apps/web/Dockerfile",
-        "tags": ["ghcr.io/invistus/neotool-web:latest"],
-        "push": false
-      },
-      "dependsOn": ["build"]
-    }
-  },
-  "tags": ["type:app", "lang:typescript", "framework:nextjs"],
-  "implicitDependencies": ["ts-utils"]
-}
-```
-
-### Project Tags
-
-Tags enforce architectural boundaries and enable filtering:
-
-```json
-{
-  "tags": [
-    "type:app",           // Project type: app, service, lib
-    "lang:typescript",    // Language: typescript, kotlin, go
-    "framework:nextjs",   // Framework/tech stack
-    "domain:security"     // Business domain
-  ]
-}
-```
-
-Use tags to enforce constraints in `.eslintrc.json`:
-
-```json
-{
-  "overrides": [
-    {
-      "files": ["*.ts", "*.tsx"],
-      "rules": {
-        "@nx/enforce-module-boundaries": [
-          "error",
-          {
-            "allow": [],
-            "depConstraints": [
-              {
-                "sourceTag": "type:app",
-                "onlyDependOnLibsWithTags": ["type:lib"]
-              },
-              {
-                "sourceTag": "lang:typescript",
-                "bannedExternalImports": ["java.*", "kotlin.*"]
-              }
-            ]
-          }
-        ]
-      }
-    }
-  ]
 }
 ```
 
@@ -402,465 +164,526 @@ Use tags to enforce constraints in `.eslintrc.json`:
 
 ## Common Commands
 
-### Development Workflow
+### Querying projects
 
 ```bash
-# Run specific project target
-npx nx <target> <project>
+# List all projects
+npx nx show projects
 
-# Examples
-npx nx build security           # Build security service
-npx nx test web                 # Test web app
-npx nx serve web                # Run web app in dev mode
-npx nx lint indicators          # Lint Go indicators service
-npx nx docker-build security    # Build Docker image
+# List projects as JSON
+npx nx show projects --json
+
+# Show details for a specific project
+npx nx show project security
+npx nx show project bacen-ifdata-cronjob
+
+# Show affected projects (compared to main)
+npx nx show projects --affected --base=origin/main
+
+# Show affected projects (compared to a specific branch)
+npx nx show projects --affected --base=origin/feature-branch
 ```
 
-### Affected Commands
-
-Run tasks only on projects affected by current changes:
+### Running targets
 
 ```bash
-# Show affected projects
-npx nx affected:apps            # Only affected apps
-npx nx affected:libs            # Only affected libraries
-npx nx show projects --affected # All affected projects
+# Pattern: npx nx <target> <project>
 
-# Run targets on affected projects
-npx nx affected --target=build    # Build affected
-npx nx affected --target=test     # Test affected
-npx nx affected --target=lint     # Lint affected
+# Kotlin services (delegates to Gradle under the hood)
+npx nx build security
+npx nx test assets
+npx nx lint financialdata
 
-# Run multiple targets
-npx nx affected --target=lint,test,build --parallel=3
+# Go workers
+npx nx build bacen-ifdata-cronjob
+npx nx test ratings-job
+npx nx lint indicators-job
 
-# Compare against different base
-npx nx affected --target=test --base=main --head=HEAD
-npx nx affected --target=test --base=HEAD~1
+# Run a target on multiple projects
+npx nx run-many --target=test --projects=security,assets,financialdata
+
+# Run a target on ALL projects
+npx nx run-many --target=test --all
 ```
 
-### Parallel Execution
+### Running multiple targets at once
+
+You can pass multiple targets in a single command — Nx runs them in the correct
+order (respecting `dependsOn`) and parallelizes independent work:
 
 ```bash
-# Run with specific parallelism
-npx nx affected --target=test --parallel=3
+# Build + test + lint for a specific project
+npx nx run-many --target=build,test,lint --projects=security
 
-# Max parallelism (use all CPU cores)
-npx nx affected --target=test --parallel=max
+# Multiple targets on multiple projects
+npx nx run-many --target=build,test,lint --projects=security,assets,financialdata
 
-# Sequential execution
-npx nx affected --target=test --parallel=false
+# Multiple targets on ALL projects
+npx nx run-many --target=build,test,lint --all
+
+# Multiple targets on affected projects only
+npx nx affected --target=build,test,lint
 ```
 
-### Run All Projects
+**Web-specific targets** — the web project has more granular targets than other projects:
 
 ```bash
-# Run target on ALL projects (ignoring affected)
-npx nx run-many --target=build --all
-npx nx run-many --target=test --all --parallel=3
+# Full CI check for web (typecheck + lint + unit tests)
+npx nx run-many --target=typecheck,lint,test:unit --projects=neotool-web
 
-# Run on specific projects
-npx nx run-many --target=test --projects=security,assets,web
+# All available web targets can be listed with:
+npx nx show project neotool-web --json | jq '.targets | keys'
 ```
 
-### Dependency Graph
+### Shortcut scripts
+
+Convenience scripts in the root `package.json` for full CI-like checks per stack:
 
 ```bash
-# Interactive dependency graph (opens browser)
+# Kotlin APIs — runs check (= test + ktlintCheck + koverVerify)
+npm run check:api
+
+# Go workers — runs build + test + lint
+npm run check:workers
+
+# Web — runs typecheck + lint + unit tests
+npm run check:web
+
+# Everything
+npm run check:all
+```
+
+> **Note**: Nx's `--tag` filter is unreliable with `@nx/gradle` (flags leak to Gradle
+> as CLI args). These scripts use explicit project lists instead.
+
+### Affected commands
+
+These run targets only on projects affected by your changes:
+
+```bash
+# Test only affected projects
+npx nx affected --target=test
+
+# Build only affected
+npx nx affected --target=build
+
+# Build + test + lint on affected projects
+npx nx affected --target=build,test,lint
+
+# Compare against a specific base
+npx nx affected --target=test --base=origin/main --head=HEAD
+
+# Compare against a specific commit
+npx nx affected --target=test --base=HEAD~3
+```
+
+### Dependency graph
+
+```bash
+# Open interactive graph in browser
 npx nx graph
 
-# Affected dependency graph
-npx nx affected:graph
-
-# Export graph as JSON
-npx nx graph --file=graph.json
-
-# Show dependencies of specific project
+# Focus on a specific project
 npx nx graph --focus=security
 
-# Show projects affected by specific project
-npx nx graph --focus=kotlin-common --affected
+# Show only affected projects in graph
+npx nx affected:graph
 ```
 
-### Cache Management
+### Cache management
 
 ```bash
-# Clear local cache
+# Clear local cache and reset Nx daemon
 npx nx reset
 
-# Show cache statistics
-npx nx show projects --affected --with-target=build
-
-# Run without cache
+# Run without cache (force fresh execution)
 npx nx test security --skip-nx-cache
 ```
 
+> **Note**: `npx nx reset` is the go-to fix when Nx behaves unexpectedly — it clears
+> the cache and restarts the daemon.
+
 ---
 
-## CI/CD Integration
+## Project Tags
 
-### GitHub Actions Example
+Every project has tags in its `project.json` for classification:
 
-`.github/workflows/ci.yml`:
+| Tag pattern | Values                                     | Purpose         |
+| ----------- | ------------------------------------------ | --------------- |
+| `type:*`    | `api`, `lib`, `cronjob`, `job`, `consumer` | Runtime type    |
+| `lang:*`    | `kotlin`, `go`, `typescript`               | Language        |
+| `scope:*`   | `security`, `assets`, `financialdata`      | Business domain |
 
-```yaml
-name: CI
+Tags are used by CI workflows to classify affected projects into the correct test
+matrix (Kotlin vs Go vs web).
 
-on:
-  pull_request:
-    branches: ['**']
+> **Known limitation**: `npx nx show projects --tag=lang:kotlin` does not reliably
+> filter when combined with `--affected`. CI uses project-name-based classification
+> instead.
 
-env:
-  NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
+---
 
-jobs:
-  main:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Required for affected detection
+## Releasing & Versioning
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
+Each deployable service has its own independent version, managed by `nx release` with
+conventional commits.
 
-      - name: Install dependencies
-        run: npm ci
+### How it works
 
-      - name: Lint affected projects
-        run: npx nx affected --target=lint --base=origin/main --parallel=3
-
-      - name: Test affected projects
-        run: npx nx affected --target=test --base=origin/main --parallel=3 --configuration=ci
-
-      - name: Build affected projects
-        run: npx nx affected --target=build --base=origin/main --parallel=3 --configuration=production
-
-      - name: Upload coverage
-        uses: codecov/codecov-action@v4
-        with:
-          directory: ./coverage
+```
+Developer commits → merge to main → release.yml runs nx release
+→ analyzes conventional commits → bumps versions → creates per-service git tags
+→ per-service tag triggers build-production.yml → builds Docker image → Flux deploys
 ```
 
-### Key CI/CD Patterns
+### Conventional commits determine the version bump
 
-**Set affected base**: Always use `--base=origin/main` for PR builds
+| Commit prefix                                  | Version bump | Example                                                |
+| ---------------------------------------------- | :----------: | ------------------------------------------------------ |
+| `fix:`                                         |  **patch**   | `fix(security): validate token expiry` — 1.0.0 → 1.0.1 |
+| `feat:`                                        |  **minor**   | `feat(security): add 2FA support` — 1.0.0 → 1.1.0      |
+| `feat!:` or `BREAKING CHANGE:` footer          |  **major**   | `feat!: redesign auth API` — 1.0.0 → 2.0.0             |
+| `chore:`, `docs:`, `ci:`, `refactor:`, `test:` | **no bump**  | project is skipped                                     |
 
-**Fetch full history**: Use `fetch-depth: 0` to ensure accurate affected detection
+The scope (e.g., `security`) in the commit message is optional. What determines which
+project gets a version bump is **which files the commit touched**, not the scope.
 
-**Parallel execution**: Use `--parallel=3` or higher to speed up builds
+If there are multiple qualifying commits since the last tag, the **highest** bump wins
+(e.g., 3 fixes + 1 feat = minor).
 
-**Configuration**: Use `--configuration=ci` or `--configuration=production` for environment-specific settings
+### Tag format
 
-**Cache sharing**: Set `NX_CLOUD_ACCESS_TOKEN` to enable remote caching
+Tags follow the pattern `{projectName}-v{version}`:
 
----
+```
+security-v1.3.0
+bacen-ifdata-cronjob-v2.0.1
+neotool-web-v1.5.0
+```
 
-## Remote Caching
+### Releasable projects
 
-### Nx Cloud Setup
+These 9 projects participate in independent versioning:
 
-1. **Sign up for Nx Cloud**: Visit [nx.app](https://nx.app/) and create a free account
+| Project                            | Tag example                               | Docker image                                         |
+| ---------------------------------- | ----------------------------------------- | ---------------------------------------------------- |
+| `security`                         | `security-v1.0.0`                         | `neotool-security`                                   |
+| `assets`                           | `assets-v1.0.0`                           | `neotool-assets`                                     |
+| `financialdata`                    | `financialdata-v1.0.0`                    | `neotool-financialdata`                              |
+| `assistant`                        | `assistant-v1.0.0`                        | _(no Dockerfile yet)_                                |
+| `bacen-ifdata-cronjob`             | `bacen-ifdata-cronjob-v1.0.0`             | `neotool-bacen-ifdata-cronjob` (+ cli, retry-worker) |
+| `indicators-job`                   | `indicators-job-v1.0.0`                   | `neotool-financialdata-indicators`                   |
+| `ratings-job`                      | `ratings-job-v1.0.0`                      | `neotool-financialdata-ratings`                      |
+| `institution-enhancement-consumer` | `institution-enhancement-consumer-v1.0.0` | `neotool-institution-enhancement-consumer`           |
+| `neotool-web`                      | `neotool-web-v1.0.0`                      | `neotool-web`                                        |
 
-2. **Connect workspace**:
-   ```bash
-   npx nx connect-to-nx-cloud
-   ```
+Shared libraries (`:common`, `:common-batch`, `:common-features`, Go `shared/`)
+are **not** independently released — they are internal dependencies.
 
-3. **Get access token**: Copy token from Nx Cloud dashboard
-
-4. **Add to environment**:
-   ```bash
-   # Local development (.env)
-   export NX_CLOUD_ACCESS_TOKEN=your-token-here
-
-   # CI/CD (GitHub Secrets)
-   # Add NX_CLOUD_ACCESS_TOKEN to repository secrets
-   ```
-
-5. **Verify caching**:
-   ```bash
-   # First run (no cache)
-   npx nx build security
-   # Output: Successfully ran target build for project security (15s)
-
-   # Second run (cached)
-   npx nx build security
-   # Output: Nx read the output from the cache instead of running the command (0.2s)
-   ```
-
-### Cache Benefits
-
-- **Local cache**: Instant rebuilds when nothing changed
-- **Remote cache**: Share cache across team and CI
-- **CI speedup**: Reuse builds from other branches/PRs
-- **Cost reduction**: Fewer GitHub Actions minutes consumed
-
-### Cache Hit Strategies
-
-Maximize cache hits by:
-1. Using consistent Node.js and language versions
-2. Avoiding unnecessary file changes (timestamps, logs)
-3. Properly defining `inputs` in `project.json`
-4. Excluding test files from production builds
-
----
-
-## Dependency Graph
-
-### Visualization
+### Dry-run a release locally
 
 ```bash
-# Interactive graph (opens browser)
-npx nx graph
+# Preview what would happen (no changes made)
+npx nx release --dry-run --yes
+
+# First-time bootstrap (creates initial tags)
+npx nx release --first-release --skip-publish --yes
 ```
 
-Features:
-- **Zoom/pan**: Navigate large graphs
-- **Focus**: Click project to highlight dependencies
-- **Filter**: Show only apps, libs, or specific tags
-- **Export**: Save as JSON or image
+### Version tracking
 
-### Understanding Dependencies
+Each releasable project has a `package.json` with a `version` field that `nx release`
+updates automatically:
 
-**Implicit dependencies**: Defined in `project.json`
 ```json
+{ "name": "security", "version": "1.3.0", "private": true }
+```
+
+This file is the source of truth for the current version. The `"private": true` flag
+prevents accidental npm publishing.
+
+---
+
+## CI/CD Pipelines
+
+### Pull requests — `ci.yml`
+
+On every PR, the `detect` job runs `npx nx show projects --affected` and classifies
+the results into three matrices:
+
+- **Kotlin matrix**: Runs `./gradlew :module:test`, `:module:ktlintCheck`, `:module:koverVerify`
+- **Go matrix**: Runs `go vet ./...` and `go test -race ./...` in each worker directory
+- **Web**: Runs `pnpm typecheck`, `pnpm lint`, `pnpm test:unit`
+
+Only affected projects are tested. If nothing in `service/kotlin/security/` changed,
+the security test job is skipped entirely.
+
+### Release — `release.yml`
+
+Triggered on push to `main`. Runs `npx nx release --skip-publish --yes` which:
+
+1. Analyzes conventional commits since the last tag for each project
+2. Bumps the `version` in each affected `package.json`
+3. Creates a git commit with the version changes
+4. Creates per-service git tags (`security-v1.3.0`)
+5. Creates GitHub Releases with changelogs
+6. Pushes commits and tags
+
+### Production build — `build-production.yml`
+
+Triggered by per-service tags (`*-v*.*.*`). For each tag:
+
+1. Parses project name and version from the tag
+2. Looks up Docker build config (context, Dockerfile, image name)
+3. Builds and pushes Docker image(s) to GHCR
+4. Cleans up old image versions (keeps 3)
+5. Triggers supergraph composition if the service is a GraphQL subgraph
+
+### End-to-end flow
+
+```
+feat(security): add 2FA  →  merge to main
+                                ↓
+                         release.yml: nx release
+                                ↓
+                         tag: security-v1.3.0
+                                ↓
+                         build-production.yml
+                                ↓
+                         Docker: neotool-security:v1.3.0
+                                ↓
+                         Flux detects new tag → deploys
+```
+
+---
+
+## Adding a New Project
+
+### New Kotlin API service
+
+1. Add the Gradle module to `service/kotlin/settings.gradle.kts`:
+
+   ```kotlin
+   include(":myservice")
+   ```
+
+2. Create the module directory with standard Gradle structure under `service/kotlin/myservice/`.
+
+3. Add `service/kotlin/myservice/package.json` (for `nx release` and naming):
+
+   ```json
+   { "name": "myservice", "version": "0.1.0", "private": true }
+   ```
+
+4. Add `service/kotlin/myservice/project.json` (for tags):
+
+   ```json
+   { "tags": ["type:api", "lang:kotlin", "scope:myservice"] }
+   ```
+
+5. Add to `nx.json` → `release.projects` array.
+
+6. Add Docker build config to `.github/workflows/build-production.yml` in the
+   `case` statement.
+
+7. Add to `KOTLIN_KNOWN` list in `.github/workflows/ci.yml` detect job.
+
+### New Go worker
+
+1. Create directory under `workers/golang/` (e.g., `workers/golang/financial_data/my_worker/`).
+
+2. Initialize Go module: `cd workers/golang/financial_data/my_worker && go mod init ...`
+
+3. Add `package.json`:
+
+   ```json
+   { "name": "my-worker", "version": "0.1.0", "private": true }
+   ```
+
+4. Add `project.json`:
+
+   ```json
+   {
+     "tags": ["type:job", "lang:go"],
+     "targets": {
+       "build": {
+         "executor": "nx:run-commands",
+         "options": { "command": "go build ./...", "cwd": "{projectRoot}" }
+       },
+       "test": {
+         "executor": "nx:run-commands",
+         "options": { "command": "go test ./...", "cwd": "{projectRoot}" }
+       },
+       "lint": {
+         "executor": "nx:run-commands",
+         "options": { "command": "go vet ./...", "cwd": "{projectRoot}" }
+       }
+     }
+   }
+   ```
+
+5. Add to `nx.json` → `release.projects` array.
+
+6. Add Docker build config to `.github/workflows/build-production.yml`.
+
+### Checklist after adding any project
+
+- [ ] `npx nx show projects` lists the new project
+- [ ] `npx nx build <project>` succeeds
+- [ ] `npx nx test <project>` succeeds
+- [ ] `npx nx graph` shows the project in the graph
+- [ ] Project is in `release.projects` in `nx.json` (if releasable)
+- [ ] Build config added to `build-production.yml` (if releasable)
+- [ ] CI classification updated in `ci.yml` (if Kotlin, add to `KOTLIN_KNOWN`)
+
+---
+
+## Configuration Reference
+
+### `nx.json`
+
+```jsonc
 {
-  "implicitDependencies": ["kotlin-common"]
+  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "defaultBase": "main", // Git branch for affected detection
+  "cacheDirectory": ".nx/cache", // Local cache location
+  "plugins": [
+    {
+      "plugin": "@nx/gradle", // Auto-discovers Kotlin modules
+      "include": ["service/kotlin/**/*"],
+    },
+    {
+      "plugin": "@nx/next/plugin", // Auto-discovers Next.js app
+      "include": ["web/**/*"],
+    },
+  ],
+  "targetDefaults": {
+    "build": { "cache": true, "dependsOn": ["^build"] },
+    "test": { "cache": true },
+    "lint": { "cache": true },
+  },
+  "release": {
+    "projects": [
+      /* 9 releasable projects */
+    ],
+    "projectsRelationship": "independent",
+    "releaseTagPattern": "{projectName}-v{version}",
+    "version": { "conventionalCommits": true },
+    "changelog": {
+      "workspaceChangelog": false,
+      "projectChangelogs": { "createRelease": "github" },
+    },
+    "git": { "commit": true, "tag": true },
+  },
 }
 ```
 
-**Inferred dependencies**: Automatically detected from:
-- Import statements (TypeScript)
-- Gradle dependencies (Kotlin)
-- Go module imports (Go)
+### `package.json` (root)
 
-**Build order**: Nx uses dependency graph to determine build order
-```
-kotlin-common (build first)
-  ↓
-security (depends on kotlin-common)
-  ↓
-security:docker-build (depends on security:build)
-```
-
-### Circular Dependencies
-
-Nx prevents circular dependencies. If detected:
-```bash
-# Error
-NX   Cannot execute task security:build because it has a circular dependency on itself.
+```json
+{
+  "name": "neotool",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": { "nx": "nx" },
+  "devDependencies": {
+    "@nx/gradle": "^22.5.1",
+    "@nx/next": "^22.5.0",
+    "nx": "^22.5.1"
+  }
+}
 ```
 
-**Resolution**: Refactor to extract shared code into a separate library.
+### Key files
+
+| File                              | Purpose                                                     |
+| --------------------------------- | ----------------------------------------------------------- |
+| `nx.json`                         | Workspace config, plugins, caching, release                 |
+| `package.json` (root)             | Nx + plugin dependencies                                    |
+| `*/project.json`                  | Per-project tags and targets                                |
+| `*/package.json`                  | Project name + version (for releasable projects)            |
+| `service/kotlin/build.gradle.kts` | Gradle shared config + `dev.nx.gradle.project-graph` plugin |
 
 ---
 
 ## Troubleshooting
 
-### Common Issues
+### Nx daemon is stuck or behaving unexpectedly
 
-#### 1. Affected detection missing projects
-
-**Symptom**: `nx affected` doesn't detect changed projects
-
-**Cause**: Missing git history or incorrect base
-
-**Solution**:
 ```bash
-# Ensure full git history
+npx nx reset
+```
+
+This clears the cache and restarts the daemon. It's the first thing to try for any
+unexpected behavior.
+
+### `@nx/gradle` times out during project graph resolution
+
+The `@nx/gradle` plugin calls a `nxProjectGraph` Gradle task to discover modules.
+If this hangs:
+
+1. Test Gradle directly: `cd service/kotlin && ./gradlew nxProjectGraph`
+2. If Gradle works but Nx doesn't, reset the daemon: `npx nx reset`
+3. Ensure Java 21 is available (the Gradle plugin requires it)
+
+### Affected detection doesn't match expectations
+
+```bash
+# Check what base Nx is comparing against
+npx nx show projects --affected --base=origin/main --verbose
+
+# Ensure full git history is available
 git fetch --all
-
-# Verify base branch
-npx nx affected:apps --base=origin/main --head=HEAD
-
-# Check git log
-git log origin/main..HEAD
 ```
 
-#### 2. Cache not working
+In CI, `fetch-depth: 0` is required for accurate affected detection.
 
-**Symptom**: Builds always run, never cached
+### A project doesn't appear in `npx nx show projects`
 
-**Cause**: Cache invalidation due to inputs
+- **Kotlin**: Check it's in `service/kotlin/settings.gradle.kts`
+- **Go/other**: Check the directory has a `project.json` file
+- **All**: Run `npx nx reset` to clear stale project graph cache
 
-**Solution**:
-```bash
-# Clear cache and try again
-npx nx reset
-npx nx build security
+### `nx release` says "no version bump" for a project
 
-# Check cache inputs
-npx nx show project security --web
-# Review "inputs" and "namedInputs" sections
-```
-
-#### 3. Build failures in CI but not local
-
-**Symptom**: Tests pass locally but fail in CI
-
-**Cause**: Missing dependencies or incorrect configuration
-
-**Solution**:
-```bash
-# Run with CI configuration locally
-npx nx test security --configuration=ci
-
-# Check for missing dependencies
-npm ci
-npx nx build --all
-```
-
-#### 4. Nx Cloud connection issues
-
-**Symptom**: `Could not connect to Nx Cloud`
-
-**Cause**: Invalid token or network issues
-
-**Solution**:
-```bash
-# Verify token
-echo $NX_CLOUD_ACCESS_TOKEN
-
-# Test connection
-npx nx connect-to-nx-cloud --yes
-
-# Disable Nx Cloud temporarily
-export NX_CLOUD_ACCESS_TOKEN=""
-```
-
-### Debug Mode
+Commits that don't follow conventional commit format (no `feat:`, `fix:`, etc.) don't
+trigger version bumps. Verify your commit messages:
 
 ```bash
-# Verbose output
-npx nx build security --verbose
+# Check commit format
+git log --oneline -10
 
-# Print configuration
-npx nx show project security
-
-# Print resolved configuration
-NX_VERBOSE_LOGGING=true npx nx build security
+# Valid: feat(security): add new endpoint
+# Valid: fix: resolve null pointer
+# Invalid: added new endpoint          ← no prefix
+# Invalid: updated security service    ← no prefix
 ```
 
 ---
 
-## Best Practices
-
-### 1. Commit Message Conventions
-
-Use conventional commits for semantic versioning:
+## Updating Nx
 
 ```bash
-# Examples
-git commit -m "feat(security): add 2FA support"
-git commit -m "fix(web): resolve routing bug"
-git commit -m "chore(deps): update Nx to v18"
-```
-
-### 2. Project Organization
-
-**Clear boundaries**: Keep apps, services, and libs separate
-
-**Shared code**: Extract common code into `libs/`
-
-**Tags**: Use consistent tagging for architectural constraints
-
-### 3. Affected Detection
-
-**Always compare to main**: Use `--base=origin/main` in CI
-
-**Test affected**: `npx nx affected --target=test` before pushing
-
-**Visual verification**: Use `npx nx affected:graph` to verify
-
-### 4. Caching
-
-**Define inputs carefully**: Only include files that affect output
-
-**Exclude test files**: Use `production` named input for builds
-
-**Cache expensive operations**: Build and test should always be cached
-
-### 5. CI/CD
-
-**Parallel execution**: Use `--parallel=3` or higher
-
-**Fail fast**: Use `--maxFailures=1` to stop on first failure
-
-**Remote caching**: Always set `NX_CLOUD_ACCESS_TOKEN`
-
-**Full builds**: Run full builds weekly to catch missed dependencies
-
-### 6. Developer Workflow
-
-**Check affected before pushing**:
-```bash
-npx nx affected:graph
-npx nx affected --target=lint,test,build --parallel=3
-```
-
-**Use serve for development**:
-```bash
-npx nx serve web  # Hot reload, fast refresh
-```
-
-**Clear cache when debugging**:
-```bash
-npx nx reset
-```
-
----
-
-## Additional Resources
-
-### Official Documentation
-- [Nx Documentation](https://nx.dev/)
-- [Nx Affected Commands](https://nx.dev/concepts/affected)
-- [Nx Cloud](https://nx.dev/ci/intro/ci-with-nx)
-- [Nx Gradle Plugin](https://nx.dev/nx-api/gradle)
-- [Nx Go Plugin](https://github.com/nx-go/nx-go)
-
-### Internal Documentation
-- [ADR-0003: Nx Monorepo Tooling](../92-adr/0003-nx-monorepo-tooling.md)
-- [CI/CD Pipeline Documentation](./ci-cd-pipeline.md)
-- [Release Management](./release-management.md)
-
-### Community
-- [Nx Discord](https://discord.gg/nx)
-- [Nx GitHub](https://github.com/nrwl/nx)
-- [Nx Blog](https://blog.nrwl.io/)
-
----
-
-## Maintenance
-
-### Nx Updates
-
-```bash
-# Check for updates
+# Check for available updates
 npx nx migrate latest
 
-# Apply migrations
+# Review the generated migrations.json, then apply
 npx nx migrate --run-migrations
 
-# Update dependencies
+# Update lock file
 npm install
+
+# Verify everything still works
+npx nx reset
+npx nx show projects
+npx nx run-many --target=build --all
 ```
 
-### Performance Monitoring
-
-Track CI/CD metrics:
-- Build time per PR
-- Cache hit rate
-- GitHub Actions minutes consumed
-- Nx Cloud usage (hours/month)
-
-**Review quarterly** to ensure performance targets are met.
+> **Important**: Keep `nx` and `@nx/gradle` on the same major version. Version
+> mismatches between Nx core and plugins cause compatibility issues.
 
 ---
 
-**Last Updated**: 2026-01-30
+**Last Updated**: 2026-02-16
 **Maintainer**: Platform Engineering Team
-**Next Review**: 2026-04-30

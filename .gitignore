@@ -24,6 +24,7 @@ web/tsconfig.tsbuildinfo
 out/
 *.log
 *.hprof
+mobile/*.zip
 
 # Kotlin compiler session files
 .kotlin/
@@ -73,3 +74,8 @@ terraform.rc
 
 # Drafting ideas
 docs/03-features/brainstorming
+
+.nx/installation
+.nx/cache
+.nx/workspace-data
+graph.json

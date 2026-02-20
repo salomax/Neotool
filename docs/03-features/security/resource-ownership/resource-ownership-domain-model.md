@@ -6,7 +6,8 @@ status: draft
 version: 1.0.0
 tags: [security, authorization, resource-ownership, multi-tenancy, domain-model]
 ai_optimized: true
-search_keywords: [resource ownership, account, tenant, multi-tenancy, domain model]
+search_keywords:
+  [resource ownership, account, tenant, multi-tenancy, domain model]
 related:
   - docs/03-features/security/authorization/README.md
   - docs/03-features/security/authorization/resource-ownership.md
@@ -17,7 +18,7 @@ related:
 
 ## Overview
 
-This document defines the domain model for resource ownership in Invistus, following industry patterns from Stripe, Shopify, Slack, and similar platforms.
+This document defines the domain model for resource ownership in neotool, following industry patterns from Stripe, Shopify, Slack, and similar platforms.
 
 ### Core Principle
 
@@ -31,6 +32,7 @@ Account (billing entity)
 ```
 
 This enables:
+
 - Team/family access to shared data
 - Clean billing model (charge per account)
 - Data retention when users leave
@@ -821,15 +823,15 @@ WHERE o.principal_type = 'USER'
 
 ## Summary
 
-| Aspect | Design |
-|--------|--------|
-| **Owner of resources** | Account (not User directly) |
-| **User relationship** | User is member of Account(s) |
-| **Billing entity** | Account |
-| **Multi-user access** | Through Account membership |
-| **Cross-account sharing** | Direct USER principal type |
-| **Groups** | Scoped within Account |
-| **Personal accounts** | AccountType.PERSONAL, single user |
+| Aspect                    | Design                            |
+| ------------------------- | --------------------------------- |
+| **Owner of resources**    | Account (not User directly)       |
+| **User relationship**     | User is member of Account(s)      |
+| **Billing entity**        | Account                           |
+| **Multi-user access**     | Through Account membership        |
+| **Cross-account sharing** | Direct USER principal type        |
+| **Groups**                | Scoped within Account             |
+| **Personal accounts**     | AccountType.PERSONAL, single user |
 
 This aligns with Stripe, Shopify, Slack, and other successful platforms.
 
