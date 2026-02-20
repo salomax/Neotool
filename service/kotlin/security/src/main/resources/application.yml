@@ -122,15 +122,15 @@ app:
 # Required when email.delivery=comms.
 graphql:
   router:
-    url: ${GRAPHQL_ROUTER_URL:}
+    url: ${GRAPHQL_ROUTER_URL}
 
 # Service principal credentials (for outbound service-to-service calls, e.g. to Apollo Router).
 # Required when email.delivery=comms. Register via: neotool service register neotool-security-service --permissions ... --output-env
 security:
   service:
-    url: ${SECURITY_SERVICE_URL:}
-    id: ${SECURITY_SERVICE_ID:}
-    secret: ${SECURITY_SERVICE_SECRET:}
+    url: ${SECURITY_SERVICE_URL}
+    id: ${SECURITY_SERVICE_ID}
+    secret: ${SECURITY_SERVICE_SECRET}
 
 # OAuth Configuration
 oauth:
