@@ -5,16 +5,16 @@ rootProject.name = "neotool-service"
 include(":common", ":financialdata")
 
 pluginManagement {
-  repositories {
-    gradlePluginPortal()
-    mavenCentral()
-    google()
-  }
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+        google()
+    }
 }
 
 dependencyResolutionManagement {
-  repositories {
-    mavenCentral()
-    google()
-  }
+    repositories {
+        mavenCentral()
+        google()
+    }
 }

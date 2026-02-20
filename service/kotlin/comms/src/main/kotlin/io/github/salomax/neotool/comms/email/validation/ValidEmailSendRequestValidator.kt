@@ -1,12 +1,17 @@
 package io.github.salomax.neotool.comms.email.validation
 
 import io.github.salomax.neotool.comms.email.dto.EmailSendRequest
-import jakarta.validation.ConstraintValidator
-import jakarta.validation.ConstraintValidatorContext
+import io.micronaut.core.annotation.AnnotationValue
+import io.micronaut.validation.validator.constraints.ConstraintValidator
+import io.micronaut.validation.validator.constraints.ConstraintValidatorContext
+import jakarta.inject.Singleton
 
-class ValidEmailSendRequestValidator : ConstraintValidator<ValidEmailSendRequest, EmailSendRequest> {
+@Singleton
+class ValidEmailSendRequestValidator :
+    ConstraintValidator<ValidEmailSendRequest, EmailSendRequest> {
     override fun isValid(
         value: EmailSendRequest?,
+        annotationMetadata: AnnotationValue<ValidEmailSendRequest>,
         context: ConstraintValidatorContext,
     ): Boolean {
         if (value == null) {
