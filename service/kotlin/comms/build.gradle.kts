@@ -15,7 +15,7 @@ micronaut {
     testRuntime("junit5")
     processing {
         incremental(true)
-        annotations("io.github.salomax.neotool.comms.*")
+        annotations("io.github.salomax.neotool.comms.*", "io.github.salomax.neotool.common.batch.*")
     }
 }
 
@@ -53,7 +53,7 @@ dependencies {
 }
 
 application {
-    mainClass = "io.github.salomax.neotool.comms.ApplicationKt"
+    mainClass = "io.github.salomax.neotool.comms.Application"
 }
 
 java {
