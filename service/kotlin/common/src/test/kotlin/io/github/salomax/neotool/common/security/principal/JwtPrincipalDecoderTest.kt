@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
+import io.github.salomax.neotool.common.security.principal.AccountSummary
 import java.util.UUID
 
 @DisplayName("JwtPrincipalDecoder Unit Tests")
@@ -100,19 +101,47 @@ class JwtPrincipalDecoderTest {
             whenever(jwtTokenValidator.isAccessToken(token)).thenReturn(true)
             whenever(jwtTokenValidator.getUserIdFromToken(token)).thenReturn(userId)
             whenever(jwtTokenValidator.getPermissionsFromToken(token)).thenReturn(perms)
+            whenever(jwtTokenValidator.getCurrentAccountIdFromToken(token)).thenReturn(null)
+            whenever(jwtTokenValidator.getAccountsFromToken(token)).thenReturn(null)
+            whenever(jwtTokenValidator.getSessionVersionFromToken(token)).thenReturn(null)
 
             val principal = decoder.fromToken(token)
 
-            assertThat(principal).isEqualTo(
-                RequestPrincipal(
-                    principalType = PrincipalType.USER,
-                    userId = userId,
-                    serviceId = null,
-                    token = token,
-                    permissionsFromToken = perms,
-                    userPermissions = null,
-                ),
+            assertThat(principal.principalType).isEqualTo(PrincipalType.USER)
+            assertThat(principal.userId).isEqualTo(userId)
+            assertThat(principal.permissionsFromToken).isEqualTo(perms)
+            assertThat(principal.currentAccountId).isNull()
+            assertThat(principal.accounts).isNull()
+            assertThat(principal.accountIds).isEmpty()
+            assertThat(principal.sessionVersion).isNull()
+        }
+
+        @Test
+        fun `should map account claims when present in token`() {
+            val token = "access-token"
+            val userId = UUID.randomUUID()
+            val accountId = UUID.randomUUID()
+            val accounts = listOf(
+                AccountSummary(accountId, "OWNER"),
+                AccountSummary(UUID.randomUUID(), "MEMBER"),
             )
+
+            whenever(jwtTokenValidator.isServiceToken(token)).thenReturn(false)
+            whenever(jwtTokenValidator.isAccessToken(token)).thenReturn(true)
+            whenever(jwtTokenValidator.getUserIdFromToken(token)).thenReturn(userId)
+            whenever(jwtTokenValidator.getPermissionsFromToken(token)).thenReturn(emptyList())
+            whenever(jwtTokenValidator.getCurrentAccountIdFromToken(token)).thenReturn(accountId)
+            whenever(jwtTokenValidator.getAccountsFromToken(token)).thenReturn(accounts)
+            whenever(jwtTokenValidator.getSessionVersionFromToken(token)).thenReturn(1L)
+
+            val principal = decoder.fromToken(token)
+
+            assertThat(principal.currentAccountId).isEqualTo(accountId)
+            assertThat(principal.accounts).isEqualTo(accounts)
+            assertThat(principal.accountIds).containsExactlyInAnyOrderElementsOf(accounts.map { it.accountId })
+            assertThat(principal.sessionVersion).isEqualTo(1L)
+            assertThat(principal.hasAccountContext()).isTrue()
+            assertThat(principal.isMemberOfAccount(accountId)).isTrue()
         }
 
         @Test
