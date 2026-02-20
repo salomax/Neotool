@@ -3,10 +3,16 @@ name: Production Build
 on:
   push:
     tags:
-      - "v*.*.*"
+      - "*-v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to build (e.g., security-v0.2.0)"
+        required: true
+        type: string
 
 concurrency:
-  group: production-${{ github.ref }}
+  group: production-${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref }}
   cancel-in-progress: false
 
 env:
@@ -14,17 +20,113 @@ env:
   IMAGE_PREFIX: ghcr.io/neotool
 
 jobs:
-  version:
+  resolve:
+    if: |
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) ||
+      (github.event_name == 'workflow_dispatch' && contains(github.event.inputs.tag, '-v'))
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.version.outputs.version }}
+      project: ${{ steps.parse.outputs.project }}
+      version: ${{ steps.parse.outputs.version }}
+      matrix: ${{ steps.config.outputs.matrix }}
+      image_count: ${{ steps.config.outputs.image_count }}
+      package_matrix: ${{ steps.config.outputs.package_matrix }}
+      trigger_supergraph: ${{ steps.config.outputs.trigger_supergraph }}
     steps:
-      - name: Extract version from tag
-        id: version
-        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      - name: Parse tag
+        id: parse
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            TAG="${{ github.event.inputs.tag }}"
+          else
+            TAG="${GITHUB_REF#refs/tags/}"
+          fi
 
-  build-kotlin:
-    needs: version
+          if [[ ! "$TAG" =~ -v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid tag '$TAG'. Expected format '<project>-v<major>.<minor>.<patch>'."
+            exit 1
+          fi
+
+          PROJECT="${TAG%-v*}"
+          VERSION="v${TAG##*-v}"
+          echo "project=$PROJECT" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Parsed tag: project=$PROJECT version=$VERSION"
+
+      - name: Resolve build config
+        id: config
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROJECT="${{ steps.parse.outputs.project }}"
+
+          SUPERGRAPH=false
+
+          case "$PROJECT" in
+            security)
+              MATRIX='[{"context":"./service/kotlin","dockerfile":"./service/kotlin/security/Dockerfile","image":"neotool-security"}]'
+              SUPERGRAPH=true
+              ;;
+            assets)
+              MATRIX='[{"context":"./service/kotlin","dockerfile":"./service/kotlin/assets/Dockerfile","image":"neotool-assets"}]'
+              SUPERGRAPH=true
+              ;;
+            financialdata)
+              MATRIX='[{"context":"./service/kotlin","dockerfile":"./service/kotlin/financialdata/Dockerfile","image":"neotool-financialdata"}]'
+              SUPERGRAPH=true
+              ;;
+            assistant)
+              MATRIX='[{"context":"./service/kotlin","dockerfile":"./service/kotlin/assistant/Dockerfile","image":"neotool-assistant"}]'
+              SUPERGRAPH=true
+              ;;
+            bacen-ifdata-cronjob)
+              MATRIX='[
+                {"context":"./workers/golang","dockerfile":"./workers/golang/financial_data/bacen_ifdata_job/Dockerfile","target":"cronjob","image":"neotool-bacen-ifdata-cronjob"},
+                {"context":"./workers/golang","dockerfile":"./workers/golang/financial_data/bacen_ifdata_job/Dockerfile","target":"cli","image":"neotool-bacen-ifdata-cli"},
+                {"context":"./workers/golang","dockerfile":"./workers/golang/financial_data/bacen_ifdata_job/Dockerfile","target":"retry-worker","image":"neotool-bacen-ifdata-retry-worker"}
+              ]'
+              ;;
+            ratings-job)
+              MATRIX='[{"context":"./workers/golang","dockerfile":"./workers/golang/financial_data/ratings_job/Dockerfile","image":"neotool-financialdata-ratings"}]'
+              ;;
+            indicators-job)
+              MATRIX='[{"context":"./workers/golang","dockerfile":"./workers/golang/financial_data/indicators_job/Dockerfile","image":"neotool-financialdata-indicators"}]'
+              ;;
+            institution-enhancement-consumer)
+              MATRIX='[
+                {"context":"./workers/golang","dockerfile":"./workers/golang/financial_data/institution_enhancement_consumer/Dockerfile","target":"consumer","image":"neotool-institution-enhancement-consumer"},
+                {"context":"./workers/golang","dockerfile":"./workers/golang/financial_data/institution_enhancement_consumer/Dockerfile","target":"standalone","image":"neotool-institution-enhancement-standalone"}
+              ]'
+              ;;
+            neotool-web)
+              MATRIX='[{"context":"./web","dockerfile":"./web/Dockerfile","image":"neotool-web"}]'
+              SUPERGRAPH=true
+              ;;
+            *)
+              echo "::error::Unknown project '$PROJECT'. Add it to the build config in build-production.yml."
+              exit 1
+              ;;
+          esac
+
+          MATRIX="$(echo "$MATRIX" | jq -c '.')"
+          COUNT="$(echo "$MATRIX" | jq 'length')"
+          PACKAGE_MATRIX="$(echo "$MATRIX" | jq -c '[.[].image | {package: .}]')"
+
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+          echo "image_count=$COUNT" >> "$GITHUB_OUTPUT"
+          echo "package_matrix=$PACKAGE_MATRIX" >> "$GITHUB_OUTPUT"
+          echo "trigger_supergraph=$SUPERGRAPH" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### Build Plan"
+            echo "- Project: $PROJECT"
+            echo "- Version: ${{ steps.parse.outputs.version }}"
+            echo "- Images to build: $COUNT"
+            echo "- Trigger supergraph: $SUPERGRAPH"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  build:
+    needs: resolve
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -32,16 +134,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - service: security
-            dockerfile: security/Dockerfile
-            image: neotool-security
-          - service: assets
-            dockerfile: assets/Dockerfile
-            image: neotool-assets
-          - service: financialdata
-            dockerfile: financialdata/Dockerfile
-            image: neotool-financialdata
+        include: ${{ fromJSON(needs.resolve.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
 
@@ -55,118 +148,38 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push ${{ matrix.service }}
+      - name: Build and push ${{ matrix.image }}
         uses: docker/build-push-action@v6
         with:
-          context: ./service/kotlin
-          file: ./service/kotlin/${{ matrix.dockerfile }}
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          target: ${{ matrix.target || '' }}
           push: true
           tags: |
-            ${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:${{ needs.version.outputs.version }}
+            ${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:${{ needs.resolve.outputs.version }}
             ${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:latest
-          cache-from: type=gha,scope=${{ matrix.service }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+          cache-from: |
+            type=gha,scope=${{ matrix.image }}
+            type=registry,ref=${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:buildcache
+          cache-to: |
+            type=gha,mode=max,scope=${{ matrix.image }}
+            type=registry,ref=${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:buildcache,mode=max
+          provenance: false
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.version=${{ needs.version.outputs.version }}
-
-  # build-job:
-  #   needs: version
-  #   runs-on: ubuntu-latest
-  #   permissions:
-  #     contents: read
-  #     packages: write
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       include:
-  #         - service: bacen-ifdata
-  #           context: ./workflow/golang
-  #           dockerfile: ./workflow/golang/neotool_job/Dockerfile
-  #           target: cronjob
-  #           image: neotool_job-cronjob
-  #           app_dir: financial_data/neotool_job
-  #   steps:
-  #     - uses: actions/checkout@v4
-
-  #     - name: Set up Docker Buildx
-  #       uses: docker/setup-buildx-action@v3
-
-  #     - name: Login to GHCR
-  #       uses: docker/login-action@v3
-  #       with:
-  #         registry: ghcr.io
-  #         username: ${{ github.actor }}
-  #         password: ${{ secrets.GITHUB_TOKEN }}
-
-  #     - name: Build and push ${{ matrix.service }}
-  #       uses: docker/build-push-action@v6
-  #       with:
-  #         context: ${{ matrix.context }}
-  #         file: ${{ matrix.dockerfile }}
-  #         target: ${{ matrix.target || '' }}
-  #         push: true
-  #         build-args: |
-  #           APP_DIR=${{ matrix.app_dir }}
-  #         tags: |
-  #           ${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:${{ needs.version.outputs.version }}
-  #           ${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:latest
-  #         cache-from: type=gha,scope=${{ matrix.service }}
-  #         cache-to: type=gha,mode=max,scope=${{ matrix.service }}
-  #         labels: |
-  #           org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-  #           org.opencontainers.image.revision=${{ github.sha }}
-  #           org.opencontainers.image.version=${{ needs.version.outputs.version }}
-
-  build-web:
-    needs: version
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push web
-        uses: docker/build-push-action@v6
-        with:
-          context: ./web
-          file: ./web/Dockerfile
-          push: true
-          tags: |
-            ${{ env.IMAGE_PREFIX }}/neotool-web:${{ needs.version.outputs.version }}
-            ${{ env.IMAGE_PREFIX }}/neotool-web:latest
-          cache-from: type=gha,scope=web
-          cache-to: type=gha,mode=max,scope=web
-          labels: |
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.version=${{ needs.version.outputs.version }}
+            org.opencontainers.image.version=${{ needs.resolve.outputs.version }}
 
   cleanup-packages:
-    needs: [build-kotlin, build-golang, build-web]
+    needs: [resolve, build]
+    if: always() && needs.build.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       packages: write
     strategy:
       fail-fast: false
       matrix:
-        package:
-          - neotool-security
-          - neotool-assets
-          # - neotool-job
-          - neotool-web
+        include: ${{ fromJSON(needs.resolve.outputs.package_matrix) }}
     env:
       KEEP: 3
     steps:
@@ -175,16 +188,17 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh api -H "Accept: application/vnd.github+json" \
-            /orgs/invistus/packages/container/${{ matrix.package }}/versions \
+            /orgs/salomax/packages/container/${{ matrix.package }}/versions \
             --paginate --jq 'sort_by(.created_at) | reverse | .['$KEEP':] | .[].id' \
           | while read -r id; do
               echo "Deleting version $id"
               gh api -X DELETE -H "Accept: application/vnd.github+json" \
-                /orgs/invistus/packages/container/${{ matrix.package }}/versions/$id
+                /orgs/salomax/packages/container/${{ matrix.package }}/versions/$id
             done
 
   trigger-supergraph:
-    needs: [build-kotlin, build-web, version]
+    needs: [resolve, build]
+    if: always() && needs.build.result == 'success' && needs.resolve.outputs.trigger_supergraph == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -203,36 +217,19 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${{ steps.app-token.outputs.token }}" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            https://api.github.com/repos/neotool/neotool-flux/dispatches \
+            https://api.github.com/repos/salomax/neotool-flux/dispatches \
             -d '{
               "event_type": "service-deployed",
               "client_payload": {
-                "version": "${{ needs.version.outputs.version }}",
+                "project": "${{ needs.resolve.outputs.project }}",
+                "version": "${{ needs.resolve.outputs.version }}",
                 "environment": "production",
-                "trigger_source": "service_deployment",
-                "services": ["security", "assets", "financialdata", "web"]
+                "trigger_source": "service_deployment"
               }
             }'
 
       - name: Log supergraph trigger
         run: |
-          echo "✅ Triggered supergraph composition in neotool-flux repo"
-          echo "Version: ${{ needs.version.outputs.version }}"
-          echo "The router will automatically update with the new supergraph schema within ~10 minutes"
-
-  release:
-    needs: [build-kotlin, build-web, version, trigger-supergraph]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          generate_release_notes: true
-          tag_name: ${{ needs.version.outputs.version }}
-          name: Release ${{ needs.version.outputs.version }}
+          echo "Triggered supergraph composition in neotool-flux repo"
+          echo "Project: ${{ needs.resolve.outputs.project }}"
+          echo "Version: ${{ needs.resolve.outputs.version }}"

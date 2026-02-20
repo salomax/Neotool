@@ -72,6 +72,7 @@ export { useTheme } from '@mui/material/styles';
 export { styled } from '@mui/material/styles';
 export { createTheme } from '@mui/material/styles';
 export { alpha } from '@mui/material/styles';
+export { keyframes } from '@mui/material/styles';
 
 // Material-UI Icons (only commonly used ones)
 export { default as SearchIcon } from '@mui/icons-material/Search';

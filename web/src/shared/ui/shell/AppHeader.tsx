@@ -26,6 +26,7 @@ import { Breadcrumb } from "@/shared/components/ui/navigation/Breadcrumb";
 import { useTranslation } from "react-i18next";
 import { useFeatureFlagEnabled } from "@/shared/hooks/useFeatureFlag";
 import { Logo } from "@/shared/ui/brand/Logo";
+import { getInitials } from "@/shared/utils/user";
 
 export function AppHeader() {
   const { t } = useTranslation();
@@ -65,26 +66,6 @@ export function AppHeader() {
     signOut();
   };
 
-  const getInitials = (user: { displayName?: string | null; email: string } | null) => {
-    if (!user) return "?";
-    if (user.displayName) {
-      const names = user.displayName.trim().split(/\s+/);
-      if (names.length >= 2) {
-        const first = names[0]?.[0];
-        const last = names[names.length - 1]?.[0];
-        if (first && last) {
-          return `${first}${last}`.toUpperCase();
-        }
-      }
-      const firstChar = user.displayName.trim()[0];
-      if (firstChar) {
-        return firstChar.toUpperCase();
-      }
-    }
-    const emailChar = user.email?.[0];
-    return emailChar ? emailChar.toUpperCase() : "?";
-  };
-
   const open = Boolean(anchorEl);
 
   return (
@@ -100,6 +81,7 @@ export function AppHeader() {
         borderBottom: "1px solid",
         borderColor: "divider",
         backdropFilter: "blur(6px)",
+        display: { xs: "none", md: "block" }, // Hide on mobile as requested
       }}
     >
       <Container maxWidth={false} sx={{ py: { xs: 1, md: 1.5 } }}>
@@ -166,7 +148,11 @@ export function AppHeader() {
             }}
           >
             <Tooltip title={isDark ? t("appHeader.theme.light") : t("appHeader.theme.dark")}>
-              <IconButton aria-label="toggle theme" onClick={toggle}>
+              <IconButton 
+                aria-label="toggle theme" 
+                onClick={toggle}
+                sx={{ display: { xs: 'none', md: 'inline-flex' } }}
+              >
                 {isDark ? <LightModeRoundedIcon /> : <DarkModeRoundedIcon />}
               </IconButton>
             </Tooltip>

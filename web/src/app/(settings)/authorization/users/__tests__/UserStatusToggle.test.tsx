@@ -325,21 +325,23 @@ describe.sequential('UserStatusToggle', () => {
       // Click the button to start the toggle - this should trigger executeUpdate
       // which sets isUpdating=true and optimisticValue=false
       const clickPromise = user.click(switchButton);
-      
-      // Force re-render so the component picks up updated mock state
+      // Wait for the click to be processed so state updates are applied before asserting
+      await clickPromise;
+
       rerender(
         <AppThemeProvider>
           <UserStatusToggle user={mockUser} enabled={true} onToggle={onToggle} />
         </AppThemeProvider>
       );
       
-      // Check the tooltip while the async operation is in progress
+      // Check the tooltip while the async operation is in progress (onToggle still resolving)
       await waitFor(() => {
         const tooltip = screen.getByTestId('tooltip');
         expect(tooltip).toHaveAttribute('data-title', 'Disabling user...');
-      }, { timeout: 200 });
-      
-      await clickPromise;
+      }, { timeout: 1000 });
+
+      // Allow the async onToggle to complete to avoid act() warnings
+      await new Promise((r) => setTimeout(r, 150));
     });
 
     it('should show "Enabling user..." tooltip when toggling from disabled', async () => {
@@ -351,21 +353,23 @@ describe.sequential('UserStatusToggle', () => {
       // Click the button to start the toggle - this should trigger executeUpdate
       // which sets isUpdating=true and optimisticValue=true
       const clickPromise = user.click(switchButton);
-      
-      // Force re-render so the component picks up updated mock state
+      // Wait for the click to be processed so state updates are applied before asserting
+      await clickPromise;
+
       rerender(
         <AppThemeProvider>
           <UserStatusToggle user={mockUser} enabled={false} onToggle={onToggle} />
         </AppThemeProvider>
       );
       
-      // Check the tooltip while the async operation is in progress
+      // Check the tooltip while the async operation is in progress (onToggle still resolving)
       await waitFor(() => {
         const tooltip = screen.getByTestId('tooltip');
         expect(tooltip).toHaveAttribute('data-title', 'Enabling user...');
-      }, { timeout: 200 });
-      
-      await clickPromise;
+      }, { timeout: 1000 });
+
+      // Allow the async onToggle to complete to avoid act() warnings
+      await new Promise((r) => setTimeout(r, 150));
     });
   });
 

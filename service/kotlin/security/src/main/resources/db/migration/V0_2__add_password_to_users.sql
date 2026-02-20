@@ -17,7 +17,7 @@ CREATE INDEX IF NOT EXISTS idx_users_email ON security.users(email);
 INSERT INTO security.users (id, email, display_name, password_hash)
 VALUES (
     uuidv7(),
-    'admin@invistus.com.br',
+    'admin@neotool.com.br',
     'Admin',
     '$argon2id$v=19$m=48128,t=1,p=1$as0B8ZdUaNBUkfYAw43txQ$zZQ3q2POS2q8481zRH/FnxayzbtRY+LezdBYLb5kx+A'
 )

@@ -39,7 +39,9 @@ describe("I18n Configuration", () => {
       expect(i18n.language).toBe('pt');
     });
 
-
+    it("should have Portuguese as fallback language", () => {
+      expect(i18n.options.fallbackLng).toEqual(['pt']);
+    });
   });
 
   describe("Resource Bundles", () => {

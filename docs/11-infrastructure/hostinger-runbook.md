@@ -6,7 +6,8 @@ status: current
 version: 1.0.0
 tags: [infrastructure, terraform, hostinger, vps, k3s, provisioning]
 ai_optimized: true
-search_keywords: [infrastructure, terraform, hostinger, vps, k3s, provisioning, ssh, setup]
+search_keywords:
+  [infrastructure, terraform, hostinger, vps, k3s, provisioning, ssh, setup]
 related:
   - 11-infrastructure/architecture.md
   - 11-infrastructure/k8s-runbook.md
@@ -56,6 +57,7 @@ The Neotool infrastructure uses a **simple, practical approach**:
 3. **GitOps Deployment**: Flux CD automatically deploys applications from Git
 
 **Benefits**:
+
 - Simple and straightforward
 - Infrastructure managed by code
 - Container orchestration with K3S
@@ -122,6 +124,7 @@ curl -s https://fluxcd.io/install.sh | sudo bash
 6. **Note the IP address** once provisioned
 
 **Why Ubuntu?**
+
 - Excellent K3S compatibility
 - LTS support (5 years of security updates)
 - Wide community support
@@ -143,11 +146,13 @@ cat ~/.ssh/hostinger-vps.pub
 #### Add Public Key to VPS
 
 **Option 1: via Hostinger Control Panel**
+
 1. Go to VPS → Settings → SSH Keys
 2. Paste your public key
 3. Save
 
 **Option 2: via ssh-copy-id**
+
 ```bash
 # Copy public key to VPS (one-time)
 ssh-copy-id -i ~/.ssh/hostinger-vps root@YOUR_VPS_IP
@@ -223,12 +228,12 @@ kubeconfig_path = "~/.kube/config-hostinger"
 
 **Resource Reservation Guide**:
 
-| VPS RAM | system-reserved | kube-reserved | Notes |
-|---------|-----------------|---------------|-------|
-| 2GB | cpu=200m,memory=512Mi | cpu=200m,memory=512Mi | Minimum recommended |
-| 4GB | cpu=200m,memory=512Mi | cpu=200m,memory=512Mi | Good for small apps |
-| 8GB | cpu=300m,memory=1Gi | cpu=300m,memory=1Gi | Production-ready |
-| 16GB+ | cpu=500m,memory=2Gi | cpu=500m,memory=2Gi | Large deployments |
+| VPS RAM | system-reserved       | kube-reserved         | Notes               |
+| ------- | --------------------- | --------------------- | ------------------- |
+| 2GB     | cpu=200m,memory=512Mi | cpu=200m,memory=512Mi | Minimum recommended |
+| 4GB     | cpu=200m,memory=512Mi | cpu=200m,memory=512Mi | Good for small apps |
+| 8GB     | cpu=300m,memory=1Gi   | cpu=300m,memory=1Gi   | Production-ready    |
+| 16GB+   | cpu=500m,memory=2Gi   | cpu=500m,memory=2Gi   | Large deployments   |
 
 ---
 
@@ -256,6 +261,7 @@ terraform init
 ```
 
 **Expected output**:
+
 ```
 Initializing provider plugins...
 - Finding latest version of hashicorp/null...
@@ -271,6 +277,7 @@ terraform plan
 ```
 
 **Review the planned actions**:
+
 - `null_resource.setup_vps`: Runs setup commands
 - `null_resource.k3s_install`: Installs K3S
 - `null_resource.k3s_verify`: Verifies cluster health
@@ -288,6 +295,7 @@ terraform apply
 **Duration**: 5-10 minutes
 
 **What happens**:
+
 1. ✅ Connects to VPS via SSH
 2. ✅ Runs setup commands (apt-get update, upgrade)
 3. ✅ Installs K3S with your configuration
@@ -320,6 +328,7 @@ kubectl get pods -n kube-system
 Some organizations disable deploy keys. In this case, use the GitHub App mode in the bootstrap script.
 
 **Requirements**:
+
 - GitHub App ID
 - GitHub App Installation ID
 - GitHub App private key (`.pem`)
@@ -335,16 +344,17 @@ Some organizations disable deploy keys. In this case, use the GitHub App mode in
 **Example inputs**:
 
 ```
-GitHub owner/org: invistus
-Repository name: invistus
+GitHub owner/org: neotool
+Repository name: neotool
 Is this a personal repo? [y/N]: N
 GitHub App ID: 123456
 GitHub App Installation ID: 987654
-GitHub App private key file path: ~/.ssh/invistus-flux.private-key.pem
+GitHub App private key file path: ~/.ssh/neotool-flux.private-key.pem
 GitHub PAT (hidden, used only for bootstrap): ********
 ```
 
 **Outcome**:
+
 - Flux is installed in `flux-system`
 - GitRepository is created for `main`
 - Auth secret is switched to GitHub App credentials
@@ -358,6 +368,7 @@ terraform output
 ```
 
 **Outputs**:
+
 - `vps_ip`: Your VPS IP address
 - `k3s_api_endpoint`: Kubernetes API URL (https://your-ip:6443)
 - `k3s_cluster_name`: Cluster name
@@ -387,12 +398,14 @@ terraform apply -target=null_resource.kubeconfig_retrieve
 ### What is K3S?
 
 K3S is a **lightweight, certified Kubernetes distribution**:
+
 - Single binary (~70MB)
 - Production-ready
 - Full Kubernetes API compatibility
 - Perfect for VPS environments
 
 **Built-in components**:
+
 - Traefik (ingress controller, can be disabled)
 - Local-path storage provisioner
 - CoreDNS (DNS service)
@@ -556,13 +569,13 @@ exit
 
 Ensure these ports are open in firewall:
 
-| Port | Protocol | Purpose |
-|------|----------|---------|
-| 6443 | TCP | Kubernetes API Server (kubectl, Flux) |
-| 10250 | TCP | Kubelet API (node agent) |
-| 8472 | UDP | Flannel VXLAN (pod networking) |
-| 22 | TCP | SSH (server management) |
-| 80/443 | TCP | HTTP/HTTPS (ingress traffic, optional) |
+| Port   | Protocol | Purpose                                |
+| ------ | -------- | -------------------------------------- |
+| 6443   | TCP      | Kubernetes API Server (kubectl, Flux)  |
+| 10250  | TCP      | Kubelet API (node agent)               |
+| 8472   | UDP      | Flannel VXLAN (pod networking)         |
+| 22     | TCP      | SSH (server management)                |
+| 80/443 | TCP      | HTTP/HTTPS (ingress traffic, optional) |
 
 #### Check Firewall Rules
 
@@ -1069,19 +1082,20 @@ journalctl --vacuum-time=7d
 
 ### Important File Locations
 
-| File/Directory | Purpose |
-|----------------|---------|
-| `~/.ssh/hostinger-vps` | SSH private key (local) |
-| `~/.kube/config-hostinger` | Kubeconfig (local) |
-| `~/.neotool/vault-credentials.txt` | Vault credentials (local) |
-| `infra/terraform/hostinger/` | Terraform configuration (local) |
-| `/etc/rancher/k3s/k3s.yaml` | Kubeconfig (on VPS) |
-| `/var/lib/rancher/k3s/` | K3S data directory (on VPS) |
-| `/etc/systemd/system/k3s.service` | K3S systemd service (on VPS) |
+| File/Directory                     | Purpose                         |
+| ---------------------------------- | ------------------------------- |
+| `~/.ssh/hostinger-vps`             | SSH private key (local)         |
+| `~/.kube/config-hostinger`         | Kubeconfig (local)              |
+| `~/.neotool/vault-credentials.txt` | Vault credentials (local)       |
+| `infra/terraform/hostinger/`       | Terraform configuration (local) |
+| `/etc/rancher/k3s/k3s.yaml`        | Kubeconfig (on VPS)             |
+| `/var/lib/rancher/k3s/`            | K3S data directory (on VPS)     |
+| `/etc/systemd/system/k3s.service`  | K3S systemd service (on VPS)    |
 
 ### Configuration Files
 
 **terraform.tfvars**:
+
 ```hcl
 vps_ip          = "YOUR_VPS_IP"
 vps_user        = "root"
@@ -1094,16 +1108,17 @@ kubeconfig_path = "~/.kube/config-hostinger"
 
 ### Network Ports
 
-| Port | Protocol | Purpose |
-|------|----------|---------|
-| 6443 | TCP | Kubernetes API Server |
-| 10250 | TCP | Kubelet API |
-| 8472 | UDP | Flannel VXLAN (pod networking) |
-| 22 | TCP | SSH (management) |
+| Port  | Protocol | Purpose                        |
+| ----- | -------- | ------------------------------ |
+| 6443  | TCP      | Kubernetes API Server          |
+| 10250 | TCP      | Kubelet API                    |
+| 8472  | UDP      | Flannel VXLAN (pod networking) |
+| 22    | TCP      | SSH (management)               |
 
 ### Best Practices
 
 #### Security
+
 - ✅ Use SSH keys (never passwords)
 - ✅ Keep VPS OS updated
 - ✅ Backup Vault credentials securely
@@ -1111,6 +1126,7 @@ kubeconfig_path = "~/.kube/config-hostinger"
 - ✅ Rotate SSH keys periodically
 
 #### Operations
+
 - ✅ Backup before major changes
 - ✅ Test in development first
 - ✅ Monitor VPS resource usage
@@ -1118,6 +1134,7 @@ kubeconfig_path = "~/.kube/config-hostinger"
 - ✅ Document custom configurations
 
 #### Maintenance
+
 - ✅ Update VPS OS monthly
 - ✅ Update K3S when stable versions released
 - ✅ Monitor disk space
@@ -1137,4 +1154,4 @@ kubeconfig_path = "~/.kube/config-hostinger"
 **Last Updated**: 2026-01-15
 **Review Frequency**: Quarterly
 
-*Infrastructure as Code. Simple. Reliable. Production-ready.* 🚀
+_Infrastructure as Code. Simple. Reliable. Production-ready._ 🚀

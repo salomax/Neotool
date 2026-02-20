@@ -3,7 +3,7 @@ title: ADR-0003 Nx as Monorepo Build System
 type: adr
 category: tooling
 status: accepted
-version: 1.0.0
+version: 1.1.0
 tags: [nx, monorepo, build-system, ci-cd, performance, polyglot]
 related:
   - adr/0001-monorepo-architecture.md
@@ -49,22 +49,80 @@ Nx will be responsible for:
 - **Project constraints**: Enforcing architectural boundaries using tags and linting
 
 ### Architecture Overview
+
+We preserve the existing folder structure rather than adopting a generic Nx layout.
+This is a deliberate choice to retain the benefits of Gradle multi-module builds
+and the clear architectural separation between API services and async workers.
+
 ```
 Nx Workspace
-├── apps/                    # Deployable applications
-│   ├── web/                # Next.js app (Nx project)
-│   └── mobile/             # React Native app (Nx project)
-├── services/               # Backend services
-│   ├── security/           # Kotlin service (Nx project)
-│   ├── assets/             # Kotlin service (Nx project)
-│   ├── financialdata/      # Kotlin service (Nx project)
-│   └── indicators/         # Go service (Nx project)
-├── libs/                   # Shared libraries
-│   ├── kotlin-common/      # Shared Kotlin code
-│   ├── ts-utils/           # Shared TypeScript utilities
-│   └── go-shared/          # Shared Go packages
-├── nx.json                 # Nx workspace configuration
-└── package.json            # Root dependencies + Nx
+├── apps/
+│   ├── web/                            # Next.js app (Nx project)
+│   └── mobile/                         # React Native app (Nx project)
+├── service/
+│   └── kotlin/                         # Gradle multi-module project (preserved)
+│       ├── build.gradle.kts            # Shared plugins, config (allprojects/subprojects)
+│       ├── settings.gradle.kts         # Includes all Kotlin modules
+│       ├── common/                     # Shared lib  [type:lib, lang:kotlin]
+│       ├── common-batch/               # Shared lib  [type:lib, lang:kotlin]
+│       ├── common-features/            # Shared lib  [type:lib, lang:kotlin]
+│       ├── comms/                      # Events/messaging lib [type:lib, lang:kotlin]
+│       ├── security/                   # API service [type:api, lang:kotlin]
+│       ├── assets/                     # API service [type:api, lang:kotlin]
+│       ├── financialdata/              # API service [type:api, lang:kotlin]
+│       └── assistant/                  # API service [type:api, lang:kotlin]
+├── workers/
+│   └── golang/
+│       ├── shared/                     # Shared Go packages [type:lib, lang:go]
+│       └── financial_data/
+│           ├── bacen-ifdata-cronjob/    # CronJob   [type:cronjob, lang:go]
+│           ├── indicators-job/          # Job       [type:job, lang:go]
+│           ├── institution-enhancement-consumer/  # Consumer [type:consumer, lang:go]
+│           └── ratings-job/             # Job       [type:job, lang:go]
+├── nx.json                             # Nx workspace configuration
+└── package.json                        # Root dependencies + Nx
+```
+
+#### Why Not a Flat `services/` Folder?
+
+1. **Gradle multi-module integrity**: `service/kotlin/` is a Gradle multi-module project
+   with a root `build.gradle.kts` that applies shared configuration (`allprojects`,
+   `subprojects`) for JVM target, Kover coverage, ktlint, and plugin versions.
+   Splitting each Kotlin service into a top-level `services/<name>/` folder would
+   break this setup and require duplicating ~200 lines of shared build config.
+
+2. **API vs workers distinction**: Separating `service/` (synchronous HTTP APIs) from
+   `workers/` (async cron jobs, one-off jobs, consumers) preserves a clear architectural
+   boundary. This follows industry convention (GitLab, Go standard layout, K8s Helm charts
+   all use `workers/` as the standard term for async background processes).
+   A flat structure would mix fundamentally different runtime concerns.
+
+3. **Batch operations**: `cd service/kotlin && ./gradlew test` runs all API tests in one
+   command. Gradle's multi-module dependency resolution and parallel execution are preserved.
+
+4. **Nx project tags fill the gap**: While the folder structure provides broad grouping,
+   Nx tags provide fine-grained queryability:
+   - `nx run-many --target=build --tag=type:api` — build only APIs
+   - `nx run-many --target=test --tag=type:cronjob` — test only cron jobs
+   - `nx run-many --target=build --tag=lang:kotlin` — build all Kotlin projects
+
+### Nx and Gradle Integration
+
+The `@nx/gradle` plugin auto-discovers Kotlin projects from `settings.gradle.kts`.
+Nx wraps Gradle — it does not replace it:
+
+- `nx build security` delegates to `./gradlew :security:build`
+- `nx test assets` delegates to `./gradlew :assets:test`
+- Gradle's own dependency graph is respected for task ordering
+- Nx adds affected detection and caching on top
+
+Each Gradle module gets a `project.json` for Nx-specific metadata (tags, implicit dependencies):
+
+```json
+// service/kotlin/security/project.json
+{
+  "tags": ["type:api", "lang:kotlin", "scope:security"]
+}
 ```
 
 ### Key Configuration
@@ -109,9 +167,10 @@ Nx Workspace
    - Deploy only what changed, not everything
 
 7. **Architectural Guardrails**
-   - Enforce boundaries with project tags (e.g., `type:service`, `lang:kotlin`)
-   - Lint rules prevent unauthorized dependencies
-   - Clear separation between apps, services, and libs
+   - Enforce boundaries with project tags (e.g., `type:api`, `type:cronjob`, `type:consumer`, `lang:kotlin`, `lang:go`)
+   - Lint rules prevent unauthorized dependencies (e.g., workers must not depend on API modules)
+   - Folder structure preserves the API vs workers architectural boundary
+   - Nx tags add queryable metadata for fine-grained filtering
 
 ### Negative
 1. **Learning Curve**
@@ -263,12 +322,14 @@ Companies using Nx in production:
 ## Implementation Plan
 
 ### Phase 1: Foundation (Week 1)
-- Install Nx and core plugins
+- Install Nx and core plugins (`@nx/gradle`, `@nx/next`, `@nx/go`)
 - Create `nx.json` workspace configuration
-- Migrate each service to Nx project structure
+- Add `project.json` with tags to each existing module (no folder restructuring needed)
+- Verify `@nx/gradle` auto-discovers Kotlin modules from `settings.gradle.kts`
+- Configure Go worker projects with custom executors
 - Configure local caching
 
-**Success metric**: `nx affected --target=build` works locally
+**Success metric**: `nx affected --target=build` works locally; `nx graph` shows correct dependency graph
 
 ### Phase 2: CI Integration (Week 2)
 - Update GitHub Actions workflows to use `nx affected`
@@ -324,6 +385,6 @@ After implementation, we expect:
 
 ---
 
-**Last Updated**: 2026-01-30
+**Last Updated**: 2026-02-14
 **Next Review**: 2026-07-30 (6 months)
 **Owner**: Platform Engineering Team

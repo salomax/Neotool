@@ -4,9 +4,11 @@ type: infrastructure
 category: deployment
 status: current
 version: 1.1.0
-tags: [feature-flags, unleash, kubernetes, postgres, nextjs, kotlin, runtime-config]
+tags:
+  [feature-flags, unleash, kubernetes, postgres, nextjs, kotlin, runtime-config]
 ai_optimized: true
-search_keywords: [feature flags, unleash, rollout, canary, ttl, edge, proxy, runtime config]
+search_keywords:
+  [feature flags, unleash, rollout, canary, ttl, edge, proxy, runtime config]
 related:
   - 11-infrastructure/k8s-runbook.md
   - 11-infrastructure/runtime-configuration.md
@@ -23,6 +25,7 @@ last_updated: 2026-01-26
 ## Requirements
 
 ### Functional
+
 - Centralized feature flags for UI behavior toggles.
 - Supports gradual rollout and canary releases.
 - Targeting based on custom attributes (user, tenant, plan, role, region).
@@ -30,6 +33,7 @@ last_updated: 2026-01-26
 - Client-side evaluation for UI with bootstrap to avoid flicker.
 
 ### Non-Functional
+
 - Low latency and minimal per-request overhead.
 - Configurable TTL/polling for flag refresh.
 - Secure tokens (server vs client) with least privilege.
@@ -38,6 +42,7 @@ last_updated: 2026-01-26
 ## Architecture Overview
 
 ### Components
+
 - **Unleash Server**: Core API + feature management UI.
 - **Unleash Edge/Proxy**: Public-facing endpoint for client SDKs.
 - **Postgres**: Dedicated DB or schema for Unleash.
@@ -45,6 +50,7 @@ last_updated: 2026-01-26
 - **Kotlin Services**: Server-side flag access with custom context.
 
 ### Recommended Network Flow
+
 1. Admins manage flags via Unleash UI.
 2. Unleash Server stores config in Postgres.
 3. Edge/Proxy serves client tokens and caches flags.
@@ -55,26 +61,26 @@ last_updated: 2026-01-26
 
 #### Access URLs
 
-| Component | Internal URL | External URL |
-|-----------|-------------|--------------|
-| Unleash Server (Admin UI) | `http://unleash-server.production.svc:4242` | `https://unleash.invistus.com.br` |
-| Unleash Edge (API) | `http://unleash-edge.production.svc:3063` | `https://unleash-api.invistus.com.br` |
+| Component                 | Internal URL                                | External URL                         |
+| ------------------------- | ------------------------------------------- | ------------------------------------ |
+| Unleash Server (Admin UI) | `http://unleash-server.production.svc:4242` | `https://unleash.neotool.com.br`     |
+| Unleash Edge (API)        | `http://unleash-edge.production.svc:3063`   | `https://unleash-api.neotool.com.br` |
 
 #### Network Flow Diagram
 
 ```
                     ┌─────────────────────────────┐
-                    │       invistus.com.br       │
+                    │       neotool.com.br       │
                     │     (Next.js Frontend)      │
                     └─────────────┬───────────────┘
                                   │
                                   │ Browser fetches flags
                                   ▼
 ┌───────────────────────────────────────────────────────────────┐
-│                unleash-api.invistus.com.br                    │
+│                unleash-api.neotool.com.br                    │
 │                    (Unleash Edge)                             │
 │  - Caches flags (TTL: 30s)                                    │
-│  - CORS: only invistus.com.br                                 │
+│  - CORS: only neotool.com.br                                 │
 │  - Read-only client token                                     │
 └─────────────────────────┬─────────────────────────────────────┘
                           │
@@ -83,7 +89,7 @@ last_updated: 2026-01-26
 ┌───────────────────────────────────────────────────────────────┐
 │            unleash-server.production.svc:4242                 │
 │                   (Unleash Server)                            │
-│  - Admin UI: https://unleash.invistus.com.br                  │
+│  - Admin UI: https://unleash.neotool.com.br                  │
 │  - Feature flag management                                    │
 │  - Strategy configuration                                     │
 └─────────────────────────┬─────────────────────────────────────┘
@@ -102,9 +108,11 @@ last_updated: 2026-01-26
 ## Database Setup (Robust + Sleek)
 
 ### Recommendation
+
 Use a **separate database** (or at minimum a **separate schema**) for Unleash. This isolates migrations and reduces blast radius.
 
 ### Tasks (K8S + Postgres)
+
 1. **Create DB and user**:
    - DB: `unleash`
    - User: `unleash_app` with strong password
@@ -120,6 +128,7 @@ Use a **separate database** (or at minimum a **separate schema**) for Unleash. T
    - Use a one-off K8S Job to run a SQL block that creates DB + user if missing.
 
 ### Example SQL (Idempotent)
+
 ```sql
 DO $$
 BEGIN
@@ -135,6 +144,7 @@ END $$;
 ## Implementation Tasks
 
 ### 1) Infrastructure (K8S)
+
 - Deploy **Unleash Server** (Helm chart or manifests).
 - Deploy **Unleash Edge/Proxy** for client access.
 - Configure **network policies** to allow:
@@ -170,24 +180,24 @@ Browser (FeatureFlagsProvider)
 
 #### Key Files
 
-| File | Purpose |
-|------|---------|
-| `web/src/shared/config/runtime-config.ts` | Config schema and loader |
-| `web/src/shared/config/RuntimeConfigScript.tsx` | Injects config into HTML |
-| `web/src/shared/providers/FeatureFlagsProvider.tsx` | Unleash client setup |
-| `web/src/app/layout.tsx` | Includes RuntimeConfigScript |
+| File                                                | Purpose                      |
+| --------------------------------------------------- | ---------------------------- |
+| `web/src/shared/config/runtime-config.ts`           | Config schema and loader     |
+| `web/src/shared/config/RuntimeConfigScript.tsx`     | Injects config into HTML     |
+| `web/src/shared/providers/FeatureFlagsProvider.tsx` | Unleash client setup         |
+| `web/src/app/layout.tsx`                            | Includes RuntimeConfigScript |
 
 #### Configuration Values
 
-| Variable | Source | Example |
-|----------|--------|---------|
-| `UNLEASH_PROXY_URL` | Vault `secret/web` | `https://unleash-api.invistus.com.br` |
-| `UNLEASH_CLIENT_TOKEN` | Vault `secret/web` | `default:production.xxx...` |
-| `RUNTIME_ENV` | Vault `secret/web` | `production` |
+| Variable               | Source             | Example                              |
+| ---------------------- | ------------------ | ------------------------------------ |
+| `UNLEASH_PROXY_URL`    | Vault `secret/web` | `https://unleash-api.neotool.com.br` |
+| `UNLEASH_CLIENT_TOKEN` | Vault `secret/web` | `default:production.xxx...`          |
+| `RUNTIME_ENV`          | Vault `secret/web` | `production`                         |
 
 #### Security
 
-- CORS configured on Unleash Edge to accept only `invistus.com.br`
+- CORS configured on Unleash Edge to accept only `neotool.com.br`
 - Client token is read-only (cannot modify flags)
 - Token scoped to `production` environment
 
@@ -197,6 +207,7 @@ Browser (FeatureFlagsProvider)
 - **Edge Cache TTL**: 30 seconds (configured in helmrelease-edge.yaml)
 
 ### 3) Kotlin Services
+
 - Add Unleash JVM SDK dependency.
 - Configure Unleash client with:
   - `appName`, `instanceId`
@@ -207,6 +218,7 @@ Browser (FeatureFlagsProvider)
   - `userId`, `tenantId`, `role`, `plan`, `region`, `environment`
 
 ## Rollout Strategy (Canary)
+
 - Use Unleash strategies:
   - `flexibleRollout` with stickiness (`userId` or `sessionId`)
   - `constraint` rules for tenant or role gating
@@ -217,6 +229,7 @@ Browser (FeatureFlagsProvider)
   4. 100% rollout
 
 ## Observability
+
 - Track:
   - Flag evaluation rate
   - Cache hit ratio (Edge/Proxy)
@@ -229,11 +242,11 @@ Browser (FeatureFlagsProvider)
 
 Unleash uses different token types for different purposes:
 
-| Token Type | Purpose | Used By | Format Example |
-|------------|---------|---------|----------------|
-| **Client Token** | Backend services authenticate with Server | Unleash Edge, Backend SDKs | `default:production.xxx` or `*:environment.xxx` |
-| **Frontend Token** | Browser/mobile apps fetch flags | Web browsers, Mobile apps | `*:production.xxx` or `project:environment.xxx` |
-| **Admin Token** | Full access to Unleash API | CI/CD, Admin tools | `*:*.xxx` or `user:xxx` |
+| Token Type         | Purpose                                   | Used By                    | Format Example                                  |
+| ------------------ | ----------------------------------------- | -------------------------- | ----------------------------------------------- |
+| **Client Token**   | Backend services authenticate with Server | Unleash Edge, Backend SDKs | `default:production.xxx` or `*:environment.xxx` |
+| **Frontend Token** | Browser/mobile apps fetch flags           | Web browsers, Mobile apps  | `*:production.xxx` or `project:environment.xxx` |
+| **Admin Token**    | Full access to Unleash API                | CI/CD, Admin tools         | `*:*.xxx` or `user:xxx`                         |
 
 ### Token Configuration Flow
 
@@ -281,18 +294,18 @@ secret/unleash
 ```
 secret/web
 ├── runtime-env: production
-├── unleash-proxy-url: https://unleash-api.invistus.com.br
+├── unleash-proxy-url: https://unleash-api.neotool.com.br
 ├── unleash-client-token: <FRONTEND-TOKEN>   # Browsers use this
 └── graphql-endpoint: http://backend.svc/graphql
 ```
 
 ### External Secrets
 
-| Secret Name | Source | Used By |
-|-------------|--------|---------|
+| Secret Name           | Source           | Used By        |
+| --------------------- | ---------------- | -------------- |
 | `unleash-credentials` | `secret/unleash` | Unleash Server |
-| `unleash-proxy-token` | `secret/unleash` | Unleash Edge |
-| `web-runtime-config` | `secret/web` | Next.js Web |
+| `unleash-proxy-token` | `secret/unleash` | Unleash Edge   |
+| `web-runtime-config`  | `secret/web`     | Next.js Web    |
 
 ## Troubleshooting
 
@@ -305,6 +318,7 @@ secret/web
 1. **Token Type Mismatch** (most common)
    - Check: Edge might have Frontend token instead of Client token
    - Fix: Verify `secret/unleash.server-token` contains the **Client token**
+
    ```bash
    # Check current token in Edge
    kubectl get secret unleash-server-token -n production -o jsonpath='{.data.UNLEASH_SERVER_API_TOKEN}' | base64 -d
@@ -318,7 +332,7 @@ secret/web
 
 3. **CORS Issues**
    - Check: Request missing Origin header or from unauthorized domain
-   - Fix: Verify CORS middleware allows your domain in [middleware-cors.yaml](invistus-flux/infra/kubernetes/flux/apps/unleash/middleware-cors.yaml)
+   - Fix: Verify CORS middleware allows your domain in [middleware-cors.yaml](neotool-flux/infra/kubernetes/flux/apps/unleash/middleware-cors.yaml)
 
 ### Edge Cannot Connect to Server
 
@@ -332,6 +346,7 @@ secret/web
 
 2. **Network Connectivity**
    - Verify Edge can reach Server:
+
    ```bash
    kubectl run nettest --image=curlimages/curl --rm -i --restart=Never -n production \
      --overrides='{"spec":{"containers":[{"name":"test","image":"curlimages/curl","command":["curl","http://unleash-server.production.svc.cluster.local:4242/health"],"resources":{"limits":{"cpu":"100m","memory":"128Mi"},"requests":{"cpu":"50m","memory":"64Mi"}}}]}}'
@@ -355,7 +370,7 @@ kubectl exec -n production vault-0 -- vault kv get -format=json secret/unleash |
 
 # 3. Test client connection
 curl -H "Authorization: $(kubectl get secret web-runtime-config -n production -o jsonpath='{.data.UNLEASH_CLIENT_TOKEN}' | base64 -d)" \
-  https://unleash-api.invistus.com.br/api/frontend
+  https://unleash-api.neotool.com.br/api/frontend
 
 # Should return: {"toggles":[...]}
 ```
@@ -374,6 +389,7 @@ kubectl rollout restart deployment unleash-edge -n production
 ```
 
 ## Acceptance Criteria
+
 - Flags can be evaluated in both Next.js and Kotlin services.
 - Flags update within configured TTL.
 - Canary rollout works using context attributes.

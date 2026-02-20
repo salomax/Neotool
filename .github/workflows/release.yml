@@ -1,0 +1,62 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: "${{ !startsWith(github.event.head_commit.message, 'chore(release): publish') }}"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.GH_APP_ID }}
+          private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - run: npm ci
+
+      - name: Configure git
+        run: |
+          git config user.name "neotoolbot[bot]"
+          git config user.email "${{ secrets.GH_APP_ID }}+neotoolsbot[bot]@users.noreply.github.com"
+
+      - name: Strip Gradle plugin for faster graph
+        run: |
+          echo "Before:"
+          cat nx.json | head -15
+          jq 'if .plugins then .plugins = [.plugins[] | select(.plugin != "@nx/gradle")] else . end' nx.json > nx.tmp && mv nx.tmp nx.json
+          echo "After:"
+          cat nx.json | head -15
+
+      - name: Release
+        timeout-minutes: 30
+        run: |
+          FIRST_RELEASE=""
+
+          if ! git tag --list '*-v*' | grep -q .; then
+            echo "No existing release tags found — running as first release"
+            FIRST_RELEASE="--first-release"
+          fi
+          npx nx release $FIRST_RELEASE --skip-publish --verbose
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}

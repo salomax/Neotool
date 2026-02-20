@@ -4,9 +4,23 @@ type: infrastructure
 category: operations
 status: current
 version: 1.0.0
-tags: [kubernetes, k8s, operations, runbook, gitops, flux, kubectl, troubleshooting]
+tags:
+  [kubernetes, k8s, operations, runbook, gitops, flux, kubectl, troubleshooting]
 ai_optimized: true
-search_keywords: [kubernetes, k8s, operations, kubectl, flux, gitops, troubleshooting, debugging, logs, database, pgbouncer]
+search_keywords:
+  [
+    kubernetes,
+    k8s,
+    operations,
+    kubectl,
+    flux,
+    gitops,
+    troubleshooting,
+    debugging,
+    logs,
+    database,
+    pgbouncer,
+  ]
 related:
   - 11-infrastructure/architecture.md
   - 11-infrastructure/hostinger-runbook.md
@@ -87,14 +101,14 @@ flux check
 After installing a fresh cluster with Flux, run these scripts in order:
 
 ```bash
-cd ~/src/invistus/invistus/infra/kubernetes/scripts
+cd ~/src/neotool/neotool/infra/kubernetes/scripts
 
 # 1. Initialize and configure Vault
 ./vault-setup.sh
 # - Initializes Vault (generates unseal keys + root token)
 # - Unseals Vault
 # - Configures Kubernetes auth for ExternalSecrets
-# - Credentials saved to: ~/.invistus/vault-credentials.txt
+# - Credentials saved to: ~/.neotool/vault-credentials.txt
 
 # 2. Setup PostgreSQL credentials
 ./postgres-setup.sh
@@ -340,23 +354,23 @@ git push
 
 #### Release Flow (neotool-web)
 
-1) **Create a version tag**
+1. **Create a version tag**
 
 ```bash
 git tag v0.1.0
 git push origin v0.1.0
 ```
 
-2) **GitHub Actions builds and pushes to GHCR**
+2. **GitHub Actions builds and pushes to GHCR**
    - Workflow: `.github/workflows/production.yml`
-   - Image: `ghcr.io/invistus/neotool-web:v0.1.0`
+   - Image: `ghcr.io/neotool/neotool-web:v0.1.0`
 
-3) **Flux Image Automation updates the manifest**
+3. **Flux Image Automation updates the manifest**
    - `ImageRepository` detects new tag
    - `ImagePolicy` selects `v0.1.0`
    - `ImageUpdateAutomation` commits the change to `main`
 
-4) **Flux reconciles and rolls out**
+4. **Flux reconciles and rolls out**
 
 ```bash
 flux get imagepolicies -n flux-system
@@ -404,11 +418,13 @@ If your org does not allow direct pushes to `main`, Flux can push to `flux-updat
 and GitHub Actions will open a PR automatically.
 
 **Flow**:
+
 - Flux commits image updates to `flux-updates`
 - Workflow `.github/workflows/flux-pr.yml` opens/updates a PR into `main`
 - You review and merge the PR
 
 **Verify**:
+
 ```bash
 git log --oneline --decorate -n 5
 ```
@@ -417,7 +433,7 @@ git log --oneline --decorate -n 5
 
 If the ImageRepository reports `UNAUTHORIZED`, GHCR access credentials are missing.
 
-1) **Create the registry secret in `flux-system`**
+1. **Create the registry secret in `flux-system`**
 
 ```bash
 kubectl -n flux-system create secret docker-registry ghcr-credentials \
@@ -427,7 +443,7 @@ kubectl -n flux-system create secret docker-registry ghcr-credentials \
   --docker-email=YOUR_EMAIL
 ```
 
-2) **Reference the secret in the ImageRepository**
+2. **Reference the secret in the ImageRepository**
 
 ```yaml
 apiVersion: image.toolkit.fluxcd.io/v1beta2
@@ -436,13 +452,13 @@ metadata:
   name: neotool-web
   namespace: flux-system
 spec:
-  image: ghcr.io/invistus/neotool-web
+  image: ghcr.io/neotool/neotool-web
   interval: 1m0s
   secretRef:
     name: ghcr-credentials
 ```
 
-3) **Verify**
+3. **Verify**
 
 ```bash
 kubectl -n flux-system get imagerepositories
@@ -541,6 +557,7 @@ kubectl rollout history deployment/backend --revision=3 -n production
 #### Scaling
 
 **Manual Scaling**:
+
 ```bash
 # Scale to 5 replicas
 kubectl scale deployment/backend --replicas=5 -n production
@@ -551,6 +568,7 @@ kubectl get pods -n production -l app=backend
 ```
 
 **Horizontal Pod Autoscaler (HPA)**:
+
 ```bash
 # Create HPA
 kubectl autoscale deployment backend \
@@ -572,6 +590,7 @@ kubectl delete hpa backend -n production
 #### Updating Deployments
 
 **Update Image**:
+
 ```bash
 # Set new image
 kubectl set image deployment/backend \
@@ -583,6 +602,7 @@ kubectl rollout status deployment/backend -n production
 ```
 
 **Update Environment Variables**:
+
 ```bash
 # Update env var
 kubectl set env deployment/backend LOG_LEVEL=DEBUG -n production
@@ -592,6 +612,7 @@ kubectl set env deployment/backend LOG_LEVEL- -n production
 ```
 
 **Pause/Resume Rollout**:
+
 ```bash
 # Pause (for making multiple changes)
 kubectl rollout pause deployment/backend -n production
@@ -671,6 +692,7 @@ kubectl exec -it postgresql-0 -n production -- \
 PgBouncer is a connection pooler that reduces the overhead of creating new database connections.
 
 **Architecture**:
+
 ```
 Applications (port 6432, auth: plain)
     ↓
@@ -680,6 +702,7 @@ PostgreSQL (port 5432, auth: SCRAM-SHA-256)
 ```
 
 **Configuration**:
+
 - **Auth Type**: `plain` (accepts plain text from clients)
 - **Pool Mode**: `transaction` (connection returns to pool after each transaction)
 - **Max Client Connections**: 1000
@@ -728,12 +751,14 @@ kubectl exec -n production deployment/pgbouncer -- \
 #### Connect to Database via PgBouncer
 
 **From Application**:
+
 ```yaml
 # Connection string
 postgresql://neotool:password@pgbouncer.production.svc.cluster.local:6432/neotool_db
 ```
 
 **From Local Machine (DBeaver)**:
+
 ```bash
 # Terminal 1: Port forward
 kubectl port-forward -n production svc/pgbouncer 6432:6432
@@ -748,6 +773,7 @@ kubectl port-forward -n production svc/pgbouncer 6432:6432
 ```
 
 **Get Password**:
+
 ```bash
 kubectl get secret postgres-credentials -n production -o jsonpath='{.data.POSTGRES_PASSWORD}' | base64 -d
 ```
@@ -763,6 +789,7 @@ kubectl logs -n production -l app=pgbouncer
 ```
 
 **Common causes**:
+
 1. Secret `pgbouncer-credentials` not synced → Check External Secrets
 2. Secret `pgbouncer-userlist` not exists → Run setup script
 3. ResourceQuota → Ensure initContainer has resources defined
@@ -856,7 +883,7 @@ Vault seals automatically after pod restart for security.
 
 ```bash
 # Load credentials
-source ~/.invistus/vault-credentials.txt
+source ~/.neotool/vault-credentials.txt
 
 # Unseal (requires 3 of 5 keys)
 kubectl exec -n production vault-0 -- vault operator unseal "$UNSEAL_KEY_1"
@@ -864,7 +891,7 @@ kubectl exec -n production vault-0 -- vault operator unseal "$UNSEAL_KEY_2"
 kubectl exec -n production vault-0 -- vault operator unseal "$UNSEAL_KEY_3"
 
 # Or use script
-cd ~/src/invistus/invistus/infra/kubernetes/scripts
+cd ~/src/neotool/neotool/infra/kubernetes/scripts
 ./vault-setup.sh
 ```
 
@@ -878,7 +905,7 @@ kubectl exec -n production vault-0 -- vault kv list secret/
 kubectl exec -n production vault-0 -- vault kv get secret/postgres
 
 # If permission denied, authenticate with root token:
-source ~/.invistus/vault-credentials.txt
+source ~/.neotool/vault-credentials.txt
 kubectl exec -n production vault-0 -- sh -c "VAULT_TOKEN='$ROOT_TOKEN' vault kv get secret/postgres"
 ```
 
@@ -928,7 +955,7 @@ kubectl annotate externalsecret postgres-credentials -n production force-sync="$
 
 # Or delete and recreate
 kubectl delete externalsecret postgres-credentials -n production
-kubectl apply -f ~/src/invistus/invistus-flux/infra/kubernetes/flux/infrastructure/external-secrets-config/postgres-external-secret.yaml
+kubectl apply -f ~/src/neotool/neotool-flux/infra/kubernetes/flux/infrastructure/external-secrets-config/postgres-external-secret.yaml
 ```
 
 ### Kubernetes Secrets
@@ -1349,7 +1376,7 @@ kubectl cp production/backend-7d8f9c5b6-xyz12:/tmp/heap.hprof ./heap.hprof
 kubectl exec -n production vault-0 -- vault status
 
 # If sealed, unseal
-source ~/.invistus/vault-credentials.txt
+source ~/.neotool/vault-credentials.txt
 ./infra/kubernetes/scripts/vault-setup.sh
 ```
 
@@ -1375,7 +1402,7 @@ kubectl exec -n production vault-0 -- vault status
 **Solution**: Verify and reconfigure Vault role
 
 ```bash
-source ~/.invistus/vault-credentials.txt
+source ~/.neotool/vault-credentials.txt
 
 # Check current role
 kubectl exec -n production vault-0 -- sh -c "VAULT_TOKEN='$ROOT_TOKEN' vault read auth/kubernetes/role/app"
@@ -1507,4 +1534,4 @@ kubectl delete jobs --field-selector status.failed=1 -n production
 **Last Updated**: 2026-01-15
 **Review Frequency**: Monthly
 
-*Run operations smoothly. Debug efficiently. Maintain proactively.* 🚀
+_Run operations smoothly. Debug efficiently. Maintain proactively._ 🚀

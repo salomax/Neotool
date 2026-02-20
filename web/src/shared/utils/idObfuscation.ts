@@ -18,7 +18,7 @@ import Hashids from 'hashids';
  * ```
  */
 
-const SALT = 'invistus-financial-data-salt';
+const SALT = 'neotool-financial-data-salt';
 const MIN_LENGTH = 8;
 const hashids = new Hashids(SALT, MIN_LENGTH);
 

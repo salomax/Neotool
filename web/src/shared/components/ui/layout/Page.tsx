@@ -10,7 +10,7 @@ export const Page = React.forwardRef<HTMLDivElement, PageProps>((props, ref) => 
       component="div"
       {...props}
       sx={{
-        p: 3,
+        p: { xs: 0, sm: 3 },
         ...props.sx,
       }}
     />

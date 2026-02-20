@@ -6,7 +6,8 @@ status: draft
 version: 1.0.0
 tags: [security, authorization, resource-ownership, account, multi-tenancy]
 ai_optimized: true
-search_keywords: [account, resource ownership, multi-tenancy, requirements, authorization]
+search_keywords:
+  [account, resource ownership, multi-tenancy, requirements, authorization]
 related:
   - docs/03-features/security/resource-ownership/resource-ownership-domain-model.md
   - docs/03-features/security/resource-ownership/resource-ownership.md
@@ -17,7 +18,7 @@ related:
 
 ## Overview
 
-This document specifies the requirements for implementing Account-based resource ownership in Invistus. The Account entity serves as the primary owner of resources, enabling multi-user collaboration and future billing capabilities.
+This document specifies the requirements for implementing Account-based resource ownership in neotool. The Account entity serves as the primary owner of resources, enabling multi-user collaboration and future billing capabilities.
 
 ### Goals
 
@@ -39,18 +40,18 @@ This document specifies the requirements for implementing Account-based resource
 
 ## Decision Summary
 
-| Decision | Choice |
-|----------|--------|
-| Account creation | Auto-create personal account on signup |
-| Multi-account support | Yes, users can belong to multiple accounts |
-| Account types | PERSONAL, FAMILY, BUSINESS |
-| Roles interaction | Non-overlap gates: Account membership/role (scope) + Plan gate (account ceiling) + RBAC (action) + Resource ACL (row) + Capacity gate (quota/rate) |
-| Groups scope | Global for RBAC role inheritance; account-scoped row grants are Phase 2 |
-| User removal | Resources stay with account |
-| Service accounts | System-wide only (not per-account) |
-| Invitation flow | Email invite → accept/decline |
-| Personal account | Can be deleted (user profile retained) |
-| Cross-account sharing | Not supported (Phase 1) |
+| Decision              | Choice                                                                                                                                             |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Account creation      | Auto-create personal account on signup                                                                                                             |
+| Multi-account support | Yes, users can belong to multiple accounts                                                                                                         |
+| Account types         | PERSONAL, FAMILY, BUSINESS                                                                                                                         |
+| Roles interaction     | Non-overlap gates: Account membership/role (scope) + Plan gate (account ceiling) + RBAC (action) + Resource ACL (row) + Capacity gate (quota/rate) |
+| Groups scope          | Global for RBAC role inheritance; account-scoped row grants are Phase 2                                                                            |
+| User removal          | Resources stay with account                                                                                                                        |
+| Service accounts      | System-wide only (not per-account)                                                                                                                 |
+| Invitation flow       | Email invite → accept/decline                                                                                                                      |
+| Personal account      | Can be deleted (user profile retained)                                                                                                             |
+| Cross-account sharing | Not supported (Phase 1)                                                                                                                            |
 
 ---
 
@@ -62,23 +63,23 @@ This document specifies the requirements for implementing Account-based resource
 
 The system shall support the following account types:
 
-| Type | Description | Max Members |
-|------|-------------|-------------|
-| `PERSONAL` | Single-user account, auto-created on signup | 1 |
-| `FAMILY` | Multi-user account for household/family sharing | 10 |
-| `BUSINESS` | Multi-user account for business/team use | 50 |
+| Type       | Description                                     | Max Members |
+| ---------- | ----------------------------------------------- | ----------- |
+| `PERSONAL` | Single-user account, auto-created on signup     | 1           |
+| `FAMILY`   | Multi-user account for household/family sharing | 10          |
+| `BUSINESS` | Multi-user account for business/team use        | 50          |
 
 #### FR-1.2: Account Attributes
 
-| Attribute | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | UUID | Yes | Unique identifier |
-| `name` | String | Yes | Display name (e.g., "Smith Family", "Acme Corp") (DB column: `account_name`) |
-| `type` | Enum | Yes | PERSONAL, FAMILY, BUSINESS (DB column: `account_type`) |
-| `status` | Enum | Yes | ACTIVE, SUSPENDED, DELETED (DB column: `account_status`) |
-| `owner_user_id` | UUID | No | User who created the account (for personal accounts) |
-| `created_at` | Timestamp | Yes | Creation timestamp |
-| `updated_at` | Timestamp | Yes | Last update timestamp |
+| Attribute       | Type      | Required | Description                                                                  |
+| --------------- | --------- | -------- | ---------------------------------------------------------------------------- |
+| `id`            | UUID      | Yes      | Unique identifier                                                            |
+| `name`          | String    | Yes      | Display name (e.g., "Smith Family", "Acme Corp") (DB column: `account_name`) |
+| `type`          | Enum      | Yes      | PERSONAL, FAMILY, BUSINESS (DB column: `account_type`)                       |
+| `status`        | Enum      | Yes      | ACTIVE, SUSPENDED, DELETED (DB column: `account_status`)                     |
+| `owner_user_id` | UUID      | No       | User who created the account (for personal accounts)                         |
+| `created_at`    | Timestamp | Yes      | Creation timestamp                                                           |
+| `updated_at`    | Timestamp | Yes      | Last update timestamp                                                        |
 
 #### FR-1.3: Account Status Transitions
 
@@ -107,6 +108,7 @@ When a new user registers:
 5. Authentication/session context is initialized with this account as `current_account`
 
 **Acceptance Criteria:**
+
 - [ ] New user registration creates both User and Account
 - [ ] Account name defaults to "{User's Name}'s Account"
 - [ ] User is automatically OWNER of their personal account
@@ -126,26 +128,26 @@ When a new user registers:
 
 #### FR-3.1: Membership Roles
 
-| Role | Permissions |
-|------|-------------|
-| `OWNER` | Full account governance (members/settings/delete/transfer). Resource actions still require RBAC + row grant |
-| `ADMIN` | Manage members (except owner). Resource actions still require RBAC + row grant |
-| `MEMBER` | Standard resource actions, constrained by RBAC + row grant |
-| `VIEWER` | Read-only ceiling; cannot perform write/delete/share even if RBAC role would allow |
+| Role     | Permissions                                                                                                 |
+| -------- | ----------------------------------------------------------------------------------------------------------- |
+| `OWNER`  | Full account governance (members/settings/delete/transfer). Resource actions still require RBAC + row grant |
+| `ADMIN`  | Manage members (except owner). Resource actions still require RBAC + row grant                              |
+| `MEMBER` | Standard resource actions, constrained by RBAC + row grant                                                  |
+| `VIEWER` | Read-only ceiling; cannot perform write/delete/share even if RBAC role would allow                          |
 
 #### FR-3.2: Membership Attributes
 
-| Attribute | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | UUID | Yes | Unique identifier |
-| `account_id` | UUID | Yes | Reference to Account |
-| `user_id` | UUID | Yes | Reference to User |
-| `role` | Enum | Yes | OWNER, ADMIN, MEMBER, VIEWER (DB column: `account_role`) |
-| `status` | Enum | Yes | PENDING, ACTIVE, REMOVED (DB column: `membership_status`) |
-| `joined_at` | Timestamp | Yes | When membership became active |
-| `is_default` | Boolean | Yes | Default account preference for login/session bootstrap |
-| `invited_by` | UUID | No | User who sent invitation |
-| `invited_at` | Timestamp | No | When invitation was sent |
+| Attribute    | Type      | Required | Description                                               |
+| ------------ | --------- | -------- | --------------------------------------------------------- |
+| `id`         | UUID      | Yes      | Unique identifier                                         |
+| `account_id` | UUID      | Yes      | Reference to Account                                      |
+| `user_id`    | UUID      | Yes      | Reference to User                                         |
+| `role`       | Enum      | Yes      | OWNER, ADMIN, MEMBER, VIEWER (DB column: `account_role`)  |
+| `status`     | Enum      | Yes      | PENDING, ACTIVE, REMOVED (DB column: `membership_status`) |
+| `joined_at`  | Timestamp | Yes      | When membership became active                             |
+| `is_default` | Boolean   | Yes      | Default account preference for login/session bootstrap    |
+| `invited_by` | UUID      | No       | User who sent invitation                                  |
+| `invited_at` | Timestamp | No       | When invitation was sent                                  |
 
 #### FR-3.3: Membership Constraints
 
@@ -164,11 +166,13 @@ When a new user registers:
 **Actors:** Account OWNER or ADMIN
 
 **Preconditions:**
+
 - Inviter has OWNER or ADMIN role in the account
 - Account has not reached member limit
 - Invitee is not already a member
 
 **Flow:**
+
 1. Inviter enters invitee's email address and selects role
 2. System validates email format
 3. System checks if user with email exists:
@@ -178,6 +182,7 @@ When a new user registers:
 5. System creates membership with status=PENDING
 
 **Acceptance Criteria:**
+
 - [ ] Only OWNER/ADMIN can send invitations
 - [ ] Cannot invite existing members
 - [ ] Cannot exceed account member limit
@@ -189,6 +194,7 @@ When a new user registers:
 **Actors:** Invited User
 
 **Flow:**
+
 1. User clicks accept link in email (or accepts in app)
 2. System validates invitation token
 3. System updates membership status to ACTIVE
@@ -196,6 +202,7 @@ When a new user registers:
 5. User can now switch to the new account
 
 **Acceptance Criteria:**
+
 - [ ] Only the invited user can accept
 - [ ] Expired invitations cannot be accepted
 - [ ] User's JWT updated with new account on next token refresh
@@ -205,6 +212,7 @@ When a new user registers:
 **Actors:** Invited User
 
 **Flow:**
+
 1. User clicks decline link (or declines in app)
 2. System deletes the PENDING membership
 3. Inviter notified (optional)
@@ -214,6 +222,7 @@ When a new user registers:
 **Actors:** Account OWNER or ADMIN
 
 **Flow:**
+
 1. Inviter selects pending invitation to cancel
 2. System deletes the PENDING membership
 3. Invitation link becomes invalid
@@ -227,12 +236,14 @@ When a new user registers:
 **Actors:** Any authenticated User
 
 **Flow:**
+
 1. User selects "Create Account"
 2. User enters account name and type (FAMILY or BUSINESS)
 3. System creates Account with user as OWNER
 4. User can optionally switch to new account
 
 **Acceptance Criteria:**
+
 - [ ] User becomes OWNER of new account
 - [ ] User retains membership in existing accounts
 - [ ] New account appears in user's account list
@@ -242,9 +253,11 @@ When a new user registers:
 **Actors:** Account OWNER
 
 **Fields editable:**
+
 - Account name
 
 **Acceptance Criteria:**
+
 - [ ] Only OWNER can update account details
 - [ ] Type cannot be changed after creation
 
@@ -253,10 +266,12 @@ When a new user registers:
 **Actors:** Account OWNER
 
 **Preconditions:**
+
 - User is OWNER of the account
 - Account is not PERSONAL type OR user confirms profile deletion
 
 **Flow:**
+
 1. Owner requests account deletion
 2. System prompts for confirmation
 3. For PERSONAL accounts: Warn that this deletes user profile too
@@ -266,6 +281,7 @@ When a new user registers:
 7. After 30 days: Hard delete account and resources
 
 **Acceptance Criteria:**
+
 - [ ] Only OWNER can delete
 - [ ] PERSONAL account deletion requires user profile deletion confirmation
 - [ ] 30-day grace period before permanent deletion
@@ -276,12 +292,14 @@ When a new user registers:
 **Actors:** User with Personal Account
 
 **Flow:**
+
 1. User requests to delete personal account
 2. System checks user has at least one other account membership
 3. System deletes personal account and its resources
 4. User profile remains (for other account memberships)
 
 **Acceptance Criteria:**
+
 - [ ] User must have another account to keep profile
 - [ ] If no other accounts, must delete entire user profile
 
@@ -300,11 +318,13 @@ All members can view the member list of their account.
 **Actors:** Account OWNER
 
 **Constraints:**
+
 - OWNER can change any member's role (except themselves)
 - Cannot demote self from OWNER without transferring ownership first
 - ADMIN cannot change roles
 
 **Acceptance Criteria:**
+
 - [ ] Role changes take effect immediately
 - [ ] Member notified of role change
 
@@ -313,11 +333,13 @@ All members can view the member list of their account.
 **Actors:** Account OWNER or ADMIN
 
 **Constraints:**
+
 - OWNER can remove anyone (except themselves)
 - ADMIN can remove MEMBER and VIEWER only
 - Cannot remove self
 
 **Flow:**
+
 1. Remover selects member to remove
 2. System prompts for confirmation
 3. System updates membership status to REMOVED
@@ -325,6 +347,7 @@ All members can view the member list of their account.
 5. Resources created by member remain with account
 
 **Acceptance Criteria:**
+
 - [ ] Removed member cannot access account resources
 - [ ] Resources stay with account (not transferred to member)
 - [ ] Removed member notified
@@ -334,6 +357,7 @@ All members can view the member list of their account.
 **Actors:** Any member (except sole OWNER)
 
 **Flow:**
+
 1. Member selects "Leave Account"
 2. System prompts for confirmation
 3. If member is OWNER: Must transfer ownership first
@@ -341,6 +365,7 @@ All members can view the member list of their account.
 5. Member's resources remain with account
 
 **Acceptance Criteria:**
+
 - [ ] OWNER cannot leave without transferring ownership
 - [ ] Resources remain with account
 
@@ -349,12 +374,14 @@ All members can view the member list of their account.
 **Actors:** Account OWNER
 
 **Flow:**
+
 1. Current OWNER selects new owner from ADMIN/MEMBER list
 2. System prompts for confirmation
 3. Current OWNER becomes ADMIN
 4. Selected member becomes OWNER
 
 **Acceptance Criteria:**
+
 - [ ] Only OWNER can transfer ownership
 - [ ] Previous owner retains ADMIN role
 - [ ] New owner notified
@@ -367,41 +394,41 @@ This matrix is the source of truth for account and member operations; implementa
 
 #### Matrix Table
 
-| Operation | FR | Allowed roles | Plan action key | RBAC permission | Service validation | Capacity-limited | Metric key | Denial reason codes |
-|-----------|-----|---------------|-----------------|------------------|--------------------|-------------------|------------|---------------------|
-| Send invitation | FR-4.1 | OWNER, ADMIN | `account:invite` | `account:invite` | Member limit not exceeded; invitee not already member; valid email | Optional (Phase 2) | `invitations.pending_per_account` | NOT_ACCOUNT_MEMBER, ACCOUNT_ROLE_INSUFFICIENT, PLAN_NOT_ALLOWED, RBAC_DENIED, QUOTA_EXCEEDED, ALREADY_MEMBER, MEMBER_LIMIT_REACHED |
-| Cancel invitation | FR-4.4 | OWNER, ADMIN | `account:invitation_cancel` | `account:invitation_cancel` | Target is PENDING invitation only | No | — | NOT_ACCOUNT_MEMBER, ACCOUNT_ROLE_INSUFFICIENT, PLAN_NOT_ALLOWED, RBAC_DENIED, NOT_PENDING_INVITATION |
-| Accept invitation | FR-4.2 | Invitee (token holder) | `account:invitation_accept` | `account:invitation_accept` | Token valid, not expired; actor is invited identity | No | — | INVITATION_EXPIRED, INVITATION_INVALID, RBAC_DENIED |
-| Decline invitation | FR-4.3 | Invitee (token holder) | `account:invitation_decline` | `account:invitation_decline` | Actor is invited identity | No | — | INVITATION_EXPIRED, INVITATION_INVALID, RBAC_DENIED |
-| Create account | FR-5.1 | Any authenticated user | `account:create` | `account:create` | Authenticated; account type FAMILY or BUSINESS | Optional (Phase 2) | `accounts.max_per_user` | PLAN_NOT_ALLOWED, RBAC_DENIED, QUOTA_EXCEEDED |
-| Update account | FR-5.2 | OWNER | `account:update` | `account:update` | Type immutable after creation | No | — | NOT_ACCOUNT_MEMBER, ACCOUNT_ROLE_INSUFFICIENT, PLAN_NOT_ALLOWED, RBAC_DENIED |
-| Delete account | FR-5.3 | OWNER | `account:delete` | `account:delete` | Confirmation for PERSONAL; soft-delete | No | — | NOT_ACCOUNT_MEMBER, ACCOUNT_ROLE_INSUFFICIENT, PLAN_NOT_ALLOWED, RBAC_DENIED |
-| Delete personal account (keep profile) | FR-5.4 | User (owner of personal) | `account:delete` | `account:delete` | User has ≥1 other ACTIVE account membership | No | — | NO_OTHER_ACCOUNT, PLAN_NOT_ALLOWED, RBAC_DENIED |
-| View members | FR-6.1 | Any ACTIVE member | `account:members_view` | `account:members_view` | ACTIVE membership in account | No | — | NOT_ACCOUNT_MEMBER, PLAN_NOT_ALLOWED, RBAC_DENIED |
-| Change member role | FR-6.2 | OWNER | `account:members_change_role` | `account:members_change_role` | Not self; cannot demote self from OWNER without transfer first; target is ADMIN/MEMBER/VIEWER | No | — | NOT_ACCOUNT_MEMBER, ACCOUNT_ROLE_INSUFFICIENT, SELF_OPERATION_FORBIDDEN, PLAN_NOT_ALLOWED, RBAC_DENIED |
-| Remove member | FR-6.3 | OWNER (any except self), ADMIN (MEMBER/VIEWER only) | `account:members_remove` | `account:members_remove` | Not self; ADMIN cannot remove OWNER or ADMIN | No | — | NOT_ACCOUNT_MEMBER, ACCOUNT_ROLE_INSUFFICIENT, SELF_OPERATION_FORBIDDEN, TARGET_ROLE_TOO_HIGH, PLAN_NOT_ALLOWED, RBAC_DENIED |
-| Leave account | FR-6.4 | Any member except sole OWNER | `account:leave` | `account:leave` | Not sole OWNER; must transfer ownership first if OWNER | No | — | NOT_ACCOUNT_MEMBER, SOLE_OWNER_CANNOT_LEAVE, PLAN_NOT_ALLOWED, RBAC_DENIED |
-| Transfer ownership | FR-6.5 | OWNER | `account:transfer_ownership` | `account:transfer_ownership` | New owner is ADMIN or MEMBER in same account | No | — | NOT_ACCOUNT_MEMBER, ACCOUNT_ROLE_INSUFFICIENT, PLAN_NOT_ALLOWED, RBAC_DENIED, TARGET_NOT_ELIGIBLE |
+| Operation                              | FR     | Allowed roles                                       | Plan action key               | RBAC permission               | Service validation                                                                            | Capacity-limited   | Metric key                        | Denial reason codes                                                                                                                |
+| -------------------------------------- | ------ | --------------------------------------------------- | ----------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------- | ------------------ | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Send invitation                        | FR-4.1 | OWNER, ADMIN                                        | `account:invite`              | `account:invite`              | Member limit not exceeded; invitee not already member; valid email                            | Optional (Phase 2) | `invitations.pending_per_account` | NOT_ACCOUNT_MEMBER, ACCOUNT_ROLE_INSUFFICIENT, PLAN_NOT_ALLOWED, RBAC_DENIED, QUOTA_EXCEEDED, ALREADY_MEMBER, MEMBER_LIMIT_REACHED |
+| Cancel invitation                      | FR-4.4 | OWNER, ADMIN                                        | `account:invitation_cancel`   | `account:invitation_cancel`   | Target is PENDING invitation only                                                             | No                 | —                                 | NOT_ACCOUNT_MEMBER, ACCOUNT_ROLE_INSUFFICIENT, PLAN_NOT_ALLOWED, RBAC_DENIED, NOT_PENDING_INVITATION                               |
+| Accept invitation                      | FR-4.2 | Invitee (token holder)                              | `account:invitation_accept`   | `account:invitation_accept`   | Token valid, not expired; actor is invited identity                                           | No                 | —                                 | INVITATION_EXPIRED, INVITATION_INVALID, RBAC_DENIED                                                                                |
+| Decline invitation                     | FR-4.3 | Invitee (token holder)                              | `account:invitation_decline`  | `account:invitation_decline`  | Actor is invited identity                                                                     | No                 | —                                 | INVITATION_EXPIRED, INVITATION_INVALID, RBAC_DENIED                                                                                |
+| Create account                         | FR-5.1 | Any authenticated user                              | `account:create`              | `account:create`              | Authenticated; account type FAMILY or BUSINESS                                                | Optional (Phase 2) | `accounts.max_per_user`           | PLAN_NOT_ALLOWED, RBAC_DENIED, QUOTA_EXCEEDED                                                                                      |
+| Update account                         | FR-5.2 | OWNER                                               | `account:update`              | `account:update`              | Type immutable after creation                                                                 | No                 | —                                 | NOT_ACCOUNT_MEMBER, ACCOUNT_ROLE_INSUFFICIENT, PLAN_NOT_ALLOWED, RBAC_DENIED                                                       |
+| Delete account                         | FR-5.3 | OWNER                                               | `account:delete`              | `account:delete`              | Confirmation for PERSONAL; soft-delete                                                        | No                 | —                                 | NOT_ACCOUNT_MEMBER, ACCOUNT_ROLE_INSUFFICIENT, PLAN_NOT_ALLOWED, RBAC_DENIED                                                       |
+| Delete personal account (keep profile) | FR-5.4 | User (owner of personal)                            | `account:delete`              | `account:delete`              | User has ≥1 other ACTIVE account membership                                                   | No                 | —                                 | NO_OTHER_ACCOUNT, PLAN_NOT_ALLOWED, RBAC_DENIED                                                                                    |
+| View members                           | FR-6.1 | Any ACTIVE member                                   | `account:members_view`        | `account:members_view`        | ACTIVE membership in account                                                                  | No                 | —                                 | NOT_ACCOUNT_MEMBER, PLAN_NOT_ALLOWED, RBAC_DENIED                                                                                  |
+| Change member role                     | FR-6.2 | OWNER                                               | `account:members_change_role` | `account:members_change_role` | Not self; cannot demote self from OWNER without transfer first; target is ADMIN/MEMBER/VIEWER | No                 | —                                 | NOT_ACCOUNT_MEMBER, ACCOUNT_ROLE_INSUFFICIENT, SELF_OPERATION_FORBIDDEN, PLAN_NOT_ALLOWED, RBAC_DENIED                             |
+| Remove member                          | FR-6.3 | OWNER (any except self), ADMIN (MEMBER/VIEWER only) | `account:members_remove`      | `account:members_remove`      | Not self; ADMIN cannot remove OWNER or ADMIN                                                  | No                 | —                                 | NOT_ACCOUNT_MEMBER, ACCOUNT_ROLE_INSUFFICIENT, SELF_OPERATION_FORBIDDEN, TARGET_ROLE_TOO_HIGH, PLAN_NOT_ALLOWED, RBAC_DENIED       |
+| Leave account                          | FR-6.4 | Any member except sole OWNER                        | `account:leave`               | `account:leave`               | Not sole OWNER; must transfer ownership first if OWNER                                        | No                 | —                                 | NOT_ACCOUNT_MEMBER, SOLE_OWNER_CANNOT_LEAVE, PLAN_NOT_ALLOWED, RBAC_DENIED                                                         |
+| Transfer ownership                     | FR-6.5 | OWNER                                               | `account:transfer_ownership`  | `account:transfer_ownership`  | New owner is ADMIN or MEMBER in same account                                                  | No                 | —                                 | NOT_ACCOUNT_MEMBER, ACCOUNT_ROLE_INSUFFICIENT, PLAN_NOT_ALLOWED, RBAC_DENIED, TARGET_NOT_ELIGIBLE                                  |
 
 #### Denial Reason Codes
 
-| Code | Gate / rule | Description |
-|------|-------------|-------------|
-| PLAN_NOT_ALLOWED | Plan gate | Account's plan does not allow the action key. |
-| RBAC_DENIED | RBAC gate | User does not have the required RBAC permission. |
-| QUOTA_EXCEEDED | Capacity gate | Account or user limit for the metric is reached. |
-| RATE_LIMITED | Capacity gate | Rate limit exceeded (when applicable). |
-| NOT_ACCOUNT_MEMBER | Account context / membership | User has no ACTIVE membership in the account. |
-| ACCOUNT_ROLE_INSUFFICIENT | Account role gate | User's role in the account does not allow this operation. |
-| SELF_OPERATION_FORBIDDEN | Service validation | Operation on self is not allowed (e.g. remove self, demote self without transfer). |
-| TARGET_ROLE_TOO_HIGH | Service validation | Target member's role cannot be changed/removed by caller (e.g. ADMIN removing OWNER). |
-| TARGET_NOT_ELIGIBLE | Service validation | Target does not meet criteria (e.g. new owner not ADMIN/MEMBER). |
-| INVITATION_EXPIRED | Service validation | Invitation token has expired. |
-| INVITATION_INVALID | Service validation | Invitation token invalid or already used. |
-| ALREADY_MEMBER | Service validation | Invitee is already a member of the account. |
-| MEMBER_LIMIT_REACHED | Service validation / capacity | Account has reached maximum members for its type. |
-| NO_OTHER_ACCOUNT | Service validation | User has no other account (required for delete personal keep profile). |
-| NOT_PENDING_INVITATION | Service validation | Invitation is not in PENDING status. |
+| Code                      | Gate / rule                   | Description                                                                           |
+| ------------------------- | ----------------------------- | ------------------------------------------------------------------------------------- |
+| PLAN_NOT_ALLOWED          | Plan gate                     | Account's plan does not allow the action key.                                         |
+| RBAC_DENIED               | RBAC gate                     | User does not have the required RBAC permission.                                      |
+| QUOTA_EXCEEDED            | Capacity gate                 | Account or user limit for the metric is reached.                                      |
+| RATE_LIMITED              | Capacity gate                 | Rate limit exceeded (when applicable).                                                |
+| NOT_ACCOUNT_MEMBER        | Account context / membership  | User has no ACTIVE membership in the account.                                         |
+| ACCOUNT_ROLE_INSUFFICIENT | Account role gate             | User's role in the account does not allow this operation.                             |
+| SELF_OPERATION_FORBIDDEN  | Service validation            | Operation on self is not allowed (e.g. remove self, demote self without transfer).    |
+| TARGET_ROLE_TOO_HIGH      | Service validation            | Target member's role cannot be changed/removed by caller (e.g. ADMIN removing OWNER). |
+| TARGET_NOT_ELIGIBLE       | Service validation            | Target does not meet criteria (e.g. new owner not ADMIN/MEMBER).                      |
+| INVITATION_EXPIRED        | Service validation            | Invitation token has expired.                                                         |
+| INVITATION_INVALID        | Service validation            | Invitation token invalid or already used.                                             |
+| ALREADY_MEMBER            | Service validation            | Invitee is already a member of the account.                                           |
+| MEMBER_LIMIT_REACHED      | Service validation / capacity | Account has reached maximum members for its type.                                     |
+| NO_OTHER_ACCOUNT          | Service validation            | User has no other account (required for delete personal keep profile).                |
+| NOT_PENDING_INVITATION    | Service validation            | Invitation is not in PENDING status.                                                  |
 
 ---
 
@@ -442,6 +469,7 @@ When a user creates a resource (transaction, budget, etc.):
    - `granted_by` = user's ID
 
 **Acceptance Criteria:**
+
 - [ ] Resources always owned by ACCOUNT (not USER)
 - [ ] Uses user's "current account" context from JWT
 - [ ] Audit trail tracks which user created the resource
@@ -532,12 +560,12 @@ Effective Permissions =
     ∩ ResourceOwnership.permissions (if set; NULL/empty = no extra restriction)
 ```
 
-| Account Role | Max Allowed Actions |
-|--------------|---------------------|
-| OWNER | read, write, delete, share |
-| ADMIN | read, write, delete, share |
-| MEMBER | read, write |
-| VIEWER | read |
+| Account Role | Max Allowed Actions        |
+| ------------ | -------------------------- |
+| OWNER        | read, write, delete, share |
+| ADMIN        | read, write, delete, share |
+| MEMBER       | read, write                |
+| VIEWER       | read                       |
 
 Account role sets an upper bound for the account context. Plan policy, RBAC, and row grants can further restrict access.
 Capacity checks (quota/rate limit) are evaluated in addition to the action intersection above.
@@ -551,12 +579,14 @@ Capacity checks (quota/rate limit) are evaluated in addition to the action inter
 **Actors:** User with multiple accounts
 
 **Flow:**
+
 1. User selects account from account switcher UI
 2. API endpoint validates user is active member
 3. System issues new JWT with updated `current_account`
 4. UI refreshes to show new account's data
 
 **Acceptance Criteria:**
+
 - [ ] Can only switch to accounts where membership is ACTIVE
 - [ ] All subsequent API calls use new account context
 - [ ] UI clearly shows current account
@@ -564,6 +594,7 @@ Capacity checks (quota/rate limit) are evaluated in addition to the action inter
 #### FR-8.2: Default Account
 
 When user logs in:
+
 - Use ACTIVE membership marked `is_default = true` (if present)
 - If no default membership, prefer ACTIVE personal account
 - If no personal account, use first available ACTIVE membership
@@ -575,11 +606,13 @@ When user logs in:
 JWT provides request context, not final source of truth for long-lived authorization state.
 
 Rules:
+
 - Token should carry `current_account` and may carry `session_version`.
 - Sensitive operations must re-check ACTIVE membership (and, in future phases, delegation) plus revocation-sensitive state via cache/DB.
 - Permission and plan gates must tolerate stale tokens by enforcing server-side checks.
 
 **Acceptance Criteria:**
+
 - [ ] Membership removal revokes account access even for previously issued tokens within configured propagation window.
 - [ ] Account role changes are reflected without requiring full logout/login cycle.
 - [ ] Security tests cover stale-token denial scenarios.
@@ -591,6 +624,7 @@ Rules:
 #### FR-9.1: Group Scope
 
 Groups are global and not scoped to accounts for RBAC assignment. This allows:
+
 - System-wide permission grouping
 - Reusable RBAC role inheritance
 - Operational/admin team structures
@@ -600,6 +634,7 @@ In Phase 1, groups do **not** grant cross-account row access.
 #### FR-9.2: Group Access to Resources (Phase 2)
 
 Group-to-row grants are deferred to Phase 2 and must preserve account boundaries:
+
 - grant is valid only inside current account context
 - grant cannot be used for cross-account resource access
 
@@ -626,11 +661,11 @@ INSERT INTO resource_ownership (
 
 ### NFR-1: Performance
 
-| Operation | Target |
-|-----------|--------|
-| Access check | < 5ms (with pre-resolved principals) |
-| Principal resolution | < 10ms |
-| List accessible resources | < 50ms for 1000 resources |
+| Operation                 | Target                               |
+| ------------------------- | ------------------------------------ |
+| Access check              | < 5ms (with pre-resolved principals) |
+| Principal resolution      | < 10ms                               |
+| List accessible resources | < 50ms for 1000 resources            |
 
 ### NFR-2: Security
 
@@ -653,28 +688,28 @@ INSERT INTO resource_ownership (
 
 ### Account Management
 
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| POST | `/api/accounts` | Create new account | User |
-| GET | `/api/accounts` | List user's accounts | User |
-| GET | `/api/accounts/{id}` | Get account details | Member |
-| PATCH | `/api/accounts/{id}` | Update account | Owner |
-| DELETE | `/api/accounts/{id}` | Delete account | Owner |
-| POST | `/api/accounts/{id}/switch` | Switch current account | Member |
+| Method | Endpoint                    | Description            | Auth   |
+| ------ | --------------------------- | ---------------------- | ------ |
+| POST   | `/api/accounts`             | Create new account     | User   |
+| GET    | `/api/accounts`             | List user's accounts   | User   |
+| GET    | `/api/accounts/{id}`        | Get account details    | Member |
+| PATCH  | `/api/accounts/{id}`        | Update account         | Owner  |
+| DELETE | `/api/accounts/{id}`        | Delete account         | Owner  |
+| POST   | `/api/accounts/{id}/switch` | Switch current account | Member |
 
 ### Member Management
 
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| GET | `/api/accounts/{id}/members` | List members | Member |
-| POST | `/api/accounts/{id}/invitations` | Send invitation | Owner/Admin |
-| DELETE | `/api/accounts/{id}/invitations/{invId}` | Cancel invitation | Owner/Admin |
-| POST | `/api/invitations/{token}/accept` | Accept invitation | Invitee |
-| POST | `/api/invitations/{token}/decline` | Decline invitation | Invitee |
-| PATCH | `/api/accounts/{id}/members/{userId}` | Change member role | Owner |
-| DELETE | `/api/accounts/{id}/members/{userId}` | Remove member | Owner/Admin |
-| POST | `/api/accounts/{id}/leave` | Leave account | Member |
-| POST | `/api/accounts/{id}/transfer-ownership` | Transfer ownership | Owner |
+| Method | Endpoint                                 | Description        | Auth        |
+| ------ | ---------------------------------------- | ------------------ | ----------- |
+| GET    | `/api/accounts/{id}/members`             | List members       | Member      |
+| POST   | `/api/accounts/{id}/invitations`         | Send invitation    | Owner/Admin |
+| DELETE | `/api/accounts/{id}/invitations/{invId}` | Cancel invitation  | Owner/Admin |
+| POST   | `/api/invitations/{token}/accept`        | Accept invitation  | Invitee     |
+| POST   | `/api/invitations/{token}/decline`       | Decline invitation | Invitee     |
+| PATCH  | `/api/accounts/{id}/members/{userId}`    | Change member role | Owner       |
+| DELETE | `/api/accounts/{id}/members/{userId}`    | Remove member      | Owner/Admin |
+| POST   | `/api/accounts/{id}/leave`               | Leave account      | Member      |
+| POST   | `/api/accounts/{id}/transfer-ownership`  | Transfer ownership | Owner       |
 
 ### GraphQL Schema (Draft)
 
@@ -747,7 +782,11 @@ type Mutation {
   declineInvitation(token: String!): Boolean!
 
   # Member management
-  changeMemberRole(accountId: ID!, userId: ID!, role: AccountRole!): AccountMembership!
+  changeMemberRole(
+    accountId: ID!
+    userId: ID!
+    role: AccountRole!
+  ): AccountMembership!
   removeMember(accountId: ID!, userId: ID!): Boolean!
   leaveAccount(accountId: ID!): Boolean!
   transferOwnership(accountId: ID!, newOwnerId: ID!): Account!

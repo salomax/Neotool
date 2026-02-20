@@ -12,11 +12,11 @@ export interface SegmentedControlProps extends Omit<ToggleButtonGroupProps, "onC
   onChange: (value: string) => void;
 }
 
-const StyledToggleButtonGroup = styled(ToggleButtonGroup)(({ theme }) => ({
+const StyledToggleButtonGroup = styled(ToggleButtonGroup)(({ theme, fullWidth }) => ({
   backgroundColor: theme.palette.background.paper,
-  padding: 4,
+  padding: 0,
   borderRadius: theme.shape.borderRadius,
-  border: `1px solid ${theme.palette.divider}`,
+  border: "none",
   "& .MuiToggleButtonGroup-grouped": {
     margin: 0,
     border: 0,
@@ -45,7 +45,15 @@ const StyledToggleButtonGroup = styled(ToggleButtonGroup)(({ theme }) => ({
     textTransform: "none",
     padding: "4px 12px",
     minWidth: 60,
+    whiteSpace: "nowrap",
   },
+  ...(fullWidth && {
+    width: "100%",
+    display: "flex",
+    "& .MuiToggleButtonGroup-grouped": {
+      flex: 1,
+    },
+  }),
 }));
 
 export function SegmentedControl({

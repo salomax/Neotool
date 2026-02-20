@@ -4,9 +4,25 @@ type: architecture
 category: security
 status: reference
 version: 1.0.0
-tags: [security, authorization, microservices, distributed-systems, zanzibar, resource-ownership]
+tags:
+  [
+    security,
+    authorization,
+    microservices,
+    distributed-systems,
+    zanzibar,
+    resource-ownership,
+  ]
 ai_optimized: true
-search_keywords: [resource ownership, distributed authorization, zanzibar, relationship-based access, multi-tenant, microservices security]
+search_keywords:
+  [
+    resource ownership,
+    distributed authorization,
+    zanzibar,
+    relationship-based access,
+    multi-tenant,
+    microservices security,
+  ]
 related:
   - docs/03-features/security/authorization/resource-ownership.md
   - docs/03-features/security/row-level-security-blueprint.md
@@ -35,6 +51,7 @@ In a microservices architecture, determining "who owns what" becomes complex whe
 ```
 
 **Key Questions:**
+
 - Where does ownership data live?
 - How do you check ownership across services?
 - How do you maintain consistency when ownership changes?
@@ -46,13 +63,13 @@ In a microservices architecture, determining "who owns what" becomes complex whe
 
 ### Comparison Matrix
 
-| Approach | Used By | Consistency | Latency | Complexity | Scale |
-|----------|---------|-------------|---------|------------|-------|
-| **Per-Service Tables** | Stripe, Shopify | Eventual | Low | Low | Medium |
-| **Centralized Service** | Auth0 FGA, Ory Keto | Strong | Medium | Medium | High |
-| **Relationship Graph** | Google (Zanzibar), Airbnb | Strong | Low | High | Massive |
-| **Event Sourcing** | Netflix, Uber | Eventual | Low | High | High |
-| **Token-Embedded** | Simple APIs | N/A | Lowest | Lowest | Low |
+| Approach                | Used By                   | Consistency | Latency | Complexity | Scale   |
+| ----------------------- | ------------------------- | ----------- | ------- | ---------- | ------- |
+| **Per-Service Tables**  | Stripe, Shopify           | Eventual    | Low     | Low        | Medium  |
+| **Centralized Service** | Auth0 FGA, Ory Keto       | Strong      | Medium  | Medium     | High    |
+| **Relationship Graph**  | Google (Zanzibar), Airbnb | Strong      | Low     | High       | Massive |
+| **Event Sourcing**      | Netflix, Uber             | Eventual    | Low     | High       | High    |
+| **Token-Embedded**      | Simple APIs               | N/A         | Lowest  | Lowest     | Low     |
 
 ---
 
@@ -134,11 +151,11 @@ interface InvoiceClient {
 
 ### Pros & Cons
 
-| Pros | Cons |
-|------|------|
-| ✅ Service autonomy | ❌ Cross-service queries require API calls |
-| ✅ Simple to implement | ❌ Consistency challenges |
-| ✅ No single point of failure | ❌ Duplicate ownership logic |
+| Pros                            | Cons                                       |
+| ------------------------------- | ------------------------------------------ |
+| ✅ Service autonomy             | ❌ Cross-service queries require API calls |
+| ✅ Simple to implement          | ❌ Consistency challenges                  |
+| ✅ No single point of failure   | ❌ Duplicate ownership logic               |
 | ✅ Low latency for local checks | ❌ Hard to query "all resources user owns" |
 
 ### When to Use
@@ -146,7 +163,7 @@ interface InvoiceClient {
 - Microservices with clear boundaries
 - Resources rarely need cross-service ownership checks
 - Team autonomy is prioritized
-- **Invistus current approach** ✓
+- **neotool current approach** ✓
 
 ---
 
@@ -312,12 +329,12 @@ types:
 
 ### Pros & Cons
 
-| Pros | Cons |
-|------|------|
-| ✅ Single source of truth | ❌ Single point of failure |
-| ✅ Consistent cross-service | ❌ Added latency per check |
-| ✅ Complex relationship queries | ❌ Operational complexity |
-| ✅ Centralized audit log | ❌ Network dependency |
+| Pros                            | Cons                       |
+| ------------------------------- | -------------------------- |
+| ✅ Single source of truth       | ❌ Single point of failure |
+| ✅ Consistent cross-service     | ❌ Added latency per check |
+| ✅ Complex relationship queries | ❌ Operational complexity  |
+| ✅ Centralized audit log        | ❌ Network dependency      |
 
 ### When to Use
 
@@ -601,12 +618,12 @@ class ZanzibarController(
 
 ### Pros & Cons
 
-| Pros | Cons |
-|------|------|
-| ✅ Handles complex hierarchies | ❌ Complex to implement correctly |
-| ✅ Permission inheritance | ❌ Graph traversal can be expensive |
-| ✅ Google-scale proven | ❌ Requires careful cycle detection |
-| ✅ Flexible permission modeling | ❌ Debugging can be challenging |
+| Pros                            | Cons                                |
+| ------------------------------- | ----------------------------------- |
+| ✅ Handles complex hierarchies  | ❌ Complex to implement correctly   |
+| ✅ Permission inheritance       | ❌ Graph traversal can be expensive |
+| ✅ Google-scale proven          | ❌ Requires careful cycle detection |
+| ✅ Flexible permission modeling | ❌ Debugging can be challenging     |
 
 ### When to Use
 
@@ -855,12 +872,12 @@ enum class ConsistencyLevel {
 
 ### Pros & Cons
 
-| Pros | Cons |
-|------|------|
-| ✅ Decoupled services | ❌ Eventual consistency complexity |
-| ✅ Audit trail built-in | ❌ Event ordering challenges |
-| ✅ Scalable | ❌ Harder to debug |
-| ✅ Replay capability | ❌ Duplicate event handling |
+| Pros                    | Cons                               |
+| ----------------------- | ---------------------------------- |
+| ✅ Decoupled services   | ❌ Eventual consistency complexity |
+| ✅ Audit trail built-in | ❌ Event ordering challenges       |
+| ✅ Scalable             | ❌ Harder to debug                 |
+| ✅ Replay capability    | ❌ Duplicate event handling        |
 
 ### When to Use
 
@@ -945,12 +962,12 @@ class TokenOwnershipChecker {
 
 ### Pros & Cons
 
-| Pros | Cons |
-|------|------|
-| ✅ Zero latency | ❌ Token size limits (~8KB header limit) |
-| ✅ No database dependency | ❌ Stale data until token refresh |
-| ✅ Simple implementation | ❌ Doesn't scale with many resources |
-| ✅ Stateless | ❌ Token refresh on ownership change |
+| Pros                      | Cons                                     |
+| ------------------------- | ---------------------------------------- |
+| ✅ Zero latency           | ❌ Token size limits (~8KB header limit) |
+| ✅ No database dependency | ❌ Stale data until token refresh        |
+| ✅ Simple implementation  | ❌ Doesn't scale with many resources     |
+| ✅ Stateless              | ❌ Token refresh on ownership change     |
 
 ### When to Use
 
@@ -989,11 +1006,11 @@ Most production systems combine multiple patterns:
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### Recommended Hybrid for Invistus
+### Recommended Hybrid for neotool
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                   Invistus Ownership Strategy                    │
+│                   neotool Ownership Strategy                    │
 │                                                                  │
 │  Layer 1: JWT Token                                             │
 │  ├─ user_id, account_id                                        │
@@ -1151,12 +1168,12 @@ class OwnershipCacheChecker(
 
 ### CAP Theorem Trade-offs
 
-| Approach | Consistency | Availability | Partition Tolerance |
-|----------|-------------|--------------|---------------------|
-| Centralized Service | Strong | Lower | Yes |
-| Per-Service Tables | Eventual | High | Yes |
-| Shared Cache | Eventual | High | Yes |
-| Event Sourcing | Eventual | High | Yes |
+| Approach            | Consistency | Availability | Partition Tolerance |
+| ------------------- | ----------- | ------------ | ------------------- |
+| Centralized Service | Strong      | Lower        | Yes                 |
+| Per-Service Tables  | Eventual    | High         | Yes                 |
+| Shared Cache        | Eventual    | High         | Yes                 |
+| Event Sourcing      | Eventual    | High         | Yes                 |
 
 ### Handling Stale Ownership Data
 
@@ -1231,7 +1248,7 @@ class OwnershipChecker(
 
 ---
 
-## Migration Path for Invistus
+## Migration Path for neotool
 
 ### Current State
 
