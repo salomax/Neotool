@@ -12,15 +12,15 @@ import BacenInstitutionDetailClient from './client';
 export const dynamic = 'force-dynamic';
 
 type Props = {
-  params: { "bacen-cod-inst": string }
-  searchParams: { [key: string]: string | string[] | undefined }
+  params: Promise<{ "bacen-cod-inst": string }>
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
 export async function generateMetadata(
   { params }: Props,
   parent: ResolvingMetadata
 ): Promise<Metadata> {
-  const rawParam = params["bacen-cod-inst"];
+  const { "bacen-cod-inst": rawParam } = await params;
   const id = extractIdFromSemanticPath(rawParam);
 
   // Default to PT
