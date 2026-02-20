@@ -19,7 +19,9 @@ export default function SignUpPage() {
   // Redirect if already authenticated
   React.useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      router.push("/");
+      const pendingVerificationEmail =
+        typeof window !== "undefined" ? sessionStorage.getItem("pendingVerificationEmail") : null;
+      router.push(pendingVerificationEmail ? "/verify-email" : "/");
     }
   }, [isAuthenticated, isLoading, router]);
 
@@ -87,11 +89,7 @@ export default function SignUpPage() {
                 </Typography>
               </Box>
 
-              <SignUpForm
-                onSuccess={() => {
-                  router.push("/");
-                }}
-              />
+              <SignUpForm />
             </Stack>
           </Paper>
         </Stack>
@@ -99,4 +97,3 @@ export default function SignUpPage() {
     </Box>
   );
 }
-

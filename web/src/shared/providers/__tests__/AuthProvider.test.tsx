@@ -287,6 +287,44 @@ function createGraphQLResponse(operationName: string, data: any) {
       expect(sessionStorageMock.setItem).not.toHaveBeenCalledWith('auth_refresh_token', expect.anything());
     });
 
+    it('should redirect unverified users to verify-email after sign in', async () => {
+      const mockUser = {
+        id: '1',
+        email: 'test@example.com',
+        displayName: 'Test User',
+        emailVerified: false,
+      };
+      const mockToken = 'new-token';
+
+      mockMutate.mockResolvedValue({
+        data: {
+          signIn: {
+            token: mockToken,
+            refreshToken: null,
+            user: mockUser,
+          },
+        },
+      });
+
+      const { result } = renderHook(() => useAuth(), { wrapper });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      await act(async () => {
+        await result.current.signIn('test@example.com', 'password');
+      });
+
+      await waitFor(() => {
+        expect(result.current.user).toEqual(mockUser);
+        expect(result.current.token).toBe(mockToken);
+      });
+
+      expect(sessionStorageMock.setItem).toHaveBeenCalledWith('pendingVerificationEmail', mockUser.email);
+      expect(mockPush).toHaveBeenCalledWith('/verify-email');
+    });
+
     it('should handle sign in error', async () => {
       const mockError = new Error('Invalid credentials');
 
@@ -495,6 +533,41 @@ function createGraphQLResponse(operationName: string, data: any) {
       expect(localStorageMock.setItem).toHaveBeenCalledWith('auth_user', JSON.stringify(mockUser));
       expect(localStorageMock.setItem).toHaveBeenCalledWith('auth_refresh_token', mockRefreshToken);
       expect(mockPush).toHaveBeenCalledWith('/');
+    });
+
+    it('should redirect to verify-email when signup requires verification', async () => {
+      const mockUser = { id: '1', email: 'test@example.com', displayName: 'Test User', emailVerified: false };
+      const mockToken = 'signup-token';
+      const mockRefreshToken = 'refresh-token';
+
+      mockMutate.mockResolvedValue({
+        data: {
+          signUp: {
+            token: mockToken,
+            refreshToken: mockRefreshToken,
+            user: mockUser,
+            requiresVerification: true,
+          },
+        },
+      });
+
+      const { result } = renderHook(() => useAuth(), { wrapper });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      await act(async () => {
+        await result.current.signUp('Test User', 'test@example.com', 'password');
+      });
+
+      await waitFor(() => {
+        expect(result.current.user).toEqual(mockUser);
+        expect(result.current.token).toBe(mockToken);
+      });
+
+      expect(sessionStorageMock.setItem).toHaveBeenCalledWith('pendingVerificationEmail', mockUser.email);
+      expect(mockPush).toHaveBeenCalledWith('/verify-email');
     });
 
     it('should handle sign up error', async () => {
