@@ -1,3 +1,20 @@
+## 0.2.1 (2026-02-21)
+
+### 🚀 Features
+
+- **config:** add GraphQL router and service principal credentials to application-test.yml ([14205c4d](https://github.com/invistus/invistus/commit/14205c4d))
+- **email-verification:** enhance resend verification functionality with transaction management ([7596a692](https://github.com/invistus/invistus/commit/7596a692))
+- **email-verification:** update email templates and service for Invistus branding ([d2cac176](https://github.com/invistus/invistus/commit/d2cac176))
+- **comms:** introduce Comms service with email delivery capabilities ([7542bcd8](https://github.com/invistus/invistus/commit/7542bcd8))
+
+### 🩹 Fixes
+
+- **config:** remove default values from application.yml for clarity ([1b7799b4](https://github.com/invistus/invistus/commit/1b7799b4))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.2.0 (2026-02-16)
 
 ### 🚀 Features

@@ -1,3 +1,13 @@
+## 0.2.2 (2026-02-21)
+
+### 🩹 Fixes
+
+- **validation:** update ValidEmailSendRequestValidator for Micronaut compatibility ([f59649a4](https://github.com/invistus/invistus/commit/f59649a4))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.2.1 (2026-02-17)
 
 ### 🩹 Fixes

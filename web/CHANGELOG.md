@@ -1,3 +1,21 @@
+## 0.3.2 (2026-02-21)
+
+### 🚀 Features
+
+- **email-verification:** enhance localization and error handling in email verification process ([316a3e72](https://github.com/invistus/invistus/commit/316a3e72))
+- **verify-email:** enhance loading state with improved UI and localization ([27ab8f04](https://github.com/invistus/invistus/commit/27ab8f04))
+- **assets:** add new white transparent logo asset ([84e709f9](https://github.com/invistus/invistus/commit/84e709f9))
+- **auth:** enhance user redirection based on email verification status ([12e66eae](https://github.com/invistus/invistus/commit/12e66eae))
+- **comms:** introduce Comms service with email delivery capabilities ([7542bcd8](https://github.com/invistus/invistus/commit/7542bcd8))
+
+### 🩹 Fixes
+
+- **bacen:** update parameter types to promises for async handling ([6cd66fd0](https://github.com/invistus/invistus/commit/6cd66fd0))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.3.1 (2026-02-18)
 
 ### 🩹 Fixes
