@@ -1,3 +1,13 @@
+## 0.3.4 (2026-02-21)
+
+### 🩹 Fixes
+
+- **config:** update email provider configuration to support environment variable ([a2604cea](https://github.com/invistus/invistus/commit/a2604cea))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.3.3 (2026-02-21)
 
 ### 🩹 Fixes
