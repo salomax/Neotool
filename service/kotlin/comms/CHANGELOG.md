@@ -1,3 +1,13 @@
+## 0.3.1 (2026-02-21)
+
+### 🩹 Fixes
+
+- **email:** update footer text formatting in password reset email template ([d56fac7d](https://github.com/invistus/invistus/commit/d56fac7d))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.3.0 (2026-02-21)
 
 ### 🚀 Features
