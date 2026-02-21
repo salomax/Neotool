@@ -4,6 +4,7 @@
   "resend": "Resend verification link",
   "resendSuccess": "New verification link sent!",
   "resendRateLimit": "Please wait before requesting another link.",
+  "loading": "Loading…",
   "success": "Email verified successfully!",
   "skip": "Skip for now (Limited access)",
   "errors": {

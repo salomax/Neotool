@@ -421,7 +421,6 @@ function createGraphQLResponse(operationName: string, data: any) {
             rememberMe: true,
           },
         },
-      });
       expect(localStorageMock.setItem).toHaveBeenCalledWith('auth_token', mockToken);
       expect(localStorageMock.setItem).toHaveBeenCalledWith('auth_user', JSON.stringify(mockUser));
       expect(mockPush).toHaveBeenCalledWith('/');
@@ -526,6 +525,7 @@ function createGraphQLResponse(operationName: string, data: any) {
             name: 'Test User',
             email: 'test@example.com',
             password: 'password',
+            locale: expect.any(String),
           },
         },
       });

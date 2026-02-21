@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Container, Box, Typography } from "@mui/material";
+import { Container, Box, Typography, CircularProgress } from "@mui/material";
 import { VerificationPrompt } from "@/shared/components/auth/VerificationPrompt";
 import { useAuth } from "@/shared/providers";
 import { Logo } from "@/shared/ui/brand";
@@ -38,11 +38,60 @@ export default function VerifyEmailPage() {
 
   if (isLoading || (email === null && !isAuthenticated)) {
     return (
-      <Container maxWidth="sm" sx={{ py: 8 }}>
-        <Box sx={{ textAlign: "center" }}>
-          <Typography>Loading...</Typography>
-        </Box>
-      </Container>
+      <Box
+        sx={{
+          height: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          bgcolor: "background.default",
+          py: { xs: 4, sm: 8 },
+          px: { xs: 2, sm: 3 },
+        }}
+        data-testid="verify-email-screen"
+      >
+        <Container maxWidth="sm" sx={{ width: "100%" }}>
+          <Stack gap={4} align="center" name="verify-email-page-stack">
+            <Box sx={{ mb: 2 }}>
+              <Logo variant="blue" size="large" />
+            </Box>
+
+            <Paper
+              elevation={0}
+              sx={{
+                width: "100%",
+                maxWidth: 440,
+                p: { xs: 3, sm: 4, md: 5 },
+                borderRadius: 2,
+                border: 1,
+                borderColor: "divider",
+              }}
+              name="verify-email-card"
+            >
+              <Stack gap={3} name="verify-email-content-stack">
+                <Box sx={{ textAlign: "center", mb: 1 }}>
+                  <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 600 }}>
+                    {t("title")}
+                  </Typography>
+                </Box>
+
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 2,
+                    py: 2,
+                  }}
+                >
+                  <CircularProgress size={24} />
+                  <Typography color="text.secondary">{t("loading")}</Typography>
+                </Box>
+              </Stack>
+            </Paper>
+          </Stack>
+        </Container>
+      </Box>
     );
   }
 

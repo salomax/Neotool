@@ -190,6 +190,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Dynamic import to avoid SSR issues
       const { apolloClient } = await import("@/lib/graphql/client");
       const { SIGN_UP } = await import("@/lib/graphql/operations/auth");
+      const i18n = (await import("@/shared/i18n/config")).default;
+      const locale = i18n.language || "pt";
 
       const result = await apolloClient.mutate({
         mutation: SIGN_UP,
@@ -198,6 +200,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             name,
             email,
             password,
+            locale,
           },
         },
       });
