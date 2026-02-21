@@ -45,11 +45,21 @@ class TemplateService(
             templateRegistry.resolve(templateKey, locale, channel)
                 ?: throw TemplateNotFoundException(templateKey, locale, channel)
 
+        // Merge provided variables with template defaults
+        // Defaults should apply only when a variable is missing or null
+        val mergedVariables = variables.toMutableMap()
+        template.variables.forEach { def ->
+            val hasValue = mergedVariables.containsKey(def.name) && mergedVariables[def.name] != null
+            if (!hasValue && def.default != null) {
+                mergedVariables[def.name] = def.default
+            }
+        }
+
         // Get channel-specific renderer
         val renderer = rendererFactory.getRenderer(channel)
 
         // Render template
-        return renderer.render(template, variables, locale)
+        return renderer.render(template, mergedVariables, locale)
     }
 
     /**

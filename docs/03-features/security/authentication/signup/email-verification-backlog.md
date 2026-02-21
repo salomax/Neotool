@@ -699,8 +699,6 @@ class VerificationEmailService(
                 "verificationCode" to code,
                 "verificationLink" to verificationLink,
                 "expirationHours" to expirationHours.toString(),
-                "supportEmail" to "support@neotool.io",
-                "logoUrl" to "https://neotool.io/logo.png"
             )
         )
 
