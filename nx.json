@@ -36,6 +36,7 @@
       "assets",
       "financialdata",
       "assistant",
+      "comms",
       "bacen-ifdata-cronjob",
       "indicators-job",
       "ratings-job",

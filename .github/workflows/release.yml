@@ -60,3 +60,12 @@ jobs:
           npx nx release $FIRST_RELEASE --skip-publish --verbose
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+
+      - name: Trigger production builds
+        run: |
+          git tag --points-at HEAD | grep -- '-v' | while read tag; do
+            echo "Triggering build for $tag"
+            gh workflow run build-production.yml -f tag="$tag"
+          done
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}

@@ -1,9 +1,6 @@
 name: Production Build
 
 on:
-  push:
-    tags:
-      - '*-v*.*.*'
   workflow_dispatch:
     inputs:
       tag:
@@ -77,6 +74,10 @@ jobs:
               ;;
             assistant)
               MATRIX='[{"context":"./service/kotlin","dockerfile":"./service/kotlin/assistant/Dockerfile","image":"neotool-assistant"}]'
+              SUPERGRAPH=true
+              ;;
+            comms)
+              MATRIX='[{"context":"./service/kotlin","dockerfile":"./service/kotlin/comms/Dockerfile","image":"neotool-comms"}]'
               SUPERGRAPH=true
               ;;
             bacen-ifdata-cronjob)
