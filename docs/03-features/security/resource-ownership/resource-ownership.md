@@ -26,7 +26,7 @@ This complements RBAC/ABAC which answers: _"Can this user perform THIS ACTION?"_
 ### Design Philosophy
 
 - **Per-microservice ownership tables**: Each service manages ownership of its own resources
-- **User and Group ownership**: Resources can be owned by individual users or groups
+- **Account-first ownership**: Resources are primarily owned by accounts, with optional user/group grants
 - **Service autonomy**: No cross-service database dependencies
 - **Performance-first**: Optimized for high-throughput filtering queries
 - **Defense in depth**: Works alongside RBAC/ABAC, not replacing them
@@ -36,7 +36,8 @@ This complements RBAC/ABAC which answers: _"Can this user perform THIS ACTION?"_
 | Capability | Description |
 |------------|-------------|
 | **User Ownership** | Resources tied to individual users (survives group changes) |
-| **Account Ownership** | Resources tied to accounts (access lost when user leaves group) |
+| **Account Ownership** | Resources tied to accounts (access revoked when user loses account membership) |
+| **Group Ownership** | Optional grants to groups inside an account for team-level access |
 | **Efficient Filtering** | Query thousands of resources with single indexed SQL query |
 | **Resource Sharing** | Optional: Share resources with explicit grants |
 | **Time-based Access** | Optional: Temporary access with expiration |
@@ -67,7 +68,7 @@ This complements RBAC/ABAC which answers: _"Can this user perform THIS ACTION?"_
 │  └──────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
                          │
-                         ▼ userId
+                         ▼ userId + currentAccountId
 ┌─────────────────────────────────────────────────────────────┐
 │                  Service Layer                              │
 │  ┌──────────────────────────────────────────────────────┐  │
@@ -100,23 +101,30 @@ Request
 └────────────────────────────────────────┘
   ↓
 ┌────────────────────────────────────────┐
-│ Layer 2: RBAC (Action-Level)          │
+│ Layer 2: Account Context & Membership  │
+│ "Which account are you acting in?"     │
+│ - current_account from JWT             │
+│ - ACTIVE membership validation         │
+└────────────────────────────────────────┘
+  ↓
+┌────────────────────────────────────────┐
+│ Layer 3: RBAC (Action-Level)           │
 │ "Can you perform THIS ACTION?"         │
 │ - GraphQL Layer / REST Interceptor     │
 │ - Permission: "transaction:update"     │
 └────────────────────────────────────────┘
   ↓
 ┌────────────────────────────────────────┐
-│ Layer 3: Resource Ownership            │
+│ Layer 4: Resource Ownership            │
 │ "Can you access THIS RESOURCE?"        │
 │ - Service Layer                        │
-│ - Check: user/group owns resource      │
+│ - Check: account/user grant matches row│
 └────────────────────────────────────────┘
   ↓
 Business Logic
 ```
 
-**Key Insight:** Each layer serves a distinct purpose and cannot be bypassed.
+**Key Insight:** Each layer serves a distinct purpose (context, action, row) and cannot be bypassed.
 
 ---
 
@@ -136,10 +144,11 @@ CREATE TABLE resource_ownership (
     resource_id UUID NOT NULL,
 
     -- Access grant
-    access_type TEXT NOT NULL DEFAULT 'OWNER',     -- 'OWNER', 'EDIT', 'VIEW'
-    membership TEXT NOT NULL DEFAULT 'MEMBER',  -- 'MEMBER' (direct), 'SHARED'
-    principal_type TEXT NOT NULL DEFAULT 'ACCOUNT',  -- 'USER', 'ACCOUNT'
-    principal_id UUID NOT NULL,           -- user_id or account_id
+    access_type TEXT NOT NULL DEFAULT 'OWNER',      -- 'OWNER', 'EDIT', 'VIEW'
+    grant_type TEXT NOT NULL DEFAULT 'DIRECT',      -- 'DIRECT', 'SHARED'
+    principal_type TEXT NOT NULL DEFAULT 'ACCOUNT', -- 'USER', 'ACCOUNT', 'GROUP'
+    principal_id UUID NOT NULL,                     -- user_id, account_id, or group_id
+    permissions TEXT[],                             -- optional action list; NULL/empty means full access
 
    -- Optional: Time-based access
     valid_from TIMESTAMPTZ,
@@ -153,8 +162,8 @@ CREATE TABLE resource_ownership (
 
     -- Constraints
     CONSTRAINT chk_access_type CHECK (access_type IN ('OWNER', 'EDIT', 'VIEW')),
-    CONSTRAINT chk_membership CHECK (membership IN ('MEMBER', 'SHARED')),
-    CONSTRAINT chk_principal_type CHECK (principal_type IN ('USER', 'ACCOUNT')),
+    CONSTRAINT chk_grant_type CHECK (grant_type IN ('DIRECT', 'SHARED')),
+    CONSTRAINT chk_principal_type CHECK (principal_type IN ('USER', 'ACCOUNT', 'GROUP')),
     CONSTRAINT uq_owner_per_resource
         UNIQUE (resource_type, resource_id, access_type)
         WHERE access_type = 'OWNER'
@@ -168,8 +177,13 @@ CREATE INDEX idx_resource_ownership_resource
     ON resource_ownership(resource_type, resource_id);
 
 CREATE INDEX idx_resource_ownership_lookup
-    ON resource_ownership(resource_type, resource_id, principal_type, principal_id)
-    WHERE valid_until IS NULL OR valid_until > NOW();
+    ON resource_ownership(resource_type, resource_id, principal_type, principal_id, valid_until);
+
+-- Optional: assists expiration cleanup and temporal filtering.
+-- Avoid NOW() in partial index predicates.
+CREATE INDEX idx_resource_ownership_valid_until
+    ON resource_ownership(valid_until)
+    WHERE valid_until IS NOT NULL;
 
 
 ```
@@ -193,7 +207,7 @@ interface ResourceAccessControl {
      * @param resourceType Resource type (e.g., "bank_transaction")
      * @param resourceId Resource ID
      * @param permission Required permission (e.g., "write", "delete")
-     * @return true if user or user's groups have access
+     * @return true if user or user's accounts/groups have access
      */
     fun canAccess(
         userId: UUID,
@@ -232,8 +246,8 @@ interface ResourceAccessControl {
      *
      * @param resourceType Resource type
      * @param resourceId Resource ID
-     * @param ownerId Owner ID (user or group)
-     * @param ownerType USER or GROUP
+     * @param ownerId Owner ID (user, account, or group)
+     * @param ownerType USER, ACCOUNT, or GROUP
      * @param grantedBy User granting access
      */
     fun grantOwnership(
@@ -245,12 +259,12 @@ interface ResourceAccessControl {
     )
 
     /**
-     * Share resource with user or group.
+     * Share resource with user, account, or group.
      *
      * @param resourceType Resource type
      * @param resourceId Resource ID
-     * @param shareWithId User or group to share with
-     * @param shareWithType USER or GROUP
+     * @param shareWithId User, account, or group to share with
+     * @param shareWithType USER, ACCOUNT, or GROUP
      * @param permissions Specific permissions to grant
      * @param grantedBy User granting access
      */
@@ -268,7 +282,7 @@ interface ResourceAccessControl {
      *
      * @param resourceType Resource type
      * @param resourceId Resource ID
-     * @param principalId User or group to revoke
+     * @param principalId User, account, or group to revoke
      */
     fun revokeAccess(
         resourceType: String,
@@ -277,8 +291,9 @@ interface ResourceAccessControl {
     )
 }
 
-enum class AccessType { OWNER, SHARED }
-enum class PrincipalType { USER, GROUP }
+enum class AccessType { OWNER, EDIT, VIEW }
+enum class GrantType { DIRECT, SHARED }
+enum class PrincipalType { USER, ACCOUNT, GROUP }
 
 /**
  * Exception thrown when resource access is denied.
@@ -298,6 +313,7 @@ class ResourceAccessDeniedException(
 @Singleton
 class TransactionResourceAccessControl(
     private val repository: TransactionResourceOwnershipRepository,
+    private val accountMembershipRepository: AccountMembershipRepository,
     private val groupMembershipRepository: GroupMembershipRepository
 ) : ResourceAccessControl {
 
@@ -346,14 +362,18 @@ class TransactionResourceAccessControl(
     }
 
     /**
-     * Get all principal IDs for user (user ID + group IDs)
+     * Get all principal IDs for user (user + account IDs; +group IDs when enabled)
      */
     private fun getPrincipalIds(userId: UUID): List<UUID> {
+        val accountIds = accountMembershipRepository
+            .findActiveByUserId(userId)
+            .map { it.accountId }
+
         val userGroupIds = groupMembershipRepository
             .findActiveGroupsByUserId(userId)
             .map { it.groupId }
 
-        return listOf(userId) + userGroupIds
+        return listOf(userId) + accountIds + userGroupIds
     }
 
     // ... other methods
@@ -385,6 +405,10 @@ class BankTransactionService(
                 require(ownerId == userId) {
                     "Can only create user-owned resources for yourself"
                 }
+            }
+            PrincipalType.ACCOUNT -> {
+                // Validate user has ACTIVE membership in account
+                // (implementation omitted for brevity)
             }
             PrincipalType.GROUP -> {
                 // Validate user is member of group
@@ -477,14 +501,15 @@ class BankTransactionMutationResolver(
         env: DataFetchingEnvironment,
         input: UpdateBankTransactionInput
     ): BankTransactionDTO {
-        // ✅ Layer 1: RBAC check (GraphQL layer)
+        // ✅ Gate 2: RBAC check (GraphQL layer)
         return GraphQLPermissionHelper.withPermissionAndPrincipal(
             env = env,
             action = "transaction:bank_transaction:update",  // RBAC permission
             requestPrincipalProvider = requestPrincipalProvider,
             authorizationChecker = authorizationChecker
         ) { principal ->
-            // ✅ Layer 2: Service validates resource ownership
+            // ✅ Gate 1: current account context is already present in principal
+            // ✅ Gate 3: Service validates row-level resource ownership
             val transaction = transactionService.update(
                 userId = principal.userId,
                 transactionId = UUID.fromString(input.id),
@@ -502,25 +527,32 @@ class BankTransactionMutationResolver(
 
 ## Integration with RBAC/ABAC
 
-### Three-Layer Security Model
+### Four-Layer Security Model (No Overlap)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ Layer 1: RBAC (GraphQL/REST)                                │
+│ Layer 1: Account Context & Membership                        │
+│ Question: "Which account is this request for?"               │
+│ Check: `current_account` present + membership ACTIVE         │
+│ Location: Request context / service guard                    │
+└─────────────────────────────────────────────────────────────┘
+                         ↓ PASS
+┌─────────────────────────────────────────────────────────────┐
+│ Layer 2: RBAC (GraphQL/REST)                                │
 │ Question: "Can user PERFORM this action?"                   │
 │ Check: User has permission "transaction:update"             │
 │ Location: GraphQL Resolver / REST Interceptor               │
 └─────────────────────────────────────────────────────────────┘
                          ↓ PASS
 ┌─────────────────────────────────────────────────────────────┐
-│ Layer 2: Resource Ownership (Service)                       │
+│ Layer 3: Resource Ownership (Service)                       │
 │ Question: "Can user ACCESS this resource?"                  │
-│ Check: User or user's group owns resource                   │
+│ Check: current account/user has matching row grant          │
 │ Location: Service Layer                                     │
 └─────────────────────────────────────────────────────────────┘
                          ↓ PASS
 ┌─────────────────────────────────────────────────────────────┐
-│ Layer 3: ABAC (Optional - Service)                         │
+│ Layer 4: ABAC (Optional - Service)                         │
 │ Question: "Under what CONDITIONS can user act?"            │
 │ Check: Resource state, context attributes                   │
 │ Location: Service Layer (via AuthorizationManager)          │
@@ -533,21 +565,29 @@ class BankTransactionMutationResolver(
 
 | Layer | Use When | Example |
 |-------|----------|---------|
+| **Account Context** | Binding request to tenant scope | "Is user active in account A?" |
 | **RBAC** | Checking action-level permissions | "Can user create transactions?" |
-| **Resource Ownership** | Checking object-level access | "Can user update transaction #123?" |
+| **Resource Ownership** | Checking object-level access | "Can user update transaction #123 in account A?" |
 | **ABAC** | Checking complex business rules | "Can user approve transactions >$10k in draft status?" |
 
-### Example: All Three Layers Together
+### Example: All Four Layers Together
 
 ```kotlin
 fun approveTransaction(
     userId: UUID,
+    currentAccountId: UUID,
     transactionId: UUID
 ): BankTransaction {
+    // ✅ Account context + membership gate
+    accountAccessControl.requireActiveMembership(
+        userId = userId,
+        accountId = currentAccountId
+    )
+
     // ✅ RBAC already checked in GraphQL layer
     // Permission: "transaction:approve"
 
-    // ✅ Resource ownership check
+    // ✅ Resource ownership check (row-level)
     resourceAccessControl.requireAccess(
         userId = userId,
         resourceType = "bank_transaction",
@@ -590,8 +630,13 @@ SELECT COUNT(*) > 0
 FROM resource_ownership
 WHERE resource_type = 'bank_transaction'
   AND resource_id = :resourceId
-  AND principal_id IN (:userId, :groupId1, :groupId2)
-  AND (:permission = ANY(permissions) OR permissions IS NULL);
+  -- Phase 1: account/user principals only. Add group IDs in Phase 2 if enabled.
+  AND principal_id IN (:userId, :accountId)
+  AND (
+      permissions IS NULL
+      OR cardinality(permissions) = 0
+      OR :permission = ANY(permissions)
+  );
 ```
 
 **List Accessible Resources** (O(log n) with index):
@@ -599,7 +644,8 @@ WHERE resource_type = 'bank_transaction'
 SELECT DISTINCT resource_id
 FROM resource_ownership
 WHERE resource_type = 'bank_transaction'
-  AND principal_id IN (:userId, :groupId1, :groupId2);
+  -- Phase 1: account/user principals only. Add group IDs in Phase 2 if enabled.
+  AND principal_id IN (:userId, :accountId);
 ```
 
 ### Index Strategy
@@ -615,28 +661,36 @@ CREATE INDEX idx_resource_ownership_resource
 
 -- CRITICAL: Composite index for access checks
 CREATE INDEX idx_resource_ownership_lookup
-    ON resource_ownership(resource_type, resource_id, principal_type, principal_id)
-    WHERE valid_until IS NULL OR valid_until > NOW();
+    ON resource_ownership(resource_type, resource_id, principal_type, principal_id, valid_until);
 ```
 
 ### Caching Strategy
 
 ```kotlin
-// Optional: Cache user's group memberships
-private val groupCache = ConcurrentHashMap<UUID, List<UUID>>()
+// Optional: Cache resolved account/group principals per user
+data class PrincipalCacheEntry(
+    val accountIds: List<UUID>,
+    val groupIds: List<UUID>
+)
+
+private val principalCache = ConcurrentHashMap<UUID, PrincipalCacheEntry>()
 
 fun getPrincipalIds(userId: UUID): List<UUID> {
-    val cachedGroups = groupCache[userId]
-    if (cachedGroups != null) {
-        return listOf(userId) + cachedGroups
+    val cached = principalCache[userId]
+    if (cached != null) {
+        return listOf(userId) + cached.accountIds + cached.groupIds
     }
 
-    val groups = groupMembershipRepository
+    val accountIds = accountMembershipRepository
+        .findActiveByUserId(userId)
+        .map { it.accountId }
+
+    val groupIds = groupMembershipRepository
         .findActiveGroupsByUserId(userId)
         .map { it.groupId }
 
-    groupCache[userId] = groups
-    return listOf(userId) + groups
+    principalCache[userId] = PrincipalCacheEntry(accountIds, groupIds)
+    return listOf(userId) + accountIds + groupIds
 }
 ```
 
@@ -710,8 +764,10 @@ INSERT INTO resource_ownership (
     resource_type,
     resource_id,
     access_type,
+    grant_type,
     principal_type,
     principal_id,
+    permissions,
     granted_by,
     granted_at
 )
@@ -719,12 +775,14 @@ SELECT
     'bank_transaction',
     id,
     'OWNER',
-    'USER',
-    created_by_user_id,  -- Assuming this column exists
+    'DIRECT',
+    'ACCOUNT',
+    account_id,          -- Assuming account_id already exists
+    ARRAY['read', 'write', 'delete'],
     created_by_user_id,
     created_at
 FROM bank_transaction
-WHERE created_by_user_id IS NOT NULL;
+WHERE account_id IS NOT NULL;
 ```
 
 ---
@@ -742,15 +800,15 @@ WHERE created_by_user_id IS NOT NULL;
    - Monitor query performance
 
 3. **Grant minimal permissions**
-   - Empty permissions array = full access
+   - NULL or empty permissions array = full access
    - Specify explicit permissions when sharing
 
 4. **Audit ownership changes**
    - Track who granted access (granted_by)
    - Track when access was granted (granted_at)
 
-5. **Handle group changes gracefully**
-   - Group ownership automatically revokes when user leaves
+5. **Handle account/group membership changes gracefully**
+   - Account/group grants automatically stop applying when membership becomes inactive
    - No cleanup needed
 
 ### ❌ DON'T
@@ -812,7 +870,7 @@ This implementation follows established patterns:
 
 - [ ] **Ownership transfer**
   - Transfer ownership between users
-  - Transfer from user to group and vice versa
+  - Transfer between user/account/group
 
 - [ ] **Access analytics**
   - Dashboard showing resource access patterns
@@ -830,6 +888,6 @@ This implementation follows established patterns:
 
 ---
 
-**Last Updated**: 2026-01-03
-**Version**: 1.0
+**Last Updated**: 2026-02-10
+**Version**: 1.1
 **Status**: Active Development
