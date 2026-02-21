@@ -9,6 +9,8 @@ import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.email.EmailService
 import io.micronaut.context.annotation.Value
 import jakarta.inject.Singleton
+import jakarta.transaction.Transactional
+import jakarta.persistence.EntityManager
 import mu.KotlinLogging
 import java.security.MessageDigest
 import java.time.Instant
@@ -24,6 +26,7 @@ open class EmailVerificationService(
     private val emailVerificationRepository: EmailVerificationRepository,
     private val userRepository: UserRepository,
     private val emailService: EmailService,
+    private val entityManager: EntityManager,
     @param:Value("\${app.verification.code-expiration-hours:8}") private val linkExpirationHours: Long,
     @param:Value("\${app.verification.max-attempts:5}") private val maxAttempts: Int,
     @param:Value("\${app.verification.resend-rate-limit-per-hour:3}") private val resendRateLimitPerHour: Int,
@@ -98,6 +101,7 @@ open class EmailVerificationService(
     /**
      * Resend verification email (rate-limited).
      */
+    @Transactional
     open fun resendVerification(
         userId: UUID,
         userEmail: String,
@@ -118,6 +122,7 @@ open class EmailVerificationService(
         if (active != null) {
             active.markInvalidated()
             emailVerificationRepository.save(active)
+            entityManager.flush()
         }
 
         initiateVerification(userId, userEmail, userName, locale, null)
