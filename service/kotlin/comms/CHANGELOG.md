@@ -1,33 +1,3 @@
-## 0.3.4 (2026-02-21)
-
-### 🩹 Fixes
-
-- **config:** update email provider configuration to support environment variable ([a2604cea](https://github.com/invistus/invistus/commit/a2604cea))
-
-### ❤️ Thank You
-
-- Marcos Salomao @salomax
-
-## 0.3.3 (2026-02-21)
-
-### 🩹 Fixes
-
-- **email:** update logo box styling in password reset and verify email templates ([f61e4c10](https://github.com/invistus/invistus/commit/f61e4c10))
-
-### ❤️ Thank You
-
-- Marcos Salomao @salomax
-
-## 0.3.2 (2026-02-21)
-
-### 🩹 Fixes
-
-- **build:** update shadow JAR configuration and Dockerfile ([507a33a3](https://github.com/invistus/invistus/commit/507a33a3))
-
-### ❤️ Thank You
-
-- Marcos Salomao @salomax
-
 ## 0.3.1 (2026-02-21)
 
 ### 🩹 Fixes
