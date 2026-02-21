@@ -2,9 +2,12 @@
   "title": "Verify your email",
   "loading": "Verifying…",
   "success": "Email verified successfully!",
-  "redirectNotice": "Redirecting in 3 seconds…",
+  "redirectNotice": "Redirecting in {{seconds}} seconds…",
   "errors": {
     "invalidLink": "Invalid or missing link",
+    "invalidOrExpired": "Invalid or expired link. Please request a new link.",
+    "expired": "This verification link has expired. Please request a new one.",
+    "tooManyAttempts": "Too many failed attempts. Please request a new link.",
     "unknownError": "Something went wrong. Please try again."
   },
   "resendCode": "Resend code",
