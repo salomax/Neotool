@@ -13,16 +13,24 @@ variables:
     type: INTEGER
     required: false
     default: 60
+  - name: supportEmail
+    type: STRING
+    required: false
+    default: "suporte@invistus.com.br"
+  - name: logoUrl
+    type: URL
+    required: false
+    default: "https://invistus.com.br/images/logos/invistus-logo-white-transparent.png"
 
 locales:
   en:
-    subject: "Reset your Neotool password"
+    subject: "Reset your Invistus password"
     bodyPath: "body.en.html"
   pt:
-    subject: "Redefina sua senha do Neotool"
+    subject: "Redefina sua senha da Invistus"
     bodyPath: "body.pt.html"
   pt-BR:
-    subject: "Redefina sua senha do Neotool"
+    subject: "Redefina sua senha da Invistus"
     bodyPath: "body.pt-BR.html"
 
 defaultLocale: en
