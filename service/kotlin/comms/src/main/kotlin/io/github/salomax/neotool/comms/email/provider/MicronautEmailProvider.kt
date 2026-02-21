@@ -34,10 +34,8 @@ class MicronautEmailProvider(
         val subject = requireNotNull(content.subject) { EmailContentValidator.SUBJECT_REQUIRED }
         val body = requireNotNull(content.body) { EmailContentValidator.BODY_REQUIRED }
 
-        // Build email with appropriate content type
         val emailBuilder =
             Email.builder()
-                .from(config.from)
                 .to(request.to)
                 .subject(subject)
 
