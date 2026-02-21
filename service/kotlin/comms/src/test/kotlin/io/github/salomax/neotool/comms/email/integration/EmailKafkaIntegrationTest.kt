@@ -55,10 +55,7 @@ class TestEmailDlqConsumer {
     }
 }
 
-@MicronautTest(
-    environments = ["test"],
-    packages = ["io.github.salomax.neotool.comms", "io.github.salomax.neotool.common.batch"],
-)
+@MicronautTest
 @DisplayName("Email Kafka Integration Tests")
 @Tag("integration")
 class EmailKafkaIntegrationTest : BaseIntegrationTest(), KafkaIntegrationTest {
