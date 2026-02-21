@@ -53,7 +53,7 @@ jobs:
           AFFECTED=$(npx nx show projects --affected --base="$BASE" --json 2>/dev/null)
 
           # Known Kotlin API services (have package.json, appear without ":" prefix)
-          KOTLIN_KNOWN='["security","assets","financialdata","assistant"]'
+          KOTLIN_KNOWN='["security","assets","financialdata","assistant","comms"]'
 
           # Kotlin: projects with ":" prefix (Gradle libs) OR in known Kotlin API list
           KOTLIN_SERVICES=$(echo "$AFFECTED" | jq --argjson known "$KOTLIN_KNOWN" '[
