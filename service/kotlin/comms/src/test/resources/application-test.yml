@@ -15,6 +15,16 @@ datasources:
     enabled: false
 flyway:
   enabled: false
+batch:
+  consumer:
+    max-retries: 3
+    initial-retry-delay-ms: 1000
+    max-retry-delay-ms: 10000
+    retry-backoff-multiplier: 2.0
+    commit-timeout-seconds: 5
+    enable-dlq-fallback: true
+    dlq-max-retries: 3
+    shutdown-timeout-seconds: 5
 kafka:
   enabled: false
 redis:

@@ -7,7 +7,10 @@ object Application {
     fun main(args: Array<String>) {
         Micronaut
             .build(*args)
-            .packages("io.github.salomax.neotool.comms")
+            .packages(
+                "io.github.salomax.neotool.comms",
+                "io.github.salomax.neotool.common.batch",
+            )
             .start()
     }
 }

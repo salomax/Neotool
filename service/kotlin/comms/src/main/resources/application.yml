@@ -37,8 +37,8 @@ micronaut:
     enabled: true
   email:
     from:
-      email: ${EMAIL_FROM:noreply@neotool.com}
-      name: ${EMAIL_FROM_NAME:neotool}
+      email: ${EMAIL_FROM}
+      name: ${EMAIL_FROM_NAME}
 
 datasources:
   default:

@@ -4,6 +4,7 @@
   "resend": "Reenviar link de verificação",
   "resendSuccess": "Novo link de verificação enviado!",
   "resendRateLimit": "Aguarde antes de solicitar outro link.",
+  "loading": "Carregando…",
   "success": "E-mail verificado com sucesso!",
   "skip": "Pular por agora (Acesso limitado)",
   "errors": {

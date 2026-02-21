@@ -200,6 +200,33 @@ describe.sequential('SignInForm', () => {
     expect(mockShowError).toHaveBeenCalled();
   });
 
+  it('uses localized invalid credentials message from error code', async () => {
+    const user = userEvent.setup();
+    await i18n.changeLanguage('pt');
+
+    const error = new Error('Invalid email or password') as Error & {
+      graphQLErrors?: Array<{ message: string; extensions?: { code?: string } }>;
+    };
+    error.graphQLErrors = [
+      { message: 'Invalid email or password', extensions: { code: 'INVALID_CREDENTIALS' } },
+    ];
+    mockSignIn.mockRejectedValue(error);
+
+    renderSignInForm();
+
+    const emailInput = screen.getByRole('textbox', { name: /e-?mail/i }) as HTMLInputElement;
+    const passwordInput = screen.getByLabelText(/^(password|senha)$/i) as HTMLInputElement;
+    const submitButton = screen.getByTestId('button-signin');
+
+    await user.type(emailInput, 'test@example.com');
+    await user.type(passwordInput, 'WrongPassword');
+    await user.click(submitButton);
+
+    await waitFor(() => {
+      expect(mockShowError).toHaveBeenCalledWith('E-mail ou senha inválidos');
+    });
+  });
+
   it('shows loading state during submission', async () => {
     const user = userEvent.setup();
     let resolvePromise: () => void;
@@ -402,4 +429,3 @@ describe.sequential('SignInForm', () => {
     cleanup();
   });
 });
-

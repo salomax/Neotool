@@ -1,17 +1,22 @@
 plugins {
     id("org.jetbrains.kotlin.jvm")
     id("io.micronaut.library")
+    id("com.google.devtools.ksp")
 }
 
 repositories { mavenCentral() }
 
 micronaut {
     version("4.10.6")
+    processing {
+        annotations("io.github.salomax.neotool.common.batch.*")
+    }
 }
 
 dependencies {
     api(project(":common"))
     api("io.micronaut.kafka:micronaut-kafka")
+    ksp("io.micronaut:micronaut-inject-kotlin")
 
     testImplementation("org.testcontainers:kafka")
     testImplementation("org.junit.jupiter:junit-jupiter:5.12.2")

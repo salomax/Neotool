@@ -1,5 +1,5 @@
 rootProject.name = "neotool-service"
-include(":common", ":common-batch", ":common-features", ":security", ":assets", ":financialdata", ":assistant")
+include(":common", ":common-batch", ":common-features", ":security", ":assets", ":comms", ":assistant", ":financialdata")
 
 pluginManagement {
   repositories {

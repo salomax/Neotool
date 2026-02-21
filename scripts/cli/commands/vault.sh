@@ -142,17 +142,14 @@ store_secret_via_api() {
     local vault_addr="$4"
     local vault_token="$5"
     
-    # Convert path to API path (secret/jwt/keys/kid-1 -> secret/data/jwt/keys/kid-1 for KV v2)
+    # Convert path to KV v2 API path (secret/jwt/keys/kid-1 -> secret/data/jwt/keys/kid-1)
     local api_path="${secret_path}"
-    # If path doesn't start with secret/data, assume it's a KV v2 path and convert
-    if [[ ! "$api_path" =~ ^secret/data/ ]]; then
-        # Replace first 'secret/' with 'secret/data/'
-        if [[ "$api_path" =~ ^secret/ ]]; then
-            api_path="${api_path/#secret\//secret\/data\/}"
-        else
-            # If path doesn't start with secret/, add it
-            api_path="secret/data/${api_path}"
-        fi
+    if [[ "$api_path" == secret/data/* ]]; then
+        :
+    elif [[ "$api_path" == secret/* ]]; then
+        api_path="secret/data/${api_path#secret/}"
+    else
+        api_path="secret/data/${api_path}"
     fi
     
     # Ensure vault_addr doesn't have trailing slash
@@ -214,7 +211,8 @@ EOF
         else
             # Show response body for debugging
             local response_body
-            response_body=$(echo "$response" | head -n -1)
+            # Remove the trailing HTTP status line in a portable way (GNU/BSD sed).
+            response_body=$(printf '%s\n' "$response" | sed '$d')
             if [[ -n "$response_body" ]]; then
                 log_error "Response: $response_body"
             fi
@@ -664,6 +662,7 @@ restore_keys() {
             # Restore all keys - use process substitution to avoid subshell issues
             local restored_count=0
             local skipped_count=0
+            local failed_count=0
             
             while IFS= read -r key_json; do
                 local name
@@ -688,10 +687,15 @@ restore_keys() {
                     restored_count=$((restored_count + 1))
                 else
                     log_error "  ✗ Failed to restore ${name}"
+                    failed_count=$((failed_count + 1))
                 fi
             done < <(jq -c '.keys[]' "$input_file")
             
-            log "Restored ${restored_count} key(s), skipped ${skipped_count} key(s)" "$BLUE"
+            log "Restored ${restored_count} key(s), skipped ${skipped_count} key(s), failed ${failed_count} key(s)" "$BLUE"
+            if [[ $failed_count -gt 0 ]]; then
+                log_error "Restore completed with failures"
+                exit 1
+            fi
         fi
     else
         # Fallback parsing (only works for single key)
@@ -928,4 +932,3 @@ main() {
 
 # Run main function
 main "$@"
-

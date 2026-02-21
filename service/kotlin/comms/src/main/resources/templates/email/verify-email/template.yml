@@ -19,23 +19,24 @@ variables:
   - name: supportEmail
     type: STRING
     required: false
-    default: "support@neotool.io"
+    default: "suporte@invistus.com.br"
   - name: logoUrl
     type: URL
     required: false
+    default: "https://invistus.com.br/images/logos/invistus-logo-white-transparent.png"
 
 locales:
   en:
-    subject: "Verify your email - NeoTool"
+    subject: "Verify your email - Invistus"
     bodyPath: "body.en.html"
   pt:
-    subject: "Verifique seu e-mail - NeoTool"
+    subject: "Verifique seu e-mail - Invistus"
     bodyPath: "body.pt.html"
   pt-BR:
-    subject: "Verifique seu e-mail - NeoTool"
+    subject: "Verifique seu e-mail - Invistus"
     bodyPath: "body.pt-BR.html"
 
-defaultLocale: en
+defaultLocale: pt
 
 channelConfig:
   email:

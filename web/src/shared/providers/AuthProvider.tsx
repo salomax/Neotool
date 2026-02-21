@@ -9,6 +9,7 @@ type User = {
   email: string;
   displayName?: string | null;
   avatarUrl?: string | null;
+  emailVerified?: boolean | null;
 };
 
 type AuthContextType = {
@@ -70,6 +71,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, []);
 
+  const routeAfterAuthentication = React.useCallback(
+    (nextUser: User | null, fallbackPath = "/") => {
+      if (nextUser?.emailVerified === false && nextUser.email) {
+        sessionStorage.setItem("pendingVerificationEmail", nextUser.email);
+        router.push("/verify-email");
+        return;
+      }
+      router.push(fallbackPath);
+    },
+    [router]
+  );
+
   // Listen for token refresh events from Apollo Client
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -106,7 +119,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       });
 
       if (result.data && typeof result.data === 'object' && result.data !== null && 'signIn' in result.data && result.data.signIn) {
-        const { token: newToken, refreshToken, user: newUser } = result.data.signIn as { token: string; refreshToken: string | null; user: any };
+        const { token: newToken, refreshToken, user: newUser } = result.data.signIn as { token: string; refreshToken: string | null; user: User };
         
         setToken(newToken);
         setUser(newUser);
@@ -120,8 +133,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           storage.setItem(REFRESH_TOKEN_KEY, refreshToken);
         }
 
-        // Redirect to home
-        router.push("/");
+        routeAfterAuthentication(newUser);
       }
     } catch (error: any) {
       // Log technical errors (network failures, GraphQL errors)
@@ -129,7 +141,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       logger.error("Sign in error:", error);
       throw error;
     }
-  }, [router]);
+  }, [routeAfterAuthentication]);
 
   const signInWithOAuth = React.useCallback(async (provider: string, idToken: string, rememberMe = false) => {
     try {
@@ -149,7 +161,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       });
 
       if (result.data && typeof result.data === 'object' && result.data !== null && 'signInWithOAuth' in result.data && result.data.signInWithOAuth) {
-        const { token: newToken, refreshToken, user: newUser } = result.data.signInWithOAuth as { token: string; refreshToken: string | null; user: any };
+        const { token: newToken, refreshToken, user: newUser } = result.data.signInWithOAuth as { token: string; refreshToken: string | null; user: User };
         
         setToken(newToken);
         setUser(newUser);
@@ -163,8 +175,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           storage.setItem(REFRESH_TOKEN_KEY, refreshToken);
         }
 
-        // Redirect to home
-        router.push("/");
+        routeAfterAuthentication(newUser);
       }
     } catch (error: any) {
       // Log technical errors (network failures, GraphQL errors)
@@ -172,13 +183,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       logger.error("OAuth sign in error:", error);
       throw error;
     }
-  }, [router]);
+  }, [routeAfterAuthentication]);
 
   const signUp = React.useCallback(async (name: string, email: string, password: string) => {
     try {
       // Dynamic import to avoid SSR issues
       const { apolloClient } = await import("@/lib/graphql/client");
       const { SIGN_UP } = await import("@/lib/graphql/operations/auth");
+      const i18n = (await import("@/shared/i18n/config")).default;
+      const locale = i18n.language || "pt";
 
       const result = await apolloClient.mutate({
         mutation: SIGN_UP,
@@ -187,12 +200,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             name,
             email,
             password,
+            locale,
           },
         },
       });
 
       if (result.data && typeof result.data === 'object' && result.data !== null && 'signUp' in result.data && result.data.signUp) {
-        const payload = result.data.signUp as { token: string; refreshToken: string | null; user: any; requiresVerification?: boolean };
+        const payload = result.data.signUp as { token: string; refreshToken: string | null; user: User; requiresVerification?: boolean };
         const { token: newToken, refreshToken, user: newUser, requiresVerification } = payload;
 
         setToken(newToken);
@@ -210,7 +224,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           sessionStorage.setItem("pendingVerificationEmail", newUser.email);
           router.push("/verify-email");
         } else {
-          router.push("/");
+          routeAfterAuthentication(newUser);
         }
       }
     } catch (error: any) {
@@ -219,7 +233,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       logger.error("Sign up error:", error);
       throw error;
     }
-  }, [router]);
+  }, [routeAfterAuthentication, router]);
 
   const signOut = React.useCallback(() => {
     setUser(null);
@@ -251,4 +265,3 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
-

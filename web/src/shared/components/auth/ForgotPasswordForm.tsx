@@ -65,12 +65,14 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({ onSucces
 
       // Trim email before submission
       const trimmedEmail = data.email.trim();
+      const i18n = (await import("@/shared/i18n/config")).default;
+      const locale = i18n.language || "pt";
 
       const result = await requestPasswordReset({
         variables: {
           input: {
             email: trimmedEmail,
-            locale: "en", // TODO: Get from i18n context
+            locale,
           },
         },
       });
