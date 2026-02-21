@@ -147,7 +147,7 @@ batch:
 
 comms:
   email:
-    provider: mock
+    provider: ${COMMS_EMAIL_PROVIDER:mock}
     from: ${EMAIL_FROM:noreply@neotool.com}
   template:
     directory: templates
