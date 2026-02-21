@@ -125,6 +125,11 @@ tasks.withType<Jar> {
     isZip64 = true
 }
 
+// Strip version from shadow JAR filename so Dockerfile doesn't need updating on each release
+tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
+    archiveVersion.set("")
+}
+
 // Workaround for KSP configuration cache issue
 // KSP tasks are not fully compatible with Gradle configuration cache
 tasks.all {

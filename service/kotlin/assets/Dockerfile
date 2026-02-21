@@ -47,7 +47,7 @@ WORKDIR /assets
 # - 'COPY --from=build': Specifies that the file should be copied from the stage named 'build'.
 # - '/home/gradle/project/assets/build/libs/assets-all.jar': The path to the built JAR file in the 'build' container.
 # - '/assets/service.jar': The destination path and name in the final container.
-COPY --from=build /home/gradle/project/assets/build/libs/assets-0.1.0-all.jar /assets/service.jar
+COPY --from=build /home/gradle/project/assets/build/libs/assets-all.jar /assets/service.jar
 
 # Inform Docker that the container will listen on the specified port at runtime.
 # This is documentation and does not actually publish the port; it's a metadata instruction.
