@@ -46,6 +46,18 @@ class EmailServiceTest {
             // Not used in these tests
         }
 
+        override fun sendAccountInvitationEmail(
+            to: String,
+            inviterDisplayName: String?,
+            accountName: String,
+            acceptLink: String,
+            expiryDays: Long,
+            role: String,
+            locale: String,
+        ) {
+            // Not used in these tests
+        }
+
         // Expose protected method for testing
         fun testLoadEmailTemplate(locale: String): String {
             return loadEmailTemplate(locale)
@@ -125,6 +137,20 @@ class EmailServiceTest {
             assertThat(template).contains("<!DOCTYPE html>")
             assertThat(template).contains("<html>")
             assertThat(template).contains("</html>")
+        }
+    }
+
+    @Nested
+    @DisplayName("buildInvitationAcceptUrl")
+    inner class BuildInvitationAcceptUrlTests {
+        @Test
+        fun `should build URL with encoded token and invitations path`() {
+            val url = emailService.buildInvitationAcceptUrl("abc-123_token")
+
+            assertThat(url).startsWith("http://localhost:3000")
+            assertThat(url).contains("/invitations/accept")
+            assertThat(url).contains("token=")
+            assertThat(url).contains("abc-123_token")
         }
     }
 }

@@ -52,8 +52,8 @@ class GraphQLPayloadTest {
             // Arrange
             val errors =
                 listOf(
-                    GraphQLError(field = listOf("field1"), message = "Error 1"),
-                    GraphQLError(field = listOf("field2"), message = "Error 2"),
+                    GraphQLError(field = listOf("field1"), message = "Error 1", code = "ERROR_1"),
+                    GraphQLError(field = listOf("field2"), message = "Error 2", code = "ERROR_2"),
                 )
 
             // Act
@@ -69,7 +69,7 @@ class GraphQLPayloadTest {
         fun `should create error payload with data and errors`() {
             // Arrange
             val data = "partial data"
-            val errors = listOf(GraphQLError(field = listOf("field"), message = "Error"))
+            val errors = listOf(GraphQLError(field = listOf("field"), message = "Error", code = "ERROR"))
 
             // Act
             val payload = ErrorPayload(data = data, errors = errors)
@@ -101,18 +101,21 @@ class GraphQLPayloadTest {
         }
 
         @Test
-        fun `should create GraphQL error without code`() {
+        fun `should create GraphQL error with optional parameters`() {
             // Act
             val error =
                 GraphQLError(
                     field = listOf("field"),
                     message = "Error message",
+                    code = "ERROR_CODE",
+                    parameters = mapOf("key" to "value"),
                 )
 
             // Assert
             assertThat(error.field).containsExactly("field")
             assertThat(error.message).isEqualTo("Error message")
-            assertThat(error.code).isNull()
+            assertThat(error.code).isEqualTo("ERROR_CODE")
+            assertThat(error.parameters).isEqualTo(mapOf("key" to "value"))
         }
     }
 
@@ -205,7 +208,7 @@ class GraphQLPayloadTest {
             assertThat(payload.success).isFalse()
             assertThat(payload.errors).hasSize(1)
             assertThat(payload.errors[0].field).containsExactly("input")
-            assertThat(payload.errors[0].message).isEqualTo("Invalid input")
+            assertThat(payload.errors[0].message).isEqualTo("Invalid input provided")
             assertThat(payload.errors[0].code).isEqualTo("INVALID_INPUT")
         }
 
@@ -222,7 +225,7 @@ class GraphQLPayloadTest {
             assertThat(payload.success).isFalse()
             assertThat(payload.errors).hasSize(1)
             assertThat(payload.errors[0].field).containsExactly("id")
-            assertThat(payload.errors[0].message).isEqualTo("Resource not found")
+            assertThat(payload.errors[0].message).isEqualTo("Not found")
             assertThat(payload.errors[0].code).isEqualTo("NOT_FOUND")
         }
 
@@ -256,7 +259,7 @@ class GraphQLPayloadTest {
             assertThat(payload.success).isFalse()
             assertThat(payload.errors).hasSize(1)
             assertThat(payload.errors[0].field).containsExactly("general")
-            assertThat(payload.errors[0].message).isEqualTo("An unexpected error occurred")
+            assertThat(payload.errors[0].message).isEqualTo("Internal server error")
             assertThat(payload.errors[0].code).isEqualTo("INTERNAL_ERROR")
         }
 
@@ -265,8 +268,8 @@ class GraphQLPayloadTest {
             // Arrange
             val errors =
                 listOf(
-                    GraphQLError(field = listOf("field1"), message = "Error 1"),
-                    GraphQLError(field = listOf("field2"), message = "Error 2"),
+                    GraphQLError(field = listOf("field1"), message = "Error 1", code = "ERROR_1"),
+                    GraphQLError(field = listOf("field2"), message = "Error 2", code = "ERROR_2"),
                 )
 
             // Act
@@ -299,12 +302,13 @@ class GraphQLPayloadTest {
         }
 
         @Test
-        fun `should create error payload with single error without code`() {
+        fun `should create error payload with single error with code`() {
             // Act
             val payload =
                 GraphQLPayloadFactory.error<String>(
                     field = "field1",
                     message = "Error message",
+                    code = "CUSTOM_CODE",
                 )
 
             // Assert
@@ -313,7 +317,7 @@ class GraphQLPayloadTest {
             assertThat(payload.errors).hasSize(1)
             assertThat(payload.errors[0].field).containsExactly("field1")
             assertThat(payload.errors[0].message).isEqualTo("Error message")
-            assertThat(payload.errors[0].code).isNull()
+            assertThat(payload.errors[0].code).isEqualTo("CUSTOM_CODE")
         }
     }
 }

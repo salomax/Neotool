@@ -247,6 +247,106 @@ class JwtTokenValidatorTest {
     }
 
     @Nested
+    @DisplayName("Account and Session Claims Extraction")
+    inner class AccountAndSessionClaimsTests {
+        @Test
+        fun `should extract current account ID from access token`() {
+            val accountId = UUID.randomUUID()
+            val token =
+                JwtTestFixture.createToken(
+                    type = "access",
+                    currentAccountId = accountId,
+                )
+
+            val result = validator.getCurrentAccountIdFromToken(token)
+
+            assertThat(result).isEqualTo(accountId)
+        }
+
+        @Test
+        fun `should return null current account ID when claim is absent`() {
+            val token = JwtTestFixture.createToken(type = "access")
+
+            val result = validator.getCurrentAccountIdFromToken(token)
+
+            assertThat(result).isNull()
+        }
+
+        @Test
+        fun `should return null current account ID for service token`() {
+            val token = JwtTestFixture.createServiceToken()
+
+            val result = validator.getCurrentAccountIdFromToken(token)
+
+            assertThat(result).isNull()
+        }
+
+        @Test
+        fun `should extract accounts list from access token`() {
+            val accountId1 = UUID.randomUUID()
+            val accountId2 = UUID.randomUUID()
+            val accounts =
+                listOf(
+                    mapOf("id" to accountId1.toString(), "role" to "OWNER"),
+                    mapOf("id" to accountId2.toString(), "role" to "MEMBER"),
+                )
+            val token =
+                JwtTestFixture.createToken(
+                    type = "access",
+                    accounts = accounts,
+                )
+
+            val result = validator.getAccountsFromToken(token)
+
+            assertThat(result).hasSize(2)
+            assertThat(result!![0].accountId).isEqualTo(accountId1)
+            assertThat(result[0].role).isEqualTo("OWNER")
+            assertThat(result[1].accountId).isEqualTo(accountId2)
+            assertThat(result[1].role).isEqualTo("MEMBER")
+        }
+
+        @Test
+        fun `should return null accounts when claim is absent`() {
+            val token = JwtTestFixture.createToken(type = "access")
+
+            val result = validator.getAccountsFromToken(token)
+
+            assertThat(result).isNull()
+        }
+
+        @Test
+        fun `should return null accounts for service token`() {
+            val token = JwtTestFixture.createServiceToken()
+
+            val result = validator.getAccountsFromToken(token)
+
+            assertThat(result).isNull()
+        }
+
+        @Test
+        fun `should extract session version from token`() {
+            val token =
+                JwtTestFixture.createToken(
+                    type = "access",
+                    sessionVersion = 3L,
+                )
+
+            val result = validator.getSessionVersionFromToken(token)
+
+            assertThat(result).isEqualTo(3L)
+        }
+
+        @Test
+        fun `should return null session version when claim is absent`() {
+            val token = JwtTestFixture.createToken(type = "access")
+
+            val result = validator.getSessionVersionFromToken(token)
+
+            assertThat(result).isNull()
+        }
+    }
+
+    @Nested
     @DisplayName("Service Token Handling")
     inner class ServiceTokenTests {
         @Test

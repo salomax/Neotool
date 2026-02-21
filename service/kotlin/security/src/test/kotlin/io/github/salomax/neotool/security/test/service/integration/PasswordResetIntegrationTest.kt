@@ -2,6 +2,8 @@ package io.github.salomax.neotool.security.test.service.integration
 
 import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
+import io.github.salomax.neotool.security.repo.AccountMembershipRepository
+import io.github.salomax.neotool.security.repo.AccountRepository
 import io.github.salomax.neotool.security.repo.PasswordResetAttemptRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.authentication.AuthenticationService
@@ -39,6 +41,12 @@ class PasswordResetIntegrationTest :
     lateinit var passwordResetAttemptRepository: PasswordResetAttemptRepository
 
     @Inject
+    lateinit var accountRepository: AccountRepository
+
+    @Inject
+    lateinit var accountMembershipRepository: AccountMembershipRepository
+
+    @Inject
     lateinit var authenticationService: AuthenticationService
 
     // Note: EmailService will be mocked via @MockBean or similar in actual implementation
@@ -50,6 +58,8 @@ class PasswordResetIntegrationTest :
     fun cleanupTestData() {
         try {
             passwordResetAttemptRepository.deleteAll()
+            accountMembershipRepository.deleteAll()
+            accountRepository.deleteAll()
             userRepository.deleteAll()
         } catch (e: Exception) {
             // Ignore cleanup errors

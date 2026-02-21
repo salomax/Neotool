@@ -4,6 +4,14 @@ import io.github.salomax.neotool.common.security.jwt.JwtTokenValidator
 import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.security.model.PrincipalEntity
 import io.github.salomax.neotool.security.model.UserEntity
+import io.github.salomax.neotool.security.model.account.AccountEntity
+import io.github.salomax.neotool.security.model.account.AccountMembershipEntity
+import io.github.salomax.neotool.security.model.account.AccountRole
+import io.github.salomax.neotool.security.model.account.AccountStatus
+import io.github.salomax.neotool.security.model.account.AccountType
+import io.github.salomax.neotool.security.model.account.MembershipStatus
+import io.github.salomax.neotool.security.repo.AccountMembershipRepository
+import io.github.salomax.neotool.security.repo.AccountRepository
 import io.github.salomax.neotool.security.repo.PasswordResetAttemptRepository
 import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.UserRepository
@@ -38,6 +46,8 @@ import java.util.UUID
 class AuthenticationServiceTest {
     private lateinit var userRepository: UserRepository
     private lateinit var principalRepository: PrincipalRepository
+    private lateinit var accountRepository: AccountRepository
+    private lateinit var accountMembershipRepository: AccountMembershipRepository
     private lateinit var jwtTokenIssuer: JwtTokenIssuer
     private lateinit var jwtTokenValidator: JwtTokenValidator
     private lateinit var refreshTokenService: RefreshTokenService
@@ -50,6 +60,8 @@ class AuthenticationServiceTest {
     fun setUp() {
         userRepository = mock()
         principalRepository = mock()
+        accountRepository = mock()
+        accountMembershipRepository = mock()
         jwtTokenIssuer = mock()
         jwtTokenValidator = mock()
         refreshTokenService = mock()
@@ -60,10 +72,24 @@ class AuthenticationServiceTest {
         whenever(oauthProvider.getProviderName()).thenReturn("google")
         oauthProviderRegistry = OAuthProviderRegistry(listOf(oauthProvider))
         emailVerificationService = mock()
+        // Stub account save to return entity with id (createPersonalAccountAndMembership uses savedAccount.id!!)
+        whenever(accountRepository.save(any())).thenAnswer { inv ->
+            val acc = inv.getArgument<AccountEntity>(0)
+            AccountEntity(
+                id = UUID.randomUUID(),
+                accountName = acc.accountName,
+                accountType = acc.accountType,
+                accountStatus = acc.accountStatus,
+                ownerUserId = acc.ownerUserId,
+            )
+        }
+        whenever(accountMembershipRepository.save(any())).thenAnswer { it.arguments[0] as AccountMembershipEntity }
         authenticationService =
             AuthenticationService(
                 userRepository,
                 principalRepository,
+                accountRepository,
+                accountMembershipRepository,
                 jwtTokenIssuer,
                 jwtTokenValidator,
                 emailService,
@@ -807,6 +833,45 @@ class AuthenticationServiceTest {
         }
 
         @Test
+        fun `registerUser creates personal account and owner membership with isDefault true`() {
+            val name = "Alice"
+            val email = "alice@example.com"
+            val password = "TestPassword123!"
+            val userId = UUID.randomUUID()
+
+            whenever(userRepository.findByEmail(email)).thenReturn(null)
+            whenever(userRepository.save(any())).thenAnswer { invocation ->
+                val savedUser = invocation.arguments[0] as UserEntity
+                UserEntity(
+                    id = userId,
+                    email = savedUser.email,
+                    displayName = savedUser.displayName,
+                    passwordHash = savedUser.passwordHash,
+                    createdAt = savedUser.createdAt,
+                    updatedAt = savedUser.updatedAt,
+                )
+            }
+
+            authenticationService.registerUser(name, email, password)
+
+            val accountCaptor = ArgumentCaptor.forClass(AccountEntity::class.java)
+            verify(accountRepository).save(accountCaptor.capture())
+            val savedAccount = accountCaptor.value
+            assertThat(savedAccount.accountType).isEqualTo(AccountType.PERSONAL)
+            assertThat(savedAccount.accountStatus).isEqualTo(AccountStatus.ACTIVE)
+            assertThat(savedAccount.ownerUserId).isEqualTo(userId)
+            assertThat(savedAccount.accountName).isEqualTo("Alice")
+
+            val membershipCaptor = ArgumentCaptor.forClass(AccountMembershipEntity::class.java)
+            verify(accountMembershipRepository).save(membershipCaptor.capture())
+            val savedMembership = membershipCaptor.value
+            assertThat(savedMembership.accountRole).isEqualTo(AccountRole.OWNER)
+            assertThat(savedMembership.membershipStatus).isEqualTo(MembershipStatus.ACTIVE)
+            assertThat(savedMembership.isDefault).isTrue()
+            assertThat(savedMembership.userId).isEqualTo(userId)
+        }
+
+        @Test
         fun `should throw exception when email already exists`() {
             val name = "Test User"
             val email = "existing@example.com"
@@ -1018,6 +1083,54 @@ class AuthenticationServiceTest {
             verify(oauthProvider).validateAndExtractClaims(idToken)
             verify(userRepository).findByEmail(email)
             verify(userRepository).save(any())
+        }
+
+        @Test
+        fun `authenticateWithOAuth new user creates personal account and owner membership with isDefault true`() {
+            val provider = "google"
+            val idToken = "valid-google-id-token"
+            val email = "oauth@example.com"
+            val name = "OAuth User"
+            val userId = UUID.randomUUID()
+            val claims =
+                OAuthUserClaims(
+                    email = email,
+                    name = name,
+                    picture = null,
+                    emailVerified = true,
+                )
+
+            whenever(oauthProvider.validateAndExtractClaims(idToken)).thenReturn(claims)
+            whenever(userRepository.findByEmail(email)).thenReturn(null)
+            whenever(userRepository.save(any())).thenAnswer { invocation ->
+                val savedUser = invocation.arguments[0] as UserEntity
+                UserEntity(
+                    id = userId,
+                    email = savedUser.email,
+                    displayName = savedUser.displayName,
+                    passwordHash = savedUser.passwordHash,
+                    createdAt = savedUser.createdAt,
+                    updatedAt = savedUser.updatedAt,
+                )
+            }
+
+            authenticationService.authenticateWithOAuth(provider, idToken)
+
+            val accountCaptor = ArgumentCaptor.forClass(AccountEntity::class.java)
+            verify(accountRepository).save(accountCaptor.capture())
+            val savedAccount = accountCaptor.value
+            assertThat(savedAccount.accountType).isEqualTo(AccountType.PERSONAL)
+            assertThat(savedAccount.accountStatus).isEqualTo(AccountStatus.ACTIVE)
+            assertThat(savedAccount.ownerUserId).isEqualTo(userId)
+            assertThat(savedAccount.accountName).isEqualTo("OAuth User")
+
+            val membershipCaptor = ArgumentCaptor.forClass(AccountMembershipEntity::class.java)
+            verify(accountMembershipRepository).save(membershipCaptor.capture())
+            val savedMembership = membershipCaptor.value
+            assertThat(savedMembership.accountRole).isEqualTo(AccountRole.OWNER)
+            assertThat(savedMembership.membershipStatus).isEqualTo(MembershipStatus.ACTIVE)
+            assertThat(savedMembership.isDefault).isTrue()
+            assertThat(savedMembership.userId).isEqualTo(userId)
         }
 
         @Test
