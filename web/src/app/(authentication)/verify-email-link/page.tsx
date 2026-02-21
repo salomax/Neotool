@@ -15,6 +15,9 @@ import { extractErrorMessage } from "@/shared/utils/error";
 import { useMutation } from "@apollo/client/react";
 import { VerifyEmailWithTokenDocument } from "@/lib/graphql/operations/auth/mutations.generated";
 
+const REDIRECT_DELAY_MS = 3000;
+const REDIRECT_DELAY_SECONDS = Math.floor(REDIRECT_DELAY_MS / 1000);
+
 export default function VerifyEmailLinkPage() {
   const { t } = useTranslation(verifyEmailLinkTranslations);
   const router = useRouter();
@@ -37,7 +40,7 @@ export default function VerifyEmailLinkPage() {
           sessionStorage.removeItem("pendingVerificationEmail");
         }
         showSuccess(t("success"));
-        setTimeout(() => router.push("/"), 3000);
+        setTimeout(() => router.push("/"), REDIRECT_DELAY_MS);
       } else if (result?.verifyEmailWithToken?.message) {
         showError(result.verifyEmailWithToken.message);
       }
@@ -124,7 +127,7 @@ export default function VerifyEmailLinkPage() {
                 <>
                   <Typography color="success.main">{t("success")}</Typography>
                   <Typography variant="body2" color="text.secondary">
-                    {t("redirectNotice")}
+                    {t("redirectNotice", { seconds: REDIRECT_DELAY_SECONDS })}
                   </Typography>
                 </>
               ) : errorMessage ? (
