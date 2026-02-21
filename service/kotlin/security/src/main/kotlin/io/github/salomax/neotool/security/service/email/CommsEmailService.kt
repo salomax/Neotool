@@ -129,8 +129,6 @@ class CommsEmailService(
                                             "userName" to userName,
                                             "verificationLink" to verificationLink,
                                             "expirationHours" to expirationHours.toString(),
-                                            "supportEmail" to "support@neotool.io",
-                                            "logoUrl" to "https://neotool.io/logo.png",
                                         ),
                                 ),
                         ),
