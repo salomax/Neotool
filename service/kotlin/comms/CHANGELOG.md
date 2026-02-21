@@ -1,3 +1,13 @@
+## 0.3.3 (2026-02-21)
+
+### 🩹 Fixes
+
+- **email:** update logo box styling in password reset and verify email templates ([f61e4c10](https://github.com/invistus/invistus/commit/f61e4c10))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.3.2 (2026-02-21)
 
 ### 🩹 Fixes
