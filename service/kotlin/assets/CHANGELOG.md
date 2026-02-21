@@ -1,3 +1,13 @@
+## 0.2.3 (2026-02-21)
+
+### 🩹 Fixes
+
+- **build:** update shadow JAR configuration and Dockerfile ([507a33a3](https://github.com/invistus/invistus/commit/507a33a3))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.2.2 (2026-02-21)
 
 This was a version bump only for assets to align it with other projects, there were no code changes.
