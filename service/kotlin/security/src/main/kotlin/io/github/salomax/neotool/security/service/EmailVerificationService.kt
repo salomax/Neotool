@@ -9,8 +9,8 @@ import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.email.EmailService
 import io.micronaut.context.annotation.Value
 import jakarta.inject.Singleton
-import jakarta.transaction.Transactional
 import jakarta.persistence.EntityManager
+import jakarta.transaction.Transactional
 import mu.KotlinLogging
 import java.security.MessageDigest
 import java.time.Instant
