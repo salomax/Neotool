@@ -22,6 +22,12 @@
     },
     "lint": {
       "cache": true
+    },
+    "compileJava": {
+      "parallelism": false
+    },
+    "compileKotlin": {
+      "parallelism": false
     }
   },
   "release": {
