@@ -3,7 +3,7 @@ title: Fixed Income Comparison Implementation Backlog (Epics, Stories, Tasks, Su
 type: backlog
 category: financial-data
 status: draft
-version: 2.0.0
+version: 2.1.0
 tags: [financial-data, fixed-income, backlog, epics, stories, tasks, cdb, lci, lca, lc]
 ai_optimized: true
 search_keywords: [fixed income implementation backlog hierarchy, cdb vs lci story task subtask, cdi ipca defaults api]
@@ -135,6 +135,7 @@ query EconomicIndicatorsLatest {
 - [ ] Formula contract is explicit and unambiguous.
 - [ ] Golden examples cover core and boundary cases.
 - [ ] Precision and tolerance are documented.
+- [ ] Golden examples reviewed and signed off by at least one engineer and one QA before `FIC-S012` starts.
 
 ### Story `FIC-S012` - Implement Calculation Engine
 
@@ -184,11 +185,20 @@ query EconomicIndicatorsLatest {
   - **Files**:
     - `service/kotlin/financialdata/src/test/kotlin/io/github/salomax/neotool/financialdata/test/unit/service/fixedincome/` (new package)
 
+- [ ] `FIC-S012-T06` Implement orchestrator service.
+  - **Subtasks**:
+    - [ ] Inject `TaxPolicyService`, `DayCountService`, `RateModelCalculator`, `EquivalentYieldSolver` via constructor DI.
+    - [ ] Orchestrate full pipeline: parse input → resolve tax class → compute rates → solve equivalents → build output model.
+    - [ ] Keep service stateless and free of I/O (pure domain orchestration).
+  - **Files**:
+    - `service/kotlin/financialdata/src/main/kotlin/io/github/salomax/neotool/financialdata/service/fixedincome/FixedIncomeComparisonService.kt` (new)
+
 #### Acceptance Criteria
 
 - [ ] Engine is deterministic and stateless.
 - [ ] Outputs match golden vectors within tolerance.
 - [ ] Boundary and solver behavior is covered by tests.
+- [ ] Orchestrator service is the single entry point consumed by the resolver.
 
 ### Story `FIC-S013` - Expose GraphQL Query Contract
 
@@ -205,13 +215,16 @@ query EconomicIndicatorsLatest {
     - `service/kotlin/financialdata/src/main/resources/graphql/schema.graphqls`
     - `contracts/graphql/subgraphs/financialdata/schema.graphqls`
 
-- [ ] `FIC-S013-T02` Implement resolver and wiring.
+- [ ] `FIC-S013-T02` Implement resolver, mapper, and wiring.
   - **Subtasks**:
-    - [ ] Create resolver class.
-    - [ ] Register data fetcher in `FinancialDataWiringFactory`.
+    - [ ] Create resolver class injecting `FixedIncomeComparisonService`.
+    - [ ] Create mapper converting domain output model → DTOs.
+    - [ ] Add `FixedIncomeComparisonResolver` to `FinancialDataWiringFactory` constructor injection.
+    - [ ] Register `.dataFetcher("fixedIncomeComparison", createValidatedDataFetcher { ... })` in `registerQueryResolvers()`.
     - [ ] Validate payload and return typed errors.
   - **Files**:
     - `service/kotlin/financialdata/src/main/kotlin/io/github/salomax/neotool/financialdata/graphql/resolver/FixedIncomeComparisonResolver.kt` (new)
+    - `service/kotlin/financialdata/src/main/kotlin/io/github/salomax/neotool/financialdata/graphql/mapper/FixedIncomeComparisonMapper.kt` (new)
     - `service/kotlin/financialdata/src/main/kotlin/io/github/salomax/neotool/financialdata/graphql/FinancialDataWiringFactory.kt`
     - `service/kotlin/financialdata/src/main/kotlin/io/github/salomax/neotool/financialdata/graphql/dto/FixedIncomeComparisonDTOs.kt` (new)
 
@@ -223,8 +236,8 @@ query EconomicIndicatorsLatest {
   - **Files**:
     - `service/kotlin/financialdata/src/test/kotlin/io/github/salomax/neotool/financialdata/test/integration/FixedIncomeComparisonIntegrationTest.kt` (new)
   - **Commands**:
-    - `./neotool graphql sync`
-    - `./neotool graphql generate --all`
+    - `./neotool graphql sync` — regenerates `contracts/graphql/supergraph/supergraph.local.graphql` after schema change
+    - `./neotool graphql generate --all` — generates typed clients for all subgraphs
 
 #### Acceptance Criteria
 
@@ -243,11 +256,13 @@ query EconomicIndicatorsLatest {
 #### Tasks
 
 - [ ] `FIC-S021-T01` Add query operation for `EconomicIndicatorsLatest`.
+  - **Note**: Before creating a new file, verify whether `features/financial-data/national-indicators/hooks/useIndicatorsLatest.ts` already issues an equivalent query with `series(limit: 1)`. If so, reuse the existing generated types and skip creating a new operation file — only `FIC-S021-T02` and `FIC-S021-T03` remain necessary.
   - **Subtasks**:
-    - [ ] Create feature-level operation file.
+    - [ ] Check `national-indicators` hooks for reusable query/types.
+    - [ ] If no reusable query exists, create feature-level operation file named `economicIndicatorsLatest.ts` (explicit name to avoid conflict with simulation `index.ts`).
     - [ ] Keep query exactly aligned with existing API contract.
     - [ ] Generate typed document with codegen.
-  - **Files**:
+  - **Files** (only if new operation file is needed):
     - `web/src/features/financial-data/fixed-income-comparison/api/economicIndicatorsLatest.ts` (new)
     - `web/src/features/financial-data/fixed-income-comparison/api/economicIndicatorsLatest.generated.ts` (generated)
 
@@ -286,6 +301,8 @@ query EconomicIndicatorsLatest {
 
 **Outcome**: Form starts with API values and still allows manual override.
 
+> **Dependency**: `SimulationForm.tsx` is created by `FIC-S032-T01`. This story adds market-defaults behavior on top of an already existing component. Execute `FIC-S031-T01` and `FIC-S032-T01` before starting `FIC-S022-T01`.
+
 #### Tasks
 
 - [ ] `FIC-S022-T01` Bind market defaults into form initial state.
@@ -294,7 +311,7 @@ query EconomicIndicatorsLatest {
     - [ ] Show source date in UI.
     - [ ] Track if user overrides defaults.
   - **Files**:
-    - `web/src/features/financial-data/fixed-income-comparison/components/SimulationForm.tsx` (new)
+    - `web/src/features/financial-data/fixed-income-comparison/components/SimulationForm.tsx` (extends existing — created in `FIC-S032-T01`)
 
 - [ ] `FIC-S022-T02` Implement fallback behavior when API fails.
   - **Subtasks**:
@@ -441,10 +458,20 @@ query EconomicIndicatorsLatest {
     - `service/kotlin/financialdata/src/main/kotlin/io/github/salomax/neotool/financialdata/graphql/resolver/FixedIncomeComparisonResolver.kt`
     - `service/kotlin/financialdata/src/main/kotlin/io/github/salomax/neotool/financialdata/service/fixedincome/FixedIncomeComparisonService.kt`
 
+- [ ] `FIC-S041-T02` Add frontend error tracking.
+  - **Subtasks**:
+    - [ ] Capture simulation API errors in Sentry with simulation input as context (strip PII if needed).
+    - [ ] Log market-defaults fallback event when CDI/IPCA cannot be auto-filled.
+    - [ ] Ensure Sentry breadcrumbs include form state at time of error.
+  - **Files**:
+    - `web/src/features/financial-data/fixed-income-comparison/hooks/useFixedIncomeComparison.ts`
+    - `web/src/features/financial-data/fixed-income-comparison/hooks/useMarketIndicatorDefaults.ts`
+
 #### Acceptance Criteria
 
 - [ ] Query latency and failures are observable.
 - [ ] Logs are sufficient for production triage.
+- [ ] Frontend simulation errors and market-defaults fallbacks are captured in Sentry.
 
 ### Story `FIC-S042` - Complete Test Matrix
 
@@ -512,9 +539,38 @@ query EconomicIndicatorsLatest {
 
 ## 5) Dependency Graph (High Level)
 
+### Epic-level ordering
+
 1. `FIC-E01` before `FIC-E03` simulation submit integration.
-2. `FIC-E02` can start after frontend scaffolding begins.
+2. `FIC-E02` can start after frontend scaffolding begins (see story-level below).
 3. `FIC-E03` before `FIC-E04` E2E smoke completion.
+
+### Story-level ordering (critical path)
+
+```
+FIC-S011 (golden scenarios + sign-off)
+  └─► FIC-S012 (calculation engine)
+        └─► FIC-S013 (GraphQL contract)
+
+FIC-S031-T01 (route + page scaffold)   ← must come first in FIC-E03
+  └─► FIC-S032-T01 (form schema + SimulationForm.tsx created here)
+        ├─► FIC-S022-T01/T02 (bind market defaults into form)
+        └─► FIC-S032-T02 (submit hook)
+
+FIC-S021-T01/T02/T03 (market defaults hook)
+  └─► FIC-S022-T01 (integrate defaults into form)  ← depends on FIC-S032-T01 too
+
+FIC-S033 (dashboard components) ← can run in parallel with FIC-S022 once FIC-S032-T01 is done
+
+FIC-S013 + FIC-S033 + FIC-S022
+  └─► FIC-S042-T03 (E2E smoke)
+        └─► FIC-S043 (docs + release checklist)
+```
+
+### Parallel tracks
+
+- `FIC-S012` (backend engine) and `FIC-S031-T01` + `FIC-S021` (frontend scaffolding + defaults) can run in parallel once `FIC-S011` is complete.
+- `FIC-S033` (dashboard components) and `FIC-S022` (defaults binding) can run in parallel once `FIC-S032-T01` is done.
 
 ## 6) Validation Command Set
 
