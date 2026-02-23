@@ -134,6 +134,12 @@ security:
     id: ${SECURITY_SERVICE_ID}
     secret: ${SECURITY_SERVICE_SECRET}
 
+# Authorization audit logs (authorization_audit_logs table)
+# Set to true to record authorization decisions for compliance/debugging.
+authorization:
+  audit-logs:
+    enabled: ${AUTHORIZATION_AUDIT_LOGS_ENABLED:false}
+
 # OAuth Configuration
 oauth:
   google:

@@ -24,7 +24,7 @@ class AuthorizationAuditServiceTest {
     @BeforeEach
     fun setUp() {
         auditLogRepository = mock()
-        auditService = AuthorizationAuditService(auditLogRepository)
+        auditService = AuthorizationAuditService(auditLogRepository, enabled = true)
     }
 
     @Nested
