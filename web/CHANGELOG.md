@@ -1,3 +1,13 @@
+## 0.3.7 (2026-02-24)
+
+### 🚀 Features
+
+- **analytics:** update Umami web analytics configuration and documentation ([7a23c314](https://github.com/invistus/invistus/commit/7a23c314))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.3.6 (2026-02-24)
 
 ### 🚀 Features
