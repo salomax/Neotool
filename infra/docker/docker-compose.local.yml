@@ -264,6 +264,28 @@ services:
       - observability
 
   # -------------------------------------------------------------
+  # Web Analytics (Umami)
+  # Profile: analytics
+  # -------------------------------------------------------------
+  umami:
+    image: ghcr.io/umami-software/umami:postgresql-latest
+    container_name: neotool-umami
+    profiles:
+      - analytics
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-neotool}:${POSTGRES_PASSWORD:-neotool}@postgres:5432/umami_db
+      DATABASE_TYPE: postgresql
+      APP_SECRET: ${UMAMI_APP_SECRET:-dev-secret}
+    ports:
+      - "3002:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - default
+      - postgres-internal
+
+  # -------------------------------------------------------------
   # Feature Flags Stack (Unleash)
   # Profile: feature-flags
   # -------------------------------------------------------------
