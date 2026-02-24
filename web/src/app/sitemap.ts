@@ -199,7 +199,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const institutionPages: MetadataRoute.Sitemap = institutions.map((inst) => ({
     url: `${SITE_URL}/financial-data/bacen-institutions/${createSemanticPath(inst.name, inst.id)}`,
     lastModified: inst.updatedAt ? new Date(inst.updatedAt) : now,
-    changeFrequency: 'weekly' as const,
+    changeFrequency: 'monthly' as const,
     priority: 0.7,
   }));
 
