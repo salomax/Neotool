@@ -6,6 +6,8 @@ build/
 bin/
 coverage/
 coverage.out
+*.run.xml
+.run/
 .env
 .env.*
 venv
