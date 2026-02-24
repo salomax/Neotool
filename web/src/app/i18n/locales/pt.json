@@ -29,6 +29,17 @@
         "pib": "PIB"
       },
       "cta": "Acessar dados"
+    },
+    "fixed_income_comparison": {
+      "tag": "Novo Recurso",
+      "title": "Comparador de Renda Fixa",
+      "description": "Compare as melhores taxas de renda fixa do mercado. Encontre CDBs, LCIs e LCAs ideais para você.",
+      "tags": {
+        "cdb": "CDB",
+        "lci": "LCI",
+        "lca": "LCA"
+      },
+      "cta": "Comparar taxas"
     }
   },
   "footer": {

@@ -29,6 +29,17 @@
         "pib": "GDP"
       },
       "cta": "Access data"
+    },
+    "fixed_income_comparison": {
+      "tag": "New Feature",
+      "title": "Fixed Income Comparison",
+      "description": "Compare the best fixed income rates in the market. Find ideal CDBs, LCIs, and LCAs for you.",
+      "tags": {
+        "cdb": "CDB",
+        "lci": "LCI",
+        "lca": "LCA"
+      },
+      "cta": "Compare rates"
     }
   },
   "footer": {
