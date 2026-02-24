@@ -64,7 +64,9 @@ PostgreSQL (production namespace)
 | File | Purpose |
 |---|---|
 | `web/src/shared/analytics/UmamiAnalytics.tsx` | Script tag component (Unleash + websiteId gating) |
+| `web/src/shared/analytics/umami.ts` | SSR-safe helpers: `identifyUser`, `trackEvent`, `trackPageView` |
 | `web/src/shared/config/runtime-config.ts` | `RuntimeConfig` interface (`umamiWebsiteId`, `umamiScriptUrl`) |
+| `web/src/shared/providers/AuthProvider.tsx` | Calls `identifyUser(user.id)` after `signIn` and `signInWithOAuth` |
 | `web/src/app/layout.tsx` | Mounts `<UmamiAnalytics />` in `<head>` |
 | `infra/postgres/init-databases.sh` | Creates `umami_db` on PostgreSQL container init |
 | `infra/kubernetes/scripts/vault-setup.sh` | Configures Vault role to include `monitoring` namespace |
@@ -84,6 +86,7 @@ PostgreSQL (production namespace)
 | `infrastructure/network-policies/pgbouncer-allow-apps.yaml` | Cross-namespace policy: monitoring/umami → production/pgbouncer |
 | `apps/database/pgbouncer/deployment.yaml` | PgBouncer template includes `umami_db` entry |
 | `apps/web/nextjs/deployment.yaml` | Adds `UMAMI_WEBSITE_ID` and `UMAMI_SCRIPT_URL` env vars |
+| `apps/web/nextjs/middleware-security-headers.yaml` | CSP allows `webanalytics.invistus.com.br` in `script-src` and `connect-src` |
 
 ---
 
