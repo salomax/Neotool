@@ -122,6 +122,7 @@ describe.sequential('SidebarRail', () => {
       renderSidebarRail();
 
       expect(screen.getByLabelText('routes.financialData')).toBeInTheDocument();
+      expect(screen.getByLabelText('routes.investments')).toBeInTheDocument();
       expect(screen.getByLabelText('routes.settings')).toBeInTheDocument();
     });
 
@@ -129,11 +130,14 @@ describe.sequential('SidebarRail', () => {
       renderSidebarRail();
 
       // IconButton with LinkComponent wraps the button in a link
-      const financialInstitutionsButton = screen.getByLabelText('routes.financialData');
+      const financialDataButton = screen.getByLabelText('routes.financialData');
+      const investmentsButton = screen.getByLabelText('routes.investments');
       const settingsButton = screen.getByLabelText('routes.settings');
 
-      expect(financialInstitutionsButton).toBeInTheDocument();
-      expect(financialInstitutionsButton).toHaveAttribute('href', '/financial-data');
+      expect(financialDataButton).toBeInTheDocument();
+      expect(financialDataButton).toHaveAttribute('href', '/financial-data');
+      expect(investmentsButton).toBeInTheDocument();
+      expect(investmentsButton).toHaveAttribute('href', '/investments');
       expect(settingsButton).toBeInTheDocument();
       expect(settingsButton).toHaveAttribute('href', '/settings');
     });
@@ -183,9 +187,9 @@ describe.sequential('SidebarRail', () => {
       mockPathname.mockReturnValue(null);
       renderSidebarRail();
 
-      // Should render without errors
       expect(screen.getByRole('complementary')).toBeInTheDocument();
       expect(screen.getByLabelText('routes.financialData')).toBeInTheDocument();
+      expect(screen.getByLabelText('routes.investments')).toBeInTheDocument();
     });
 
     it('does not mark item as active when pathname does not match', () => {
@@ -221,6 +225,7 @@ describe.sequential('SidebarRail', () => {
 
       // Tooltips are rendered by MUI, we can check the aria-labels
       expect(screen.getByLabelText('routes.financialData')).toBeInTheDocument();
+      expect(screen.getByLabelText('routes.investments')).toBeInTheDocument();
       expect(screen.getByLabelText('routes.settings')).toBeInTheDocument();
     });
   });

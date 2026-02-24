@@ -5,3 +5,4 @@
  */
 
 export { financialDataTranslations } from './financial-data';
+export { investmentsTranslations } from './investments';

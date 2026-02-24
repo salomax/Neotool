@@ -13,7 +13,7 @@ related:
 
 # Fixed Income Comparison
 
-> **Purpose**: Provide a clear and explainable comparison between taxable and tax-exempt fixed income products (CDB, LC, LCI, and LCA), including net-equivalent yield and value evolution over time.
+> **Purpose**: Provide a clear and explainable comparison between taxable and tax-exempt fixed income products (CDB, LC, LCI, and LCA), including net-equivalent yield and performance-series visualization over time.
 
 ## Overview
 
@@ -108,6 +108,7 @@ The UI should make the tax impact explicit and answer a practical question:
 - **Priority**: High
 - **Columns**:
   - Investment label
+  - Equivalent rate (numeric + display)
   - Contracted rate
   - Gross value
   - Income tax (IR)
@@ -123,7 +124,7 @@ The UI should make the tax impact explicit and answer a practical question:
 - **Description**: Show value progression from start date to maturity for compared scenarios.
 - **Priority**: High
 - **Acceptance Criteria**:
-  - Chart displays a time series for base and selected equivalent scenarios.
+  - Chart displays two time-series lines by tax regime: `TAXABLE_IR` and `EXEMPT_IR`.
   - Final chart points match table net values at maturity.
   - Time axis and value axis use consistent date/currency formatting.
 
@@ -173,7 +174,7 @@ The UI should make the tax impact explicit and answer a practical question:
 1. User enters amount, dates, rate model, and contracted rate.
 2. User sets CDI/IPCA projections.
 3. User runs simulation.
-4. System shows equivalent net rate, comparison table, and evolution chart.
+4. System shows equivalent net rate, comparison table, and performance chart (two lines by tax regime).
 
 ### Flow 2: Switch Rate Model
 
@@ -192,3 +193,6 @@ The UI should make the tax impact explicit and answer a practical question:
 - Prefer implementing the calculation engine as a pure domain service with deterministic inputs and outputs.
 - Keep UI components stateless where possible and derive all values from simulation response.
 - Persist no user scenario by default in V1 (session-only interaction).
+- API result contract for V1 dashboard:
+  - `rows`: comparison rows (`base + equivalents`) with `equivalentRate` numeric value.
+  - `performanceSeries`: two chart lines (`TAXABLE_IR`, `EXEMPT_IR`) with dated net-value points.

@@ -14,6 +14,7 @@ import { useAuthorization } from '@/shared/providers';
 
 import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 
 type NavItem = { href: string; label: string; icon: React.ElementType };
 
@@ -43,6 +44,11 @@ export function SidebarRail() {
       href: '/financial-data',
       label: t('routes.financialData'),
       icon: AccountBalanceIcon,
+    },
+    {
+      href: '/investments',
+      label: t('routes.investments'),
+      icon: TrendingUpIcon,
     },
   ];
 
