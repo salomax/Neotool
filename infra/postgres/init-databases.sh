@@ -10,6 +10,7 @@ set -e
 # List of databases to ensure exist (add new ones here)
 DATABASES=(
     "unleash_db"
+    "umami_db"
     # Add more databases as needed:
     # "another_db"
 )
