@@ -380,6 +380,114 @@ export type FinancialDataPageInfo = {
   startCursor: Maybe<Scalars['String']['output']>;
 };
 
+export type FixedIncomeComparisonInput = {
+  cdiAnnualRateBps: Scalars['Int']['input'];
+  contractedRateBps: Scalars['Int']['input'];
+  endDate: Scalars['Date']['input'];
+  ipcaAnnualRateBps: Scalars['Int']['input'];
+  principal: Scalars['Float']['input'];
+  product?: InputMaybe<FixedIncomeProduct>;
+  productGroup: FixedIncomeProductGroup;
+  rateModel: FixedIncomeRateModel;
+  startDate: Scalars['Date']['input'];
+};
+
+export type FixedIncomeComparisonResult = {
+  __typename: 'FixedIncomeComparisonResult';
+  methodology: FixedIncomeMethodology;
+  performanceSeries: Array<FixedIncomePerformanceSeries>;
+  rows: Array<FixedIncomeComparisonRow>;
+  summary: FixedIncomeSummary;
+};
+
+export type FixedIncomeComparisonRow = {
+  __typename: 'FixedIncomeComparisonRow';
+  contractedRateDisplay: Scalars['String']['output'];
+  equivalentRateBps: Scalars['Int']['output'];
+  gross: Scalars['Float']['output'];
+  ir: Scalars['Float']['output'];
+  isBase: Scalars['Boolean']['output'];
+  isExempt: Scalars['Boolean']['output'];
+  label: Scalars['String']['output'];
+  net: Scalars['Float']['output'];
+  productGroup: FixedIncomeProductGroup;
+  rateModel: FixedIncomeRateModel;
+  realGainPercent: Scalars['Float']['output'];
+};
+
+export type FixedIncomeDayCountMethodology = {
+  __typename: 'FixedIncomeDayCountMethodology';
+  accrualConvention: Scalars['String']['output'];
+  businessDays: Scalars['Int']['output'];
+  calendarDays: Scalars['Int']['output'];
+};
+
+export type FixedIncomeMethodology = {
+  __typename: 'FixedIncomeMethodology';
+  dayCount: FixedIncomeDayCountMethodology;
+  tax: FixedIncomeTaxMethodology;
+};
+
+export type FixedIncomePerformancePoint = {
+  __typename: 'FixedIncomePerformancePoint';
+  date: Scalars['Date']['output'];
+  netValue: Scalars['Float']['output'];
+};
+
+export type FixedIncomePerformanceSeries = {
+  __typename: 'FixedIncomePerformanceSeries';
+  points: Array<FixedIncomePerformancePoint>;
+  productGroup: FixedIncomeProductGroup;
+};
+
+export enum FixedIncomeProduct {
+  Cdb = 'CDB',
+  Debenture = 'DEBENTURE',
+  FreeTaxDebenture = 'FREE_TAX_DEBENTURE',
+  Lc = 'LC',
+  Lca = 'LCA',
+  Lci = 'LCI'
+}
+
+export enum FixedIncomeProductGroup {
+  ExemptIr = 'EXEMPT_IR',
+  TaxableIr = 'TAXABLE_IR'
+}
+
+export enum FixedIncomeRateModel {
+  Cdi = 'CDI',
+  Fixed = 'FIXED',
+  IpcaPlus = 'IPCA_PLUS'
+}
+
+export type FixedIncomeSummary = {
+  __typename: 'FixedIncomeSummary';
+  baseEquivalentRateBps: Scalars['Int']['output'];
+  baseProduct: FixedIncomeProduct;
+  baseProductGroup: FixedIncomeProductGroup;
+  baseRateDisplay: Scalars['String']['output'];
+  baseRateModel: FixedIncomeRateModel;
+  gross: Scalars['Float']['output'];
+  ir: Scalars['Float']['output'];
+  net: Scalars['Float']['output'];
+  principal: Scalars['Float']['output'];
+  realGainPercent: Scalars['Float']['output'];
+};
+
+export type FixedIncomeTaxBracket = {
+  __typename: 'FixedIncomeTaxBracket';
+  fromCalendarDays: Scalars['Int']['output'];
+  rateDecimal: Scalars['Float']['output'];
+  toCalendarDays: Maybe<Scalars['Int']['output']>;
+};
+
+export type FixedIncomeTaxMethodology = {
+  __typename: 'FixedIncomeTaxMethodology';
+  activeBracket: FixedIncomeTaxBracket;
+  appliesOnProfitOnly: Scalars['Boolean']['output'];
+  bracketTable: Array<FixedIncomeTaxBracket>;
+};
+
 export type Group = {
   __typename: 'Group';
   createdAt: Scalars['String']['output'];
@@ -730,6 +838,7 @@ export type Query = {
   checkPermission: AuthorizationResult;
   currentUser: Maybe<User>;
   economicIndicators: Array<EconomicIndicator>;
+  fixedIncomeComparison: FixedIncomeComparisonResult;
   group: Maybe<Group>;
   groups: GroupConnection;
   myVerificationStatus: Maybe<VerificationStatus>;
@@ -778,6 +887,11 @@ export type QueryCheckPermissionArgs = {
 
 export type QueryEconomicIndicatorsArgs = {
   label?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type QueryFixedIncomeComparisonArgs = {
+  input: FixedIncomeComparisonInput;
 };
 
 

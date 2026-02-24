@@ -36,12 +36,12 @@ tests {
   test("status 200", function() {
     expect(res.getStatus()).to.equal(200);
   });
-
+  
   test("Has economicIndicators array", function() {
     const data = res.getBody();
     expect(data.data.economicIndicators).to.be.an('array');
   });
-
+  
   test("Each item has required fields", function() {
     const data = res.getBody();
     const items = data.data.economicIndicators;
