@@ -1,3 +1,13 @@
+## 0.2.4 (2026-02-24)
+
+### 🚀 Features
+
+- **financial-data:** implement Fixed Income Comparison feature in GraphQL ([a7bf0e74](https://github.com/invistus/invistus/commit/a7bf0e74))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.2.3 (2026-02-21)
 
 This was a version bump only for financialdata to align it with other projects, there were no code changes.
