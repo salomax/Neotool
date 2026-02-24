@@ -1,3 +1,13 @@
+## 0.3.6 (2026-02-24)
+
+### 🚀 Features
+
+- **analytics:** integrate Umami web analytics into the application ([7213d422](https://github.com/invistus/invistus/commit/7213d422))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.3.5 (2026-02-24)
 
 ### 🚀 Features
