@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { logger } from "@/shared/utils/logger";
+import { identifyUser } from "@/shared/analytics/umami";
 
 type User = {
   id: string;
@@ -128,11 +129,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const storage = rememberMe ? localStorage : sessionStorage;
         storage.setItem(TOKEN_KEY, newToken);
         storage.setItem(USER_KEY, JSON.stringify(newUser));
-        
+
         if (refreshToken) {
           storage.setItem(REFRESH_TOKEN_KEY, refreshToken);
         }
 
+        identifyUser(newUser.id);
         routeAfterAuthentication(newUser);
       }
     } catch (error: any) {
@@ -170,11 +172,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const storage = rememberMe ? localStorage : sessionStorage;
         storage.setItem(TOKEN_KEY, newToken);
         storage.setItem(USER_KEY, JSON.stringify(newUser));
-        
+
         if (refreshToken) {
           storage.setItem(REFRESH_TOKEN_KEY, refreshToken);
         }
 
+        identifyUser(newUser.id);
         routeAfterAuthentication(newUser);
       }
     } catch (error: any) {
