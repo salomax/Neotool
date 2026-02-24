@@ -1,3 +1,18 @@
+## 0.3.8 (2026-02-24)
+
+### 🚀 Features
+
+- **analytics:** add Umami Analytics helpers and integrate user identification ([44da9ada](https://github.com/invistus/invistus/commit/44da9ada))
+
+### 🩹 Fixes
+
+- **sitemap:** update change frequency for institution pages from weekly to monthly ([33f57f69](https://github.com/invistus/invistus/commit/33f57f69))
+- **landing-page:** add Fixed Income Comparison feature to Landing Page ([12df27e1](https://github.com/invistus/invistus/commit/12df27e1))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.3.7 (2026-02-24)
 
 ### 🚀 Features
