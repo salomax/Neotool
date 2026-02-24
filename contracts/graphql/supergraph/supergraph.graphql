@@ -437,6 +437,131 @@ type FinancialDataPageInfo
   endCursor: String
 }
 
+input FixedIncomeComparisonInput
+  @join__type(graph: FINANCIALDATA)
+{
+  productGroup: FixedIncomeProductGroup!
+  product: FixedIncomeProduct
+  principal: Float!
+  startDate: Date!
+  endDate: Date!
+  rateModel: FixedIncomeRateModel!
+  contractedRateBps: Int!
+  cdiAnnualRateBps: Int!
+  ipcaAnnualRateBps: Int!
+}
+
+type FixedIncomeComparisonResult
+  @join__type(graph: FINANCIALDATA)
+{
+  summary: FixedIncomeSummary!
+  rows: [FixedIncomeComparisonRow!]!
+  performanceSeries: [FixedIncomePerformanceSeries!]!
+  methodology: FixedIncomeMethodology!
+}
+
+type FixedIncomeComparisonRow
+  @join__type(graph: FINANCIALDATA)
+{
+  label: String!
+  productGroup: FixedIncomeProductGroup!
+  rateModel: FixedIncomeRateModel!
+  equivalentRateBps: Int!
+  contractedRateDisplay: String!
+  gross: Float!
+  ir: Float!
+  net: Float!
+  realGainPercent: Float!
+  isExempt: Boolean!
+  isBase: Boolean!
+}
+
+type FixedIncomeDayCountMethodology
+  @join__type(graph: FINANCIALDATA)
+{
+  accrualConvention: String!
+  calendarDays: Int!
+  businessDays: Int!
+}
+
+type FixedIncomeMethodology
+  @join__type(graph: FINANCIALDATA)
+{
+  dayCount: FixedIncomeDayCountMethodology!
+  tax: FixedIncomeTaxMethodology!
+}
+
+type FixedIncomePerformancePoint
+  @join__type(graph: FINANCIALDATA)
+{
+  date: Date!
+  netValue: Float!
+}
+
+type FixedIncomePerformanceSeries
+  @join__type(graph: FINANCIALDATA)
+{
+  productGroup: FixedIncomeProductGroup!
+  points: [FixedIncomePerformancePoint!]!
+}
+
+enum FixedIncomeProduct
+  @join__type(graph: FINANCIALDATA)
+{
+  CDB @join__enumValue(graph: FINANCIALDATA)
+  LC @join__enumValue(graph: FINANCIALDATA)
+  LCI @join__enumValue(graph: FINANCIALDATA)
+  LCA @join__enumValue(graph: FINANCIALDATA)
+  DEBENTURE @join__enumValue(graph: FINANCIALDATA)
+  FREE_TAX_DEBENTURE @join__enumValue(graph: FINANCIALDATA)
+}
+
+enum FixedIncomeProductGroup
+  @join__type(graph: FINANCIALDATA)
+{
+  TAXABLE_IR @join__enumValue(graph: FINANCIALDATA)
+  EXEMPT_IR @join__enumValue(graph: FINANCIALDATA)
+}
+
+enum FixedIncomeRateModel
+  @join__type(graph: FINANCIALDATA)
+{
+  CDI @join__enumValue(graph: FINANCIALDATA)
+  FIXED @join__enumValue(graph: FINANCIALDATA)
+  IPCA_PLUS @join__enumValue(graph: FINANCIALDATA)
+}
+
+type FixedIncomeSummary
+  @join__type(graph: FINANCIALDATA)
+{
+  baseProduct: FixedIncomeProduct!
+  baseProductGroup: FixedIncomeProductGroup!
+  baseRateModel: FixedIncomeRateModel!
+  baseEquivalentRateBps: Int!
+  baseRateDisplay: String!
+  principal: Float!
+  gross: Float!
+  ir: Float!
+  net: Float!
+  realGainPercent: Float!
+}
+
+type FixedIncomeTaxBracket
+  @join__type(graph: FINANCIALDATA)
+{
+  fromCalendarDays: Int!
+  toCalendarDays: Int
+  rateDecimal: Float!
+}
+
+type FixedIncomeTaxMethodology
+  @join__type(graph: FINANCIALDATA)
+{
+  appliesOnProfitOnly: Boolean!
+  activeBracket: FixedIncomeTaxBracket!
+  bracketTable: [FixedIncomeTaxBracket!]!
+}
+
 type Group
   @join__type(graph: SECURITY, key: "id")
 {
@@ -713,6 +838,7 @@ type Query
   bacenFinanceInstitution(id: ID!, anoMes: String): BacenFinanceInstitution @join__field(graph: FINANCIALDATA)
   ratingIssuers: [RatingIssuer!]! @join__field(graph: FINANCIALDATA)
   economicIndicators(label: String): [EconomicIndicator!]! @join__field(graph: FINANCIALDATA)
+  fixedIncomeComparison(input: FixedIncomeComparisonInput!): FixedIncomeComparisonResult! @join__field(graph: FINANCIALDATA)
   currentUser: User @join__field(graph: SECURITY)
   myVerificationStatus: VerificationStatus @join__field(graph: SECURITY)
   checkPermission(userId: ID!, permission: String!, resourceId: ID): AuthorizationResult! @join__field(graph: SECURITY)

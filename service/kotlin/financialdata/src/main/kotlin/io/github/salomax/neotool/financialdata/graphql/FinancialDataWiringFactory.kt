@@ -30,6 +30,7 @@ import io.github.salomax.neotool.financialdata.graphql.dto.ReportDetailsDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.ReportsAvailabilityDTO
 import io.github.salomax.neotool.financialdata.graphql.resolver.BacenInstitutionDetailResolver
 import io.github.salomax.neotool.financialdata.graphql.resolver.FinancialInstitutionRatingResolver
+import io.github.salomax.neotool.financialdata.graphql.resolver.FixedIncomeComparisonResolver
 import io.github.salomax.neotool.financialdata.graphql.resolver.IndicatorResolver
 import io.github.salomax.neotool.financialdata.graphql.resolver.InstitutionSearchResolver
 import jakarta.inject.Singleton
@@ -45,6 +46,7 @@ class FinancialDataWiringFactory(
     private val institutionDetailResolver: BacenInstitutionDetailResolver,
     private val ratingResolver: FinancialInstitutionRatingResolver,
     private val indicatorResolver: IndicatorResolver,
+    private val fixedIncomeComparisonResolver: FixedIncomeComparisonResolver,
     resolverRegistry: GraphQLResolverRegistry,
 ) : GraphQLWiringFactory() {
     init {
@@ -53,6 +55,7 @@ class FinancialDataWiringFactory(
         resolverRegistry.register("institutionDetail", institutionDetailResolver)
         resolverRegistry.register("ratingResolver", ratingResolver)
         resolverRegistry.register("indicatorResolver", indicatorResolver)
+        resolverRegistry.register("fixedIncomeComparison", fixedIncomeComparisonResolver)
     }
 
     override fun registerQueryResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder {
@@ -124,6 +127,12 @@ class FinancialDataWiringFactory(
                 "indicatorsLatest",
                 createValidatedDataFetcher { env ->
                     indicatorResolver.indicatorsLatest(env)
+                },
+            )
+            .dataFetcher(
+                "fixedIncomeComparison",
+                createValidatedDataFetcher { env ->
+                    fixedIncomeComparisonResolver.fixedIncomeComparison(env)
                 },
             )
     }

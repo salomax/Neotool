@@ -1,0 +1,99 @@
+meta {
+  name: Get Fixed Income Comparison
+  type: graphql
+  seq: 12
+}
+
+post {
+  url: {{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  query FixedIncomeComparison {
+    fixedIncomeComparison(input: {
+      productGroup: TAXABLE_IR
+      principal: 10000
+      startDate: "2024-01-01"
+      endDate: "2024-12-26"
+      rateModel: CDI
+      contractedRateBps: 10000
+      cdiAnnualRateBps: 1200
+      ipcaAnnualRateBps: 600
+    }) {
+      summary {
+        baseProduct
+        baseProductGroup
+        baseRateModel
+        baseEquivalentRateBps
+        baseRateDisplay
+        principal
+        gross
+        ir
+        net
+        realGainPercent
+      }
+      rows {
+        label
+        productGroup
+        rateModel
+        equivalentRateBps
+        contractedRateDisplay
+        gross
+        ir
+        net
+        realGainPercent
+        isExempt
+        isBase
+      }
+      performanceSeries {
+        productGroup
+        points {
+          date
+          netValue
+        }
+      }
+      methodology {
+        dayCount {
+          accrualConvention
+          calendarDays
+          businessDays
+        }
+        tax {
+          appliesOnProfitOnly
+          activeBracket {
+            fromCalendarDays
+            toCalendarDays
+            rateDecimal
+          }
+          bracketTable {
+            fromCalendarDays
+            toCalendarDays
+            rateDecimal
+          }
+        }
+      }
+    }
+  }
+}
+
+tests {
+  test("status 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Has fixedIncomeComparison", function() {
+    const data = res.getBody();
+    expect(data.data.fixedIncomeComparison).to.not.equal(null);
+  });
+  
+  test("Has rows list", function() {
+    const data = res.getBody();
+    expect(data.data.fixedIncomeComparison.rows).to.be.an('array');
+  });
+}

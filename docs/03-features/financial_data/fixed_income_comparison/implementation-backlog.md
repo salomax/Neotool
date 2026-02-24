@@ -11,7 +11,7 @@ related:
   - 03-features/financial_data/fixed_income_comparison/fixed-income-comparison.md
   - 08-workflows/feature-development.md
   - 06-contracts/graphql-standards.md
-last_updated: 2026-02-21
+last_updated: 2026-02-22
 ---
 
 # Fixed Income Comparison Implementation Backlog
@@ -36,7 +36,7 @@ Use this hierarchy:
 - Single scenario simulation.
 - Product types: `CDB`, `LC`, `LCI`, `LCA`.
 - Rate models: `%CDI`, `FIXED`, `IPCA_PLUS`.
-- Net equivalent comparison, table, evolution chart, methodology panel.
+- Net equivalent comparison, table, performance-series chart, methodology panel.
 - CDI/IPCA default values fetched from existing API query.
 
 ### Out of Scope (V1)
@@ -170,9 +170,9 @@ query EconomicIndicatorsLatest {
 
 - [ ] `FIC-S012-T04` Implement equivalent-rate solver.
   - **Subtasks**:
-    - [ ] Binary-search root finder.
-    - [ ] Model-specific search interval policy.
-    - [ ] No-solution fallback behavior.
+    - [ ] Implement closed-form equivalent-rate solver (no iterative root finder).
+    - [ ] Invert net-to-gross and gross-to-effective-rate formulas.
+    - [ ] Convert effective rate back to `%CDI`, `FIXED`, and `IPCA_PLUS` contracted rates.
   - **Files**:
     - `service/kotlin/financialdata/src/main/kotlin/io/github/salomax/neotool/financialdata/service/fixedincome/EquivalentYieldSolver.kt` (new)
 
@@ -180,15 +180,15 @@ query EconomicIndicatorsLatest {
   - **Subtasks**:
     - [ ] Core model tests.
     - [ ] IR boundary tests.
-    - [ ] Solver convergence/no-solution tests.
+    - [ ] Closed-form solver correctness tests by rate model.
     - [ ] Golden vector assertions.
   - **Files**:
     - `service/kotlin/financialdata/src/test/kotlin/io/github/salomax/neotool/financialdata/test/unit/service/fixedincome/` (new package)
 
 - [ ] `FIC-S012-T06` Implement orchestrator service.
   - **Subtasks**:
-    - [ ] Inject `TaxPolicyService`, `DayCountService`, `RateModelCalculator`, `EquivalentYieldSolver` via constructor DI.
-    - [ ] Orchestrate full pipeline: parse input → resolve tax class → compute rates → solve equivalents → build output model.
+    - [ ] Inject `TaxPolicyService` and `EquivalentYieldSolver` via constructor DI.
+    - [ ] Orchestrate full pipeline: parse input → solve equivalents → build `rows` + `performanceSeries` output model.
     - [ ] Keep service stateless and free of I/O (pure domain orchestration).
   - **Files**:
     - `service/kotlin/financialdata/src/main/kotlin/io/github/salomax/neotool/financialdata/service/fixedincome/FixedIncomeComparisonService.kt` (new)
@@ -209,7 +209,8 @@ query EconomicIndicatorsLatest {
 - [ ] `FIC-S013-T01` Add schema types and query field.
   - **Subtasks**:
     - [ ] Add input types and enums.
-    - [ ] Add output types (`summary`, `rows`, `evolution`, `methodology`).
+    - [ ] Add output types (`summary`, `rows`, `performanceSeries`, `methodology`).
+    - [ ] Ensure `rows` includes numeric `equivalentRate`.
     - [ ] Add query `fixedIncomeComparison(input: FixedIncomeComparisonInput!): FixedIncomeComparisonResult!`.
   - **Files**:
     - `service/kotlin/financialdata/src/main/resources/graphql/schema.graphqls`
@@ -399,7 +400,7 @@ query EconomicIndicatorsLatest {
 
 ### Story `FIC-S033` - Implement Result Dashboard Components
 
-**Outcome**: User can compare outcomes and evolution visually.
+**Outcome**: User can compare outcomes and performance-series evolution visually.
 
 #### Tasks
 
@@ -418,9 +419,10 @@ query EconomicIndicatorsLatest {
   - **Files**:
     - `web/src/features/financial-data/fixed-income-comparison/components/ComparisonTable.tsx` (new)
 
-- [ ] `FIC-S033-T03` Build profitability evolution chart.
+- [ ] `FIC-S033-T03` Build profitability performance-series chart.
   - **Subtasks**:
-    - [ ] Map evolution points to chart.
+    - [ ] Map `performanceSeries` points to chart.
+    - [ ] Render two lines by tax regime (`TAXABLE_IR`, `EXEMPT_IR`).
     - [ ] Ensure final point equals table maturity net value.
   - **Files**:
     - `web/src/features/financial-data/fixed-income-comparison/components/ProfitabilityEvolutionChart.tsx` (new)
@@ -590,4 +592,3 @@ FIC-S013 + FIC-S033 + FIC-S022
 - [ ] Backend calculation + GraphQL contract completed and tested.
 - [ ] Frontend form + dashboard completed and tested.
 - [ ] Observability, docs, and release checklist completed.
-

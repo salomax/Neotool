@@ -15,6 +15,7 @@ import {
   LogoutIcon
 } from "@/shared/ui/mui-imports";
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { useThemeMode } from "@/styles/themes/AppThemeProvider";
 import { useAuthorization, useAuth } from "@/shared/providers";
@@ -79,6 +80,13 @@ export const MobileNavigationDrawer: React.FC<MobileNavigationDrawerProps> = ({
                 <AccountBalanceIcon />
               </ListItemIcon>
               <ListItemText primary={t('routes.financialData', 'Financial Data')} />
+            </ListItemButton>
+
+            <ListItemButton onClick={() => handleNavigation("/investments")}>
+              <ListItemIcon>
+                <TrendingUpIcon />
+              </ListItemIcon>
+              <ListItemText primary={t('routes.investments', 'Investments')} />
             </ListItemButton>
 
             {hasAuthorizationAccess && (

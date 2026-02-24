@@ -15,6 +15,9 @@ class FinancialDataGraphQLFactory(
     fun graphQL(): GraphQL {
         val runtimeWiring = wiringFactory.build()
         val schema = SchemaGenerator().makeExecutableSchema(registry, runtimeWiring)
-        return GraphQL.newGraphQL(schema).build()
+        return GraphQL
+            .newGraphQL(schema)
+            .defaultDataFetcherExceptionHandler(FinancialDataGraphQLExceptionHandler())
+            .build()
     }
 }

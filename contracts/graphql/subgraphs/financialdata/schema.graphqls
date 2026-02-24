@@ -36,6 +36,8 @@ extend type Query {
   ratingIssuers: [RatingIssuer!]!
   # Economic indicators
   economicIndicators(label: String): [EconomicIndicator!]!
+  # Fixed income comparison: 2×3 grid of equivalent rates (product group × rate model)
+  fixedIncomeComparison(input: FixedIncomeComparisonInput!): FixedIncomeComparisonResult!
 }
 
 # Enums
@@ -287,4 +289,104 @@ type EconomicIndicatorVariationSeries {
 type EconomicIndicatorPoint {
   referenceDate: Date!
   value: Float!
+}
+
+# Fixed income comparison (simulator)
+enum FixedIncomeProduct {
+  CDB
+  LC
+  LCI
+  LCA
+  DEBENTURE
+  FREE_TAX_DEBENTURE
+}
+
+enum FixedIncomeRateModel {
+  CDI
+  FIXED
+  IPCA_PLUS
+}
+
+enum FixedIncomeProductGroup {
+  TAXABLE_IR
+  EXEMPT_IR
+}
+
+input FixedIncomeComparisonInput {
+  productGroup: FixedIncomeProductGroup!
+  product: FixedIncomeProduct
+  principal: Float!
+  startDate: Date!
+  endDate: Date!
+  rateModel: FixedIncomeRateModel!
+  contractedRateBps: Int!
+  cdiAnnualRateBps: Int!
+  ipcaAnnualRateBps: Int!
+}
+
+type FixedIncomeComparisonResult {
+  summary: FixedIncomeSummary!
+  rows: [FixedIncomeComparisonRow!]!
+  performanceSeries: [FixedIncomePerformanceSeries!]!
+  methodology: FixedIncomeMethodology!
+}
+
+type FixedIncomeSummary {
+  baseProduct: FixedIncomeProduct!
+  baseProductGroup: FixedIncomeProductGroup!
+  baseRateModel: FixedIncomeRateModel!
+  baseEquivalentRateBps: Int!
+  baseRateDisplay: String!
+  principal: Float!
+  gross: Float!
+  ir: Float!
+  net: Float!
+  realGainPercent: Float!
+}
+
+type FixedIncomeComparisonRow {
+  label: String!
+  productGroup: FixedIncomeProductGroup!
+  rateModel: FixedIncomeRateModel!
+  equivalentRateBps: Int!
+  contractedRateDisplay: String!
+  gross: Float!
+  ir: Float!
+  net: Float!
+  realGainPercent: Float!
+  isExempt: Boolean!
+  isBase: Boolean!
+}
+
+type FixedIncomePerformanceSeries {
+  productGroup: FixedIncomeProductGroup!
+  points: [FixedIncomePerformancePoint!]!
+}
+
+type FixedIncomePerformancePoint {
+  date: Date!
+  netValue: Float!
+}
+
+type FixedIncomeMethodology {
+  dayCount: FixedIncomeDayCountMethodology!
+  tax: FixedIncomeTaxMethodology!
+}
+
+type FixedIncomeDayCountMethodology {
+  accrualConvention: String!
+  calendarDays: Int!
+  businessDays: Int!
+}
+
+type FixedIncomeTaxMethodology {
+  appliesOnProfitOnly: Boolean!
+  activeBracket: FixedIncomeTaxBracket!
+  bracketTable: [FixedIncomeTaxBracket!]!
+}
+
+type FixedIncomeTaxBracket {
+  fromCalendarDays: Int!
+  toCalendarDays: Int
+  rateDecimal: Float!
 }

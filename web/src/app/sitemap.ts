@@ -180,6 +180,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'weekly',
       priority: 0.8,
     },
+    {
+      url: `${SITE_URL}/investments`,
+      lastModified: now,
+      changeFrequency: 'weekly',
+      priority: 0.8,
+    },
+    {
+      url: `${SITE_URL}/investments/fixed-income-comparison`,
+      lastModified: now,
+      changeFrequency: 'weekly',
+      priority: 0.8,
+    },
   ];
 
   const institutions = await fetchAllInstitutions();
