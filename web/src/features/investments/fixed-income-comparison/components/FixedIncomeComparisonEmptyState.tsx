@@ -4,7 +4,7 @@ import React from "react";
 import { Box, Typography } from "@mui/material";
 import { useTranslation } from "@/shared/i18n";
 import { investmentsTranslations } from "@/shared/i18n/domains/investments";
-import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import CompareArrowsIcon from "@mui/icons-material/CompareArrows";
 
 export function FixedIncomeComparisonEmptyState() {
   const { t } = useTranslation(investmentsTranslations);
@@ -38,7 +38,7 @@ export function FixedIncomeComparisonEmptyState() {
           justifyContent: "center",
         }}
       >
-        <TrendingUpIcon sx={{ fontSize: 64, opacity: 0.5 }} />
+        <CompareArrowsIcon sx={{ fontSize: 64, opacity: 0.5 }} />
       </Box>
       <Typography variant="h6" gutterBottom>
         {t(`${ns}.emptyStateTitle`)}

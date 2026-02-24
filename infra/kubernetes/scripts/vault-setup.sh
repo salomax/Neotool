@@ -232,9 +232,11 @@ path \"secret/metadata/*\" {
 POLICY
 
 # Create Kubernetes role
+# bound_service_account_namespaces includes monitoring to allow ExternalSecrets
+# for tools running outside the production namespace (e.g. Umami in monitoring)
 vault write auth/kubernetes/role/app \
     bound_service_account_names=external-secrets-vault-auth \
-    bound_service_account_namespaces=$NAMESPACE \
+    bound_service_account_namespaces=$NAMESPACE,monitoring \
     policies=app-policy \
     ttl=24h
 " > /dev/null 2>&1
@@ -261,7 +263,10 @@ echo ""
 echo "  1. Configure database credentials:"
 echo "     ./postgres-setup.sh --namespace $NAMESPACE"
 echo ""
-echo "  2. Configure other secrets as needed"
+echo "  2. After deploying Umami and creating your site, update secret/umami key website_id:"
+echo "     vault kv patch secret/umami website_id=<id-from-umami-dashboard>"
+echo ""
+echo "  3. Configure other secrets as needed"
 echo ""
 echo "Useful commands:"
 echo ""

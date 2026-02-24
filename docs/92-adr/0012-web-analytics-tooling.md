@@ -2,7 +2,7 @@
 title: ADR-0012 Web Analytics Tooling
 type: adr
 category: frontend
-status: proposed
+status: accepted
 version: 1.0.0
 tags: [analytics, observability, privacy, heatmaps, session-replay, web-vitals, umami, clarity]
 related:
@@ -14,7 +14,7 @@ related:
 # ADR-0012: Web Analytics Tooling
 
 ## Status
-Proposed
+Accepted — implemented in production (Feb 2026). See [runbook](../10-observability/umami-runbook.md).
 
 ## Context
 Invistus needs product analytics to understand user behavior, measure engagement, and guide product decisions. The current observability stack covers backend infrastructure (Grafana + Prometheus + Loki) and error tracking (Sentry), but there is no client-side product analytics in place.

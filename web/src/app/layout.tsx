@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { Box } from "@mui/material";
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary";
 import { CloudflareAnalytics } from "@/shared/analytics/CloudflareAnalytics";
+import { UmamiAnalytics } from "@/shared/analytics/UmamiAnalytics";
 import { RuntimeConfigScript } from "@/shared/config/RuntimeConfigScript";
 import Providers from "./providers";
 
@@ -40,6 +41,7 @@ export default function RootLayout({
       <body>
         <ErrorBoundary>
           <Providers>
+            <UmamiAnalytics />
             <AppShell>{children}</AppShell>
           </Providers>
         </ErrorBoundary>

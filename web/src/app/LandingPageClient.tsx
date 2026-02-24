@@ -27,6 +27,7 @@ import SavingsIcon from "@mui/icons-material/Savings";
 import EastIcon from "@mui/icons-material/East";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import ShowChartIcon from "@mui/icons-material/ShowChart";
+import CompareArrowsIcon from "@mui/icons-material/CompareArrows";
 
 // Define animations
 const float = keyframes`
@@ -93,6 +94,7 @@ export default function WelcomePage() {
   // Colors
   const brandNavy = "#0F223F";
   const brandSail = "#B7DEF6";
+  const brandGreen = "#064e3b";
 
   return (
     <Box sx={{ bgcolor: 'background.default', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -211,7 +213,7 @@ export default function WelcomePage() {
             </Typography>
           </Box>
 
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 4 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, gap: 4 }}>
             {/* Institutions Card */}
             <NextLink href="/financial-data/bacen-institutions" style={{ textDecoration: 'none', display: 'block' }}>
               <FeatureCard 
@@ -281,6 +283,42 @@ export default function WelcomePage() {
 
                 <Box sx={{ position: 'absolute', right: -60, bottom: -60, opacity: 0.2, transition: 'all 0.7s', '.group:hover &': { transform: 'rotate(12deg)' } }}>
                   <ShowChartIcon sx={{ fontSize: 300 }} />
+                </Box>
+              </FeatureCard>
+            </NextLink>
+
+            {/* Fixed Income Comparison Card */}
+            <NextLink href="/investments/fixed-income-comparison" style={{ textDecoration: 'none', display: 'block', height: '100%' }}>
+              <FeatureCard 
+                bgColor={brandGreen} 
+                textColor="#fff"
+                className="group"
+              >
+                <Box sx={{ position: 'relative', zIndex: 1 }}>
+                  <Chip 
+                    label={t("features.fixed_income_comparison.tag")} 
+                    size="small" 
+                    sx={{ bgcolor: 'rgba(255,255,255,0.1)', color: '#fff', mb: 3, backdropFilter: 'blur(4px)' }} 
+                  />
+                  <Typography variant="h4" sx={{ fontWeight: 700, mb: 2 }}>
+                    {t("features.fixed_income_comparison.title")}
+                  </Typography>
+                  <Typography variant="body1" sx={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '1.125rem', lineHeight: 1.6, mb: 4 }}>
+                    {t("features.fixed_income_comparison.description")}
+                  </Typography>
+                  <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
+                    <Chip label={t("features.fixed_income_comparison.tags.cdb")} variant="outlined" sx={{ borderColor: 'rgba(255,255,255,0.2)', color: '#fff' }} />
+                    <Chip label={t("features.fixed_income_comparison.tags.lci")} variant="outlined" sx={{ borderColor: 'rgba(255,255,255,0.2)', color: '#fff' }} />
+                    <Chip label={t("features.fixed_income_comparison.tags.lca")} variant="outlined" sx={{ borderColor: 'rgba(255,255,255,0.2)', color: '#fff' }} />
+                  </Stack>
+                </Box>
+                
+                <Box sx={{ mt: 6, display: 'flex', alignItems: 'center', color: '#6ee7b7', fontWeight: 600 }}>
+                  {t("features.fixed_income_comparison.cta")} <EastIcon sx={{ ml: 1 }} />
+                </Box>
+
+                <Box sx={{ position: 'absolute', right: -60, bottom: -60, opacity: 0.2, transition: 'all 0.7s', '.group:hover &': { transform: 'scale(1.1)', opacity: 0.3 } }}>
+                  <CompareArrowsIcon sx={{ fontSize: 300 }} />
                 </Box>
               </FeatureCard>
             </NextLink>

@@ -68,6 +68,7 @@ while [[ $# -gt 0 ]]; do
             echo "  - Main PostgreSQL admin user"
             echo "  - Application database and user"
             echo "  - Unleash database and user"
+            echo "  - Umami database and user"
             echo "  - PgBouncer userlist"
             exit 0
             ;;
@@ -274,6 +275,63 @@ else
 fi
 
 # =============================================================================
+# Step 2.5: Configure Umami Database Credentials
+# =============================================================================
+print_header "Step 2.5: Umami Database Credentials"
+
+UMAMI_EXISTS=$(secret_exists_in_vault "umami")
+
+if [ "$UMAMI_EXISTS" = "true" ]; then
+    print_info "Existing Umami credentials found in Vault"
+    read -p "Keep existing credentials? (Y/n): " -n 1 -r
+    echo ""
+    if [[ $REPLY =~ ^[Nn]$ ]]; then
+        UMAMI_EXISTS="false"
+    fi
+fi
+
+if [ "$UMAMI_EXISTS" != "true" ]; then
+    read -p "  Umami username [umami]: " UMAMI_USER
+    UMAMI_USER=${UMAMI_USER:-umami}
+
+    echo ""
+    read -p "  Generate random password? (Y/n): " -n 1 -r
+    echo ""
+    if [[ $REPLY =~ ^[Nn]$ ]]; then
+        read -sp "  Enter password: " UMAMI_PASSWORD
+        echo ""
+    else
+        UMAMI_PASSWORD=$(generate_password)
+        echo ""
+        print_info "Generated password: $UMAMI_PASSWORD"
+        echo ""
+        echo -e "${RED}  Save this password! It won't be shown again.${NC}"
+        read -p "  Press Enter to continue..."
+    fi
+
+    UMAMI_APP_SECRET=$(generate_password)
+    UMAMI_DATABASE_URL="postgresql://${UMAMI_USER}:${UMAMI_PASSWORD}@pgbouncer:6432/umami_db"
+
+    print_step "Storing Umami credentials in Vault (secret/umami)..."
+    store_in_vault "umami" \
+        "database_url=$UMAMI_DATABASE_URL" \
+        "app_secret=$UMAMI_APP_SECRET" \
+        "website_id=REPLACE_AFTER_FIRST_LOGIN" \
+        "username=$UMAMI_USER" \
+        "password=$UMAMI_PASSWORD"
+
+    print_success "Umami credentials stored in Vault (secret/umami)"
+else
+    UMAMI_USER=$(get_from_vault "umami" "username" 2>/dev/null || echo "umami")
+    UMAMI_PASSWORD=$(get_from_vault "umami" "password" 2>/dev/null || echo "")
+    if [ -z "$UMAMI_PASSWORD" ]; then
+        print_info "Umami password not in Vault (legacy secret?). Omitting Umami from PgBouncer userlist."
+        UMAMI_USER=""
+    fi
+    print_success "Using existing Umami credentials"
+fi
+
+# =============================================================================
 # Step 3: Store PgBouncer Userlist
 # =============================================================================
 print_header "Step 3: PgBouncer Userlist"
@@ -284,10 +342,15 @@ print_step "Generating PgBouncer userlist..."
 # We store it in Vault and External Secrets will create the K8s Secret
 USERLIST_CONTENT="\"$PG_ADMIN_USER\" \"$PG_ADMIN_PASSWORD\"
 \"$UNLEASH_USER\" \"$UNLEASH_PASSWORD\""
+if [ -n "$UMAMI_USER" ]; then
+    USERLIST_CONTENT="$USERLIST_CONTENT
+\"$UMAMI_USER\" \"$UMAMI_PASSWORD\""
+fi
 
 print_info "Users in userlist:"
 print_info "  - $PG_ADMIN_USER"
 print_info "  - $UNLEASH_USER"
+[ -n "$UMAMI_USER" ] && print_info "  - $UMAMI_USER"
 
 store_in_vault "pgbouncer" \
     "userlist=$USERLIST_CONTENT"
@@ -335,6 +398,25 @@ WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '$UNLEASH_DB')\\gexec
 GRANT ALL PRIVILEGES ON DATABASE $UNLEASH_DB TO $UNLEASH_USER;
 SQL
         " 2>/dev/null && print_success "Unleash user and database created" || print_info "Could not create Unleash user (may already exist or PG not ready)"
+
+        # Create Umami user (umami_db already created by init-databases.sh)
+        if [ -n "$UMAMI_USER" ]; then
+            kubectl exec -n "$NAMESPACE" "$PG_POD" -- sh -c "
+                PGPASSWORD='$PG_ADMIN_PASSWORD' psql -U '$PG_ADMIN_USER' -d postgres <<SQL
+DO \\\$\\\$
+BEGIN
+    IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '$UMAMI_USER') THEN
+        CREATE USER $UMAMI_USER WITH PASSWORD '$UMAMI_PASSWORD';
+    ELSE
+        ALTER USER $UMAMI_USER WITH PASSWORD '$UMAMI_PASSWORD';
+    END IF;
+END
+\\\$\\\$;
+
+GRANT ALL PRIVILEGES ON DATABASE umami_db TO $UMAMI_USER;
+SQL
+            " 2>/dev/null && print_success "Umami user created" || print_info "Could not create Umami user (may already exist or PG not ready)"
+        fi
     else
         print_info "PostgreSQL pod status: $PG_STATUS"
         print_info "Skipping user creation - PostgreSQL not ready"
@@ -358,6 +440,9 @@ echo "    - username: $UNLEASH_USER"
 echo "    - password: ********"
 echo "    - database: $UNLEASH_DB"
 echo ""
+echo "  secret/umami"
+echo "    - database_url, app_secret, website_id (update website_id after first Umami login)"
+echo ""
 echo "  secret/pgbouncer"
 echo "    - userlist: (contains all users for PgBouncer auth)"
 echo ""
@@ -366,6 +451,7 @@ echo "  - postgres-credentials"
 echo "  - pgbouncer-credentials"
 echo "  - pgbouncer-userlist"
 echo "  - unleash-credentials"
+echo "  - umami-secret (from secret/umami)"
 echo ""
 echo "Verify sync status:"
 echo "  kubectl get externalsecret -n $NAMESPACE"
