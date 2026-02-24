@@ -9,12 +9,9 @@ const DEFAULT_UMAMI_SCRIPT_URL = "https://webanalytics.invistus.com.br/script.js
 export function UmamiAnalytics() {
   const analyticsEnabledByFlag = useFeatureFlagEnabled("web-analytics-enabled");
   const config = getRuntimeConfig();
-  const { umamiEnabled, umamiWebsiteId, umamiScriptUrl } = config;
+  const { umamiWebsiteId, umamiScriptUrl } = config;
 
-  const shouldLoad =
-    analyticsEnabledByFlag &&
-    umamiEnabled === true &&
-    Boolean(umamiWebsiteId);
+  const shouldLoad = analyticsEnabledByFlag && Boolean(umamiWebsiteId);
 
   if (!shouldLoad) {
     return null;

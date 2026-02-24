@@ -25,8 +25,6 @@ export interface RuntimeConfig {
   graphqlEndpoint?: string;
   /** Google OAuth client ID */
   googleClientId?: string;
-  /** Umami web analytics enabled (requires feature flag web-analytics-enabled) */
-  umamiEnabled?: boolean;
   /** Umami website ID from dashboard */
   umamiWebsiteId?: string;
   /** Umami script URL (default: https://webanalytics.invistus.com.br/script.js) */
@@ -57,7 +55,6 @@ export function getRuntimeConfig(): RuntimeConfig {
     unleashClientToken: process.env.UNLEASH_CLIENT_TOKEN || '',
     graphqlEndpoint: process.env.GRAPHQL_ENDPOINT || '',
     googleClientId: process.env.GOOGLE_CLIENT_ID || '',
-    umamiEnabled: process.env.UMAMI_ENABLED === 'true',
     umamiWebsiteId: process.env.UMAMI_WEBSITE_ID || '',
     umamiScriptUrl: process.env.UMAMI_SCRIPT_URL || '',
   };
