@@ -1,3 +1,17 @@
+## 0.2.5 (2026-02-25)
+
+### 🚀 Features
+
+- **financial-data:** implement Fixed Income Comparison feature in GraphQL ([8d2e2bcd](https://github.com/invistus/invistus/commit/8d2e2bcd))
+
+### 🩹 Fixes
+
+- **validation:** update ValidEmailSendRequestValidator for Micronaut compatibility ([fd313af6](https://github.com/invistus/invistus/commit/fd313af6))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.2.4 (2026-02-24)
 
 ### 🚀 Features

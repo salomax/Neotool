@@ -1,3 +1,29 @@
+## 0.4.0 (2026-02-25)
+
+### 🚀 Features
+
+- **financial-data:** implement Fixed Income Comparison feature in GraphQL ([8d2e2bcd](https://github.com/invistus/invistus/commit/8d2e2bcd))
+- **email-verification:** enhance localization and error handling in email verification process ([735a0557](https://github.com/invistus/invistus/commit/735a0557))
+- **verify-email:** enhance loading state with improved UI and localization ([52f36294](https://github.com/invistus/invistus/commit/52f36294))
+- **email-verification:** enhance localization and error handling in email verification process ([97812602](https://github.com/invistus/invistus/commit/97812602))
+- **verify-email:** enhance loading state with improved UI and localization ([850ac14e](https://github.com/invistus/invistus/commit/850ac14e))
+- **email-verification:** enhance localization and error handling in email verification process ([cc4571b3](https://github.com/invistus/invistus/commit/cc4571b3))
+- **verify-email:** enhance loading state with improved UI and localization ([8af62a6a](https://github.com/invistus/invistus/commit/8af62a6a))
+- **assets:** add new white transparent logo asset ([0b233876](https://github.com/invistus/invistus/commit/0b233876))
+- **auth:** enhance user redirection based on email verification status ([352d3583](https://github.com/invistus/invistus/commit/352d3583))
+- **comms:** introduce Comms service with email delivery capabilities ([988cfd2b](https://github.com/invistus/invistus/commit/988cfd2b))
+- enhance JWT token handling with account and session claims ([642d5074](https://github.com/invistus/invistus/commit/642d5074))
+
+### 🩹 Fixes
+
+- **email:** update logo box styling in password reset and verify email templates ([2fdc6cc4](https://github.com/invistus/invistus/commit/2fdc6cc4))
+- **bacen:** update parameter types to promises for async handling ([446c7550](https://github.com/invistus/invistus/commit/446c7550))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+- Marcos Salomão @salomax
+
 ## 0.3.8 (2026-02-24)
 
 ### 🚀 Features

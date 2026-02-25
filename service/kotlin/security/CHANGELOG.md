@@ -1,3 +1,25 @@
+## 0.3.0 (2026-02-25)
+
+### 🚀 Features
+
+- **email-verification:** enhance resend verification functionality with transaction management ([cf9ecfa1](https://github.com/invistus/invistus/commit/cf9ecfa1))
+- **email-verification:** enhance resend verification functionality with transaction management ([f7e57973](https://github.com/invistus/invistus/commit/f7e57973))
+- **config:** add GraphQL router and service principal credentials to application-test.yml ([92a67f2b](https://github.com/invistus/invistus/commit/92a67f2b))
+- **email-verification:** enhance resend verification functionality with transaction management ([de777763](https://github.com/invistus/invistus/commit/de777763))
+- **email-verification:** update email templates and service for Invistus branding ([27bbfe21](https://github.com/invistus/invistus/commit/27bbfe21))
+- **comms:** introduce Comms service with email delivery capabilities ([988cfd2b](https://github.com/invistus/invistus/commit/988cfd2b))
+- enhance JWT token handling with account and session claims ([642d5074](https://github.com/invistus/invistus/commit/642d5074))
+- introduce domain and security error handling framework ([54937072](https://github.com/invistus/invistus/commit/54937072))
+
+### 🩹 Fixes
+
+- **config:** remove default values from application.yml for clarity ([69c56b04](https://github.com/invistus/invistus/commit/69c56b04))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+- Marcos Salomão @salomax
+
 ## 0.2.2 (2026-02-21)
 
 This was a version bump only for security to align it with other projects, there were no code changes.
