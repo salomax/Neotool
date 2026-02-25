@@ -1,0 +1,59 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "external link",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": true,
+      "title": "Explore traces (Tempo)",
+      "tooltip": "Open Tempo in Explore to search by service.name, operation, duration and open waterfall/flame view",
+      "type": "link",
+      "url": "/explore?left=%7B%22datasource%22:%22tempo%22,%22queries%22:%5B%7B%22refId%22:%22A%22,%22queryType%22:%22traceqlSearch%22%7D%5D,%22range%22:%7B%22from%22:%22now-1h%22,%22to%22:%22now%22%7D%7D"
+    }
+  ],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": { "type": "tempo", "uid": "tempo" },
+      "gridPos": { "h": 14, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "showMetrics": true,
+        "showSpanFilter": true,
+        "splits": []
+      },
+      "targets": [
+        {
+          "datasource": { "type": "tempo", "uid": "tempo" },
+          "queryType": "traceqlSearch",
+          "refId": "A",
+          "limit": 30
+        }
+      ],
+      "title": "Traces (waterfall / flame chart)",
+      "type": "traces",
+      "description": "Recent traces from Router and services. Click a trace to open the full span tree (waterfall). The slowest span is identifiable by duration and service/operation labels for bottleneck analysis."
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": ["observability", "tracing", "tempo", "distributed-tracing"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Distributed Tracing (Flame Chart)",
+  "uid": "distributed-tracing-flamegraph",
+  "version": 1,
+  "weekStart": ""
+}

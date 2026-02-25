@@ -9,7 +9,7 @@ cors:
 include_subgraph_errors:
   all: true
 
-# Header propagation
+# Header propagation (W3C Trace Context for distributed tracing)
 headers:
   all:
     request:
@@ -19,3 +19,7 @@ headers:
           named: x-request-id
       - propagate:
           named: traceparent
+      - propagate:
+          named: tracestate
+      - propagate:
+          named: baggage

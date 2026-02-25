@@ -14,7 +14,19 @@ traffic_shaping:
   all:
     timeout: 60s
 
-# Header propagation
+# Telemetry: export traces to Tempo (local Docker)
+telemetry:
+  exporters:
+    tracing:
+      otlp:
+        enabled: true
+        endpoint: http://tempo:4317
+        protocol: grpc
+  instrumentation:
+    spans:
+      mode: spec_compliant
+
+# Header propagation (W3C Trace Context for distributed tracing)
 headers:
   all:
     request:
@@ -24,3 +36,7 @@ headers:
           named: x-request-id
       - propagate:
           named: traceparent
+      - propagate:
+          named: tracestate
+      - propagate:
+          named: baggage

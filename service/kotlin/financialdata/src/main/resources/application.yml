@@ -37,6 +37,13 @@ micronaut:
   observation:
     enabled: true
 
+# OpenTelemetry: OTLP export to Tempo, W3C tracecontext + baggage propagation
+# Set OTEL_EXPORTER_OTLP_ENDPOINT (e.g. http://tempo:4317 or http://tempo.monitoring.svc.cluster.local:4317)
+otel:
+  traces:
+    exporter: otlp
+  propagators: tracecontext,baggage
+
 datasources:
   default:
     enabled: true
@@ -112,4 +119,3 @@ endpoints:
   metrics:
     enabled: true
     sensitive: false
-

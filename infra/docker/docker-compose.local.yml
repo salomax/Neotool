@@ -263,6 +263,23 @@ services:
     profiles:
       - observability
 
+  # Tempo - Distributed tracing (OTLP receiver, Grafana trace view)
+  tempo:
+    image: grafana/tempo:2.3.1
+    container_name: neotool-tempo
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
+    volumes:
+      - ../observability/tempo/tempo.local.yaml:/etc/tempo/tempo.yaml:ro
+      - tempo-data:/var/tempo
+    ports:
+      - "3200:3200"   # Tempo HTTP API (Grafana datasource)
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    networks:
+      - default
+    profiles:
+      - observability
+
   # -------------------------------------------------------------
   # Web Analytics (Umami)
   # Profile: analytics
@@ -357,6 +374,7 @@ volumes:
   pgdata:
   loki-data:
   grafana-data:
+  tempo-data:
   kafka-data:
   minio-data:
   vault-data:

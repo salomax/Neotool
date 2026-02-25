@@ -19,12 +19,12 @@ This backlog defines an implementation plan for observability on a VPS running K
 
 ### Goal 1: Foundation and namespaces
 
-- Create a dedicated `observability` namespace for the stack (Prometheus, Grafana, Loki, Promtail, Alertmanager).
-- Document the cross-namespace integration model (`production` emits metrics/logs, `observability` scrapes/collects).
-- Ensure resource quotas and limits for observability components.
+- Create a dedicated `monitoring` namespace for the stack (Prometheus, Grafana, Loki, Promtail, Alertmanager).
+- Document the cross-namespace integration model (`production` emits metrics/logs, `monitoring` scrapes/collects).
+- Ensure resource quotas and limits for monitoring components.
 - Define RBAC for Prometheus, Promtail, and any exporters that need K8S discovery.
 - Validate storage classes and PVC strategy for Prometheus, Grafana, and Loki.
-- Add NetworkPolicy rules for observability components (ingress/egress), including cross-namespace scrape access.
+- Add NetworkPolicy rules for monitoring components (ingress/egress), including cross-namespace scrape access.
 
 ### Goal 2: Metrics collection (cluster + host)
 
@@ -108,8 +108,8 @@ This backlog defines an implementation plan for observability on a VPS running K
 
 **Namespace**
 ```AAA
-1) Create `observability` namespace:
-   - File: invistus-flux/infra/kubernetes/flux/infrastructure/namespace/namespace.yaml
+1) Create `monitoring` namespace:
+   - File: invistus-flux/infra/kubernetes/flux/infrastructure/namespace/monitoring-namespace.yaml
    - Add a new Namespace manifest or extend existing kustomization to include it.
 
 2) Add the namespace to kustomization:
@@ -125,8 +125,8 @@ This backlog defines an implementation plan for observability on a VPS running K
 
 **Resource quotas / limits**
 ```AAA
-1) Create or extend ResourceQuota in `observability`:
-   - File: invistus-flux/infra/kubernetes/flux/infrastructure/namespace/resource-quota.yaml
+1) Create or extend ResourceQuota in `monitoring`:
+   - File: invistus-flux/infra/kubernetes/flux/infrastructure/namespace/monitoring-resource-quota.yaml
    - Add limits for CPU/memory/storage based on VPS capacity.
 ```
 
@@ -135,7 +135,7 @@ This backlog defines an implementation plan for observability on a VPS running K
 1) Prometheus:
    - Create ServiceAccount + ClusterRole + ClusterRoleBinding.
    - Permissions: get/list/watch on pods, endpoints, services, nodes, nodes/proxy.
-   - Place under: invistus-flux/infra/kubernetes/flux/apps/observability/prometheus/
+   - Place under: invistus-flux/infra/kubernetes/flux/apps/monitoring/prometheus/
 
 2) Promtail:
    - ServiceAccount + ClusterRole + ClusterRoleBinding already exists in promtail-daemonset.yaml.
@@ -146,15 +146,15 @@ This backlog defines an implementation plan for observability on a VPS running K
 ```AAA
 1) Ensure PVCs exist for Prometheus, Grafana, Loki:
    - Files: 
-     - invistus-flux/infra/kubernetes/flux/apps/observability/prometheus/deployment.yaml
-     - invistus-flux/infra/kubernetes/flux/apps/observability/grafana/deployment.yaml
-     - invistus-flux/infra/kubernetes/flux/apps/observability/loki/loki-statefulset.yaml
+     - invistus-flux/infra/kubernetes/flux/apps/monitoring/prometheus/deployment.yaml
+     - invistus-flux/infra/kubernetes/flux/apps/monitoring/grafana/deployment.yaml
+     - invistus-flux/infra/kubernetes/flux/apps/monitoring/loki/loki-statefulset.yaml
 2) Verify `storageClassName` matches cluster (e.g., local-path).
 ```
 
 **NetworkPolicy**
 ```AAA
-1) Add policies in observability namespace:
+1) Add policies in monitoring namespace:
    - Allow Prometheus -> scrape targets in production namespace (metrics ports).
    - Allow Promtail -> Loki (port 3100).
    - Deny all other ingress/egress by default (optional).
@@ -167,7 +167,7 @@ This backlog defines an implementation plan for observability on a VPS running K
 **node-exporter**
 ```AAA
 1) Add DaemonSet + Service:
-   - New path: invistus-flux/infra/kubernetes/flux/apps/observability/node-exporter/
+   - New path: invistus-flux/infra/kubernetes/flux/apps/monitoring/node-exporter/
 2) Mount /proc, /sys, / (as read-only) and set hostNetwork if needed.
 3) Expose port 9100 with a Service.
 ```
@@ -175,14 +175,14 @@ This backlog defines an implementation plan for observability on a VPS running K
 **kube-state-metrics**
 ```AAA
 1) Add Deployment + Service + RBAC:
-   - New path: invistus-flux/infra/kubernetes/flux/apps/observability/kube-state-metrics/
+   - New path: invistus-flux/infra/kubernetes/flux/apps/monitoring/kube-state-metrics/
 2) Expose port 8080 or 8081 via Service.
 ```
 
 **Prometheus scrape configs**
 ```AAA
 1) Update scrape configs:
-   - File: invistus-flux/infra/kubernetes/flux/apps/observability/prometheus/deployment.yaml
+   - File: invistus-flux/infra/kubernetes/flux/apps/monitoring/prometheus/deployment.yaml
 2) Add jobs:
    - node-exporter (Service/Pod discovery)
    - kube-state-metrics (Service discovery)
@@ -235,7 +235,7 @@ This backlog defines an implementation plan for observability on a VPS running K
 **Loki storage**
 ```AAA
 1) Check Loki PVC and storageClass:
-   - File: invistus-flux/infra/kubernetes/flux/apps/observability/loki/loki-statefulset.yaml
+   - File: invistus-flux/infra/kubernetes/flux/apps/monitoring/loki/loki-statefulset.yaml
 2) Set retention if needed in config.
 ```
 
@@ -243,7 +243,7 @@ This backlog defines an implementation plan for observability on a VPS running K
 ```AAA
 1) Ensure host paths are mounted:
    - /var/log and /var/lib/docker/containers
-2) Keep the DaemonSet in observability namespace.
+2) Keep the DaemonSet in monitoring namespace.
 3) Add scrape configs for:
    - /var/log/pods (K8S pod logs)
    - systemd/k3s logs if needed
@@ -261,7 +261,7 @@ This backlog defines an implementation plan for observability on a VPS running K
 1) Create JSON dashboards:
    - Store under: invistus/infra/observability/grafana/dashboards/
 2) Wire dashboards into Grafana:
-   - ConfigMap: invistus-flux/infra/kubernetes/flux/apps/observability/grafana/deployment.yaml
+   - ConfigMap: invistus-flux/infra/kubernetes/flux/apps/monitoring/grafana/deployment.yaml
 3) Validate dashboards auto-load in Grafana UI.
 ```
 
@@ -269,7 +269,7 @@ This backlog defines an implementation plan for observability on a VPS running K
 
 ```AAA
 1) Deploy Alertmanager:
-   - Add manifests under: invistus-flux/infra/kubernetes/flux/apps/observability/alertmanager/
+   - Add manifests under: invistus-flux/infra/kubernetes/flux/apps/monitoring/alertmanager/
 2) Add PrometheusRule groups (or rules in ConfigMap):
    - Host saturation, control plane, pod restarts, app errors.
 3) Add Alertmanager routes:

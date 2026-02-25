@@ -213,6 +213,13 @@ http_requests_total{user_id="12345"}
 - Use `for` durations to avoid flapping alerts.
 - Review thresholds quarterly; tune based on real usage.
 
+## Tracing (Tempo) – Runbook notes
+
+- **Missing spans**: If a request shows only Router or only one service in the trace, check (1) W3C headers are propagated (Router: `traceparent`, `tracestate`, `baggage` in router config; subgraphs must receive and forward them), (2) OTLP export is enabled and endpoint reachable from Router and each service (no network policy blocking 4317/4318 to Tempo), (3) same trace ID in logs (e.g. `trace_id` / `traceparent`) across hops.
+- **Broken context propagation**: Verify Router and services propagate `traceparent`, `tracestate`, and `baggage`. If trace ID changes between Router and a service, the service is not using the incoming trace context (e.g. OTel not reading W3C headers). Check service env: `OTEL_EXPORTER_OTLP_ENDPOINT`, and that the tracing SDK is loaded (Micronaut OpenTelemetry HTTP / OTLP dependencies).
+- **Datasource connectivity (Grafana → Tempo)**: In Grafana, Test the Tempo datasource. If it fails, check Tempo is running (`kubectl get pods -n monitoring -l app=tempo`), Service exists (`tempo.monitoring.svc.cluster.local:3200`), and Grafana can reach it (same namespace or network policy allowing egress to Tempo).
+- **Quota-related pod scheduling failures**: If Tempo (or OTel Collector) pods are Pending, run `kubectl describe pod <tempo-pod> -n monitoring` and check events for `FailedScheduling` (often “exceeded quota”). Adjust ResourceQuota in `infrastructure/namespace/monitoring-resource-quota.yaml` to allow the extra CPU/memory for tracing (e.g. +100m CPU, +256Mi for Tempo), or reduce Tempo resource requests.
+
 ## References
 
 - Kubernetes observability overview: https://kubernetes.io/docs/concepts/cluster-administration/observability/

@@ -1,0 +1,7 @@
+# OpenTelemetry tracing: OTLP export to Tempo, W3C propagation.
+# Loaded when tracing is enabled (services using common get this via classpath).
+# Set OTEL_EXPORTER_OTLP_ENDPOINT (e.g. http://tempo:4317 local, http://tempo.monitoring.svc.cluster.local:4317 K3S).
+otel:
+  traces:
+    exporter: otlp
+  propagators: tracecontext,baggage
