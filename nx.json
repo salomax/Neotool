@@ -35,6 +35,7 @@
       "security",
       "assets",
       "financialdata",
+      "banking",
       "assistant",
       "comms",
       "bacen-ifdata-cronjob",
