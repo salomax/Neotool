@@ -23,6 +23,13 @@ micronaut:
           allow-credentials: true
           max-age: 3600
 
+# OpenTelemetry: OTLP export to Tempo, W3C tracecontext + baggage propagation
+# Set OTEL_EXPORTER_OTLP_ENDPOINT (e.g. http://tempo:4317 or http://tempo.monitoring.svc.cluster.local:4317)
+otel:
+  traces:
+    exporter: otlp
+  propagators: tracecontext,baggage
+
 # LLM Configuration
 llm:
   provider: ${LLM_PROVIDER:gemini}
@@ -104,5 +111,4 @@ management:
       enabled: true
       path: /prometheus
       sensitive: false  # No authentication required
-
 

@@ -67,6 +67,10 @@ dependencies {
     // Micrometer - api for other modules (needed for metrics instrumentation)
     api("io.micronaut.micrometer:micronaut-micrometer-core")
 
+    // OpenTelemetry tracing: W3C propagation + OTLP export to Tempo
+    api("io.micronaut.tracing:micronaut-tracing-opentelemetry-http")
+    api("io.opentelemetry:opentelemetry-exporter-otlp")
+
     // Management - api for health indicators and startup (e.g. AbstractWarmupService)
     api("io.micronaut:micronaut-management")
 
