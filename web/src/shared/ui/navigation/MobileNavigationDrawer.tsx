@@ -20,6 +20,7 @@ import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { useThemeMode } from "@/styles/themes/AppThemeProvider";
 import { useAuthorization, useAuth } from "@/shared/providers";
+import { useFeatureFlagEnabled } from '@/shared/hooks/useFeatureFlag';
 import { useTranslation } from "react-i18next";
 
 export interface MobileNavigationDrawerProps {
@@ -36,6 +37,7 @@ export const MobileNavigationDrawer: React.FC<MobileNavigationDrawerProps> = ({
   const { mode, toggle } = useThemeMode();
   const isDark = mode === "dark";
   const { hasAny } = useAuthorization();
+  const personalFinanceEnabled = useFeatureFlagEnabled('personal-finance-dashboard-enabled');
   const { signOut } = useAuth();
 
   // Check permissions (same as SidebarRail)
@@ -76,12 +78,14 @@ export const MobileNavigationDrawer: React.FC<MobileNavigationDrawerProps> = ({
       <Drawer.Body>
         <Box sx={{ mx: -3, my: -2 }}>
           <List component="nav">
-            <ListItemButton onClick={() => handleNavigation("/personal-finance")}>
-              <ListItemIcon>
-                <AccountBalanceWalletIcon />
-              </ListItemIcon>
-              <ListItemText primary={t('routes.personalFinance', 'Personal Finance')} />
-            </ListItemButton>
+            {personalFinanceEnabled && (
+              <ListItemButton onClick={() => handleNavigation("/personal-finance")}>
+                <ListItemIcon>
+                  <AccountBalanceWalletIcon />
+                </ListItemIcon>
+                <ListItemText primary={t('routes.personalFinance', 'Personal Finance')} />
+              </ListItemButton>
+            )}
 
             <ListItemButton onClick={() => handleNavigation("/financial-data")}>
               <ListItemIcon>

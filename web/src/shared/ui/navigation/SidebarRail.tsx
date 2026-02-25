@@ -11,6 +11,7 @@ import { usePathname } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { LogoMark } from '@/shared/ui/brand/LogoMark';
 import { useAuthorization } from '@/shared/providers';
+import { useFeatureFlagEnabled } from '@/shared/hooks/useFeatureFlag';
 
 import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
@@ -26,6 +27,7 @@ export function SidebarRail() {
   const pathname = usePathname();
   const { t } = useTranslation('common');
   const { hasAny } = useAuthorization();
+  const personalFinanceEnabled = useFeatureFlagEnabled('personal-finance-dashboard-enabled');
 
   // Check if user has any authorization management permissions
   const hasAuthorizationAccess = hasAny([
@@ -41,11 +43,11 @@ export function SidebarRail() {
   ]);
 
   const NAV_TOP: NavItem[] = [
-    {
+    ...(personalFinanceEnabled ? [{
       href: '/personal-finance',
       label: t('routes.personalFinance'),
       icon: AccountBalanceWalletIcon,
-    },
+    }] : []),
     {
       href: '/financial-data',
       label: t('routes.financialData'),

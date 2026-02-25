@@ -40,7 +40,7 @@ export default function RootLayout({
       </head>
       <body>
         <ErrorBoundary>
-          <Providers>
+          <Providers featureFlagsBootstrap={{ 'personal-finance-dashboard-enabled': true }}>
             <UmamiAnalytics />
             <AppShell>{children}</AppShell>
           </Providers>
