@@ -1,0 +1,10 @@
+{
+  "title": "Personal Finance",
+  "financeTransactions": {
+    "title": "Finance Transactions",
+    "description": "Track your income and expenses."
+  },
+  "actions": {
+    "accessModule": "Access module"
+  }
+}

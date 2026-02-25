@@ -1,0 +1,10 @@
+{
+  "title": "Finanças pessoais",
+  "financeTransactions": {
+    "title": "Movimentações financeiras",
+    "description": "Acompanhe suas receitas e despesas."
+  },
+  "actions": {
+    "accessModule": "Acessar módulo"
+  }
+}

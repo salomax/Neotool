@@ -15,6 +15,7 @@ import { useAuthorization } from '@/shared/providers';
 import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 
 type NavItem = { href: string; label: string; icon: React.ElementType };
 
@@ -40,6 +41,11 @@ export function SidebarRail() {
   ]);
 
   const NAV_TOP: NavItem[] = [
+    {
+      href: '/personal-finance',
+      label: t('routes.personalFinance'),
+      icon: AccountBalanceWalletIcon,
+    },
     {
       href: '/financial-data',
       label: t('routes.financialData'),
