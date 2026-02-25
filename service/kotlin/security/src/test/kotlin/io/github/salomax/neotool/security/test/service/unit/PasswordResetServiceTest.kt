@@ -2,6 +2,8 @@ package io.github.salomax.neotool.security.test.service.unit
 
 import io.github.salomax.neotool.common.security.jwt.JwtTokenValidator
 import io.github.salomax.neotool.security.model.UserEntity
+import io.github.salomax.neotool.security.repo.AccountMembershipRepository
+import io.github.salomax.neotool.security.repo.AccountRepository
 import io.github.salomax.neotool.security.repo.PasswordResetAttemptRepository
 import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.UserRepository
@@ -60,11 +62,15 @@ class PasswordResetServiceTest {
         val oauthProviderRegistry = OAuthProviderRegistry(listOf(oauthProvider))
 
         val principalRepository: PrincipalRepository = mock()
+        val accountRepository: AccountRepository = mock()
+        val accountMembershipRepository: AccountMembershipRepository = mock()
         emailVerificationService = mock()
         authenticationService =
             AuthenticationService(
                 userRepository,
                 principalRepository,
+                accountRepository,
+                accountMembershipRepository,
                 jwtTokenIssuer,
                 jwtTokenValidator,
                 emailService,

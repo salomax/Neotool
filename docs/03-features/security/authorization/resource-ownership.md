@@ -1,6 +1,9 @@
 # Resource Ownership and Access Control
 
 > **Object-level authorization for fine-grained resource access control across microservices**
+>
+> **Status:** Legacy reference for user/group ownership patterns.  
+> For account-first ownership and current Phase 1 rules, use: `../resource-ownership/resource-ownership.md`.
 
 ## Table of Contents
 

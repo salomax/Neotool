@@ -5,6 +5,12 @@ import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.common.test.transaction.runTransaction
 import io.github.salomax.neotool.security.model.PrincipalEntity
+import io.github.salomax.neotool.security.model.account.AccountRole
+import io.github.salomax.neotool.security.model.account.AccountStatus
+import io.github.salomax.neotool.security.model.account.AccountType
+import io.github.salomax.neotool.security.model.account.MembershipStatus
+import io.github.salomax.neotool.security.repo.AccountMembershipRepository
+import io.github.salomax.neotool.security.repo.AccountRepository
 import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.RefreshTokenRepository
 import io.github.salomax.neotool.security.repo.UserRepository
@@ -43,6 +49,12 @@ class AuthenticationServiceIntegrationTest :
     lateinit var principalRepository: PrincipalRepository
 
     @Inject
+    lateinit var accountRepository: AccountRepository
+
+    @Inject
+    lateinit var accountMembershipRepository: AccountMembershipRepository
+
+    @Inject
     lateinit var authenticationService: AuthenticationService
 
     @Inject
@@ -72,6 +84,8 @@ class AuthenticationServiceIntegrationTest :
         try {
             entityManager.runTransaction {
                 refreshTokenRepository.deleteAll()
+                accountMembershipRepository.deleteAll()
+                accountRepository.deleteAll()
                 principalRepository.deleteAll()
                 userRepository.deleteAll()
                 entityManager.flush()
@@ -79,6 +93,68 @@ class AuthenticationServiceIntegrationTest :
             entityManager.clear()
         } catch (e: Exception) {
             // Ignore cleanup errors
+        }
+    }
+
+    @Nested
+    @DisplayName("Signup Creates Personal Account")
+    inner class SignupCreatesPersonalAccountTests {
+        @Test
+        fun `signup creates user and personal account and owner membership atomically`() {
+            val name = "Alice"
+            val email = uniqueEmail()
+            val password = "TestPassword123!"
+
+            authenticationService.registerUser(name, email, password)
+
+            val user = userRepository.findByEmail(email)
+            assertThat(user).isNotNull()
+            val userId = user!!.id!!
+
+            val accounts = accountRepository.findByOwnerUserId(userId)
+            assertThat(accounts).hasSize(1)
+            val account = accounts.single()
+            assertThat(account.accountType).isEqualTo(AccountType.PERSONAL)
+            assertThat(account.accountStatus).isEqualTo(AccountStatus.ACTIVE)
+            assertThat(account.ownerUserId).isEqualTo(userId)
+            assertThat(account.accountName).isEqualTo("Alice")
+
+            val memberships = accountMembershipRepository.findByAccountId(account.id!!)
+            assertThat(memberships).hasSize(1)
+            val membership = memberships.single()
+            assertThat(membership.accountRole).isEqualTo(AccountRole.OWNER)
+            assertThat(membership.membershipStatus).isEqualTo(MembershipStatus.ACTIVE)
+            assertThat(membership.isDefault).isTrue()
+            assertThat(membership.userId).isEqualTo(userId)
+        }
+
+        @Test
+        fun `signup with blank display name uses email for account name`() {
+            val name = "   "
+            val email = uniqueEmail()
+            val password = "TestPassword123!"
+
+            authenticationService.registerUser(name, email, password)
+
+            val user = userRepository.findByEmail(email)
+            assertThat(user).isNotNull()
+            val accounts = accountRepository.findByOwnerUserId(user!!.id!!)
+            assertThat(accounts).hasSize(1)
+            assertThat(accounts.single().accountName).isEqualTo(email)
+        }
+
+        @Test
+        fun `signup with null-like display name uses email for account name`() {
+            val email = uniqueEmail()
+            val password = "TestPassword123!"
+
+            authenticationService.registerUser("", email, password)
+
+            val user = userRepository.findByEmail(email)
+            assertThat(user).isNotNull()
+            val accounts = accountRepository.findByOwnerUserId(user!!.id!!)
+            assertThat(accounts).hasSize(1)
+            assertThat(accounts.single().accountName).isEqualTo(email)
         }
     }
 

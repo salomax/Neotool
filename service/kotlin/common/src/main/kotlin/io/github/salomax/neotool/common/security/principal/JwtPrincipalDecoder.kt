@@ -43,6 +43,9 @@ class JwtPrincipalDecoder(
                     ?: throw AuthenticationRequiredException("Invalid token: missing user ID")
 
             val permissions = jwtTokenValidator.getPermissionsFromToken(token) ?: emptyList()
+            val currentAccountId = jwtTokenValidator.getCurrentAccountIdFromToken(token)
+            val accounts = jwtTokenValidator.getAccountsFromToken(token)
+            val sessionVersion = jwtTokenValidator.getSessionVersionFromToken(token)
 
             return RequestPrincipal(
                 principalType = PrincipalType.USER,
@@ -51,6 +54,9 @@ class JwtPrincipalDecoder(
                 token = token,
                 permissionsFromToken = permissions,
                 userPermissions = null,
+                currentAccountId = currentAccountId,
+                accounts = accounts,
+                sessionVersion = sessionVersion,
             )
         } catch (e: AuthenticationRequiredException) {
             throw e

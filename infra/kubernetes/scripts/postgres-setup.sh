@@ -176,8 +176,8 @@ if [ "$POSTGRES_EXISTS" != "true" ]; then
     read -p "  Admin username [postgres]: " PG_ADMIN_USER
     PG_ADMIN_USER=${PG_ADMIN_USER:-postgres}
 
-    read -p "  Database name [invistus]: " PG_DATABASE
-    PG_DATABASE=${PG_DATABASE:-invistus}
+    read -p "  Database name [neotool]: " PG_DATABASE
+    PG_DATABASE=${PG_DATABASE:-neotool_db}
 
     echo ""
     read -p "  Generate random password? (Y/n): " -n 1 -r

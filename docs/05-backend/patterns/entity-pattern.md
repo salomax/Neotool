@@ -157,6 +157,23 @@ open class ProductEntity(
 override val id: UUID?,
 ```
 
+**Database-generated UUID (uuidv7)**  
+When the migration defines the primary key with `DEFAULT uuidv7()` in DDL, the entity **must** use database-generated IDs (not application-generated `UUID.randomUUID()`). This keeps a single source of truth and time-sortable UUIDs.
+
+- **Id type**: `UUID? = null` (nullable so the entity can be constructed without an id before persist).
+- **Column**: `@Column(columnDefinition = "uuid", insertable = false, updatable = false)` so Hibernate omits the column from INSERT/UPDATE and the database default is applied.
+- **Hibernate**: `@Generated(event = [EventType.INSERT])` (org.hibernate.annotations.Generated, org.hibernate.generator.EventType) so Hibernate reads the generated id back after insert.
+- **Base entity**: Use `BaseEntity<UUID?>(id)`.
+
+Do **not** use `id: UUID = UUID.randomUUID()` or any application-side UUID for tables that have `DEFAULT uuidv7()` in the schema.
+
+```kotlin
+@Id
+@Generated(event = [EventType.INSERT])
+@Column(columnDefinition = "uuid", insertable = false, updatable = false)
+override val id: UUID? = null,
+```
+
 **Int-based (Auto-generated)**:
 ```kotlin
 @Id
