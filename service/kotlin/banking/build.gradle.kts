@@ -1,5 +1,6 @@
 plugins {
     id("org.jetbrains.kotlin.jvm")
+    id("org.jetbrains.kotlin.plugin.jpa")
     id("io.micronaut.application")
     id("io.micronaut.aot")
     id("com.google.devtools.ksp")
@@ -27,6 +28,7 @@ dependencies {
     testImplementation(testFixtures(project(":common")))
 
     // KSP processors
+    ksp("io.micronaut.data:micronaut-data-processor")
     ksp("io.micronaut:micronaut-inject-kotlin")
     ksp("io.micronaut.serde:micronaut-serde-processor")
     kspTest("io.micronaut:micronaut-inject-kotlin")
@@ -42,7 +44,8 @@ dependencies {
     implementation("io.micronaut.graphql:micronaut-graphql")
     implementation("com.graphql-java:graphql-java-extended-scalars:21.0")
 
-    // Database (JPA/Hibernate added when first @Entity is created)
+    // Database
+    implementation("io.micronaut.data:micronaut-data-hibernate-jpa")
     implementation("io.micronaut.sql:micronaut-jdbc-hikari")
     implementation("org.postgresql:postgresql")
     runtimeOnly("org.flywaydb:flyway-core")

@@ -2,7 +2,7 @@ CREATE SCHEMA IF NOT EXISTS banking;
 
 -- ─── Base table (fields common to all account types) ────────────────────────
 
-CREATE TABLE banking.accounts (
+CREATE TABLE banking.financial_accounts (
     id                   UUID PRIMARY KEY DEFAULT uuidv7(),
 
     -- Ownership: account (tenant) owns the resource; user is the creator (audit)
@@ -49,42 +49,46 @@ CREATE TABLE banking.accounts (
     updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_banking_accounts_account_id
-    ON banking.accounts(account_id);
+CREATE INDEX idx_banking_financial_accounts_account_id
+    ON banking.financial_accounts(account_id);
 
-CREATE INDEX idx_banking_accounts_account_active
-    ON banking.accounts(account_id)
+CREATE INDEX idx_banking_financial_accounts_active
+    ON banking.financial_accounts(account_id)
     WHERE deleted_at IS NULL;
 
 -- ─── Extension: bank data (type = 'BANK') ───────────────────────────────────
 
-CREATE TABLE banking.account_bank_data (
+CREATE TABLE banking.financial_account_bank_data (
     account_id    UUID PRIMARY KEY
-                      REFERENCES banking.accounts(id) ON DELETE CASCADE,
+                      REFERENCES banking.financial_accounts(id) ON DELETE CASCADE,
     branch_code   TEXT,
     number        TEXT,
     check_digit   TEXT,
     masked_number TEXT
 );
 
--- ─── Extension: credit data (type = 'CREDIT' or 'PAYMENT') ─────────────────
+-- ─── Extension: card data (type = 'CREDIT' or 'PAYMENT') ────────────────────
+-- Populated for all card subtypes (CREDIT_CARD, PREPAID_CARD, VOUCHER_CARD).
+-- Credit-only fields (credit_limit, closing_day, due_day) are nullable here;
+-- NOT NULL enforcement is at the service layer when type = 'CREDIT'.
 
-CREATE TABLE banking.account_credit_data (
+CREATE TABLE banking.financial_account_card_data (
     account_id             UUID PRIMARY KEY
-                               REFERENCES banking.accounts(id) ON DELETE CASCADE,
+                               REFERENCES banking.financial_accounts(id) ON DELETE CASCADE,
     masked_number          TEXT,
     bin                    TEXT,
-    credit_card_network    TEXT CHECK (credit_card_network IN (
+    card_network           TEXT CHECK (card_network IN (
                                'VISA', 'MASTERCARD', 'AMERICAN_EXPRESS',
                                'DINERS_CLUB', 'HIPERCARD', 'ELO',
                                'BANDEIRA_PROPRIA', 'OUTRAS'
                            )),
-    credit_card_level      TEXT CHECK (credit_card_level IN (
+    card_level             TEXT CHECK (card_level IN (
                                'STANDARD', 'GOLD', 'PLATINUM', 'INFINITE', 'BLACK'
                            )),
-    credit_limit           NUMERIC(18,2) NOT NULL,
+    -- Credit-card-only fields (null for PREPAID_CARD and VOUCHER_CARD)
+    credit_limit           NUMERIC(18,2),
     available_credit_limit NUMERIC(18,2),
     min_payment_percentage NUMERIC(5,2),
-    closing_day            SMALLINT NOT NULL CHECK (closing_day BETWEEN 1 AND 28),
-    due_day                SMALLINT NOT NULL CHECK (due_day BETWEEN 1 AND 28)
+    closing_day            SMALLINT CHECK (closing_day BETWEEN 1 AND 28),
+    due_day                SMALLINT CHECK (due_day BETWEEN 1 AND 28)
 );
