@@ -1,10 +1,15 @@
 package io.github.salomax.neotool.security.service.authentication
 
 import com.password4j.Password
+import io.github.salomax.neotool.common.error.AuthenticationException
+import io.github.salomax.neotool.common.error.CommonErrorCode
+import io.github.salomax.neotool.common.error.ConflictException
+import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.common.security.exception.AuthenticationRequiredException
 import io.github.salomax.neotool.common.security.jwt.JwtTokenValidator
 import io.github.salomax.neotool.common.security.principal.AuthContext
 import io.github.salomax.neotool.common.security.principal.PrincipalType
+import io.github.salomax.neotool.security.error.SecurityErrorCode
 import io.github.salomax.neotool.security.model.PrincipalEntity
 import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.model.account.AccountEntity
@@ -435,7 +440,8 @@ open class AuthenticationService(
      * @param password The plain text password (will be hashed)
      * @param locale Locale for verification email (default: "en")
      * @return RegisterUserResult with user and requiresVerification flag
-     * @throws IllegalArgumentException if email already exists or password is invalid
+     * @throws ConflictException if email already exists
+     * @throws ValidationException if password is invalid
      */
     @Transactional
     open fun registerUser(
@@ -448,14 +454,18 @@ open class AuthenticationService(
         val existingUser = userRepository.findByEmail(email)
         if (existingUser != null) {
             logger.warn { "Registration attempt with existing email: $email" }
-            throw IllegalArgumentException("Email already exists")
+            throw ConflictException(
+                errorCode = SecurityErrorCode.USER_EMAIL_ALREADY_EXISTS,
+                field = "email",
+            )
         }
 
         // Validate password strength
         if (!validatePasswordStrength(password)) {
             logger.warn { "Registration attempt with weak password for email: $email" }
-            throw IllegalArgumentException(
-                "Password must be at least 8 characters with uppercase, lowercase, number and special character",
+            throw ValidationException(
+                errorCode = SecurityErrorCode.USER_PASSWORD_TOO_WEAK,
+                field = "password",
             )
         }
 
@@ -624,13 +634,19 @@ open class AuthenticationService(
         newPassword: String,
     ): UserEntity {
         // Validate token
-        val user = validateResetToken(token) ?: throw IllegalArgumentException("Invalid or expired reset token")
+        val user =
+            validateResetToken(token)
+                ?: throw ValidationException(
+                    errorCode = SecurityErrorCode.PASSWORD_RESET_TOKEN_INVALID,
+                    field = "token",
+                )
 
         // Validate password strength
         if (!validatePasswordStrength(newPassword)) {
             logger.warn { "Password reset attempt with weak password for user: ${user.email}" }
-            throw IllegalArgumentException(
-                "Password must be at least 8 characters with uppercase, lowercase, number and special character",
+            throw ValidationException(
+                errorCode = SecurityErrorCode.USER_PASSWORD_TOO_WEAK,
+                field = "newPassword",
             )
         }
 
@@ -663,7 +679,8 @@ open class AuthenticationService(
      * @param provider The OAuth provider name (e.g., "google", "microsoft")
      * @param idToken The OAuth ID token (JWT) from the provider
      * @return UserEntity if authentication succeeds, null otherwise
-     * @throws IllegalArgumentException if provider is not supported or token is invalid
+     * @throws ValidationException if provider is not supported
+     * @throws AuthenticationException if token is invalid
      */
     @Transactional
     open fun authenticateWithOAuth(
@@ -675,12 +692,18 @@ open class AuthenticationService(
         // Get the OAuth provider
         val oauthProvider =
             oauthProviderRegistry.getProvider(provider)
-                ?: throw IllegalArgumentException("Unsupported OAuth provider: $provider")
+                ?: throw ValidationException(
+                    errorCode = CommonErrorCode.INVALID_INPUT,
+                    field = "provider",
+                )
 
         // Validate token and extract claims
         val claims =
             oauthProvider.validateAndExtractClaims(idToken)
-                ?: throw IllegalArgumentException("Invalid OAuth token")
+                ?: throw AuthenticationException(
+                    errorCode = SecurityErrorCode.TOKEN_INVALID,
+                    field = "idToken",
+                )
 
         // Find existing user by email
         val existingUser = userRepository.findByEmail(claims.email)

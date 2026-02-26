@@ -1,5 +1,8 @@
 package io.github.salomax.neotool.security.test.service.unit
 
+import io.github.salomax.neotool.common.error.CommonErrorCode
+import io.github.salomax.neotool.common.error.NotFoundException
+import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.security.domain.abac.AbacPolicy
 import io.github.salomax.neotool.security.domain.abac.PolicyEffect
 import io.github.salomax.neotool.security.repo.AbacPolicyRepository
@@ -237,10 +240,11 @@ class AbacPolicyServiceTest {
                 )
 
             // Act & Assert
-            assertThrows<IllegalArgumentException> {
+            assertThrows<ValidationException> {
                 abacPolicyService.update(policy)
             }.also { exception ->
-                assertThat(exception.message).contains("Policy ID is required")
+                assertThat(exception.errorCode).isEqualTo(CommonErrorCode.INVALID_INPUT)
+                assertThat(exception.field).isEqualTo("policyId")
             }
 
             verify(abacPolicyRepository, never()).findById(any())
@@ -262,10 +266,11 @@ class AbacPolicyServiceTest {
             whenever(abacPolicyRepository.findById(policyId)).thenReturn(Optional.empty())
 
             // Act & Assert
-            assertThrows<IllegalArgumentException> {
+            assertThrows<NotFoundException> {
                 abacPolicyService.update(policy)
             }.also { exception ->
-                assertThat(exception.message).contains("Policy not found")
+                assertThat(exception.errorCode).isEqualTo(CommonErrorCode.NOT_FOUND)
+                assertThat(exception.field).isEqualTo("policyId")
             }
 
             verify(abacPolicyRepository).findById(policyId)

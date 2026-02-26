@@ -5,11 +5,14 @@ import io.github.salomax.neotool.assets.domain.Asset
 import io.github.salomax.neotool.assets.domain.AssetStatus
 import io.github.salomax.neotool.assets.domain.AssetVisibility
 import io.github.salomax.neotool.assets.entity.AssetEntity
+import io.github.salomax.neotool.assets.error.AssetErrorCode
 import io.github.salomax.neotool.assets.repository.AssetRepository
 import io.github.salomax.neotool.assets.storage.BucketResolver
 import io.github.salomax.neotool.assets.storage.StorageClient
 import io.github.salomax.neotool.assets.storage.StorageKeyFactory
 import io.github.salomax.neotool.assets.storage.StorageProperties
+import io.github.salomax.neotool.common.error.ConflictException
+import io.github.salomax.neotool.common.error.NotFoundException
 import io.micrometer.core.instrument.Counter
 import io.micrometer.core.instrument.MeterRegistry
 import jakarta.inject.Singleton
@@ -113,9 +116,14 @@ open class AssetService(
                         "Idempotency key conflict: existing asset in bucket ${existing.storageBucket}, " +
                             "expected $expectedBucket for namespace $namespace"
                     }
-                    throw IllegalArgumentException(
-                        "Idempotency key conflict: namespace visibility changed. " +
-                            "Please use a new idempotency key.",
+                    throw ConflictException(
+                        errorCode = AssetErrorCode.ASSET_IDEMPOTENCY_CONFLICT,
+                        field = "idempotencyKey",
+                        parameters =
+                            mapOf(
+                                "namespace" to namespace,
+                                "idempotencyKey" to idempotencyKey,
+                            ),
                     )
                 }
                 logger.info { "Returning existing asset for idempotency key: $idempotencyKey, assetId=${existing.id}" }
@@ -214,17 +222,35 @@ open class AssetService(
         val entity =
             assetRepository
                 .findById(assetId)
-                .orElseThrow { throw IllegalArgumentException("Asset not found: $assetId") }
+                .orElseThrow {
+                    NotFoundException(
+                        errorCode = AssetErrorCode.ASSET_NOT_FOUND,
+                        field = "assetId",
+                        parameters = mapOf("assetId" to assetId.toString()),
+                    )
+                }
 
         // Authorization check
         if (entity.ownerId != ownerId) {
             logger.warn { "Unauthorized upload confirmation attempt: assetId=$assetId, ownerId=$ownerId" }
-            throw IllegalArgumentException("Asset not found or access denied: $assetId")
+            throw NotFoundException(
+                errorCode = AssetErrorCode.ASSET_NOT_FOUND,
+                field = "assetId",
+                parameters = mapOf("assetId" to assetId.toString()),
+            )
         }
 
         // Status check
         if (entity.status != AssetStatus.PENDING) {
-            throw IllegalArgumentException("Asset is not in PENDING status: ${entity.status}")
+            throw ConflictException(
+                errorCode = AssetErrorCode.ASSET_INVALID_STATE,
+                field = "status",
+                parameters =
+                    mapOf(
+                        "expected" to AssetStatus.PENDING.name,
+                        "actual" to entity.status.name,
+                    ),
+            )
         }
 
         // Check if upload has expired
@@ -233,7 +259,11 @@ open class AssetService(
             logger.warn { "Upload confirmation failed: URL expired at ${entity.uploadExpiresAt}" }
             entity.status = AssetStatus.FAILED
             assetRepository.update(entity)
-            throw IllegalArgumentException("Upload URL has expired")
+            throw ConflictException(
+                errorCode = AssetErrorCode.ASSET_UPLOAD_EXPIRED,
+                field = "uploadExpiresAt",
+                parameters = mapOf("assetId" to assetId.toString()),
+            )
         }
 
         // Verify object exists in storage using stored bucket
@@ -246,7 +276,11 @@ open class AssetService(
             entity.uploadUrl = null // Clear stale upload URL
             entity.updatedAt = now
             assetRepository.update(entity)
-            throw IllegalArgumentException("Upload not completed: file not found in storage")
+            throw ConflictException(
+                errorCode = AssetErrorCode.ASSET_UPLOAD_NOT_COMPLETED,
+                field = "assetId",
+                parameters = mapOf("assetId" to assetId.toString()),
+            )
         }
 
         // Get metadata from storage to verify using stored bucket
@@ -257,7 +291,11 @@ open class AssetService(
             entity.uploadUrl = null // Clear stale upload URL
             entity.updatedAt = now
             assetRepository.update(entity)
-            throw IllegalArgumentException("Upload verification failed: could not retrieve file metadata")
+            throw ConflictException(
+                errorCode = AssetErrorCode.ASSET_UPLOAD_VERIFICATION_FAILED,
+                field = "assetId",
+                parameters = mapOf("assetId" to assetId.toString()),
+            )
         }
 
         // Verify checksum if provided

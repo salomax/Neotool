@@ -3,6 +3,7 @@ package io.github.salomax.neotool.security.graphql
 import io.github.salomax.neotool.common.graphql.InputValidator
 import io.github.salomax.neotool.common.graphql.payload.GraphQLPayload
 import io.github.salomax.neotool.common.graphql.payload.GraphQLPayloadFactory
+import io.github.salomax.neotool.security.error.SecurityErrorCode
 import io.github.salomax.neotool.security.graphql.dto.RequestPasswordResetInputDTO
 import io.github.salomax.neotool.security.graphql.dto.RequestPasswordResetPayloadDTO
 import io.github.salomax.neotool.security.graphql.dto.ResetPasswordPayloadDTO
@@ -42,10 +43,6 @@ class SecurityAuthResolver(
 ) {
     private val logger = KotlinLogging.logger {}
 
-    private companion object {
-        const val INVALID_CREDENTIALS_CODE = "INVALID_CREDENTIALS"
-    }
-
     /**
      * Sign in mutation resolver
      */
@@ -61,9 +58,8 @@ class SecurityAuthResolver(
             if (user == null) {
                 logger.warn { "Sign in failed: invalid credentials for email: $email" }
                 return GraphQLPayloadFactory.error(
+                    errorCode = SecurityErrorCode.INVALID_CREDENTIALS,
                     field = "credentials",
-                    message = "Invalid email or password",
-                    code = INVALID_CREDENTIALS_CODE,
                 )
             }
 

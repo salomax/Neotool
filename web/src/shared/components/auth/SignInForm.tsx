@@ -23,7 +23,7 @@ import { useAuth } from "@/shared/providers";
 import { useToast } from "@/shared/providers";
 import { useTranslation } from "@/shared/i18n/hooks/useTranslation";
 import { signinTranslations } from "@/app/(authentication)/signin/i18n";
-import { extractErrorCode, extractErrorMessage } from "@/shared/utils/error";
+import { extractErrorMessage } from "@/shared/utils/error";
 import { useOAuth } from "@/shared/hooks/auth";
 
 const signInSchema = z.object({
@@ -84,11 +84,7 @@ export const SignInForm: React.FC<SignInFormProps> = ({ onSuccess }) => {
       await signIn(data.email, data.password, data.rememberMe);
       onSuccess?.();
     } catch (err: any) {
-      const errorCode = extractErrorCode(err);
-      const errorMessage =
-        errorCode === "INVALID_CREDENTIALS"
-          ? t("errors.invalidCredentials")
-          : extractErrorMessage(err, t("errors.invalidCredentials"));
+      const errorMessage = extractErrorMessage(err, t("errors.invalidCredentials"));
       setError(errorMessage);
       showError(errorMessage);
     } finally {

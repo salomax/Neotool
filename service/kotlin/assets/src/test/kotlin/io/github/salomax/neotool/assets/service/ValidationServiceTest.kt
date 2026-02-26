@@ -1,7 +1,10 @@
 package io.github.salomax.neotool.assets.service
 
 import io.github.salomax.neotool.assets.config.AssetConfigProperties
+import io.github.salomax.neotool.assets.error.AssetErrorCode
 import io.github.salomax.neotool.assets.test.ValidationTestDataBuilders
+import io.github.salomax.neotool.common.error.ValidationException
+import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -72,10 +75,10 @@ class ValidationServiceTest {
             assertThatThrownBy {
                 validationService.validateMimeType(namespace, mimeType)
             }
-                .isInstanceOf(IllegalArgumentException::class.java)
-                .hasMessageContaining("Invalid MIME type")
-                .hasMessageContaining(mimeType)
-                .hasMessageContaining(namespace)
+                .isInstanceOfSatisfying(ValidationException::class.java) { ex ->
+                    assertThat(ex.errorCode).isEqualTo(AssetErrorCode.ASSET_FORMAT_UNSUPPORTED)
+                    assertThat(ex.field).isEqualTo("mimeType")
+                }
 
             // Verify
             verify(assetConfig).getNamespaceConfig(namespace)
@@ -108,10 +111,10 @@ class ValidationServiceTest {
             assertThatThrownBy {
                 validationService.validateMimeType(namespace, mimeType)
             }
-                .isInstanceOf(IllegalArgumentException::class.java)
-                .hasMessageContaining("Invalid MIME type")
-                .hasMessageContaining(mimeType)
-                .hasMessageContaining(namespace)
+                .isInstanceOfSatisfying(ValidationException::class.java) { ex ->
+                    assertThat(ex.errorCode).isEqualTo(AssetErrorCode.ASSET_FORMAT_UNSUPPORTED)
+                    assertThat(ex.field).isEqualTo("mimeType")
+                }
 
             // Verify
             verify(assetConfig).getNamespaceConfig(namespace)
@@ -200,9 +203,10 @@ class ValidationServiceTest {
             assertThatThrownBy {
                 validationService.validateFileSize(namespace, sizeBytes)
             }
-                .isInstanceOf(IllegalArgumentException::class.java)
-                .hasMessageContaining("File size exceeds limit")
-                .hasMessageContaining(namespace)
+                .isInstanceOfSatisfying(ValidationException::class.java) { ex ->
+                    assertThat(ex.errorCode).isEqualTo(AssetErrorCode.ASSET_SIZE_EXCEEDED)
+                    assertThat(ex.field).isEqualTo("sizeBytes")
+                }
 
             // Verify
             verify(assetConfig).getNamespaceConfig(namespace)
@@ -218,8 +222,10 @@ class ValidationServiceTest {
             assertThatThrownBy {
                 validationService.validateFileSize(namespace, sizeBytes)
             }
-                .isInstanceOf(IllegalArgumentException::class.java)
-                .hasMessageContaining("File size must be greater than 0")
+                .isInstanceOfSatisfying(ValidationException::class.java) { ex ->
+                    assertThat(ex.errorCode).isEqualTo(AssetErrorCode.ASSET_SIZE_INVALID)
+                    assertThat(ex.field).isEqualTo("sizeBytes")
+                }
 
             // Verify - getNamespaceConfig is not called because validation fails before it's needed
             verify(assetConfig, never()).getNamespaceConfig(any())
@@ -235,8 +241,10 @@ class ValidationServiceTest {
             assertThatThrownBy {
                 validationService.validateFileSize(namespace, sizeBytes)
             }
-                .isInstanceOf(IllegalArgumentException::class.java)
-                .hasMessageContaining("File size must be greater than 0")
+                .isInstanceOfSatisfying(ValidationException::class.java) { ex ->
+                    assertThat(ex.errorCode).isEqualTo(AssetErrorCode.ASSET_SIZE_INVALID)
+                    assertThat(ex.field).isEqualTo("sizeBytes")
+                }
 
             // Verify - getNamespaceConfig is not called because validation fails before it's needed
             verify(assetConfig, never()).getNamespaceConfig(any())
@@ -275,8 +283,9 @@ class ValidationServiceTest {
             assertThatThrownBy {
                 validationService.validate(namespace, mimeType, sizeBytes)
             }
-                .isInstanceOf(IllegalArgumentException::class.java)
-                .hasMessageContaining("Invalid MIME type")
+                .isInstanceOfSatisfying(ValidationException::class.java) { ex ->
+                    assertThat(ex.errorCode).isEqualTo(AssetErrorCode.ASSET_FORMAT_UNSUPPORTED)
+                }
 
             // Verify
             verify(assetConfig).getNamespaceConfig(namespace)
@@ -295,8 +304,9 @@ class ValidationServiceTest {
             assertThatThrownBy {
                 validationService.validate(namespace, mimeType, sizeBytes)
             }
-                .isInstanceOf(IllegalArgumentException::class.java)
-                .hasMessageContaining("File size exceeds limit")
+                .isInstanceOfSatisfying(ValidationException::class.java) { ex ->
+                    assertThat(ex.errorCode).isEqualTo(AssetErrorCode.ASSET_SIZE_EXCEEDED)
+                }
 
             // Verify - validate() calls validateMimeType() first (which succeeds), then validateFileSize() (which fails)
             verify(assetConfig, times(2)).getNamespaceConfig(namespace)

@@ -1,5 +1,7 @@
 package io.github.salomax.neotool.security.test.service.integration
 
+import io.github.salomax.neotool.common.error.CommonErrorCode
+import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
@@ -961,10 +963,11 @@ class AuthenticationServiceIntegrationTest :
             val idToken = "test-id-token"
 
             // Act & Assert
-            assertThrows<IllegalArgumentException> {
+            assertThrows<ValidationException> {
                 authenticationService.authenticateWithOAuth(provider, idToken)
             }.also { exception ->
-                assertThat(exception.message).contains("Unsupported OAuth provider")
+                assertThat(exception.errorCode).isEqualTo(CommonErrorCode.INVALID_INPUT)
+                assertThat(exception.field).isEqualTo("provider")
             }
         }
 

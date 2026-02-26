@@ -7,11 +7,14 @@ import io.github.salomax.neotool.common.graphql.AuthenticatedGraphQLWiringFactor
 import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.createValidatedDataFetcher
 import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.getRequiredString
 import io.github.salomax.neotool.common.graphql.GraphQLPayloadDataFetcher.createMutationDataFetcher
+import io.github.salomax.neotool.common.graphql.GraphQLPayloadException
 import io.github.salomax.neotool.common.graphql.GraphQLResolverRegistry
+import io.github.salomax.neotool.common.graphql.payload.GraphQLError
 import io.github.salomax.neotool.common.security.authorization.AuthorizationChecker
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import io.github.salomax.neotool.common.security.principal.RequestPrincipalProvider
 import io.github.salomax.neotool.security.domain.rbac.SecurityPermissions
+import io.github.salomax.neotool.security.error.SecurityErrorCode
 import io.github.salomax.neotool.security.graphql.dataloader.GroupMembersDataLoader
 import io.github.salomax.neotool.security.graphql.dataloader.GroupRolesDataLoader
 import io.github.salomax.neotool.security.graphql.dataloader.PermissionRolesDataLoader
@@ -288,7 +291,20 @@ class SecurityWiringFactory(
                 "verifyEmailWithToken",
                 createValidatedDataFetcher(listOf("token")) { env ->
                     val tokenStr = getRequiredString(env, "token")
-                    val token = java.util.UUID.fromString(tokenStr)
+                    val token =
+                        try {
+                            java.util.UUID.fromString(tokenStr)
+                        } catch (_: IllegalArgumentException) {
+                            throw GraphQLPayloadException(
+                                listOf(
+                                    GraphQLError(
+                                        field = listOf("token"),
+                                        message = SecurityErrorCode.EMAIL_VERIFICATION_INVALID_LINK.defaultMessage,
+                                        code = SecurityErrorCode.EMAIL_VERIFICATION_INVALID_LINK.code,
+                                    ),
+                                ),
+                            )
+                        }
                     val ip = env.graphQlContext.getOrEmpty<String>("clientIp").orElse("unknown")
                     emailVerificationResolver.verifyEmailWithToken(token, ip)
                 },

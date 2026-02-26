@@ -65,6 +65,39 @@ function extractCodeFromErrorArray(errors: unknown): string | undefined {
   return undefined;
 }
 
+function extractParametersFromErrorArray(errors: unknown): Record<string, unknown> | undefined {
+  if (!Array.isArray(errors)) return undefined;
+
+  for (const error of errors) {
+    const parameters = (error as any)?.extensions?.parameters;
+    if (parameters && typeof parameters === 'object' && !Array.isArray(parameters)) {
+      return parameters as Record<string, unknown>;
+    }
+  }
+
+  return undefined;
+}
+
+function hasGraphQLErrorShape(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const err = error as any;
+
+  return (
+    Array.isArray(err.graphQLErrors) ||
+    Array.isArray(err.response?.errors) ||
+    Array.isArray(err.networkError?.result?.errors) ||
+    Array.isArray(err.errors)
+  );
+}
+
+const LEGACY_CODE_ALIASES: Record<string, string> = {
+  INVALID_CREDENTIALS: 'AUTH_INVALID_CREDENTIALS',
+};
+
+function normalizeErrorCode(code: string): string {
+  return LEGACY_CODE_ALIASES[code] ?? code;
+}
+
 /**
  * Extracts GraphQL error code from Apollo/GraphQL error objects.
  *
@@ -81,6 +114,19 @@ export function extractErrorCode(error: unknown): string | undefined {
     extractCodeFromErrorArray(err.response?.errors) ??
     extractCodeFromErrorArray(err.networkError?.result?.errors) ??
     extractCodeFromErrorArray(err.errors)
+  );
+}
+
+export function extractErrorParameters(error: unknown): Record<string, unknown> | undefined {
+  if (!error || typeof error !== 'object') return undefined;
+
+  const err = error as any;
+
+  return (
+    extractParametersFromErrorArray(err.graphQLErrors) ??
+    extractParametersFromErrorArray(err.response?.errors) ??
+    extractParametersFromErrorArray(err.networkError?.result?.errors) ??
+    extractParametersFromErrorArray(err.errors)
   );
 }
 
@@ -194,6 +240,26 @@ export function extractErrorMessage(
     return defaultMessage;
   }
 
+  const defaultTranslated = getTranslatedError('errors.default', defaultMessage);
+  const errorCode = extractErrorCode(error);
+  if (errorCode) {
+    const normalizedCode = normalizeErrorCode(errorCode);
+    const parameters = extractErrorParameters(error);
+    const translationKey = `errors.${normalizedCode}`;
+
+    try {
+      if (i18n.isInitialized) {
+        const translated = i18n.t(translationKey, { ns: 'common', ...(parameters ?? {}) });
+        if (translated !== translationKey) {
+          return translated;
+        }
+      }
+    } catch (_err) {
+      // Ignore translation failures and use safe default message below.
+    }
+    return defaultTranslated;
+  }
+
   let rawMessage: string | undefined;
 
   // Handle Error instances
@@ -230,7 +296,11 @@ export function extractErrorMessage(
   if (isConnectionError(cleaned)) {
     return getConnectionErrorMessage(cleaned);
   }
-  
+
+  if (hasGraphQLErrorShape(error)) {
+    return defaultTranslated;
+  }
+
   // Return cleaned message or default (with translation if available)
-  return cleaned || getTranslatedError('errors.default', defaultMessage);
+  return cleaned || defaultTranslated;
 }

@@ -1,10 +1,13 @@
 package io.github.salomax.neotool.assets.graphql.mapper
 
 import io.github.salomax.neotool.assets.domain.Asset
+import io.github.salomax.neotool.assets.error.AssetErrorCode
 import io.github.salomax.neotool.assets.graphql.dto.AssetDTO
 import io.github.salomax.neotool.assets.graphql.dto.ConfirmAssetUploadInput
 import io.github.salomax.neotool.assets.graphql.dto.CreateAssetUploadInput
 import io.github.salomax.neotool.assets.storage.BucketResolver
+import io.github.salomax.neotool.common.error.CommonErrorCode
+import io.github.salomax.neotool.common.error.ValidationException
 import jakarta.inject.Singleton
 import java.util.UUID
 
@@ -33,7 +36,12 @@ class AssetGraphQLMapper(
     ): T {
         val value = input[name]
         if (value == null) {
-            return defaultValue ?: throw IllegalArgumentException("Field '$name' is required")
+            return defaultValue
+                ?: throw ValidationException(
+                    errorCode = AssetErrorCode.ASSET_INPUT_REQUIRED,
+                    field = name,
+                    parameters = mapOf("field" to name),
+                )
         }
 
         return if (value is T) {
@@ -52,9 +60,12 @@ class AssetGraphQLMapper(
                 }
 
                 else -> {
-                    defaultValue ?: throw IllegalArgumentException(
-                        "Field '$name' has invalid type. Expected: ${T::class.simpleName}",
-                    )
+                    defaultValue
+                        ?: throw ValidationException(
+                            errorCode = CommonErrorCode.INVALID_INPUT,
+                            field = name,
+                            parameters = mapOf("field" to name),
+                        )
                 }
             }
         }
@@ -71,7 +82,12 @@ class AssetGraphQLMapper(
         return try {
             UUID.fromString(id)
         } catch (e: IllegalArgumentException) {
-            throw IllegalArgumentException("Invalid asset ID format: $id", e)
+            throw ValidationException(
+                errorCode = AssetErrorCode.ASSET_INVALID_ID,
+                field = "assetId",
+                parameters = mapOf("assetId" to id),
+                cause = e,
+            )
         }
     }
 

@@ -1,10 +1,12 @@
 package io.github.salomax.neotool.security.test.service.unit
 
+import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.OrderDirection
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import io.github.salomax.neotool.security.domain.GroupManagement
+import io.github.salomax.neotool.security.error.SecurityErrorCode
 import io.github.salomax.neotool.security.model.GroupOrderBy
 import io.github.salomax.neotool.security.model.GroupOrderField
 import io.github.salomax.neotool.security.model.rbac.GroupMembershipEntity
@@ -613,11 +615,11 @@ class GroupManagementServiceTest {
             whenever(userRepository.findByIdIn(listOf(userId1, userId2))).thenReturn(listOf(user1))
 
             // Act & Assert
-            assertThrows<IllegalArgumentException> {
+            assertThrows<NotFoundException> {
                 groupManagementService.createGroup(command)
             }.also { exception ->
-                assertThat(exception.message).contains("users not found")
-                assertThat(exception.message).contains(userId2.toString())
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.USER_NOT_FOUND)
+                assertThat(exception.field).isEqualTo("userIds")
             }
             verify(groupRepository).save(any())
             verify(userRepository).findByIdIn(listOf(userId1, userId2))
@@ -677,10 +679,11 @@ class GroupManagementServiceTest {
             whenever(groupRepository.findById(groupId)).thenReturn(Optional.empty())
 
             // Act & Assert
-            assertThrows<IllegalArgumentException> {
+            assertThrows<NotFoundException> {
                 groupManagementService.updateGroup(command)
             }.also { exception ->
-                assertThat(exception.message).contains("Group not found")
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.GROUP_NOT_FOUND)
+                assertThat(exception.field).isEqualTo("groupId")
             }
             verify(groupRepository).findById(groupId)
             verify(groupRepository, never()).update(any())
@@ -981,11 +984,11 @@ class GroupManagementServiceTest {
             whenever(userRepository.findByIdIn(listOf(userId1, userId2))).thenReturn(listOf(user1))
 
             // Act & Assert
-            assertThrows<IllegalArgumentException> {
+            assertThrows<NotFoundException> {
                 groupManagementService.updateGroup(command)
             }.also { exception ->
-                assertThat(exception.message).contains("users not found")
-                assertThat(exception.message).contains(userId2.toString())
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.USER_NOT_FOUND)
+                assertThat(exception.field).isEqualTo("userIds")
             }
             verify(groupRepository).findById(groupId)
             verify(groupRepository).update(any())

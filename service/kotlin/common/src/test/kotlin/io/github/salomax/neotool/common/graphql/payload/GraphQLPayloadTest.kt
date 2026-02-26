@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.common.graphql.payload
 
+import io.github.salomax.neotool.common.error.CommonErrorCode
 import jakarta.validation.ConstraintViolation
 import jakarta.validation.ConstraintViolationException
 import jakarta.validation.Path
@@ -191,7 +192,7 @@ class GraphQLPayloadTest {
             assertThat(payload.success).isFalse()
             assertThat(payload.errors).hasSize(1)
             assertThat(payload.errors[0].field).containsExactly("input")
-            assertThat(payload.errors[0].message).isEqualTo("Invalid input")
+            assertThat(payload.errors[0].message).isEqualTo(CommonErrorCode.INVALID_INPUT.defaultMessage)
             assertThat(payload.errors[0].code).isEqualTo("INVALID_INPUT")
         }
 
@@ -242,7 +243,7 @@ class GraphQLPayloadTest {
             assertThat(payload.success).isFalse()
             assertThat(payload.errors).hasSize(1)
             assertThat(payload.errors[0].field).containsExactly("general")
-            assertThat(payload.errors[0].message).isEqualTo("Unexpected error")
+            assertThat(payload.errors[0].message).isEqualTo(CommonErrorCode.INTERNAL_ERROR.defaultMessage)
             assertThat(payload.errors[0].code).isEqualTo("INTERNAL_ERROR")
         }
 

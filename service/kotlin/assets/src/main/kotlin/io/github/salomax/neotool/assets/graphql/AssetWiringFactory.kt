@@ -4,11 +4,13 @@ import graphql.schema.DataFetchingEnvironment
 import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.TypeRuntimeWiring
 import io.github.salomax.neotool.assets.domain.rbac.AssetPermissions
+import io.github.salomax.neotool.assets.error.AssetErrorCode
 import io.github.salomax.neotool.assets.graphql.dto.AssetDTO
 import io.github.salomax.neotool.assets.graphql.mapper.AssetGraphQLMapper
 import io.github.salomax.neotool.assets.graphql.resolver.AssetMutationResolver
 import io.github.salomax.neotool.assets.graphql.resolver.AssetQueryResolver
 import io.github.salomax.neotool.assets.storage.StorageClient
+import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.common.graphql.AuthenticatedGraphQLWiringFactory
 import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.createValidatedDataFetcher
 import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.getRequiredString
@@ -58,7 +60,10 @@ class AssetWiringFactory(
                     env.withPermission(AssetPermissions.ASSETS_ASSET_UPLOAD) { principal ->
                         val inputMap =
                             env.getArgument<Map<String, Any?>>("input")
-                                ?: throw IllegalArgumentException("input is required")
+                                ?: throw ValidationException(
+                                    errorCode = AssetErrorCode.ASSET_INPUT_REQUIRED,
+                                    field = "input",
+                                )
                         val input = mapper.mapToCreateAssetUploadInput(inputMap)
                         val userId = principal.userId.toString()
                         mutationResolver.createAssetUpload(input, userId)
@@ -70,7 +75,10 @@ class AssetWiringFactory(
                     env.withPermission(AssetPermissions.ASSETS_ASSET_UPLOAD) { principal ->
                         val inputMap =
                             env.getArgument<Map<String, Any?>>("input")
-                                ?: throw IllegalArgumentException("input is required")
+                                ?: throw ValidationException(
+                                    errorCode = AssetErrorCode.ASSET_INPUT_REQUIRED,
+                                    field = "input",
+                                )
                         val input = mapper.mapToConfirmAssetUploadInput(inputMap)
                         val userId = principal.userId.toString()
                         mutationResolver.confirmAssetUpload(input, userId)

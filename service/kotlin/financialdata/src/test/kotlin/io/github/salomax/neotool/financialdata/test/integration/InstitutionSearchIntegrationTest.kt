@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.financialdata.test.integration
 
+import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.test.assertions.assertNoErrors
 import io.github.salomax.neotool.common.test.assertions.shouldBeJson
 import io.github.salomax.neotool.common.test.assertions.shouldBeSuccessful
@@ -437,6 +438,7 @@ class InstitutionSearchIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
         assertThat(errors).isNotNull()
         assertThat(errors.isArray).isTrue()
         assertThat(errors.size()).isGreaterThan(0)
+        assertThat(errors[0]?.get("extensions")?.get("code")?.stringValue).isEqualTo(CommonErrorCode.INVALID_INPUT.code)
     }
 
     @Test
@@ -469,6 +471,7 @@ class InstitutionSearchIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
         val errors = payload["errors"]
         assertThat(errors).isNotNull()
         assertThat(errors.isArray).isTrue()
+        assertThat(errors[0]?.get("extensions")?.get("code")?.stringValue).isEqualTo(CommonErrorCode.INVALID_INPUT.code)
     }
 
     @Test
@@ -498,6 +501,7 @@ class InstitutionSearchIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
         val errors = payload["errors"]
         assertThat(errors).isNotNull()
         assertThat(errors.isArray).isTrue()
+        assertThat(errors[0]?.get("extensions")?.get("code")?.stringValue).isEqualTo(CommonErrorCode.INVALID_INPUT.code)
     }
 
     @Test

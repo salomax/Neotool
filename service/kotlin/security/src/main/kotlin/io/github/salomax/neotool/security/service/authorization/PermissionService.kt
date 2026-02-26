@@ -1,6 +1,10 @@
 package io.github.salomax.neotool.security.service.authorization
 
+import io.github.salomax.neotool.common.error.CommonErrorCode
+import io.github.salomax.neotool.common.error.NotFoundException
+import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.security.domain.rbac.Permission
+import io.github.salomax.neotool.security.error.SecurityErrorCode
 import io.github.salomax.neotool.security.repo.PermissionRepository
 import jakarta.inject.Singleton
 import jakarta.transaction.Transactional
@@ -32,8 +36,17 @@ open class PermissionService(
         val existing =
             permissionRepository
                 .findById(
-                    permission.id ?: throw IllegalArgumentException("Permission ID is required for update"),
-                ).orElseThrow { IllegalArgumentException("Permission not found with ID: ${permission.id}") }
+                    permission.id
+                        ?: throw ValidationException(
+                            errorCode = CommonErrorCode.INVALID_INPUT,
+                            field = "permissionId",
+                        ),
+                ).orElseThrow {
+                    NotFoundException(
+                        errorCode = SecurityErrorCode.PERMISSION_NOT_FOUND,
+                        field = "permissionId",
+                    )
+                }
 
         existing.name = permission.name
         existing.updatedAt = permission.updatedAt

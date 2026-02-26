@@ -49,6 +49,19 @@ enum class SecurityErrorCode(
     USER_PASSWORD_REQUIRED("USER_PASSWORD_REQUIRED", "Password is required", 400),
     USER_PASSWORD_TOO_SHORT("USER_PASSWORD_TOO_SHORT", "Password is too short", 400),
     USER_PASSWORD_TOO_WEAK("USER_PASSWORD_TOO_WEAK", "Password is too weak", 400),
+    PASSWORD_RESET_TOKEN_INVALID("PASSWORD_RESET_TOKEN_INVALID", "Password reset token is invalid or expired", 400),
+    EMAIL_VERIFICATION_INVALID_LINK("EMAIL_VERIFICATION_INVALID_LINK", "Verification link is invalid", 400),
+    EMAIL_VERIFICATION_LINK_EXPIRED("EMAIL_VERIFICATION_LINK_EXPIRED", "Verification link has expired", 400),
+    EMAIL_VERIFICATION_TOO_MANY_ATTEMPTS(
+        "EMAIL_VERIFICATION_TOO_MANY_ATTEMPTS",
+        "Too many failed verification attempts",
+        429,
+    ),
+    EMAIL_VERIFICATION_RESEND_RATE_LIMITED(
+        "EMAIL_VERIFICATION_RESEND_RATE_LIMITED",
+        "Please wait before requesting another verification link",
+        429,
+    ),
 
     // Role and permission errors
     ROLE_NOT_FOUND("ROLE_NOT_FOUND", "Role not found", 404),

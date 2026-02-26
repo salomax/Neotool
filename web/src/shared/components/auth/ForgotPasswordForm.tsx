@@ -82,7 +82,9 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({ onSucces
         showSuccess(t("successMessage"));
         onSuccess?.();
       } else {
-        throw new Error("Failed to send reset link");
+        const fallbackError = t("errors.unknownError");
+        setError(fallbackError);
+        showError(fallbackError);
       }
     } catch (err: any) {
       const errorMessage = extractErrorMessage(err, t("errors.unknownError"));

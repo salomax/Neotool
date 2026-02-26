@@ -1,6 +1,10 @@
 package io.github.salomax.neotool.security.test.service.unit
 
+import io.github.salomax.neotool.common.error.CommonErrorCode
+import io.github.salomax.neotool.common.error.NotFoundException
+import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.security.domain.rbac.Role
+import io.github.salomax.neotool.security.error.SecurityErrorCode
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.service.management.RoleService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
@@ -189,10 +193,11 @@ class RoleServiceTest {
                 )
 
             // Act & Assert
-            assertThrows<IllegalArgumentException> {
+            assertThrows<ValidationException> {
                 roleService.update(role)
             }.also { exception ->
-                assertThat(exception.message).contains("Role ID is required")
+                assertThat(exception.errorCode).isEqualTo(CommonErrorCode.INVALID_INPUT)
+                assertThat(exception.field).isEqualTo("roleId")
             }
 
             verify(roleRepository, never()).findById(any())
@@ -212,10 +217,11 @@ class RoleServiceTest {
             whenever(roleRepository.findById(roleId)).thenReturn(Optional.empty())
 
             // Act & Assert
-            assertThrows<IllegalArgumentException> {
+            assertThrows<NotFoundException> {
                 roleService.update(role)
             }.also { exception ->
-                assertThat(exception.message).contains("Role not found")
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.ROLE_NOT_FOUND)
+                assertThat(exception.field).isEqualTo("roleId")
             }
 
             verify(roleRepository).findById(roleId)

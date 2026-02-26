@@ -41,8 +41,8 @@ export default function VerifyEmailLinkPage() {
         }
         showSuccess(t("success"));
         setTimeout(() => router.push("/"), REDIRECT_DELAY_MS);
-      } else if (result?.verifyEmailWithToken?.message) {
-        showError(result.verifyEmailWithToken.message);
+      } else {
+        showError(t("errors.unknownError"));
       }
     },
     onError: (err) => showError(extractErrorMessage(err, t("errors.unknownError"))),
@@ -60,7 +60,7 @@ export default function VerifyEmailLinkPage() {
     error
       ? extractErrorMessage(error, t("errors.unknownError"))
       : data?.verifyEmailWithToken?.success === false
-        ? data?.verifyEmailWithToken?.message ?? t("errors.unknownError")
+        ? t("errors.unknownError")
         : null;
 
   return (

@@ -4,8 +4,10 @@ import graphql.execution.DataFetcherExceptionHandlerParameters
 import graphql.execution.ExecutionStepInfo
 import graphql.execution.ResultPath
 import graphql.schema.DataFetchingEnvironment
+import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.security.exception.AuthenticationRequiredException
 import io.github.salomax.neotool.common.security.exception.AuthorizationDeniedException
+import io.github.salomax.neotool.security.error.SecurityErrorCode
 import io.github.salomax.neotool.security.graphql.SecurityGraphQLExceptionHandler
 import org.assertj.core.api.Assertions
 import org.junit.jupiter.api.DisplayName
@@ -115,7 +117,13 @@ class SecurityGraphQLExceptionHandlerTest {
 
             // Assert
             Assertions.assertThat(resultValue.errors).hasSize(1)
-            Assertions.assertThat(resultValue.errors[0].message).isEqualTo("Permission denied: security:user:view")
+            Assertions.assertThat(
+                resultValue.errors[0].message,
+            ).isEqualTo(SecurityErrorCode.AUTHORIZATION_DENIED.defaultMessage)
+            Assertions.assertThat(
+                resultValue.errors[0].extensions["code"],
+            ).isEqualTo(SecurityErrorCode.AUTHORIZATION_DENIED.code)
+            Assertions.assertThat(resultValue.errors[0].extensions["action"]).isEqualTo("security:user:view")
         }
 
         @Test
@@ -137,7 +145,12 @@ class SecurityGraphQLExceptionHandlerTest {
 
             // Assert
             Assertions.assertThat(resultValue.errors).hasSize(1)
-            Assertions.assertThat(resultValue.errors[0].message).isEqualTo("Permission denied")
+            Assertions.assertThat(
+                resultValue.errors[0].message,
+            ).isEqualTo(SecurityErrorCode.AUTHORIZATION_DENIED.defaultMessage)
+            Assertions.assertThat(
+                resultValue.errors[0].extensions["code"],
+            ).isEqualTo(SecurityErrorCode.AUTHORIZATION_DENIED.code)
         }
 
         @Test
@@ -161,10 +174,12 @@ class SecurityGraphQLExceptionHandlerTest {
 
             // Assert
             Assertions.assertThat(resultValue.errors).hasSize(1)
-            Assertions.assertThat(resultValue.errors[0].message).isEqualTo("Permission denied: security:user:view")
-            Assertions.assertThat(resultValue.errors[0].message).doesNotContain("abc-123")
-            Assertions.assertThat(resultValue.errors[0].message).doesNotContain("12345")
-            Assertions.assertThat(resultValue.errors[0].message).doesNotContain("ADMIN")
+            Assertions.assertThat(
+                resultValue.errors[0].message,
+            ).isEqualTo(SecurityErrorCode.AUTHORIZATION_DENIED.defaultMessage)
+            Assertions.assertThat(
+                resultValue.errors[0].extensions["code"],
+            ).isEqualTo(SecurityErrorCode.AUTHORIZATION_DENIED.code)
         }
     }
 
@@ -172,7 +187,7 @@ class SecurityGraphQLExceptionHandlerTest {
     @DisplayName("Other Exception Handling")
     inner class OtherExceptionTests {
         @Test
-        fun `should delegate other exceptions to next handler`() {
+        fun `should convert IllegalArgumentException to invalid input error`() {
             // Arrange
             val exception = IllegalArgumentException("Invalid input")
             val env = createMockEnvironment()
@@ -183,38 +198,15 @@ class SecurityGraphQLExceptionHandlerTest {
                     .dataFetchingEnvironment(env)
                     .build()
 
-            // Act & Assert
-            // The next handler (GraphQLOptimisticLockExceptionHandler) will delegate to default handler
-            // which will convert the exception to a GraphQL error
-            // Note: SimpleDataFetcherExceptionHandler may fail with NPE if environment is not fully configured
-            // The important thing is that we delegated (didn't handle it as a security exception)
-            // We verify delegation by attempting to handle it and checking the result
-            try {
-                val result: CompletableFuture<graphql.execution.DataFetcherExceptionHandlerResult> =
-                    handler.handleException(handlerParameters)
-                try {
-                    val resultValue = result.get()
-                    Assertions.assertThat(resultValue).isNotNull()
-                    val errorMessages = resultValue.errors?.map { it.message } ?: emptyList()
-                    // Verify we didn't handle it as a security exception (no "Authentication required" or "Permission denied")
-                    Assertions.assertThat(errorMessages).doesNotContain("Authentication required", "Permission denied")
-                } catch (e: java.util.concurrent.ExecutionException) {
-                    // If delegation fails due to incomplete mock setup (NPE in default handler), that's acceptable
-                    // The key is that we attempted to delegate (didn't handle it ourselves)
-                    // We can verify this by checking that the original exception is not a security exception
-                    Assertions.assertThat(exception).isNotInstanceOf(AuthenticationRequiredException::class.java)
-                    Assertions.assertThat(exception).isNotInstanceOf(AuthorizationDeniedException::class.java)
-                }
-            } catch (e: NullPointerException) {
-                // If delegation fails with NPE due to incomplete mock setup, that's acceptable
-                // The key is that we attempted to delegate (didn't handle it ourselves)
-                Assertions.assertThat(exception).isNotInstanceOf(AuthenticationRequiredException::class.java)
-                Assertions.assertThat(exception).isNotInstanceOf(AuthorizationDeniedException::class.java)
-            } catch (e: Exception) {
-                // Catch any other exceptions and verify we didn't handle it as security exception
-                Assertions.assertThat(exception).isNotInstanceOf(AuthenticationRequiredException::class.java)
-                Assertions.assertThat(exception).isNotInstanceOf(AuthorizationDeniedException::class.java)
-            }
+            val result: CompletableFuture<graphql.execution.DataFetcherExceptionHandlerResult> =
+                handler.handleException(handlerParameters)
+            val resultValue = result.get()
+
+            Assertions.assertThat(resultValue.errors).hasSize(1)
+            Assertions.assertThat(resultValue.errors[0].message).isEqualTo(CommonErrorCode.INVALID_INPUT.defaultMessage)
+            Assertions.assertThat(
+                resultValue.errors[0].extensions["code"],
+            ).isEqualTo(CommonErrorCode.INVALID_INPUT.code)
         }
 
         @Test
