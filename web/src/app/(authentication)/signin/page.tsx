@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Container, Box, Typography } from "@mui/material";
+import { Container, Box, Typography, Alert, AlertTitle } from "@mui/material";
+import VerifiedUserOutlinedIcon from "@mui/icons-material/VerifiedUserOutlined";
 import { SignInForm } from "@/shared/components/auth/SignInForm";
 import { useAuth } from "@/shared/providers";
 import { Logo } from "@/shared/ui/brand";
@@ -80,8 +81,32 @@ export default function SignInPage() {
             name="signin-card"
           >
             <Stack gap={3} name="signin-content-stack">
+              {resolvedTarget !== "/" && (
+                <Alert
+                  icon={<VerifiedUserOutlinedIcon fontSize="inherit" />}
+                  severity="info"
+                  sx={{
+                    alignItems: "flex-start",
+                    bgcolor: (theme) => theme.custom.palette.infoLightBg,
+                    border: 1,
+                    borderColor: "info.light", // Or a specific color like 'rgba(2, 132, 199, 0.2)'
+                    "& .MuiAlert-icon": {
+                      color: "info.main",
+                      mt: "4px",
+                    },
+                  }}
+                  data-testid="signin-login-required-message"
+                >
+                  <AlertTitle sx={{ fontWeight: 600, color: "text.primary" }}>
+                    {t("restrictedAccessTitle")}
+                  </AlertTitle>
+                  <Typography variant="body2" color="text.secondary">
+                    {t("loginRequiredMessage")}
+                  </Typography>
+                </Alert>
+              )}
               <Box sx={{ textAlign: "center", mb: 1 }}>
-                <Typography
+              <Typography
                   variant="h4"
                   component="h1"
                   gutterBottom
@@ -98,18 +123,7 @@ export default function SignInPage() {
                 >
                   {t("subtitle")}
                 </Typography>
-                {resolvedTarget !== "/" && (
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ mt: 1.5 }}
-                    data-testid="signin-login-required-message"
-                  >
-                    {t("loginRequiredMessage")}
-                  </Typography>
-                )}
               </Box>
-
               <SignInForm />
             </Stack>
           </Paper>
@@ -118,4 +132,3 @@ export default function SignInPage() {
     </Box>
   );
 }
-

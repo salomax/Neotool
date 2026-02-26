@@ -116,6 +116,7 @@ export const createAppTheme = (mode: Mode) => {
         tabBorder: t.palette.tabBorder,
         errorLightBg: t.palette.errorLightBg,
         successLightBg: t.palette.successLightBg,
+        infoLightBg: t.palette.infoLightBg,
         sidebarBg: t.palette.sidebarBg,
         sidebarIcon: t.palette.sidebarIcon,
         // Currency-specific colors
