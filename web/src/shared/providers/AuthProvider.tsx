@@ -22,6 +22,7 @@ type AuthContextType = {
   signUp: (name: string, email: string, password: string) => Promise<void>;
   signOut: () => void;
   setUser: (user: User | null) => void;
+  setPostLoginRedirect: (path: string | null) => void;
   isAuthenticated: boolean;
 };
 
@@ -48,6 +49,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [token, setToken] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const router = useRouter();
+  const postLoginRedirectPathRef = React.useRef<string | null>(null);
+
+  const setPostLoginRedirect = React.useCallback((path: string | null) => {
+    postLoginRedirectPathRef.current = path;
+  }, []);
 
   // Initialize auth state from storage
   React.useEffect(() => {
@@ -79,7 +85,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         router.push("/verify-email");
         return;
       }
-      router.push(fallbackPath);
+      const target = postLoginRedirectPathRef.current ?? fallbackPath;
+      postLoginRedirectPathRef.current = null;
+      router.push(target);
     },
     [router]
   );
@@ -263,6 +271,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signUp,
     signOut,
     setUser,
+    setPostLoginRedirect,
     isAuthenticated: !!user && !!token,
   };
 

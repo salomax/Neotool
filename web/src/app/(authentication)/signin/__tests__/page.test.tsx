@@ -11,12 +11,13 @@ import { signinTranslations } from '../i18n';
 i18n.addResourceBundle('en', 'signin', signinTranslations.en, true, true);
 i18n.addResourceBundle('pt', 'signin', signinTranslations.pt, true, true);
 
-// Mock Next.js router
+// Mock Next.js router and search params
 const mockPush = vi.fn();
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: mockPush,
   }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 // Mock auth and toast providers
@@ -56,6 +57,7 @@ describe.sequential('SignInPage', () => {
     mockUseAuth.mockReturnValue({
       isAuthenticated: false,
       isLoading: false,
+      setPostLoginRedirect: vi.fn(),
     });
   });
 
@@ -83,11 +85,12 @@ describe.sequential('SignInPage', () => {
     mockUseAuth.mockReturnValue({
       isAuthenticated: true,
       isLoading: false,
+      setPostLoginRedirect: vi.fn(),
     });
-    
+
     renderSignInPage();
-    
-    // Should redirect to home
+
+    // Should redirect to home (resolvePostLoginRedirect with no next param returns '/')
     expect(mockPush).toHaveBeenCalledWith('/');
   });
 
@@ -95,6 +98,7 @@ describe.sequential('SignInPage', () => {
     mockUseAuth.mockReturnValue({
       isAuthenticated: false,
       isLoading: true,
+      setPostLoginRedirect: vi.fn(),
     });
 
     renderSignInPage();
@@ -108,10 +112,11 @@ describe.sequential('SignInPage', () => {
     mockUseAuth.mockReturnValue({
       isAuthenticated: false,
       isLoading: true,
+      setPostLoginRedirect: vi.fn(),
     });
-    
+
     renderSignInPage();
-    
+
     // Should not redirect while loading, even if eventually authenticated
     expect(mockPush).not.toHaveBeenCalled();
   });
