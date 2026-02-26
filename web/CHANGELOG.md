@@ -1,3 +1,14 @@
+## 0.4.1 (2026-02-26)
+
+### 🚀 Features
+
+- **personal-finance:** enhance finance transactions page and navigation ([9bf88a69](https://github.com/invistus/invistus/commit/9bf88a69))
+- **personal-finance:** implement personal finance dashboard and transactions module ([4874c751](https://github.com/invistus/invistus/commit/4874c751))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.4.0 (2026-02-25)
 
 ### 🚀 Features

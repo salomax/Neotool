@@ -1,3 +1,13 @@
+## 0.4.1 (2026-02-26)
+
+### 💅 Refactors
+
+- **observability:** transition from 'observability' to 'monitoring' namespace ([4d5500e1](https://github.com/invistus/invistus/commit/4d5500e1))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.4.0 (2026-02-25)
 
 ### 🚀 Features
