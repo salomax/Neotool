@@ -166,7 +166,7 @@ describe.sequential('SignInPage', () => {
     renderSignInPage();
 
     expect(screen.getByTestId('signin-login-required-message')).toBeInTheDocument();
-    expect(screen.getByText(/signed in to access that page|conectado para acessar essa página/i)).toBeInTheDocument();
+    expect(screen.getByText(/signed in to access this feature|realizar o login/i)).toBeInTheDocument();
   });
 
   it('does not show login required message when next is absent', () => {
