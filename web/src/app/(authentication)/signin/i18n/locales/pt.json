@@ -1,6 +1,8 @@
 {
   "title": "Bem-vindo de volta",
   "subtitle": "Entre na sua conta para continuar",
+  "restrictedAccessTitle": "Acesso apenas com Login",
+  "loginRequiredMessage": "Para você usar esta funcionalidade, você precisa realizar o login.",
   "email": "E-mail",
   "password": "Senha",
   "rememberMe": "Manter-me conectado",

@@ -72,8 +72,14 @@ vi.mock('@/shared/providers/AuthProvider', () => ({
     signInWithOAuth: vi.fn(),
     signUp: vi.fn(),
     signOut: vi.fn(),
+    setPostLoginRedirect: vi.fn(),
     isAuthenticated: true,
   }),
+}));
+
+// Mock feature flags so SidebarRail does not require FeatureFlagsProvider
+vi.mock('@/shared/hooks/useFeatureFlag', () => ({
+  useFeatureFlagEnabled: () => false,
 }));
 
 // Mock i18n
