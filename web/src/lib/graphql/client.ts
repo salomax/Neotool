@@ -4,6 +4,7 @@ import { SetContextLink } from '@apollo/client/link/context';
 import { ErrorLink } from '@apollo/client/link/error';
 import { CombinedGraphQLErrors, CombinedProtocolErrors } from '@apollo/client/errors';
 import { getAuthToken, clearAuthStorage, isAuthenticationError, getRefreshToken, updateAuthToken, updateAuthUser } from '@/shared/utils/auth';
+import { syncAuthSessionCookie } from '@/shared/utils/auth-session/client';
 import { logger } from '@/shared/utils/logger';
 import { getRuntimeConfig } from '@/shared/config/runtime-config';
 
@@ -87,10 +88,12 @@ async function refreshAccessToken(): Promise<string | null> {
 
       if (result.data?.refreshAccessToken) {
         const { token: newToken, user } = result.data.refreshAccessToken;
+        const rememberMe = typeof window !== 'undefined' && Boolean(localStorage.getItem('auth_token'));
         
         // Update token and user in storage
         updateAuthToken(newToken);
         updateAuthUser(user);
+        void syncAuthSessionCookie({ user, rememberMe });
         
         // Dispatch custom event to notify AuthProvider
         if (typeof window !== 'undefined') {

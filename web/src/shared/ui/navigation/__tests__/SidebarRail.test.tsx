@@ -89,6 +89,11 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
+// Mock feature flags
+vi.mock('@/shared/hooks/useFeatureFlag', () => ({
+  useFeatureFlagEnabled: () => false,
+}));
+
 const renderSidebarRail = () => {
   return render(
     <AppThemeProvider>
