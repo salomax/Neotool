@@ -1,3 +1,13 @@
+## 0.4.4 (2026-02-26)
+
+### 🚀 Features
+
+- **landing-page:** add hero images and randomize display on WelcomePage ([7fc29948](https://github.com/invistus/invistus/commit/7fc29948))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.4.3 (2026-02-26)
 
 ### 🚀 Features
