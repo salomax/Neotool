@@ -745,33 +745,46 @@ open class AuthenticationService(
     /**
      * Default personal account name (language-agnostic): user's display name or email, 2–100 chars.
      */
-    private fun defaultPersonalAccountName(displayName: String?, email: String): String {
+    private fun defaultPersonalAccountName(
+        displayName: String?,
+        email: String,
+    ): String {
         val base = displayName?.trim()?.takeIf { it.isNotBlank() } ?: email
         val trimmed = base.take(100)
-        return if (trimmed.length < 2) "Personal" else trimmed
+        return if (trimmed.length < 2) {
+            "Personal"
+        } else {
+            trimmed
+        }
     }
 
     /**
      * Create PERSONAL account and OWNER membership for a new user (FR-2.1).
      * Called from registerUser and authenticateWithOAuth; same transaction as user save.
      */
-    private fun createPersonalAccountAndMembership(userId: UUID, displayName: String?, email: String) {
+    private fun createPersonalAccountAndMembership(
+        userId: UUID,
+        displayName: String?,
+        email: String,
+    ) {
         val accountName = defaultPersonalAccountName(displayName, email)
-        val account = AccountEntity(
-            accountName = accountName,
-            accountType = AccountType.PERSONAL,
-            accountStatus = AccountStatus.ACTIVE,
-            ownerUserId = userId,
-        )
+        val account =
+            AccountEntity(
+                accountName = accountName,
+                accountType = AccountType.PERSONAL,
+                accountStatus = AccountStatus.ACTIVE,
+                ownerUserId = userId,
+            )
         val savedAccount = accountRepository.save(account)
-        val membership = AccountMembershipEntity(
-            accountId = savedAccount.id!!,
-            userId = userId,
-            accountRole = AccountRole.OWNER,
-            membershipStatus = MembershipStatus.ACTIVE,
-            joinedAt = Instant.now(),
-            isDefault = true,
-        )
+        val membership =
+            AccountMembershipEntity(
+                accountId = savedAccount.id!!,
+                userId = userId,
+                accountRole = AccountRole.OWNER,
+                membershipStatus = MembershipStatus.ACTIVE,
+                joinedAt = Instant.now(),
+                isDefault = true,
+            )
         accountMembershipRepository.save(membership)
     }
 

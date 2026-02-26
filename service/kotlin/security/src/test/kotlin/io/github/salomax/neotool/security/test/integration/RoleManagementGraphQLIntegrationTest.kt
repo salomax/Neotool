@@ -11,7 +11,13 @@ import io.github.salomax.neotool.common.test.json.read
 import io.github.salomax.neotool.common.test.transaction.runTransaction
 import io.github.salomax.neotool.security.domain.rbac.SecurityPermissions
 import io.github.salomax.neotool.security.model.UserEntity
+import io.github.salomax.neotool.security.repo.AccountMembershipRepository
+import io.github.salomax.neotool.security.repo.AccountRepository
+import io.github.salomax.neotool.security.repo.GroupMembershipRepository
+import io.github.salomax.neotool.security.repo.GroupRepository
+import io.github.salomax.neotool.security.repo.GroupRoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.PermissionRepository
+import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.authentication.AuthenticationService
@@ -63,6 +69,24 @@ open class RoleManagementGraphQLIntegrationTest :
 
     @Inject
     lateinit var entityManager: EntityManager
+
+    @Inject
+    lateinit var accountRepository: AccountRepository
+
+    @Inject
+    lateinit var accountMembershipRepository: AccountMembershipRepository
+
+    @Inject
+    lateinit var principalRepository: PrincipalRepository
+
+    @Inject
+    lateinit var groupMembershipRepository: GroupMembershipRepository
+
+    @Inject
+    lateinit var groupRoleAssignmentRepository: GroupRoleAssignmentRepository
+
+    @Inject
+    lateinit var groupRepository: GroupRepository
 
     private var testUserEmail = ""
     private var testUserPassword = ""
@@ -141,7 +165,16 @@ open class RoleManagementGraphQLIntegrationTest :
     fun cleanupTestData() {
         try {
             // Clean up in reverse order of dependencies
+            entityManager.runTransaction {
+                entityManager.createNativeQuery("DELETE FROM security.role_permissions").executeUpdate()
+            }
+            groupRoleAssignmentRepository.deleteAll()
+            groupMembershipRepository.deleteAll()
+            groupRepository.deleteAll()
             roleRepository.deleteAll()
+            accountMembershipRepository.deleteAll()
+            accountRepository.deleteAll()
+            principalRepository.deleteAll()
             userRepository.deleteAll()
             entityManager.flush()
         } catch (e: Exception) {

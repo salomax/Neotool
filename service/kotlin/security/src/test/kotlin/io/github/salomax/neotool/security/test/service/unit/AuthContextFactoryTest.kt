@@ -205,7 +205,9 @@ class AuthContextFactoryTest {
 
             whenever(authorizationService.getUserRoles(any(), any())).thenReturn(emptyList())
             whenever(authorizationService.getUserPermissions(any(), any())).thenReturn(emptyList())
-            whenever(accountMembershipRepository.findByUserIdAndMembershipStatus(eq(userId), eq(MembershipStatus.ACTIVE)))
+            whenever(
+                accountMembershipRepository.findByUserIdAndMembershipStatus(eq(userId), eq(MembershipStatus.ACTIVE)),
+            )
                 .thenReturn(listOf(membership1, membership2))
 
             val authContext = authContextFactory.build(user)

@@ -3,7 +3,6 @@ package io.github.salomax.neotool.security.test.service.unit
 import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.security.domain.AccountMembership
 import io.github.salomax.neotool.security.error.SecurityErrorCode
-import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.model.account.AccountEntity
 import io.github.salomax.neotool.security.model.account.AccountMembershipEntity
 import io.github.salomax.neotool.security.model.account.AccountRole
@@ -13,13 +12,11 @@ import io.github.salomax.neotool.security.model.account.MembershipStatus
 import io.github.salomax.neotool.security.repo.AccountMembershipRepository
 import io.github.salomax.neotool.security.repo.AccountRepository
 import io.github.salomax.neotool.security.repo.UserRepository
+import io.github.salomax.neotool.security.service.email.EmailService
 import io.github.salomax.neotool.security.service.management.membership.AccountMembershipService
-import io.github.salomax.neotool.security.service.management.membership.ActorMembershipContext
 import io.github.salomax.neotool.security.service.management.membership.MembershipOperation
 import io.github.salomax.neotool.security.service.management.membership.MembershipPolicyEngine
 import io.github.salomax.neotool.security.service.management.membership.MembershipPolicyResult
-import io.github.salomax.neotool.security.service.management.membership.TargetMemberContext
-import io.github.salomax.neotool.security.service.email.EmailService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -41,7 +38,6 @@ import java.util.UUID
 
 @DisplayName("AccountMembershipService Unit Tests")
 class AccountMembershipServiceTest {
-
     private lateinit var accountRepository: AccountRepository
     private lateinit var accountMembershipRepository: AccountMembershipRepository
     private lateinit var userRepository: UserRepository
@@ -56,14 +52,17 @@ class AccountMembershipServiceTest {
         userRepository = mock()
         membershipPolicyEngine = mock()
         emailService = mock()
-        whenever(emailService.buildInvitationAcceptUrl(any())).thenReturn("http://localhost:3000/invitations/accept?token=test")
-        accountMembershipService = AccountMembershipService(
-            accountRepository,
-            accountMembershipRepository,
-            userRepository,
-            membershipPolicyEngine,
-            emailService,
-        )
+        whenever(
+            emailService.buildInvitationAcceptUrl(any()),
+        ).thenReturn("http://localhost:3000/invitations/accept?token=test")
+        accountMembershipService =
+            AccountMembershipService(
+                accountRepository,
+                accountMembershipRepository,
+                userRepository,
+                membershipPolicyEngine,
+                emailService,
+            )
     }
 
     @Nested
@@ -75,37 +74,49 @@ class AccountMembershipServiceTest {
             val inviterId = UUID.randomUUID()
             val inviteeId = UUID.randomUUID()
             val inviteeEmail = "invitee@example.com"
-            val account = AccountEntity(
-                id = accountId,
-                accountName = "Biz",
-                accountType = AccountType.BUSINESS,
-                accountStatus = AccountStatus.ACTIVE,
-                ownerUserId = inviterId,
-            )
+            val account =
+                AccountEntity(
+                    id = accountId,
+                    accountName = "Biz",
+                    accountType = AccountType.BUSINESS,
+                    accountStatus = AccountStatus.ACTIVE,
+                    ownerUserId = inviterId,
+                )
             val invitee = SecurityTestDataBuilders.user(id = inviteeId, email = inviteeEmail)
-            val inviterMembership = AccountMembershipEntity(
-                accountId = accountId,
-                userId = inviterId,
-                accountRole = AccountRole.OWNER,
-                membershipStatus = MembershipStatus.ACTIVE,
-            )
+            val inviterMembership =
+                AccountMembershipEntity(
+                    accountId = accountId,
+                    userId = inviterId,
+                    accountRole = AccountRole.OWNER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
             val savedMembershipId = UUID.randomUUID()
-            val savedMembership = AccountMembershipEntity(
-                id = savedMembershipId,
-                accountId = accountId,
-                userId = inviteeId,
-                accountRole = AccountRole.MEMBER,
-                membershipStatus = MembershipStatus.PENDING,
-                invitationToken = "token123",
-                invitationExpiresAt = Instant.now().plusSeconds(604800),
-                invitedBy = inviterId,
-                invitedAt = Instant.now(),
-            )
+            val savedMembership =
+                AccountMembershipEntity(
+                    id = savedMembershipId,
+                    accountId = accountId,
+                    userId = inviteeId,
+                    accountRole = AccountRole.MEMBER,
+                    membershipStatus = MembershipStatus.PENDING,
+                    invitationToken = "token123",
+                    invitationExpiresAt = Instant.now().plusSeconds(604800),
+                    invitedBy = inviterId,
+                    invitedAt = Instant.now(),
+                )
 
             whenever(accountRepository.findById(eq(accountId))).thenReturn(Optional.of(account))
             whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(inviterId)))
                 .thenReturn(Optional.of(inviterMembership))
-            whenever(membershipPolicyEngine.evaluate(eq(MembershipOperation.INVITE), any(), anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull()))
+            whenever(
+                membershipPolicyEngine.evaluate(
+                    eq(MembershipOperation.INVITE),
+                    any(),
+                    anyOrNull(),
+                    anyOrNull(),
+                    anyOrNull(),
+                    anyOrNull(),
+                ),
+            )
                 .thenReturn(MembershipPolicyResult.Allowed)
             whenever(userRepository.findByEmail(eq(inviteeEmail))).thenReturn(invitee)
             whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(inviteeId)))
@@ -115,12 +126,13 @@ class AccountMembershipServiceTest {
             whenever(accountMembershipRepository.findOneByInvitationToken(any())).thenReturn(Optional.empty())
             whenever(accountMembershipRepository.save(any())).thenReturn(savedMembership)
 
-            val command = AccountMembership.InviteMemberCommand(
-                accountId = accountId,
-                inviterUserId = inviterId,
-                inviteeEmail = inviteeEmail,
-                role = AccountRole.MEMBER,
-            )
+            val command =
+                AccountMembership.InviteMemberCommand(
+                    accountId = accountId,
+                    inviterUserId = inviterId,
+                    inviteeEmail = inviteeEmail,
+                    role = AccountRole.MEMBER,
+                )
             val result = accountMembershipService.invite(command)
 
             assertThat(result.membershipId).isEqualTo(savedMembershipId)
@@ -135,31 +147,43 @@ class AccountMembershipServiceTest {
         fun `invite throws ACCOUNT_ROLE_INSUFFICIENT when policy denies`() {
             val accountId = UUID.randomUUID()
             val inviterId = UUID.randomUUID()
-            val account = AccountEntity(
-                id = accountId,
-                accountName = "Biz",
-                accountType = AccountType.BUSINESS,
-                accountStatus = AccountStatus.ACTIVE,
-                ownerUserId = UUID.randomUUID(),
-            )
-            val memberMembership = AccountMembershipEntity(
-                accountId = accountId,
-                userId = inviterId,
-                accountRole = AccountRole.MEMBER,
-                membershipStatus = MembershipStatus.ACTIVE,
-            )
+            val account =
+                AccountEntity(
+                    id = accountId,
+                    accountName = "Biz",
+                    accountType = AccountType.BUSINESS,
+                    accountStatus = AccountStatus.ACTIVE,
+                    ownerUserId = UUID.randomUUID(),
+                )
+            val memberMembership =
+                AccountMembershipEntity(
+                    accountId = accountId,
+                    userId = inviterId,
+                    accountRole = AccountRole.MEMBER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
             whenever(accountRepository.findById(eq(accountId))).thenReturn(Optional.of(account))
             whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(inviterId)))
                 .thenReturn(Optional.of(memberMembership))
-            whenever(membershipPolicyEngine.evaluate(eq(MembershipOperation.INVITE), any(), anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull()))
+            whenever(
+                membershipPolicyEngine.evaluate(
+                    eq(MembershipOperation.INVITE),
+                    any(),
+                    anyOrNull(),
+                    anyOrNull(),
+                    anyOrNull(),
+                    anyOrNull(),
+                ),
+            )
                 .thenReturn(MembershipPolicyResult.Denied(SecurityErrorCode.ACCOUNT_ROLE_INSUFFICIENT))
 
-            val command = AccountMembership.InviteMemberCommand(
-                accountId = accountId,
-                inviterUserId = inviterId,
-                inviteeEmail = "other@example.com",
-                role = AccountRole.MEMBER,
-            )
+            val command =
+                AccountMembership.InviteMemberCommand(
+                    accountId = accountId,
+                    inviterUserId = inviterId,
+                    inviteeEmail = "other@example.com",
+                    role = AccountRole.MEMBER,
+                )
             assertThrows<ValidationException> {
                 accountMembershipService.invite(command)
             }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.ACCOUNT_ROLE_INSUFFICIENT) }
@@ -170,32 +194,44 @@ class AccountMembershipServiceTest {
         fun `invite throws USER_NOT_FOUND when invitee email not found`() {
             val accountId = UUID.randomUUID()
             val inviterId = UUID.randomUUID()
-            val account = AccountEntity(
-                id = accountId,
-                accountName = "Biz",
-                accountType = AccountType.BUSINESS,
-                accountStatus = AccountStatus.ACTIVE,
-                ownerUserId = inviterId,
-            )
-            val inviterMembership = AccountMembershipEntity(
-                accountId = accountId,
-                userId = inviterId,
-                accountRole = AccountRole.OWNER,
-                membershipStatus = MembershipStatus.ACTIVE,
-            )
+            val account =
+                AccountEntity(
+                    id = accountId,
+                    accountName = "Biz",
+                    accountType = AccountType.BUSINESS,
+                    accountStatus = AccountStatus.ACTIVE,
+                    ownerUserId = inviterId,
+                )
+            val inviterMembership =
+                AccountMembershipEntity(
+                    accountId = accountId,
+                    userId = inviterId,
+                    accountRole = AccountRole.OWNER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
             whenever(accountRepository.findById(eq(accountId))).thenReturn(Optional.of(account))
             whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(inviterId)))
                 .thenReturn(Optional.of(inviterMembership))
-            whenever(membershipPolicyEngine.evaluate(eq(MembershipOperation.INVITE), any(), anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull()))
+            whenever(
+                membershipPolicyEngine.evaluate(
+                    eq(MembershipOperation.INVITE),
+                    any(),
+                    anyOrNull(),
+                    anyOrNull(),
+                    anyOrNull(),
+                    anyOrNull(),
+                ),
+            )
                 .thenReturn(MembershipPolicyResult.Allowed)
             whenever(userRepository.findByEmail(eq("nonexistent@example.com"))).thenReturn(null)
 
-            val command = AccountMembership.InviteMemberCommand(
-                accountId = accountId,
-                inviterUserId = inviterId,
-                inviteeEmail = "nonexistent@example.com",
-                role = AccountRole.MEMBER,
-            )
+            val command =
+                AccountMembership.InviteMemberCommand(
+                    accountId = accountId,
+                    inviterUserId = inviterId,
+                    inviteeEmail = "nonexistent@example.com",
+                    role = AccountRole.MEMBER,
+                )
             assertThrows<ValidationException> {
                 accountMembershipService.invite(command)
             }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.USER_NOT_FOUND) }
@@ -208,41 +244,54 @@ class AccountMembershipServiceTest {
             val inviterId = UUID.randomUUID()
             val inviteeId = UUID.randomUUID()
             val inviteeEmail = "member@example.com"
-            val account = AccountEntity(
-                id = accountId,
-                accountName = "Biz",
-                accountType = AccountType.BUSINESS,
-                accountStatus = AccountStatus.ACTIVE,
-                ownerUserId = inviterId,
-            )
+            val account =
+                AccountEntity(
+                    id = accountId,
+                    accountName = "Biz",
+                    accountType = AccountType.BUSINESS,
+                    accountStatus = AccountStatus.ACTIVE,
+                    ownerUserId = inviterId,
+                )
             val invitee = SecurityTestDataBuilders.user(id = inviteeId, email = inviteeEmail)
-            val inviterMembership = AccountMembershipEntity(
-                accountId = accountId,
-                userId = inviterId,
-                accountRole = AccountRole.OWNER,
-                membershipStatus = MembershipStatus.ACTIVE,
-            )
-            val existingMembership = AccountMembershipEntity(
-                accountId = accountId,
-                userId = inviteeId,
-                accountRole = AccountRole.MEMBER,
-                membershipStatus = MembershipStatus.ACTIVE,
-            )
+            val inviterMembership =
+                AccountMembershipEntity(
+                    accountId = accountId,
+                    userId = inviterId,
+                    accountRole = AccountRole.OWNER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
+            val existingMembership =
+                AccountMembershipEntity(
+                    accountId = accountId,
+                    userId = inviteeId,
+                    accountRole = AccountRole.MEMBER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
             whenever(accountRepository.findById(eq(accountId))).thenReturn(Optional.of(account))
             whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(inviterId)))
                 .thenReturn(Optional.of(inviterMembership))
-            whenever(membershipPolicyEngine.evaluate(eq(MembershipOperation.INVITE), any(), anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull()))
+            whenever(
+                membershipPolicyEngine.evaluate(
+                    eq(MembershipOperation.INVITE),
+                    any(),
+                    anyOrNull(),
+                    anyOrNull(),
+                    anyOrNull(),
+                    anyOrNull(),
+                ),
+            )
                 .thenReturn(MembershipPolicyResult.Allowed)
             whenever(userRepository.findByEmail(eq(inviteeEmail))).thenReturn(invitee)
             whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(inviteeId)))
                 .thenReturn(Optional.of(existingMembership))
 
-            val command = AccountMembership.InviteMemberCommand(
-                accountId = accountId,
-                inviterUserId = inviterId,
-                inviteeEmail = inviteeEmail,
-                role = AccountRole.MEMBER,
-            )
+            val command =
+                AccountMembership.InviteMemberCommand(
+                    accountId = accountId,
+                    inviterUserId = inviterId,
+                    inviteeEmail = inviteeEmail,
+                    role = AccountRole.MEMBER,
+                )
             assertThrows<ValidationException> {
                 accountMembershipService.invite(command)
             }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.ALREADY_MEMBER) }
@@ -255,35 +304,47 @@ class AccountMembershipServiceTest {
             val inviterId = UUID.randomUUID()
             val inviteeId = UUID.randomUUID()
             val inviteeEmail = "other@example.com"
-            val account = AccountEntity(
-                id = accountId,
-                accountName = "Personal",
-                accountType = AccountType.PERSONAL,
-                accountStatus = AccountStatus.ACTIVE,
-                ownerUserId = inviterId,
-            )
-            val inviterMembership = AccountMembershipEntity(
-                accountId = accountId,
-                userId = inviterId,
-                accountRole = AccountRole.OWNER,
-                membershipStatus = MembershipStatus.ACTIVE,
-            )
+            val account =
+                AccountEntity(
+                    id = accountId,
+                    accountName = "Personal",
+                    accountType = AccountType.PERSONAL,
+                    accountStatus = AccountStatus.ACTIVE,
+                    ownerUserId = inviterId,
+                )
+            val inviterMembership =
+                AccountMembershipEntity(
+                    accountId = accountId,
+                    userId = inviterId,
+                    accountRole = AccountRole.OWNER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
             val invitee = SecurityTestDataBuilders.user(id = inviteeId, email = inviteeEmail)
             whenever(accountRepository.findById(eq(accountId))).thenReturn(Optional.of(account))
             whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(inviterId)))
                 .thenReturn(Optional.of(inviterMembership))
-            whenever(membershipPolicyEngine.evaluate(eq(MembershipOperation.INVITE), any(), anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull()))
+            whenever(
+                membershipPolicyEngine.evaluate(
+                    eq(MembershipOperation.INVITE),
+                    any(),
+                    anyOrNull(),
+                    anyOrNull(),
+                    anyOrNull(),
+                    anyOrNull(),
+                ),
+            )
                 .thenReturn(MembershipPolicyResult.Allowed)
             whenever(userRepository.findByEmail(eq(inviteeEmail))).thenReturn(invitee)
             whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(inviteeId)))
                 .thenReturn(Optional.empty())
 
-            val command = AccountMembership.InviteMemberCommand(
-                accountId = accountId,
-                inviterUserId = inviterId,
-                inviteeEmail = inviteeEmail,
-                role = AccountRole.MEMBER,
-            )
+            val command =
+                AccountMembership.InviteMemberCommand(
+                    accountId = accountId,
+                    inviterUserId = inviterId,
+                    inviteeEmail = inviteeEmail,
+                    role = AccountRole.MEMBER,
+                )
             assertThrows<ValidationException> {
                 accountMembershipService.invite(command)
             }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.MEMBER_LIMIT_REACHED) }
@@ -296,24 +357,35 @@ class AccountMembershipServiceTest {
             val inviterId = UUID.randomUUID()
             val inviteeId = UUID.randomUUID()
             val inviteeEmail = "new@example.com"
-            val account = AccountEntity(
-                id = accountId,
-                accountName = "Family",
-                accountType = AccountType.FAMILY,
-                accountStatus = AccountStatus.ACTIVE,
-                ownerUserId = inviterId,
-            )
-            val inviterMembership = AccountMembershipEntity(
-                accountId = accountId,
-                userId = inviterId,
-                accountRole = AccountRole.OWNER,
-                membershipStatus = MembershipStatus.ACTIVE,
-            )
+            val account =
+                AccountEntity(
+                    id = accountId,
+                    accountName = "Family",
+                    accountType = AccountType.FAMILY,
+                    accountStatus = AccountStatus.ACTIVE,
+                    ownerUserId = inviterId,
+                )
+            val inviterMembership =
+                AccountMembershipEntity(
+                    accountId = accountId,
+                    userId = inviterId,
+                    accountRole = AccountRole.OWNER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
             val invitee = SecurityTestDataBuilders.user(id = inviteeId, email = inviteeEmail)
             whenever(accountRepository.findById(eq(accountId))).thenReturn(Optional.of(account))
             whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(inviterId)))
                 .thenReturn(Optional.of(inviterMembership))
-            whenever(membershipPolicyEngine.evaluate(eq(MembershipOperation.INVITE), any(), anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull()))
+            whenever(
+                membershipPolicyEngine.evaluate(
+                    eq(MembershipOperation.INVITE),
+                    any(),
+                    anyOrNull(),
+                    anyOrNull(),
+                    anyOrNull(),
+                    anyOrNull(),
+                ),
+            )
                 .thenReturn(MembershipPolicyResult.Allowed)
             whenever(userRepository.findByEmail(eq(inviteeEmail))).thenReturn(invitee)
             whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(inviteeId)))
@@ -321,12 +393,13 @@ class AccountMembershipServiceTest {
             whenever(accountMembershipRepository.countByAccountIdAndMembershipStatusIn(eq(accountId), any()))
                 .thenReturn(10L)
 
-            val command = AccountMembership.InviteMemberCommand(
-                accountId = accountId,
-                inviterUserId = inviterId,
-                inviteeEmail = inviteeEmail,
-                role = AccountRole.MEMBER,
-            )
+            val command =
+                AccountMembership.InviteMemberCommand(
+                    accountId = accountId,
+                    inviterUserId = inviterId,
+                    inviteeEmail = inviteeEmail,
+                    role = AccountRole.MEMBER,
+                )
             assertThrows<ValidationException> {
                 accountMembershipService.invite(command)
             }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.MEMBER_LIMIT_REACHED) }
@@ -342,19 +415,21 @@ class AccountMembershipServiceTest {
             val accountId = UUID.randomUUID()
             val actorId = UUID.randomUUID()
             val membershipId = UUID.randomUUID()
-            val targetMembership = AccountMembershipEntity(
-                id = membershipId,
-                accountId = accountId,
-                userId = UUID.randomUUID(),
-                accountRole = AccountRole.MEMBER,
-                membershipStatus = MembershipStatus.PENDING,
-            )
-            val actorMembership = AccountMembershipEntity(
-                accountId = accountId,
-                userId = actorId,
-                accountRole = AccountRole.OWNER,
-                membershipStatus = MembershipStatus.ACTIVE,
-            )
+            val targetMembership =
+                AccountMembershipEntity(
+                    id = membershipId,
+                    accountId = accountId,
+                    userId = UUID.randomUUID(),
+                    accountRole = AccountRole.MEMBER,
+                    membershipStatus = MembershipStatus.PENDING,
+                )
+            val actorMembership =
+                AccountMembershipEntity(
+                    accountId = accountId,
+                    userId = actorId,
+                    accountRole = AccountRole.OWNER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
             whenever(accountMembershipRepository.findById(eq(membershipId))).thenReturn(Optional.of(targetMembership))
             whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(actorId)))
                 .thenReturn(Optional.of(actorMembership))
@@ -369,11 +444,12 @@ class AccountMembershipServiceTest {
                 ),
             ).thenReturn(MembershipPolicyResult.Allowed)
 
-            val command = AccountMembership.CancelInvitationCommand(
-                accountId = accountId,
-                actorUserId = actorId,
-                membershipId = membershipId,
-            )
+            val command =
+                AccountMembership.CancelInvitationCommand(
+                    accountId = accountId,
+                    actorUserId = actorId,
+                    membershipId = membershipId,
+                )
             accountMembershipService.cancelInvitation(command)
 
             verify(accountMembershipRepository).deleteById(membershipId)
@@ -384,19 +460,21 @@ class AccountMembershipServiceTest {
             val accountId = UUID.randomUUID()
             val actorId = UUID.randomUUID()
             val membershipId = UUID.randomUUID()
-            val targetMembership = AccountMembershipEntity(
-                id = membershipId,
-                accountId = accountId,
-                userId = UUID.randomUUID(),
-                accountRole = AccountRole.MEMBER,
-                membershipStatus = MembershipStatus.PENDING,
-            )
-            val actorMembership = AccountMembershipEntity(
-                accountId = accountId,
-                userId = actorId,
-                accountRole = AccountRole.MEMBER,
-                membershipStatus = MembershipStatus.ACTIVE,
-            )
+            val targetMembership =
+                AccountMembershipEntity(
+                    id = membershipId,
+                    accountId = accountId,
+                    userId = UUID.randomUUID(),
+                    accountRole = AccountRole.MEMBER,
+                    membershipStatus = MembershipStatus.PENDING,
+                )
+            val actorMembership =
+                AccountMembershipEntity(
+                    accountId = accountId,
+                    userId = actorId,
+                    accountRole = AccountRole.MEMBER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
             whenever(accountMembershipRepository.findById(eq(membershipId))).thenReturn(Optional.of(targetMembership))
             whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(actorId)))
                 .thenReturn(Optional.of(actorMembership))
@@ -411,11 +489,12 @@ class AccountMembershipServiceTest {
                 ),
             ).thenReturn(MembershipPolicyResult.Denied(SecurityErrorCode.ACCOUNT_ROLE_INSUFFICIENT))
 
-            val command = AccountMembership.CancelInvitationCommand(
-                accountId = accountId,
-                actorUserId = actorId,
-                membershipId = membershipId,
-            )
+            val command =
+                AccountMembership.CancelInvitationCommand(
+                    accountId = accountId,
+                    actorUserId = actorId,
+                    membershipId = membershipId,
+                )
             assertThrows<ValidationException> {
                 accountMembershipService.cancelInvitation(command)
             }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.ACCOUNT_ROLE_INSUFFICIENT) }
@@ -427,20 +506,22 @@ class AccountMembershipServiceTest {
             val accountId = UUID.randomUUID()
             val actorId = UUID.randomUUID()
             val membershipId = UUID.randomUUID()
-            val targetMembership = AccountMembershipEntity(
-                id = membershipId,
-                accountId = accountId,
-                userId = UUID.randomUUID(),
-                accountRole = AccountRole.MEMBER,
-                membershipStatus = MembershipStatus.ACTIVE,
-            )
+            val targetMembership =
+                AccountMembershipEntity(
+                    id = membershipId,
+                    accountId = accountId,
+                    userId = UUID.randomUUID(),
+                    accountRole = AccountRole.MEMBER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
             whenever(accountMembershipRepository.findById(eq(membershipId))).thenReturn(Optional.of(targetMembership))
 
-            val command = AccountMembership.CancelInvitationCommand(
-                accountId = accountId,
-                actorUserId = actorId,
-                membershipId = membershipId,
-            )
+            val command =
+                AccountMembership.CancelInvitationCommand(
+                    accountId = accountId,
+                    actorUserId = actorId,
+                    membershipId = membershipId,
+                )
             assertThrows<ValidationException> {
                 accountMembershipService.cancelInvitation(command)
             }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.NOT_PENDING_INVITATION) }
@@ -452,11 +533,12 @@ class AccountMembershipServiceTest {
             val membershipId = UUID.randomUUID()
             whenever(accountMembershipRepository.findById(eq(membershipId))).thenReturn(Optional.empty())
 
-            val command = AccountMembership.CancelInvitationCommand(
-                accountId = UUID.randomUUID(),
-                actorUserId = UUID.randomUUID(),
-                membershipId = membershipId,
-            )
+            val command =
+                AccountMembership.CancelInvitationCommand(
+                    accountId = UUID.randomUUID(),
+                    actorUserId = UUID.randomUUID(),
+                    membershipId = membershipId,
+                )
             assertThrows<ValidationException> {
                 accountMembershipService.cancelInvitation(command)
             }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.TARGET_NOT_ELIGIBLE) }
@@ -467,20 +549,23 @@ class AccountMembershipServiceTest {
         fun `cancelInvitation throws TARGET_NOT_ELIGIBLE when membership accountId does not match`() {
             val accountId = UUID.randomUUID()
             val membershipId = UUID.randomUUID()
-            val targetMembership = AccountMembershipEntity(
-                id = membershipId,
-                accountId = UUID.randomUUID(), // different account
-                userId = UUID.randomUUID(),
-                accountRole = AccountRole.MEMBER,
-                membershipStatus = MembershipStatus.PENDING,
-            )
+            val targetMembership =
+                AccountMembershipEntity(
+                    id = membershipId,
+                    // different account
+                    accountId = UUID.randomUUID(),
+                    userId = UUID.randomUUID(),
+                    accountRole = AccountRole.MEMBER,
+                    membershipStatus = MembershipStatus.PENDING,
+                )
             whenever(accountMembershipRepository.findById(eq(membershipId))).thenReturn(Optional.of(targetMembership))
 
-            val command = AccountMembership.CancelInvitationCommand(
-                accountId = accountId,
-                actorUserId = UUID.randomUUID(),
-                membershipId = membershipId,
-            )
+            val command =
+                AccountMembership.CancelInvitationCommand(
+                    accountId = accountId,
+                    actorUserId = UUID.randomUUID(),
+                    membershipId = membershipId,
+                )
             assertThrows<ValidationException> {
                 accountMembershipService.cancelInvitation(command)
             }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.TARGET_NOT_ELIGIBLE) }
@@ -497,23 +582,25 @@ class AccountMembershipServiceTest {
             val inviteeId = UUID.randomUUID()
             val token = "valid-token-abc"
             val membershipId = UUID.randomUUID()
-            val membership = AccountMembershipEntity(
-                id = membershipId,
-                accountId = accountId,
-                userId = inviteeId,
-                accountRole = AccountRole.MEMBER,
-                membershipStatus = MembershipStatus.PENDING,
-                invitationToken = token,
-                invitationExpiresAt = Instant.now().plusSeconds(86400),
-            )
+            val membership =
+                AccountMembershipEntity(
+                    id = membershipId,
+                    accountId = accountId,
+                    userId = inviteeId,
+                    accountRole = AccountRole.MEMBER,
+                    membershipStatus = MembershipStatus.PENDING,
+                    invitationToken = token,
+                    invitationExpiresAt = Instant.now().plusSeconds(86400),
+                )
             whenever(accountMembershipRepository.findOneByInvitationToken(eq(token)))
                 .thenReturn(Optional.of(membership))
             whenever(accountMembershipRepository.save(any())).thenAnswer { it.getArgument(0) }
 
-            val command = AccountMembership.AcceptInvitationCommand(
-                invitationToken = token,
-                actorUserId = inviteeId,
-            )
+            val command =
+                AccountMembership.AcceptInvitationCommand(
+                    invitationToken = token,
+                    actorUserId = inviteeId,
+                )
             val result = accountMembershipService.acceptInvitation(command)
 
             assertThat(result.membershipId).isEqualTo(membershipId)
@@ -529,10 +616,11 @@ class AccountMembershipServiceTest {
         fun `acceptInvitation throws INVITATION_INVALID when token not found`() {
             whenever(accountMembershipRepository.findOneByInvitationToken(any())).thenReturn(Optional.empty())
 
-            val command = AccountMembership.AcceptInvitationCommand(
-                invitationToken = "unknown-token",
-                actorUserId = UUID.randomUUID(),
-            )
+            val command =
+                AccountMembership.AcceptInvitationCommand(
+                    invitationToken = "unknown-token",
+                    actorUserId = UUID.randomUUID(),
+                )
             assertThrows<ValidationException> {
                 accountMembershipService.acceptInvitation(command)
             }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.INVITATION_INVALID) }
@@ -544,22 +632,24 @@ class AccountMembershipServiceTest {
             val inviteeId = UUID.randomUUID()
             val otherUserId = UUID.randomUUID()
             val token = "valid-token"
-            val membership = AccountMembershipEntity(
-                id = UUID.randomUUID(),
-                accountId = UUID.randomUUID(),
-                userId = inviteeId,
-                accountRole = AccountRole.MEMBER,
-                membershipStatus = MembershipStatus.PENDING,
-                invitationToken = token,
-                invitationExpiresAt = Instant.now().plusSeconds(86400),
-            )
+            val membership =
+                AccountMembershipEntity(
+                    id = UUID.randomUUID(),
+                    accountId = UUID.randomUUID(),
+                    userId = inviteeId,
+                    accountRole = AccountRole.MEMBER,
+                    membershipStatus = MembershipStatus.PENDING,
+                    invitationToken = token,
+                    invitationExpiresAt = Instant.now().plusSeconds(86400),
+                )
             whenever(accountMembershipRepository.findOneByInvitationToken(eq(token)))
                 .thenReturn(Optional.of(membership))
 
-            val command = AccountMembership.AcceptInvitationCommand(
-                invitationToken = token,
-                actorUserId = otherUserId,
-            )
+            val command =
+                AccountMembership.AcceptInvitationCommand(
+                    invitationToken = token,
+                    actorUserId = otherUserId,
+                )
             assertThrows<ValidationException> {
                 accountMembershipService.acceptInvitation(command)
             }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.INVITATION_INVALID) }
@@ -570,22 +660,24 @@ class AccountMembershipServiceTest {
         fun `acceptInvitation throws INVITATION_EXPIRED when token expired`() {
             val inviteeId = UUID.randomUUID()
             val token = "expired-token"
-            val membership = AccountMembershipEntity(
-                id = UUID.randomUUID(),
-                accountId = UUID.randomUUID(),
-                userId = inviteeId,
-                accountRole = AccountRole.MEMBER,
-                membershipStatus = MembershipStatus.PENDING,
-                invitationToken = token,
-                invitationExpiresAt = Instant.now().minusSeconds(3600),
-            )
+            val membership =
+                AccountMembershipEntity(
+                    id = UUID.randomUUID(),
+                    accountId = UUID.randomUUID(),
+                    userId = inviteeId,
+                    accountRole = AccountRole.MEMBER,
+                    membershipStatus = MembershipStatus.PENDING,
+                    invitationToken = token,
+                    invitationExpiresAt = Instant.now().minusSeconds(3600),
+                )
             whenever(accountMembershipRepository.findOneByInvitationToken(eq(token)))
                 .thenReturn(Optional.of(membership))
 
-            val command = AccountMembership.AcceptInvitationCommand(
-                invitationToken = token,
-                actorUserId = inviteeId,
-            )
+            val command =
+                AccountMembership.AcceptInvitationCommand(
+                    invitationToken = token,
+                    actorUserId = inviteeId,
+                )
             assertThrows<ValidationException> {
                 accountMembershipService.acceptInvitation(command)
             }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.INVITATION_EXPIRED) }
@@ -596,22 +688,24 @@ class AccountMembershipServiceTest {
         fun `acceptInvitation throws NOT_PENDING_INVITATION when membership already ACTIVE`() {
             val inviteeId = UUID.randomUUID()
             val token = "used-token"
-            val membership = AccountMembershipEntity(
-                id = UUID.randomUUID(),
-                accountId = UUID.randomUUID(),
-                userId = inviteeId,
-                accountRole = AccountRole.MEMBER,
-                membershipStatus = MembershipStatus.ACTIVE,
-                invitationToken = token,
-                invitationExpiresAt = Instant.now().plusSeconds(86400),
-            )
+            val membership =
+                AccountMembershipEntity(
+                    id = UUID.randomUUID(),
+                    accountId = UUID.randomUUID(),
+                    userId = inviteeId,
+                    accountRole = AccountRole.MEMBER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                    invitationToken = token,
+                    invitationExpiresAt = Instant.now().plusSeconds(86400),
+                )
             whenever(accountMembershipRepository.findOneByInvitationToken(eq(token)))
                 .thenReturn(Optional.of(membership))
 
-            val command = AccountMembership.AcceptInvitationCommand(
-                invitationToken = token,
-                actorUserId = inviteeId,
-            )
+            val command =
+                AccountMembership.AcceptInvitationCommand(
+                    invitationToken = token,
+                    actorUserId = inviteeId,
+                )
             assertThrows<ValidationException> {
                 accountMembershipService.acceptInvitation(command)
             }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.NOT_PENDING_INVITATION) }
@@ -628,22 +722,24 @@ class AccountMembershipServiceTest {
             val inviteeId = UUID.randomUUID()
             val membershipId = UUID.randomUUID()
             val token = "valid-token"
-            val membership = AccountMembershipEntity(
-                id = membershipId,
-                accountId = accountId,
-                userId = inviteeId,
-                accountRole = AccountRole.MEMBER,
-                membershipStatus = MembershipStatus.PENDING,
-                invitationToken = token,
-                invitationExpiresAt = Instant.now().plusSeconds(86400),
-            )
+            val membership =
+                AccountMembershipEntity(
+                    id = membershipId,
+                    accountId = accountId,
+                    userId = inviteeId,
+                    accountRole = AccountRole.MEMBER,
+                    membershipStatus = MembershipStatus.PENDING,
+                    invitationToken = token,
+                    invitationExpiresAt = Instant.now().plusSeconds(86400),
+                )
             whenever(accountMembershipRepository.findOneByInvitationToken(eq(token)))
                 .thenReturn(Optional.of(membership))
 
-            val command = AccountMembership.DeclineInvitationCommand(
-                invitationToken = token,
-                actorUserId = inviteeId,
-            )
+            val command =
+                AccountMembership.DeclineInvitationCommand(
+                    invitationToken = token,
+                    actorUserId = inviteeId,
+                )
             accountMembershipService.declineInvitation(command)
 
             verify(accountMembershipRepository).deleteById(membershipId)
@@ -653,10 +749,11 @@ class AccountMembershipServiceTest {
         fun `declineInvitation throws INVITATION_INVALID when token not found`() {
             whenever(accountMembershipRepository.findOneByInvitationToken(any())).thenReturn(Optional.empty())
 
-            val command = AccountMembership.DeclineInvitationCommand(
-                invitationToken = "unknown-token",
-                actorUserId = UUID.randomUUID(),
-            )
+            val command =
+                AccountMembership.DeclineInvitationCommand(
+                    invitationToken = "unknown-token",
+                    actorUserId = UUID.randomUUID(),
+                )
             assertThrows<ValidationException> {
                 accountMembershipService.declineInvitation(command)
             }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.INVITATION_INVALID) }
@@ -668,22 +765,24 @@ class AccountMembershipServiceTest {
             val inviteeId = UUID.randomUUID()
             val otherUserId = UUID.randomUUID()
             val token = "valid-token"
-            val membership = AccountMembershipEntity(
-                id = UUID.randomUUID(),
-                accountId = UUID.randomUUID(),
-                userId = inviteeId,
-                accountRole = AccountRole.MEMBER,
-                membershipStatus = MembershipStatus.PENDING,
-                invitationToken = token,
-                invitationExpiresAt = Instant.now().plusSeconds(86400),
-            )
+            val membership =
+                AccountMembershipEntity(
+                    id = UUID.randomUUID(),
+                    accountId = UUID.randomUUID(),
+                    userId = inviteeId,
+                    accountRole = AccountRole.MEMBER,
+                    membershipStatus = MembershipStatus.PENDING,
+                    invitationToken = token,
+                    invitationExpiresAt = Instant.now().plusSeconds(86400),
+                )
             whenever(accountMembershipRepository.findOneByInvitationToken(eq(token)))
                 .thenReturn(Optional.of(membership))
 
-            val command = AccountMembership.DeclineInvitationCommand(
-                invitationToken = token,
-                actorUserId = otherUserId,
-            )
+            val command =
+                AccountMembership.DeclineInvitationCommand(
+                    invitationToken = token,
+                    actorUserId = otherUserId,
+                )
             assertThrows<ValidationException> {
                 accountMembershipService.declineInvitation(command)
             }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.INVITATION_INVALID) }
@@ -694,21 +793,23 @@ class AccountMembershipServiceTest {
         fun `declineInvitation throws NOT_PENDING_INVITATION when membership already ACTIVE`() {
             val inviteeId = UUID.randomUUID()
             val token = "used-token"
-            val membership = AccountMembershipEntity(
-                id = UUID.randomUUID(),
-                accountId = UUID.randomUUID(),
-                userId = inviteeId,
-                accountRole = AccountRole.MEMBER,
-                membershipStatus = MembershipStatus.ACTIVE,
-                invitationToken = token,
-            )
+            val membership =
+                AccountMembershipEntity(
+                    id = UUID.randomUUID(),
+                    accountId = UUID.randomUUID(),
+                    userId = inviteeId,
+                    accountRole = AccountRole.MEMBER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                    invitationToken = token,
+                )
             whenever(accountMembershipRepository.findOneByInvitationToken(eq(token)))
                 .thenReturn(Optional.of(membership))
 
-            val command = AccountMembership.DeclineInvitationCommand(
-                invitationToken = token,
-                actorUserId = inviteeId,
-            )
+            val command =
+                AccountMembership.DeclineInvitationCommand(
+                    invitationToken = token,
+                    actorUserId = inviteeId,
+                )
             assertThrows<ValidationException> {
                 accountMembershipService.declineInvitation(command)
             }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.NOT_PENDING_INVITATION) }
@@ -725,26 +826,29 @@ class AccountMembershipServiceTest {
             val ownerId = UUID.randomUUID()
             val targetMembershipId = UUID.randomUUID()
             val targetUserId = UUID.randomUUID()
-            val account = AccountEntity(
-                id = accountId,
-                accountName = "Biz",
-                accountType = AccountType.BUSINESS,
-                accountStatus = AccountStatus.ACTIVE,
-                ownerUserId = ownerId,
-            )
-            val ownerMembership = AccountMembershipEntity(
-                accountId = accountId,
-                userId = ownerId,
-                accountRole = AccountRole.OWNER,
-                membershipStatus = MembershipStatus.ACTIVE,
-            )
-            val targetMembership = AccountMembershipEntity(
-                id = targetMembershipId,
-                accountId = accountId,
-                userId = targetUserId,
-                accountRole = AccountRole.MEMBER,
-                membershipStatus = MembershipStatus.ACTIVE,
-            )
+            val account =
+                AccountEntity(
+                    id = accountId,
+                    accountName = "Biz",
+                    accountType = AccountType.BUSINESS,
+                    accountStatus = AccountStatus.ACTIVE,
+                    ownerUserId = ownerId,
+                )
+            val ownerMembership =
+                AccountMembershipEntity(
+                    accountId = accountId,
+                    userId = ownerId,
+                    accountRole = AccountRole.OWNER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
+            val targetMembership =
+                AccountMembershipEntity(
+                    id = targetMembershipId,
+                    accountId = accountId,
+                    userId = targetUserId,
+                    accountRole = AccountRole.MEMBER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
             whenever(accountRepository.findById(eq(accountId))).thenReturn(Optional.of(account))
             whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(ownerId)))
                 .thenReturn(Optional.of(ownerMembership))
@@ -762,12 +866,13 @@ class AccountMembershipServiceTest {
             ).thenReturn(MembershipPolicyResult.Allowed)
             whenever(accountMembershipRepository.save(any())).thenAnswer { it.getArgument(0) }
 
-            val command = AccountMembership.ChangeMemberRoleCommand(
-                accountId = accountId,
-                actorUserId = ownerId,
-                targetMembershipId = targetMembershipId,
-                newRole = AccountRole.VIEWER,
-            )
+            val command =
+                AccountMembership.ChangeMemberRoleCommand(
+                    accountId = accountId,
+                    actorUserId = ownerId,
+                    targetMembershipId = targetMembershipId,
+                    newRole = AccountRole.VIEWER,
+                )
             accountMembershipService.changeMemberRole(command)
 
             assertThat(targetMembership.accountRole).isEqualTo(AccountRole.VIEWER)
@@ -779,26 +884,29 @@ class AccountMembershipServiceTest {
             val accountId = UUID.randomUUID()
             val actorId = UUID.randomUUID()
             val targetMembershipId = UUID.randomUUID()
-            val account = AccountEntity(
-                id = accountId,
-                accountName = "Biz",
-                accountType = AccountType.BUSINESS,
-                accountStatus = AccountStatus.ACTIVE,
-                ownerUserId = UUID.randomUUID(),
-            )
-            val actorMembership = AccountMembershipEntity(
-                accountId = accountId,
-                userId = actorId,
-                accountRole = AccountRole.MEMBER,
-                membershipStatus = MembershipStatus.ACTIVE,
-            )
-            val targetMembership = AccountMembershipEntity(
-                id = targetMembershipId,
-                accountId = accountId,
-                userId = UUID.randomUUID(),
-                accountRole = AccountRole.VIEWER,
-                membershipStatus = MembershipStatus.ACTIVE,
-            )
+            val account =
+                AccountEntity(
+                    id = accountId,
+                    accountName = "Biz",
+                    accountType = AccountType.BUSINESS,
+                    accountStatus = AccountStatus.ACTIVE,
+                    ownerUserId = UUID.randomUUID(),
+                )
+            val actorMembership =
+                AccountMembershipEntity(
+                    accountId = accountId,
+                    userId = actorId,
+                    accountRole = AccountRole.MEMBER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
+            val targetMembership =
+                AccountMembershipEntity(
+                    id = targetMembershipId,
+                    accountId = accountId,
+                    userId = UUID.randomUUID(),
+                    accountRole = AccountRole.VIEWER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
             whenever(accountRepository.findById(eq(accountId))).thenReturn(Optional.of(account))
             whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(actorId)))
                 .thenReturn(Optional.of(actorMembership))
@@ -815,12 +923,13 @@ class AccountMembershipServiceTest {
                 ),
             ).thenReturn(MembershipPolicyResult.Denied(SecurityErrorCode.ACCOUNT_ROLE_INSUFFICIENT))
 
-            val command = AccountMembership.ChangeMemberRoleCommand(
-                accountId = accountId,
-                actorUserId = actorId,
-                targetMembershipId = targetMembershipId,
-                newRole = AccountRole.ADMIN,
-            )
+            val command =
+                AccountMembership.ChangeMemberRoleCommand(
+                    accountId = accountId,
+                    actorUserId = actorId,
+                    targetMembershipId = targetMembershipId,
+                    newRole = AccountRole.ADMIN,
+                )
             assertThrows<ValidationException> {
                 accountMembershipService.changeMemberRole(command)
             }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.ACCOUNT_ROLE_INSUFFICIENT) }
@@ -832,20 +941,22 @@ class AccountMembershipServiceTest {
             val accountId = UUID.randomUUID()
             val ownerId = UUID.randomUUID()
             val targetMembershipId = UUID.randomUUID()
-            val account = AccountEntity(
-                id = accountId,
-                accountName = "Biz",
-                accountType = AccountType.BUSINESS,
-                accountStatus = AccountStatus.ACTIVE,
-                ownerUserId = ownerId,
-            )
-            val ownerMembership = AccountMembershipEntity(
-                id = targetMembershipId,
-                accountId = accountId,
-                userId = ownerId,
-                accountRole = AccountRole.OWNER,
-                membershipStatus = MembershipStatus.ACTIVE,
-            )
+            val account =
+                AccountEntity(
+                    id = accountId,
+                    accountName = "Biz",
+                    accountType = AccountType.BUSINESS,
+                    accountStatus = AccountStatus.ACTIVE,
+                    ownerUserId = ownerId,
+                )
+            val ownerMembership =
+                AccountMembershipEntity(
+                    id = targetMembershipId,
+                    accountId = accountId,
+                    userId = ownerId,
+                    accountRole = AccountRole.OWNER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
             whenever(accountRepository.findById(eq(accountId))).thenReturn(Optional.of(account))
             whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(ownerId)))
                 .thenReturn(Optional.of(ownerMembership))
@@ -862,12 +973,13 @@ class AccountMembershipServiceTest {
                 ),
             ).thenReturn(MembershipPolicyResult.Denied(SecurityErrorCode.SELF_OPERATION_FORBIDDEN))
 
-            val command = AccountMembership.ChangeMemberRoleCommand(
-                accountId = accountId,
-                actorUserId = ownerId,
-                targetMembershipId = targetMembershipId,
-                newRole = AccountRole.ADMIN,
-            )
+            val command =
+                AccountMembership.ChangeMemberRoleCommand(
+                    accountId = accountId,
+                    actorUserId = ownerId,
+                    targetMembershipId = targetMembershipId,
+                    newRole = AccountRole.ADMIN,
+                )
             assertThrows<ValidationException> {
                 accountMembershipService.changeMemberRole(command)
             }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.SELF_OPERATION_FORBIDDEN) }
@@ -879,38 +991,42 @@ class AccountMembershipServiceTest {
             val accountId = UUID.randomUUID()
             val ownerId = UUID.randomUUID()
             val targetMembershipId = UUID.randomUUID()
-            val account = AccountEntity(
-                id = accountId,
-                accountName = "Biz",
-                accountType = AccountType.BUSINESS,
-                accountStatus = AccountStatus.ACTIVE,
-                ownerUserId = ownerId,
-            )
-            val ownerMembership = AccountMembershipEntity(
-                accountId = accountId,
-                userId = ownerId,
-                accountRole = AccountRole.OWNER,
-                membershipStatus = MembershipStatus.ACTIVE,
-            )
-            val targetMembership = AccountMembershipEntity(
-                id = targetMembershipId,
-                accountId = accountId,
-                userId = UUID.randomUUID(),
-                accountRole = AccountRole.MEMBER,
-                membershipStatus = MembershipStatus.REMOVED,
-            )
+            val account =
+                AccountEntity(
+                    id = accountId,
+                    accountName = "Biz",
+                    accountType = AccountType.BUSINESS,
+                    accountStatus = AccountStatus.ACTIVE,
+                    ownerUserId = ownerId,
+                )
+            val ownerMembership =
+                AccountMembershipEntity(
+                    accountId = accountId,
+                    userId = ownerId,
+                    accountRole = AccountRole.OWNER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
+            val targetMembership =
+                AccountMembershipEntity(
+                    id = targetMembershipId,
+                    accountId = accountId,
+                    userId = UUID.randomUUID(),
+                    accountRole = AccountRole.MEMBER,
+                    membershipStatus = MembershipStatus.REMOVED,
+                )
             whenever(accountRepository.findById(eq(accountId))).thenReturn(Optional.of(account))
             whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(ownerId)))
                 .thenReturn(Optional.of(ownerMembership))
             whenever(accountMembershipRepository.findById(eq(targetMembershipId)))
                 .thenReturn(Optional.of(targetMembership))
 
-            val command = AccountMembership.ChangeMemberRoleCommand(
-                accountId = accountId,
-                actorUserId = ownerId,
-                targetMembershipId = targetMembershipId,
-                newRole = AccountRole.VIEWER,
-            )
+            val command =
+                AccountMembership.ChangeMemberRoleCommand(
+                    accountId = accountId,
+                    actorUserId = ownerId,
+                    targetMembershipId = targetMembershipId,
+                    newRole = AccountRole.VIEWER,
+                )
             assertThrows<ValidationException> {
                 accountMembershipService.changeMemberRole(command)
             }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.TARGET_NOT_ELIGIBLE) }
@@ -927,26 +1043,29 @@ class AccountMembershipServiceTest {
             val ownerId = UUID.randomUUID()
             val targetMembershipId = UUID.randomUUID()
             val targetUserId = UUID.randomUUID()
-            val account = AccountEntity(
-                id = accountId,
-                accountName = "Biz",
-                accountType = AccountType.BUSINESS,
-                accountStatus = AccountStatus.ACTIVE,
-                ownerUserId = ownerId,
-            )
-            val ownerMembership = AccountMembershipEntity(
-                accountId = accountId,
-                userId = ownerId,
-                accountRole = AccountRole.OWNER,
-                membershipStatus = MembershipStatus.ACTIVE,
-            )
-            val targetMembership = AccountMembershipEntity(
-                id = targetMembershipId,
-                accountId = accountId,
-                userId = targetUserId,
-                accountRole = AccountRole.MEMBER,
-                membershipStatus = MembershipStatus.ACTIVE,
-            )
+            val account =
+                AccountEntity(
+                    id = accountId,
+                    accountName = "Biz",
+                    accountType = AccountType.BUSINESS,
+                    accountStatus = AccountStatus.ACTIVE,
+                    ownerUserId = ownerId,
+                )
+            val ownerMembership =
+                AccountMembershipEntity(
+                    accountId = accountId,
+                    userId = ownerId,
+                    accountRole = AccountRole.OWNER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
+            val targetMembership =
+                AccountMembershipEntity(
+                    id = targetMembershipId,
+                    accountId = accountId,
+                    userId = targetUserId,
+                    accountRole = AccountRole.MEMBER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
             whenever(accountRepository.findById(eq(accountId))).thenReturn(Optional.of(account))
             whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(ownerId)))
                 .thenReturn(Optional.of(ownerMembership))
@@ -964,11 +1083,12 @@ class AccountMembershipServiceTest {
             ).thenReturn(MembershipPolicyResult.Allowed)
             whenever(accountMembershipRepository.save(any())).thenAnswer { it.getArgument(0) }
 
-            val command = AccountMembership.RemoveMemberCommand(
-                accountId = accountId,
-                actorUserId = ownerId,
-                targetMembershipId = targetMembershipId,
-            )
+            val command =
+                AccountMembership.RemoveMemberCommand(
+                    accountId = accountId,
+                    actorUserId = ownerId,
+                    targetMembershipId = targetMembershipId,
+                )
             accountMembershipService.removeMember(command)
 
             assertThat(targetMembership.membershipStatus).isEqualTo(MembershipStatus.REMOVED)
@@ -982,26 +1102,29 @@ class AccountMembershipServiceTest {
             val accountId = UUID.randomUUID()
             val adminId = UUID.randomUUID()
             val targetMembershipId = UUID.randomUUID()
-            val account = AccountEntity(
-                id = accountId,
-                accountName = "Biz",
-                accountType = AccountType.BUSINESS,
-                accountStatus = AccountStatus.ACTIVE,
-                ownerUserId = UUID.randomUUID(),
-            )
-            val adminMembership = AccountMembershipEntity(
-                accountId = accountId,
-                userId = adminId,
-                accountRole = AccountRole.ADMIN,
-                membershipStatus = MembershipStatus.ACTIVE,
-            )
-            val targetMembership = AccountMembershipEntity(
-                id = targetMembershipId,
-                accountId = accountId,
-                userId = UUID.randomUUID(),
-                accountRole = AccountRole.VIEWER,
-                membershipStatus = MembershipStatus.ACTIVE,
-            )
+            val account =
+                AccountEntity(
+                    id = accountId,
+                    accountName = "Biz",
+                    accountType = AccountType.BUSINESS,
+                    accountStatus = AccountStatus.ACTIVE,
+                    ownerUserId = UUID.randomUUID(),
+                )
+            val adminMembership =
+                AccountMembershipEntity(
+                    accountId = accountId,
+                    userId = adminId,
+                    accountRole = AccountRole.ADMIN,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
+            val targetMembership =
+                AccountMembershipEntity(
+                    id = targetMembershipId,
+                    accountId = accountId,
+                    userId = UUID.randomUUID(),
+                    accountRole = AccountRole.VIEWER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
             whenever(accountRepository.findById(eq(accountId))).thenReturn(Optional.of(account))
             whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(adminId)))
                 .thenReturn(Optional.of(adminMembership))
@@ -1019,11 +1142,12 @@ class AccountMembershipServiceTest {
             ).thenReturn(MembershipPolicyResult.Allowed)
             whenever(accountMembershipRepository.save(any())).thenAnswer { it.getArgument(0) }
 
-            val command = AccountMembership.RemoveMemberCommand(
-                accountId = accountId,
-                actorUserId = adminId,
-                targetMembershipId = targetMembershipId,
-            )
+            val command =
+                AccountMembership.RemoveMemberCommand(
+                    accountId = accountId,
+                    actorUserId = adminId,
+                    targetMembershipId = targetMembershipId,
+                )
             accountMembershipService.removeMember(command)
 
             assertThat(targetMembership.membershipStatus).isEqualTo(MembershipStatus.REMOVED)
@@ -1035,26 +1159,29 @@ class AccountMembershipServiceTest {
             val accountId = UUID.randomUUID()
             val adminId = UUID.randomUUID()
             val targetMembershipId = UUID.randomUUID()
-            val account = AccountEntity(
-                id = accountId,
-                accountName = "Biz",
-                accountType = AccountType.BUSINESS,
-                accountStatus = AccountStatus.ACTIVE,
-                ownerUserId = UUID.randomUUID(),
-            )
-            val adminMembership = AccountMembershipEntity(
-                accountId = accountId,
-                userId = adminId,
-                accountRole = AccountRole.ADMIN,
-                membershipStatus = MembershipStatus.ACTIVE,
-            )
-            val targetMembership = AccountMembershipEntity(
-                id = targetMembershipId,
-                accountId = accountId,
-                userId = UUID.randomUUID(),
-                accountRole = AccountRole.OWNER,
-                membershipStatus = MembershipStatus.ACTIVE,
-            )
+            val account =
+                AccountEntity(
+                    id = accountId,
+                    accountName = "Biz",
+                    accountType = AccountType.BUSINESS,
+                    accountStatus = AccountStatus.ACTIVE,
+                    ownerUserId = UUID.randomUUID(),
+                )
+            val adminMembership =
+                AccountMembershipEntity(
+                    accountId = accountId,
+                    userId = adminId,
+                    accountRole = AccountRole.ADMIN,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
+            val targetMembership =
+                AccountMembershipEntity(
+                    id = targetMembershipId,
+                    accountId = accountId,
+                    userId = UUID.randomUUID(),
+                    accountRole = AccountRole.OWNER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
             whenever(accountRepository.findById(eq(accountId))).thenReturn(Optional.of(account))
             whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(adminId)))
                 .thenReturn(Optional.of(adminMembership))
@@ -1071,11 +1198,12 @@ class AccountMembershipServiceTest {
                 ),
             ).thenReturn(MembershipPolicyResult.Denied(SecurityErrorCode.TARGET_ROLE_TOO_HIGH))
 
-            val command = AccountMembership.RemoveMemberCommand(
-                accountId = accountId,
-                actorUserId = adminId,
-                targetMembershipId = targetMembershipId,
-            )
+            val command =
+                AccountMembership.RemoveMemberCommand(
+                    accountId = accountId,
+                    actorUserId = adminId,
+                    targetMembershipId = targetMembershipId,
+                )
             assertThrows<ValidationException> {
                 accountMembershipService.removeMember(command)
             }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.TARGET_ROLE_TOO_HIGH) }
@@ -1087,20 +1215,22 @@ class AccountMembershipServiceTest {
             val accountId = UUID.randomUUID()
             val ownerId = UUID.randomUUID()
             val targetMembershipId = UUID.randomUUID()
-            val account = AccountEntity(
-                id = accountId,
-                accountName = "Biz",
-                accountType = AccountType.BUSINESS,
-                accountStatus = AccountStatus.ACTIVE,
-                ownerUserId = ownerId,
-            )
-            val ownerMembership = AccountMembershipEntity(
-                id = targetMembershipId,
-                accountId = accountId,
-                userId = ownerId,
-                accountRole = AccountRole.OWNER,
-                membershipStatus = MembershipStatus.ACTIVE,
-            )
+            val account =
+                AccountEntity(
+                    id = accountId,
+                    accountName = "Biz",
+                    accountType = AccountType.BUSINESS,
+                    accountStatus = AccountStatus.ACTIVE,
+                    ownerUserId = ownerId,
+                )
+            val ownerMembership =
+                AccountMembershipEntity(
+                    id = targetMembershipId,
+                    accountId = accountId,
+                    userId = ownerId,
+                    accountRole = AccountRole.OWNER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
             whenever(accountRepository.findById(eq(accountId))).thenReturn(Optional.of(account))
             whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(ownerId)))
                 .thenReturn(Optional.of(ownerMembership))
@@ -1117,11 +1247,12 @@ class AccountMembershipServiceTest {
                 ),
             ).thenReturn(MembershipPolicyResult.Denied(SecurityErrorCode.SELF_OPERATION_FORBIDDEN))
 
-            val command = AccountMembership.RemoveMemberCommand(
-                accountId = accountId,
-                actorUserId = ownerId,
-                targetMembershipId = targetMembershipId,
-            )
+            val command =
+                AccountMembership.RemoveMemberCommand(
+                    accountId = accountId,
+                    actorUserId = ownerId,
+                    targetMembershipId = targetMembershipId,
+                )
             assertThrows<ValidationException> {
                 accountMembershipService.removeMember(command)
             }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.SELF_OPERATION_FORBIDDEN) }
@@ -1136,29 +1267,36 @@ class AccountMembershipServiceTest {
         fun `leaveAccount succeeds when MEMBER leaves`() {
             val accountId = UUID.randomUUID()
             val memberId = UUID.randomUUID()
-            val account = AccountEntity(
-                id = accountId,
-                accountName = "Biz",
-                accountType = AccountType.BUSINESS,
-                accountStatus = AccountStatus.ACTIVE,
-                ownerUserId = UUID.randomUUID(),
-            )
-            val memberMembership = AccountMembershipEntity(
-                accountId = accountId,
-                userId = memberId,
-                accountRole = AccountRole.MEMBER,
-                membershipStatus = MembershipStatus.ACTIVE,
-            )
+            val account =
+                AccountEntity(
+                    id = accountId,
+                    accountName = "Biz",
+                    accountType = AccountType.BUSINESS,
+                    accountStatus = AccountStatus.ACTIVE,
+                    ownerUserId = UUID.randomUUID(),
+                )
+            val memberMembership =
+                AccountMembershipEntity(
+                    accountId = accountId,
+                    userId = memberId,
+                    accountRole = AccountRole.MEMBER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
             whenever(accountRepository.findById(eq(accountId))).thenReturn(Optional.of(account))
             whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(memberId)))
                 .thenReturn(Optional.of(memberMembership))
             whenever(accountMembershipRepository.findByAccountId(eq(accountId)))
-                .thenReturn(listOf(memberMembership, AccountMembershipEntity(
-                    accountId = accountId,
-                    userId = UUID.randomUUID(),
-                    accountRole = AccountRole.OWNER,
-                    membershipStatus = MembershipStatus.ACTIVE,
-                )))
+                .thenReturn(
+                    listOf(
+                        memberMembership,
+                        AccountMembershipEntity(
+                            accountId = accountId,
+                            userId = UUID.randomUUID(),
+                            accountRole = AccountRole.OWNER,
+                            membershipStatus = MembershipStatus.ACTIVE,
+                        ),
+                    ),
+                )
             whenever(
                 membershipPolicyEngine.evaluate(
                     eq(MembershipOperation.LEAVE),
@@ -1171,10 +1309,11 @@ class AccountMembershipServiceTest {
             ).thenReturn(MembershipPolicyResult.Allowed)
             whenever(accountMembershipRepository.save(any())).thenAnswer { it.getArgument(0) }
 
-            val command = AccountMembership.LeaveAccountCommand(
-                accountId = accountId,
-                actorUserId = memberId,
-            )
+            val command =
+                AccountMembership.LeaveAccountCommand(
+                    accountId = accountId,
+                    actorUserId = memberId,
+                )
             accountMembershipService.leaveAccount(command)
 
             assertThat(memberMembership.membershipStatus).isEqualTo(MembershipStatus.REMOVED)
@@ -1186,19 +1325,21 @@ class AccountMembershipServiceTest {
         fun `leaveAccount throws SOLE_OWNER_CANNOT_LEAVE when sole OWNER leaves`() {
             val accountId = UUID.randomUUID()
             val ownerId = UUID.randomUUID()
-            val account = AccountEntity(
-                id = accountId,
-                accountName = "Biz",
-                accountType = AccountType.BUSINESS,
-                accountStatus = AccountStatus.ACTIVE,
-                ownerUserId = ownerId,
-            )
-            val ownerMembership = AccountMembershipEntity(
-                accountId = accountId,
-                userId = ownerId,
-                accountRole = AccountRole.OWNER,
-                membershipStatus = MembershipStatus.ACTIVE,
-            )
+            val account =
+                AccountEntity(
+                    id = accountId,
+                    accountName = "Biz",
+                    accountType = AccountType.BUSINESS,
+                    accountStatus = AccountStatus.ACTIVE,
+                    ownerUserId = ownerId,
+                )
+            val ownerMembership =
+                AccountMembershipEntity(
+                    accountId = accountId,
+                    userId = ownerId,
+                    accountRole = AccountRole.OWNER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
             whenever(accountRepository.findById(eq(accountId))).thenReturn(Optional.of(account))
             whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(ownerId)))
                 .thenReturn(Optional.of(ownerMembership))
@@ -1215,10 +1356,11 @@ class AccountMembershipServiceTest {
                 ),
             ).thenReturn(MembershipPolicyResult.Denied(SecurityErrorCode.SOLE_OWNER_CANNOT_LEAVE))
 
-            val command = AccountMembership.LeaveAccountCommand(
-                accountId = accountId,
-                actorUserId = ownerId,
-            )
+            val command =
+                AccountMembership.LeaveAccountCommand(
+                    accountId = accountId,
+                    actorUserId = ownerId,
+                )
             assertThrows<ValidationException> {
                 accountMembershipService.leaveAccount(command)
             }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.SOLE_OWNER_CANNOT_LEAVE) }
@@ -1229,21 +1371,23 @@ class AccountMembershipServiceTest {
         fun `leaveAccount throws NOT_ACCOUNT_MEMBER when not a member`() {
             val accountId = UUID.randomUUID()
             val userId = UUID.randomUUID()
-            val account = AccountEntity(
-                id = accountId,
-                accountName = "Biz",
-                accountType = AccountType.BUSINESS,
-                accountStatus = AccountStatus.ACTIVE,
-                ownerUserId = UUID.randomUUID(),
-            )
+            val account =
+                AccountEntity(
+                    id = accountId,
+                    accountName = "Biz",
+                    accountType = AccountType.BUSINESS,
+                    accountStatus = AccountStatus.ACTIVE,
+                    ownerUserId = UUID.randomUUID(),
+                )
             whenever(accountRepository.findById(eq(accountId))).thenReturn(Optional.of(account))
             whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(userId)))
                 .thenReturn(Optional.empty())
 
-            val command = AccountMembership.LeaveAccountCommand(
-                accountId = accountId,
-                actorUserId = userId,
-            )
+            val command =
+                AccountMembership.LeaveAccountCommand(
+                    accountId = accountId,
+                    actorUserId = userId,
+                )
             assertThrows<ValidationException> {
                 accountMembershipService.leaveAccount(command)
             }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.NOT_ACCOUNT_MEMBER) }
@@ -1259,25 +1403,28 @@ class AccountMembershipServiceTest {
             val accountId = UUID.randomUUID()
             val ownerId = UUID.randomUUID()
             val newOwnerId = UUID.randomUUID()
-            val account = AccountEntity(
-                id = accountId,
-                accountName = "Biz",
-                accountType = AccountType.BUSINESS,
-                accountStatus = AccountStatus.ACTIVE,
-                ownerUserId = ownerId,
-            )
-            val ownerMembership = AccountMembershipEntity(
-                accountId = accountId,
-                userId = ownerId,
-                accountRole = AccountRole.OWNER,
-                membershipStatus = MembershipStatus.ACTIVE,
-            )
-            val newOwnerMembership = AccountMembershipEntity(
-                accountId = accountId,
-                userId = newOwnerId,
-                accountRole = AccountRole.ADMIN,
-                membershipStatus = MembershipStatus.ACTIVE,
-            )
+            val account =
+                AccountEntity(
+                    id = accountId,
+                    accountName = "Biz",
+                    accountType = AccountType.BUSINESS,
+                    accountStatus = AccountStatus.ACTIVE,
+                    ownerUserId = ownerId,
+                )
+            val ownerMembership =
+                AccountMembershipEntity(
+                    accountId = accountId,
+                    userId = ownerId,
+                    accountRole = AccountRole.OWNER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
+            val newOwnerMembership =
+                AccountMembershipEntity(
+                    accountId = accountId,
+                    userId = newOwnerId,
+                    accountRole = AccountRole.ADMIN,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
             whenever(accountRepository.findById(eq(accountId))).thenReturn(Optional.of(account))
             whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(ownerId)))
                 .thenReturn(Optional.of(ownerMembership))
@@ -1296,11 +1443,12 @@ class AccountMembershipServiceTest {
             whenever(accountRepository.update(any())).thenAnswer { it.getArgument(0) }
             whenever(accountMembershipRepository.save(any())).thenAnswer { it.getArgument(0) }
 
-            val command = AccountMembership.TransferOwnershipCommand(
-                accountId = accountId,
-                actorUserId = ownerId,
-                newOwnerUserId = newOwnerId,
-            )
+            val command =
+                AccountMembership.TransferOwnershipCommand(
+                    accountId = accountId,
+                    actorUserId = ownerId,
+                    newOwnerUserId = newOwnerId,
+                )
             accountMembershipService.transferOwnership(command)
 
             assertThat(account.ownerUserId).isEqualTo(newOwnerId)
@@ -1315,25 +1463,28 @@ class AccountMembershipServiceTest {
             val accountId = UUID.randomUUID()
             val adminId = UUID.randomUUID()
             val newOwnerId = UUID.randomUUID()
-            val account = AccountEntity(
-                id = accountId,
-                accountName = "Biz",
-                accountType = AccountType.BUSINESS,
-                accountStatus = AccountStatus.ACTIVE,
-                ownerUserId = UUID.randomUUID(),
-            )
-            val adminMembership = AccountMembershipEntity(
-                accountId = accountId,
-                userId = adminId,
-                accountRole = AccountRole.ADMIN,
-                membershipStatus = MembershipStatus.ACTIVE,
-            )
-            val newOwnerMembership = AccountMembershipEntity(
-                accountId = accountId,
-                userId = newOwnerId,
-                accountRole = AccountRole.MEMBER,
-                membershipStatus = MembershipStatus.ACTIVE,
-            )
+            val account =
+                AccountEntity(
+                    id = accountId,
+                    accountName = "Biz",
+                    accountType = AccountType.BUSINESS,
+                    accountStatus = AccountStatus.ACTIVE,
+                    ownerUserId = UUID.randomUUID(),
+                )
+            val adminMembership =
+                AccountMembershipEntity(
+                    accountId = accountId,
+                    userId = adminId,
+                    accountRole = AccountRole.ADMIN,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
+            val newOwnerMembership =
+                AccountMembershipEntity(
+                    accountId = accountId,
+                    userId = newOwnerId,
+                    accountRole = AccountRole.MEMBER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
             whenever(accountRepository.findById(eq(accountId))).thenReturn(Optional.of(account))
             whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(adminId)))
                 .thenReturn(Optional.of(adminMembership))
@@ -1350,11 +1501,12 @@ class AccountMembershipServiceTest {
                 ),
             ).thenReturn(MembershipPolicyResult.Denied(SecurityErrorCode.ACCOUNT_ROLE_INSUFFICIENT))
 
-            val command = AccountMembership.TransferOwnershipCommand(
-                accountId = accountId,
-                actorUserId = adminId,
-                newOwnerUserId = newOwnerId,
-            )
+            val command =
+                AccountMembership.TransferOwnershipCommand(
+                    accountId = accountId,
+                    actorUserId = adminId,
+                    newOwnerUserId = newOwnerId,
+                )
             assertThrows<ValidationException> {
                 accountMembershipService.transferOwnership(command)
             }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.ACCOUNT_ROLE_INSUFFICIENT) }
@@ -1367,36 +1519,40 @@ class AccountMembershipServiceTest {
             val accountId = UUID.randomUUID()
             val ownerId = UUID.randomUUID()
             val newOwnerId = UUID.randomUUID()
-            val account = AccountEntity(
-                id = accountId,
-                accountName = "Biz",
-                accountType = AccountType.BUSINESS,
-                accountStatus = AccountStatus.ACTIVE,
-                ownerUserId = ownerId,
-            )
-            val ownerMembership = AccountMembershipEntity(
-                accountId = accountId,
-                userId = ownerId,
-                accountRole = AccountRole.OWNER,
-                membershipStatus = MembershipStatus.ACTIVE,
-            )
-            val newOwnerMembership = AccountMembershipEntity(
-                accountId = accountId,
-                userId = newOwnerId,
-                accountRole = AccountRole.MEMBER,
-                membershipStatus = MembershipStatus.REMOVED,
-            )
+            val account =
+                AccountEntity(
+                    id = accountId,
+                    accountName = "Biz",
+                    accountType = AccountType.BUSINESS,
+                    accountStatus = AccountStatus.ACTIVE,
+                    ownerUserId = ownerId,
+                )
+            val ownerMembership =
+                AccountMembershipEntity(
+                    accountId = accountId,
+                    userId = ownerId,
+                    accountRole = AccountRole.OWNER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
+            val newOwnerMembership =
+                AccountMembershipEntity(
+                    accountId = accountId,
+                    userId = newOwnerId,
+                    accountRole = AccountRole.MEMBER,
+                    membershipStatus = MembershipStatus.REMOVED,
+                )
             whenever(accountRepository.findById(eq(accountId))).thenReturn(Optional.of(account))
             whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(ownerId)))
                 .thenReturn(Optional.of(ownerMembership))
             whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(newOwnerId)))
                 .thenReturn(Optional.of(newOwnerMembership))
 
-            val command = AccountMembership.TransferOwnershipCommand(
-                accountId = accountId,
-                actorUserId = ownerId,
-                newOwnerUserId = newOwnerId,
-            )
+            val command =
+                AccountMembership.TransferOwnershipCommand(
+                    accountId = accountId,
+                    actorUserId = ownerId,
+                    newOwnerUserId = newOwnerId,
+                )
             assertThrows<ValidationException> {
                 accountMembershipService.transferOwnership(command)
             }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.TARGET_NOT_ELIGIBLE) }

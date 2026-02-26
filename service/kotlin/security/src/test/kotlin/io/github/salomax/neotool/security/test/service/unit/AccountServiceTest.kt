@@ -1,14 +1,14 @@
 package io.github.salomax.neotool.security.test.service.unit
 
+import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.security.domain.AccountManagement
+import io.github.salomax.neotool.security.error.SecurityErrorCode
 import io.github.salomax.neotool.security.model.account.AccountEntity
 import io.github.salomax.neotool.security.model.account.AccountMembershipEntity
 import io.github.salomax.neotool.security.model.account.AccountRole
 import io.github.salomax.neotool.security.model.account.AccountStatus
 import io.github.salomax.neotool.security.model.account.AccountType
 import io.github.salomax.neotool.security.model.account.MembershipStatus
-import io.github.salomax.neotool.common.error.ValidationException
-import io.github.salomax.neotool.security.error.SecurityErrorCode
 import io.github.salomax.neotool.security.repo.AccountMembershipRepository
 import io.github.salomax.neotool.security.repo.AccountRepository
 import io.github.salomax.neotool.security.service.management.AccountService
@@ -31,7 +31,6 @@ import java.util.UUID
 
 @DisplayName("AccountService Unit Tests")
 class AccountServiceTest {
-
     private lateinit var accountRepository: AccountRepository
     private lateinit var accountMembershipRepository: AccountMembershipRepository
     private lateinit var accountService: AccountService
@@ -49,13 +48,14 @@ class AccountServiceTest {
         @Test
         fun `should return account when found`() {
             val accountId = UUID.randomUUID()
-            val entity = AccountEntity(
-                id = accountId,
-                accountName = "Test Account",
-                accountType = AccountType.BUSINESS,
-                accountStatus = AccountStatus.ACTIVE,
-                ownerUserId = UUID.randomUUID(),
-            )
+            val entity =
+                AccountEntity(
+                    id = accountId,
+                    accountName = "Test Account",
+                    accountType = AccountType.BUSINESS,
+                    accountStatus = AccountStatus.ACTIVE,
+                    ownerUserId = UUID.randomUUID(),
+                )
             whenever(accountRepository.findById(accountId)).thenReturn(Optional.of(entity))
 
             val result = accountService.getById(accountId)
@@ -82,18 +82,20 @@ class AccountServiceTest {
         @Test
         fun `should create FAMILY account and OWNER membership`() {
             val ownerId = UUID.randomUUID()
-            val command = AccountManagement.CreateAccountCommand(
-                accountName = "Family Account",
-                accountType = AccountType.FAMILY,
-                ownerUserId = ownerId,
-            )
-            val savedAccount = AccountEntity(
-                id = UUID.randomUUID(),
-                accountName = command.accountName,
-                accountType = command.accountType,
-                accountStatus = AccountStatus.ACTIVE,
-                ownerUserId = ownerId,
-            )
+            val command =
+                AccountManagement.CreateAccountCommand(
+                    accountName = "Family Account",
+                    accountType = AccountType.FAMILY,
+                    ownerUserId = ownerId,
+                )
+            val savedAccount =
+                AccountEntity(
+                    id = UUID.randomUUID(),
+                    accountName = command.accountName,
+                    accountType = command.accountType,
+                    accountStatus = AccountStatus.ACTIVE,
+                    ownerUserId = ownerId,
+                )
             whenever(accountRepository.save(any())).thenReturn(savedAccount)
             whenever(accountMembershipRepository.save(any())).thenAnswer { it.arguments[0] as AccountMembershipEntity }
 
@@ -113,18 +115,20 @@ class AccountServiceTest {
         @Test
         fun `should create BUSINESS account and OWNER membership`() {
             val ownerId = UUID.randomUUID()
-            val command = AccountManagement.CreateAccountCommand(
-                accountName = "Biz Account",
-                accountType = AccountType.BUSINESS,
-                ownerUserId = ownerId,
-            )
-            val savedAccount = AccountEntity(
-                id = UUID.randomUUID(),
-                accountName = command.accountName,
-                accountType = command.accountType,
-                accountStatus = AccountStatus.ACTIVE,
-                ownerUserId = ownerId,
-            )
+            val command =
+                AccountManagement.CreateAccountCommand(
+                    accountName = "Biz Account",
+                    accountType = AccountType.BUSINESS,
+                    ownerUserId = ownerId,
+                )
+            val savedAccount =
+                AccountEntity(
+                    id = UUID.randomUUID(),
+                    accountName = command.accountName,
+                    accountType = command.accountType,
+                    accountStatus = AccountStatus.ACTIVE,
+                    ownerUserId = ownerId,
+                )
             whenever(accountRepository.save(any())).thenReturn(savedAccount)
             whenever(accountMembershipRepository.save(any())).thenAnswer { it.arguments[0] as AccountMembershipEntity }
 
@@ -179,28 +183,31 @@ class AccountServiceTest {
         fun `should update account name when actor is owner`() {
             val accountId = UUID.randomUUID()
             val ownerId = UUID.randomUUID()
-            val existing = AccountEntity(
-                id = accountId,
-                accountName = "Old Name",
-                accountType = AccountType.BUSINESS,
-                accountStatus = AccountStatus.ACTIVE,
-                ownerUserId = ownerId,
-            )
-            val ownerMembership = AccountMembershipEntity(
-                accountId = accountId,
-                userId = ownerId,
-                accountRole = AccountRole.OWNER,
-                membershipStatus = MembershipStatus.ACTIVE,
-            )
+            val existing =
+                AccountEntity(
+                    id = accountId,
+                    accountName = "Old Name",
+                    accountType = AccountType.BUSINESS,
+                    accountStatus = AccountStatus.ACTIVE,
+                    ownerUserId = ownerId,
+                )
+            val ownerMembership =
+                AccountMembershipEntity(
+                    accountId = accountId,
+                    userId = ownerId,
+                    accountRole = AccountRole.OWNER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
             whenever(accountRepository.findById(accountId)).thenReturn(Optional.of(existing))
             whenever(accountMembershipRepository.findOneByAccountIdAndUserId(accountId, ownerId))
                 .thenReturn(Optional.of(ownerMembership))
             whenever(accountRepository.update(any())).thenAnswer { it.arguments[0] as AccountEntity }
-            val command = AccountManagement.UpdateAccountCommand(
-                accountId = accountId,
-                accountName = "New Name",
-                actorUserId = ownerId,
-            )
+            val command =
+                AccountManagement.UpdateAccountCommand(
+                    accountId = accountId,
+                    accountName = "New Name",
+                    actorUserId = ownerId,
+                )
 
             val result = accountService.update(command)
 
@@ -213,11 +220,12 @@ class AccountServiceTest {
         fun `should throw when account not found`() {
             val accountId = UUID.randomUUID()
             whenever(accountRepository.findById(accountId)).thenReturn(Optional.empty())
-            val command = AccountManagement.UpdateAccountCommand(
-                accountId = accountId,
-                accountName = "New Name",
-                actorUserId = UUID.randomUUID(),
-            )
+            val command =
+                AccountManagement.UpdateAccountCommand(
+                    accountId = accountId,
+                    accountName = "New Name",
+                    actorUserId = UUID.randomUUID(),
+                )
 
             assertThrows<IllegalArgumentException> {
                 accountService.update(command)
@@ -230,27 +238,30 @@ class AccountServiceTest {
             val accountId = UUID.randomUUID()
             val ownerId = UUID.randomUUID()
             val otherUserId = UUID.randomUUID()
-            val existing = AccountEntity(
-                id = accountId,
-                accountName = "Name",
-                accountType = AccountType.BUSINESS,
-                accountStatus = AccountStatus.ACTIVE,
-                ownerUserId = ownerId,
-            )
-            val memberMembership = AccountMembershipEntity(
-                accountId = accountId,
-                userId = otherUserId,
-                accountRole = AccountRole.MEMBER,
-                membershipStatus = MembershipStatus.ACTIVE,
-            )
+            val existing =
+                AccountEntity(
+                    id = accountId,
+                    accountName = "Name",
+                    accountType = AccountType.BUSINESS,
+                    accountStatus = AccountStatus.ACTIVE,
+                    ownerUserId = ownerId,
+                )
+            val memberMembership =
+                AccountMembershipEntity(
+                    accountId = accountId,
+                    userId = otherUserId,
+                    accountRole = AccountRole.MEMBER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
             whenever(accountRepository.findById(accountId)).thenReturn(Optional.of(existing))
             whenever(accountMembershipRepository.findOneByAccountIdAndUserId(accountId, otherUserId))
                 .thenReturn(Optional.of(memberMembership))
-            val command = AccountManagement.UpdateAccountCommand(
-                accountId = accountId,
-                accountName = "New Name",
-                actorUserId = otherUserId,
-            )
+            val command =
+                AccountManagement.UpdateAccountCommand(
+                    accountId = accountId,
+                    accountName = "New Name",
+                    actorUserId = otherUserId,
+                )
 
             assertThrows<ValidationException> {
                 accountService.update(command)
@@ -262,20 +273,22 @@ class AccountServiceTest {
         fun `should throw when account is already deleted`() {
             val accountId = UUID.randomUUID()
             val ownerId = UUID.randomUUID()
-            val existing = AccountEntity(
-                id = accountId,
-                accountName = "Name",
-                accountType = AccountType.BUSINESS,
-                accountStatus = AccountStatus.DELETED,
-                ownerUserId = ownerId,
-                deletedAt = Instant.now(),
-            )
+            val existing =
+                AccountEntity(
+                    id = accountId,
+                    accountName = "Name",
+                    accountType = AccountType.BUSINESS,
+                    accountStatus = AccountStatus.DELETED,
+                    ownerUserId = ownerId,
+                    deletedAt = Instant.now(),
+                )
             whenever(accountRepository.findById(accountId)).thenReturn(Optional.of(existing))
-            val command = AccountManagement.UpdateAccountCommand(
-                accountId = accountId,
-                accountName = "New Name",
-                actorUserId = ownerId,
-            )
+            val command =
+                AccountManagement.UpdateAccountCommand(
+                    accountId = accountId,
+                    accountName = "New Name",
+                    actorUserId = ownerId,
+                )
 
             assertThrows<IllegalArgumentException> {
                 accountService.update(command)
@@ -291,25 +304,29 @@ class AccountServiceTest {
         fun `should soft delete account and mark memberships REMOVED when owner`() {
             val accountId = UUID.randomUUID()
             val ownerId = UUID.randomUUID()
-            val account = AccountEntity(
-                id = accountId,
-                accountName = "To Delete",
-                accountType = AccountType.BUSINESS,
-                accountStatus = AccountStatus.ACTIVE,
-                ownerUserId = ownerId,
-            )
-            val membership = AccountMembershipEntity(
-                accountId = accountId,
-                userId = ownerId,
-                accountRole = AccountRole.OWNER,
-                membershipStatus = MembershipStatus.ACTIVE,
-            )
+            val account =
+                AccountEntity(
+                    id = accountId,
+                    accountName = "To Delete",
+                    accountType = AccountType.BUSINESS,
+                    accountStatus = AccountStatus.ACTIVE,
+                    ownerUserId = ownerId,
+                )
+            val membership =
+                AccountMembershipEntity(
+                    accountId = accountId,
+                    userId = ownerId,
+                    accountRole = AccountRole.OWNER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
             whenever(accountRepository.findById(accountId)).thenReturn(Optional.of(account))
             whenever(accountMembershipRepository.findOneByAccountIdAndUserId(accountId, ownerId))
                 .thenReturn(Optional.of(membership))
             whenever(accountMembershipRepository.findByAccountId(accountId)).thenReturn(listOf(membership))
             whenever(accountRepository.update(any())).thenAnswer { it.arguments[0] as AccountEntity }
-            whenever(accountMembershipRepository.update(any())).thenAnswer { it.arguments[0] as AccountMembershipEntity }
+            whenever(
+                accountMembershipRepository.update(any()),
+            ).thenAnswer { it.arguments[0] as AccountMembershipEntity }
             val command = AccountManagement.DeleteAccountCommand(accountId = accountId, actorUserId = ownerId)
 
             accountService.delete(command)
@@ -326,13 +343,14 @@ class AccountServiceTest {
             val accountId = UUID.randomUUID()
             val ownerId = UUID.randomUUID()
             val otherUserId = UUID.randomUUID()
-            val account = AccountEntity(
-                id = accountId,
-                accountName = "Name",
-                accountType = AccountType.BUSINESS,
-                accountStatus = AccountStatus.ACTIVE,
-                ownerUserId = ownerId,
-            )
+            val account =
+                AccountEntity(
+                    id = accountId,
+                    accountName = "Name",
+                    accountType = AccountType.BUSINESS,
+                    accountStatus = AccountStatus.ACTIVE,
+                    ownerUserId = ownerId,
+                )
             whenever(accountRepository.findById(accountId)).thenReturn(Optional.of(account))
             whenever(accountMembershipRepository.findOneByAccountIdAndUserId(accountId, otherUserId))
                 .thenReturn(Optional.empty())
@@ -348,25 +366,28 @@ class AccountServiceTest {
         fun `should allow delete personal account when user has another ACTIVE membership`() {
             val accountId = UUID.randomUUID()
             val ownerId = UUID.randomUUID()
-            val personalAccount = AccountEntity(
-                id = accountId,
-                accountName = "Personal",
-                accountType = AccountType.PERSONAL,
-                accountStatus = AccountStatus.ACTIVE,
-                ownerUserId = ownerId,
-            )
-            val ownerMembership = AccountMembershipEntity(
-                accountId = accountId,
-                userId = ownerId,
-                accountRole = AccountRole.OWNER,
-                membershipStatus = MembershipStatus.ACTIVE,
-            )
-            val otherMembership = AccountMembershipEntity(
-                accountId = UUID.randomUUID(),
-                userId = ownerId,
-                accountRole = AccountRole.OWNER,
-                membershipStatus = MembershipStatus.ACTIVE,
-            )
+            val personalAccount =
+                AccountEntity(
+                    id = accountId,
+                    accountName = "Personal",
+                    accountType = AccountType.PERSONAL,
+                    accountStatus = AccountStatus.ACTIVE,
+                    ownerUserId = ownerId,
+                )
+            val ownerMembership =
+                AccountMembershipEntity(
+                    accountId = accountId,
+                    userId = ownerId,
+                    accountRole = AccountRole.OWNER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
+            val otherMembership =
+                AccountMembershipEntity(
+                    accountId = UUID.randomUUID(),
+                    userId = ownerId,
+                    accountRole = AccountRole.OWNER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
             whenever(accountRepository.findById(accountId)).thenReturn(Optional.of(personalAccount))
             whenever(accountMembershipRepository.findOneByAccountIdAndUserId(accountId, ownerId))
                 .thenReturn(Optional.of(ownerMembership))
@@ -374,7 +395,9 @@ class AccountServiceTest {
                 .thenReturn(listOf(ownerMembership, otherMembership))
             whenever(accountMembershipRepository.findByAccountId(accountId)).thenReturn(listOf(ownerMembership))
             whenever(accountRepository.update(any())).thenAnswer { it.arguments[0] as AccountEntity }
-            whenever(accountMembershipRepository.update(any())).thenAnswer { it.arguments[0] as AccountMembershipEntity }
+            whenever(
+                accountMembershipRepository.update(any()),
+            ).thenAnswer { it.arguments[0] as AccountMembershipEntity }
             val command = AccountManagement.DeleteAccountCommand(accountId = accountId, actorUserId = ownerId)
 
             accountService.delete(command)
@@ -386,19 +409,21 @@ class AccountServiceTest {
         fun `should throw when deleting personal account and user has no other account`() {
             val accountId = UUID.randomUUID()
             val ownerId = UUID.randomUUID()
-            val personalAccount = AccountEntity(
-                id = accountId,
-                accountName = "Personal",
-                accountType = AccountType.PERSONAL,
-                accountStatus = AccountStatus.ACTIVE,
-                ownerUserId = ownerId,
-            )
-            val ownerMembership = AccountMembershipEntity(
-                accountId = accountId,
-                userId = ownerId,
-                accountRole = AccountRole.OWNER,
-                membershipStatus = MembershipStatus.ACTIVE,
-            )
+            val personalAccount =
+                AccountEntity(
+                    id = accountId,
+                    accountName = "Personal",
+                    accountType = AccountType.PERSONAL,
+                    accountStatus = AccountStatus.ACTIVE,
+                    ownerUserId = ownerId,
+                )
+            val ownerMembership =
+                AccountMembershipEntity(
+                    accountId = accountId,
+                    userId = ownerId,
+                    accountRole = AccountRole.OWNER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
             whenever(accountRepository.findById(accountId)).thenReturn(Optional.of(personalAccount))
             whenever(accountMembershipRepository.findOneByAccountIdAndUserId(accountId, ownerId))
                 .thenReturn(Optional.of(ownerMembership))

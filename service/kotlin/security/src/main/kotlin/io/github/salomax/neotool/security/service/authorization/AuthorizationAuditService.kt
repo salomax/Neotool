@@ -82,8 +82,11 @@ open class AuthorizationAuditService(
      * Returns empty list when authorization audit logs are disabled.
      */
     fun findByUserId(userId: UUID): List<AuthorizationAuditLog> =
-        if (!enabled) emptyList()
-        else auditLogRepository.findByUserId(userId).map { it.toDomain() }
+        if (!enabled) {
+            emptyList()
+        } else {
+            auditLogRepository.findByUserId(userId).map { it.toDomain() }
+        }
 
     /**
      * Find audit logs for a user within a time range.
@@ -94,10 +97,13 @@ open class AuthorizationAuditService(
         startTime: Instant,
         endTime: Instant,
     ): List<AuthorizationAuditLog> =
-        if (!enabled) emptyList()
-        else auditLogRepository
-            .findByUserIdAndTimestampBetween(userId, startTime, endTime)
-            .map { it.toDomain() }
+        if (!enabled) {
+            emptyList()
+        } else {
+            auditLogRepository
+                .findByUserIdAndTimestampBetween(userId, startTime, endTime)
+                .map { it.toDomain() }
+        }
 
     /**
      * Find audit logs by resource.
@@ -107,8 +113,11 @@ open class AuthorizationAuditService(
         resourceType: String,
         resourceId: UUID,
     ): List<AuthorizationAuditLog> =
-        if (!enabled) emptyList()
-        else auditLogRepository
-            .findByResourceTypeAndResourceId(resourceType, resourceId)
-            .map { it.toDomain() }
+        if (!enabled) {
+            emptyList()
+        } else {
+            auditLogRepository
+                .findByResourceTypeAndResourceId(resourceType, resourceId)
+                .map { it.toDomain() }
+        }
 }

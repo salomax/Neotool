@@ -14,7 +14,6 @@ import jakarta.inject.Inject
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
-import java.util.UUID
 
 /**
  * Integration tests for AccountRepository.
@@ -26,7 +25,6 @@ import java.util.UUID
 class AccountRepositoryTest :
     BaseIntegrationTest(),
     PostgresIntegrationTest {
-
     @Inject
     lateinit var accountRepository: AccountRepository
 
@@ -34,22 +32,24 @@ class AccountRepositoryTest :
     lateinit var userRepository: UserRepository
 
     private fun createTestUser(): UserEntity {
-        val user = SecurityTestDataBuilders.user(
-            id = null,
-            email = SecurityTestDataBuilders.uniqueEmail("account-repo"),
-        )
+        val user =
+            SecurityTestDataBuilders.user(
+                id = null,
+                email = SecurityTestDataBuilders.uniqueEmail("account-repo"),
+            )
         return userRepository.save(user)
     }
 
     @Test
     fun `should save account and find by id`() {
         val user = createTestUser()
-        val account = AccountEntity(
-            accountName = "Test Account",
-            accountType = AccountType.BUSINESS,
-            accountStatus = AccountStatus.ACTIVE,
-            ownerUserId = user.id,
-        )
+        val account =
+            AccountEntity(
+                accountName = "Test Account",
+                accountType = AccountType.BUSINESS,
+                accountStatus = AccountStatus.ACTIVE,
+                ownerUserId = user.id,
+            )
         val saved = accountRepository.save(account)
 
         assertThat(saved.id).isNotNull()
@@ -63,22 +63,24 @@ class AccountRepositoryTest :
     @Test
     fun `findByOwnerUserId returns accounts owned by user - uses idx_accounts_owner`() {
         val user = createTestUser()
-        val account1 = accountRepository.save(
-            AccountEntity(
-                accountName = "Account 1",
-                accountType = AccountType.FAMILY,
-                accountStatus = AccountStatus.ACTIVE,
-                ownerUserId = user.id,
-            ),
-        )
-        val account2 = accountRepository.save(
-            AccountEntity(
-                accountName = "Account 2",
-                accountType = AccountType.BUSINESS,
-                accountStatus = AccountStatus.ACTIVE,
-                ownerUserId = user.id,
-            ),
-        )
+        val account1 =
+            accountRepository.save(
+                AccountEntity(
+                    accountName = "Account 1",
+                    accountType = AccountType.FAMILY,
+                    accountStatus = AccountStatus.ACTIVE,
+                    ownerUserId = user.id,
+                ),
+            )
+        val account2 =
+            accountRepository.save(
+                AccountEntity(
+                    accountName = "Account 2",
+                    accountType = AccountType.BUSINESS,
+                    accountStatus = AccountStatus.ACTIVE,
+                    ownerUserId = user.id,
+                ),
+            )
         val otherUser = createTestUser()
         accountRepository.save(
             AccountEntity(

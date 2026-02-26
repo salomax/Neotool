@@ -61,7 +61,7 @@ export function trackEvent(
 export function trackPageView(url: string): void {
   try {
     if (typeof window === "undefined" || !window.umami) return;
-    window.umami.track({ url });
+    window.umami.track("page_view", { url });
   } catch {
     // Silently ignore
   }
