@@ -17,7 +17,6 @@ import org.junit.jupiter.api.Test
 
 @DisplayName("MembershipPolicyEngine Unit Tests")
 class MembershipPolicyEngineTest {
-
     private lateinit var engine: MembershipPolicyEngine
 
     @BeforeEach
@@ -25,14 +24,21 @@ class MembershipPolicyEngineTest {
         engine = MembershipPolicyEngine()
     }
 
-    private fun actor(role: AccountRole, status: MembershipStatus = MembershipStatus.ACTIVE) =
-        ActorMembershipContext(role, status)
+    private fun actor(
+        role: AccountRole,
+        status: MembershipStatus = MembershipStatus.ACTIVE,
+    ) = ActorMembershipContext(role, status)
 
-    private fun target(role: AccountRole, status: MembershipStatus, isSelf: Boolean) =
-        TargetMemberContext(role, status, isSelf)
+    private fun target(
+        role: AccountRole,
+        status: MembershipStatus,
+        isSelf: Boolean,
+    ) = TargetMemberContext(role, status, isSelf)
 
-    private fun newOwner(role: AccountRole, status: MembershipStatus = MembershipStatus.ACTIVE) =
-        NewOwnerContext(role, status)
+    private fun newOwner(
+        role: AccountRole,
+        status: MembershipStatus = MembershipStatus.ACTIVE,
+    ) = NewOwnerContext(role, status)
 
     @Nested
     @DisplayName("UPDATE_ACCOUNT")
@@ -51,7 +57,11 @@ class MembershipPolicyEngineTest {
 
         @Test
         fun `PENDING membership denies with NOT_ACCOUNT_MEMBER`() {
-            val result = engine.evaluate(MembershipOperation.UPDATE_ACCOUNT, actor(AccountRole.OWNER, MembershipStatus.PENDING))
+            val result =
+                engine.evaluate(
+                    MembershipOperation.UPDATE_ACCOUNT,
+                    actor(AccountRole.OWNER, MembershipStatus.PENDING),
+                )
             assertThat(result).isEqualTo(MembershipPolicyResult.Denied(SecurityErrorCode.NOT_ACCOUNT_MEMBER))
         }
 
@@ -135,41 +145,45 @@ class MembershipPolicyEngineTest {
     inner class CancelInvitationTests {
         @Test
         fun `OWNER and PENDING target allows cancel`() {
-            val result = engine.evaluate(
-                MembershipOperation.CANCEL_INVITATION,
-                actor(AccountRole.OWNER),
-                target = target(AccountRole.MEMBER, MembershipStatus.PENDING, isSelf = false),
-            )
+            val result =
+                engine.evaluate(
+                    MembershipOperation.CANCEL_INVITATION,
+                    actor(AccountRole.OWNER),
+                    target = target(AccountRole.MEMBER, MembershipStatus.PENDING, isSelf = false),
+                )
             assertThat(result).isEqualTo(MembershipPolicyResult.Allowed)
         }
 
         @Test
         fun `ADMIN and PENDING target allows cancel`() {
-            val result = engine.evaluate(
-                MembershipOperation.CANCEL_INVITATION,
-                actor(AccountRole.ADMIN),
-                target = target(AccountRole.MEMBER, MembershipStatus.PENDING, isSelf = false),
-            )
+            val result =
+                engine.evaluate(
+                    MembershipOperation.CANCEL_INVITATION,
+                    actor(AccountRole.ADMIN),
+                    target = target(AccountRole.MEMBER, MembershipStatus.PENDING, isSelf = false),
+                )
             assertThat(result).isEqualTo(MembershipPolicyResult.Allowed)
         }
 
         @Test
         fun `no membership denies with NOT_ACCOUNT_MEMBER`() {
-            val result = engine.evaluate(
-                MembershipOperation.CANCEL_INVITATION,
-                null,
-                target = target(AccountRole.MEMBER, MembershipStatus.PENDING, isSelf = false),
-            )
+            val result =
+                engine.evaluate(
+                    MembershipOperation.CANCEL_INVITATION,
+                    null,
+                    target = target(AccountRole.MEMBER, MembershipStatus.PENDING, isSelf = false),
+                )
             assertThat(result).isEqualTo(MembershipPolicyResult.Denied(SecurityErrorCode.NOT_ACCOUNT_MEMBER))
         }
 
         @Test
         fun `target not PENDING denies with NOT_PENDING_INVITATION`() {
-            val result = engine.evaluate(
-                MembershipOperation.CANCEL_INVITATION,
-                actor(AccountRole.OWNER),
-                target = target(AccountRole.MEMBER, MembershipStatus.ACTIVE, isSelf = false),
-            )
+            val result =
+                engine.evaluate(
+                    MembershipOperation.CANCEL_INVITATION,
+                    actor(AccountRole.OWNER),
+                    target = target(AccountRole.MEMBER, MembershipStatus.ACTIVE, isSelf = false),
+                )
             assertThat(result).isEqualTo(MembershipPolicyResult.Denied(SecurityErrorCode.NOT_PENDING_INVITATION))
         }
 
@@ -185,89 +199,97 @@ class MembershipPolicyEngineTest {
     inner class ChangeRoleTests {
         @Test
         fun `OWNER changing other to ADMIN allows`() {
-            val result = engine.evaluate(
-                MembershipOperation.CHANGE_ROLE,
-                actor(AccountRole.OWNER),
-                target = target(AccountRole.MEMBER, MembershipStatus.ACTIVE, isSelf = false),
-                newRole = AccountRole.ADMIN,
-            )
+            val result =
+                engine.evaluate(
+                    MembershipOperation.CHANGE_ROLE,
+                    actor(AccountRole.OWNER),
+                    target = target(AccountRole.MEMBER, MembershipStatus.ACTIVE, isSelf = false),
+                    newRole = AccountRole.ADMIN,
+                )
             assertThat(result).isEqualTo(MembershipPolicyResult.Allowed)
         }
 
         @Test
         fun `OWNER changing other to MEMBER allows`() {
-            val result = engine.evaluate(
-                MembershipOperation.CHANGE_ROLE,
-                actor(AccountRole.OWNER),
-                target = target(AccountRole.ADMIN, MembershipStatus.ACTIVE, isSelf = false),
-                newRole = AccountRole.MEMBER,
-            )
+            val result =
+                engine.evaluate(
+                    MembershipOperation.CHANGE_ROLE,
+                    actor(AccountRole.OWNER),
+                    target = target(AccountRole.ADMIN, MembershipStatus.ACTIVE, isSelf = false),
+                    newRole = AccountRole.MEMBER,
+                )
             assertThat(result).isEqualTo(MembershipPolicyResult.Allowed)
         }
 
         @Test
         fun `OWNER changing other to VIEWER allows`() {
-            val result = engine.evaluate(
-                MembershipOperation.CHANGE_ROLE,
-                actor(AccountRole.OWNER),
-                target = target(AccountRole.MEMBER, MembershipStatus.ACTIVE, isSelf = false),
-                newRole = AccountRole.VIEWER,
-            )
+            val result =
+                engine.evaluate(
+                    MembershipOperation.CHANGE_ROLE,
+                    actor(AccountRole.OWNER),
+                    target = target(AccountRole.MEMBER, MembershipStatus.ACTIVE, isSelf = false),
+                    newRole = AccountRole.VIEWER,
+                )
             assertThat(result).isEqualTo(MembershipPolicyResult.Allowed)
         }
 
         @Test
         fun `no membership denies with NOT_ACCOUNT_MEMBER`() {
-            val result = engine.evaluate(
-                MembershipOperation.CHANGE_ROLE,
-                null,
-                target = target(AccountRole.MEMBER, MembershipStatus.ACTIVE, isSelf = false),
-                newRole = AccountRole.ADMIN,
-            )
+            val result =
+                engine.evaluate(
+                    MembershipOperation.CHANGE_ROLE,
+                    null,
+                    target = target(AccountRole.MEMBER, MembershipStatus.ACTIVE, isSelf = false),
+                    newRole = AccountRole.ADMIN,
+                )
             assertThat(result).isEqualTo(MembershipPolicyResult.Denied(SecurityErrorCode.NOT_ACCOUNT_MEMBER))
         }
 
         @Test
         fun `ADMIN denies with ACCOUNT_ROLE_INSUFFICIENT`() {
-            val result = engine.evaluate(
-                MembershipOperation.CHANGE_ROLE,
-                actor(AccountRole.ADMIN),
-                target = target(AccountRole.MEMBER, MembershipStatus.ACTIVE, isSelf = false),
-                newRole = AccountRole.ADMIN,
-            )
+            val result =
+                engine.evaluate(
+                    MembershipOperation.CHANGE_ROLE,
+                    actor(AccountRole.ADMIN),
+                    target = target(AccountRole.MEMBER, MembershipStatus.ACTIVE, isSelf = false),
+                    newRole = AccountRole.ADMIN,
+                )
             assertThat(result).isEqualTo(MembershipPolicyResult.Denied(SecurityErrorCode.ACCOUNT_ROLE_INSUFFICIENT))
         }
 
         @Test
         fun `self change denies with SELF_OPERATION_FORBIDDEN`() {
-            val result = engine.evaluate(
-                MembershipOperation.CHANGE_ROLE,
-                actor(AccountRole.OWNER),
-                target = target(AccountRole.OWNER, MembershipStatus.ACTIVE, isSelf = true),
-                newRole = AccountRole.ADMIN,
-            )
+            val result =
+                engine.evaluate(
+                    MembershipOperation.CHANGE_ROLE,
+                    actor(AccountRole.OWNER),
+                    target = target(AccountRole.OWNER, MembershipStatus.ACTIVE, isSelf = true),
+                    newRole = AccountRole.ADMIN,
+                )
             assertThat(result).isEqualTo(MembershipPolicyResult.Denied(SecurityErrorCode.SELF_OPERATION_FORBIDDEN))
         }
 
         @Test
         fun `newRole OWNER denies with TARGET_NOT_ELIGIBLE`() {
-            val result = engine.evaluate(
-                MembershipOperation.CHANGE_ROLE,
-                actor(AccountRole.OWNER),
-                target = target(AccountRole.MEMBER, MembershipStatus.ACTIVE, isSelf = false),
-                newRole = AccountRole.OWNER,
-            )
+            val result =
+                engine.evaluate(
+                    MembershipOperation.CHANGE_ROLE,
+                    actor(AccountRole.OWNER),
+                    target = target(AccountRole.MEMBER, MembershipStatus.ACTIVE, isSelf = false),
+                    newRole = AccountRole.OWNER,
+                )
             assertThat(result).isEqualTo(MembershipPolicyResult.Denied(SecurityErrorCode.TARGET_NOT_ELIGIBLE))
         }
 
         @Test
         fun `null target denies with TARGET_NOT_ELIGIBLE`() {
-            val result = engine.evaluate(
-                MembershipOperation.CHANGE_ROLE,
-                actor(AccountRole.OWNER),
-                target = null,
-                newRole = AccountRole.ADMIN,
-            )
+            val result =
+                engine.evaluate(
+                    MembershipOperation.CHANGE_ROLE,
+                    actor(AccountRole.OWNER),
+                    target = null,
+                    newRole = AccountRole.ADMIN,
+                )
             assertThat(result).isEqualTo(MembershipPolicyResult.Denied(SecurityErrorCode.TARGET_NOT_ELIGIBLE))
         }
     }
@@ -277,81 +299,89 @@ class MembershipPolicyEngineTest {
     inner class RemoveMemberTests {
         @Test
         fun `OWNER removing MEMBER allows`() {
-            val result = engine.evaluate(
-                MembershipOperation.REMOVE_MEMBER,
-                actor(AccountRole.OWNER),
-                target = target(AccountRole.MEMBER, MembershipStatus.ACTIVE, isSelf = false),
-            )
+            val result =
+                engine.evaluate(
+                    MembershipOperation.REMOVE_MEMBER,
+                    actor(AccountRole.OWNER),
+                    target = target(AccountRole.MEMBER, MembershipStatus.ACTIVE, isSelf = false),
+                )
             assertThat(result).isEqualTo(MembershipPolicyResult.Allowed)
         }
 
         @Test
         fun `OWNER removing ADMIN allows`() {
-            val result = engine.evaluate(
-                MembershipOperation.REMOVE_MEMBER,
-                actor(AccountRole.OWNER),
-                target = target(AccountRole.ADMIN, MembershipStatus.ACTIVE, isSelf = false),
-            )
+            val result =
+                engine.evaluate(
+                    MembershipOperation.REMOVE_MEMBER,
+                    actor(AccountRole.OWNER),
+                    target = target(AccountRole.ADMIN, MembershipStatus.ACTIVE, isSelf = false),
+                )
             assertThat(result).isEqualTo(MembershipPolicyResult.Allowed)
         }
 
         @Test
         fun `ADMIN removing MEMBER allows`() {
-            val result = engine.evaluate(
-                MembershipOperation.REMOVE_MEMBER,
-                actor(AccountRole.ADMIN),
-                target = target(AccountRole.MEMBER, MembershipStatus.ACTIVE, isSelf = false),
-            )
+            val result =
+                engine.evaluate(
+                    MembershipOperation.REMOVE_MEMBER,
+                    actor(AccountRole.ADMIN),
+                    target = target(AccountRole.MEMBER, MembershipStatus.ACTIVE, isSelf = false),
+                )
             assertThat(result).isEqualTo(MembershipPolicyResult.Allowed)
         }
 
         @Test
         fun `ADMIN removing VIEWER allows`() {
-            val result = engine.evaluate(
-                MembershipOperation.REMOVE_MEMBER,
-                actor(AccountRole.ADMIN),
-                target = target(AccountRole.VIEWER, MembershipStatus.ACTIVE, isSelf = false),
-            )
+            val result =
+                engine.evaluate(
+                    MembershipOperation.REMOVE_MEMBER,
+                    actor(AccountRole.ADMIN),
+                    target = target(AccountRole.VIEWER, MembershipStatus.ACTIVE, isSelf = false),
+                )
             assertThat(result).isEqualTo(MembershipPolicyResult.Allowed)
         }
 
         @Test
         fun `OWNER removing self denies with SELF_OPERATION_FORBIDDEN`() {
-            val result = engine.evaluate(
-                MembershipOperation.REMOVE_MEMBER,
-                actor(AccountRole.OWNER),
-                target = target(AccountRole.OWNER, MembershipStatus.ACTIVE, isSelf = true),
-            )
+            val result =
+                engine.evaluate(
+                    MembershipOperation.REMOVE_MEMBER,
+                    actor(AccountRole.OWNER),
+                    target = target(AccountRole.OWNER, MembershipStatus.ACTIVE, isSelf = true),
+                )
             assertThat(result).isEqualTo(MembershipPolicyResult.Denied(SecurityErrorCode.SELF_OPERATION_FORBIDDEN))
         }
 
         @Test
         fun `ADMIN removing OWNER denies with TARGET_ROLE_TOO_HIGH`() {
-            val result = engine.evaluate(
-                MembershipOperation.REMOVE_MEMBER,
-                actor(AccountRole.ADMIN),
-                target = target(AccountRole.OWNER, MembershipStatus.ACTIVE, isSelf = false),
-            )
+            val result =
+                engine.evaluate(
+                    MembershipOperation.REMOVE_MEMBER,
+                    actor(AccountRole.ADMIN),
+                    target = target(AccountRole.OWNER, MembershipStatus.ACTIVE, isSelf = false),
+                )
             assertThat(result).isEqualTo(MembershipPolicyResult.Denied(SecurityErrorCode.TARGET_ROLE_TOO_HIGH))
         }
 
         @Test
         fun `ADMIN removing ADMIN denies with TARGET_ROLE_TOO_HIGH`() {
-            val result = engine.evaluate(
-                MembershipOperation.REMOVE_MEMBER,
-                actor(AccountRole.ADMIN),
-                target = target(AccountRole.ADMIN, MembershipStatus.ACTIVE, isSelf = false),
-            )
+            val result =
+                engine.evaluate(
+                    MembershipOperation.REMOVE_MEMBER,
+                    actor(AccountRole.ADMIN),
+                    target = target(AccountRole.ADMIN, MembershipStatus.ACTIVE, isSelf = false),
+                )
             assertThat(result).isEqualTo(MembershipPolicyResult.Denied(SecurityErrorCode.TARGET_ROLE_TOO_HIGH))
         }
 
         @Test
         fun `MEMBER cannot remove anyone denies with ACCOUNT_ROLE_INSUFFICIENT`() {
-            val result = engine.evaluate(
-                MembershipOperation.REMOVE_MEMBER,
-                actor(AccountRole.MEMBER),
-                target = target(AccountRole.VIEWER, MembershipStatus.ACTIVE, isSelf = false),
-            )
+            val result =
+                engine.evaluate(
+                    MembershipOperation.REMOVE_MEMBER,
+                    actor(AccountRole.MEMBER),
+                    target = target(AccountRole.VIEWER, MembershipStatus.ACTIVE, isSelf = false),
+                )
             assertThat(result).isEqualTo(MembershipPolicyResult.Denied(SecurityErrorCode.ACCOUNT_ROLE_INSUFFICIENT))
         }
     }
@@ -401,71 +431,78 @@ class MembershipPolicyEngineTest {
     inner class TransferOwnershipTests {
         @Test
         fun `OWNER transferring to ADMIN allows`() {
-            val result = engine.evaluate(
-                MembershipOperation.TRANSFER_OWNERSHIP,
-                actor(AccountRole.OWNER),
-                newOwner = newOwner(AccountRole.ADMIN),
-            )
+            val result =
+                engine.evaluate(
+                    MembershipOperation.TRANSFER_OWNERSHIP,
+                    actor(AccountRole.OWNER),
+                    newOwner = newOwner(AccountRole.ADMIN),
+                )
             assertThat(result).isEqualTo(MembershipPolicyResult.Allowed)
         }
 
         @Test
         fun `OWNER transferring to MEMBER allows`() {
-            val result = engine.evaluate(
-                MembershipOperation.TRANSFER_OWNERSHIP,
-                actor(AccountRole.OWNER),
-                newOwner = newOwner(AccountRole.MEMBER),
-            )
+            val result =
+                engine.evaluate(
+                    MembershipOperation.TRANSFER_OWNERSHIP,
+                    actor(AccountRole.OWNER),
+                    newOwner = newOwner(AccountRole.MEMBER),
+                )
             assertThat(result).isEqualTo(MembershipPolicyResult.Allowed)
         }
 
         @Test
         fun `no membership denies with NOT_ACCOUNT_MEMBER`() {
-            val result = engine.evaluate(
-                MembershipOperation.TRANSFER_OWNERSHIP,
-                null,
-                newOwner = newOwner(AccountRole.ADMIN),
-            )
+            val result =
+                engine.evaluate(
+                    MembershipOperation.TRANSFER_OWNERSHIP,
+                    null,
+                    newOwner = newOwner(AccountRole.ADMIN),
+                )
             assertThat(result).isEqualTo(MembershipPolicyResult.Denied(SecurityErrorCode.NOT_ACCOUNT_MEMBER))
         }
 
         @Test
         fun `ADMIN denies with ACCOUNT_ROLE_INSUFFICIENT`() {
-            val result = engine.evaluate(
-                MembershipOperation.TRANSFER_OWNERSHIP,
-                actor(AccountRole.ADMIN),
-                newOwner = newOwner(AccountRole.MEMBER),
-            )
+            val result =
+                engine.evaluate(
+                    MembershipOperation.TRANSFER_OWNERSHIP,
+                    actor(AccountRole.ADMIN),
+                    newOwner = newOwner(AccountRole.MEMBER),
+                )
             assertThat(result).isEqualTo(MembershipPolicyResult.Denied(SecurityErrorCode.ACCOUNT_ROLE_INSUFFICIENT))
         }
 
         @Test
         fun `transfer to VIEWER denies with TARGET_NOT_ELIGIBLE`() {
-            val result = engine.evaluate(
-                MembershipOperation.TRANSFER_OWNERSHIP,
-                actor(AccountRole.OWNER),
-                newOwner = newOwner(AccountRole.VIEWER),
-            )
+            val result =
+                engine.evaluate(
+                    MembershipOperation.TRANSFER_OWNERSHIP,
+                    actor(AccountRole.OWNER),
+                    newOwner = newOwner(AccountRole.VIEWER),
+                )
             assertThat(result).isEqualTo(MembershipPolicyResult.Denied(SecurityErrorCode.TARGET_NOT_ELIGIBLE))
         }
 
         @Test
         fun `transfer to non-ACTIVE new owner denies with TARGET_NOT_ELIGIBLE`() {
-            val result = engine.evaluate(
-                MembershipOperation.TRANSFER_OWNERSHIP,
-                actor(AccountRole.OWNER),
-                newOwner = NewOwnerContext(AccountRole.MEMBER, MembershipStatus.PENDING),
-            )
+            val result =
+                engine.evaluate(
+                    MembershipOperation.TRANSFER_OWNERSHIP,
+                    actor(AccountRole.OWNER),
+                    newOwner = NewOwnerContext(AccountRole.MEMBER, MembershipStatus.PENDING),
+                )
             assertThat(result).isEqualTo(MembershipPolicyResult.Denied(SecurityErrorCode.TARGET_NOT_ELIGIBLE))
         }
 
         @Test
         fun `null new owner denies with TARGET_NOT_ELIGIBLE`() {
-            val result = engine.evaluate(
-                MembershipOperation.TRANSFER_OWNERSHIP,
-                actor(AccountRole.OWNER),
-                newOwner = null,
-            )
+            val result =
+                engine.evaluate(
+                    MembershipOperation.TRANSFER_OWNERSHIP,
+                    actor(AccountRole.OWNER),
+                    newOwner = null,
+                )
             assertThat(result).isEqualTo(MembershipPolicyResult.Denied(SecurityErrorCode.TARGET_NOT_ELIGIBLE))
         }
     }

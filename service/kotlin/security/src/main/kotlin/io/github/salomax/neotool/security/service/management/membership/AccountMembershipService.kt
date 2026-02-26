@@ -17,7 +17,6 @@ import jakarta.transaction.Transactional
 import mu.KotlinLogging
 import java.security.SecureRandom
 import java.time.Instant
-import java.util.UUID
 
 /** Max members per account type (FR-1.1). */
 private fun maxMembersForAccountType(accountType: AccountType): Int =
@@ -74,7 +73,9 @@ open class AccountMembershipService(
                 throw ValidationException(
                     errorCode = policyResult.errorCode,
                     field = null,
-                    parameters = policyResult.message?.let { mapOf("reason" to it) } ?: emptyMap(),
+                    parameters =
+                        policyResult.message?.let { mapOf("reason" to it) }
+                            ?: emptyMap(),
                 )
         }
 
@@ -83,9 +84,14 @@ open class AccountMembershipService(
                 ?: throw ValidationException(SecurityErrorCode.USER_NOT_FOUND, field = "inviteeEmail")
 
         val existing =
-            accountMembershipRepository.findOneByAccountIdAndUserId(command.accountId, invitee.id!!).orElse(null)
+            accountMembershipRepository
+                .findOneByAccountIdAndUserId(command.accountId, invitee.id!!)
+                .orElse(null)
         if (existing != null &&
-            (existing.membershipStatus == MembershipStatus.ACTIVE || existing.membershipStatus == MembershipStatus.PENDING)
+            (
+                existing.membershipStatus == MembershipStatus.ACTIVE ||
+                    existing.membershipStatus == MembershipStatus.PENDING
+            )
         ) {
             throw ValidationException(SecurityErrorCode.ALREADY_MEMBER, field = "inviteeEmail")
         }
@@ -95,7 +101,8 @@ open class AccountMembershipService(
         }
         val statuses = listOf(MembershipStatus.ACTIVE, MembershipStatus.PENDING)
         val currentCount =
-            accountMembershipRepository.countByAccountIdAndMembershipStatusIn(command.accountId, statuses)
+            accountMembershipRepository
+                .countByAccountIdAndMembershipStatusIn(command.accountId, statuses)
         val maxMembers = maxMembersForAccountType(account.accountType)
         if (currentCount >= maxMembers) {
             throw ValidationException(SecurityErrorCode.MEMBER_LIMIT_REACHED, field = "accountId")
@@ -134,10 +141,14 @@ open class AccountMembershipService(
                 locale = "en",
             )
         } catch (e: Exception) {
-            logger.error(e) { "Failed to send invitation email to ${command.inviteeEmail}; membership already created" }
+            logger.error(e) {
+                "Failed to send invitation email to ${command.inviteeEmail}; membership already created"
+            }
         }
 
-        logger.info { "Invitation issued: account=${command.accountId}, invitee=${command.inviteeEmail}, role=${command.role}" }
+        logger.info {
+            "Invitation issued: account=${command.accountId}, invitee=${command.inviteeEmail}, role=${command.role}"
+        }
         return AccountMembership.InvitationResult(
             membershipId = saved.id!!,
             invitationToken = token,
@@ -158,7 +169,9 @@ open class AccountMembershipService(
     open fun cancelInvitation(command: AccountMembership.CancelInvitationCommand) {
         val targetMembership =
             accountMembershipRepository.findById(command.membershipId)
-                .orElseThrow { ValidationException(SecurityErrorCode.TARGET_NOT_ELIGIBLE, field = "membershipId") }
+                .orElseThrow {
+                    ValidationException(SecurityErrorCode.TARGET_NOT_ELIGIBLE, field = "membershipId")
+                }
         if (targetMembership.accountId != command.accountId) {
             throw ValidationException(SecurityErrorCode.TARGET_NOT_ELIGIBLE, field = "membershipId")
         }
@@ -170,12 +183,14 @@ open class AccountMembershipService(
         val actorMembership =
             accountMembershipRepository.findOneByAccountIdAndUserId(command.accountId, command.actorUserId)
                 .orElse(null)
-        val actor = actorMembership?.let { ActorMembershipContext(it.accountRole, it.membershipStatus) }
-        val target = TargetMemberContext(
-            role = targetMembership.accountRole,
-            status = targetMembership.membershipStatus,
-            isSelf = false,
-        )
+        val actor =
+            actorMembership?.let { ActorMembershipContext(it.accountRole, it.membershipStatus) }
+        val target =
+            TargetMemberContext(
+                role = targetMembership.accountRole,
+                status = targetMembership.membershipStatus,
+                isSelf = false,
+            )
         val policyResult =
             membershipPolicyEngine.evaluate(
                 MembershipOperation.CANCEL_INVITATION,
@@ -188,7 +203,9 @@ open class AccountMembershipService(
                 throw ValidationException(
                     errorCode = policyResult.errorCode,
                     field = null,
-                    parameters = policyResult.message?.let { mapOf("reason" to it) } ?: emptyMap(),
+                    parameters =
+                        policyResult.message?.let { mapOf("reason" to it) }
+                            ?: emptyMap(),
                 )
         }
 
@@ -204,10 +221,15 @@ open class AccountMembershipService(
      *   INVITATION_EXPIRED, or NOT_PENDING_INVITATION
      */
     @Transactional
-    open fun acceptInvitation(command: AccountMembership.AcceptInvitationCommand): AccountMembership.AcceptInvitationResult {
+    open fun acceptInvitation(
+        command: AccountMembership.AcceptInvitationCommand,
+    ): AccountMembership.AcceptInvitationResult {
         val membership =
-            accountMembershipRepository.findOneByInvitationToken(command.invitationToken.trim())
-                .orElseThrow { ValidationException(SecurityErrorCode.INVITATION_INVALID, field = "invitationToken") }
+            accountMembershipRepository
+                .findOneByInvitationToken(command.invitationToken.trim())
+                .orElseThrow {
+                    ValidationException(SecurityErrorCode.INVITATION_INVALID, field = "invitationToken")
+                }
         if (membership.userId != command.actorUserId) {
             throw ValidationException(SecurityErrorCode.INVITATION_INVALID, field = "actorUserId")
         }
@@ -224,7 +246,10 @@ open class AccountMembershipService(
         membership.invitationExpiresAt = null
         accountMembershipRepository.save(membership)
 
-        logger.info { "Invitation accepted: membershipId=${membership.id}, accountId=${membership.accountId}, userId=${command.actorUserId}" }
+        logger.info {
+            "Invitation accepted: membershipId=${membership.id}, accountId=${membership.accountId}, " +
+                "userId=${command.actorUserId}"
+        }
         return AccountMembership.AcceptInvitationResult(
             membershipId = membership.id!!,
             accountId = membership.accountId,
@@ -242,7 +267,9 @@ open class AccountMembershipService(
     open fun declineInvitation(command: AccountMembership.DeclineInvitationCommand) {
         val membership =
             accountMembershipRepository.findOneByInvitationToken(command.invitationToken.trim())
-                .orElseThrow { ValidationException(SecurityErrorCode.INVITATION_INVALID, field = "invitationToken") }
+                .orElseThrow {
+                    ValidationException(SecurityErrorCode.INVITATION_INVALID, field = "invitationToken")
+                }
         if (membership.userId != command.actorUserId) {
             throw ValidationException(SecurityErrorCode.INVITATION_INVALID, field = "actorUserId")
         }
@@ -251,7 +278,10 @@ open class AccountMembershipService(
         }
 
         accountMembershipRepository.deleteById(membership.id!!)
-        logger.info { "Invitation declined: membershipId=${membership.id}, accountId=${membership.accountId}, userId=${command.actorUserId}" }
+        logger.info {
+            "Invitation declined: membershipId=${membership.id}, accountId=${membership.accountId}, " +
+                "userId=${command.actorUserId}"
+        }
     }
 
     /**
@@ -264,7 +294,9 @@ open class AccountMembershipService(
     open fun changeMemberRole(command: AccountMembership.ChangeMemberRoleCommand) {
         val account =
             accountRepository.findById(command.accountId)
-                .orElseThrow { ValidationException(SecurityErrorCode.ACCOUNT_NOT_FOUND, field = "accountId") }
+                .orElseThrow {
+                    ValidationException(SecurityErrorCode.ACCOUNT_NOT_FOUND, field = "accountId")
+                }
         if (account.accountStatus != AccountStatus.ACTIVE) {
             throw ValidationException(SecurityErrorCode.ACCOUNT_INACTIVE, field = "accountId")
         }
@@ -272,11 +304,14 @@ open class AccountMembershipService(
         val actorMembership =
             accountMembershipRepository.findOneByAccountIdAndUserId(command.accountId, command.actorUserId)
                 .orElse(null)
-        val actor = actorMembership?.let { ActorMembershipContext(it.accountRole, it.membershipStatus) }
+        val actor =
+            actorMembership?.let { ActorMembershipContext(it.accountRole, it.membershipStatus) }
 
         val targetMembership =
             accountMembershipRepository.findById(command.targetMembershipId)
-                .orElseThrow { ValidationException(SecurityErrorCode.TARGET_NOT_ELIGIBLE, field = "targetMembershipId") }
+                .orElseThrow {
+                    ValidationException(SecurityErrorCode.TARGET_NOT_ELIGIBLE, field = "targetMembershipId")
+                }
         if (targetMembership.accountId != command.accountId) {
             throw ValidationException(SecurityErrorCode.TARGET_NOT_ELIGIBLE, field = "targetMembershipId")
         }
@@ -284,11 +319,12 @@ open class AccountMembershipService(
             throw ValidationException(SecurityErrorCode.TARGET_NOT_ELIGIBLE, field = "targetMembershipId")
         }
 
-        val target = TargetMemberContext(
-            role = targetMembership.accountRole,
-            status = targetMembership.membershipStatus,
-            isSelf = targetMembership.userId == command.actorUserId,
-        )
+        val target =
+            TargetMemberContext(
+                role = targetMembership.accountRole,
+                status = targetMembership.membershipStatus,
+                isSelf = targetMembership.userId == command.actorUserId,
+            )
         val policyResult =
             membershipPolicyEngine.evaluate(
                 MembershipOperation.CHANGE_ROLE,
@@ -302,13 +338,18 @@ open class AccountMembershipService(
                 throw ValidationException(
                     errorCode = policyResult.errorCode,
                     field = null,
-                    parameters = policyResult.message?.let { mapOf("reason" to it) } ?: emptyMap(),
+                    parameters =
+                        policyResult.message?.let { mapOf("reason" to it) }
+                            ?: emptyMap(),
                 )
         }
 
         targetMembership.accountRole = command.newRole
         accountMembershipRepository.save(targetMembership)
-        logger.info { "Member role changed: accountId=${command.accountId}, targetMembershipId=${command.targetMembershipId}, newRole=${command.newRole}" }
+        logger.info {
+            "Member role changed: accountId=${command.accountId}, targetMembershipId=${command.targetMembershipId}, " +
+                "newRole=${command.newRole}"
+        }
     }
 
     /**
@@ -321,7 +362,9 @@ open class AccountMembershipService(
     open fun removeMember(command: AccountMembership.RemoveMemberCommand) {
         val account =
             accountRepository.findById(command.accountId)
-                .orElseThrow { ValidationException(SecurityErrorCode.ACCOUNT_NOT_FOUND, field = "accountId") }
+                .orElseThrow {
+                    ValidationException(SecurityErrorCode.ACCOUNT_NOT_FOUND, field = "accountId")
+                }
         if (account.accountStatus != AccountStatus.ACTIVE) {
             throw ValidationException(SecurityErrorCode.ACCOUNT_INACTIVE, field = "accountId")
         }
@@ -329,29 +372,42 @@ open class AccountMembershipService(
         val actorMembership =
             accountMembershipRepository.findOneByAccountIdAndUserId(command.accountId, command.actorUserId)
                 .orElse(null)
-        val actor = actorMembership?.let { ActorMembershipContext(it.accountRole, it.membershipStatus) }
+        val actor =
+            actorMembership?.let { ActorMembershipContext(it.accountRole, it.membershipStatus) }
 
         val targetMembership =
             accountMembershipRepository.findById(command.targetMembershipId)
-                .orElseThrow { ValidationException(SecurityErrorCode.TARGET_NOT_ELIGIBLE, field = "targetMembershipId") }
+                .orElseThrow {
+                    ValidationException(SecurityErrorCode.TARGET_NOT_ELIGIBLE, field = "targetMembershipId")
+                }
         if (targetMembership.accountId != command.accountId) {
             throw ValidationException(SecurityErrorCode.TARGET_NOT_ELIGIBLE, field = "targetMembershipId")
         }
+        if (targetMembership.membershipStatus != MembershipStatus.ACTIVE) {
+            throw ValidationException(SecurityErrorCode.TARGET_NOT_ELIGIBLE, field = "targetMembershipId")
+        }
 
-        val target = TargetMemberContext(
-            role = targetMembership.accountRole,
-            status = targetMembership.membershipStatus,
-            isSelf = targetMembership.userId == command.actorUserId,
-        )
+        val target =
+            TargetMemberContext(
+                role = targetMembership.accountRole,
+                status = targetMembership.membershipStatus,
+                isSelf = targetMembership.userId == command.actorUserId,
+            )
         val policyResult =
-            membershipPolicyEngine.evaluate(MembershipOperation.REMOVE_MEMBER, actor, target = target)
+            membershipPolicyEngine.evaluate(
+                MembershipOperation.REMOVE_MEMBER,
+                actor,
+                target = target,
+            )
         when (policyResult) {
             is MembershipPolicyResult.Allowed -> { /* proceed */ }
             is MembershipPolicyResult.Denied ->
                 throw ValidationException(
                     errorCode = policyResult.errorCode,
                     field = null,
-                    parameters = policyResult.message?.let { mapOf("reason" to it) } ?: emptyMap(),
+                    parameters =
+                        policyResult.message?.let { mapOf("reason" to it) }
+                            ?: emptyMap(),
                 )
         }
 
@@ -360,7 +416,10 @@ open class AccountMembershipService(
         targetMembership.removedAt = now
         targetMembership.removedBy = command.actorUserId
         accountMembershipRepository.save(targetMembership)
-        logger.info { "Member removed: accountId=${command.accountId}, targetMembershipId=${command.targetMembershipId}" }
+        logger.info {
+            "Member removed: accountId=${command.accountId}, " +
+                "targetMembershipId=${command.targetMembershipId}"
+        }
     }
 
     /**
@@ -372,33 +431,45 @@ open class AccountMembershipService(
     open fun leaveAccount(command: AccountMembership.LeaveAccountCommand) {
         val account =
             accountRepository.findById(command.accountId)
-                .orElseThrow { ValidationException(SecurityErrorCode.ACCOUNT_NOT_FOUND, field = "accountId") }
+                .orElseThrow {
+                    ValidationException(SecurityErrorCode.ACCOUNT_NOT_FOUND, field = "accountId")
+                }
         if (account.accountStatus != AccountStatus.ACTIVE) {
             throw ValidationException(SecurityErrorCode.ACCOUNT_INACTIVE, field = "accountId")
         }
 
         val actorMembership =
             accountMembershipRepository.findOneByAccountIdAndUserId(command.accountId, command.actorUserId)
-                .orElseThrow { ValidationException(SecurityErrorCode.NOT_ACCOUNT_MEMBER, field = "actorUserId") }
+                .orElseThrow {
+                    ValidationException(SecurityErrorCode.NOT_ACCOUNT_MEMBER, field = "actorUserId")
+                }
         if (actorMembership.membershipStatus != MembershipStatus.ACTIVE) {
             throw ValidationException(SecurityErrorCode.NOT_ACCOUNT_MEMBER, field = "actorUserId")
         }
 
-        val actor = ActorMembershipContext(actorMembership.accountRole, actorMembership.membershipStatus)
+        val actor =
+            ActorMembershipContext(actorMembership.accountRole, actorMembership.membershipStatus)
         val activeOwners =
-            accountMembershipRepository.findByAccountId(command.accountId)
+            accountMembershipRepository
+                .findByAccountId(command.accountId)
                 .count { it.membershipStatus == MembershipStatus.ACTIVE && it.accountRole == AccountRole.OWNER }
         val isSoleOwner = actor.role == AccountRole.OWNER && activeOwners == 1
 
         val policyResult =
-            membershipPolicyEngine.evaluate(MembershipOperation.LEAVE, actor, isSoleOwner = isSoleOwner)
+            membershipPolicyEngine.evaluate(
+                MembershipOperation.LEAVE,
+                actor,
+                isSoleOwner = isSoleOwner,
+            )
         when (policyResult) {
             is MembershipPolicyResult.Allowed -> { /* proceed */ }
             is MembershipPolicyResult.Denied ->
                 throw ValidationException(
                     errorCode = policyResult.errorCode,
                     field = null,
-                    parameters = policyResult.message?.let { mapOf("reason" to it) } ?: emptyMap(),
+                    parameters =
+                        policyResult.message?.let { mapOf("reason" to it) }
+                            ?: emptyMap(),
                 )
         }
 
@@ -438,14 +509,20 @@ open class AccountMembershipService(
 
         val newOwner = NewOwnerContext(newOwnerMembership.accountRole, newOwnerMembership.membershipStatus)
         val policyResult =
-            membershipPolicyEngine.evaluate(MembershipOperation.TRANSFER_OWNERSHIP, actor, newOwner = newOwner)
+            membershipPolicyEngine.evaluate(
+                MembershipOperation.TRANSFER_OWNERSHIP,
+                actor,
+                newOwner = newOwner,
+            )
         when (policyResult) {
             is MembershipPolicyResult.Allowed -> { /* proceed */ }
             is MembershipPolicyResult.Denied ->
                 throw ValidationException(
                     errorCode = policyResult.errorCode,
                     field = null,
-                    parameters = policyResult.message?.let { mapOf("reason" to it) } ?: emptyMap(),
+                    parameters =
+                        policyResult.message?.let { mapOf("reason" to it) }
+                            ?: emptyMap(),
                 )
         }
 
@@ -455,7 +532,9 @@ open class AccountMembershipService(
         accountMembershipRepository.save(actorMembership)
         newOwnerMembership.accountRole = AccountRole.OWNER
         accountMembershipRepository.save(newOwnerMembership)
-        logger.info { "Ownership transferred: accountId=${command.accountId}, newOwnerUserId=${command.newOwnerUserId}" }
+        logger.info {
+            "Ownership transferred: accountId=${command.accountId}, newOwnerUserId=${command.newOwnerUserId}"
+        }
     }
 
     private fun generateSecureToken(): String {

@@ -157,8 +157,7 @@ class MockEmailService(
     fun getSentInvitationEmails(email: String): List<SentInvitationEmail> =
         sentInvitationEmails[email]?.toList() ?: emptyList()
 
-    fun getLastSentInvitationEmail(email: String): SentInvitationEmail? =
-        sentInvitationEmails[email]?.lastOrNull()
+    fun getLastSentInvitationEmail(email: String): SentInvitationEmail? = sentInvitationEmails[email]?.lastOrNull()
 
     fun getSentVerificationEmails(email: String): List<SentVerificationEmail> =
         sentVerificationEmails[email]?.toList() ?: emptyList()

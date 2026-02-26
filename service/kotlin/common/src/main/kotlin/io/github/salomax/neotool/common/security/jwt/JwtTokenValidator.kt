@@ -399,12 +399,13 @@ class JwtTokenValidator(
         val value = claims["session_version"] ?: return null
         return when (value) {
             is Number -> value.toLong()
-            else -> try {
-                value.toString().toLongOrNull()
-            } catch (e: Exception) {
-                logger.warn { "Invalid session_version claim: ${e.message}" }
-                null
-            }
+            else ->
+                try {
+                    value.toString().toLongOrNull()
+                } catch (e: Exception) {
+                    logger.warn { "Invalid session_version claim: ${e.message}" }
+                    null
+                }
         }
     }
 }

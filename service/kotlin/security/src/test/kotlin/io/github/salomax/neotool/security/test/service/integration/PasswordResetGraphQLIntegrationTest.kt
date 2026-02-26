@@ -10,7 +10,10 @@ import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.common.test.json.read
 import io.github.salomax.neotool.common.test.transaction.runTransaction
 import io.github.salomax.neotool.security.model.UserEntity
+import io.github.salomax.neotool.security.repo.AccountMembershipRepository
+import io.github.salomax.neotool.security.repo.AccountRepository
 import io.github.salomax.neotool.security.repo.PasswordResetAttemptRepository
+import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.authentication.AuthenticationService
 import io.github.salomax.neotool.security.service.email.EmailService
@@ -53,6 +56,15 @@ open class PasswordResetGraphQLIntegrationTest :
     lateinit var passwordResetAttemptRepository: PasswordResetAttemptRepository
 
     @Inject
+    lateinit var accountRepository: AccountRepository
+
+    @Inject
+    lateinit var accountMembershipRepository: AccountMembershipRepository
+
+    @Inject
+    lateinit var principalRepository: PrincipalRepository
+
+    @Inject
     lateinit var authenticationService: AuthenticationService
 
     @Inject
@@ -81,6 +93,9 @@ open class PasswordResetGraphQLIntegrationTest :
     fun cleanupTestData() {
         try {
             passwordResetAttemptRepository.deleteAll()
+            accountMembershipRepository.deleteAll()
+            accountRepository.deleteAll()
+            principalRepository.deleteAll()
             userRepository.deleteAll()
             // Clear sent emails for clean test state
             mockEmailService.clearSentEmails()

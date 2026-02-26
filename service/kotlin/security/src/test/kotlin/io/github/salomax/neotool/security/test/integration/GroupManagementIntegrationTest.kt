@@ -5,8 +5,11 @@ import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.common.test.transaction.runTransaction
 import io.github.salomax.neotool.security.domain.GroupManagement
 import io.github.salomax.neotool.security.model.UserEntity
+import io.github.salomax.neotool.security.repo.AccountMembershipRepository
+import io.github.salomax.neotool.security.repo.AccountRepository
 import io.github.salomax.neotool.security.repo.GroupMembershipRepository
 import io.github.salomax.neotool.security.repo.GroupRepository
+import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.authentication.AuthenticationService
 import io.github.salomax.neotool.security.service.management.GroupManagementService
@@ -50,6 +53,15 @@ open class GroupManagementIntegrationTest :
     lateinit var userRepository: UserRepository
 
     @Inject
+    lateinit var accountRepository: AccountRepository
+
+    @Inject
+    lateinit var accountMembershipRepository: AccountMembershipRepository
+
+    @Inject
+    lateinit var principalRepository: PrincipalRepository
+
+    @Inject
     lateinit var groupManagementService: GroupManagementService
 
     @Inject
@@ -81,6 +93,9 @@ open class GroupManagementIntegrationTest :
             // Clean up in reverse order of dependencies
             groupMembershipRepository.deleteAll()
             groupRepository.deleteAll()
+            accountMembershipRepository.deleteAll()
+            accountRepository.deleteAll()
+            principalRepository.deleteAll()
             userRepository.deleteAll()
             entityManager.flush()
         } catch (e: Exception) {

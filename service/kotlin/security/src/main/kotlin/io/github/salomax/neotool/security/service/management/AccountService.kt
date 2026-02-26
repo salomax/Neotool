@@ -66,7 +66,9 @@ open class AccountService(
             )
         accountMembershipRepository.save(membership)
 
-        logger.info { "Account created: ${savedAccount.accountName} (ID: ${savedAccount.id}), type=${command.accountType}" }
+        logger.info {
+            "Account created: ${savedAccount.accountName} (ID: ${savedAccount.id}), type=${command.accountType}"
+        }
         return savedAccount.toDomain()
     }
 
@@ -123,7 +125,8 @@ open class AccountService(
                     .findByUserIdAndMembershipStatus(command.actorUserId, MembershipStatus.ACTIVE)
                     .count { it.accountId != command.accountId }
             require(otherActiveCount > 0) {
-                "Cannot delete personal account without another account (user must have at least one other ACTIVE membership)"
+                "Cannot delete personal account without another account " +
+                    "(user must have at least one other ACTIVE membership)"
             }
         }
 

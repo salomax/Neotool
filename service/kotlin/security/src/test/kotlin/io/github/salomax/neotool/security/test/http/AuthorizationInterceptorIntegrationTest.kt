@@ -6,10 +6,13 @@ import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.common.test.transaction.runTransaction
 import io.github.salomax.neotool.security.domain.rbac.SecurityPermissions
 import io.github.salomax.neotool.security.model.UserEntity
+import io.github.salomax.neotool.security.repo.AccountMembershipRepository
+import io.github.salomax.neotool.security.repo.AccountRepository
 import io.github.salomax.neotool.security.repo.GroupMembershipRepository
 import io.github.salomax.neotool.security.repo.GroupRepository
 import io.github.salomax.neotool.security.repo.GroupRoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.PermissionRepository
+import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.authentication.AuthContextFactory
@@ -78,6 +81,15 @@ open class AuthorizationInterceptorIntegrationTest :
 
     @Inject
     lateinit var groupRoleAssignmentRepository: GroupRoleAssignmentRepository
+
+    @Inject
+    lateinit var accountRepository: AccountRepository
+
+    @Inject
+    lateinit var accountMembershipRepository: AccountMembershipRepository
+
+    @Inject
+    lateinit var principalRepository: PrincipalRepository
 
     private val mockEmailService: MockEmailService
         get() = emailService as MockEmailService
@@ -175,6 +187,9 @@ open class AuthorizationInterceptorIntegrationTest :
         try {
             groupRoleAssignmentRepository.deleteAll()
             groupMembershipRepository.deleteAll()
+            accountMembershipRepository.deleteAll()
+            accountRepository.deleteAll()
+            principalRepository.deleteAll()
             userRepository.deleteAll()
             mockEmailService.clearSentEmails()
         } catch (e: Exception) {

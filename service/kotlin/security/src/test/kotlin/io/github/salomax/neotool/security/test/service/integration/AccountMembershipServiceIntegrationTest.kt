@@ -38,7 +38,6 @@ import org.junit.jupiter.api.assertThrows
 class AccountMembershipServiceIntegrationTest :
     BaseIntegrationTest(),
     PostgresIntegrationTest {
-
     @Inject
     lateinit var userRepository: UserRepository
 
@@ -103,20 +102,22 @@ class AccountMembershipServiceIntegrationTest :
         val owner = userRepository.findByEmail(ownerEmail)!!
         val invitee = userRepository.findByEmail(inviteeEmail)!!
 
-        val createCmd = AccountManagement.CreateAccountCommand(
-            accountName = "Biz Account",
-            accountType = io.github.salomax.neotool.security.model.account.AccountType.BUSINESS,
-            ownerUserId = owner.id!!,
-        )
+        val createCmd =
+            AccountManagement.CreateAccountCommand(
+                accountName = "Biz Account",
+                accountType = io.github.salomax.neotool.security.model.account.AccountType.BUSINESS,
+                ownerUserId = owner.id!!,
+            )
         val account = accountService.create(createCmd)
         val accountId = account.id!!
 
-        val inviteCmd = AccountMembership.InviteMemberCommand(
-            accountId = accountId,
-            inviterUserId = owner.id!!,
-            inviteeEmail = inviteeEmail,
-            role = AccountRole.MEMBER,
-        )
+        val inviteCmd =
+            AccountMembership.InviteMemberCommand(
+                accountId = accountId,
+                inviterUserId = owner.id!!,
+                inviteeEmail = inviteeEmail,
+                role = AccountRole.MEMBER,
+            )
         val invitation = accountMembershipService.invite(inviteCmd)
 
         assertThat(invitation.membershipId).isNotNull()
@@ -130,11 +131,12 @@ class AccountMembershipServiceIntegrationTest :
         assertThat(pending.get().membershipStatus).isEqualTo(MembershipStatus.PENDING)
         assertThat(pending.get().invitationToken).isEqualTo(invitation.invitationToken)
 
-        val cancelCmd = AccountMembership.CancelInvitationCommand(
-            accountId = accountId,
-            actorUserId = owner.id!!,
-            membershipId = invitation.membershipId,
-        )
+        val cancelCmd =
+            AccountMembership.CancelInvitationCommand(
+                accountId = accountId,
+                actorUserId = owner.id!!,
+                membershipId = invitation.membershipId,
+            )
         accountMembershipService.cancelInvitation(cancelCmd)
 
         val afterCancel = accountMembershipRepository.findOneByAccountIdAndUserId(accountId, invitee.id!!)
@@ -150,20 +152,22 @@ class AccountMembershipServiceIntegrationTest :
         val owner = userRepository.findByEmail(ownerEmail)!!
         val member = userRepository.findByEmail(memberEmail)!!
 
-        val createCmd = AccountManagement.CreateAccountCommand(
-            accountName = "Biz",
-            accountType = io.github.salomax.neotool.security.model.account.AccountType.BUSINESS,
-            ownerUserId = owner.id!!,
-        )
+        val createCmd =
+            AccountManagement.CreateAccountCommand(
+                accountName = "Biz",
+                accountType = io.github.salomax.neotool.security.model.account.AccountType.BUSINESS,
+                ownerUserId = owner.id!!,
+            )
         val account = accountService.create(createCmd)
         val accountId = account.id!!
 
-        val inviteCmd = AccountMembership.InviteMemberCommand(
-            accountId = accountId,
-            inviterUserId = owner.id!!,
-            inviteeEmail = memberEmail,
-            role = AccountRole.MEMBER,
-        )
+        val inviteCmd =
+            AccountMembership.InviteMemberCommand(
+                accountId = accountId,
+                inviterUserId = owner.id!!,
+                inviteeEmail = memberEmail,
+                role = AccountRole.MEMBER,
+            )
         accountMembershipService.invite(inviteCmd)
 
         assertThrows<ValidationException> {
@@ -180,27 +184,30 @@ class AccountMembershipServiceIntegrationTest :
         val owner = userRepository.findByEmail(ownerEmail)!!
         val invitee = userRepository.findByEmail(inviteeEmail)!!
 
-        val createCmd = AccountManagement.CreateAccountCommand(
-            accountName = "Accept Test Account",
-            accountType = io.github.salomax.neotool.security.model.account.AccountType.BUSINESS,
-            ownerUserId = owner.id!!,
-        )
+        val createCmd =
+            AccountManagement.CreateAccountCommand(
+                accountName = "Accept Test Account",
+                accountType = io.github.salomax.neotool.security.model.account.AccountType.BUSINESS,
+                ownerUserId = owner.id!!,
+            )
         val account = accountService.create(createCmd)
         val accountId = account.id!!
 
-        val inviteCmd = AccountMembership.InviteMemberCommand(
-            accountId = accountId,
-            inviterUserId = owner.id!!,
-            inviteeEmail = inviteeEmail,
-            role = AccountRole.MEMBER,
-        )
+        val inviteCmd =
+            AccountMembership.InviteMemberCommand(
+                accountId = accountId,
+                inviterUserId = owner.id!!,
+                inviteeEmail = inviteeEmail,
+                role = AccountRole.MEMBER,
+            )
         val invitation = accountMembershipService.invite(inviteCmd)
         val token = invitation.invitationToken
 
-        val acceptCmd = AccountMembership.AcceptInvitationCommand(
-            invitationToken = token,
-            actorUserId = invitee.id!!,
-        )
+        val acceptCmd =
+            AccountMembership.AcceptInvitationCommand(
+                invitationToken = token,
+                actorUserId = invitee.id!!,
+            )
         val result = accountMembershipService.acceptInvitation(acceptCmd)
 
         assertThat(result.accountId).isEqualTo(accountId)
@@ -221,27 +228,30 @@ class AccountMembershipServiceIntegrationTest :
         val owner = userRepository.findByEmail(ownerEmail)!!
         val invitee = userRepository.findByEmail(inviteeEmail)!!
 
-        val createCmd = AccountManagement.CreateAccountCommand(
-            accountName = "Decline Test Account",
-            accountType = io.github.salomax.neotool.security.model.account.AccountType.BUSINESS,
-            ownerUserId = owner.id!!,
-        )
+        val createCmd =
+            AccountManagement.CreateAccountCommand(
+                accountName = "Decline Test Account",
+                accountType = io.github.salomax.neotool.security.model.account.AccountType.BUSINESS,
+                ownerUserId = owner.id!!,
+            )
         val account = accountService.create(createCmd)
         val accountId = account.id!!
 
-        val inviteCmd = AccountMembership.InviteMemberCommand(
-            accountId = accountId,
-            inviterUserId = owner.id!!,
-            inviteeEmail = inviteeEmail,
-            role = AccountRole.MEMBER,
-        )
+        val inviteCmd =
+            AccountMembership.InviteMemberCommand(
+                accountId = accountId,
+                inviterUserId = owner.id!!,
+                inviteeEmail = inviteeEmail,
+                role = AccountRole.MEMBER,
+            )
         val invitation = accountMembershipService.invite(inviteCmd)
         val token = invitation.invitationToken
 
-        val declineCmd = AccountMembership.DeclineInvitationCommand(
-            invitationToken = token,
-            actorUserId = invitee.id!!,
-        )
+        val declineCmd =
+            AccountMembership.DeclineInvitationCommand(
+                invitationToken = token,
+                actorUserId = invitee.id!!,
+            )
         accountMembershipService.declineInvitation(declineCmd)
 
         val afterDecline = accountMembershipRepository.findOneByAccountIdAndUserId(accountId, invitee.id!!)
@@ -260,26 +270,30 @@ class AccountMembershipServiceIntegrationTest :
         val invitee = userRepository.findByEmail(inviteeEmail)!!
         val other = userRepository.findByEmail(otherEmail)!!
 
-        val createCmd = AccountManagement.CreateAccountCommand(
-            accountName = "Wrong Actor Account",
-            accountType = io.github.salomax.neotool.security.model.account.AccountType.BUSINESS,
-            ownerUserId = owner.id!!,
-        )
+        val createCmd =
+            AccountManagement.CreateAccountCommand(
+                accountName = "Wrong Actor Account",
+                accountType = io.github.salomax.neotool.security.model.account.AccountType.BUSINESS,
+                ownerUserId = owner.id!!,
+            )
         val account = accountService.create(createCmd)
         val accountId = account.id!!
 
-        val inviteCmd = AccountMembership.InviteMemberCommand(
-            accountId = accountId,
-            inviterUserId = owner.id!!,
-            inviteeEmail = inviteeEmail,
-            role = AccountRole.MEMBER,
-        )
+        val inviteCmd =
+            AccountMembership.InviteMemberCommand(
+                accountId = accountId,
+                inviterUserId = owner.id!!,
+                inviteeEmail = inviteeEmail,
+                role = AccountRole.MEMBER,
+            )
         val invitation = accountMembershipService.invite(inviteCmd)
 
-        val acceptCmd = AccountMembership.AcceptInvitationCommand(
-            invitationToken = invitation.invitationToken,
-            actorUserId = other.id!!, // not the invitee
-        )
+        val acceptCmd =
+            AccountMembership.AcceptInvitationCommand(
+                invitationToken = invitation.invitationToken,
+                // not the invitee
+                actorUserId = other.id!!,
+            )
         assertThrows<ValidationException> {
             accountMembershipService.acceptInvitation(acceptCmd)
         }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.INVITATION_INVALID) }
@@ -297,34 +311,38 @@ class AccountMembershipServiceIntegrationTest :
         val owner = userRepository.findByEmail(ownerEmail)!!
         val member = userRepository.findByEmail(memberEmail)!!
 
-        val createCmd = AccountManagement.CreateAccountCommand(
-            accountName = "Change Role Account",
-            accountType = io.github.salomax.neotool.security.model.account.AccountType.BUSINESS,
-            ownerUserId = owner.id!!,
-        )
+        val createCmd =
+            AccountManagement.CreateAccountCommand(
+                accountName = "Change Role Account",
+                accountType = io.github.salomax.neotool.security.model.account.AccountType.BUSINESS,
+                ownerUserId = owner.id!!,
+            )
         val account = accountService.create(createCmd)
         val accountId = account.id!!
 
-        val inviteCmd = AccountMembership.InviteMemberCommand(
-            accountId = accountId,
-            inviterUserId = owner.id!!,
-            inviteeEmail = memberEmail,
-            role = AccountRole.MEMBER,
-        )
+        val inviteCmd =
+            AccountMembership.InviteMemberCommand(
+                accountId = accountId,
+                inviterUserId = owner.id!!,
+                inviteeEmail = memberEmail,
+                role = AccountRole.MEMBER,
+            )
         val invitation = accountMembershipService.invite(inviteCmd)
-        val acceptCmd = AccountMembership.AcceptInvitationCommand(
-            invitationToken = invitation.invitationToken,
-            actorUserId = member.id!!,
-        )
+        val acceptCmd =
+            AccountMembership.AcceptInvitationCommand(
+                invitationToken = invitation.invitationToken,
+                actorUserId = member.id!!,
+            )
         accountMembershipService.acceptInvitation(acceptCmd)
 
         val membership = accountMembershipRepository.findOneByAccountIdAndUserId(accountId, member.id!!).get()
-        val changeCmd = AccountMembership.ChangeMemberRoleCommand(
-            accountId = accountId,
-            actorUserId = owner.id!!,
-            targetMembershipId = membership.id!!,
-            newRole = AccountRole.VIEWER,
-        )
+        val changeCmd =
+            AccountMembership.ChangeMemberRoleCommand(
+                accountId = accountId,
+                actorUserId = owner.id!!,
+                targetMembershipId = membership.id!!,
+                newRole = AccountRole.VIEWER,
+            )
         accountMembershipService.changeMemberRole(changeCmd)
 
         val updated = accountMembershipRepository.findOneByAccountIdAndUserId(accountId, member.id!!)
@@ -342,31 +360,34 @@ class AccountMembershipServiceIntegrationTest :
         val owner = userRepository.findByEmail(ownerEmail)!!
         val member = userRepository.findByEmail(memberEmail)!!
 
-        val createCmd = AccountManagement.CreateAccountCommand(
-            accountName = "Remove Member Account",
-            accountType = io.github.salomax.neotool.security.model.account.AccountType.BUSINESS,
-            ownerUserId = owner.id!!,
-        )
+        val createCmd =
+            AccountManagement.CreateAccountCommand(
+                accountName = "Remove Member Account",
+                accountType = io.github.salomax.neotool.security.model.account.AccountType.BUSINESS,
+                ownerUserId = owner.id!!,
+            )
         val account = accountService.create(createCmd)
         val accountId = account.id!!
 
-        val inviteCmd = AccountMembership.InviteMemberCommand(
-            accountId = accountId,
-            inviterUserId = owner.id!!,
-            inviteeEmail = memberEmail,
-            role = AccountRole.MEMBER,
-        )
+        val inviteCmd =
+            AccountMembership.InviteMemberCommand(
+                accountId = accountId,
+                inviterUserId = owner.id!!,
+                inviteeEmail = memberEmail,
+                role = AccountRole.MEMBER,
+            )
         val invitation = accountMembershipService.invite(inviteCmd)
         accountMembershipService.acceptInvitation(
             AccountMembership.AcceptInvitationCommand(invitation.invitationToken, member.id!!),
         )
 
         val membership = accountMembershipRepository.findOneByAccountIdAndUserId(accountId, member.id!!).get()
-        val removeCmd = AccountMembership.RemoveMemberCommand(
-            accountId = accountId,
-            actorUserId = owner.id!!,
-            targetMembershipId = membership.id!!,
-        )
+        val removeCmd =
+            AccountMembership.RemoveMemberCommand(
+                accountId = accountId,
+                actorUserId = owner.id!!,
+                targetMembershipId = membership.id!!,
+            )
         accountMembershipService.removeMember(removeCmd)
 
         val afterRemove = accountMembershipRepository.findOneByAccountIdAndUserId(accountId, member.id!!)
@@ -385,29 +406,32 @@ class AccountMembershipServiceIntegrationTest :
         val owner = userRepository.findByEmail(ownerEmail)!!
         val member = userRepository.findByEmail(memberEmail)!!
 
-        val createCmd = AccountManagement.CreateAccountCommand(
-            accountName = "Leave Account",
-            accountType = io.github.salomax.neotool.security.model.account.AccountType.BUSINESS,
-            ownerUserId = owner.id!!,
-        )
+        val createCmd =
+            AccountManagement.CreateAccountCommand(
+                accountName = "Leave Account",
+                accountType = io.github.salomax.neotool.security.model.account.AccountType.BUSINESS,
+                ownerUserId = owner.id!!,
+            )
         val account = accountService.create(createCmd)
         val accountId = account.id!!
 
-        val inviteCmd = AccountMembership.InviteMemberCommand(
-            accountId = accountId,
-            inviterUserId = owner.id!!,
-            inviteeEmail = memberEmail,
-            role = AccountRole.MEMBER,
-        )
+        val inviteCmd =
+            AccountMembership.InviteMemberCommand(
+                accountId = accountId,
+                inviterUserId = owner.id!!,
+                inviteeEmail = memberEmail,
+                role = AccountRole.MEMBER,
+            )
         val invitation = accountMembershipService.invite(inviteCmd)
         accountMembershipService.acceptInvitation(
             AccountMembership.AcceptInvitationCommand(invitation.invitationToken, member.id!!),
         )
 
-        val leaveCmd = AccountMembership.LeaveAccountCommand(
-            accountId = accountId,
-            actorUserId = member.id!!,
-        )
+        val leaveCmd =
+            AccountMembership.LeaveAccountCommand(
+                accountId = accountId,
+                actorUserId = member.id!!,
+            )
         accountMembershipService.leaveAccount(leaveCmd)
 
         val afterLeave = accountMembershipRepository.findOneByAccountIdAndUserId(accountId, member.id!!)
@@ -425,30 +449,33 @@ class AccountMembershipServiceIntegrationTest :
         val owner = userRepository.findByEmail(ownerEmail)!!
         val admin = userRepository.findByEmail(adminEmail)!!
 
-        val createCmd = AccountManagement.CreateAccountCommand(
-            accountName = "Transfer Account",
-            accountType = io.github.salomax.neotool.security.model.account.AccountType.BUSINESS,
-            ownerUserId = owner.id!!,
-        )
+        val createCmd =
+            AccountManagement.CreateAccountCommand(
+                accountName = "Transfer Account",
+                accountType = io.github.salomax.neotool.security.model.account.AccountType.BUSINESS,
+                ownerUserId = owner.id!!,
+            )
         val account = accountService.create(createCmd)
         val accountId = account.id!!
 
-        val inviteCmd = AccountMembership.InviteMemberCommand(
-            accountId = accountId,
-            inviterUserId = owner.id!!,
-            inviteeEmail = adminEmail,
-            role = AccountRole.ADMIN,
-        )
+        val inviteCmd =
+            AccountMembership.InviteMemberCommand(
+                accountId = accountId,
+                inviterUserId = owner.id!!,
+                inviteeEmail = adminEmail,
+                role = AccountRole.ADMIN,
+            )
         val invitation = accountMembershipService.invite(inviteCmd)
         accountMembershipService.acceptInvitation(
             AccountMembership.AcceptInvitationCommand(invitation.invitationToken, admin.id!!),
         )
 
-        val transferCmd = AccountMembership.TransferOwnershipCommand(
-            accountId = accountId,
-            actorUserId = owner.id!!,
-            newOwnerUserId = admin.id!!,
-        )
+        val transferCmd =
+            AccountMembership.TransferOwnershipCommand(
+                accountId = accountId,
+                actorUserId = owner.id!!,
+                newOwnerUserId = admin.id!!,
+            )
         accountMembershipService.transferOwnership(transferCmd)
 
         val updatedAccount = accountRepository.findById(accountId).get()

@@ -10,6 +10,9 @@ import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.common.test.json.read
 import io.github.salomax.neotool.common.test.transaction.runTransaction
 import io.github.salomax.neotool.security.model.UserEntity
+import io.github.salomax.neotool.security.repo.AccountMembershipRepository
+import io.github.salomax.neotool.security.repo.AccountRepository
+import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.RefreshTokenRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.authentication.AuthenticationService
@@ -51,6 +54,15 @@ open class GraphQLAuthenticationIntegrationTest :
     @Inject
     lateinit var refreshTokenRepository: RefreshTokenRepository
 
+    @Inject
+    lateinit var accountRepository: AccountRepository
+
+    @Inject
+    lateinit var accountMembershipRepository: AccountMembershipRepository
+
+    @Inject
+    lateinit var principalRepository: PrincipalRepository
+
     private fun uniqueEmail() = SecurityTestDataBuilders.uniqueEmail("graphql-authentication")
 
     fun saveUser(user: UserEntity) {
@@ -74,6 +86,9 @@ open class GraphQLAuthenticationIntegrationTest :
         try {
             entityManager.runTransaction {
                 refreshTokenRepository.deleteAll()
+                accountMembershipRepository.deleteAll()
+                accountRepository.deleteAll()
+                principalRepository.deleteAll()
                 userRepository.deleteAll()
                 entityManager.flush()
             }

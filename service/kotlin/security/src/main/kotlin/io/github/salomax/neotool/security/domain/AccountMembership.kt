@@ -10,7 +10,6 @@ import java.util.UUID
  * Command and result DTOs for account membership and invitation operations (FR-4).
  */
 object AccountMembership {
-
     private val INVITABLE_ROLES = setOf(AccountRole.ADMIN, AccountRole.MEMBER, AccountRole.VIEWER)
     private val EMAIL_REGEX = Regex("^[^@]+@[^@]+\\.[^@]+$")
 

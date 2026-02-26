@@ -5,10 +5,13 @@ import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.common.test.transaction.runTransaction
 import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.repo.AbacPolicyRepository
+import io.github.salomax.neotool.security.repo.AccountMembershipRepository
+import io.github.salomax.neotool.security.repo.AccountRepository
 import io.github.salomax.neotool.security.repo.GroupMembershipRepository
 import io.github.salomax.neotool.security.repo.GroupRepository
 import io.github.salomax.neotool.security.repo.GroupRoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.PermissionRepository
+import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.authentication.AuthenticationService
@@ -64,6 +67,15 @@ open class AuthorizationIntegrationTest :
     lateinit var userRepository: UserRepository
 
     @Inject
+    lateinit var accountRepository: AccountRepository
+
+    @Inject
+    lateinit var accountMembershipRepository: AccountMembershipRepository
+
+    @Inject
+    lateinit var principalRepository: PrincipalRepository
+
+    @Inject
     lateinit var authenticationService: AuthenticationService
 
     @Inject
@@ -102,6 +114,9 @@ open class AuthorizationIntegrationTest :
             roleRepository.deleteAll()
             groupRepository.deleteAll()
             abacPolicyRepository.deleteAll()
+            accountMembershipRepository.deleteAll()
+            accountRepository.deleteAll()
+            principalRepository.deleteAll()
             userRepository.deleteAll()
         } catch (e: Exception) {
             // Ignore cleanup errors
