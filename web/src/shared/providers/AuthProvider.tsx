@@ -79,13 +79,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const routeAfterAuthentication = React.useCallback(
-    (nextUser: User | null, fallbackPath = "/") => {
+    (nextUser: User | null, fallbackPath = "/", explicitRedirect?: string | null) => {
       if (nextUser?.emailVerified === false && nextUser.email) {
         sessionStorage.setItem("pendingVerificationEmail", nextUser.email);
         router.push("/verify-email");
         return;
       }
-      const target = postLoginRedirectPathRef.current ?? fallbackPath;
+      const explicitTarget =
+        typeof explicitRedirect === "string" && explicitRedirect !== ""
+          ? explicitRedirect
+          : null;
+      const target = explicitTarget ?? postLoginRedirectPathRef.current ?? fallbackPath;
       postLoginRedirectPathRef.current = null;
       router.push(target);
     },
