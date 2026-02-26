@@ -10,8 +10,19 @@ let unleashClient: Unleash | null = null;
 let isInitialized = false;
 
 /**
- * Get or create the Unleash client instance (server-side only)
- * Uses singleton pattern to avoid creating multiple clients
+ * Whether server-side Unleash is configured (URL + API token set).
+ * When false, feature flags are treated as disabled and no client is created.
+ */
+export function isUnleashServerConfigured(): boolean {
+  return Boolean(
+    process.env.UNLEASH_SERVER_URL && process.env.UNLEASH_SERVER_API_TOKEN
+  );
+}
+
+/**
+ * Get or create the Unleash client instance (server-side only).
+ * Uses singleton pattern to avoid creating multiple clients.
+ * Throws only when called while server config is expected; use isUnleashServerConfigured() first.
  */
 export function getUnleashClient(): Unleash {
   if (typeof window !== 'undefined') {
@@ -26,11 +37,11 @@ export function getUnleashClient(): Unleash {
   const unleashApiToken = process.env.UNLEASH_SERVER_API_TOKEN;
 
   if (!unleashUrl) {
-    throw new Error('UNLEASH_SERVER_URL environment variable is required');
+    throw new Error('UNLEASH_SERVER_URL environment variable is required when using server-side Unleash');
   }
 
   if (!unleashApiToken) {
-    throw new Error('UNLEASH_SERVER_API_TOKEN environment variable is required');
+    throw new Error('UNLEASH_SERVER_API_TOKEN environment variable is required when using server-side Unleash');
   }
 
   unleashClient = new Unleash({
@@ -91,6 +102,9 @@ export async function isFeatureEnabled(
   context?: UnleashEvaluationContext,
   defaultValue: boolean = false
 ): Promise<boolean> {
+  if (!isUnleashServerConfigured()) {
+    return defaultValue;
+  }
   try {
     const client = getUnleashClient();
     const ready = await waitForReady();
@@ -127,6 +141,9 @@ export async function isFeatureEnabled(
 export async function getFeatureFlags(
   context?: UnleashEvaluationContext
 ): Promise<Record<string, boolean>> {
+  if (!isUnleashServerConfigured()) {
+    return {};
+  }
   try {
     const client = getUnleashClient();
     const ready = await waitForReady();

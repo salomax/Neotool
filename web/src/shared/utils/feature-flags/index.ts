@@ -1,2 +1,7 @@
-export { getUnleashClient, isFeatureEnabled, getFeatureFlags } from './server';
-export { getBootstrapFlags } from './bootstrap';
+export {
+  getUnleashClient,
+  isUnleashServerConfigured,
+  isFeatureEnabled,
+  getFeatureFlags,
+} from './server';
+export { getBootstrapFlags, getBootstrapFeatureFlagsData } from './bootstrap';

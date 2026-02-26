@@ -4,36 +4,39 @@
  */
 
 import { getFeatureFlags } from './server';
-import { getAuthToken, getAuthUser } from '@/shared/utils/auth';
+import { buildUnleashEvaluationContext } from '@/shared/utils/auth-session/shared';
+import { getAuthSessionContextFromCookies } from '@/shared/utils/auth-session/server';
+import type { AuthSessionContext } from '@/shared/utils/auth-session/shared';
+import type { UnleashEvaluationContext } from '@/shared/types/unleash';
+
+export type FeatureFlagsBootstrapData = {
+  flags: Record<string, boolean>;
+  context: UnleashEvaluationContext;
+  sessionContext: AuthSessionContext | null;
+};
 
 /**
  * Get feature flags with user context for bootstrap
  * This ensures the first client render matches SSR
  */
 export async function getBootstrapFlags(): Promise<Record<string, boolean>> {
-  try {
-    // Get user context if available
-    const user = getAuthUser();
-    const token = getAuthToken();
+  const { flags } = await getBootstrapFeatureFlagsData();
+  return flags;
+}
 
-    // Extract user context for targeting
-    const context = user
-      ? {
-          userId: user.id,
-          tenantId: user.tenantId,
-          role: user.role || (user.roles && user.roles.length > 0 ? user.roles[0].name : undefined),
-          plan: user.plan,
-          environment: process.env.NEXT_PUBLIC_ENV || 'production',
-        }
-      : {
-          environment: process.env.NEXT_PUBLIC_ENV || 'production',
-        };
+export async function getBootstrapFeatureFlagsData(): Promise<FeatureFlagsBootstrapData> {
+  try {
+    const sessionContext = await getAuthSessionContextFromCookies();
+    const context = buildUnleashEvaluationContext(sessionContext);
 
     const flags = await getFeatureFlags(context);
-    return flags;
+    return { flags, context, sessionContext };
   } catch (error) {
     console.error('Failed to get bootstrap flags:', error);
-    // Return empty object on error - flags will be fetched client-side
-    return {};
+    return {
+      flags: {},
+      context: buildUnleashEvaluationContext(null),
+      sessionContext: null,
+    };
   }
 }
