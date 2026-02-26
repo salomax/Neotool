@@ -1,3 +1,17 @@
+## 0.4.5 (2026-02-26)
+
+### 🚀 Features
+
+- **authentication:** implement web auth-required route guard and session management ([8d1aba55](https://github.com/invistus/invistus/commit/8d1aba55))
+
+### 🩹 Fixes
+
+- **tests:** update SignInPage test for login required message ([303a7923](https://github.com/invistus/invistus/commit/303a7923))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.4.4 (2026-02-26)
 
 ### 🚀 Features
