@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
-import io.github.salomax.neotool.common.security.principal.AccountSummary
 import java.util.UUID
 
 @DisplayName("JwtPrincipalDecoder Unit Tests")
@@ -121,10 +120,17 @@ class JwtPrincipalDecoderTest {
             val token = "access-token"
             val userId = UUID.randomUUID()
             val accountId = UUID.randomUUID()
-            val accounts = listOf(
-                AccountSummary(accountId, "OWNER"),
-                AccountSummary(UUID.randomUUID(), "MEMBER"),
-            )
+            val accounts =
+                listOf(
+                    AccountSummary(
+                        accountId,
+                        "OWNER",
+                    ),
+                    AccountSummary(
+                        UUID.randomUUID(),
+                        "MEMBER",
+                    ),
+                )
 
             whenever(jwtTokenValidator.isServiceToken(token)).thenReturn(false)
             whenever(jwtTokenValidator.isAccessToken(token)).thenReturn(true)

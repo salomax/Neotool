@@ -80,8 +80,7 @@ data class RequestPrincipal(
      * Returns true if the principal is a member of the given account (current or in accounts list).
      * Use for account-scoped authorization checks without custom claim parsing.
      */
-    fun isMemberOfAccount(accountId: UUID): Boolean =
-        currentAccountId == accountId || accountIds.contains(accountId)
+    fun isMemberOfAccount(accountId: UUID): Boolean = currentAccountId == accountId || accountIds.contains(accountId)
 
     /**
      * Returns true if the principal's session version matches the expected value.

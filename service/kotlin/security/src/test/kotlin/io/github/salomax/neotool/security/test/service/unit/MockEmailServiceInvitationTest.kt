@@ -12,11 +12,11 @@ import org.junit.jupiter.api.Test
  */
 @DisplayName("MockEmailService Invitation Email")
 class MockEmailServiceInvitationTest {
-
-    private val emailConfig = EmailConfig(
-        from = "noreply@test.com",
-        frontendUrl = "http://localhost:3000",
-    )
+    private val emailConfig =
+        EmailConfig(
+            from = "noreply@test.com",
+            frontendUrl = "http://localhost:3000",
+        )
     private val mockEmailService = MockEmailService(emailConfig)
 
     @Test
@@ -70,8 +70,9 @@ class MockEmailServiceInvitationTest {
     @Test
     fun `invitation template en contains required placeholders for rendering`() {
         val templatePath = "/emails/invitation/en.html"
-        val resource = javaClass.getResourceAsStream(templatePath)
-            ?: throw IllegalStateException("Invitation template not found: $templatePath")
+        val resource =
+            javaClass.getResourceAsStream(templatePath)
+                ?: throw IllegalStateException("Invitation template not found: $templatePath")
         val template = resource.bufferedReader().use { it.readText() }
 
         assertThat(template).contains("{{ACCEPT_LINK}}")

@@ -9,6 +9,9 @@ import io.github.salomax.neotool.common.test.transaction.runTransaction
 import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.model.UserOrderBy
 import io.github.salomax.neotool.security.model.UserOrderField
+import io.github.salomax.neotool.security.repo.AccountMembershipRepository
+import io.github.salomax.neotool.security.repo.AccountRepository
+import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.authentication.AuthenticationService
 import io.github.salomax.neotool.security.service.management.UserManagementService
@@ -47,6 +50,15 @@ open class UserManagementPaginationIntegrationTest :
     lateinit var userRepository: UserRepository
 
     @Inject
+    lateinit var accountRepository: AccountRepository
+
+    @Inject
+    lateinit var accountMembershipRepository: AccountMembershipRepository
+
+    @Inject
+    lateinit var principalRepository: PrincipalRepository
+
+    @Inject
     lateinit var userManagementService: UserManagementService
 
     @Inject
@@ -79,6 +91,9 @@ open class UserManagementPaginationIntegrationTest :
     @AfterEach
     fun cleanupTestData() {
         try {
+            accountMembershipRepository.deleteAll()
+            accountRepository.deleteAll()
+            principalRepository.deleteAll()
             userRepository.deleteAll()
             entityManager.flush()
         } catch (e: Exception) {

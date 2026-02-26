@@ -8,6 +8,20 @@ vi.mock('@/shared/utils/auth/oauth', () => ({
   loadGoogleIdentityServices: vi.fn(() => Promise.resolve()),
 }));
 
+// Mock runtime config so tests don't depend on window.__RUNTIME_CONFIG__ or process.env.GOOGLE_CLIENT_ID
+// (only NEXT_PUBLIC_GOOGLE_CLIENT_ID is cleared in the "not configured" test)
+vi.mock('@/shared/config/runtime-config', () => ({
+  getRuntimeConfig: vi.fn(() => ({
+    env: 'test',
+    unleashProxyUrl: '',
+    unleashClientToken: '',
+    graphqlEndpoint: '',
+    googleClientId: '',
+    umamiWebsiteId: '',
+    umamiScriptUrl: '',
+  })),
+}));
+
 // Run sequentially to avoid concurrent renders leaking between tests
 describe.sequential('useOAuth', () => {
   beforeEach(() => {

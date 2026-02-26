@@ -4,6 +4,9 @@ import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.common.test.transaction.runTransaction
 import io.github.salomax.neotool.security.model.UserEntity
+import io.github.salomax.neotool.security.repo.AccountMembershipRepository
+import io.github.salomax.neotool.security.repo.AccountRepository
+import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.authentication.AuthContextFactory
 import io.github.salomax.neotool.security.service.authentication.AuthenticationService
@@ -42,6 +45,15 @@ open class AuthenticationServiceEdgeCasesIntegrationTest :
     lateinit var userRepository: UserRepository
 
     @Inject
+    lateinit var accountRepository: AccountRepository
+
+    @Inject
+    lateinit var accountMembershipRepository: AccountMembershipRepository
+
+    @Inject
+    lateinit var principalRepository: PrincipalRepository
+
+    @Inject
     lateinit var authenticationService: AuthenticationService
 
     @Inject
@@ -62,6 +74,9 @@ open class AuthenticationServiceEdgeCasesIntegrationTest :
     @AfterEach
     fun cleanupTestData() {
         try {
+            accountMembershipRepository.deleteAll()
+            accountRepository.deleteAll()
+            principalRepository.deleteAll()
             userRepository.deleteAll()
         } catch (e: Exception) {
             // Ignore cleanup errors

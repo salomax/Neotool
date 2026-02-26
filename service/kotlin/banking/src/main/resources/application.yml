@@ -75,6 +75,15 @@ datasources:
         prepareThreshold: 0
         tcpKeepAlive: true
 
+# JPA disabled until the module has @Entity classes (common brings in Hibernate JPA)
+jpa:
+  default:
+    enabled: false
+    properties:
+      hibernate:
+        hbm2ddl:
+          auto: none
+
 flyway:
   datasources:
     default:

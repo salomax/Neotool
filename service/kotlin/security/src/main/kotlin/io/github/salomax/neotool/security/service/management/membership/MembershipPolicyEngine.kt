@@ -65,7 +65,6 @@ enum class MembershipOperation {
  */
 @Singleton
 class MembershipPolicyEngine {
-
     /**
      * Evaluate whether the actor can perform the operation.
      *
@@ -86,7 +85,9 @@ class MembershipPolicyEngine {
     ): MembershipPolicyResult {
         return when (operation) {
             MembershipOperation.UPDATE_ACCOUNT,
-            MembershipOperation.DELETE_ACCOUNT -> evaluateOwnerOnly(actor)
+            MembershipOperation.DELETE_ACCOUNT,
+            ->
+                evaluateOwnerOnly(actor)
             MembershipOperation.INVITE -> evaluateInvite(actor)
             MembershipOperation.CANCEL_INVITATION -> evaluateCancelInvitation(actor, target)
             MembershipOperation.CHANGE_ROLE -> evaluateChangeRole(actor, target, newRole)

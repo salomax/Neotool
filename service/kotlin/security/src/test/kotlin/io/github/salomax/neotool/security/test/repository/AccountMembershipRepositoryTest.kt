@@ -31,7 +31,6 @@ import java.util.UUID
 class AccountMembershipRepositoryTest :
     BaseIntegrationTest(),
     PostgresIntegrationTest {
-
     @Inject
     lateinit var accountMembershipRepository: AccountMembershipRepository
 
@@ -42,10 +41,11 @@ class AccountMembershipRepositoryTest :
     lateinit var userRepository: UserRepository
 
     private fun createTestUser(): UserEntity {
-        val user = SecurityTestDataBuilders.user(
-            id = null,
-            email = SecurityTestDataBuilders.uniqueEmail("membership-repo"),
-        )
+        val user =
+            SecurityTestDataBuilders.user(
+                id = null,
+                email = SecurityTestDataBuilders.uniqueEmail("membership-repo"),
+            )
         return userRepository.save(user)
     }
 
@@ -64,13 +64,14 @@ class AccountMembershipRepositoryTest :
     fun `should save membership and find by id`() {
         val user = createTestUser()
         val account = createTestAccount(user.id!!)
-        val membership = AccountMembershipEntity(
-            accountId = account.id!!,
-            userId = user.id!!,
-            accountRole = AccountRole.OWNER,
-            membershipStatus = MembershipStatus.ACTIVE,
-            isDefault = true,
-        )
+        val membership =
+            AccountMembershipEntity(
+                accountId = account.id!!,
+                userId = user.id!!,
+                accountRole = AccountRole.OWNER,
+                membershipStatus = MembershipStatus.ACTIVE,
+                isDefault = true,
+            )
         val saved = accountMembershipRepository.save(membership)
 
         assertThat(saved.id).isNotNull()
@@ -87,24 +88,26 @@ class AccountMembershipRepositoryTest :
         val owner = createTestUser()
         val member = createTestUser()
         val account = createTestAccount(owner.id!!)
-        val ownerMembership = accountMembershipRepository.save(
-            AccountMembershipEntity(
-                accountId = account.id!!,
-                userId = owner.id!!,
-                accountRole = AccountRole.OWNER,
-                membershipStatus = MembershipStatus.ACTIVE,
-                isDefault = true,
-            ),
-        )
-        val memberMembership = accountMembershipRepository.save(
-            AccountMembershipEntity(
-                accountId = account.id!!,
-                userId = member.id!!,
-                accountRole = AccountRole.MEMBER,
-                membershipStatus = MembershipStatus.ACTIVE,
-                isDefault = false,
-            ),
-        )
+        val ownerMembership =
+            accountMembershipRepository.save(
+                AccountMembershipEntity(
+                    accountId = account.id!!,
+                    userId = owner.id!!,
+                    accountRole = AccountRole.OWNER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                    isDefault = true,
+                ),
+            )
+        val memberMembership =
+            accountMembershipRepository.save(
+                AccountMembershipEntity(
+                    accountId = account.id!!,
+                    userId = member.id!!,
+                    accountRole = AccountRole.MEMBER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                    isDefault = false,
+                ),
+            )
 
         val byAccount = accountMembershipRepository.findByAccountId(account.id!!)
 
@@ -178,18 +181,19 @@ class AccountMembershipRepositoryTest :
         val account = createTestAccount(owner.id!!)
         val token = "invite-${UUID.randomUUID()}"
         val expiresAt = Instant.now().plusSeconds(7 * 24 * 3600)
-        val membership = accountMembershipRepository.save(
-            AccountMembershipEntity(
-                accountId = account.id!!,
-                userId = invitee.id!!,
-                accountRole = AccountRole.MEMBER,
-                membershipStatus = MembershipStatus.PENDING,
-                isDefault = false,
-                invitationToken = token,
-                invitationExpiresAt = expiresAt,
-                invitedBy = owner.id,
-            ),
-        )
+        val membership =
+            accountMembershipRepository.save(
+                AccountMembershipEntity(
+                    accountId = account.id!!,
+                    userId = invitee.id!!,
+                    accountRole = AccountRole.MEMBER,
+                    membershipStatus = MembershipStatus.PENDING,
+                    isDefault = false,
+                    invitationToken = token,
+                    invitationExpiresAt = expiresAt,
+                    invitedBy = owner.id,
+                ),
+            )
 
         val found = accountMembershipRepository.findOneByInvitationToken(token)
 

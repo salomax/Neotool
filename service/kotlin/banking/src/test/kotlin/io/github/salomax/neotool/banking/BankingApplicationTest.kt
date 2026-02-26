@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Test
 @MicronautTest(startApplication = false)
 @DisplayName("Banking Application Unit Tests")
 class BankingApplicationTest {
-
     @Test
     @DisplayName("application context loads")
     fun `should load application context`() {

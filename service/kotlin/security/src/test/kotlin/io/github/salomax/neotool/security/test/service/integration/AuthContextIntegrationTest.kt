@@ -13,10 +13,13 @@ import io.github.salomax.neotool.common.test.transaction.runTransaction
 import io.github.salomax.neotool.security.model.PermissionEntity
 import io.github.salomax.neotool.security.model.RoleEntity
 import io.github.salomax.neotool.security.model.UserEntity
+import io.github.salomax.neotool.security.repo.AccountMembershipRepository
+import io.github.salomax.neotool.security.repo.AccountRepository
 import io.github.salomax.neotool.security.repo.GroupMembershipRepository
 import io.github.salomax.neotool.security.repo.GroupRepository
 import io.github.salomax.neotool.security.repo.GroupRoleAssignmentRepository
 import io.github.salomax.neotool.security.repo.PermissionRepository
+import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.RefreshTokenRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
 import io.github.salomax.neotool.security.repo.UserRepository
@@ -80,6 +83,15 @@ class AuthContextIntegrationTest :
     lateinit var refreshTokenRepository: RefreshTokenRepository
 
     @Inject
+    lateinit var accountRepository: AccountRepository
+
+    @Inject
+    lateinit var accountMembershipRepository: AccountMembershipRepository
+
+    @Inject
+    lateinit var principalRepository: PrincipalRepository
+
+    @Inject
     lateinit var entityManager: EntityManager
 
     private lateinit var testRole: RoleEntity
@@ -116,6 +128,9 @@ class AuthContextIntegrationTest :
                 refreshTokenRepository.deleteAll()
                 groupRoleAssignmentRepository.deleteAll()
                 groupMembershipRepository.deleteAll()
+                accountMembershipRepository.deleteAll()
+                accountRepository.deleteAll()
+                principalRepository.deleteAll()
                 userRepository.deleteAll()
                 roleRepository.deleteAll()
                 permissionRepository.deleteAll()
