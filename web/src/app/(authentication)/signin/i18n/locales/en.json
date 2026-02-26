@@ -1,6 +1,7 @@
 {
   "title": "Welcome back",
   "subtitle": "Sign in to your account to continue",
+  "loginRequiredMessage": "You must be signed in to access that page.",
   "email": "Email",
   "password": "Password",
   "rememberMe": "Keep me signed in",

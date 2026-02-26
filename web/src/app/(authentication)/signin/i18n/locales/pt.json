@@ -1,6 +1,7 @@
 {
   "title": "Bem-vindo de volta",
   "subtitle": "Entre na sua conta para continuar",
+  "loginRequiredMessage": "Você precisa estar conectado para acessar essa página.",
   "email": "E-mail",
   "password": "Senha",
   "rememberMe": "Manter-me conectado",

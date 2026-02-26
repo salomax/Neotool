@@ -17,18 +17,22 @@ export default function SignInPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isAuthenticated, isLoading, setPostLoginRedirect } = useAuth();
+  const resolvedTarget = React.useMemo(
+    () => resolvePostLoginRedirect(searchParams, "/"),
+    [searchParams]
+  );
 
   // Set post-login redirect so AuthProvider can send user to intended target after sign-in
   React.useEffect(() => {
-    setPostLoginRedirect(resolvePostLoginRedirect(searchParams, "/"));
-  }, [searchParams, setPostLoginRedirect]);
+    setPostLoginRedirect(resolvedTarget);
+  }, [resolvedTarget, setPostLoginRedirect]);
 
   // Redirect if already authenticated
   React.useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      router.push(resolvePostLoginRedirect(searchParams, "/"));
+      router.push(resolvedTarget);
     }
-  }, [isAuthenticated, isLoading, router, searchParams]);
+  }, [isAuthenticated, isLoading, router, resolvedTarget]);
 
   if (isLoading) {
     return (
@@ -94,6 +98,16 @@ export default function SignInPage() {
                 >
                   {t("subtitle")}
                 </Typography>
+                {resolvedTarget !== "/" && (
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mt: 1.5 }}
+                    data-testid="signin-login-required-message"
+                  >
+                    {t("loginRequiredMessage")}
+                  </Typography>
+                )}
               </Box>
 
               <SignInForm />
