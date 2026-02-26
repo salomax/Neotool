@@ -1,10 +1,12 @@
 package io.github.salomax.neotool.security.test.service.unit
 
+import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.OrderDirection
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import io.github.salomax.neotool.security.domain.RoleManagement
+import io.github.salomax.neotool.security.error.SecurityErrorCode
 import io.github.salomax.neotool.security.model.RoleOrderBy
 import io.github.salomax.neotool.security.model.RoleOrderField
 import io.github.salomax.neotool.security.repo.GroupRepository
@@ -491,10 +493,11 @@ class RoleManagementServiceTest {
             whenever(roleRepository.findById(roleId)).thenReturn(Optional.empty())
 
             // Act & Assert
-            assertThrows<IllegalArgumentException> {
+            assertThrows<NotFoundException> {
                 roleManagementService.updateRole(command)
             }.also { exception ->
-                assertThat(exception.message).contains("Role not found")
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.ROLE_NOT_FOUND)
+                assertThat(exception.field).isEqualTo("roleId")
             }
             verify(roleRepository).findById(roleId)
             verify(roleRepository, never()).update(any())
@@ -590,10 +593,11 @@ class RoleManagementServiceTest {
             whenever(roleRepository.findById(roleId)).thenReturn(Optional.empty())
 
             // Act & Assert
-            assertThrows<IllegalArgumentException> {
+            assertThrows<NotFoundException> {
                 roleManagementService.assignPermissionToRole(command)
             }.also { exception ->
-                assertThat(exception.message).contains("Role not found")
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.ROLE_NOT_FOUND)
+                assertThat(exception.field).isEqualTo("roleId")
             }
             verify(roleRepository).findById(roleId)
             verify(roleRepository, never()).assignPermissionToRole(any(), any())
@@ -610,10 +614,11 @@ class RoleManagementServiceTest {
             whenever(permissionRepository.findById(permissionId)).thenReturn(Optional.empty())
 
             // Act & Assert
-            assertThrows<IllegalArgumentException> {
+            assertThrows<NotFoundException> {
                 roleManagementService.assignPermissionToRole(command)
             }.also { exception ->
-                assertThat(exception.message).contains("Permission not found")
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.PERMISSION_NOT_FOUND)
+                assertThat(exception.field).isEqualTo("permissionId")
             }
             verify(roleRepository).findById(roleId)
             verify(permissionRepository).findById(permissionId)
@@ -655,10 +660,11 @@ class RoleManagementServiceTest {
             whenever(roleRepository.findById(roleId)).thenReturn(Optional.empty())
 
             // Act & Assert
-            assertThrows<IllegalArgumentException> {
+            assertThrows<NotFoundException> {
                 roleManagementService.removePermissionFromRole(command)
             }.also { exception ->
-                assertThat(exception.message).contains("Role not found")
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.ROLE_NOT_FOUND)
+                assertThat(exception.field).isEqualTo("roleId")
             }
             verify(roleRepository).findById(roleId)
             verify(roleRepository, never()).removePermissionFromRole(any(), any())
@@ -675,10 +681,11 @@ class RoleManagementServiceTest {
             whenever(permissionRepository.findById(permissionId)).thenReturn(Optional.empty())
 
             // Act & Assert
-            assertThrows<IllegalArgumentException> {
+            assertThrows<NotFoundException> {
                 roleManagementService.removePermissionFromRole(command)
             }.also { exception ->
-                assertThat(exception.message).contains("Permission not found")
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.PERMISSION_NOT_FOUND)
+                assertThat(exception.field).isEqualTo("permissionId")
             }
             verify(roleRepository).findById(roleId)
             verify(permissionRepository).findById(permissionId)

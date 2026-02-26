@@ -4,12 +4,14 @@ import io.github.salomax.neotool.assets.config.AssetConfigProperties
 import io.github.salomax.neotool.assets.domain.AssetStatus
 import io.github.salomax.neotool.assets.domain.AssetVisibility
 import io.github.salomax.neotool.assets.entity.AssetEntity
+import io.github.salomax.neotool.assets.error.AssetErrorCode
 import io.github.salomax.neotool.assets.exception.StorageUnavailableException
 import io.github.salomax.neotool.assets.repository.AssetRepository
 import io.github.salomax.neotool.assets.storage.BucketResolver
 import io.github.salomax.neotool.assets.storage.StorageClient
 import io.github.salomax.neotool.assets.storage.StorageKeyFactory
 import io.github.salomax.neotool.assets.storage.StorageProperties
+import io.github.salomax.neotool.common.error.ConflictException
 import io.micrometer.core.instrument.MeterRegistry
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
@@ -287,8 +289,10 @@ class AssetServiceTest {
 
             // Act & Assert
             assertThatThrownBy { assetService.confirmUpload(assetId, ownerId) }
-                .isInstanceOf(IllegalArgumentException::class.java)
-                .hasMessageContaining("Upload URL has expired")
+                .isInstanceOfSatisfying(ConflictException::class.java) { ex ->
+                    assertThat(ex.errorCode).isEqualTo(AssetErrorCode.ASSET_UPLOAD_EXPIRED)
+                    assertThat(ex.field).isEqualTo("uploadExpiresAt")
+                }
 
             verify(assetRepository).findById(assetId)
             verify(assetRepository).update(any()) // Should update status to FAILED
@@ -315,8 +319,10 @@ class AssetServiceTest {
 
             // Act & Assert
             assertThatThrownBy { assetService.confirmUpload(assetId, ownerId) }
-                .isInstanceOf(IllegalArgumentException::class.java)
-                .hasMessageContaining("Upload not completed: file not found in storage")
+                .isInstanceOfSatisfying(ConflictException::class.java) { ex ->
+                    assertThat(ex.errorCode).isEqualTo(AssetErrorCode.ASSET_UPLOAD_NOT_COMPLETED)
+                    assertThat(ex.field).isEqualTo("assetId")
+                }
 
             verify(assetRepository).findById(assetId)
             verify(storageClient).objectExists(entity.storageBucket, entity.storageKey)
@@ -346,8 +352,10 @@ class AssetServiceTest {
 
             // Act & Assert
             assertThatThrownBy { assetService.confirmUpload(assetId, ownerId) }
-                .isInstanceOf(IllegalArgumentException::class.java)
-                .hasMessageContaining("Upload verification failed: could not retrieve file metadata")
+                .isInstanceOfSatisfying(ConflictException::class.java) { ex ->
+                    assertThat(ex.errorCode).isEqualTo(AssetErrorCode.ASSET_UPLOAD_VERIFICATION_FAILED)
+                    assertThat(ex.field).isEqualTo("assetId")
+                }
 
             verify(assetRepository).findById(assetId)
             verify(storageClient).objectExists(entity.storageBucket, entity.storageKey)

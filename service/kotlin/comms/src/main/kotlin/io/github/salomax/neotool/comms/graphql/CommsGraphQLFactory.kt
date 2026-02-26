@@ -20,7 +20,10 @@ class CommsGraphQLFactory(
         val registry = loadSchema()
         val runtimeWiring = wiringFactory.build()
         val schema = SchemaGenerator().makeExecutableSchema(registry, runtimeWiring)
-        return GraphQL.newGraphQL(schema).build()
+        return GraphQL
+            .newGraphQL(schema)
+            .defaultDataFetcherExceptionHandler(CommsGraphQLExceptionHandler())
+            .build()
     }
 
     private fun loadSchema(): TypeDefinitionRegistry {

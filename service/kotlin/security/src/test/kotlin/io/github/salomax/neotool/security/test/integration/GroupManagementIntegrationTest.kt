@@ -1,9 +1,11 @@
 package io.github.salomax.neotool.security.test.integration
 
+import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.common.test.transaction.runTransaction
 import io.github.salomax.neotool.security.domain.GroupManagement
+import io.github.salomax.neotool.security.error.SecurityErrorCode
 import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.repo.AccountMembershipRepository
 import io.github.salomax.neotool.security.repo.AccountRepository
@@ -198,11 +200,11 @@ open class GroupManagementIntegrationTest :
                 )
 
             // Act & Assert
-            assertThrows<IllegalArgumentException> {
+            assertThrows<NotFoundException> {
                 groupManagementService.createGroup(command)
             }.also { exception ->
-                assertThat(exception.message).contains("users not found")
-                assertThat(exception.message).contains(invalidUserId.toString())
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.USER_NOT_FOUND)
+                assertThat(exception.field).isEqualTo("userIds")
                 // The transaction is rolled back because the exception is thrown.
                 // However, the transaction is not rolled back until the end of the test.
                 // Thus, we need to rollback the transaction manually.
@@ -407,7 +409,7 @@ open class GroupManagementIntegrationTest :
             val invalidUserId = UUID.randomUUID()
 
             // Act & Assert
-            assertThrows<IllegalArgumentException> {
+            assertThrows<NotFoundException> {
                 groupManagementService.updateGroup(
                     GroupManagement.UpdateGroupCommand(
                         groupId = group.id!!,
@@ -416,8 +418,8 @@ open class GroupManagementIntegrationTest :
                     ),
                 )
             }.also { exception ->
-                assertThat(exception.message).contains("users not found")
-                assertThat(exception.message).contains(invalidUserId.toString())
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.USER_NOT_FOUND)
+                assertThat(exception.field).isEqualTo("userIds")
             }
 
             // Verify memberships were not changed (transaction rolled back)

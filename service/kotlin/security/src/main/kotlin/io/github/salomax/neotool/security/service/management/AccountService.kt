@@ -1,8 +1,10 @@
 package io.github.salomax.neotool.security.service.management
 
+import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.security.domain.AccountManagement
 import io.github.salomax.neotool.security.domain.account.Account
+import io.github.salomax.neotool.security.error.SecurityErrorCode
 import io.github.salomax.neotool.security.model.account.AccountEntity
 import io.github.salomax.neotool.security.model.account.AccountMembershipEntity
 import io.github.salomax.neotool.security.model.account.AccountRole
@@ -81,9 +83,17 @@ open class AccountService(
     open fun update(command: AccountManagement.UpdateAccountCommand): Account {
         val account =
             accountRepository.findById(command.accountId)
-                .orElseThrow { IllegalArgumentException("Account not found with ID: ${command.accountId}") }
-        require(account.accountStatus != AccountStatus.DELETED) {
-            "Cannot update deleted account"
+                .orElseThrow {
+                    NotFoundException(
+                        errorCode = SecurityErrorCode.ACCOUNT_NOT_FOUND,
+                        field = "accountId",
+                    )
+                }
+        if (account.accountStatus == AccountStatus.DELETED) {
+            throw ValidationException(
+                errorCode = SecurityErrorCode.ACCOUNT_DELETION_NOT_ALLOWED,
+                field = "accountId",
+            )
         }
         requirePolicyAllowed(
             MembershipOperation.UPDATE_ACCOUNT,
@@ -109,9 +119,17 @@ open class AccountService(
     open fun delete(command: AccountManagement.DeleteAccountCommand) {
         val account =
             accountRepository.findById(command.accountId)
-                .orElseThrow { IllegalArgumentException("Account not found with ID: ${command.accountId}") }
-        require(account.accountStatus != AccountStatus.DELETED) {
-            "Account is already deleted"
+                .orElseThrow {
+                    NotFoundException(
+                        errorCode = SecurityErrorCode.ACCOUNT_NOT_FOUND,
+                        field = "accountId",
+                    )
+                }
+        if (account.accountStatus == AccountStatus.DELETED) {
+            throw ValidationException(
+                errorCode = SecurityErrorCode.ACCOUNT_DELETION_NOT_ALLOWED,
+                field = "accountId",
+            )
         }
         requirePolicyAllowed(
             MembershipOperation.DELETE_ACCOUNT,
@@ -124,9 +142,11 @@ open class AccountService(
                 accountMembershipRepository
                     .findByUserIdAndMembershipStatus(command.actorUserId, MembershipStatus.ACTIVE)
                     .count { it.accountId != command.accountId }
-            require(otherActiveCount > 0) {
-                "Cannot delete personal account without another account " +
-                    "(user must have at least one other ACTIVE membership)"
+            if (otherActiveCount <= 0) {
+                throw ValidationException(
+                    errorCode = SecurityErrorCode.MUST_HAVE_ONE_ACTIVE_ACCOUNT,
+                    field = "accountId",
+                )
             }
         }
 

@@ -1,6 +1,8 @@
 package io.github.salomax.neotool.security.test.service.unit
 
+import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.security.domain.RoleManagement
+import io.github.salomax.neotool.security.error.SecurityErrorCode
 import io.github.salomax.neotool.security.repo.GroupRepository
 import io.github.salomax.neotool.security.repo.PermissionRepository
 import io.github.salomax.neotool.security.repo.RoleRepository
@@ -58,10 +60,11 @@ class RoleManagementServiceErrorTest {
             whenever(roleRepository.findById(nonExistentRoleId)).thenReturn(Optional.empty())
 
             // Act & Assert
-            assertThrows<IllegalArgumentException> {
+            assertThrows<NotFoundException> {
                 roleManagementService.updateRole(command)
             }.also { exception ->
-                assertThat(exception.message).contains("Role not found with ID: $nonExistentRoleId")
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.ROLE_NOT_FOUND)
+                assertThat(exception.field).isEqualTo("roleId")
             }
 
             verify(roleRepository).findById(nonExistentRoleId)
@@ -97,10 +100,11 @@ class RoleManagementServiceErrorTest {
             whenever(roleRepository.findById(nonExistentRoleId)).thenReturn(Optional.empty())
 
             // Act & Assert
-            assertThrows<IllegalArgumentException> {
+            assertThrows<NotFoundException> {
                 roleManagementService.assignPermissionToRole(command)
             }.also { exception ->
-                assertThat(exception.message).contains("Role not found with ID: $nonExistentRoleId")
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.ROLE_NOT_FOUND)
+                assertThat(exception.field).isEqualTo("roleId")
             }
 
             verify(roleRepository).findById(nonExistentRoleId)
@@ -118,10 +122,11 @@ class RoleManagementServiceErrorTest {
             whenever(permissionRepository.findById(nonExistentPermissionId)).thenReturn(Optional.empty())
 
             // Act & Assert
-            assertThrows<IllegalArgumentException> {
+            assertThrows<NotFoundException> {
                 roleManagementService.assignPermissionToRole(command)
             }.also { exception ->
-                assertThat(exception.message).contains("Permission not found with ID: $nonExistentPermissionId")
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.PERMISSION_NOT_FOUND)
+                assertThat(exception.field).isEqualTo("permissionId")
             }
 
             verify(roleRepository).findById(roleId)
@@ -141,10 +146,11 @@ class RoleManagementServiceErrorTest {
             whenever(roleRepository.findById(nonExistentRoleId)).thenReturn(Optional.empty())
 
             // Act & Assert
-            assertThrows<IllegalArgumentException> {
+            assertThrows<NotFoundException> {
                 roleManagementService.removePermissionFromRole(command)
             }.also { exception ->
-                assertThat(exception.message).contains("Role not found with ID: $nonExistentRoleId")
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.ROLE_NOT_FOUND)
+                assertThat(exception.field).isEqualTo("roleId")
             }
 
             verify(roleRepository).findById(nonExistentRoleId)
@@ -162,10 +168,11 @@ class RoleManagementServiceErrorTest {
             whenever(permissionRepository.findById(nonExistentPermissionId)).thenReturn(Optional.empty())
 
             // Act & Assert
-            assertThrows<IllegalArgumentException> {
+            assertThrows<NotFoundException> {
                 roleManagementService.removePermissionFromRole(command)
             }.also { exception ->
-                assertThat(exception.message).contains("Permission not found with ID: $nonExistentPermissionId")
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.PERMISSION_NOT_FOUND)
+                assertThat(exception.field).isEqualTo("permissionId")
             }
 
             verify(roleRepository).findById(roleId)

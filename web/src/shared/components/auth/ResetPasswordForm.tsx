@@ -112,7 +112,9 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({ token, onS
         }, 2000);
         onSuccess?.();
       } else {
-        throw new Error("Failed to reset password");
+        const fallbackError = t("errors.unknownError");
+        setError(fallbackError);
+        showError(fallbackError);
       }
     } catch (err: any) {
       const errorMessage = extractErrorMessage(err, t("errors.unknownError"));

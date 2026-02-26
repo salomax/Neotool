@@ -1,6 +1,8 @@
 package io.github.salomax.neotool.security.test.service.unit
 
+import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.security.domain.UserManagement
+import io.github.salomax.neotool.security.error.SecurityErrorCode
 import io.github.salomax.neotool.security.repo.GroupMembershipRepository
 import io.github.salomax.neotool.security.repo.GroupRepository
 import io.github.salomax.neotool.security.repo.PrincipalRepository
@@ -59,10 +61,11 @@ class UserManagementServiceErrorTest {
             whenever(userRepository.findById(nonExistentUserId)).thenReturn(Optional.empty())
 
             // Act & Assert
-            assertThrows<IllegalArgumentException> {
+            assertThrows<NotFoundException> {
                 userManagementService.enableUser(nonExistentUserId)
             }.also { exception ->
-                assertThat(exception.message).contains("User not found with ID: $nonExistentUserId")
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.USER_NOT_FOUND)
+                assertThat(exception.field).isEqualTo("userId")
             }
 
             verify(userRepository).findById(nonExistentUserId)
@@ -79,10 +82,11 @@ class UserManagementServiceErrorTest {
             whenever(userRepository.findById(nonExistentUserId)).thenReturn(Optional.empty())
 
             // Act & Assert
-            assertThrows<IllegalArgumentException> {
+            assertThrows<NotFoundException> {
                 userManagementService.disableUser(nonExistentUserId)
             }.also { exception ->
-                assertThat(exception.message).contains("User not found with ID: $nonExistentUserId")
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.USER_NOT_FOUND)
+                assertThat(exception.field).isEqualTo("userId")
             }
 
             verify(userRepository).findById(nonExistentUserId)
@@ -101,10 +105,11 @@ class UserManagementServiceErrorTest {
             whenever(userRepository.findById(nonExistentUserId)).thenReturn(Optional.empty())
 
             // Act & Assert
-            assertThrows<IllegalArgumentException> {
+            assertThrows<NotFoundException> {
                 userManagementService.assignGroupToUser(command)
             }.also { exception ->
-                assertThat(exception.message).contains("User not found with ID: $nonExistentUserId")
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.USER_NOT_FOUND)
+                assertThat(exception.field).isEqualTo("userId")
             }
 
             verify(userRepository).findById(nonExistentUserId)
@@ -122,10 +127,11 @@ class UserManagementServiceErrorTest {
             whenever(groupRepository.findById(nonExistentGroupId)).thenReturn(Optional.empty())
 
             // Act & Assert
-            assertThrows<IllegalArgumentException> {
+            assertThrows<NotFoundException> {
                 userManagementService.assignGroupToUser(command)
             }.also { exception ->
-                assertThat(exception.message).contains("Group not found with ID: $nonExistentGroupId")
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.GROUP_NOT_FOUND)
+                assertThat(exception.field).isEqualTo("groupId")
             }
 
             verify(userRepository).findById(userId)
@@ -145,10 +151,11 @@ class UserManagementServiceErrorTest {
             whenever(userRepository.findById(nonExistentUserId)).thenReturn(Optional.empty())
 
             // Act & Assert
-            assertThrows<IllegalArgumentException> {
+            assertThrows<NotFoundException> {
                 userManagementService.removeGroupFromUser(command)
             }.also { exception ->
-                assertThat(exception.message).contains("User not found with ID: $nonExistentUserId")
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.USER_NOT_FOUND)
+                assertThat(exception.field).isEqualTo("userId")
             }
 
             verify(userRepository).findById(nonExistentUserId)
@@ -166,10 +173,11 @@ class UserManagementServiceErrorTest {
             whenever(groupRepository.findById(nonExistentGroupId)).thenReturn(Optional.empty())
 
             // Act & Assert
-            assertThrows<IllegalArgumentException> {
+            assertThrows<NotFoundException> {
                 userManagementService.removeGroupFromUser(command)
             }.also { exception ->
-                assertThat(exception.message).contains("Group not found with ID: $nonExistentGroupId")
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.GROUP_NOT_FOUND)
+                assertThat(exception.field).isEqualTo("groupId")
             }
 
             verify(userRepository).findById(userId)

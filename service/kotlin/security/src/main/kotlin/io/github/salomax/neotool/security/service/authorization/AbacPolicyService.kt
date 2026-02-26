@@ -1,5 +1,8 @@
 package io.github.salomax.neotool.security.service.authorization
 
+import io.github.salomax.neotool.common.error.CommonErrorCode
+import io.github.salomax.neotool.common.error.NotFoundException
+import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.security.domain.abac.AbacPolicy
 import io.github.salomax.neotool.security.repo.AbacPolicyRepository
 import jakarta.inject.Singleton
@@ -34,8 +37,17 @@ open class AbacPolicyService(
         val existing =
             abacPolicyRepository
                 .findById(
-                    policy.id ?: throw IllegalArgumentException("Policy ID is required for update"),
-                ).orElseThrow { IllegalArgumentException("Policy not found with ID: ${policy.id}") }
+                    policy.id
+                        ?: throw ValidationException(
+                            errorCode = CommonErrorCode.INVALID_INPUT,
+                            field = "policyId",
+                        ),
+                ).orElseThrow {
+                    NotFoundException(
+                        errorCode = CommonErrorCode.NOT_FOUND,
+                        field = "policyId",
+                    )
+                }
 
         existing.name = policy.name
         existing.description = policy.description

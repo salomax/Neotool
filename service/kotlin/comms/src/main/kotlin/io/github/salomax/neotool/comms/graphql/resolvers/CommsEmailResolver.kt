@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.comms.graphql.resolvers
 
-import graphql.GraphQLException
+import io.github.salomax.neotool.common.error.CommonErrorCode
+import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.common.graphql.InputValidator
 import io.github.salomax.neotool.comms.email.dto.EmailSendRequest
 import io.github.salomax.neotool.comms.email.dto.EmailSendResult
@@ -29,8 +30,12 @@ class CommsEmailResolver(
             val bytes = jsonMapper.writeValueAsBytes(input)
             jsonMapper.readValue(bytes, Argument.of(EmailSendRequest::class.java))
         } catch (e: Exception) {
-            logger.warn(e) { "Failed to parse EmailSendRequest from input: $input" }
-            throw GraphQLException("Invalid input format: ${e.message}")
+            logger.warn(e) { "Failed to parse EmailSendRequest from GraphQL input" }
+            throw ValidationException(
+                errorCode = CommonErrorCode.INVALID_INPUT,
+                field = "input",
+                cause = e,
+            )
         }
     }
 }

@@ -23,8 +23,8 @@ export function VerificationPrompt({ email }: VerificationPromptProps) {
     onCompleted: (data) => {
       if (data?.resendVerificationEmail?.success) {
         showSuccess(t("resendSuccess"));
-      } else if (data?.resendVerificationEmail?.message) {
-        showError(data.resendVerificationEmail.message);
+      } else {
+        showError(t("errors.unknownError"));
       }
     },
     onError: (err) => showError(extractErrorMessage(err, t("errors.unknownError"))),

@@ -175,7 +175,7 @@ class SecurityAuthResolverTest {
             // Assert
             assertThat(result.success).isFalse()
             assertThat(result.errors).isNotEmpty()
-            assertThat(result.errors[0].code).isEqualTo("INVALID_CREDENTIALS")
+            assertThat(result.errors[0].code).isEqualTo("AUTH_INVALID_CREDENTIALS")
         }
 
         @Test

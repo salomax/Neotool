@@ -1,6 +1,11 @@
 package io.github.salomax.neotool.security.test.service.unit
 
+import io.github.salomax.neotool.common.error.AuthenticationException
+import io.github.salomax.neotool.common.error.CommonErrorCode
+import io.github.salomax.neotool.common.error.ConflictException
+import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.common.security.principal.PrincipalType
+import io.github.salomax.neotool.security.error.SecurityErrorCode
 import io.github.salomax.neotool.security.model.PermissionEntity
 import io.github.salomax.neotool.security.model.PrincipalEntity
 import io.github.salomax.neotool.security.model.PrincipalPermissionEntity
@@ -125,11 +130,12 @@ class ServicePrincipalServiceTest {
 
             // Act & Assert
             val exception =
-                assertThrows<IllegalArgumentException> {
+                assertThrows<ConflictException> {
                     servicePrincipalService.registerService(serviceId, emptyList())
                 }
 
-            assertThat(exception.message).contains("already exists")
+            assertThat(exception.errorCode).isEqualTo(CommonErrorCode.CONFLICT)
+            assertThat(exception.field).isEqualTo("serviceId")
             verify(principalRepository, never()).save(any())
         }
 
@@ -157,11 +163,12 @@ class ServicePrincipalServiceTest {
 
             // Act & Assert
             val exception =
-                assertThrows<IllegalArgumentException> {
+                assertThrows<NotFoundException> {
                     servicePrincipalService.registerService(serviceId, listOf(permissionName))
                 }
 
-            assertThat(exception.message).contains("Permission not found")
+            assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.PERMISSION_NOT_FOUND)
+            assertThat(exception.field).isEqualTo("permissions")
         }
 
         @Test
@@ -454,11 +461,12 @@ class ServicePrincipalServiceTest {
 
             // Act & Assert
             val exception =
-                assertThrows<IllegalArgumentException> {
+                assertThrows<AuthenticationException> {
                     servicePrincipalService.rotateServiceCredentials(serviceId, currentSecret)
                 }
 
-            assertThat(exception.message).contains("Invalid current credentials")
+            assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.INVALID_CREDENTIALS)
+            assertThat(exception.field).isEqualTo("currentSecret")
         }
     }
 
@@ -570,11 +578,12 @@ class ServicePrincipalServiceTest {
 
             // Act & Assert
             val exception =
-                assertThrows<IllegalArgumentException> {
+                assertThrows<NotFoundException> {
                     servicePrincipalService.updateServicePermissions(serviceId)
                 }
 
-            assertThat(exception.message).contains("Service not found")
+            assertThat(exception.errorCode).isEqualTo(CommonErrorCode.NOT_FOUND)
+            assertThat(exception.field).isEqualTo("serviceId")
         }
     }
 

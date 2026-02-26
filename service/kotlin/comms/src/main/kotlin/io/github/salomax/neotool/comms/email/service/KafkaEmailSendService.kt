@@ -1,5 +1,7 @@
 package io.github.salomax.neotool.comms.email.service
 
+import io.github.salomax.neotool.common.error.CommonErrorCode
+import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.comms.email.dto.EmailContent
 import io.github.salomax.neotool.comms.email.dto.EmailContentKind
 import io.github.salomax.neotool.comms.email.dto.EmailSendRequest
@@ -56,7 +58,10 @@ class KafkaEmailSendService(
     private fun renderTemplateContent(content: EmailContent): EmailContent {
         val templateKey =
             content.templateKey
-                ?: throw IllegalArgumentException("templateKey is required for TEMPLATE content kind")
+                ?: throw ValidationException(
+                    errorCode = CommonErrorCode.INVALID_INPUT,
+                    field = "content.templateKey",
+                )
 
         val localeStr =
             content.locale ?: "en"

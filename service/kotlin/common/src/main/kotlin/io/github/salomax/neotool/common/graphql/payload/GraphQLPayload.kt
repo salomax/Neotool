@@ -107,7 +107,7 @@ object GraphQLPayloadFactory {
                     listOf(
                         GraphQLError(
                             field = listOf("input"),
-                            message = exception.message ?: CommonErrorCode.INVALID_INPUT.defaultMessage,
+                            message = CommonErrorCode.INVALID_INPUT.defaultMessage,
                             code = CommonErrorCode.INVALID_INPUT.code,
                         ),
                     )
@@ -127,7 +127,7 @@ object GraphQLPayloadFactory {
                     listOf(
                         GraphQLError(
                             field = listOf("general"),
-                            message = exception.message ?: CommonErrorCode.INTERNAL_ERROR.defaultMessage,
+                            message = CommonErrorCode.INTERNAL_ERROR.defaultMessage,
                             code = CommonErrorCode.INTERNAL_ERROR.code,
                         ),
                     )

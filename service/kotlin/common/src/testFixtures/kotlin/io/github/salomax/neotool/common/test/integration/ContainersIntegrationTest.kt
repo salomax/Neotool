@@ -5,6 +5,7 @@ import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.containers.wait.strategy.Wait
 import org.testcontainers.kafka.KafkaContainer
 import org.testcontainers.utility.DockerImageName
+import java.sql.DriverManager
 import java.time.Duration
 
 interface PostgresIntegrationTest
@@ -40,7 +41,37 @@ object PostgresTestContainer : MicronautPropsTestContainer {
                     .withStartupTimeout(Duration.ofSeconds(60)),
             )
             .withStartupAttempts(3)
-            .apply { start() }
+            .apply {
+                start()
+                waitUntilJdbcReady(this)
+            }
+    }
+
+    private fun waitUntilJdbcReady(
+        container: PostgreSQLContainer<*>,
+        maxAttempts: Int = 30,
+        delayMillis: Long = 250,
+    ) {
+        var lastError: Exception? = null
+
+        repeat(maxAttempts) {
+            try {
+                DriverManager.getConnection(container.jdbcUrl, container.username, container.password).use { connection ->
+                    connection.createStatement().use { statement ->
+                        statement.execute("SELECT 1")
+                    }
+                }
+                return
+            } catch (e: Exception) {
+                lastError = e
+                Thread.sleep(delayMillis)
+            }
+        }
+
+        throw IllegalStateException(
+            "Postgres container started but JDBC was not ready after ${maxAttempts * delayMillis}ms",
+            lastError,
+        )
     }
 
     override fun micronautProps(): Map<String, String> =

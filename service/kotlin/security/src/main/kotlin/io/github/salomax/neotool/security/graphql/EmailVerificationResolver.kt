@@ -1,7 +1,9 @@
 package io.github.salomax.neotool.security.graphql
 
+import io.github.salomax.neotool.common.graphql.GraphQLPayloadException
 import io.github.salomax.neotool.security.domain.ResendResult
 import io.github.salomax.neotool.security.domain.VerificationResult
+import io.github.salomax.neotool.security.error.SecurityErrorCode
 import io.github.salomax.neotool.security.graphql.dto.ResendVerificationEmailPayloadDTO
 import io.github.salomax.neotool.security.graphql.dto.VerificationStatusDTO
 import io.github.salomax.neotool.security.graphql.dto.VerifyEmailPayloadDTO
@@ -11,6 +13,7 @@ import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.EmailVerificationService
 import jakarta.inject.Singleton
 import java.util.UUID
+import io.github.salomax.neotool.common.graphql.payload.GraphQLError as PayloadGraphQLError
 
 /**
  * GraphQL resolver for email verification (verify with token, resend, status).
@@ -22,6 +25,21 @@ class EmailVerificationResolver(
     private val userRepository: UserRepository,
     private val mapper: SecurityGraphQLMapper,
 ) {
+    private fun verificationError(
+        code: SecurityErrorCode,
+        field: List<String> = listOf("token"),
+        message: String = code.defaultMessage,
+    ): Nothing =
+        throw GraphQLPayloadException(
+            listOf(
+                PayloadGraphQLError(
+                    field = field,
+                    message = message,
+                    code = code.code,
+                ),
+            ),
+        )
+
     fun verifyEmailWithToken(
         token: UUID,
         ipAddress: String,
@@ -33,15 +51,10 @@ class EmailVerificationResolver(
                     user = mapper.userToDTO(result.user),
                     message = "Email verified successfully!",
                 )
-            VerificationResult.Expired ->
-                VerifyEmailPayloadDTO(
-                    success = false,
-                    message = "This link has expired. Please request a new link.",
-                )
+            VerificationResult.Expired -> verificationError(SecurityErrorCode.EMAIL_VERIFICATION_LINK_EXPIRED)
             VerificationResult.TooManyAttempts ->
-                VerifyEmailPayloadDTO(
-                    success = false,
-                    message = "Too many failed attempts. Please request a new link.",
+                verificationError(
+                    SecurityErrorCode.EMAIL_VERIFICATION_TOO_MANY_ATTEMPTS,
                 )
             VerificationResult.AlreadyVerified ->
                 VerifyEmailPayloadDTO(
@@ -49,10 +62,7 @@ class EmailVerificationResolver(
                     message = "Email already verified.",
                 )
             VerificationResult.InvalidToken, VerificationResult.NotFound ->
-                VerifyEmailPayloadDTO(
-                    success = false,
-                    message = "Invalid or expired link. Please request a new link.",
-                )
+                verificationError(SecurityErrorCode.EMAIL_VERIFICATION_INVALID_LINK)
         }
     }
 
@@ -76,20 +86,20 @@ class EmailVerificationResolver(
                     message = "New verification link sent!",
                 )
             is ResendResult.RateLimited ->
-                ResendVerificationEmailPayloadDTO(
-                    success = false,
-                    message = "Please wait before requesting another link.",
-                    canResendAt = result.canResendAt.toString(),
+                verificationError(
+                    code = SecurityErrorCode.EMAIL_VERIFICATION_RESEND_RATE_LIMITED,
+                    field = listOf("resendVerificationEmail"),
                 )
         }
     }
 
     fun myVerificationStatus(userId: UUID): VerificationStatusDTO {
         val user =
-            userRepository.findById(userId).orElse(null) ?: return VerificationStatusDTO(
-                emailVerified = false,
-                canResendCode = false,
-            )
+            userRepository.findById(userId).orElse(null)
+                ?: return VerificationStatusDTO(
+                    emailVerified = false,
+                    canResendCode = false,
+                )
         val active = emailVerificationRepository.findActiveByUserId(userId)
         // Resend mutation enforces rate limit and returns canResendAt when limited
         return VerificationStatusDTO(

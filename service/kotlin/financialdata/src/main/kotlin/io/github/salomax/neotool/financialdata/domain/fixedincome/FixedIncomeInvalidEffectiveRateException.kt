@@ -8,9 +8,10 @@ import java.math.BigDecimal
 class FixedIncomeInvalidEffectiveRateException(
     val effectiveAnnualRateDecimal: BigDecimal,
 ) : IllegalArgumentException(
-        "effective annual rate must be greater than -1.0, received $effectiveAnnualRateDecimal",
+        DEFAULT_MESSAGE,
     ) {
     companion object {
         const val CODE = "FIXED_INCOME_INVALID_EFFECTIVE_RATE"
+        const val DEFAULT_MESSAGE = "Invalid effective annual rate"
     }
 }

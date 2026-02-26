@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.security.test.service.unit
 
+import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.security.domain.AccountManagement
 import io.github.salomax.neotool.security.error.SecurityErrorCode
@@ -227,9 +228,12 @@ class AccountServiceTest {
                     actorUserId = UUID.randomUUID(),
                 )
 
-            assertThrows<IllegalArgumentException> {
+            assertThrows<NotFoundException> {
                 accountService.update(command)
-            }.also { ex -> assertThat(ex.message).contains("not found") }
+            }.also { ex ->
+                assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.ACCOUNT_NOT_FOUND)
+                assertThat(ex.field).isEqualTo("accountId")
+            }
             verify(accountRepository, never()).update(any())
         }
 
@@ -290,9 +294,12 @@ class AccountServiceTest {
                     actorUserId = ownerId,
                 )
 
-            assertThrows<IllegalArgumentException> {
+            assertThrows<ValidationException> {
                 accountService.update(command)
-            }.also { ex -> assertThat(ex.message).contains("deleted") }
+            }.also { ex ->
+                assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.ACCOUNT_DELETION_NOT_ALLOWED)
+                assertThat(ex.field).isEqualTo("accountId")
+            }
             verify(accountRepository, never()).update(any())
         }
     }
@@ -431,11 +438,11 @@ class AccountServiceTest {
                 .thenReturn(listOf(ownerMembership))
             val command = AccountManagement.DeleteAccountCommand(accountId = accountId, actorUserId = ownerId)
 
-            assertThrows<IllegalArgumentException> {
+            assertThrows<ValidationException> {
                 accountService.delete(command)
             }.also { ex ->
-                assertThat(ex.message).isNotNull
-                assertThat(ex.message!!).contains("another")
+                assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.MUST_HAVE_ONE_ACTIVE_ACCOUNT)
+                assertThat(ex.field).isEqualTo("accountId")
             }
             verify(accountRepository, never()).update(any())
         }

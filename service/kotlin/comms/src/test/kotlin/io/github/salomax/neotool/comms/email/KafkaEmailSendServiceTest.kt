@@ -1,5 +1,7 @@
 package io.github.salomax.neotool.comms.email
 
+import io.github.salomax.neotool.common.error.CommonErrorCode
+import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.comms.email.dto.EmailContent
 import io.github.salomax.neotool.comms.email.dto.EmailContentKind
 import io.github.salomax.neotool.comms.email.dto.EmailSendRequest
@@ -203,8 +205,9 @@ class KafkaEmailSendServiceTest {
             )
 
         assertThatThrownBy { service.requestSend(request) }
-            .isInstanceOf(IllegalArgumentException::class.java)
-            .hasMessageContaining("templateKey")
+            .isInstanceOf(ValidationException::class.java)
+            .extracting("errorCode")
+            .isEqualTo(CommonErrorCode.INVALID_INPUT)
 
         verify(exactly = 0) { producer.send(any(), any()) }
     }

@@ -1,7 +1,12 @@
 package io.github.salomax.neotool.security.test.service.unit
 
+import io.github.salomax.neotool.common.error.AuthenticationException
+import io.github.salomax.neotool.common.error.CommonErrorCode
+import io.github.salomax.neotool.common.error.ConflictException
+import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.common.security.jwt.JwtTokenValidator
 import io.github.salomax.neotool.common.security.principal.PrincipalType
+import io.github.salomax.neotool.security.error.SecurityErrorCode
 import io.github.salomax.neotool.security.model.PrincipalEntity
 import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.model.account.AccountEntity
@@ -880,10 +885,11 @@ class AuthenticationServiceTest {
 
             whenever(userRepository.findByEmail(email)).thenReturn(existingUser)
 
-            assertThrows<IllegalArgumentException> {
+            assertThrows<ConflictException> {
                 authenticationService.registerUser(name, email, password)
             }.also { exception ->
-                assertThat(exception.message).contains("Email already exists")
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.USER_EMAIL_ALREADY_EXISTS)
+                assertThat(exception.field).isEqualTo("email")
             }
 
             verify(userRepository).findByEmail(email)
@@ -898,10 +904,11 @@ class AuthenticationServiceTest {
 
             whenever(userRepository.findByEmail(email)).thenReturn(null)
 
-            assertThrows<IllegalArgumentException> {
+            assertThrows<ValidationException> {
                 authenticationService.registerUser(name, email, password)
             }.also { exception ->
-                assertThat(exception.message).contains("Password must be at least 8 characters")
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.USER_PASSWORD_TOO_WEAK)
+                assertThat(exception.field).isEqualTo("password")
             }
 
             verify(userRepository).findByEmail(email)
@@ -916,10 +923,11 @@ class AuthenticationServiceTest {
 
             whenever(userRepository.findByEmail(email)).thenReturn(null)
 
-            assertThrows<IllegalArgumentException> {
+            assertThrows<ValidationException> {
                 authenticationService.registerUser(name, email, password)
             }.also { exception ->
-                assertThat(exception.message).contains("Password must be at least 8 characters")
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.USER_PASSWORD_TOO_WEAK)
+                assertThat(exception.field).isEqualTo("password")
             }
 
             verify(userRepository).findByEmail(email)
@@ -934,10 +942,11 @@ class AuthenticationServiceTest {
 
             whenever(userRepository.findByEmail(email)).thenReturn(null)
 
-            assertThrows<IllegalArgumentException> {
+            assertThrows<ValidationException> {
                 authenticationService.registerUser(name, email, password)
             }.also { exception ->
-                assertThat(exception.message).contains("Password must be at least 8 characters")
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.USER_PASSWORD_TOO_WEAK)
+                assertThat(exception.field).isEqualTo("password")
             }
 
             verify(userRepository).findByEmail(email)
@@ -952,10 +961,11 @@ class AuthenticationServiceTest {
 
             whenever(userRepository.findByEmail(email)).thenReturn(null)
 
-            assertThrows<IllegalArgumentException> {
+            assertThrows<ValidationException> {
                 authenticationService.registerUser(name, email, password)
             }.also { exception ->
-                assertThat(exception.message).contains("Password must be at least 8 characters")
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.USER_PASSWORD_TOO_WEAK)
+                assertThat(exception.field).isEqualTo("password")
             }
 
             verify(userRepository).findByEmail(email)
@@ -970,10 +980,11 @@ class AuthenticationServiceTest {
 
             whenever(userRepository.findByEmail(email)).thenReturn(null)
 
-            assertThrows<IllegalArgumentException> {
+            assertThrows<ValidationException> {
                 authenticationService.registerUser(name, email, password)
             }.also { exception ->
-                assertThat(exception.message).contains("Password must be at least 8 characters")
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.USER_PASSWORD_TOO_WEAK)
+                assertThat(exception.field).isEqualTo("password")
             }
 
             verify(userRepository).findByEmail(email)
@@ -1021,10 +1032,11 @@ class AuthenticationServiceTest {
             val provider = "microsoft"
             val idToken = "test-id-token"
 
-            assertThrows<IllegalArgumentException> {
+            assertThrows<ValidationException> {
                 authenticationService.authenticateWithOAuth(provider, idToken)
             }.also { exception ->
-                assertThat(exception.message).contains("Unsupported OAuth provider")
+                assertThat(exception.errorCode).isEqualTo(CommonErrorCode.INVALID_INPUT)
+                assertThat(exception.field).isEqualTo("provider")
             }
         }
 
@@ -1035,10 +1047,11 @@ class AuthenticationServiceTest {
 
             whenever(oauthProvider.validateAndExtractClaims(idToken)).thenReturn(null)
 
-            assertThrows<IllegalArgumentException> {
+            assertThrows<AuthenticationException> {
                 authenticationService.authenticateWithOAuth(provider, idToken)
             }.also { exception ->
-                assertThat(exception.message).contains("Invalid OAuth token")
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.TOKEN_INVALID)
+                assertThat(exception.field).isEqualTo("idToken")
             }
 
             verify(oauthProvider).validateAndExtractClaims(idToken)

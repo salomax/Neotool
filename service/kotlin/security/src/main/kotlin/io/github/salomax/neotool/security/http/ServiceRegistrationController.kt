@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.security.http
 
+import io.github.salomax.neotool.common.error.DomainException
 import io.github.salomax.neotool.security.http.dto.ServiceRegistrationRequest
 import io.github.salomax.neotool.security.http.dto.ServiceRegistrationResponse
 import io.github.salomax.neotool.security.service.management.ServicePrincipalService
@@ -63,6 +64,11 @@ class ServiceRegistrationController(
 
             logger.info { "Service registered successfully: ${request.serviceId}" }
             HttpResponse.status<ServiceRegistrationResponse>(HttpStatus.CREATED).body(response)
+        } catch (e: DomainException) {
+            logger.warn(e) { "Domain error registering service: code=${e.errorCode.code}" }
+            val status = HttpStatus.valueOf(e.errorCode.httpStatus)
+            HttpResponse.status<JsonError>(status)
+                .body(JsonError(e.errorCode.defaultMessage))
         } catch (e: IllegalArgumentException) {
             logger.warn(e) { "Invalid service registration request: ${e.message}" }
             HttpResponse.status<JsonError>(HttpStatus.BAD_REQUEST)

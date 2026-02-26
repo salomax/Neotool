@@ -208,7 +208,7 @@ describe.sequential('SignInForm', () => {
       graphQLErrors?: Array<{ message: string; extensions?: { code?: string } }>;
     };
     error.graphQLErrors = [
-      { message: 'Invalid email or password', extensions: { code: 'INVALID_CREDENTIALS' } },
+      { message: 'Invalid email or password', extensions: { code: 'AUTH_INVALID_CREDENTIALS' } },
     ];
     mockSignIn.mockRejectedValue(error);
 

@@ -1,6 +1,8 @@
 package io.github.salomax.neotool.assets.service
 
 import io.github.salomax.neotool.assets.config.AssetConfigProperties
+import io.github.salomax.neotool.assets.error.AssetErrorCode
+import io.github.salomax.neotool.common.error.ValidationException
 import jakarta.inject.Singleton
 
 /**
@@ -30,9 +32,15 @@ class ValidationService(
         val normalizedAllowedTypes = allowedMimeTypes.map { it.lowercase() }
 
         if (!normalizedAllowedTypes.contains(normalizedMimeType)) {
-            throw IllegalArgumentException(
-                "Invalid MIME type '$mimeType' for namespace '$namespace'. " +
-                    "Allowed types: ${allowedMimeTypes.joinToString(", ")}",
+            throw ValidationException(
+                errorCode = AssetErrorCode.ASSET_FORMAT_UNSUPPORTED,
+                field = "mimeType",
+                parameters =
+                    mapOf(
+                        "namespace" to namespace,
+                        "mimeType" to mimeType,
+                        "allowedMimeTypes" to allowedMimeTypes.joinToString(", "),
+                    ),
             )
         }
     }
@@ -49,16 +57,26 @@ class ValidationService(
         sizeBytes: Long,
     ) {
         if (sizeBytes <= 0) {
-            throw IllegalArgumentException("File size must be greater than 0")
+            throw ValidationException(
+                errorCode = AssetErrorCode.ASSET_SIZE_INVALID,
+                field = "sizeBytes",
+                parameters = mapOf("sizeBytes" to sizeBytes),
+            )
         }
 
         val namespaceConfig = assetConfig.getNamespaceConfig(namespace)
         val maxSizeBytes = namespaceConfig.maxSizeBytes
 
         if (sizeBytes > maxSizeBytes) {
-            throw IllegalArgumentException(
-                "File size exceeds limit for namespace '$namespace'. " +
-                    "Maximum size: $maxSizeBytes bytes (${maxSizeBytes / 1_000_000} MB)",
+            throw ValidationException(
+                errorCode = AssetErrorCode.ASSET_SIZE_EXCEEDED,
+                field = "sizeBytes",
+                parameters =
+                    mapOf(
+                        "namespace" to namespace,
+                        "maxSizeBytes" to maxSizeBytes,
+                        "sizeBytes" to sizeBytes,
+                    ),
             )
         }
     }
