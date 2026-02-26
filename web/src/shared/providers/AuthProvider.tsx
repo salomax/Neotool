@@ -56,6 +56,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     postLoginRedirectPathRef.current = path;
   }, []);
 
+  const syncAuthHintCookie = React.useCallback((hasAuthToken: boolean) => {
+    if (typeof window === "undefined") return;
+    if (hasAuthToken) {
+      document.cookie = `${AUTH_HINT_COOKIE_NAME}=1; path=/; max-age=604800; SameSite=Lax`;
+    } else {
+      document.cookie = `${AUTH_HINT_COOKIE_NAME}=; path=/; max-age=0; SameSite=Lax`;
+    }
+  }, []);
+
   // Initialize auth state from storage
   React.useEffect(() => {
     if (typeof window !== "undefined") {
@@ -82,13 +91,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Sync optimistic auth hint cookie for middleware (request-time redirect).
   // Cookie is a hint only; backend must still enforce authorization.
   React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (token) {
-      document.cookie = `${AUTH_HINT_COOKIE_NAME}=1; path=/; max-age=604800; SameSite=Lax`;
-    } else {
-      document.cookie = `${AUTH_HINT_COOKIE_NAME}=; path=/; max-age=0`;
-    }
-  }, [token]);
+    syncAuthHintCookie(!!token);
+  }, [token, syncAuthHintCookie]);
 
   const routeAfterAuthentication = React.useCallback(
     (nextUser: User | null, fallbackPath = "/", explicitRedirect?: string | null) => {
@@ -148,6 +152,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         setToken(newToken);
         setUser(newUser);
+        syncAuthHintCookie(true);
 
         // Store in appropriate storage based on rememberMe
         const storage = rememberMe ? localStorage : sessionStorage;
@@ -167,7 +172,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       logger.error("Sign in error:", error);
       throw error;
     }
-  }, [routeAfterAuthentication]);
+  }, [routeAfterAuthentication, syncAuthHintCookie]);
 
   const signInWithOAuth = React.useCallback(async (provider: string, idToken: string, rememberMe = false) => {
     try {
@@ -191,6 +196,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         setToken(newToken);
         setUser(newUser);
+        syncAuthHintCookie(true);
 
         // Store in appropriate storage based on rememberMe
         const storage = rememberMe ? localStorage : sessionStorage;
@@ -210,7 +216,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       logger.error("OAuth sign in error:", error);
       throw error;
     }
-  }, [routeAfterAuthentication]);
+  }, [routeAfterAuthentication, syncAuthHintCookie]);
 
   const signUp = React.useCallback(async (name: string, email: string, password: string) => {
     try {
@@ -238,6 +244,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         setToken(newToken);
         setUser(newUser);
+        syncAuthHintCookie(true);
 
         // Store in localStorage (signup users are automatically signed in)
         localStorage.setItem(TOKEN_KEY, newToken);
@@ -260,11 +267,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       logger.error("Sign up error:", error);
       throw error;
     }
-  }, [routeAfterAuthentication, router]);
+  }, [routeAfterAuthentication, router, syncAuthHintCookie]);
 
   const signOut = React.useCallback(() => {
     setUser(null);
     setToken(null);
+    syncAuthHintCookie(false);
     
     // Clear all storage
     localStorage.removeItem(TOKEN_KEY);
@@ -276,7 +284,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     // Redirect to signin
     router.push("/signin");
-  }, [router]);
+  }, [router, syncAuthHintCookie]);
 
   const value: AuthContextType = {
     user,

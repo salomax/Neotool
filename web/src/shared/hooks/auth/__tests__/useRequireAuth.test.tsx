@@ -4,10 +4,14 @@ import { renderHook } from "@testing-library/react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useRequireAuth } from "../useRequireAuth";
 
+type SearchParamsReturn = ReturnType<typeof useSearchParams>;
+const makeSearchParams = (value = "") =>
+  new URLSearchParams(value) as unknown as SearchParamsReturn;
+
 const mockReplace = vi.fn();
 vi.mock("next/navigation", () => ({
   usePathname: vi.fn(() => "/"),
-  useSearchParams: vi.fn(() => new URLSearchParams()),
+  useSearchParams: vi.fn(() => makeSearchParams()),
   useRouter: () => ({ replace: mockReplace }),
 }));
 
@@ -16,11 +20,11 @@ vi.mock("@/shared/providers", () => ({
   useAuth: () => mockUseAuth(),
 }));
 
-describe("useRequireAuth", () => {
+describe.sequential("useRequireAuth", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(usePathname).mockReturnValue("/");
-    vi.mocked(useSearchParams).mockReturnValue(new URLSearchParams());
+    vi.mocked(useSearchParams).mockReturnValue(makeSearchParams());
     mockUseAuth.mockReturnValue({
       isAuthenticated: false,
       isLoading: false,
@@ -49,9 +53,7 @@ describe("useRequireAuth", () => {
 
   it("includes search string in next when present", () => {
     vi.mocked(usePathname).mockReturnValue("/settings");
-    vi.mocked(useSearchParams).mockReturnValue(
-      new URLSearchParams("tab=roles")
-    );
+    vi.mocked(useSearchParams).mockReturnValue(makeSearchParams("tab=roles"));
 
     renderHook(() => useRequireAuth());
 
