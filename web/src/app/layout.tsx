@@ -6,6 +6,7 @@ import { ErrorBoundary } from "@/shared/components/ErrorBoundary";
 import { CloudflareAnalytics } from "@/shared/analytics/CloudflareAnalytics";
 import { UmamiAnalytics } from "@/shared/analytics/UmamiAnalytics";
 import { RuntimeConfigScript } from "@/shared/config/RuntimeConfigScript";
+import { getBootstrapFeatureFlagsData } from "@/shared/utils/feature-flags/bootstrap";
 import Providers from "./providers";
 
 // Lazy load AppShell to reduce initial bundle size
@@ -27,11 +28,16 @@ const AppShell = dynamic(() => import("@/shared/ui/shell/AppShell").then(mod => 
   }
 });
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const {
+    flags: featureFlagsBootstrap,
+    context: featureFlagsContextBootstrap,
+  } = await getBootstrapFeatureFlagsData();
+
   return (
     <html lang="pt-BR">
       <head>
@@ -40,7 +46,10 @@ export default function RootLayout({
       </head>
       <body>
         <ErrorBoundary>
-          <Providers featureFlagsBootstrap={{ 'personal-finance-dashboard-enabled': true }}>
+          <Providers
+            featureFlagsBootstrap={featureFlagsBootstrap}
+            featureFlagsContextBootstrap={featureFlagsContextBootstrap}
+          >
             <UmamiAnalytics />
             <AppShell>{children}</AppShell>
           </Providers>

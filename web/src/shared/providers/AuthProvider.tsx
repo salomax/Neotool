@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { logger } from "@/shared/utils/logger";
 import { identifyUser } from "@/shared/analytics/umami";
+import { clearAuthSessionCookie, syncAuthSessionCookie } from "@/shared/utils/auth-session/client";
 
 type User = {
   id: string;
@@ -11,6 +12,10 @@ type User = {
   displayName?: string | null;
   avatarUrl?: string | null;
   emailVerified?: boolean | null;
+  tenantId?: string | null;
+  role?: string | null;
+  roles?: Array<{ name: string }> | null;
+  plan?: string | null;
 };
 
 type AuthContextType = {
@@ -134,6 +139,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           storage.setItem(REFRESH_TOKEN_KEY, refreshToken);
         }
 
+        void syncAuthSessionCookie({
+          user: newUser,
+          rememberMe,
+        });
+
         identifyUser(newUser.id);
         routeAfterAuthentication(newUser);
       }
@@ -176,6 +186,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (refreshToken) {
           storage.setItem(REFRESH_TOKEN_KEY, refreshToken);
         }
+
+        void syncAuthSessionCookie({
+          user: newUser,
+          rememberMe,
+        });
 
         identifyUser(newUser.id);
         routeAfterAuthentication(newUser);
@@ -223,6 +238,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
         }
 
+        void syncAuthSessionCookie({
+          user: newUser,
+          rememberMe: true,
+        });
+
         if (requiresVerification && newUser?.email) {
           sessionStorage.setItem("pendingVerificationEmail", newUser.email);
           router.push("/verify-email");
@@ -249,6 +269,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     sessionStorage.removeItem(TOKEN_KEY);
     sessionStorage.removeItem(USER_KEY);
     sessionStorage.removeItem(REFRESH_TOKEN_KEY);
+    void clearAuthSessionCookie();
 
     // Redirect to signin
     router.push("/signin");
