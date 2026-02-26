@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -86,8 +87,21 @@ const FeatureCard = styled(Box, {
   },
 }));
 
+const heroImages = [
+  "/images/hero/invistus-landpage-profile-1.png",
+  "/images/hero/invistus-landpage-profile-2.png",
+  "/images/hero/invistus-landpage-profile-3.png",
+  "/images/hero/invistus-landpage-profile-4.png",
+  "/images/hero/invistus-landpage-profile-5.png",
+];
+
 export default function WelcomePage() {
   const { t } = useTranslation(landingTranslations);
+  const [heroImage, setHeroImage] = useState<string>(heroImages[0] || "");
+
+  useEffect(() => {
+    setHeroImage(heroImages[Math.floor(Math.random() * heroImages.length)] || heroImages[0] || "");
+  }, []);
   
   const theme = useTheme();
 
@@ -162,7 +176,7 @@ export default function WelcomePage() {
                 >
                   <Image 
                     alt="Financial Professional" 
-                    src="/images/illustration/invistus-landpage-cover.png"
+                    src={heroImage}
                     fill
                     priority
                     sizes="(max-width: 1200px) 320px, 450px"
