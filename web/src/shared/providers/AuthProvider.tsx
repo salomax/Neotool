@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { logger } from "@/shared/utils/logger";
 import { identifyUser } from "@/shared/analytics/umami";
+import { AUTH_HINT_COOKIE_NAME } from "@/shared/config/auth-route-policy";
 
 type User = {
   id: string;
@@ -77,6 +78,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(false);
     }
   }, []);
+
+  // Sync optimistic auth hint cookie for middleware (request-time redirect).
+  // Cookie is a hint only; backend must still enforce authorization.
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (token) {
+      document.cookie = `${AUTH_HINT_COOKIE_NAME}=1; path=/; max-age=604800; SameSite=Lax`;
+    } else {
+      document.cookie = `${AUTH_HINT_COOKIE_NAME}=; path=/; max-age=0`;
+    }
+  }, [token]);
 
   const routeAfterAuthentication = React.useCallback(
     (nextUser: User | null, fallbackPath = "/", explicitRedirect?: string | null) => {
