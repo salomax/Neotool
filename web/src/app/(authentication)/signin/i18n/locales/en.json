@@ -1,6 +1,8 @@
 {
   "title": "Welcome back",
   "subtitle": "Sign in to your account to continue",
+  "restrictedAccessTitle": "Restricted Access",
+  "loginRequiredMessage": "You need to be signed in to access this feature. Please sign in to continue.",
   "email": "Email",
   "password": "Password",
   "rememberMe": "Keep me signed in",

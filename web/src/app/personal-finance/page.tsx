@@ -16,7 +16,7 @@ export default function PersonalFinancePage() {
     <Page>
       <Container maxWidth="xl" sx={{ py: 4 }}>
         <Grid container spacing={4}>
-          <Grid item xs={12} md={6} lg={4}>
+          <Grid size={{ xs: 12, md: 6, lg: 4 }}>
             <ModuleCard
               title={t('financeTransactions.title')}
               description={t('financeTransactions.description')}

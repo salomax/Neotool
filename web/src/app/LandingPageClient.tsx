@@ -95,14 +95,14 @@ const heroImages = [
   "/images/hero/invistus-landpage-profile-5.png",
 ];
 
+function getRandomHeroImage() {
+  return heroImages[Math.floor(Math.random() * heroImages.length)] || heroImages[0] || "";
+}
+
 export default function WelcomePage() {
   const { t } = useTranslation(landingTranslations);
-  const [heroImage, setHeroImage] = useState<string>(heroImages[0] || "");
+  const [heroImage] = useState<string>(getRandomHeroImage);
 
-  useEffect(() => {
-    setHeroImage(heroImages[Math.floor(Math.random() * heroImages.length)] || heroImages[0] || "");
-  }, []);
-  
   const theme = useTheme();
 
   // Colors

@@ -63,6 +63,7 @@ type AuthContextType = {
   signInWithOAuth: (provider: string, idToken: string, rememberMe?: boolean) => Promise<void>;
   signUp: (name: string, email: string, password: string) => Promise<void>;
   signOut: () => void;
+  setPostLoginRedirect: (path: string | null) => void;
   isAuthenticated: boolean;
 };
 
@@ -78,6 +79,7 @@ const mockUseAuth = vi.fn<[], AuthContextType>(() => ({
   signIn: mockSignIn,
   signInWithOAuth: mockSignInWithOAuth,
   signUp: mockSignUp,
+  setPostLoginRedirect: vi.fn(),
   isLoading: false,
 }));
 
@@ -138,6 +140,7 @@ describe.sequential('AppHeader', () => {
       signIn: mockSignIn,
       signInWithOAuth: mockSignInWithOAuth,
       signUp: mockSignUp,
+      setPostLoginRedirect: vi.fn(),
       isLoading: false,
     });
     mockUsePageTitleValue.mockReturnValue(null);
@@ -181,6 +184,7 @@ describe.sequential('AppHeader', () => {
         signIn: mockSignIn,
         signInWithOAuth: mockSignInWithOAuth,
         signUp: mockSignUp,
+        setPostLoginRedirect: vi.fn(),
         isLoading: false,
       });
 
@@ -208,6 +212,7 @@ describe.sequential('AppHeader', () => {
         signIn: mockSignIn,
         signInWithOAuth: mockSignInWithOAuth,
         signUp: mockSignUp,
+        setPostLoginRedirect: vi.fn(),
         isLoading: false,
       });
 
@@ -318,6 +323,7 @@ describe.sequential('AppHeader', () => {
         signIn: mockSignIn,
         signInWithOAuth: mockSignInWithOAuth,
         signUp: mockSignUp,
+        setPostLoginRedirect: vi.fn(),
         isLoading: false,
       });
 
@@ -343,6 +349,7 @@ describe.sequential('AppHeader', () => {
         signIn: mockSignIn,
         signInWithOAuth: mockSignInWithOAuth,
         signUp: mockSignUp,
+        setPostLoginRedirect: vi.fn(),
         isLoading: false,
       });
 
@@ -368,6 +375,7 @@ describe.sequential('AppHeader', () => {
         signIn: mockSignIn,
         signInWithOAuth: mockSignInWithOAuth,
         signUp: mockSignUp,
+        setPostLoginRedirect: vi.fn(),
         isLoading: false,
       });
 
@@ -396,6 +404,7 @@ describe.sequential('AppHeader', () => {
         signIn: mockSignIn,
         signInWithOAuth: mockSignInWithOAuth,
         signUp: mockSignUp,
+        setPostLoginRedirect: vi.fn(),
         isLoading: false,
       });
 
@@ -420,6 +429,7 @@ describe.sequential('AppHeader', () => {
         signIn: mockSignIn,
         signInWithOAuth: mockSignInWithOAuth,
         signUp: mockSignUp,
+        setPostLoginRedirect: vi.fn(),
         isLoading: false,
       });
 
@@ -444,6 +454,7 @@ describe.sequential('AppHeader', () => {
         signIn: mockSignIn,
         signInWithOAuth: mockSignInWithOAuth,
         signUp: mockSignUp,
+        setPostLoginRedirect: vi.fn(),
         isLoading: false,
       });
 
@@ -469,6 +480,7 @@ describe.sequential('AppHeader', () => {
         signIn: mockSignIn,
         signInWithOAuth: mockSignInWithOAuth,
         signUp: mockSignUp,
+        setPostLoginRedirect: vi.fn(),
         isLoading: false,
       });
 
@@ -493,6 +505,7 @@ describe.sequential('AppHeader', () => {
         signIn: mockSignIn,
         signInWithOAuth: mockSignInWithOAuth,
         signUp: mockSignUp,
+        setPostLoginRedirect: vi.fn(),
         isLoading: false,
       });
 
@@ -517,6 +530,7 @@ describe.sequential('AppHeader', () => {
         signIn: mockSignIn,
         signInWithOAuth: mockSignInWithOAuth,
         signUp: mockSignUp,
+        setPostLoginRedirect: vi.fn(),
         isLoading: false,
       });
 
@@ -541,6 +555,7 @@ describe.sequential('AppHeader', () => {
         signIn: mockSignIn,
         signInWithOAuth: mockSignInWithOAuth,
         signUp: mockSignUp,
+        setPostLoginRedirect: vi.fn(),
         isLoading: false,
       });
 
@@ -565,6 +580,7 @@ describe.sequential('AppHeader', () => {
         signIn: mockSignIn,
         signInWithOAuth: mockSignInWithOAuth,
         signUp: mockSignUp,
+        setPostLoginRedirect: vi.fn(),
         isLoading: false,
       });
 
@@ -589,6 +605,7 @@ describe.sequential('AppHeader', () => {
         signIn: mockSignIn,
         signInWithOAuth: mockSignInWithOAuth,
         signUp: mockSignUp,
+        setPostLoginRedirect: vi.fn(),
         isLoading: false,
       });
 
@@ -614,6 +631,7 @@ describe.sequential('AppHeader', () => {
         signIn: mockSignIn,
         signInWithOAuth: mockSignInWithOAuth,
         signUp: mockSignUp,
+        setPostLoginRedirect: vi.fn(),
         isLoading: false,
       });
 
@@ -639,6 +657,7 @@ describe.sequential('AppHeader', () => {
         signIn: mockSignIn,
         signInWithOAuth: mockSignInWithOAuth,
         signUp: mockSignUp,
+        setPostLoginRedirect: vi.fn(),
         isLoading: false,
       });
 
@@ -668,6 +687,7 @@ describe.sequential('AppHeader', () => {
         signIn: mockSignIn,
         signInWithOAuth: mockSignInWithOAuth,
         signUp: mockSignUp,
+        setPostLoginRedirect: vi.fn(),
         isLoading: false,
       });
 

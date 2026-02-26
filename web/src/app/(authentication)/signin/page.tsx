@@ -1,27 +1,39 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
-import { Container, Box, Typography } from "@mui/material";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Container, Box, Typography, Alert, AlertTitle } from "@mui/material";
+import VerifiedUserOutlinedIcon from "@mui/icons-material/VerifiedUserOutlined";
 import { SignInForm } from "@/shared/components/auth/SignInForm";
 import { useAuth } from "@/shared/providers";
 import { Logo } from "@/shared/ui/brand";
 import { Paper } from "@/shared/components/ui/layout/Paper";
 import { Stack } from "@/shared/components/ui/layout/Stack";
 import { useTranslation } from "@/shared/i18n/hooks/useTranslation";
+import { resolvePostLoginRedirect } from "@/shared/utils/auth/redirect-target";
 import { signinTranslations } from "./i18n";
 
 export default function SignInPage() {
   const { t } = useTranslation(signinTranslations);
   const router = useRouter();
-  const { isAuthenticated, isLoading } = useAuth();
+  const searchParams = useSearchParams();
+  const { isAuthenticated, isLoading, setPostLoginRedirect } = useAuth();
+  const resolvedTarget = React.useMemo(
+    () => resolvePostLoginRedirect(searchParams, "/"),
+    [searchParams]
+  );
+
+  // Set post-login redirect so AuthProvider can send user to intended target after sign-in
+  React.useEffect(() => {
+    setPostLoginRedirect(resolvedTarget);
+  }, [resolvedTarget, setPostLoginRedirect]);
 
   // Redirect if already authenticated
   React.useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      router.push("/");
+      router.push(resolvedTarget);
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [isAuthenticated, isLoading, router, resolvedTarget]);
 
   if (isLoading) {
     return (
@@ -69,8 +81,32 @@ export default function SignInPage() {
             name="signin-card"
           >
             <Stack gap={3} name="signin-content-stack">
+              {resolvedTarget !== "/" && (
+                <Alert
+                  icon={<VerifiedUserOutlinedIcon fontSize="inherit" />}
+                  severity="info"
+                  sx={{
+                    alignItems: "flex-start",
+                    bgcolor: (theme) => theme.custom.palette.infoLightBg,
+                    border: 1,
+                    borderColor: "info.light", // Or a specific color like 'rgba(2, 132, 199, 0.2)'
+                    "& .MuiAlert-icon": {
+                      color: "info.main",
+                      mt: "4px",
+                    },
+                  }}
+                  data-testid="signin-login-required-message"
+                >
+                  <AlertTitle sx={{ fontWeight: 600, color: "text.primary" }}>
+                    {t("restrictedAccessTitle")}
+                  </AlertTitle>
+                  <Typography variant="body2" color="text.secondary">
+                    {t("loginRequiredMessage")}
+                  </Typography>
+                </Alert>
+              )}
               <Box sx={{ textAlign: "center", mb: 1 }}>
-                <Typography
+              <Typography
                   variant="h4"
                   component="h1"
                   gutterBottom
@@ -88,12 +124,7 @@ export default function SignInPage() {
                   {t("subtitle")}
                 </Typography>
               </Box>
-
-              <SignInForm
-                onSuccess={() => {
-                  router.push("/");
-                }}
-              />
+              <SignInForm />
             </Stack>
           </Paper>
         </Stack>
@@ -101,4 +132,3 @@ export default function SignInPage() {
     </Box>
   );
 }
-

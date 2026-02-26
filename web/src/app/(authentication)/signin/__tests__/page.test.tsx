@@ -11,12 +11,14 @@ import { signinTranslations } from '../i18n';
 i18n.addResourceBundle('en', 'signin', signinTranslations.en, true, true);
 i18n.addResourceBundle('pt', 'signin', signinTranslations.pt, true, true);
 
-// Mock Next.js router
+// Mock Next.js router and search params (useSearchParams overridden per test where needed)
 const mockPush = vi.fn();
+const mockUseSearchParams = vi.fn(() => new URLSearchParams());
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: mockPush,
   }),
+  useSearchParams: () => mockUseSearchParams(),
 }));
 
 // Mock auth and toast providers
@@ -51,11 +53,15 @@ const renderSignInPage = () => {
 
 // Run sequentially to avoid concurrent renders leaking between tests
 describe.sequential('SignInPage', () => {
+  const mockSetPostLoginRedirect = vi.fn();
+
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUseSearchParams.mockReturnValue(new URLSearchParams());
     mockUseAuth.mockReturnValue({
       isAuthenticated: false,
       isLoading: false,
+      setPostLoginRedirect: mockSetPostLoginRedirect,
     });
   });
 
@@ -83,11 +89,12 @@ describe.sequential('SignInPage', () => {
     mockUseAuth.mockReturnValue({
       isAuthenticated: true,
       isLoading: false,
+      setPostLoginRedirect: vi.fn(),
     });
-    
+
     renderSignInPage();
-    
-    // Should redirect to home
+
+    // Should redirect to home (resolvePostLoginRedirect with no next param returns '/')
     expect(mockPush).toHaveBeenCalledWith('/');
   });
 
@@ -95,6 +102,7 @@ describe.sequential('SignInPage', () => {
     mockUseAuth.mockReturnValue({
       isAuthenticated: false,
       isLoading: true,
+      setPostLoginRedirect: vi.fn(),
     });
 
     renderSignInPage();
@@ -108,12 +116,73 @@ describe.sequential('SignInPage', () => {
     mockUseAuth.mockReturnValue({
       isAuthenticated: false,
       isLoading: true,
+      setPostLoginRedirect: mockSetPostLoginRedirect,
     });
-    
+
     renderSignInPage();
-    
+
     // Should not redirect while loading, even if eventually authenticated
     expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it('calls setPostLoginRedirect with /settings when next=/settings', () => {
+    mockUseSearchParams.mockReturnValue(new URLSearchParams({ next: '/settings' }));
+
+    renderSignInPage();
+
+    expect(mockSetPostLoginRedirect).toHaveBeenCalledWith('/settings');
+  });
+
+  it('redirects to /settings when already authenticated and next=/settings', () => {
+    mockUseSearchParams.mockReturnValue(new URLSearchParams({ next: '/settings' }));
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+      setPostLoginRedirect: mockSetPostLoginRedirect,
+    });
+
+    renderSignInPage();
+
+    expect(mockPush).toHaveBeenCalledWith('/settings');
+  });
+
+  it('uses fallback / for invalid next and when already authenticated', () => {
+    mockUseSearchParams.mockReturnValue(new URLSearchParams({ next: '//evil.com' }));
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+      setPostLoginRedirect: mockSetPostLoginRedirect,
+    });
+
+    renderSignInPage();
+
+    expect(mockSetPostLoginRedirect).toHaveBeenCalledWith('/');
+    expect(mockPush).toHaveBeenCalledWith('/');
+  });
+
+  it('shows login required message when valid next is present', () => {
+    mockUseSearchParams.mockReturnValue(new URLSearchParams({ next: '/settings' }));
+
+    renderSignInPage();
+
+    expect(screen.getByTestId('signin-login-required-message')).toBeInTheDocument();
+    expect(screen.getByText(/signed in to access that page|conectado para acessar essa página/i)).toBeInTheDocument();
+  });
+
+  it('does not show login required message when next is absent', () => {
+    mockUseSearchParams.mockReturnValue(new URLSearchParams());
+
+    renderSignInPage();
+
+    expect(screen.queryByTestId('signin-login-required-message')).not.toBeInTheDocument();
+  });
+
+  it('does not show login required message when next is invalid', () => {
+    mockUseSearchParams.mockReturnValue(new URLSearchParams({ next: '/signin' }));
+
+    renderSignInPage();
+
+    expect(screen.queryByTestId('signin-login-required-message')).not.toBeInTheDocument();
   });
 });
 

@@ -7,6 +7,7 @@ import { AppHeader } from "@/shared/ui/shell/AppHeader";
 import { PageTitleProvider } from "@/shared/hooks/ui/usePageTitle";
 import { BreadcrumbLabelProvider } from "@/shared/hooks/ui/useBreadcrumbLabel";
 import { useElementHeight } from "@/shared/hooks/ui/useElementHeight";
+import { RequireAuthGuard } from "@/shared/hooks/auth/useRequireAuth";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const headerHeight = useElementHeight("header");
@@ -52,7 +53,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               paddingBottom: { xs: "80px", md: 0 }, // Add padding for bottom nav on mobile
             }}
           >
-            {children}
+            <RequireAuthGuard>{children}</RequireAuthGuard>
           </Box>
         </Box>
         <BottomNavigationBar onMoreClick={handleMoreClick} />
