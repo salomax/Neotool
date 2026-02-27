@@ -5,12 +5,36 @@
 # and financial operations.
 # ============================================================================
 
+# External type reference — Asset is defined in the assets subgraph.
+type Asset @key(fields: "id") {
+  id: ID!
+}
+
+# ============================================================================
+# Issuer
+# ============================================================================
+
+"""
+Financial institution associated with an account.
+"""
+type Issuer {
+  id: ID!
+  name: String!
+  domain: String
+  compeCode: String
+  ispb: String
+  countryCode: String!
+  logoKey: String
+  logoAsset: Asset
+}
+
 # ============================================================================
 # Queries
 # ============================================================================
 
 extend type Query {
   _bankingService: String
+  issuers: [Issuer!]!
 }
 
 # ============================================================================

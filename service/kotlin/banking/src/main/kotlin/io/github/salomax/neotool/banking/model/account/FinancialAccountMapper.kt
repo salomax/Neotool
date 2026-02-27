@@ -41,6 +41,7 @@ object FinancialAccountMapper {
             currencyCode = entity.currencyCode,
             includeInNetWorth = entity.includeInNetWorth,
             includeInDashboard = entity.includeInDashboard,
+            issuerId = entity.issuerId,
             themeColor = entity.themeColor,
             logoKey = entity.logoKey,
             issuerName = entity.issuerName,
@@ -74,6 +75,7 @@ object FinancialAccountMapper {
             currencyCode = domain.currencyCode,
             includeInNetWorth = domain.includeInNetWorth,
             includeInDashboard = domain.includeInDashboard,
+            issuerId = domain.issuerId,
             themeColor = domain.themeColor,
             logoKey = domain.logoKey,
             issuerName = domain.issuerName,
@@ -137,6 +139,7 @@ object FinancialAccountMapper {
         entity.currencyCode = domain.currencyCode
         entity.includeInNetWorth = domain.includeInNetWorth
         entity.includeInDashboard = domain.includeInDashboard
+        entity.issuerId = domain.issuerId
         entity.themeColor = domain.themeColor
         entity.logoKey = domain.logoKey
         entity.issuerName = domain.issuerName

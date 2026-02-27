@@ -23,11 +23,11 @@ import java.util.UUID
 open class FinancialAccountCardDataEntity(
     @Id
     @Column(name = "account_id")
-    val accountId: UUID,
+    open var accountId: UUID,
     @OneToOne
     @MapsId
     @JoinColumn(name = "account_id")
-    val account: FinancialAccountEntity,
+    open var account: FinancialAccountEntity,
     @Column(name = "masked_number", length = 10)
     open var maskedNumber: String? = null,
     @Column(name = "bin", length = 8)

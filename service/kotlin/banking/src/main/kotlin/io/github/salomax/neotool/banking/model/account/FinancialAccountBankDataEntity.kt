@@ -17,11 +17,11 @@ import java.util.UUID
 open class FinancialAccountBankDataEntity(
     @Id
     @Column(name = "account_id")
-    val accountId: UUID,
+    open var accountId: UUID,
     @OneToOne
     @MapsId
     @JoinColumn(name = "account_id")
-    val account: FinancialAccountEntity,
+    open var account: FinancialAccountEntity,
     @Column(name = "branch_code", length = 10)
     open var branchCode: String? = null,
     @Column(name = "number", length = 20)

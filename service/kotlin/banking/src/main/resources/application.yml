@@ -75,10 +75,8 @@ datasources:
         prepareThreshold: 0
         tcpKeepAlive: true
 
-# JPA disabled until the module has @Entity classes (common brings in Hibernate JPA)
 jpa:
   default:
-    enabled: false
     properties:
       hibernate:
         hbm2ddl:
@@ -100,6 +98,24 @@ graphql:
   graphiql:
     enabled: true
     path: /graphiql
+  # Apollo Router URL for service-to-service calls (e.g. assets upload).
+  # Required when any outbound GraphQL call is used (logo hydration, etc).
+  router:
+    url: ${GRAPHQL_ROUTER_URL:http://localhost:4000/graphql}
+
+# Service principal credentials (for outbound service-to-service calls via Apollo Router).
+# Register via: neotool service register neotool-banking-service --permissions ... --output-env
+security:
+  service:
+    url: ${SECURITY_SERVICE_URL:http://localhost:8080}
+    id: ${SECURITY_SERVICE_ID:}
+    secret: ${SECURITY_SERVICE_SECRET:}
+
+# logo.dev integration — fetches institution logos by domain.
+# Leave LOGO_DEV_TOKEN unset (or empty) to disable logo hydration entirely.
+banking:
+  logodev:
+    token: ${LOGO_DEV_TOKEN:}
 
 # JWT Configuration (Validator Only)
 jwt:

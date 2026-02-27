@@ -44,6 +44,7 @@ data class FinancialAccount(
     val currencyCode: String = "BRL",
     val includeInNetWorth: Boolean = true,
     val includeInDashboard: Boolean = true,
+    val issuerId: UUID? = null,       // FK to banking.issuers; null = custom/unlisted institution
     val themeColor: String? = null,
     val logoKey: String? = null,
     val issuerName: String? = null,
