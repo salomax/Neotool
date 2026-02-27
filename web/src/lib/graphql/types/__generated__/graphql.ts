@@ -538,8 +538,22 @@ export type InstitutionRating = {
   updatedAt: Scalars['DateTime']['output'];
 };
 
+/** Financial institution associated with an account. */
+export type Issuer = {
+  __typename: 'Issuer';
+  compeCode: Maybe<Scalars['String']['output']>;
+  countryCode: Scalars['String']['output'];
+  domain: Maybe<Scalars['String']['output']>;
+  id: Scalars['ID']['output'];
+  ispb: Maybe<Scalars['String']['output']>;
+  logoAsset: Maybe<Asset>;
+  logoKey: Maybe<Scalars['String']['output']>;
+  name: Scalars['String']['output'];
+};
+
 export type Mutation = {
   __typename: 'Mutation';
+  _bankingService: Maybe<Scalars['String']['output']>;
   assignGroupToUser: User;
   assignPermissionToRole: Role;
   assignRoleToGroup: Group;
@@ -826,6 +840,7 @@ export type QuarterValue = {
 
 export type Query = {
   __typename: 'Query';
+  _bankingService: Maybe<Scalars['String']['output']>;
   _empty: Maybe<Scalars['String']['output']>;
   /**
    * Get asset by ID.
@@ -841,6 +856,7 @@ export type Query = {
   fixedIncomeComparison: FixedIncomeComparisonResult;
   group: Maybe<Group>;
   groups: GroupConnection;
+  issuers: Array<Issuer>;
   myVerificationStatus: Maybe<VerificationStatus>;
   permissions: PermissionConnection;
   ratingIssuers: Array<RatingIssuer>;
@@ -1166,6 +1182,7 @@ export type VerifyEmailPayload = {
 
 export enum Join__Graph {
   Assets = 'ASSETS',
+  Banking = 'BANKING',
   Comms = 'COMMS',
   Financialdata = 'FINANCIALDATA',
   Security = 'SECURITY'

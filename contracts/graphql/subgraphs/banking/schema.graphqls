@@ -13,8 +13,14 @@ scalar UUID
 # Service Schema - banking
 # ============================================================================
 
+# ============================================================================
+# Banking GraphQL Schema
+#
+# Handles banking features including account management, transactions,
+# and financial operations.
+# ============================================================================
+
 # External type reference — Asset is defined in the assets subgraph.
-# Federation resolves the full type from the assets service using the id.
 type Asset @key(fields: "id") {
   id: ID!
 }
@@ -24,21 +30,16 @@ type Asset @key(fields: "id") {
 # ============================================================================
 
 """
-Financial institution (bank, fintech, card network, etc.) associated with an account.
-Seeded from BACEN data. logo_key holds the asset UUID resolved via federation.
+Financial institution associated with an account.
 """
 type Issuer {
   id: ID!
   name: String!
   domain: String
-  """COMPE code (3 digits) — Brazilian interbank clearing system. Null for fintechs without it."""
   compeCode: String
-  """ISPB code (8 digits) — Central Bank identifier. Null for non-BACEN issuers."""
   ispb: String
   countryCode: String!
-  """Raw asset UUID stored for this issuer's logo. Null until logo hydration runs."""
   logoKey: String
-  """Federation reference to the logo Asset (PUBLIC, institution-logos bucket). Null until hydrated."""
   logoAsset: Asset
 }
 
@@ -48,7 +49,6 @@ type Issuer {
 
 extend type Query {
   _bankingService: String
-  """All active issuers. Small list — no pagination or filter needed."""
   issuers: [Issuer!]!
 }
 

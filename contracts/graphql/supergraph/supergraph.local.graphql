@@ -23,6 +23,7 @@ directive @link(url: String, as: String, for: link__Purpose, import: [link__Impo
 """Asset metadata and access information."""
 type Asset
   @join__type(graph: ASSETS, key: "id")
+  @join__type(graph: BANKING, key: "id")
   @join__type(graph: FINANCIALDATA, key: "id")
 {
   """Unique identifier (UUID v7)"""
@@ -329,12 +330,14 @@ enum DataRestrictionReason
 
 scalar Date
   @join__type(graph: ASSETS)
+  @join__type(graph: BANKING)
   @join__type(graph: COMMS)
   @join__type(graph: FINANCIALDATA)
   @join__type(graph: SECURITY)
 
 scalar DateTime
   @join__type(graph: ASSETS)
+  @join__type(graph: BANKING)
   @join__type(graph: COMMS)
   @join__type(graph: FINANCIALDATA)
   @join__type(graph: SECURITY)
@@ -622,10 +625,25 @@ type InstitutionRating
   updatedAt: DateTime!
 }
 
+"""Financial institution associated with an account."""
+type Issuer
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  name: String!
+  domain: String
+  compeCode: String
+  ispb: String
+  countryCode: String!
+  logoKey: String
+  logoAsset: Asset
+}
+
 scalar join__FieldSet
 
 enum join__Graph {
   ASSETS @join__graph(name: "assets", url: "http://host.docker.internal:8083/graphql")
+  BANKING @join__graph(name: "banking", url: "http://host.docker.internal:8092/graphql")
   COMMS @join__graph(name: "comms", url: "http://host.docker.internal:8084/graphql")
   FINANCIALDATA @join__graph(name: "financialdata", url: "http://host.docker.internal:8091/graphql")
   SECURITY @join__graph(name: "security", url: "http://host.docker.internal:8080/graphql")
@@ -633,6 +651,7 @@ enum join__Graph {
 
 scalar JSON
   @join__type(graph: ASSETS)
+  @join__type(graph: BANKING)
   @join__type(graph: COMMS)
   @join__type(graph: FINANCIALDATA)
   @join__type(graph: SECURITY)
@@ -653,12 +672,14 @@ enum link__Purpose {
 
 scalar Long
   @join__type(graph: ASSETS)
+  @join__type(graph: BANKING)
   @join__type(graph: COMMS)
   @join__type(graph: FINANCIALDATA)
   @join__type(graph: SECURITY)
 
 type Mutation
   @join__type(graph: ASSETS)
+  @join__type(graph: BANKING)
   @join__type(graph: COMMS)
   @join__type(graph: SECURITY)
 {
@@ -733,6 +754,7 @@ type Mutation
   Only the asset owner can delete the asset.
   """
   deleteAsset(assetId: ID!): Boolean! @join__field(graph: ASSETS)
+  _bankingService: String @join__field(graph: BANKING)
   requestEmailSend(input: EmailSendRequestInput!): EmailSendResult! @join__field(graph: COMMS)
   signIn(input: SignInInput!): SignInPayload! @join__field(graph: SECURITY)
   signInWithOAuth(input: SignInWithOAuthInput!): SignInPayload! @join__field(graph: SECURITY)
@@ -822,6 +844,7 @@ type QuarterValue
 
 type Query
   @join__type(graph: ASSETS)
+  @join__type(graph: BANKING)
   @join__type(graph: COMMS)
   @join__type(graph: FINANCIALDATA)
   @join__type(graph: SECURITY)
@@ -831,6 +854,8 @@ type Query
   Returns null if asset not found or user doesn't have access.
   """
   asset(id: ID!): Asset @join__field(graph: ASSETS)
+  _bankingService: String @join__field(graph: BANKING)
+  issuers: [Issuer!]! @join__field(graph: BANKING)
   _empty: String @join__field(graph: COMMS)
   searchBacenInstitutionsAutocomplete(query: String!, anoMes: String): BacenInstitutionAutocompleteConnection! @join__field(graph: FINANCIALDATA)
   bacenInstitutions(query: String, anoMes: String, first: Int, after: String): BacenInstitutionConnection! @join__field(graph: FINANCIALDATA)
@@ -1096,6 +1121,7 @@ enum UserOrderField
 
 scalar UUID
   @join__type(graph: ASSETS)
+  @join__type(graph: BANKING)
   @join__type(graph: COMMS)
   @join__type(graph: FINANCIALDATA)
   @join__type(graph: SECURITY)
