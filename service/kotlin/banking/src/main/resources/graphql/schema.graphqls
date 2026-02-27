@@ -29,12 +29,184 @@ type Issuer {
 }
 
 # ============================================================================
+# Enums
+# ============================================================================
+
+enum FinancialAccountType {
+  BANK
+  CREDIT
+  PAYMENT
+  CASH
+  INVESTMENT
+  LOAN
+  ASSET
+}
+
+enum FinancialAccountSubtype {
+  # Bank account subtypes
+  CONTA_CORRENTE
+  CONTA_POUPANCA
+  CONTA_SALARIO
+  CONTA_DIGITAL
+  CONTA_CONJUNTA
+  # Card subtypes
+  CREDIT_CARD
+  CHARGE_CARD
+  PREPAID_CARD
+  VOUCHER_CARD
+  # Other
+  WALLET
+  BROKERAGE
+  FIXED_INCOME
+  PENSION
+  CRYPTO
+  PERSONAL_LOAN
+  MORTGAGE
+  AUTO_LOAN
+  PROPERTY
+  VEHICLE
+  OTHER_ASSET
+}
+
+enum CreditCardNetwork {
+  VISA
+  MASTERCARD
+  AMERICAN_EXPRESS
+  DINERS_CLUB
+  HIPERCARD
+  ELO
+  BANDEIRA_PROPRIA
+  OUTRAS
+}
+
+enum CreditCardLevel {
+  STANDARD
+  GOLD
+  PLATINUM
+  INFINITE
+  BLACK
+}
+
+enum ConnectionStatus {
+  CONNECTED
+  SYNCING
+  DISCONNECTED
+  ERROR
+  CONSENT_EXPIRING
+  CONSENT_EXPIRED
+}
+
+# ============================================================================
+# Financial Account Types
+# ============================================================================
+
+"""
+Bank-specific data. Present only when type = BANK.
+"""
+type BankAccountData {
+  branchCode: String
+  number: String
+  checkDigit: String
+  maskedNumber: String
+}
+
+"""
+Card-specific data. Present only when subtype is CREDIT_CARD, PREPAID_CARD, CHARGE_CARD, or VOUCHER_CARD.
+creditLimit, closingDay and dueDay are required for CREDIT_CARD (enforced at service layer).
+"""
+type CardData {
+  maskedNumber: String
+  bin: String
+  cardNetwork: CreditCardNetwork
+  cardLevel: CreditCardLevel
+  creditLimit: Float
+  availableCreditLimit: Float
+  minimumPaymentPercentage: Float
+  closingDay: Int
+  dueDay: Int
+}
+
+"""
+A personal finance account or card belonging to the authenticated user's account.
+The security.accounts association is resolved from the JWT — not exposed directly.
+"""
+type FinancialAccount {
+  id: ID!
+  type: FinancialAccountType!
+  subtype: FinancialAccountSubtype!
+  name: String!
+  currencyCode: String!
+  includeInNetWorth: Boolean!
+  includeInDashboard: Boolean!
+  themeColor: String
+  """Linked issuer from the issuers seed list. Null when a custom institution is used."""
+  issuer: Issuer
+  """Custom institution name. Set when issuerId is null. Use issuer.name when issuer is present."""
+  issuerName: String
+  bankData: BankAccountData
+  cardData: CardData
+  """Open Finance connection status. Null for manually managed accounts."""
+  connectionStatus: ConnectionStatus
+  consentExpiresAt: DateTime
+  lastSyncAt: DateTime
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+# ============================================================================
+# Input Types
+# ============================================================================
+
+input BankAccountDataInput {
+  branchCode: String
+  number: String
+  checkDigit: String
+  maskedNumber: String
+}
+
+input CardDataInput {
+  maskedNumber: String
+  bin: String
+  cardNetwork: CreditCardNetwork
+  cardLevel: CreditCardLevel
+  """Required for CREDIT_CARD."""
+  creditLimit: Float
+  """Required for CREDIT_CARD."""
+  closingDay: Int
+  """Required for CREDIT_CARD."""
+  dueDay: Int
+}
+
+input CreateFinancialAccountInput {
+  type: FinancialAccountType!
+  subtype: FinancialAccountSubtype!
+  """Display name. Defaults to issuer name when omitted."""
+  name: String
+  """ID from the issuers list. Mutually exclusive with issuerName."""
+  issuerId: ID
+  """Custom institution name. Required when issuerId is null."""
+  issuerName: String
+  themeColor: String
+  """ISO 4217 currency code. Defaults to BRL."""
+  currencyCode: String
+  includeInNetWorth: Boolean
+  includeInDashboard: Boolean
+  """Required when type = BANK."""
+  bankData: BankAccountDataInput
+  """Required when subtype is CREDIT_CARD, CHARGE_CARD, PREPAID_CARD, or VOUCHER_CARD."""
+  cardData: CardDataInput
+}
+
+# ============================================================================
 # Queries
 # ============================================================================
 
 extend type Query {
   _bankingService: String
+  """All active issuers. Small list — no pagination or filter needed."""
   issuers: [Issuer!]!
+  """All financial accounts belonging to the authenticated user's account."""
+  financialAccounts: [FinancialAccount!]!
 }
 
 # ============================================================================
@@ -43,4 +215,10 @@ extend type Query {
 
 extend type Mutation {
   _bankingService: String
+  """
+  Create a new financial account or card.
+  Requires either issuerId (from the issuers list) or issuerName (custom institution).
+  For CREDIT_CARD subtype: cardData.closingDay and cardData.dueDay are required.
+  """
+  createFinancialAccount(input: CreateFinancialAccountInput!): FinancialAccount!
 }

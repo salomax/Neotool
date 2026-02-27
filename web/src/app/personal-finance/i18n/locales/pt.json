@@ -2,7 +2,51 @@
   "title": "Finanças pessoais",
   "financeTransactions": {
     "title": "Movimentações financeiras",
-    "description": "Acompanhe suas receitas e despesas."
+    "description": "Acompanhe suas receitas e despesas.",
+    "actions": {
+      "newAccountOrCard": "+ Nova conta ou cartão",
+      "addAccount": "Adicionar conta",
+      "addCard": "Adicionar cartão"
+    },
+    "createAccount": {
+      "title": "Adicionar conta financeira",
+      "step1": {
+        "bankAccount": {
+          "label": "Conta Bancária",
+          "subtitle": "Corrente, poupança, carteira digital, dinheiro"
+        },
+        "card": {
+          "label": "Cartão",
+          "subtitle": "Crédito, débito, pré-pago, voucher"
+        }
+      },
+      "step2": {
+        "backToSelection": "Voltar para seleção",
+        "fields": {
+          "issuer": "Instituição",
+          "issuerPlaceholder": "Buscar banco ou emissor do cartão",
+          "customIssuer": "Outro / Personalizado",
+          "institutionName": "Nome da instituição",
+          "accountName": "Nome da conta",
+          "currency": "Moeda",
+          "initialBalance": "Saldo inicial",
+          "themeColor": "Cor do tema",
+          "includeInNetWorth": "Incluir no patrimônio",
+          "includeInDashboard": "Incluir no dashboard",
+          "subtype": "Tipo",
+          "branchCode": "Agência",
+          "accountNumber": "Conta",
+          "checkDigit": "Dígito",
+          "network": "Bandeira",
+          "level": "Variante",
+          "maskedNumber": "Últimos 4 dígitos",
+          "creditLimit": "Limite de crédito",
+          "closingDay": "Dia de fechamento",
+          "dueDay": "Dia de vencimento"
+        },
+        "success": "Conta adicionada com sucesso"
+      }
+    }
   },
   "actions": {
     "accessModule": "Acessar módulo"

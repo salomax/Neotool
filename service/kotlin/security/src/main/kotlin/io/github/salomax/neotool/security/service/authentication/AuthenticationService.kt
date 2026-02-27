@@ -5,6 +5,7 @@ import io.github.salomax.neotool.common.security.exception.AuthenticationRequire
 import io.github.salomax.neotool.common.security.jwt.JwtTokenValidator
 import io.github.salomax.neotool.common.security.principal.AuthContext
 import io.github.salomax.neotool.common.security.principal.PrincipalType
+import io.github.salomax.neotool.security.domain.rbac.GroupMembership
 import io.github.salomax.neotool.security.model.PrincipalEntity
 import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.model.account.AccountEntity
@@ -15,6 +16,8 @@ import io.github.salomax.neotool.security.model.account.AccountType
 import io.github.salomax.neotool.security.model.account.MembershipStatus
 import io.github.salomax.neotool.security.repo.AccountMembershipRepository
 import io.github.salomax.neotool.security.repo.AccountRepository
+import io.github.salomax.neotool.security.repo.GroupMembershipRepository
+import io.github.salomax.neotool.security.repo.GroupRepository
 import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.EmailVerificationService
@@ -43,6 +46,8 @@ open class AuthenticationService(
     private val principalRepository: PrincipalRepository,
     private val accountRepository: AccountRepository,
     private val accountMembershipRepository: AccountMembershipRepository,
+    private val groupRepository: GroupRepository,
+    private val groupMembershipRepository: GroupMembershipRepository,
     private val jwtTokenIssuer: JwtTokenIssuer,
     private val jwtTokenValidator: JwtTokenValidator,
     private val emailService: EmailService,
@@ -53,6 +58,11 @@ open class AuthenticationService(
     @param:Value("\${app.verification.enabled:true}") private val emailVerificationEnabled: Boolean,
 ) {
     private val logger = KotlinLogging.logger {}
+
+    private companion object {
+        /** Name of the default group every new consumer user is enrolled in at registration. */
+        const val DEFAULT_USER_GROUP = "Personal Users"
+    }
 
     /**
      * Hash a password using Argon2id (OWASP recommended).
@@ -481,6 +491,9 @@ open class AuthenticationService(
         // Create personal account and OWNER membership (FR-2.1); same transaction as user
         createPersonalAccountAndMembership(userId, name, email)
 
+        // Enroll in default group so user inherits standard permissions
+        addUserToDefaultGroup(userId)
+
         var requiresVerification = false
         if (emailVerificationEnabled) {
             try {
@@ -738,8 +751,27 @@ open class AuthenticationService(
         // Create personal account and OWNER membership (FR-2.1); same transaction as user
         createPersonalAccountAndMembership(userId, claims.name, claims.email)
 
+        // Enroll in default group so user inherits standard permissions
+        addUserToDefaultGroup(userId)
+
         logger.info { "OAuth user created and signed in: ${claims.email} (new user)" }
         return savedUser
+    }
+
+    /**
+     * Enroll a new user in the "Personal Users" group so they inherit standard permissions.
+     * Soft-fails if the group does not exist (e.g., on a fresh environment without the V0_26 migration).
+     */
+    private fun addUserToDefaultGroup(userId: UUID) {
+        val group = groupRepository.findByName(DEFAULT_USER_GROUP).orElse(null) ?: run {
+            logger.warn { "Default group '$DEFAULT_USER_GROUP' not found; skipping auto-join for user $userId" }
+            return
+        }
+        val groupId = requireNotNull(group.id) { "Group ID is required" }
+        val existing = groupMembershipRepository.findByUserIdAndGroupId(userId, groupId)
+        if (existing.isNotEmpty()) return
+        groupMembershipRepository.save(GroupMembership(userId = userId, groupId = groupId).toEntity())
+        logger.debug { "User $userId enrolled in '$DEFAULT_USER_GROUP' group" }
     }
 
     /**

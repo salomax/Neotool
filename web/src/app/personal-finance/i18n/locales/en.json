@@ -2,7 +2,51 @@
   "title": "Personal Finance",
   "financeTransactions": {
     "title": "Finance Transactions",
-    "description": "Track your income and expenses."
+    "description": "Track your income and expenses.",
+    "actions": {
+      "newAccountOrCard": "+ New account or card",
+      "addAccount": "Add account",
+      "addCard": "Add card"
+    },
+    "createAccount": {
+      "title": "Add financial account",
+      "step1": {
+        "bankAccount": {
+          "label": "Bank Account",
+          "subtitle": "Checking, savings, digital wallet, cash"
+        },
+        "card": {
+          "label": "Card",
+          "subtitle": "Credit, debit, prepaid, voucher"
+        }
+      },
+      "step2": {
+        "backToSelection": "Back to selection",
+        "fields": {
+          "issuer": "Institution",
+          "issuerPlaceholder": "Search for bank or card issuer",
+          "customIssuer": "Other / Custom",
+          "institutionName": "Institution name",
+          "accountName": "Account name",
+          "currency": "Currency",
+          "initialBalance": "Initial balance",
+          "themeColor": "Theme color",
+          "includeInNetWorth": "Include in net worth",
+          "includeInDashboard": "Include in dashboard",
+          "subtype": "Type",
+          "branchCode": "Branch code",
+          "accountNumber": "Account number",
+          "checkDigit": "Digit",
+          "network": "Network",
+          "level": "Level",
+          "maskedNumber": "Last 4 digits",
+          "creditLimit": "Credit limit",
+          "closingDay": "Closing day",
+          "dueDay": "Due day"
+        },
+        "success": "Account added successfully"
+      }
+    }
   },
   "actions": {
     "accessModule": "Access module"

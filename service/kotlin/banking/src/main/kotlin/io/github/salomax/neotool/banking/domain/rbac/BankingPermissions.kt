@@ -2,9 +2,14 @@ package io.github.salomax.neotool.banking.domain.rbac
 
 /**
  * Typed constants for banking permissions.
- * Use these constants instead of string literals to avoid typos and ensure consistency.
  */
 object BankingPermissions {
-    /** Permission to view issuers (financial institutions) list. */
+    /** View the financial institutions (issuers) reference list. */
     const val BANKING_ISSUER_VIEW = "banking:issuer:view"
+
+    /** List financial accounts belonging to the user's account. */
+    const val BANKING_ACCOUNT_VIEW = "banking:account:view"
+
+    /** Create a new financial account or card. */
+    const val BANKING_ACCOUNT_CREATE = "banking:account:create"
 }

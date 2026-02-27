@@ -7,7 +7,8 @@ import java.util.UUID
 
 /**
  * JPA repository for banking.financial_accounts (entity layer).
- * Custom query methods can be added as needed.
  */
 @Repository
-interface FinancialAccountEntityRepository : JpaRepository<FinancialAccountEntity, UUID>
+interface FinancialAccountEntityRepository : JpaRepository<FinancialAccountEntity, UUID> {
+    fun findByAccountIdAndDeletedAtIsNull(accountId: UUID): List<FinancialAccountEntity>
+}

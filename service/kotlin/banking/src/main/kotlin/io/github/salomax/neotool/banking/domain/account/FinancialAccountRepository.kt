@@ -1,7 +1,12 @@
 package io.github.salomax.neotool.banking.domain.account
 
+import java.util.UUID
+
 /**
- * Domain repository for banking accounts.
- * Methods will be added as development progresses (scoped by accountId, soft-delete aware).
+ * Domain repository for [FinancialAccount].
+ * Scoped by accountId (security.accounts); soft-delete is transparent to callers.
  */
-interface FinancialAccountRepository
+interface FinancialAccountRepository {
+    fun findByAccountId(accountId: UUID): List<FinancialAccount>
+    fun save(account: FinancialAccount): FinancialAccount
+}

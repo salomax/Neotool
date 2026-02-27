@@ -3,7 +3,9 @@ package io.github.salomax.neotool.banking.graphql
 import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.TypeRuntimeWiring
 import io.github.salomax.neotool.banking.domain.rbac.BankingPermissions
+import io.github.salomax.neotool.banking.graphql.dto.FinancialAccountDTO
 import io.github.salomax.neotool.banking.graphql.dto.IssuerDTO
+import io.github.salomax.neotool.banking.graphql.resolver.FinancialAccountResolver
 import io.github.salomax.neotool.banking.graphql.resolver.IssuerResolver
 import io.github.salomax.neotool.common.graphql.AuthenticatedGraphQLWiringFactory
 import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.createValidatedDataFetcher
@@ -13,13 +15,11 @@ import jakarta.inject.Singleton
 
 /**
  * GraphQL wiring factory for the banking subgraph.
- *
- * Query access is protected by permissions (e.g. [BankingPermissions.BANKING_ISSUER_VIEW]).
- * [Issuer.logoAsset] is resolved here as a federation stub pointing to the assets subgraph.
  */
 @Singleton
 class BankingWiringFactory(
     private val issuerResolver: IssuerResolver,
+    private val financialAccountResolver: FinancialAccountResolver,
     requestPrincipalProvider: RequestPrincipalProvider,
     authorizationChecker: AuthorizationChecker,
 ) : AuthenticatedGraphQLWiringFactory(requestPrincipalProvider, authorizationChecker) {
@@ -34,8 +34,27 @@ class BankingWiringFactory(
                     }
                 },
             )
+            .dataFetcher(
+                "financialAccounts",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_ACCOUNT_VIEW) { principal ->
+                        financialAccountResolver.listByAccount(principal)
+                    }
+                },
+            )
 
-    override fun registerMutationResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder = type
+    override fun registerMutationResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder =
+        type
+            .dataFetcher(
+                "createFinancialAccount",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_ACCOUNT_CREATE) { principal ->
+                        val input = env.getArgument<Map<String, Any?>>("input")
+                            ?: throw IllegalArgumentException("input is required")
+                        financialAccountResolver.create(input, principal)
+                    }
+                },
+            )
 
     override fun registerCustomTypeResolvers(builder: RuntimeWiring.Builder): RuntimeWiring.Builder =
         builder
@@ -45,6 +64,15 @@ class BankingWiringFactory(
                     createValidatedDataFetcher { env ->
                         val issuer = env.getSource<IssuerDTO>()
                         issuer?.logoAsset
+                    },
+                )
+            }
+            .type("FinancialAccount") { type ->
+                type.dataFetcher(
+                    "issuer",
+                    createValidatedDataFetcher { env ->
+                        val account = env.getSource<FinancialAccountDTO>()
+                        account?.issuer
                     },
                 )
             }

@@ -21,6 +21,13 @@ open class DefaultIssuerRepository(
     override fun findAllPendingLogoHydration(): List<Issuer> =
         entityRepository.findByLogoKeyIsNullAndDomainIsNotNull().map(IssuerMapper::toDomain)
 
+    override fun findById(id: UUID): Issuer? =
+        entityRepository.findById(id).orElse(null)?.let(IssuerMapper::toDomain)
+
+    override fun findByIds(ids: Collection<UUID>): List<Issuer> =
+        if (ids.isEmpty()) emptyList()
+        else entityRepository.findByIdIn(ids).map(IssuerMapper::toDomain)
+
     @Transactional
     override fun updateLogoKey(id: UUID, logoKey: String) {
         val entity = entityRepository.findById(id)

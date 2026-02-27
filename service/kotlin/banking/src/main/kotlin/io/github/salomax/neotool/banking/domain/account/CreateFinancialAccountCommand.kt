@@ -1,0 +1,24 @@
+package io.github.salomax.neotool.banking.domain.account
+
+import java.util.UUID
+
+/**
+ * Command to create a new [FinancialAccount].
+ * Either [issuerId] (from the issuers list) or [issuerName] (custom) must be provided.
+ */
+data class CreateFinancialAccountCommand(
+    val type: FinancialAccountType,
+    val subtype: FinancialAccountSubtype,
+    /** Display name. Defaults to issuer name when null. */
+    val name: String? = null,
+    /** FK to banking.issuers. Mutually exclusive with [issuerName]. */
+    val issuerId: UUID? = null,
+    /** Free-text institution name when [issuerId] is null. */
+    val issuerName: String? = null,
+    val themeColor: String? = null,
+    val currencyCode: String? = null,
+    val includeInNetWorth: Boolean? = null,
+    val includeInDashboard: Boolean? = null,
+    val bankData: BankData? = null,
+    val cardData: CardData? = null,
+)
