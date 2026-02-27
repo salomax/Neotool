@@ -2,6 +2,7 @@ package io.github.salomax.neotool.banking.graphql
 
 import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.TypeRuntimeWiring
+import io.github.salomax.neotool.banking.domain.rbac.BankingPermissions
 import io.github.salomax.neotool.banking.graphql.dto.IssuerDTO
 import io.github.salomax.neotool.banking.graphql.resolver.IssuerResolver
 import io.github.salomax.neotool.common.graphql.AuthenticatedGraphQLWiringFactory
@@ -13,7 +14,7 @@ import jakarta.inject.Singleton
 /**
  * GraphQL wiring factory for the banking subgraph.
  *
- * All banking queries require the user to be authenticated.
+ * Query access is protected by permissions (e.g. [BankingPermissions.BANKING_ISSUER_VIEW]).
  * [Issuer.logoAsset] is resolved here as a federation stub pointing to the assets subgraph.
  */
 @Singleton
@@ -28,8 +29,9 @@ class BankingWiringFactory(
             .dataFetcher(
                 "issuers",
                 createValidatedDataFetcher { env ->
-                    env.principal() // require auth; no specific permission (reference data)
-                    issuerResolver.listIssuers()
+                    env.withPermission(BankingPermissions.BANKING_ISSUER_VIEW) { _ ->
+                        issuerResolver.listIssuers()
+                    }
                 },
             )
 
