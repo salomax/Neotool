@@ -13,7 +13,7 @@ import {
  *
  * @see AuthProvider sets/clears AUTH_HINT_COOKIE_NAME on client
  */
-function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   if (!isRouteProtected(pathname)) {
@@ -32,8 +32,6 @@ function middleware(request: NextRequest) {
 
   return NextResponse.redirect(signInUrl);
 }
-
-export { middleware };
 
 export const config = {
   matcher: [

@@ -27,7 +27,7 @@ const nextConfig = {
   },
   // Configure source maps
   productionBrowserSourceMaps: false,
-  // Source map handling is now done in middleware.ts
+  // Source map handling is now done in proxy.ts
   // Add headers to handle source map requests gracefully
   async headers() {
     return [

@@ -1,10 +1,10 @@
 /**
  * Route policy for auth guard: which routes require authentication.
- * Used by useRequireAuth and by middleware for optimistic redirect.
+ * Used by useRequireAuth and by proxy for optimistic redirect.
  */
 
 /**
- * Cookie set by client when user has a token; read by middleware as optimistic auth hint only.
+ * Cookie set by client when user has a token; read by proxy as optimistic auth hint only.
  * This does not replace backend authorization — it only avoids redirecting obviously logged-in users.
  */
 export const AUTH_HINT_COOKIE_NAME = "auth_hint";

@@ -93,7 +93,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, []);
 
-  // Sync optimistic auth hint cookie for middleware (request-time redirect).
+  // Sync optimistic auth hint cookie for proxy (request-time redirect).
   // Cookie is a hint only; backend must still enforce authorization.
   React.useEffect(() => {
     syncAuthHintCookie(!!token);

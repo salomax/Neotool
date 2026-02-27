@@ -190,7 +190,7 @@ export default defineConfig({
         // Exclude barrel/index files (pure exports)
         'src/**/index.ts',
         // Exclude Next.js boilerplate (better tested via E2E)
-        'src/middleware.ts',
+        'src/proxy.ts',
         'src/app/layout.tsx',
         'src/app/page.tsx',
         'src/app/not-found.tsx',
