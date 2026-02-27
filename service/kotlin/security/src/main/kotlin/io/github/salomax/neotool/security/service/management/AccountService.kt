@@ -1,5 +1,7 @@
 package io.github.salomax.neotool.security.service.management
 
+import io.github.salomax.neotool.common.tracing.TraceExecution
+
 import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.security.domain.AccountManagement
@@ -27,6 +29,7 @@ import java.util.UUID
  * Service for account management (FR-5).
  * Create (FAMILY/BUSINESS), update (owner only, name only), delete (soft delete).
  */
+@TraceExecution
 @Singleton
 open class AccountService(
     private val accountRepository: AccountRepository,

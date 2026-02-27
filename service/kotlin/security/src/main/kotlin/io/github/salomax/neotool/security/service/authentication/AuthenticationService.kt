@@ -1,5 +1,7 @@
 package io.github.salomax.neotool.security.service.authentication
 
+import io.github.salomax.neotool.common.tracing.TraceExecution
+
 import com.password4j.Password
 import io.github.salomax.neotool.common.error.AuthenticationException
 import io.github.salomax.neotool.common.error.CommonErrorCode
@@ -42,6 +44,7 @@ import java.util.UUID
  * Uses Argon2id for password hashing (OWASP recommended standard).
  * Uses JWT for access and refresh tokens.
  */
+@TraceExecution
 @Singleton
 open class AuthenticationService(
     private val userRepository: UserRepository,

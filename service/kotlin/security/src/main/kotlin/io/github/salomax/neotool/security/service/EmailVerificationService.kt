@@ -1,5 +1,7 @@
 package io.github.salomax.neotool.security.service
 
+import io.github.salomax.neotool.common.tracing.TraceExecution
+
 import io.github.salomax.neotool.security.domain.EmailVerification
 import io.github.salomax.neotool.security.domain.ResendResult
 import io.github.salomax.neotool.security.domain.VerificationResult
@@ -21,6 +23,7 @@ import java.util.UUID
  * Service for email verification (magic link only) after signup.
  * OWASP-aligned: 8h expiry, rate limit, hashed token.
  */
+@TraceExecution
 @Singleton
 open class EmailVerificationService(
     private val emailVerificationRepository: EmailVerificationRepository,

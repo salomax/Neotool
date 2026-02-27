@@ -1,5 +1,7 @@
 package io.github.salomax.neotool.common.security.service
 
+import io.github.salomax.neotool.common.tracing.TraceExecution
+
 import io.micronaut.context.annotation.Property
 import io.micronaut.http.HttpRequest
 import io.micronaut.http.MediaType
@@ -36,6 +38,7 @@ data class GraphQLResponse(
  *
  * Class is open to allow mocking in tests (e.g. @MockBean in Micronaut tests).
  */
+@TraceExecution
 @Singleton
 open class GraphQLServiceClient(
     @Property(name = "graphql.router.url", defaultValue = "http://localhost:4000/graphql")

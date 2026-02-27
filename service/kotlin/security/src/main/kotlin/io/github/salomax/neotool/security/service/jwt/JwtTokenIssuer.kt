@@ -1,5 +1,7 @@
 package io.github.salomax.neotool.security.service.jwt
 
+import io.github.salomax.neotool.common.tracing.TraceExecution
+
 import io.github.salomax.neotool.common.security.config.JwtConfig
 import io.github.salomax.neotool.common.security.key.KeyManager
 import io.github.salomax.neotool.common.security.principal.AuthContext
@@ -26,6 +28,7 @@ import java.util.UUID
  *
  * @see https://tools.ietf.org/html/rfc7519
  */
+@TraceExecution
 @Singleton
 class JwtTokenIssuer(
     private val jwtConfig: JwtConfig,

@@ -1,9 +1,12 @@
 package io.github.salomax.neotool.assistant.service
 
+import io.github.salomax.neotool.common.tracing.TraceExecution
+
 import io.github.salomax.neotool.assistant.agent.ConversationContext
 import jakarta.inject.Singleton
 import java.util.concurrent.ConcurrentHashMap
 
+@TraceExecution
 @Singleton
 class ConversationService {
     // In-memory conversation storage (use Redis in production)

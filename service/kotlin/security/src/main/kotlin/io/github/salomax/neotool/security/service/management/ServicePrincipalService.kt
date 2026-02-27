@@ -1,5 +1,7 @@
 package io.github.salomax.neotool.security.service.management
 
+import io.github.salomax.neotool.common.tracing.TraceExecution
+
 import io.github.salomax.neotool.common.error.AuthenticationException
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.ConflictException
@@ -26,6 +28,7 @@ import java.util.UUID
  * Service for managing service principals and their credentials.
  * Handles registration, credential validation, and permission management for services.
  */
+@TraceExecution
 @Singleton
 open class ServicePrincipalService(
     private val principalRepository: PrincipalRepository,

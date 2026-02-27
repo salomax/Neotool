@@ -1,5 +1,7 @@
 package io.github.salomax.neotool.security.service.management.membership
 
+import io.github.salomax.neotool.common.tracing.TraceExecution
+
 import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.security.domain.AccountMembership
 import io.github.salomax.neotool.security.error.SecurityErrorCode
@@ -34,6 +36,7 @@ private const val TOKEN_UNIQUE_RETRIES = 5
  * Service for account membership and invitation operations (FR-4).
  * Issues and cancels invitations; uses MembershipPolicyEngine for guards.
  */
+@TraceExecution
 @Singleton
 open class AccountMembershipService(
     private val accountRepository: AccountRepository,

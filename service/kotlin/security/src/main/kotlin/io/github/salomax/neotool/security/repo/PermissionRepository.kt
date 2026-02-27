@@ -1,4 +1,5 @@
 package io.github.salomax.neotool.security.repo
+import io.github.salomax.neotool.common.tracing.TraceExecution
 
 import io.github.salomax.neotool.security.model.PermissionEntity
 import io.micronaut.data.annotation.Query
@@ -7,6 +8,7 @@ import io.micronaut.data.jpa.repository.JpaRepository
 import java.util.Optional
 import java.util.UUID
 
+@TraceExecution(layer = "repository")
 @Repository
 interface PermissionRepository : JpaRepository<PermissionEntity, UUID> {
     fun findByName(name: String): Optional<PermissionEntity>

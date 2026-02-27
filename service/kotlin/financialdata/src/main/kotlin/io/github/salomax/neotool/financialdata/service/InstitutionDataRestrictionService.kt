@@ -1,5 +1,7 @@
 package io.github.salomax.neotool.financialdata.service
 
+import io.github.salomax.neotool.common.tracing.TraceExecution
+
 import io.github.salomax.neotool.financialdata.domain.DataRestriction
 import io.github.salomax.neotool.financialdata.domain.DataRestrictionReason
 import io.github.salomax.neotool.financialdata.model.InstitutionDataRestrictionEntity
@@ -10,6 +12,7 @@ import jakarta.inject.Singleton
  * Service for checking whether an institution's financial data is restricted.
  * Restrictions are timeless (apply to all quarters) and managed via database.
  */
+@TraceExecution
 @Singleton
 open class InstitutionDataRestrictionService(
     private val restrictionRepository: InstitutionDataRestrictionRepository,

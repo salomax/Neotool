@@ -1,5 +1,7 @@
 package io.github.salomax.neotool.security.service.email
 
+import io.github.salomax.neotool.common.tracing.TraceExecution
+
 import io.github.salomax.neotool.common.security.service.GraphQLServiceClient
 import io.github.salomax.neotool.security.config.EmailConfig
 import io.micronaut.context.annotation.Factory

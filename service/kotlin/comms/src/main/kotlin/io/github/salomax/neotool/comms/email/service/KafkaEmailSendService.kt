@@ -1,5 +1,7 @@
 package io.github.salomax.neotool.comms.email.service
 
+import io.github.salomax.neotool.common.tracing.TraceExecution
+
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.comms.email.dto.EmailContent
@@ -18,6 +20,7 @@ import java.time.Instant
 import java.util.Locale
 import java.util.UUID
 
+@TraceExecution
 @Singleton
 class KafkaEmailSendService(
     private val producer: EmailSendProducer,

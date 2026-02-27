@@ -1,5 +1,7 @@
 package io.github.salomax.neotool.assets.service
 
+import io.github.salomax.neotool.common.tracing.TraceExecution
+
 import io.github.salomax.neotool.assets.config.AssetConfigProperties
 import io.github.salomax.neotool.assets.domain.Asset
 import io.github.salomax.neotool.assets.domain.AssetStatus
@@ -31,6 +33,7 @@ import java.util.UUID
  * - Asset retrieval (generate download URLs)
  * - Asset deletion
  */
+@TraceExecution
 @Singleton
 @Transactional
 open class AssetService(

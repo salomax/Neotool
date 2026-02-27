@@ -1,5 +1,7 @@
 package io.github.salomax.neotool.security.service.management
 
+import io.github.salomax.neotool.common.tracing.TraceExecution
+
 import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.common.graphql.pagination.Connection
@@ -31,6 +33,7 @@ import java.util.UUID
  * Service for managing users.
  * Provides operations for listing, searching, enabling, and disabling users.
  */
+@TraceExecution
 @Singleton
 open class UserManagementService(
     private val userRepository: UserRepository,

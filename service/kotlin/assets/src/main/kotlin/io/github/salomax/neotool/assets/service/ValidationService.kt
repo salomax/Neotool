@@ -1,5 +1,7 @@
 package io.github.salomax.neotool.assets.service
 
+import io.github.salomax.neotool.common.tracing.TraceExecution
+
 import io.github.salomax.neotool.assets.config.AssetConfigProperties
 import io.github.salomax.neotool.assets.error.AssetErrorCode
 import io.github.salomax.neotool.common.error.ValidationException
@@ -10,6 +12,7 @@ import jakarta.inject.Singleton
  *
  * Validates MIME types and file sizes based on namespace configuration.
  */
+@TraceExecution
 @Singleton
 class ValidationService(
     private val assetConfig: AssetConfigProperties,

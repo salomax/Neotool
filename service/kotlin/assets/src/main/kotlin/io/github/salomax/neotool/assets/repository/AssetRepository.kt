@@ -1,4 +1,5 @@
 package io.github.salomax.neotool.assets.repository
+import io.github.salomax.neotool.common.tracing.TraceExecution
 
 import io.github.salomax.neotool.assets.domain.AssetStatus
 import io.github.salomax.neotool.assets.entity.AssetEntity
@@ -15,6 +16,7 @@ import java.util.UUID
  * Uses nullable return types (Kotlin style) for custom methods.
  * Note: findById from JpaRepository returns Optional - use the extension function findAssetById() for nullable return type.
  */
+@TraceExecution(layer = "repository")
 @Repository
 interface AssetRepository : JpaRepository<AssetEntity, UUID> {
     /**

@@ -1,5 +1,7 @@
 package io.github.salomax.neotool.security.service.management.membership
 
+import io.github.salomax.neotool.common.tracing.TraceExecution
+
 import io.github.salomax.neotool.security.error.SecurityErrorCode
 import io.github.salomax.neotool.security.model.account.AccountRole
 import io.github.salomax.neotool.security.model.account.MembershipStatus
@@ -63,6 +65,7 @@ enum class MembershipOperation {
  * Evaluates who can invite/remove/change roles, self-demotion and owner transfer constraints.
  * No DB access; callers supply membership context.
  */
+@TraceExecution
 @Singleton
 class MembershipPolicyEngine {
     /**

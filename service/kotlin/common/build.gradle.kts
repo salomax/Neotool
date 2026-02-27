@@ -70,6 +70,7 @@ dependencies {
     // OpenTelemetry tracing: W3C propagation + OTLP export to Tempo
     api("io.micronaut.tracing:micronaut-tracing-opentelemetry-http")
     api("io.opentelemetry:opentelemetry-exporter-otlp")
+    implementation("net.ttddyy:datasource-proxy:1.10.1")
 
     // Management - api for health indicators and startup (e.g. AbstractWarmupService)
     api("io.micronaut:micronaut-management")

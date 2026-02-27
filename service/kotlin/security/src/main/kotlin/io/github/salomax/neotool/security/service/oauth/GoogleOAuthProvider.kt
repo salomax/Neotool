@@ -1,5 +1,7 @@
 package io.github.salomax.neotool.security.service.oauth
 
+import io.github.salomax.neotool.common.tracing.TraceExecution
+
 import com.google.api.client.auth.openidconnect.IdToken
 import com.google.api.client.json.gson.GsonFactory
 import io.github.salomax.neotool.security.config.OAuthConfig
@@ -13,6 +15,7 @@ import mu.KotlinLogging
  *
  * @see https://developers.google.com/identity/sign-in/web/backend-auth
  */
+@TraceExecution
 @Singleton
 class GoogleOAuthProvider(
     private val oauthConfig: OAuthConfig,

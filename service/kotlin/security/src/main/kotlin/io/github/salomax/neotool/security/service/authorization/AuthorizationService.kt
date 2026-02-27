@@ -1,5 +1,7 @@
 package io.github.salomax.neotool.security.service.authorization
 
+import io.github.salomax.neotool.common.tracing.TraceExecution
+
 import io.github.salomax.neotool.common.security.exception.AuthorizationDeniedException
 import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
@@ -23,6 +25,7 @@ import io.github.salomax.neotool.security.domain.audit.AuthorizationResult as Au
  * Supports both RBAC-only and hybrid RBAC+ABAC authorization.
  * Handles group-inherited role assignments.
  */
+@TraceExecution
 @Singleton
 class AuthorizationService(
     private val roleRepository: RoleRepository,

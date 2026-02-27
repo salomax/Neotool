@@ -1,5 +1,7 @@
 package io.github.salomax.neotool.financialdata.service
 
+import io.github.salomax.neotool.common.tracing.TraceExecution
+
 import io.github.salomax.neotool.financialdata.domain.FinancialInstitutionRating
 import io.github.salomax.neotool.financialdata.repo.FinancialInstitutionRatingHistoryRepository
 import io.github.salomax.neotool.financialdata.repo.FinancialInstitutionRatingRepository
@@ -13,6 +15,7 @@ import java.util.UUID
  * Service for managing Financial Institution Ratings.
  * Handles ingestion, idempotency checks, history tracking, and evidence storage.
  */
+@TraceExecution
 @Singleton
 open class FinancialInstitutionRatingService(
     private val ratingRepository: FinancialInstitutionRatingRepository,

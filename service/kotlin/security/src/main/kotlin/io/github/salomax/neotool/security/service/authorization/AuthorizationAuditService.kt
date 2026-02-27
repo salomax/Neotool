@@ -1,5 +1,7 @@
 package io.github.salomax.neotool.security.service.authorization
 
+import io.github.salomax.neotool.common.tracing.TraceExecution
+
 import io.github.salomax.neotool.security.domain.audit.AuthorizationAuditLog
 import io.github.salomax.neotool.security.domain.audit.AuthorizationResult
 import io.github.salomax.neotool.security.repo.AuthorizationAuditLogRepository
@@ -15,6 +17,7 @@ import java.util.UUID
  * Creates audit log entries with full context for compliance and debugging.
  * Disabled when [authorization.audit-logs.enabled] is false.
  */
+@TraceExecution
 @Singleton
 open class AuthorizationAuditService(
     private val auditLogRepository: AuthorizationAuditLogRepository,

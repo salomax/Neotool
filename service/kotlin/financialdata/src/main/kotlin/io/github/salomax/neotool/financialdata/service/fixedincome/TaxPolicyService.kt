@@ -1,5 +1,7 @@
 package io.github.salomax.neotool.financialdata.service.fixedincome
 
+import io.github.salomax.neotool.common.tracing.TraceExecution
+
 import io.github.salomax.neotool.financialdata.domain.fixedincome.FixedIncomeProduct
 import io.github.salomax.neotool.financialdata.domain.fixedincome.ProductGroup
 import io.github.salomax.neotool.financialdata.domain.fixedincome.productGroup
@@ -13,6 +15,7 @@ private const val SCALE = 10
  * Tax policy for fixed income: taxable vs exempt by product, IR bracket by calendar days.
  * TAXABLE_IR products (CDB, LC, DEBENTURE) → taxable; EXEMPT_IR products (LCI, LCA, FREE_TAX_DEBENTURE) → exempt.
  */
+@TraceExecution
 @Singleton
 class TaxPolicyService {
     fun isTaxable(productGroup: ProductGroup): Boolean = productGroup == ProductGroup.TAXABLE_IR

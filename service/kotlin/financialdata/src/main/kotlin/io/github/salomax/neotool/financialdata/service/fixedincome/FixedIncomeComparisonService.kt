@@ -1,5 +1,7 @@
 package io.github.salomax.neotool.financialdata.service.fixedincome
 
+import io.github.salomax.neotool.common.tracing.TraceExecution
+
 import io.github.salomax.neotool.financialdata.domain.fixedincome.ComparisonRow
 import io.github.salomax.neotool.financialdata.domain.fixedincome.DayCountMethodology
 import io.github.salomax.neotool.financialdata.domain.fixedincome.FixedIncomeComparisonInput
@@ -28,6 +30,7 @@ private val HUNDRED = BigDecimal("100")
  * Single entry point for fixed income comparison: orchestrates tax, day count, rate calc, and solver.
  * Produces one row per (product group × rate model), with base scenario first.
  */
+@TraceExecution
 @Singleton
 class FixedIncomeComparisonService(
     private val taxPolicyService: TaxPolicyService,
