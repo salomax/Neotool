@@ -1,3 +1,13 @@
+## 0.4.6 (2026-02-28)
+
+### 🩹 Fixes
+
+- Enhance telemetry support by adding W3C Trace Context propagation ([8ff58648](https://github.com/invistus/invistus/commit/8ff58648))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.4.5 (2026-02-26)
 
 ### 🚀 Features
