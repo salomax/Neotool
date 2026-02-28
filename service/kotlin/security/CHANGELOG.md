@@ -1,3 +1,13 @@
+## 0.4.2 (2026-02-28)
+
+### 🩹 Fixes
+
+- Remove PostgreSQL dialect from JPA configuration ([4b9291b3](https://github.com/invistus/invistus/commit/4b9291b3))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.4.1 (2026-02-28)
 
 ### 🩹 Fixes
