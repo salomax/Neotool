@@ -25,7 +25,7 @@ class JdbcQueryTracingDataSourceListener(
 ) : BeanCreatedEventListener<DataSource> {
     override fun onCreated(event: BeanCreatedEvent<DataSource>): DataSource {
         val dataSource = event.bean
-        if (dataSource.javaClass.name.contains("ProxyDataSource")) {
+        if (shouldSkipWrapping(dataSource)) {
             return dataSource
         }
 
@@ -33,6 +33,17 @@ class JdbcQueryTracingDataSourceListener(
             .create(dataSource)
             .listener(queryTracingListener)
             .build()
+    }
+
+    private fun shouldSkipWrapping(dataSource: DataSource): Boolean {
+        val className = dataSource.javaClass.name
+
+        // Avoid wrapping already-proxied sources and Micronaut contextual proxies.
+        // ContextualAwareDataSource requires an active Micronaut connection context;
+        // wrapping it breaks Flyway/Hibernate startup metadata access.
+        return className.contains("ProxyDataSource") ||
+            className.contains("ContextualAwareDataSource") ||
+            className.contains("io.micronaut.data.connection.jdbc.advice")
     }
 }
 

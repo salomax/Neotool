@@ -91,7 +91,6 @@ jpa:
       hibernate:
         hbm2ddl:
           auto: none
-        dialect: org.hibernate.dialect.PostgreSQLDialect
 
 flyway:
   datasources:
