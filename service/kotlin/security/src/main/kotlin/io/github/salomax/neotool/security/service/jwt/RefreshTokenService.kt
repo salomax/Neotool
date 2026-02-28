@@ -3,6 +3,7 @@ package io.github.salomax.neotool.security.service.jwt
 import io.github.salomax.neotool.common.security.config.JwtConfig
 import io.github.salomax.neotool.common.security.exception.AuthenticationRequiredException
 import io.github.salomax.neotool.common.security.principal.PrincipalType
+import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.github.salomax.neotool.security.model.RefreshTokenEntity
 import io.github.salomax.neotool.security.model.TokenPair
 import io.github.salomax.neotool.security.repo.PrincipalRepository
@@ -26,6 +27,7 @@ import java.util.UUID
  * - Token family revocation on reuse
  * - SHA-256 token hashing for storage
  */
+@TraceExecution
 @Singleton
 open class RefreshTokenService(
     private val refreshTokenRepository: RefreshTokenRepository,

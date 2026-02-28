@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.security.service.email
 
 import io.github.salomax.neotool.common.security.service.GraphQLServiceClient
+import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.github.salomax.neotool.security.config.EmailConfig
 import jakarta.inject.Singleton
 import kotlinx.coroutines.runBlocking
@@ -18,6 +19,7 @@ import java.util.UUID
  * Requires [graphql.router.url] and [security.service.id]/[security.service.secret]
  * to be configured when [email.delivery]=comms.
  */
+@TraceExecution
 @Singleton
 class CommsEmailService(
     emailConfig: EmailConfig,

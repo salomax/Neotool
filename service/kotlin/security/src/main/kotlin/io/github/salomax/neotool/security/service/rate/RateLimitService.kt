@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.security.service.rate
 
+import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.github.salomax.neotool.security.model.PasswordResetAttemptEntity
 import io.github.salomax.neotool.security.repo.PasswordResetAttemptRepository
 import jakarta.inject.Singleton
@@ -13,6 +14,7 @@ import java.time.temporal.ChronoUnit
  *
  * Enforces a limit of 3 password reset requests per hour per email address.
  */
+@TraceExecution
 @Singleton
 open class RateLimitService(
     private val passwordResetAttemptRepository: PasswordResetAttemptRepository,

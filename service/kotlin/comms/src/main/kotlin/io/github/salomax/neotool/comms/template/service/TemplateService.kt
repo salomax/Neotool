@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.comms.template.service
 
+import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.github.salomax.neotool.comms.template.domain.Channel
 import io.github.salomax.neotool.comms.template.domain.TemplateDefinition
 import io.github.salomax.neotool.comms.template.registry.TemplateNotFoundException
@@ -15,6 +16,7 @@ import java.util.Locale
  *
  * Orchestrates template registry lookup and channel-specific rendering.
  */
+@TraceExecution
 @Singleton
 class TemplateService(
     private val templateRegistry: TemplateRegistry,

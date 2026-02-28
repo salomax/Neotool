@@ -4,6 +4,7 @@ import io.github.salomax.neotool.common.security.authorization.AuthorizationChec
 import io.github.salomax.neotool.common.security.exception.AuthorizationDeniedException
 import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
+import io.github.salomax.neotool.common.tracing.TraceExecution
 import jakarta.inject.Singleton
 import mu.KotlinLogging
 import java.util.UUID
@@ -20,6 +21,7 @@ import java.util.UUID
  * The basic [require] method (from the interface) delegates to the full [require] method
  * with default parameters for simple permission checks.
  */
+@TraceExecution
 @Singleton
 class AuthorizationManager(
     private val authorizationService: AuthorizationService,

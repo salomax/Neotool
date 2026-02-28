@@ -1,5 +1,5 @@
 package io.github.salomax.neotool.security.repo
-
+import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.github.salomax.neotool.security.model.account.AccountMembershipEntity
 import io.github.salomax.neotool.security.model.account.AccountRole
 import io.github.salomax.neotool.security.model.account.MembershipStatus
@@ -13,6 +13,7 @@ import java.util.UUID
  * Lookups use idx_memberships_user (user_id, ACTIVE), idx_memberships_account (account_id, ACTIVE),
  * idx_memberships_token (invitation_token), uq_memberships_default_per_user (user_id, ACTIVE, is_default).
  */
+@TraceExecution(layer = "repository")
 @Repository
 interface AccountMembershipRepository : JpaRepository<AccountMembershipEntity, UUID> {
     /**

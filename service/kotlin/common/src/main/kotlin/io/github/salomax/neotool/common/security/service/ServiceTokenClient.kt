@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.common.security.service
 
+import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.micronaut.context.annotation.Property
 import io.micronaut.http.HttpRequest
 import io.micronaut.http.MediaType
@@ -42,6 +43,7 @@ data class TokenResponse(
  * HTTP client for services to obtain service tokens from Security Service.
  * Implements token caching with TTL to reduce token endpoint calls.
  */
+@TraceExecution
 @Singleton
 class ServiceTokenClient(
     @Property(name = "security.service.url", defaultValue = "http://localhost:8080")

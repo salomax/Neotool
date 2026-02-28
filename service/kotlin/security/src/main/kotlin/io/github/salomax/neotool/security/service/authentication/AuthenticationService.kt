@@ -9,6 +9,7 @@ import io.github.salomax.neotool.common.security.exception.AuthenticationRequire
 import io.github.salomax.neotool.common.security.jwt.JwtTokenValidator
 import io.github.salomax.neotool.common.security.principal.AuthContext
 import io.github.salomax.neotool.common.security.principal.PrincipalType
+import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.github.salomax.neotool.security.error.SecurityErrorCode
 import io.github.salomax.neotool.security.model.PrincipalEntity
 import io.github.salomax.neotool.security.model.UserEntity
@@ -42,6 +43,7 @@ import java.util.UUID
  * Uses Argon2id for password hashing (OWASP recommended standard).
  * Uses JWT for access and refresh tokens.
  */
+@TraceExecution
 @Singleton
 open class AuthenticationService(
     private val userRepository: UserRepository,

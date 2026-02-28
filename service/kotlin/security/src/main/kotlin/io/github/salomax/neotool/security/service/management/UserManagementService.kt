@@ -8,6 +8,7 @@ import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.OrderDirection
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import io.github.salomax.neotool.common.security.principal.PrincipalType
+import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.github.salomax.neotool.security.domain.UserManagement
 import io.github.salomax.neotool.security.domain.rbac.GroupMembership
 import io.github.salomax.neotool.security.domain.rbac.MembershipType
@@ -31,6 +32,7 @@ import java.util.UUID
  * Service for managing users.
  * Provides operations for listing, searching, enabling, and disabling users.
  */
+@TraceExecution
 @Singleton
 open class UserManagementService(
     private val userRepository: UserRepository,

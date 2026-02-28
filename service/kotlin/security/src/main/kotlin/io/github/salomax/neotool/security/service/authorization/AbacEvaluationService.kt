@@ -2,6 +2,7 @@ package io.github.salomax.neotool.security.service.authorization
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
+import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.github.salomax.neotool.security.domain.abac.AbacPolicy
 import io.github.salomax.neotool.security.domain.abac.PolicyEffect
 import io.github.salomax.neotool.security.repo.AbacPolicyRepository
@@ -12,6 +13,7 @@ import mu.KotlinLogging
  * Service for evaluating ABAC policies.
  * Supports JSON-based condition evaluation with AND/OR logical operators.
  */
+@TraceExecution
 @Singleton
 class AbacEvaluationService(
     private val abacPolicyRepository: AbacPolicyRepository,

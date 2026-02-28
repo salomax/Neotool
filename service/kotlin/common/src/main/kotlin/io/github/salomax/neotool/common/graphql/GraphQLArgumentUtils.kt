@@ -142,11 +142,14 @@ object GraphQLArgumentUtils {
      */
     fun <T> createValidatedDataFetcher(
         requiredArgs: List<String> = emptyList(),
+        operation: String? = null,
         block: (DataFetchingEnvironment) -> T,
     ): DataFetcher<T> {
         return DataFetcher { env ->
-            validateRequiredArguments(env, *requiredArgs.toTypedArray())
-            block(env)
+            GraphQLTracing.withResolverSpan(env, operation) {
+                validateRequiredArguments(env, *requiredArgs.toTypedArray())
+                block(env)
+            }
         }
     }
 
@@ -158,7 +161,7 @@ object GraphQLArgumentUtils {
         operation: String,
         block: (String) -> T,
     ): DataFetcher<T> {
-        return createValidatedDataFetcher(listOf("id")) { env ->
+        return createValidatedDataFetcher(listOf("id"), operation) { env ->
             val id = getRequiredId(env)
             block(id)
         }
@@ -172,7 +175,7 @@ object GraphQLArgumentUtils {
         operation: String,
         block: (Map<String, Any?>) -> T,
     ): DataFetcher<T> {
-        return createValidatedDataFetcher(listOf("input")) { env ->
+        return createValidatedDataFetcher(listOf("input"), operation) { env ->
             val input = getRequiredInput(env)
             block(input)
         }
@@ -186,7 +189,7 @@ object GraphQLArgumentUtils {
         operation: String,
         block: (String, Map<String, Any?>) -> T,
     ): DataFetcher<T> {
-        return createValidatedDataFetcher(listOf("id", "input")) { env ->
+        return createValidatedDataFetcher(listOf("id", "input"), operation) { env ->
             val id = getRequiredId(env)
             val input = getRequiredInput(env)
             block(id, input)

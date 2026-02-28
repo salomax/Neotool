@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.security.service.oauth
 
+import io.github.salomax.neotool.common.tracing.TraceExecution
 import jakarta.inject.Singleton
 
 /**
@@ -8,6 +9,7 @@ import jakarta.inject.Singleton
  * Manages all available OAuth providers and allows lookup by provider name.
  * This makes it easy to add new providers in the future.
  */
+@TraceExecution
 @Singleton
 class OAuthProviderRegistry(
     private val providers: List<OAuthProvider>,

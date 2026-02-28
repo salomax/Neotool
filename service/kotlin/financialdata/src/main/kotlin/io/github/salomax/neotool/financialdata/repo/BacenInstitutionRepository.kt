@@ -1,11 +1,12 @@
 package io.github.salomax.neotool.financialdata.repo
-
+import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.github.salomax.neotool.financialdata.model.BacenInstitutionEntity
 import io.github.salomax.neotool.financialdata.model.BacenInstitutionId
 import io.github.salomax.neotool.financialdata.repo.result.BacenInstitutionIdMapping
 import io.micronaut.data.annotation.Repository
 import io.micronaut.data.jpa.repository.JpaRepository
 
+@TraceExecution(layer = "repository")
 @Repository
 interface BacenInstitutionRepository : JpaRepository<BacenInstitutionEntity, BacenInstitutionId> {
     @io.micronaut.data.annotation.Query(

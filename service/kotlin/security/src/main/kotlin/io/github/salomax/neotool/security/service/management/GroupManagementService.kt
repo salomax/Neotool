@@ -7,6 +7,7 @@ import io.github.salomax.neotool.common.graphql.pagination.ConnectionBuilder
 import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.OrderDirection
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
+import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.github.salomax.neotool.security.domain.GroupManagement
 import io.github.salomax.neotool.security.domain.rbac.Group
 import io.github.salomax.neotool.security.domain.rbac.GroupMembership
@@ -31,6 +32,7 @@ import java.util.UUID
  * Service for managing groups.
  * Provides operations for listing, searching, creating, updating, and deleting groups.
  */
+@TraceExecution
 @Singleton
 open class GroupManagementService(
     private val groupRepository: GroupRepository,

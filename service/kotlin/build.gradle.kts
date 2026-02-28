@@ -1,6 +1,7 @@
 plugins {
     id("dev.nx.gradle.project-graph") version "0.1.12" apply false
     id("org.jetbrains.kotlin.jvm") version "2.2.20" apply false
+    id("org.jetbrains.kotlin.plugin.allopen") version "2.2.20" apply false
     id("io.micronaut.application") version "4.5.4" apply false
     id("io.micronaut.aot") version "4.5.4" apply false
     id("io.micronaut.library") version "4.5.4" apply false
@@ -64,6 +65,14 @@ apply(plugin = "org.jetbrains.kotlinx.kover")
 subprojects {
     apply(plugin = "org.jetbrains.kotlinx.kover")
     apply(plugin = "org.jlleitschuh.gradle.ktlint")
+
+    plugins.withId("org.jetbrains.kotlin.jvm") {
+        apply(plugin = "org.jetbrains.kotlin.plugin.allopen")
+        extensions.configure<org.jetbrains.kotlin.allopen.gradle.AllOpenExtension> {
+            annotation("io.github.salomax.neotool.common.tracing.TraceExecution")
+            annotation("io.github.salomax.neotool.security.http.RequiresAuthorization")
+        }
+    }
 
     // Configure Kover at subproject level
     // Note: Verification rules with specific thresholds need to be configured

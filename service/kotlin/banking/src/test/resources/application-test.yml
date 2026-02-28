@@ -27,6 +27,17 @@ endpoints:
     redis:
       enabled: false
 
+neotool:
+  tracing:
+    jdbc:
+      enabled: false
+
+otel:
+  sdk:
+    disabled: true
+  traces:
+    exporter: none
+
 logging:
   level:
     io.github.salomax.neotool: DEBUG

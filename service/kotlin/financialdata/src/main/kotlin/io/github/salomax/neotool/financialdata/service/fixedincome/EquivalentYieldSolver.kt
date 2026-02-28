@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.financialdata.service.fixedincome
 
+import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.github.salomax.neotool.financialdata.domain.fixedincome.FixedIncomeComparisonInput
 import io.github.salomax.neotool.financialdata.domain.fixedincome.RateModel
 import io.github.salomax.neotool.financialdata.domain.fixedincome.bpsToDecimalRate
@@ -17,6 +18,7 @@ private val NEGATIVE_ONE = BigDecimal("-1")
  * Finds the contracted rate in a target rate model that produces the same net value at maturity as the base scenario.
  * Uses closed-form inversion of the growth and tax formulas (no iterative search).
  */
+@TraceExecution
 @Singleton
 class EquivalentYieldSolver(
     private val taxPolicyService: TaxPolicyService,

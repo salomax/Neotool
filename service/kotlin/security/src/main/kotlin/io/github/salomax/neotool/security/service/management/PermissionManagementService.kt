@@ -4,6 +4,7 @@ import io.github.salomax.neotool.common.graphql.pagination.Connection
 import io.github.salomax.neotool.common.graphql.pagination.ConnectionBuilder
 import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
+import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.github.salomax.neotool.security.domain.rbac.Permission
 import io.github.salomax.neotool.security.domain.rbac.Role
 import io.github.salomax.neotool.security.repo.PermissionRepository
@@ -16,6 +17,7 @@ import java.util.UUID
  * Service for managing permissions.
  * Provides read-only operations for listing and searching permissions.
  */
+@TraceExecution
 @Singleton
 class PermissionManagementService(
     private val permissionRepository: PermissionRepository,

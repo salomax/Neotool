@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.financialdata.service
 
+import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.github.salomax.neotool.financialdata.domain.Indicator
 import io.github.salomax.neotool.financialdata.domain.IndicatorVariation
 import io.github.salomax.neotool.financialdata.repo.IndicatorReadRepository
@@ -7,6 +8,7 @@ import jakarta.inject.Singleton
 import jakarta.transaction.Transactional
 import org.slf4j.LoggerFactory
 
+@TraceExecution
 @Singleton
 open class IndicatorService(
     private val indicatorReadRepository: IndicatorReadRepository,

@@ -5,6 +5,7 @@ import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.ConflictException
 import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.common.security.principal.PrincipalType
+import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.github.salomax.neotool.security.error.SecurityErrorCode
 import io.github.salomax.neotool.security.model.PrincipalEntity
 import io.github.salomax.neotool.security.model.PrincipalPermissionEntity
@@ -26,6 +27,7 @@ import java.util.UUID
  * Service for managing service principals and their credentials.
  * Handles registration, credential validation, and permission management for services.
  */
+@TraceExecution
 @Singleton
 open class ServicePrincipalService(
     private val principalRepository: PrincipalRepository,

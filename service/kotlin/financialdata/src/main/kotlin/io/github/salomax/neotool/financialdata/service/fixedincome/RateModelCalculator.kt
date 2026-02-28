@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.financialdata.service.fixedincome
 
+import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.github.salomax.neotool.financialdata.domain.fixedincome.FixedIncomeComparisonInput
 import io.github.salomax.neotool.financialdata.domain.fixedincome.FixedIncomeInvalidEffectiveRateException
 import io.github.salomax.neotool.financialdata.domain.fixedincome.RateModel
@@ -14,6 +15,7 @@ private const val SCALE = 10
  * Effective annual rate and gross value for each rate model.
  * 252 business-day convention; all values scale 10, HALF_UP.
  */
+@TraceExecution
 @Singleton
 class RateModelCalculator {
     /**

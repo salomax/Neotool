@@ -70,6 +70,7 @@ dependencies {
     // OpenTelemetry tracing: W3C propagation + OTLP export to Tempo
     api("io.micronaut.tracing:micronaut-tracing-opentelemetry-http")
     api("io.opentelemetry:opentelemetry-exporter-otlp")
+    implementation("net.ttddyy:datasource-proxy:1.10.1")
 
     // Management - api for health indicators and startup (e.g. AbstractWarmupService)
     api("io.micronaut:micronaut-management")
@@ -139,9 +140,8 @@ afterEvaluate {
                         "io.github.salomax.neotool.common.logging.MDCFilter",
                         "io.github.salomax.neotool.common.logging.EnterpriseLoggingFilter",
                         "io.github.salomax.neotool.common.logging.EnterpriseLogMethodInterceptor",
-                        "io.github.salomax.neotool.common.exception.GraphQLOptimisticLockExceptionHandler",
-                        "io.github.salomax.neotool.common.exception.OptimisticLockExceptionHandler",
-                        "io.github.salomax.neotool.common.error.DomainException",
+                        "io.github.salomax.neotool.common.error.*Exception",
+                        "io.github.salomax.neotool.common.exception.*Handler",
                         "io.github.salomax.neotool.common.error.ErrorCode",
                         "io.github.salomax.neotool.common.startup.AbstractWarmupService",
                         "io.github.salomax.neotool.common.graphql.GraphQLRequest",

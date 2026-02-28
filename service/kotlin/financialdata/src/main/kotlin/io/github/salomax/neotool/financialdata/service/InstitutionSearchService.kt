@@ -5,6 +5,7 @@ import io.github.salomax.neotool.common.graphql.pagination.Connection
 import io.github.salomax.neotool.common.graphql.pagination.ConnectionBuilder
 import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
+import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.github.salomax.neotool.financialdata.domain.BacenInstitutionSummary
 import io.github.salomax.neotool.financialdata.domain.DataRestriction
 import io.github.salomax.neotool.financialdata.repo.BacenInstitutionRepositoryCustom
@@ -15,6 +16,7 @@ import mu.KotlinLogging
 /**
  * Service for searching financial institutions with autocomplete and full search capabilities.
  */
+@TraceExecution
 @Singleton
 open class InstitutionSearchService(
     private val institutionSearchRepository: BacenInstitutionRepositoryCustom,

@@ -7,6 +7,7 @@ import io.github.salomax.neotool.common.graphql.pagination.ConnectionBuilder
 import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.OrderDirection
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
+import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.github.salomax.neotool.security.domain.RoleManagement
 import io.github.salomax.neotool.security.domain.rbac.Group
 import io.github.salomax.neotool.security.domain.rbac.Permission
@@ -29,6 +30,7 @@ import java.util.UUID
  * Provides operations for listing, searching, creating, updating, deleting roles,
  * and managing role-permission relationships.
  */
+@TraceExecution
 @Singleton
 open class RoleManagementService(
     private val roleRepository: RoleRepository,
