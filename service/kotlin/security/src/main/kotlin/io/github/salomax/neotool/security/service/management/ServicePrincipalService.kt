@@ -1,12 +1,11 @@
 package io.github.salomax.neotool.security.service.management
 
-import io.github.salomax.neotool.common.tracing.TraceExecution
-
 import io.github.salomax.neotool.common.error.AuthenticationException
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.ConflictException
 import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.common.security.principal.PrincipalType
+import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.github.salomax.neotool.security.error.SecurityErrorCode
 import io.github.salomax.neotool.security.model.PrincipalEntity
 import io.github.salomax.neotool.security.model.PrincipalPermissionEntity

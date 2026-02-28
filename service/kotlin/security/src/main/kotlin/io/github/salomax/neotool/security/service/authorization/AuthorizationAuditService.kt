@@ -1,7 +1,6 @@
 package io.github.salomax.neotool.security.service.authorization
 
 import io.github.salomax.neotool.common.tracing.TraceExecution
-
 import io.github.salomax.neotool.security.domain.audit.AuthorizationAuditLog
 import io.github.salomax.neotool.security.domain.audit.AuthorizationResult
 import io.github.salomax.neotool.security.repo.AuthorizationAuditLogRepository

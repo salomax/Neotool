@@ -1,7 +1,5 @@
 package io.github.salomax.neotool.security.service.management
 
-import io.github.salomax.neotool.common.tracing.TraceExecution
-
 import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.common.graphql.pagination.Connection
@@ -10,6 +8,7 @@ import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.OrderDirection
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import io.github.salomax.neotool.common.security.principal.PrincipalType
+import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.github.salomax.neotool.security.domain.UserManagement
 import io.github.salomax.neotool.security.domain.rbac.GroupMembership
 import io.github.salomax.neotool.security.domain.rbac.MembershipType

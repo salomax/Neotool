@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.financialdata.repo
 import io.github.salomax.neotool.common.tracing.TraceExecution
-
 import io.github.salomax.neotool.financialdata.model.BacenInstitutionEntity
 import io.github.salomax.neotool.financialdata.model.BacenInstitutionId
 import io.github.salomax.neotool.financialdata.repo.result.BacenInstitutionIdMapping

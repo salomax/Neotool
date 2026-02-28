@@ -1,7 +1,5 @@
 package io.github.salomax.neotool.assets.service
 
-import io.github.salomax.neotool.common.tracing.TraceExecution
-
 import io.github.salomax.neotool.assets.config.AssetConfigProperties
 import io.github.salomax.neotool.assets.domain.Asset
 import io.github.salomax.neotool.assets.domain.AssetStatus
@@ -15,6 +13,7 @@ import io.github.salomax.neotool.assets.storage.StorageKeyFactory
 import io.github.salomax.neotool.assets.storage.StorageProperties
 import io.github.salomax.neotool.common.error.ConflictException
 import io.github.salomax.neotool.common.error.NotFoundException
+import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.micrometer.core.instrument.Counter
 import io.micrometer.core.instrument.MeterRegistry
 import jakarta.inject.Singleton

@@ -1,7 +1,6 @@
 package io.github.salomax.neotool.security.service.oauth
 
 import io.github.salomax.neotool.common.tracing.TraceExecution
-
 import jakarta.inject.Singleton
 
 /**

@@ -1,9 +1,8 @@
 package io.github.salomax.neotool.security.service.authentication
 
-import io.github.salomax.neotool.common.tracing.TraceExecution
-
 import io.github.salomax.neotool.common.security.principal.AccountSummary
 import io.github.salomax.neotool.common.security.principal.AuthContext
+import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.model.account.MembershipStatus
 import io.github.salomax.neotool.security.repo.AccountMembershipRepository

@@ -1,7 +1,6 @@
 package io.github.salomax.neotool.financialdata.service
 
 import io.github.salomax.neotool.common.tracing.TraceExecution
-
 import io.github.salomax.neotool.financialdata.domain.FinancialInstitutionRating
 import io.github.salomax.neotool.financialdata.repo.FinancialInstitutionRatingHistoryRepository
 import io.github.salomax.neotool.financialdata.repo.FinancialInstitutionRatingRepository

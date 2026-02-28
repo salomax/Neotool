@@ -1,7 +1,6 @@
 package io.github.salomax.neotool.comms.template.service
 
 import io.github.salomax.neotool.common.tracing.TraceExecution
-
 import io.github.salomax.neotool.comms.template.domain.Channel
 import io.github.salomax.neotool.comms.template.domain.TemplateDefinition
 import io.github.salomax.neotool.comms.template.registry.TemplateNotFoundException

@@ -1,7 +1,6 @@
 package io.github.salomax.neotool.financialdata.service
 
 import io.github.salomax.neotool.common.tracing.TraceExecution
-
 import io.github.salomax.neotool.financialdata.domain.BacenControlType
 import io.github.salomax.neotool.financialdata.domain.BacenFinanceInstitution
 import io.github.salomax.neotool.financialdata.domain.BacenInstitutionBankType

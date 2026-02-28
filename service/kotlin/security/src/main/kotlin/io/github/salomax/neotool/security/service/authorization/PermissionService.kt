@@ -1,10 +1,9 @@
 package io.github.salomax.neotool.security.service.authorization
 
-import io.github.salomax.neotool.common.tracing.TraceExecution
-
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.common.error.ValidationException
+import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.github.salomax.neotool.security.domain.rbac.Permission
 import io.github.salomax.neotool.security.error.SecurityErrorCode
 import io.github.salomax.neotool.security.repo.PermissionRepository

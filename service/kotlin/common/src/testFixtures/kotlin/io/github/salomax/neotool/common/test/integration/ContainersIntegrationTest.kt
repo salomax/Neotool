@@ -56,7 +56,12 @@ object PostgresTestContainer : MicronautPropsTestContainer {
 
         repeat(maxAttempts) {
             try {
-                DriverManager.getConnection(container.jdbcUrl, container.username, container.password).use { connection ->
+                DriverManager.getConnection(
+                    container.jdbcUrl,
+                    container.username,
+                    container.password,
+                ).use {
+                        connection ->
                     connection.createStatement().use { statement ->
                         statement.execute("SELECT 1")
                     }

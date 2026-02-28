@@ -1,7 +1,6 @@
 package io.github.salomax.neotool.financialdata.service.fixedincome
 
 import io.github.salomax.neotool.common.tracing.TraceExecution
-
 import io.github.salomax.neotool.financialdata.domain.fixedincome.ComparisonRow
 import io.github.salomax.neotool.financialdata.domain.fixedincome.DayCountMethodology
 import io.github.salomax.neotool.financialdata.domain.fixedincome.FixedIncomeComparisonInput

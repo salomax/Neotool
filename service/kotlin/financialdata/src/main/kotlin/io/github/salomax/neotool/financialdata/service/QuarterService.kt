@@ -1,7 +1,6 @@
 package io.github.salomax.neotool.financialdata.service
 
 import io.github.salomax.neotool.common.tracing.TraceExecution
-
 import io.github.salomax.neotool.financialdata.repo.QuarterRepositoryCustom
 import jakarta.inject.Singleton
 import mu.KotlinLogging

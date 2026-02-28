@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.security.repo
 import io.github.salomax.neotool.common.tracing.TraceExecution
-
 import io.github.salomax.neotool.security.model.EmailVerificationEntity
 import io.micronaut.data.annotation.Query
 import io.micronaut.data.annotation.Repository

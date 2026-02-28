@@ -1,9 +1,8 @@
 package io.github.salomax.neotool.security.service.authorization
 
-import io.github.salomax.neotool.common.tracing.TraceExecution
-
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
+import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.github.salomax.neotool.security.domain.abac.AbacPolicy
 import io.github.salomax.neotool.security.domain.abac.PolicyEffect
 import io.github.salomax.neotool.security.repo.AbacPolicyRepository

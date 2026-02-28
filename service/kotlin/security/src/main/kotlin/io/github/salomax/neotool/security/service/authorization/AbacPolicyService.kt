@@ -1,10 +1,9 @@
 package io.github.salomax.neotool.security.service.authorization
 
-import io.github.salomax.neotool.common.tracing.TraceExecution
-
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.common.error.ValidationException
+import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.github.salomax.neotool.security.domain.abac.AbacPolicy
 import io.github.salomax.neotool.security.repo.AbacPolicyRepository
 import jakarta.inject.Singleton

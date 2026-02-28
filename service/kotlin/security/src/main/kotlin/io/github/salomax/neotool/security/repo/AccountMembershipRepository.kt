@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.security.repo
 import io.github.salomax.neotool.common.tracing.TraceExecution
-
 import io.github.salomax.neotool.security.model.account.AccountMembershipEntity
 import io.github.salomax.neotool.security.model.account.AccountRole
 import io.github.salomax.neotool.security.model.account.MembershipStatus

@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.security.repo
 import io.github.salomax.neotool.common.tracing.TraceExecution
-
 import io.github.salomax.neotool.security.domain.abac.PolicyEffect
 import io.github.salomax.neotool.security.model.abac.AbacPolicyEntity
 import io.micronaut.data.annotation.Query

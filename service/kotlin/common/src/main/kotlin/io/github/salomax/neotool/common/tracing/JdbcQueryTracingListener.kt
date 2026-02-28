@@ -3,7 +3,7 @@ package io.github.salomax.neotool.common.tracing
 import io.micronaut.context.annotation.Requires
 import io.micronaut.context.event.BeanCreatedEvent
 import io.micronaut.context.event.BeanCreatedEventListener
-import io.opentelemetry.api.GlobalOpenTelemetry
+import io.opentelemetry.api.OpenTelemetry
 import io.opentelemetry.api.trace.Span
 import io.opentelemetry.api.trace.SpanKind
 import io.opentelemetry.api.trace.StatusCode
@@ -20,7 +20,9 @@ import javax.sql.DataSource
  */
 @Singleton
 @Requires(property = "neotool.tracing.jdbc.enabled", notEquals = "false", defaultValue = "true")
-class JdbcQueryTracingDataSourceListener : BeanCreatedEventListener<DataSource> {
+class JdbcQueryTracingDataSourceListener(
+    private val queryTracingListener: OtelSqlQueryExecutionListener,
+) : BeanCreatedEventListener<DataSource> {
     override fun onCreated(event: BeanCreatedEvent<DataSource>): DataSource {
         val dataSource = event.bean
         if (dataSource.javaClass.name.contains("ProxyDataSource")) {
@@ -29,15 +31,19 @@ class JdbcQueryTracingDataSourceListener : BeanCreatedEventListener<DataSource> 
 
         return ProxyDataSourceBuilder
             .create(dataSource)
-            .listener(OtelSqlQueryExecutionListener)
+            .listener(queryTracingListener)
             .build()
     }
 }
 
-internal object OtelSqlQueryExecutionListener : QueryExecutionListener {
-    private val tracer = GlobalOpenTelemetry.getTracer("io.github.salomax.neotool.jdbc")
+@Singleton
+@Requires(property = "neotool.tracing.jdbc.enabled", notEquals = "false", defaultValue = "true")
+class OtelSqlQueryExecutionListener(
+    openTelemetry: OpenTelemetry,
+) : QueryExecutionListener {
+    private val tracer = openTelemetry.getTracer("io.github.salomax.neotool.jdbc")
     private val spanStack = ThreadLocal.withInitial { ArrayDeque<Span>() }
-    private const val maxStatementLength = 2048
+    private val maxStatementLength = 2048
 
     override fun beforeQuery(
         execInfo: ExecutionInfo,

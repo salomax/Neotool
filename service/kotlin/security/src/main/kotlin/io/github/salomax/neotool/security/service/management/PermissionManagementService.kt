@@ -1,11 +1,10 @@
 package io.github.salomax.neotool.security.service.management
 
-import io.github.salomax.neotool.common.tracing.TraceExecution
-
 import io.github.salomax.neotool.common.graphql.pagination.Connection
 import io.github.salomax.neotool.common.graphql.pagination.ConnectionBuilder
 import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
+import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.github.salomax.neotool.security.domain.rbac.Permission
 import io.github.salomax.neotool.security.domain.rbac.Role
 import io.github.salomax.neotool.security.repo.PermissionRepository

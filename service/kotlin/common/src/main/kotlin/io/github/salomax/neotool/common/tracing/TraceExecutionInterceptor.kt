@@ -4,7 +4,7 @@ import io.micronaut.aop.Around
 import io.micronaut.aop.MethodInterceptor
 import io.micronaut.aop.MethodInvocationContext
 import io.micronaut.context.annotation.Type
-import io.opentelemetry.api.GlobalOpenTelemetry
+import io.opentelemetry.api.OpenTelemetry
 import io.opentelemetry.api.trace.SpanKind
 import io.opentelemetry.api.trace.StatusCode
 import jakarta.inject.Singleton
@@ -22,8 +22,10 @@ annotation class TraceExecution(
 )
 
 @Singleton
-class TraceExecutionInterceptor : MethodInterceptor<Any, Any> {
-    private val tracer = GlobalOpenTelemetry.getTracer("io.github.salomax.neotool.execution")
+class TraceExecutionInterceptor(
+    openTelemetry: OpenTelemetry,
+) : MethodInterceptor<Any, Any> {
+    private val tracer = openTelemetry.getTracer("io.github.salomax.neotool.execution")
 
     override fun intercept(context: MethodInvocationContext<Any, Any>): Any? {
         val declaringType = context.declaringType.simpleName

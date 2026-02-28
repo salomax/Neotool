@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.security.repo
 import io.github.salomax.neotool.common.tracing.TraceExecution
-
 import io.github.salomax.neotool.security.model.rbac.GroupRoleAssignmentEntity
 import io.micronaut.data.annotation.Query
 import io.micronaut.data.annotation.Repository

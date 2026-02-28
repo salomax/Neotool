@@ -1,7 +1,6 @@
 package io.github.salomax.neotool.common.security.service
 
 import io.github.salomax.neotool.common.tracing.TraceExecution
-
 import io.micronaut.context.annotation.Property
 import io.micronaut.http.HttpRequest
 import io.micronaut.http.MediaType

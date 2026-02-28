@@ -1,7 +1,6 @@
 package io.github.salomax.neotool.security.service
 
 import io.github.salomax.neotool.common.tracing.TraceExecution
-
 import io.github.salomax.neotool.security.domain.EmailVerification
 import io.github.salomax.neotool.security.domain.ResendResult
 import io.github.salomax.neotool.security.domain.VerificationResult

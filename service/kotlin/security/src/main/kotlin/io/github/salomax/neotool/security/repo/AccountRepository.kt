@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.security.repo
 import io.github.salomax.neotool.common.tracing.TraceExecution
-
 import io.github.salomax.neotool.security.model.account.AccountEntity
 import io.github.salomax.neotool.security.model.account.AccountStatus
 import io.micronaut.data.annotation.Repository
