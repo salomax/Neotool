@@ -1,3 +1,13 @@
+## 0.4.0 (2026-02-28)
+
+### 🚀 Features
+
+- Add Telemetry ([220546cd](https://github.com/invistus/invistus/commit/220546cd))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.3.3 (2026-02-26)
 
 This was a version bump only for security to align it with other projects, there were no code changes.
