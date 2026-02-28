@@ -12,6 +12,7 @@ import { persistCache, AsyncStorageWrapper } from 'apollo3-cache-persist';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import NetInfo from '@react-native-community/netinfo';
+import { buildTraceparent } from './trace-context';
 
 // HTTP Link
 const httpLink = createHttpLink({
@@ -22,10 +23,12 @@ const httpLink = createHttpLink({
 const authLink = setContext(async (_, { headers }) => {
   try {
     const token = await SecureStore.getItemAsync('accessToken');
+    const existingTraceparent = headers?.traceparent || headers?.Traceparent;
     return {
       headers: {
         ...headers,
         authorization: token ? `Bearer ${token}` : '',
+        ...(existingTraceparent ? {} : { traceparent: buildTraceparent() }),
       },
     };
   } catch (error) {
