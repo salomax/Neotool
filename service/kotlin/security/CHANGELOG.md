@@ -1,3 +1,13 @@
+## 0.4.1 (2026-02-28)
+
+### 🩹 Fixes
+
+- Configure PostgreSQL dialect for JPA ([73313c3e](https://github.com/invistus/invistus/commit/73313c3e))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.4.0 (2026-02-28)
 
 ### 🚀 Features
