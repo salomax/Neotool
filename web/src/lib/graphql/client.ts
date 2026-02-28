@@ -7,6 +7,7 @@ import { getAuthToken, clearAuthStorage, isAuthenticationError, getRefreshToken,
 import { syncAuthSessionCookie } from '@/shared/utils/auth-session/client';
 import { logger } from '@/shared/utils/logger';
 import { getRuntimeConfig } from '@/shared/config/runtime-config';
+import { buildTraceparent } from '@/shared/telemetry/trace-context';
 
 /**
  * Get GraphQL endpoint URL from runtime config or environment
@@ -31,11 +32,13 @@ const httpLink = new HttpLink({
 // Auth link to add token to requests
 const authLink = new SetContextLink((prevContext, operation) => {
   const token = getAuthToken();
+  const existingTraceparent = prevContext.headers?.traceparent || prevContext.headers?.Traceparent;
   
   return {
     headers: {
       ...prevContext.headers,
       ...(token && { authorization: `Bearer ${token}` }),
+      ...(existingTraceparent ? {} : { traceparent: buildTraceparent() }),
     },
   };
 });

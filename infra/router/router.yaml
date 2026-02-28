@@ -10,6 +10,8 @@ include_subgraph_errors:
   all: true
 
 # Header propagation (W3C Trace Context for distributed tracing)
+# Note: `propagate` only forwards incoming headers. Frontend/mobile must send
+# `traceparent` to keep a single distributed trace across Router + subgraphs.
 headers:
   all:
     request:
