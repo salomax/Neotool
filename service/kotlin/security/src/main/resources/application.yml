@@ -37,11 +37,11 @@ micronaut:
   observation:
     enabled: true
 
-# OpenTelemetry: OTLP export to Tempo, W3C tracecontext + baggage propagation
-# Set OTEL_EXPORTER_OTLP_ENDPOINT (e.g. http://tempo:4317 or http://tempo.monitoring.svc.cluster.local:4317)
+# OpenTelemetry: keep propagation enabled, disable exporting by default for local development.
+# Production should set OTEL_TRACES_EXPORTER=otlp and OTEL_EXPORTER_OTLP_ENDPOINT.
 otel:
   traces:
-    exporter: otlp
+    exporter: ${OTEL_TRACES_EXPORTER:none}
   propagators: tracecontext,baggage
 
 # JWT Configuration
