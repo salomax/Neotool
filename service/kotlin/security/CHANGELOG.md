@@ -1,3 +1,13 @@
+## 0.4.3 (2026-03-02)
+
+### 💅 Refactors
+
+- Update OpenTelemetry configuration for local development ([ceed47dc](https://github.com/invistus/invistus/commit/ceed47dc))
+
+### ❤️ Thank You
+
+- Marcos Salomão
+
 ## 0.4.2 (2026-02-28)
 
 ### 🩹 Fixes
