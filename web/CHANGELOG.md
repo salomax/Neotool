@@ -1,3 +1,13 @@
+## 0.5.0 (2026-03-03)
+
+### 🚀 Features
+
+- Add Popular Institutions feature for discovery dashboard ([f5dce54f](https://github.com/invistus/invistus/commit/f5dce54f))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.4.6 (2026-02-28)
 
 ### 🩹 Fixes
