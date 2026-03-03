@@ -540,6 +540,7 @@ export type InstitutionRating = {
 
 export type Mutation = {
   __typename: 'Mutation';
+  _bankingService: Maybe<Scalars['String']['output']>;
   assignGroupToUser: User;
   assignPermissionToRole: Role;
   assignRoleToGroup: Group;
@@ -806,6 +807,30 @@ export type PermissionEdge = {
   node: Permission;
 };
 
+export type PopularInstitution = {
+  __typename: 'PopularInstitution';
+  institution: BacenInstitutionSummaryItem;
+  month: Maybe<Scalars['Int']['output']>;
+  popularInstitutionTopMetrics: Array<PopularInstitutionTopMetric>;
+  quarter: Scalars['String']['output'];
+  rank: Scalars['Int']['output'];
+  shortDescription: Scalars['String']['output'];
+  year: Maybe<Scalars['Int']['output']>;
+};
+
+export type PopularInstitutionTopMetric = {
+  __typename: 'PopularInstitutionTopMetric';
+  metric: TopInstitutionMetric;
+  popularInstitutionTopMetricItem: PopularInstitutionTopMetricItem;
+};
+
+export type PopularInstitutionTopMetricItem = {
+  __typename: 'PopularInstitutionTopMetricItem';
+  institution: BacenInstitutionSummaryItem;
+  metricValue: Maybe<Scalars['Float']['output']>;
+  rank: Scalars['Int']['output'];
+};
+
 export type QuarterRangeInput = {
   from?: InputMaybe<Scalars['String']['input']>;
   last?: InputMaybe<Scalars['Int']['input']>;
@@ -826,6 +851,7 @@ export type QuarterValue = {
 
 export type Query = {
   __typename: 'Query';
+  _bankingService: Maybe<Scalars['String']['output']>;
   _empty: Maybe<Scalars['String']['output']>;
   /**
    * Get asset by ID.
@@ -843,6 +869,7 @@ export type Query = {
   groups: GroupConnection;
   myVerificationStatus: Maybe<VerificationStatus>;
   permissions: PermissionConnection;
+  popularInstitutions: Array<PopularInstitution>;
   ratingIssuers: Array<RatingIssuer>;
   role: Maybe<Role>;
   roles: RoleConnection;
@@ -912,6 +939,11 @@ export type QueryPermissionsArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
   query?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type QueryPopularInstitutionsArgs = {
+  anoMes?: InputMaybe<Scalars['String']['input']>;
 };
 
 
@@ -1093,6 +1125,12 @@ export type SignUpPayload = {
   user: User;
 };
 
+export enum TopInstitutionMetric {
+  BasileiaIndex = 'BASILEIA_INDEX',
+  MobilizationIndex = 'MOBILIZATION_INDEX',
+  Profit = 'PROFIT'
+}
+
 export type UpdateGroupInput = {
   description?: InputMaybe<Scalars['String']['input']>;
   name: Scalars['String']['input'];
@@ -1166,6 +1204,7 @@ export type VerifyEmailPayload = {
 
 export enum Join__Graph {
   Assets = 'ASSETS',
+  Banking = 'BANKING',
   Comms = 'COMMS',
   Financialdata = 'FINANCIALDATA',
   Security = 'SECURITY'

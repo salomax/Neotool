@@ -1,0 +1,109 @@
+"use client";
+
+import * as React from "react";
+import { useRouter } from "next/navigation";
+import { Container, Box, Page } from "@/shared/components/ui/layout";
+import { SearchableAutocomplete } from "@/shared/components/ui/forms/SearchableAutocomplete";
+import { CardGrid } from "@/shared/components/ui/layout/CardGrid";
+import { BacenInstitutionCard, type BacenInstitution } from "@/widgets/financial-data";
+import { useTranslation } from "@/shared/i18n";
+import { financialDataTranslations } from "@/shared/i18n/domains/financial-data";
+import { usePageTitle } from "@/shared/hooks/ui/usePageTitle";
+import { createSemanticPath } from "@/shared/utils/url";
+import {
+  useBacenInstitutionsAutocompleteQuery,
+  useBacenInstitutionsSearch,
+} from "@/features/financial-data/search-institutions";
+import { InstitutionDiscoveryPanel } from "@/features/financial-data/institution-discovery";
+
+export default function BacenInstitutionsClient() {
+  const { t } = useTranslation(financialDataTranslations);
+  usePageTitle(t("pageTitle"));
+  const router = useRouter();
+
+  const {
+    institutions,
+    loading,
+    error,
+    refetch,
+    pageInfo,
+    loadNextPage,
+    selectedInstitution,
+    handleSelectionChange,
+    handleAutocompleteSearch,
+    shouldSkipQuery,
+    searchHistory,
+  } = useBacenInstitutionsSearch();
+
+  const handleCardClick = React.useCallback(
+    (institution: BacenInstitution) => {
+      router.push(`/financial-data/bacen-institutions/${createSemanticPath(institution.name, institution.id)}`);
+    },
+    [router]
+  );
+
+  return (
+    <Page>
+      <Box
+        component="header"
+        sx={{
+          position: "sticky",
+          top: -24, // Negative value to account for AppShell's padding (3 * 8px = 24px)
+          zIndex: 10,
+          bgcolor: "background.default",
+          py: 2,
+          pt: 4, // Add top padding to compensate
+          borderBottom: "1px solid",
+          borderColor: "divider",
+        }}
+      >
+        <Container maxWidth="xl">
+          <Box sx={{ maxWidth: 600, mx: "auto", my: 2, width: "100%" }}>
+            <SearchableAutocomplete
+              useQuery={useBacenInstitutionsAutocompleteQuery}
+              getQueryVariables={(query) => ({ query })}
+              extractData={(data: any) => data?.searchBacenInstitutionsAutocomplete?.suggestions || []}
+              transformOption={(item: any) => ({
+                id: item.name, // Use name as id since autocomplete only returns names
+                name: item.name,
+              })}
+              selectedItems={selectedInstitution ? [selectedInstitution] : []}
+              onChange={handleSelectionChange}
+              onSearch={handleAutocompleteSearch}
+              getOptionId={(opt) => opt.id}
+              getOptionLabel={(opt) => opt.name}
+              placeholder={t("search.placeholder")}
+              label={t("search.label")}
+              loadMode="lazy"
+              historyOptions={searchHistory.map(term => ({ id: term, name: term }))}
+            />
+          </Box>
+        </Container>
+      </Box>
+
+      <Container maxWidth="xl" sx={{ py: 4 }}>
+        {shouldSkipQuery ? (
+          <InstitutionDiscoveryPanel />
+        ) : (
+          <CardGrid
+            items={institutions}
+            columns={{ xs: 1, sm: 2, md: 3, lg: 4 }}
+            renderItem={(institution: BacenInstitution) => (
+              <BacenInstitutionCard
+                institution={institution}
+                onClick={() => handleCardClick(institution)}
+              />
+            )}
+            onLoadMore={loadNextPage}
+            hasNextPage={pageInfo?.hasNextPage || false}
+            loading={loading}
+            error={error}
+            onRetry={() => refetch()}
+            emptyMessage={t("messages.noInstitutionsFound")}
+            errorMessage={t("messages.unableToLoadInstitutions")}
+          />
+        )}
+      </Container>
+    </Page>
+  );
+}

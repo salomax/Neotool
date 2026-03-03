@@ -1,103 +1,136 @@
-"use client";
+import type { Metadata } from 'next';
+import BacenInstitutionsClient from './BacenInstitutionsClient';
 
-import * as React from "react";
-import { useRouter } from "next/navigation";
-import { Container, Box, Page } from "@/shared/components/ui/layout";
-import { SearchableAutocomplete } from "@/shared/components/ui/forms/SearchableAutocomplete";
-import { CardGrid } from "@/shared/components/ui/layout/CardGrid";
-import { BacenInstitutionCard, type BacenInstitution } from "@/widgets/financial-data";
-import { useTranslation } from "@/shared/i18n";
-import { financialDataTranslations } from "@/shared/i18n/domains/financial-data";
-import { usePageTitle } from "@/shared/hooks/ui/usePageTitle";
-import { createSemanticPath } from "@/shared/utils/url";
-import {
-  useBacenInstitutionsAutocompleteQuery,
-  useBacenInstitutionsSearch,
-} from "@/features/financial-data/search-institutions";
+const SITE_URL =
+  process.env.SITE_URL ||
+  (process.env.NODE_ENV === 'production' ? 'https://invistus.com.br' : 'http://localhost:3000');
+const PAGE_PATH = '/financial-data/bacen-institutions';
+const PAGE_URL = `${SITE_URL}${PAGE_PATH}`;
+
+const POPULAR_INSTITUTIONS = [
+  'Nubank',
+  'Caixa',
+  'Banco do Brasil',
+  'Itaú',
+  'Bradesco',
+  'Santander',
+  'Inter',
+  'PicPay',
+  'Mercado Pago',
+  'PagBank',
+  'BTG Pactual',
+  'C6 Bank',
+  'XP',
+  'Safra',
+  'Daycoval',
+  'Banco Pan',
+  'ABC Brasil',
+  'BV',
+  'BMG',
+  'Sofisa Direto',
+] as const;
+
+const METRICS = ['Índice de Basileia', 'Índice de Mobilização', 'Lucro Líquido'] as const;
+
+const METRIC_QUERY_TERMS = [
+  'índice de basileia',
+  'indice de basileia',
+  'índice basiléia',
+  'indice basiléia',
+  'índice de mobilização',
+  'indice de mobilização',
+  'índice de imobilização',
+  'indice de imobilização',
+  'lucro líquido',
+  'lucro liquido',
+] as const;
+
+const BANK_METRIC_QUERIES = POPULAR_INSTITUTIONS.flatMap((institution) =>
+  METRIC_QUERY_TERMS.map((metric) => `${metric} do ${institution}`)
+);
+
+const RANKING_QUERIES = METRIC_QUERY_TERMS.map((metric) => `ranking do ${metric}`);
+
+const KEYWORDS = Array.from(
+  new Set([
+    'instituições financeiras',
+    'instituições financeiras bacen',
+    'busca bacen',
+    'dados bacen',
+    'rankings financeiros',
+    'instituições mais populares',
+    'itau',
+    ...METRICS,
+    ...POPULAR_INSTITUTIONS,
+    ...BANK_METRIC_QUERIES,
+    ...RANKING_QUERIES,
+  ])
+);
+
+export const metadata: Metadata = {
+  title: 'Instituições Financeiras BACEN: Rankings, Basileia, Mobilização e Lucro Líquido | Invistus',
+  description:
+    'Busque instituições financeiras do BACEN e acompanhe rankings por Índice de Basileia, Índice de Mobilização e Lucro Líquido. Veja também a lista de instituições mais populares no Invistus.',
+  keywords: KEYWORDS,
+  alternates: {
+    canonical: PAGE_PATH,
+  },
+  openGraph: {
+    title: 'Instituições Financeiras BACEN com Rankings e Métricas | Invistus',
+    description:
+      'Consulte instituições como Nubank, Caixa, Banco do Brasil, Itaú, Bradesco e Santander, com rankings por Basileia, Mobilização e Lucro Líquido.',
+    type: 'website',
+    locale: 'pt_BR',
+    url: PAGE_PATH,
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Instituições Financeiras BACEN com Rankings e Métricas',
+    description:
+      'Compare instituições do BACEN com métricas como Basileia, Mobilização e Lucro Líquido.',
+  },
+};
 
 export default function BacenInstitutionsPage() {
-  const { t } = useTranslation(financialDataTranslations);
-  usePageTitle(t("pageTitle"));
-  const router = useRouter();
-
-  const {
-    institutions,
-    loading,
-    error,
-    refetch,
-    pageInfo,
-    loadNextPage,
-    selectedInstitution,
-    handleSelectionChange,
-    handleAutocompleteSearch,
-    shouldSkipQuery,
-  } = useBacenInstitutionsSearch();
-
-  const handleCardClick = React.useCallback(
-    (institution: BacenInstitution) => {
-      router.push(`/financial-data/bacen-institutions/${createSemanticPath(institution.name, institution.id)}`);
-    },
-    [router]
-  );
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: 'Busca de Instituições Financeiras do BACEN',
+    description:
+      'Página de busca de instituições financeiras com métricas e rankings por Índice de Basileia, Índice de Mobilização e Lucro Líquido.',
+    url: PAGE_URL,
+    keywords: KEYWORDS,
+    mainEntity: [
+      {
+        '@type': 'ItemList',
+        name: 'Instituições mais populares',
+        numberOfItems: POPULAR_INSTITUTIONS.length,
+        itemListElement: POPULAR_INSTITUTIONS.map((institution, index) => ({
+          '@type': 'ListItem',
+          position: index + 1,
+          name: institution,
+        })),
+      },
+      {
+        '@type': 'ItemList',
+        name: 'Métricas e rankings disponíveis',
+        numberOfItems: METRICS.length,
+        itemListElement: METRICS.map((metric, index) => ({
+          '@type': 'ListItem',
+          position: index + 1,
+          name: metric,
+        })),
+      },
+    ],
+  };
 
   return (
-    <Page>
-      <Box
-        component="header"
-        sx={{
-          position: "sticky",
-          top: -24, // Negative value to account for AppShell's padding (3 * 8px = 24px)
-          zIndex: 10,
-          bgcolor: "background.default",
-          py: 2,
-          pt: 4, // Add top padding to compensate
-          borderBottom: "1px solid",
-          borderColor: "divider",
-        }}
-      >
-        <Container maxWidth="xl">
-          <Box sx={{ maxWidth: 600, mx: "auto", width: "100%" }}>
-            <SearchableAutocomplete
-              useQuery={useBacenInstitutionsAutocompleteQuery}
-              getQueryVariables={(query) => ({ query })}
-              extractData={(data: any) => data?.searchBacenInstitutionsAutocomplete?.suggestions || []}
-              transformOption={(item: any) => ({
-                id: item.name, // Use name as id since autocomplete only returns names
-                name: item.name,
-              })}
-              selectedItems={selectedInstitution ? [selectedInstitution] : []}
-              onChange={handleSelectionChange}
-              onSearch={handleAutocompleteSearch}
-              getOptionId={(opt) => opt.id}
-              getOptionLabel={(opt) => opt.name}
-              placeholder={t("search.placeholder")}
-              label={t("search.label")}
-              loadMode="lazy"
-            />
-          </Box>
-        </Container>
-      </Box>
-
-      <Container maxWidth="xl" sx={{ py: 4 }}>
-        <CardGrid
-          items={institutions}
-          columns={{ xs: 1, sm: 2, md: 3, lg: 4 }}
-          renderItem={(institution: BacenInstitution) => (
-            <BacenInstitutionCard
-              institution={institution}
-              onClick={() => handleCardClick(institution)}
-            />
-          )}
-          onLoadMore={loadNextPage}
-          hasNextPage={pageInfo?.hasNextPage || false}
-          loading={loading}
-          error={error}
-          onRetry={() => refetch()}
-          emptyMessage={!shouldSkipQuery ? t("messages.noInstitutionsFound") : undefined}
-          emptyComponent={shouldSkipQuery ? <></> : undefined}
-          errorMessage={t("messages.unableToLoadInstitutions")}
-        />
-      </Container>
-    </Page>
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <BacenInstitutionsClient />
+    </>
   );
 }

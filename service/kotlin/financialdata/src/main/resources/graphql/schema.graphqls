@@ -23,6 +23,8 @@ extend type Query {
   economicIndicators(label: String): [EconomicIndicator!]!
   # Fixed income comparison: 2×3 grid of equivalent rates (product group × rate model)
   fixedIncomeComparison(input: FixedIncomeComparisonInput!): FixedIncomeComparisonResult!
+  # Institution discovery dashboard: popular list with top metrics per institution
+  popularInstitutions(anoMes: String): [PopularInstitution!]!
 }
 
 # Enums
@@ -51,6 +53,12 @@ enum BacenInstitutionBankType {
 
 enum DataRestrictionReason {
   INSTITUTION_REQUEST
+}
+
+enum TopInstitutionMetric {
+  PROFIT
+  BASILEIA_INDEX
+  MOBILIZATION_INDEX
 }
 
 type DataRestriction {
@@ -92,6 +100,28 @@ type BacenInstitutionSummaryItem {
   institutionType: BacenInstitutionType
   tipoConsolidadoBancario: String
   dataRestriction: DataRestriction
+}
+
+# Institution discovery dashboard types
+type PopularInstitution {
+  rank: Int!
+  shortDescription: String!
+  quarter: String!
+  year: Int
+  month: Int
+  institution: BacenInstitutionSummaryItem!
+  popularInstitutionTopMetrics: [PopularInstitutionTopMetric!]!
+}
+
+type PopularInstitutionTopMetric {
+  metric: TopInstitutionMetric!
+  popularInstitutionTopMetricItem: PopularInstitutionTopMetricItem!
+}
+
+type PopularInstitutionTopMetricItem {
+  rank: Int!
+  institution: BacenInstitutionSummaryItem!
+  metricValue: Float
 }
 
 # PageInfo type owned only by this subgraph (avoids shared PageInfo with SECURITY

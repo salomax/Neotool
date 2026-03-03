@@ -190,7 +190,16 @@
     "selectReport": "Select a report to view details",
     "clickToViewDetails": "Click to view details",
     "noResults": "No results found.",
-    "dataRestricted": "Data not available"
+    "dataRestricted": "Data not available",
+    "noDataAvailable": "No data available"
+  },
+  "discovery": {
+    "mostPopular": "Most Popular",
+    "rankings": {
+      "netProfit": "Net Profit",
+      "basileiaIndex": "Basileia Index",
+      "mobilizationIndex": "Mobilization Index"
+    }
   },
   "institutionTypes": {
     "individualInstitution": "Individual Institution",
