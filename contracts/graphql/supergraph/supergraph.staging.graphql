@@ -329,11 +329,13 @@ enum DataRestrictionReason
 
 scalar Date
   @join__type(graph: ASSETS)
+  @join__type(graph: BANKING)
   @join__type(graph: FINANCIALDATA)
   @join__type(graph: SECURITY)
 
 scalar DateTime
   @join__type(graph: ASSETS)
+  @join__type(graph: BANKING)
   @join__type(graph: FINANCIALDATA)
   @join__type(graph: SECURITY)
 
@@ -578,12 +580,14 @@ scalar join__FieldSet
 
 enum join__Graph {
   ASSETS @join__graph(name: "assets", url: "http://assets-service:8080/graphql")
+  BANKING @join__graph(name: "banking", url: "http://neotool-banking-service:8080/graphql")
   FINANCIALDATA @join__graph(name: "financialdata", url: "http://neotool-financial-data-service:8080/graphql")
   SECURITY @join__graph(name: "security", url: "http://neotool-security-service:8080/graphql")
 }
 
 scalar JSON
   @join__type(graph: ASSETS)
+  @join__type(graph: BANKING)
   @join__type(graph: FINANCIALDATA)
   @join__type(graph: SECURITY)
 
@@ -603,11 +607,13 @@ enum link__Purpose {
 
 scalar Long
   @join__type(graph: ASSETS)
+  @join__type(graph: BANKING)
   @join__type(graph: FINANCIALDATA)
   @join__type(graph: SECURITY)
 
 type Mutation
   @join__type(graph: ASSETS)
+  @join__type(graph: BANKING)
   @join__type(graph: SECURITY)
 {
   """
@@ -681,6 +687,7 @@ type Mutation
   Only the asset owner can delete the asset.
   """
   deleteAsset(assetId: ID!): Boolean! @join__field(graph: ASSETS)
+  _bankingService: String @join__field(graph: BANKING)
   signIn(input: SignInInput!): SignInPayload! @join__field(graph: SECURITY)
   signInWithOAuth(input: SignInWithOAuthInput!): SignInPayload! @join__field(graph: SECURITY)
   signUp(input: SignUpInput!): SignUpPayload! @join__field(graph: SECURITY)
@@ -745,6 +752,33 @@ type PermissionEdge
   cursor: String!
 }
 
+type PopularInstitution
+  @join__type(graph: FINANCIALDATA)
+{
+  rank: Int!
+  shortDescription: String!
+  quarter: String!
+  year: Int
+  month: Int
+  institution: BacenInstitutionSummaryItem!
+  popularInstitutionTopMetrics: [PopularInstitutionTopMetric!]!
+}
+
+type PopularInstitutionTopMetric
+  @join__type(graph: FINANCIALDATA)
+{
+  metric: TopInstitutionMetric!
+  popularInstitutionTopMetricItem: PopularInstitutionTopMetricItem!
+}
+
+type PopularInstitutionTopMetricItem
+  @join__type(graph: FINANCIALDATA)
+{
+  rank: Int!
+  institution: BacenInstitutionSummaryItem!
+  metricValue: Float
+}
+
 input QuarterRangeInput
   @join__type(graph: FINANCIALDATA)
 {
@@ -769,6 +803,7 @@ type QuarterValue
 
 type Query
   @join__type(graph: ASSETS)
+  @join__type(graph: BANKING)
   @join__type(graph: FINANCIALDATA)
   @join__type(graph: SECURITY)
 {
@@ -777,6 +812,7 @@ type Query
   Returns null if asset not found or user doesn't have access.
   """
   asset(id: ID!): Asset @join__field(graph: ASSETS)
+  _bankingService: String @join__field(graph: BANKING)
   searchBacenInstitutionsAutocomplete(query: String!, anoMes: String): BacenInstitutionAutocompleteConnection! @join__field(graph: FINANCIALDATA)
   bacenInstitutions(query: String, anoMes: String, first: Int, after: String): BacenInstitutionConnection! @join__field(graph: FINANCIALDATA)
   bacenInstitutionSlugs(anoMes: String, first: Int, after: String): BacenInstitutionSlugConnection! @join__field(graph: FINANCIALDATA)
@@ -784,6 +820,7 @@ type Query
   ratingIssuers: [RatingIssuer!]! @join__field(graph: FINANCIALDATA)
   economicIndicators(label: String): [EconomicIndicator!]! @join__field(graph: FINANCIALDATA)
   fixedIncomeComparison(input: FixedIncomeComparisonInput!): FixedIncomeComparisonResult! @join__field(graph: FINANCIALDATA)
+  popularInstitutions(anoMes: String): [PopularInstitution!]! @join__field(graph: FINANCIALDATA)
   currentUser: User @join__field(graph: SECURITY)
   myVerificationStatus: VerificationStatus @join__field(graph: SECURITY)
   checkPermission(userId: ID!, permission: String!, resourceId: ID): AuthorizationResult! @join__field(graph: SECURITY)
@@ -973,6 +1010,14 @@ type SignUpPayload
   requiresVerification: Boolean!
 }
 
+enum TopInstitutionMetric
+  @join__type(graph: FINANCIALDATA)
+{
+  PROFIT @join__enumValue(graph: FINANCIALDATA)
+  BASILEIA_INDEX @join__enumValue(graph: FINANCIALDATA)
+  MOBILIZATION_INDEX @join__enumValue(graph: FINANCIALDATA)
+}
+
 input UpdateGroupInput
   @join__type(graph: SECURITY)
 {
@@ -1041,6 +1086,7 @@ enum UserOrderField
 
 scalar UUID
   @join__type(graph: ASSETS)
+  @join__type(graph: BANKING)
   @join__type(graph: FINANCIALDATA)
   @join__type(graph: SECURITY)
 

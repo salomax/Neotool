@@ -149,6 +149,11 @@ export interface SearchableAutocompleteProps<
   onSearch?: (searchQuery: string) => void;
 
   /**
+   * Optional history options to show when the search input is empty
+   */
+  historyOptions?: TOption[];
+
+  /**
    * Optional ID for the autocomplete component.
    * If not provided, a unique ID will be generated automatically.
    */
@@ -218,6 +223,7 @@ export function SearchableAutocomplete<
   variant = "outlined",
   loadMode = "lazy",
   onSearch,
+  historyOptions,
   id,
 }: SearchableAutocompleteProps<TOption, TSelected, TQueryData, TQueryVariables>) {
   const { t: tCommon } = useReactI18nTranslation("common");
@@ -272,6 +278,26 @@ export function SearchableAutocomplete<
   // Selected items should always appear, even if not in search results
   // Priority: search results (full data) > selected items (may be placeholders)
   const allOptions: TOption[] = useMemo(() => {
+    // If we have history options and search is empty, show them
+    if (trimmedSearch.length === 0 && historyOptions && historyOptions.length > 0) {
+      const optionsMap = new Map<string, TOption>();
+      
+      // Add history options first
+      historyOptions.forEach((opt) => {
+        optionsMap.set(getOptionId(opt), opt);
+      });
+      
+      // Add selected items if they are not already in history
+      selectedItems.forEach((item) => {
+        const id = getOptionId(item);
+        if (!optionsMap.has(id)) {
+          optionsMap.set(id, item);
+        }
+      });
+      
+      return Array.from(optionsMap.values());
+    }
+
     // Create a map of search results by ID (these have full data)
     // This also deduplicates any duplicate options from the query
     const searchResultsMap = new Map<string, TOption>();
@@ -293,7 +319,7 @@ export function SearchableAutocomplete<
     // Search results take priority because they're added first to the map
     // Use Array.from(searchResultsMap.values()) to ensure deduplication
     return [...Array.from(searchResultsMap.values()), ...missingSelected];
-  }, [transformedOptions, selectedItems, getOptionId]);
+  }, [transformedOptions, selectedItems, getOptionId, trimmedSearch.length, historyOptions]);
 
   // Loading state
   const loading = queryLoading || externalLoading;

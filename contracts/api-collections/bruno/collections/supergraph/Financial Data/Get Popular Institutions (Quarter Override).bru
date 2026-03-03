@@ -1,0 +1,56 @@
+meta {
+  name: Get Popular Institutions (Quarter Override)
+  type: graphql
+  seq: 14
+}
+
+post {
+  url: {{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  query GetPopularInstitutionsQuarterOverride($anoMes: String) {
+    popularInstitutions(anoMes: $anoMes) {
+      rank
+      shortDescription
+      institution {
+        id
+        name
+        dataRestriction {
+          isRestricted
+          reason
+        }
+      }
+      popularInstitutionTopMetrics {
+        metric
+        popularInstitutionTopMetricItem {
+          rank
+          metricValue
+        }
+      }
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "anoMes": "202403"
+  }
+}
+
+tests {
+  test("status 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Has popular institutions list", function() {
+    const data = res.getBody();
+    expect(data.data.popularInstitutions).to.be.an('array');
+  });
+}

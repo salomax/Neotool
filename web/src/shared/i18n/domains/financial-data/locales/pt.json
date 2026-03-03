@@ -192,7 +192,16 @@
     "selectReport": "Selecione um relatório para ver os detalhes",
     "clickToViewDetails": "Clique para ver detalhes",
     "noResults": "Nenhum resultado encontrado.",
-    "dataRestricted": "Dados não disponíveis"
+    "dataRestricted": "Dados não disponíveis",
+    "noDataAvailable": "Nenhum dado disponível"
+  },
+  "discovery": {
+    "mostPopular": "Mais Populares",
+    "rankings": {
+      "netProfit": "Lucro Líquido",
+      "basileiaIndex": "Índice de Basileia",
+      "mobilizationIndex": "Índice de Imobilização"
+    }
   },
   "institutionTypes": {
     "individualInstitution": "Instituição Individual",
@@ -290,3 +299,4 @@
     "ratingSource": "Ratings de crédito fornecidos por Fitch Ratings®, com base em informações públicas disponibilizadas pela agência."
   }
 }
+

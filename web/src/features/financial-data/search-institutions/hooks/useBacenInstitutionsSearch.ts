@@ -31,6 +31,40 @@ export function useBacenInstitutionsSearch() {
   const [after, setAfter] = React.useState<string | null>(null);
   const [selectedInstitution, setSelectedInstitution] =
     React.useState<BacenInstitutionSearchOption | null>(null);
+  const [searchHistory, setSearchHistory] = React.useState<string[]>([]);
+
+  // Load search history from localStorage on mount
+  React.useEffect(() => {
+    try {
+      const stored = localStorage.getItem("bacen_search_history");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        // Ensure unique items, trim strings, and limit to 5
+        const items = Array.isArray(parsed) ? parsed : [];
+        const uniqueHistory = Array.from(new Set(items.map((s: any) => String(s).trim()).filter(Boolean))).slice(0, 5);
+        setSearchHistory(uniqueHistory);
+      }
+    } catch (e) {
+      console.error("Failed to load search history", e);
+    }
+  }, []);
+
+  const addToHistory = React.useCallback((term: string) => {
+    if (!term || !term.trim()) return;
+    
+    const cleanTerm = term.trim();
+    
+    setSearchHistory(prev => {
+      // Use Set to remove duplicates, keep new term at start
+      const newHistory = Array.from(new Set([cleanTerm, ...prev])).slice(0, 5);
+      try {
+        localStorage.setItem("bacen_search_history", JSON.stringify(newHistory));
+      } catch (e) {
+        console.error("Failed to save search history", e);
+      }
+      return newHistory;
+    });
+  }, []);
 
   const queryVariables = React.useMemo(
     () => ({
@@ -91,7 +125,11 @@ export function useBacenInstitutionsSearch() {
       setSearchQuery(query);
       setAfter(null);
     });
-  }, []);
+    // Add to history if query is not empty
+    if (query && query.trim()) {
+      addToHistory(query.trim());
+    }
+  }, [addToHistory]);
 
   const handleSelectionChange = React.useCallback(
     (items: BacenInstitutionSearchOption[]) => {
@@ -128,5 +166,6 @@ export function useBacenInstitutionsSearch() {
     handleSelectionChange,
     handleAutocompleteSearch,
     shouldSkipQuery,
+    searchHistory,
   };
 }
