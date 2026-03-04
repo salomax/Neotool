@@ -1,3 +1,13 @@
+## 0.5.1 (2026-03-04)
+
+### 🩹 Fixes
+
+- Add background color to favicon ([148bc089](https://github.com/invistus/invistus/commit/148bc089))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.5.0 (2026-03-03)
 
 ### 🚀 Features
