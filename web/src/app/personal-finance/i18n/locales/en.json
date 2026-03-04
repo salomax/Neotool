@@ -2,29 +2,63 @@
   "title": "Personal Finance",
   "financeTransactions": {
     "title": "Finance Transactions",
-    "description": "Track your income and expenses.",
+    "quickAdd": "New transaction",
+    "credit": "Credit",
+    "debit": "Debit",
+    "amount": "Amount",
+    "description": "Description",
+    "date": "Date",
+    "account": "Account",
+    "category": "Category",
+    "value": "Value",
+    "tags": "Tags",
+    "issuer": "Institution",
+    "dateGroup": {
+      "today": "Today, {{date}}",
+      "tomorrow": "Tomorrow, {{date}}"
+    },
+    "description": "Description",
+    "backToCurrentMonth": "Back to current month",
     "actions": {
-      "newAccountOrCard": "+ New account or card",
+      "newAccountOrCard": "New account or card",
       "addAccount": "Add account",
-      "addCard": "Add card"
+      "addCard": "Add card",
+      "save": "Save",
+      "saving": "Saving...",
+      "cancel": "Cancel",
+      "delete": "Delete"
+    },
+    "selector": {
+      "allAccounts": "All accounts",
+      "consolidatedView": "Consolidated view",
+      "unknownIssuer": "Unknown Institution",
+      "searchPlaceholder": "Search accounts...",
+      "noAccountsFound": "No accounts found"
+    },
+    "emptyState": {
+      "title": "Ready to get started?",
+      "description": "Centralize your financial life. Add your bank accounts and cards to get a complete view of your spending, investments, and goals."
     },
     "createAccount": {
       "title": "Add financial account",
       "step1": {
+        "title": "Choose the type of account you want to create in Invistus to start monitoring your wealth.",
         "bankAccount": {
           "label": "Bank Account",
-          "subtitle": "Checking, savings, digital wallet, cash"
+          "subtitle": "Connect your balances, automatic statements and track cash flow in real-time."
         },
         "card": {
-          "label": "Card",
-          "subtitle": "Credit, debit, prepaid, voucher"
-        }
+          "label": "Credit Card",
+          "subtitle": "Manage invoices, available limits and categorize your recurring expenses easily."
+        },
+        "action": "Create new"
       },
       "step2": {
         "backToSelection": "Back to selection",
         "fields": {
           "issuer": "Institution",
           "issuerPlaceholder": "Search for bank or card issuer",
+          "noIssuersFound": "No issuers found",
           "customIssuer": "Other / Custom",
           "institutionName": "Institution name",
           "accountName": "Account name",
@@ -44,11 +78,163 @@
           "closingDay": "Closing day",
           "dueDay": "Due day"
         },
-        "success": "Account added successfully"
+        "success": "Account added successfully",
+        "validation": {
+          "accountNameRequired": "Account name is required",
+          "subtypeRequired": "Account type is required",
+          "issuerRequired": "Issuer is required",
+          "closingDayRequired": "Closing day is required",
+          "dueDayRequired": "Due day is required",
+          "closingDayInvalid": "Invalid closing day (1-31)",
+          "dueDayInvalid": "Invalid due day (1-31)",
+          "invalidCurrencyFormat": "Invalid currency format (max 2 decimals)"
+        },
+        "enums": {
+          "bankSubtype": {
+            "CONTA_CORRENTE": "Checking",
+            "CONTA_POUPANCA": "Savings",
+            "CONTA_SALARIO": "Salary Account",
+            "CONTA_DIGITAL": "Digital Wallet",
+            "CONTA_CONJUNTA": "Joint Account"
+          },
+          "cardSubtype": {
+            "CREDIT_CARD": "Credit",
+            "CHARGE_CARD": "Charge",
+            "PREPAID_CARD": "Prepaid",
+            "VOUCHER_CARD": "Voucher"
+          },
+          "cardNetwork": {
+            "VISA": "Visa",
+            "MASTERCARD": "Mastercard",
+            "ELO": "Elo",
+            "AMERICAN_EXPRESS": "Amex",
+            "HIPERCARD": "Hipercard",
+            "DINERS_CLUB": "Diners Club",
+            "BANDEIRA_PROPRIA": "Private Label",
+            "OUTRAS": "Other"
+          },
+          "cardLevel": {
+            "STANDARD": "Standard",
+            "GOLD": "Gold",
+            "PLATINUM": "Platinum",
+            "INFINITE": "Infinite",
+            "BLACK": "Black"
+          }
+        }
       }
+    },
+    "import": {
+      "title": "Import Transactions",
+      "button": "Import",
+      "accountStep": {
+        "title": "Select account to import into",
+        "noAccounts": "No accounts found. Create an account to continue.",
+        "createAccountOrCard": "Create new account or card"
+      },
+      "sourceStep": {
+        "title": "Select format",
+        "ofx": "OFX file",
+        "csvNubank": "CSV Nubank"
+      },
+      "uploadStep": {
+        "title": "Select file",
+        "recommendation": "For the best experience, prioritize using OFX files. They provide standardized and richer data compared to CSV or XLSX.",
+        "fileSelected": "File selected:",
+        "dragDrop": "Drag and drop your file here or click to browse",
+        "acceptedTypes": ".ofx, .csv, .xlsx",
+        "fileTooLarge": "File must be 3 MB or smaller",
+        "unsupportedType": "Please select an OFX, CSV, or XLSX file",
+        "selectAccount": "Select an account first"
+      },
+      "processingStep": {
+        "title": "Importing...",
+        "status": "Status: {{status}}",
+        "imported": "{{count}} imported"
+      },
+      "resultStep": {
+        "title": "Import complete",
+        "summary": "{{imported}} transactions imported, {{skipped}} skipped (duplicates)",
+        "close": "Close"
+      },
+      "errorStep": {
+        "title": "Import failed",
+        "message": "Something went wrong. Please try again.",
+        "retry": "Retry"
+      },
+      "status": {
+        "PENDING": "Pending",
+        "PROCESSING": "Processing",
+        "COMPLETED": "Completed",
+        "FAILED": "Failed",
+        "REVIEW_REQUIRED": "Review required"
+      }
+    },
+    "duplicateReview": {
+      "header": "{{count}} transaction(s) need review",
+      "newLabel": "New (imported)",
+      "existingLabel": "Existing",
+      "keepBoth": "Keep both",
+      "useIncoming": "Use new",
+      "keepExisting": "Keep existing",
+      "useIncomingWarning": "Existing will be replaced",
+      "finishReview": "Finish review",
+      "resolved": "Resolved",
+      "bannerAction": "Review"
+    },
+    "nfce": {
+      "button": "Scan NFC-e",
+      "urlPlaceholder": "Paste NFC-e URL here",
+      "submit": "Import",
+      "success": "NFC-e imported successfully",
+      "alreadyImported": "Invoice already imported",
+      "sefazUnavailable": "SEFAZ unavailable, please try again",
+      "error": "Failed to import NFC-e"
+    },
+    "transactionTable": {
+      "columns": {
+        "description": "Description",
+        "category": "Category",
+        "type": "Type",
+        "amount": "Amount",
+        "currency": "Currency"
+      },
+      "emptyState": "No transactions found"
+    },
+    "monthSummary": {
+      "income": "Income",
+      "expenses": "Expenses",
+      "balance": "Current Balance",
+      "total": "of total"
+    },
+    "deleteConfirmation": {
+      "title": "Delete transaction",
+      "message": "Are you sure you want to delete this transaction? This action cannot be undone."
     }
   },
   "actions": {
-    "accessModule": "Access module"
+    "accessModule": "Access module",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "save": "Save"
+  },
+  "transactionType": {
+    "BALANCE_ADJUSTMENT": "Balance Adjustment",
+    "BOLETO": "Boleto",
+    "CARD": "Card",
+    "CASHBACK": "Cashback",
+    "DEPOSIT": "Deposit",
+    "DOC": "DOC",
+    "FEE": "Fee",
+    "INTEREST": "Interest",
+    "INVESTMENT_RETURN": "Investment Return",
+    "LOAN_PAYMENT": "Loan Payment",
+    "OTHER_EXPENSE": "Other Expense",
+    "OTHER_INCOME": "Other Income",
+    "PIX": "Pix",
+    "SALARY": "Salary",
+    "TAX": "Tax",
+    "TED": "TED",
+    "TRANSFER": "Transfer",
+    "WITHDRAWAL": "Withdrawal"
   }
 }

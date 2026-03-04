@@ -1,0 +1,72 @@
+meta {
+  name: List Transactions
+  type: graphql
+  seq: 4
+}
+
+post {
+  url: {{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  query Transactions(
+    $financialAccountId: ID
+    $month: Int
+    $year: Int
+    $first: Int
+    $after: String
+  ) {
+    transactions(
+      financialAccountId: $financialAccountId
+      month: $month
+      year: $year
+      first: $first
+      after: $after
+    ) {
+      edges {
+        node {
+          id
+          financialAccountId
+          creditDebitType
+          type
+          status
+          source
+          amount
+          currencyCode
+          amountBrl
+          date
+          description
+          notes
+          category {
+            id
+            name
+          }
+        }
+        cursor
+      }
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+        startCursor
+        endCursor
+      }
+      totalCount
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+      "financialAccountId": null,
+      "month": null,
+      "year": null,
+      "first": 20,
+      "after": null
+  }
+}

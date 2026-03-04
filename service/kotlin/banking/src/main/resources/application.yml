@@ -113,9 +113,38 @@ security:
 
 # logo.dev integration — fetches institution logos by domain.
 # Leave LOGO_DEV_TOKEN unset (or empty) to disable logo hydration entirely.
+# Assets service — for import file storage (presigned upload/download).
+# Set ASSETS_SERVICE_URL in deployment (e.g. http://assets-service or http://localhost:port).
 banking:
   logodev:
     token: ${LOGO_DEV_TOKEN:}
+  assets-service:
+    url: ${ASSETS_SERVICE_URL:}
+    graphql-path: /graphql
+    import-namespace: ${ASSETS_IMPORT_NAMESPACE:transaction-imports}
+
+# Kafka — import file requested / job completed (set KAFKA_BROKERS in deployment).
+# Use host:port format (example: localhost:9094), without http://
+# Set kafka.enabled=true in dev/staging to auto-create topics at startup.
+kafka:
+  enabled: ${KAFKA_ENABLED:true}
+  bootstrap:
+    servers: ${KAFKA_BROKERS:}
+  topics:
+    import-file-requested: banking.import.file-requested
+    import-file-requested-dlt: banking.import.file-requested.DLT
+    import-job-completed: banking.import.job-completed
+  consumers:
+    import-file:
+      group-id: banking-import-consumer
+      max-poll-records: 1  # process one import at a time per partition
+      enable-auto-commit: false
+      auto-offset-reset: earliest
+  producers:
+    default:
+      acks: all
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: io.micronaut.serde.kafka.KafkaSerdeSerializer
 
 # JWT Configuration (Validator Only)
 jwt:

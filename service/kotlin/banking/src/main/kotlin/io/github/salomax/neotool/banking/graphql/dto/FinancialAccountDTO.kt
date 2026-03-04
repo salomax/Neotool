@@ -5,7 +5,7 @@ import io.github.salomax.neotool.banking.domain.account.CreditCardLevel
 import io.github.salomax.neotool.banking.domain.account.CreditCardNetwork
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
-import java.time.Instant
+import java.time.OffsetDateTime
 import java.util.UUID
 
 data class BankAccountDataDTO(
@@ -41,8 +41,8 @@ data class FinancialAccountDTO(
     val bankData: BankAccountDataDTO?,
     val cardData: CardDataDTO?,
     val connectionStatus: ConnectionStatus?,
-    val consentExpiresAt: Instant?,
-    val lastSyncAt: Instant?,
-    val createdAt: Instant,
-    val updatedAt: Instant,
+    val consentExpiresAt: OffsetDateTime?,
+    val lastSyncAt: OffsetDateTime?,
+    val createdAt: OffsetDateTime,
+    val updatedAt: OffsetDateTime,
 )

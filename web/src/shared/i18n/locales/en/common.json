@@ -81,7 +81,17 @@
     "connectionTimeout": "The request took too long to complete. Please check your connection and try again.",
     "serviceUnavailable": "The service is temporarily unavailable. Please try again in a few moments.",
     "gatewayTimeout": "The server is taking too long to respond. Please try again later.",
-    "default": "An error occurred"
+    "default": "An error occurred",
+    "ASSET_STORAGE_UNAVAILABLE": "Storage service unavailable",
+    "ASSET_STORAGE_QUOTA_EXCEEDED": "Storage quota exceeded",
+    "ASSET_NOT_FOUND": "Asset not found",
+    "ASSET_SIZE_EXCEEDED": "File size exceeds maximum allowed",
+    "ASSET_FORMAT_UNSUPPORTED": "File format is not supported",
+    "ASSET_INVALID_STATE": "Asset is not in the required state for this operation",
+    "ASSET_UPLOAD_URL_EXPIRED": "Upload URL has expired",
+    "ASSET_UPLOAD_NOT_COMPLETED": "Upload not completed: file not found in storage",
+    "ASSET_UPLOAD_VERIFICATION_FAILED": "Upload verification failed",
+    "ASSET_IDEMPOTENCY_CONFLICT": "Idempotency key conflict for asset upload"
   },
   "cardGrid": {
     "noResultsFound": "No results found",

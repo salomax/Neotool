@@ -120,7 +120,9 @@ export function isAuthenticationError(
     lowerMessage.includes('authentication') ||
     lowerMessage.includes('invalid or expired access token') ||
     lowerMessage.includes('access token is required') ||
-    lowerMessage.includes('unauthorized')
+    lowerMessage.includes('unauthorized') ||
+    lowerMessage.includes('jwt expired') ||
+    lowerMessage.includes('token validation failed')
   ) {
     return true;
   }

@@ -1,0 +1,73 @@
+meta {
+  name: List Financial Accounts
+  type: graphql
+  seq: 2
+}
+
+post {
+  url: {{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  query FinancialAccounts {
+    financialAccounts {
+      id
+      type
+      subtype
+      name
+      currencyCode
+      includeInNetWorth
+      includeInDashboard
+      themeColor
+      issuerName
+      issuer {
+        id
+        name
+        logoAsset {
+          id
+          publicUrl
+          __typename
+        }      
+      }
+      bankData {
+        branchCode
+        number
+        maskedNumber
+      }
+      cardData {
+        maskedNumber
+        creditLimit
+        closingDay
+        dueDay
+      }
+      connectionStatus
+      createdAt
+      updatedAt
+    }
+  }
+}
+
+script:post-response {
+  const body = res.getBody();
+  if (body && body.data && body.data.financialAccounts && body.data.financialAccounts.length > 0) {
+    bru.setEnvVar("financial_account_id", body.data.financialAccounts[0].id, { persist: true });
+  }
+}
+
+tests {
+  test("status 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Has financialAccounts array", function() {
+    const data = res.getBody();
+    expect(data.data).to.have.property("financialAccounts");
+    expect(data.data.financialAccounts).to.be.an("array");
+  });
+}

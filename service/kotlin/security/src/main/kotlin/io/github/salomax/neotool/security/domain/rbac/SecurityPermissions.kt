@@ -19,4 +19,7 @@ object SecurityPermissions {
     const val SECURITY_ROLE_VIEW = "security:role:view"
     const val SECURITY_ROLE_SAVE = "security:role:save"
     const val SECURITY_ROLE_DELETE = "security:role:delete"
+
+    // Account membership query permissions (service-to-service)
+    const val SECURITY_ACCOUNT_MEMBERSHIP_VIEW = "security:account-membership:view"
 }

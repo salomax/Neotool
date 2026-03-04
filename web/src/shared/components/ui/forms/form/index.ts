@@ -9,6 +9,7 @@ export { Form } from './Form';
 export { FormTextField } from './FormField';
 export { FormMessage } from './FormMessage';
 export { MaskedField } from './MaskedField';
+export { MoneyInput } from './MoneyInput';
 export { NumberField } from './NumberField';
 export { PasswordField } from './PasswordField';
 export { PercentField } from './PercentField';

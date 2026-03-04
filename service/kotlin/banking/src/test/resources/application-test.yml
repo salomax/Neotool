@@ -10,6 +10,10 @@ micronaut:
     client:
       read-timeout: 30s
       connect-timeout: 10s
+
+graphql:
+  router:
+    url: http://localhost:18092/graphql
 datasources:
   default:
     enabled: false
@@ -17,8 +21,18 @@ flyway:
   enabled: false
 kafka:
   enabled: false
+  # When Kafka IT runs (Testcontainers), topics are created by KafkaTopicInitializer; names match main config.
+  topics:
+    import-file-requested: banking.import.file-requested
+    import-file-requested-dlt: banking.import.file-requested.DLT
+    import-job-completed: banking.import.job-completed
 redis:
   enabled: false
+# Assets service URL for import file storage IT (MockWebServer on 18092)
+banking:
+  assets-service:
+    url: http://localhost:18092
+    graphql-path: /graphql
 endpoints:
   enabled: false
   health:

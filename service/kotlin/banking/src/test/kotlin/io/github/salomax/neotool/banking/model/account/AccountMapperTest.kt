@@ -14,7 +14,7 @@ import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
 
-@DisplayName("AccountMapper")
+@DisplayName("FinancialAccountMapper")
 class AccountMapperTest {
 
     private val accountId = UUID.randomUUID()
@@ -23,7 +23,7 @@ class AccountMapperTest {
 
     @Test
     fun `toDomain then toEntity preserves base fields for bank account`() {
-        val entity = AccountEntity(
+        val entity = FinancialAccountEntity(
             id = UUID.randomUUID(),
             accountId = accountId,
             createdByUserId = createdByUserId,
@@ -49,7 +49,7 @@ class AccountMapperTest {
             bankData = null,
             cardData = null,
         )
-        val bankDataEntity = AccountBankDataEntity(
+        val bankDataEntity = FinancialAccountBankDataEntity(
             accountId = entity.id!!,
             account = entity,
             branchCode = "1234",
@@ -59,7 +59,7 @@ class AccountMapperTest {
         )
         entity.bankData = bankDataEntity
 
-        val domain = AccountMapper.toDomain(entity)
+        val domain = FinancialAccountMapper.toDomain(entity)
         assertThat(domain.id).isEqualTo(entity.id)
         assertThat(domain.accountId).isEqualTo(accountId)
         assertThat(domain.type).isEqualTo(FinancialAccountType.BANK)
@@ -71,7 +71,7 @@ class AccountMapperTest {
         assertThat(domain.bankData!!.maskedNumber).isEqualTo("****56789")
         assertThat(domain.cardData).isNull()
 
-        val backEntity = AccountMapper.toEntity(domain)
+        val backEntity = FinancialAccountMapper.toEntity(domain)
         assertThat(backEntity.id).isNull()
         assertThat(backEntity.accountId).isEqualTo(domain.accountId)
         assertThat(backEntity.type).isEqualTo(domain.type)
@@ -81,7 +81,7 @@ class AccountMapperTest {
 
     @Test
     fun `toDomain then toEntity preserves base and card data for credit account`() {
-        val entity = AccountEntity(
+        val entity = FinancialAccountEntity(
             id = UUID.randomUUID(),
             accountId = accountId,
             createdByUserId = createdByUserId,
@@ -107,7 +107,7 @@ class AccountMapperTest {
             bankData = null,
             cardData = null,
         )
-        val cardDataEntity = AccountCardDataEntity(
+        val cardDataEntity = FinancialAccountCardDataEntity(
             accountId = entity.id!!,
             account = entity,
             maskedNumber = "****1234",
@@ -122,7 +122,7 @@ class AccountMapperTest {
         )
         entity.cardData = cardDataEntity
 
-        val domain = AccountMapper.toDomain(entity)
+        val domain = FinancialAccountMapper.toDomain(entity)
         assertThat(domain.type).isEqualTo(FinancialAccountType.CREDIT)
         assertThat(domain.cardData).isNotNull
         assertThat(domain.cardData!!.creditLimit).isEqualByComparingTo("10000.00")
@@ -131,9 +131,9 @@ class AccountMapperTest {
         assertThat(domain.cardData!!.cardNetwork).isEqualTo(CreditCardNetwork.VISA)
         assertThat(domain.cardData!!.minimumPaymentPercentage).isEqualByComparingTo("15.00")
 
-        val backEntity = AccountMapper.toEntity(domain)
+        val backEntity = FinancialAccountMapper.toEntity(domain)
         assertThat(backEntity.cardData).isNull()
-        val cardEntity = AccountMapper.toCardDataEntity(domain.cardData!!, entity)
+        val cardEntity = FinancialAccountMapper.toCardDataEntity(domain.cardData!!, entity)
         assertThat(cardEntity.creditLimit).isEqualByComparingTo(domain.cardData!!.creditLimit)
         assertThat(cardEntity.closingDay).isEqualTo(domain.cardData!!.closingDay)
         assertThat(cardEntity.dueDay).isEqualTo(domain.cardData!!.dueDay)
@@ -141,7 +141,7 @@ class AccountMapperTest {
 
     @Test
     fun `toBankDataEntity and toCardDataEntity map domain to entity`() {
-        val accountEntity = AccountEntity(
+        val accountEntity = FinancialAccountEntity(
             id = UUID.randomUUID(),
             accountId = accountId,
             createdByUserId = createdByUserId,
@@ -153,7 +153,7 @@ class AccountMapperTest {
             updatedAt = now,
         )
         val bankData = BankData(branchCode = "1", number = "2", checkDigit = "3", maskedNumber = "****2")
-        val bankEntity = AccountMapper.toBankDataEntity(bankData, accountEntity)
+        val bankEntity = FinancialAccountMapper.toBankDataEntity(bankData, accountEntity)
         assertThat(bankEntity.accountId).isEqualTo(accountEntity.id)
         assertThat(bankEntity.branchCode).isEqualTo("1")
         assertThat(bankEntity.maskedNumber).isEqualTo("****2")
@@ -163,7 +163,7 @@ class AccountMapperTest {
             closingDay = 10,
             dueDay = 20,
         )
-        val cardEntity = AccountMapper.toCardDataEntity(cardData, accountEntity)
+        val cardEntity = FinancialAccountMapper.toCardDataEntity(cardData, accountEntity)
         assertThat(cardEntity.creditLimit).isEqualByComparingTo("5000")
         assertThat(cardEntity.closingDay).isEqualTo(10)
         assertThat(cardEntity.dueDay).isEqualTo(20)

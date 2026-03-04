@@ -1,0 +1,47 @@
+meta {
+  name: Update Transaction
+  type: graphql
+  seq: 8
+}
+
+post {
+  url: {{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  mutation UpdateTransaction($id: ID!, $input: UpdateTransactionInput!) {
+    updateTransaction(id: $id, input: $input) {
+      id
+      belongsToUserId
+      belongsToName
+      description
+      amount
+      date
+      notes
+      tags
+      category {
+        id
+        name
+      }
+      updatedAt
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "id": "00000000-0000-0000-0000-000000000000",
+    "input": {
+      "description": "Updated description",
+      "notes": "Updated notes",
+      "belongsToName": "Filho",
+      "tags": ["Saude", "Recorrente"]
+    }
+  }
+}

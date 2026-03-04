@@ -1,0 +1,31 @@
+meta {
+  name: List Import Jobs
+  type: graphql
+  seq: 15
+}
+
+post {
+  url: {{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  query TransactionImports($financialAccountId: ID) {
+    transactionImports(financialAccountId: $financialAccountId) {
+      id
+      status
+      duplicateReviewCount
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "financialAccountId": "{{financial_account_id}}"
+  }
+}

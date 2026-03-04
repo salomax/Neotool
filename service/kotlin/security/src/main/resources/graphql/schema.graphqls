@@ -22,6 +22,7 @@ extend type Query {
 
   # Authorization queries
   checkPermission(userId: ID!, permission: String!, resourceId: ID): AuthorizationResult!
+  isUserActiveMemberOfAccount(userId: ID!, accountId: ID!): Boolean!
 
   # Authorization management queries
   user(id: ID!): User
@@ -285,4 +286,3 @@ input RoleOrderByInput {
   field: RoleOrderField!
   direction: OrderDirection!
 }
-

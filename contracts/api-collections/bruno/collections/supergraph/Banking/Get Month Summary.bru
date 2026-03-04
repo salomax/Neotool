@@ -1,0 +1,69 @@
+meta {
+  name: Get Month Summary
+  type: graphql
+  seq: 6
+}
+
+post {
+  url: {{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  query MonthSummary(
+    $financialAccountId: ID
+    $year: Int
+    $month: Int
+  ) {
+    monthSummary(
+      financialAccountId: $financialAccountId
+      year: $year
+      month: $month
+    ) {
+      year
+      month
+      totalIncome
+      totalExpenses
+      closingBalance
+      openingBalance
+      transfersIn
+      transfersOut
+      projectedClosingBalance
+      isCurrentMonth
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "financialAccountId": null,
+    "year": 2026,
+    "month": 1
+  }
+}
+
+tests {
+  test("status 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("monthSummary exists", function() {
+    const data = res.getBody();
+    expect(data.data).to.have.property("monthSummary");
+    const s = data.data.monthSummary;
+    expect(s).to.have.property("year");
+    expect(s).to.have.property("month");
+    expect(s).to.have.property("closingBalance");
+    expect(s).to.have.property("openingBalance");
+    expect(s).to.have.property("totalIncome");
+    expect(s).to.have.property("totalExpenses");
+    expect(s).to.have.property("transfersIn");
+    expect(s).to.have.property("transfersOut");
+    expect(s).to.have.property("isCurrentMonth");
+  });
+}

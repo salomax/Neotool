@@ -19,7 +19,8 @@ import {
   InputAdornment,
   CircularProgress,
   Autocomplete,
-  TextField as MuiTextField
+  TextField as MuiTextField,
+  Divider
 } from '@mui/material';
 import {
   AccountBalance as BankIcon,
@@ -27,16 +28,18 @@ import {
   ArrowBack as BackIcon,
   ReceiptLong as ReceiptIcon,
 } from '@mui/icons-material';
+import { FinancialAccountTypeSelection } from './FinancialAccountTypeSelection';
 import { Drawer } from '@/shared/components/ui/layout/Drawer';
-import { TextField, SelectField, ToggleField } from '@/shared/components/ui/forms/form';
+import { FormTextField as TextField, SelectField, ToggleField, MoneyInput } from '@/shared/components/ui/forms/form';
 import { ColorPicker } from '@/shared/components/ui/primitives/ColorPicker';
 import { ISSUERS } from '@/lib/graphql/operations/banking/queries';
 import { CREATE_FINANCIAL_ACCOUNT } from '@/lib/graphql/operations/banking/mutations';
 import { useToast } from '@/shared/providers';
 import { FormErrorBanner } from '@/shared/components/ui/forms/components/FormErrorBanner';
 import { FINANCIAL_ACCOUNTS } from '@/lib/graphql/operations/banking/queries';
-import { useTranslation } from '@/shared/i18n';
+import { useTranslation, i18n } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
+import { Issuer } from '@/lib/graphql/types/__generated__/graphql';
 
 // --- Types & Schemas ---
 
@@ -46,36 +49,38 @@ const FinancialAccountType = {
 } as const;
 
 // Subtypes
-const BankSubtypes = [
-  { value: 'CONTA_CORRENTE', label: 'Checking' },
-  { value: 'CONTA_POUPANCA', label: 'Savings' },
-  { value: 'CONTA_DIGITAL', label: 'Digital Wallet' },
-  { value: 'CASH', label: 'Cash' },
-  { value: 'INVESTMENT', label: 'Investment' },
-  { value: 'LOAN', label: 'Loan' },
+const BankSubtypeValues = [
+  'CONTA_CORRENTE',
+  'CONTA_POUPANCA',
+  'CONTA_SALARIO',
+  'CONTA_DIGITAL',
+  'CONTA_CONJUNTA',
 ];
 
-const CardSubtypes = [
-  { value: 'CREDIT_CARD', label: 'Credit' },
-  { value: 'DEBIT_CARD', label: 'Debit' }, // Assuming these exist in backend enum
-  { value: 'PREPAID_CARD', label: 'Prepaid' },
-  { value: 'VOUCHER_CARD', label: 'Voucher' },
+const CardSubtypeValues = [
+  'CREDIT_CARD',
+  'CHARGE_CARD',
+  'PREPAID_CARD',
+  'VOUCHER_CARD',
 ];
 
-const CardNetworks = [
-  { value: 'VISA', label: 'Visa' },
-  { value: 'MASTERCARD', label: 'Mastercard' },
-  { value: 'ELO', label: 'Elo' },
-  { value: 'AMERICAN_EXPRESS', label: 'Amex' },
-  { value: 'HIPERCARD', label: 'Hipercard' },
-  { value: 'OTHER', label: 'Other' },
+const CardNetworkValues = [
+  'VISA',
+  'MASTERCARD',
+  'ELO',
+  'AMERICAN_EXPRESS',
+  'HIPERCARD',
+  'DINERS_CLUB',
+  'BANDEIRA_PROPRIA',
+  'OUTRAS',
 ];
 
-const CardLevels = [
-  { value: 'STANDARD', label: 'Standard' },
-  { value: 'GOLD', label: 'Gold' },
-  { value: 'PLATINUM', label: 'Platinum' },
-  { value: 'INFINITE', label: 'Infinite/Black' },
+const CardLevelValues = [
+  'STANDARD',
+  'GOLD',
+  'PLATINUM',
+  'INFINITE',
+  'BLACK',
 ];
 
 const Currencies = [
@@ -95,77 +100,131 @@ const ColorPresets = [
   '#000000', // Black
 ];
 
-// Zod Schema
-const createAccountSchema = z.object({
-  type: z.enum(['BANK', 'CARD']),
-  issuerId: z.string().optional(),
-  issuerName: z.string().optional(), // For custom
-  name: z.string().min(1, 'Account name is required'),
-  currencyCode: z.string().default('BRL'),
-  initialBalance: z.number().optional(), // Handled separately or as part of creation? Usually separate transaction, but user asked for it. Assuming mutation handles it.
-  themeColor: z.string().default('#1976d2'),
-  includeInNetWorth: z.boolean().default(true),
-  includeInDashboard: z.boolean().default(true),
-  // Bank specific
-  subtype: z.string().min(1, 'Subtype is required'),
-  branchCode: z.string().optional(),
-  accountNumber: z.string().optional(),
-  checkDigit: z.string().optional(),
-  // Card specific
-  cardNetwork: z.string().optional(),
-  cardLevel: z.string().optional(),
-  maskedNumber: z.string().optional(), // Last 4 digits
-  creditLimit: z.number().optional(),
-  closingDay: z.number().min(1).max(31).optional(),
-  dueDay: z.number().min(1).max(31).optional(),
-}).superRefine((data, ctx) => {
-  if (!data.issuerId && !data.issuerName) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "Issuer is required",
-      path: ["issuerId"]
-    });
-  }
-
-  if (data.type === 'CARD') {
-     // Check if subtype is credit
-     if (data.subtype === 'CREDIT_CARD') {
-        if (!data.closingDay) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "Closing day is required for credit cards",
-            path: ["closingDay"]
-          });
-        }
-        if (!data.dueDay) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "Due day is required for credit cards",
-            path: ["dueDay"]
-          });
-        }
-     }
-  }
-});
-
-type CreateAccountFormData = z.infer<typeof createAccountSchema>;
+type CreateAccountFormData = {
+  type: 'BANK' | 'CARD';
+  issuerId?: string;
+  issuerName?: string;
+  name: string;
+  currencyCode: string;
+  initialBalance?: number;
+  themeColor: string;
+  includeInNetWorth: boolean;
+  includeInDashboard: boolean;
+  subtype: string;
+  branchCode?: string;
+  accountNumber?: string;
+  checkDigit?: string;
+  cardNetwork?: string;
+  cardLevel?: string;
+  maskedNumber?: string;
+  creditLimit?: number;
+  closingDay?: number;
+  dueDay?: number;
+};
 
 // --- Components ---
 
 interface CreateFinancialAccountDrawerProps {
   open: boolean;
   onClose: () => void;
+  initialType?: 'BANK' | 'CARD' | null;
 }
 
-export function CreateFinancialAccountDrawer({ open, onClose }: CreateFinancialAccountDrawerProps) {
+export function CreateFinancialAccountDrawer({ open, onClose, initialType }: CreateFinancialAccountDrawerProps) {
   const [step, setStep] = useState<1 | 2>(1);
   const [selectedType, setSelectedType] = useState<'BANK' | 'CARD' | null>(null);
   const { success } = useToast();
   const theme = useTheme();
   const { t } = useTranslation(personalFinanceTranslations);
 
+  // Zod Schema
+  const createAccountSchema = React.useMemo(() => z.object({
+    type: z.enum(['BANK', 'CARD']),
+    issuerId: z.string().optional(),
+    issuerName: z.string().optional(), // For custom
+    name: z.string().min(1, t('financeTransactions.createAccount.step2.validation.accountNameRequired')),
+    currencyCode: z.string().default('BRL'),
+    initialBalance: z.number().optional(), 
+    themeColor: z.string().default('#1976d2'),
+    includeInNetWorth: z.boolean().default(true),
+    includeInDashboard: z.boolean().default(true),
+    // Bank specific
+    subtype: z.string().min(1, t('financeTransactions.createAccount.step2.validation.subtypeRequired')),
+    branchCode: z.string().optional(),
+    accountNumber: z.string().optional(),
+    checkDigit: z.string().optional(),
+    // Card specific
+    cardNetwork: z.string().optional(),
+    cardLevel: z.string().optional(),
+    maskedNumber: z.string().optional(), // Last 4 digits
+    creditLimit: z.number().optional(),
+    closingDay: z.preprocess(
+      (val) => (val === '' || val === undefined || val === null ? undefined : Number(val)),
+      z.number({ invalid_type_error: t('financeTransactions.createAccount.step2.validation.closingDayInvalid') })
+        .min(1, t('financeTransactions.createAccount.step2.validation.closingDayInvalid'))
+        .max(31, t('financeTransactions.createAccount.step2.validation.closingDayInvalid'))
+        .optional()
+    ),
+    dueDay: z.preprocess(
+      (val) => (val === '' || val === undefined || val === null ? undefined : Number(val)),
+      z.number({ invalid_type_error: t('financeTransactions.createAccount.step2.validation.dueDayInvalid') })
+        .min(1, t('financeTransactions.createAccount.step2.validation.dueDayInvalid'))
+        .max(31, t('financeTransactions.createAccount.step2.validation.dueDayInvalid'))
+        .optional()
+    ),
+  }).superRefine((data, ctx) => {
+    if (!data.issuerId && !data.issuerName) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: t('financeTransactions.createAccount.step2.validation.issuerRequired'),
+        path: ["issuerId"]
+      });
+    }
+  
+    if (data.type === 'CARD') {
+       // Check if subtype is credit
+       if (data.subtype === 'CREDIT_CARD') {
+          if (!data.closingDay) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: t('financeTransactions.createAccount.step2.validation.closingDayRequired'),
+              path: ["closingDay"]
+            });
+          }
+          if (!data.dueDay) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: t('financeTransactions.createAccount.step2.validation.dueDayRequired'),
+              path: ["dueDay"]
+            });
+          }
+       }
+    }
+  }), [t]);
+
+  // Option lists with translations
+  const bankSubtypes = React.useMemo(() => BankSubtypeValues.map(v => ({
+    value: v,
+    label: t(`financeTransactions.createAccount.step2.enums.bankSubtype.${v}`)
+  })), [t]);
+
+  const cardSubtypes = React.useMemo(() => CardSubtypeValues.map(v => ({
+    value: v,
+    label: t(`financeTransactions.createAccount.step2.enums.cardSubtype.${v}`)
+  })), [t]);
+
+  const cardNetworks = React.useMemo(() => CardNetworkValues.map(v => ({
+    value: v,
+    label: t(`financeTransactions.createAccount.step2.enums.cardNetwork.${v}`)
+  })), [t]);
+
+  const cardLevels = React.useMemo(() => CardLevelValues.map(v => ({
+    value: v,
+    label: t(`financeTransactions.createAccount.step2.enums.cardLevel.${v}`)
+  })), [t]);
+
   // Queries
-  const { data: issuersData, loading: issuersLoading } = useQuery<{ issuers: any[] }>(ISSUERS, {
+  const { data: issuersData, loading: issuersLoading, error: issuersError } = useQuery<{ issuers: Issuer[] }>(ISSUERS, {
     skip: !open,
   });
 
@@ -180,6 +239,9 @@ export function CreateFinancialAccountDrawer({ open, onClose }: CreateFinancialA
   const methods = useForm<CreateAccountFormData>({
     resolver: zodResolver(createAccountSchema),
     defaultValues: {
+      name: '',
+      issuerId: undefined,
+      issuerName: '',
       currencyCode: 'BRL',
       themeColor: '#1976d2',
       includeInNetWorth: true,
@@ -190,6 +252,22 @@ export function CreateFinancialAccountDrawer({ open, onClose }: CreateFinancialA
   const { watch, setValue, reset, control } = methods;
   const watchedIssuerId = watch('issuerId');
   const watchedSubtype = watch('subtype');
+  const watchedCurrencyCode = watch('currencyCode');
+
+  // Memoize options to prevent unnecessary re-renders
+  const allIssuerOptions = React.useMemo(() => {
+    const options = (issuersData?.issuers || []).map((i) => ({
+      label: i.name,
+      value: i.id,
+      logo: i.logoAsset?.publicUrl,
+      compe: i.compeCode,
+    }));
+
+    return [
+      ...options,
+      { label: t('financeTransactions.createAccount.step2.fields.customIssuer'), value: 'custom', logo: null, compe: null }
+    ];
+  }, [issuersData, t]);
 
   // Reset on close
   useEffect(() => {
@@ -197,8 +275,11 @@ export function CreateFinancialAccountDrawer({ open, onClose }: CreateFinancialA
       setStep(1);
       setSelectedType(null);
       reset();
+    } else if (initialType) {
+        // If opening with initialType
+        handleTypeSelect(initialType);
     }
-  }, [open, reset]);
+  }, [open, reset, initialType]);
 
   // Handle Issuer Selection
   useEffect(() => {
@@ -207,14 +288,17 @@ export function CreateFinancialAccountDrawer({ open, onClose }: CreateFinancialA
         setValue('name', '');
         setValue('issuerName', '');
       } else {
-        const issuer = issuersData.issuers.find((i: any) => i.id === watchedIssuerId);
+        const issuer = issuersData.issuers.find((i) => i.id === watchedIssuerId);
         if (issuer) {
-          setValue('name', issuer.name);
-          setValue('issuerName', issuer.name); // Default fallback
+          const typeLabel = selectedType === 'BANK' 
+            ? t('financeTransactions.createAccount.step1.bankAccount.label') 
+            : t('financeTransactions.createAccount.step1.card.label');
+          setValue('name', `${typeLabel} - ${issuer.name}`);
+          setValue('issuerName', issuer.name);
         }
       }
     }
-  }, [watchedIssuerId, issuersData, setValue]);
+  }, [watchedIssuerId, issuersData, setValue, selectedType, t]);
 
   const handleClose = () => {
     onClose();
@@ -237,9 +321,16 @@ export function CreateFinancialAccountDrawer({ open, onClose }: CreateFinancialA
   };
 
   const onSubmit = (data: CreateAccountFormData) => {
+    const accountType =
+      data.type === 'BANK'
+        ? 'BANK'
+        : data.subtype === 'CREDIT_CARD' || data.subtype === 'CHARGE_CARD'
+          ? 'CREDIT'
+          : 'PAYMENT';
+
     // Transform data for mutation
     const input: any = {
-      type: data.type === 'BANK' ? 'BANK' : 'CREDIT', // Adjust based on actual backend enum
+      type: accountType,
       subtype: data.subtype,
       name: data.name,
       currencyCode: data.currencyCode,
@@ -268,71 +359,21 @@ export function CreateFinancialAccountDrawer({ open, onClose }: CreateFinancialA
         dueDay: data.dueDay,
       };
     }
-    
-    // Note: initialBalance is not in the mutation input based on user description, 
-    // but user asked for it in the form. It might need a separate transaction or backend support.
-    // For now, I'll omit it from mutation input unless I see it in schema. 
-    // (Checked schema: no initialBalance in CreateFinancialAccountInput).
-    // So it's UI only for now or I should ignore it. 
-    // I will keep it in form state but not send it if not supported.
 
     createAccount({ variables: { input } });
   };
 
-  const issuerOptions = (issuersData?.issuers || []).map((i: any) => ({
-    label: i.name,
-    value: i.id,
-    logo: i.logoAsset?.publicUrl,
-    compe: i.compeCode,
-  }));
-  
-  // Add "Other / Custom" option
-  const allIssuerOptions = [
-    ...issuerOptions,
-    { label: 'Other / Custom', value: 'custom', logo: null, compe: null }
-  ];
-
   const renderTypeSelection = () => (
-    <Box sx={{ display: 'flex', gap: 2, height: '100%', alignItems: 'center', justifyContent: 'center', p: 4 }}>
-      <Card 
-        variant="outlined" 
-        sx={{ 
-          flex: 1, 
-          height: 200, 
-          cursor: 'pointer', 
-          transition: 'all 0.2s',
-          '&:hover': { borderColor: 'primary.main', bgcolor: 'action.hover' }
-        }}
-        onClick={() => handleTypeSelect('BANK')}
-      >
-        <CardContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 2 }}>
-          <BankIcon sx={{ fontSize: 48, color: 'primary.main' }} />
-          <Box sx={{ textAlign: 'center' }}>
-            <Typography variant="h6">{t('financeTransactions.createAccount.step1.bankAccount.label')}</Typography>
-            <Typography variant="body2" color="text.secondary">{t('financeTransactions.createAccount.step1.bankAccount.subtitle')}</Typography>
-          </Box>
-        </CardContent>
-      </Card>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, p: 4, alignItems: 'stretch', justifyContent: 'flex-start', height: '100%' }}>
+      {/* Title Section */}
+      <Box sx={{ gap: 1, display: 'flex', flexDirection: 'column' }}>
+        <Typography variant="body1" color="text.secondary" sx={{ fontSize: '1.125rem' }}>
+          {t('financeTransactions.createAccount.step1.title')}
+        </Typography>
+      </Box>
 
-      <Card 
-        variant="outlined" 
-        sx={{ 
-          flex: 1, 
-          height: 200, 
-          cursor: 'pointer',
-          transition: 'all 0.2s',
-          '&:hover': { borderColor: 'primary.main', bgcolor: 'action.hover' }
-        }}
-        onClick={() => handleTypeSelect('CARD')}
-      >
-        <CardContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 2 }}>
-          <CardIcon sx={{ fontSize: 48, color: 'primary.main' }} />
-          <Box sx={{ textAlign: 'center' }}>
-            <Typography variant="h6">{t('financeTransactions.createAccount.step1.card.label')}</Typography>
-            <Typography variant="body2" color="text.secondary">{t('financeTransactions.createAccount.step1.card.subtitle')}</Typography>
-          </Box>
-        </CardContent>
-      </Card>
+      {/* Bento Style Grid for Options */}
+      <FinancialAccountTypeSelection onSelect={handleTypeSelect} />
     </Box>
   );
 
@@ -344,136 +385,129 @@ export function CreateFinancialAccountDrawer({ open, onClose }: CreateFinancialA
             {createError && <FormErrorBanner message={createError.message} />}
 
             {/* Common Fields */}
-            <Controller
-              name="issuerId"
-              control={control}
-              render={({ field: { onChange, value }, fieldState: { error } }) => (
-                <Autocomplete
-                  options={allIssuerOptions}
-                  loading={issuersLoading}
-                  value={allIssuerOptions.find(o => o.value === value) || null}
-                  onChange={(_, newValue) => onChange(newValue ? newValue.value : null)}
-                  getOptionLabel={(option) => option.label}
-                  renderOption={(props, option: any) => (
-                    <Box component="li" {...props} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      {option.logo ? (
-                        <Avatar src={option.logo} sx={{ width: 24, height: 24 }} />
-                      ) : (
-                        <Avatar sx={{ width: 24, height: 24, bgcolor: 'action.disabledBackground' }}>
-                          <BankIcon sx={{ fontSize: 14 }} />
-                        </Avatar>
-                      )}
-                      <Box>
-                        <Typography variant="body2">{option.label}</Typography>
-                        {option.compe && (
-                          <Typography variant="caption" color="text.secondary"> • {option.compe}</Typography>
-                        )}
-                      </Box>
-                    </Box>
-                  )}
-                  renderInput={(params) => (
-                    <MuiTextField
-                      {...params}
-                      label="Issuer"
-                      error={!!error}
-                      helperText={error?.message}
-                      InputProps={{
-                        ...params.InputProps,
-                        endAdornment: (
-                          <React.Fragment>
-                            {issuersLoading ? <CircularProgress color="inherit" size={20} /> : null}
-                            {params.InputProps.endAdornment}
-                          </React.Fragment>
-                        ),
-                      }}
-                    />
-                  )}
-                />
-              )}
-            />
+              <Controller
+                name="issuerId"
+                control={control}
+                render={({ field: { onChange, value }, fieldState: { error } }) => (
+                  <Autocomplete
+                    options={allIssuerOptions}
+                    loading={issuersLoading}
+                    value={allIssuerOptions.find(o => o.value === value) || null}
+                    onChange={(_, newValue) => onChange(newValue ? newValue.value : null)}
+                    isOptionEqualToValue={(option, value) => option.value === value.value}
+                    noOptionsText={t('financeTransactions.createAccount.step2.fields.noIssuersFound')}
+                    getOptionLabel={(option) => option.label || ''}
+                    renderOption={(props, option: any) => {
+                      const { key, ...otherProps } = props;
+                      return (
+                        <Box component="li" key={key} {...otherProps} sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 1.5 }}>
+                          {option.logo ? (
+                            <Avatar src={option.logo} sx={{ width: 40, height: 40, borderRadius: 1.5 }} />
+                          ) : (
+                            <Avatar sx={{ width: 40, height: 40, borderRadius: 1.5, bgcolor: 'action.disabledBackground' }}>
+                              <BankIcon sx={{ fontSize: 24 }} />
+                            </Avatar>
+                          )}
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography variant="body1" fontWeight="600">{option.label}</Typography>
+                            {option.compe && (
+                              <Typography variant="body2" color="text.secondary">({option.compe})</Typography>
+                            )}
+                          </Box>
+                        </Box>
+                      );
+                    }}
+                    renderInput={(params) => (
+                      <MuiTextField
+                        {...params}
+                        label={t('financeTransactions.createAccount.step2.fields.issuer')}
+                        error={!!error}
+                        helperText={error?.message}
+                        InputProps={{
+                          ...params.InputProps,
+                          endAdornment: (
+                            <React.Fragment>
+                              {issuersLoading ? <CircularProgress color="inherit" size={20} /> : null}
+                              {params.InputProps.endAdornment}
+                            </React.Fragment>
+                          ),
+                        }}
+                      />
+                    )}
+                  />
+                )}
+              />
 
             {watchedIssuerId === 'custom' && (
-              <TextField name="issuerName" label="Institution Name" required />
+              <TextField name="issuerName" label={t('financeTransactions.createAccount.step2.fields.institutionName')} required />
             )}
 
-            <TextField name="name" label="Account Name" required />
+            {/* Subtype Selection */}
+            {selectedType === 'BANK' && (
+              <SelectField name="subtype" label={t('financeTransactions.createAccount.step2.fields.subtype')} options={bankSubtypes} />
+            )}
+            {selectedType === 'CARD' && (
+              <SelectField name="subtype" label={t('financeTransactions.createAccount.step2.fields.subtype')} options={cardSubtypes} />
+            )}
 
             {watchedIssuerId === 'custom' && (
-              <SelectField name="currencyCode" label="Currency" options={Currencies} />
+              <SelectField name="currencyCode" label={t('financeTransactions.createAccount.step2.fields.currency')} options={Currencies} />
             )}
+
+            <TextField name="name" label={t('financeTransactions.createAccount.step2.fields.accountName')} required />
 
             {/* Initial Balance - Visual only for now as it's not in mutation */}
-            <TextField 
-              name="initialBalance" 
-              label="Initial Balance" 
-              type="number"
-              InputProps={{
-                startAdornment: <InputAdornment position="start">R$</InputAdornment>,
-              }}
+            <MoneyInput
+              name="initialBalance"
+              label={t('financeTransactions.createAccount.step2.fields.initialBalance')}
+              currency={watchedCurrencyCode}
+              locale={i18n.language}
             />
 
-            <Box>
-              <Typography variant="subtitle2" gutterBottom>Color Theme</Typography>
-              <ColorPicker 
-                value={watch('themeColor')} 
-                onChange={(c) => setValue('themeColor', c)} 
-                presets={ColorPresets}
-              />
-            </Box>
-
-            <Stack direction="row" spacing={4}>
-              <ToggleField name="includeInNetWorth" label="Include in Net Worth" />
-              <ToggleField name="includeInDashboard" label="Include in Dashboard" />
-            </Stack>
-
-            {/* Bank Specific */}
+            {/* Bank Specific Fields (excluding subtype) */}
             {selectedType === 'BANK' && (
-              <>
-                <SelectField name="subtype" label="Account Type" options={BankSubtypes} />
-                <Stack direction="row" spacing={2}>
-                  <TextField name="branchCode" label="Branch" sx={{ flex: 1 }} />
-                  <TextField name="accountNumber" label="Account Number" sx={{ flex: 2 }} />
-                  <TextField name="checkDigit" label="Digit" sx={{ width: 80 }} />
-                </Stack>
-              </>
+              <Stack direction="row" spacing={2}>
+                <TextField name="branchCode" label={t('financeTransactions.createAccount.step2.fields.branchCode')} sx={{ flex: 1 }} />
+                <TextField name="accountNumber" label={t('financeTransactions.createAccount.step2.fields.accountNumber')} sx={{ flex: 2 }} />
+                <TextField name="checkDigit" label={t('financeTransactions.createAccount.step2.fields.checkDigit')} sx={{ width: 80 }} />
+              </Stack>
             )}
 
-            {/* Card Specific */}
+            {/* Card Specific Fields (excluding subtype) */}
             {selectedType === 'CARD' && (
               <>
-                <SelectField name="subtype" label="Card Type" options={CardSubtypes} />
-                <SelectField name="cardNetwork" label="Network" options={CardNetworks} />
+                <SelectField name="cardNetwork" label={t('financeTransactions.createAccount.step2.fields.network')} options={cardNetworks} />
                 
                 {watchedSubtype === 'CREDIT_CARD' && (
-                  <SelectField name="cardLevel" label="Card Level" options={CardLevels} />
+                  <SelectField name="cardLevel" label={t('financeTransactions.createAccount.step2.fields.level')} options={cardLevels} />
                 )}
                 
                 <TextField 
                   name="maskedNumber" 
-                  label="Last 4 Digits" 
+                  label={t('financeTransactions.createAccount.step2.fields.maskedNumber')} 
                   placeholder="1234"
                   InputProps={{ startAdornment: <InputAdornment position="start">••••</InputAdornment> }}
                 />
 
                 {watchedSubtype === 'CREDIT_CARD' && (
                   <>
-                    <TextField 
+                    <MoneyInput 
                       name="creditLimit" 
-                      label="Credit Limit" 
-                      type="number"
-                      InputProps={{ startAdornment: <InputAdornment position="start">R$</InputAdornment> }}
+                      label={t('financeTransactions.createAccount.step2.fields.creditLimit')} 
+                      currency={watchedCurrencyCode}
+                      locale={i18n.language}
                     />
                     <Stack direction="row" spacing={2}>
                       <TextField 
                         name="closingDay" 
-                        label="Closing Day" 
+                        label={t('financeTransactions.createAccount.step2.fields.closingDay')} 
                         type="number" 
                         inputProps={{ min: 1, max: 31 }}
                         required
                       />
                       <TextField 
                         name="dueDay" 
-                        label="Due Day" 
+                        label={t('financeTransactions.createAccount.step2.fields.dueDay')} 
                         type="number"
                         inputProps={{ min: 1, max: 31 }}
                         required
@@ -484,17 +518,19 @@ export function CreateFinancialAccountDrawer({ open, onClose }: CreateFinancialA
               </>
             )}
 
-            <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
-              <Button 
-                variant="contained" 
-                type="submit" 
-                size="large"
-                disabled={creating}
-                startIcon={creating ? <CircularProgress size={20} color="inherit" /> : null}
-              >
-                {selectedType === 'BANK' ? t('financeTransactions.actions.addAccount') : t('financeTransactions.actions.addCard')}
-              </Button>
-            </Box>
+            {/* <Stack direction="row" spacing={4}>
+              <ToggleField name="includeInNetWorth" label={t('financeTransactions.createAccount.step2.fields.includeInNetWorth')} />
+              <ToggleField name="includeInDashboard" label={t('financeTransactions.createAccount.step2.fields.includeInDashboard')} />
+            </Stack> */}
+
+            {/* <Box>
+              <Typography variant="subtitle2" gutterBottom>{t('financeTransactions.createAccount.step2.fields.themeColor')}</Typography>
+              <ColorPicker 
+                value={watch('themeColor')} 
+                onChange={(c) => setValue('themeColor', c)} 
+                presets={ColorPresets}
+              />
+            </Box> */}
           </Stack>
         </form>
       </FormProvider>
@@ -514,7 +550,22 @@ export function CreateFinancialAccountDrawer({ open, onClose }: CreateFinancialA
       />
       <Drawer.Body>
         {step === 1 ? renderTypeSelection() : renderForm()}
-      </Drawer.Body>
+      {step === 2 && (
+          <>
+            <Divider sx={{ marginY: 3 }} />
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Button 
+                variant="contained" 
+                onClick={methods.handleSubmit(onSubmit)}
+                disabled={creating}
+                startIcon={creating ? <CircularProgress size={20} color="inherit" /> : null}
+              >
+                {selectedType === 'BANK' ? t('financeTransactions.actions.addAccount') : t('financeTransactions.actions.addCard')}
+              </Button>
+            </Box>
+          </>
+      )}
+          </Drawer.Body>
     </Drawer>
   );
 }

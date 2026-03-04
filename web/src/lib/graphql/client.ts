@@ -131,7 +131,10 @@ const responseErrorLink = new ApolloLink((operation: Operation, forward: (operat
   return new Observable<FetchResult>((observer) => {
     const subscription = forward(operation).subscribe({
       next: (result: FetchResult) => {
-        if (result.errors && result.errors.length > 0) {
+        // If there are errors but also data, we should let Apollo Client handle it
+        // based on the errorPolicy (e.g. 'all' to show partial data)
+        // We only convert to a stream error if there is NO data
+        if (result.errors && result.errors.length > 0 && !result.data) {
           const error = new Error(result.errors.map((e: { message: string }) => e.message).join(', '));
           (error as any).graphQLErrors = result.errors;
           (error as any).response = {

@@ -81,7 +81,17 @@
     "connectionTimeout": "A solicitação demorou muito para ser concluída. Por favor, verifique sua conexão e tente novamente.",
     "serviceUnavailable": "O serviço está temporariamente indisponível. Por favor, tente novamente em alguns instantes.",
     "gatewayTimeout": "O servidor está demorando muito para responder. Por favor, tente novamente mais tarde.",
-    "default": "Ocorreu um erro"
+    "default": "Ocorreu um erro",
+    "ASSET_STORAGE_UNAVAILABLE": "Serviço de armazenamento indisponível",
+    "ASSET_STORAGE_QUOTA_EXCEEDED": "Cota de armazenamento excedida",
+    "ASSET_NOT_FOUND": "Arquivo não encontrado",
+    "ASSET_SIZE_EXCEEDED": "O tamanho do arquivo excede o máximo permitido",
+    "ASSET_FORMAT_UNSUPPORTED": "Formato de arquivo não suportado",
+    "ASSET_INVALID_STATE": "O arquivo não está no estado esperado para esta operação",
+    "ASSET_UPLOAD_URL_EXPIRED": "A URL de upload expirou",
+    "ASSET_UPLOAD_NOT_COMPLETED": "Upload não concluído: arquivo não encontrado no armazenamento",
+    "ASSET_UPLOAD_VERIFICATION_FAILED": "Falha na verificação do upload",
+    "ASSET_IDEMPOTENCY_CONFLICT": "Conflito de chave de idempotência no upload do arquivo"
   },
   "cardGrid": {
     "noResultsFound": "Nenhum resultado encontrado",

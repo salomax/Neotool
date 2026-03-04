@@ -53,15 +53,23 @@ dependencies {
 
     // Jackson for JSON
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
 
     // YAML parsing
     implementation("org.yaml:snakeyaml:2.2")
+
+    // Kafka (import file requested / job completed topics and consumer)
+    implementation("io.micronaut.kafka:micronaut-kafka")
+
+    // Reactor (in-process event bus for import job status SSE)
+    implementation("io.projectreactor:reactor-core")
 
     // Logging
     runtimeOnly("ch.qos.logback:logback-classic")
 
     // Testing
     testImplementation("io.micronaut.test:micronaut-test-junit5")
+    testImplementation("io.projectreactor:reactor-test")
     testImplementation("org.junit.jupiter:junit-jupiter-api")
     testImplementation("org.junit.jupiter:junit-jupiter-params")
     testImplementation("io.mockk:mockk:1.13.13")
@@ -71,6 +79,8 @@ dependencies {
     testImplementation("org.testcontainers:testcontainers")
     testImplementation("org.testcontainers:postgresql")
     testImplementation("org.testcontainers:junit-jupiter")
+    testImplementation("org.testcontainers:kafka")
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
 
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 }

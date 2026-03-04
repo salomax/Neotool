@@ -1,0 +1,39 @@
+package io.github.salomax.neotool.banking.repo
+
+import io.github.salomax.neotool.banking.model.importjob.TransactionImportEntity
+import io.micronaut.data.annotation.Query
+import io.micronaut.data.annotation.Repository
+import io.micronaut.data.jpa.repository.JpaRepository
+import java.util.UUID
+
+/**
+ * JPA repository for banking.transaction_imports.
+ * All finders scope by account_id for tenant isolation.
+ */
+@Repository
+interface TransactionImportEntityRepository : JpaRepository<TransactionImportEntity, UUID> {
+
+    fun findByIdAndAccountId(id: UUID, accountId: UUID): TransactionImportEntity?
+
+    fun findByFinancialAccountIdAndFileHash(
+        financialAccountId: UUID,
+        fileHash: String,
+    ): TransactionImportEntity?
+
+    fun findByFinancialAccountIdAndAccountIdOrderByCreatedAtDesc(
+        financialAccountId: UUID,
+        accountId: UUID,
+    ): List<TransactionImportEntity>
+
+    fun findByAccountIdOrderByCreatedAtDesc(accountId: UUID): List<TransactionImportEntity>
+
+    @Query(
+        """
+        UPDATE banking.transaction_imports
+           SET status = :status, updated_at = NOW()
+         WHERE id = :id
+        """,
+        nativeQuery = true,
+    )
+    fun updateStatus(id: UUID, status: String): Int
+}

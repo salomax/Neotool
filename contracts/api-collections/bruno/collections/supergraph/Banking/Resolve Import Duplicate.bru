@@ -1,0 +1,38 @@
+meta {
+  name: Resolve Import Duplicate
+  type: graphql
+  seq: 16
+}
+
+post {
+  url: {{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  mutation ResolveImportDuplicate($input: ResolveImportDuplicateInput!) {
+    resolveImportDuplicate(input: $input) {
+      id
+      status
+      duplicateReviewCount
+      duplicateCandidates {
+        rowIndex
+      }
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "input": {
+      "jobId": "{{import_job_id}}",
+      "rowIndex": 0,
+      "resolution": "KEEP_BOTH"
+    }
+  }
+}

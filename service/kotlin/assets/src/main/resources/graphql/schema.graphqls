@@ -144,6 +144,12 @@ input CreateAssetUploadInput {
   will return the existing asset instead of creating a new one.
   """
   idempotencyKey: String
+
+  """
+  Optional owner ID for service-to-service uploads (e.g. banking import: accountId as tenant).
+  When provided, used as asset owner instead of the authenticated user ID.
+  """
+  ownerId: String
 }
 
 """

@@ -4,12 +4,15 @@ import io.github.salomax.neotool.assets.config.AssetConfigProperties
 import io.github.salomax.neotool.assets.domain.Asset
 import io.github.salomax.neotool.assets.domain.AssetStatus
 import io.github.salomax.neotool.assets.domain.AssetVisibility
+import io.github.salomax.neotool.assets.error.AssetErrorCode
 import io.github.salomax.neotool.assets.entity.AssetEntity
 import io.github.salomax.neotool.assets.repository.AssetRepository
 import io.github.salomax.neotool.assets.storage.BucketResolver
 import io.github.salomax.neotool.assets.storage.StorageClient
 import io.github.salomax.neotool.assets.storage.StorageKeyFactory
 import io.github.salomax.neotool.assets.storage.StorageProperties
+import io.github.salomax.neotool.common.error.ConflictException
+import io.github.salomax.neotool.common.error.NotFoundException
 import io.micrometer.core.instrument.Counter
 import io.micrometer.core.instrument.MeterRegistry
 import jakarta.inject.Singleton
@@ -40,7 +43,23 @@ open class AssetService(
     private val bucketResolver: BucketResolver,
     private val meterRegistry: MeterRegistry? = null,
 ) {
+    private companion object {
+        const val SERVICE_BYPASS_NAMESPACE = "transaction-imports"
+    }
+
     private val logger = KotlinLogging.logger {}
+
+    private fun assetNotFound(assetId: UUID): NotFoundException =
+        NotFoundException(
+            errorCode = AssetErrorCode.ASSET_NOT_FOUND,
+            field = "assetId",
+            parameters = mapOf("assetId" to assetId.toString()),
+        )
+
+    private fun isBypassDenied(
+        bypassOwnerCheck: Boolean,
+        namespace: String,
+    ): Boolean = bypassOwnerCheck && namespace != SERVICE_BYPASS_NAMESPACE
 
     // Metrics for bucket usage tracking (optional - only if MeterRegistry is available)
     private fun recordBucketUploadMetric(
@@ -113,9 +132,14 @@ open class AssetService(
                         "Idempotency key conflict: existing asset in bucket ${existing.storageBucket}, " +
                             "expected $expectedBucket for namespace $namespace"
                     }
-                    throw IllegalArgumentException(
-                        "Idempotency key conflict: namespace visibility changed. " +
-                            "Please use a new idempotency key.",
+                    throw ConflictException(
+                        errorCode = AssetErrorCode.ASSET_IDEMPOTENCY_CONFLICT,
+                        field = "idempotencyKey",
+                        parameters =
+                            mapOf(
+                                "namespace" to namespace,
+                                "idempotencyKey" to idempotencyKey,
+                            ),
                     )
                 }
                 logger.info { "Returning existing asset for idempotency key: $idempotencyKey, assetId=${existing.id}" }
@@ -208,23 +232,38 @@ open class AssetService(
         assetId: UUID,
         ownerId: String,
         checksum: String? = null,
+        bypassOwnerCheck: Boolean = false,
     ): Asset {
         logger.info { "Confirming upload: assetId=$assetId, ownerId=$ownerId" }
 
         val entity =
             assetRepository
                 .findById(assetId)
-                .orElseThrow { throw IllegalArgumentException("Asset not found: $assetId") }
+                .orElseThrow { assetNotFound(assetId) }
+
+        if (isBypassDenied(bypassOwnerCheck, entity.namespace)) {
+            logger.warn { "Service bypass denied for namespace ${entity.namespace}: assetId=$assetId" }
+            throw assetNotFound(assetId)
+        }
 
         // Authorization check
-        if (entity.ownerId != ownerId) {
+        if (!bypassOwnerCheck && entity.ownerId != ownerId) {
             logger.warn { "Unauthorized upload confirmation attempt: assetId=$assetId, ownerId=$ownerId" }
-            throw IllegalArgumentException("Asset not found or access denied: $assetId")
+            throw assetNotFound(assetId)
         }
 
         // Status check
         if (entity.status != AssetStatus.PENDING) {
-            throw IllegalArgumentException("Asset is not in PENDING status: ${entity.status}")
+            throw ConflictException(
+                errorCode = AssetErrorCode.ASSET_INVALID_STATE,
+                field = "status",
+                parameters =
+                    mapOf(
+                        "assetId" to assetId.toString(),
+                        "expectedStatus" to AssetStatus.PENDING.name,
+                        "actualStatus" to entity.status.name,
+                    ),
+            )
         }
 
         // Check if upload has expired
@@ -233,7 +272,15 @@ open class AssetService(
             logger.warn { "Upload confirmation failed: URL expired at ${entity.uploadExpiresAt}" }
             entity.status = AssetStatus.FAILED
             assetRepository.update(entity)
-            throw IllegalArgumentException("Upload URL has expired")
+            throw ConflictException(
+                errorCode = AssetErrorCode.ASSET_UPLOAD_URL_EXPIRED,
+                field = "uploadExpiresAt",
+                parameters =
+                    mapOf(
+                        "assetId" to assetId.toString(),
+                        "uploadExpiresAt" to entity.uploadExpiresAt.toString(),
+                    ),
+            )
         }
 
         // Verify object exists in storage using stored bucket
@@ -246,7 +293,11 @@ open class AssetService(
             entity.uploadUrl = null // Clear stale upload URL
             entity.updatedAt = now
             assetRepository.update(entity)
-            throw IllegalArgumentException("Upload not completed: file not found in storage")
+            throw ConflictException(
+                errorCode = AssetErrorCode.ASSET_UPLOAD_NOT_COMPLETED,
+                field = "assetId",
+                parameters = mapOf("assetId" to assetId.toString()),
+            )
         }
 
         // Get metadata from storage to verify using stored bucket
@@ -257,7 +308,11 @@ open class AssetService(
             entity.uploadUrl = null // Clear stale upload URL
             entity.updatedAt = now
             assetRepository.update(entity)
-            throw IllegalArgumentException("Upload verification failed: could not retrieve file metadata")
+            throw ConflictException(
+                errorCode = AssetErrorCode.ASSET_UPLOAD_VERIFICATION_FAILED,
+                field = "assetId",
+                parameters = mapOf("assetId" to assetId.toString()),
+            )
         }
 
         // Verify checksum if provided
@@ -294,6 +349,7 @@ open class AssetService(
     open fun getAsset(
         assetId: UUID,
         requesterId: String,
+        bypassOwnerCheck: Boolean = false,
     ): Asset? {
         val entity =
             assetRepository
@@ -302,6 +358,11 @@ open class AssetService(
 
         // Return null if asset not found
         if (entity == null) {
+            return null
+        }
+
+        if (isBypassDenied(bypassOwnerCheck, entity.namespace)) {
+            logger.warn { "Service bypass denied for namespace ${entity.namespace}: assetId=$assetId" }
             return null
         }
 
@@ -314,7 +375,7 @@ open class AssetService(
 
             AssetVisibility.PRIVATE -> {
                 // PRIVATE assets: require ownership
-                if (entity.ownerId != requesterId) {
+                if (!bypassOwnerCheck && entity.ownerId != requesterId) {
                     logger.warn { "Unauthorized asset access attempt: assetId=$assetId, requesterId=$requesterId" }
                     return null // Don't reveal existence
                 }
@@ -380,6 +441,7 @@ open class AssetService(
     open fun deleteAsset(
         assetId: UUID,
         ownerId: String,
+        bypassOwnerCheck: Boolean = false,
     ): Boolean {
         logger.info { "Deleting asset: assetId=$assetId, ownerId=$ownerId" }
 
@@ -393,8 +455,13 @@ open class AssetService(
             return false
         }
 
+        if (isBypassDenied(bypassOwnerCheck, entity.namespace)) {
+            logger.warn { "Service bypass denied for namespace ${entity.namespace}: assetId=$assetId" }
+            return false
+        }
+
         // Authorization check
-        if (entity.ownerId != ownerId) {
+        if (!bypassOwnerCheck && entity.ownerId != ownerId) {
             logger.warn { "Unauthorized delete attempt: assetId=$assetId, ownerId=$ownerId" }
             return false
         }

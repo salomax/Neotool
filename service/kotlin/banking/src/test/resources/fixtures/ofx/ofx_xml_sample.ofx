@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OFX>
+  <SIGNONMSGSRSV1>
+    <SONRS>
+      <STATUS><CODE>0</CODE><SEVERITY>INFO</SEVERITY></STATUS>
+      <DTSERVER>20240201120000</DTSERVER>
+      <LANGUAGE>POR</LANGUAGE>
+      <FI><ORG>Sample Bank</ORG><FID>00000</FID></FI>
+    </SONRS>
+  </SIGNONMSGSRSV1>
+  <BANKMSGSRSV1>
+    <STMTTRNRS>
+      <TRNUID>1</TRNUID>
+      <STATUS><CODE>0</CODE><SEVERITY>INFO</SEVERITY></STATUS>
+      <STMTRS>
+        <CURDEF>BRL</CURDEF>
+        <BANKACCTFROM>
+          <BANKID>00000000</BANKID>
+          <ACCTID>****5678</ACCTID>
+          <ACCTTYPE>CHECKING</ACCTTYPE>
+        </BANKACCTFROM>
+        <BANKTRANLIST>
+          <DTSTART>20240101000000</DTSTART>
+          <DTEND>20240131235959</DTEND>
+          <STMTTRN>
+            <TRNTYPE>POS</TRNTYPE>
+            <DTPOSTED>20240110143000</DTPOSTED>
+            <TRNAMT>-89.90</TRNAMT>
+            <FITID>xml-fitid-001</FITID>
+            <NAME>Restaurant</NAME>
+            <MEMO>Lunch</MEMO>
+          </STMTTRN>
+          <STMTTRN>
+            <TRNTYPE>DEBIT</TRNTYPE>
+            <DTPOSTED>20240118</DTPOSTED>
+            <TRNAMT>-35.00</TRNAMT>
+            <FITID>xml-fitid-002</FITID>
+            <NAME>Pharmacy</NAME>
+          </STMTTRN>
+          <STMTTRN>
+            <TRNTYPE>CREDIT</TRNTYPE>
+            <DTPOSTED>20240125080000</DTPOSTED>
+            <TRNAMT>200.00</TRNAMT>
+            <FITID>xml-fitid-003</FITID>
+            <PAYEE>Friend</PAYEE>
+            <MEMO>Transfer received</MEMO>
+          </STMTTRN>
+        </BANKTRANLIST>
+        <LEDGERBAL><BALAMT>5000.00</BALAMT><DTASOF>20240131235959</DTASOF></LEDGERBAL>
+      </STMTRS>
+    </STMTTRNRS>
+  </BANKMSGSRSV1>
+</OFX>

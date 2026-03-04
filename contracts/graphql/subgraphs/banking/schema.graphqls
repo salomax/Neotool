@@ -112,6 +112,108 @@ enum ConnectionStatus {
 }
 
 # ============================================================================
+# Transaction enums
+# ============================================================================
+
+"""
+Direction of money flow.
+Amount is always positive; direction is carried here.
+"""
+enum CreditDebitType {
+  CREDIT
+  DEBIT
+}
+
+"""
+Transaction type (OFB-aligned).
+BALANCE_ADJUSTMENT is neutral — used for opening balance and reconciliation.
+"""
+enum TransactionType {
+  # Payment types (OFB-aligned)
+  PIX
+  TED
+  DOC
+  BOLETO
+  TRANSFER
+  # Income types
+  SALARY
+  DEPOSIT
+  CASHBACK
+  INVESTMENT_RETURN
+  OTHER_INCOME
+  # Expense types
+  CARD
+  WITHDRAWAL
+  FEE
+  INTEREST
+  LOAN_PAYMENT
+  TAX
+  OTHER_EXPENSE
+  # Neutral
+  BALANCE_ADJUSTMENT
+}
+
+"""
+Lifecycle status of a transaction.
+FUTURE = manually scheduled; excluded from current balance but included in projected balance.
+"""
+enum TransactionStatus {
+  POSTED
+  PENDING
+  FUTURE
+}
+
+"""
+How the transaction entered the system.
+"""
+enum TransactionSource {
+  MANUAL
+  OPEN_FINANCE
+  PLUGGY
+}
+
+"""
+Category applicability (income, expense, transfer, or any).
+"""
+enum CategoryApplicableTo {
+  INCOME
+  EXPENSE
+  TRANSFER
+  ANY
+}
+
+enum ImportSource {
+  AUTO
+  OFX
+  CSV_AUTO
+  CSV_NUBANK
+  CSV_ITAU
+  CSV_BRADESCO
+  CSV_SANTANDER
+  NFC_E
+  RECEIPT_OCR
+  OPEN_FINANCE
+  PLUGGY
+}
+
+enum ImportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REVIEW_REQUIRED
+}
+
+"""
+User resolution for a duplicate candidate (incoming row vs existing transaction(s)).
+"""
+enum DuplicateResolution {
+  KEEP_BOTH
+  USE_INCOMING
+  KEEP_EXISTING
+}
+
+# ============================================================================
 # Financial Account Types
 # ============================================================================
 
@@ -143,7 +245,7 @@ type CardData {
 
 """
 A personal finance account or card belonging to the authenticated user's account.
-The security.accounts association is resolved from the JWT — not exposed directly.
+The tenant association is resolved from the JWT and is not exposed directly.
 """
 type FinancialAccount {
   id: ID!
@@ -166,6 +268,150 @@ type FinancialAccount {
   lastSyncAt: DateTime
   createdAt: DateTime!
   updatedAt: DateTime!
+}
+
+# ============================================================================
+# Transactions
+# ============================================================================
+
+"""
+Category for classifying transactions (system + user-defined).
+"""
+type TransactionCategory {
+  id: ID!
+  parentId: ID
+  name: String!
+  applicableTo: CategoryApplicableTo!
+  icon: String
+  color: String
+  isSystem: Boolean!
+  sortOrder: Int!
+}
+
+"""
+Core ledger transaction row.
+"""
+type Transaction {
+  id: ID!
+  financialAccountId: ID!
+  belongsToUserId: ID
+  belongsToName: String
+
+  # Classification
+  creditDebitType: CreditDebitType!
+  type: TransactionType!
+  status: TransactionStatus!
+  source: TransactionSource!
+
+  # Amount
+  amount: Float!
+  currencyCode: String!
+  """BRL equivalent for FX transactions (null for BRL)."""
+  amountBrl: Float
+
+  # Dates
+  date: Date!
+  """Exact date-time of the transaction when provided (e.g. by Open Finance). Null when only date is known."""
+  transactionDatetime: DateTime
+
+  # Description
+  description: String!
+  notes: String
+  tags: [String!]!
+
+  # Category
+  category: TransactionCategory
+
+  # Counterparty (bank account transactions / PIX / TED)
+  counterpartyName: String
+  counterpartyDocument: String
+  counterpartyBankCode: String
+  counterpartyAccountNumber: String
+  paymentReason: String
+
+  # Transfer
+  transferPeerTransactionId: ID
+
+  # Installments
+  installmentNumber: Int
+  totalInstallments: Int
+
+  # Card
+  cardIdentifier: String
+  payeeMcc: Int
+  billPostDate: Date
+
+  # Audit
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"""
+Monthly summary header for a financial account — entradas, saídas, saldo total.
+Served from the monthly_balance_snapshots cache; transfer and projection fields are on-demand.
+"""
+type MonthSummary {
+  year: Int!
+  month: Int!
+  """Entradas: total CREDIT excluding TRANSFER and BALANCE_ADJUSTMENT (POSTED/PENDING only)."""
+  totalIncome: Float!
+  """Saídas: total DEBIT excluding TRANSFER and BALANCE_ADJUSTMENT (POSTED/PENDING only)."""
+  totalExpenses: Float!
+  """Saldo total at month-end (includes all types, excludes FUTURE)."""
+  closingBalance: Float!
+  """Balance at start of month (prior month's closingBalance)."""
+  openingBalance: Float!
+  """Total CREDIT of type TRANSFER in the month."""
+  transfersIn: Float!
+  """Total DEBIT of type TRANSFER in the month."""
+  transfersOut: Float!
+  """closingBalance + FUTURE transactions. Null when no FUTURE transactions exist."""
+  projectedClosingBalance: Float
+  """True when (year, month) equals the current calendar month."""
+  isCurrentMonth: Boolean!
+}
+
+"""
+Relay-style page info for paginated lists.
+"""
+type PageInfo {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+}
+
+"""
+Edge in a TransactionConnection.
+"""
+type TransactionEdge {
+  node: Transaction!
+  cursor: String!
+}
+
+"""
+Relay connection for paginated transactions.
+"""
+type TransactionConnection {
+  edges: [TransactionEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
+
+"""
+Distinct attribution option (user or name tag) used by transactions in the account.
+Exactly one field is expected to be non-null.
+"""
+type TransactionBelongsToOption {
+  belongsToUserId: ID
+  belongsToName: String
+}
+
+"""
+Distinct tag already used in transactions for the authenticated account.
+"""
+type TransactionTagOption {
+  tag: String!
 }
 
 # ============================================================================
@@ -212,6 +458,126 @@ input CreateFinancialAccountInput {
   cardData: CardDataInput
 }
 
+"""
+Input for creating a new manual transaction.
+"""
+input CreateTransactionInput {
+  financialAccountId: ID!
+  creditDebitType: CreditDebitType!
+  type: TransactionType!
+  amount: Float!
+  date: Date!
+  description: String!
+  status: TransactionStatus
+  currencyCode: String
+  notes: String
+  tags: [String!]
+  categoryId: ID
+  belongsToUserId: ID
+  belongsToName: String
+
+  # Counterparty
+  counterpartyName: String
+  counterpartyDocument: String
+  counterpartyBankCode: String
+  counterpartyAccountNumber: String
+  paymentReason: String
+
+  # Installments
+  installmentNumber: Int
+  totalInstallments: Int
+
+  # Card
+  cardIdentifier: String
+  payeeMcc: Int
+}
+
+"""
+Input for updating an existing manual transaction.
+All fields are optional and only provided fields are updated.
+"""
+input UpdateTransactionInput {
+  creditDebitType: CreditDebitType
+  type: TransactionType
+  amount: Float
+  date: Date
+  description: String
+  status: TransactionStatus
+  notes: String
+  tags: [String!]
+  categoryId: ID
+  belongsToUserId: ID
+  belongsToName: String
+
+  # Counterparty
+  counterpartyName: String
+  counterpartyDocument: String
+  counterpartyBankCode: String
+  counterpartyAccountNumber: String
+  paymentReason: String
+
+  # Card
+  cardIdentifier: String
+  payeeMcc: Int
+}
+
+input ResolveImportDuplicateInput {
+  jobId: ID!
+  rowIndex: Int!
+  resolution: DuplicateResolution!
+}
+
+input ImportTransactionsFileInput {
+  financialAccountId: ID!
+  fileName: String!
+  source: ImportSource
+  fileBase64: String!
+}
+
+# ============================================================================
+# Transaction Import Types
+# ============================================================================
+
+type ParsedImportRow {
+  creditDebitType: CreditDebitType!
+  amount: Float!
+  date: Date!
+  description: String!
+  currencyCode: String!
+  counterpartyName: String
+  counterpartyDocument: String
+}
+
+type ImportDuplicateCandidate {
+  rowIndex: Int!
+  parsed: ParsedImportRow!
+  candidates: [Transaction!]!
+}
+
+type TransactionImport {
+  id: ID!
+  financialAccountId: ID!
+  source: ImportSource!
+  fileName: String
+  status: ImportStatus!
+  totalRows: Int
+  importedCount: Int
+  skippedCount: Int
+  duplicateReviewCount: Int
+  errorCount: Int
+  errorDetails: String
+  duplicateCandidates: [ImportDuplicateCandidate!]!
+  dateFrom: Date
+  dateTo: Date
+  completedAt: DateTime
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type ImportResult {
+  import: TransactionImport!
+}
+
 # ============================================================================
 # Queries
 # ============================================================================
@@ -222,6 +588,47 @@ extend type Query {
   issuers: [Issuer!]!
   """All financial accounts belonging to the authenticated user's account."""
   financialAccounts: [FinancialAccount!]!
+  """
+  Single transaction by ID (scoped to the authenticated account).
+  """
+  transaction(id: ID!): Transaction
+  """
+  Monthly summary (entradas, saídas, saldo) for a financial account or all accounts.
+  When financialAccountId is omitted, returns the aggregate across all accounts.
+  When month/year are not provided, the current month/year are used.
+  """
+  monthSummary(financialAccountId: ID, year: Int, month: Int): MonthSummary!
+  """
+  All categories (system + custom) available to the authenticated account.
+  """
+  transactionCategories: [TransactionCategory!]!
+  """
+  Distinct values used in transaction attribution ("belongs to"), across all account transactions.
+  """
+  transactionBelongsToOptions: [TransactionBelongsToOption!]!
+  """
+  Distinct tags used in transactions for the authenticated account.
+  """
+  transactionTags: [TransactionTagOption!]!
+  """
+  Transactions for a single financial account or all accounts belonging to the authenticated account.
+  Results are filtered by month/year and paginated using Relay-style cursors.
+  When month/year are not provided (and billId is null), the current month/year are used by the backend.
+  When billId is provided, it takes precedence over month/year and filters by bill only (used for card bill mode).
+  """
+  transactions(
+    financialAccountId: ID
+    belongsToUserId: ID
+    belongsToName: String
+    tags: [String!]
+    billId: ID
+    month: Int
+    year: Int
+    first: Int
+    after: String
+  ): TransactionConnection!
+  transactionImports(financialAccountId: ID): [TransactionImport!]!
+  transactionImport(id: ID!): TransactionImport
 }
 
 # ============================================================================
@@ -236,4 +643,19 @@ extend type Mutation {
   For CREDIT_CARD subtype: cardData.closingDay and cardData.dueDay are required.
   """
   createFinancialAccount(input: CreateFinancialAccountInput!): FinancialAccount!
+  """
+  Create a new manual transaction.
+  """
+  createTransaction(input: CreateTransactionInput!): Transaction!
+  """
+  Update an existing manual transaction.
+  """
+  updateTransaction(id: ID!, input: UpdateTransactionInput!): Transaction!
+  """
+  Soft-delete a manual transaction.
+  """
+  deleteTransaction(id: ID!): Boolean!
+  importTransactionsFile(input: ImportTransactionsFileInput!): ImportResult!
+  importNfce(financialAccountId: ID!, qrCodeUrl: String!): ImportResult!
+  resolveImportDuplicate(input: ResolveImportDuplicateInput!): TransactionImport!
 }

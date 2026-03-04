@@ -1,0 +1,23 @@
+meta {
+  name: List Transaction Tags
+  type: graphql
+  seq: 11
+}
+
+post {
+  url: {{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  query TransactionTags {
+    transactionTags {
+      tag
+    }
+  }
+}

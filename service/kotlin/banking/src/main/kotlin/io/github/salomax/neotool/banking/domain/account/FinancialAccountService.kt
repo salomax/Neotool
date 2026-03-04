@@ -1,20 +1,27 @@
 package io.github.salomax.neotool.banking.domain.account
 
 import io.github.salomax.neotool.banking.domain.issuer.IssuerRepository
+import io.github.salomax.neotool.banking.domain.transaction.CreateTransactionCommand
+import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import io.github.salomax.neotool.banking.domain.transaction.TransactionService
+import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
+import io.github.salomax.neotool.banking.domain.transaction.TransactionType
 import jakarta.inject.Singleton
+import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
 
 /**
  * Domain service for [FinancialAccount] operations.
  *
- * [accountId] is always the security.accounts ID (tenant) resolved from the JWT by the GraphQL layer.
- * [userId] is the security.users ID of the authenticated user (audit field).
+ * [accountId] is always the tenant account ID resolved from the JWT by the GraphQL layer.
+ * [userId] is the authenticated user ID (audit field).
  */
 @Singleton
 open class FinancialAccountService(
     private val financialAccountRepository: FinancialAccountRepository,
     private val issuerRepository: IssuerRepository,
+    private val transactionService: TransactionService,
 ) {
     fun listByAccount(accountId: UUID): List<FinancialAccount> =
         financialAccountRepository.findByAccountId(accountId)
@@ -64,6 +71,28 @@ open class FinancialAccountService(
             updatedAt = now,
         )
 
-        return financialAccountRepository.save(account)
+        val saved = financialAccountRepository.save(account)
+
+        if (command.initialBalance != null && command.initialBalance.compareTo(BigDecimal.ZERO) != 0) {
+            require(command.initialBalanceDate != null) {
+                "initialBalanceDate is required when initialBalance is provided"
+            }
+            transactionService.create(
+                CreateTransactionCommand(
+                    financialAccountId = saved.id!!,
+                    creditDebitType = if (command.initialBalance > BigDecimal.ZERO) CreditDebitType.CREDIT else CreditDebitType.DEBIT,
+                    type = TransactionType.BALANCE_ADJUSTMENT,
+                    amount = command.initialBalance.abs(),
+                    date = command.initialBalanceDate,
+                    description = "Saldo inicial",
+                    status = TransactionStatus.POSTED,
+                    currencyCode = saved.currencyCode,
+                ),
+                accountId,
+                userId,
+            )
+        }
+
+        return saved
     }
 }

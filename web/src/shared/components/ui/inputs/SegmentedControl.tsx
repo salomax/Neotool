@@ -1,40 +1,46 @@
 import * as React from "react";
-import { ToggleButton, ToggleButtonGroup, ToggleButtonGroupProps, styled } from "@mui/material";
+import { ToggleButton, ToggleButtonGroup, ToggleButtonGroupProps, styled, alpha } from "@mui/material";
 
 export interface SegmentedControlOption {
   value: string;
   label: React.ReactNode;
+  activeColor?: string;
 }
 
 export interface SegmentedControlProps extends Omit<ToggleButtonGroupProps, "onChange"> {
   options: SegmentedControlOption[];
   value: string;
   onChange: (value: string) => void;
+  gap?: number;
 }
 
-const StyledToggleButtonGroup = styled(ToggleButtonGroup)(({ theme, fullWidth }) => ({
-  backgroundColor: theme.palette.background.paper,
+const StyledToggleButtonGroup = styled(ToggleButtonGroup, {
+  shouldForwardProp: (prop) => prop !== 'gap',
+})<{ gap?: number }>(({ theme, fullWidth, gap }) => ({
+  backgroundColor: "transparent",
   padding: 0,
-  borderRadius: theme.shape.borderRadius,
+  borderRadius: 12,
   border: "none",
+  gap: gap ? theme.spacing(gap) : 0,
   "& .MuiToggleButtonGroup-grouped": {
     margin: 0,
     border: 0,
-    borderRadius: theme.shape.borderRadius,
+    borderRadius: 8,
     "&.Mui-disabled": {
       border: 0,
     },
     "&:not(:first-of-type)": {
-      borderRadius: theme.shape.borderRadius,
+      borderRadius: 8,
+      borderLeft: 0,
     },
     "&:first-of-type": {
-      borderRadius: theme.shape.borderRadius,
+      borderRadius: 8,
     },
     "&.Mui-selected": {
       backgroundColor: theme.palette.action.selected,
       color: theme.palette.text.primary,
       fontWeight: 600,
-      boxShadow: "0px 1px 2px rgba(0, 0, 0, 0.1)",
+      boxShadow: "0px 2px 8px rgba(0, 0, 0, 0.08)",
       "&:hover": {
         backgroundColor: theme.palette.action.selected,
       },
@@ -46,6 +52,7 @@ const StyledToggleButtonGroup = styled(ToggleButtonGroup)(({ theme, fullWidth })
     padding: "4px 12px",
     minWidth: 60,
     whiteSpace: "nowrap",
+    height: 40,
   },
   ...(fullWidth && {
     width: "100%",
@@ -60,6 +67,7 @@ export function SegmentedControl({
   options,
   value,
   onChange,
+  gap = 0,
   ...props
 }: SegmentedControlProps) {
   const handleChange = (
@@ -78,10 +86,23 @@ export function SegmentedControl({
       onChange={handleChange}
       aria-label="segmented control"
       size="small"
+      gap={gap}
       {...props}
     >
       {options.map((option) => (
-        <ToggleButton key={option.value} value={option.value} aria-label={String(option.label)}>
+        <ToggleButton 
+          key={option.value} 
+          value={option.value} 
+          aria-label={String(option.label)}
+          sx={{
+            "&.Mui-selected": {
+              backgroundColor: option.activeColor ? `${alpha(option.activeColor, 0.05)} !important` : undefined,
+              "&:hover": {
+                backgroundColor: option.activeColor ? `${alpha(option.activeColor, 0.1)} !important` : undefined,
+              }
+            }
+          }}
+        >
           {option.label}
         </ToggleButton>
       ))}

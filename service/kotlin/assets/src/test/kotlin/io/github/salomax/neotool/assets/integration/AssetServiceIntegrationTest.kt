@@ -2,10 +2,13 @@ package io.github.salomax.neotool.assets.test.integration
 
 import io.github.salomax.neotool.assets.domain.Asset
 import io.github.salomax.neotool.assets.domain.AssetStatus
+import io.github.salomax.neotool.assets.error.AssetErrorCode
 import io.github.salomax.neotool.assets.entity.AssetEntity
 import io.github.salomax.neotool.assets.repository.AssetRepository
 import io.github.salomax.neotool.assets.service.AssetService
 import io.github.salomax.neotool.assets.test.MockStorageClient
+import io.github.salomax.neotool.common.error.ConflictException
+import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.common.test.transaction.runTransaction
@@ -188,7 +191,9 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                     mimeType = "application/pdf",
                     sizeBytes = 1048576L,
                 )
-            }.isInstanceOf(IllegalArgumentException::class.java)
+            }.isInstanceOf(ValidationException::class.java)
+                .extracting("errorCode")
+                .isEqualTo(AssetErrorCode.ASSET_FORMAT_UNSUPPORTED)
         }
 
         @Test
@@ -203,7 +208,9 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                     // Exceeds default limit
                     sizeBytes = 100_000_000L,
                 )
-            }.isInstanceOf(IllegalArgumentException::class.java)
+            }.isInstanceOf(ValidationException::class.java)
+                .extracting("errorCode")
+                .isEqualTo(AssetErrorCode.ASSET_SIZE_EXCEEDED)
         }
     }
 
@@ -262,8 +269,9 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
             // Act & Assert
             Assertions.assertThatThrownBy {
                 assetService.confirmUpload(asset.id!!, testUserId)
-            }.isInstanceOf(IllegalArgumentException::class.java)
-                .hasMessageContaining("not found in storage")
+            }.isInstanceOf(ConflictException::class.java)
+                .extracting("errorCode")
+                .isEqualTo(AssetErrorCode.ASSET_UPLOAD_NOT_COMPLETED)
 
             // Verify asset is marked as FAILED and uploadUrl is cleared
             val persisted = assetRepository.findById(asset.id!!)
@@ -307,8 +315,9 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
             // Act & Assert
             Assertions.assertThatThrownBy {
                 assetService.confirmUpload(asset.id!!, testUserId)
-            }.isInstanceOf(IllegalArgumentException::class.java)
-                .hasMessageContaining("not in PENDING status")
+            }.isInstanceOf(ConflictException::class.java)
+                .extracting("errorCode")
+                .isEqualTo(AssetErrorCode.ASSET_INVALID_STATE)
         }
     }
 

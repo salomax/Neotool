@@ -168,6 +168,15 @@ class SecurityWiringFactory(
                     }
                 },
             ).dataFetcher(
+                "isUserActiveMemberOfAccount",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(SecurityPermissions.SECURITY_ACCOUNT_MEMBERSHIP_VIEW) { _ ->
+                        val userId = getRequiredString(env, "userId")
+                        val accountId = getRequiredString(env, "accountId")
+                        authorizationResolver.isUserActiveMemberOfAccount(userId, accountId)
+                    }
+                },
+            ).dataFetcher(
                 "getUserPermissions",
                 createValidatedDataFetcher { env ->
                     env.withPermission(SecurityPermissions.SECURITY_USER_VIEW) { _ ->

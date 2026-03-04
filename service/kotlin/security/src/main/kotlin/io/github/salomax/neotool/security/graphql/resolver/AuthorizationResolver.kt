@@ -4,6 +4,8 @@ import io.github.salomax.neotool.security.graphql.dto.AuthorizationResultDTO
 import io.github.salomax.neotool.security.graphql.dto.PermissionDTO
 import io.github.salomax.neotool.security.graphql.dto.RoleDTO
 import io.github.salomax.neotool.security.graphql.mapper.AuthorizationMapper
+import io.github.salomax.neotool.security.model.account.MembershipStatus
+import io.github.salomax.neotool.security.repo.AccountMembershipRepository
 import io.github.salomax.neotool.security.service.authorization.AuthorizationService
 import jakarta.inject.Singleton
 import mu.KotlinLogging
@@ -18,6 +20,7 @@ import java.util.regex.Pattern
 class AuthorizationResolver(
     private val authorizationService: AuthorizationService,
     private val mapper: AuthorizationMapper,
+    private val accountMembershipRepository: AccountMembershipRepository,
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -158,6 +161,37 @@ class AuthorizationResolver(
             // Service error - return empty list
             logger.error(e) { "Error getting user roles for: $userId" }
             emptyList()
+        }
+    }
+
+    /**
+     * Returns whether [userId] has an ACTIVE membership in [accountId].
+     *
+     * Intended for service-to-service account boundary validation.
+     */
+    fun isUserActiveMemberOfAccount(
+        userId: String,
+        accountId: String,
+    ): Boolean {
+        return try {
+            val sanitizedUserId = sanitizeInput(userId, "userId")
+            val sanitizedAccountId = sanitizeInput(accountId, "accountId")
+            val userUuid = UUID.fromString(sanitizedUserId)
+            val accountUuid = UUID.fromString(sanitizedAccountId)
+
+            val membership =
+                accountMembershipRepository
+                    .findOneByAccountIdAndUserId(accountUuid, userUuid)
+                    .orElse(null)
+                    ?: return false
+
+            membership.membershipStatus == MembershipStatus.ACTIVE
+        } catch (e: IllegalArgumentException) {
+            logger.warn(e) { "Invalid input in isUserActiveMemberOfAccount" }
+            false
+        } catch (e: Exception) {
+            logger.error(e) { "Error in isUserActiveMemberOfAccount" }
+            false
         }
     }
 

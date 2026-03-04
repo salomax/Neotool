@@ -21,6 +21,7 @@ export const FINANCIAL_ACCOUNTS = gql`
         logoKey
         logoAsset {
           id
+          publicUrl
         }
       }
       bankData {
@@ -60,6 +61,147 @@ export const ISSUERS = gql`
         id
         publicUrl
       }
+    }
+  }
+`;
+
+/** Transactions with pagination and filters. */
+export const TRANSACTIONS = gql`
+  query Transactions(
+    $financialAccountId: ID
+    $month: Int
+    $year: Int
+    $first: Int
+    $after: String
+  ) {
+    transactions(
+      financialAccountId: $financialAccountId
+      month: $month
+      year: $year
+      first: $first
+      after: $after
+    ) {
+      edges {
+        node {
+          id
+          description
+          category {
+            id
+            name
+            color
+            icon
+          }
+          type
+          amount
+          creditDebitType
+          tags
+          currencyCode
+          date
+          status
+          financialAccountId
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+`;
+
+/** All transaction categories. */
+export const TRANSACTION_CATEGORIES = gql`
+  query TransactionCategories {
+    transactionCategories {
+      id
+      parentId
+      name
+      color
+      icon
+      isSystem
+      applicableTo
+    }
+  }
+`;
+
+/** Get all unique transaction tags. */
+export const TRANSACTION_TAGS = gql`
+  query TransactionTags {
+    transactionTags {
+      tag
+    }
+  }
+`;
+
+/** Single transaction import job by ID (includes duplicate candidates for review). */
+export const TRANSACTION_IMPORT = gql`
+  query TransactionImport($id: ID!) {
+    transactionImport(id: $id) {
+      id
+      status
+      errorDetails
+      importedCount
+      skippedCount
+      duplicateReviewCount
+      errorCount
+      duplicateCandidates {
+        rowIndex
+        parsed {
+          creditDebitType
+          amount
+          date
+          description
+          currencyCode
+          counterpartyName
+          counterpartyDocument
+        }
+        candidates {
+          id
+          date
+          description
+          amount
+          creditDebitType
+          currencyCode
+          source
+        }
+      }
+    }
+  }
+`;
+
+/** List transaction import jobs (e.g. to show REVIEW_REQUIRED on page load). */
+export const TRANSACTION_IMPORTS = gql`
+  query TransactionImports($financialAccountId: ID) {
+    transactionImports(financialAccountId: $financialAccountId) {
+      id
+      status
+      duplicateReviewCount
+    }
+  }
+`;
+
+/** Month summary for financial transactions. */
+export const MONTH_SUMMARY = gql`
+  query MonthSummary(
+    $financialAccountId: ID
+    $year: Int
+    $month: Int
+  ) {
+    monthSummary(
+      financialAccountId: $financialAccountId
+      year: $year
+      month: $month
+    ) {
+      year
+      month
+      totalIncome
+      totalExpenses
+      closingBalance
+      openingBalance
+      transfersIn
+      transfersOut
+      projectedClosingBalance
+      isCurrentMonth
     }
   }
 `;

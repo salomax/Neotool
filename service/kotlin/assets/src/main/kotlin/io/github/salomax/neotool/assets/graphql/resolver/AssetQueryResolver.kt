@@ -40,9 +40,10 @@ class AssetQueryResolver(
     fun asset(
         id: String,
         requesterId: String,
+        bypassOwnerCheck: Boolean = false,
     ): AssetDTO? {
         val assetId = UUID.fromString(id)
-        val asset = assetService.getAsset(assetId, requesterId) ?: return null
+        val asset = assetService.getAsset(assetId, requesterId, bypassOwnerCheck) ?: return null
         return AssetDTO.fromDomain(asset, bucketResolver.getPublicBaseUrl())
     }
 }

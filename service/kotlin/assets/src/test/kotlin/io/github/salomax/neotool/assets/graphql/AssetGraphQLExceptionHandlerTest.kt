@@ -5,7 +5,10 @@ import graphql.execution.ExecutionStepInfo
 import graphql.execution.ResultPath
 import graphql.language.SourceLocation
 import graphql.schema.DataFetchingEnvironment
+import io.github.salomax.neotool.assets.error.AssetErrorCode
 import io.github.salomax.neotool.assets.exception.StorageUnavailableException
+import io.github.salomax.neotool.common.error.CommonErrorCode
+import io.github.salomax.neotool.common.error.ValidationException
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -28,9 +31,14 @@ class AssetGraphQLExceptionHandlerTest {
     @DisplayName("handleException()")
     inner class HandleExceptionTests {
         @Test
-        fun `should handle IllegalArgumentException`() {
+        fun `should handle DomainException with asset error code`() {
             // Arrange
-            val exception = IllegalArgumentException("Validation error message")
+            val exception =
+                ValidationException(
+                    errorCode = AssetErrorCode.ASSET_FORMAT_UNSUPPORTED,
+                    field = "mimeType",
+                    parameters = mapOf("mimeType" to "application/pdf"),
+                )
             val parameters = createHandlerParameters(exception)
 
             // Act
@@ -39,13 +47,15 @@ class AssetGraphQLExceptionHandlerTest {
             // Assert
             val errorResult = result.get()
             assertThat(errorResult.errors).hasSize(1)
-            assertThat(errorResult.errors[0].message).isEqualTo("Validation error message")
-            assertThat(errorResult.errors[0].extensions).containsEntry("code", "VALIDATION_ERROR")
+            assertThat(errorResult.errors[0].message).isEqualTo(AssetErrorCode.ASSET_FORMAT_UNSUPPORTED.defaultMessage)
+            assertThat(errorResult.errors[0].extensions).containsEntry("code", AssetErrorCode.ASSET_FORMAT_UNSUPPORTED.code)
+            assertThat(errorResult.errors[0].extensions).containsEntry("parameters", mapOf("mimeType" to "application/pdf"))
+            assertThat(errorResult.errors[0].extensions).containsEntry("field", listOf("mimeType"))
             assertThat(errorResult.errors[0].extensions).containsEntry("service", "assets")
         }
 
         @Test
-        fun `should handle IllegalArgumentException with null message`() {
+        fun `should handle IllegalArgumentException as invalid input`() {
             // Arrange
             val exception = IllegalArgumentException()
             val parameters = createHandlerParameters(exception)
@@ -56,8 +66,8 @@ class AssetGraphQLExceptionHandlerTest {
             // Assert
             val errorResult = result.get()
             assertThat(errorResult.errors).hasSize(1)
-            assertThat(errorResult.errors[0].message).isEqualTo("Validation error")
-            assertThat(errorResult.errors[0].extensions).containsEntry("code", "VALIDATION_ERROR")
+            assertThat(errorResult.errors[0].message).isEqualTo(CommonErrorCode.INVALID_INPUT.defaultMessage)
+            assertThat(errorResult.errors[0].extensions).containsEntry("code", CommonErrorCode.INVALID_INPUT.code)
         }
 
         @Test
@@ -73,7 +83,7 @@ class AssetGraphQLExceptionHandlerTest {
             val errorResult = result.get()
             assertThat(errorResult.errors).hasSize(1)
             assertThat(errorResult.errors[0].message).isEqualTo("State error message")
-            assertThat(errorResult.errors[0].extensions).containsEntry("code", "STATE_ERROR")
+            assertThat(errorResult.errors[0].extensions).containsEntry("code", CommonErrorCode.INVALID_STATE.code)
             assertThat(errorResult.errors[0].extensions).containsEntry("service", "assets")
         }
 
@@ -89,8 +99,8 @@ class AssetGraphQLExceptionHandlerTest {
             // Assert
             val errorResult = result.get()
             assertThat(errorResult.errors).hasSize(1)
-            assertThat(errorResult.errors[0].message).isEqualTo("Operation failed")
-            assertThat(errorResult.errors[0].extensions).containsEntry("code", "STATE_ERROR")
+            assertThat(errorResult.errors[0].message).isEqualTo(CommonErrorCode.INVALID_STATE.defaultMessage)
+            assertThat(errorResult.errors[0].extensions).containsEntry("code", CommonErrorCode.INVALID_STATE.code)
         }
 
         @Test
@@ -106,7 +116,7 @@ class AssetGraphQLExceptionHandlerTest {
             val errorResult = result.get()
             assertThat(errorResult.errors).hasSize(1)
             assertThat(errorResult.errors[0].message).isEqualTo("Storage unavailable message")
-            assertThat(errorResult.errors[0].extensions).containsEntry("code", "STORAGE_UNAVAILABLE")
+            assertThat(errorResult.errors[0].extensions).containsEntry("code", AssetErrorCode.ASSET_STORAGE_UNAVAILABLE.code)
             assertThat(errorResult.errors[0].extensions).containsEntry("service", "assets")
         }
 
@@ -125,7 +135,7 @@ class AssetGraphQLExceptionHandlerTest {
             assertThat(errorResult.errors).hasSize(1)
             // Empty string is used, not the default message
             assertThat(errorResult.errors[0].message).isEqualTo("")
-            assertThat(errorResult.errors[0].extensions).containsEntry("code", "STORAGE_UNAVAILABLE")
+            assertThat(errorResult.errors[0].extensions).containsEntry("code", AssetErrorCode.ASSET_STORAGE_UNAVAILABLE.code)
         }
 
         @Test

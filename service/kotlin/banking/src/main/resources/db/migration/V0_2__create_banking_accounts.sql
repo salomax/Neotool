@@ -6,8 +6,8 @@ CREATE TABLE banking.financial_accounts (
     id                   UUID PRIMARY KEY DEFAULT uuidv7(),
 
     -- Ownership: account (tenant) owns the resource; user is the creator (audit)
-    account_id           UUID NOT NULL REFERENCES security.accounts(id),
-    created_by_user_id   UUID NOT NULL REFERENCES security.users(id),
+    account_id           UUID NOT NULL,
+    created_by_user_id   UUID NOT NULL,
 
     type    TEXT NOT NULL CHECK (type IN (
                 'BANK', 'CREDIT', 'PAYMENT', 'CASH', 'INVESTMENT', 'LOAN', 'ASSET'

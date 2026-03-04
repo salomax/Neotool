@@ -1,30 +1,64 @@
 {
   "title": "Finanças pessoais",
   "financeTransactions": {
-    "title": "Movimentações financeiras",
-    "description": "Acompanhe suas receitas e despesas.",
+    "title": "Movimentações Financeiras",
+    "quickAdd": "Nova movimentação",
+    "credit": "Receita",
+    "debit": "Despesa",
+    "amount": "Valor",
+    "description": "Descrição",
+    "date": "Data",
+    "account": "Conta",
+    "category": "Categoria",
+    "value": "Valor",
+    "tags": "Tags",
+    "issuer": "Instituição",
+    "dateGroup": {
+      "today": "Hoje, {{date}}",
+      "tomorrow": "Amanhã, {{date}}"
+    },
+    "description": "Descrição",
+    "backToCurrentMonth": "Voltar para o mês atual",
     "actions": {
-      "newAccountOrCard": "+ Nova conta ou cartão",
+      "newAccountOrCard": "Nova conta ou cartão",
       "addAccount": "Adicionar conta",
-      "addCard": "Adicionar cartão"
+      "addCard": "Adicionar cartão",
+      "save": "Salvar",
+      "saving": "Salvando...",
+      "cancel": "Cancelar",
+      "delete": "Excluir"
+    },
+    "selector": {
+      "allAccounts": "Todas as contas",
+      "consolidatedView": "Visão consolidada",
+      "unknownIssuer": "Instituição Desconhecida",
+      "searchPlaceholder": "Buscar contas...",
+      "noAccountsFound": "Nenhuma conta encontrada"
+    },
+    "emptyState": {
+      "title": "Tudo pronto para começar?",
+      "description": "Centralize sua vida financeira. Adicione suas contas bancárias e cartões para ter uma visão completa dos seus gastos, investimentos e metas."
     },
     "createAccount": {
       "title": "Adicionar conta financeira",
       "step1": {
+        "title": "Escolha o tipo de conta que deseja criar no Invistus para começar a monitorar seu patrimônio.",
         "bankAccount": {
           "label": "Conta Bancária",
-          "subtitle": "Corrente, poupança, carteira digital, dinheiro"
+          "subtitle": "Conecte seus saldos, extratos automáticos e acompanhe o fluxo de caixa em tempo real."
         },
         "card": {
-          "label": "Cartão",
-          "subtitle": "Crédito, débito, pré-pago, voucher"
-        }
+          "label": "Cartão de Crédito",
+          "subtitle": "Gerencie faturas, limites disponíveis e categorize seus gastos recorrentes facilmente."
+        },
+        "action": "Criar novo"
       },
       "step2": {
         "backToSelection": "Voltar para seleção",
         "fields": {
           "issuer": "Instituição",
           "issuerPlaceholder": "Buscar banco ou emissor do cartão",
+          "noIssuersFound": "Nenhuma instituição encontrada",
           "customIssuer": "Outro / Personalizado",
           "institutionName": "Nome da instituição",
           "accountName": "Nome da conta",
@@ -44,11 +78,163 @@
           "closingDay": "Dia de fechamento",
           "dueDay": "Dia de vencimento"
         },
-        "success": "Conta adicionada com sucesso"
+        "success": "Conta adicionada com sucesso",
+        "validation": {
+          "issuerRequired": "Instituição é obrigatória",
+          "accountNameRequired": "Nome da conta é obrigatório",
+          "subtypeRequired": "Tipo é obrigatório",
+          "closingDayRequired": "Dia de fechamento é obrigatório",
+          "dueDayRequired": "Dia de vencimento é obrigatório",
+          "closingDayInvalid": "Dia de fechamento inválido (1-31)",
+          "dueDayInvalid": "Dia de vencimento inválido (1-31)",
+          "invalidCurrencyFormat": "Formato de moeda inválido (máx 2 decimais)"
+        },
+        "enums": {
+          "bankSubtype": {
+            "CONTA_CORRENTE": "Conta Corrente",
+            "CONTA_POUPANCA": "Poupança",
+            "CONTA_SALARIO": "Conta Salário",
+            "CONTA_DIGITAL": "Carteira Digital",
+            "CONTA_CONJUNTA": "Conta Conjunta"
+          },
+          "cardSubtype": {
+            "CREDIT_CARD": "Crédito",
+            "CHARGE_CARD": "Cartão de Cobrança",
+            "PREPAID_CARD": "Pré-pago",
+            "VOUCHER_CARD": "Voucher"
+          },
+          "cardNetwork": {
+            "VISA": "Visa",
+            "MASTERCARD": "Mastercard",
+            "ELO": "Elo",
+            "AMERICAN_EXPRESS": "Amex",
+            "HIPERCARD": "Hipercard",
+            "DINERS_CLUB": "Diners Club",
+            "BANDEIRA_PROPRIA": "Bandeira Própria",
+            "OUTRAS": "Outras"
+          },
+          "cardLevel": {
+            "STANDARD": "Standard",
+            "GOLD": "Gold",
+            "PLATINUM": "Platinum",
+            "INFINITE": "Infinite",
+            "BLACK": "Black"
+          }
+        }
       }
+    },
+    "import": {
+      "title": "Importar Movimentações",
+      "button": "Importar",
+      "accountStep": {
+        "title": "Selecione a conta para importar",
+        "noAccounts": "Nenhuma conta encontrada. Crie uma conta para continuar a importação.",
+        "createAccountOrCard": "Criar nova conta ou cartão"
+      },
+      "sourceStep": {
+        "title": "Selecione o formato",
+        "ofx": "Arquivo OFX",
+        "csvNubank": "CSV Nubank"
+      },
+      "uploadStep": {
+        "title": "Selecione o arquivo",
+        "recommendation": "Para melhor experiência, priorize arquivos OFX. Eles fornecem dados padronizados e mais ricos em comparação com CSV ou XLSX.",
+        "fileSelected": "Arquivo selecionado:",
+        "dragDrop": "Arraste o arquivo aqui ou clique para procurar",
+        "acceptedTypes": ".ofx, .csv, .xlsx",
+        "fileTooLarge": "O arquivo deve ter no máximo 3 MB",
+        "unsupportedType": "Selecione um arquivo OFX, CSV ou XLSX",
+        "selectAccount": "Selecione uma conta primeiro"
+      },
+      "processingStep": {
+        "title": "Importando...",
+        "status": "Status: {{status}}",
+        "imported": "{{count}} importadas"
+      },
+      "resultStep": {
+        "title": "Importação concluída",
+        "summary": "{{imported}} transações importadas, {{skipped}} ignoradas (duplicadas)",
+        "close": "Fechar"
+      },
+      "errorStep": {
+        "title": "Falha na importação",
+        "message": "Algo deu errado. Tente novamente.",
+        "retry": "Tentar novamente"
+      },
+      "status": {
+        "PENDING": "Pendente",
+        "PROCESSING": "Processando",
+        "COMPLETED": "Concluído",
+        "FAILED": "Falhou",
+        "REVIEW_REQUIRED": "Revisão necessária"
+      }
+    },
+    "duplicateReview": {
+      "header": "{{count}} transação(ões) precisam de revisão",
+      "newLabel": "Nova (importada)",
+      "existingLabel": "Existente",
+      "keepBoth": "Manter ambas",
+      "useIncoming": "Usar nova",
+      "keepExisting": "Manter existente",
+      "useIncomingWarning": "A existente será substituída",
+      "finishReview": "Concluir revisão",
+      "resolved": "Resolvido",
+      "bannerAction": "Revisar"
+    },
+    "nfce": {
+      "button": "Escanear NFC-e",
+      "urlPlaceholder": "Cole a URL da NFC-e aqui",
+      "submit": "Importar",
+      "success": "NFC-e importada com sucesso",
+      "alreadyImported": "Nota já importada",
+      "sefazUnavailable": "SEFAZ indisponível, tente novamente",
+      "error": "Falha ao importar NFC-e"
+    },
+    "transactionTable": {
+      "columns": {
+        "description": "Descrição",
+        "category": "Categoria",
+        "type": "Tipo",
+        "amount": "Valor",
+        "currency": "Moeda"
+      },
+      "emptyState": "Nenhuma transação encontrada"
+    },
+    "monthSummary": {
+      "income": "Receitas",
+      "expenses": "Despesas",
+      "balance": "Saldo Atual",
+      "total": "do total"
+    },
+    "deleteConfirmation": {
+      "title": "Excluir transação",
+      "message": "Tem certeza que deseja excluir esta transação? Esta ação não pode ser desfeita."
     }
   },
   "actions": {
-    "accessModule": "Acessar módulo"
+    "accessModule": "Acessar módulo",
+    "delete": "Excluir",
+    "cancel": "Cancelar",
+    "save": "Salvar"
+  },
+  "transactionType": {
+    "BALANCE_ADJUSTMENT": "Ajuste de Saldo",
+    "BOLETO": "Boleto",
+    "CARD": "Cartão",
+    "CASHBACK": "Cashback",
+    "DEPOSIT": "Depósito",
+    "DOC": "DOC",
+    "FEE": "Tarifa",
+    "INTEREST": "Juros",
+    "INVESTMENT_RETURN": "Rendimento",
+    "LOAN_PAYMENT": "Pagamento de Empréstimo",
+    "OTHER_EXPENSE": "Outra Despesa",
+    "OTHER_INCOME": "Outra Receita",
+    "PIX": "Pix",
+    "SALARY": "Salário",
+    "TAX": "Imposto",
+    "TED": "TED",
+    "TRANSFER": "Transferência",
+    "WITHDRAWAL": "Saque"
   }
 }

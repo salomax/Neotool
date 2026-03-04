@@ -61,10 +61,11 @@ class AssetMutationResolver(
             "Creating asset upload: namespace=${input.namespace}, userId=$userId"
         }
 
+        val ownerId = input.ownerId ?: userId
         val asset =
             assetService.initiateUpload(
                 namespace = input.namespace,
-                ownerId = userId,
+                ownerId = ownerId,
                 filename = input.filename,
                 mimeType = input.mimeType,
                 sizeBytes = input.sizeBytes,
@@ -105,6 +106,7 @@ class AssetMutationResolver(
     fun confirmAssetUpload(
         input: ConfirmAssetUploadInput,
         userId: String,
+        bypassOwnerCheck: Boolean = false,
     ): AssetDTO {
         logger.info { "Confirming asset upload: assetId=${input.assetId}, userId=$userId" }
 
@@ -113,6 +115,7 @@ class AssetMutationResolver(
                 assetId = input.assetId,
                 ownerId = userId,
                 checksum = input.checksum,
+                bypassOwnerCheck = bypassOwnerCheck,
             )
 
         logger.info { "Asset upload confirmed: assetId=${asset.id}, status=${asset.status}" }
@@ -136,10 +139,16 @@ class AssetMutationResolver(
     fun deleteAsset(
         assetId: String,
         userId: String,
+        bypassOwnerCheck: Boolean = false,
     ): Boolean {
         logger.info { "Deleting asset: assetId=$assetId, userId=$userId" }
 
-        val deleted = assetService.deleteAsset(java.util.UUID.fromString(assetId), userId)
+        val deleted =
+            assetService.deleteAsset(
+                java.util.UUID.fromString(assetId),
+                userId,
+                bypassOwnerCheck = bypassOwnerCheck,
+            )
 
         if (deleted) {
             logger.info { "Asset deleted: assetId=$assetId" }

@@ -18,6 +18,8 @@ import io.github.salomax.neotool.banking.graphql.dto.IssuerDTO
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import jakarta.inject.Singleton
 import java.math.BigDecimal
+import java.time.LocalDate
+import java.time.ZoneOffset
 import java.util.UUID
 
 /**
@@ -86,10 +88,10 @@ class FinancialAccountResolver(
                 )
             },
             connectionStatus = connectionStatus,
-            consentExpiresAt = consentExpiresAt,
-            lastSyncAt = lastSyncAt,
-            createdAt = createdAt,
-            updatedAt = updatedAt,
+            consentExpiresAt = consentExpiresAt?.atOffset(ZoneOffset.UTC),
+            lastSyncAt = lastSyncAt?.atOffset(ZoneOffset.UTC),
+            createdAt = createdAt.atOffset(ZoneOffset.UTC),
+            updatedAt = updatedAt.atOffset(ZoneOffset.UTC),
         )
 
     private fun Issuer.toDTO(): IssuerDTO =
@@ -137,6 +139,8 @@ class FinancialAccountResolver(
                     dueDay = it["dueDay"] as? Int,
                 )
             },
+            initialBalance = (this["initialBalance"] as? Number)?.let { BigDecimal(it.toString()) },
+            initialBalanceDate = (this["initialBalanceDate"] as? String)?.let { LocalDate.parse(it) },
         )
     }
 }
