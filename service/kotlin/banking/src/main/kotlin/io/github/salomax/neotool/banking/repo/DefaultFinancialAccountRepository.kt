@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.banking.repo
 
 import io.github.salomax.neotool.banking.domain.account.FinancialAccount
+import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.model.account.FinancialAccountMapper
 import io.micronaut.transaction.annotation.Transactional
@@ -19,10 +20,23 @@ open class DefaultFinancialAccountRepository(
     private val bankDataRepository: FinancialAccountBankDataEntityRepository,
     private val cardDataRepository: FinancialAccountCardDataEntityRepository,
 ) : FinancialAccountRepository {
+    companion object {
+        private val CARD_MATCHABLE_SUBTYPES = setOf(
+            FinancialAccountSubtype.CREDIT_CARD,
+            FinancialAccountSubtype.CHARGE_CARD,
+        )
+    }
 
     override fun findByAccountId(accountId: UUID): List<FinancialAccount> =
         entityRepository.findByAccountIdAndDeletedAtIsNull(accountId)
             .map(FinancialAccountMapper::toDomain)
+
+    override fun findCardAccountsByLastFourDigits(accountId: UUID, lastFourDigits: String): List<FinancialAccount> =
+        entityRepository.findByAccountIdAndSubtypeInAndCardLastFourDigitsAndDeletedAtIsNull(
+            accountId = accountId,
+            subtypes = CARD_MATCHABLE_SUBTYPES,
+            cardLastFourDigits = lastFourDigits,
+        ).map(FinancialAccountMapper::toDomain)
 
     @Transactional
     override fun save(account: FinancialAccount): FinancialAccount {

@@ -117,7 +117,7 @@ class CrossSourceDedupServiceTest {
             val result = service.findCandidates(
                 financialAccountId = financialAccountId,
                 parsed = parsed,
-                incomingSource = TransactionSource.PLUGGY,
+                incomingSource = TransactionSource.OPEN_FINANCE,
             )
 
             assertThat(result).isEmpty()

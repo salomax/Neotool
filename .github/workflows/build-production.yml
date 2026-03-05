@@ -105,6 +105,11 @@ jobs:
                 {"context":"./workers/golang","dockerfile":"./workers/golang/financial_data/institution_enhancement_consumer/Dockerfile","target":"standalone","image":"neotool-institution-enhancement-standalone"}
               ]'
               ;;
+            pdf-extractor)
+              MATRIX='[
+                {"context":"./workers/python/pdf-extractor","dockerfile":"./workers/python/pdf-extractor/Dockerfile","target":"runtime","image":"neotool-pdf-extractor"}
+              ]'
+              ;;
             neotool-web)
               MATRIX='[{"context":"./web","dockerfile":"./web/Dockerfile","image":"neotool-web"}]'
               SUPERGRAPH=true

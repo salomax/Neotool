@@ -573,6 +573,25 @@ input SubmitPdfBillImportInput {
   fileBase64: String!
 }
 
+input ConfirmPdfBillImportInput {
+  jobId: ID!
+  cards: [ConfirmPdfCardInput!]!
+}
+
+input ConfirmPdfCardInput {
+  lastFourDigits: String!
+  financialAccountId: ID!
+  transactions: [ConfirmPdfTransactionInput!]!
+}
+
+input ConfirmPdfTransactionInput {
+  date: Date!
+  description: String!
+  amount: Float!
+  creditDebitType: CreditDebitType!
+  include: Boolean!
+}
+
 # ============================================================================
 # Transaction Import Types
 # ============================================================================
@@ -622,8 +641,56 @@ type PdfImportJob {
   status: PdfImportJobStatus!
   fileName: String
   createdAt: DateTime!
-  reviewPayload: JSON
+  reviewPayload: PdfBillExtractionResult
   errorMessage: String
+}
+
+type PdfBillExtractionResult {
+  bankName: String
+  statementPeriod: DateRange
+  cards: [PdfExtractedCard!]!
+  extractionConfidence: Float!
+  needsReview: Boolean!
+  warnings: [String!]!
+}
+
+type DateRange {
+  from: Date
+  to: Date
+}
+
+type PdfExtractedCard {
+  lastFourDigits: String!
+  holderName: String
+  closingDate: Date
+  dueDate: Date
+  declaredTotal: Float!
+  computedTotal: Float!
+  totalMatchesDeclared: Boolean!
+  transactions: [PdfExtractedTransaction!]!
+  matchedFinancialAccountId: ID
+  matchAmbiguous: Boolean!
+  matchCandidates: [PdfMatchCandidate!]!
+  confidence: Float!
+}
+
+type PdfMatchCandidate {
+  id: ID!
+  name: String!
+}
+
+type PdfExtractedTransaction {
+  date: Date
+  description: String!
+  amount: Float!
+  creditDebitType: CreditDebitType!
+  installment: InstallmentInfo
+  confidence: Float!
+}
+
+type InstallmentInfo {
+  current: Int!
+  total: Int!
 }
 
 # ============================================================================
@@ -719,6 +786,7 @@ extend type Mutation {
   importNfce(financialAccountId: ID!, qrCodeUrl: String!): ImportResult!
   resolveImportDuplicate(input: ResolveImportDuplicateInput!): TransactionImport!
   submitPdfBillImport(input: SubmitPdfBillImportInput!): PdfImportJob!
+  confirmPdfBillImport(input: ConfirmPdfBillImportInput!): PdfImportJob!
   """
   Register a payment against a credit card bill. Creates a CREDIT TRANSFER on the card account.
   Optionally creates a DEBIT TRANSFER on sourceAccountId (e.g. bank account). Marks bill as PAID when payment covers full amount.

@@ -49,7 +49,7 @@ data class ImportRowError(
  */
 private fun ImportSource.toTransactionSource(): TransactionSource = when (this) {
     ImportSource.OPEN_FINANCE -> TransactionSource.OPEN_FINANCE
-    ImportSource.PLUGGY -> TransactionSource.PLUGGY
+    ImportSource.PLUGGY -> TransactionSource.OPEN_FINANCE
     else -> TransactionSource.MANUAL
 }
 

@@ -8,6 +8,9 @@ import pdfplumber
 
 from schema import ExtractionMetadata, ExtractionResult
 
+class ExtractionError(RuntimeError):
+    pass
+
 BANK_HINT_PATTERNS = [
     re.compile(r"nubank", re.IGNORECASE),
     re.compile(r"ita[uú]", re.IGNORECASE),
@@ -46,6 +49,9 @@ def extract_pdf_document(pdf_bytes: bytes) -> ExtractionResult:
                 sections.append(f"--- Page {page_number} ---\n" + "\n\n".join(page_blocks))
 
     extracted_text = "\n\n".join(sections).strip()
+    if not extracted_text:
+        raise ExtractionError("no_extractable_content")
+
     metadata = ExtractionMetadata(
         page_count=page_count,
         tables_found=tables_found,

@@ -1,0 +1,56 @@
+meta {
+  name: Confirm PDF Bill Import
+  type: graphql
+  seq: 27
+}
+
+post {
+  url: {{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  mutation ConfirmPdfBillImport($input: ConfirmPdfBillImportInput!) {
+    confirmPdfBillImport(input: $input) {
+      id
+      status
+      errorMessage
+      createdAt
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "input": {
+      "jobId": "{{pdf_import_job_id}}",
+      "cards": [
+        {
+          "lastFourDigits": "1234",
+          "financialAccountId": "{{financial_account_id}}",
+          "transactions": [
+            {
+              "date": "2026-01-15",
+              "description": "MERCADO EXTRA",
+              "amount": 45.90,
+              "creditDebitType": "DEBIT",
+              "include": true
+            },
+            {
+              "date": "2026-01-22",
+              "description": "ESTORNO IFOOD",
+              "amount": 32.00,
+              "creditDebitType": "CREDIT",
+              "include": false
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

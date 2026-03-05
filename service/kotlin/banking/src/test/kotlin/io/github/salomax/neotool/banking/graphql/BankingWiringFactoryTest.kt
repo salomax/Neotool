@@ -147,5 +147,19 @@ class BankingWiringFactoryTest {
 
             verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_TRANSACTION_CREATE))
         }
+
+        @Test
+        fun `confirmPdfBillImport requires banking_transaction_create permission`() {
+            val wiring = wiringFactory.build()
+            val dataFetcher = wiring.dataFetchers["Mutation"]!!["confirmPdfBillImport"]!!
+
+            val env = envWithToken(
+                arguments = mapOf("input" to emptyMap<String, Any?>()),
+            )
+
+            dataFetcher.get(env)
+
+            verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_TRANSACTION_CREATE))
+        }
     }
 }

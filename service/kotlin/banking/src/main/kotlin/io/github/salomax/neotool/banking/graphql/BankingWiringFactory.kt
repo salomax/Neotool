@@ -272,6 +272,16 @@ class BankingWiringFactory(
                 },
             )
             .dataFetcher(
+                "confirmPdfBillImport",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_CREATE) { principal ->
+                        val input = env.getArgument<Map<String, Any?>>("input")
+                            ?: throw IllegalArgumentException("input is required")
+                        pdfImportResolver.confirmPdfBillImport(input, principal)
+                    }
+                },
+            )
+            .dataFetcher(
                 "payBill",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_CREATE) { principal ->

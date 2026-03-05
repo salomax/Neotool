@@ -60,6 +60,8 @@ open class FinancialAccountEntity(
     open var issuerCompeCode: String? = null,
     @Column(name = "issuer_ispb", length = 8)
     open var issuerIspb: String? = null,
+    @Column(name = "card_last_four_digits", length = 4)
+    open var cardLastFourDigits: String? = null,
     @Enumerated(EnumType.STRING)
     @Column(name = "connection_status", length = 30)
     open var connectionStatus: ConnectionStatus? = null,

@@ -17,6 +17,8 @@ import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import java.math.BigDecimal
+import java.time.LocalDate
 import java.time.Instant
 import java.util.Base64
 import java.util.UUID
@@ -127,5 +129,48 @@ class PdfImportResolverTest {
         assertThat(result).isNotNull
         assertThat(result!!.reviewPayload).isNotNull
     }
-}
 
+    @Test
+    fun `confirmPdfBillImport forwards command to service`() {
+        val doneJob = PdfImportJob(
+            id = jobId,
+            financialAccountId = financialAccountId,
+            accountId = accountId,
+            createdByUserId = userId,
+            status = PdfImportJobStatus.DONE,
+            assetId = UUID.randomUUID(),
+            fileName = "fatura.pdf",
+            fileHash = "hash",
+            completedAt = now,
+            createdAt = now,
+            updatedAt = now,
+        )
+        whenever(pdfImportService.confirmPdfBillImport(eq(accountId), eq(userId), any())).thenReturn(doneJob)
+
+        val result = resolver.confirmPdfBillImport(
+            input = mapOf(
+                "jobId" to jobId.toString(),
+                "cards" to listOf(
+                    mapOf(
+                        "lastFourDigits" to "1234",
+                        "financialAccountId" to financialAccountId.toString(),
+                        "transactions" to listOf(
+                            mapOf(
+                                "date" to LocalDate.now().toString(),
+                                "description" to "MERCADO",
+                                "amount" to BigDecimal("45.90"),
+                                "creditDebitType" to "DEBIT",
+                                "include" to true,
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            principal = principal(),
+        )
+
+        assertThat(result.id).isEqualTo(jobId)
+        assertThat(result.status).isEqualTo(PdfImportJobStatus.DONE)
+        verify(pdfImportService).confirmPdfBillImport(eq(accountId), eq(userId), any())
+    }
+}

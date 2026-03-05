@@ -51,6 +51,7 @@ data class FinancialAccount(
     val issuerCountry: String? = null,
     val issuerCompeCode: String? = null,
     val issuerIspb: String? = null,
+    val cardLastFourDigits: String? = null,
     val bankData: BankData? = null,
     val cardData: CardData? = null,
     val connectionStatus: ConnectionStatus? = null,

@@ -48,6 +48,7 @@ object FinancialAccountMapper {
             issuerCountry = entity.issuerCountry,
             issuerCompeCode = entity.issuerCompeCode,
             issuerIspb = entity.issuerIspb,
+            cardLastFourDigits = entity.cardLastFourDigits,
             bankData = bankData,
             cardData = cardData,
             connectionStatus = entity.connectionStatus,
@@ -82,6 +83,7 @@ object FinancialAccountMapper {
             issuerCountry = domain.issuerCountry,
             issuerCompeCode = domain.issuerCompeCode,
             issuerIspb = domain.issuerIspb,
+            cardLastFourDigits = domain.cardLastFourDigits,
             connectionStatus = domain.connectionStatus,
             consentExpiresAt = domain.consentExpiresAt,
             lastSyncAt = domain.lastSyncAt,
@@ -146,6 +148,7 @@ object FinancialAccountMapper {
         entity.issuerCountry = domain.issuerCountry
         entity.issuerCompeCode = domain.issuerCompeCode
         entity.issuerIspb = domain.issuerIspb
+        entity.cardLastFourDigits = domain.cardLastFourDigits
         entity.connectionStatus = domain.connectionStatus
         entity.consentExpiresAt = domain.consentExpiresAt
         entity.lastSyncAt = domain.lastSyncAt

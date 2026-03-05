@@ -30,6 +30,19 @@ pip install -r requirements.txt
 python consumer.py
 ```
 
+## Docker
+```bash
+cd workers/python/pdf-extractor
+docker build -t pdf-extractor:local .
+docker run --rm -p 8080:8080 pdf-extractor:local
+curl -i http://localhost:8080/health
+```
+
+Health responses:
+- `503 starting` during startup
+- `200 ok` when the consumer loop is polling
+- `503 fatal` after an unrecoverable worker error
+
 ## Tests
 ```bash
 cd workers/python/pdf-extractor

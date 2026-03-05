@@ -11,9 +11,6 @@ import {
   TableRow,
   TableCell,
   Select,
-  IconButton,
-  Tooltip,
-  Paper
 } from '@mui/material';
 import { Button } from '@/shared/components/ui/primitives/Button';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -412,19 +409,23 @@ export function InlineTransactionForm({
         )}
 
         {/* 6. Amount */}
-        <TableCell colSpan={2} sx={{ verticalAlign: 'top', minWidth: 100 }}>
+        <TableCell colSpan={2} sx={{ verticalAlign: 'top', minWidth: 100, textAlign: 'right' }}>
           <BaseMoneyInput
             value={amount}
             onChange={(val) => setAmount(val as number | undefined)}
             variant="standard"
-            fullWidth
             required
             InputProps={{ 
               disableUnderline: true,
               sx: { 
                 fontSize: '0.875rem', 
                 fontWeight: 'medium',
-                ...focusBorderSx
+                maxWidth: 180,
+                ml: 'auto',
+                ...focusBorderSx,
+                '& input': {
+                  textAlign: 'right'
+                }
               },
               onKeyDown: (e: any) => {
                 if (e.key === 'Enter') {
@@ -449,7 +450,8 @@ export function InlineTransactionForm({
             bgcolor: alpha(theme.palette.primary.main, 0.02)
           }}
         >
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', p: 1, pr: 2, alignItems: 'center', gap: 1 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', p: 1, px: 2, alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <DatePicker
                 value={date}
                 onChange={(newValue) => setDate(newValue)}
@@ -461,6 +463,7 @@ export function InlineTransactionForm({
                     InputProps: { 
                       disableUnderline: true,
                       sx: { 
+                        fontSize: '0.875rem',
                         flexDirection: 'row-reverse',
                         '& .MuiInputAdornment-root': {
                           ml: 0,
@@ -471,12 +474,11 @@ export function InlineTransactionForm({
                     sx: { 
                       width: 140, 
                       m: 0,
-                      mr: 2,
                       ...focusBorderSx,
                       '& .MuiInputBase-input': {
                         textAlign: 'left',
                         fontSize: '0.875rem',
-                        p: 0.5
+                        p: '4px 0 5px'
                       }
                     }
                   } 
@@ -484,24 +486,33 @@ export function InlineTransactionForm({
               />
               
               {initialValues && (
-                <Tooltip title={t('actions.delete')}>
-                  <IconButton 
-                    onClick={() => setIsDeleteDialogOpen(true)}
-                    color="error"
-                    size="small"
-                  >
-                    <DeleteOutlineIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
+                <Button 
+                  onClick={() => setIsDeleteDialogOpen(true)}
+                  color="error"
+                  size="small"
+                  startIcon={<DeleteOutlineIcon fontSize="small" />}
+                  sx={{ 
+                    minWidth: 'auto',
+                    color: theme.palette.error.main,
+                    bgcolor: alpha(theme.palette.text.primary, 0.0),
+                    '&:hover': {
+                      bgcolor: alpha(theme.palette.error.main, 0.1),
+                    }
+                  }}
+                >
+                  {t('actions.delete')}
+                </Button>
               )}
+            </Box>
 
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Button 
                 onClick={onClose} 
                 color="inherit"
                 size="small"
                 sx={{ 
                   minWidth: 'auto',
-                  bgcolor: alpha(theme.palette.text.primary, 0.05),
+                  bgcolor: alpha(theme.palette.text.primary, 0.0),
                   '&:hover': {
                     bgcolor: alpha(theme.palette.text.primary, 0.1),
                   }
@@ -520,6 +531,7 @@ export function InlineTransactionForm({
               >
                 {t('actions.save')}
               </Button>
+            </Box>
           </Box>
         </TableCell>
       </TableRow>

@@ -123,8 +123,16 @@ export function CategorySelect({
         PaperProps={{
           sx: { width: 300, maxHeight: 400, display: 'flex', flexDirection: 'column' }
         }}
+        marginThreshold={0}
+        slotProps={{
+          paper: {
+            sx: {
+              mt: 0.5
+            }
+          }
+        }}
       >
-        <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+        <Box sx={{ p: 1, borderBottom: 1, borderColor: 'divider' }}>
           <TextField
             fullWidth
             size="small"
@@ -137,7 +145,12 @@ export function CategorySelect({
                   <SearchIcon fontSize="small" color="action" />
                 </InputAdornment>
               ),
+              disableUnderline: true,
+              sx: {
+                '& fieldset': { border: 'none' },
+              }
             }}
+            variant="standard"
             autoFocus
           />
         </Box>

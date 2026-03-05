@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from extractor import extract_pdf_document
+import pytest
+
+from extractor import ExtractionError, extract_pdf_document
 
 
 class _FakePage:
@@ -63,3 +65,31 @@ def test_extract_pdf_document_counts_multiple_pages(mock_open):
     assert result.metadata.tables_found == 1
     assert "--- Page 1 ---" in result.extracted_text
     assert "--- Page 2 ---" in result.extracted_text
+
+
+@patch("extractor.pdfplumber.open")
+def test_extract_pdf_document_includes_multiple_card_sections(mock_open):
+    pages = [
+        _FakePage(
+            tables=[
+                [["Data", "Descricao", "Valor"], ["10/01", "CARTAO 1234", "100,00"]],
+                [["Data", "Descricao", "Valor"], ["11/01", "CARTAO 5678", "200,00"]],
+            ],
+            text="Bradesco",
+        )
+    ]
+    mock_open.return_value = _FakePdf(pages)
+
+    result = extract_pdf_document(b"%PDF-1.7 fake")
+
+    assert "CARTAO 1234" in result.extracted_text
+    assert "CARTAO 5678" in result.extracted_text
+    assert result.metadata.tables_found == 2
+
+
+@patch("extractor.pdfplumber.open")
+def test_empty_pdf_raises_extraction_error(mock_open):
+    mock_open.return_value = _FakePdf([_FakePage(tables=[], text="")])
+
+    with pytest.raises(ExtractionError):
+        extract_pdf_document(b"%PDF-1.7 empty")

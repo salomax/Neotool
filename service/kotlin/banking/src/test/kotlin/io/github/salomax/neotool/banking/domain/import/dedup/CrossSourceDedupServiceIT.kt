@@ -146,7 +146,7 @@ class CrossSourceDedupServiceIT : BankingPostgresIntegrationTest() {
             val candidates = crossSourceDedupService.findCandidates(
                 financialAccountId = financialAccountId,
                 parsed = parsed,
-                incomingSource = TransactionSource.PLUGGY,
+                incomingSource = TransactionSource.OPEN_FINANCE,
             )
 
             assertThat(candidates).isEmpty()

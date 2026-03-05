@@ -65,6 +65,7 @@ open class FinancialAccountService(
             issuerCountry = issuer?.countryCode,
             issuerCompeCode = issuer?.compeCode,
             issuerIspb = issuer?.ispb,
+            cardLastFourDigits = extractLastFourDigits(command.cardData?.maskedNumber),
             bankData = command.bankData,
             cardData = command.cardData,
             createdAt = now,
@@ -94,5 +95,11 @@ open class FinancialAccountService(
         }
 
         return saved
+    }
+
+    private fun extractLastFourDigits(maskedNumber: String?): String? {
+        if (maskedNumber.isNullOrBlank()) return null
+        val onlyDigits = maskedNumber.filter(Char::isDigit)
+        return if (onlyDigits.length >= 4) onlyDigits.takeLast(4) else null
     }
 }

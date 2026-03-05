@@ -8,5 +8,6 @@ import java.util.UUID
  */
 interface FinancialAccountRepository {
     fun findByAccountId(accountId: UUID): List<FinancialAccount>
+    fun findCardAccountsByLastFourDigits(accountId: UUID, lastFourDigits: String): List<FinancialAccount>
     fun save(account: FinancialAccount): FinancialAccount
 }

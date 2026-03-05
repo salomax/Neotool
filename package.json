@@ -5,9 +5,9 @@
   "scripts": {
     "nx": "nx",
     "check:api": "nx run-many --target=check --projects=security,assets,financialdata,assistant",
-    "check:workers": "nx run-many --target=build,test,lint --projects=bacen-ifdata-cronjob,ratings-job,indicators-job,institution-enhancement-consumer",
+    "check:workers": "nx run-many --target=build,test,lint --projects=bacen-ifdata-cronjob,ratings-job,indicators-job,institution-enhancement-consumer,pdf-extractor",
     "check:web": "nx run-many --target=typecheck,lint,test:unit --projects=neotool-web",
-    "check:all": "nx run-many --target=check --projects=security,assets,financialdata,assistant && nx run-many --target=build,test,lint --projects=bacen-ifdata-cronjob,ratings-job,indicators-job,institution-enhancement-consumer && nx run-many --target=typecheck,lint,test:unit --projects=neotool-web"
+    "check:all": "nx run-many --target=check --projects=security,assets,financialdata,assistant && nx run-many --target=build,test,lint --projects=bacen-ifdata-cronjob,ratings-job,indicators-job,institution-enhancement-consumer,pdf-extractor && nx run-many --target=typecheck,lint,test:unit --projects=neotool-web"
   },
   "devDependencies": {
     "@nx/gradle": "^22.5.1",
