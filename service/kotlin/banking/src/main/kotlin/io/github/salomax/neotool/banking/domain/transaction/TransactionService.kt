@@ -12,6 +12,7 @@ import io.github.salomax.neotool.common.graphql.pagination.Edge
 import io.github.salomax.neotool.common.graphql.pagination.PageInfo
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import jakarta.inject.Singleton
+import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
@@ -182,10 +183,12 @@ open class TransactionService(
         val normalizedTags = normalizeTags(command.tags)
 
         // Resolve bill for credit/charge card accounts (null for all other account types).
+        // When command.billId is set (e.g. payBill), use it instead of resolving from date.
         val cardAccount = resolveCardAccount(command.financialAccountId, accountId)
-        val resolvedBillId = cardAccount?.let {
-            creditCardBillService.resolveBillForTransaction(it, command.date, command.type)
-        }
+        val resolvedBillId = command.billId
+            ?: cardAccount?.let {
+                creditCardBillService.resolveBillForTransaction(it, command.date, command.type)
+            }
 
         val now = Instant.now()
         val transaction = Transaction(
@@ -210,6 +213,7 @@ open class TransactionService(
             counterpartyBankCode = command.counterpartyBankCode,
             counterpartyAccountNumber = command.counterpartyAccountNumber,
             paymentReason = command.paymentReason,
+            transferPeerTransactionId = command.transferPeerTransactionId,
             billId = resolvedBillId,
             installmentNumber = command.installmentNumber,
             totalInstallments = command.totalInstallments,
@@ -280,6 +284,7 @@ open class TransactionService(
             counterpartyBankCode = command.counterpartyBankCode ?: existing.counterpartyBankCode,
             counterpartyAccountNumber = command.counterpartyAccountNumber ?: existing.counterpartyAccountNumber,
             paymentReason = command.paymentReason ?: existing.paymentReason,
+            transferPeerTransactionId = command.transferPeerTransactionId ?: existing.transferPeerTransactionId,
             billId = newBillId,
             cardIdentifier = command.cardIdentifier ?: existing.cardIdentifier,
             payeeMcc = command.payeeMcc ?: existing.payeeMcc,
@@ -335,6 +340,61 @@ open class TransactionService(
             )
         }
         return deleted
+    }
+
+    /**
+     * Registers a payment against a credit card bill (BILL-02).
+     * Creates a CREDIT TRANSFER on the card account; optionally a DEBIT TRANSFER on the source account.
+     * Marks the bill as PAID when the payment amount covers the full total.
+     */
+    fun payBill(
+        billId: UUID,
+        amount: BigDecimal,
+        sourceAccountId: UUID?,
+        accountId: UUID,
+        userId: UUID,
+    ): CreditCardBill {
+        val bill = creditCardBillService.requireBillForAccount(billId, accountId)
+        require(bill.status != BillStatus.PAID) {
+            "Bill ${bill.id} is already paid"
+        }
+        val totalBeforePayment = bill.totalAmount
+        val paymentDate = LocalDate.now()
+
+        // Create the bank debit first so its ID can be set on the card credit in one pass,
+        // avoiding a second update() call (and a redundant recomputeChain on the card account).
+        val bankTxId: UUID? = if (sourceAccountId != null) {
+            requireAccountOwnsFinancialAccount(sourceAccountId, accountId)
+            val bankCommand = CreateTransactionCommand(
+                financialAccountId = sourceAccountId,
+                creditDebitType = CreditDebitType.DEBIT,
+                type = TransactionType.TRANSFER,
+                amount = amount,
+                date = paymentDate,
+                description = "Pagamento fatura (cartão)",
+            )
+            create(bankCommand, accountId, userId).id
+        } else {
+            null
+        }
+
+        val cardCommand = CreateTransactionCommand(
+            financialAccountId = bill.financialAccountId,
+            creditDebitType = CreditDebitType.CREDIT,
+            type = TransactionType.TRANSFER,
+            amount = amount,
+            date = paymentDate,
+            description = "Pagamento fatura",
+            billId = billId,
+            transferPeerTransactionId = bankTxId,
+        )
+        create(cardCommand, accountId, userId)
+
+        return if (amount >= totalBeforePayment) {
+            creditCardBillService.markAsPaid(billId, accountId)
+        } else {
+            creditCardBillService.requireBillForAccount(billId, accountId)
+        }
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────

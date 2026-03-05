@@ -126,6 +126,15 @@ open class CreditCardBillService(
     }
 
     /**
+     * Marks a bill as PAID (terminal status) and returns the updated bill.
+     * The caller is responsible for ensuring the bill is not already paid.
+     */
+    fun markAsPaid(billId: UUID, accountId: UUID): CreditCardBill {
+        billRepository.setStatus(billId, BillStatus.PAID, accountId)
+        return requireBillForAccount(billId, accountId)
+    }
+
+    /**
      * Ensures that the given [billId] belongs to [accountId], throwing if not found or not owned.
      * Returns the resolved [CreditCardBill] for callers that need its attributes.
      */

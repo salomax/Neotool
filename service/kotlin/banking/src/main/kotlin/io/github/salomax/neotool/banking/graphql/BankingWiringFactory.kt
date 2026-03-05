@@ -54,6 +54,7 @@ class BankingWiringFactory(
                         val belongsToUserId = env.getArgument<String?>("belongsToUserId")
                         val belongsToName = env.getArgument<String?>("belongsToName")
                         val tags = env.getArgument<List<String>?>("tags")
+                        val billId = env.getArgument<String?>("billId")
                         val month = env.getArgument<Int?>("month")
                         val year = env.getArgument<Int?>("year")
                         val first = env.getArgument<Int?>("first")
@@ -63,6 +64,7 @@ class BankingWiringFactory(
                             belongsToUserId = belongsToUserId,
                             belongsToName = belongsToName,
                             tags = tags,
+                            billId = billId,
                             month = month,
                             year = year,
                             first = first,
@@ -235,6 +237,19 @@ class BankingWiringFactory(
                         val input = env.getArgument<Map<String, Any?>>("input")
                             ?: throw IllegalArgumentException("input is required")
                         importResolver.resolveImportDuplicate(input, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "payBill",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_CREATE) { principal ->
+                        val billId = env.getArgument<String>("billId")
+                            ?: throw IllegalArgumentException("billId is required")
+                        val amount = env.getArgument<Double>("amount")
+                            ?: throw IllegalArgumentException("amount is required")
+                        val sourceAccountId = env.getArgument<String?>("sourceAccountId")
+                        transactionResolver.payBill(billId, amount, sourceAccountId, principal)
                     }
                 },
             )

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, 
   Stack, 
@@ -216,7 +216,7 @@ export function InlineTransactionForm({
     }
   });
 
-  const colSpan = selectedAccountId ? 6 : 7;
+  const colSpan = selectedAccountId ? 7 : 8;
 
   const focusBorderSx = {
     borderBottom: '2px solid transparent',
@@ -412,7 +412,7 @@ export function InlineTransactionForm({
         )}
 
         {/* 6. Amount */}
-        <TableCell sx={{ verticalAlign: 'top', minWidth: 100 }}>
+        <TableCell colSpan={2} sx={{ verticalAlign: 'top', minWidth: 100 }}>
           <BaseMoneyInput
             value={amount}
             onChange={(val) => setAmount(val as number | undefined)}
@@ -437,9 +437,6 @@ export function InlineTransactionForm({
             }}
           />
         </TableCell>
-
-        {/* 7. Spacer for Actions alignment (Empty cell in main row) */}
-        <TableCell />
       </TableRow>
 
       {/* Floating Action Bar Row */}
@@ -452,26 +449,36 @@ export function InlineTransactionForm({
             bgcolor: alpha(theme.palette.primary.main, 0.02)
           }}
         >
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', p: 1, pr: 2 }}>
-            <Paper 
-              elevation={3} 
-              sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                p: 0.5, 
-                borderRadius: 2,
-                gap: 1
-              }}
-            >
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', p: 1, pr: 2, alignItems: 'center', gap: 1 }}>
               <DatePicker
                 value={date}
                 onChange={(newValue) => setDate(newValue)}
                 slotProps={{ 
                   textField: { 
+                    hiddenLabel: true,
                     size: 'small', 
                     variant: 'standard',
-                    InputProps: { disableUnderline: true },
-                    sx: { width: 110, ml: 1 }
+                    InputProps: { 
+                      disableUnderline: true,
+                      sx: { 
+                        flexDirection: 'row-reverse',
+                        '& .MuiInputAdornment-root': {
+                          ml: 0,
+                          mr: 1
+                        }
+                      }
+                    },
+                    sx: { 
+                      width: 140, 
+                      m: 0,
+                      mr: 2,
+                      ...focusBorderSx,
+                      '& .MuiInputBase-input': {
+                        textAlign: 'left',
+                        fontSize: '0.875rem',
+                        p: 0.5
+                      }
+                    }
                   } 
                 }}
               />
@@ -492,7 +499,13 @@ export function InlineTransactionForm({
                 onClick={onClose} 
                 color="inherit"
                 size="small"
-                sx={{ minWidth: 'auto' }}
+                sx={{ 
+                  minWidth: 'auto',
+                  bgcolor: alpha(theme.palette.text.primary, 0.05),
+                  '&:hover': {
+                    bgcolor: alpha(theme.palette.text.primary, 0.1),
+                  }
+                }}
               >
                 {t('actions.cancel')}
               </Button>
@@ -503,10 +516,10 @@ export function InlineTransactionForm({
                 loading={creating || updating}
                 size="small"
                 disabled={deleting || !amount || !description || !date || !accountId || !categoryId}
+                sx={{ boxShadow: theme.shadows[4] }}
               >
                 {t('actions.save')}
               </Button>
-            </Paper>
           </Box>
         </TableCell>
       </TableRow>

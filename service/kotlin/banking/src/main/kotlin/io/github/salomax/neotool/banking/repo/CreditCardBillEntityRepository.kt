@@ -57,11 +57,8 @@ interface CreditCardBillEntityRepository : JpaRepository<CreditCardBillEntity, U
         """
         UPDATE banking.credit_card_bills b
            SET total_amount = (
-               SELECT COALESCE(
-                   SUM(amount) FILTER (WHERE credit_debit_type = 'DEBIT') -
-                   SUM(amount) FILTER (WHERE credit_debit_type = 'CREDIT'),
-                   0
-               )
+               SELECT COALESCE(SUM(amount) FILTER (WHERE credit_debit_type = 'DEBIT'), 0) -
+                      COALESCE(SUM(amount) FILTER (WHERE credit_debit_type = 'CREDIT'), 0)
                FROM banking.transactions t
                WHERE t.bill_id = :billId
                  AND t.deleted_at IS NULL
@@ -73,4 +70,19 @@ interface CreditCardBillEntityRepository : JpaRepository<CreditCardBillEntity, U
         nativeQuery = true,
     )
     fun updateTotalAndStatus(billId: UUID, status: String, updatedAt: Instant)
+
+    /**
+     * Updates only status and updated_at (used when marking bill as PAID after full payment).
+     */
+    @Query(
+        """
+        UPDATE banking.credit_card_bills
+           SET status = CAST(:status AS TEXT),
+               updated_at = :updatedAt
+         WHERE id = :billId
+           AND account_id = :accountId
+        """,
+        nativeQuery = true,
+    )
+    fun updateStatus(billId: UUID, accountId: UUID, status: String, updatedAt: Instant)
 }

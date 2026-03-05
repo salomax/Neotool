@@ -60,6 +60,10 @@ open class DefaultCreditCardBillRepository(
             .let(CreditCardBillMapper::toDomain)
     }
 
+    override fun setStatus(billId: UUID, status: BillStatus, accountId: UUID) {
+        entityRepository.updateStatus(billId, accountId, status.name, Instant.now())
+    }
+
     private fun computeStatus(closingDate: LocalDate, dueDate: LocalDate, current: BillStatus): BillStatus {
         if (current == BillStatus.PAID) return BillStatus.PAID
         val today = LocalDate.now()

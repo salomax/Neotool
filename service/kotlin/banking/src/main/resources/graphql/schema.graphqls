@@ -322,6 +322,7 @@ type Transaction {
   totalInstallments: Int
 
   # Card
+  billId: ID
   cardIdentifier: String
   payeeMcc: Int
   billPostDate: Date
@@ -688,4 +689,9 @@ extend type Mutation {
   importTransactionsFile(input: ImportTransactionsFileInput!): ImportResult!
   importNfce(financialAccountId: ID!, qrCodeUrl: String!): ImportResult!
   resolveImportDuplicate(input: ResolveImportDuplicateInput!): TransactionImport!
+  """
+  Register a payment against a credit card bill. Creates a CREDIT TRANSFER on the card account.
+  Optionally creates a DEBIT TRANSFER on sourceAccountId (e.g. bank account). Marks bill as PAID when payment covers full amount.
+  """
+  payBill(billId: ID!, amount: Float!, sourceAccountId: ID): CreditCardBill!
 }

@@ -164,3 +164,20 @@ export const UPDATE_TRANSACTION = gql`
     }
   }
 `;
+
+/** Register a payment against a credit card bill (creates TRANSFER transactions and updates bill status). */
+export const PAY_BILL = gql`
+  mutation PayBill($billId: ID!, $amount: Float!, $sourceAccountId: ID) {
+    payBill(billId: $billId, amount: $amount, sourceAccountId: $sourceAccountId) {
+      id
+      financialAccountId
+      closingDate
+      dueDate
+      totalAmount
+      minimumPayment
+      status
+      createdAt
+      updatedAt
+    }
+  }
+`;

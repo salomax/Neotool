@@ -205,3 +205,69 @@ export const MONTH_SUMMARY = gql`
     }
   }
 `;
+
+/** All credit card bills (faturas) for a given card account, ordered by closing date desc. */
+export const CREDIT_CARD_BILLS = gql`
+  query GetCreditCardBills($financialAccountId: ID!) {
+    creditCardBills(financialAccountId: $financialAccountId) {
+      id
+      financialAccountId
+      closingDate
+      dueDate
+      totalAmount
+      minimumPayment
+      status
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+/** A specific credit card bill by financial account and optional closing date. */
+export const CREDIT_CARD_BILL = gql`
+  query GetCreditCardBill($financialAccountId: ID!, $closingDate: Date) {
+    creditCardBill(financialAccountId: $financialAccountId, closingDate: $closingDate) {
+      id
+      financialAccountId
+      closingDate
+      dueDate
+      totalAmount
+      minimumPayment
+      status
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+/** Transactions belonging to a specific credit card bill (Bill mode). */
+export const TRANSACTIONS_BY_BILL = gql`
+  query GetTransactionsByBill($billId: ID!, $first: Int, $after: String) {
+    transactions(billId: $billId, first: $first, after: $after) {
+      edges {
+        node {
+          id
+          description
+          category {
+            id
+            name
+            color
+            icon
+          }
+          type
+          amount
+          creditDebitType
+          tags
+          currencyCode
+          date
+          status
+          financialAccountId
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+`;

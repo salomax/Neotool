@@ -42,6 +42,11 @@ data class CreateTransactionCommand(
     // Card
     val cardIdentifier: String? = null,
     val payeeMcc: Int? = null,
+
+    /** When set (e.g. for payBill), used instead of resolving bill from date. */
+    val billId: UUID? = null,
+    /** Peer transaction ID for the other leg of a transfer (e.g. payBill bank leg). */
+    val transferPeerTransactionId: UUID? = null,
 )
 
 /**
@@ -69,4 +74,5 @@ data class UpdateTransactionCommand(
     val paymentReason: String? = null,
     val cardIdentifier: String? = null,
     val payeeMcc: Int? = null,
+    val transferPeerTransactionId: UUID? = null,
 )

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQuery } from '@apollo/client/react';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../i18n';
-import { Container, Typography, Box, CircularProgress, Stack, Button, Alert, Divider } from '@mui/material';
+import { Container, Typography, Box, CircularProgress, Stack, Button, Alert, Divider, useTheme } from '@mui/material';
 import { Page } from '@/shared/components/ui/layout';
 import { SidebarLayout } from '@/shared/components/ui/layout/SidebarLayout';
 import { usePageTitle } from '@/shared/hooks/ui/usePageTitle';
@@ -14,12 +14,15 @@ import { ImportTransactionsDrawer } from './components/ImportTransactionsDrawer'
 import { ScanNfceButton } from './components/ScanNfceButton';
 import { FinancialAccountSelector } from './components/FinancialAccountSelector';
 import { EmptyFinancialAccountsState } from './components/EmptyFinancialAccountsState';
-import { FINANCIAL_ACCOUNTS, TRANSACTIONS, TRANSACTION_IMPORTS, MONTH_SUMMARY } from '@/lib/graphql/operations/banking/queries';
+import { FINANCIAL_ACCOUNTS, TRANSACTIONS, TRANSACTION_IMPORTS, MONTH_SUMMARY, TRANSACTIONS_BY_BILL } from '@/lib/graphql/operations/banking/queries';
 import { TransactionsQuery } from '@/lib/graphql/operations/banking/queries.generated';
 import { FinancialAccount, Transaction } from '@/lib/graphql/types/__generated__/graphql';
 import { MonthYearCarousel } from './components/MonthYearCarousel';
 import { TransactionTable } from './components/TransactionTable';
 import { MonthSummary, MonthSummaryData } from './components/MonthSummary';
+import { useAccountDisplayMode } from './hooks/useAccountDisplayMode';
+import { BillCarousel } from './components/BillCarousel';
+import { BillSummaryHeader } from './components/BillSummaryHeader';
 import dayjs from 'dayjs';
 
 export default function FinanceTransactionsPage() {
@@ -31,31 +34,60 @@ export default function FinanceTransactionsPage() {
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [initialType, setInitialType] = useState<'BANK' | 'CARD' | null>(null);
   const [isCreatingTransaction, setIsCreatingTransaction] = useState(false);
+  
+  const theme = useTheme();
 
   const { data, loading } = useQuery<{ financialAccounts: FinancialAccount[] }>(FINANCIAL_ACCOUNTS, {
     errorPolicy: 'all',
   });
   
-  const [currentDate, setCurrentDate] = useState({ month: dayjs().month() + 1, year: dayjs().year() });
+  const selectedAccount = data?.financialAccounts.find(a => a.id === selectedAccountId) || null;
+  const displayMode = useAccountDisplayMode(selectedAccount);
 
-  const { data: transactionsData, loading: transactionsLoading, fetchMore, refetch: refetchTransactions } = useQuery<TransactionsQuery>(TRANSACTIONS, {
+  const { 
+    data: calendarTransactionsData, 
+    loading: calendarTransactionsLoading, 
+    fetchMore: fetchMoreCalendar, 
+    refetch: refetchCalendarTransactions 
+  } = useQuery<TransactionsQuery>(TRANSACTIONS, {
     variables: {
       financialAccountId: selectedAccountId,
-      month: currentDate.month,
-      year: currentDate.year,
+      month: displayMode.kind === 'calendar' ? displayMode.month : undefined,
+      year: displayMode.kind === 'calendar' ? displayMode.year : undefined,
       first: 20,
     },
+    skip: displayMode.kind !== 'calendar',
+    notifyOnNetworkStatusChange: true,
+  });
+
+  const { 
+    data: billTransactionsData, 
+    loading: billTransactionsLoading, 
+    fetchMore: fetchMoreBill, 
+    refetch: refetchBillTransactions 
+  } = useQuery<TransactionsQuery>(TRANSACTIONS_BY_BILL, {
+    variables: {
+      billId: displayMode.kind === 'bill' ? displayMode.selectedBill?.id : undefined,
+      first: 20,
+    },
+    skip: displayMode.kind !== 'bill' || !displayMode.selectedBill?.id,
     notifyOnNetworkStatusChange: true,
   });
 
   const { data: monthSummaryData, loading: monthSummaryLoading, refetch: refetchMonthSummary } = useQuery<{ monthSummary: MonthSummaryData }>(MONTH_SUMMARY, {
     variables: {
       financialAccountId: selectedAccountId,
-      month: currentDate.month,
-      year: currentDate.year,
+      month: displayMode.kind === 'calendar' ? displayMode.month : undefined,
+      year: displayMode.kind === 'calendar' ? displayMode.year : undefined,
     },
     fetchPolicy: 'cache-and-network',
+    skip: displayMode.kind !== 'calendar',
   });
+
+  const transactionsData = displayMode.kind === 'calendar' ? calendarTransactionsData : billTransactionsData;
+  const transactionsLoading = displayMode.kind === 'calendar' ? calendarTransactionsLoading : billTransactionsLoading;
+  const fetchMore = displayMode.kind === 'calendar' ? fetchMoreCalendar : fetchMoreBill;
+  const refetchTransactions = displayMode.kind === 'calendar' ? refetchCalendarTransactions : refetchBillTransactions;
 
   const { data: importsData, refetch: refetchImports } = useQuery<{ transactionImports: Array<{ id: string; status: string; duplicateReviewCount: number }> }>(TRANSACTION_IMPORTS, {
     variables: { financialAccountId: selectedAccountId },
@@ -63,10 +95,18 @@ export default function FinanceTransactionsPage() {
   });
   const reviewRequiredJob = importsData?.transactionImports?.find((j) => j.status === 'REVIEW_REQUIRED');
 
+  const refetchSummary = () => {
+    if (displayMode.kind === 'calendar') {
+      refetchMonthSummary();
+    } else {
+      displayMode.refetchBills();
+    }
+  };
+
   const handleImportCompleted = () => {
     refetchTransactions();
     refetchImports();
-    refetchMonthSummary();
+    refetchSummary();
   };
 
   const transactions = (transactionsData?.transactions?.edges?.map(edge => edge.node) || []) as Transaction[];
@@ -83,7 +123,10 @@ export default function FinanceTransactionsPage() {
   };
 
   const handleDateChange = (month: number, year: number) => {
-    setCurrentDate({ month, year });
+    if (displayMode.kind === 'calendar') {
+      displayMode.setMonth(month);
+      displayMode.setYear(year);
+    }
   };
 
   const handleOpenDrawer = (type?: 'BANK' | 'CARD') => {
@@ -138,10 +181,26 @@ export default function FinanceTransactionsPage() {
               onSelectAccount={setSelectedAccountId}
             />
             <Divider sx={{ my: 3 }} />
-            <MonthSummary 
-              summary={monthSummaryData?.monthSummary}
-              loading={monthSummaryLoading}
-            />
+            {displayMode.kind === 'calendar' ? (
+              <MonthSummary 
+                  summary={monthSummaryData?.monthSummary}
+                  loading={monthSummaryLoading}
+                  isConsolidated={!selectedAccountId}
+                />
+            ) : (
+              <BillSummaryHeader 
+                bill={displayMode.selectedBill ? {
+                  totalAmount: displayMode.selectedBill.totalAmount,
+                  dueDate: displayMode.selectedBill.dueDate,
+                  status: displayMode.selectedBill.status,
+                  creditLimit: selectedAccount?.cardData?.creditLimit
+                } : undefined}
+                loading={displayMode.loading}
+                onPayClick={() => {
+                  // TODO: Implement pay bill
+                }}
+              />
+            )}
             <Divider sx={{ my: 3 }} />           
           </Box>
         </Box>
@@ -172,11 +231,24 @@ export default function FinanceTransactionsPage() {
           )}
           <Stack direction="row" spacing={2} sx={{ width: '100%', mb: 2 }} alignItems="flex-end" flexWrap="wrap">
             <Box sx={{ flex: 1, minWidth: 200 }}>
-              <MonthYearCarousel 
-                selectedMonth={currentDate.month} 
-                selectedYear={currentDate.year}
-                onChange={handleDateChange}
-              />
+              {displayMode.kind === 'calendar' ? (
+                <MonthYearCarousel 
+                  selectedMonth={displayMode.month} 
+                  selectedYear={displayMode.year}
+                  onChange={handleDateChange}
+                />
+              ) : (
+                <BillCarousel 
+                  bills={displayMode.bills}
+                  selectedBillId={displayMode.selectedBill?.id ?? null}
+                  onSelectBill={(id) => {
+                    const bill = displayMode.bills.find(b => b.id === id);
+                    if (bill && displayMode.kind === 'bill') {
+                      displayMode.setSelectedBill(bill);
+                    }
+                  }}
+                />
+              )}
             </Box>
             <Button
               variant="outlined"
@@ -192,6 +264,7 @@ export default function FinanceTransactionsPage() {
               onImportCompleted={handleImportCompleted}
             />
             <Button
+              sx={{ boxShadow: theme.shadows[4] }}
               variant="contained"
               startIcon={<AddIcon />}
               onClick={() => setIsCreatingTransaction(true)}
@@ -211,7 +284,7 @@ export default function FinanceTransactionsPage() {
             onCancelCreate={() => setIsCreatingTransaction(false)}
             onSuccessCreate={() => {
               refetchTransactions();
-              refetchMonthSummary();
+              refetchSummary();
             }}
             selectedAccountId={selectedAccountId}
           />

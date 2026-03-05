@@ -1,0 +1,48 @@
+meta {
+  name: Pay Credit Card Bill
+  type: graphql
+  seq: 23
+}
+
+post {
+  url: {{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  mutation PayBill(
+    $billId: ID!
+    $amount: Float!
+    $sourceAccountId: ID
+  ) {
+    payBill(
+      billId: $billId
+      amount: $amount
+      sourceAccountId: $sourceAccountId
+    ) {
+      id
+      financialAccountId
+      closingDate
+      dueDate
+      totalAmount
+      minimumPayment
+      status
+      createdAt
+      updatedAt
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "billId": "<bill-id>",
+    "amount": 100.0,
+    "sourceAccountId": "<bank-account-id>"
+  }
+}
+

@@ -280,6 +280,22 @@ input BankAccountDataInput
 }
 
 """
+Lifecycle status of a credit card bill (fatura).
+OPEN    → closingDate >= today (bill still accepting charges).
+CLOSED  → closingDate < today and dueDate >= today (awaiting payment).
+OVERDUE → dueDate < today and not yet paid.
+PAID    → terminal state.
+"""
+enum BillStatus
+  @join__type(graph: BANKING)
+{
+  OPEN @join__enumValue(graph: BANKING)
+  CLOSED @join__enumValue(graph: BANKING)
+  PAID @join__enumValue(graph: BANKING)
+  OVERDUE @join__enumValue(graph: BANKING)
+}
+
+"""
 Card-specific data. Present only when subtype is CREDIT_CARD, PREPAID_CARD, CHARGE_CARD, or VOUCHER_CARD.
 creditLimit, closingDay and dueDay are required for CREDIT_CARD (enforced at service layer).
 """
@@ -411,6 +427,16 @@ input CreateFinancialAccountInput
   Required when subtype is CREDIT_CARD, CHARGE_CARD, PREPAID_CARD, or VOUCHER_CARD.
   """
   cardData: CardDataInput
+
+  """
+  Account balance on initialBalanceDate. Creates a BALANCE_ADJUSTMENT transaction automatically.
+  """
+  initialBalance: Float
+
+  """
+  Reference date for the initial balance. Required when initialBalance is provided.
+  """
+  initialBalanceDate: Date
 }
 
 input CreateGroupInput
@@ -453,6 +479,38 @@ input CreateTransactionInput
   totalInstallments: Int
   cardIdentifier: String
   payeeMcc: Int
+}
+
+"""
+A monthly credit card bill (fatura) for a CREDIT_CARD or CHARGE_CARD account.
+totalAmount is the net spend across all non-deleted transactions in the billing cycle:
+  SUM(DEBIT amount) - SUM(CREDIT amount).
+Bills are auto-created when the first transaction is recorded for a billing cycle.
+"""
+type CreditCardBill
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  financialAccountId: ID!
+
+  """Last day of the billing cycle (derived from CardData.closingDay)."""
+  closingDate: Date!
+
+  """
+  Payment due date (derived from CardData.dueDay relative to closingDate).
+  """
+  dueDate: Date!
+
+  """
+  Net spend in the billing cycle (DEBIT - CREDIT). Zero until first transaction.
+  """
+  totalAmount: Float!
+
+  """Minimum payment amount. Null until computed (Phase 5: Open Finance)."""
+  minimumPayment: Float
+  status: BillStatus!
+  createdAt: DateTime!
+  updatedAt: DateTime!
 }
 
 enum CreditCardLevel
@@ -1070,6 +1128,12 @@ type Mutation
   importTransactionsFile(input: ImportTransactionsFileInput!): ImportResult! @join__field(graph: BANKING)
   importNfce(financialAccountId: ID!, qrCodeUrl: String!): ImportResult! @join__field(graph: BANKING)
   resolveImportDuplicate(input: ResolveImportDuplicateInput!): TransactionImport! @join__field(graph: BANKING)
+
+  """
+  Register a payment against a credit card bill. Creates a CREDIT TRANSFER on the card account.
+  Optionally creates a DEBIT TRANSFER on sourceAccountId (e.g. bank account). Marks bill as PAID when payment covers full amount.
+  """
+  payBill(billId: ID!, amount: Float!, sourceAccountId: ID): CreditCardBill! @join__field(graph: BANKING)
   signIn(input: SignInInput!): SignInPayload! @join__field(graph: SECURITY)
   signInWithOAuth(input: SignInWithOAuthInput!): SignInPayload! @join__field(graph: SECURITY)
   signUp(input: SignUpInput!): SignUpPayload! @join__field(graph: SECURITY)
@@ -1215,11 +1279,24 @@ type Query
   """
   Transactions for a single financial account or all accounts belonging to the authenticated account.
   Results are filtered by month/year and paginated using Relay-style cursors.
-  When month/year are not provided, the current month/year are used by the backend.
+  When month/year are not provided (and billId is null), the current month/year are used by the backend.
+  When billId is provided, it takes precedence over month/year and filters by bill only (used for card bill mode).
   """
-  transactions(financialAccountId: ID, belongsToUserId: ID, belongsToName: String, tags: [String!], month: Int, year: Int, first: Int, after: String): TransactionConnection! @join__field(graph: BANKING)
+  transactions(financialAccountId: ID, belongsToUserId: ID, belongsToName: String, tags: [String!], billId: ID, month: Int, year: Int, first: Int, after: String): TransactionConnection! @join__field(graph: BANKING)
   transactionImports(financialAccountId: ID): [TransactionImport!]! @join__field(graph: BANKING)
   transactionImport(id: ID!): TransactionImport @join__field(graph: BANKING)
+
+  """
+  All non-deleted credit card bills for a CREDIT_CARD or CHARGE_CARD account,
+  ordered by closing date descending.
+  """
+  creditCardBills(financialAccountId: ID!): [CreditCardBill!]! @join__field(graph: BANKING)
+
+  """
+  A specific credit card bill by closing date.
+  When closingDate is omitted, returns the current open bill (or most recent if no open bill exists).
+  """
+  creditCardBill(financialAccountId: ID!, closingDate: Date): CreditCardBill @join__field(graph: BANKING)
   searchBacenInstitutionsAutocomplete(query: String!, anoMes: String): BacenInstitutionAutocompleteConnection! @join__field(graph: FINANCIALDATA)
   bacenInstitutions(query: String, anoMes: String, first: Int, after: String): BacenInstitutionConnection! @join__field(graph: FINANCIALDATA)
   bacenInstitutionSlugs(anoMes: String, first: Int, after: String): BacenInstitutionSlugConnection! @join__field(graph: FINANCIALDATA)

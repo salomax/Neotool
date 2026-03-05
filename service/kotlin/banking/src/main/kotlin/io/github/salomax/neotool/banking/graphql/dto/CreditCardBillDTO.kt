@@ -1,8 +1,8 @@
 package io.github.salomax.neotool.banking.graphql.dto
 
 import io.github.salomax.neotool.banking.domain.transaction.BillStatus
-import java.time.Instant
 import java.time.LocalDate
+import java.time.OffsetDateTime
 import java.util.UUID
 
 data class CreditCardBillDTO(
@@ -13,6 +13,6 @@ data class CreditCardBillDTO(
     val totalAmount: Double,
     val minimumPayment: Double?,
     val status: BillStatus,
-    val createdAt: Instant,
-    val updatedAt: Instant,
+    val createdAt: OffsetDateTime,
+    val updatedAt: OffsetDateTime,
 )

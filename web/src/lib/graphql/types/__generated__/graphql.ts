@@ -252,6 +252,20 @@ export type BankAccountDataInput = {
 };
 
 /**
+ * Lifecycle status of a credit card bill (fatura).
+ * OPEN    → closingDate >= today (bill still accepting charges).
+ * CLOSED  → closingDate < today and dueDate >= today (awaiting payment).
+ * OVERDUE → dueDate < today and not yet paid.
+ * PAID    → terminal state.
+ */
+export enum BillStatus {
+  Closed = 'CLOSED',
+  Open = 'OPEN',
+  Overdue = 'OVERDUE',
+  Paid = 'PAID'
+}
+
+/**
  * Card-specific data. Present only when subtype is CREDIT_CARD, PREPAID_CARD, CHARGE_CARD, or VOUCHER_CARD.
  * creditLimit, closingDay and dueDay are required for CREDIT_CARD (enforced at service layer).
  */
@@ -344,6 +358,10 @@ export type CreateFinancialAccountInput = {
   currencyCode?: InputMaybe<Scalars['String']['input']>;
   includeInDashboard?: InputMaybe<Scalars['Boolean']['input']>;
   includeInNetWorth?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Account balance on initialBalanceDate. Creates a BALANCE_ADJUSTMENT transaction automatically. */
+  initialBalance?: InputMaybe<Scalars['Float']['input']>;
+  /** Reference date for the initial balance. Required when initialBalance is provided. */
+  initialBalanceDate?: InputMaybe<Scalars['Date']['input']>;
   /** ID from the issuers list. Mutually exclusive with issuerName. */
   issuerId?: InputMaybe<Scalars['ID']['input']>;
   /** Custom institution name. Required when issuerId is null. */
@@ -389,6 +407,29 @@ export type CreateTransactionInput = {
   tags?: InputMaybe<Array<Scalars['String']['input']>>;
   totalInstallments?: InputMaybe<Scalars['Int']['input']>;
   type: TransactionType;
+};
+
+/**
+ * A monthly credit card bill (fatura) for a CREDIT_CARD or CHARGE_CARD account.
+ * totalAmount is the net spend across all non-deleted transactions in the billing cycle:
+ *   SUM(DEBIT amount) - SUM(CREDIT amount).
+ * Bills are auto-created when the first transaction is recorded for a billing cycle.
+ */
+export type CreditCardBill = {
+  __typename: 'CreditCardBill';
+  /** Last day of the billing cycle (derived from CardData.closingDay). */
+  closingDate: Scalars['Date']['output'];
+  createdAt: Scalars['DateTime']['output'];
+  /** Payment due date (derived from CardData.dueDay relative to closingDate). */
+  dueDate: Scalars['Date']['output'];
+  financialAccountId: Scalars['ID']['output'];
+  id: Scalars['ID']['output'];
+  /** Minimum payment amount. Null until computed (Phase 5: Open Finance). */
+  minimumPayment: Maybe<Scalars['Float']['output']>;
+  status: BillStatus;
+  /** Net spend in the billing cycle (DEBIT - CREDIT). Zero until first transaction. */
+  totalAmount: Scalars['Float']['output'];
+  updatedAt: Scalars['DateTime']['output'];
 };
 
 export enum CreditCardLevel {
@@ -921,6 +962,11 @@ export type Mutation = {
   enableUser: User;
   importNfce: ImportResult;
   importTransactionsFile: ImportResult;
+  /**
+   * Register a payment against a credit card bill. Creates a CREDIT TRANSFER on the card account.
+   * Optionally creates a DEBIT TRANSFER on sourceAccountId (e.g. bank account). Marks bill as PAID when payment covers full amount.
+   */
+  payBill: CreditCardBill;
   refreshAccessToken: SignInPayload;
   removeGroupFromUser: User;
   removePermissionFromRole: Role;
@@ -1028,6 +1074,13 @@ export type MutationImportNfceArgs = {
 
 export type MutationImportTransactionsFileArgs = {
   input: ImportTransactionsFileInput;
+};
+
+
+export type MutationPayBillArgs = {
+  amount: Scalars['Float']['input'];
+  billId: Scalars['ID']['input'];
+  sourceAccountId?: InputMaybe<Scalars['ID']['input']>;
 };
 
 
@@ -1192,6 +1245,16 @@ export type Query = {
   bacenInstitutionSlugs: BacenInstitutionSlugConnection;
   bacenInstitutions: BacenInstitutionConnection;
   checkPermission: AuthorizationResult;
+  /**
+   * A specific credit card bill by closing date.
+   * When closingDate is omitted, returns the current open bill (or most recent if no open bill exists).
+   */
+  creditCardBill: Maybe<CreditCardBill>;
+  /**
+   * All non-deleted credit card bills for a CREDIT_CARD or CHARGE_CARD account,
+   * ordered by closing date descending.
+   */
+  creditCardBills: Array<CreditCardBill>;
   currentUser: Maybe<User>;
   economicIndicators: Array<EconomicIndicator>;
   /** All financial accounts belonging to the authenticated user's account. */
@@ -1227,7 +1290,8 @@ export type Query = {
   /**
    * Transactions for a single financial account or all accounts belonging to the authenticated account.
    * Results are filtered by month/year and paginated using Relay-style cursors.
-   * When month/year are not provided, the current month/year are used by the backend.
+   * When month/year are not provided (and billId is null), the current month/year are used by the backend.
+   * When billId is provided, it takes precedence over month/year and filters by bill only (used for card bill mode).
    */
   transactions: TransactionConnection;
   user: Maybe<User>;
@@ -1265,6 +1329,17 @@ export type QueryCheckPermissionArgs = {
   permission: Scalars['String']['input'];
   resourceId?: InputMaybe<Scalars['ID']['input']>;
   userId: Scalars['ID']['input'];
+};
+
+
+export type QueryCreditCardBillArgs = {
+  closingDate?: InputMaybe<Scalars['Date']['input']>;
+  financialAccountId: Scalars['ID']['input'];
+};
+
+
+export type QueryCreditCardBillsArgs = {
+  financialAccountId: Scalars['ID']['input'];
 };
 
 
@@ -1349,6 +1424,7 @@ export type QueryTransactionsArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   belongsToName?: InputMaybe<Scalars['String']['input']>;
   belongsToUserId?: InputMaybe<Scalars['ID']['input']>;
+  billId?: InputMaybe<Scalars['ID']['input']>;
   financialAccountId?: InputMaybe<Scalars['ID']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
   month?: InputMaybe<Scalars['Int']['input']>;

@@ -17,6 +17,20 @@
       "today": "Hoje, {{date}}",
       "tomorrow": "Amanhã, {{date}}"
     },
+    "billSummary": {
+      "billValue": "Valor da Fatura",
+      "dueDate": "Vencimento",
+      "availableLimit": "Limite Disp.",
+      "status": "Status",
+      "payBill": "Pagar Fatura",
+      "overdueMessage": "Esta fatura está em atraso.",
+      "billStatus": {
+        "OPEN": "Aberta",
+        "CLOSED": "Fechada",
+        "PAID": "Paga",
+        "OVERDUE": "Em atraso"
+      }
+    },
     "description": "Descrição",
     "backToCurrentMonth": "Voltar para o mês atual",
     "actions": {
@@ -203,8 +217,17 @@
     "monthSummary": {
       "income": "Receitas",
       "expenses": "Despesas",
-      "balance": "Saldo Atual",
-      "total": "do total"
+      "balance": "Saldo",
+      "total": "do total",
+      "consolidatedTooltip": "Inclui saldo de cartões como passivo."
+    },
+    "billCarousel": {
+      "title": "Fatura {{month}}",
+      "closes": "fecha {{day}}",
+      "statusOpen": "ABERTA",
+      "statusClosed": "FECHADA",
+      "statusPaid": "PAGA",
+      "statusOverdue": "EM ATRASO"
     },
     "deleteConfirmation": {
       "title": "Excluir transação",

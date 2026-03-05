@@ -11,6 +11,7 @@ import {
   IconButton,
   InputAdornment,
   Slider as MuiSlider,
+  useTheme,
 } from "@mui/material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
@@ -94,6 +95,7 @@ export function FixedIncomeSimulatorForm({
   const ns = "fixedIncomeComparison" as const;
   const today = formatDate(new Date());
   const reqMsg = t(`${ns}.validationRequired`);
+  const theme = useTheme();
 
   const {
     cdiPercent,
@@ -743,6 +745,7 @@ export function FixedIncomeSimulatorForm({
               fontWeight: 800,
               textTransform: "uppercase",
               mt: 1,
+              boxShadow: theme.shadows[4],
             }}
           >
             {t(`${ns}.simulate`)}

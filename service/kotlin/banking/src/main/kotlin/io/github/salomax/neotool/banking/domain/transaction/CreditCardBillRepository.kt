@@ -36,4 +36,9 @@ interface CreditCardBillRepository {
      * Returns the updated bill.
      */
     fun recomputeTotal(billId: UUID, accountId: UUID): CreditCardBill
+
+    /**
+     * Sets the bill status (e.g. PAID). Used after full payment; does not recompute totalAmount.
+     */
+    fun setStatus(billId: UUID, status: BillStatus, accountId: UUID)
 }

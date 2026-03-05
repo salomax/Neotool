@@ -1,4 +1,4 @@
-import { createTheme, ThemeOptions } from "@mui/material/styles";
+import { createTheme, ThemeOptions, alpha, Shadows } from "@mui/material/styles";
 import { tokens, Mode, DesignTokens } from "./tokens";
 
 declare module "@mui/material/styles" {
@@ -28,7 +28,14 @@ declare module "@mui/material/styles" {
 
 export const createAppTheme = (mode: Mode) => {
   const t = tokens[mode];
+  const defaultShadows = createTheme().shadows;
+  const shadows = [...defaultShadows] as Shadows;
+  
+  // Custom shadow for elevation 4 using primary color
+  shadows[4] = `0px 2px 4px -1px ${alpha(t.palette.primary, 0.2)}, 0px 4px 5px 0px ${alpha(t.palette.primary, 0.14)}, 0px 1px 10px 0px ${alpha(t.palette.primary, 0.12)}`;
+
   const options: ThemeOptions = {
+    shadows,
     // Mobile Breakpoints (2026 Standard)
     // xs: 0px    - Mobile Portrait
     // sm: 600px  - Mobile Landscape / Small Tablet
@@ -64,6 +71,9 @@ export const createAppTheme = (mode: Mode) => {
       background: { default: t.palette.bg, paper: t.palette.bgPaper },
       divider: t.palette.divider,
       text: { primary: t.palette.text, secondary: t.palette.textMuted },
+      action: {
+        hover: t.palette.infoLightBg,
+      },
     },
     shape: { borderRadius: t.radius.md },
     spacing: (factor: number) => `${factor * t.spacing.sm}px`,

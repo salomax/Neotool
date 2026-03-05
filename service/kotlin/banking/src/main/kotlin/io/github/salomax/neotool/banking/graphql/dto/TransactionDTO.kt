@@ -51,6 +51,7 @@ data class TransactionDTO(
     val installmentNumber: Int?,
     val totalInstallments: Int?,
     // Card
+    val billId: UUID?,
     val cardIdentifier: String?,
     val payeeMcc: Int?,
     val billPostDate: LocalDate?,

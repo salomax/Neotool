@@ -316,6 +316,7 @@ class TransactionResolverTest {
                 anyOrNull(),
                 anyOrNull(),
                 anyOrNull(),
+                anyOrNull(),
             )
             whenever(categoryRepository.findAll(org.mockito.kotlin.any())).thenReturn(listOf(category))
 

@@ -17,6 +17,20 @@
       "today": "Today, {{date}}",
       "tomorrow": "Tomorrow, {{date}}"
     },
+    "billSummary": {
+      "billValue": "Bill Amount",
+      "dueDate": "Due Date",
+      "availableLimit": "Available Limit",
+      "status": "Status",
+      "payBill": "Pay Bill",
+      "overdueMessage": "This bill is overdue.",
+      "billStatus": {
+        "OPEN": "Open",
+        "CLOSED": "Closed",
+        "PAID": "Paid",
+        "OVERDUE": "Overdue"
+      }
+    },
     "description": "Description",
     "backToCurrentMonth": "Back to current month",
     "actions": {

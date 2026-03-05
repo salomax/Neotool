@@ -239,6 +239,7 @@ class ImportResolver(
             transferPeerTransactionId = transferPeerTransactionId,
             installmentNumber = installmentNumber,
             totalInstallments = totalInstallments,
+            billId = billId,
             cardIdentifier = cardIdentifier,
             payeeMcc = payeeMcc,
             billPostDate = billPostDate,

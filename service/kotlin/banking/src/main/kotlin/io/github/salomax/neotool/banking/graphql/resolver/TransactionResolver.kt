@@ -26,6 +26,8 @@ import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import jakarta.inject.Singleton
 import java.math.BigDecimal
 import java.time.LocalDate
+import java.time.OffsetDateTime
+import java.time.ZoneOffset
 import java.util.UUID
 
 /**
@@ -202,6 +204,20 @@ class TransactionResolver(
         return service.delete(UUID.fromString(id), accountId)
     }
 
+    fun payBill(
+        billId: String,
+        amount: Double,
+        sourceAccountId: String?,
+        principal: RequestPrincipal,
+    ): CreditCardBillDTO {
+        val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
+        val userId = requireNotNull(principal.userId) { "No user in token" }
+        val billUuid = UUID.fromString(billId)
+        val sourceUuid = sourceAccountId?.let { UUID.fromString(it) }
+        val bill = service.payBill(billUuid, BigDecimal(amount.toString()), sourceUuid, accountId, userId)
+        return bill.toDTO()
+    }
+
     // ── Mapping helpers ───────────────────────────────────────────────────────
 
     private fun CreditCardBill.toDTO() = CreditCardBillDTO(
@@ -212,8 +228,8 @@ class TransactionResolver(
         totalAmount = totalAmount.toDouble(),
         minimumPayment = minimumPayment?.toDouble(),
         status = status,
-        createdAt = createdAt,
-        updatedAt = updatedAt,
+        createdAt = createdAt.atOffset(ZoneOffset.UTC),
+        updatedAt = updatedAt.atOffset(ZoneOffset.UTC),
     )
 
     private fun TransactionCategory.toDTO(): TransactionCategoryDTO =
@@ -255,6 +271,7 @@ class TransactionResolver(
             transferPeerTransactionId = transferPeerTransactionId,
             installmentNumber = installmentNumber,
             totalInstallments = totalInstallments,
+            billId = billId,
             cardIdentifier = cardIdentifier,
             payeeMcc = payeeMcc,
             billPostDate = billPostDate,
