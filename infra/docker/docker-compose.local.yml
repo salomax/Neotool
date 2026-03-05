@@ -369,7 +369,32 @@ services:
       start_period: 10s
     profiles:
       - feature-flags
-      
+
+  # -------------------------------------------------------------
+  # Python Workers
+  # Profile: workers
+  # -------------------------------------------------------------
+  pdf-extractor:
+    build:
+      context: ../..
+      dockerfile: workers/python/pdf-extractor/Dockerfile
+    container_name: neotool-pdf-extractor
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER: kafka:9092
+      KAFKA_GROUP_ID: pdf-extractor
+      KAFKA_TOPIC_IN: pdf-extractor.submitted
+      KAFKA_TOPIC_OUT: pdf-extractor.extracted
+      KAFKA_TOPIC_DLQ: pdf-extractor.dlq
+      DOWNLOAD_TIMEOUT_SECONDS: 30
+      DOWNLOAD_MAX_RETRIES: 3
+      MAX_OUTPUT_CHARS: 12000
+    profiles:
+      - workers
+
 volumes:
   pgdata:
   loki-data:
@@ -384,4 +409,3 @@ networks:
   postgres-internal:
     driver: bridge
     internal: false  # Set to true if you want complete isolation (no internet access)
-
