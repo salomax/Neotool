@@ -1,8 +1,11 @@
 package io.github.salomax.neotool.security.test.integration
 
+import io.github.salomax.neotool.common.error.ConflictException
+import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.common.test.transaction.runTransaction
+import io.github.salomax.neotool.security.error.SecurityErrorCode
 import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.repo.AccountMembershipRepository
 import io.github.salomax.neotool.security.repo.AccountRepository
@@ -457,8 +460,10 @@ open class AuthenticationServiceEdgeCasesIntegrationTest :
             Assertions
                 .assertThatThrownBy {
                     authenticationService.registerUser("New User", email, "NewPassword123!")
-                }.isInstanceOf(IllegalArgumentException::class.java)
-                .hasMessageContaining("Email already exists")
+                }.isInstanceOfSatisfying(ConflictException::class.java) { exception ->
+                    Assertions.assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.USER_EMAIL_ALREADY_EXISTS)
+                    Assertions.assertThat(exception.field).isEqualTo("email")
+                }
         }
 
         @Test
@@ -469,8 +474,10 @@ open class AuthenticationServiceEdgeCasesIntegrationTest :
             Assertions
                 .assertThatThrownBy {
                     authenticationService.registerUser("New User", email, "weak")
-                }.isInstanceOf(IllegalArgumentException::class.java)
-                .hasMessageContaining("Password must be at least 8 characters")
+                }.isInstanceOfSatisfying(ValidationException::class.java) { exception ->
+                    Assertions.assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.USER_PASSWORD_TOO_WEAK)
+                    Assertions.assertThat(exception.field).isEqualTo("password")
+                }
         }
     }
 
@@ -598,8 +605,9 @@ open class AuthenticationServiceEdgeCasesIntegrationTest :
             Assertions
                 .assertThatThrownBy {
                     authenticationService.resetPassword(invalidToken, newPassword)
-                }.isInstanceOf(IllegalArgumentException::class.java)
-                .hasMessageContaining("Invalid or expired reset token")
+                }.isInstanceOf(ValidationException::class.java)
+                .extracting("errorCode")
+                .isEqualTo(SecurityErrorCode.PASSWORD_RESET_TOKEN_INVALID)
         }
 
         @Test
@@ -627,8 +635,9 @@ open class AuthenticationServiceEdgeCasesIntegrationTest :
             Assertions
                 .assertThatThrownBy {
                     authenticationService.resetPassword(token, "weak")
-                }.isInstanceOf(IllegalArgumentException::class.java)
-                .hasMessageContaining("Password must be at least 8 characters")
+                }.isInstanceOf(ValidationException::class.java)
+                .extracting("errorCode")
+                .isEqualTo(SecurityErrorCode.USER_PASSWORD_TOO_WEAK)
         }
     }
 }

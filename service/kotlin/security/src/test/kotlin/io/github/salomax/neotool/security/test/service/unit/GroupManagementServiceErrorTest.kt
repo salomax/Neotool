@@ -1,6 +1,8 @@
 package io.github.salomax.neotool.security.test.service.unit
 
+import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.security.domain.GroupManagement
+import io.github.salomax.neotool.security.error.SecurityErrorCode
 import io.github.salomax.neotool.security.repo.GroupMembershipRepository
 import io.github.salomax.neotool.security.repo.GroupRepository
 import io.github.salomax.neotool.security.repo.GroupRepositoryCustom
@@ -66,10 +68,11 @@ class GroupManagementServiceErrorTest {
             whenever(groupRepository.findById(nonExistentGroupId)).thenReturn(Optional.empty())
 
             // Act & Assert
-            assertThrows<IllegalArgumentException> {
+            assertThrows<NotFoundException> {
                 groupManagementService.updateGroup(command)
             }.also { exception ->
-                assertThat(exception.message).contains("Group not found with ID: $nonExistentGroupId")
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.GROUP_NOT_FOUND)
+                assertThat(exception.field).isEqualTo("groupId")
             }
 
             verify(groupRepository).findById(nonExistentGroupId)
@@ -105,10 +108,11 @@ class GroupManagementServiceErrorTest {
             whenever(groupRepository.findById(nonExistentGroupId)).thenReturn(Optional.empty())
 
             // Act & Assert
-            assertThrows<IllegalArgumentException> {
+            assertThrows<NotFoundException> {
                 groupManagementService.assignRoleToGroup(command)
             }.also { exception ->
-                assertThat(exception.message).contains("Group not found with ID: $nonExistentGroupId")
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.GROUP_NOT_FOUND)
+                assertThat(exception.field).isEqualTo("groupId")
             }
 
             verify(groupRepository).findById(nonExistentGroupId)
@@ -126,10 +130,11 @@ class GroupManagementServiceErrorTest {
             whenever(roleRepository.findById(nonExistentRoleId)).thenReturn(Optional.empty())
 
             // Act & Assert
-            assertThrows<IllegalArgumentException> {
+            assertThrows<NotFoundException> {
                 groupManagementService.assignRoleToGroup(command)
             }.also { exception ->
-                assertThat(exception.message).contains("Role not found with ID: $nonExistentRoleId")
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.ROLE_NOT_FOUND)
+                assertThat(exception.field).isEqualTo("roleId")
             }
 
             verify(groupRepository).findById(groupId)
@@ -149,10 +154,11 @@ class GroupManagementServiceErrorTest {
             whenever(groupRepository.findById(nonExistentGroupId)).thenReturn(Optional.empty())
 
             // Act & Assert
-            assertThrows<IllegalArgumentException> {
+            assertThrows<NotFoundException> {
                 groupManagementService.removeRoleFromGroup(command)
             }.also { exception ->
-                assertThat(exception.message).contains("Group not found with ID: $nonExistentGroupId")
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.GROUP_NOT_FOUND)
+                assertThat(exception.field).isEqualTo("groupId")
             }
 
             verify(groupRepository).findById(nonExistentGroupId)
@@ -170,10 +176,11 @@ class GroupManagementServiceErrorTest {
             whenever(roleRepository.findById(nonExistentRoleId)).thenReturn(Optional.empty())
 
             // Act & Assert
-            assertThrows<IllegalArgumentException> {
+            assertThrows<NotFoundException> {
                 groupManagementService.removeRoleFromGroup(command)
             }.also { exception ->
-                assertThat(exception.message).contains("Role not found with ID: $nonExistentRoleId")
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.ROLE_NOT_FOUND)
+                assertThat(exception.field).isEqualTo("roleId")
             }
 
             verify(groupRepository).findById(groupId)
@@ -202,12 +209,12 @@ class GroupManagementServiceErrorTest {
             whenever(userRepository.findByIdIn(listOf(nonExistentUserId1, nonExistentUserId2))).thenReturn(emptyList())
 
             // Act & Assert
-            assertThrows<IllegalArgumentException> {
+            assertThrows<NotFoundException> {
                 groupManagementService.createGroup(command)
             }.also { exception ->
-                assertThat(exception.message).contains("One or more users not found")
-                assertThat(exception.message).contains(nonExistentUserId1.toString())
-                assertThat(exception.message).contains(nonExistentUserId2.toString())
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.USER_NOT_FOUND)
+                assertThat(exception.field).isEqualTo("userIds")
+                assertThat(exception.parameters["missingUserIds"]).isNotNull()
             }
 
             verify(groupRepository).save(any())

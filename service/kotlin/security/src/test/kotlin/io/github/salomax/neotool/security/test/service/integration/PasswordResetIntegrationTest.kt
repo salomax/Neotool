@@ -1,7 +1,9 @@
 package io.github.salomax.neotool.security.test.service.integration
 
+import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
+import io.github.salomax.neotool.security.error.SecurityErrorCode
 import io.github.salomax.neotool.security.repo.AccountMembershipRepository
 import io.github.salomax.neotool.security.repo.AccountRepository
 import io.github.salomax.neotool.security.repo.PasswordResetAttemptRepository
@@ -275,10 +277,10 @@ class PasswordResetIntegrationTest :
             val token = UUID.randomUUID().toString()
             val newPassword = "NewPassword123!"
 
-            assertThrows<IllegalArgumentException> {
+            assertThrows<ValidationException> {
                 authenticationService.resetPassword(token, newPassword)
             }.also { exception ->
-                assertThat(exception.message).contains("Invalid or expired reset token")
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.PASSWORD_RESET_TOKEN_INVALID)
             }
         }
 
@@ -297,10 +299,10 @@ class PasswordResetIntegrationTest :
             user.passwordResetExpiresAt = Instant.now().minus(1, ChronoUnit.HOURS)
             userRepository.save(user)
 
-            assertThrows<IllegalArgumentException> {
+            assertThrows<ValidationException> {
                 authenticationService.resetPassword(token, "NewPassword123!")
             }.also { exception ->
-                assertThat(exception.message).contains("Invalid or expired reset token")
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.PASSWORD_RESET_TOKEN_INVALID)
             }
         }
 
@@ -320,10 +322,10 @@ class PasswordResetIntegrationTest :
             val savedUser = userRepository.findByEmail(email)
             val token = savedUser!!.passwordResetToken!!
 
-            assertThrows<IllegalArgumentException> {
+            assertThrows<ValidationException> {
                 authenticationService.resetPassword(token, "weak")
             }.also { exception ->
-                assertThat(exception.message).contains("Password must be at least 8 characters")
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.USER_PASSWORD_TOO_WEAK)
             }
         }
 
@@ -346,10 +348,10 @@ class PasswordResetIntegrationTest :
             authenticationService.resetPassword(token, "NewPassword123!")
 
             // Try to use token again
-            assertThrows<IllegalArgumentException> {
+            assertThrows<ValidationException> {
                 authenticationService.resetPassword(token, "AnotherPassword123!")
             }.also { exception ->
-                assertThat(exception.message).contains("Invalid or expired reset token")
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.PASSWORD_RESET_TOKEN_INVALID)
             }
         }
     }

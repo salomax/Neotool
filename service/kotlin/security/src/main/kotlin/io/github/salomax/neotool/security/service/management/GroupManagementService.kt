@@ -1,16 +1,19 @@
 package io.github.salomax.neotool.security.service.management
 
+import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.common.graphql.pagination.Connection
 import io.github.salomax.neotool.common.graphql.pagination.ConnectionBuilder
 import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.OrderDirection
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
+import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.github.salomax.neotool.security.domain.GroupManagement
 import io.github.salomax.neotool.security.domain.rbac.Group
 import io.github.salomax.neotool.security.domain.rbac.GroupMembership
 import io.github.salomax.neotool.security.domain.rbac.GroupRoleAssignment
 import io.github.salomax.neotool.security.domain.rbac.MembershipType
+import io.github.salomax.neotool.security.error.SecurityErrorCode
 import io.github.salomax.neotool.security.model.GroupOrderBy
 import io.github.salomax.neotool.security.model.GroupOrderField
 import io.github.salomax.neotool.security.repo.GroupMembershipRepository
@@ -29,6 +32,7 @@ import java.util.UUID
  * Service for managing groups.
  * Provides operations for listing, searching, creating, updating, and deleting groups.
  */
+@TraceExecution
 @Singleton
 open class GroupManagementService(
     private val groupRepository: GroupRepository,
@@ -211,7 +215,10 @@ open class GroupManagementService(
             groupRepository
                 .findById(command.groupId)
                 .orElseThrow {
-                    IllegalArgumentException("Group not found with ID: ${command.groupId}")
+                    NotFoundException(
+                        errorCode = SecurityErrorCode.GROUP_NOT_FOUND,
+                        field = "groupId",
+                    )
                 }
 
         // Update entity
@@ -270,8 +277,10 @@ open class GroupManagementService(
         val missingUserIds = userIds.filter { it !in foundUserIds }
 
         if (missingUserIds.isNotEmpty()) {
-            throw IllegalArgumentException(
-                "One or more users not found: ${missingUserIds.joinToString(", ")}",
+            throw NotFoundException(
+                errorCode = SecurityErrorCode.USER_NOT_FOUND,
+                field = "userIds",
+                parameters = mapOf("missingUserIds" to missingUserIds),
             )
         }
     }
@@ -362,13 +371,19 @@ open class GroupManagementService(
             groupRepository
                 .findById(command.groupId)
                 .orElseThrow {
-                    IllegalArgumentException("Group not found with ID: ${command.groupId}")
+                    NotFoundException(
+                        errorCode = SecurityErrorCode.GROUP_NOT_FOUND,
+                        field = "groupId",
+                    )
                 }
         val role =
             roleRepository
                 .findById(command.roleId)
                 .orElseThrow {
-                    IllegalArgumentException("Role not found with ID: ${command.roleId}")
+                    NotFoundException(
+                        errorCode = SecurityErrorCode.ROLE_NOT_FOUND,
+                        field = "roleId",
+                    )
                 }
 
         // Check for existing assignment
@@ -416,13 +431,19 @@ open class GroupManagementService(
             groupRepository
                 .findById(command.groupId)
                 .orElseThrow {
-                    IllegalArgumentException("Group not found with ID: ${command.groupId}")
+                    NotFoundException(
+                        errorCode = SecurityErrorCode.GROUP_NOT_FOUND,
+                        field = "groupId",
+                    )
                 }
         val role =
             roleRepository
                 .findById(command.roleId)
                 .orElseThrow {
-                    IllegalArgumentException("Role not found with ID: ${command.roleId}")
+                    NotFoundException(
+                        errorCode = SecurityErrorCode.ROLE_NOT_FOUND,
+                        field = "roleId",
+                    )
                 }
 
         // Find and delete assignment

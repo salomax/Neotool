@@ -32,6 +32,17 @@ endpoints:
     redis:
       enabled: false
 
+neotool:
+  tracing:
+    jdbc:
+      enabled: false
+
+otel:
+  sdk:
+    disabled: true
+  traces:
+    exporter: none
+
 # GraphQL Router (for service-to-service: e.g. requestEmailSend via Comms).
 # Required when email.delivery=comms.
 graphql:

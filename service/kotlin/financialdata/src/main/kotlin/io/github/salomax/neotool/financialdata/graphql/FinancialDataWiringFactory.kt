@@ -32,6 +32,7 @@ import io.github.salomax.neotool.financialdata.graphql.resolver.BacenInstitution
 import io.github.salomax.neotool.financialdata.graphql.resolver.FinancialInstitutionRatingResolver
 import io.github.salomax.neotool.financialdata.graphql.resolver.FixedIncomeComparisonResolver
 import io.github.salomax.neotool.financialdata.graphql.resolver.IndicatorResolver
+import io.github.salomax.neotool.financialdata.graphql.resolver.InstitutionDiscoveryResolver
 import io.github.salomax.neotool.financialdata.graphql.resolver.InstitutionSearchResolver
 import jakarta.inject.Singleton
 import java.time.LocalDate
@@ -44,6 +45,7 @@ import java.time.ZoneOffset
 class FinancialDataWiringFactory(
     private val institutionSearchResolver: InstitutionSearchResolver,
     private val institutionDetailResolver: BacenInstitutionDetailResolver,
+    private val institutionDiscoveryResolver: InstitutionDiscoveryResolver,
     private val ratingResolver: FinancialInstitutionRatingResolver,
     private val indicatorResolver: IndicatorResolver,
     private val fixedIncomeComparisonResolver: FixedIncomeComparisonResolver,
@@ -53,6 +55,7 @@ class FinancialDataWiringFactory(
         // Register resolvers in the registry for cross-module access
         resolverRegistry.register("institutionSearch", institutionSearchResolver)
         resolverRegistry.register("institutionDetail", institutionDetailResolver)
+        resolverRegistry.register("institutionDiscovery", institutionDiscoveryResolver)
         resolverRegistry.register("ratingResolver", ratingResolver)
         resolverRegistry.register("indicatorResolver", indicatorResolver)
         resolverRegistry.register("fixedIncomeComparison", fixedIncomeComparisonResolver)
@@ -97,6 +100,13 @@ class FinancialDataWiringFactory(
                             ?: throw IllegalArgumentException("id parameter is required")
                     val anoMes = env.getArgument<String?>("anoMes")
                     institutionDetailResolver.bacenFinanceInstitution(id, anoMes)
+                },
+            )
+            .dataFetcher(
+                "popularInstitutions",
+                createValidatedDataFetcher { env ->
+                    val anoMes = env.getArgument<String?>("anoMes")
+                    institutionDiscoveryResolver.popularInstitutions(anoMes)
                 },
             )
             .dataFetcher(

@@ -1,6 +1,12 @@
 package io.github.salomax.neotool.security.service.management
 
+import io.github.salomax.neotool.common.error.AuthenticationException
+import io.github.salomax.neotool.common.error.CommonErrorCode
+import io.github.salomax.neotool.common.error.ConflictException
+import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.common.security.principal.PrincipalType
+import io.github.salomax.neotool.common.tracing.TraceExecution
+import io.github.salomax.neotool.security.error.SecurityErrorCode
 import io.github.salomax.neotool.security.model.PrincipalEntity
 import io.github.salomax.neotool.security.model.PrincipalPermissionEntity
 import io.github.salomax.neotool.security.model.ServiceCredentialEntity
@@ -21,6 +27,7 @@ import java.util.UUID
  * Service for managing service principals and their credentials.
  * Handles registration, credential validation, and permission management for services.
  */
+@TraceExecution
 @Singleton
 open class ServicePrincipalService(
     private val principalRepository: PrincipalRepository,
@@ -72,10 +79,10 @@ open class ServicePrincipalService(
             principalRepository.findByPrincipalTypeAndExternalId(PrincipalType.SERVICE, serviceId)
 
         if (existingPrincipal.isPresent) {
-            throw IllegalArgumentException(
-                "Service with ID '$serviceId' already exists. " +
-                    "Use rotateServiceCredentials() to update credentials or " +
-                    "updateServicePermissions() to modify permissions.",
+            throw ConflictException(
+                errorCode = CommonErrorCode.CONFLICT,
+                field = "serviceId",
+                parameters = mapOf("serviceId" to serviceId),
             )
         }
 
@@ -117,7 +124,11 @@ open class ServicePrincipalService(
                 permissionRepository
                     .findByName(permissionName)
                     .orElseThrow {
-                        IllegalArgumentException("Permission not found: $permissionName")
+                        NotFoundException(
+                            errorCode = SecurityErrorCode.PERMISSION_NOT_FOUND,
+                            field = "permissions",
+                            parameters = mapOf("permissionName" to permissionName),
+                        )
                     }
 
             // Check if permission already assigned (avoid duplicates)
@@ -173,7 +184,10 @@ open class ServicePrincipalService(
         // Validate current secret first
         val principal =
             validateServiceCredentials(serviceId, currentSecret)
-                ?: throw IllegalArgumentException("Invalid current credentials for service: $serviceId")
+                ?: throw AuthenticationException(
+                    errorCode = SecurityErrorCode.INVALID_CREDENTIALS,
+                    field = "currentSecret",
+                )
 
         val principalId = principal.id ?: throw IllegalStateException("Principal ID is null")
 
@@ -220,7 +234,13 @@ open class ServicePrincipalService(
         val principal =
             principalRepository
                 .findByPrincipalTypeAndExternalId(PrincipalType.SERVICE, serviceId)
-                .orElseThrow { IllegalArgumentException("Service not found: $serviceId") }
+                .orElseThrow {
+                    NotFoundException(
+                        errorCode = CommonErrorCode.NOT_FOUND,
+                        field = "serviceId",
+                        parameters = mapOf("serviceId" to serviceId),
+                    )
+                }
 
         val principalId = principal.id ?: throw IllegalStateException("Principal ID is null")
 
@@ -230,7 +250,11 @@ open class ServicePrincipalService(
                 permissionRepository
                     .findByName(permissionName)
                     .orElseThrow {
-                        IllegalArgumentException("Permission not found: $permissionName")
+                        NotFoundException(
+                            errorCode = SecurityErrorCode.PERMISSION_NOT_FOUND,
+                            field = "permissionsToAdd",
+                            parameters = mapOf("permissionName" to permissionName),
+                        )
                     }
 
             val permissionId = permission.id ?: throw IllegalStateException("Permission ID is null")
@@ -258,7 +282,11 @@ open class ServicePrincipalService(
                 permissionRepository
                     .findByName(permissionName)
                     .orElseThrow {
-                        IllegalArgumentException("Permission not found: $permissionName")
+                        NotFoundException(
+                            errorCode = SecurityErrorCode.PERMISSION_NOT_FOUND,
+                            field = "permissionsToRemove",
+                            parameters = mapOf("permissionName" to permissionName),
+                        )
                     }
 
             val permissionId = permission.id ?: throw IllegalStateException("Permission ID is null")

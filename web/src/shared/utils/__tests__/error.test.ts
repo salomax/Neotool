@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import i18n from '@/shared/i18n/config';
-import { cleanErrorMessage, extractErrorCode, extractErrorMessage } from '../error';
+import { cleanErrorMessage, extractErrorCode, extractErrorMessage, extractErrorParameters } from '../error';
 
 describe('error utilities', () => {
   describe('cleanErrorMessage', () => {
@@ -90,7 +90,7 @@ describe('error utilities', () => {
           { message: 'GraphQL error message' },
         ],
       };
-      expect(extractErrorMessage(error)).toBe('GraphQL error message');
+      expect(extractErrorMessage(error)).toBe('An error occurred');
     });
 
     it('should extract and clean message from GraphQL errors with prefix', () => {
@@ -99,7 +99,7 @@ describe('error utilities', () => {
           { message: 'Exception while fetching data (/query) : GraphQL error' },
         ],
       };
-      expect(extractErrorMessage(error)).toBe('GraphQL error');
+      expect(extractErrorMessage(error)).toBe('An error occurred');
     });
 
     it('should extract and translate connection error from network error', () => {
@@ -147,7 +147,7 @@ describe('error utilities', () => {
         },
       };
       // GraphQL errors should be preferred even if network error is a connection error
-      expect(extractErrorMessage(error)).toBe('GraphQL error');
+      expect(extractErrorMessage(error)).toBe('An error occurred');
     });
 
     it('should extract message from error.message property', () => {
@@ -168,7 +168,7 @@ describe('error utilities', () => {
         graphQLErrors: [],
         message: 'Fallback message',
       };
-      expect(extractErrorMessage(error)).toBe('Fallback message');
+      expect(extractErrorMessage(error)).toBe('An error occurred');
     });
 
     it('should clean extracted messages', () => {
@@ -216,6 +216,20 @@ describe('error utilities', () => {
       expect(result).toBeTruthy();
       expect(result).not.toBe('HTTP fetch failed from security: tcp connect error');
     });
+
+    it('should translate GraphQL error by AUTH code', () => {
+      const error = {
+        graphQLErrors: [{ message: 'Invalid email or password', extensions: { code: 'AUTH_INVALID_CREDENTIALS' } }],
+      };
+      expect(extractErrorMessage(error)).toBe('Invalid email or password');
+    });
+
+    it('should translate GraphQL error by legacy code alias', () => {
+      const error = {
+        graphQLErrors: [{ message: 'Invalid email or password', extensions: { code: 'INVALID_CREDENTIALS' } }],
+      };
+      expect(extractErrorMessage(error)).toBe('Invalid email or password');
+    });
   });
 
   describe('extractErrorCode', () => {
@@ -238,6 +252,15 @@ describe('error utilities', () => {
     it('should return undefined when no code is present', () => {
       const error = { graphQLErrors: [{ message: 'Invalid email or password' }] };
       expect(extractErrorCode(error)).toBeUndefined();
+    });
+  });
+
+  describe('extractErrorParameters', () => {
+    it('should extract parameters from GraphQL errors', () => {
+      const error = {
+        graphQLErrors: [{ extensions: { parameters: { maxLength: 100 } } }],
+      };
+      expect(extractErrorParameters(error)).toEqual({ maxLength: 100 });
     });
   });
 });

@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.security.service.management
 
+import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.common.graphql.pagination.Connection
 import io.github.salomax.neotool.common.graphql.pagination.ConnectionBuilder
@@ -7,10 +8,12 @@ import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.OrderDirection
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import io.github.salomax.neotool.common.security.principal.PrincipalType
+import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.github.salomax.neotool.security.domain.UserManagement
 import io.github.salomax.neotool.security.domain.rbac.GroupMembership
 import io.github.salomax.neotool.security.domain.rbac.MembershipType
 import io.github.salomax.neotool.security.domain.rbac.User
+import io.github.salomax.neotool.security.error.SecurityErrorCode
 import io.github.salomax.neotool.security.model.PrincipalEntity
 import io.github.salomax.neotool.security.model.UserOrderBy
 import io.github.salomax.neotool.security.model.UserOrderField
@@ -29,6 +32,7 @@ import java.util.UUID
  * Service for managing users.
  * Provides operations for listing, searching, enabling, and disabling users.
  */
+@TraceExecution
 @Singleton
 open class UserManagementService(
     private val userRepository: UserRepository,
@@ -194,7 +198,10 @@ open class UserManagementService(
             userRepository
                 .findById(userId)
                 .orElseThrow {
-                    IllegalArgumentException("User not found with ID: $userId")
+                    NotFoundException(
+                        errorCode = SecurityErrorCode.USER_NOT_FOUND,
+                        field = "userId",
+                    )
                 }
 
         // Get or create principal
@@ -224,7 +231,12 @@ open class UserManagementService(
         val entity =
             userRepository
                 .findById(userId)
-                .orElseThrow { IllegalArgumentException("User not found with ID: $userId") }
+                .orElseThrow {
+                    NotFoundException(
+                        errorCode = SecurityErrorCode.USER_NOT_FOUND,
+                        field = "userId",
+                    )
+                }
 
         // Get or create principal
         val principal = getOrCreatePrincipal(userId)
@@ -323,7 +335,10 @@ open class UserManagementService(
             userRepository
                 .findById(command.userId)
                 .orElseThrow {
-                    IllegalArgumentException("User not found with ID: ${command.userId}")
+                    NotFoundException(
+                        errorCode = SecurityErrorCode.USER_NOT_FOUND,
+                        field = "userId",
+                    )
                 }
 
         // Update displayName (email is immutable)
@@ -351,13 +366,19 @@ open class UserManagementService(
             userRepository
                 .findById(command.userId)
                 .orElseThrow {
-                    IllegalArgumentException("User not found with ID: ${command.userId}")
+                    NotFoundException(
+                        errorCode = SecurityErrorCode.USER_NOT_FOUND,
+                        field = "userId",
+                    )
                 }
         val group =
             groupRepository
                 .findById(command.groupId)
                 .orElseThrow {
-                    IllegalArgumentException("Group not found with ID: ${command.groupId}")
+                    NotFoundException(
+                        errorCode = SecurityErrorCode.GROUP_NOT_FOUND,
+                        field = "groupId",
+                    )
                 }
 
         // Check for existing membership
@@ -404,13 +425,19 @@ open class UserManagementService(
             userRepository
                 .findById(command.userId)
                 .orElseThrow {
-                    IllegalArgumentException("User not found with ID: ${command.userId}")
+                    NotFoundException(
+                        errorCode = SecurityErrorCode.USER_NOT_FOUND,
+                        field = "userId",
+                    )
                 }
         val group =
             groupRepository
                 .findById(command.groupId)
                 .orElseThrow {
-                    IllegalArgumentException("Group not found with ID: ${command.groupId}")
+                    NotFoundException(
+                        errorCode = SecurityErrorCode.GROUP_NOT_FOUND,
+                        field = "groupId",
+                    )
                 }
 
         // Find and delete membership

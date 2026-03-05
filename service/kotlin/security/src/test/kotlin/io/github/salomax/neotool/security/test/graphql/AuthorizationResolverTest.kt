@@ -1,5 +1,7 @@
 package io.github.salomax.neotool.security.test.graphql
 
+import io.github.salomax.neotool.common.error.CommonErrorCode
+import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.security.domain.rbac.Permission
 import io.github.salomax.neotool.security.domain.rbac.Role
 import io.github.salomax.neotool.security.graphql.dto.AuthorizationResultDTO
@@ -14,6 +16,7 @@ import io.github.salomax.neotool.security.repo.AccountMembershipRepository
 import io.github.salomax.neotool.security.service.authorization.AuthorizationResult
 import io.github.salomax.neotool.security.service.authorization.AuthorizationService
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -84,11 +87,11 @@ class AuthorizationResolverTest {
             val permission = "transactionread" // Missing colon
 
             // Act
-            val response = authorizationResolver.checkPermission(userId, permission)
-
-            // Assert
-            assertThat(response.allowed).isFalse()
-            assertThat(response.reason).contains("Invalid input provided")
+            assertThatThrownBy { authorizationResolver.checkPermission(userId, permission) }
+                .isInstanceOfSatisfying(ValidationException::class.java) { exception ->
+                    assertThat(exception.errorCode).isEqualTo(CommonErrorCode.INVALID_INPUT)
+                    assertThat(exception.field).isEqualTo("permission")
+                }
         }
 
         @Test
@@ -137,11 +140,11 @@ class AuthorizationResolverTest {
             val permission = "transaction@read" // Invalid character
 
             // Act
-            val response = authorizationResolver.checkPermission(userId, permission)
-
-            // Assert
-            assertThat(response.allowed).isFalse()
-            assertThat(response.reason).contains("Invalid input provided")
+            assertThatThrownBy { authorizationResolver.checkPermission(userId, permission) }
+                .isInstanceOfSatisfying(ValidationException::class.java) { exception ->
+                    assertThat(exception.errorCode).isEqualTo(CommonErrorCode.INVALID_INPUT)
+                    assertThat(exception.field).isEqualTo("permission")
+                }
         }
 
         @Test
@@ -151,11 +154,11 @@ class AuthorizationResolverTest {
             val permission = ""
 
             // Act
-            val response = authorizationResolver.checkPermission(userId, permission)
-
-            // Assert
-            assertThat(response.allowed).isFalse()
-            assertThat(response.reason).contains("Invalid input provided")
+            assertThatThrownBy { authorizationResolver.checkPermission(userId, permission) }
+                .isInstanceOfSatisfying(ValidationException::class.java) { exception ->
+                    assertThat(exception.errorCode).isEqualTo(CommonErrorCode.INVALID_INPUT)
+                    assertThat(exception.field).isEqualTo("permission")
+                }
         }
 
         @Test
@@ -165,11 +168,11 @@ class AuthorizationResolverTest {
             val permission = "a".repeat(256) + ":read" // Exceeds 255 chars
 
             // Act
-            val response = authorizationResolver.checkPermission(userId, permission)
-
-            // Assert
-            assertThat(response.allowed).isFalse()
-            assertThat(response.reason).contains("Invalid input provided")
+            assertThatThrownBy { authorizationResolver.checkPermission(userId, permission) }
+                .isInstanceOfSatisfying(ValidationException::class.java) { exception ->
+                    assertThat(exception.errorCode).isEqualTo(CommonErrorCode.INVALID_INPUT)
+                    assertThat(exception.field).isEqualTo("permission")
+                }
         }
 
         @Test
@@ -323,11 +326,11 @@ class AuthorizationResolverTest {
             val permission = "transaction:read"
 
             // Act
-            val response = authorizationResolver.checkPermission(userId, permission)
-
-            // Assert
-            assertThat(response.allowed).isFalse()
-            assertThat(response.reason).contains("Invalid input provided")
+            assertThatThrownBy { authorizationResolver.checkPermission(userId, permission) }
+                .isInstanceOfSatisfying(ValidationException::class.java) { exception ->
+                    assertThat(exception.errorCode).isEqualTo(CommonErrorCode.INVALID_INPUT)
+                    assertThat(exception.field).isEqualTo("userId")
+                }
         }
 
         @Test
@@ -337,11 +340,11 @@ class AuthorizationResolverTest {
             val permission = "transaction:read"
 
             // Act
-            val response = authorizationResolver.checkPermission(userId, permission)
-
-            // Assert
-            assertThat(response.allowed).isFalse()
-            assertThat(response.reason).contains("Invalid input provided")
+            assertThatThrownBy { authorizationResolver.checkPermission(userId, permission) }
+                .isInstanceOfSatisfying(ValidationException::class.java) { exception ->
+                    assertThat(exception.errorCode).isEqualTo(CommonErrorCode.INVALID_INPUT)
+                    assertThat(exception.field).isEqualTo("userId")
+                }
         }
 
         @Test
@@ -446,13 +449,9 @@ class AuthorizationResolverTest {
             ).thenThrow(RuntimeException("Internal database error: connection timeout"))
 
             // Act
-            val response = authorizationResolver.checkPermission(userId, permission)
-
-            // Assert
-            assertThat(response.allowed).isFalse()
-            assertThat(response.reason).isEqualTo("An error occurred while checking permission")
-            assertThat(response.reason).doesNotContain("Internal database error")
-            assertThat(response.reason).doesNotContain("connection timeout")
+            assertThatThrownBy { authorizationResolver.checkPermission(userId, permission) }
+                .isInstanceOf(RuntimeException::class.java)
+                .hasMessageContaining("Internal database error")
         }
 
         @Test
@@ -481,13 +480,9 @@ class AuthorizationResolverTest {
             ).thenThrow(IllegalArgumentException("User not found: 12345"))
 
             // Act
-            val response = authorizationResolver.checkPermission(userId, permission)
-
-            // Assert
-            assertThat(response.allowed).isFalse()
-            assertThat(response.reason).isEqualTo("Invalid input provided")
-            assertThat(response.reason).doesNotContain("User not found")
-            assertThat(response.reason).doesNotContain("12345")
+            assertThatThrownBy { authorizationResolver.checkPermission(userId, permission) }
+                .isInstanceOf(IllegalArgumentException::class.java)
+                .hasMessageContaining("User not found")
         }
     }
 
@@ -525,10 +520,11 @@ class AuthorizationResolverTest {
             val userId = "invalid-uuid"
 
             // Act
-            val response = authorizationResolver.getUserPermissions(userId)
-
-            // Assert
-            assertThat(response).isEmpty()
+            assertThatThrownBy { authorizationResolver.getUserPermissions(userId) }
+                .isInstanceOfSatisfying(ValidationException::class.java) { exception ->
+                    assertThat(exception.errorCode).isEqualTo(CommonErrorCode.INVALID_INPUT)
+                    assertThat(exception.field).isEqualTo("userId")
+                }
         }
     }
 
@@ -566,10 +562,11 @@ class AuthorizationResolverTest {
             val userId = "invalid-uuid"
 
             // Act
-            val response = authorizationResolver.getUserRoles(userId)
-
-            // Assert
-            assertThat(response).isEmpty()
+            assertThatThrownBy { authorizationResolver.getUserRoles(userId) }
+                .isInstanceOfSatisfying(ValidationException::class.java) { exception ->
+                    assertThat(exception.errorCode).isEqualTo(CommonErrorCode.INVALID_INPUT)
+                    assertThat(exception.field).isEqualTo("userId")
+                }
         }
     }
 

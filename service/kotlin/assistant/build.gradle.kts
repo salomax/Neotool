@@ -2,6 +2,7 @@ plugins {
     id("org.jetbrains.kotlin.jvm")
     id("io.micronaut.application")
     id("io.micronaut.aot")
+    id("org.jetbrains.kotlin.plugin.jpa")
     id("com.google.devtools.ksp")
     id("com.gradleup.shadow")
 }
@@ -26,10 +27,16 @@ dependencies {
     implementation(project(":common"))
     testImplementation(testFixtures(project(":common")))
 
+    // JPA annotations
+    implementation("jakarta.annotation:jakarta.annotation-api")
+    implementation("jakarta.persistence:jakarta.persistence-api:3.1.0")
+
     // KSP processors
     ksp("io.micronaut:micronaut-inject-kotlin")
+    ksp("io.micronaut.data:micronaut-data-processor")
     ksp("io.micronaut.serde:micronaut-serde-processor")
     kspTest("io.micronaut:micronaut-inject-kotlin")
+    kspTest("io.micronaut.data:micronaut-data-processor")
 
     // HTTP Client for GraphQL
     implementation("io.micronaut:micronaut-http-client")

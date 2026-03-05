@@ -1,12 +1,15 @@
 package io.github.salomax.neotool.assets.graphql.resolver
 
+import io.github.salomax.neotool.assets.error.AssetErrorCode
 import io.github.salomax.neotool.assets.graphql.dto.AssetDTO
 import io.github.salomax.neotool.assets.graphql.dto.ConfirmAssetUploadInput
 import io.github.salomax.neotool.assets.graphql.dto.CreateAssetUploadInput
 import io.github.salomax.neotool.assets.service.AssetService
 import io.github.salomax.neotool.assets.storage.BucketResolver
+import io.github.salomax.neotool.common.error.ValidationException
 import jakarta.inject.Singleton
 import mu.KotlinLogging
+import java.util.UUID
 
 /**
  * GraphQL Mutation resolver for Asset operations.
@@ -143,12 +146,19 @@ class AssetMutationResolver(
     ): Boolean {
         logger.info { "Deleting asset: assetId=$assetId, userId=$userId" }
 
-        val deleted =
-            assetService.deleteAsset(
-                java.util.UUID.fromString(assetId),
-                userId,
-                bypassOwnerCheck = bypassOwnerCheck,
-            )
+        val parsedAssetId =
+            try {
+                UUID.fromString(assetId)
+            } catch (e: IllegalArgumentException) {
+                throw ValidationException(
+                    errorCode = AssetErrorCode.ASSET_INVALID_ID,
+                    field = "assetId",
+                    parameters = mapOf("assetId" to assetId),
+                    cause = e,
+                )
+            }
+
+        val deleted = assetService.deleteAsset(parsedAssetId, userId)
 
         if (deleted) {
             logger.info { "Asset deleted: assetId=$assetId" }

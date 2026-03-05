@@ -1,0 +1,12 @@
+groups:
+  - name: assistant-budget-alerts
+    rules:
+      - alert: AssistantBudgetThresholdCrossed
+        expr: increase(assistant_budget_alert_total[5m]) > 0
+        for: 2m
+        labels:
+          severity: warning
+          team: assistant
+        annotations:
+          summary: "Assistant usage budget is above configured threshold"
+          description: "Usage budget consumption crossed the configured alert threshold (for example, 80%) for scope {{ $labels.scope }}."

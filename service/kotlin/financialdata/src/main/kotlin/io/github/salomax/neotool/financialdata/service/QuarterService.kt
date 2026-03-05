@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.financialdata.service
 
+import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.github.salomax.neotool.financialdata.repo.QuarterRepositoryCustom
 import jakarta.inject.Singleton
 import mu.KotlinLogging
@@ -8,6 +9,7 @@ import mu.KotlinLogging
  * Service for quarter-related operations in the financial_data module.
  * Provides shared functionality for determining latest quarters.
  */
+@TraceExecution
 @Singleton
 open class QuarterService(
     private val quarterRepository: QuarterRepositoryCustom,

@@ -1,5 +1,7 @@
 package io.github.salomax.neotool.comms.graphql.resolvers
 
+import io.github.salomax.neotool.common.error.CommonErrorCode
+import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.comms.template.domain.Channel
 import io.github.salomax.neotool.comms.template.service.TemplateService
 import jakarta.inject.Singleton
@@ -69,11 +71,12 @@ class CommsTemplateResolver(
     private fun parseChannel(channelStr: String): Channel {
         return try {
             Channel.valueOf(channelStr.uppercase())
-        } catch (e: IllegalArgumentException) {
+        } catch (_: IllegalArgumentException) {
             logger.warn { "Invalid channel: $channelStr" }
-            val validValues = Channel.values().joinToString { it.name }
-            throw IllegalArgumentException(
-                "Invalid channel: $channelStr. Valid values: $validValues",
+            throw ValidationException(
+                errorCode = CommonErrorCode.INVALID_INPUT,
+                field = "channel",
+                parameters = mapOf("channel" to channelStr),
             )
         }
     }

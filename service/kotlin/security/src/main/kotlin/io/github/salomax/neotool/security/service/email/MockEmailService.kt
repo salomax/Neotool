@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.security.service.email
 
+import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.github.salomax.neotool.security.config.EmailConfig
 import jakarta.inject.Singleton
 import java.time.Instant
@@ -12,6 +13,7 @@ import java.util.concurrent.ConcurrentHashMap
  * Stores sent emails in memory instead of actually sending them.
  * Useful for unit tests and integration tests.
  */
+@TraceExecution
 @Singleton
 class MockEmailService(
     emailConfig: EmailConfig,

@@ -1,87 +1,123 @@
 ---
-title: LLM Orchestrator Service Blueprint
+title: Assistant Service Blueprint
 type: feature-spec
 category: ai
 status: draft
-version: 1.0.0
-tags: [ai, llm, orchestrator, prompt-management, tool-calling, caching, routing]
+version: 2.0.0
+tags: [ai, llm, assistant, prompt-management, tool-calling, routing]
 ai_optimized: true
-search_keywords: [llm, orchestrator, ai, prompts, openai, anthropic, tool-calling, caching, rate-limiting]
+search_keywords: [llm, assistant, ai, prompts, openai, anthropic, tool-calling, rate-limiting, federation]
 related:
   - 02-architecture/service-architecture.md
   - 02-architecture/api-architecture.md
   - 01-overview/core-principles.md
   - 03-features/security/README.md
-last_updated: 2026-02-05
+  - 92-adr/0008-interservice-security.md
+last_updated: 2026-03-04
 ---
 
-# LLM Orchestrator Service Blueprint
+# Assistant Service Blueprint
 
-## Module Name Recommendation
+## Module Name
 
-**Recommended module name:** `llm-orchestrator` (or `ai-orchestrator`)
+**Module name:** `assistant`
 
-Why this is the best fit:
 - Centralized service for all LLM interactions across the platform
-- Provider-agnostic design supports multiple LLM providers (OpenAI, Anthropic, Google, etc.)
-- Handles cross-cutting concerns: routing, caching, observability, cost management
-- Aligns with microservices architecture as a supporting domain service
+- Follows the same conventions as all other backend services: Kotlin + Micronaut, GraphQL Federation subgraph, PostgreSQL, Flyway
+- Provider-agnostic design supports multiple LLM providers (OpenAI, Anthropic, etc.)
+- Handles cross-cutting concerns: routing, observability, cost management, rate limiting
 
 ## Overview
 
-The `llm-orchestrator` service is a **centralized intelligent routing layer** for all LLM interactions in NeoTool. It abstracts LLM provider complexity, manages prompts as versioned assets, handles tool/function calling, optimizes costs through intelligent routing and caching, and provides comprehensive observability.
+The `assistant` service is the **centralized LLM interaction layer** for the platform. It abstracts LLM provider complexity, manages prompts as versioned assets, handles tool/function calling, and provides comprehensive observability.
 
 **Core responsibilities:**
-- **Prompt Management**: Versioned prompt templates with variables and A/B testing
-- **Provider Routing**: Intelligent model selection based on cost, performance, and features
-- **Tool Calling**: Centralized registry and execution of function calling
-- **Context Management**: Conversation history, memory, and RAG integration
-- **Resilience**: Retries, fallbacks, circuit breakers, rate limiting
-- **Caching**: Semantic caching for repeated queries
+- **Prompt Management**: Versioned prompt templates with variables
+- **Completion**: One-shot completions and short multi-turn conversations
+- **Structured Output**: JSON-mode completions for data generation use cases
+- **Tool Calling**: Registry and execution of function calling (e.g., fetch account balance)
+- **Context Management**: Short conversation history via sliding window
+- **Resilience**: Retries, fallback chains, circuit breakers, rate limiting
 - **Observability**: Token tracking, cost attribution, latency metrics
-- **Security**: PII detection, input/output validation, content filtering
+- **Security**: Input/output validation, audit logging, LGPD compliance
+
+## Use Cases (v1)
+
+The three primary use cases driving this service:
+
+1. **Structured data generation** — "Given scenario X, generate JSON with data Y"
+   - One-shot prompt, no conversation
+   - Requires reliable structured output (JSON mode)
+
+2. **Recommendations** — "Given scenario X, make recommendation Y"
+   - One-shot prompt, no conversation
+
+3. **FAQ Chatbot with escalation** — User asks questions, LLM responds; if it cannot answer, escalates to a human agent
+   - Short conversation (3–8 turns max before escalation)
+   - Tool calling for domain-specific data (e.g., current account balance)
+   - Escalation pattern when LLM cannot answer with confidence
 
 ## Goals
 
 - Provide a **single, consistent interface** for all services that need LLM capabilities
 - **Abstract provider complexity**: Switch providers without changing client code
-- **Optimize costs**: Intelligent routing to cheapest model that meets requirements
 - **Ensure reliability**: Automatic retries, fallback chains, circuit breakers
-- **Track everything**: Token usage, costs, latency, quality metrics per service/user/feature
-- **Enable experimentation**: A/B test prompts, models, and parameters
-- **Maintain security**: PII redaction, content filtering, audit logging
-- **Support streaming**: Real-time token-by-token responses for better UX
+- **Track everything**: Token usage, costs, latency per service/account/feature
+- **Support tool calling**: Allow the LLM to query domain data within the authenticated account scope
+- **Maintain security**: Content validation, audit logging, LGPD compliance
+
+## Hard Requirements (v1)
+
+- **Strict account isolation**: rate limits, usage, and conversation memory are scoped by `accountId`; cross-account data reuse is forbidden.
+- **Federation subgraph**: `assistant` is a GraphQL Federation subgraph, following the same conventions as `app` and `security`. `accountId` is derived from the authenticated JWT context propagated by Apollo Router — never trusted from client input.
+- **Provider-agnostic growth path**: v1 runs with OpenAI, but routing/fallback design must support multiple providers without API redesign.
+- **LGPD compliance by default**: data minimization, purpose limitation, configurable retention, encryption at rest/in transit, auditable access.
 
 ## Non-Goals (v1)
 
 - Fine-tuning or training custom models
-- Embedding generation and vector search (separate service)
-- Complex multi-agent workflows (future enhancement)
+- Embedding generation and vector search (separate service, future)
+- Complex multi-agent workflows (future)
 - Image/video generation (focus on text completion first)
 - Model hosting (use external providers only)
+- Response caching (deferred — see Phase 8; insufficient volume in v1 to justify)
+- Complex model routing (single provider in v1)
+- PII detection and redaction pipeline (deferred to post-v1)
 
 ## Bounded Context and Ownership
 
-`llm-orchestrator` owns:
+`assistant` owns:
 - Prompt catalog (`Prompt`, `PromptVersion`, `PromptVariable`)
 - Provider configurations and credentials
-- Tool/function registry and execution
+- Tool/function registry and execution records
 - Completion requests and responses (audit trail)
 - Cost tracking and budgeting
-- Cache management (semantic + exact match)
-- Rate limit enforcement per client/user
+- Rate limit enforcement per account/service/feature
+- Short conversation context (sliding window, scoped by `accountId`)
 
-`llm-orchestrator` does **not** own:
+`assistant` does **not** own:
 - Application business logic (client services)
 - User authentication (security service)
+- Business domain data (fetched at runtime via tool calling)
 - Embeddings and vector storage (future embedding service)
-- Training data or fine-tuning (if added, separate service)
+
+## Architecture: Federation Integration
+
+`assistant` is a **GraphQL Federation subgraph**, identical in structure to `app` and `security`:
+
+```
+Client → Apollo Router → assistant subgraph (Kotlin + Micronaut)
+                                ↓
+                          OpenAI API (provider)
+                                ↓
+                     Tool executors → app / other services
+```
+
+Inter-service calls from tool executors follow the same authentication patterns defined in [ADR-0008](../../../92-adr/0008-interservice-security.md).
 
 ## Core Domain Model (v1)
 
-### Main Entities
-
-#### Prompt Management
+### Prompt Management
 
 - **`Prompt`**
   - `id`, `name`, `category`, `description`, `tags`
@@ -90,77 +126,77 @@ The `llm-orchestrator` service is a **centralized intelligent routing layer** fo
 - **`PromptVersion`**
   - `id`, `promptId`, `version`, `status` (`draft`, `active`, `deprecated`)
   - `template`, `variables`, `metadata`
-  - `modelRequirements` (min context, required features)
-  - `performanceMetrics` (avg latency, success rate)
+  - `modelRequirements` (min context, required capabilities)
+  - `outputFormat` (`TEXT`, `JSON`) — drives structured output mode
+  - `performanceMetrics` (avg latency, success rate, escalation rate)
 
 - **`PromptVariable`**
   - `name`, `type`, `required`, `defaultValue`, `validation`
 
-#### Provider Management
+### Provider Management
 
 - **`LLMProvider`**
-  - `id`, `name`, `type` (`OPENAI`, `ANTHROPIC`, `GOOGLE`, `AZURE`, etc.)
+  - `id`, `name`, `type` (`OPENAI`, `ANTHROPIC`, `GOOGLE`, etc.)
   - `baseUrl`, `apiKeyRef`, `status`, `priority`
 
 - **`LLMModel`**
   - `id`, `providerId`, `modelName`, `displayName`
-  - `capabilities` (streaming, tools, vision, etc.)
+  - `capabilities` (streaming, tools, json_mode, vision, etc.)
   - `contextWindow`, `maxOutputTokens`
   - `costPerInputToken`, `costPerOutputToken`
-  - `latencyP50`, `latencyP95`, `latencyP99`
   - `status` (`active`, `deprecated`, `disabled`)
 
-- **`ModelRoutingRule`**
-  - `id`, `priority`, `conditions`, `targetModelId`
-  - `enabled`, `description`
-
-#### Completion Management
+### Completion Management
 
 - **`CompletionRequest`**
-  - `id`, `requestedBy` (service/user), `promptId`, `promptVersionId`
+  - `id`, `accountId`, `requestedBy` (service/user), `promptId`, `promptVersionId`
   - `messages`, `variables`, `modelPreference`
-  - `options` (temperature, maxTokens, stream, tools)
-  - `metadata`, `createdAt`
+  - `options` (temperature, maxTokens, stream, tools, outputFormat)
+  - `purpose` (required for LGPD audit/retention tagging), `metadata`, `createdAt`
 
 - **`CompletionResponse`**
-  - `id`, `requestId`, `providerId`, `modelId`
+  - `id`, `requestId`, `accountId`, `providerId`, `modelId`
   - `response`, `finishReason`, `usage` (tokens)
-  - `latencyMs`, `cost`, `cached`
+  - `latencyMs`, `cost`
+  - `escalate` (boolean — FAQ escalation signal)
   - `completedAt`
 
-- **`CompletionError`**
-  - `id`, `requestId`, `errorType`, `errorMessage`, `retryCount`
-  - `occurredAt`
-
-#### Tool Calling
+### Tool Calling
 
 - **`Tool`**
   - `id`, `name`, `description`, `category`
   - `inputSchema` (JSON Schema), `outputSchema`
   - `executorService`, `executorEndpoint`
   - `timeout`, `retryPolicy`
+  - `status` (`active`, `disabled`)
 
 - **`ToolExecution`**
   - `id`, `completionRequestId`, `toolId`
   - `input`, `output`, `status`, `error`
   - `latencyMs`, `executedAt`
 
-#### Caching
+### Conversation (FAQ Chatbot)
 
-- **`CacheEntry`**
-  - `id`, `cacheKey` (semantic hash), `promptHash`, `messagesHash`
-  - `cachedResponse`, `modelId`, `hitCount`
-  - `expiresAt`, `createdAt`, `lastAccessedAt`
+- **`Conversation`**
+  - `id`, `accountId`, `userId`
+  - `messages` (short sliding window, max 10 turns)
+  - `status` (`active`, `escalated`, `closed`)
+  - `escalatedAt`, `metadata`
+  - `createdAt`, `expiresAt`
 
-#### Cost & Usage
+- **`Message`**
+  - `role` (`USER`, `ASSISTANT`, `SYSTEM`, `TOOL`)
+  - `content`, `toolCalls`, `timestamp`
+
+### Cost & Usage
 
 - **`UsageLog`**
-  - `id`, `requestId`, `service`, `userId`, `feature`
+  - `id`, `accountId`, `requestId`, `service`, `userId`, `feature`, `purpose`
   - `promptTokens`, `completionTokens`, `totalTokens`
   - `cost`, `modelId`, `timestamp`
 
 - **`UsageBudget`**
-  - `id`, `scope` (`global`, `service`, `user`), `scopeId`
+  - `id`, `scope` (`account`, `service`, `feature`), `scopeId`
   - `period` (`daily`, `weekly`, `monthly`), `limitAmount`
   - `currentUsage`, `alertThreshold`
 
@@ -171,219 +207,93 @@ The `llm-orchestrator` service is a **centralized intelligent routing layer** fo
 - One `CompletionRequest` has one `CompletionResponse` (1:1)
 - One `CompletionRequest` may have many `ToolExecution` records
 - One `LLMProvider` has many `LLMModel` records
-- One `CacheEntry` can serve many `CompletionRequest` records
+- `Conversation.accountId` is always set — no cross-account conversation access
 
-## Intelligent Routing Strategy
+## Context Management (Sliding Window)
 
-### Routing Decision Factors
-
-The orchestrator selects models based on:
-
-1. **Requirements Matching**
-   - Context window needed vs available
-   - Required features (tools, streaming, vision)
-   - Model capability constraints
-
-2. **Cost Optimization**
-   - Cost per token (input + output)
-   - Estimated total cost for request
-   - Budget remaining for scope
-
-3. **Performance**
-   - Historical latency (P50, P95, P99)
-   - Current provider health (circuit breaker state)
-   - Rate limit availability
-
-4. **Quality**
-   - Historical success rate
-   - Task-specific performance metrics
-   - User feedback scores
-
-### Routing Algorithm (simplified)
+For FAQ conversations, context is managed via a simple sliding window. No LLM-based summarization in v1 — conversations are expected to escalate within 3–8 turns, so context overflow is not a practical concern.
 
 ```kotlin
-fun selectModel(request: CompletionRequest): LLMModel {
-    // 1. Filter by hard requirements
-    val candidates = models.filter { model ->
-        model.contextWindow >= request.estimatedTokens &&
-        model.capabilities.containsAll(request.requiredFeatures) &&
-        model.status == ACTIVE
-    }
+fun truncateToFit(messages: List<Message>, maxTokens: Int): List<Message> {
+    val system = messages.filter { it.role == SYSTEM }
+    val recent = messages.filter { it.role != SYSTEM }.takeLast(RECENT_MESSAGES_LIMIT)
+    return system + recent
+}
 
-    // 2. Apply routing rules
-    val ruleMatched = routingRules
-        .filter { it.enabled }
-        .sortedByDescending { it.priority }
-        .firstOrNull { it.matches(request) }
-        ?.targetModelId
-
-    if (ruleMatched != null) return getModel(ruleMatched)
-
-    // 3. Score by cost + performance
-    val scored = candidates.map { model ->
-        val costScore = 1.0 / (model.estimatedCost(request) + 0.01)
-        val perfScore = 1.0 / (model.latencyP95 + 1.0)
-        val healthScore = circuitBreaker.healthScore(model.provider)
-
-        model to (costScore * 0.5 + perfScore * 0.3 + healthScore * 0.2)
-    }
-
-    // 4. Return highest scoring available model
-    return scored.maxByOrNull { it.second }?.first
-        ?: throw NoAvailableModelException()
+companion object {
+    const val RECENT_MESSAGES_LIMIT = 10 // configurable
 }
 ```
 
-### Fallback Chain Example
+One-shot completions (data generation, recommendations) do not use conversation context.
+
+## Escalation Pattern (FAQ)
+
+When the LLM cannot answer with confidence, it signals escalation via a structured response. The system prompt instructs this behavior explicitly, requiring no tool calling.
 
 ```
-Primary:    GPT-4 Turbo
-Fallback 1: Claude 3 Sonnet
-Fallback 2: GPT-3.5 Turbo
-Fallback 3: Error response
+System prompt includes:
+"If you cannot answer confidently, respond ONLY with valid JSON:
+ { \"escalate\": true, \"reason\": \"<brief reason>\" }"
 ```
+
+The `assistant` service detects this signal, sets `CompletionResponse.escalate = true`, and returns the full conversation history to the caller for human handoff. The client is responsible for the escalation flow (e.g., routing to a support queue).
 
 ## Tool Calling Architecture
+
+Tool calling supports FAQ use cases where the LLM needs domain data to answer (e.g., "what is my current balance?").
 
 ### Tool Registry Pattern
 
 ```kotlin
 interface ToolExecutor {
-    suspend fun execute(input: JsonObject): Result<JsonObject>
+    suspend fun execute(accountId: UUID, input: JsonObject): Result<JsonObject>
 }
 
 @Singleton
 class ToolRegistry {
     private val executors = mutableMapOf<String, ToolExecutor>()
 
-    fun register(toolName: String, executor: ToolExecutor)
+    fun register(toolName: String, executor: ToolExecutor) {
+        executors[toolName] = executor
+    }
 
-    fun execute(toolName: String, input: JsonObject): Result<JsonObject> {
-        return executors[toolName]?.execute(input)
+    suspend fun execute(toolName: String, accountId: UUID, input: JsonObject): Result<JsonObject> {
+        return executors[toolName]?.execute(accountId, input)
             ?: Result.failure(ToolNotFoundException(toolName))
     }
 }
 ```
+
+`accountId` is always passed to tool executors — tools never query data outside the authenticated account scope.
 
 ### Tool Calling Flow
 
 ```mermaid
 sequenceDiagram
     participant Client
-    participant Orchestrator
+    participant Assistant
     participant LLM
     participant ToolRegistry
-    participant ToolService
+    participant AppService
 
-    Client->>Orchestrator: completionRequest(tools=["search", "calculate"])
-    Orchestrator->>LLM: generateCompletion(tools)
-    LLM-->>Orchestrator: toolCall("search", params)
-    Orchestrator->>ToolRegistry: execute("search", params)
-    ToolRegistry->>ToolService: performSearch(params)
-    ToolService-->>ToolRegistry: searchResults
-    ToolRegistry-->>Orchestrator: toolResult
-    Orchestrator->>LLM: continueWithToolResult(result)
-    LLM-->>Orchestrator: finalResponse
-    Orchestrator-->>Client: completionResponse
+    Client->>Assistant: sendMessage(conversationId, "qual meu saldo?")
+    Assistant->>LLM: generateCompletion(messages, tools=["get_balance"])
+    LLM-->>Assistant: toolCall("get_balance", {})
+    Assistant->>ToolRegistry: execute("get_balance", accountId, params)
+    ToolRegistry->>AppService: getBalance(accountId)
+    AppService-->>ToolRegistry: { balance: 1500.00, currency: "BRL" }
+    ToolRegistry-->>Assistant: toolResult
+    Assistant->>LLM: continueWithToolResult(result)
+    LLM-->>Assistant: "Seu saldo atual é R$ 1.500,00"
+    Assistant-->>Client: ConversationResponse
 ```
 
 ### Built-in Tools (v1)
 
-- `web_search`: Search web (via search service)
-- `database_query`: Query structured data (with safety checks)
-- `calculate`: Math calculations
-- `get_current_time`: Time/date utilities
-- `send_notification`: Trigger notifications
+- `get_current_time` — current date/time (no external dependency)
 
-## Context Management
-
-### Conversation Memory
-
-```kotlin
-data class Conversation {
-    val id: UUID
-    val userId: UUID
-    val messages: List<Message>
-    val metadata: Map<String, Any>
-    val createdAt: Instant
-    val expiresAt: Instant
-}
-
-data class Message {
-    val role: MessageRole // USER, ASSISTANT, SYSTEM, TOOL
-    val content: String
-    val toolCalls: List<ToolCall>? = null
-    val timestamp: Instant
-}
-
-interface ConversationStore {
-    suspend fun saveMessage(conversationId: UUID, message: Message)
-    suspend fun getConversation(conversationId: UUID): Conversation
-    suspend fun truncateToFit(messages: List<Message>, maxTokens: Int): List<Message>
-}
-```
-
-### Token Management Strategy
-
-1. **Estimate tokens** before sending to LLM
-2. **Truncate intelligently** if over context window:
-   - Always keep system prompt
-   - Keep recent N messages
-   - Summarize middle messages
-   - Preserve tool call sequences
-3. **Track cumulative usage** per conversation
-
-## Caching Strategy
-
-### Multi-Level Caching
-
-#### Level 1: Exact Match Cache
-- Cache key: `hash(prompt + messages + parameters)`
-- TTL: 5 minutes
-- Use case: Identical repeated requests
-
-#### Level 2: Semantic Cache
-- Cache key: `semantic_hash(messages)`
-- Similarity threshold: 0.95
-- TTL: 1 hour
-- Use case: Similar questions with different wording
-
-#### Level 3: Prompt-Level Cache
-- Cache common prompt responses
-- Parameterized templates
-- TTL: 24 hours
-
-### Cache Invalidation
-
-- Time-based expiration (TTL)
-- Manual invalidation for sensitive data
-- Version-based invalidation when prompt updated
-
-## Rate Limiting
-
-### Multi-Tier Rate Limits
-
-```kotlin
-data class RateLimit(
-    val scope: RateLimitScope, // GLOBAL, PROVIDER, SERVICE, USER
-    val scopeId: String,
-    val windowSize: Duration,
-    val maxRequests: Int,
-    val maxTokens: Long
-)
-
-interface RateLimiter {
-    suspend fun checkLimit(scope: RateLimitScope, scopeId: String): RateLimitResult
-    suspend fun recordUsage(scope: RateLimitScope, scopeId: String, tokens: Long)
-}
-```
-
-### Rate Limit Hierarchy
-
-1. **Provider Level**: Respect provider rate limits (OpenAI, Anthropic, etc.)
-2. **Service Level**: Limit per client service (prevent runaway costs)
-3. **User Level**: Limit per end-user (fair usage)
-4. **Feature Level**: Limit per feature (budget allocation)
+Domain-specific tools (e.g., `get_account_balance`, `get_portfolio_summary`) are registered by client services at application startup via the tool registry. Each tool must implement `ToolExecutor` and respect the `accountId` isolation contract.
 
 ## Resilience Patterns
 
@@ -413,47 +323,54 @@ data class CircuitBreakerConfig(
     val halfOpenRequests: Int = 1
 )
 
-enum class CircuitState {
-    CLOSED,      // Normal operation
-    OPEN,        // Failing, reject requests
-    HALF_OPEN    // Testing if recovered
-}
+enum class CircuitState { CLOSED, OPEN, HALF_OPEN }
 ```
 
-### Fallback Chain
+### Fallback Chain (v1 — single provider)
 
-For each request, define fallback sequence:
-1. Try primary model
-2. If fails, try fallback model
-3. If all fail, return cached response (if available)
-4. If no cache, return graceful error
+1. Try primary model (e.g., `gpt-4o`)
+2. If fails, try fallback model (e.g., `gpt-4o-mini`, same provider)
+3. If all fail, return graceful error
 
-## Security & Compliance
+Multi-provider fallback is deferred to Phase 7.
 
-### PII Detection & Redaction
+## Rate Limiting
 
 ```kotlin
-interface PIIDetector {
-    fun detectPII(text: String): List<PIIMatch>
-    fun redact(text: String): String
-}
-
-data class PIIMatch(
-    val type: PIIType, // EMAIL, PHONE, SSN, CREDIT_CARD, etc.
-    val value: String,
-    val startIndex: Int,
-    val endIndex: Int
+data class RateLimit(
+    val scope: RateLimitScope, // PROVIDER, ACCOUNT, SERVICE, FEATURE
+    val scopeId: String,
+    val windowSize: Duration,
+    val maxRequests: Int,
+    val maxTokens: Long
 )
 ```
 
-**Processing flow:**
-1. Detect PII in input
-2. Log detection (audit)
-3. Redact before sending to external LLM
-4. Store original (encrypted) for compliance
-5. Never log unredacted data
+Rate limit hierarchy (v1):
+1. **Provider Level**: Respect OpenAI rate limits
+2. **Account Level**: Fair-use enforcement per customer account
+3. **Feature Level**: Budget allocation per feature/use case
 
-### Content Filtering
+## Security & Compliance
+
+### LGPD Compliance Defaults
+
+- Data minimization: send and store only data required for the request purpose.
+- Purpose limitation: every request requires a `purpose` field for auditability and retention policy.
+- Configurable retention (default: 30 days for completion logs; configurable by purpose).
+- Encryption at rest for persisted payloads.
+- Data subject rights: deletion/anonymization of conversation and usage data on request.
+
+### Audit Logging
+
+All LLM interactions are logged:
+- Request initiator (service, user), `accountId`, feature/purpose
+- Prompt used (version), model used, tokens, cost
+- Tool calls executed (tool name, accountId scope, result status)
+- Escalation events (reason)
+- Retention: 30 days default, configurable per purpose
+
+### Input/Output Validation
 
 ```kotlin
 interface ContentFilter {
@@ -463,8 +380,7 @@ interface ContentFilter {
 
 data class ValidationResult(
     val allowed: Boolean,
-    val violations: List<ContentViolation>,
-    val sanitizedContent: String? = null
+    val violations: List<ContentViolation>
 )
 
 enum class ContentViolationType {
@@ -472,17 +388,7 @@ enum class ContentViolationType {
 }
 ```
 
-### Audit Logging
-
-Log all LLM interactions:
-- Request initiator (service, user)
-- Prompt used (version)
-- Input/output (redacted)
-- Model used, tokens, cost
-- Any security violations
-- Retention: 90 days (configurable)
-
-## Suggested GraphQL Surface (v1)
+## GraphQL Surface (v1)
 
 ### Queries
 
@@ -503,65 +409,25 @@ type Query {
   # Model catalog
   availableModels(capabilities: [ModelCapability!]): [LLMModel!]!
 }
-
-type Prompt {
-  id: ID!
-  name: String!
-  category: String!
-  description: String
-  activeVersion: PromptVersion
-  versions: [PromptVersion!]!
-  createdAt: DateTime!
-}
-
-type PromptVersion {
-  id: ID!
-  version: Int!
-  template: String!
-  variables: [PromptVariable!]!
-  status: PromptVersionStatus!
-  performanceMetrics: PerformanceMetrics
-}
-
-type UsageStats {
-  totalRequests: Int!
-  totalTokens: Long!
-  totalCost: Decimal!
-  byModel: [ModelUsage!]!
-  byFeature: [FeatureUsage!]!
-}
-
-type LLMModel {
-  id: ID!
-  name: String!
-  provider: String!
-  capabilities: [ModelCapability!]!
-  contextWindow: Int!
-  costPerInputToken: Decimal!
-  costPerOutputToken: Decimal!
-  averageLatency: Int!
-}
 ```
 
 ### Mutations
 
 ```graphql
 type Mutation {
-  # Main completion endpoint
+  # One-shot completion (data generation, recommendations)
   generateCompletion(input: CompletionInput!): CompletionResponse!
 
-  # Streaming variant (subscription)
-  # streamCompletion(input: CompletionInput!): CompletionChunk!
-
-  # Conversation management
-  createConversation(metadata: JSON): Conversation!
-  addMessage(conversationId: ID!, message: MessageInput!): Conversation!
+  # Conversation — FAQ chatbot
+  startConversation(metadata: JSON): Conversation!
+  sendMessage(conversationId: ID!, message: MessageInput!): ConversationResponse!
+  closeConversation(conversationId: ID!): Conversation!
 
   # Prompt management (admin)
   createPrompt(input: CreatePromptInput!): Prompt!
   publishPromptVersion(promptId: ID!, versionId: ID!): PromptVersion!
 
-  # Tool registration (admin)
+  # Tool registration (admin/internal)
   registerTool(input: RegisterToolInput!): Tool!
 
   # Budget management (admin)
@@ -572,7 +438,6 @@ input CompletionInput {
   promptId: ID
   promptVariables: JSON
   messages: [MessageInput!]
-  conversationId: ID
 
   # Model selection
   modelPreference: String
@@ -581,12 +446,13 @@ input CompletionInput {
   # Parameters
   temperature: Float
   maxTokens: Int
-  stream: Boolean
+  outputFormat: OutputFormat  # TEXT (default) | JSON
 
   # Tools
   tools: [String!]
 
-  # Context
+  # LGPD required
+  purpose: String!
   metadata: JSON
 }
 
@@ -598,8 +464,18 @@ type CompletionResponse {
   model: String!
   latencyMs: Int!
   cost: Decimal!
-  cached: Boolean!
+  escalate: Boolean!
   toolCalls: [ToolCall!]
+}
+
+type ConversationResponse {
+  conversation: Conversation!
+  lastMessage: CompletionResponse!
+}
+
+enum OutputFormat {
+  TEXT
+  JSON
 }
 ```
 
@@ -607,119 +483,19 @@ type CompletionResponse {
 
 ```graphql
 type Subscription {
-  # Streaming completions
-  completionStream(input: CompletionInput!): CompletionChunk!
-
-  # Usage alerts
-  usageAlerts(serviceId: String): UsageAlert!
+  # Streaming completions — FAQ chatbot UX
+  messageStream(conversationId: ID!, input: MessageInput!): CompletionChunk!
 }
 
 type CompletionChunk {
   delta: String!
   finishReason: String
   usage: TokenUsage
+  escalate: Boolean
 }
 ```
 
-## Data and Constraints (database)
-
-### Recommended Constraints
-
-- Unique `(promptId, version)` for prompt versions
-- Unique `(provider, modelName)` for models
-- One active prompt version per prompt: `UNIQUE WHERE status = 'active'`
-- Foreign keys: `completionResponse.requestId` → `completionRequest.id`
-- Check constraint: `cost >= 0`, `tokens >= 0`
-- Audit timestamps on all tables
-
-### Recommended Indexing
-
-```sql
--- Completion tracking
-CREATE INDEX idx_completion_requests_service_created
-  ON completion_requests(requested_by_service, created_at DESC);
-
-CREATE INDEX idx_completion_responses_model_completed
-  ON completion_responses(model_id, completed_at DESC);
-
--- Usage analytics
-CREATE INDEX idx_usage_log_service_timestamp
-  ON usage_log(service, timestamp DESC);
-
-CREATE INDEX idx_usage_log_user_timestamp
-  ON usage_log(user_id, timestamp DESC);
-
--- Caching
-CREATE INDEX idx_cache_entry_key_expires
-  ON cache_entry(cache_key, expires_at);
-
-CREATE INDEX idx_cache_entry_expires
-  ON cache_entry(expires_at) WHERE expires_at > NOW();
-
--- Tool execution
-CREATE INDEX idx_tool_execution_request
-  ON tool_execution(completion_request_id);
-```
-
-## Observability
-
-### Metrics
-
-#### Request Metrics
-- `llm_requests_total{service, model, status}`
-- `llm_request_duration_ms{service, model, p50, p95, p99}`
-- `llm_cache_hits_total{cache_level}`
-- `llm_cache_miss_total{cache_level}`
-
-#### Token Metrics
-- `llm_tokens_total{service, model, token_type}`
-- `llm_cost_total{service, model}`
-
-#### Provider Metrics
-- `llm_provider_errors_total{provider, error_type}`
-- `llm_provider_latency_ms{provider, p50, p95, p99}`
-- `llm_circuit_breaker_state{provider}`
-
-#### Tool Metrics
-- `llm_tool_executions_total{tool, status}`
-- `llm_tool_latency_ms{tool, p50, p95, p99}`
-
-### Alerts
-
-- **High error rate**: >5% errors in 5min window
-- **Circuit breaker open**: Provider unavailable
-- **High latency**: P95 > 10s
-- **Budget threshold**: >80% of budget consumed
-- **Rate limit approaching**: >90% of rate limit used
-- **Cache miss rate**: <70% hit rate (investigate)
-- **PII detection spike**: Unusual PII detections (security)
-
-### Logging
-
-```kotlin
-// Structured logging
-log.info(
-    "completion_request",
-    "service" to service,
-    "promptId" to promptId,
-    "model" to model,
-    "estimatedTokens" to estimatedTokens
-)
-
-log.info(
-    "completion_response",
-    "requestId" to requestId,
-    "model" to model,
-    "tokens" to tokens,
-    "latencyMs" to latencyMs,
-    "cost" to cost,
-    "cached" to cached
-)
-```
-
 ## Provider Abstraction Layer
-
-### Provider Interface
 
 ```kotlin
 interface LLMProviderClient {
@@ -735,149 +511,188 @@ data class ProviderCompletionRequest(
     val temperature: Double? = null,
     val maxTokens: Int? = null,
     val tools: List<ProviderTool>? = null,
+    val responseFormat: ResponseFormat? = null, // JSON mode
     val stream: Boolean = false
-)
-
-data class ProviderCompletionResponse(
-    val id: String,
-    val content: String,
-    val finishReason: String,
-    val usage: ProviderTokenUsage,
-    val toolCalls: List<ProviderToolCall>? = null
 )
 ```
 
 ### Provider Implementations (v1)
 
-- `OpenAIProviderClient` - OpenAI (GPT-4, GPT-3.5)
-- `AnthropicProviderClient` - Anthropic (Claude 3.x)
-- `GoogleProviderClient` - Google (Gemini)
-- `AzureOpenAIProviderClient` - Azure OpenAI
-- `MockProviderClient` - Testing
+- `OpenAIProviderClient` — primary provider (`gpt-4o`, `gpt-4o-mini`)
+- `MockProviderClient` — testing
 
-### Message Format Normalization
+Additional providers (Anthropic, Google) deferred to Phase 7.
 
-Each provider has different message formats. The orchestrator normalizes:
+## Database Constraints
+
+- Unique `(promptId, version)` for prompt versions
+- One active prompt version per prompt: `UNIQUE WHERE status = 'active'`
+- `NOT NULL account_id` on completion_requests, completion_responses, usage_log, conversations
+- Foreign key: `completion_responses.request_id` → `completion_requests.id`
+- Check constraints: `cost >= 0`, `tokens >= 0`
+- Audit timestamps (`created_at`, `updated_at`) on all tables
+
+## Recommended Indexes
+
+```sql
+-- Completion tracking
+CREATE INDEX idx_completion_requests_account_created
+  ON completion_requests(account_id, created_at DESC);
+
+CREATE INDEX idx_completion_requests_service_created
+  ON completion_requests(requested_by_service, created_at DESC);
+
+-- Usage analytics
+CREATE INDEX idx_usage_log_account_timestamp
+  ON usage_log(account_id, timestamp DESC);
+
+CREATE INDEX idx_usage_log_service_timestamp
+  ON usage_log(service, timestamp DESC);
+
+-- Conversations
+CREATE INDEX idx_conversations_account_status
+  ON conversations(account_id, status, created_at DESC);
+
+-- Tool execution
+CREATE INDEX idx_tool_execution_request
+  ON tool_execution(completion_request_id);
+```
+
+## Observability
+
+### Key Metrics
+
+- `assistant_requests_total{service, model, status, output_format}`
+- `assistant_request_duration_ms_bucket{service, model}`
+- `assistant_tokens_total{service, model, token_type}`
+- `assistant_cost_total{service, model}`
+- `assistant_tool_executions_total{tool, status}`
+- `assistant_escalations_total{reason}`
+- `assistant_provider_errors_total{provider, error_type}`
+- `assistant_circuit_breaker_state{provider}`
+
+### Alerts
+
+- **High error rate**: >5% errors in 5-minute window
+- **Circuit breaker open**: Provider unavailable
+- **High latency**: P95 > 10s
+- **Budget threshold**: >80% of budget consumed
+- **Rate limit approaching**: >90% of rate limit used
+- **Escalation spike**: Unusual escalation rate (signals prompt quality degradation)
+
+### Structured Logging
 
 ```kotlin
-// Internal format
-data class Message(
-    val role: MessageRole,
-    val content: String,
-    val name: String? = null,
-    val toolCalls: List<ToolCall>? = null,
-    val toolCallId: String? = null
+log.info(
+    "completion_request",
+    "service" to service,
+    "accountId" to accountId,
+    "promptId" to promptId,
+    "purpose" to purpose,
+    "model" to model,
+    "outputFormat" to outputFormat,
+    "estimatedTokens" to estimatedTokens
 )
 
-// Provider-specific mapping
-fun Message.toOpenAI(): OpenAIChatMessage
-fun Message.toAnthropic(): AnthropicMessage
-fun OpenAIChatMessage.toInternal(): Message
-fun AnthropicMessage.toInternal(): Message
+log.info(
+    "completion_response",
+    "requestId" to requestId,
+    "model" to model,
+    "tokens" to tokens,
+    "latencyMs" to latencyMs,
+    "cost" to cost,
+    "escalate" to escalate
+)
 ```
 
 ## Rollout Plan
 
-### Phase 0 - Foundation
-- ✅ Design domain model and database schema
-- ✅ Create provider abstraction interfaces
-- ✅ Implement mock provider for testing
-- ✅ Set up observability (metrics, logging)
+### Phase 1 — Foundation + One-shot Completion
+- Apollo Federation subgraph setup (Kotlin + Micronaut, following service patterns)
+- OpenAI provider client (`gpt-4o`, `gpt-4o-mini`)
+- Prompt management (CRUD + versioning)
+- `generateCompletion` endpoint (one-shot, synchronous, no streaming)
+- Token counting and cost tracking (`UsageLog`)
+- Basic observability (metrics, structured logging)
 
-### Phase 1 - Basic Completion
-- Implement OpenAI provider client
-- Build basic completion endpoint (no streaming)
-- Add exact-match caching
-- Implement token counting and cost tracking
-- Set up basic rate limiting
+### Phase 2 — Structured Output
+- `OutputFormat.JSON` support via OpenAI JSON mode
+- JSON schema validation for structured responses
+- `outputFormat` configuration per `PromptVersion`
 
-### Phase 2 - Prompt Management
-- Implement prompt catalog (CRUD)
-- Add prompt versioning
-- Build prompt template rendering
-- Add prompt performance tracking
+### Phase 3 — FAQ Conversation + Escalation
+- `Conversation` entity and CRUD (`startConversation`, `sendMessage`, `closeConversation`)
+- Short conversation context (sliding window, max 10 turns)
+- Escalation pattern: detection and `escalate` flag in response
+- Conversation history returned on escalation for human handoff
 
-### Phase 3 - Resilience & Routing
-- Implement retry logic with exponential backoff
-- Add circuit breaker for providers
-- Build intelligent model routing
-- Implement fallback chains
-- Add semantic caching
+### Phase 4 — Tool Calling
+- `ToolRegistry` and `ToolExecutor` interface
+- Tool calling support via OpenAI function calling format
+- `get_current_time` built-in tool
+- Framework for domain-specific tools registered by client services at startup
 
-### Phase 4 - Tool Calling
-- Implement tool registry
-- Add tool calling support (OpenAI format)
-- Build tool execution framework
-- Add built-in tools (search, calculate, etc.)
+### Phase 5 — Rate Limiting + Resilience
+- Retry logic with exponential backoff
+- Circuit breaker for provider
+- Rate limiting per account, service, and feature
+- `UsageBudget` enforcement and threshold alerts
 
-### Phase 5 - Multi-Provider
-- Add Anthropic provider client
-- Add Google provider client
-- Implement provider health monitoring
-- Build provider failover logic
+### Phase 6 — Streaming
+- SSE streaming for FAQ chatbot UX
+- `messageStream` subscription
+- Streaming escalation detection
 
-### Phase 6 - Advanced Features
-- Add streaming support (SSE/WebSocket)
-- Implement conversation management
-- Add context window management
-- Build PII detection and redaction
-- Implement content filtering
+### Phase 7 — Multi-Provider
+- Anthropic provider client (`claude-haiku-4-5`, `claude-opus-4-6`)
+- Provider health monitoring and automatic failover
+- Model routing: cost + performance scoring
+- Gradual traffic shifting (`100/0` → `90/10` → `50/50`)
 
-### Phase 7 - Production Hardening
-- Add comprehensive error handling
-- Implement audit logging
-- Set up alerting and dashboards
-- Build admin tools (prompt management UI)
-- Create runbooks for operations
+### Phase 8 — Caching (when volume justifies)
+- Exact match cache (PostgreSQL-backed, `account_id` scoped)
+- Cache invalidation on prompt version change
+- Cache hit/miss metrics
+- LGPD deletion workflows for cached data
 
-### Phase 8 - Optimization
-- Optimize caching strategies
-- Fine-tune routing algorithms
-- Implement usage-based budgeting
-- Add A/B testing framework for prompts
-- Build cost optimization recommendations
+## Decisions
 
-## Open Decisions
+| # | Decision | Resolution |
+|---|----------|------------|
+| Token estimation | tiktoken (OpenAI-compatible, consistent with primary provider) | **Closed** |
+| Streaming transport | SSE (simpler, auto-reconnect, firewall-friendly) | **Closed** |
+| Provider credentials | Shared platform keys (per-account deferred) | **Closed** |
+| Tool execution | Synchronous (blocking, 10s timeout) | **Closed** |
+| Routing rules semantics | Preference-only, never hard override | **Closed** |
+| Context truncation | Sliding window (no LLM summarization in v1) | **Closed** |
+| Cache backend | PostgreSQL when Phase 8 is reached | Open (Phase 8) |
+| Cost attribution | Account + Service + Feature | **Closed** |
+| LGPD: PII storage | Redacted-first default; originals only with documented legal basis | **Closed** |
 
-### To Be Decided
+## Future Enhancements (Post-v1)
 
-1. **Prompt Storage**: Database vs file-based (Git) vs hybrid?
-2. **Streaming Transport**: SSE vs WebSocket vs gRPC streams?
-3. **Cache Backend**: Redis vs PostgreSQL vs Memcached?
-4. **Embedding Service**: Same orchestrator or separate service?
-5. **Multi-tenancy**: Shared vs isolated provider credentials?
-6. **Token Estimation**: Use tiktoken, provider APIs, or custom?
-7. **Tool Execution**: Sync vs async? Timeout strategy?
-8. **Cost Attribution**: Service-level only or drill down to user/feature?
-9. **Conversation TTL**: Default retention period for context?
-10. **Prompt A/B Testing**: Built-in or external experimentation platform?
-
-### Trade-offs to Consider
-
-| Decision | Option A | Option B | Recommendation |
-|----------|----------|----------|----------------|
-| **Prompt Storage** | Database (PostgreSQL) | Git repository | **Database** - Easier versioning, querying, and runtime access |
-| **Caching** | Redis (separate) | PostgreSQL (same DB) | **PostgreSQL** - Simpler ops, fewer dependencies. Redis if >1M requests/day |
-| **Streaming** | SSE (HTTP) | WebSocket | **SSE** - Simpler, auto-reconnect, firewall-friendly |
-| **Provider Credentials** | Per-service keys | Shared keys | **Shared keys** initially, per-service for advanced use cases |
-| **Tool Execution** | Synchronous (blocking) | Asynchronous (queue) | **Sync** initially, async for long-running tools (>5s) |
+- Response caching (Phase 8 — when volume justifies the operational complexity)
+- LLM-based conversation summarization for long-lived sessions (async, pre-computed)
+- Embedding service integration (separate service)
+- Semantic caching (requires embedding service)
+- Prompt A/B testing framework
+- PII detection and redaction pipeline
+- Admin UI for prompt management
+- Per-account provider credentials
 
 ## Suggested Next Artifacts
 
-- `docs/03-features/ai/llm-orchestrator/DECISIONS.md` - Trade-offs and technical decisions
-- `docs/03-features/ai/llm-orchestrator/api-examples.md` - GraphQL usage examples
-- `docs/03-features/ai/llm-orchestrator/runbook.md` - Operations and incident handling
-- `docs/03-features/ai/llm-orchestrator/provider-integration-guide.md` - How to add new providers
-- `docs/92-adr/0011-llm-orchestrator-service.md` - Architecture Decision Record
-- `services/kotlin/assistant/schema.graphql` - GraphQL schema
-- `services/kotlin/assistant/src/main/resources/db/migration/V001__initial_schema.sql` - Database schema
+- `docs/03-features/ai/assistant/DECISIONS.md` — detailed decision log with rationale
+- `docs/03-features/ai/assistant/api-examples.md` — GraphQL usage examples per use case
+- `docs/03-features/ai/assistant/tool-integration-guide.md` — how client services register tools
+- `docs/92-adr/0011-assistant-service.md` — Architecture Decision Record
+- `services/kotlin/assistant/schema.graphql` — GraphQL subgraph schema
+- `services/kotlin/assistant/src/main/resources/db/migration/V001__initial_schema.sql` — Database schema
 
 ## References
 
 - [OpenAI API Documentation](https://platform.openai.com/docs/api-reference)
+- [OpenAI Function Calling](https://platform.openai.com/docs/guides/function-calling)
+- [OpenAI Structured Outputs](https://platform.openai.com/docs/guides/structured-outputs)
 - [Anthropic Claude API](https://docs.anthropic.com/claude/reference)
-- [Google Gemini API](https://ai.google.dev/docs)
-- [LangChain Architecture Patterns](https://python.langchain.com/docs/get_started/introduction)
-- [Semantic Kernel](https://learn.microsoft.com/en-us/semantic-kernel/overview/)
-- [AWS Bedrock](https://docs.aws.amazon.com/bedrock/)
-- [Azure OpenAI Service](https://learn.microsoft.com/en-us/azure/ai-services/openai/)
+- [Apollo Federation Subgraphs](https://www.apollographql.com/docs/federation/building-supergraphs/subgraphs-overview)

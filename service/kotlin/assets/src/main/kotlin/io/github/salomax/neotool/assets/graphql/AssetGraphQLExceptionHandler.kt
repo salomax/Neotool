@@ -8,9 +8,15 @@ import io.github.salomax.neotool.assets.error.AssetErrorCode
 import io.github.salomax.neotool.assets.exception.StorageUnavailableException
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.DomainException
-import io.github.salomax.neotool.common.exception.GraphQLOptimisticLockExceptionHandler
+import io.github.salomax.neotool.common.graphql.GraphQLPayloadException
+import io.github.salomax.neotool.common.security.exception.AuthenticationRequiredException
+import io.github.salomax.neotool.common.security.exception.AuthorizationDeniedException
+import org.hibernate.StaleObjectStateException
+import org.hibernate.StaleStateException
+import org.hibernate.dialect.lock.OptimisticEntityLockException
 import org.slf4j.LoggerFactory
 import java.util.concurrent.CompletableFuture
+import io.github.salomax.neotool.common.graphql.payload.GraphQLError as PayloadGraphQLError
 
 /**
  * GraphQL-specific exception handler for asset-related exceptions.
@@ -23,7 +29,6 @@ import java.util.concurrent.CompletableFuture
  */
 class AssetGraphQLExceptionHandler : DataFetcherExceptionHandler {
     private val logger = LoggerFactory.getLogger(AssetGraphQLExceptionHandler::class.java)
-    private val nextHandler = GraphQLOptimisticLockExceptionHandler()
 
     override fun handleException(
         handlerParameters: DataFetcherExceptionHandlerParameters,
@@ -31,91 +36,184 @@ class AssetGraphQLExceptionHandler : DataFetcherExceptionHandler {
         val exception = handlerParameters.exception
 
         return when (exception) {
-            is DomainException -> {
-                logger.debug(
-                    "GraphQL domain exception: code={}, message={}",
-                    exception.errorCode.code,
-                    exception.errorCode.defaultMessage,
+            is AuthenticationRequiredException -> {
+                logger.debug("GraphQL authentication required")
+                completedWithError(
+                    handlerParameters = handlerParameters,
+                    message = AUTHENTICATION_REQUIRED_MESSAGE,
+                    code = AUTHENTICATION_REQUIRED_CODE,
                 )
-                buildErrorResponse(
+            }
+
+            is AuthorizationDeniedException -> {
+                logger.debug("GraphQL authorization denied")
+                completedWithError(
+                    handlerParameters = handlerParameters,
+                    message = AUTHORIZATION_DENIED_MESSAGE,
+                    code = AUTHORIZATION_DENIED_CODE,
+                )
+            }
+
+            is DomainException -> {
+                logger.debug("GraphQL domain exception: {}", exception.errorCode.code)
+                completedWithError(
                     handlerParameters = handlerParameters,
                     message = exception.errorCode.defaultMessage,
                     code = exception.errorCode.code,
-                    parameters = exception.parameters.takeIf { it.isNotEmpty() },
                     field = exception.field?.split(".")?.toList(),
+                    parameters = exception.parameters.takeIf { it.isNotEmpty() },
                 )
             }
-            is IllegalArgumentException -> {
-                logger.debug("GraphQL validation error: ${exception.message}")
-                buildErrorResponse(
+
+            is StaleObjectStateException,
+            is StaleStateException,
+            is OptimisticEntityLockException,
+            -> {
+                logger.warn("GraphQL optimistic lock conflict")
+                completedWithError(
                     handlerParameters = handlerParameters,
-                    message = exception.message ?: CommonErrorCode.INVALID_INPUT.defaultMessage,
+                    message = CommonErrorCode.OPTIMISTIC_LOCK_ERROR.defaultMessage,
+                    code = CommonErrorCode.OPTIMISTIC_LOCK_ERROR.code,
+                )
+            }
+
+            is IllegalArgumentException -> {
+                logger.debug("GraphQL invalid input")
+                completedWithError(
+                    handlerParameters = handlerParameters,
+                    message = CommonErrorCode.INVALID_INPUT.defaultMessage,
                     code = CommonErrorCode.INVALID_INPUT.code,
+                    field = listOf("input"),
                 )
             }
 
             is IllegalStateException -> {
-                logger.debug("GraphQL state error: ${exception.message}")
-                buildErrorResponse(
+                logger.error("GraphQL illegal state in assets resolver", exception)
+                completedWithError(
                     handlerParameters = handlerParameters,
-                    message = exception.message ?: CommonErrorCode.INVALID_STATE.defaultMessage,
-                    code = CommonErrorCode.INVALID_STATE.code,
+                    message = CommonErrorCode.INTERNAL_ERROR.defaultMessage,
+                    code = CommonErrorCode.INTERNAL_ERROR.code,
                 )
             }
 
             is StorageUnavailableException -> {
-                logger.warn("Storage service unavailable: ${exception.message}", exception.cause)
-                buildErrorResponse(
+                logger.warn("Storage service unavailable", exception)
+                completedWithError(
                     handlerParameters = handlerParameters,
-                    message = exception.message ?: "Storage service is currently unavailable. Please try again later.",
+                    message = AssetErrorCode.ASSET_STORAGE_UNAVAILABLE.defaultMessage,
                     code = AssetErrorCode.ASSET_STORAGE_UNAVAILABLE.code,
                 )
             }
 
+            is GraphQLPayloadException -> {
+                logger.debug("GraphQL payload exception")
+                val payloadErrors =
+                    exception.errors.ifEmpty {
+                        listOf(
+                            PayloadGraphQLError(
+                                field = listOf("general"),
+                                message = CommonErrorCode.INTERNAL_ERROR.defaultMessage,
+                                code = CommonErrorCode.INTERNAL_ERROR.code,
+                            ),
+                        )
+                    }
+
+                val errors =
+                    payloadErrors.map { payloadError ->
+                        val errorBuilder =
+                            GraphQLError
+                                .newError()
+                                .message(payloadError.message)
+
+                        handlerParameters.path?.let { errorBuilder.path(it) }
+                        try {
+                            handlerParameters.sourceLocation?.let { errorBuilder.location(it) }
+                        } catch (_: NullPointerException) {
+                            // sourceLocation can throw NPE if field is null in GraphQL Java internals.
+                        }
+
+                        errorBuilder
+                            .extensions(
+                                buildExtensions(
+                                    code = payloadError.code,
+                                    field = payloadError.field,
+                                    parameters = payloadError.parameters,
+                                ),
+                            ).build()
+                    }
+
+                CompletableFuture.completedFuture(
+                    DataFetcherExceptionHandlerResult
+                        .newResult()
+                        .errors(errors)
+                        .build(),
+                )
+            }
+
             else -> {
-                // Delegate to next handler (GraphQLOptimisticLockExceptionHandler)
-                // which will handle optimistic locking exceptions or delegate to default handler
-                nextHandler.handleException(handlerParameters)
+                logger.error("Unhandled GraphQL exception in assets resolver", exception)
+                completedWithError(
+                    handlerParameters = handlerParameters,
+                    message = CommonErrorCode.INTERNAL_ERROR.defaultMessage,
+                    code = CommonErrorCode.INTERNAL_ERROR.code,
+                )
             }
         }
     }
 
-    /**
-     * Builds a GraphQL error response with safe handling of optional fields.
-     * Safely sets path and location without throwing NPEs.
-     */
-    private fun buildErrorResponse(
+    private fun completedWithError(
         handlerParameters: DataFetcherExceptionHandlerParameters,
         message: String,
         code: String,
-        parameters: Map<String, Any>? = null,
         field: List<String>? = null,
+        parameters: Map<String, Any>? = null,
     ): CompletableFuture<DataFetcherExceptionHandlerResult> {
-        val errorBuilder = GraphQLError.newError().message(message)
+        val errorBuilder =
+            GraphQLError
+                .newError()
+                .message(message)
 
-        // Safely set path if available
         handlerParameters.path?.let { errorBuilder.path(it) }
 
-        // Safely set location if available (sourceLocation can throw NPE when accessed if null)
         try {
-            val sourceLocation = handlerParameters.sourceLocation
-            if (sourceLocation != null) {
-                errorBuilder.location(sourceLocation)
-            }
-        } catch (e: NullPointerException) {
-            // sourceLocation property access can throw NPE if underlying field is null
-            // This is a known issue with GraphQL Java library - ignore silently
-            logger.trace("Source location not available for error: $message")
+            handlerParameters.sourceLocation?.let { errorBuilder.location(it) }
+        } catch (_: NullPointerException) {
+            // sourceLocation can throw NPE if field is null in GraphQL Java internals.
         }
 
-        val extensions = mutableMapOf<String, Any?>("code" to code, "service" to "assets")
-        if (!parameters.isNullOrEmpty()) extensions["parameters"] = parameters
-        if (!field.isNullOrEmpty()) extensions["field"] = field
-
-        val error = errorBuilder.extensions(extensions).build()
+        val error =
+            errorBuilder
+                .extensions(buildExtensions(code, field, parameters))
+                .build()
 
         return CompletableFuture.completedFuture(
             DataFetcherExceptionHandlerResult.newResult().error(error).build(),
         )
+    }
+
+    private fun buildExtensions(
+        code: String,
+        field: List<String>? = null,
+        parameters: Map<String, Any>? = null,
+    ): Map<String, Any?> {
+        val extensions =
+            mutableMapOf<String, Any?>(
+                "code" to code,
+                "service" to "assets",
+            )
+        if (!field.isNullOrEmpty()) {
+            extensions["field"] = field
+        }
+        if (!parameters.isNullOrEmpty()) {
+            extensions["parameters"] = parameters
+        }
+        return extensions
+    }
+
+    private companion object {
+        const val AUTHENTICATION_REQUIRED_CODE = "AUTH_AUTHENTICATION_REQUIRED"
+        const val AUTHENTICATION_REQUIRED_MESSAGE = "Authentication required"
+        const val AUTHORIZATION_DENIED_CODE = "AUTH_AUTHORIZATION_DENIED"
+        const val AUTHORIZATION_DENIED_MESSAGE = "Access denied"
     }
 }

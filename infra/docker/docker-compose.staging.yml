@@ -275,6 +275,37 @@ services:
         aliases:
           - neotool-financial-data-service
 
+  assistant:
+    build:
+      context: ../../service/kotlin
+      dockerfile: assistant/Dockerfile
+    container_name: neotool-assistant-service
+    environment:
+      MICRONAUT_ENVIRONMENTS: docker
+      MICRONAUT_SERVER_PORT: 8080
+      POSTGRES_HOST: neotool-pgbouncer
+      POSTGRES_PORT: ${PGBOUNCER_PORT:-6432}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      VAULT_ADDRESS: http://vault:8200
+      JWT_JWKS_URL: http://neotool-security-service:8080/.well-known/jwks.json
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+      security:
+        condition: service_healthy
+    expose: [ "8080" ]
+    healthcheck:
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      default:
+        aliases:
+          - neotool-assistant-service
+
   # -------------------------------------------------------------
   # Frontend Stack
   # Profile: frontend

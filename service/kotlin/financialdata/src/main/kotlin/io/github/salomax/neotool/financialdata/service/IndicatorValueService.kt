@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.financialdata.service
 
+import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.github.salomax.neotool.financialdata.graphql.dto.EconomicIndicatorLatestRootDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.EconomicIndicatorPointDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.EconomicIndicatorSeriesRootDTO
@@ -10,6 +11,7 @@ import jakarta.inject.Singleton
 import org.slf4j.LoggerFactory
 import java.time.LocalDate
 
+@TraceExecution
 @Singleton
 open class IndicatorValueService(
     private val repository: IndicatorValueRepositoryCustom,

@@ -1,8 +1,10 @@
 package io.github.salomax.neotool.assets.graphql.resolver
 
+import io.github.salomax.neotool.assets.error.AssetErrorCode
 import io.github.salomax.neotool.assets.graphql.dto.AssetDTO
 import io.github.salomax.neotool.assets.service.AssetService
 import io.github.salomax.neotool.assets.storage.BucketResolver
+import io.github.salomax.neotool.common.error.ValidationException
 import jakarta.inject.Singleton
 import mu.KotlinLogging
 import java.util.UUID
@@ -42,8 +44,18 @@ class AssetQueryResolver(
         requesterId: String,
         bypassOwnerCheck: Boolean = false,
     ): AssetDTO? {
-        val assetId = UUID.fromString(id)
-        val asset = assetService.getAsset(assetId, requesterId, bypassOwnerCheck) ?: return null
+        val assetId =
+            try {
+                UUID.fromString(id)
+            } catch (e: IllegalArgumentException) {
+                throw ValidationException(
+                    errorCode = AssetErrorCode.ASSET_INVALID_ID,
+                    field = "id",
+                    parameters = mapOf("assetId" to id),
+                    cause = e,
+                )
+            }
+        val asset = assetService.getAsset(assetId, requesterId) ?: return null
         return AssetDTO.fromDomain(asset, bucketResolver.getPublicBaseUrl())
     }
 }

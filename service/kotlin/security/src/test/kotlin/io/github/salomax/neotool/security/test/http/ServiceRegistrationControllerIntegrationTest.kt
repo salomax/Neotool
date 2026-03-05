@@ -258,7 +258,7 @@ open class ServiceRegistrationControllerIntegrationTest :
     @DisplayName("POST /api/internal/services/register - Error Cases")
     inner class ErrorCasesTests {
         @Test
-        fun `should return 400 for duplicate service ID`() {
+        fun `should return 409 for duplicate service ID`() {
             // Arrange
             val serviceId = "test-service-${UUID.randomUUID()}"
             val requestBody =
@@ -283,11 +283,11 @@ open class ServiceRegistrationControllerIntegrationTest :
                     httpClient.exchangeAsString(request)
                 }
 
-            assertThat(exception.status).isEqualTo(HttpStatus.BAD_REQUEST)
+            assertThat(exception.status).isEqualTo(HttpStatus.CONFLICT)
         }
 
         @Test
-        fun `should return 400 for nonexistent permission`() {
+        fun `should return 404 for nonexistent permission`() {
             // Arrange
             val serviceId = "test-service-${UUID.randomUUID()}"
             val requestBody =
@@ -307,7 +307,7 @@ open class ServiceRegistrationControllerIntegrationTest :
                     httpClient.exchangeAsString(request)
                 }
 
-            assertThat(exception.status).isEqualTo(HttpStatus.BAD_REQUEST)
+            assertThat(exception.status).isEqualTo(HttpStatus.NOT_FOUND)
         }
 
         @Test

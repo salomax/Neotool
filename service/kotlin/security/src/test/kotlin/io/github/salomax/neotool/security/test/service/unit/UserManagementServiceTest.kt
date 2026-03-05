@@ -1,11 +1,13 @@
 package io.github.salomax.neotool.security.test.service.unit
 
+import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.OrderDirection
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.security.domain.UserManagement
+import io.github.salomax.neotool.security.error.SecurityErrorCode
 import io.github.salomax.neotool.security.model.PrincipalEntity
 import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.model.UserOrderBy
@@ -818,10 +820,11 @@ class UserManagementServiceTest {
             whenever(userRepository.findById(userId)).thenReturn(Optional.empty())
 
             // Act & Assert
-            assertThrows<IllegalArgumentException> {
+            assertThrows<NotFoundException> {
                 userManagementService.enableUser(userId)
             }.also { exception ->
-                assertThat(exception.message).contains("User not found")
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.USER_NOT_FOUND)
+                assertThat(exception.field).isEqualTo("userId")
             }
             verify(userRepository).findById(userId)
             verify(userRepository, never()).update(any())
@@ -908,10 +911,11 @@ class UserManagementServiceTest {
             whenever(userRepository.findById(userId)).thenReturn(Optional.empty())
 
             // Act & Assert
-            assertThrows<IllegalArgumentException> {
+            assertThrows<NotFoundException> {
                 userManagementService.disableUser(userId)
             }.also { exception ->
-                assertThat(exception.message).contains("User not found")
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.USER_NOT_FOUND)
+                assertThat(exception.field).isEqualTo("userId")
             }
             verify(userRepository).findById(userId)
             verify(userRepository, never()).update(any())
@@ -1008,13 +1012,13 @@ class UserManagementServiceTest {
         }
 
         @Test
-        fun `should throw IllegalArgumentException when user not found`() {
+        fun `should throw NotFoundException when user not found`() {
             // Arrange
             val userId = UUID.randomUUID()
             whenever(userRepository.findById(userId)).thenReturn(Optional.empty())
 
             // Act & Assert
-            assertThrows<IllegalArgumentException> {
+            assertThrows<NotFoundException> {
                 val command =
                     UserManagement.UpdateUserCommand(
                         userId = userId,
@@ -1022,7 +1026,8 @@ class UserManagementServiceTest {
                     )
                 userManagementService.updateUser(command)
             }.also { exception ->
-                assertThat(exception.message).contains("User not found")
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.USER_NOT_FOUND)
+                assertThat(exception.field).isEqualTo("userId")
             }
             verify(userRepository).findById(userId)
             verify(userRepository, never()).update(any())

@@ -1,0 +1,43 @@
+meta {
+  name: Get Conversation
+  type: graphql
+  seq: 2
+}
+
+post {
+  url: {{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  query Conversation($sessionId: String!) {
+    conversation(sessionId: $sessionId) {
+      sessionId
+      status
+      escalationReason
+      messageCount
+      lastMessage
+      messages {
+        role
+        content
+      }
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "sessionId": "assistant-session-001"
+  }
+}
+
+tests {
+  test("status 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+}

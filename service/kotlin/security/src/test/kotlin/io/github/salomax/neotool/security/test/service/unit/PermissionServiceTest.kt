@@ -1,6 +1,10 @@
 package io.github.salomax.neotool.security.test.service.unit
 
+import io.github.salomax.neotool.common.error.CommonErrorCode
+import io.github.salomax.neotool.common.error.NotFoundException
+import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.security.domain.rbac.Permission
+import io.github.salomax.neotool.security.error.SecurityErrorCode
 import io.github.salomax.neotool.security.repo.PermissionRepository
 import io.github.salomax.neotool.security.service.authorization.PermissionService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
@@ -189,10 +193,11 @@ class PermissionServiceTest {
                 )
 
             // Act & Assert
-            assertThrows<IllegalArgumentException> {
+            assertThrows<ValidationException> {
                 permissionService.update(permission)
             }.also { exception ->
-                assertThat(exception.message).contains("Permission ID is required")
+                assertThat(exception.errorCode).isEqualTo(CommonErrorCode.INVALID_INPUT)
+                assertThat(exception.field).isEqualTo("permissionId")
             }
 
             verify(permissionRepository, never()).findById(any())
@@ -212,10 +217,11 @@ class PermissionServiceTest {
             whenever(permissionRepository.findById(permissionId)).thenReturn(Optional.empty())
 
             // Act & Assert
-            assertThrows<IllegalArgumentException> {
+            assertThrows<NotFoundException> {
                 permissionService.update(permission)
             }.also { exception ->
-                assertThat(exception.message).contains("Permission not found")
+                assertThat(exception.errorCode).isEqualTo(SecurityErrorCode.PERMISSION_NOT_FOUND)
+                assertThat(exception.field).isEqualTo("permissionId")
             }
 
             verify(permissionRepository).findById(permissionId)

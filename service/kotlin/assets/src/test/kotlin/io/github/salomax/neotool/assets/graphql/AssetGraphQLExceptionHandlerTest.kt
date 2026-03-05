@@ -3,20 +3,19 @@ package io.github.salomax.neotool.assets.graphql
 import graphql.execution.DataFetcherExceptionHandlerParameters
 import graphql.execution.ExecutionStepInfo
 import graphql.execution.ResultPath
-import graphql.language.SourceLocation
 import graphql.schema.DataFetchingEnvironment
 import io.github.salomax.neotool.assets.error.AssetErrorCode
 import io.github.salomax.neotool.assets.exception.StorageUnavailableException
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.ValidationException
 import org.assertj.core.api.Assertions.assertThat
+import org.hibernate.StaleStateException
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
-import java.util.concurrent.CompletableFuture
 
 @DisplayName("AssetGraphQLExceptionHandler Unit Tests")
 class AssetGraphQLExceptionHandlerTest {
@@ -41,8 +40,7 @@ class AssetGraphQLExceptionHandlerTest {
                 )
             val parameters = createHandlerParameters(exception)
 
-            // Act
-            val result = handler.handleException(parameters)
+            val result = handler.handleException(parameters).get()
 
             // Assert
             val errorResult = result.get()
@@ -60,8 +58,7 @@ class AssetGraphQLExceptionHandlerTest {
             val exception = IllegalArgumentException()
             val parameters = createHandlerParameters(exception)
 
-            // Act
-            val result = handler.handleException(parameters)
+            val result = handler.handleException(parameters).get()
 
             // Assert
             val errorResult = result.get()
@@ -71,13 +68,11 @@ class AssetGraphQLExceptionHandlerTest {
         }
 
         @Test
-        fun `should handle IllegalStateException`() {
-            // Arrange
-            val exception = IllegalStateException("State error message")
+        fun `should map AuthorizationDeniedException without exposing details`() {
+            val exception = AuthorizationDeniedException("user abc cannot access asset 123")
             val parameters = createHandlerParameters(exception)
 
-            // Act
-            val result = handler.handleException(parameters)
+            val result = handler.handleException(parameters).get()
 
             // Assert
             val errorResult = result.get()
@@ -88,13 +83,11 @@ class AssetGraphQLExceptionHandlerTest {
         }
 
         @Test
-        fun `should handle IllegalStateException with null message`() {
-            // Arrange
-            val exception = IllegalStateException()
+        fun `should map IllegalArgumentException to INVALID_INPUT`() {
+            val exception = IllegalArgumentException("raw detail should not leak")
             val parameters = createHandlerParameters(exception)
 
-            // Act
-            val result = handler.handleException(parameters)
+            val result = handler.handleException(parameters).get()
 
             // Assert
             val errorResult = result.get()
@@ -104,13 +97,11 @@ class AssetGraphQLExceptionHandlerTest {
         }
 
         @Test
-        fun `should handle StorageUnavailableException`() {
-            // Arrange
-            val exception = StorageUnavailableException("Storage unavailable message")
+        fun `should map StorageUnavailableException to ASSET_STORAGE_UNAVAILABLE`() {
+            val exception = StorageUnavailableException("dial tcp 10.0.0.1:9000 timeout")
             val parameters = createHandlerParameters(exception)
 
-            // Act
-            val result = handler.handleException(parameters)
+            val result = handler.handleException(parameters).get()
 
             // Assert
             val errorResult = result.get()
@@ -121,14 +112,11 @@ class AssetGraphQLExceptionHandlerTest {
         }
 
         @Test
-        fun `should handle StorageUnavailableException with empty message`() {
-            // Arrange
-            // Empty string is not null, so it will be used as-is
-            val exception = StorageUnavailableException("", null)
+        fun `should map optimistic lock exception to OPTIMISTIC_LOCK_ERROR`() {
+            val exception = StaleStateException("stale row version")
             val parameters = createHandlerParameters(exception)
 
-            // Act
-            val result = handler.handleException(parameters)
+            val result = handler.handleException(parameters).get()
 
             // Assert
             val errorResult = result.get()
@@ -139,58 +127,32 @@ class AssetGraphQLExceptionHandlerTest {
         }
 
         @Test
-        fun `should delegate to next handler for other exceptions`() {
-            // Arrange
-            val exception = RuntimeException("Other error")
+        fun `should map unknown exception to INTERNAL_ERROR`() {
+            val exception = RuntimeException("sensitive internal stack detail")
             val parameters = createHandlerParameters(exception)
 
-            // Act & Assert
-            // Should delegate to GraphQLOptimisticLockExceptionHandler
-            // The next handler may throw NPE if environment is not fully configured,
-            // but that's expected behavior - we just verify delegation happens
-            try {
-                val result = handler.handleException(parameters)
-                assertThat(result).isInstanceOf(CompletableFuture::class.java)
-            } catch (e: NullPointerException) {
-                // Expected - the next handler may need more complete environment setup
-                // The important thing is that we delegated (didn't handle it as an asset exception)
-                assertThat(exception).isNotInstanceOf(IllegalArgumentException::class.java)
-                assertThat(exception).isNotInstanceOf(IllegalStateException::class.java)
-                assertThat(exception).isNotInstanceOf(StorageUnavailableException::class.java)
-            }
-        }
+            val result = handler.handleException(parameters).get()
 
-        // Note: Path and location tests are simplified since these are accessed from
-        // handlerParameters.path and handlerParameters.sourceLocation which come from
-        // the DataFetchingEnvironment. The handler code safely handles nulls, which is
-        // tested implicitly through the other tests.
+            assertThat(result.errors).hasSize(1)
+            assertThat(result.errors[0].message).isEqualTo(CommonErrorCode.INTERNAL_ERROR.defaultMessage)
+            assertThat(result.errors[0].extensions).containsEntry("code", CommonErrorCode.INTERNAL_ERROR.code)
+            assertThat(result.errors[0].message).doesNotContain("sensitive")
+        }
     }
 
-    /**
-     * Creates a properly mocked DataFetchingEnvironment that won't cause NPEs
-     * when GraphQL tries to access getExecutionStepInfo()
-     */
     private fun createMockEnvironment(): DataFetchingEnvironment {
         val env = mock<DataFetchingEnvironment>()
         val executionStepInfo = mock<ExecutionStepInfo>()
         val resultPath = ResultPath.rootPath()
 
-        // Mock ExecutionStepInfo to return a valid path
         whenever(executionStepInfo.path).thenReturn(resultPath)
-        // Mock DataFetchingEnvironment to return the ExecutionStepInfo
         whenever(env.getExecutionStepInfo()).thenReturn(executionStepInfo)
 
         return env
     }
 
-    private fun createHandlerParameters(
-        exception: Exception,
-        path: ResultPath? = ResultPath.rootPath(),
-        location: SourceLocation? = null,
-    ): DataFetcherExceptionHandlerParameters {
+    private fun createHandlerParameters(exception: Exception): DataFetcherExceptionHandlerParameters {
         val env = createMockEnvironment()
-        // Note: path and sourceLocation are accessed from handlerParameters, not set in builder
-        // The builder only sets exception and environment
         return DataFetcherExceptionHandlerParameters
             .newExceptionParameters()
             .exception(exception)

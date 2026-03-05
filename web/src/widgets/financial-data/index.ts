@@ -11,3 +11,5 @@ export { BacenInstitutionSummaryPaper, type BacenInstitutionSummaryPaperProps } 
 export { BacenInstitutionBalanceSummaryGrid } from "./BacenInstitutionBalanceSummaryGrid";
 export { BacenInstitutionReportDetail } from "./BacenInstitutionReportDetail";
 export { BacenDataFooter } from "./BacenDataFooter";
+export { PopularInstitutionsCarousel } from "./PopularInstitutionsCarousel";
+export { InstitutionRankingTable } from "./InstitutionRankingTable";

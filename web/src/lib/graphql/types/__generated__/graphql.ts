@@ -1214,6 +1214,30 @@ export type PermissionEdge = {
   node: Permission;
 };
 
+export type PopularInstitution = {
+  __typename: 'PopularInstitution';
+  institution: BacenInstitutionSummaryItem;
+  month: Maybe<Scalars['Int']['output']>;
+  popularInstitutionTopMetrics: Array<PopularInstitutionTopMetric>;
+  quarter: Scalars['String']['output'];
+  rank: Scalars['Int']['output'];
+  shortDescription: Scalars['String']['output'];
+  year: Maybe<Scalars['Int']['output']>;
+};
+
+export type PopularInstitutionTopMetric = {
+  __typename: 'PopularInstitutionTopMetric';
+  metric: TopInstitutionMetric;
+  popularInstitutionTopMetricItem: PopularInstitutionTopMetricItem;
+};
+
+export type PopularInstitutionTopMetricItem = {
+  __typename: 'PopularInstitutionTopMetricItem';
+  institution: BacenInstitutionSummaryItem;
+  metricValue: Maybe<Scalars['Float']['output']>;
+  rank: Scalars['Int']['output'];
+};
+
 export type QuarterRangeInput = {
   from?: InputMaybe<Scalars['String']['input']>;
   last?: InputMaybe<Scalars['Int']['input']>;
@@ -1273,6 +1297,7 @@ export type Query = {
   monthSummary: MonthSummary;
   myVerificationStatus: Maybe<VerificationStatus>;
   permissions: PermissionConnection;
+  popularInstitutions: Array<PopularInstitution>;
   ratingIssuers: Array<RatingIssuer>;
   role: Maybe<Role>;
   roles: RoleConnection;
@@ -1383,6 +1408,11 @@ export type QueryPermissionsArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
   query?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type QueryPopularInstitutionsArgs = {
+  anoMes?: InputMaybe<Scalars['String']['input']>;
 };
 
 
@@ -1740,6 +1770,10 @@ export enum TransactionType {
   Ted = 'TED',
   Transfer = 'TRANSFER',
   Withdrawal = 'WITHDRAWAL'
+export enum TopInstitutionMetric {
+  BasileiaIndex = 'BASILEIA_INDEX',
+  MobilizationIndex = 'MOBILIZATION_INDEX',
+  Profit = 'PROFIT'
 }
 
 export type UpdateGroupInput = {

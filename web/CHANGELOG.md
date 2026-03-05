@@ -1,3 +1,43 @@
+## 0.6.0 (2026-03-05)
+
+### 🚀 Features
+
+- Add Assistant service implementation files and backlog ([17fc0756](https://github.com/invistus/invistus/commit/17fc0756))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
+## 0.5.1 (2026-03-04)
+
+### 🩹 Fixes
+
+- Add background color to favicon ([148bc089](https://github.com/invistus/invistus/commit/148bc089))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
+## 0.5.0 (2026-03-03)
+
+### 🚀 Features
+
+- Add Popular Institutions feature for discovery dashboard ([f5dce54f](https://github.com/invistus/invistus/commit/f5dce54f))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
+## 0.4.6 (2026-02-28)
+
+### 🩹 Fixes
+
+- Enhance telemetry support by adding W3C Trace Context propagation ([8ff58648](https://github.com/invistus/invistus/commit/8ff58648))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.4.5 (2026-02-26)
 
 ### 🚀 Features

@@ -11,6 +11,7 @@ import jakarta.inject.Singleton
  *
  * Validates MIME types and file sizes based on namespace configuration.
  */
+@TraceExecution
 @Singleton
 class ValidationService(
     private val assetConfig: AssetConfigProperties,

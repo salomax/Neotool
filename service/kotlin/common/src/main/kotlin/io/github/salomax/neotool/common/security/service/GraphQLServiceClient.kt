@@ -1,11 +1,14 @@
 package io.github.salomax.neotool.common.security.service
 
+import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.micronaut.context.annotation.Property
 import io.micronaut.http.HttpRequest
 import io.micronaut.http.MediaType
+import io.micronaut.http.MutableHttpRequest
 import io.micronaut.http.client.HttpClient
 import io.micronaut.http.client.exceptions.HttpClientResponseException
 import io.micronaut.serde.annotation.Serdeable
+import io.opentelemetry.api.trace.Span
 import jakarta.inject.Singleton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -36,6 +39,7 @@ data class GraphQLResponse(
  *
  * Class is open to allow mocking in tests (e.g. @MockBean in Micronaut tests).
  */
+@TraceExecution
 @Singleton
 open class GraphQLServiceClient(
     @Property(name = "graphql.router.url", defaultValue = "http://localhost:4000/graphql")
@@ -58,12 +62,15 @@ open class GraphQLServiceClient(
         variables: Map<String, Any>? = null,
         targetAudience: String = "apollo-router",
     ): GraphQLResponse =
-        withContext(Dispatchers.IO) {
-            executeGraphQL(
-                query = query,
-                variables = variables,
-                targetAudience = targetAudience,
-            )
+        withCurrentTraceHeaders { traceHeaders ->
+            withContext(Dispatchers.IO) {
+                executeGraphQL(
+                    query = query,
+                    variables = variables,
+                    targetAudience = targetAudience,
+                    traceHeaders = traceHeaders,
+                )
+            }
         }
 
     /**
@@ -79,12 +86,15 @@ open class GraphQLServiceClient(
         variables: Map<String, Any>? = null,
         targetAudience: String = "apollo-router",
     ): GraphQLResponse =
-        withContext(Dispatchers.IO) {
-            executeGraphQL(
-                query = mutation,
-                variables = variables,
-                targetAudience = targetAudience,
-            )
+        withCurrentTraceHeaders { traceHeaders ->
+            withContext(Dispatchers.IO) {
+                executeGraphQL(
+                    query = mutation,
+                    variables = variables,
+                    targetAudience = targetAudience,
+                    traceHeaders = traceHeaders,
+                )
+            }
         }
 
     /**
@@ -94,6 +104,7 @@ open class GraphQLServiceClient(
         query: String,
         variables: Map<String, Any>?,
         targetAudience: String,
+        traceHeaders: Map<String, String>,
     ): GraphQLResponse {
         // Get service token
         val token = serviceTokenClient.getServiceToken(targetAudience)
@@ -107,6 +118,7 @@ open class GraphQLServiceClient(
                     .POST(routerUrl, request)
                     .contentType(MediaType.APPLICATION_JSON)
                     .bearerAuth(token)
+                    .applyTraceHeaders(traceHeaders)
 
             val response = httpClient.toBlocking().exchange(httpRequest, Map::class.java)
             val body = response.body() as? Map<*, *> ?: emptyMap<Any, Any>()
@@ -148,6 +160,7 @@ open class GraphQLServiceClient(
                         .POST(routerUrl, request)
                         .contentType(MediaType.APPLICATION_JSON)
                         .bearerAuth(newToken)
+                        .applyTraceHeaders(traceHeaders)
 
                 val response = httpClient.toBlocking().exchange(httpRequest, Map::class.java)
                 val body = response.body() as? Map<*, *> ?: emptyMap<Any, Any>()
@@ -184,5 +197,41 @@ open class GraphQLServiceClient(
             logger.error(e) { "Unexpected error in GraphQL request: ${e.message}" }
             throw IllegalStateException("GraphQL request failed: ${e.message}", e)
         }
+    }
+
+    private fun buildCurrentTraceHeaders(): Map<String, String> {
+        val spanContext = Span.current().spanContext
+        if (!spanContext.isValid) {
+            return emptyMap()
+        }
+
+        val headers =
+            linkedMapOf(
+                "traceparent" to "00-${spanContext.traceId}-${spanContext.spanId}-${spanContext.traceFlags.asHex()}",
+            )
+
+        val traceState = spanContext.traceState.toString()
+        if (traceState.isNotBlank()) {
+            headers["tracestate"] = traceState
+        }
+
+        return headers
+    }
+
+    private inline fun <T> withCurrentTraceHeaders(block: (Map<String, String>) -> T): T {
+        val traceHeaders = buildCurrentTraceHeaders()
+        return block(traceHeaders)
+    }
+
+    private fun <T> MutableHttpRequest<T>.applyTraceHeaders(traceHeaders: Map<String, String>): MutableHttpRequest<T> {
+        if (traceHeaders.isEmpty()) {
+            return this
+        }
+
+        traceHeaders.forEach { (key, value) ->
+            header(key, value)
+        }
+
+        return this
     }
 }

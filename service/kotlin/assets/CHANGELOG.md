@@ -1,3 +1,43 @@
+## 0.3.3 (2026-03-02)
+
+### 💅 Refactors
+
+- Update OpenTelemetry configuration for local development ([ceed47dc](https://github.com/invistus/invistus/commit/ceed47dc))
+
+### ❤️ Thank You
+
+- Marcos Salomão
+
+## 0.3.2 (2026-02-28)
+
+### 🩹 Fixes
+
+- Remove PostgreSQL dialect from JPA configuration ([4b9291b3](https://github.com/invistus/invistus/commit/4b9291b3))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
+## 0.3.1 (2026-02-28)
+
+### 🩹 Fixes
+
+- Configure PostgreSQL dialect for JPA ([73313c3e](https://github.com/invistus/invistus/commit/73313c3e))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
+## 0.3.0 (2026-02-28)
+
+### 🚀 Features
+
+- Add Telemetry ([220546cd](https://github.com/invistus/invistus/commit/220546cd))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.2.5 (2026-02-26)
 
 ### 💅 Refactors

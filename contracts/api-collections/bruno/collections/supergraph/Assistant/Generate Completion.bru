@@ -1,0 +1,64 @@
+meta {
+  name: Generate Completion
+  type: graphql
+  seq: 4
+}
+
+post {
+  url: {{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  mutation GenerateCompletion($input: CompletionInput!) {
+    generateCompletion(input: $input) {
+      id
+      content
+      finishReason
+      model
+      latencyMs
+      cost
+      escalate
+      usage {
+        promptTokens
+        completionTokens
+        totalTokens
+      }
+      toolCalls {
+        id
+        type
+        name
+        arguments
+      }
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "input": {
+      "purpose": "assistant_bruno_test",
+      "messages": [
+        {
+          "role": "USER",
+          "content": "Extract key points from this text: Payment received from ACME Corp on 2026-03-01 for USD 1,250."
+        }
+      ],
+      "outputFormat": "TEXT",
+      "metadata": {
+        "source": "bruno"
+      }
+    }
+  }
+}
+
+tests {
+  test("status 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+}

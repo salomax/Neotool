@@ -1,11 +1,13 @@
 package io.github.salomax.neotool.financialdata.service.fixedincome
 
+import io.github.salomax.neotool.common.tracing.TraceExecution
 import jakarta.inject.Singleton
 
 /**
  * Day count for fixed income: 252 business days per year.
  * business_days = round(calendar_days × 252 / 365).
  */
+@TraceExecution
 @Singleton
 class DayCountService {
     fun businessDays(calendarDays: Int): Int {

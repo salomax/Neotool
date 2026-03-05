@@ -1,3 +1,33 @@
+## 0.4.0 (2026-03-05)
+
+### 🚀 Features
+
+- Add Assistant service implementation files and backlog ([17fc0756](https://github.com/invistus/invistus/commit/17fc0756))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
+## 0.3.1 (2026-03-02)
+
+### 💅 Refactors
+
+- Update OpenTelemetry configuration for local development ([ceed47dc](https://github.com/invistus/invistus/commit/ceed47dc))
+
+### ❤️ Thank You
+
+- Marcos Salomão
+
+## 0.3.0 (2026-02-28)
+
+### 🚀 Features
+
+- Add Telemetry ([220546cd](https://github.com/invistus/invistus/commit/220546cd))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.2.4 (2026-02-26)
 
 ### 💅 Refactors

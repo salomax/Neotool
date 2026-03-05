@@ -1,15 +1,18 @@
 package io.github.salomax.neotool.security.service.management
 
+import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.common.graphql.pagination.Connection
 import io.github.salomax.neotool.common.graphql.pagination.ConnectionBuilder
 import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.OrderDirection
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
+import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.github.salomax.neotool.security.domain.RoleManagement
 import io.github.salomax.neotool.security.domain.rbac.Group
 import io.github.salomax.neotool.security.domain.rbac.Permission
 import io.github.salomax.neotool.security.domain.rbac.Role
+import io.github.salomax.neotool.security.error.SecurityErrorCode
 import io.github.salomax.neotool.security.model.RoleOrderBy
 import io.github.salomax.neotool.security.model.RoleOrderField
 import io.github.salomax.neotool.security.repo.GroupRepository
@@ -27,6 +30,7 @@ import java.util.UUID
  * Provides operations for listing, searching, creating, updating, deleting roles,
  * and managing role-permission relationships.
  */
+@TraceExecution
 @Singleton
 open class RoleManagementService(
     private val roleRepository: RoleRepository,
@@ -196,7 +200,10 @@ open class RoleManagementService(
             roleRepository
                 .findById(command.roleId)
                 .orElseThrow {
-                    IllegalArgumentException("Role not found with ID: ${command.roleId}")
+                    NotFoundException(
+                        errorCode = SecurityErrorCode.ROLE_NOT_FOUND,
+                        field = "roleId",
+                    )
                 }
 
         // Update entity
@@ -335,14 +342,18 @@ open class RoleManagementService(
             roleRepository
                 .findById(command.roleId)
                 .orElseThrow {
-                    IllegalArgumentException("Role not found with ID: ${command.roleId}")
+                    NotFoundException(
+                        errorCode = SecurityErrorCode.ROLE_NOT_FOUND,
+                        field = "roleId",
+                    )
                 }
         val permission =
             permissionRepository
                 .findById(command.permissionId)
                 .orElseThrow {
-                    IllegalArgumentException(
-                        "Permission not found with ID: ${command.permissionId}",
+                    NotFoundException(
+                        errorCode = SecurityErrorCode.PERMISSION_NOT_FOUND,
+                        field = "permissionId",
                     )
                 }
 
@@ -370,14 +381,18 @@ open class RoleManagementService(
             roleRepository
                 .findById(command.roleId)
                 .orElseThrow {
-                    IllegalArgumentException("Role not found with ID: ${command.roleId}")
+                    NotFoundException(
+                        errorCode = SecurityErrorCode.ROLE_NOT_FOUND,
+                        field = "roleId",
+                    )
                 }
         val permission =
             permissionRepository
                 .findById(command.permissionId)
                 .orElseThrow {
-                    IllegalArgumentException(
-                        "Permission not found with ID: ${command.permissionId}",
+                    NotFoundException(
+                        errorCode = SecurityErrorCode.PERMISSION_NOT_FOUND,
+                        field = "permissionId",
                     )
                 }
 

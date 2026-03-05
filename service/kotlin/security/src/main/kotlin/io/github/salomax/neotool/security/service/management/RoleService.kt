@@ -1,12 +1,18 @@
 package io.github.salomax.neotool.security.service.management
 
+import io.github.salomax.neotool.common.error.CommonErrorCode
+import io.github.salomax.neotool.common.error.NotFoundException
+import io.github.salomax.neotool.common.error.ValidationException
+import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.github.salomax.neotool.security.domain.rbac.Role
+import io.github.salomax.neotool.security.error.SecurityErrorCode
 import io.github.salomax.neotool.security.repo.RoleRepository
 import jakarta.inject.Singleton
 import jakarta.transaction.Transactional
 import mu.KotlinLogging
 import java.util.UUID
 
+@TraceExecution
 @Singleton
 open class RoleService(
     private val roleRepository: RoleRepository,
@@ -31,8 +37,18 @@ open class RoleService(
     open fun update(role: Role): Role {
         val existing =
             roleRepository
-                .findById(role.id ?: throw IllegalArgumentException("Role ID is required for update"))
-                .orElseThrow { IllegalArgumentException("Role not found with ID: ${role.id}") }
+                .findById(
+                    role.id
+                        ?: throw ValidationException(
+                            errorCode = CommonErrorCode.INVALID_INPUT,
+                            field = "roleId",
+                        ),
+                ).orElseThrow {
+                    NotFoundException(
+                        errorCode = SecurityErrorCode.ROLE_NOT_FOUND,
+                        field = "roleId",
+                    )
+                }
 
         existing.name = role.name
         existing.updatedAt = role.updatedAt

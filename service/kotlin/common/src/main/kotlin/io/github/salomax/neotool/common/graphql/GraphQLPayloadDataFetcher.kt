@@ -19,16 +19,18 @@ object GraphQLPayloadDataFetcher {
         block: (DataFetchingEnvironment) -> GraphQLPayload<T>,
     ): DataFetcher<T?> =
         DataFetcher { env ->
-            val payload = block(env)
-            when (payload) {
-                is SuccessPayload -> {
-                    payload.data
-                }
+            GraphQLTracing.withResolverSpan(env, operation) {
+                val payload = block(env)
+                when (payload) {
+                    is SuccessPayload -> {
+                        payload.data
+                    }
 
-                else -> {
-                    // For error payloads, we let GraphQL handle the error
-                    // by throwing an exception that will be caught by the error handler
-                    throw GraphQLPayloadException(payload.errors)
+                    else -> {
+                        // For error payloads, we let GraphQL handle the error
+                        // by throwing an exception that will be caught by the error handler
+                        throw GraphQLPayloadException(payload.errors)
+                    }
                 }
             }
         }
@@ -42,7 +44,7 @@ object GraphQLPayloadDataFetcher {
         block: (DataFetchingEnvironment) -> GraphQLPayload<T>,
     ): DataFetcher<GraphQLPayload<T>> =
         DataFetcher { env ->
-            block(env)
+            GraphQLTracing.withResolverSpan(env, operation) { block(env) }
         }
 
     /**
@@ -53,13 +55,15 @@ object GraphQLPayloadDataFetcher {
         block: (Map<String, Any?>) -> GraphQLPayload<T>,
     ): DataFetcher<T?> =
         DataFetcher { env ->
-            val input =
-                env.getArgument<Map<String, Any?>>("input")
-                    ?: throw IllegalArgumentException("Input is required")
-            val payload = block(input)
-            when (payload) {
-                is SuccessPayload -> payload.data
-                else -> throw GraphQLPayloadException(payload.errors)
+            GraphQLTracing.withResolverSpan(env, operation) {
+                val input =
+                    env.getArgument<Map<String, Any?>>("input")
+                        ?: throw IllegalArgumentException("Input is required")
+                val payload = block(input)
+                when (payload) {
+                    is SuccessPayload -> payload.data
+                    else -> throw GraphQLPayloadException(payload.errors)
+                }
             }
         }
 
@@ -71,16 +75,18 @@ object GraphQLPayloadDataFetcher {
         block: (String, Map<String, Any?>) -> GraphQLPayload<T>,
     ): DataFetcher<T?> =
         DataFetcher { env ->
-            val id =
-                env.getArgument<String>("id")
-                    ?: throw IllegalArgumentException("ID is required")
-            val input =
-                env.getArgument<Map<String, Any?>>("input")
-                    ?: throw IllegalArgumentException("Input is required")
-            val payload = block(id, input)
-            when (payload) {
-                is SuccessPayload -> payload.data
-                else -> throw GraphQLPayloadException(payload.errors)
+            GraphQLTracing.withResolverSpan(env, operation) {
+                val id =
+                    env.getArgument<String>("id")
+                        ?: throw IllegalArgumentException("ID is required")
+                val input =
+                    env.getArgument<Map<String, Any?>>("input")
+                        ?: throw IllegalArgumentException("Input is required")
+                val payload = block(id, input)
+                when (payload) {
+                    is SuccessPayload -> payload.data
+                    else -> throw GraphQLPayloadException(payload.errors)
+                }
             }
         }
 
@@ -92,13 +98,15 @@ object GraphQLPayloadDataFetcher {
         block: (String) -> GraphQLPayload<T>,
     ): DataFetcher<T?> =
         DataFetcher { env ->
-            val id =
-                env.getArgument<String>("id")
-                    ?: throw IllegalArgumentException("ID is required")
-            val payload = block(id)
-            when (payload) {
-                is SuccessPayload -> payload.data
-                else -> throw GraphQLPayloadException(payload.errors)
+            GraphQLTracing.withResolverSpan(env, operation) {
+                val id =
+                    env.getArgument<String>("id")
+                        ?: throw IllegalArgumentException("ID is required")
+                val payload = block(id)
+                when (payload) {
+                    is SuccessPayload -> payload.data
+                    else -> throw GraphQLPayloadException(payload.errors)
+                }
             }
         }
 }

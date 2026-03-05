@@ -1627,7 +1627,7 @@ open class SecurityGraphQLIntegrationTest :
             response.shouldBeSuccessful().shouldBeJson().shouldHaveNonEmptyBody()
 
             val payload: JsonNode = json.read(response)
-            verifyGraphQLError(payload, "Permission denied: security:user:view")
+            verifyGraphQLError(payload, "Access denied")
         }
 
         @Test
@@ -1692,7 +1692,7 @@ open class SecurityGraphQLIntegrationTest :
             response.shouldBeSuccessful().shouldBeJson().shouldHaveNonEmptyBody()
 
             val payload: JsonNode = json.read(response)
-            verifyGraphQLError(payload, "Permission denied: security:user:view")
+            verifyGraphQLError(payload, "Access denied")
         }
 
         // ========== Mutation Tests ==========
@@ -1752,7 +1752,7 @@ open class SecurityGraphQLIntegrationTest :
             response.shouldBeSuccessful().shouldBeJson().shouldHaveNonEmptyBody()
 
             val payload: JsonNode = json.read(response)
-            verifyGraphQLError(payload, "Permission denied: security:user:save")
+            verifyGraphQLError(payload, "Access denied")
         }
 
         @Test
@@ -1810,7 +1810,7 @@ open class SecurityGraphQLIntegrationTest :
             response.shouldBeSuccessful().shouldBeJson().shouldHaveNonEmptyBody()
 
             val payload: JsonNode = json.read(response)
-            verifyGraphQLError(payload, "Permission denied: security:user:save")
+            verifyGraphQLError(payload, "Access denied")
         }
 
         @Test
@@ -1878,7 +1878,7 @@ open class SecurityGraphQLIntegrationTest :
             response.shouldBeSuccessful().shouldBeJson().shouldHaveNonEmptyBody()
 
             val payload: JsonNode = json.read(response)
-            verifyGraphQLError(payload, "Permission denied: security:user:save")
+            verifyGraphQLError(payload, "Access denied")
         }
 
         @Test
@@ -1962,7 +1962,7 @@ open class SecurityGraphQLIntegrationTest :
             response.shouldBeSuccessful().shouldBeJson().shouldHaveNonEmptyBody()
 
             val payload: JsonNode = json.read(response)
-            verifyGraphQLError(payload, "Permission denied: security:user:save")
+            verifyGraphQLError(payload, "Access denied")
         }
 
         @Test
@@ -2031,7 +2031,7 @@ open class SecurityGraphQLIntegrationTest :
             response.shouldBeSuccessful().shouldBeJson().shouldHaveNonEmptyBody()
 
             val payload: JsonNode = json.read(response)
-            verifyGraphQLError(payload, "Permission denied: security:user:save")
+            verifyGraphQLError(payload, "Access denied")
         }
 
         @Test
@@ -2099,7 +2099,7 @@ open class SecurityGraphQLIntegrationTest :
             response.shouldBeSuccessful().shouldBeJson().shouldHaveNonEmptyBody()
 
             val payload: JsonNode = json.read(response)
-            verifyGraphQLError(payload, "Permission denied: security:user:save")
+            verifyGraphQLError(payload, "Access denied")
         }
 
         // ========== Field Tests ==========
@@ -2192,7 +2192,7 @@ open class SecurityGraphQLIntegrationTest :
             for (i in 0 until errors.size()) {
                 val error = errors[i]
                 val message = error["message"]?.stringValue ?: ""
-                if (message == "Permission denied: security:user:view") {
+                if (message == "Access denied") {
                     foundRolesError = true
                     break
                 }
@@ -2288,7 +2288,7 @@ open class SecurityGraphQLIntegrationTest :
             for (i in 0 until errors.size()) {
                 val error = errors[i]
                 val message = error["message"]?.stringValue ?: ""
-                if (message == "Permission denied: security:user:view") {
+                if (message == "Access denied") {
                     foundGroupsError = true
                     break
                 }
@@ -2384,7 +2384,7 @@ open class SecurityGraphQLIntegrationTest :
             for (i in 0 until errors.size()) {
                 val error = errors[i]
                 val message = error["message"]?.stringValue ?: ""
-                if (message == "Permission denied: security:user:view") {
+                if (message == "Access denied") {
                     foundPermissionsError = true
                     break
                 }

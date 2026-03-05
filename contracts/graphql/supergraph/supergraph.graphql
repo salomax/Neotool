@@ -4,6 +4,7 @@ schema
 {
   query: Query
   mutation: Mutation
+  subscription: Subscription
 }
 
 directive @join__enumValue(graph: join__Graph!) repeatable on ENUM_VALUE
@@ -295,6 +296,23 @@ enum BillStatus
   OVERDUE @join__enumValue(graph: BANKING)
 }
 
+enum BudgetPeriod
+  @join__type(graph: ASSISTANT)
+{
+  DAILY @join__enumValue(graph: ASSISTANT)
+  WEEKLY @join__enumValue(graph: ASSISTANT)
+  MONTHLY @join__enumValue(graph: ASSISTANT)
+}
+
+enum BudgetScope
+  @join__type(graph: ASSISTANT)
+{
+  PROVIDER @join__enumValue(graph: ASSISTANT)
+  ACCOUNT @join__enumValue(graph: ASSISTANT)
+  SERVICE @join__enumValue(graph: ASSISTANT)
+  FEATURE @join__enumValue(graph: ASSISTANT)
+}
+
 """
 Card-specific data. Present only when subtype is CREDIT_CARD, PREPAID_CARD, CHARGE_CARD, or VOUCHER_CARD.
 creditLimit, closingDay and dueDay are required for CREDIT_CARD (enforced at service layer).
@@ -341,6 +359,61 @@ enum CategoryApplicableTo
   ANY @join__enumValue(graph: BANKING)
 }
 
+input ChatInput
+  @join__type(graph: ASSISTANT)
+{
+  sessionId: String!
+  message: String!
+}
+
+type ChatResponse
+  @join__type(graph: ASSISTANT)
+{
+  sessionId: String!
+  response: String!
+  escalate: Boolean!
+  conversation: Conversation
+}
+
+type CompletionChunk
+  @join__type(graph: ASSISTANT)
+{
+  delta: String!
+  finishReason: String
+  usage: TokenUsage
+  escalate: Boolean!
+}
+
+input CompletionInput
+  @join__type(graph: ASSISTANT)
+{
+  promptId: ID
+  promptVariables: JSON
+  messages: [MessageInput!]
+  modelPreference: String
+  requiredCapabilities: [ModelCapability!]
+  temperature: Float
+  maxTokens: Int
+  outputFormat: OutputFormat
+  tools: [String!]
+  purpose: String!
+  metadata: JSON
+}
+
+type CompletionResponse
+  @join__type(graph: ASSISTANT)
+{
+  id: ID!
+  content: String!
+  finishReason: String!
+  usage: TokenUsage!
+  model: String!
+  latencyMs: Int!
+  cost: Float!
+  escalate: Boolean!
+  toolCalls: [ToolCall!]!
+}
+
 """Input for confirming an asset upload."""
 input ConfirmAssetUploadInput
   @join__type(graph: ASSETS)
@@ -355,6 +428,31 @@ input ConfirmAssetUploadInput
   checksum: String
 }
 
+input ConfirmPdfBillImportInput
+  @join__type(graph: BANKING)
+{
+  jobId: ID!
+  cards: [ConfirmPdfCardInput!]!
+}
+
+input ConfirmPdfCardInput
+  @join__type(graph: BANKING)
+{
+  lastFourDigits: String!
+  financialAccountId: ID!
+  transactions: [ConfirmPdfTransactionInput!]!
+}
+
+input ConfirmPdfTransactionInput
+  @join__type(graph: BANKING)
+{
+  date: Date!
+  description: String!
+  amount: Float!
+  creditDebitType: CreditDebitType!
+  include: Boolean!
+}
+
 enum ConnectionStatus
   @join__type(graph: BANKING)
 {
@@ -364,6 +462,31 @@ enum ConnectionStatus
   ERROR @join__enumValue(graph: BANKING)
   CONSENT_EXPIRING @join__enumValue(graph: BANKING)
   CONSENT_EXPIRED @join__enumValue(graph: BANKING)
+}
+
+type Conversation
+  @join__type(graph: ASSISTANT)
+{
+  sessionId: String!
+  status: ConversationStatus!
+  escalationReason: String
+  messages: [ConversationMessage!]!
+  messageCount: Int!
+  lastMessage: String
+}
+
+type ConversationMessage
+  @join__type(graph: ASSISTANT)
+{
+  role: MessageRole!
+  content: String!
+}
+
+enum ConversationStatus
+  @join__type(graph: ASSISTANT)
+{
+  ACTIVE @join__enumValue(graph: ASSISTANT)
+  ESCALATED @join__enumValue(graph: ASSISTANT)
 }
 
 """Input for creating a new asset upload."""
@@ -445,6 +568,21 @@ input CreateGroupInput
   name: String!
   description: String
   userIds: [ID!]
+}
+
+input CreatePromptInput
+  @join__type(graph: ASSISTANT)
+{
+  name: String!
+  category: String!
+  description: String
+  tags: [String!]
+  createdBy: ID!
+  template: String!
+  variablesSchema: JSON
+  outputFormat: OutputFormat
+  modelRequirements: JSON
+  performanceMetrics: JSON
 }
 
 input CreateRoleInput
@@ -562,13 +700,22 @@ enum DataRestrictionReason
 
 scalar Date
   @join__type(graph: ASSETS)
+  @join__type(graph: ASSISTANT)
   @join__type(graph: BANKING)
   @join__type(graph: COMMS)
   @join__type(graph: FINANCIALDATA)
   @join__type(graph: SECURITY)
 
+type DateRange
+  @join__type(graph: BANKING)
+{
+  from: Date
+  to: Date
+}
+
 scalar DateTime
   @join__type(graph: ASSETS)
+  @join__type(graph: ASSISTANT)
   @join__type(graph: BANKING)
   @join__type(graph: COMMS)
   @join__type(graph: FINANCIALDATA)
@@ -672,6 +819,17 @@ enum EmailSendStatus
   @join__type(graph: COMMS)
 {
   QUEUED @join__enumValue(graph: COMMS)
+}
+
+type FeatureUsage
+  @join__type(graph: ASSISTANT)
+{
+  feature: String!
+  requests: Int!
+  promptTokens: Int!
+  completionTokens: Int!
+  totalTokens: Int!
+  cost: Float!
 }
 
 """
@@ -978,6 +1136,13 @@ input IndicatorRangeInput
   last: Int
 }
 
+type InstallmentInfo
+  @join__type(graph: BANKING)
+{
+  current: Int!
+  total: Int!
+}
+
 type InstitutionRating
   @join__type(graph: FINANCIALDATA)
 {
@@ -1008,6 +1173,7 @@ scalar join__FieldSet
 
 enum join__Graph {
   ASSETS @join__graph(name: "assets", url: "http://neotool-assets.production.svc.cluster.local:8080/graphql")
+  ASSISTANT @join__graph(name: "assistant", url: "http://neotool-assistant.production.svc.cluster.local:8080/graphql")
   BANKING @join__graph(name: "banking", url: "http://neotool-banking.production.svc.cluster.local:8080/graphql")
   COMMS @join__graph(name: "comms", url: "http://neotool-comms:8080/graphql")
   FINANCIALDATA @join__graph(name: "financialdata", url: "http://neotool-financialdata.production.svc.cluster.local:8080/graphql")
@@ -1016,6 +1182,7 @@ enum join__Graph {
 
 scalar JSON
   @join__type(graph: ASSETS)
+  @join__type(graph: ASSISTANT)
   @join__type(graph: BANKING)
   @join__type(graph: COMMS)
   @join__type(graph: FINANCIALDATA)
@@ -1037,10 +1204,49 @@ enum link__Purpose {
 
 scalar Long
   @join__type(graph: ASSETS)
+  @join__type(graph: ASSISTANT)
   @join__type(graph: BANKING)
   @join__type(graph: COMMS)
   @join__type(graph: FINANCIALDATA)
   @join__type(graph: SECURITY)
+
+input MessageInput
+  @join__type(graph: ASSISTANT)
+{
+  role: MessageRole!
+  content: String
+  name: String
+  toolCallId: String
+}
+
+enum MessageRole
+  @join__type(graph: ASSISTANT)
+{
+  SYSTEM @join__enumValue(graph: ASSISTANT)
+  USER @join__enumValue(graph: ASSISTANT)
+  ASSISTANT @join__enumValue(graph: ASSISTANT)
+  TOOL @join__enumValue(graph: ASSISTANT)
+}
+
+enum ModelCapability
+  @join__type(graph: ASSISTANT)
+{
+  STREAMING @join__enumValue(graph: ASSISTANT)
+  TOOLS @join__enumValue(graph: ASSISTANT)
+  JSON_MODE @join__enumValue(graph: ASSISTANT)
+  VISION @join__enumValue(graph: ASSISTANT)
+}
+
+type ModelUsage
+  @join__type(graph: ASSISTANT)
+{
+  modelId: ID
+  requests: Int!
+  promptTokens: Int!
+  completionTokens: Int!
+  totalTokens: Int!
+  cost: Float!
+}
 
 """
 Monthly summary header for a financial account — entradas, saídas, saldo total.
@@ -1085,6 +1291,7 @@ type MonthSummary
 
 type Mutation
   @join__type(graph: ASSETS)
+  @join__type(graph: ASSISTANT)
   @join__type(graph: BANKING)
   @join__type(graph: COMMS)
   @join__type(graph: SECURITY)
@@ -1160,6 +1367,13 @@ type Mutation
   Only the asset owner can delete the asset.
   """
   deleteAsset(assetId: ID!): Boolean! @join__field(graph: ASSETS)
+  chat(input: ChatInput!): ChatResponse! @join__field(graph: ASSISTANT)
+  clearConversation(sessionId: String!): Boolean! @join__field(graph: ASSISTANT)
+  generateCompletion(input: CompletionInput!): CompletionResponse! @join__field(graph: ASSISTANT)
+  createPrompt(input: CreatePromptInput!): Prompt! @join__field(graph: ASSISTANT)
+  publishPromptVersion(promptId: ID!, versionId: ID!): PromptVersion! @join__field(graph: ASSISTANT)
+  registerTool(input: RegisterToolInput!): Tool! @join__field(graph: ASSISTANT)
+  setUsageBudget(input: SetBudgetInput!): UsageBudget! @join__field(graph: ASSISTANT)
   _bankingService: String @join__field(graph: BANKING)
 
   """
@@ -1180,6 +1394,8 @@ type Mutation
   importTransactionsFile(input: ImportTransactionsFileInput!): ImportResult! @join__field(graph: BANKING)
   importNfce(financialAccountId: ID!, qrCodeUrl: String!): ImportResult! @join__field(graph: BANKING)
   resolveImportDuplicate(input: ResolveImportDuplicateInput!): TransactionImport! @join__field(graph: BANKING)
+  submitPdfBillImport(input: SubmitPdfBillImportInput!): PdfImportJob! @join__field(graph: BANKING)
+  confirmPdfBillImport(input: ConfirmPdfBillImportInput!): PdfImportJob! @join__field(graph: BANKING)
 
   """
   Register a payment against a credit card bill. Creates a CREDIT TRANSFER on the card account.
@@ -1219,6 +1435,13 @@ enum OrderDirection
   DESC @join__enumValue(graph: SECURITY)
 }
 
+enum OutputFormat
+  @join__type(graph: ASSISTANT)
+{
+  TEXT @join__enumValue(graph: ASSISTANT)
+  JSON @join__enumValue(graph: ASSISTANT)
+}
+
 """Relay-style page info for paginated lists."""
 type PageInfo
   @join__type(graph: BANKING)
@@ -1243,6 +1466,76 @@ type ParsedImportRow
   counterpartyDocument: String
 }
 
+type PdfBillExtractionResult
+  @join__type(graph: BANKING)
+{
+  bankName: String
+  statementPeriod: DateRange
+  cards: [PdfExtractedCard!]!
+  extractionConfidence: Float!
+  needsReview: Boolean!
+  warnings: [String!]!
+}
+
+type PdfExtractedCard
+  @join__type(graph: BANKING)
+{
+  lastFourDigits: String!
+  holderName: String
+  closingDate: Date
+  dueDate: Date
+  declaredTotal: Float!
+  computedTotal: Float!
+  totalMatchesDeclared: Boolean!
+  transactions: [PdfExtractedTransaction!]!
+  matchedFinancialAccountId: ID
+  matchAmbiguous: Boolean!
+  matchCandidates: [PdfMatchCandidate!]!
+  confidence: Float!
+}
+
+type PdfExtractedTransaction
+  @join__type(graph: BANKING)
+{
+  date: Date
+  description: String!
+  amount: Float!
+  creditDebitType: CreditDebitType!
+  installment: InstallmentInfo
+  confidence: Float!
+}
+
+type PdfImportJob
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  status: PdfImportJobStatus!
+  fileName: String
+  createdAt: DateTime!
+  reviewPayload: PdfBillExtractionResult
+  errorMessage: String
+}
+
+enum PdfImportJobStatus
+  @join__type(graph: BANKING)
+{
+  PENDING @join__enumValue(graph: BANKING)
+  EXTRACTING @join__enumValue(graph: BANKING)
+  EXTRACTED @join__enumValue(graph: BANKING)
+  LLM_PROCESSING @join__enumValue(graph: BANKING)
+  AWAITING_REVIEW @join__enumValue(graph: BANKING)
+  IMPORTING @join__enumValue(graph: BANKING)
+  DONE @join__enumValue(graph: BANKING)
+  FAILED @join__enumValue(graph: BANKING)
+}
+
+type PdfMatchCandidate
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  name: String!
+}
+
 type Permission
   @join__type(graph: SECURITY, key: "id")
 {
@@ -1263,6 +1556,82 @@ type PermissionEdge
 {
   node: Permission!
   cursor: String!
+}
+
+type PopularInstitution
+  @join__type(graph: FINANCIALDATA)
+{
+  rank: Int!
+  shortDescription: String!
+  quarter: String!
+  year: Int
+  month: Int
+  institution: BacenInstitutionSummaryItem!
+  popularInstitutionTopMetrics: [PopularInstitutionTopMetric!]!
+}
+
+type PopularInstitutionTopMetric
+  @join__type(graph: FINANCIALDATA)
+{
+  metric: TopInstitutionMetric!
+  popularInstitutionTopMetricItem: PopularInstitutionTopMetricItem!
+}
+
+type PopularInstitutionTopMetricItem
+  @join__type(graph: FINANCIALDATA)
+{
+  rank: Int!
+  institution: BacenInstitutionSummaryItem!
+  metricValue: Float
+}
+
+type Prompt
+  @join__type(graph: ASSISTANT)
+{
+  id: ID!
+  name: String!
+  category: String!
+  description: String
+  tags: [String!]!
+  createdBy: ID!
+  createdAt: String!
+  updatedAt: String!
+  activeVersion: PromptVersion
+}
+
+type PromptVariable
+  @join__type(graph: ASSISTANT)
+{
+  name: String!
+  type: String
+  required: Boolean!
+  defaultValue: JSON
+  validation: JSON
+}
+
+type PromptVersion
+  @join__type(graph: ASSISTANT)
+{
+  id: ID!
+  promptId: ID!
+  version: Int!
+  status: PromptVersionStatus!
+  template: String!
+  variablesSchema: JSON!
+  variables: [PromptVariable!]!
+  outputFormat: OutputFormat!
+  modelRequirements: JSON
+  performanceMetrics: JSON
+  createdAt: String!
+  updatedAt: String!
+}
+
+enum PromptVersionStatus
+  @join__type(graph: ASSISTANT)
+{
+  DRAFT @join__enumValue(graph: ASSISTANT)
+  ACTIVE @join__enumValue(graph: ASSISTANT)
+  DEPRECATED @join__enumValue(graph: ASSISTANT)
 }
 
 input QuarterRangeInput
@@ -1289,6 +1658,7 @@ type QuarterValue
 
 type Query
   @join__type(graph: ASSETS)
+  @join__type(graph: ASSISTANT)
   @join__type(graph: BANKING)
   @join__type(graph: COMMS)
   @join__type(graph: FINANCIALDATA)
@@ -1299,6 +1669,13 @@ type Query
   Returns null if asset not found or user doesn't have access.
   """
   asset(id: ID!): Asset @join__field(graph: ASSETS)
+  conversation(sessionId: String!): Conversation @join__field(graph: ASSISTANT)
+  prompts(category: String, tags: [String!]): [Prompt!]! @join__field(graph: ASSISTANT)
+  prompt(id: ID!): Prompt @join__field(graph: ASSISTANT)
+  promptVersions(promptId: ID!): [PromptVersion!]! @join__field(graph: ASSISTANT)
+  availableTools: [Tool!]! @join__field(graph: ASSISTANT)
+  myUsage(period: UsagePeriod!): UsageStats! @join__field(graph: ASSISTANT)
+  serviceUsage(serviceId: String!, period: UsagePeriod!): UsageStats! @join__field(graph: ASSISTANT)
   _bankingService: String @join__field(graph: BANKING)
 
   """All active issuers. Small list — no pagination or filter needed."""
@@ -1339,6 +1716,8 @@ type Query
   transactions(financialAccountId: ID, belongsToUserId: ID, belongsToName: String, tags: [String!], billId: ID, month: Int, year: Int, first: Int, after: String): TransactionConnection! @join__field(graph: BANKING)
   transactionImports(financialAccountId: ID): [TransactionImport!]! @join__field(graph: BANKING)
   transactionImport(id: ID!): TransactionImport @join__field(graph: BANKING)
+  pdfImportJob(jobId: ID!): PdfImportJob @join__field(graph: BANKING)
+  pdfImportJobs(financialAccountId: ID): [PdfImportJob!]! @join__field(graph: BANKING)
 
   """
   All non-deleted credit card bills for a CREDIT_CARD or CHARGE_CARD account,
@@ -1359,6 +1738,7 @@ type Query
   ratingIssuers: [RatingIssuer!]! @join__field(graph: FINANCIALDATA)
   economicIndicators(label: String): [EconomicIndicator!]! @join__field(graph: FINANCIALDATA)
   fixedIncomeComparison(input: FixedIncomeComparisonInput!): FixedIncomeComparisonResult! @join__field(graph: FINANCIALDATA)
+  popularInstitutions(anoMes: String): [PopularInstitution!]! @join__field(graph: FINANCIALDATA)
   currentUser: User @join__field(graph: SECURITY)
   myVerificationStatus: VerificationStatus @join__field(graph: SECURITY)
   checkPermission(userId: ID!, permission: String!, resourceId: ID): AuthorizationResult! @join__field(graph: SECURITY)
@@ -1398,6 +1778,21 @@ input RefreshAccessTokenInput
   @join__type(graph: SECURITY)
 {
   refreshToken: String!
+}
+
+input RegisterToolInput
+  @join__type(graph: ASSISTANT)
+{
+  name: String!
+  description: String!
+  category: String!
+  inputSchema: JSON
+  outputSchema: JSON
+  executorService: String!
+  executorEndpoint: String!
+  timeoutMs: Int!
+  retryPolicy: JSON
+  status: ToolStatus
 }
 
 type ReportAccount
@@ -1515,6 +1910,16 @@ enum RoleOrderField
   NAME @join__enumValue(graph: SECURITY)
 }
 
+input SetBudgetInput
+  @join__type(graph: ASSISTANT)
+{
+  scope: BudgetScope!
+  scopeId: ID!
+  period: BudgetPeriod!
+  limitAmount: Float!
+  alertThreshold: Float!
+}
+
 input SignInInput
   @join__type(graph: SECURITY)
 {
@@ -1557,6 +1962,70 @@ type SignUpPayload
   requiresVerification: Boolean!
 }
 
+input SubmitPdfBillImportInput
+  @join__type(graph: BANKING)
+{
+  financialAccountId: ID
+  fileName: String!
+  fileBase64: String!
+}
+
+type Subscription
+  @join__type(graph: ASSISTANT)
+{
+  messageStream(conversationId: ID!, input: MessageInput!): CompletionChunk!
+}
+
+type TokenUsage
+  @join__type(graph: ASSISTANT)
+{
+  promptTokens: Int!
+  completionTokens: Int!
+  totalTokens: Int!
+}
+
+type Tool
+  @join__type(graph: ASSISTANT)
+{
+  id: ID!
+  name: String!
+  description: String!
+  category: String!
+  inputSchema: JSON!
+  outputSchema: JSON!
+  executorService: String!
+  executorEndpoint: String!
+  timeoutMs: Int!
+  retryPolicy: JSON
+  status: ToolStatus!
+  createdAt: String!
+  updatedAt: String!
+}
+
+type ToolCall
+  @join__type(graph: ASSISTANT)
+{
+  id: String!
+  type: String!
+  name: String!
+  arguments: String!
+}
+
+enum ToolStatus
+  @join__type(graph: ASSISTANT)
+{
+  ACTIVE @join__enumValue(graph: ASSISTANT)
+  DISABLED @join__enumValue(graph: ASSISTANT)
+}
+
+enum TopInstitutionMetric
+  @join__type(graph: FINANCIALDATA)
+{
+  PROFIT @join__enumValue(graph: FINANCIALDATA)
+  BASILEIA_INDEX @join__enumValue(graph: FINANCIALDATA)
+  MOBILIZATION_INDEX @join__enumValue(graph: FINANCIALDATA)
+}
+
 """Core ledger transaction row."""
 type Transaction
   @join__type(graph: BANKING)
@@ -1592,6 +2061,7 @@ type Transaction
   transferPeerTransactionId: ID
   installmentNumber: Int
   totalInstallments: Int
+  billId: ID
   cardIdentifier: String
   payeeMcc: Int
   billPostDate: Date
@@ -1670,6 +2140,7 @@ enum TransactionSource
   MANUAL @join__enumValue(graph: BANKING)
   OPEN_FINANCE @join__enumValue(graph: BANKING)
   PLUGGY @join__enumValue(graph: BANKING)
+  PDF_BILL @join__enumValue(graph: BANKING)
 }
 
 """
@@ -1767,6 +2238,43 @@ input UpdateUserInput
   displayName: String
 }
 
+type UsageBudget
+  @join__type(graph: ASSISTANT)
+{
+  id: ID!
+  scope: BudgetScope!
+  scopeId: ID!
+  period: BudgetPeriod!
+  limitAmount: Float!
+  currentUsage: Float!
+  alertThreshold: Float!
+  createdAt: String!
+  updatedAt: String!
+}
+
+enum UsagePeriod
+  @join__type(graph: ASSISTANT)
+{
+  DAILY @join__enumValue(graph: ASSISTANT)
+  WEEKLY @join__enumValue(graph: ASSISTANT)
+  MONTHLY @join__enumValue(graph: ASSISTANT)
+}
+
+type UsageStats
+  @join__type(graph: ASSISTANT)
+{
+  period: UsagePeriod!
+  startTime: String!
+  endTime: String!
+  requests: Int!
+  promptTokens: Int!
+  completionTokens: Int!
+  totalTokens: Int!
+  cost: Float!
+  modelUsage: [ModelUsage!]!
+  featureUsage: [FeatureUsage!]!
+}
+
 type User
   @join__type(graph: SECURITY, key: "id")
 {
@@ -1815,6 +2323,7 @@ enum UserOrderField
 
 scalar UUID
   @join__type(graph: ASSETS)
+  @join__type(graph: ASSISTANT)
   @join__type(graph: BANKING)
   @join__type(graph: COMMS)
   @join__type(graph: FINANCIALDATA)
