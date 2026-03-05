@@ -6,16 +6,27 @@
 scalar Long
 scalar Date
 scalar DateTime
-scalar JSON
 scalar UUID
 
 # ============================================================================
 # Service Schema - assistant
 # ============================================================================
 
+scalar JSON
+
 type Query {
   # Get conversation context for a session
   conversation(sessionId: String!): Conversation
+
+  # Prompt management
+  prompts(category: String, tags: [String!]): [Prompt!]!
+  prompt(id: ID!): Prompt
+  promptVersions(promptId: ID!): [PromptVersion!]!
+  availableTools: [Tool!]!
+
+  # Usage tracking
+  myUsage(period: UsagePeriod!): UsageStats!
+  serviceUsage(serviceId: String!, period: UsagePeriod!): UsageStats!
 }
 
 type Mutation {
@@ -24,6 +35,19 @@ type Mutation {
   
   # Clear conversation history for a session
   clearConversation(sessionId: String!): Boolean!
+
+  # One-shot completion
+  generateCompletion(input: CompletionInput!): CompletionResponse!
+
+  # Prompt management (admin)
+  createPrompt(input: CreatePromptInput!): Prompt!
+  publishPromptVersion(promptId: ID!, versionId: ID!): PromptVersion!
+  registerTool(input: RegisterToolInput!): Tool!
+  setUsageBudget(input: SetBudgetInput!): UsageBudget!
+}
+
+type Subscription {
+  messageStream(conversationId: ID!, input: MessageInput!): CompletionChunk!
 }
 
 input ChatInput {
@@ -34,11 +58,255 @@ input ChatInput {
 type ChatResponse {
   sessionId: String!
   response: String!
+  escalate: Boolean!
+  conversation: Conversation
 }
 
 type Conversation {
   sessionId: String!
+  status: ConversationStatus!
+  escalationReason: String
+  messages: [ConversationMessage!]!
   messageCount: Int!
   lastMessage: String
 }
 
+enum ConversationStatus {
+  ACTIVE
+  ESCALATED
+}
+
+type ConversationMessage {
+  role: MessageRole!
+  content: String!
+}
+
+enum PromptVersionStatus {
+  DRAFT
+  ACTIVE
+  DEPRECATED
+}
+
+enum OutputFormat {
+  TEXT
+  JSON
+}
+
+enum MessageRole {
+  SYSTEM
+  USER
+  ASSISTANT
+  TOOL
+}
+
+enum ModelCapability {
+  STREAMING
+  TOOLS
+  JSON_MODE
+  VISION
+}
+
+enum UsagePeriod {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+enum BudgetPeriod {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+enum BudgetScope {
+  PROVIDER
+  ACCOUNT
+  SERVICE
+  FEATURE
+}
+
+enum ToolStatus {
+  ACTIVE
+  DISABLED
+}
+
+input MessageInput {
+  role: MessageRole!
+  content: String
+  name: String
+  toolCallId: String
+}
+
+input CompletionInput {
+  promptId: ID
+  promptVariables: JSON
+  messages: [MessageInput!]
+  modelPreference: String
+  requiredCapabilities: [ModelCapability!]
+  temperature: Float
+  maxTokens: Int
+  outputFormat: OutputFormat
+  tools: [String!]
+  purpose: String!
+  metadata: JSON
+}
+
+type CompletionResponse {
+  id: ID!
+  content: String!
+  finishReason: String!
+  usage: TokenUsage!
+  model: String!
+  latencyMs: Int!
+  cost: Float!
+  escalate: Boolean!
+  toolCalls: [ToolCall!]!
+}
+
+type CompletionChunk {
+  delta: String!
+  finishReason: String
+  usage: TokenUsage
+  escalate: Boolean!
+}
+
+type TokenUsage {
+  promptTokens: Int!
+  completionTokens: Int!
+  totalTokens: Int!
+}
+
+type ToolCall {
+  id: String!
+  type: String!
+  name: String!
+  arguments: String!
+}
+
+type Tool {
+  id: ID!
+  name: String!
+  description: String!
+  category: String!
+  inputSchema: JSON!
+  outputSchema: JSON!
+  executorService: String!
+  executorEndpoint: String!
+  timeoutMs: Int!
+  retryPolicy: JSON
+  status: ToolStatus!
+  createdAt: String!
+  updatedAt: String!
+}
+
+input RegisterToolInput {
+  name: String!
+  description: String!
+  category: String!
+  inputSchema: JSON
+  outputSchema: JSON
+  executorService: String!
+  executorEndpoint: String!
+  timeoutMs: Int!
+  retryPolicy: JSON
+  status: ToolStatus
+}
+
+type UsageStats {
+  period: UsagePeriod!
+  startTime: String!
+  endTime: String!
+  requests: Int!
+  promptTokens: Int!
+  completionTokens: Int!
+  totalTokens: Int!
+  cost: Float!
+  modelUsage: [ModelUsage!]!
+  featureUsage: [FeatureUsage!]!
+}
+
+type UsageBudget {
+  id: ID!
+  scope: BudgetScope!
+  scopeId: ID!
+  period: BudgetPeriod!
+  limitAmount: Float!
+  currentUsage: Float!
+  alertThreshold: Float!
+  createdAt: String!
+  updatedAt: String!
+}
+
+input SetBudgetInput {
+  scope: BudgetScope!
+  scopeId: ID!
+  period: BudgetPeriod!
+  limitAmount: Float!
+  alertThreshold: Float!
+}
+
+type ModelUsage {
+  modelId: ID
+  requests: Int!
+  promptTokens: Int!
+  completionTokens: Int!
+  totalTokens: Int!
+  cost: Float!
+}
+
+type FeatureUsage {
+  feature: String!
+  requests: Int!
+  promptTokens: Int!
+  completionTokens: Int!
+  totalTokens: Int!
+  cost: Float!
+}
+
+input CreatePromptInput {
+  name: String!
+  category: String!
+  description: String
+  tags: [String!]
+  createdBy: ID!
+  template: String!
+  variablesSchema: JSON
+  outputFormat: OutputFormat
+  modelRequirements: JSON
+  performanceMetrics: JSON
+}
+
+type Prompt {
+  id: ID!
+  name: String!
+  category: String!
+  description: String
+  tags: [String!]!
+  createdBy: ID!
+  createdAt: String!
+  updatedAt: String!
+  activeVersion: PromptVersion
+}
+
+type PromptVersion {
+  id: ID!
+  promptId: ID!
+  version: Int!
+  status: PromptVersionStatus!
+  template: String!
+  variablesSchema: JSON!
+  variables: [PromptVariable!]!
+  outputFormat: OutputFormat!
+  modelRequirements: JSON
+  performanceMetrics: JSON
+  createdAt: String!
+  updatedAt: String!
+}
+
+type PromptVariable {
+  name: String!
+  type: String
+  required: Boolean!
+  defaultValue: JSON
+  validation: JSON
+}

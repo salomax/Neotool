@@ -77,11 +77,11 @@ With the orchestrator:
    - Cost scenarios at 10K / 1M / 10M requests/month
    - **TL;DR**: Cloud APIs win — don't self-host
 
-4. **[GitHub Issues Backlog](./GITHUB_ISSUES.md)** 🚀
-   - 27 issues across 9 epics, written as GitHub stories
-   - Cloud-first approach: Groq + DeepSeek primary, Claude fallback
-   - Ollama kept for dev/test only
-   - Milestones: MVP → v1.0 → v1.1
+4. **[Implementation Backlog](./IMPLEMENTATION_BACKLOG.md)** 🚀
+   - Ordered implementation plan with task dependencies
+   - Account-first metering and isolation requirements
+   - Multi-provider routing and fallback rollout tasks
+   - LGPD compliance and production hardening phases
 
 ### Related Architecture Docs
 

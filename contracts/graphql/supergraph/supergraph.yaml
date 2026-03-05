@@ -20,8 +20,7 @@ subgraphs:
     routing_url: http://neotool-banking.production.svc.cluster.local:8080/graphql
     schema:
       file: ../subgraphs/banking/schema.graphqls
-# new modules...
-#  module:
-#    routing_url: http://module:8080/graphql
-#    schema:
-#      file: ../subgraphs/module/schema.graphqls
+  assistant:
+    routing_url: http://neotool-assistant.production.svc.cluster.local:8080/graphql
+    schema:
+      file: ../subgraphs/assistant/schema.graphqls

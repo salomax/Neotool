@@ -20,3 +20,7 @@ subgraphs:
     routing_url: http://host.docker.internal:8092/graphql
     schema:
       file: ../subgraphs/banking/schema.graphqls
+  assistant:
+    routing_url: http://host.docker.internal:8082/graphql
+    schema:
+      file: ../subgraphs/assistant/schema.graphqls

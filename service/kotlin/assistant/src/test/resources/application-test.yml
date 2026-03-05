@@ -13,6 +13,9 @@ micronaut:
 datasources:
   default:
     enabled: false
+jpa:
+  default:
+    enabled: false
 flyway:
   enabled: false
 kafka:
