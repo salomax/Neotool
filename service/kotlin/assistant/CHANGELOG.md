@@ -1,3 +1,13 @@
+## 0.4.0 (2026-03-05)
+
+### 🚀 Features
+
+- Add Assistant service implementation files and backlog ([17fc0756](https://github.com/invistus/invistus/commit/17fc0756))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.3.1 (2026-03-02)
 
 ### 💅 Refactors
