@@ -18,6 +18,7 @@ export type { BillStatus };
 
 export interface BillSummaryData {
   totalAmount: number;
+  closingDate: string; // ISO date string
   dueDate: string; // ISO date string
   status: BillStatus;
   creditLimit?: number | null;
@@ -166,8 +167,8 @@ export const BillSummaryHeader: React.FC<BillSummaryHeaderProps> = ({
       </Box>
 
       {/* Details Row - Due Date & Available Limit */}
-      <Stack direction="row" spacing={4} sx={{ mb: 3 }}>
-        <Box>
+      <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
+        <Box sx={{ flex: 1 }}>
           <Typography
             variant="subtitle2"
             color="text.secondary"
@@ -193,7 +194,7 @@ export const BillSummaryHeader: React.FC<BillSummaryHeaderProps> = ({
           </Typography>
         </Box>
 
-        <Box>
+        <Box sx={{ flex: 1 }}>
           <Typography
             variant="subtitle2"
             color="text.secondary"
@@ -219,29 +220,60 @@ export const BillSummaryHeader: React.FC<BillSummaryHeaderProps> = ({
           </Typography>
         </Box>        
 
-        <Box>
-          <Typography
-            variant="subtitle2"
-            color="text.secondary"
-            sx={{ 
-              textTransform: 'uppercase', 
-              fontSize: '0.7rem', 
-              fontWeight: 600, 
-              letterSpacing: 0.5,
-              mb: 0.5 
-            }}
-          >
-            {t('financeTransactions.billSummary.availableLimit')}
-          </Typography>
-          <Typography variant="body1" sx={{ fontWeight: 500 }}>
-            {loading ? (
-              <Skeleton width={100} />
-            ) : availableCreditLimit != null ? (
-              formatCurrency(availableCreditLimit)
-            ) : (
-              '-'
-            )}
-          </Typography>
+      </Stack>
+      <Stack direction="row" spacing={4} sx={{ mb: 3 }}>
+        <Box sx={{ width: '100%' }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="baseline" sx={{ mb: 0.5 }}>
+            <Typography
+              variant="subtitle2"
+              color="text.secondary"
+              sx={{ 
+                textTransform: 'uppercase', 
+                fontSize: '0.7rem', 
+                fontWeight: 600, 
+                letterSpacing: 0.5,
+              }}
+            >
+              {t('financeTransactions.billSummary.availableLimit')}
+            </Typography>
+            <Typography variant="body1" sx={{ fontWeight: 500 }}>
+              {loading ? (
+                <Skeleton width={100} />
+              ) : availableCreditLimit != null ? (
+                formatCurrency(availableCreditLimit)
+              ) : (
+                '-'
+              )}
+            </Typography>
+          </Stack>
+
+          {!loading && availableCreditLimit != null && creditLimit != null && (
+            <Box 
+              sx={{ 
+                height: 6, 
+                borderRadius: 3, 
+                display: 'flex', 
+                overflow: 'hidden', 
+                width: '100%', 
+                bgcolor: theme.palette.grey[100] 
+              }}
+            >
+              <Box 
+                sx={{ 
+                  flex: totalAmount, 
+                  bgcolor: statusColorMain,
+                  transition: 'flex 0.5s ease-in-out'
+                }} 
+              />
+              <Box 
+                sx={{ 
+                  flex: availableCreditLimit, 
+                  bgcolor: theme.palette.grey[300],
+                  transition: 'flex 0.5s ease-in-out'
+                }} 
+              />
+            </Box>
+          )}
         </Box>
       </Stack>
 

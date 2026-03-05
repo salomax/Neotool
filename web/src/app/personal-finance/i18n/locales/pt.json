@@ -19,6 +19,7 @@
     },
     "billSummary": {
       "billValue": "Valor da Fatura",
+      "closingDate": "Fechamento",
       "dueDate": "Vencimento",
       "availableLimit": "Limite Disp.",
       "status": "Status",

@@ -191,6 +191,7 @@ export default function FinanceTransactionsPage() {
               <BillSummaryHeader 
                 bill={displayMode.selectedBill ? {
                   totalAmount: displayMode.selectedBill.totalAmount,
+                  closingDate: displayMode.selectedBill.closingDate,
                   dueDate: displayMode.selectedBill.dueDate,
                   status: displayMode.selectedBill.status,
                   creditLimit: selectedAccount?.cardData?.creditLimit
