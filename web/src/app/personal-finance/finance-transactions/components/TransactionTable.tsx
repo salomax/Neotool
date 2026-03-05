@@ -213,29 +213,29 @@ export function TransactionTable({
   const colSpan = selectedAccountId ? 6 : 7;
 
   return (
-    <TableContainer component={Paper} elevation={0} sx={{ bgColor: 'transparent', border: 'none' }}>
+    <TableContainer component={Paper} elevation={0} sx={{ bgcolor: 'transparent', background: 'transparent !important', border: 'none' }}>
       <Table sx={{ minWidth: 650, borderCollapse: 'separate', borderSpacing: '0' }} aria-label="transactions table">
         <TableHead>
           <TableRow>
-            <TableCell padding="checkbox" sx={{ pl: 2, borderBottom: 'none', bgColor: 'transparent' }}></TableCell>
-            <TableCell sx={{ borderBottom: 'none', bgColor: 'transparent' }}>
+            <TableCell padding="checkbox" sx={{ pl: 2, borderBottom: 'none', bgcolor: 'transparent' }}></TableCell>
+            <TableCell sx={{ borderBottom: 'none', bgcolor: 'transparent' }}>
               <Label>{t('financeTransactions.transactionTable.columns.description')}</Label>
             </TableCell>
-            <TableCell sx={{ borderBottom: 'none', bgColor: 'transparent' }}>
+            <TableCell sx={{ borderBottom: 'none', bgcolor: 'transparent' }}>
               <Label>{t('financeTransactions.transactionTable.columns.category')}</Label>
             </TableCell>
-            <TableCell sx={{ borderBottom: 'none', bgColor: 'transparent' }}>
+            <TableCell sx={{ borderBottom: 'none', bgcolor: 'transparent' }}>
               <Label>{t('financeTransactions.tags')}</Label>
             </TableCell>
             {!selectedAccountId && (
-              <TableCell sx={{ borderBottom: 'none', bgColor: 'transparent' }}>
+              <TableCell sx={{ borderBottom: 'none', bgcolor: 'transparent' }}>
                 <Label>{t('financeTransactions.issuer')}</Label>
               </TableCell>
             )}
-            <TableCell align="right" sx={{ borderBottom: 'none', bgColor: 'transparent' }}>
+            <TableCell align="right" sx={{ borderBottom: 'none', bgcolor: 'transparent' }}>
               <Label>{t('financeTransactions.value')}</Label>
             </TableCell>
-            <TableCell align="center" sx={{ borderBottom: 'none', bgColor: 'transparent' }}></TableCell>
+            <TableCell align="center" sx={{ borderBottom: 'none', bgcolor: 'transparent' }}></TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -249,7 +249,7 @@ export function TransactionTable({
           )}
           {groupedTransactions.map((group) => (
             <>
-              <TableRow key={`header-${group.date}`} sx={{ bgcolor: alpha(theme.palette.primary.main, 0.03), borderBottom: 'none' }}>
+              <TableRow key={`header-${group.date}`} sx={{ bgcolor: alpha(theme.palette.primary.main, 0.03), borderBottom: 'none', bgcolor: 'transparent' }}>
                 <TableCell colSpan={colSpan} sx={{ pt: 2, pb: 1 }} >
                   <Label>
                     {formatDateHeader(group.date)}
@@ -273,15 +273,15 @@ export function TransactionTable({
                         transition: 'opacity 0.3s ease, filter 0.2s',
                         '& .MuiTableCell-root': {
                           bgcolor: 'background.paper',
-                          borderColor: 'transparent', // Ensure borders don't interfere
+                          borderColor: 'transparent',
                         },
-                        '& .MuiTableCell-root:first-of-type': {
-                          borderTopLeftRadius: isFirst ? (theme.custom?.radius?.md ?? 12) : 0,
-                          borderBottomLeftRadius: isLast ? (theme.custom?.radius?.md ?? 12) : 0,
+                        '& .MuiTableCell-root:first-child': {
+                          borderTopLeftRadius: isFirst ? '12px' : 0,
+                          borderBottomLeftRadius: isLast ? '12px' : 0,
                         },
-                        '& .MuiTableCell-root:last-of-type': {
-                          borderTopRightRadius: isFirst ? (theme.custom?.radius?.md ?? 12) : 0,
-                          borderBottomRightRadius: isLast ? (theme.custom?.radius?.md ?? 12) : 0,
+                        '& .MuiTableCell-root:last-child': {
+                          borderTopRightRadius: isFirst ? '12px' : 0,
+                          borderBottomRightRadius: isLast ? '12px' : 0,
                         }
                       }}
                     >
